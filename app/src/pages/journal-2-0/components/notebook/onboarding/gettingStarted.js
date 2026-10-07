@@ -55,6 +55,8 @@ export const CHECKLIST_COPY = Object.freeze({
   // that Arrow keys move inside it).
   stepsLabel: 'Get started steps',
   doneLabel: 'Done',
+  // FIN-A11Y (M-1): said once, politely, when the last step is ticked and the card closes.
+  allDone: 'Get started: every step is done.',
   note: 'Write your first note',
   template: 'Start a note from a template',
   sample: 'Open the sample notebook',
