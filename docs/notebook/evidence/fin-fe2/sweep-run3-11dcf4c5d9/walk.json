@@ -1,0 +1,111 @@
+{
+ "tool": "tools/notebook_fin_fe2_sweep.py",
+ "config": "sweep",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-fe2\\sweep-run3-11dcf4c5d9\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 14:03:21",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 14:03:55",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 14:04:28",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-fe2\\sweep-run3-11dcf4c5d9\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-fe\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T14-03-16.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "V390_bulk_move_to_trash",
+   "verdict": "PASS",
+   "detail": "confirm button is the top element at its centre=True (BUTTON._action_x7dzq_95 _danger_x7dzq_141), box=[57, 337, 120, 44]; voice button while open=0; done=True: a confirm dialog opened=False; notice=['Moved 2 notes to the Trash.Undo']; selected notes still in the active list=[]"
+  },
+  {
+   "id": "W10_port_free_after_shutdown",
+   "verdict": "PASS",
+   "detail": "listener on 8133: False"
+  }
+ ],
+ "raw": {
+  "only": [
+   "bulk_move_to_trash",
+   "saved_view_delete",
+   "version_restore"
+  ],
+  "sample_add": 200,
+  "seed": {
+   "folder": 200,
+   "saved_view": 200,
+   "saved_view_body": "{\"savedView\":{\"id\":\"e9d50d4c74024938abcd08535542dc83\",\"name\":\"Sweep view\",\"viewType\":\"list\",\"spec\":{},\"sortOrder\":0,\"createdAt\":\"2026-10-07T19:03:35.604455+00:0",
+   "template": 200,
+   "template_body": "{\"template\":{\"id\":\"5ef29dbf4e984d3487e3dc8a9fefb84b\",\"name\":\"Sweep template\",\"title\":\"sweep template source\",\"createdAt\":\"2026-10-07T19:03:35.699245+00:00\",\"updatedAt\":\"2026-10-07T19:03:35.699245+00:0",
+   "publish": 200,
+   "publish_body": "{\"template\":{\"id\":\"d616c3df78aa4206a975b61de22819c2\",\"title\":\"Sweep template\",\"description\":\"\",\"category\":\"trade_plan\",\"author\":\"fe2sweep\",\"firm\":false,\"featured\":false,\"usedBy\":0,\"listedAt\":null,\"upd"
+  },
+  "bulk_move_to_trash": {
+   "hit": {
+    "box": [
+     57,
+     337,
+     120,
+     44
+    ],
+    "cx": 117.1484375,
+    "cy": 358.75,
+    "top_is_button": true,
+    "top_tag": "BUTTON._action_x7dzq_95 _danger_x7dzq_141"
+   },
+   "voice_buttons_on_page": 1,
+   "dialogs_after_tap": [],
+   "confirm_dialog": false,
+   "voice_button_while_open": 0,
+   "dialog_left": 0,
+   "notice": [
+    "Moved 2 notes to the Trash.Undo"
+   ]
+  },
+  "stage": "restore: tap History in the menu",
+  "not_reached": {
+   "saved_view_delete": "TimeoutError: Locator.wait_for: Timeout 15000ms exceeded.",
+   "version_restore": "TimeoutError: Locator.scroll_into_view_if_needed: Timeout 10000ms exceeded."
+  },
+  "not_reached_page": {
+   "saved_view_delete": {
+    "stage": "view: second tap at {'box': [310, 431, 44, 44], 'cx': 332, 'cy': 453.375, 'top_is_button': True, 'top_tag': 'path.'}, waiting for the dialog",
+    "dialogs": [],
+    "url": "http://127.0.0.1:8133/journal/notebook"
+   },
+   "version_restore": {
+    "stage": "restore: tap History in the menu",
+    "dialogs": [],
+    "url": "http://127.0.0.1:8133/journal/notebook?note=25697f9d03f44b579ebfdbedb9a8ed0e"
+   }
+  },
+  "page_errors": []
+ }
+}

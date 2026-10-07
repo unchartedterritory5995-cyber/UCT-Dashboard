@@ -8,10 +8,17 @@ mutation-checked. No file under `api/` was edited.
 ## Not fixed, or not what the walk said
 
 - **P3 is not a defect.** See below. No product change; the rule is now pinned by a test.
-- **The sweep of other Notebook confirms was not completed in a browser.** Only "Delete this note?"
-  was tapped. The walker never reached the bulk Move to Trash confirm (it could not find the row
-  checkbox), and folder Delete, saved view Delete and version restore were not opened. They go
-  through the same component, so they inherit the fix by construction, not by measurement.
+- **A member's own folder reused by the sample cannot be told apart (round 2).** A `foldersOlder`
+  row is `{id, name, sentence}` and nothing else. An older example folder and a member's own
+  folder the seed reused look the same. The confirmation therefore says the neutral
+  `The folder "NAME" was left in place.` for every such row and does not print the server's
+  "older example folder" sentence. A flag on the row (for example `memberOwned`) would let the
+  client say "your own folder was left untouched".
+- **Bulk Move to Trash has no confirm dialog.** The header comment in `ConfirmModal.jsx` lists it,
+  but the product trashes at once and shows "Moved 2 notes to the Trash." with Undo. The sweep
+  measured the bar's own button instead. The comment was left as it is.
+- **The Insights "Reviews" box needs one trade.** With no trades the Insights tab shows its empty
+  state and no sections, so the box cannot be reached. The browser check seeded one closed trade.
 - **A second floating button was seen and left alone.** On a phone the Journal's gold "Log" button
   stays drawn above the open confirm (visible in `V390_note_delete.png`). It does not overlap the
   Cancel or Delete buttons. It is not a Notebook control.
@@ -96,8 +103,8 @@ is passed. An older test that pinned "Step 3 of 3" after a skipped step now read
 
 An older answer without a field falls back to the client's own plain wording.
 `serverSaysWhy.finFe2.test.jsx` reads the regenerated contract fixtures. They were recorded with
-the switches on, so the "off" cases set only the fields DATA2's record names. None of P7, P8 or P9
-was checked in a browser.
+the switches on, so the "off" cases set only the fields DATA2's record names. P7 and P9 were
+checked in a browser in round 2 (below).
 
 ## Browser
 
@@ -119,6 +126,69 @@ At 390 the bottom-right corner held the voice button before the dialog and the D
 while it was open. The walk's own before picture is
 `fin-walk/8852a2a8c0/c1/shots/c1-390-note-CRUD-crud-driver-exception-.png`. No control build with
 the fix removed was run this time.
+
+## Round 2
+
+DATA2's final tip (`627a9a9ff3`) is merged. Commits: `11dcf4c5d9` (the `foldersOlder` wording),
+`eeccbdf6a2` (a defect the sweep found, below).
+
+### A saved view's Delete did nothing on Research Home (found by the sweep, fixed)
+
+At 390 px a tap on a saved view's Delete button reached the button (touch, mouse and a scripted
+click all did) and no dialog appeared. Cause: `NotebookTab.jsx` rendered that confirm inside the
+notes-list branch only. The folders panel, with its saved views, is also shown beside Research
+Home and beside an open note. There the button set the state and nothing was drawn. It is not a
+phone-only defect and it is the same on `origin/master` (`isHome` branch at `NotebookTab.jsx:1964`,
+the confirm at `:2217`). Fix: the confirm and its error line sit above the three branches.
+Test first in `tabs/NotebookTab.test.jsx` ("on Research Home the Delete button opens the same
+confirm"): red with no dialog, green after the move. Evidence of the dead button:
+`evidence/fin-fe2/sweep-run3-11dcf4c5d9/` (`walk.json`, `view_before.png`).
+
+### The sweep at 390 px, touch (`tools/notebook_fin_fe2_sweep.py --config sweep`)
+
+Evidence: `docs/notebook/evidence/fin-fe2/sweep-final-eeccbdf6a2/`. 7 rows PASS, sandbox integrity
+CLEAN, port 8133 free after. Every wave switch on, one fresh paid member. For each door the walker
+read the confirm button's box, asked the page for the top element at its centre, tapped that
+point, then asked the product's API whether the thing happened. The voice button count was 0
+while each dialog was open.
+
+| Door | Confirm button box | Top element at its centre | Done, per the API or the page |
+|---|---|---|---|
+| Sample "Remove it" (no dialog) | 73 x 44 | the button | "The sample notes are in Trash."; 0 active sample notes |
+| Bulk Move to Trash (no dialog) | 120 x 44 | the button | "Moved 2 notes to the Trash." with Undo; both gone from the list |
+| Folder Delete | 84 x 44 at 284,786 | the button | folder gone |
+| Saved view Delete (after the fix) | 84 x 44 at 284,786 | the button | view gone |
+| Version restore | 91 x 44 at 277,786 | the button | the note reads its first version again |
+| Gallery Unpublish (inside its sheet) | 76 x 44 | the button | "Unpublished ..." message |
+
+Runs 2 and 3 are kept. Their three "not reached" rows were: no bulk dialog exists, the saved view
+defect above, and the instrument looking for a "History" button whose name is "Version history".
+
+### P7 and P9 at 390 px (`--config off`)
+
+Evidence: `docs/notebook/evidence/fin-fe2/off-final-eeccbdf6a2/`. 7 rows PASS, integrity CLEAN.
+Review drafts, setups board and find similar on; plan grading, chart plan and the fingerprint off.
+
+- A daily review draft: under "Discipline record" it reads "Plan grading is switched off, so this
+  draft has no discipline record." No "Plan rate" line.
+- The Insights box: "... The discipline record is left out: it comes from plan grading, which is
+  not switched on for your account."
+- The setups board: "No open setups yet. Drawing a plan on a chart is switched off, so no new
+  setup can be added here yet." No "Draw an entry line" step.
+- Example cards (2): "Examples are not matched against the day's names." and no Find-more button.
+- The find-similar sheet opened on an example: "This chart is an example, so it is never matched.
+  Tag a chart of your own to find names like it." (answer status `example`).
+
+### Round 2 gates
+
+- Build, then the byte gate: `bytes.notebook_first_open: 2,203,265 B across 56 JS chunks
+  (budget 2,260,793 B)`, PASS.
+- `npx vitest run src/pages/journal-2-0/a11y src/styles/tapFloor.test.js
+  src/pages/journal-2-0/components/notebook/onboarding <the two finFe2 tests>
+  FolderSidebar.test.jsx ConfirmModal.test.jsx --maxWorkers=2`:
+  `Test Files 95 passed (95)`, `Tests 1131 passed | 1 skipped (1132)`.
+- `tabs/NotebookTab.test.jsx`, `a11y/deleteFocusFallback.test.jsx`,
+  `components/floatingChromeClear.test.jsx`: `Test Files 3 passed (3)`, `Tests 65 passed (65)`.
 
 ## Gates
 

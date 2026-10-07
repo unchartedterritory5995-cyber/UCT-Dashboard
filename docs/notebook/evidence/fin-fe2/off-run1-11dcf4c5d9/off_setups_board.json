@@ -1,0 +1,37 @@
+{
+ "api": {
+  "count": 0,
+  "exampleCount": 2,
+  "planDrawing": {
+   "available": false,
+   "reason": "chart_plan_off",
+   "sentence": "Drawing a plan on a chart is switched off, so no new setup can be added here yet."
+  },
+  "cards": [
+   {
+    "symbol": "AAPL",
+    "example": true,
+    "similarNeverMatched": true,
+    "similarEmbedKey": "ex-plan",
+    "noteId": "e5111264c7a0401ab173c37d551f990e"
+   },
+   {
+    "symbol": "MSFT",
+    "example": true,
+    "similarNeverMatched": true,
+    "similarEmbedKey": "ex-setup",
+    "noteId": "f82e9e92be3e4a5983e80484a6e33ff4"
+   }
+  ]
+ },
+ "page_text": "Setups\nACTIVE SETUPS\nOpen plans with levels drawn on a chart, closest to the entry first.\n\nNo open setups yet. Drawing a plan on a chart is switched off, so no new setup can be added here yet.\n\nAAPL\nExample\nNo price\nNew today\n\nNo price yet\n\nEntry $180.00\nStop $170.00\nTarget $205.00\n\t\n\t\n\n\n\n\t\n\t\n\n\t\n\t\nTrade plan: example -- AAPL pullback\nExamples are not matched against the day’s names.\nMSFT\nExample\nNo price\nNew today\n\nNo price yet\n\nEntry $410.00\nStop $395.00\nTarget —\n\t\n\t\n\n\n\n\t\n\t\n\n\t\n\t\nActive setup: example -- MSFT base breakout\nExamples are not matched against the day’s names.\nFIND MORE LIKE THIS\nYour tagged charts, matched every night against the day’s scored names.\n\nTag a chart in a note with its setup and it is matched tonight.",
+ "find_similar_buttons": 0,
+ "similar_api": {
+  "status": "example",
+  "neverMatched": {
+   "reason": "sample_example",
+   "sentence": "This chart is an example, so it is never matched. Tag a chart of your own to find names like it."
+  }
+ },
+ "sheet_text": "NAMES LIKE AAPL (CLASSIC FLAG/PULLBACK)\n\nThis chart is an example, so it is never matched. Tag a chart of your own to find names like it."
+}

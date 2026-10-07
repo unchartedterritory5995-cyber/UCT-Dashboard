@@ -1,0 +1,139 @@
+{
+ "tool": "tools/notebook_fin_fe2_sweep.py",
+ "config": "sweep",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-fe2\\sweep-run2-11dcf4c5d9\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 13:56:36",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 13:57:12",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 13:58:26",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-fe2\\sweep-run2-11dcf4c5d9\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-fe\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T13-56-30.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "V390_sample_remove_it",
+   "verdict": "PASS",
+   "detail": "confirm button is the top element at its centre=True (BUTTON._sampleStripAction_yzfs1_421), box=[57, 400, 73, 44]; voice button while open=0; done=True: message='The sample notes are in Trash. You can restore them from there.'; active sample notes after=0"
+  },
+  {
+   "id": "V390_folder_delete",
+   "verdict": "PASS",
+   "detail": "confirm button is the top element at its centre=True (BUTTON._dangerBtn_wu5n8_211), box=[284, 786, 84, 44]; voice button while open=0; done=True: folder still listed=False"
+  },
+  {
+   "id": "V390_gallery_unpublish",
+   "verdict": "PASS",
+   "detail": "confirm button is the top element at its centre=True (BUTTON._btn_u43uz_435 _danger_u43uz_495), box=[265, 720, 76, 44]; voice button while open=0; done=True: message='Unpublished “Sweep template”. Copies other members made are theirs and stay.'; inside a sheet=True"
+  },
+  {
+   "id": "W10_port_free_after_shutdown",
+   "verdict": "PASS",
+   "detail": "listener on 8133: False"
+  }
+ ],
+ "raw": {
+  "sample_add": 200,
+  "sample_remove_it": {
+   "hit": {
+    "box": [
+     57,
+     400,
+     73,
+     44
+    ],
+    "cx": 93.375,
+    "cy": 422.03125,
+    "top_is_button": true,
+    "top_tag": "BUTTON._sampleStripAction_yzfs1_421"
+   },
+   "voice_button_while_open": 0,
+   "voice_buttons_on_page": 1,
+   "message": "The sample notes are in Trash. You can restore them from there.",
+   "status_after": {
+    "activeIds": 0,
+    "ids": 10
+   }
+  },
+  "seed": {
+   "folder": 200,
+   "saved_view": 200,
+   "saved_view_body": "{\"savedView\":{\"id\":\"0e29b68543eb446a8834f6eb7867fc29\",\"name\":\"Sweep view\",\"viewType\":\"list\",\"spec\":{},\"sortOrder\":0,\"createdAt\":\"2026-10-07T18:56:56.009265+00:0",
+   "template": 200,
+   "template_body": "{\"template\":{\"id\":\"e220a93b944b4e488769fa7eafd35b55\",\"name\":\"Sweep template\",\"title\":\"sweep template source\",\"createdAt\":\"2026-10-07T18:56:56.123138+00:00\",\"updatedAt\":\"2026-10-07T18:56:56.123138+00:0",
+   "publish": 200,
+   "publish_body": "{\"template\":{\"id\":\"cfde6dbc640d4527878cdf8071621a94\",\"title\":\"Sweep template\",\"description\":\"\",\"category\":\"trade_plan\",\"author\":\"fe2sweep\",\"firm\":false,\"featured\":false,\"usedBy\":0,\"listedAt\":null,\"upd"
+  },
+  "not_reached": {
+   "bulk_move_to_trash": "TimeoutError: Locator.wait_for: Timeout 15000ms exceeded.",
+   "saved_view_delete": "TimeoutError: Locator.wait_for: Timeout 15000ms exceeded.",
+   "version_restore": "TimeoutError: Locator.scroll_into_view_if_needed: Timeout 10000ms exceeded."
+  },
+  "folder_delete": {
+   "dialog": "Delete folder \"Sweep folder\"?\n×\n\nSubfolders and notes move up one level. This does not delete any notes.\n\nCancel\nDelete",
+   "hit": {
+    "box": [
+     284,
+     786,
+     84,
+     44
+    ],
+    "cx": 325.8203125,
+    "cy": 808,
+    "top_is_button": true,
+    "top_tag": "BUTTON._dangerBtn_wu5n8_211"
+   },
+   "voice_button_while_open": 0,
+   "body_overflow": "hidden",
+   "dialog_left": 0
+  },
+  "gallery_unpublish": {
+   "hit": {
+    "box": [
+     265,
+     720,
+     76,
+     44
+    ],
+    "cx": 303.484375,
+    "cy": 742,
+    "top_is_button": true,
+    "top_tag": "BUTTON._btn_u43uz_435 _danger_u43uz_495"
+   },
+   "voice_button_while_open": 0,
+   "inside_a_dialog": true,
+   "message": "Unpublished “Sweep template”. Copies other members made are theirs and stay.",
+   "mine_after": "{\"templates\":[{\"id\":\"8a8f0bd125ad4dc681a52e06e49c9515\",\"title\":\"Weekly Review\",\"description\":\"Patterns, leaks, and the ONE commitment for next week.\",\"category\":\"review\",\"author\":\"UCT\",\"firm\":true,\"featured\":true,\"usedBy\":0,\"listedAt\":\"2026-10-07T18:56:41.923597+00:00\",\"updatedAt\":\"2026-10-07T18:56:"
+  },
+  "page_errors": []
+ }
+}
