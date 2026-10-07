@@ -74,6 +74,9 @@ CP3_SIGNED = {
     "scan_membership_change": True,    # line 2, d0415f251
     "catalyst_match": True,            # line 2, 3ee80dc13
     "indicator_condition": True,       # line 3, 4e8d3af5d (dep discharged)
+    # FT-034, TERMINAL-NEXT lane S 2026-10-02: built DARK (ALERT_RATING_CHANGE_ENABLED);
+    # its per-type ruling (TERM-025) is unsigned, so main.py must not register it.
+    "rating_change": False,
 }
 
 

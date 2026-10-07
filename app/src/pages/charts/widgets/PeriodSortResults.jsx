@@ -10,6 +10,7 @@ import { useMemo, useCallback, useEffect, useRef, useId } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import Watchlists from '../../Watchlists'
 import UIcon from '../../../components/ui/UIcon'
+import CoverageLine from '../../../components/provenance/CoverageLine'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 import { prefetchListDeep } from '../../../utils/prefetchBars'
@@ -161,7 +162,9 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
   const titleBase = group ? (GROUP_LABEL[group] || 'Groups') : (titlePrefix || 'Custom-Period Sort')
   const title = `${titleBase} (${fmtYmd(ds)} – ${fmtYmd(de)})`
   const unit = group ? GROUP_UNIT[group] : 'stock'
+  // TERM-047: the backend's four-count receipt (dark: absent -> renders nothing).
   const scanFooter = (
+    <>
     <div className={styles.scanFooter}>
       <span className={styles.scanCount}>{symbols.length.toLocaleString()} {symbols.length === 1 ? unit : `${unit}s`}</span>
       {data?.partial && <span className={styles.scanUpdated}>· surviving universe</span>}
@@ -170,6 +173,8 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
         <UIcon name="refresh" size={12} gold={false} className={isValidating ? styles.scanRefreshSpin : undefined} />
       </button>
     </div>
+    <CoverageLine coverage={data?.coverage ?? null} density="widget" />
+    </>
   )
 
   return (

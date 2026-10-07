@@ -64,6 +64,17 @@ def deliver(
         return {"claimed": True, "channels": channels, "channels_ok": 0,
                 "channels_failed": 0, "errors": {}, "suspended": True}
 
+    # AC-4: per-trigger-type queue caps with a reserve (dark: always admits).
+    from api.services.alert_taxonomy import queue_caps as _caps
+    if _caps.is_enabled():
+        ttype = _caps.trigger_type_of(fire_id) or source.replace("_", "-")
+        if not _caps.admit(user_id, ttype, fire_id=fire_id):
+            # ⛔ Capped: RECORDED (alert_fires), lease held, outcome says why.
+            channels = dict(_caps.CAPPED)
+            _receipts.record_delivery_channels(fire_id, channels)
+            return {"claimed": True, "channels": channels, "channels_ok": 0,
+                    "channels_failed": 0, "errors": {}, "capped": True}
+
     report = watchlist_alert_service.deliver_alert_payload(
         user_id=user_id,
         sym=sym,

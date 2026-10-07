@@ -11,7 +11,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
   endpoint answers 402 to a member without a paid plan; report that, do not retry elsewhere.
 - Every endpoint is rate limited per member; on 429 wait for the `Retry-After` header.
 
-## Endpoints (579)
+## Endpoints (586)
 
 | method | path | tier | rate-limit family |
 |---|---|---|---|
@@ -20,6 +20,8 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/address/search` | member | member-workspace |
 | GET | `/api/adjustment-basis/{ticker}` | member | market-data |
 | GET | `/api/adjustment-basis/{ticker}/raw` | member | market-data |
+| GET | `/api/agent/conversations` | paid | ai |
+| GET | `/api/agent/conversations/{conversation_id}` | paid | ai |
 | GET | `/api/ai-search/briefings` | paid | ai |
 | GET | `/api/ai-search/deep` | paid | ai |
 | GET | `/api/ai-search/deep/{job_id}` | paid | ai |
@@ -32,6 +34,8 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/alerts/taxonomy/cooldowns` | member | member-workspace |
 | GET | `/api/alerts/taxonomy/document-arrival` | member | member-workspace |
 | GET | `/api/alerts/taxonomy/fires` | member | member-workspace |
+| GET | `/api/alerts/taxonomy/fires/{fire_id}/read-state` | member | member-workspace |
+| GET | `/api/alerts/taxonomy/rating-change` | member | member-workspace |
 | GET | `/api/alerts/webhooks` | paid | member-workspace |
 | GET | `/api/alerts/webhooks/{webhook_id}/deliveries` | paid | member-workspace |
 | GET | `/api/analogs` | paid | market-analytics |
@@ -195,8 +199,10 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/flow/indexes-data` | member | options-flow |
 | GET | `/api/flow/small-data` | member | options-flow |
 | GET | `/api/flow/stats` | member | options-flow |
+| GET | `/api/flow/tape-span` | member | options-flow |
 | GET | `/api/flow/ticker-product/{symbol}` | member | options-flow |
 | GET | `/api/flow/ticker/{symbol}` | member | options-flow |
+| GET | `/api/flow/ticker/{symbol}/day-counts` | member | options-flow |
 | GET | `/api/flow/top-conviction` | member | options-flow |
 | GET | `/api/flow/version` | member | options-flow |
 | GET | `/api/fundamentals-full/{ticker}` | paid | research |
@@ -490,6 +496,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/screener` | paid | screener |
 | GET | `/api/screener/alerts` | paid | screener |
 | GET | `/api/screener/compile` | paid | screener |
+| GET | `/api/screener/fields` | paid | screener |
 | GET | `/api/screener/grammar` | paid | screener |
 | GET | `/api/screener/meta` | paid | screener |
 | GET | `/api/screener/methodology` | paid | screener |

@@ -321,13 +321,20 @@ def _run_scan(scan_id: str, days: int | None) -> dict:
         return out
 
     avg_dvol = _avg_dollar_volume()
+    # TERM-047: each reference name lands in exactly one bucket. An untradable
+    # name was ANSWERED (it was checked and is out by the scan's own floor).
+    from api.services.coverage_receipt import Tally
+    tally = Tally()
     results = []
     for sym, rmax in ref.items():
         if rmax <= 0:
+            tally.cannot(sym, "no reference volume")
             continue
         s = _snap_lookup(snap, sym)
         if not s:
+            tally.cannot(sym, "no live quote")
             continue
+        tally.answer()
         if not _tradable(sym, s, avg_dvol):   # price > $1 + avg $ volume floor
             continue
         tv = int(s.get("today_vol") or 0)
@@ -350,7 +357,7 @@ def _run_scan(scan_id: str, days: int | None) -> dict:
     # Rank by how decisively today beat the historical high.
     results.sort(key=lambda r: r["ratio"], reverse=True)
     out = {"status": "ok", "results": results, "count": len(results),
-           "as_of": _now_et().isoformat()}
+           "as_of": _now_et().isoformat(), "coverage": tally.receipt()}
     cache.set(ck, out, ttl=_SCAN_TTL)
     return out
 

@@ -62,9 +62,36 @@ def _document_arrival() -> dict[str, Any]:
     }
 
 
+def _rating_change() -> dict[str, Any]:
+    """FT-034 (dark). Built from `rating_change`'s own constants: the sweep's
+    cadence (api/main.py builds its CronTrigger from SWEEP_EVERY_MINUTES), the
+    fire key (one per analyst action -- `action_key`), one fire per check."""
+    from api.services.alert_taxonomy import rating_change as _rc
+    checking = _rc.is_enabled()
+    minutes = _rc.SWEEP_EVERY_MINUTES if checking else None
+    once = "Each new analyst upgrade or downgrade alerts you once, and never again."
+    if checking:
+        sentence = (f"Checked every {minutes} minutes during the trading day. {once} If "
+                    f"several land between checks, you get 1 alert, for the newest.")
+    else:
+        sentence = (f"Checks are paused right now; your watches are kept and resume "
+                    f"when checks restart. {once}")
+    return {
+        "type_id": _rc.TYPE_ID,
+        "label": "Rating change",
+        "checking": checking,
+        "check_every_minutes": minutes,
+        "rearm_grain": "analyst_action",
+        "max_alerts_per_check": 1,
+        "time_cooldown_seconds": None,
+        "sentence": sentence,
+    }
+
+
 #: type_id -> builder. One entry per member-facing trigger type.
 _PUBLISHERS = {
     _doc.TYPE_ID: _document_arrival,
+    "rating-change": _rating_change,
 }
 
 
