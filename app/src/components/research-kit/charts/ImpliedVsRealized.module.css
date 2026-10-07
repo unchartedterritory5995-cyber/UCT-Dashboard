@@ -56,8 +56,8 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.valueUp { fill: var(--gain); }
-.valueDown { fill: var(--loss); }
+.valueUp { fill: var(--success-ink); }
+.valueDown { fill: var(--danger-ink); }
 
 /* EXPECTATION — hollow, always (§3.3). Never filled, never green/red. */
 .implied {

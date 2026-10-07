@@ -154,7 +154,7 @@
 
 .smallBtnDanger:not(:disabled):hover {
   border-color: var(--loss);
-  color: var(--loss);
+  color: var(--danger-ink);
 }
 
 .inlineForm {
@@ -227,7 +227,7 @@
 
 .errorMsg {
   font-size: var(--text-base);
-  color: var(--loss);
+  color: var(--danger-ink);
 }
 
 .confirmText {

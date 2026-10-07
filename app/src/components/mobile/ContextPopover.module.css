@@ -74,7 +74,7 @@
 }
 .item:hover:not(:disabled) { background: var(--bg-hover); }
 .item:disabled { opacity: 0.4; cursor: default; }
-.item.danger { color: var(--loss); }
+.item.danger { color: var(--danger-ink); }
 
 .icon {
   flex: 0 0 auto;

@@ -411,13 +411,13 @@
 }
 
 .rotBadgeIn {
-  color: var(--gain);
+  color: var(--success-ink);
   background: color-mix(in srgb, var(--gain) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--gain) 25%, transparent);
 }
 
 .rotBadgeOut {
-  color: var(--loss);
+  color: var(--danger-ink);
   background: color-mix(in srgb, var(--loss) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--loss) 25%, transparent);
 }
@@ -545,8 +545,8 @@
    when the user customizes colors) still win. Needed because a saved settings blob
    can equal the DARK defaults, in which case no var is emitted and the dark-green
    fallback above would show on the white canvas. */
-:global([data-theme='light']) .page .retPos { color: var(--tt-up, var(--gain)); }
-:global([data-theme='light']) .page .retNeg { color: var(--tt-down, var(--loss)); }
+:global([data-theme='light']) .page .retPos { color: var(--tt-up, var(--success-ink)); }
+:global([data-theme='light']) .page .retNeg { color: var(--tt-down, var(--danger-ink)); }
 :global([data-theme='light']) .page {
   --tick-up-bg: color-mix(in srgb, var(--gain) 15%, transparent);
   --tick-down-bg: color-mix(in srgb, var(--loss) 15%, transparent);
@@ -860,7 +860,7 @@
 .setMenu button:hover { background: var(--tt-row-hover, color-mix(in srgb, var(--text-heading) 7%, transparent)); }
 .setMenuActive { color: var(--tt-accent, var(--ut-gold)) !important; font-weight: 700; }
 .setMenuSep { height: 1px; background: var(--tt-divider, var(--border)); margin: 4px 2px; }
-.setMenuDanger { color: var(--color-danger, var(--loss)) !important; }
+.setMenuDanger { color: var(--danger-ink) !important; }
 .setEditBtn, .setAddBtn {
   font-family: var(--font-sans);
   font-size: calc(10px * var(--tt-font-scale, 1));
@@ -917,7 +917,7 @@
 .editRemove {
   border: none;
   background: transparent;
-  color: var(--color-danger, var(--loss));
+  color: var(--danger-ink);
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
@@ -1039,9 +1039,9 @@
   flex-shrink: 0;
 }
 .setRowBtn:hover { opacity: 1; color: var(--tt-accent, var(--ut-gold)); background: var(--tt-row-hover, color-mix(in srgb, var(--text-heading) 7%, transparent)); }
-.setRowTrash:hover { color: var(--color-danger, var(--loss)); background: color-mix(in srgb, var(--loss) 12%, transparent); }
+.setRowTrash:hover { color: var(--danger-ink); background: color-mix(in srgb, var(--loss) 12%, transparent); }
 .setRowConfirm {
-  color: var(--color-danger, var(--loss)) !important;
+  color: var(--danger-ink) !important;
   background: color-mix(in srgb, var(--loss) 18%, transparent);
   opacity: 1;
 }

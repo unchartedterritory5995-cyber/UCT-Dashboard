@@ -127,10 +127,10 @@
   box-shadow: 0 0 5px currentColor;
   flex: 0 0 auto;
 }
-.tagLeader   { color: var(--gain); }            /* muted leaf green */
+.tagLeader   { color: var(--success-ink); }            /* muted leaf green */
 .tagExtended { color: var(--ut-gold); }     /* brand gold */
 .tagPullback { color: var(--info); }            /* muted slate blue */
-.tagLaggard  { color: var(--loss); }            /* muted clay red */
+.tagLaggard  { color: var(--danger-ink); }            /* muted clay red */
 .tagTrending { color: var(--text-muted); }  /* dot reads as a soft grey mark */
 
 /* ── Ticker cell ──────────────────────────────────────────────────────────── */
@@ -168,7 +168,7 @@
   border-radius: 3px; padding: 0 5px; flex-shrink: 0;
 }
 .erBadgeSoon {
-  color: var(--loss); background: var(--loss-bg);
+  color: var(--danger-ink); background: var(--loss-bg);
   border-color: color-mix(in srgb, var(--loss) 40%, transparent);
 }
 
@@ -199,10 +199,10 @@
 }
 .rsHigh { color: var(--text-bright); background: var(--ut-green); border: 1px solid var(--ut-green-bright); }
 .rsMid  { color: var(--text-bright); background: color-mix(in srgb, var(--ut-gold) 40%, transparent);  border: 1px solid color-mix(in srgb, var(--ut-gold) 55%, transparent); }
-.rsLow  { color: var(--loss); background: color-mix(in srgb, var(--loss) 15%, transparent); border: 1px solid color-mix(in srgb, var(--loss) 30%, transparent); }
+.rsLow  { color: var(--danger-ink); background: color-mix(in srgb, var(--loss) 15%, transparent); border: 1px solid color-mix(in srgb, var(--loss) 30%, transparent); }
 
-.gain { color: var(--gain); }
-.loss { color: var(--loss); }
+.gain { color: var(--success-ink); }
+.loss { color: var(--danger-ink); }
 
 /* ── Expanded — full width, two columns ───────────────────────────────────── */
 .expanded {

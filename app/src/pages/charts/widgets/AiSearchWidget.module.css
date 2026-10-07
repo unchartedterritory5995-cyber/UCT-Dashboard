@@ -219,7 +219,7 @@
   background: transparent; border: none; color: var(--text-muted, #6b7280);
   cursor: pointer; font-size: 11px; padding: 2px 4px; flex-shrink: 0;
 }
-.savedDel:hover { color: var(--loss, var(--ut-red-bright)); }
+.savedDel:hover { color: var(--danger-ink); }
 /* [n] citation markers inside the answer — superscript links to the source. */
 .cite {
   font-size: 9.5px; font-weight: 700; vertical-align: super; line-height: 1;
@@ -394,7 +394,7 @@
 .proposalBtn:disabled { opacity: 0.6; cursor: default; }
 .proposalDone {
   display: inline-flex; align-items: center; gap: 6px; margin-top: 8px;
-  font-size: 11.5px; font-weight: 600; color: var(--gain, #4ade80);
+  font-size: 11.5px; font-weight: 600; color: var(--success-ink);
 }
 
 /* Phase 11 crawl — phone tap targets. The suggestion chips measured 28px tall
