@@ -2006,6 +2006,14 @@ _PHASE_2_ALTERS = [
     "matched_at TEXT NOT NULL, relinked_at TEXT, "
     "relink_count INTEGER NOT NULL DEFAULT 0, previous_json TEXT, "
     "PRIMARY KEY (user_id, trade_ref))",
+    # fin-security I-2: the remembered "unplanned" (plan_grading.MatchScope). One row per trade
+    # that had no plan the last time it was matched, with a stamp of everything that could
+    # change that. A memo, never a freeze: a stamp that no longer matches is ignored and the
+    # trade is matched again. Additive; safe to drop (it is rebuilt on read). Purged with the
+    # account (account_purge.py).
+    "CREATE TABLE IF NOT EXISTS j2_trade_plan_misses ("
+    "user_id TEXT NOT NULL, trade_ref TEXT NOT NULL, stamp TEXT NOT NULL, "
+    "checked_at TEXT NOT NULL, PRIMARY KEY (user_id, trade_ref))",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────

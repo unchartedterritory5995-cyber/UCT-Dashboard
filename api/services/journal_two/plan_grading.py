@@ -38,6 +38,7 @@ grade (the clock is read only to stamp `matched_at`).
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import sqlite3
@@ -161,10 +162,168 @@ def _prop_defs(conn: sqlite3.Connection, user_id: str) -> list[dict[str, Any]]:
         return []
 
 
+class MatchScope:
+    """One request's worth of matching: what has been read is not read again, and an
+    "unplanned" answer is remembered until something that could change it changes.
+
+    ⛔ WHY (fin-security I-2). `statuses` (up to 200 trades), the discipline record (60) and a
+    review draft (a whole period) each matched every trade from scratch. Every trade re-read
+    every note body on its ticker, re-listed each note's versions and re-parsed the bodies; and
+    because only a MATCH is frozen, an unplanned trade repeated the whole walk on every later
+    request. Many trades and many large notes on one ticker stalled the one process.
+
+    WITHIN A REQUEST, each of these is read at most once: a ticker's candidate notes, a note's
+    version list, a version's body, the parse of one note state for one symbol, the frozen
+    links and remembered misses for the trades asked about, the member's sample note ids.
+
+    ACROSS REQUESTS, "unplanned" is stored in `j2_trade_plan_misses` with a STAMP of everything
+    that could turn it into a match: the member's notes (count, newest edit, how many are in
+    Trash), their trade-linked embeds, their verdicts, their property definitions, and the
+    trade's own symbol, side and entry. While the stamp is unchanged the answer is reused with
+    no candidate read at all. Any note write, link, verdict or trade edit changes the stamp
+    and the trade is matched again. ⛔ It is a memo, never a freeze: "unplanned" is still not
+    frozen (a plan that appears later still matches), which is the stamp's whole job.
+
+    Not thread-safe and not kept: make one per request with the request's own connection."""
+
+    def __init__(self, conn: sqlite3.Connection, user_id: str, defs: list[dict[str, Any]] | None = None):
+        self.conn = conn
+        self.user_id = user_id
+        self.defs = _prop_defs(conn, user_id) if defs is None else defs
+        self._window: dict[str, list[sqlite3.Row]] = {}
+        self._versions: dict[str, list[tuple[datetime, str, str]]] = {}
+        self._version_rows: dict[str, sqlite3.Row | None] = {}
+        self._readings: dict[tuple[str, str, str], Any] = {}
+        self._links: dict[str, dict[str, Any] | None] = {}
+        self._misses: dict[str, str | None] = {}
+        self._new_misses: dict[str, str] = {}
+        self._sample: set[str] | None = None
+        self._member_stamp: str | None = None
+
+    # -- what a request reads once -------------------------------------------------------------
+    def window_rows(self, symbol: str) -> list[sqlite3.Row]:
+        if symbol not in self._window:
+            self._window[symbol] = self.conn.execute(
+                f"SELECT {_NOTE_COLS} FROM j2_notes WHERE user_id = ? AND ticker IN (?, ?) AND {_LIVE_OWN_NOTE}",
+                (self.user_id, symbol, symbol.lower())).fetchall()
+        return self._window[symbol]
+
+    def versions(self, note_id: str) -> list[tuple[datetime, str, str]]:
+        """(when, version id, raw created_at) for one note, every version with a readable time."""
+        if note_id not in self._versions:
+            out = []
+            for v in self.conn.execute(
+                    "SELECT id, created_at FROM j2_note_versions WHERE user_id = ? AND note_id = ?",
+                    (self.user_id, note_id)).fetchall():
+                ts = _parse_ts(v["created_at"])
+                if ts is not None:
+                    out.append((ts, v["id"], v["created_at"]))
+            self._versions[note_id] = out
+        return self._versions[note_id]
+
+    def version_row(self, version_id: str) -> sqlite3.Row | None:
+        if version_id not in self._version_rows:
+            self._version_rows[version_id] = self.conn.execute(
+                "SELECT body_json, properties_json FROM j2_note_versions WHERE id = ? AND user_id = ?",
+                (version_id, self.user_id)).fetchone()
+        return self._version_rows[version_id]
+
+    def reading(self, note_id: str, version_id: str, symbol: str, body: Any, props: Any):
+        key = (note_id, version_id, symbol)
+        if key not in self._readings:
+            self._readings[key] = plan_extract.read_note_plan(body, props, self.defs, symbol)
+        return self._readings[key]
+
+    def sample_ids(self) -> set[str]:
+        if self._sample is None:
+            self._sample = sample_marker.sample_note_ids(self.conn, self.user_id)
+        return self._sample
+
+    # -- frozen links and remembered misses ----------------------------------------------------
+    def preload(self, trades: list[sqlite3.Row]) -> None:
+        """Read the frozen links and the remembered misses for these trades in two statements
+        (per 400 trades), instead of one each per trade."""
+        refs = [r for r in dict.fromkeys(trade_ref_for_row(t) for t in trades)
+                if r not in self._links]
+        for i in range(0, len(refs), 400):
+            chunk = refs[i:i + 400]
+            marks = ",".join("?" for _ in chunk)
+            found = {r["trade_ref"]: _row_to_link(r) for r in self.conn.execute(
+                f"SELECT * FROM j2_trade_plan_links WHERE user_id = ? AND trade_ref IN ({marks})",
+                (self.user_id, *chunk))}
+            missed = {r["trade_ref"]: r["stamp"] for r in self.conn.execute(
+                f"SELECT trade_ref, stamp FROM j2_trade_plan_misses WHERE user_id = ? AND trade_ref IN ({marks})",
+                (self.user_id, *chunk))}
+            for ref in chunk:
+                self._links[ref] = found.get(ref)
+                self._misses[ref] = missed.get(ref)
+
+    def link(self, ref: str) -> dict[str, Any] | None:
+        if ref not in self._links:
+            self._links[ref] = get_link(self.conn, self.user_id, ref)
+        return self._links[ref]
+
+    def set_link(self, ref: str, link: dict[str, Any] | None) -> None:
+        self._links[ref] = link
+
+    def member_stamp(self) -> str:
+        """Everything of the member's that could turn an unplanned trade into a planned one.
+        Six small indexed reads, once per request."""
+        if self._member_stamp is None:
+            c, u = self.conn, self.user_id
+            one = lambda sql: c.execute(sql, (u,)).fetchone()[0]  # noqa: E731
+            parts = [
+                one("SELECT COUNT(*) FROM j2_notes WHERE user_id = ?"),
+                one("SELECT MAX(updated_at) FROM j2_notes WHERE user_id = ?"),
+                one("SELECT COUNT(*) FROM j2_notes WHERE user_id = ? AND deleted_at IS NOT NULL"),
+                one("SELECT COUNT(*) FROM j2_note_embeds WHERE user_id = ? AND trade_ref IS NOT NULL"),
+                one("SELECT COUNT(*) FROM j2_verdicts WHERE user_id = ?"),
+                one("SELECT MAX(created_at) FROM j2_verdicts WHERE user_id = ?"),
+                json.dumps(sorted((str(d.get("id")), str(d.get("type"))) for d in self.defs)),
+            ]
+            self._member_stamp = "|".join("" if p is None else str(p) for p in parts)
+        return self._member_stamp
+
+    def _stamp_for(self, trade: sqlite3.Row) -> str:
+        raw = "|".join([self.member_stamp(), str(trade["symbol"]), str(trade["side"]),
+                        str(trade["entry_date"]), str(trade["context_at_entry"] or "")])
+        return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
+    def is_known_miss(self, ref: str, trade: sqlite3.Row) -> bool:
+        if ref not in self._misses:
+            r = self.conn.execute(
+                "SELECT stamp FROM j2_trade_plan_misses WHERE user_id = ? AND trade_ref = ?",
+                (self.user_id, ref)).fetchone()
+            self._misses[ref] = r["stamp"] if r is not None else None
+        stored = self._misses[ref]
+        return stored is not None and stored == self._stamp_for(trade)
+
+    def note_miss(self, ref: str, trade: sqlite3.Row) -> None:
+        """Remember "unplanned" for this trade at today's stamp. Written at `flush`, in one
+        statement for the whole request."""
+        stamp = self._stamp_for(trade)
+        self._misses[ref] = stamp
+        self._new_misses[ref] = stamp
+
+    def flush(self) -> None:
+        """Write what this request learned, in one statement. (Every caller is behind plan
+        grading's own switch: `tests/test_review_drafts.py` lists them.)"""
+        if not self._new_misses:
+            return
+        rows, self._new_misses = self._new_misses, {}
+        now = _now_iso()
+        self.conn.executemany(
+            "INSERT OR REPLACE INTO j2_trade_plan_misses (user_id, trade_ref, stamp, checked_at)"
+            " VALUES (?,?,?,?)", [(self.user_id, ref, stamp, now) for ref, stamp in rows.items()])
+        self.conn.commit()
+
+
 def _note_state_at(conn: sqlite3.Connection, user_id: str, note: sqlite3.Row,
-                   cutoff: datetime) -> dict[str, Any]:
+                   cutoff: datetime, scope: "MatchScope | None" = None) -> dict[str, Any]:
     """The note's content as it stood at `cutoff`: the current row if it has not changed since,
-    else the latest version captured at or before it, else the current row marked post-entry."""
+    else the latest version captured at or before it, else the current row marked post-entry.
+    With a `scope`, a note's version list and each version body are read once per request."""
+    scope = scope or MatchScope(conn, user_id, defs=[])
     current = {"body": note["body_json"], "props": note["properties_json"],
                "version_id": f"current@{note['updated_at']}", "as_of": note["updated_at"],
                "post_entry": False}
@@ -172,14 +331,11 @@ def _note_state_at(conn: sqlite3.Connection, user_id: str, note: sqlite3.Row,
     if upd is not None and upd <= cutoff:
         return current
     best: tuple[datetime, str, str] | None = None
-    for v in conn.execute("SELECT id, created_at FROM j2_note_versions WHERE user_id = ? AND note_id = ?",
-                          (user_id, note["id"])).fetchall():
-        ts = _parse_ts(v["created_at"])
-        if ts is not None and ts <= cutoff and (best is None or ts > best[0]):
-            best = (ts, v["id"], v["created_at"])
+    for ts, vid, raw in scope.versions(note["id"]):
+        if ts <= cutoff and (best is None or ts > best[0]):
+            best = (ts, vid, raw)
     if best is not None:
-        row = conn.execute("SELECT body_json, properties_json FROM j2_note_versions WHERE id = ? AND user_id = ?",
-                           (best[1], user_id)).fetchone()
+        row = scope.version_row(best[1])
         if row is not None:
             return {"body": row["body_json"], "props": row["properties_json"], "version_id": best[1],
                     "as_of": best[2], "post_entry": False}
@@ -187,14 +343,18 @@ def _note_state_at(conn: sqlite3.Connection, user_id: str, note: sqlite3.Row,
 
 
 def _note_candidate(conn: sqlite3.Connection, user_id: str, note: sqlite3.Row, symbol: str,
-                    moment: dict[str, Any], defs: list[dict[str, Any]], tier: str) -> dict[str, Any] | None:
+                    moment: dict[str, Any], defs: list[dict[str, Any]], tier: str,
+                    scope: "MatchScope | None" = None) -> dict[str, Any] | None:
     """One note as a plan candidate, read as it stood at entry -- or, when that state names no
-    plan and the current one does, the current one labelled "plan edited after entry"."""
+    plan and the current one does, the current one labelled "plan edited after entry".
+    With a `scope`, one note state is parsed once per request, not once per trade."""
+    scope = scope or MatchScope(conn, user_id, defs=defs)
     need = (lambda r: r.names_any_level) if tier in ("explicit", "member") else (lambda r: r.is_plan)
-    state = _note_state_at(conn, user_id, note, moment["cutoff"])
-    reading = plan_extract.read_note_plan(state["body"], state["props"], defs, symbol)
+    state = _note_state_at(conn, user_id, note, moment["cutoff"], scope)
+    reading = scope.reading(note["id"], state["version_id"], symbol, state["body"], state["props"])
     if not need(reading) and not state["post_entry"]:
-        cur_reading = plan_extract.read_note_plan(note["body_json"], note["properties_json"], defs, symbol)
+        cur_reading = scope.reading(note["id"], f"current@{note['updated_at']}", symbol,
+                                    note["body_json"], note["properties_json"])
         if need(cur_reading):
             state = {"body": note["body_json"], "props": note["properties_json"],
                      "version_id": f"current@{note['updated_at']}", "as_of": note["updated_at"],
@@ -250,11 +410,10 @@ def _explicit_notes(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row) 
 
 
 def _window_notes(conn: sqlite3.Connection, user_id: str, symbol: str,
-                  moment: dict[str, Any]) -> list[sqlite3.Row]:
-    rows = conn.execute(
-        f"SELECT {_NOTE_COLS} FROM j2_notes WHERE user_id = ? AND ticker IN (?, ?) AND {_LIVE_OWN_NOTE}",
-        (user_id, symbol, symbol.lower()),
-    ).fetchall()
+                  moment: dict[str, Any], scope: "MatchScope | None" = None) -> list[sqlite3.Row]:
+    # ONE read of a ticker's notes per request (`scope.window_rows`); the per-trade part is
+    # only the cheap filter below.
+    rows = (scope or MatchScope(conn, user_id, defs=[])).window_rows(symbol)
     out = []
     for r in rows:
         created = _parse_ts(r["created_at"])
@@ -306,15 +465,17 @@ def _verdict_candidates(conn: sqlite3.Connection, user_id: str, trade: sqlite3.R
 
 
 def find_candidates(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row,
-                    defs: list[dict[str, Any]] | None = None) -> tuple[str | None, list[dict[str, Any]]]:
+                    defs: list[dict[str, Any]] | None = None,
+                    scope: "MatchScope | None" = None) -> tuple[str | None, list[dict[str, Any]]]:
     """(winning tier, its candidates) -- the first tier with any candidate; (None, []) when the
     trade has no plan anywhere."""
     moment = entry_moment(trade["entry_date"])
     if moment is None:
         return None, []
     symbol = (trade["symbol"] or "").strip().upper()
-    defs = _prop_defs(conn, user_id) if defs is None else defs
-    explicit = [c for c in (_note_candidate(conn, user_id, n, symbol, moment, defs, "explicit")
+    scope = scope or MatchScope(conn, user_id, defs=defs)
+    defs = scope.defs
+    explicit = [c for c in (_note_candidate(conn, user_id, n, symbol, moment, defs, "explicit", scope)
                             for n in _explicit_notes(conn, user_id, trade)) if c]
     if explicit:
         return "explicit", explicit
@@ -322,8 +483,8 @@ def find_candidates(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row,
     if verdicts:
         return "verdict", verdicts
     window = []
-    for n in _window_notes(conn, user_id, symbol, moment):
-        c = _note_candidate(conn, user_id, n, symbol, moment, defs, "window")
+    for n in _window_notes(conn, user_id, symbol, moment, scope):
+        c = _note_candidate(conn, user_id, n, symbol, moment, defs, "window", scope)
         if c is None:
             continue
         as_of = _parse_ts(c["plan_as_of"])
@@ -384,6 +545,8 @@ def freeze(conn: sqlite3.Connection, user_id: str, trade_ref: str, symbol: str,
         f"INSERT OR IGNORE INTO j2_trade_plan_links ({_INSERT_COLS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         _candidate_row(user_id, trade_ref, symbol, cand, tier, moment),
     )
+    # The trade has a plan now: a remembered "unplanned" for it is spent.
+    conn.execute("DELETE FROM j2_trade_plan_misses WHERE user_id = ? AND trade_ref = ?", (user_id, trade_ref))
     conn.commit()
     return cur.rowcount == 1
 
@@ -411,26 +574,49 @@ def forget_sample_links(conn: sqlite3.Connection, user_id: str, trade_ref: str |
 
 
 def match_trade(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row,
-                defs: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+                defs: list[dict[str, Any]] | None = None,
+                scope: MatchScope | None = None) -> dict[str, Any]:
     """The plan for one trade: the frozen link if there is one; else match now (freezing a
-    unique winner); else the tie or the absence. Never writes j2_trades."""
+    unique winner); else the tie or the absence. Never writes j2_trades.
+
+    Pass ONE `scope` for every trade of a request (`MatchScope`): notes are then read per
+    ticker, not per trade, and the caller calls `scope.flush()` once at the end. Without one
+    this call makes its own and flushes it."""
+    own = scope is None
+    scope = scope or MatchScope(conn, user_id, defs=defs)
+    try:
+        return _match_in_scope(conn, user_id, trade, scope)
+    finally:
+        if own:
+            scope.flush()
+
+
+def _match_in_scope(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row,
+                    scope: MatchScope) -> dict[str, Any]:
     ref = trade_ref_for_row(trade)
-    link = get_link(conn, user_id, ref)
-    if link is not None and sample_marker.is_sample_note(conn, user_id, link["noteId"]):
+    link = scope.link(ref)
+    if link is not None and link["noteId"] and link["noteId"] in scope.sample_ids():
         # Frozen from a sample before sample notes were kept out of matching: not a plan.
         forget_sample_links(conn, user_id, ref)
+        scope.set_link(ref, None)
         link = None
     if link is not None:
         return {"status": STATUS_MEMBER_NONE if link["sourceKind"] == "none" else STATUS_PLANNED,
                 "link": link, "candidates": None}
-    tier, cands = find_candidates(conn, user_id, trade, defs)
+    if scope.is_known_miss(ref, trade):
+        # Unplanned the last time it was matched, and nothing that could change that has
+        # changed since (the stamp): answered with no candidate read at all.
+        return {"status": STATUS_UNPLANNED, "link": None, "candidates": []}
+    tier, cands = find_candidates(conn, user_id, trade, scope.defs, scope)
     if tier is None:
+        scope.note_miss(ref, trade)
         return {"status": STATUS_UNPLANNED, "link": None, "candidates": []}
     if len(cands) > 1:
         return {"status": STATUS_NEEDS_PICK, "link": None, "candidates": cands, "tier": tier}
     moment = entry_moment(trade["entry_date"])
     freeze(conn, user_id, ref, (trade["symbol"] or "").upper(), cands[0], tier, moment)
-    return {"status": STATUS_PLANNED, "link": get_link(conn, user_id, ref), "candidates": None}
+    scope.set_link(ref, get_link(conn, user_id, ref))
+    return {"status": STATUS_PLANNED, "link": scope.link(ref), "candidates": None}
 
 
 class RelinkError(ValueError):
@@ -659,9 +845,23 @@ def _note_title(conn: sqlite3.Connection, user_id: str, note_id: str | None) -> 
 
 
 def grade_payload(conn: sqlite3.Connection, user_id: str, t: sqlite3.Row,
-                  defs: list[dict[str, Any]] | None = None, *, with_candidates: bool = True) -> dict[str, Any]:
-    """Everything the trade page shows for one trade."""
-    m = match_trade(conn, user_id, t, defs)
+                  defs: list[dict[str, Any]] | None = None, *, with_candidates: bool = True,
+                  scope: MatchScope | None = None) -> dict[str, Any]:
+    """Everything the trade page shows for one trade. A caller grading many trades passes one
+    `scope` for all of them and flushes it once (`MatchScope`)."""
+    own = scope is None
+    scope = scope or MatchScope(conn, user_id, defs=defs)
+    try:
+        return _grade_in_scope(conn, user_id, t, scope, with_candidates=with_candidates)
+    finally:
+        if own:
+            scope.flush()
+
+
+def _grade_in_scope(conn: sqlite3.Connection, user_id: str, t: sqlite3.Row, scope: MatchScope, *,
+                    with_candidates: bool) -> dict[str, Any]:
+    defs = scope.defs
+    m = _match_in_scope(conn, user_id, t, scope)
     ref = trade_ref_for_row(t)
     trade = _trade_dict(t)
     moment = entry_moment(t["entry_date"])
@@ -703,22 +903,26 @@ def grade_payload(conn: sqlite3.Connection, user_id: str, t: sqlite3.Row,
     if with_candidates and m["status"] != STATUS_NEEDS_PICK:
         # The Re-link picker's choices: every candidate in every tier, so a member can move a
         # frozen plan to the note they meant.
-        out["candidates"] = _all_candidates(conn, user_id, t, defs)
+        out["candidates"] = _all_candidates(conn, user_id, t, defs, scope)
     return out
 
 
 def _all_candidates(conn: sqlite3.Connection, user_id: str, t: sqlite3.Row,
-                    defs: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+                    defs: list[dict[str, Any]] | None,
+                    scope: MatchScope | None = None) -> list[dict[str, Any]]:
     moment = entry_moment(t["entry_date"])
     if moment is None:
         return []
     symbol = (t["symbol"] or "").strip().upper()
-    defs = _prop_defs(conn, user_id) if defs is None else defs
+    scope = scope or MatchScope(conn, user_id, defs=defs)
+    defs = scope.defs
     seen: set[tuple[str, str]] = set()
     out: list[dict[str, Any]] = []
-    groups = [[_note_candidate(conn, user_id, n, symbol, moment, defs, "explicit") for n in _explicit_notes(conn, user_id, t)],
+    groups = [[_note_candidate(conn, user_id, n, symbol, moment, defs, "explicit", scope)
+               for n in _explicit_notes(conn, user_id, t)],
               _verdict_candidates(conn, user_id, t, symbol, moment),
-              [_note_candidate(conn, user_id, n, symbol, moment, defs, "window") for n in _window_notes(conn, user_id, symbol, moment)]]
+              [_note_candidate(conn, user_id, n, symbol, moment, defs, "window", scope)
+               for n in _window_notes(conn, user_id, symbol, moment, scope)]]
     for group in groups:
         for c in group:
             if c and (c["kind"], c["id"]) not in seen:
@@ -737,12 +941,17 @@ def statuses(conn: sqlite3.Connection, user_id: str, trade_ids: list[str]) -> di
     ids = [i for i in dict.fromkeys(trade_ids) if isinstance(i, str) and i][:MAX_STATUS_IDS]
     if not ids:
         return {}
-    defs = _prop_defs(conn, user_id)
     out: dict[str, dict[str, Any]] = {}
     marks = ",".join("?" for _ in ids)
-    for t in conn.execute(f"SELECT * FROM j2_trades WHERE user_id = ? AND id IN ({marks})", (user_id, *ids)).fetchall():
-        m = match_trade(conn, user_id, t, defs)
+    trades = conn.execute(f"SELECT * FROM j2_trades WHERE user_id = ? AND id IN ({marks})", (user_id, *ids)).fetchall()
+    # ONE scope for the page (fin-security I-2): links and remembered misses are read in two
+    # statements for all of it, a ticker's notes once, and "unplanned" is written once at the end.
+    scope = MatchScope(conn, user_id)
+    scope.preload(trades)
+    for t in trades:
+        m = _match_in_scope(conn, user_id, t, scope)
         out[t["id"]] = {"tradeRef": trade_ref_for_row(t), "status": m["status"]}
+    scope.flush()
     return out
 
 
@@ -768,16 +977,18 @@ def _closed_items(conn: sqlite3.Connection, user_id: str, account_id: str | None
 
 def discipline_record(conn: sqlite3.Connection, user_id: str, account_id: str | None = None) -> dict[str, Any]:
     items = _closed_items(conn, user_id, account_id)
-    defs = _prop_defs(conn, user_id)
     biggest = max(CONSTANTS["DISCIPLINE_WINDOWS"])
+    scope = MatchScope(conn, user_id)      # one for the whole record (fin-security I-2)
+    scope.preload([row for _, kind, row in items[:biggest] if kind != "option"])
     graded: list[dict[str, Any]] = []
     for _, kind, row in items[:biggest]:
         if kind == "option":
             graded.append({"kind": "option", "id": row["id"]})
             continue
-        p = grade_payload(conn, user_id, row, defs, with_candidates=False)
+        p = _grade_in_scope(conn, user_id, row, scope, with_candidates=False)
         graded.append({"kind": "equity", "id": row["id"], "status": p["status"], "checks": p["checks"],
                        "labels": p["labels"]})
+    scope.flush()
     windows = []
     for size in CONSTANTS["DISCIPLINE_WINDOWS"]:
         rows = graded[:size]

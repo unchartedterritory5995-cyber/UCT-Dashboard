@@ -334,6 +334,12 @@ export function buildDraftBlocks(payload) {
   // nothing and writes nothing). The section is left out, never drawn as a row of zeros.
   if (payload.discipline) {
     blocks.push(...disciplineSection(payload.discipline))
+    // Grading is capped per draft; trades left ungraded are said, never silently missing.
+    const cap = payload.gradingCap
+    if (cap && cap.ungraded > 0) {
+      blocks.push(p(`${cap.ungraded} older trade${cap.ungraded === 1 ? '' : 's'} this period `
+        + `${cap.ungraded === 1 ? 'was' : 'were'} not graded against a plan (the newest ${cap.limit} are).`))
+    }
     blocks.push(hr())
   }
   blocks.push(...setupChangesSection(payload.setupChanges))

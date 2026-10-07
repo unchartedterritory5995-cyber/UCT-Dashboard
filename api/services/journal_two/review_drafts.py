@@ -65,7 +65,7 @@ from api.services.journal_two.filters import _DAY, FilterSpec  # noqa: PLC2701 -
 from api.services.journal_two.note_levels import note_link
 from api.services.journal_two.plan_grading import (
     STATUS_MEMBER_NONE, STATUS_NEEDS_PICK, STATUS_PLANNED, STATUS_UNPLANNED,
-    _prop_defs, grade_payload,
+    MatchScope, _prop_defs, grade_payload,
 )
 from api.services.journal_two.plan_grading import enabled as plan_grading_enabled
 from api.services.journal_two.trade_refs import trade_ref_for_row
@@ -73,6 +73,11 @@ from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID
 from api.services.notebook_flags import flag_on
 
 FLAG = "NOTEBOOK_REVIEW_DRAFTS_ENABLED"
+
+#: At most this many of a period's trades are graded against their plans in one draft (the
+#: newest ones). Grading reads notes; this bounds one request. Every trade is still listed and
+#: counted; `gradingCap` in the payload says how many were left ungraded.
+MAX_GRADED_TRADES = 300
 
 #: A Compass excerpt is quoted, never the whole thing -- a review note cites it, it does not
 #: become it. Cut at a word boundary, never mid-word.
@@ -186,13 +191,22 @@ def _enrich_trades(conn: sqlite3.Connection, user_id: str, rows: list[sqlite3.Ro
         return []
     grading = plan_grading_enabled()   # read once per draft; off = no grade, and NO write
     defs = _prop_defs(conn, user_id) if grading else []
+    # ONE matching scope for the whole period (fin-security I-2): a ticker's notes are read
+    # once however many trades it has, and "unplanned" is remembered between drafts. Grading is
+    # also CAPPED at the newest `MAX_GRADED_TRADES` of the period; an older trade is listed and
+    # counted in every dollar figure, but carries no grade -- and the payload says how many.
+    scope = MatchScope(conn, user_id, defs=defs) if grading else None
+    graded_ids = {r["id"] for r in rows[-MAX_GRADED_TRADES:]}
+    if scope is not None:
+        scope.preload([r for r in rows if r["id"] in graded_ids])
     shaped = [{"id": r["id"], "symbol": r["symbol"], "entryDate": r["entry_date"]} for r in rows]
     contexts = entry_context.contexts_for_trades(user_id, shaped, conn=conn) if entry_context.enabled() else {}
     out = []
     for r in rows:
         gross = float(r["pnl_dollar"])
         fees = float(r["fees"] or 0)
-        payload = (grade_payload(conn, user_id, r, defs, with_candidates=False) if grading
+        payload = (grade_payload(conn, user_id, r, defs, with_candidates=False, scope=scope)
+                   if grading and r["id"] in graded_ids
                    else {"status": None, "checks": None, "plan": None})
         out.append({
             "id": r["id"], "tradeRef": trade_ref_for_row(r), "symbol": r["symbol"], "side": r["side"],
@@ -210,6 +224,8 @@ def _enrich_trades(conn: sqlite3.Connection, user_id: str, rows: list[sqlite3.Ro
             "entryContext": contexts.get(r["id"]),
             "plan": payload.get("plan"),
         })
+    if scope is not None:
+        scope.flush()
     return out
 
 
@@ -449,6 +465,9 @@ def _assemble(
         },
         "leaks": leaks,
         "leakCoverage": leak_finder.coverage(enriched),
+        "gradingCap": ({"limit": MAX_GRADED_TRADES, "graded": min(len(enriched), MAX_GRADED_TRADES),
+                        "ungraded": max(0, len(enriched) - MAX_GRADED_TRADES)}
+                       if plan_grading_enabled() else None),
         "compassText": compass,
         "baseline": baseline,
         "sample": sample_size.constants(),

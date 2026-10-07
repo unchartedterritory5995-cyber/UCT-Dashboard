@@ -100,6 +100,9 @@ _DIRECT_USER_TABLES = (
     # Wave 13 (lane 13A) -- the member's frozen plan-vs-execution links, keyed on the
     # same stable trade_ref. Created by db.ensure_schema (_PHASE_2_ALTERS).
     "j2_trade_plan_links",
+    # fin-security I-2 -- plan grading's remembered "unplanned" answers (a memo keyed like the
+    # links above). Created by db.ensure_schema (_PHASE_2_ALTERS).
+    "j2_trade_plan_misses",
     # Broker (SnapTrade) — superset of broker/service.py's narrower purge
     "j2_broker_users",
     "j2_broker_accounts",

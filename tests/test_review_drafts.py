@@ -407,3 +407,57 @@ def test_the_payload_says_how_many_trades_have_no_R(conn, client):
     conn.commit()
     payload = client.get("/api/j2/review-drafts/daily", params={"day": "2026-09-30", "accountId": ACCOUNT}).json()
     assert payload["leakCoverage"] == {"trades": 2, "withR": 1, "withoutR": 1}
+
+
+# ── fin-security I-2: a draft reads a ticker's notes once, and grading is capped and said ────
+
+def _draft_statements(conn, monkeypatch, n_trades, symbol):
+    """Body reads issued while enriching `n_trades` unplanned trades on one ticker."""
+    from api.services.journal_two import notes, review_drafts
+    monkeypatch.setenv(PG_FLAG, "1")
+    notes.import_confirm(U, {"source": "file", "notes": [{
+        "importKey": f"journal:{symbol}:{i}", "title": f"{symbol} journal {i}", "tags": [], "folderPath": [],
+        "ticker": symbol, "createdAt": "2026-09-20T12:00:00+00:00", "updatedAt": "2026-09-20T12:00:00+00:00",
+        "bodyJson": {"type": "doc", "content": [{"type": "paragraph", "content": [
+            {"type": "text", "text": "Watching. No levels."}]}]}} for i in range(3)]}, conn=conn)
+    for i in range(n_trades):
+        add_trade(conn, symbol=symbol, entry_date=f"2026-09-{22 + (i % 5):02d}T13:30:00+00:00",
+                  exit_date=f"2026-09-{22 + (i % 5):02d}T19:00:00+00:00", entry_price=100.0, exit_price=99.0)
+    rows = conn.execute("SELECT * FROM j2_trades WHERE user_id = ? AND symbol = ?", (U, symbol)).fetchall()
+    seen = []
+    conn.set_trace_callback(seen.append)
+    try:
+        out = review_drafts._enrich_trades(conn, U, rows)
+    finally:
+        conn.set_trace_callback(None)
+    assert {t["status"] for t in out} == {"unplanned"}
+    return [s for s in seen if "body_json" in s and ("FROM j2_notes" in s or "FROM j2_note_versions" in s)]
+
+
+def test_a_draft_reads_a_tickers_note_bodies_once_however_many_trades_it_has(conn, db_path, monkeypatch):
+    few = _draft_statements(conn, monkeypatch, 2, "NVDA")
+    many = _draft_statements(conn, monkeypatch, 15, "AMD")
+    assert len(few) > 0, "nothing was read; the comparison proves nothing"
+    assert len(many) == len(few)
+
+
+def test_grading_in_a_draft_is_capped_and_the_payload_says_how_many_were_left_out(conn, client, monkeypatch):
+    from api.services.journal_two import review_drafts
+    monkeypatch.setenv(PG_FLAG, "1")
+    monkeypatch.setattr(review_drafts, "MAX_GRADED_TRADES", 2)
+    for hour in (13, 14, 15):
+        add_trade(conn, symbol="NVDA", entry_date=f"2026-09-30T{hour}:00:00+00:00",
+                  exit_date=f"2026-09-30T{hour}:30:00+00:00", entry_price=100.0, exit_price=99.0)
+    payload = client.get("/api/j2/review-drafts/daily", params={"day": "2026-09-30", "accountId": ACCOUNT}).json()
+    assert payload["tradeCount"] == 3 and payload["aggregates"]["trade_count"] == 3   # all still counted
+    assert payload["gradingCap"] == {"limit": 2, "graded": 2, "ungraded": 1}
+    assert payload["discipline"]["unplannedCount"] == 2                                # the newest two
+
+
+def test_with_plan_grading_off_there_is_no_grading_cap_to_report(conn, client, monkeypatch):
+    monkeypatch.delenv(PG_FLAG, raising=False)
+    add_trade(conn, symbol="NVDA", entry_date="2026-09-30T13:30:00+00:00",
+              exit_date="2026-09-30T19:00:00+00:00", entry_price=100.0, exit_price=101.0)
+    payload = client.get("/api/j2/review-drafts/daily", params={"day": "2026-09-30", "accountId": ACCOUNT}).json()
+    assert payload["gradingCap"] is None
+    assert conn.execute("SELECT COUNT(*) FROM j2_trade_plan_misses").fetchone()[0] == 0
