@@ -40,7 +40,8 @@ def _quiet(monkeypatch):
     monkeypatch.setattr(dds, "_alert_recipients", lambda: [])
     from api.services import desk_session_insights
     monkeypatch.setattr(desk_session_insights, "is_enabled", lambda: True)
-    for k in ("DESK_YT_PLAYLISTS", "DESK_YT_FIRST_COMMENT", "DESK_CREATIVE_TITLES",
+    for k in ("DESK_YT_PLAYLISTS", "DESK_YT_FIRST_COMMENT", "DESK_YT_FIRST_COMMENT_TEXT",
+              "DESK_CREATIVE_TITLES",
               "DESK_CREATIVE_THUMBS", "DESK_KNOWN_SHOWS", "DESK_TITLE_EXTRA_WORDS"):
         monkeypatch.delenv(k, raising=False)
     return sent
@@ -406,10 +407,53 @@ def test_first_comment_posts_the_exact_text_when_enabled(edu_db, jobs_db, monkey
     monkeypatch.setenv("DESK_YT_FIRST_COMMENT", "1")
     yt = _YT()
     _publish(jobs_db, yt)
-    assert yt.comments == [("VIDX", "Join the live trading room: "
-                            "https://whop.com/c/uncharted/yt-desk  "
-                            "Education only, not financial advice.")]
-    assert "—" not in dds.FIRST_COMMENT_TEXT
+    assert yt.comments == [("VIDX", "Join today! The live trading room: "
+                            "https://whop.com/c/uncharted/yt-desk")]
+    assert "—" not in dds.FIRST_COMMENT_TEXT and "–" not in dds.FIRST_COMMENT_TEXT
+
+
+def test_default_first_comment_carries_no_disclaimer_and_no_code(edu_db, jobs_db, monkeypatch):
+    monkeypatch.setenv("DESK_YT_FIRST_COMMENT", "1")
+    yt = _YT()
+    _publish(jobs_db, yt)
+    (_vid, text), = yt.comments
+    assert "financial advice" not in text.lower()
+    assert "education only" not in text.lower()
+    # A discount code expires, so it must never be hard-coded in the default.
+    assert "code" not in text.lower() and "JOINUCT" not in text
+
+
+def test_first_comment_override_is_posted_verbatim(edu_db, jobs_db, monkeypatch):
+    override = "Join today! Use code JOINUCT for a nice discount: https://whop.com/c/uncharted/yt-desk"
+    monkeypatch.setenv("DESK_YT_FIRST_COMMENT", "1")
+    monkeypatch.setenv("DESK_YT_FIRST_COMMENT_TEXT", override)
+    yt = _YT()
+    _publish(jobs_db, yt)
+    assert yt.comments == [("VIDX", override)]
+
+
+@pytest.mark.parametrize("blank", ["", "   ", "\t\n"])
+def test_blank_first_comment_override_falls_back_to_the_default(edu_db, jobs_db, monkeypatch, blank):
+    monkeypatch.setenv("DESK_YT_FIRST_COMMENT", "1")
+    monkeypatch.setenv("DESK_YT_FIRST_COMMENT_TEXT", blank)
+    yt = _YT()
+    _publish(jobs_db, yt)
+    assert yt.comments == [("VIDX", dds.FIRST_COMMENT_TEXT)]
+
+
+def test_first_comment_override_is_read_at_call_time_not_import(monkeypatch):
+    # Set AFTER import: a Railway variable change must not need a code change.
+    monkeypatch.delenv("DESK_YT_FIRST_COMMENT_TEXT", raising=False)
+    assert dds.first_comment_text() == dds.FIRST_COMMENT_TEXT
+    monkeypatch.setenv("DESK_YT_FIRST_COMMENT_TEXT", "changed later")
+    assert dds.first_comment_text() == "changed later"
+
+
+def test_first_comment_override_alone_does_not_enable_the_comment(edu_db, jobs_db, monkeypatch):
+    monkeypatch.setenv("DESK_YT_FIRST_COMMENT_TEXT", "text without the toggle")
+    yt = _YT()
+    _publish(jobs_db, yt)
+    assert yt.comments == []
 
 
 def test_comment_failure_never_fails_the_job(edu_db, jobs_db, monkeypatch, _quiet):

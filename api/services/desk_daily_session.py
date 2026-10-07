@@ -394,8 +394,18 @@ _YT_THUMB = "https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
 # an upload never fails, retries or re-uploads because of these.
 # ---------------------------------------------------------------------------
 
-FIRST_COMMENT_TEXT = ("Join the live trading room: https://whop.com/c/uncharted/yt-desk  "
-                      "Education only, not financial advice.")
+# The built-in default. No disclaimer (owner decision 2026-10-06: it matches his
+# posts) and no discount code: a code expires, so it lives in the env override
+# below, never in the source.
+FIRST_COMMENT_TEXT = "Join today! The live trading room: https://whop.com/c/uncharted/yt-desk"
+
+
+def first_comment_text() -> str:
+    """The comment to post: DESK_YT_FIRST_COMMENT_TEXT verbatim when it is set to
+    a non-blank string, else FIRST_COMMENT_TEXT. Read per call, so a Railway
+    variable change takes effect on restart with no code change."""
+    override = os.environ.get("DESK_YT_FIRST_COMMENT_TEXT") or ""
+    return override if override.strip() else FIRST_COMMENT_TEXT
 
 
 def _playlist_map() -> dict[str, str]:
@@ -446,13 +456,13 @@ def first_comment_enabled() -> bool:
 
 
 def _post_first_comment(youtube, video_id: str) -> bool:
-    """commentThreads.insert of FIRST_COMMENT_TEXT under DESK_YT_FIRST_COMMENT.
+    """commentThreads.insert of first_comment_text() under DESK_YT_FIRST_COMMENT.
     True iff posted (the publish notice then asks a human to pin it, since the
     Data API cannot). Never raises."""
     if not first_comment_enabled():
         return False
     try:
-        youtube.post_comment(video_id, FIRST_COMMENT_TEXT)
+        youtube.post_comment(video_id, first_comment_text())
         return True
     except Exception as e:  # noqa: BLE001 — fail-soft by contract
         print(f"[desk-sessions] first comment failed for {video_id} (non-fatal): {e}")
