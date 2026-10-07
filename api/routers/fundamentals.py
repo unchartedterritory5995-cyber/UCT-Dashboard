@@ -216,10 +216,22 @@ def get_earnings_table_endpoint(
     if not s:
         return {"ticker": "", "annual": [], "quarterly": []}
     try:
-        return get_earnings_table(s, debug=bool(debug))
+        out = get_earnings_table(s, debug=bool(debug))
     except Exception as e:
         _log.warning("earnings-table failed for %s: %s", s, e)
         return {"ticker": s, "annual": [], "quarterly": []}
+    # The company's reporting currency (TSM -> "TWD"), the SAME field and source
+    # EE/FA carry (`research.reporting_currency`, one FMP read cached 24h per
+    # symbol; None = unknown -> the widget renders "$" exactly as before). Stamped
+    # here, on a copy, so the cached/persisted payload shape is untouched.
+    # Accuracy follow-up 7: the Fundamentals widget printed TSM's TWD sales as "$".
+    try:
+        from api.services.research import reporting_currency
+        state, code = reporting_currency.read(s, timeout=5)
+        currency = code if state == "ok" else None
+    except Exception:  # noqa: BLE001 -- unknown, never a guess
+        currency = None
+    return {**out, "currency": currency} if isinstance(out, dict) else out
 
 
 @router.get("/api/admin/fundamentals-health")

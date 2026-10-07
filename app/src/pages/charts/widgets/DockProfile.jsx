@@ -394,7 +394,7 @@ export default function DockProfile({ sym }) {
       </LoadingCtx.Provider>
 
       {/* PROTOTYPE: one visual, after the numbers it summarises. */}
-      <BusinessTrend annual={intel?.annual} />
+      <BusinessTrend annual={intel?.annual} currency={intel?.currency ?? null} />
 
     </div>
   )
