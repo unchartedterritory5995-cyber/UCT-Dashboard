@@ -37,7 +37,7 @@ _J2_SERVICES = Path(__file__).resolve().parents[1] / "api" / "services" / "journ
 
 # ⛔ ROLLBACK-SAFE (lane ROLLBACK, 2026-10-06). A rollback of the wave 12-15 landing keeps
 # `account_purge.py` AND this file at the tip (tools/notebook_rollback_chain.py,
-# KEEP_WITH_LANDING), so the deletion list goes on naming the landing's twelve tables while the
+# KEEP_WITH_LANDING), so the deletion list goes on naming the landing's thirteen tables while the
 # modules that create them are gone. On that tree this file cannot create those tables, and the
 # purge treats a table that does not exist as a no-op -- which is correct there, and is measured
 # with the tables present in tests/test_notebook_rollback_never_revert.py.
@@ -58,6 +58,11 @@ _WAVE_12_15_TABLE_OWNERS = {
     "j2_note_levels": "note_levels",
     "j2_note_resurface_fires": "note_levels",
     "j2_similar_matches": "similar_matches",
+    # Finish program, lane DATA: plan grading's "unplanned" memo. Its DDL sits in db.py, which a
+    # rollback reverts; the module that reads and writes it is plan_grading, so that is the file
+    # whose absence means the table cannot exist. Found by the rollback rehearsal on 2026-10-07:
+    # without this row the kept copy of this file failed twice on the rolled-back tree.
+    "j2_trade_plan_misses": "plan_grading",
 }
 
 
@@ -547,7 +552,7 @@ def test_no_table_is_excused_while_the_module_that_owns_it_is_on_disk():
     the tip -- nothing is left out, so the manifest rails above cover the whole list."""
     from api.services.journal_two import account_purge as ap
 
-    assert len(_WAVE_12_15_TABLE_OWNERS) == 12
+    assert len(_WAVE_12_15_TABLE_OWNERS) == 13
     not_listed = sorted(set(_WAVE_12_15_TABLE_OWNERS) - set(ap._DIRECT_USER_TABLES))
     assert not not_listed, f"the deletion list no longer names: {not_listed}"
     gone = _rolled_back_tables()
