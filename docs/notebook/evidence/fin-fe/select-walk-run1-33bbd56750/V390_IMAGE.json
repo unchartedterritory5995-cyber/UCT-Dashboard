@@ -1,0 +1,17 @@
+{
+ "body_markup": {
+  "marker": "",
+  "has_canvas": false,
+  "has_img": true,
+  "caption": false
+ },
+ "selected_before": false,
+ "selected_after_click": true,
+ "blocks_after_delete": 0,
+ "blocks_after_undo": 1,
+ "long_press_selected_while_held": false,
+ "long_press_selected_after_release": true,
+ "long_press_contextmenu_events": 0,
+ "long_press_dialogs_open": 0,
+ "blocks_after_long_press": 1
+}

@@ -1,58 +1,69 @@
 // @vitest-environment jsdom
-// Finish program, lane FE, I7 verification: "a mousedown on the embed body no longer selects the
-// block" (wave 13 lane 13H-2, live with every flag off).
+// Finish program, lane FE (round 2, controller ruling on I7): a click on a chart block's body
+// SELECTS the block, as it did before wave 13.
 //
-// What the lane intended, and tested, is the LIVE chart: the chart owns its own gestures, so a
-// press on its canvas must not reach the editor's click-to-select (that stole focus out of Draw
-// mode). `widgetEmbedNode.test.js` holds that.
+// Wave 13 lane 13H-2 (commit 0d11a14787) stopped every mousedown on the body from reaching the
+// editor. Its reason was Draw mode: the editor's click-to-select refocuses the editor on mouseup,
+// and the embed reads that focus as "done drawing", so Draw mode ended after the first mark. But
+// the stop was unconditional, so it also took away click-to-select (then Delete, or drag to move)
+// for every block, an archived image and a chart with no caption included, with every flag off.
 //
-// What came with it, and is NOT covered there: the same rule applies to every block's body,
-// because every kind of embed renders inside `[data-widget-embed-body]` (WidgetEmbedView.jsx) --
-// an ARCHIVED IMAGE included, which has no gesture of its own to protect. Before 13H-2 a click
-// on an archived chart image selected the block (then Backspace removed it, or a drag moved it).
-// Now it does nothing. Measured in a real browser on this branch
-// (docs/notebook/evidence/fin-fe/walk-run3-fixed-*/C_observations.json): a click on the body
-// selects nothing; with no caption the block has no surface of its own that a click selects;
-// the keyboard still selects, copies, cuts, pastes, deletes and undoes it, and the toolbar's
-// Remove button still deletes it by mouse.
-//
-// The first test below asserts the behaviour BEFORE the wave and FAILS on this branch. It is
-// written with `it.fails` so the suite stays green and so it turns RED the day the old behaviour
-// is restored for static images (then: delete `.fails`). It is a record of a regression the
-// controller ruled stays live for now, not a fix.
+// The rule now: the body is the editor's to select EXCEPT while the member is drawing on it
+// (`data-widget-embed-body="draw"`, set by WidgetEmbedView while Draw mode is on). Controls inside
+// the block (buttons, selects, inputs) always keep their own clicks.
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
 import { widgetEmbedStopEvent } from './widgetEmbedNode'
 
-function embedWith(inner) {
+function embedWith(inner, { drawing = false } = {}) {
   const host = document.createElement('div')
-  host.innerHTML = `<div data-widget-embed-view="chart"><div data-widget-embed-body="">${inner}</div><div class="caption">cap</div></div>`
+  host.innerHTML = `<div data-widget-embed-view="chart"><div data-widget-embed-body="${drawing ? 'draw' : ''}">${inner}</div><div class="caption">cap</div></div>`
   document.body.appendChild(host)
   return host
 }
 const mousedownOn = (el) => ({ type: 'mousedown', target: el })
+// false = "not mine: let the editor select the block"; true = "the block's own, keep out"
+const stopped = (el) => widgetEmbedStopEvent({ event: mousedownOn(el) })
 
 describe('I7 — clicking a chart block', () => {
-  it.fails('REGRESSION RECORD: a click on an ARCHIVED IMAGE still selects the block (true before wave 13, false now)', () => {
+  it('a click on an ARCHIVED IMAGE selects the block', () => {
     const host = embedWith('<img alt="AMD daily chart, archived" src="data:," />')
-    // false = "not mine, let the editor select the block"
-    expect(widgetEmbedStopEvent({ event: mousedownOn(host.querySelector('img')) })).toBe(false)
+    expect(stopped(host.querySelector('img'))).toBe(false)
   })
 
-  it('what is intended and holds: a press on a LIVE chart canvas never reaches click-to-select', () => {
+  it('a click on a LIVE chart (canvas, no caption needed) selects the block', () => {
     const host = embedWith('<canvas></canvas>')
-    expect(widgetEmbedStopEvent({ event: mousedownOn(host.querySelector('canvas')) })).toBe(true)
+    expect(stopped(host.querySelector('canvas'))).toBe(false)
   })
 
-  it('a click on the caption (outside the body) still selects the block', () => {
-    const host = embedWith('<canvas></canvas>')
-    expect(widgetEmbedStopEvent({ event: mousedownOn(host.querySelector('.caption')) })).toBe(false)
+  it('CONTROL — a click on a button, select or input inside the body acts on the control and never selects the block', () => {
+    const host = embedWith('<button type="button">Log scale</button><select><option>D</option></select><input />')
+    for (const sel of ['button', 'select', 'input']) expect(stopped(host.querySelector(sel))).toBe(true)
+  })
+
+  it('the reason 13H-2 exists still holds: while DRAWING, a press on the canvas or a drawing handle never reaches click-to-select', () => {
+    const host = embedWith('<canvas></canvas><svg><circle r="4"></circle></svg>', { drawing: true })
+    expect(stopped(host.querySelector('canvas'))).toBe(true)
+    expect(stopped(host.querySelector('circle'))).toBe(true)
+  })
+
+  it('a click on the caption (outside the body) selects the block, drawing or not', () => {
+    expect(stopped(embedWith('<canvas></canvas>').querySelector('.caption'))).toBe(false)
+    expect(stopped(embedWith('<canvas></canvas>', { drawing: true }).querySelector('.caption'))).toBe(false)
   })
 
   it('copy, cut, paste and drag events are still the editor’s, from anywhere in the block', () => {
-    const host = embedWith('<canvas></canvas>')
-    const canvas = host.querySelector('canvas')
+    const canvas = embedWith('<canvas></canvas>').querySelector('canvas')
     for (const type of ['copy', 'cut', 'paste', 'dragstart', 'drop']) {
       expect(widgetEmbedStopEvent({ event: { type, target: canvas } })).toBe(false)
     }
+  })
+
+  it('the wire: the embed marks its body "draw" exactly while Draw mode is on', () => {
+    const here = dirname(fileURLToPath(import.meta.url))
+    const src = readFileSync(resolve(here, '../components/notebook/WidgetEmbedView.jsx'), 'utf8')
+    expect(src).toContain("data-widget-embed-body={annotate ? 'draw' : ''}")
   })
 })
