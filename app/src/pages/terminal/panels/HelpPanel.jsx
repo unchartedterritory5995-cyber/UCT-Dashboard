@@ -11,6 +11,7 @@ import {
   ROW_RULE, TICKER_COLLISIONS,
 } from '../grammar'
 import { SHORTCUTS } from '../../command/shortcutRegistry'
+import { boardableCodes } from '../scanBoard'
 import { COMMAND_LINE_KEYS } from '../CommandLine'
 import styles from '../TerminalShell.module.css'
 
@@ -102,6 +103,16 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
           {[COLLISION_RULE, CHANNEL_RULE, COMPARE_RULE, ASK_RULE, ALIAS_RULE, ROW_RULE, BOARD_RULE].map((r) => (
             <p key={r} className={styles.helpRule}>{r}</p>
           ))}
+          {/* BOARD's entry names the codes the list panels' "Board of" menu offers — the SAME list
+              the menu reads (scanBoard.boardableCodes), never a copy, and only once flags are known. */}
+          {flagsKnown && (
+            <p className={styles.helpRule} data-testid="terminal-help-board-codes">
+              The &ldquo;Board of&rdquo; menu on a list (MOST, the screener, RRG) offers:{' '}
+              {boardableCodes(auth).map((c, i) => (
+                <span key={c.code}>{i ? ', ' : ''}<kbd>{c.code}</kbd> {c.label.toLowerCase()}</span>
+              ))}. Any other per-security code works when typed (<kbd>BOARD OWN</kbd>).
+            </p>
+          )}
           <p className={styles.helpRule}>Codes that are also tickers: {TICKER_COLLISIONS.join(', ')}.</p>
           <h3 className={styles.helpGroup}>Suggestion order</h3>
           <ol className={styles.helpRule} data-testid="terminal-help-ranking">

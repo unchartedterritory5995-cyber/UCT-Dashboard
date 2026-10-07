@@ -59,6 +59,14 @@ vi.mock('./panels', async (importOriginal) => {
               </div>
             )
           }
+          : name === 'Imov'
+          ? function ImovStub({ theme, onRun }) {
+            return (
+              <div data-testid="stub-Imov" data-theme={theme || ''}>
+                <button type="button" onClick={() => onRun?.('IMOV THEME SEMICONDUCTORS', { here: true })}>pick semis</button>
+              </div>
+            )
+          }
           : name === 'Rrg'
           ? function RrgStub({ onRows }) {
             useEffect(() => { onRows?.(['XLK GP', 'XLU GP']) }, [onRows])
@@ -250,5 +258,21 @@ describe('an "open X" link inside a list opens BESIDE the list, never over it', 
     await act(async () => { fireEvent.keyDown(input, { key: 'Enter' }) })
     expect([code(0), code(1)]).toEqual(['RRG', 'GP'])
     expect(screen.getByTestId('stub-Chart')).toHaveTextContent('Chart:XLU')
+  })
+})
+
+describe('IMOV writes a hand-picked theme into its OWN panel command', () => {
+  it('the pick lands in that panel (not the focused one), as args the panel reads back', async () => {
+    seedBoard()
+    const lay = JSON.parse(store.prefs.terminal_layout)
+    lay.panels[1] = { id: 'p2', code: 'IMOV', channel: null, sym: null, args: [] }
+    store.prefs.terminal_layout = JSON.stringify(lay)
+    renderShell()
+    await act(async () => { fireEvent.click(screen.getByText('pick semis')) })
+    expect([code(0), code(1), code(2)]).toEqual(['MOST', 'IMOV', 'FA'])
+    expect(screen.getByTestId('stub-Imov').getAttribute('data-theme')).toBe('SEMICONDUCTORS')
+    const saved = JSON.parse(store.prefs.terminal_layout)
+    expect(saved.panels[1]).toMatchObject({ code: 'IMOV', args: ['THEME', 'SEMICONDUCTORS'] })
+    expect(saved.panels[0]).toMatchObject({ code: 'MOST' })
   })
 })

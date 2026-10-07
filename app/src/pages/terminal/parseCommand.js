@@ -67,7 +67,21 @@ function isDeclaredArg(code, tok) {
   const fn = BY_CODE[String(code || '').toUpperCase()]
   if (!fn) return false
   const specs = [...(fn.ticker?.args || []), ...(fn.market?.args || [])]
-  return specs.some((s) => s.kind !== 'code' && ARG_KINDS[s.kind]?.parse(tok) != null)
+  // A REST spec (IMOV's theme name) takes almost any word, so it never decides alone that a
+  // token is an argument rather than a ticker: `phraseArgs` below does that.
+  return specs.some((s) => s.kind !== 'code' && !s.rest && ARG_KINDS[s.kind]?.parse(tok) != null)
+}
+
+/** `FUNC <words…>` for a code with a REST spec (IMOV's theme name): are these words a phrase
+ *  rather than `FUNC TICKER args`? Yes when they open with the spec's marker (`IMOV THEME SEMIS`)
+ *  or when TWO or more of them are not arguments another spec takes (`IMOV AI / GPU Chips`). One
+ *  free word stays a ticker (`IMOV NVDA 1W`, `IMOV SMH`), so the established grammar holds. */
+function phraseArgs(code, words) {
+  const fn = BY_CODE[String(code || '').toUpperCase()]
+  const spec = fn?.market?.args?.find((s) => s.rest)
+  if (!spec || !words.length || String(words[0]).startsWith('$')) return false
+  if (spec.marker && String(words[0]).toUpperCase() === spec.marker) return true
+  return words.filter((w) => !isDeclaredArg(code, w)).length >= 2
 }
 
 /** Parse result `type`s that open something a channel can target: a function (every code
@@ -295,6 +309,10 @@ function parseCore(raw) {
   if (!forced && isCode(FIRST)) {
     if (!second) return { ok: true, type: 'function', code: canonicalCode(FIRST), sym: null, args: [] }
     const secondForced = second.startsWith('$')
+    // `IMOV AI / GPU Chips` names a THEME (a REST argument), not the ticker AI.
+    if (phraseArgs(FIRST, [second, ...rest])) {
+      return { ok: true, type: 'function', code: canonicalCode(FIRST), sym: null, args: [second, ...rest] }
+    }
     // `GP W` — a token the code DECLARES as an argument (GP's timeframe) is that argument, the
     // same reading the echo and args.js give it. `GP $W` still means the ticker W (Wayfair),
     // and a single-letter ticker in FIRST position (`W GP`) is untouched.

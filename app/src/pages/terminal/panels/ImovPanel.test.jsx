@@ -160,3 +160,66 @@ describe('IMOV', () => {
     expect(formatPts(null)).toBe('—')
   })
 })
+
+describe('IMOV with a theme NAMED on the command line', () => {
+  const GPU = { name: 'AI / GPU Chips', ticker: 'GPUX', theme_id: 'ai_gpu_chips', group_return: {},
+    holdings: [{ sym: 'NVDA', source: 'owner', returns: { '1d': 3 } }, { sym: 'AMD', source: 'owner', returns: { '1d': 1 } }] }
+  const WITH_GPU = { ...PAYLOAD, themes: [...PAYLOAD.themes, GPU] }
+
+  it('opens the named theme, not the biggest mover, and says nothing about a default', async () => {
+    serve(PAYLOAD)
+    renderPanel({ theme: 'SEMICONDUCTORS' })
+    await screen.findByTestId('terminal-imov-total')
+    expect(text('terminal-imov-total')).toContain('Semiconductors 1D: +0.50% across 4 names')
+    expect(screen.queryByText(/Opened on the theme moving most/)).toBeNull()
+  })
+
+  it('a multi-word name is case and spacing insensitive', async () => {
+    serve(WITH_GPU)
+    renderPanel({ theme: 'ai gpu   CHIPS' })
+    await screen.findByTestId('terminal-imov-total')
+    expect(text('terminal-imov-total')).toContain('AI / GPU Chips 1D: +2.00% across 2 names')
+  })
+
+  it('an ambiguous name asks which, and picking one writes it into the panel command', async () => {
+    serve(WITH_GPU)
+    const onRun = vi.fn()
+    renderPanel({ theme: 'AI', onRun })
+    await screen.findByTestId('terminal-imov-theme-ambiguous')
+    expect(text('terminal-imov-theme-ambiguous')).toContain('"AI" fits 2 UCT themes. Which one did you mean?')
+    fireEvent.click(screen.getByTestId('terminal-imov-didyoumean-ai_software'))
+    expect(onRun).toHaveBeenCalledWith('IMOV THEME AI_SOFTWARE', { here: true })
+    expect(text('terminal-imov-total')).toContain('AI Software')
+  })
+
+  it('an unknown name says so out loud, offers the nearest theme, and never guesses', async () => {
+    serve(PAYLOAD)
+    renderPanel({ theme: 'SEMICONDUTORS' })
+    await screen.findByTestId('terminal-imov-theme-unknown')
+    expect(text('terminal-imov-theme-unknown')).toContain('No UCT theme is called "SEMICONDUTORS".')
+    expect(text('terminal-imov-theme-unknown')).toContain('Did you mean one of these?')
+    expect(screen.getByTestId('terminal-imov-didyoumean-semiconductors')).toHaveTextContent('Open the Semiconductors theme')
+    expect(screen.queryByTestId('terminal-imov-total')).toBeNull()
+  })
+
+  it('picking from the picker writes the theme (and a non-default window, and the security) into the command', async () => {
+    serve(PAYLOAD)
+    const onRun = vi.fn()
+    renderPanel({ sym: 'NVDA', onRun })
+    await screen.findByTestId('terminal-imov-total')
+    fireEvent.click(screen.getByTestId('terminal-imov-win-1W'))
+    fireEvent.change(screen.getByTestId('terminal-imov-theme'), { target: { value: 'semiconductors' } })
+    expect(onRun).toHaveBeenLastCalledWith('NVDA IMOV THEME SEMICONDUCTORS 1W', { here: true })
+  })
+
+  it('one ticker-shaped word no theme holds, but a theme is called, offers that theme', async () => {
+    serve(PAYLOAD)
+    const onRun = vi.fn()
+    renderPanel({ sym: 'SEMI', onRun })
+    await screen.findByTestId('terminal-imov-unheld')
+    expect(text('terminal-imov-unheld')).toContain('No UCT theme holds SEMI.')
+    expect(text('terminal-imov-unheld')).toContain('Did you mean the Semiconductors theme?')
+    fireEvent.click(screen.getByTestId('terminal-imov-didyoumean-semiconductors'))
+    expect(onRun).toHaveBeenCalledWith('SEMI IMOV THEME SEMICONDUCTORS', { here: true })
+  })
+})

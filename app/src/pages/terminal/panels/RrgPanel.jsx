@@ -43,6 +43,10 @@ export function rrgUniverse(sym, props = {}) {
   return { syms: asked.slice(0, RRG_MAX), mode: 'custom', dropped: asked.slice(RRG_MAX) }
 }
 
+/** The cadences RRG draws: weekly (the default) and daily closes. Every one the `cadence` arg
+ *  accepts (args.js CADENCES) is drawn; anything else is SAID, never silently replaced. */
+export const RRG_CADENCES = Object.freeze(['W', 'D'])
+
 /** Pure: the cadence a `tf` prop resolves to (RRG reads only weekly or daily closes). */
 export function rrgCadence(tf) {
   return tf === 'D' ? 'D' : 'W'
@@ -113,6 +117,8 @@ function Graph({ rows }) {
 
 export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
   const cadence = rrgCadence(tf)
+  // A typed window this panel cannot draw is SAID, never silently replaced (the CORR pattern).
+  const unapplied = tf && !RRG_CADENCES.includes(tf) ? tf : null
   const withKey = withArgsKey(props)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const universe = useMemo(() => rrgUniverse(sym, props), [sym, withKey])
@@ -153,6 +159,11 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
         {lead.length ? `Leading: ${lead.join(', ')}. ` : 'Nothing is in Leading. '}
         {improving.length ? `Improving: ${improving.join(', ')}.` : ''}
       </p>
+      {unapplied && (
+        <p className={styles.note} role="status" data-testid="terminal-rrg-unapplied">
+          Window {unapplied} is not available here; showing {cadence}.
+        </p>
+      )}
       <Graph rows={rows} />
       <div className={styles.tableBox}>
         <table className={styles.table} data-testid="terminal-rrg-table" aria-label={`Rotation quadrants vs ${RRG_BENCHMARK}`}>
