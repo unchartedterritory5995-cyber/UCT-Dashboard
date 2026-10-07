@@ -1243,12 +1243,22 @@ def _trade_row(pg, sym: str):
     # never match ordinary page text. Plain has_text=sym (row's own substring semantics) fixes it
     # without any regex escaping. Evidence: docs/notebook/evidence/wave13-13q3/q6-q13-instrument-fix/.
     alt = pg.locator("a, button, [role=button], [role=row], li", has_text=sym).filter(visible=True)
+    # Lane KEYS round 3: the loose match counts only when it is STILL THERE on the next sample.
+    # The page being left can name the symbol too (a note's ticker chip). Taken at once, that
+    # chip was returned as "the trade row", was gone a moment later, and Q6 read INCONCLUSIVE
+    # beside a screenshot of the Trades page's half-second "Loading" fallback: three times in
+    # three runs, and read as a stuck page. A real table row is taken at once: only Trades has one.
     end = time.time() + 45
+    alt_seen = False
     while time.time() < end:   # the trades table loads after the surface: wait for it, never sample once
         if row.count():
             return row
         if alt.count():
-            return alt
+            if alt_seen:
+                return alt
+            alt_seen = True
+        else:
+            alt_seen = False
         pg.wait_for_timeout(400)
     return row
 

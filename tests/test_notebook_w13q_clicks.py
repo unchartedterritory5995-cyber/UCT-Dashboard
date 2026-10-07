@@ -793,6 +793,55 @@ def test_trade_row_prefers_the_real_table_row_when_one_exists():
     assert pg.queries[0][0] == "tr"
 
 
+class FakeLeavingPage:
+    """The page a member is LEAVING still names the symbol for a moment (a note's ticker chip),
+    then the Trades page shows its "Loading" fallback, then the table. `alt_script` is what the
+    loose locator finds on each sample; `tr_after` is the sample from which the table exists."""
+
+    def __init__(self, alt_script, tr_after):
+        self.alt_script, self.tr_after = list(alt_script), tr_after
+        self.sample = 0
+
+    def locator(self, selector, has_text=None):
+        page = self
+
+        class Loc:
+            def filter(self, visible=None):
+                return self
+
+            def count(self):
+                if selector == "tr":
+                    return 1 if page.sample >= page.tr_after else 0
+                i = min(page.sample, len(page.alt_script) - 1)
+                return 1 if page.alt_script[i] else 0
+
+            is_table_row = selector == "tr"
+        return Loc()
+
+    def wait_for_timeout(self, ms):
+        self.sample += 1
+
+
+def test_trade_row_never_returns_a_control_of_the_page_being_left():
+    """Finish program, lane KEYS round 3. Q6 on a keyboard read INCONCLUSIVE three times in three
+    runs with a screenshot of "Loading...". The page was not stuck: the helper took the note's
+    own ticker chip (the page being left names CRWD too) as the trade row, the chip was gone a
+    moment later, and the flow gave up within a second. A loose match counts only when it is
+    still there on the next sample; here it is not, and the real table row is what comes back."""
+    pg = FakeLeavingPage(alt_script=[True, False, False, False], tr_after=3)
+    row = w13q._trade_row(pg, "CRWD")
+    assert row.count() == 1
+    assert row.is_table_row is True
+
+
+def test_trade_row_still_takes_a_loose_match_that_stays():
+    """The phone shape must keep working: no table ever, a card that stays."""
+    pg = FakeLeavingPage(alt_script=[False, True, True, True], tr_after=10 ** 6)
+    row = w13q._trade_row(pg, "CRWD")
+    assert row.count() == 1
+    assert row.is_table_row is False
+
+
 # ── table_md rendering ───────────────────────────────────────────────────────────────────
 
 def test_table_md_renders_a_missing_measured_as_a_dash_never_a_crash():
