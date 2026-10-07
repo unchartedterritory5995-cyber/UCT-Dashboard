@@ -371,7 +371,7 @@ def run_one(br, admin_req, base: str, fid: str, fn, mode: str, width: str, out: 
            "budget": budget, "measured": None, "verdict": "INCONCLUSIVE", "reason": "", "tabs": None,
            "keystrokes": None, "clicks": None, "taps": None, "time_s": None, "steps": [], "setup": [],
            "outcome": None}
-    vp = WIDE if width == "1200" else PHONE
+    vp = PHONE if width == "390" else {"width": int(width), "height": WIDE["height"]}
     ctx = br.new_context(viewport=vp, has_touch=(width == "390"), is_mobile=(width == "390"),
                          reduced_motion="reduce")
     email = f"q1c{fid.lower()}{mode}{width}{n}{int(time.time() * 1000) % 1_000_000}@local.dev"
@@ -435,6 +435,8 @@ def main(argv=None) -> int:
     ap.add_argument("--port", type=int, default=8720)
     ap.add_argument("--out", required=True)
     ap.add_argument("--only", default="")
+    ap.add_argument("--wide", type=int, default=WIDE["width"],
+                    help="the wide viewport's width in px (wave 14 measured at 1200; the finish program at 1280)")
     args = ap.parse_args(argv)
     why = h.refuse_shared_root(args.data_dir)
     if why:
@@ -457,7 +459,8 @@ def main(argv=None) -> int:
     sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(REPO), capture_output=True, text=True).stdout.strip()
     result = {"tool": "tools/notebook_w14q_clicks.py", "tree": sha,
               "started": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-              "sandbox_flags": FLAGS, "budgets": BUDGET, "rows": [], "status": "INCOMPLETE (run did not finish)"}
+              "sandbox_flags": FLAGS, "budgets": BUDGET, "rows": [], "wide_px": args.wide,
+              "status": "INCOMPLETE (run did not finish)"}
     (out / "clicks.json").write_text(json.dumps(result, indent=1), encoding="utf-8")
     for k in [k for k in os.environ if k.startswith("RAILWAY_")]:
         os.environ.pop(k, None)
@@ -480,6 +483,7 @@ def main(argv=None) -> int:
                     if only and fid not in only:
                         continue
                     for mode, width in FLOW_MODES.get(fid, ALL_MODES):
+                        width = str(args.wide) if width == "1200" else width
                         n += 1
                         result["rows"].append(run_one(br, admin.request, base, fid, fn, mode, width, out, n))
                         (out / "clicks.json").write_text(json.dumps({**result, "status": "IN PROGRESS"}, indent=1,
