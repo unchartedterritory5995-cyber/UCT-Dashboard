@@ -82,6 +82,7 @@ export function planOps(targets, ops, env = {}, ctx = null) {
     const opEnv = { ...env, target: tgt.snap, resourcesInPlan }
     let st = before
     const noops = []
+    let confirm = false
     for (const { op, index } of items) {
       const bad = shapeError(op?.action, op?.args, ctx)
       if (bad) { refusals.push({ index, action: op?.action, target: ref, reason: bad }); continue }
@@ -89,11 +90,12 @@ export function planOps(targets, ops, env = {}, ctx = null) {
       if (cap.target !== tgt.kind) { refusals.push({ index, action: op.action, target: ref, reason: `${op.action} doesn't apply to that.` }); continue }
       const why = cap.check(st, op.args, opEnv)
       if (why) { refusals.push({ index, action: op.action, target: ref, reason: why }); continue }
+      if (cap.confirmIf && cap.confirmIf(st, op.args, opEnv)) confirm = true
       const next = cap.apply(st, op.args, opEnv)
       if (next === st && cap.noop) noops.push(cap.noop(st, st, op.args, opEnv))
       st = next
     }
-    plans.push({ ref, kind: tgt.kind, snap: tgt.snap, virtual: !!tgt.virtual, before, after: st, items, noops, env: opEnv })
+    plans.push({ ref, kind: tgt.kind, snap: tgt.snap, virtual: !!tgt.virtual, before, after: st, items, noops, env: opEnv, confirm })
   }
 
   // A creating plan may only touch its creators and what it creates: mixing in
@@ -104,6 +106,12 @@ export function planOps(targets, ops, env = {}, ctx = null) {
     if (mixed.length) {
       refusals.push({ index: -1, reason: 'Adding widgets and changing existing ones in one request isn’t supported yet — do it in two steps.' })
     }
+  }
+  // An EXCLUSIVE capability (e.g. opening another layout) replaces what every other
+  // target refers to, so it can't share a request with changes to other targets.
+  const exclusive = ops.find(op => getCapability(op?.action)?.exclusive)
+  if (exclusive && plans.some(p => p.ref !== exclusive.target)) {
+    refusals.push({ index: -1, reason: getCapability(exclusive.action).exclusiveReason || 'Do that in two steps.' })
   }
   if (refusals.length) return { ok: false, refusals }
 
@@ -189,7 +197,7 @@ export function planShape(plan) {
   const ops = plan.plans.reduce((n, p) => n + p.items.length, 0)
   // New things this plan brings into existence (capabilities mark themselves).
   const resources = plan.plans.reduce((n, p) => n + p.items.filter(i => getCapability(i.op.action)?.createsResource).length, 0)
-  const confirm = plan.plans.some(p => p.items.some(i => getCapability(i.op.action)?.risk === 'confirm'))
+  const confirm = plan.plans.some(p => p.confirm || p.items.some(i => getCapability(i.op.action)?.risk === 'confirm'))
   const irreversible = plan.plans.some(p => p.items.some(i => getCapability(i.op.action)?.reversible === false))
   return { targets, ops, resources, confirm, irreversible }
 }

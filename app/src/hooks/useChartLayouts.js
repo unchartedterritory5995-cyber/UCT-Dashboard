@@ -39,12 +39,14 @@ function withoutId(cur, id) {
 export default function useChartLayouts() {
   const { data, mutate, isLoading } = useSWR('/api/charts/layouts', fetcher, { revalidateOnFocus: false })
 
-  const saveLayout = async ({ name, layout, groups, scope = 'user' }) => {
+  // `createOnly`: refuse (409) rather than replace a layout that already has this
+  // name. Without it, POST is the name-keyed upsert every existing caller uses.
+  const saveLayout = async ({ name, layout, groups, scope = 'user', createOnly = false }) => {
     const r = await fetch('/api/charts/layouts', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, layout, groups, scope }),
+      body: JSON.stringify({ name, layout, groups, scope, ...(createOnly ? { create_only: true } : {}) }),
     })
     if (!r.ok) {
       const body = await r.json().catch(() => ({}))

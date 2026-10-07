@@ -4,10 +4,10 @@
 // dot can unlink a widget ('N' → its own `N:<id>` symbol key, as WidgetHost
 // does), and charts read their symbol from their link group.
 import { planPlacement } from '../../pages/charts/placement/place'
-import { buildWidgetSource } from '../host'
+import { buildWidgetSource, buildLayoutSource } from '../host'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 
-export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null } = {}) {
+export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null } = {}) {
   const state = { widgets: widgets.map(w => ({ color: 'A', opts: {}, ...w })), groupSyms: { ...groupSyms } }
   let n = 0
   let adds = 0
@@ -57,6 +57,57 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
       },
     },
     otherWidgets: () => [],
+  }
+  // Optional layout library, behaving like the Layout Dock: `open` swaps the board
+  // for the stored one (your own layouts keep their edits — they auto-save; others
+  // drop them), `rename` refuses a duplicate, `saveAs` refuses an existing name.
+  if (layouts) {
+    const lib = {
+      entries: layouts.entries.map(e => ({ scope: 'user', ...e })),
+      boards: Object.fromEntries(Object.entries(layouts.boards || {}).map(([k, v]) => [k, v.map(w => ({ color: 'A', opts: {}, ...w }))])),
+      activeId: layouts.active ?? null,
+      unsaved: !!layouts.unsaved,
+      calls: [],
+    }
+    state.layouts = lib
+    const activeEntry = () => lib.entries.find(e => e.id === lib.activeId) || null
+    const ops = {
+      open(entry) {
+        lib.calls.push(['open', entry.id])
+        const cur = activeEntry()
+        if (cur && cur.scope === 'user') lib.boards[cur.id] = state.widgets
+        lib.activeId = entry.id
+        state.widgets = (lib.boards[entry.id] || []).map(w => ({ ...w }))
+        lib.unsaved = false
+      },
+      async rename(id, name) {
+        lib.calls.push(['rename', id, name])
+        if (lib.entries.some(e => e.id !== id && e.name === name)) return
+        lib.entries = lib.entries.map(e => (e.id === id ? { ...e, name } : e))
+      },
+      async saveAs(name) {
+        lib.calls.push(['saveAs', name])
+        if (lib.entries.some(e => e.scope === 'user' && e.name === name)) throw new Error('You already have a layout with that name')
+        const id = 1000 + lib.entries.length
+        lib.entries = [...lib.entries, { id, name, scope: 'user' }]
+        lib.boards[id] = state.widgets.map(w => ({ ...w }))
+        lib.activeId = id
+        lib.unsaved = false
+        return { id, name, scope: 'user' }
+      },
+      refresh: async () => {},
+    }
+    const source = buildLayoutSource(() => {
+      const a = activeEntry()
+      return {
+        entries: lib.entries, active: a ? { id: a.id, name: a.name, scope: a.scope } : null,
+        unsaved: lib.unsaved,
+        arrangement: JSON.stringify(state.widgets.map(w => [w.id, w.x, w.y, w.w, w.h])),
+        ...ops,
+      }
+    })
+    host.layouts = source
+    host.epoch = () => { const a = source.snapshot().active; return a ? `${a.scope}:${a.id}` : 'unsaved' }
   }
   return { host, state, widgetOps }
 }

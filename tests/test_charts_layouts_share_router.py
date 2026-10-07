@@ -144,3 +144,18 @@ def test_resolving_a_revoked_token_is_also_a_plain_404():
 def test_sharing_a_nonexistent_layout_404s(owner_client):
     r = owner_client.post("/api/charts/layouts/999999/share")
     assert r.status_code == 404
+
+
+def test_create_only_post_refuses_an_existing_name_with_409(owner_client, tmp_path, monkeypatch):
+    monkeypatch.setattr(svc, "_DB_PATH", str(tmp_path / "create_only.db"))
+    svc._init_db()
+    body = {"name": "Earnings Watch", "layout": {"widgets": [{"id": "x"}], "cols": 24}, "create_only": True}
+    first = owner_client.post("/api/charts/layouts", json=body)
+    assert first.status_code == 200 and first.json()["name"] == "Earnings Watch"
+    again = owner_client.post("/api/charts/layouts", json={**body, "layout": {"widgets": [], "cols": 24}})
+    assert again.status_code == 409
+    mine = owner_client.get("/api/charts/layouts").json()["mine"]
+    assert [m["layout"]["widgets"] for m in mine] == [[{"id": "x"}]]
+    # Without the flag the route is the unchanged name-keyed upsert.
+    plain = owner_client.post("/api/charts/layouts", json={"name": "Earnings Watch", "layout": {"widgets": [], "cols": 24}})
+    assert plain.status_code == 200 and plain.json()["id"] == first.json()["id"]
