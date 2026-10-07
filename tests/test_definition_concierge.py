@@ -2664,7 +2664,7 @@ def test_the_FIRMS_WORD_is_EXPANDED_HERE_and_the_model_is_TOLD_not_asked(
     already answers "trending", and the model must be TOLD that answer rather
     than asked for one.
 
-    ⛔ SO THE EXPANSION IS IN THE SYSTEM PROMPT, AND IT IS THE VOCABULARY FILE'S
+    ⛔ SO THE EXPANSION REACHES THE MODEL, AND IT IS THE VOCABULARY FILE'S
     `source` BYTE FOR BYTE — never a paraphrase written here and never the bare
     word left for the model to interpret.
     """
@@ -2678,11 +2678,18 @@ def test_the_FIRMS_WORD_is_EXPANDED_HERE_and_the_model_is_TOLD_not_asked(
                             bars=bars()[:30], kind="scan")
     assert res["ok"] is True, res
 
-    system = client.calls[0]["system"]
-    assert expansion["source"] in system, (
+    # ⭐ P2X (2026-10-06, deliberate rail move): the expansion travels as DATA in
+    # the user turn's <uct_language_notes> block, no longer appended to `system`
+    # (which is now a constant per kind -- no request byte reaches it).
+    import json as _json
+    content = client.calls[0]["messages"][0]["content"]
+    notes = _json.loads(content.split("<uct_language_notes>\n", 1)[1]
+                        .split("\n</uct_language_notes>", 1)[0])
+    assert {"word": word, "means_exactly": expansion["source"]} in notes["firm_concepts"], (
         "the firm's expansion never reached the model — it was handed the word "
         "and asked to guess")
-    assert word in system
+    assert client.calls[0]["system"] == concierge.system_prompt("scan")
+    assert concierge.LANGUAGE_NOTES_RULES in client.calls[0]["system"]
 
     # The control: a prompt with none of the firm's words carries no expansion,
     # so "the source is in the prompt" is not satisfied by a constant block.
@@ -3409,14 +3416,19 @@ def test_a_plain_COMPOSITION_needs_NO_GROUNDING_and_the_MEMBERS_NUMBERS_travel(
     assert {t["name"] for t in res["terms"]} == {scalar, field}
     assert {num["value"] for num in res["numbers"]} == {70, 2000000}
 
-    system = client.calls[0]["system"]
-    assert concierge.TERMS_HEADER in system
-    assert concierge.NUMBERS_HEADER in system
-    assert '"2 million" -> 2000000' in system, (
+    # ⭐ P2X (2026-10-06, deliberate rail move): terms and numbers travel as DATA
+    # in the user turn; the system prompt is the constant for the kind.
+    import json as _json
+    content = client.calls[0]["messages"][0]["content"]
+    notes = _json.loads(content.split("<uct_language_notes>\n", 1)[1]
+                        .split("\n</uct_language_notes>", 1)[0])
+    assert {"wrote": "2 million", "value": 2000000} in notes["member_numbers"], (
         "the member's own number reached the model unexpanded, so the model gets "
         "to decide what two million is")
-    assert concierge.CONCEPT_HEADER not in system, (
+    assert {t["entry"] for t in notes["matched_terms"]} == {scalar, field}
+    assert notes["firm_concepts"] == [], (
         "a composition was given the firm's-words header with nothing under it")
+    assert client.calls[0]["system"] == concierge.system_prompt("scan")
 
     # ⚠️ AND A THOUSANDS COMMA IS A SEPARATOR, NOT A CLAUSE BREAK. "over
     # 1,500,000" was cut into three clauses by the splitter and the member's own
@@ -3429,9 +3441,10 @@ def test_a_plain_COMPOSITION_needs_NO_GROUNDING_and_the_MEMBERS_NUMBERS_travel(
     # NEITHER header, so their presence above is a measurement.
     plain = model([tool_use(windowed(20))])
     concierge.propose("a twenty bar average of it", user_id=USER, bars=bars()[:30])
-    bare = plain.calls[0]["system"]
-    assert concierge.TERMS_HEADER not in bare
-    assert concierge.NUMBERS_HEADER not in bare
+    bare = plain.calls[0]["messages"][0]["content"]
+    bare_notes = _json.loads(bare.split("<uct_language_notes>\n", 1)[1]
+                             .split("\n</uct_language_notes>", 1)[0])
+    assert bare_notes["matched_terms"] == [] and bare_notes["member_numbers"] == []
 
 
 def test_the_ENVELOPE_SAYS_WHICH_LANE_ANSWERED(concierge):

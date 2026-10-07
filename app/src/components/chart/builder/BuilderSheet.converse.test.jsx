@@ -26,7 +26,7 @@ function stubFetch() {
     if (String(url).endsWith(CONVERSE_ENDPOINT)) {
       const body = JSON.parse(init.body)
       return { ok: true, status: 200, json: async () => ({
-        ok: true, turn: 'patch', not_understood: [], unavailable: [],
+        ok: true, disposition: 'change', reply: '', turn: 'patch', not_understood: [], unavailable: [],
         envelope: { contract: 'uct.authoring.patch/1', baseRevision: body.view.revision,
           ops: [{ op: 'create', name: 'RSI overbought', outputs: [{ tree: parseFormula('rsi(close, 14) > 70').ast }] }],
           assumptions: [], note: 'a MACD crossover' },
@@ -68,7 +68,12 @@ describe('BuilderSheet hosts the conversation', () => {
     expect(rb).toContain('1 when (the 14-bar RSI of close) is greater than 70 and 0 otherwise')
     expect(screen.getByTestId('converse').textContent).not.toContain('MACD')
 
-    fireEvent.click(screen.getByTestId('converse-save'))
+    // ⭐ SLICE 2 — ONE primary save: the sheet footer commits the conversation; the
+    // box shows no second button.
+    expect(screen.queryByTestId('converse-save')).toBeNull()
+    expect(screen.getByTestId('sheet-save').textContent).toBe('Save and add to chart')
+    expect(screen.getByTestId('save-hint').textContent).toMatch(/conversation above/)
+    fireEvent.click(screen.getByTestId('sheet-save'))
     await flush()
     const writes = H.requests.filter((r) => r.method !== 'GET' && !r.url.endsWith(CONVERSE_ENDPOINT))
     expect(writes).toHaveLength(1)

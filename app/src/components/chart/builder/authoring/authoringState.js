@@ -16,6 +16,7 @@ import { applyPatch, EMPTY_REQUESTS } from './applyPatch'
 import { defaultIntentFor } from '../authoringIntent'
 import { validateUserDefinitions } from '../../engine/nativeRegistry'
 import { readback } from './readback'
+import { stableJson } from './model'
 
 export const STATE_CONTRACT = 'uct.authoring.state/1'
 export const HISTORY_MAX = 50
@@ -38,6 +39,10 @@ export function newAuthoringState({ lineage = null } = {}) {
     baseVersion: null,
     revision: 0,
     working: null,
+    // ⭐ SLICE 2 — the PERSISTED definition this conversation started from (or was
+    // last saved as); null for a definition that does not exist yet. `isDirty`
+    // compares against it. Only `openAuthoringState` sets it.
+    base: null,
     intent: null,
     requests: EMPTY_REQUESTS,
     assumptions: [],
@@ -55,6 +60,7 @@ export function openAuthoringState(def, { defId = null, version = null, lineage 
     defId: defId || (def && def.id) || null,
     baseVersion: Number.isInteger(version) ? version : (def && Number.isInteger(def.version) ? def.version : null),
     working: def || null,
+    base: def || null,
     intent: intent && intent !== 'plot' ? { intent, output: null } : null,
     source: { kind: 'opened', replacedForeign: {} },
   })
@@ -124,6 +130,28 @@ export function undo(state) {
     history: state.history.slice(0, -1),
     restoredFrom: prev.revision,
   })
+}
+
+/** The document as the save door would judge it: without the two stamps a
+ *  save writes (`id`, `version`). */
+function savable(def) {
+  if (!def) return null
+  const { id: _id, version: _version, ...rest } = def
+  return rest
+}
+
+/**
+ * ⭐⭐ SLICE 2 — THE ONE DIRTY AUTHORITY. True when the working definition (its
+ * maths AND its presentation — everything the save door writes) differs from the
+ * persisted base, by the authoring layer's own canonical comparison
+ * (`model.stableJson`, sorted keys). A transcript, an answer, a question, a
+ * refusal or a failed turn never moves `working`, so none of them can dirty it.
+ * A new definition (no base) is dirty as soon as it exists; an undo back to the
+ * saved definition is clean again.
+ */
+export function isDirty(state) {
+  if (!state || !state.working) return false
+  return stableJson(savable(state.working)) !== stableJson(savable(state.base))
 }
 
 /**

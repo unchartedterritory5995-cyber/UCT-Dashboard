@@ -551,7 +551,7 @@ V4_TIMELINE = [
     ("The weekend.", "Sunday Scans lands with the prep for the week ahead."),
 ]
 V4_TRADERS = [
-    ("TSDR and Bracco", "Run the morning Zoom, wrote the strategy book, and explain every trade, "
+    ("TSDR and Bracco", "Run the morning Zoom and explain every trade, "
                         "including the ones they pass on."),
     ("ChartMaster", "Swing trade ideas, educational workshops, and always easy to reach. Years of "
                     "his workshops are in the library."),
@@ -564,7 +564,6 @@ V4_INSIDE = [
     "Live options flow and news all day",
     "Sunday Scans to prep the week",
     "Years of recorded workshops",
-    "The strategy book TSDR and Bracco wrote",
     "Post your own charts for feedback from the traders",
     "A productive, helpful and focused main chat",
     "A free 1-on-1 onboarding call to get you set up",

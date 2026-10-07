@@ -121,13 +121,16 @@ const keepKeysInPanel = (e) => e.stopPropagation()
  * @param {Element|null} [props.dockHost]   the pane's RIGHT WORKSPACE DOCK: render inside it,
  *                                         full height, instead of floating over the chart
  * @param {Function|null} [props.onDocked] `(bool)` — tells the pane to make (or give back) room
+ * @param {string|null} [props.sessionKey]  SLICE 2 — the opaque create context the conversation
+ *                                         is kept under while the dock is closed (✕ keeps it;
+ *                                         Discard and Add to Chart end it)
  */
 export default function CreateIndicatorPanel({
   onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null,
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
-  dockHost = null, onDocked = null,
+  dockHost = null, onDocked = null, sessionKey = null,
 }) {
-  const conv = useIndicatorConversation({ sym, tf, converse })
+  const conv = useIndicatorConversation({ sym, tf, converse, sessionKey })
   const { state, transcript, rb, busy, saving, previewDefinition } = conv
   const [message, setMessage] = useState('')
   // Floating geometry is measured only when there is no dock to live in.
@@ -237,7 +240,15 @@ export default function CreateIndicatorPanel({
     await conv.send(words)
   }, [message, busy, saving, conv])
 
-  const cancel = useCallback(() => { clearPreview(); onClose?.() }, [clearPreview, onClose])
+  // ⭐ SLICE 2 — TWO WAYS OUT, AND THEY MEAN DIFFERENT THINGS.
+  //   ✕       closes the dock and KEEPS the draft: reopening Create Indicator on
+  //           this chart restores the conversation and its preview.
+  //   Discard throws the draft away on purpose (the footer button — "Cancel"
+  //           while there is nothing to lose).
+  // Neither asks a question: closing is never destructive, so there is nothing
+  // to confirm, and an answer-only conversation never needed saving.
+  const close = useCallback(() => { clearPreview(); onClose?.() }, [clearPreview, onClose])
+  const cancel = useCallback(() => { conv.discard(); clearPreview(); onClose?.() }, [conv, clearPreview, onClose])
 
   const save = useCallback(async () => {
     const res = await conv.save({ settings: settingsRef.current, onChange, beforeAttach: clearPreview })
@@ -272,8 +283,8 @@ export default function CreateIndicatorPanel({
             UCT Intelligence
           </span>
         </div>
-        <button type="button" className={styles.close} onClick={cancel} aria-label="Close Create Indicator"
-          data-testid="create-indicator-close">✕</button>
+        <button type="button" className={styles.close} onClick={close} aria-label="Close Create Indicator (your draft is kept)"
+          title="Close — your draft is kept" data-testid="create-indicator-close">✕</button>
       </header>
 
       <div className={styles.body}>
@@ -308,14 +319,25 @@ export default function CreateIndicatorPanel({
           </div>
         )}
 
+        {conv.restored && (
+          <div className={styles.status} data-testid="create-indicator-restored">
+            Draft restored — Discard throws it away.
+          </div>
+        )}
+
         {transcript.length > 0 && (
           <ol className={styles.log} data-testid="create-indicator-log" aria-live="polite">
             {transcript.map((t) => (t.role === 'member'
               ? <li key={t.id} className={styles.msgMember} data-role="member">{t.text}</li>
               : (
-                <li key={t.id} data-role="uct" data-kind={t.kind}
-                  className={`${styles.msgUct} ${t.kind === 'refusal' ? styles.msgRefusal : ''} ${t.kind === 'undo' ? styles.msgQuiet : ''}`}>
-                  {(t.lines || []).map((l, i) => <span key={i} className={i === 0 ? styles.lead : undefined}>{l}</span>)}
+                <li key={t.id} data-role="uct" data-kind={t.kind} data-updated={t.updated ? 'true' : undefined}
+                  className={`${styles.msgUct} ${t.kind === 'refusal' ? styles.msgRefusal : ''} ${t.kind === 'unsupported' ? styles.msgLimit : ''} ${t.kind === 'answer' ? styles.msgAnswer : ''} ${t.kind === 'undo' ? styles.msgQuiet : ''}`}>
+                  {/* ⭐ SLICE 2 — a change says so; an answer never does. */}
+                  {t.updated && <span className={styles.updated} data-testid="create-indicator-updated">Updated preview</span>}
+                  {t.updated && t.reply && <span className={styles.lead}>{t.reply}</span>}
+                  {(t.lines || []).map((l, i) => (
+                    <span key={i} className={i === 0 && !(t.updated && t.reply) ? styles.lead : undefined}>{l}</span>
+                  ))}
                 </li>
               )))}
           </ol>
@@ -329,7 +351,7 @@ export default function CreateIndicatorPanel({
           </div>
         )}
 
-        {busy && <div className={styles.working} data-testid="create-indicator-working">UCT Intelligence is building</div>}
+        {busy && <div className={styles.working} data-testid="create-indicator-working">UCT Intelligence is thinking</div>}
         <div ref={logEndRef} />
       </div>
 
@@ -337,11 +359,15 @@ export default function CreateIndicatorPanel({
         <section className={styles.card} data-testid="create-indicator-readback"
           data-status={rb.status} aria-label="Indicator summary">
           <div className={styles.cardHead}>
-            <span className={styles.cardName}>{rb.name || 'Untitled indicator'}</span>
-            {/* "Updated on chart" — a short cue on the summary, never on the chart.
-                Re-keyed per applied change, so the CSS fade replays with no state. */}
+            {/* The FULL authored name (it wraps to two lines before it ever cuts);
+                the title carries it whole wherever it does. */}
+            <span className={styles.cardName} title={rb.name || undefined}
+              data-testid="create-indicator-name">{rb.name || 'Untitled indicator'}</span>
+            {/* "Updated preview" — a short cue on the summary, never on the chart.
+                Re-keyed per applied change, so the CSS fade replays with no state.
+                An answer, a question or a refusal never bumps it. */}
             {conv.changeSeq > 0 && (
-              <span key={conv.changeSeq} className={styles.cue} data-testid="create-indicator-cue">Updated on chart</span>
+              <span key={conv.changeSeq} className={styles.cue} data-testid="create-indicator-cue">Updated preview</span>
             )}
           </div>
           <div className={styles.section}>
@@ -403,7 +429,8 @@ export default function CreateIndicatorPanel({
         <button type="button" className={styles.ghost} data-testid="create-indicator-undo"
           disabled={!conv.canUndo} onClick={conv.undo}>Undo</button>
         <span className={styles.footSpacer} />
-        <button type="button" className={styles.ghost} data-testid="create-indicator-cancel" onClick={cancel}>Cancel</button>
+        <button type="button" className={styles.ghost} data-testid="create-indicator-cancel" onClick={cancel}
+          title={started ? 'Discard this draft and close' : 'Close'}>{started ? 'Discard' : 'Cancel'}</button>
         <button type="button" className={styles.gold} data-testid="create-indicator-save"
           disabled={!conv.canSave || !onChange} onClick={save}>
           {saving ? 'Adding…' : 'Add to Chart'}

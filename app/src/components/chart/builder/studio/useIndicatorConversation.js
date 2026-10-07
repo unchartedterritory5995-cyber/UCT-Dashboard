@@ -11,18 +11,29 @@
 //   never from model prose)  →  storeConversation / attachConversation /
 //   armConversationAlerts (the existing save doors; there is no private AI save).
 //
-// ⛔ THE MODEL'S PROSE IS NEVER SHOWN. Every UCT line in the transcript is built
-// here from the engine's result: the output sentences (`sentence.js`), the
-// engine's own disclosures (`result.changes`), assumptions recorded against a
-// slot. The model `note` is not read.
+// ⭐⭐ SLICE 2 — A TURN IS NOT "CHANGE MY INDICATOR". The server declares what each
+// turn is (`classifyTurn`): an ANSWER or an UNSUPPORTED reply is the assistant's
+// words and nothing else happens; a CLARIFY records its questions; only a CHANGE
+// reaches the engine. What CHANGED is still never the model's prose: the lines
+// under a change are built here from the engine's result — the output sentences
+// (`sentence.js`), the engine's own disclosures (`result.changes`), assumptions
+// recorded against a slot. The model `note` is not read.
+//
+// ⭐ SLICE 2 — THE CONVERSATION OUTLIVES THE DOCK. Given a `sessionKey` (the
+// toolbar's opaque create context), the state, transcript and ack are kept in
+// the in-memory session store on every change and restored on the next open.
+// Discard and a completed Add to Chart end the session.
 //
 // ⚠️ `ConverseBox` (Track A's function-first panel inside BuilderSheet) runs the
 // same orchestration inline. This hook is the shape it should converge on; it is
 // a new file so Track A's files stay untouched while that track is live.
 
-import { useCallback, useMemo, useRef, useState } from 'react'
-import { newAuthoringState, applyTurn, undo as undoState, readback } from '../authoring'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { newAuthoringState, applyTurn, undo as undoState, readback, isDirty } from '../authoring'
 import { converseTurn } from '../authoring/converseClient'
+import { classifyTurn, OUTCOMES } from '../authoring/turnOutcome'
+import { preflight } from '../authoring/preflight'
+import { readSession, writeSession, clearSession } from '../authoring/conversationSessions'
 import { storeConversation, attachConversation, armConversationAlerts } from '../conversationSave'
 import { stampSemantics } from '../../engine/definitionSemantics'
 import { OUTPUT_TYPES } from '../../engine/outputType'
@@ -68,23 +79,39 @@ export function replyLines(rb, state, changes = []) {
   return lines
 }
 
+const NOTHING_CHANGED = 'Nothing on the chart changed.'
+
 /**
  * @param {object} p
  * @param {string|null} p.sym / p.tf   the chart the studio was opened over
  * @param {Function} [p.converse]      injectable client (tests / harness)
+ * @param {string|null} [p.sessionKey] the opaque authoring context to keep the
+ *                                     conversation under while the dock is closed
  */
-export default function useIndicatorConversation({ sym = null, tf = null, converse = converseTurn } = {}) {
-  const [state, setState] = useState(() => newAuthoringState())
+export default function useIndicatorConversation({ sym = null, tf = null, converse = converseTurn, sessionKey = null } = {}) {
+  // ⭐ Restored once, at mount — the same key reopened is the same conversation.
+  const [initial] = useState(() => readSession(sessionKey))
+  const [state, setState] = useState(() => (initial && initial.state) || newAuthoringState())
   const stateRef = useRef(state)
   const commit = useCallback((next) => { stateRef.current = next; setState(next) }, [])
-  const [transcript, setTranscript] = useState([])
+  const [transcript, setTranscript] = useState(() => (initial && initial.transcript) || [])
   const transcriptRef = useRef(transcript)
   const [busy, setBusy] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [acked, setAcked] = useState(false)
-  /** Bumped on every applied change — the "Updated on chart" cue keys off it. */
+  const [acked, setAcked] = useState(() => !!(initial && initial.acked))
+  /** Bumped on every applied change — the "Updated preview" cue keys off it. */
   const [changeSeq, setChangeSeq] = useState(0)
+  const restored = !!(initial && ((initial.transcript && initial.transcript.length) || (initial.state && initial.state.working)))
   const gateCtx = useMemo(() => ({ tf, symbol: sym }), [tf, sym])
+
+  // Keep the session current. Nothing to keep (a fresh, untouched dock) is not
+  // stored, so opening and closing an empty dock leaves no session behind.
+  const ended = useRef(false)
+  useEffect(() => {
+    if (!sessionKey || ended.current) return
+    if (!transcript.length && !state.working) return
+    writeSession(sessionKey, { state, transcript, acked })
+  }, [sessionKey, state, transcript, acked])
 
   const say = useCallback((entry) => {
     setTranscript((t) => {
@@ -99,47 +126,72 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   const send = useCallback(async (text) => {
     const words = String(text || '').trim()
     if (!words || busy) return false
-    setBusy(true)
     const before = stateRef.current
     const snippets = transcriptRef.current.slice(-6).map((t) => (t.role === 'member'
       ? { role: 'member', text: t.text }
       : { role: 'assistant', text: (t.lines || []).join(' · ') }))
     say({ role: 'member', text: words })
+
+    // ⭐ SLICE 2 PRE-FLIGHT — an explicit other-symbol / other-timeframe request is
+    // answered here: no request leaves the browser, so no model call, no cost.
+    // (A latency shortcut: the server runs the same rules on every turn.)
+    const caught = preflight(words, { sym, tf })
+    if (caught) {
+      say({ role: 'uct', kind: 'unsupported', preflight: true, gate: caught.gate, lines: [caught.reason, NOTHING_CHANGED] })
+      return false
+    }
+
+    setBusy(true)
     try {
       const res = await converse({ message: words, state: before, gateCtx, snippets })
       const gaps = [
         ...((res && res.notUnderstood) || []).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`),
         ...((res && res.unavailable) || []).map((n) => `${n.column || n.name || 'That'} isn't available yet${n.reason ? ` — ${n.reason}` : ''}.`),
       ]
-      if (!res || !res.ok) {
-        say({ role: 'uct', kind: 'refusal', gate: res && res.gate,
-          lines: [(res && res.reason) || 'UCT Intelligence could not answer that.', ...gaps, 'Nothing on the chart changed.'] })
+      const turn = classifyTurn(res)
+      // ⛔ ANSWER / UNSUPPORTED / REFUSED: the assistant's words, and NOTHING else.
+      // `state` is not touched — not even replaced with an equal copy.
+      if (turn.outcome === OUTCOMES.ANSWER) {
+        say({ role: 'uct', kind: 'answer', lines: [turn.reply, ...gaps] })
+        return true
+      }
+      if (turn.outcome === OUTCOMES.UNSUPPORTED) {
+        say({ role: 'uct', kind: 'unsupported', preflight: !!turn.preflight, gate: turn.gate || null,
+          lines: [turn.reply || turn.reason, ...gaps, NOTHING_CHANGED] })
         return false
       }
-      // ⛔ THE ENGINE DECIDES. A stale or invalid patch is refused atomically and
-      // the working definition is untouched (`applyTurn` returns the same state).
-      const out = applyTurn(stateRef.current, res.envelope, { gateCtx })
+      if (turn.outcome === OUTCOMES.REFUSED) {
+        say({ role: 'uct', kind: 'refusal', gate: turn.gate,
+          lines: [turn.reason, ...gaps, NOTHING_CHANGED] })
+        return false
+      }
+      // ⛔ CLARIFY / CHANGE: THE ENGINE DECIDES. A stale or invalid patch is refused
+      // atomically and the working definition is untouched (`applyTurn` returns
+      // the same state).
+      const out = applyTurn(stateRef.current, turn.envelope, { gateCtx })
       const { result } = out
       if (result.status === 'refused') {
         say({ role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),
-          lines: [...(result.errors || []).map(errorWords), ...gaps, 'Nothing on the chart changed.'] })
+          lines: [...(result.errors || []).map(errorWords), ...gaps, NOTHING_CHANGED] })
         return false
+      }
+      if (result.status === 'question') {
+        commit(out.state)
+        say({ role: 'uct', kind: 'question', questions: out.state.questions,
+          lines: [...(turn.reply ? [turn.reply] : []), ...gaps, ...out.state.questions.map((q) => q.text)] })
+        return true
       }
       commit(out.state)
       setAcked(false)
-      if (result.status === 'question') {
-        say({ role: 'uct', kind: 'question', questions: out.state.questions,
-          lines: [...gaps, ...out.state.questions.map((q) => q.text)] })
-        return true
-      }
       setChangeSeq((n) => n + 1)
-      say({ role: 'uct', kind: before.working ? 'patched' : 'created', revision: out.state.revision,
+      say({ role: 'uct', kind: before.working ? 'patched' : 'created', revision: out.state.revision, updated: true,
+        reply: turn.reply || '',
         lines: [...replyLines(out.readback, out.state, result.changes), ...gaps] })
       return true
     } finally {
       setBusy(false)
     }
-  }, [busy, converse, gateCtx, commit, say])
+  }, [busy, converse, gateCtx, sym, tf, commit, say])
 
   const undo = useCallback(() => {
     const cur = stateRef.current
@@ -178,11 +230,21 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       const alerts = await armConversationAlerts({ storedDoc: stored.storedDoc, requests: stored.requests, sym, tf, instanceId: attached.instanceId })
       const outcomes = [...attached.outcomes, ...alerts]
       say({ role: 'uct', kind: 'saved', lines: outcomes.map((o) => o.text), outcomes })
+      // Creation is complete (the dock closes on it): this context's session ends,
+      // so the next Create Indicator starts a new definition.
+      ended.current = true
+      clearSession(sessionKey)
       return { ok: true, storedDoc: stored.storedDoc, instanceId: attached.instanceId, outcomes }
     } finally {
       setSaving(false)
     }
-  }, [saving, busy, acked, sym, tf, say])
+  }, [saving, busy, acked, sym, tf, say, sessionKey])
+
+  /** Discard: the member threw this draft away on purpose. */
+  const discard = useCallback(() => {
+    ended.current = true
+    clearSession(sessionKey)
+  }, [sessionKey])
 
   /** The working definition, under the studio's preview id, semantics-stamped the
    *  way every Builder preview is (no prior: this is a new indicator).
@@ -197,11 +259,12 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   const lastEntry = transcript.length ? transcript[transcript.length - 1] : null
   const questions = lastEntry && lastEntry.kind === 'question' ? (lastEntry.questions || []) : []
   const needsAck = rb.needsAck || []
+  const dirty = isDirty(state)
 
   return {
     state, transcript, rb, busy, saving, acked, setAcked, needsAck, questions, changeSeq,
-    previewDefinition, send, undo, save,
+    previewDefinition, send, undo, save, discard, dirty, restored,
     canUndo: state.history.length > 0 && !busy && !saving,
-    canSave: !!state.working && !busy && !saving && (!needsAck.length || acked),
+    canSave: dirty && !busy && !saving && (!needsAck.length || acked),
   }
 }

@@ -389,7 +389,10 @@ function severSourceReferencesTo(cs, instanceId, defOf) {
   return {
     ...cs,
     indicatorInstances: nextInstances,
-    conditions: nextConditions,
+    // ⛔ P2X — only a blob that HAD the dead `conditions` vestige gets it back; a
+    // sever must not conjure a key into every member's settings (the delete
+    // doors call this now).
+    ...(Array.isArray(cs.conditions) ? { conditions: nextConditions } : {}),
     ...(nextInfo ? { header: { ...cs.header, infoFormulas: nextInfo } } : {}),
   }
 }

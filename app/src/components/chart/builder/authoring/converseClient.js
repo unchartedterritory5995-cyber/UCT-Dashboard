@@ -9,8 +9,13 @@
 //
 // Request : {message, view: compactView(working, state, gateCtx),
 //            authoring: {assumptions, openQuestions}, snippets: [{role, text}]}
-// Response: {ok: true, turn, envelope, not_understood, unavailable}
-//         | {ok: false, gate, reason, not_understood?, unavailable?}
+//           chart: {sym, tf}  (SLICE 2: the server's deterministic pre-flight)
+// Response: {ok: true, disposition, reply, turn, envelope, not_understood, unavailable}
+//         | {ok: false, gate, reason, disposition?, preflight?, not_understood?, unavailable?}
+//
+// ⭐ SLICE 2 — `disposition` (change | answer | clarify | unsupported) is the
+// server's EXPLICIT word for what the turn is. A success without one is refused
+// here: mutation is never inferred from which optional fields are present.
 //
 // ⛔ THE ENVELOPE IS RETURNED, NEVER APPLIED HERE. The caller hands it to the
 // deterministic engine (`applyTurn`), which validates it atomically. Nothing
@@ -23,6 +28,7 @@ export const CONVERSE_ENDPOINT = '/api/user-definitions/converse'
 /** The server's bounds (`definition_conversation.py`), mirrored so the client
  *  never sends a body the server must refuse for size. */
 export const CONVERSE_LIMITS = Object.freeze({ maxMessage: 2000, maxSnippets: 6, maxSnippetChars: 400 })
+export const DISPOSITIONS = Object.freeze(['change', 'answer', 'clarify', 'unsupported'])
 
 const NETWORK = 'Could not reach the server — check your connection and try again.'
 
@@ -37,18 +43,34 @@ export function boundedSnippets(snippets) {
 /** The request body for one turn — exported so tests can pin the wire shape. */
 export function converseBody({ message, state, gateCtx = {}, snippets = [] }) {
   const view = compactView(state.working, state, gateCtx)
-  return {
+  const body = {
     message: String(message || '').slice(0, CONVERSE_LIMITS.maxMessage),
     view,
     authoring: { assumptions: view.assumptions, openQuestions: view.openQuestions },
     snippets: boundedSnippets(snippets),
+    chart: {
+      ...(typeof gateCtx.symbol === 'string' && gateCtx.symbol ? { sym: gateCtx.symbol.slice(0, 24) } : {}),
+      ...(typeof gateCtx.tf === 'string' && gateCtx.tf ? { tf: gateCtx.tf.slice(0, 24) } : {}),
+    },
   }
+  // ⭐ COST TELEMETRY ONLY — the conversation's opaque identity is its authoring
+  // LINEAGE (`authoringState.mintLineage`: `auth_` + random hex, minted per
+  // conversation, kept across the post-save reopen, fresh for a new one). It holds
+  // no user data, no formula and no message text, and the server never treats it
+  // as authorization or ownership: it only keys the per-conversation usage total
+  // (`definition_conversation.conversation_usage`). Omitted when not well-formed.
+  const id = state && state.lineage
+  if (typeof id === 'string' && CONVERSATION_ID_RE.test(id)) body.conversationId = id
+  return body
 }
+
+/** The server's accepted shape (`definition_conversation._CONVERSATION_ID`). */
+export const CONVERSATION_ID_RE = /^[A-Za-z0-9_-]{8,64}$/
 
 /**
  * One conversational turn. NEVER throws.
- * @returns {Promise<{ok: true, turn: string, envelope: object, notUnderstood: object[], unavailable: object[]}
- *                 | {ok: false, gate: string, reason: string, notUnderstood: object[], unavailable: object[]}>}
+ * @returns {Promise<{ok: true, disposition: string, reply: string, turn: string, envelope: object, notUnderstood: object[], unavailable: object[]}
+ *                 | {ok: false, gate: string, reason: string, disposition?: string, preflight?: boolean, notUnderstood: object[], unavailable: object[]}>}
  */
 export async function converseTurn({ message, state, gateCtx = {}, snippets = [], fetchImpl = null }) {
   const doFetch = fetchImpl || globalThis.fetch
@@ -83,11 +105,19 @@ export async function converseTurn({ message, state, gateCtx = {}, snippets = []
       ok: false,
       gate: (body && body.gate) || 'converse:unreadable',
       reason: (body && typeof body.reason === 'string' && body.reason) || 'The assistant gave no usable answer.',
+      ...(body && body.disposition === 'unsupported' ? { disposition: 'unsupported' } : {}),
+      ...(body && body.preflight === true ? { preflight: true } : {}),
       notUnderstood, unavailable,
     }
   }
   if (!body.envelope || typeof body.envelope !== 'object') {
     return { ok: false, gate: 'converse:no-envelope', reason: 'The assistant gave no change to apply.', notUnderstood, unavailable }
   }
-  return { ok: true, turn: body.turn || null, envelope: body.envelope, notUnderstood, unavailable }
+  if (!DISPOSITIONS.includes(body.disposition)) {
+    return { ok: false, gate: 'converse:no-disposition', reason: 'The assistant did not say what kind of answer this was, so nothing was changed.', notUnderstood, unavailable }
+  }
+  return {
+    ok: true, disposition: body.disposition, reply: typeof body.reply === 'string' ? body.reply : '',
+    turn: body.turn || null, envelope: body.envelope, notUnderstood, unavailable,
+  }
 }

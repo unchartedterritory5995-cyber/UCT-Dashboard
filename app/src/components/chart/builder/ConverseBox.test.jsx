@@ -91,7 +91,10 @@ function stubConverse() {
     if (message === 'refuse me') return { ok: false, gate: 'prompt:unsupported', reason: 'UCT cannot read "astrology" as a market quantity.', notUnderstood: [], unavailable: [] }
     const make = SCRIPT[message]
     if (!make) throw new Error(`unscripted: ${message}`)
-    return { ok: true, turn: 'patch', envelope: make(state), notUnderstood: [], unavailable: [] }
+    const envelope = make(state)
+    // SLICE 2: the server declares what the turn is (the stand-in, as the real one).
+    const disposition = envelope.questions && envelope.questions.length ? 'clarify' : 'change'
+    return { ok: true, disposition, reply: '', turn: 'patch', envelope, notUnderstood: [], unavailable: [] }
   })
   fn.calls = calls
   return fn
@@ -297,7 +300,8 @@ describe('ConverseBox — undo, refusals, questions (items 26, 30, REQUIRED clas
     const lines = linesOf(refusal)
     expect(lines[0]).toBe('Nothing was changed.')
     expect(lines.some((l) => /\(output rsi\) was refused: .*\[signal:numeric-output\]$/.test(l)), lines.join('\n')).toBe(true)
-    expect(lines).toContain('Cannot apply: change 2 (request_alert on rsi).')
+    // P2X: the op reads in member words, not its wire id
+    expect(lines).toContain('Cannot apply: change 2 (alert request on rsi).')
     expect(readbackLines()).toEqual(before)
     expect(identity().revision).toBe(rev)
     // nothing applied until the member CHOOSES the valid part

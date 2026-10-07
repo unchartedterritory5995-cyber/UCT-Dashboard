@@ -49,6 +49,7 @@ import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 const BuilderSheet = lazy(() => import('./builder/BuilderSheet'))
 // ⭐ P2 Track B — lazy for the same reason: it pulls the authoring engine.
 const CreateIndicatorPanel = lazy(() => import('./builder/studio/CreateIndicatorPanel'))
+import { mintScope, createKey } from './builder/authoring/conversationSessions'
 import PatternToolbarButton from './PatternToolbarButton'
 import BoardsToolButton from './BoardsToolButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
@@ -1131,6 +1132,10 @@ function ChartToolbar({
   // ⭐ P2 Track B — CREATE INDICATOR. Mounted only while open: closing it IS the
   // end of the conversation, and its unmount is what tears the preview down.
   const [createOpen, setCreateOpen] = useState(false)
+  // ⭐ SLICE 2 — THIS chart's new-indicator context. One opaque scope per toolbar
+  // (per chart), so closing the dock keeps that chart's draft conversation and a
+  // different chart never sees it. Never derived from a symbol, name or formula.
+  const [studioScope] = useState(mintScope)
   const [comparePopoverOpen, setComparePopoverOpen] = useState(false)
   const [alertPopoverOpen, setAlertPopoverOpen] = useState(false)
   // ⭐ chart-UX-walls TASK 4 — WHICH CHIP OPENED IT. `{instanceId, plotKey}` when
@@ -1737,6 +1742,7 @@ function ChartToolbar({
               anchorRef={anchorRef || favBoundsRef}
               dockHost={studioDockHost}
               onDocked={onStudioDockChange}
+              sessionKey={createKey(studioScope)}
               onPreview={onStudioPreview}
               onOpenBuilder={(mode) => { setCreateOpen(false); openBuilder(mode) }}
               onOpenLibrary={onOpenLibrary ? () => { setCreateOpen(false); onOpenLibrary() } : null}
