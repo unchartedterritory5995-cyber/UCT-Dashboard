@@ -272,9 +272,12 @@ def test_size_does_not_ask_compass_for_a_free_member_or_a_short(client, monkeypa
     from api.services import brain_service
     monkeypatch.setattr(brain_service, "size_a_trade", lambda *a, **k: pytest.fail("Compass was asked"))
     w = client_writer()
+    # Owner ruling 2026-10-02 (security review I-7): the route itself now takes a paid plan,
+    # so a free member is refused before any sizing. The service keeps its own refusal too.
     as_user(client, "m1", FREE)
-    out = client.post("/api/j2/chart-plan/size", json={"annotations": w["anns"]}).json()
-    assert out["compass"] == {"ok": False, "reason": chart_plan.COMPASS_PAID_REASON}
+    refused = client.post("/api/j2/chart-plan/size", json={"annotations": w["anns"]})
+    assert refused.status_code == 402 and "paid plan" in refused.json()["detail"]
+    assert chart_plan.compass_size(50, 48, 1e5, 1, paid=False) == {"ok": False, "reason": chart_plan.COMPASS_PAID_REASON}
     as_user(client, "m1", PAID)
     short = [dict(d) for d in w["anns"]]
     for d in short:                                    # flip: stop above entry

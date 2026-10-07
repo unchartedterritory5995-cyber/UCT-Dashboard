@@ -24,7 +24,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.auth_db import get_connection
 from api.services.journal_two import review_drafts
 from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID
@@ -49,6 +49,15 @@ router = APIRouter(
     dependencies=[Depends(_require_enabled)],
 )
 
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Defined HERE, per router, with its own sentence (tests/test_user_definitions_auth.py
+    reads the sentence as a literal in the HTTPException call).
+    Owner ruling 2026-10-02: there is no free tier, so every Notebook member route takes
+    a paid plan (security review I-7; railed by tests/test_paywall_gate_free_tier.py)."""
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402, detail="Review drafts require a paid plan")
+    return user
+
 _DAY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _MONTH_RE = re.compile(r"^\d{4}-\d{2}$")
 
@@ -61,7 +70,7 @@ def _account(account_id: str | None) -> str:
 def get_daily_draft(
     day: str = Query(..., max_length=10),
     accountId: str | None = Query(None, max_length=128),  # noqa: N803 -- the client's name
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_paid),
 ) -> dict[str, Any]:
     if not _DAY_RE.match(day or ""):
         raise HTTPException(status_code=422, detail="day must be YYYY-MM-DD")
@@ -76,7 +85,7 @@ def get_daily_draft(
 def get_weekly_draft(
     weekStart: str = Query(..., max_length=10),  # noqa: N803
     accountId: str | None = Query(None, max_length=128),  # noqa: N803
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_paid),
 ) -> dict[str, Any]:
     if not _DAY_RE.match(weekStart or ""):
         raise HTTPException(status_code=422, detail="weekStart must be YYYY-MM-DD")
@@ -91,7 +100,7 @@ def get_weekly_draft(
 def get_monthly_draft(
     month: str = Query(..., max_length=7),
     accountId: str | None = Query(None, max_length=128),  # noqa: N803
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_paid),
 ) -> dict[str, Any]:
     if not _MONTH_RE.match(month or ""):
         raise HTTPException(status_code=422, detail="month must be YYYY-MM")

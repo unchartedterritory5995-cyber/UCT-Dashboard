@@ -38,13 +38,15 @@ def db(monkeypatch, tmp_path):
 
 @pytest.fixture
 def app(db, monkeypatch):
-    from api.middleware.auth_middleware import get_current_user
+    from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
     from api.routers import notebook_onboarding
 
     monkeypatch.setenv("NOTEBOOK_ONBOARDING_ENABLED", "1")
     fa = FastAPI()
     fa.include_router(notebook_onboarding.router)
-    fa.dependency_overrides[get_current_user] = lambda: {"id": U1, "role": "member"}
+    # A paid member: the tour write takes a paid plan (owner ruling 2026-10-02, I-7).
+    fa.dependency_overrides[get_current_user] = lambda: {"id": U1, "role": "member", "plan": "pro"}
+    fa.dependency_overrides[get_current_user_with_plan] = lambda: {"id": U1, "role": "member", "plan": "pro"}
     return fa
 
 

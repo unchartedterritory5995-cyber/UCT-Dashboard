@@ -559,13 +559,29 @@ def test_the_route_walk_publish_approve_browse_use_report_hide(app, client, gate
     assert client.delete(f"/api/j2/template-gallery/{gid}").status_code == 200
 
 
-def test_publishing_needs_a_paid_plan_and_nothing_else_does(app, client, gate_on, svc):
+def test_every_member_route_needs_a_paid_plan(app, client, gate_on, svc):
+    """Owner ruling 2026-10-02 ("no free tier, everything is paywall"), security review I-7.
+    This test used to assert that only publishing was paid."""
     gid = _publish(svc)["id"]
     _approve(svc, gid)
     as_user(app, B, plan=FREE)
-    r = client.post("/api/j2/template-gallery", json={"templateId": _member_template(B), "title": "x",
-                                                      "category": "journal"})
-    assert r.status_code == 402 and "community gallery" in r.json()["detail"]
+    refused = [
+        client.post("/api/j2/template-gallery", json={"templateId": _member_template(B), "title": "x",
+                                                      "category": "journal"}),
+        client.get("/api/j2/template-gallery"),
+        client.get(f"/api/j2/template-gallery/{gid}"),
+        client.post(f"/api/j2/template-gallery/{gid}/use"),
+        client.post(f"/api/j2/template-gallery/{gid}/report", json={"reason": "spam"}),
+        client.delete(f"/api/j2/template-gallery/{gid}"),
+    ]
+    for r in refused:
+        assert r.status_code == 402 and "community template gallery" in r.json()["detail"], r.text
+    conn = _conn()
+    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery_reports").fetchone()[0] == 0
+    assert conn.execute("SELECT COUNT(*) FROM j2_note_templates WHERE user_id = ? AND title = 'Breakout checklist'",
+                        (B,)).fetchone()[0] == 0
+    conn.close()
+    as_user(app, B)                                             # the same member, paid
     assert client.get("/api/j2/template-gallery").status_code == 200
     assert client.post(f"/api/j2/template-gallery/{gid}/use").status_code == 200
     assert client.post(f"/api/j2/template-gallery/{gid}/report", json={"reason": "spam"}).status_code == 200

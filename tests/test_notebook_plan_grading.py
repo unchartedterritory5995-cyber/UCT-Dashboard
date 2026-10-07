@@ -77,7 +77,8 @@ def app(db_path):
     from api.routers import notebook_plan_grades
     fa = FastAPI()
     fa.include_router(notebook_plan_grades.router)
-    fa.dependency_overrides[authmw.get_current_user] = lambda: {"id": U, "role": "member"}
+    fa.dependency_overrides[authmw.get_current_user] = lambda: {"id": U, "role": "member", "plan": "pro"}
+    fa.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": U, "role": "member", "plan": "pro"}
     yield fa
     fa.dependency_overrides.clear()
 

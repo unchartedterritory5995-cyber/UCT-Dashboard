@@ -27,7 +27,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from api.services import request_body_cap as body_cap
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.auth_db import get_connection
 from api.services.journal_two import plan_grading
 
@@ -48,6 +48,16 @@ router = APIRouter(
 )
 
 
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Defined HERE, per router, with its own sentence (tests/test_user_definitions_auth.py
+    reads the sentence as a literal in the HTTPException call).
+    Owner ruling 2026-10-02: there is no free tier, so every Notebook member route takes
+    a paid plan (security review I-7; railed by tests/test_paywall_gate_free_tier.py)."""
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402, detail="Plan grades require a paid plan")
+    return user
+
+
 async def _read_json(request: Request) -> dict[str, Any]:
     # ⛔ Capped WHILE it is read (wave 14, cap 2): this was `await request.body()`
     # then a length check, so a chunked or no-length body was buffered whole first.
@@ -63,12 +73,12 @@ async def _read_json(request: Request) -> dict[str, Any]:
     return data
 
 
-async def member_body(request: Request, _user: dict = Depends(get_current_user)) -> dict[str, Any]:
+async def member_body(request: Request, _user: dict = Depends(require_paid)) -> dict[str, Any]:
     return await _read_json(request)
 
 
 @router.get("/trades/{trade_id}")
-def get_trade_grade(trade_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+def get_trade_grade(trade_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     conn = get_connection()
     try:
         t = plan_grading.get_trade(conn, user["id"], trade_id)
@@ -81,7 +91,7 @@ def get_trade_grade(trade_id: str, user: dict = Depends(get_current_user)) -> di
 
 @router.post("/trades/{trade_id}/relink")
 def relink_trade(trade_id: str, body: dict = Depends(member_body),
-                 user: dict = Depends(get_current_user)) -> dict[str, Any]:
+                 user: dict = Depends(require_paid)) -> dict[str, Any]:
     note_id = body.get("noteId") if isinstance(body.get("noteId"), str) else None
     verdict_id = body.get("verdictId") if isinstance(body.get("verdictId"), str) else None
     none = body.get("none") is True
@@ -103,7 +113,7 @@ def relink_trade(trade_id: str, body: dict = Depends(member_body),
 
 @router.get("/status")
 def get_statuses(ids: str = Query("", max_length=20_000),
-                 user: dict = Depends(get_current_user)) -> dict[str, Any]:
+                 user: dict = Depends(require_paid)) -> dict[str, Any]:
     wanted = [s.strip() for s in ids.split(",") if s.strip()]
     if len(wanted) > plan_grading.MAX_STATUS_IDS:
         raise HTTPException(status_code=400, detail=f"At most {plan_grading.MAX_STATUS_IDS} trades at a time")
@@ -116,7 +126,7 @@ def get_statuses(ids: str = Query("", max_length=20_000),
 
 @router.get("/discipline")
 def get_discipline(accountId: str | None = Query(None, max_length=128),  # noqa: N803 -- the client's name
-                   user: dict = Depends(get_current_user)) -> dict[str, Any]:
+                   user: dict = Depends(require_paid)) -> dict[str, Any]:
     conn = get_connection()
     try:
         return plan_grading.discipline_record(conn, user["id"], accountId or None)
