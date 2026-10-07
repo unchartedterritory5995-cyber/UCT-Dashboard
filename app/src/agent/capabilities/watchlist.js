@@ -284,7 +284,9 @@ export function registerWatchlistCapabilities() {
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     fastWhole: true,
     fast: ({ raw, host }) => {
-      const m = /^(?:what(?:'s| is) in|show(?: me)?|list(?: the symbols in)?|what(?:'s| is) on) (?:my |the )?(.+?)(?: watch ?list| list)?[?.!]?$/i.exec(String(raw).trim())
+      // The whole phrase reaches resolveList, which tries it as-is and without a
+      // trailing "watchlist" — a list may itself be named "… Watchlist".
+      const m = /^(?:what(?:'s| is) in|show(?: me)?|list(?: the symbols in)?|what(?:'s| is) on) (?:my |the )?(.+?)[?.!]?$/i.exec(String(raw).trim())
       if (!m || !host?.watchlists) return null
       const l = resolveList(host, m[1])
       return l ? { __target: l.id } : null
@@ -437,7 +439,7 @@ export function registerWatchlistCapabilities() {
     args: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'], additionalProperties: false },
     fastWhole: true,
     fast: ({ raw, host }) => {
-      const m = /^(?:please )?rename (?:my |the )?(.+?)(?: watch ?list| list)? to (.+?)[.!]?$/i.exec(String(raw).trim())
+      const m = /^(?:please )?rename (?:my |the )?(.+?) to (.+?)[.!]?$/i.exec(String(raw).trim())
       if (!m || !host?.watchlists) return null
       const l = resolveList(host, m[1])
       const name = m[2].replace(/^[“"'‘]|[”"'’]$/g, '').trim()
