@@ -60,6 +60,30 @@ const reducedMotion = () => typeof window !== 'undefined'
   && typeof window.matchMedia === 'function'
   && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+/**
+ * The chart's colours, read from the theme's tokens at the moment the chart is created
+ * (FIN-A11Y round 2). A canvas cannot use `var(--x)`, so each token is resolved to its value
+ * here. This chart is the Notebook's OWN lightweight-charts instance (see the header), so its
+ * colours are a choice made in this file, not in StockChart. A token that cannot be read
+ * (no stylesheet loaded) falls back to the dark literal the chart always had.
+ * The window is short-lived: a theme switched while it is open applies the next time it opens.
+ */
+export function replayChartColors() {
+  const cs = typeof window !== 'undefined' && typeof getComputedStyle === 'function'
+    ? getComputedStyle(document.documentElement) : null
+  const token = (name, fallback) => (cs?.getPropertyValue(name) || '').trim() || fallback
+  const border = token('--border', '#2a2a2e')
+  return {
+    background: token('--bg-surface', '#0b0b0d'),
+    text: token('--text-muted', '#8a8a8a'),
+    grid: cs?.getPropertyValue('--border')?.trim() ? border : 'rgba(255,255,255,0.04)',
+    border,
+    up: token('--gain', '#22c55e'),
+    down: token('--loss', '#ef4444'),
+    accent: token('--accent', '#c9a84c'),
+  }
+}
+
 const toRow = (b) => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c })
 
 export default function BarReplay({
@@ -103,22 +127,23 @@ export default function BarReplay({
   // ── Chart lifecycle (create on bars-ready, destroy on close) ────────────
   useEffect(() => {
     if (!bars || !chartElRef.current) return undefined
+    const c = replayChartColors()
     const chart = createChart(chartElRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#0b0b0d' },
-        textColor: '#8a8a8a', fontSize: 11,
+        background: { type: ColorType.Solid, color: c.background },
+        textColor: c.text, fontSize: 11,
       },
       grid: {
-        vertLines: { color: 'rgba(255,255,255,0.04)' },
-        horzLines: { color: 'rgba(255,255,255,0.04)' },
+        vertLines: { color: c.grid },
+        horzLines: { color: c.grid },
       },
-      timeScale: { borderColor: '#2a2a2e', rightOffset: 4 },
-      rightPriceScale: { borderColor: '#2a2a2e' },
+      timeScale: { borderColor: c.border, rightOffset: 4 },
+      rightPriceScale: { borderColor: c.border },
       height: 320,
     })
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: '#22c55e', downColor: '#ef4444',
-      wickUpColor: '#22c55e', wickDownColor: '#ef4444',
+      upColor: c.up, downColor: c.down,
+      wickUpColor: c.up, wickDownColor: c.down,
       borderVisible: false,
     })
     chartRef.current = chart
@@ -152,7 +177,7 @@ export default function BarReplay({
     for (const line of JSON.parse(linesKey)) {
       if (!Number.isFinite(line?.price)) continue
       priceLineRefs.current.push(series.createPriceLine({
-        price: line.price, color: line.color || '#c9a84c', lineStyle: LineStyle.Dashed,
+        price: line.price, color: line.color || replayChartColors().accent, lineStyle: LineStyle.Dashed,
         lineWidth: 1, title: line.title || '',
       }))
     }
