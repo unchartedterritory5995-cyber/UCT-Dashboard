@@ -11,10 +11,9 @@
 // description carries them too.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import GenericTourEngine from './GenericTourEngine'
 import { installTourLayout } from './__fixtures__/tourLayout'
 
@@ -146,27 +145,58 @@ describe('M-3 -- the passive explainer is announced politely', () => {
     expect(status).not.toBeNull()
     // the region is mounted empty and filled a moment later: a status that mounts WITH its
     // text is often not announced
-    await waitFor(() => expect(status).toHaveTextContent('Title of then. Body of then. Body of back.'))
+    await waitFor(() => expect(status).toHaveTextContent('Title of then. Body of then. Body of back. Got it closes this note.'))
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'where focus was' }))
     // and it does not double the visible text for a member reading the card itself
     expect(status.className).toMatch(/sr-only/)
   })
-})
 
-describe('I-8 -- on touch a target is never left under the bottom card', () => {
-  const css = readFileSync(
-    join(process.cwd(), 'src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.module.css'),
-    'utf8',
-  ).replace(/\/\*[\s\S]*?\*\//g, '')
+  // Round 2: the note was portaled to the END of <body>, so "Got it" was the last Tab stop on
+  // the page. It is now in a slot at the START of <body>: the first Tab from the top of the
+  // page reaches it, and it still never takes focus by itself.
+  it('"Got it" is the first Tab stop on the page, not the last', async () => {
+    const user = userEvent.setup()
+    render(wrap(<>
+      <button type="button">first page control</button>
+      <div data-tour="fin-then">then</div>
+      <div data-tour="fin-back">back</div>
+      <button type="button">last page control</button>
+      <GenericTourEngine entry={P} onClose={() => {}} />
+    </>))
+    const note = await screen.findByRole('complementary', { name: 'Title of then' }, { timeout: 3000 })
+    expect(document.body).toHaveFocus()
+    const firstControl = screen.getByRole('button', { name: 'first page control' })
+    // DOM order: the note comes before the page's own content
+    expect(note.compareDocumentPosition(firstControl) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Got it' })).toHaveFocus()
+    await user.tab()
+    expect(firstControl).toHaveFocus()
+  })
 
-  it('the active anchor carries a scroll margin at 1024px and under', () => {
-    const touch = /@media\s*\(max-width:\s*1024px\)\s*\{([\s\S]*)\}\s*$/.exec(css.trim())
-    expect(touch, 'a touch-tier block at the end of the stylesheet').not.toBeNull()
-    const rule = /:global\(\[data-tour-active='true'\]\)\s*\{([^}]*)\}/.exec(touch[1])
-    expect(rule, 'a [data-tour-active] rule inside it').not.toBeNull()
-    expect(rule[1]).toMatch(/scroll-margin-bottom:\s*calc\(\s*\d{3}px\s*\+\s*env\(safe-area-inset-bottom\)\s*\)/)
-    expect(rule[1]).toMatch(/scroll-margin-top:\s*\d+px/)
-    // room for the card: it is about 200px tall, so the margin must clear it
-    expect(Number(/scroll-margin-bottom:\s*calc\(\s*(\d+)px/.exec(rule[1])[1])).toBeGreaterThanOrEqual(240)
+  it('the announcement says how to close it', async () => {
+    render(wrap(<>
+      <div data-tour="fin-then">then</div>
+      <div data-tour="fin-back">back</div>
+      <GenericTourEngine entry={P} onClose={() => {}} />
+    </>))
+    const note = await screen.findByRole('complementary', { name: 'Title of then' }, { timeout: 3000 })
+    await waitFor(() => expect(note.querySelector('[role="status"]')).toHaveTextContent(/Got it closes this note\.$/))
+  })
+
+  it('"Got it" closes it and leaves no note behind in the slot', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(wrap(<>
+      <div data-tour="fin-then">then</div>
+      <div data-tour="fin-back">back</div>
+      <GenericTourEngine entry={P} onClose={onClose} />
+    </>))
+    await screen.findByRole('complementary', { name: 'Title of then' }, { timeout: 3000 })
+    await user.click(screen.getByRole('button', { name: 'Got it' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
   })
 })
+
+// The touch scroll margin lives in NotebookTour.module.css (both tours share that
+// stylesheet); it is railed in NotebookTour.announce.test.jsx.

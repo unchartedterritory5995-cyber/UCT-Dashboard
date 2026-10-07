@@ -65,6 +65,22 @@ export const STEP_WAIT_MS = 1500
 const POLL_MS = 100
 
 /** The first index from `from` in direction `dir` whose anchor is on screen, or -1. */
+/**
+ * Where the passive explainer is portaled (FIN-A11Y round 2): a slot at the START of <body>.
+ * It used to go to the END of <body>, which made "Got it" the last Tab stop on the page. The
+ * note is `position: fixed`, so where it sits on screen does not change; only its place in
+ * the Tab and reading order does. Made once and reused; an empty slot renders nothing.
+ */
+function explainerSlot() {
+  let el = document.querySelector('[data-tour-explainer-slot]')
+  if (!el) {
+    el = document.createElement('div')
+    el.setAttribute('data-tour-explainer-slot', '')
+    document.body.prepend(el)
+  }
+  return el
+}
+
 function presentFrom(steps, from, dir) {
   for (let i = from; i >= 0 && i < steps.length; i += dir) {
     if (anchorFor(steps[i].anchor)) return i
@@ -375,7 +391,7 @@ export default function GenericTourEngine({
     return createPortal(
       <aside ref={cardRef} className={own.explainer} aria-labelledby={titleId} data-tour-explainer="">
         {/* FIN-A11Y (M-3): the note never takes focus, so it is ANNOUNCED instead, politely. */}
-        <PoliteStatus text={[`${copy.title}.`, ...(shown.length ? shown : [step]).map((s) => copyOf(s).body)].join(' ')} />
+        <PoliteStatus text={[`${copy.title}.`, ...(shown.length ? shown : [step]).map((s) => copyOf(s).body), 'Got it closes this note.'].join(' ')} />
         <h2 id={titleId} className={own.explainerTitle}>{copy.title}</h2>
         {(shown.length ? shown : [step]).map((s) => (
           <p key={s.id} className={own.explainerBody}>{copyOf(s).body}</p>
@@ -384,7 +400,7 @@ export default function GenericTourEngine({
           <button type="button" className="btn btn-secondary btn-sm" onClick={done}>Got it</button>
         </div>
       </aside>,
-      host || document.body,
+      host || explainerSlot(),
     )
   }
 

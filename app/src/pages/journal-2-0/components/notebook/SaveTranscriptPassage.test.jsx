@@ -98,6 +98,30 @@ describe('SaveTranscriptPassage', () => {
     expect(settleNoteWrite).toHaveBeenCalledWith('n1', SAVED)
   })
 
+  // Lane FIN-A11Y (review R4, M-16): the find box narrows the turns silently. A polite status,
+  // mounted before anything is typed, says how many turns are left.
+  it('the find box says how many turns mention the word, in a status that was already there', async () => {
+    installFetch([
+      [/\/transcripts\/NVDA\/quarters$/, 'GET', [200, QUARTERS]],
+      [/\/transcripts\/NVDA\/2026Q2$/, 'GET', [200, TRANSCRIPT]],
+    ])
+    wrap(<SaveTranscriptButton symbol="NVDA" notes={NOTES} />)
+    fireEvent.click(screen.getByRole('button', { name: /Save from a transcript/ }))
+    await screen.findByText('Revenue was a record and gross margin was 72.4%.')
+    const count = document.querySelector('[data-transcript-count]')
+    expect(count).toHaveAttribute('role', 'status')
+    expect(count).toHaveTextContent('')
+    const find = screen.getByRole('searchbox')
+    fireEvent.change(find, { target: { value: 'margin' } })
+    await waitFor(() => expect(count).toHaveTextContent('1 turn mentions “margin”.'))
+    expect(screen.getAllByRole('button', { name: /Quote from turn/ })).toHaveLength(1)
+    fireEvent.change(find, { target: { value: 'zzzz' } })
+    await waitFor(() => expect(count).toHaveTextContent('0 turns mention “zzzz”.'))
+    fireEvent.change(find, { target: { value: '' } })
+    await waitFor(() => expect(count).toHaveTextContent(''))
+    expect(document.querySelector('[data-transcript-count]')).toBe(count)
+  })
+
   it('saves into a new note when the member picks one', async () => {
     const calls = installFetch([
       [/\/quarters$/, 'GET', [200, QUARTERS]],
