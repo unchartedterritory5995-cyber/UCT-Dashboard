@@ -1053,3 +1053,193 @@ tests/test_notebook_w13q_clicks.py -q`: 65 passed. Hygiene exit 0. First-open by
    away from the tick? Nothing in the markup says so; a hint in the shortcuts sheet may be needed.
 10. After Shift+Down extends the selection, is the newly ticked note announced as checked,
     and does the bulk bar's count ("2 selected") get read?
+
+## 15. Lane KEYS3: the remaining changes are built
+
+Same branch, `feat/notebook-fin-keys2`. Sections 1 to 14 are kept as written. Three rounds
+analysed the flows still over budget and built nothing for them. This round built them.
+
+### 15.1 Verdict
+
+* **Keyboard: 22 of 23 inside budget at both widths.** It was 10. The one left is Q16, which
+  lives in `Settings.jsx` and was not this lane's to change (15.5).
+* **Mouse: 19 of 23. Touch: 19 of 23.** Both were 18. Q2 now passes with a pointer too: a
+  template that asks for a ticker opens with the cursor in Ticker, which saves the click into
+  the field. Still over: Q6, Q11, Q13, Q20 (unchanged, see 12.4).
+* **The table view of the notes list is one Tab stop**, through an opt-in prop on the shared
+  `ResponsiveTable` that only the Notebook passes.
+* Evidence: `docs/notebook/evidence/fin-keys3/451d38318a/q/` (all 23, 92 rows, integrity
+  CLEAN) and `.../2a0a489bf6/q6-q13-q14/` (12 rows, CLEAN) for Q6 after its last change.
+
+### 15.2 Before and after (keyboard)
+
+"Before" is section 14.8. "After" is the two runs above.
+
+| flow | before 1280 / 390 | after 1280 / 390 | budget | verdict | commit | the change |
+|---|---|---|---|---|---|---|
+| Q2 | 25 / 25 | **4 / 4** | 6 | pass | `902a64893b` | palette "New note from a template"; a ticker template opens in Ticker |
+| Q6 | 22 / 19 | **10 / 9** | 10 | pass | `451d38318a`, `2a0a489bf6` | Trades list one stop with type-ahead; trade page landing; capture sheet landing |
+| Q9 | 18 / 24 | **7 / 7** | 9 | pass | `8bdcdff8f0` | palette "Ask about this note"; focus goes to the answer when it ends |
+| Q11 | 33 / 35 | **18 / 18** | 27 | pass | `046467d709` | palette "All notes" lands on the list's heading |
+| Q12 | 20 / 19 | **6 / 6** | 12 | pass | `302989766e` | palette "Export this note" opens More and the Export menu |
+| Q15 | 7 / 7 | **3 / 3** | 5 | pass | `5404425139` | palette "Earnings prep" lands on the first prep button |
+| Q18 | 27 / 33 | **9 / 9** | 9 | pass | `7e9cf187f6` | a drafted review opens on its first collapsed block |
+| Q19 | 12 / 12 | **8 / 8** | 9 | pass | `1be0ecf949` | the transcript's turns are one stop and focus lands on them |
+| Q20 | 25 / 25 | **21 / 21** | 22 | pass | `07b5376283` | Enter in the role select adds the level; the alert cell is one stop |
+| Q21 | 15 / 15 | **4 / 4** | 4 | pass | `359c8370c4` | Ctrl+Alt+S in an open plan goes to the stop's alert |
+| Q22 | 21 / 21 | **3 / 3** | 4 | pass | `e3a3ebd265` | palette "Visual playbook"; the sheet lands on "Only this chart's setup" |
+| Q23 | 14 / 14 | **5 / 5** | 9 | pass | `4a7702b62b` | palette "Active setups" |
+| Q16 | 46 / 45 | 46 / 45 | 8 | over | none | `Settings.jsx`, proposal only (15.5) |
+
+The other ten keyboard flows were inside budget and still are: Q1 2, Q3 2, Q4 3, Q5 1, Q7 5,
+Q8 3, Q10 4, Q13 4, Q14 6, Q17 7.
+
+Three flows sit exactly on their budget: Q6 at 1280 px (10), Q18 (9) and Q21 (4). One more
+stop on any of those paths puts it over.
+
+### 15.3 The full table
+
+| flow | mouse (budget) | touch (budget) | keys 1280 / 390 | keys budget | keys verdict |
+|---|---|---|---|---|---|
+| Q1 | 2 (2) | 2 (2) | 2 / 2 | 3 | pass |
+| Q2 | **4 (4)** was 5 | **4 (4)** was 5 | 4 / 4 | 6 | pass |
+| Q3 | 2 (2) | 1 (3) | 2 / 2 | 4 | pass |
+| Q4 | 2 (3) | 2 (3) | 3 / 3 | 5 | pass |
+| Q5 | 1 (1) | 1 (1) | 1 / 1 | 2 | pass |
+| Q6 | 5 (3) over | 5 (3) over | 10 / 9 | 10 | pass |
+| Q7 | 1 (3) | 1 (3) | 5 / 5 | 10 | pass |
+| Q8 | 1 (3) | 1 (3) | 3 / 3 | 8 | pass |
+| Q9 | 3 (3) | 3 (3) | 7 / 7 | 9 | pass |
+| Q10 | 1 (2) | 1 (3) | 4 / 4 | 4 | pass |
+| Q11 | 9 (8) over | 12 (10) over | 18 / 18 | 27 | pass |
+| Q12 | 3 (3) | 3 (3) | 6 / 6 | 12 | pass |
+| Q13 | 3 (2) over | 3 (2) over | 4 / 4 | 4 | pass |
+| Q14 | 3 (3) | 3 (3) | 6 / 6 | 6 | pass |
+| Q15 | 1 (2) | 1 (2) | 3 / 3 | 5 | pass |
+| Q16 | 2 (2) | 2 (2) | 46 / 45 | 8 | over |
+| Q17 | 2 (2) | 2 (2) | 7 / 7 | 7 | pass |
+| Q18 | 2 (3) | 2 (3) | 9 / 9 | 9 | pass |
+| Q19 | 3 (3) | 3 (4) | 8 / 8 | 9 | pass |
+| Q20 | 13 (6) over | 13 (8) over | 21 / 21 | 22 | pass |
+| Q21 | 2 (2) | 2 (2) | 4 / 4 | 4 | pass |
+| Q22 | 2 (2) | 2 (3) | 3 / 3 | 4 | pass |
+| Q23 | 2 (3) | 2 (3) | 5 / 5 | 9 | pass |
+
+### 15.4 How it was built
+
+**The command palette carries seven new Notebook commands.** A member with the caret in a note is
+far from the note's own controls in both directions: the header is above the body and the
+chart tools are below it. Ctrl+K is one chord from anywhere, and Q1 and Q4 already used it.
+The commands are in `components/CommandPalette.jsx`, the file lane KEYS round 1 edited for
+"Search Notebook". That file is shared, and it is not on this lane's list of files it may not
+touch. Each command is held to three rules, and each rule has a test
+(`CommandPalette.notebookDoors.test.jsx`, 22 cases):
+
+* It needs six typed characters and must be the start of one of its own phrases. A command
+  row leads the palette, and a ticker is five letters at most, so a command can never sit
+  above a ticker and take its Enter. "expo" stays a ticker; "export" is the command.
+* It is offered only where it can work. Three need an open note. Three are behind a feature
+  switch (the visual playbook, the setups board, earnings prep) and are not offered with the
+  switch off or not yet answered.
+* It does what the surface's own control does. Three ask for a door
+  (`lib/notebookDoors.js`: one event, the first listener claims it) that the surface itself
+  answers: the chart's panel, the note's Export controls, the note's Ask panel. Three are a
+  route with a hash the Notebook reads. One is a plain route. The palette imports none of
+  those surfaces.
+
+| command | what it does | flow |
+|---|---|---|
+| Visual playbook | opens the chart's own sheet (a tagged chart answers first) | Q22 |
+| Export this note | opens More and the Export menu, focus on the first format | Q12 |
+| Ask about this note | opens the note's Ask panel, cursor in the field | Q9 |
+| New note from a template | the notes list with `#templates`: the New note sheet opens | Q2 |
+| All notes | the notes list with `#notes`: focus on the list's heading | Q11 |
+| Earnings prep: reporting soon | Research Home with `#prep`: focus on the first prep button | Q15 |
+| Active setups | the board's own route | Q23 |
+
+**One registered shortcut.** Ctrl+Alt+S (Cmd+Option+S on a Mac) in an open trade plan moves
+focus to the stop's alert button. It is declared in `pages/command/shortcutRegistry.js` as
+`notebook.planStopAlert` and bound through `registerShortcuts`. No raw key listener was added;
+the key listener census and the conflict rail are green. A note can have several plans open
+and the registry allows one live registration per id, so the plans share one registration
+(`lib/planStopShortcut.js`). The plan names the key in a line of its own.
+
+**Landings.** Each takes focus only while focus is still on the sheet itself or outside it. A
+member who has already moved keeps their place, and each has a test for that.
+
+* The visual playbook sheet, opened from a chart: "Only this chart's setup".
+* A review the Notebook just drafted: the arrow of its first collapsed block.
+* The transcript sheet: the first turn's Quote button. Not the find box, which would raise a
+  phone's keyboard.
+* The Ask panel, when the answer ends and focus was lost with the disabled field: the answer.
+* The trade page: the trade's own heading (`data-route-landing`).
+* The capture menu as a phone sheet: the first destination.
+* A note from a template that asks for a ticker, with none known: the Ticker field. "Asks for
+  a ticker" is derived from the template's own title function, not a second list.
+
+**One-stop groups**, all with the existing hooks: the Trades list (table and phone cards), the
+transcript's turns, a plan level's alert controls, and the notes list's table view.
+
+### 15.5 What was not changed, and why
+
+* **Q16** (46 / 45, budget 8). The notice is in the Compass and Voice section of
+  `Settings.jsx`, 33 stops in. That file is shared chrome. The proposal stands from 14.6: a
+  "Skip to your notices" link in the Settings page's skip-link slot, or the Voice Insights
+  Inbox first in its section. Either brings Q16 to about 8.
+* **Q20, the last key.** The floor is 20 and the count is 21. The key left is the way back to
+  the add form through the new level's row. Returning focus to the add form after a level is
+  added would remove it, and that reverses a rule lane FIN-A11Y pinned with a test. It is the
+  owner's call.
+* **The sidebar's tags** are still two Tab stops each. They are no longer on any flow's path.
+* **The pointer misses** (Q6, Q11, Q13, Q20) are unchanged. Each needs a new control or a
+  product choice (12.4).
+
+### 15.6 Findings
+
+* **IMPORTANT, read from the code, not run in a browser.** The folder tree's type-ahead (round
+  4, `lib/useTreeRoving.js` line 141) takes every letter, and the Journal binds "g then
+  letter" shortcuts on the document (`JournalLayout.jsx` lines 186 to 194, nine of them).
+  A member on a folder row who types a folder name that starts with "g" and then one of
+  o, p, j, a, n, y, t, k or c ("Gaps", "Goals") would also be sent to another page.
+  The Trades list's type-ahead built this round leaves a first "g" alone for this reason.
+  Suggested fix: the same rule in the tree.
+* **Not from this lane: two red cases on the merged tree.**
+  `lib/offline/baseline.test.js` names seven lines in `WhyPrompt.jsx` and
+  `useEntryContext.js` (a `??` over a baseline). `components/screener/reachable.test.js` has
+  the expired parking note first reported in 12.6. Neither file was touched here.
+* The tool's walk of a one-stop list now uses Home or End when the row is the first or last,
+  as its tree and toolbar walks already did. No count in this run depends on it.
+
+### 15.7 Runs, gates, tests
+
+| run | port | rows | integrity |
+|---|---|---|---|
+| probe, 11 changed flows, keyboard only (scratch, not committed) | 8720 | 22, all PASS | CLEAN |
+| all 23, build of `451d38318a` | 8721 | 92: 80 PASS, 12 OVER | CLEAN |
+| Q6, Q13, Q14, build of `2a0a489bf6` | 8722 | 12: 8 PASS, 4 OVER | CLEAN |
+
+Ports 8720 to 8724 were free before each run and after the last. Three builds. First-open
+bytes after the last: 2,232,339 B across 59 chunks against a budget of 2,260,793 B, PASS
+(headroom 28,454 B; this lane added 6,214 B).
+
+| tests (from `app/`, `--maxWorkers=2`) | totals |
+|---|---|
+| the a11y directory, the onboarding directory, `src/hub/`, `src/pages/command/`, `styles/tapFloor.test.js`, every ResponsiveTable and NotebookTab test, the three roving hooks, and the tests of every file this lane touched | 264 files passed; 3182 tests passed, 1 skipped |
+| a wider set (all of `lib/`, `components/mobile/`, `components/trade/`, every `NoteEditorPage*` test, `reachable.test.js`) | 324 of 326 files; 4987 of 4989 tests. The 2 failures are the two in 15.6 |
+| `python -m pytest tests/test_notebook_w13q_clicks.py -q` | 65 passed |
+| `python tools/check_repo_hygiene.py` | exit 0 |
+
+### 15.8 For a screen reader user to check by hand, in addition to 14.7 and 14.8
+
+No screen reader was run.
+
+11. Ctrl+K, "ask this note": is the Ask panel announced, and when the answer ends, is it read
+    once (focus moves to it and it is also a polite live region)?
+12. A drafted review opens with focus on a collapsed block's arrow. Is it clear which block
+    it belongs to? The arrow's name is "Expand toggle".
+13. In an open trade plan, is the line "Ctrl+Alt+S goes to the stop's alert" read, and does
+    the key announce the button it lands on?
+14. On the Trades list, do Down, Up and a typed letter read the trade's symbol? In browse mode
+    a reader may take the letters first.
+15. In the transcript sheet, focus lands on "Quote from turn 1". Is it clear that Down moves
+    to the next turn?
