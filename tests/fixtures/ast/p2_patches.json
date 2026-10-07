@@ -530,6 +530,116 @@
     "note": "anything",
     "disposition": "change"
    }
+  },
+  {
+   "name": "P3 set_levels",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_levels",
+      "values": [
+       70,
+       30
+      ]
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P3 set_levels empty clears",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_levels",
+      "values": []
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P3 set_levels negative and fractional",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_levels",
+      "values": [
+       -100,
+       0,
+       0.5
+      ]
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P3 set_style lineStyle",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_style",
+      "output": "value",
+      "lineStyle": "dashed"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P3 set_fill",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_fill",
+      "output": "fast",
+      "with": "slow",
+      "color": "#26a69a",
+      "opacity": 0.2
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P3 set_fill minimal",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_fill",
+      "output": "fast",
+      "with": "slow"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P3 remove_fill",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "remove_fill",
+      "output": "fast"
+     }
+    ],
+    "disposition": "change"
+   }
   }
  ],
  "invalid": [
@@ -835,6 +945,144 @@
    },
    "code": "patch:questions-with-ops",
    "lane": "engine"
+  },
+  {
+   "name": "P3 set_levels a string level",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_levels",
+      "values": [
+       "70"
+      ]
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:type"
+  },
+  {
+   "name": "P3 set_levels too many",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_levels",
+      "values": [
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9
+      ]
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:items"
+  },
+  {
+   "name": "P3 set_levels missing values",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_levels"
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:required"
+  },
+  {
+   "name": "P3 set_style unknown lineStyle",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_style",
+      "output": "value",
+      "lineStyle": "wavy"
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:enum"
+  },
+  {
+   "name": "P3 set_fill opacity above 1",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_fill",
+      "output": "fast",
+      "with": "slow",
+      "opacity": 2
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:range"
+  },
+  {
+   "name": "P3 set_fill missing with",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_fill",
+      "output": "fast"
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:required"
+  },
+  {
+   "name": "P3 set_fill unknown field",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_fill",
+      "output": "fast",
+      "with": "slow",
+      "edges": {}
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:unknown-field"
+  },
+  {
+   "name": "P3 set_fill bad colour",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_fill",
+      "output": "fast",
+      "with": "slow",
+      "color": "teal"
+     }
+    ],
+    "disposition": "change"
+   },
+   "code": "schema:pattern"
   }
  ]
 }

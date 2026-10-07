@@ -19,7 +19,7 @@ import { outputsOf, outputTreeOf } from '../../engine/outputType'
 import { evaluability, LANES, STATUS } from '../../engine/evaluability'
 import { signalAlertGate, TRIGGER_POLICIES } from '../../engine/triggerPolicy'
 import { INFO_VALUE_FORMATS } from '../../engine/infoValues'
-import { MARKER_SHAPES, MARKER_POSITIONS } from '../../engine/defSchema'
+import { MARKER_SHAPES, MARKER_POSITIONS, PLOT_LINE_STYLES } from '../../engine/defSchema'
 import { typeWords, intentReadback, INTENTS, NO_PAINT } from '../authoringIntent'
 import { slotsOfTree, clausesOfTree } from './slots'
 import { OP_NAMES, PATCH_LIMITS, PATCH_CONTRACT } from './patchValidate'
@@ -69,6 +69,14 @@ function outputView(def, o, scope, gateCtx, chartVerdict, primary) {
       width: resolveRef(def, plot.width),
       hidden: plot.hidden === true,
       ...(plot.marker ? { marker: { shape: plot.marker.shape, position: plot.marker.position } } : {}),
+      // ⭐ P3 — only when the plot says so, so every other view is unchanged.
+      ...(typeof plot.lineStyle === 'string' ? { lineStyle: plot.lineStyle } : {}),
+      ...(plot.fill && typeof plot.fill.with === 'string' ? { fill: {
+        with: plot.fill.with,
+        ...(typeof plot.fillColor === 'string' ? { color: plot.fillColor } : {}),
+        ...(Number.isFinite(plot.fillOpacity) ? { opacity: plot.fillOpacity } : {}),
+        ...(plot.fill.colorMode ? { imported: true } : {}),
+      } } : {}),
       paints,
     },
     lanes: {
@@ -87,11 +95,20 @@ const CAPABILITIES = Object.freeze({
   markerPositions: MARKER_POSITIONS,
   paintChannels: ['barcolor', 'bgcolor'],
   styles: ['line', 'stepline', 'histogram', 'area', 'baseline'],
+  // ⭐ P3 — set_style.lineStyle, set_levels, set_fill / remove_fill.
+  lineStyles: PLOT_LINE_STYLES,
+  maxLevels: PATCH_LIMITS.maxLevels,
   triggerPolicies: Object.values(TRIGGER_POLICIES),
   infoValueFormats: INFO_VALUE_FORMATS,
   maxOutputs: PATCH_LIMITS.maxOutputs,
   maxOpsPerPatch: PATCH_LIMITS.maxOps,
 })
+
+/** ⭐ P3 — the definition's horizontal levels (its one `hlines` guide), only when it has any. */
+function levelsView(def) {
+  const guide = (def.plots || []).find((p) => p && p.style === 'hlines' && Array.isArray(p.levels))
+  return guide && guide.levels.length ? { levels: [...guide.levels] } : {}
+}
 
 /**
  * @param {object|null} def the working definition
@@ -131,6 +148,7 @@ export function compactView(def, state = {}, gateCtx = {}) {
       name: untrusted(def.meta && def.meta.name),
       kind: def.compute && def.compute.kind,
       placement: def.placement && def.placement.target === 'price' ? 'price' : 'pane',
+      ...levelsView(def),
       primary,
       outputs: shown.map((o) => outputView(def, o, scope, gateCtx, chartOf.get(o.key), primary)),
       ...(all.length > shown.length ? { omittedOutputs: all.length - shown.length } : {}),

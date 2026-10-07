@@ -20,7 +20,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 import UIcon from '../../../ui/UIcon'
 import * as engineRegistry from '../../engine/nativeRegistry'
-import { presentationLines } from '../authoring'
+import { presentationLines, vocabularyLines } from '../authoring'
 import { converseTurn } from '../authoring/converseClient'
 import useIndicatorConversation, { typeWord } from './useIndicatorConversation'
 import { STUDIO_PREVIEW_DEF_ID, previewInstanceFor } from './chartPreview'
@@ -56,7 +56,9 @@ function lookOf(def) {
   })
   // Paints keep the engine's own sentence (`presentationLines`), minus the plot
   // and placement lines rendered above.
-  const paints = presentationLines(def).filter((l) => /^(candles painted|background shaded|an imported)/.test(l))
+  const paints = [...presentationLines(def).filter((l) => /^(candles painted|background shaded|an imported)/.test(l)),
+    // ⭐ P3 — line styles, bands and levels, in the engine's own words.
+    ...vocabularyLines(def)]
   const placement = def.placement && def.placement.target === 'price' ? 'On the price chart' : 'In its own pane'
   return { plots, paints, placement }
 }
@@ -338,6 +340,13 @@ export default function CreateIndicatorPanel({
                   {(t.lines || []).map((l, i) => (
                     <span key={i} className={i === 0 && !(t.updated && t.reply) ? styles.lead : undefined}>{l}</span>
                   ))}
+                  {/* P3 UX — the engine's code, for support, behind the member sentence */}
+                  {Array.isArray(t.details) && t.details.length > 0 && (
+                    <details data-testid="create-indicator-error-detail">
+                      <summary>Details for support</summary>
+                      {t.details.map((d, i) => <div key={i}>{d}</div>)}
+                    </details>
+                  )}
                 </li>
               )))}
           </ol>
@@ -374,7 +383,7 @@ export default function CreateIndicatorPanel({
             {rb.outputs.map((o) => (
               <div key={o.key} className={styles.formula} data-output={o.key}>
                 <span className={styles.typeTag}>{typeWord(o.type)}</span>
-                <span>{o.sentence || o.label}</span>
+                <span>{o.phrase || o.sentence || o.label}</span>
                 {o.status === 'refused' && <span className={styles.refused}> — {o.reason}</span>}
               </div>
             ))}
@@ -400,7 +409,7 @@ export default function CreateIndicatorPanel({
             <label className={styles.ack}>
               <input type="checkbox" checked={conv.acked} onChange={(e) => conv.setAcked(e.target.checked)}
                 data-testid="create-indicator-ack" />
-              <span>{conv.needsAck.join(', ')} reads a bar ahead and isn't final until more bars close.</span>
+              <span>{conv.needsAck.map((k) => (rb.outputs.find((o) => o.key === k) || {}).name || k).join(', ')} reads a bar ahead and isn't final until more bars close.</span>
             </label>
           )}
         </section>
