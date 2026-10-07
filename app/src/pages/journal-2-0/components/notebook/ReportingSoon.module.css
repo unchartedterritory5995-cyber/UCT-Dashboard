@@ -120,6 +120,8 @@
   .action,
   .symbol {
     min-height: var(--tap-min, 44px);
+    /* a short symbol ("AMD") made a 41 px wide link: the width floor too */
+    min-width: var(--tap-min, 44px);
   }
   .symbol {
     display: inline-flex;

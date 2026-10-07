@@ -159,7 +159,6 @@
   .toolbar { display: inline-flex; }
   .toolBtn, .toolSelect {
     min-height: var(--tap-min, 44px);
-    min-width: 34px;
     padding: 8px 12px;
   }
 }
@@ -284,6 +283,16 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
 .blockActions { display: none; }
 @media (max-width: 1024px) {
   .toolbar { display: inline-flex; }
+  /* Tall enough was not enough: Hide toolbar, Chart settings and Remove were 34 px wide, Half 39,
+     Sync 43 (measured at 820 and 390). Both floors, for every control in the toolbar. It wraps
+     inside the block (flex-wrap, max-width above), so a wider button adds a row, never a scroll. */
+  .toolBtn, .toolSelect {
+    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
   .blockActions {
     display: inline-flex;
     align-items: center;
