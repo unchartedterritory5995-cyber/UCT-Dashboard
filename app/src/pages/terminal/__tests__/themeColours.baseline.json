@@ -190,10 +190,5 @@
       "why": "Menu chrome is theme-INVARIANT by owner decision (2026-07-30, tokens.css --menu-*): MENU_THEME here is the JS mirror of that block."
     }
   },
-  "debt": {
-    "components/research/EarningsResearchModal.module.css": {
-      "count": 49,
-      "why": "THEME ISLAND: the earnings research modal pins every themed token to its dark :root value, so it stays dark under light themes. Owner decision pending (the ruling says every panel follows the theme; the island was a deliberate fix)."
-    }
-  }
+  "debt": {}
 }

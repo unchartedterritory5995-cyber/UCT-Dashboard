@@ -567,12 +567,25 @@ def test_the_ledger_entry_records_WHY_it_is_dark_and_HOW_the_polarity_changes():
     think somebody flipped a default behind their back.
     """
     entry = _ledger_flags()[rg.TERMINAL_NEXT_FLAG_ENV]
+    note = (entry.get("note") or "").lower()
+    # ⭐ 2026-10-07: GRADUATION. RB-4 requires this entry be rewritten BY HAND to `armed`
+    # with a note saying it is now a kill switch; the flag was found set to 1 on web and
+    # verified that day. An armed entry must say where, when it was found, and that it is
+    # now the kill switch -- and must keep the pre-graduation history it replaced.
+    if entry["status"] == "armed":
+        assert entry["where"] == ["web"], "the terminal flag is a web-only switch"
+        assert "found armed" in note and "2026-10-07" in note, (
+            "an armed entry must record that it was found armed and when")
+        assert "kill switch" in note and "rb-4" in note, (
+            "the RB-4 handover must be stated: it is now the kill switch")
+        assert "first consumer" in note and "no consumer" in note, (
+            "the pre-graduation history is kept, not dropped")
+        return
     # ⭐ 2026-10-02: `dark` -> `pending` when the UCT Terminal shell became the flag's
     # FIRST CONSUMER (app/src/pages/terminal/terminalGate.js). Still set on no service,
     # so `where` stays empty either way; a pending entry must say what consumes it now.
     assert entry["status"] in ("dark", "pending")
     assert entry["where"] == [], "declared unset but claimed to be set somewhere"
-    note = (entry.get("note") or "").lower()
     assert "no consumer" in note, "the note must say WHY it was dark"
     if entry["status"] == "pending":
         assert entry.get("since"), "pending needs `since`"

@@ -221,8 +221,10 @@
 .checkRow { display: grid; grid-template-columns: 22px 1fr auto; gap: var(--space-md); align-items: center; font-size: var(--text-base); padding: var(--space-xs) 0; border-bottom: 1px solid var(--border); }
 .checkIcon { font-weight: 800; text-align: center; display: inline-flex; justify-content: center; }
 /* Composite + sub-score inks: the --score-* ladder (tokens.css), never a hex. */
-.scoreElite { color: var(--score-elite); } .scoreStrong { color: var(--score-strong); } .scoreNeutral { color: var(--score-neutral); }
-.scoreWeak { color: var(--score-weak); } .scorePoor { color: var(--score-poor); } .scoreNone { color: var(--text-muted); }
+/* The ramp's two ends read as TEXT through the text inks, which clear AA on every theme's
+   surfaces (--score-elite / --score-poor as text measured 3.43-4.44:1 on catalog themes). */
+.scoreElite { color: var(--success-ink); } .scoreStrong { color: var(--score-strong); } .scoreNeutral { color: var(--score-neutral); }
+.scoreWeak { color: var(--score-weak); } .scorePoor { color: var(--danger-ink); } .scoreNone { color: var(--text-muted); }
 .fillElite { background: var(--score-elite); } .fillStrong { background: var(--score-strong); } .fillNeutral { background: var(--score-neutral); }
 .fillWeak { background: var(--score-weak); } .fillPoor { background: var(--score-poor); } .fillNone { background: transparent; }
 .compLabel { margin-bottom: 2px; }

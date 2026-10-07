@@ -528,27 +528,50 @@ export function isForeignCurrency(code) {
   return c !== null && c !== 'USD'
 }
 
-/** The prefix for an amount in `code`: '$' for USD or unknown, 'TWD ' otherwise. */
-export function currencyPrefix(code) {
-  return isForeignCurrency(code) ? `${normalizeCurrencyCode(code)} ` : '$'
+/** True when the payload STATED a currency (USD included); false when it did not. */
+export function isKnownCurrency(code) {
+  return normalizeCurrencyCode(code) !== null
 }
 
-/** `formatCurrency` in the figure's own currency: "TWD 535.87", "-TWD 2.90". */
-export function formatCurrencyIn(value, code, { decimals = 2, absent = ABSENT } = {}) {
-  if (!isForeignCurrency(code)) return formatCurrency(value, { decimals, absent })
+// ⭐ AN UNKNOWN CURRENCY, TWO WAYS (owner decision 2026-10-07). Every helper below takes
+// `{ unknown }`:
+//   • 'usd' (the default) — unknown renders "$", byte for byte as it always has. Kept for the
+//     surfaces whose figures ARE dollars whether or not the payload says so (US listings, 13F).
+//   • 'none' — unknown renders NO symbol, and `reportingCurrencyNote` says "Currency not
+//     reported". The FA and EE panels pass it: a filer's statements and consensus are in its
+//     REPORTING currency, so when that is not stated a "$" is a guess (EstimateHistory's rule:
+//     never a guessed "$"). Known USD stays "$"; known foreign stays its ISO code.
+export const CURRENCY_NOT_REPORTED = 'Currency not reported.'
+const bareWhenUnknown = (code, unknown) => unknown === 'none' && !isKnownCurrency(code)
+
+/** The prefix for an amount in `code`: '$' for USD (and unknown, by default), 'TWD ' otherwise,
+ *  and '' for unknown under `{ unknown: 'none' }`. */
+export function currencyPrefix(code, { unknown = 'usd' } = {}) {
+  if (isForeignCurrency(code)) return `${normalizeCurrencyCode(code)} `
+  return bareWhenUnknown(code, unknown) ? '' : '$'
+}
+
+/** `formatCurrency` in the figure's own currency: "TWD 535.87", "-TWD 2.90"; a bare "2.90" for an
+ *  unknown currency under `{ unknown: 'none' }`. */
+export function formatCurrencyIn(value, code, { decimals = 2, absent = ABSENT, unknown = 'usd' } = {}) {
+  if (!isForeignCurrency(code) && !bareWhenUnknown(code, unknown)) return formatCurrency(value, { decimals, absent })
   if (!Number.isFinite(value)) return absent
-  return signOutside(currencyPrefix(code), Number(value).toFixed(decimals))
+  return signOutside(currencyPrefix(code, { unknown }), Number(value).toFixed(decimals))
 }
 
 /** Relabel text a dollar formatter already produced ("$1.59B", "-$450M") for
- *  figures in `code`. For callers whose formatter is not theirs to change. */
-export function relabelDollarText(text, code) {
-  if (!isForeignCurrency(code) || typeof text !== 'string') return text
-  return text.replace('$', currencyPrefix(code))
+ *  figures in `code` — or strip its "$" for an unknown currency under `{ unknown: 'none' }`.
+ *  For callers whose formatter is not theirs to change. */
+export function relabelDollarText(text, code, { unknown = 'usd' } = {}) {
+  if (typeof text !== 'string') return text
+  if (!isForeignCurrency(code) && !bareWhenUnknown(code, unknown)) return text
+  return text.replace('$', currencyPrefix(code, { unknown }))
 }
 
-/** The one sentence a non-dollar table carries, or null for USD / unknown. */
-export function reportingCurrencyNote(code) {
+/** The one sentence a non-dollar table carries, or null for USD. For unknown: null by default,
+ *  "Currency not reported." under `{ unknown: 'none' }`. */
+export function reportingCurrencyNote(code, { unknown = 'usd' } = {}) {
+  if (bareWhenUnknown(code, unknown)) return CURRENCY_NOT_REPORTED
   if (!isForeignCurrency(code)) return null
   const c = normalizeCurrencyCode(code)
   return `Figures in ${c}, the company's reporting currency. Not converted to US dollars; `

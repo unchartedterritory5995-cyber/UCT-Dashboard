@@ -1360,6 +1360,85 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
     }
 
 
+#: Keys that define the screen's UNIVERSE (who is looked at), never a criterion.
+_SCOPE_KEYS = (_LIST_KEY, _UNIVERSE_KEY, _TICKERS_KEY)
+_COVERAGE_LIST_CAP = 40
+
+
+def _criterion_keys(spec) -> list[str]:
+    """Every registry filter key the screen's criteria READ (filters, grouped
+    logic leaves, `other` columns, arithmetic fields) -- in first-seen order."""
+    from . import grammar as _grammar
+    from . import logic as _logic
+    leaves = list(spec.get("filters") or [])
+    if spec.get("logic"):
+        leaves += _logic.leaves(spec["logic"])
+    out: list[str] = []
+
+    def add(k):
+        if k and k in filters.FILTERS and k not in out:
+            out.append(k)
+    for f in leaves:
+        k = f.get("key")
+        if k in _SCOPE_KEYS or k == _SCAN_KEY:
+            continue
+        if k == _ARITH_KEY:
+            for side in ("lhs", "rhs"):
+                if isinstance(f.get(side), dict):
+                    for fk in _grammar.arith_fields(f[side]):
+                        add(fk)
+            continue
+        add(k)
+        add(f.get("other"))
+    return out
+
+
+def coverage_for(spec, user_id=None) -> dict:
+    """TERM-047: the screen's own four-count receipt, over its UNIVERSE.
+
+    evaluated      -- rows in the screen's universe (its list / universe /
+                      ticker scope, the whole snapshot without one);
+    not_computable -- of those, rows where a column a criterion reads is NULL
+                      (the WHERE drops them silently; this says so);
+    answered       -- the rest: the screen could decide them, matched or not;
+    dropped        -- 0: no integrity exclusion happens on this path.
+    Same overlay, same FROM, same column rendering as the scan itself."""
+    from api.services.coverage_receipt import close
+    spec = spec or {}
+    with snapshot_db.connect() as conn:
+        overlay = _overlay(conn)
+        plan = build_scan_sql(spec, overlay, user_id=user_id, conn=conn)
+        known = _known_columns(conn)
+        scope = [f for f in (spec.get("filters") or []) if f.get("key") in _SCOPE_KEYS]
+        where, params = build_where(scope, None, overlay, list_joins=[], user_id=user_id,
+                                    conn=conn)
+        base = [*plan["overlay"].join_params, *params]
+        evaluated = conn.execute(f"SELECT COUNT(*) FROM {plan['from_sql']}{where}",
+                                 base).fetchone()[0]
+        cols = [(k, filters.column_for(k)) for k in _criterion_keys(spec)]
+        cols = [(k, c) for k, c in cols if c in known]
+        not_computable, listed = 0, []
+        if cols:
+            null_any = " OR ".join(f"{overlay.col_expr(c)} IS NULL" for _k, c in cols)
+            joiner = " AND " if where.strip() else " WHERE "
+            nwhere = f"{where}{joiner}({null_any})"
+            not_computable = conn.execute(
+                f"SELECT COUNT(*) FROM {plan['from_sql']}{nwhere}", base).fetchone()[0]
+            if not_computable:
+                sel = ", ".join(f"{overlay.col_expr(c)} IS NULL" for _k, c in cols)
+                for r in conn.execute(
+                        f"SELECT {_ROWS}.ticker, {sel} FROM {plan['from_sql']}{nwhere}"
+                        f" ORDER BY {_ROWS}.ticker LIMIT ?",
+                        [*base, _COVERAGE_LIST_CAP]).fetchall():
+                    missing = [filters.FILTERS[k]["label"] for (k, _c), isnull
+                               in zip(cols, tuple(r)[1:]) if isnull]
+                    listed.append({"ticker": str(r[0]), "reason": "not-computable",
+                                   "detail": "no value for " + ", ".join(missing)})
+    return close({"evaluated": int(evaluated), "answered": int(evaluated) - int(not_computable),
+                  "dropped": 0, "not_computable": int(not_computable),
+                  "dropped_symbols": listed})
+
+
 def preview_count(spec, user_id=None):
     """How many rows this spec WOULD return, without returning them.
 

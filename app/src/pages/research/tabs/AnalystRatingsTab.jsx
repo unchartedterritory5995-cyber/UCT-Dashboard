@@ -51,6 +51,9 @@ function TrustStrip({ meta, sessionContext }) {
   )
 }
 
+// Price targets are set on the US LISTING, so they ARE US dollars even for a foreign filer whose
+// statements are not (TSM: targets in USD, consensus EPS in TWD). The "$" stays, and the card
+// title says USD so it never reads as the reporting currency the FA/EE panels label.
 const fmtUsd = (v) => formatCurrency(v, { decimals: 0 })
 
 // Sell-side consensus buckets, strong-buy → strong-sell — identical palette
@@ -167,7 +170,7 @@ export default function AnalystRatingsTab({ sym }) {
 
       {pt && (
         <section className={styles.card}>
-          <div className={styles.ct}>Price target</div>
+          <div className={styles.ct} data-testid="pt-title">Price target (USD)</div>
           <div className={styles.statRow}>
             <div>
               <div className={styles.muted}>Consensus</div>

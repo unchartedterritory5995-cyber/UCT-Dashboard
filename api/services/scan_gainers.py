@@ -178,19 +178,27 @@ def _run_gainers(pid: str, n_sessions: int) -> dict:
         cache.set(ck, out, ttl=15)
         return out
 
+    # TERM-047: each reference name lands in exactly one bucket.
+    from api.services.coverage_receipt import Tally
+    tally = Tally()
     gains = []
     for app, ref_close in ref.items():
         if not ref_close or ref_close <= 0:
+            tally.cannot(app, "no verified reference close")
             continue
         s = _snap_lookup(snap, app)
         if not s:
+            tally.cannot(app, "no live quote")
             continue
         price = s.get("last_price")
         if not isinstance(price, (int, float)) or price <= 0:
+            tally.cannot(app, "no live price")
             continue
         change_nd = round((price - ref_close) / ref_close * 100, 2)
         if change_nd > _MAX_CHANGE_PCT:
+            tally.drop(app, f"a {change_nd:.0f}% move is beyond the sanity ceiling")
             continue
+        tally.answer()
         prev = s.get("prev_close")
         day_chg = (round((price - prev) / prev * 100, 2)
                    if isinstance(prev, (int, float)) and prev > 0 else None)
@@ -207,7 +215,7 @@ def _run_gainers(pid: str, n_sessions: int) -> dict:
     cutoff = max(1, math.ceil(liquid * _TOP_FRACTION)) if gains else 0
     top = gains[:cutoff]
     out = {"status": "ok", "results": top, "count": len(top),
-           "as_of": _now_et().isoformat()}
+           "as_of": _now_et().isoformat(), "coverage": tally.receipt()}
     cache.set(ck, out, ttl=_SCAN_TTL)
     return out
 

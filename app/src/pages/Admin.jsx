@@ -7,6 +7,7 @@ import ChatModerationPanel from '../components/admin/ChatModerationPanel'
 import AiSearchInsightsPanel from '../components/admin/AiSearchInsightsPanel'
 import CatalystRulesPanel from '../components/admin/CatalystRulesPanel'
 import CompassHealthPanel from '../components/admin/CompassHealthPanel'
+import AlertOpsPanel from '../components/admin/AlertOpsPanel'
 import DataPipelineHealthPanel from '../components/admin/DataPipelineHealthPanel'
 import ThemeEngineHealthPanel from '../components/admin/ThemeEngineHealthPanel'
 import { formatETDate } from '../utils/timeAgo'
@@ -2055,6 +2056,9 @@ export default function Admin() {
 
       {/* ── Section 6h: Theme Engine run ledger + day-cost (Packet Y CP3, signed 2026-09-23) ── */}
       <ThemeEngineHealthPanel />
+
+      {/* ── Section 6i: Alert Ops Monitor + channel health (AC-7, dark: renders nothing on 404) ── */}
+      <AlertOpsPanel />
 
       {/* ── Section 7: System Health ── */}
       <div className={styles.healthSection}>

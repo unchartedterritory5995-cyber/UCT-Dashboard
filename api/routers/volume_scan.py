@@ -54,10 +54,11 @@ def volume_scan_live(
     """
     from api.services import volume_live
     sym_list = [s for s in (syms or "").split(",") if s.strip()][:500] or None
-    return JSONResponse(content=volume_live.get_live(
+    from api.services import coverage_receipt as _cov
+    return JSONResponse(content=_cov.publish(volume_live.get_live(
         limit=limit, min_price=min_price, max_price=max_price,
         min_liq=min_liq, min_rvol=min_rvol, min_move=min_move,
-        min_dollar=min_dollar, min_burst=min_burst, syms=sym_list, show_all=show_all))
+        min_dollar=min_dollar, min_burst=min_burst, syms=sym_list, show_all=show_all)))
 
 
 @router.get("/api/volume-scan/status")

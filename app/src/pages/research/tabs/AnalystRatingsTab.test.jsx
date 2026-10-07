@@ -59,7 +59,9 @@ describe('AnalystRatingsTab', () => {
     // the headline consensus label (distinct from the per-bucket "69 Buy" breakdown)
     expect(within(consensusSection).getByTestId('consensus-label')).toHaveTextContent(/^Buy$/)
 
-    const ptSection = screen.getByText('Price target').closest('section')
+    // Price targets are set on the US listing, so they ARE dollars: "$" stays and the card says
+    // USD (owner decision 2026-10-07), so it never reads as a foreign filer's reporting currency.
+    const ptSection = screen.getByText('Price target (USD)').closest('section')
     expect(within(ptSection).getByText('$250')).toBeInTheDocument() // consensus mid
     // livePrice 200, ptMid 250 -> +25.0%
     expect(within(ptSection).getByText('+25.0%')).toBeInTheDocument()

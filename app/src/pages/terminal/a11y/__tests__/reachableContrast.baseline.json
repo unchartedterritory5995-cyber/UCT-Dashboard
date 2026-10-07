@@ -103,22 +103,6 @@
       ],
       "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
     },
-    "components/research-kit/RatingCrown.module.css": {
-      "count": 2,
-      "inks": [
-        "--score-elite",
-        "--score-poor"
-      ],
-      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
-    },
-    "components/research-kit/StatTile.module.css": {
-      "count": 2,
-      "inks": [
-        "--score-elite",
-        "--score-poor"
-      ],
-      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
-    },
     "components/research-kit/charts/HeatGrid.module.css": {
       "count": 1,
       "inks": [
@@ -133,32 +117,7 @@
       ],
       "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
     },
-    "components/research/EarningsResearchModal.module.css": {
-      "count": 7,
-      "inks": [
-        "--menu-text",
-        "--menu-text-dim",
-        "--menu-text-faint"
-      ],
-      "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file"
-    },
-    "components/research/SectionTabs.module.css": {
-      "count": 3,
-      "inks": [
-        "--menu-accent",
-        "--menu-text",
-        "--menu-text-dim"
-      ],
-      "why": "menu/sheet inks (--menu-text, -dim, -faint, -accent) read under AA on catalog themes' raised surfaces - a TOKEN fix (tokens.css / appThemes.js), not per-file"
-    },
     "components/research/sections/CatalystsSection.module.css": {
-      "count": 1,
-      "inks": [
-        "--text-muted"
-      ],
-      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
-    },
-    "components/research/sections/StatementPanels.module.css": {
       "count": 1,
       "inks": [
         "--text-muted"
@@ -600,14 +559,6 @@
         "--t-value"
       ],
       "why": "unreadable by the rail (unresolvable token --t-value) - a widget-local token set at runtime or a non-colour value | widget chart-theme inks (--dock-*, --wl-*, --fw-*, ...) are painted at runtime from components/chart/chartThemes.js (owner-blocked lane); the rail can only read the CSS fallback"
-    },
-    "pages/research/ResearchPage.module.css": {
-      "count": 2,
-      "inks": [
-        "--score-elite",
-        "--score-weak"
-      ],
-      "why": "base-theme inks (--text-muted, --text-bright, --bg, --ut-red, --score-*, ...) under AA on a catalog surface, often dimmed by opacity or on a tinted chip - token-level debt outside this lane"
     },
     "pages/screener/ScannerPro.module.css": {
       "count": 1,

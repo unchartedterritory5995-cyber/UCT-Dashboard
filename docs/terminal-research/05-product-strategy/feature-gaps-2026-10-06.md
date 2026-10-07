@@ -76,6 +76,9 @@ member already loads on the chart, adds no server load beyond the chart's own re
 published value. A dark flag would need an auth-payload key (a backend change) to protect against
 a risk these panels do not carry. If the owner wants them dark anyway, a `flag:` on each registry
 variant is a one-line change. The shell already refuses a flagged code whose key is false.
+➜ **Decided 2026-10-07 (owner-delegated): no flag**
+(`12-decisions/2026-10-07-owner-delegated-decisions.md` V-6). The implied-move calibration (#5)
+stays deferred to ~2027-Q1 (§7 there).
 
 ## 4. Left for other lanes, or deferred, and why
 

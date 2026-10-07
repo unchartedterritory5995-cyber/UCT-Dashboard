@@ -1,17 +1,16 @@
 /* app/src/components/research/SectionTabs.module.css
  *
- * Wears --menu-* , the palette every chart dialog in this app already uses
- * (ChartSettingsModal, ChartThemesModal, the indicator dialogs, both context
- * menus). Those tokens are theme-INVARIANT on purpose — a menu is app chrome,
- * so it stays the same recognisable dark panel whatever the chart canvas is set
- * to — which is exactly the property this modal needs and did not have. */
+ * Follows the member's app theme, like the modal it sits in (owner ruling
+ * 2026-10-07). It used to wear the always-dark --menu-* chrome so it matched the
+ * modal's dark theme island; the island is gone, so the tabs ride the ordinary
+ * surface ramp. The --menu-* tokens stay with the real menus app-wide. */
 
 .wrap {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background: var(--menu-bg);
-  border-bottom: 1px solid var(--menu-border);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
 }
 
 .groups,
@@ -35,7 +34,7 @@
 .subs {
   gap: var(--space-xs);
   padding: var(--space-xs) var(--space-md) var(--space-sm);
-  border-top: 1px solid var(--menu-divider);
+  border-top: 1px solid var(--border);
 }
 
 .tab {
@@ -51,14 +50,14 @@
   font-size: var(--text-base);
   font-weight: 600;
   letter-spacing: var(--ls-normal);
-  color: var(--menu-text-dim);
+  color: var(--text-muted);
   white-space: nowrap;
   cursor: pointer;
   transition:
     color var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out);
 }
-.tab:hover { color: var(--menu-text); }
+.tab:hover { color: var(--text); }
 .tab:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
@@ -67,7 +66,7 @@
 
 .tabActive {
   color: var(--text-bright);
-  border-bottom-color: var(--menu-accent);
+  border-bottom-color: var(--ut-gold);
 }
 
 .icon { flex: 0 0 auto; opacity: .8; }
@@ -82,10 +81,10 @@
   font-size: var(--text-sm);
   font-weight: 600;
 }
-.subs .tab:hover { background: var(--menu-hover); }
+.subs .tab:hover { background: var(--bg-hover); }
 .subs .tabActive {
-  background: var(--menu-accent-bg);
-  color: var(--menu-accent);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
+  color: var(--ut-gold);
 }
 
 /* TOUCH — the 44px floor. `--tap-min` is a TOUCH target minimum, applied at the

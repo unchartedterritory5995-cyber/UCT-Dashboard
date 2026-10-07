@@ -709,10 +709,18 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # INVERTED when CP3 wired register() -- it is now
     # `test_the_registration_is_wired_ONCE_and_nowhere_else`. Corrected here
     # rather than left pointing at a name that no longer exists.
+    #
+    # `rating-change` (FT-034, TERMINAL-NEXT lane S, built DARK 2026-10-02) is the
+    # first type since document-arrival that RECORDS AND DELIVERS a fire, so
+    # steps 2 and 3 are DONE for it in the same commit, not owed:
+    # `rating_change.alert_shape_for_fire` is its `_s7_durable_alerts` branch,
+    # the cross-store dedup and read parity key on `s7_fire_key`, and
+    # tests/test_alert_rating_change.py::test_the_feed_carries_ONE_copy_* runs
+    # the feed observables against its own fixture fire.
     _EXPECTED = {"document-arrival", "price-level", "event-proximity",
                  "catalyst-match", "position-risk",
                  "scan-membership-change", "regime-change",
-                 "indicator-condition"}
+                 "indicator-condition", "rating-change"}
 
     files, declared = _declared_trigger_types()
 
