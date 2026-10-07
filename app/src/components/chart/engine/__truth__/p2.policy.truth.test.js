@@ -191,6 +191,17 @@ describe('P2-policy 6 — IS TRUE is episodic (shared fixture, both lanes)', () 
     const ids = EPISODES.sequences.map((s) => s.id)
     for (const id of ['F-T', 'T-T', 'T-F-T', 'T-U-T', 'T-U-F-T', 'U-T']) expect(ids).toContain(id)
   })
+  it('P2X owner lock — ARM→U stays armed, T latches, U stays latched (no re-arm, episode not ended), F re-arms, T fires; arm-while-true fires on the first KNOWN true', () => {
+    // ASKED the full owner state machine · CLAIMED each leg pinned by a named
+    // fixture sequence (the server lane runs the SAME rows through the real cycle) · DID
+    const ids = EPISODES.sequences.map((s) => s.id)
+    for (const id of ['U-U-T', 'T-U-U-T', 'T-F-U-T', 'U-T-U-T', 'U-T-U-F-U-T', 'T-T']) expect(ids).toContain(id)
+    const fires = (id) => EPISODES.sequences.find((s) => s.id === id).fires
+    expect(fires('U-U-T')).toEqual([false, false, true])          // ARM→U→U→T fires
+    expect(fires('T-U-U-T')).toEqual([true, false, false, false]) // latched through U, no refire
+    expect(fires('T-F-U-T')).toEqual([true, false, false, true])  // F re-arms, U keeps it armed
+    expect(fires('T-T')[0]).toBe(true)                            // armed while true → first known true fires
+  })
   it('the P1 transition fixture agrees for ALL three policies (bar 0 unjudged there) — no policy moved', () => {
     for (const t of P1_POLICY.transitions) {
       for (const policy of Object.keys(t.fires)) {

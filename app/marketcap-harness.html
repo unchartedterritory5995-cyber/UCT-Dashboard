@@ -1,0 +1,28 @@
+<!doctype html>
+<!--
+  MARKET CAP AUTHORITY — REAL ChartWidget HARNESS (dev only, browser acceptance).
+
+  Mounts the real ChartWidget -> StockChart -> engine and answers every /api/* from local files that are
+  byte-for-byte production answers (legacy) or the real api.main.app over the DARK DRILL authority (M3).
+  No request reaches the backend on :8000; preference writes are refused. Never opens /charts / Main Trading.
+
+  `vite build` takes index.html as its single input, so this entry never ships.
+
+  Run:  npx vite --host 127.0.0.1 --port <free>        (from app/)
+  Then: http://127.0.0.1:<port>/marketcap-harness.html?auth=on&seed=market_cap&sym=DCTH
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Market Cap authority — ChartWidget harness</title>
+    <style>
+      html, body { margin: 0; background: #0e1014; color: #e6e8ec;
+        font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/testing/marketcap/marketCapHarness.jsx"></script>
+  </body>
+</html>

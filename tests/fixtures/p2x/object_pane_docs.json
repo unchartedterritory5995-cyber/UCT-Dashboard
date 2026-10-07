@@ -1,0 +1,689 @@
+{
+ "c3b_02_label_text.pine": {
+  "schemaVersion": 1,
+  "id": "u_0b1ec7000009",
+  "version": 1,
+  "objects": {
+   "programVersion": 1,
+   "pineVersion": 5,
+   "regs": [
+    {
+     "id": "r0",
+     "family": "label"
+    }
+   ],
+   "colls": [],
+   "ops": [
+    {
+     "k": "create",
+     "family": "label",
+     "site": "s1",
+     "into": "r0",
+     "when": {
+      "v": "tree",
+      "tree": 0
+     },
+     "props": {
+      "x": {
+       "v": "bar"
+      },
+      "y": {
+       "v": "tree",
+       "tree": 1
+      },
+      "text": {
+       "v": "text",
+       "node": {
+        "t": "cat",
+        "args": [
+         {
+          "t": "lit",
+          "s": "UP "
+         },
+         {
+          "t": "num",
+          "tree": 2,
+          "fmt": "#.##"
+         }
+        ]
+       }
+      },
+      "style": {
+       "v": "const",
+       "value": "label_down"
+      },
+      "color": {
+       "v": "color",
+       "node": {
+        "c": "lit",
+        "hex": "#4CAF50"
+       }
+      },
+      "textcolor": {
+       "v": "color",
+       "node": {
+        "c": "lit",
+        "hex": "#FFFFFF"
+       }
+      },
+      "size": {
+       "v": "const",
+       "value": "small"
+      }
+     }
+    },
+    {
+     "k": "delete",
+     "target": {
+      "r": "reg",
+      "id": "r0"
+     },
+     "when": {
+      "v": "tree",
+      "tree": 3
+     }
+    },
+    {
+     "k": "create",
+     "family": "label",
+     "site": "s2",
+     "into": null,
+     "when": null,
+     "lastBarOnly": true,
+     "props": {
+      "x": {
+       "v": "bar"
+      },
+      "y": {
+       "v": "tree",
+       "tree": 1
+      },
+      "text": {
+       "v": "text",
+       "node": {
+        "t": "cat",
+        "args": [
+         {
+          "t": "lit",
+          "s": "LAST "
+         },
+         {
+          "t": "num",
+          "tree": 2,
+          "fmt": "#.##"
+         }
+        ]
+       }
+      },
+      "style": {
+       "v": "const",
+       "value": "label_down"
+      },
+      "color": {
+       "v": "color",
+       "node": {
+        "c": "lit",
+        "hex": "#9C27B0"
+       }
+      },
+      "textcolor": {
+       "v": "color",
+       "node": {
+        "c": "lit",
+        "hex": "#FFFFFF"
+       }
+      },
+      "size": {
+       "v": "const",
+       "value": "normal"
+      }
+     }
+    }
+   ],
+   "trees": [
+    {
+     "type": "call",
+     "name": "crossOver",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "call",
+       "name": "sma",
+       "args": [
+        {
+         "type": "series",
+         "name": "close"
+        },
+        {
+         "type": "num",
+         "value": 50
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "series",
+     "name": "high"
+    },
+    {
+     "type": "series",
+     "name": "close"
+    },
+    {
+     "type": "call",
+     "name": "crossUnder",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "call",
+       "name": "sma",
+       "args": [
+        {
+         "type": "series",
+         "name": "close"
+        },
+        {
+         "type": "num",
+         "value": 50
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "limits": {
+    "label": 400
+   }
+  },
+  "compute": {
+   "kind": "ast",
+   "fn": "sha256:e7db3a03f7a6d3b87f0fe134b35e18b7cc93108069b011d7741ada8a500e3db2",
+   "rev": 1,
+   "ast": {
+    "type": "call",
+    "name": "sma",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "num",
+      "value": 50
+     }
+    ]
+   },
+   "source": "sma(close, 50)"
+  },
+  "meta": {
+   "name": "C3B Label Text",
+   "shortName": "C3B Label",
+   "category": "Custom",
+   "description": "the 50-bar average of close",
+   "tags": [
+    "custom"
+   ],
+   "tier": "premium",
+   "repaint": "non-repainting",
+   "freshness": "live",
+   "disclosures": [],
+   "requirementTags": [],
+   "recurrenceOrigin": "pine",
+   "naConditionFalse": true
+  },
+  "placement": {
+   "target": "price"
+  },
+  "inputs": [
+   {
+    "key": "color",
+    "type": "color",
+    "label": "Color",
+    "default": "#2962FF"
+   },
+   {
+    "key": "lineWidth",
+    "type": "int",
+    "label": "Line width",
+    "default": 1,
+    "min": 1,
+    "max": 4,
+    "step": 1
+   }
+  ],
+  "plots": [
+   {
+    "key": "value",
+    "label": "MA50",
+    "style": "line",
+    "color": "$color",
+    "width": "$lineWidth",
+    "role": "primary",
+    "legend": {
+     "decimals": 2
+    }
+   }
+  ]
+ },
+ "c3b_04_table_dash.pine": {
+  "schemaVersion": 1,
+  "id": "u_0b1ec7000009",
+  "version": 1,
+  "objects": {
+   "programVersion": 1,
+   "pineVersion": 5,
+   "regs": [
+    {
+     "id": "r0",
+     "family": "table"
+    }
+   ],
+   "colls": [],
+   "ops": [
+    {
+     "k": "create",
+     "family": "table",
+     "site": "s1",
+     "into": "r0",
+     "when": null,
+     "once": true,
+     "props": {
+      "position": {
+       "v": "const",
+       "value": "top_right"
+      },
+      "columns": {
+       "v": "const",
+       "value": 2
+      },
+      "rows": {
+       "v": "const",
+       "value": 3
+      },
+      "bgcolor": {
+       "v": "color",
+       "node": {
+        "c": "lit",
+        "hex": "#363A45CC"
+       }
+      },
+      "border_width": {
+       "v": "const",
+       "value": 1
+      }
+     }
+    },
+    {
+     "k": "cell",
+     "target": {
+      "r": "reg",
+      "id": "r0"
+     },
+     "col": {
+      "v": "const",
+      "value": 0
+     },
+     "row": {
+      "v": "const",
+      "value": 0
+     },
+     "when": null,
+     "lastBarOnly": true,
+     "props": {
+      "text": {
+       "v": "text",
+       "node": {
+        "t": "lit",
+        "s": "MA20"
+       }
+      },
+      "text_color": {
+       "v": "color",
+       "node": {
+        "c": "lit",
+        "hex": "#787B86"
+       }
+      },
+      "text_size": {
+       "v": "const",
+       "value": "small"
+      }
+     }
+    },
+    {
+     "k": "cell",
+     "target": {
+      "r": "reg",
+      "id": "r0"
+     },
+     "col": {
+      "v": "const",
+      "value": 1
+     },
+     "row": {
+      "v": "const",
+      "value": 0
+     },
+     "when": null,
+     "lastBarOnly": true,
+     "props": {
+      "text": {
+       "v": "text",
+       "node": {
+        "t": "num",
+        "tree": 0,
+        "fmt": "#.##"
+       }
+      },
+      "text_color": {
+       "v": "color",
+       "node": {
+        "c": "if",
+        "cond": {
+         "v": "tree",
+         "tree": 1
+        },
+        "then": {
+         "c": "lit",
+         "hex": "#4CAF50"
+        },
+        "else": {
+         "c": "lit",
+         "hex": "#FF5252"
+        }
+       }
+      },
+      "text_size": {
+       "v": "const",
+       "value": "small"
+      }
+     }
+    },
+    {
+     "k": "cell",
+     "target": {
+      "r": "reg",
+      "id": "r0"
+     },
+     "col": {
+      "v": "const",
+      "value": 0
+     },
+     "row": {
+      "v": "const",
+      "value": 1
+     },
+     "when": null,
+     "lastBarOnly": true,
+     "props": {
+      "text": {
+       "v": "text",
+       "node": {
+        "t": "lit",
+        "s": "RSI14"
+       }
+      },
+      "text_color": {
+       "v": "color",
+       "node": {
+        "c": "lit",
+        "hex": "#787B86"
+       }
+      },
+      "text_size": {
+       "v": "const",
+       "value": "small"
+      }
+     }
+    },
+    {
+     "k": "cell",
+     "target": {
+      "r": "reg",
+      "id": "r0"
+     },
+     "col": {
+      "v": "const",
+      "value": 1
+     },
+     "row": {
+      "v": "const",
+      "value": 1
+     },
+     "when": null,
+     "lastBarOnly": true,
+     "props": {
+      "text": {
+       "v": "text",
+       "node": {
+        "t": "num",
+        "tree": 2,
+        "fmt": "#.#"
+       }
+      },
+      "text_color": {
+       "v": "color",
+       "node": {
+        "c": "lit",
+        "hex": "#FFFFFF"
+       }
+      },
+      "text_size": {
+       "v": "const",
+       "value": "small"
+      }
+     }
+    },
+    {
+     "k": "cell",
+     "target": {
+      "r": "reg",
+      "id": "r0"
+     },
+     "col": {
+      "v": "const",
+      "value": 0
+     },
+     "row": {
+      "v": "const",
+      "value": 2
+     },
+     "when": null,
+     "lastBarOnly": true,
+     "props": {
+      "text": {
+       "v": "text",
+       "node": {
+        "t": "lit",
+        "s": "Close"
+       }
+      },
+      "text_color": {
+       "v": "color",
+       "node": {
+        "c": "lit",
+        "hex": "#787B86"
+       }
+      },
+      "text_size": {
+       "v": "const",
+       "value": "small"
+      }
+     }
+    },
+    {
+     "k": "cell",
+     "target": {
+      "r": "reg",
+      "id": "r0"
+     },
+     "col": {
+      "v": "const",
+      "value": 1
+     },
+     "row": {
+      "v": "const",
+      "value": 2
+     },
+     "when": null,
+     "lastBarOnly": true,
+     "props": {
+      "text": {
+       "v": "text",
+       "node": {
+        "t": "num",
+        "tree": 3,
+        "fmt": "#.##"
+       }
+      },
+      "text_color": {
+       "v": "color",
+       "node": {
+        "c": "lit",
+        "hex": "#FFFFFF"
+       }
+      },
+      "text_size": {
+       "v": "const",
+       "value": "small"
+      }
+     }
+    }
+   ],
+   "trees": [
+    {
+     "type": "call",
+     "name": "sma",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 20
+      }
+     ]
+    },
+    {
+     "type": "op",
+     "name": ">",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "call",
+       "name": "sma",
+       "args": [
+        {
+         "type": "series",
+         "name": "close"
+        },
+        {
+         "type": "num",
+         "value": 20
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "type": "call",
+     "name": "rsi",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 14
+      }
+     ]
+    },
+    {
+     "type": "series",
+     "name": "close"
+    }
+   ]
+  },
+  "compute": {
+   "kind": "ast",
+   "fn": "sha256:5e7eee0a190279bde33add36b4c61957919bd1f61b53de855f6bb9ba5c749186",
+   "rev": 1,
+   "ast": {
+    "type": "call",
+    "name": "sma",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "num",
+      "value": 20
+     }
+    ]
+   },
+   "source": "sma(close, 20)"
+  },
+  "meta": {
+   "name": "C3B Table Dash",
+   "shortName": "C3B Table",
+   "category": "Custom",
+   "description": "the 20-bar average of close",
+   "tags": [
+    "custom"
+   ],
+   "tier": "premium",
+   "repaint": "non-repainting",
+   "freshness": "live",
+   "disclosures": [],
+   "requirementTags": [],
+   "recurrenceOrigin": "pine",
+   "naConditionFalse": true
+  },
+  "placement": {
+   "target": "price"
+  },
+  "inputs": [
+   {
+    "key": "color",
+    "type": "color",
+    "label": "Color",
+    "default": "#2962FF"
+   },
+   {
+    "key": "lineWidth",
+    "type": "int",
+    "label": "Line width",
+    "default": 1,
+    "min": 1,
+    "max": 4,
+    "step": 1
+   }
+  ],
+  "plots": [
+   {
+    "key": "value",
+    "label": "MA20",
+    "style": "line",
+    "color": "$color",
+    "width": "$lineWidth",
+    "role": "primary",
+    "legend": {
+     "decimals": 2
+    }
+   }
+  ]
+ }
+}
