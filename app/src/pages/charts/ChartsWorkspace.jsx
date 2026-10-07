@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
@@ -8,6 +8,11 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
+// UCT Agent (admin-dark): lazy, so nothing of the Agent reaches the board's chunk
+// for anyone who never opens it. The host only READS the chart registry below.
+import { useAgentFlag, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
+import { buildWorkspaceHost } from '../../agent/host'
+const AgentPanel = lazy(() => import('../../agent/AgentPanel'))
 // TERM-079 — the board's typed context channels (list-ref, symbol-set, range, …).
 // A SEPARATE, never-changing context beside WorkspaceContext: its value is one store
 // created once per mount, so mounting it cannot re-render anything (H14 / PERF-4).
@@ -2789,6 +2794,22 @@ export default function ChartsWorkspace() {
     </div>
   )
 
+  // ── UCT Agent (admin-dark) ── the far-right workspace column. Two keys: the
+  // per-browser flag AND the admin role; the server routes are admin-only too.
+  // The host reads the charts through chartApiById (each ChartWidget's own agent
+  // adapter) and the visible board below — it never writes prefs itself.
+  const agentFlag = useAgentFlag()
+  const agentAllowed = agentFlag && isAdmin
+  const [agentOpen, setAgentOpenState] = useState(() => readLocal(AGENT_OPEN_KEY) === '1')
+  const setAgentOpen = useCallback((v) => { setAgentOpenState(v); writeLocal(AGENT_OPEN_KEY, v ? '1' : '0') }, [])
+  // ⚠️ Hooks live ABOVE the phone early-return; the ref is filled below it.
+  const agentWidgetsRef = useRef([])
+  const agentHost = useMemo(() => buildWorkspaceHost({
+    chartApiById: chartApiByIdRef,
+    getWidgets: () => agentWidgetsRef.current,
+    widgetLabel: (t) => WIDGET_LABELS[t] || t,
+  }), [])
+
   if (isMobile) {
     // Phone: the chart-first mobile app (full-bleed chart + bottom-sheet
     // pickers; non-chart widgets open as full-screen pages). Rendered inside
@@ -2861,6 +2882,8 @@ export default function ChartsWorkspace() {
   // slot frees up and the grid recompacts while it's away, and its stored
   // position is still there to dock back into.
   const visibleWidgets = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id))
+
+  agentWidgetsRef.current = visibleWidgets
   const poppedWidgets = layout.widgets.filter(w => poppedWidgetIds.includes(w.id))
   // Floating widgets stay in layout.widgets (geometry preserved for docking) but are
   // hidden from the grid and rendered in FloatingWidgetPanels over the canvas.
@@ -3231,7 +3254,22 @@ export default function ChartsWorkspace() {
               Workspace
             </button>
           )}
+          {agentAllowed && (
+            <button
+              type="button"
+              className={styles.toolbarBtn}
+              style={{ marginLeft: 'auto', ...(agentOpen ? { color: 'var(--ut-gold, #c9a84c)' } : null) }}
+              aria-pressed={agentOpen}
+              data-testid="agent-launch"
+              onClick={() => setAgentOpen(!agentOpen)}
+            >UCT Agent</button>
+          )}
         </header>
+        {/* UCT Agent: <main> + the Layout Dock become one column so the Agent can
+            sit at the FAR RIGHT of the whole workspace; the ResizeObserver on
+            .workspaceBody re-tiles the grid into the narrower column on its own. */}
+        <div className={styles.workspaceRow}>
+        <div className={styles.workspaceMainCol}>
         <main className={`${styles.workspaceBody} ${merged ? styles.workspaceBodyMerged : ''}`} ref={bodyRef}>
           {gridMode ? (
             <MultiChartGrid mc={mc} />
@@ -3295,6 +3333,13 @@ export default function ChartsWorkspace() {
           onRename={handleDockRename}
           onRestored={handleDockRestored}
         />
+        </div>
+        {agentAllowed && agentOpen && (
+          <Suspense fallback={null}>
+            <AgentPanel host={agentHost} gridMode={gridMode} onClose={() => setAgentOpen(false)} />
+          </Suspense>
+        )}
+        </div>
 
         {/* Pop-outs live OUTSIDE <main> but INSIDE the provider: each renders
             through a portal into its own OS window, while its state, hooks and

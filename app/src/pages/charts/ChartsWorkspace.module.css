@@ -1707,3 +1707,9 @@
 .colorDotF { background: radial-gradient(circle at center, #2dd4bf 4.5px, transparent 5px); }
 .colorDotG { background: radial-gradient(circle at center, #fb923c 4.5px, transparent 5px); }
 .colorDotH { background: radial-gradient(circle at center, #f472b6 4.5px, transparent 5px); }
+
+/* UCT Agent: the body row. <main> + the Layout Dock stay one column (exactly as
+   before when the Agent is closed); the Agent panel, when open, is a fixed-width
+   flex sibling at the far right, and the column shrinks to make room. */
+.workspaceRow { flex: 1; min-height: 0; min-width: 0; display: flex; }
+.workspaceMainCol { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
