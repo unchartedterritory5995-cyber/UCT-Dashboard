@@ -66,6 +66,8 @@
 
 .value { color: var(--text, #e8e6e1); display: inline-flex; align-items: center; gap: 6px; }
 .valueMuted { color: var(--text-muted, #8a8a8a); }
+.reason { font-size: 12px; }
+.lateWhen { font-size: 12px; font-weight: 400; color: var(--text-muted); }
 
 .asOf {
   font-size: 11px;
@@ -82,7 +84,7 @@
 }
 .dotGreen { background: var(--gain, #22c55e); }
 .dotAmber { background: var(--warn, #d4a017); }
-.dotOrange { background: #f97316; }
+.dotOrange { background: color-mix(in srgb, var(--warn) 50%, var(--loss)); }
 .dotRed { background: var(--loss, #ef4444); }
 
 /* Touch tier (phone AND tablet): every control a finger can hit is at least --tap-min. */

@@ -193,6 +193,9 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
   const retry = () => { latch.current = null; setState('idle'); setNonce((n) => n + 1) }
 
   const setTag = (tag) => updateAttributes?.({ ta: withSetupTag(attrsRef.current?.ta, tag || null) })
+  // FIN-A11Y (review R4, M-7): Use and Dismiss remove the suggestion row their button sits
+  // in. Focus goes to the Setup picker, the control a suggestion is about.
+  const focusSetupPicker = () => document.getElementById(`fp-tag-${embedKey}`)?.focus()
 
   const suggestions = useMemo(() => (vpOn && frozen ? suggestTags(frozen) : [])
     .filter((s) => s.tag !== ta?.setupTag && !dismissed.includes(s.tag)), [vpOn, frozen, ta?.setupTag, dismissed])
@@ -321,8 +324,10 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
                 {s.asOf ? `, ${s.asOf})` : ')'}. Suggested tag — not applied.
               </span>
               <span className={styles.suggestionActions}>
-                <button type="button" className={styles.btn} onClick={() => setTag(s.tag)}>Use “{s.tag}”</button>
-                <button type="button" className={styles.btnQuiet} onClick={() => setDismissed((d) => [...d, s.tag])}>
+                <button type="button" className={styles.btn}
+                  onClick={() => { setTag(s.tag); focusSetupPicker() }}>Use “{s.tag}”</button>
+                <button type="button" className={styles.btnQuiet} aria-label={`Dismiss the suggested tag ${s.tag}`}
+                  onClick={() => { setDismissed((d) => [...d, s.tag]); focusSetupPicker() }}>
                   Dismiss
                 </button>
               </span>
@@ -345,16 +350,20 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
           )}
         </div>
       )}
-      {planMsg?.ok && (
-        <p className={styles.note} role="status">
+      {/* Always mounted and refilled: a status that mounts with its text is often not
+          announced (FIN-A11Y, review R4 M-16). */}
+      <p className={`${styles.note} ${styles.statusLine}`} role="status">
+        {planMsg?.ok && (
+          <>
           Created “{planMsg.title}” with the checklist marked from this fingerprint.{' '}
           {planMsg.id && (
             <a className={styles.linkBtn} href={`/journal?j2tab=notebook&note=${encodeURIComponent(planMsg.id)}`}>
               Open the plan
             </a>
           )}
-        </p>
-      )}
+          </>
+        )}
+      </p>
       {planMsg && !planMsg.ok && <p className={styles.error} role="alert">{planMsg.text}</p>}
 
       {playbookOpen && (

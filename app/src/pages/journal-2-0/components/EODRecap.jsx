@@ -94,7 +94,7 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, ac
         </div>
       </header>
       {draftError && (
-        <p role="alert" style={{ color: 'var(--loss, #ef4444)', fontSize: 11, margin: '4px 0 8px' }}>
+        <p role="alert" style={{ color: 'var(--danger-ink)', fontSize: 11, margin: '4px 0 8px' }}>
           {draftError}
         </p>
       )}
@@ -107,7 +107,7 @@ export default function EODRecap({ recap, onFeedback, onRegenerate, onForget, ac
             background: 'rgba(239,68,68,0.08)',
             border: '1px solid rgba(239,68,68,0.4)',
             borderRadius: 6,
-            color: 'var(--loss, #ef4444)',
+            color: 'var(--danger-ink)',
             fontSize: 11,
           }}
         >

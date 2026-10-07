@@ -57,6 +57,10 @@
 }
 
 .roleBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   padding: 3px 9px;
   border: none;
   border-right: 1px solid var(--border);
@@ -68,7 +72,8 @@
 }
 .roleBtn:last-child { border-right: none; }
 .roleBtn:hover { color: var(--ut-gold); }
-.roleBtn:focus-visible, .armBtn:focus-visible, .saveBtn:focus-visible, .dirSelect:focus-visible {
+.roleBtn:focus-visible, .armBtn:focus-visible, .saveBtn:focus-visible, .dirSelect:focus-visible,
+.priceInput:focus-visible {
   outline: 2px solid var(--ut-gold);
   outline-offset: 1px;
 }
@@ -108,6 +113,29 @@
   font-size: 11.5px;
 }
 
+/* Lane FIN-A11Y (I-6): the price of a level is a number field, and a level can be added by price. */
+.priceInput {
+  width: 92px;
+  padding: 3px 6px;
+  border: 1px solid var(--field-edge, var(--border));
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.addLevel {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.addLabel { color: var(--text-muted); font-size: 12px; }
+
 .armed { color: var(--ut-gold); font-weight: 600; font-size: 11.5px; }
 
 .numbers { display: flex; flex-direction: column; gap: 6px; }
@@ -130,7 +158,7 @@
 
 /* The touch tier (phone AND tablet) meets the 44px floor (styles/tapFloor.test.js). */
 @media (max-width: 1024px) {
-  .roleBtn, .armBtn, .saveBtn, .dirSelect {
+  .roleBtn, .armBtn, .saveBtn, .dirSelect, .priceInput {
     min-height: var(--tap-min, 44px);
     min-width: var(--tap-min, 44px);
     padding: 8px 12px;

@@ -22,12 +22,21 @@
  *   markersAt(idx, bars) -> markers    what to mark once playback has revealed `idx` bars
  *   statusAt(idx, bars) -> {label, value, tone}   the status row (tone: 'pos' | 'neg' | null)
  *   autoplay                           start playing on open (TradeReplay) or wait (a note)
+ *
+ * LANE FIN-A11Y (review R4, I-4): the window is the shared `Sheet`, not a hand-built
+ * backdrop. That is what makes it a dialog for a keyboard member: focus moves in, Tab is
+ * trapped, Escape closes, the page behind does not scroll, and focus returns to the button
+ * that opened it. The header stays ours (the walk and the tour look for "Close replay").
+ * The status row is live only while PAUSED (it changes every 44 to 350 ms while playing),
+ * the icons are `UIcon`, and playback never starts by itself under reduced motion.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   createChart, CandlestickSeries, createSeriesMarkers, LineStyle, ColorType,
 } from 'lightweight-charts'
+import Sheet from '../../../../components/mobile/Sheet'
+import UIcon from '../../../../components/ui/UIcon'
 import styles from './BarReplay.module.css'
 
 export const SPEEDS = [1, 2, 4, 8]
@@ -46,6 +55,10 @@ export function barTs(t) {
   const p = Date.parse(`${t}T12:00:00Z`)
   return Number.isFinite(p) ? Math.floor(p / 1000) : 0
 }
+
+const reducedMotion = () => typeof window !== 'undefined'
+  && typeof window.matchMedia === 'function'
+  && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 const toRow = (b) => ({ time: b.t, open: b.o, high: b.h, low: b.l, close: b.c })
 
@@ -118,7 +131,7 @@ export default function BarReplay({
     series.setData([])           // then blank it — playback reveals from the start index
     revealedRef.current = 0
     setIdx(startIdx)
-    setPlaying(!!autoplay)
+    setPlaying(!!autoplay && !reducedMotion())
     return () => {
       chart.remove()
       chartRef.current = null
@@ -181,20 +194,16 @@ export default function BarReplay({
 
   const atEnd = !!bars && idx >= bars.length
   return (
-    <div className={styles.backdrop} onClick={onClose} role="presentation">
-      <div
-        className={styles.panel}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Sheet open onClose={onClose} variant="auto" ariaLabel={title} maxWidth={820}>
+      <div className={styles.panel}>
         <div className={styles.head}>
           <h3 className={styles.title}>
             {title}
             {tfNote && <span className={styles.tfNote}>{tfNote}</span>}
           </h3>
-          <button type="button" className={styles.close} onClick={onClose} aria-label="Close replay">✕</button>
+          <button type="button" className={styles.close} onClick={onClose} aria-label="Close replay">
+            <UIcon name="x" size={16} gold={false} />
+          </button>
         </div>
 
         {error && <p className={styles.err} role="alert">{error}</p>}
@@ -205,7 +214,7 @@ export default function BarReplay({
         {bars && (
           <>
             {status && (
-              <div className={styles.statusRow} aria-live="polite">
+              <div className={styles.statusRow} aria-live={playing ? 'off' : 'polite'}>
                 <span className={styles.statusLabel}>{status.label}</span>
                 {status.value != null && (
                   <span className={`${styles.pnl} ${status.tone === 'pos' ? styles.pos : status.tone === 'neg' ? styles.neg : ''}`}>
@@ -222,7 +231,8 @@ export default function BarReplay({
                   if (atEnd) { setIdx(startIdx); setPlaying(true) } else setPlaying((p) => !p)
                 }}
               >
-                {atEnd ? '↻ Restart' : playing ? '❚❚ Pause' : '▶ Play'}
+                <UIcon name={atEnd ? 'refresh' : playing ? 'pause' : 'play'} size={14} gold={false} />
+                {atEnd ? 'Restart' : playing ? 'Pause' : 'Play'}
               </button>
               <button
                 type="button"
@@ -231,7 +241,8 @@ export default function BarReplay({
                 onClick={() => { setPlaying(false); setIdx((i) => Math.min(bars.length, i + 1)) }}
                 aria-label="Step forward one bar"
               >
-                Step ▸
+                Step
+                <UIcon name="skipForward" size={14} gold={false} />
               </button>
               {SPEEDS.map((s) => (
                 <button
@@ -242,6 +253,8 @@ export default function BarReplay({
                   aria-label={`Speed ${s}×`}
                   onClick={() => setSpeed(s)}
                 >
+                  {/* M-9: the selected speed carries a check mark, not only a colour. */}
+                  {speed === s && <UIcon name="check" size={12} gold={false} />}
                   {s}×
                 </button>
               ))}
@@ -258,6 +271,6 @@ export default function BarReplay({
           </>
         )}
       </div>
-    </div>
+    </Sheet>
   )
 }

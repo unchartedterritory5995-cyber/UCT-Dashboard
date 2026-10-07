@@ -15,12 +15,13 @@
 // Regenerate the measured table (docs/notebook/accessibility-contrast.md):
 //   NOTEBOOK_CONTRAST_DOC=1 npx vitest run src/pages/journal-2-0/a11y/notebookContrast.test.js
 import { describe, it, expect } from 'vitest'
-import { writeFileSync } from 'node:fs'
+import { writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { execSync } from 'node:child_process'
 import { contrast } from '../../../styles/__tests__/contrastMath'
 import { auditNotebook, literalTextColours, pairKey, BARS, CONTEXTS, LANE_OWNED } from './contrastAudit'
-import { themeVars, resolveVars, parseColor, THEMES } from './cssAudit'
+import { themeVars, resolveVars, parseColor, THEMES, JOURNAL_SIDE_NOTEBOOK_CSS, stripComments } from './cssAudit'
+import { J2_DIR } from './population'
 import { EXPECTED_FAILURES, OTHER_LANES, RULINGS } from './contrastExpectedFailures'
 
 const failing = (row, theme) => {
@@ -71,6 +72,51 @@ describe('Notebook colour contrast, all three themes', () => {
     }
     // the hub labels are TEXT and held to the text bar
     expect(inkRows.find((r) => r.selector.startsWith('.inkLabel '))?.themes.light.bar).toBe(4.5)
+  })
+
+  // Lane FIN-A11Y (review R4, I-7). Error and "bad" text on the trade page, Insights and the
+  // Why prompt used --loss, which is 4.31:1 on the card surface in the default dark theme
+  // (4.01:1 on the raised surface). The Notebook has --danger-ink for text; --loss stays the
+  // app-wide fill colour. These stylesheets sat outside both derivations, so nothing read them.
+  it('lane FIN-A11Y: the Journal-side Notebook stylesheets are in the audit, and exist', () => {
+    expect(JOURNAL_SIDE_NOTEBOOK_CSS.length).toBeGreaterThan(0)
+    for (const rel of JOURNAL_SIDE_NOTEBOOK_CSS) {
+      expect(existsSync(join(J2_DIR, rel)), `${rel} is gone -- remove it from JOURNAL_SIDE_NOTEBOOK_CSS`).toBe(true)
+      expect(files, rel).toContain(rel)
+      expect(measured.some((r) => r.file === rel && r.kind === 'text'), `${rel} contributed no text pair`).toBe(true)
+    }
+  })
+
+  it('lane FIN-A11Y: no TEXT is coloured with --loss in the stylesheets the lane fixed', () => {
+    const offenders = measured
+      .filter((r) => JOURNAL_SIDE_NOTEBOOK_CSS.includes(r.file) && r.kind === 'text' && /var\(\s*--loss\s*[,)]/.test(r.value))
+      .map((r) => `${r.file}:${r.line} ${r.selector} { color: ${r.value} }`)
+    expect(offenders).toEqual([])
+  })
+
+  // The same defect written as an inline style, which no stylesheet audit can see.
+  it('lane FIN-A11Y: no inline TEXT colour uses --loss in the components the lane fixed', () => {
+    const FILES = ['components/insights/InsightsHub.jsx', 'components/CompassReview.jsx', 'components/EODRecap.jsx']
+    const offenders = []
+    for (const rel of FILES) {
+      const src = stripComments(readFileSync(join(J2_DIR, rel), 'utf8'))
+      src.split('\n').forEach((line, i) => {
+        if (/\bcolor:\s*['"]var\(\s*--loss\s*[,)]/.test(line)) offenders.push(`${rel}:${i + 1} ${line.trim()}`)
+      })
+    }
+    expect(offenders).toEqual([])
+  })
+
+  it('control: the two FIN-A11Y scans can see the defect they look for', () => {
+    expect(/var\(\s*--loss\s*[,)]/.test('var(--loss, #ef4444)')).toBe(true)
+    expect(/var\(\s*--loss\s*[,)]/.test('var(--loss-bg)')).toBe(false)
+    expect(/\bcolor:\s*['"]var\(\s*--loss\s*[,)]/.test("style={{ color: 'var(--loss, #ef4444)' }}")).toBe(true)
+    expect(/\bcolor:\s*['"]var\(\s*--loss\s*[,)]/.test("borderColor: 'var(--loss)'")).toBe(false)
+    // and the number the lane is fixing: --loss on the dark card surface is under the bar
+    const dark = themeVars().dark
+    const on = parseColor(resolveVars('var(--bg-surface)', dark)).rgb
+    expect(contrast(parseColor(resolveVars('var(--loss)', dark)).rgb, on)).toBeLessThan(4.5)
+    expect(contrast(parseColor(resolveVars('var(--danger-ink)', dark)).rgb, on)).toBeGreaterThanOrEqual(4.5)
   })
 
   it('no literal colour on `color:` in Notebook CSS (G-104: zero remain -- proved here)', () => {

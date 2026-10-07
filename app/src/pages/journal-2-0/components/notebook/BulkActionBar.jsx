@@ -189,6 +189,19 @@ export default function BulkActionBar({
       e.preventDefault()
       setActiveAction(list.indexOf(to))
       to.focus()
+    } else if (e.key === 'Home' || e.key === 'End') {
+      // FIN-A11Y (review R4, M-15): the ends of the group, as the shared roving hook has.
+      // Same scope as the arrows: only a key that came FROM an action button.
+      const from = e.target.closest?.('[data-bulk-action]')
+      if (!from) return
+      const list = rovingActions()
+      if (!list.includes(from)) return
+      const to = e.key === 'Home' ? list[0] : list[list.length - 1]
+      if (!to) return
+      e.preventDefault()
+      if (to === from) return
+      setActiveAction(list.indexOf(to))
+      to.focus()
     }
   }
 

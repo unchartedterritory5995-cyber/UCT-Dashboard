@@ -9,7 +9,7 @@
 .title { margin: 0 0 8px; font-size: 14px; font-weight: 600; letter-spacing: 0.02em; color: var(--text, #e8e6e1); }
 .planLine { margin: 0 0 10px; font-size: 13px; color: var(--text, #e8e6e1); font-variant-numeric: tabular-nums; }
 .muted { color: var(--text-muted, #8a8a8a); font-size: 12px; margin: 0; }
-.error { color: var(--loss, #ef4444); font-size: 13px; margin: 0 0 8px; }
+.error { color: var(--danger-ink); font-size: 13px; margin: 0 0 8px; }
 
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .chart { margin: 0; min-width: 0; }

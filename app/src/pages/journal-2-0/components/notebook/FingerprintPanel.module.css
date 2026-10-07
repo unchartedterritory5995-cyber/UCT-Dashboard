@@ -104,3 +104,6 @@
   .linkBtn { display: inline-flex; align-items: center; }
   .table th, .table td { padding: 4px; }
 }
+
+/* The plan-created status line: always in the tree, no room while empty. */
+.statusLine:empty { margin: 0; padding: 0; height: 0; }

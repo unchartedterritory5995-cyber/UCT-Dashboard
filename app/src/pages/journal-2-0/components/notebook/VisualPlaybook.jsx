@@ -28,7 +28,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
 import Sheet from '../../../../components/mobile/Sheet'
-import { useIsTouch } from '../../../../hooks/useBreakpoint'
+import { MQ } from '../../../../styles/breakpoints'
+import PoliteStatus from './PoliteStatus'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { SETUP_FAMILIES, canonicalSetupTag, tagsInFamily } from '../../lib/setupTagMap'
 import { FIELD_LABELS, formatFingerprintValue } from '../../lib/fingerprintChecklist'
@@ -266,6 +267,9 @@ export function VisualPlaybookBody({ initialSetup = null }) {
       )}
       {isLoading && !data && <p className={styles.muted} role="status">Loading your playbook…</p>}
 
+      {/* FIN-A11Y (review R4, M-16): a filter changes the grid silently; say how many it leaves. */}
+      <PoliteStatus data-vp-count=""
+        text={data ? `${data.cards.length} tagged ${data.cards.length === 1 ? 'chart matches' : 'charts match'}.` : ''} />
       {data && (
         <>
           <SliceStats key={settled} stats={data.stats} />
@@ -296,8 +300,15 @@ export function VisualPlaybookBody({ initialSetup = null }) {
 }
 
 export default function VisualPlaybook({ open, onClose, initialSetup = null }) {
-  // Opened by a click, so the touch read is current (CLAUDE.md: useIsTouch is stale only at first paint).
-  const isTouch = useIsTouch()
+  // ⛔ The layout is decided when the sheet OPENS (a click), by asking the media query then.
+  // This component is mounted, closed, long before that, and `useIsTouch()` answers from
+  // its mount (FIN-A11Y, review R4 M-13: the old comment said "read on a click"; the hook
+  // was not). Memoised on `open`, so it is read once per opening.
+  const isTouch = useMemo(
+    () => Boolean(open) && typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      && window.matchMedia(MQ.touchDown).matches,
+    [open],
+  )
   if (notebookFlag(VISUAL_PLAYBOOK_FLAG) !== true) return null
   return (
     <Sheet open={open} onClose={onClose} title="Visual playbook" labelledByTitle

@@ -239,7 +239,9 @@ describe('My Playbook (wave 13, lane 13B)', () => {
     await screen.findByRole('article', { name: 'Breakout' })
     await userEvent.click(screen.getByRole('button', { name: 'Save a snapshot note' }))
     expect(save).toHaveBeenCalledWith(PAYLOAD)
-    expect((await screen.findByRole('status')).textContent).toContain('Snapshot saved')
+    // The status region is mounted from the start now (lane FIN-A11Y, M-16), so wait for
+    // its TEXT rather than for the region itself.
+    expect((await screen.findByText(/Snapshot saved/)).closest('[role="status"]')).toBeTruthy()
     await userEvent.click(screen.getByRole('button', { name: 'Open the note' }))
     expect(screen.getByText('notebook page')).toBeTruthy()
   })

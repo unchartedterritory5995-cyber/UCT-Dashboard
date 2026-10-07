@@ -54,9 +54,10 @@
 //     `visibleFamilies`/`MemberTemplates` as before (unchanged), the active
 //     index snaps to the first REAL match (never the always-present Blank/
 //     Playbook anchors -- marked `data-template-anchor`, the one new attribute
-//     this lane adds) whenever the query or category changes, Arrow/Home/End
-//     from the search box move it the same distance `onGalleryKeyDown` already
-//     moves real DOM focus from a card, and Enter there clicks the active
+//     this lane adds) whenever the query or category changes, ArrowUp/ArrowDown
+//     from the search box move it one card (lane FIN-A11Y narrowed this from
+//     all four arrows plus Home/End, which had taken the text caret's keys --
+//     see SEARCH_MOVES), and Enter there clicks the active
 //     card -- reusing its EXISTING onClick, never a second onPick call site.
 //     Real DOM focus never leaves the input, so this is additive: a member who
 //     never types still has the full Tab-everywhere path below unchanged, and
@@ -81,6 +82,16 @@ import styles from './TemplatePicker.module.css'
 
 const CARD = '[data-template-card]'
 const MOVES = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }
+// ⛔ Lane FIN-A11Y (review R4, I-5): from the SEARCH BOX only Up and Down drive the list.
+// Left, Right, Home and End are the text caret's -- taking them meant a member could not
+// edit what they had typed. (Between the cards themselves all four arrows still move
+// focus: MOVES above, onGalleryKeyDown below.)
+const SEARCH_MOVES = { ArrowDown: 1, ArrowUp: -1 }
+/** The words a card is known by: its accessible name when it sets one (built-in cards
+ *  do), else its first line (Blank, Playbook and member cards lead with their label). */
+const cardName = (el) => (
+  el?.getAttribute('aria-label') || el?.firstElementChild?.textContent || el?.textContent || ''
+).trim()
 const ALL = 'all'
 const MEMBER = 'member'
 
@@ -123,6 +134,12 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false, aut
   // DOM focus -- the input keeps it.
   const [activeIdx, setActiveIdx] = useState(0)
   const [searchFocused, setSearchFocused] = useState(false)
+  // I-5: what the search box points assistive technology at (aria-activedescendant), and
+  // the name said in the polite status. Read from the live DOM by the paint effect below,
+  // because member templates are a child component's cards.
+  const [activeCard, setActiveCard] = useState(null)   // { id, name } | null
+  const [targetName, setTargetName] = useState(null)   // the Enter target, focused or not
+  const cardSeq = useRef(0)
 
   const visibleCards = () => (wrapRef.current
     ? [...wrapRef.current.querySelectorAll(CARD)].filter((c) => !c.disabled)
@@ -180,24 +197,21 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false, aut
       if (searchFocused && i === activeIdx) el.setAttribute('data-active', 'true')
       else el.removeAttribute('data-active')
     })
+    const el = activeIdx >= 0 ? list[activeIdx] : null
+    if (el && !el.id) { cardSeq.current += 1; el.id = `${uid}card${cardSeq.current}` }
+    const name = el ? cardName(el) : null
+    setTargetName((prev) => (prev === name ? prev : name))
+    const next = el && searchFocused ? { id: el.id, name } : null
+    setActiveCard((prev) => (prev?.id === next?.id && prev?.name === next?.name ? prev : next))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIdx, searchFocused, q, category])
 
   function onSearchKeyDown(e) {
-    if (e.key in MOVES) {
+    if (e.key in SEARCH_MOVES) {
       const list = visibleCards()
       if (!list.length) return
       e.preventDefault()
-      setActiveIdx((i) => Math.min(list.length - 1, Math.max(0, i + MOVES[e.key])))
-    } else if (e.key === 'Home') {
-      if (!visibleCards().length) return
-      e.preventDefault()
-      setActiveIdx(0)
-    } else if (e.key === 'End') {
-      const list = visibleCards()
-      if (!list.length) return
-      e.preventDefault()
-      setActiveIdx(list.length - 1)
+      setActiveIdx((i) => Math.min(list.length - 1, Math.max(0, i + SEARCH_MOVES[e.key])))
     } else if (e.key === 'Enter') {
       const list = visibleCards()
       // activeIdx is -1 when the query matches no real template -- nothing to
@@ -234,7 +248,7 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false, aut
 
   return (
     // The keys are handled for the card buttons inside (see onGalleryKeyDown).
-    <div className={styles.wrap} ref={wrapRef} onKeyDown={onGalleryKeyDown} data-template-gallery="">
+    <div className={styles.wrap} ref={wrapRef} id={`${uid}cards`} onKeyDown={onGalleryKeyDown} data-template-gallery="">
       <div className={styles.toolbar}>
         <div className={styles.searchField}>
           <UIcon name="search" size={14} gold={false} className={styles.searchIcon} />
@@ -248,8 +262,24 @@ export default function TemplatePicker({ onPick, onPickMember, busy = false, aut
             onBlur={() => setSearchFocused(false)}
             placeholder="Search templates…"
             aria-label="Search templates"
+            aria-autocomplete="list"
+            aria-controls={`${uid}cards`}
+            aria-activedescendant={activeCard?.id}
+            aria-describedby={`${uid}keys`}
             autoFocus={autoFocusSearch}
           />
+          <span id={`${uid}keys`} className="sr-only">
+            Up and Down choose a template. Enter opens it.
+          </span>
+          {/* Always mounted, so a change of text is announced (a status that mounts with
+              its text is often skipped). Says what Enter will do right now. A live
+              region, not role="status": the "no matches" message below is the one
+              status this dialog has. */}
+          <span className="sr-only" aria-live="polite" data-template-search-status="">
+            {targetName
+              ? `Enter opens ${targetName}.`
+              : (q ? 'No template matches. Enter does nothing.' : '')}
+          </span>
           {query && (
             <button
               type="button"

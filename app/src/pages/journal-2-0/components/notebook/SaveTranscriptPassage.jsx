@@ -8,6 +8,7 @@ import {
 } from '../../lib/researchCapture'
 import { createNoteViaApi } from '../../lib/noteCreation'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
+import PoliteStatus from './PoliteStatus'
 import styles from './SaveTranscriptPassage.module.css'
 
 const NEW_NOTE = '__new__'
@@ -232,6 +233,9 @@ export default function SaveTranscriptPassage({
               <input className={styles.input} type="search" value={find}
                 onChange={(e) => setFind(e.target.value)} placeholder="margin, guidance, supply…" />
             </label>
+            {/* FIN-A11Y (review R4, M-16): the find box narrows the turns silently; say how many are left. */}
+            <PoliteStatus data-transcript-count=""
+              text={find.trim() ? `${turns.length} ${turns.length === 1 ? 'turn mentions' : 'turns mention'} “${find.trim()}”.` : ''} />
             <ol className={styles.turns} aria-label="Speaker turns" data-tour="transcript-turns">
               {turns.map((t) => (
                 <li key={t.turn} className={`${styles.turn} ${turn?.turn === t.turn ? styles.picked : ''}`}>

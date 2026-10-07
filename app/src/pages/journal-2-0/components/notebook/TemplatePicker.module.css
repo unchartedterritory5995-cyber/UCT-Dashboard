@@ -35,7 +35,7 @@
 }
 .card:hover:not(:disabled) {
   border-color: var(--accent);
-  background: rgba(220, 187, 94, 0.06);
+  background: var(--warn-bg);
 }
 .card:disabled {
   opacity: 0.6;
@@ -334,7 +334,7 @@
   cursor: pointer;
 }
 .galleryDoor:hover {
-  background: rgba(220, 187, 94, 0.08);
+  background: var(--warn-bg);
 }
 .galleryDoor:focus-visible {
   outline: 2px solid var(--ut-gold);

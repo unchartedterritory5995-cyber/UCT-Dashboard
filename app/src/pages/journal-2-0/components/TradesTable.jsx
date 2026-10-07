@@ -70,13 +70,18 @@ function cellFor(key, trade, opts) {
           {/* Wave 13 lane 13A: a trade with no prior plan is FLAGGED, never hidden or
               filtered (dark behind notebook_plan_grading_enabled; no statuses = no chip). */}
           {!trade.isOption && ['unplanned', 'member_none'].includes(opts?.planStatuses?.[trade.id]?.status) && (
-            <span
-              className={styles.unplannedChip}
-              title="No plan was written for this trade before entry"
-              data-testid="unplanned-chip"
-            >
-              Unplanned
-            </span>
+            <>
+              <span
+                className={styles.unplannedChip}
+                title="No plan was written for this trade before entry"
+                data-testid="unplanned-chip"
+              >
+                Unplanned
+              </span>
+              {/* FIN-A11Y (review R4, M-8): the chip's title is mouse-only. The same words for a
+                  screen reader, right after it, without widening a dense table. */}
+              <span className="sr-only" data-testid="unplanned-reason">No plan was written for this trade before entry.</span>
+            </>
           )}
           {reviewed && (
             <span

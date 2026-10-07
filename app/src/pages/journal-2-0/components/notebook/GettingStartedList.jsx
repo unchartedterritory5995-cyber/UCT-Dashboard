@@ -45,7 +45,10 @@ import {
   CHECKLIST_PREF, CHECKLIST_STATES, CHECKLIST_COPY, checklistClosed, checklistEnabled,
   closedAs, deriveChecklistItems, recordedDone, withDone,
 } from './onboarding/gettingStarted'
-import { GETTING_STARTED_HEADING_ID, useMarkGettingStartedShowing } from './onboarding/keyboardDoors'
+import {
+  GETTING_STARTED_HEADING_ID, useMarkGettingStartedShowing, focusFirstRunHeadingIfLost,
+} from './onboarding/keyboardDoors'
+import PoliteStatus from './PoliteStatus'
 import styles from './GettingStartedList.module.css'
 
 /** Where "Start a note from a template" goes: All notes, which offers the template
@@ -103,9 +106,26 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
   // Every step ticked: close it as `done`, ONCE, so it stays closed (D4) even when a
   // capability arms later and adds an unticked step.
   const finished = useRef(false)
+  // FIN-A11Y (review R4, M-1): which step's control last had focus, so a tick that removes
+  // that control can hand focus to the card heading instead of dropping it on <body>; and
+  // whether THIS mount finished the list, so its closing is said rather than silent.
+  const lastFocusRef = useRef(null)
+  const [finishedHere, setFinishedHere] = useState(false)
+  useEffect(() => {
+    const id = lastFocusRef.current
+    if (!id || !items.find((i) => i.id === id)?.done) return
+    lastFocusRef.current = null
+    const active = document.activeElement
+    if (active && active !== document.body) return
+    if (allDone) focusFirstRunHeadingIfLost()
+    else document.getElementById(titleId)?.focus()
+    // `items` and `titleId` are read at the moment the count changes; doneCount gates it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doneCount, allDone])
   useEffect(() => {
     if (!enabled || loading || closed || !allDone || finished.current) return
     finished.current = true
+    setFinishedHere(true)
     const ids = items.map((i) => i.id)
     setPrefMerged('notebook_getting_started', (current) => closedAs(
       withDone(current, ids) || current, CHECKLIST_STATES.done,
@@ -117,7 +137,10 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
   // W14-keys: tells the skip link the card is on screen (same four conditions as the line below).
   useMarkGettingStartedShowing(enabled && !loading && !closed && !allDone)
 
-  if (!enabled || loading || closed || allDone) return null
+  if (!enabled || loading || closed || allDone) {
+    // The card is gone. If this mount is the one that finished it, say so (politely).
+    return finishedHere ? <PoliteStatus text={CHECKLIST_COPY.allDone} /> : null
+  }
 
   const dismiss = () => {
     setPrefMerged('notebook_getting_started', (current) => closedAs(current, CHECKLIST_STATES.dismissed))
@@ -157,10 +180,15 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
   }
 
   return (
-    <section className={styles.card} aria-labelledby={titleId}>
+    <section className={styles.card} aria-labelledby={titleId}
+      onBlurCapture={(e) => {
+        // The member moved on to something else: no step "has" their focus any more. (A
+        // control that is REMOVED fires no blur, which is exactly the case kept above.)
+        if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget)) lastFocusRef.current = null
+      }}>
       <div className={styles.header}>
         <h3 id={titleId} tabIndex={-1} className={styles.title}>{CHECKLIST_COPY.title}</h3>
-        <span className={styles.progress}>{CHECKLIST_COPY.progress(doneCount, items.length)}</span>
+        <span className={styles.progress} aria-live="polite">{CHECKLIST_COPY.progress(doneCount, items.length)}</span>
         <button type="button" className={styles.hide} onClick={dismiss} aria-label={CHECKLIST_COPY.hideLabel}>
           {CHECKLIST_COPY.hide}
         </button>
@@ -170,7 +198,7 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
       <div role="toolbar" aria-orientation="vertical" aria-label={CHECKLIST_COPY.stepsLabel} {...containerProps}>
       <ol className={styles.list}>
         {items.map((item) => (
-          <li key={item.id} className={styles.item}>
+          <li key={item.id} className={styles.item} onFocusCapture={() => { lastFocusRef.current = item.id }}>
             <span className={`${styles.mark} ${item.done ? styles.markDone : ''}`} aria-hidden="true">
               {item.done ? <UIcon name="check" size={12} /> : null}
             </span>

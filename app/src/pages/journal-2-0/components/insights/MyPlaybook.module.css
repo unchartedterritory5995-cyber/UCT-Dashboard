@@ -82,8 +82,10 @@
 .notes { margin-top: 10px; }
 .subTitle { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
 .noteList { margin: 0; padding-left: 18px; font-size: 13px; }
-.link { color: var(--accent, #dcbb5e); text-decoration: none; }
-.link:hover { text-decoration: underline; }
+/* Links sit inside muted sentences, and gold against the muted ink is about 1.1:1: colour
+   alone does not tell them apart, so they are underlined at rest (review R4, M-10). */
+.link { color: var(--accent, #dcbb5e); text-decoration: underline; text-underline-offset: 2px; }
+.link:hover { text-decoration-thickness: 2px; }
 .linkBtn {
   background: none;
   border: 0;
@@ -92,7 +94,12 @@
   font: inherit;
   font-size: 13px;
   cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
+.statusLine { margin: 0 0 8px; }
+.statusLine:empty { margin: 0; }
+.drillTitle:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; border-radius: var(--radius-sm, 4px); }
 
 .patterns {
   margin-top: 16px;

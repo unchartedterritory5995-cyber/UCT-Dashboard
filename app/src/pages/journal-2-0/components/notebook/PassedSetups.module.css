@@ -177,7 +177,7 @@
   cursor: default;
 }
 .primary {
-  border-color: rgba(220, 187, 94, 0.45);
+  border-color: var(--warn-border);
 }
 
 @media (max-width: 640px) {
@@ -201,3 +201,6 @@
     align-items: center;
   }
 }
+
+/* "Added NVDA." / "Removed NVDA.": always in the tree, no room while empty. */
+.notice:empty { display: block; margin: 0; height: 0; }

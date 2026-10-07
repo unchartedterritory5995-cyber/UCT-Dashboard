@@ -8,7 +8,8 @@
  *
  * Dark behind `notebook_plan_grading_enabled` — the Insights tab is not offered while off.
  */
-import { useState } from 'react'
+import { useId, useState } from 'react'
+import UIcon from '../../../../components/ui/UIcon'
 import { useDisciplineRecord } from '../../hooks/usePlanGrade'
 // R3's wording has ONE client home (lane 13B, `lib/sampleSize.js`); this card reads it from there.
 import { WORDING } from '../../lib/sampleSize'
@@ -52,6 +53,7 @@ export function RateCell({ stat }) {
 export default function DisciplineRecord({ accountId }) {
   const { enabled, record, error, isLoading, retry } = useDisciplineRecord(accountId)
   const [size, setSize] = useState(20)
+  const titleId = useId()
   if (!enabled) return null
 
   if (isLoading && !record) return <p className={styles.muted} data-testid="discipline-loading">Reading your trades…</p>
@@ -67,22 +69,24 @@ export default function DisciplineRecord({ accountId }) {
   const w = windows.find((x) => x.size === size) || windows[0]
   if (!w || !w.trades) {
     return (
-      <section className={styles.card} aria-labelledby="discipline-title" data-testid="discipline-record">
-        <h3 id="discipline-title" className={styles.title}>Discipline record</h3>
+      <section className={styles.card} aria-labelledby={titleId} data-testid="discipline-record">
+        <h3 id={titleId} className={styles.title}>Discipline record</h3>
         <p className={styles.muted}>Close a trade to start your record. Each one is checked against the plan you wrote before it.</p>
       </section>
     )
   }
 
   return (
-    <section className={styles.card} aria-labelledby="discipline-title" data-testid="discipline-record">
+    <section className={styles.card} aria-labelledby={titleId} data-testid="discipline-record">
       <div className={styles.head}>
-        <h3 id="discipline-title" className={styles.title}>Discipline record</h3>
+        <h3 id={titleId} className={styles.title}>Discipline record</h3>
         <div className={styles.toggle} role="group" aria-label="How many trades">
           {windows.map((x) => (
             <button key={x.size} type="button" aria-pressed={x.size === w.size}
               className={`${styles.toggleBtn} ${x.size === w.size ? styles.toggleOn : ''}`}
               onClick={() => setSize(x.size)}>
+              {/* M-9: the selected window is filled and check-marked, not colour alone. */}
+              {x.size === w.size && <UIcon name="check" size={11} gold={false} />}
               Last {x.size}
             </button>
           ))}

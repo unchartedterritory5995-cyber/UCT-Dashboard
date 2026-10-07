@@ -7,8 +7,14 @@
  * `notebook_voice_notes_enabled` is armed — off, this component never imports a microphone: the
  * button is not in the tree at all, not merely hidden, so nothing it owns can call
  * `getUserMedia`.
+ *
+ * Lane FIN-A11Y (review R4, I-9): Edit, Save and Cancel each swap the view and unmount the
+ * button that was pressed, so focus used to fall to <body>. Edit now lands in the text field;
+ * Save and Cancel land on Edit. A status line that is ALWAYS mounted says "Saved." (a status
+ * that mounts with its text is often not announced). Focus moves only after one of those three
+ * actions, never on first render or when the card shows another position.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import VoiceInputButton from './VoiceInputButton'
 import { notebookFlag } from '../lib/offline/notebookFlags'
 import { putWhy } from '../hooks/useEntryContext'
@@ -24,6 +30,20 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
   const [text, setText] = useState(why?.text || '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  const [notice, setNotice] = useState('')
+  const fieldId = useId()
+  const fieldRef = useRef(null)
+  const editRef = useRef(null)
+  // Where focus goes after the view swaps: 'field' | 'edit' | null. Set by a member action.
+  const focusAfterRef = useRef(null)
+  useEffect(() => {
+    const want = focusAfterRef.current
+    if (!want) return
+    const el = want === 'field' ? fieldRef.current : editRef.current
+    if (!el) return
+    focusAfterRef.current = null
+    el.focus()
+  }, [editing])
 
   // Reseed when the identity changes (a different position's card) or the server's own
   // answer changes (another tab saved it) — never mid-edit on this same key.
@@ -31,6 +51,8 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
     setText(why?.text || '')
     setEditing(!why?.text)
     setError(null)
+    setNotice('')
+    focusAfterRef.current = null
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, entryDay])
 
@@ -41,7 +63,9 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
     setError(null)
     try {
       const res = await putWhy(symbol, entryDay, text)
+      focusAfterRef.current = 'edit'
       setEditing(false)
+      setNotice('Saved.')
       onSaved?.(res.context)
     } catch (e) {
       setError(e.message || 'Could not save.')
@@ -52,9 +76,23 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
 
   const cancel = () => {
     setText(why?.text || '')
+    focusAfterRef.current = 'edit'
     setEditing(false)
     setError(null)
   }
+
+  const startEditing = () => {
+    focusAfterRef.current = 'field'
+    setNotice('')
+    setEditing(true)
+  }
+
+  // ONE element across both views: both return the same wrapper `<div>`, and the key lets
+  // React carry this child from one view's children to the other's, so the region a screen
+  // reader is listening to is never replaced, only refilled.
+  const status = (
+    <p key="why-status" className={styles.notice} role="status" data-why-status="">{notice}</p>
+  )
 
   if (!editing) {
     // ⛔ `why` can still be the PARENT's stale (null) prop for one render after a successful
@@ -68,19 +106,21 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
       <div className={styles.wrap} data-testid="why-prompt-saved">
         <div className={styles.label}>Why did you take it?</div>
         <p className={styles.savedText}>{shown}</p>
-        <button type="button" className={styles.linkBtn} onClick={() => setEditing(true)}>
+        <button type="button" ref={editRef} className={styles.linkBtn} onClick={startEditing}>
           Edit
         </button>
+        {status}
       </div>
     )
   }
 
   return (
     <div className={styles.wrap} data-testid="why-prompt-editing" data-tour="entry-context-why">
-      <label className={styles.label} htmlFor="why-prompt-text">Why did you take it?</label>
+      <label className={styles.label} htmlFor={fieldId}>Why did you take it?</label>
       <div className={styles.row}>
         <textarea
-          id="why-prompt-text"
+          ref={fieldRef}
+          id={fieldId}
           className={styles.textarea}
           rows={3}
           maxLength={maxChars}
@@ -105,6 +145,7 @@ export default function WhyPrompt({ symbol, entryDay, why, whyMaxChars, onSaved 
         ) : null}
       </div>
       {error && <p className={styles.error} role="alert">{error}</p>}
+      {status}
     </div>
   )
 }
