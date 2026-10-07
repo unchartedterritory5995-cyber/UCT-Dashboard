@@ -49,7 +49,7 @@ import useCommandHistory from './commandHistory'
 import {
   BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
   closePanel, decodePopout, decodeShare, deleteBoard, duplicatePanel, encodeShare, findBoard, isCompatChannel,
-  isLinkable, markOpened, movePanel, nextLinkChannel, openBoard, panelChannel, panelSym, popoutHref, presetFor,
+  isLinkable, markOpened, movePanel, nextLinkChannel, reorderPanel, openBoard, panelChannel, panelSym, popoutHref, presetFor,
   recentSecurities, saveBoard, setCount as countTo,
   setDensity, setKeepCalendar, setPanelChannel, setPopout, setPreset, shareHref, toggleFavorite, undoClose,
 } from './boardModel'
@@ -187,6 +187,7 @@ export function Panel({
   index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, helpProps,
   onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone, hidden = false,
   density = 'comfortable', domId, canMaximise = false, maximised = false, onMaximise,
+  reorder = null,
 }) {
   const r = resolvePanel(panel, syms, auth)
   const Comp = r.state === 'ready' && !panel.popout ? panelComponent(r.name) : null
@@ -213,7 +214,7 @@ export function Panel({
   const identity = `${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}`
   return (
     <section
-      className={`${styles.panel} ${focused ? styles.panelFocused : ''}`}
+      className={`${styles.panel} ${focused ? styles.panelFocused : ''} ${reorder?.dropTarget ? styles.panelDropTarget : ''} ${reorder?.dragging ? styles.panelDragging : ''}`}
       onMouseDown={onFocus}
       onFocusCapture={onFocus}
       aria-label={`Panel ${index + 1}: ${title || 'empty'}`}
@@ -223,8 +224,33 @@ export function Panel({
       data-channel={panelChannel(panel) || ''}
       data-focused={focused ? 'true' : 'false'}
       hidden={hidden}
+      data-drop-target={reorder?.dropTarget ? 'true' : undefined}
+      onDragOver={reorder?.onDragOver}
+      onDragLeave={reorder?.onDragLeave}
+      onDrop={reorder?.onDrop}
     >
       <header className={styles.panelHead}>
+        {reorder?.canMove && (
+          // The reorder handle. Drag it onto another panel (mouse); or tap/click it for a "Move to
+          // panel N" menu (touch: HTML5 drag never fires there); or focus it and press ←/→.
+          <button
+            type="button"
+            className={styles.panelGrip}
+            draggable
+            onDragStart={reorder.onDragStart}
+            onDragEnd={reorder.onDragEnd}
+            onClick={(e) => { e.stopPropagation(); reorder.onMenu(e) }}
+            onKeyDown={reorder.onKeyDown}
+            aria-haspopup="menu"
+            aria-keyshortcuts="Alt+Shift+[ Alt+Shift+]"
+            aria-label={`Move panel ${index + 1}: drag it, choose a place, or press the left and right arrows`}
+            title="Move: drag onto another panel, click for a list, or ←/→ (Alt+Shift+[ / ])"
+            data-testid={`terminal-grip-${index}`}
+            data-grip-id={panel.id}
+          >
+            <UIcon name="menu" size={12} gold={false} />
+          </button>
+        )}
         {standalone ? null : linkable ? (
           <button
             type="button"
@@ -349,6 +375,11 @@ export default function TerminalShell() {
   // at click time means a closed panel's menu just stops matching anything (closes, no-ops)
   // instead of silently relinking whatever panel now sits at the old index.
   const [channelMenu, setChannelMenu] = useState(null) // { panelId, anchor }
+  // Reorder (daily-use leftover #2). Same id-keyed rule as the channel menu: a move resolves the
+  // panel by its STABLE id at the moment it lands, never by an index captured earlier.
+  const [moveMenu, setMoveMenu] = useState(null)       // { panelId, anchor }
+  const [dragId, setDragId] = useState(null)           // the panel being dragged
+  const [dropAt, setDropAt] = useState(null)           // the slot it would land in
   const [functionRecents, setFunctionRecents] = useState(() => readFunctionRecents())
   // Maximise is a VIEW state, never saved to the board: the focused panel fills the grid and
   // the others stay mounted and hidden (as on a phone), so restoring reloads nothing.
@@ -1171,6 +1202,74 @@ export default function TerminalShell() {
     save(res.layout)
     setNotice({ kind: 'info', text: `Moved ${focusedName} to panel ${res.to + 1}.` })
   }
+  /** Move the panel with this id to visible slot `to` (drag-and-drop, the Move menu, or ←/→ on
+   *  its handle). Saved like any other board change; focus follows the panel. */
+  const onReorder = (panelId, to, { refocusGrip = false } = {}) => {
+    const cur = layoutRef.current
+    const from = cur.panels.slice(0, cur.count).findIndex((p) => p.id === panelId)
+    if (from < 0) return
+    const res = reorderPanel(cur, from, to)
+    if (!res.ok) {
+      if (to < 0 || to >= cur.count) {
+        setNotice({ kind: 'info', text: `${cur.panels[from].code} is already the ${to < 0 ? 'first' : 'last'} panel.` })
+      }
+      return
+    }
+    save(res.layout)
+    setNotice({ kind: 'info', text: `Moved ${cur.panels[from].code} to panel ${res.to + 1}.` })
+    if (refocusGrip) {
+      // Keyboard moves keep focus on the same handle, wherever its panel now sits.
+      const id = String(panelId).replace(/["\\]/g, '')
+      requestAnimationFrame(() => document.querySelector(`[data-grip-id="${id}"]`)?.focus())
+    }
+  }
+  const PANEL_DRAG_TYPE = 'application/x-uct-terminal-panel'
+  const reorderFor = (p, i) => {
+    if (popoutToken || count < 2) return null
+    const draggedId = (e) => dragId || e?.dataTransfer?.getData?.(PANEL_DRAG_TYPE) || null
+    return {
+      canMove: true,
+      dragging: dragId === p.id,
+      dropTarget: dragId != null && dragId !== p.id && dropAt === i,
+      onDragStart: (e) => {
+        try {
+          e.dataTransfer.effectAllowed = 'move'
+          e.dataTransfer.setData(PANEL_DRAG_TYPE, p.id)
+          e.dataTransfer.setData('text/plain', panelCommandText(p, syms) || p.code)
+        } catch { /* a browser that refuses dataTransfer still has dragId */ }
+        setDragId(p.id)
+      },
+      onDragEnd: () => { setDragId(null); setDropAt(null) },
+      onDragOver: (e) => {
+        if (!dragId) return
+        e.preventDefault()
+        try { e.dataTransfer.dropEffect = 'move' } catch { /* */ }
+        if (dropAt !== i) setDropAt(i)
+      },
+      onDragLeave: (e) => {
+        if (dropAt === i && !e.currentTarget.contains(e.relatedTarget)) setDropAt(null)
+      },
+      onDrop: (e) => {
+        const id = draggedId(e)
+        setDragId(null)
+        setDropAt(null)
+        if (!id) return
+        e.preventDefault()
+        onReorder(id, i)
+      },
+      onMenu: (e) => {
+        const r = e.currentTarget.getBoundingClientRect?.() || { left: 0, bottom: 0 }
+        setMoveMenu({ panelId: p.id, anchor: { x: r.left, y: r.bottom + 4 } })
+      },
+      onKeyDown: (e) => {
+        const d = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key]
+        if (d === undefined || e.altKey || e.ctrlKey || e.metaKey) return
+        e.preventDefault()
+        e.stopPropagation()
+        onReorder(p.id, i + d, { refocusGrip: true })
+      },
+    }
+  }
   const onMaximise = (i = focus) => {
     if (isPhone) return
     if (count < 2) { setNotice({ kind: 'info', text: 'This board shows one panel, so it is already full size.' }); return }
@@ -1249,6 +1348,8 @@ export default function TerminalShell() {
     setFocus(to)
     e.currentTarget.querySelectorAll('[role="tab"]')[to]?.focus()
   }
+  const moveFrom = moveMenu ? visible.findIndex((q) => q.id === moveMenu.panelId) : -1
+  const movePanelRec = moveFrom >= 0 ? visible[moveFrom] : null
   const menuPanelId = channelMenu?.panelId
   const menuPanel = menuPanelId != null ? layout.panels.find((p) => p.id === menuPanelId) || null : null
   const activeId = activeChannelOf(layout)
@@ -1455,6 +1556,7 @@ export default function TerminalShell() {
                 canClose={count > 1}
                 isPhone={isPhone}
                 density={layout.density}
+                reorder={reorderFor(p, i)}
               />
           ))}
         </div>
@@ -1474,6 +1576,18 @@ export default function TerminalShell() {
           { key: 'new', label: 'New group', icon: <UIcon name="plus" size={12} gold={false} />, onClick: () => newChannel(menuPanelId) },
           { key: 'none', label: 'Not linked (keep this security)', icon: <UIcon name="pin" size={12} gold={false} />, onClick: () => pickChannel(menuPanelId, null) },
         ] : []}
+      />
+      <ContextPopover
+        open={!!movePanelRec}
+        onClose={() => setMoveMenu(null)}
+        anchor={moveMenu?.anchor}
+        title={movePanelRec ? `Move ${movePanelRec.code} (panel ${moveFrom + 1})` : 'Move panel'}
+        items={movePanelRec ? visible.map((q, k) => ({
+          key: q.id,
+          label: k === moveFrom ? `Panel ${k + 1} (here now)` : `To panel ${k + 1} (where ${q.code} is now)`,
+          icon: String(k + 1),
+          onClick: () => { setMoveMenu(null); if (k !== moveFrom) onReorder(movePanelRec.id, k) },
+        })) : []}
       />
       <Sheet open={sheet === 'functions'} onClose={() => setSheet(null)} title="Functions" variant="bottom-sheet">
         {noticeEl}
