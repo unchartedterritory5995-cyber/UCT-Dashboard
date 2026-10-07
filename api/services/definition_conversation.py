@@ -61,7 +61,7 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from jsonschema import Draft202012Validator
 
-from api.services import ast_interpret, ast_lint, user_definitions
+from api.services import ast_interpret, ast_lint, conversation_preflight, user_definitions
 from api.services import definition_concierge as dc
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TableRefusal
@@ -100,7 +100,10 @@ MAX_VIEW_CHARS: int = 32_000
 MAX_STATE_CHARS: int = 8_000
 #: Recent-turn snippets: LANGUAGE ONLY, never a definition.
 MAX_SNIPPETS: int = 6
-MAX_SNIPPET_CHARS: int = 400
+#: ⭐ P3: 1200 -- a reply may be 1200 characters (patchSchema `reply`), so a
+#: follow-up ("why might that be better?") can see the whole answer it refers to.
+#: Six of them (7,200) still fit well inside MAX_INPUT_CHARS.
+MAX_SNIPPET_CHARS: int = 1_200
 #: The whole variable part of the user turn, after serialisation.
 MAX_INPUT_CHARS: int = 48_000
 
@@ -371,14 +374,28 @@ CONVERSE_SYSTEM_PROMPT = (
     "in `reply` from <uct_indicator_data> and emit `ops: []`. A hypothetical "
     "(\"would 50 be slower?\", \"what happens if I change 14 to 21?\") is a question: "
     "explain it and change NOTHING.\n"
+    "    ADVISORY questions are answers too (\"what period suits a swing trader?\", "
+    "\"what are the CAN SLIM rules?\", \"which is better for weekly bars?\"): give a "
+    "genuinely useful, trading-literate reply. You may recommend values or name a "
+    "next step the member could ask for, but never say or imply that you changed "
+    "anything -- an answer changes nothing.\n"
     "  * change: the member asks you to build or change it (\"make it 50\", \"add\", "
     "\"remove\", \"paint\", \"alert me\"). Emit the smallest ops and a one-sentence "
     "`reply` saying what you changed.\n"
     "  * clarify: a change was asked for but cannot be written without the member's "
     "choice. Ask in `questions` and emit `ops: []`.\n"
+    "    A DIRECTION WITH NO VALUE where more than one setting could move (\"make it "
+    "faster\", \"make it smoother\", \"more sensitive\") is clarify: ask ONE concise "
+    "question naming the options (for example a shorter length, or a different "
+    "average), optionally with 2-4 `choices`. Never pick the number yourself.\n"
     "  * unsupported: the request needs something not offered here. Emit `ops: []` and "
     "say so plainly in `reply`; you may suggest what IS possible. Never substitute "
     "something different.\n"
+    "    ANOTHER SYMBOL: a request that names a symbol other than the chart's own "
+    "(\"only when SPY's RSI is above 50\", \"use QQQ's close\") is unsupported -- "
+    "reply honestly that indicators made here read the chart's own symbol only. "
+    "NEVER emit a change that quietly uses the chart's own symbol instead and "
+    "mentions the swap only in prose: that is a substitution, and it is refused.\n"
     "  `reply` is shown to the member as your words; the read-back of the indicator is "
     "computed separately from the RESULT. Keep it to at most four short sentences of "
     "plain English: no formula syntax unless the member used it, no internal names, "
@@ -419,7 +436,12 @@ CONVERSE_SYSTEM_PROMPT = (
     "bar) are not history and are not offered here.\n"
     "  * If the request needs something not offered here, emit no ops, set "
     "disposition unsupported and say so plainly in `reply`. Never substitute "
-    "something different.\n\n"
+    "something different.\n"
+    "  * A phrase listed under `not_in_vocabulary` in <uct_language_notes> is not "
+    "one of UCT's functions or concepts: you may DISCUSS it in an answer, never "
+    "author with it, and never build a look-alike under its name.\n"
+    "  * A symbol listed under `other_symbols` in <uct_language_notes> is not the "
+    "chart's: answer, or say unsupported; never change the indicator for it.\n\n"
     "MISSING INFORMATION\n"
     "  * REQUIRED: the patch cannot be written without the member's choice and no UCT "
     "convention decides it. Ask in `questions` (at most 3, one short sentence each, "
@@ -767,6 +789,13 @@ def _product_nouns_plain(message: str) -> str:
     return _PRODUCT_NOUN_RE.sub(lambda m: m.group(0).lower(), str(message))
 
 
+#: ⭐ P3 -- the rules the model reads beside a phrase / symbol it may discuss only.
+NOT_IN_VOCABULARY_RULE = ("not in UCT's function vocabulary -- you may discuss it, "
+                          "never author with it")
+OTHER_SYMBOL_RULE = ("another symbol than the chart's -- answer, or say unsupported; "
+                     "never change the indicator for it")
+
+
 def _call_model(messages: List[dict]) -> Tuple[Any, int, int]:
     """ONE Anthropic call. ⛔ ``system`` and ``tools`` are constants."""
     from api.services.engine import _get_anthropic_client
@@ -904,7 +933,8 @@ def reset_conversation_usage() -> None:
 
 
 def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
-             outcome: str, admin: bool, cap_usd: float) -> Dict[str, Any]:
+             outcome: str, admin: bool, cap_usd: float,
+             repair_gate: Optional[str] = None) -> Dict[str, Any]:
     """The turn's cost record: returned to the caller as ``usage`` and logged.
 
     ⛔ SHAPE ONLY. Model id, token counts, call count, dollars, the outcome code
@@ -920,6 +950,8 @@ def _account(user_id: Any, conversation_id: Any, calls: List[Dict[str, Any]], *,
         "output_tokens": sum(c["output_tokens"] for c in calls),
         "usd": round(sum(c["usd"] for c in calls), 6),
         "outcome": outcome,
+        # ⭐ P3: the gate CODE that made this turn pay for a repair (None = no repair)
+        "repair_gate": repair_gate,
         "conversation": None,
     }
     key = conversation_key(conversation_id)
@@ -968,13 +1000,16 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
     ``conversation_id`` (optional, opaque) keys the per-conversation aggregate.
     """
     calls: List[Dict[str, Any]] = []
+    trace: Dict[str, Any] = {}
     cap_usd = conversation_cap_usd(admin=admin)
     result = _converse_turn(message, user_id=user_id, view=view, authoring=authoring,
-                            snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls)
+                            snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls,
+                            trace=trace)
     outcome = result.get("turn") if result.get("ok") else result.get("gate")
     try:
         result["usage"] = _account(user_id, conversation_id, calls, outcome=str(outcome),
-                                   admin=admin, cap_usd=cap_usd)
+                                   admin=admin, cap_usd=cap_usd,
+                                   repair_gate=trace.get("repair_gate"))
     except Exception:                              # noqa: BLE001 -- telemetry never breaks a turn
         logger.exception("[converse] usage accounting failed")
     return result
@@ -982,14 +1017,15 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
 
 def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                    snippets: Any, chart: Any, cap_usd: float,
-                   calls: List[Dict[str, Any]]) -> Dict[str, Any]:
+                   calls: List[Dict[str, Any]],
+                   trace: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    trace = trace if trace is not None else {}
     try:
         message, view, state, turns = _bounded_inputs(message, view, authoring, snippets)
     except _Refused as refused:
         return {"ok": False, "gate": refused.gate, "reason": refused.reason}
     revision = view["revision"]
 
-    from api.services import conversation_preflight
     caught = conversation_preflight.check(message, chart)
     if caught is not None:
         logger.info("[converse] preflight %s (no model call)", caught["gate"])
@@ -998,18 +1034,44 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                 "tokens": {"input": 0, "output": 0}, "cost_usd": 0.0,
                 "not_understood": [], "unavailable": []}
 
-    understanding = dc.plan(_product_nouns_plain(message), dc.INDICATOR_KIND)
+    # ⭐ P3 -- TALK CONTINUITY. A QUESTION (or a bare "compare ...") may name things
+    # UCT cannot build -- "What period would you recommend for a Swing Trader?",
+    # "Explain the Relative Strength Index". The planner's Title-Case rule (the
+    # McGinley rule, shared with /propose and UNCHANGED there) would refuse it with
+    # no call. For THIS door, on an advisory message only, those phrases go to the
+    # model as DATA ("not in UCT's function vocabulary -- discuss, never author")
+    # and the model answers; an AUTHORING message keeps the refusal, so "Add the
+    # McGinley Dynamic" still never reaches a model that could substitute an EMA.
+    # Backstop: an advisory turn that bypassed a refusal can never come back as a
+    # change (below).
+    advisory = conversation_preflight.is_advisory(message)
+    other_sym = conversation_preflight.other_symbol(message, chart)
+    plain = _product_nouns_plain(message)
+    understanding = dc.plan(plain, dc.INDICATOR_KIND)
     not_understood = understanding["not_understood"]
     unavailable = understanding["unavailable"]
-    if not understanding["understood"]:
+    discussed: List[dict] = []
+    if advisory and not_understood:
+        discussed = list(not_understood)
+        not_understood = []
+        request_text = plain.strip()
+    elif not understanding["understood"]:
         first = not_understood[0] if not_understood else None
         return {"ok": False,
                 "gate": first["gate"] if first else "prompt:empty",
                 "reason": first["reason"] if first else dc.REFUSALS["prompt:empty"],
                 "not_understood": not_understood, "unavailable": unavailable}
+    else:
+        request_text = understanding["understood"]
 
-    content = user_turn(understanding["understood"], _language_notes(understanding),
-                        view, state, turns)
+    notes = _language_notes(understanding)
+    if discussed:
+        notes["not_understood"] = []
+        notes["not_in_vocabulary"] = [{"phrase": n.get("phrase"), "rule": NOT_IN_VOCABULARY_RULE}
+                                      for n in discussed]
+    if other_sym:
+        notes["other_symbols"] = [{"symbol": other_sym, "rule": OTHER_SYMBOL_RULE}]
+    content = user_turn(request_text, notes, view, state, turns)
     if len(content) > MAX_INPUT_CHARS:
         return _refusal("converse:too-large", f"turn {len(content)} > {MAX_INPUT_CHARS}",
                         member="the turn as a whole is too large to send")
@@ -1057,6 +1119,10 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             if refused.gate in _TERMINAL_GATES:
                 break
             if attempts < MAX_MODEL_CALLS:
+                # ⭐ P3 COST DIAGNOSIS: WHY a turn paid for a repair -- the gate CODE
+                # and the attempt number only (no prompt, member text or model output).
+                logger.info("[converse] repair after attempt=%d gate=%s", attempts, refused.gate)
+                trace.setdefault("repair_gate", refused.gate)
                 messages = _repair_turns(messages, msg, tool_input, refused)
                 continue
             break
@@ -1064,6 +1130,23 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             logger.exception("[converse] unexpected failure checking the patch")
             return {"ok": False, "gate": "internal:error",
                     "reason": dc.REFUSALS["internal:error"], **extra}
+
+        # ⭐ P3 BACKSTOPS -- deterministic, terminal, member-safe. A CHANGE is refused
+        # (never applied) when the member's words named another symbol (the real
+        # model once substituted the chart's own symbol and disclosed it only in
+        # prose), or when an advisory turn bypassed the planner's refusal (the model
+        # may DISCUSS those phrases, never author with them).
+        if envelope.get("disposition") == "change" and (other_sym or discussed):
+            if other_sym:
+                gate = conversation_preflight.GATE_SYMBOL
+                reason = conversation_preflight.rules()["copy"][gate].format(symbol=other_sym)
+            else:
+                gate = discussed[0].get("gate") or "concept:ungrounded"
+                reason = discussed[0].get("reason") or dc.REFUSALS["prompt:empty"]
+            logger.info("[converse] backstop %s: a change was refused (attempt=%d)", gate, attempts)
+            return {"ok": False, "gate": gate, "reason": reason, "disposition": "unsupported",
+                    "backstop": True, **extra, "not_understood": [],
+                    "tokens": tokens, "cost_usd": round(cost_usd, 6), "attempts": attempts}
 
         if envelope.get("questions"):
             turn = "question"
