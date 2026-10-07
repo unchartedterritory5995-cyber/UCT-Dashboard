@@ -274,6 +274,14 @@ const CAPABILITIES = [
     name: 'chart.applyTheme',
     summary: "Apply one of UCT's built-in chart color themes (canvas, candles, grid, text) to one chart.",
     args: { type: 'object', properties: { theme: { type: 'string', enum: CHART_THEMES.map(t => t.id) } }, required: ['theme'], additionalProperties: false },
+    // "cream theme" / "apply the nord theme" — only a real chart-theme id or name.
+    fast: ({ core }) => {
+      const m = /^(?:apply\s+)?(?:the\s+)?(.+?)\s+(?:chart\s+)?theme$/.exec(core)
+      if (!m) return null
+      const want = m[1].trim().toLowerCase()
+      const hit = CHART_THEMES.find(t => t.id === want || t.name.toLowerCase() === want)
+      return hit ? { theme: hit.id } : null
+    },
     check: (st, { theme }) => (CHART_THEME_BY_ID[theme] ? null : `UCT has no chart theme “${theme}”.`),
     apply: (st, { theme }) => ({ ...st, cs: applyThemeToSettings(st.cs, CHART_THEME_BY_ID[theme]) }),
     describe: (b, a, { theme }) => `Applied the ${CHART_THEME_BY_ID[theme]?.name || theme} chart theme`,
@@ -283,6 +291,12 @@ const CAPABILITIES = [
     summary: "Set one chart's background to a single solid color.",
     hints: 'Pass a hex color like #f3efe4; translate plain color names to hex.',
     args: { type: 'object', properties: { color: { type: 'string' } }, required: ['color'], additionalProperties: false },
+    // "background to black" / "change the background to #f3efe4" — only a color
+    // that normalizes; anything else goes to the model.
+    fast: ({ core }) => {
+      const m = /^(?:the\s+)?(?:background|bg|background color|canvas)\s+(?:to\s+|=\s*)?(.+)$/.exec(core)
+      return m && normalizeColor(m[1]) ? { color: m[1].trim() } : null
+    },
     check: (st, { color }) => (normalizeColor(color) ? null : `“${color}” isn't a color I can set — use a hex value like #f3efe4.`),
     apply(st, { color }) {
       const c = normalizeColor(color)

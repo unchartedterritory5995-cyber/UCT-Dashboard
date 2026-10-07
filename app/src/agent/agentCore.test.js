@@ -248,6 +248,12 @@ describe('fast path (capability-contributed phrases)', () => {
     expect(fastParse('log scale').ops[0]).toEqual({ action: 'chart.setScale', args: { scale: 'log' } })
     expect(fastParse('make the left chart linear')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setScale', args: { scale: 'linear' } }], target: { position: 'left' } })
     expect(fastParse('percent scale').ops[0].args).toEqual({ scale: 'percent' })
+    expect(fastParse('change the left chart background to black')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setBackground', args: { color: 'black' } }], target: { position: 'left' } })
+    expect(fastParse('background #f3efe4').ops[0].args).toEqual({ color: '#f3efe4' })
+    expect(fastParse('background to sunset orange-ish')).toBeNull()
+    expect(fastParse('cream theme').ops[0]).toEqual({ action: 'chart.applyTheme', args: { theme: 'cream' } })
+    expect(fastParse('apply the midnight navy theme').ops[0].args).toEqual({ theme: 'midnight-navy' })
+    expect(fastParse('a cleaner theme')).toBeNull()
     expect(fastParse('weekly').target).toBeNull()
   })
   it('all-or-nothing: any unrecognised clause goes to the model', () => {
