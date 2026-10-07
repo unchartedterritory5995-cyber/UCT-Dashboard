@@ -16,7 +16,7 @@
 // conversation, so the model's next turn remembers what UCT DID.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fastParse } from './fastPath'
+import { fastParse, matchPosition } from './fastPath'
 import { planOps, prepareOps, collectTargets } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
@@ -214,13 +214,28 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           record({ member: text, outcome: t, telemetry: { path: 'fast', refused: true, voice } })
           return
         }
-        if (charts.length > 1) {
+        // "both / all" → one op set per target; the multi-target policy makes it
+        // a proposal. A position hint narrows by the positions the kind
+        // publishes; anything still ambiguous asks. A lone target needs no hint.
+        if (fast.target?.all && charts.length > 1) {
+          return await execute(charts.flatMap(c => fast.ops.map(o => ({ ...o, target: c.ref }))),
+            { path: 'fast', mode: 'apply', member: text, voice })
+        }
+        let candidates = charts
+        let ask = `Which ${kind.name}?`
+        if (fast.target?.position && charts.length > 1) {
+          const hit = matchPosition(charts, fast.target.position)
+          if (hit.length) candidates = hit
+          else ask = `I don't see a ${fast.target.position} ${kind.name}. Which one?`
+        }
+        const unmatchedHint = fast.target?.position && charts.length > 1 && candidates === charts
+        if (candidates.length > 1 || unmatchedHint) {
           pendingRef.current = { kind: 'target', ops: fast.ops, path: 'fast', member: text, voice }
-          push({ role: 'question', text: `Which ${kind.name}?`, choices: charts.map(c => ({ ref: c.ref, label: c.label })), local: true })
+          push({ role: 'question', text: ask, choices: candidates.map(c => ({ ref: c.ref, label: c.label })), local: true })
           record({ member: text, outcome: 'Asked which target.', telemetry: { path: 'fast', clarified: true, voice } })
           return
         }
-        return await execute(fast.ops.map(o => ({ ...o, target: charts[0].ref })), { path: 'fast', mode: 'apply', member: text, voice })
+        return await execute(fast.ops.map(o => ({ ...o, target: candidates[0].ref })), { path: 'fast', mode: 'apply', member: text, voice })
       }
 
       // ── model path ──

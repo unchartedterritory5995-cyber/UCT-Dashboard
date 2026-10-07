@@ -200,8 +200,8 @@ describe('policy', () => {
 
 describe('fast path (capability-contributed phrases)', () => {
   it('parses obvious commands into the SAME registry ops', () => {
-    expect(fastParse('bars')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setType', args: { type: 'bars' } }] })
-    expect(fastParse('5m')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setTimeframe', args: { timeframe: '5' } }] })
+    expect(fastParse('bars')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setType', args: { type: 'bars' } }], target: null })
+    expect(fastParse('5m')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setTimeframe', args: { timeframe: '5' } }], target: null })
     expect(fastParse('Daily').ops[0].args).toEqual({ timeframe: 'D' })
     expect(fastParse('hide volume').ops[0]).toEqual({ action: 'volume.setState', args: { state: 'hidden' } })
     expect(fastParse('switch to weekly and candles').ops.map(o => o.action)).toEqual(['chart.setTimeframe', 'chart.setType'])
@@ -214,10 +214,23 @@ describe('fast path (capability-contributed phrases)', () => {
     expect(fastParse('just apply the first two')).toEqual({ kind: 'subset', count: 2 })
     expect(fastParse('never mind')).toEqual({ kind: 'dismiss' })
   })
+  it('target qualifiers are stripped and returned as a HINT (the parser never resolves a target)', () => {
+    expect(fastParse('make the left chart weekly')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setTimeframe', args: { timeframe: 'W' } }], target: { position: 'left' } })
+    expect(fastParse('change the right chart to bars').target).toEqual({ position: 'right' })
+    expect(fastParse('switch the right chart to extended hours').ops[0]).toEqual({ action: 'chart.setSession', args: { mode: 'extended' } })
+    expect(fastParse('hide volume on both charts')).toEqual({ kind: 'ops', ops: [{ action: 'volume.setState', args: { state: 'hidden' } }], target: { all: true } })
+    expect(fastParse('make all charts weekly').target).toEqual({ all: true })
+    expect(fastParse('put NVDA on the left')).toEqual({ kind: 'ops', ops: [{ action: 'chart.setSymbol', args: { symbol: 'NVDA' } }], target: { position: 'left' } })
+    expect(fastParse('change symbol to tsla').ops[0]).toEqual({ action: 'chart.setSymbol', args: { symbol: 'TSLA' } })
+    expect(fastParse('top-left chart daily').target).toEqual({ position: 'top-left' })
+    expect(fastParse('weekly').target).toBeNull()
+  })
   it('all-or-nothing: any unrecognised clause goes to the model', () => {
     expect(fastParse('bars and make it look like TradingView')).toBeNull()
     expect(fastParse('what is an EMA?')).toBeNull()
     expect(fastParse('show volume profile')).toBeNull()
+    expect(fastParse('make the left chart look like TradingView')).toBeNull()
+    expect(fastParse('show me apple')).toBeNull()
     expect(fastParse('add RSI 21')).toBeNull()
   })
 })
@@ -261,7 +274,7 @@ describe('EXTENSIBILITY: example.setSomething', () => {
       expect(manifestFor(CTX).map(c => c.name)).toContain('example.setSomething')
       expect(buildContext(host, CTX).context.examples).toEqual([{ ref: 'e1', level: 'low' }])
       // fast path
-      expect(fastParse('example high')).toEqual({ kind: 'ops', ops: [{ action: 'example.setSomething', args: { level: 'high' } }] })
+      expect(fastParse('example high')).toEqual({ kind: 'ops', ops: [{ action: 'example.setSomething', args: { level: 'high' } }], target: null })
       // plan + policy (its metadata says confirm → always a proposal)
       const ops = [{ action: 'example.setSomething', target: 'ex1', args: { level: 'high' } }]
       expect(await prepareOps(ops)).toEqual({})

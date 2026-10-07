@@ -184,8 +184,11 @@ const CAPABILITIES = [
     // "$NVDA", or chart|open|show|load|pull up + an UPPERCASE ticker in the RAW
     // text (so "show volume" can never read as the ticker VOLUME).
     fast: ({ raw }) => {
+      // An explicit "symbol/ticker to X" may be lowercase: the noun removes the
+      // ambiguity that keeps "show volume" from ever reading as a ticker.
       const m = /^\$([A-Za-z][A-Za-z0-9.]{0,9})$/.exec(raw)
-        || /^(?:chart|open|show|load|pull up|switch to|go to)\s+\$?([A-Z][A-Z0-9.]{0,9})$/.exec(raw)
+        || /^(?:chart|open|show|load|pull up|put|switch to|go to)\s+\$?([A-Z][A-Z0-9.]{0,9})$/.exec(raw)
+        || /^(?:change|switch|set)\s+(?:the\s+)?(?:symbol|ticker)\s+to\s+\$?([A-Za-z][A-Za-z0-9.]{0,9})$/i.exec(raw)
       return m ? { symbol: m[1].toUpperCase() } : null
     },
     // Async lookup BEFORE planning: an unknown ticker is refused, never charted blank.
@@ -219,9 +222,11 @@ const CAPABILITIES = [
     name: 'chart.setSession',
     summary: 'Show or hide pre/post-market (extended hours) on one chart.',
     args: { type: 'object', properties: { mode: { type: 'string', enum: ['regular', 'extended'] } }, required: ['mode'], additionalProperties: false },
-    fast: ({ lower }) => {
-      if (/^(show |turn on |include )?(extended hours|extended|ext hours|pre ?\/ ?post)( on)?$/.test(lower)) return { mode: 'extended' }
-      if (/^(hide extended hours|extended hours off|ext hours off|regular hours( only)?|rth( only)?)$/.test(lower)) return { mode: 'regular' }
+    fast: ({ lower, core }) => {
+      for (const s of [lower, core]) {
+        if (/^(show |turn on |include )?(extended hours|extended|ext hours|extended trading|pre ?\/ ?post)( on)?$/.test(s)) return { mode: 'extended' }
+        if (/^(hide extended hours|extended hours off|ext hours off|regular hours( only)?|regular session|rth( only)?)$/.test(s)) return { mode: 'regular' }
+      }
       return null
     },
     check: (st, { mode }) => (mode === 'regular' || mode === 'extended' ? null : `“${mode}” is not a session.`),
