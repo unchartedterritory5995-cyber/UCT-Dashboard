@@ -135,3 +135,52 @@ def test_a_create_from_empty_is_accepted_wrapped_on_the_first_call(conv, model):
     r = conv.converse("Add a 20 EMA.", user_id="u1", view=empty_view(0))
     assert r["ok"] is True and r["turn"] == "patch" and len(client.calls) == 1
     assert r["usage"]["usd"] == r["usage"]["per_call"][0]["usd"]
+
+
+# ═══ P3S -- the constant prefix is cached, and the ledger charges every token ═══
+
+from tests.test_p2_truth_server import _B  # noqa: E402
+
+
+def _emits_cached(envelope, *, inp, out, read, write):
+    from api.services import definition_conversation as conv
+    return _B(content=[_B(type="tool_use", id="tu_c", name=conv.TOOL_NAME, input=envelope)],
+              stop_reason="tool_use",
+              usage=_B(input_tokens=inp, output_tokens=out,
+                       cache_read_input_tokens=read, cache_creation_input_tokens=write))
+
+
+def test_the_system_prompt_carries_ONE_cache_breakpoint_and_the_tool_is_unchanged(conv, model):
+    client = model([emits(env(1, [GOOD_SET]))])
+    conv.converse("make it 80", user_id="u1", view=view(1, [out("value", RSI_GT_70)]))
+    sent = client.calls[0]
+    assert sent["system"] == conv.system_blocks()
+    assert sent["system"][0]["cache_control"] == {"type": "ephemeral"}
+    assert sent["system"][0]["text"] == conv.system_prompt()
+    assert sent["tools"] == [conv.anthropic_tool()] and "cache_control" not in sent["tools"][0]
+
+
+def test_cache_reads_and_writes_are_charged_at_the_ledgers_own_prices(conv, model):
+    """ASKED: with caching, ``input_tokens`` is only the uncached part -- is the cached
+    prefix still charged? CLAIMED: yes, through ``cost_guard.record``'s cache fields.
+    DID: the turn's usd equals ``estimate_cost`` over all four token classes."""
+    from api.services.catalyst import cost_guard
+    from api.services import definition_concierge as dc
+    model([_emits_cached(env(1, [GOOD_SET]), inp=600, out=300, read=14000, write=0)])
+    r = conv.converse("make it 80", user_id="u1", view=view(1, [out("value", RSI_GT_70)]))
+    want = cost_guard.estimate_cost(dc.MODEL, 600, 300, cache_read_tokens=14000, cache_creation_tokens=0)
+    assert r["usage"]["usd"] == round(want, 6) and want > 0
+    call = r["usage"]["per_call"][0]
+    assert call["cache_read_tokens"] == 14000 and call["cache_creation_tokens"] == 0
+    # a cache WRITE costs more than a read of the same prefix (1.25x vs 0.1x)
+    w = cost_guard.estimate_cost(dc.MODEL, 600, 300, cache_read_tokens=0, cache_creation_tokens=14000)
+    assert w > want
+
+
+def test_a_response_without_cache_fields_is_priced_exactly_as_before(conv, model):
+    from api.services.catalyst import cost_guard
+    from api.services import definition_concierge as dc
+    model([emits(env(1, [GOOD_SET]), tokens=(14600, 300))])
+    r = conv.converse("make it 80", user_id="u1", view=view(1, [out("value", RSI_GT_70)]))
+    assert r["usage"]["usd"] == round(cost_guard.estimate_cost(dc.MODEL, 14600, 300), 6)
+    assert r["usage"]["per_call"][0]["cache_read_tokens"] == 0

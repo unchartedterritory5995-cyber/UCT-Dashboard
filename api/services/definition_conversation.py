@@ -468,6 +468,18 @@ def system_prompt() -> str:
     return CONVERSE_SYSTEM_PROMPT + dc.vocabulary_text(chart_table())
 
 
+def system_blocks() -> List[Dict[str, Any]]:
+    """The system prompt as the request sends it: ONE text block carrying a prompt
+    cache breakpoint. ⭐ P3S -- the tools + system prefix (~14.5k tokens) is
+    byte-identical on every call (both are constants), while the member's turn and
+    the view come after it, so a breakpoint HERE is reused by every later call
+    within the cache window -- the next turn, and any repair -- at 0.1x input. A
+    breakpoint on the last message would be written anew every turn and never read.
+    Priced by ``cost_guard.record`` (``cache_read_tokens`` / ``cache_creation_tokens``),
+    the same as AI Search and the UCT Agent. ⛔ Still a constant: no request data."""
+    return [{"type": "text", "text": system_prompt(), "cache_control": {"type": "ephemeral"}}]
+
+
 #: ⭐ P2X: ONE escaping rule for both AI text doors -- the concierge's
 #: ``escape_json`` / ``data_block`` (``/propose`` uses them too).
 _escape_json = dc.escape_json
@@ -808,7 +820,7 @@ def _call_model(messages: List[dict]) -> Tuple[Any, int, int]:
     msg = client.messages.create(
         model=dc.MODEL,
         max_tokens=dc.MAX_TOKENS,
-        system=system_prompt(),
+        system=system_blocks(),
         tools=[anthropic_tool()],
         tool_choice={"type": "tool", "name": TOOL_NAME},
         messages=messages,
@@ -1134,13 +1146,21 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             logger.warning("[converse] model call failed: %s", exc)
             return _refusal("model:transport", **extra)
 
+        # ⭐ P3S -- with the cache breakpoint, `input_tokens` is only the UNCACHED part;
+        # the cached prefix arrives as these two fields and must be charged too, or the
+        # ledger (and so every cap) would under-count each call.
+        usage = getattr(msg, "usage", None)
+        cache_read = int(getattr(usage, "cache_read_input_tokens", 0) or 0)
+        cache_write = int(getattr(usage, "cache_creation_input_tokens", 0) or 0)
         tokens["input"] += in_tokens
         tokens["output"] += out_tokens
         spent = cost_guard.record(market_date, f"concierge:{user_id}", dc.MODEL,
-                                  in_tokens, out_tokens)
+                                  in_tokens, out_tokens,
+                                  cache_read_tokens=cache_read, cache_creation_tokens=cache_write)
         dc._record_spend(user_id, market_date, spent)
         cost_usd += spent
         calls.append({"input_tokens": in_tokens, "output_tokens": out_tokens,
+                      "cache_read_tokens": cache_read, "cache_creation_tokens": cache_write,
                       "usd": round(spent, 6)})
 
         tool_input = _tool_input(msg)
