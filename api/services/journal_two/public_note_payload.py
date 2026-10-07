@@ -48,6 +48,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+import unicodedata
 from typing import Any, Iterable, Mapping
 from urllib.parse import urlsplit
 
@@ -452,7 +453,8 @@ def scrub_gallery_text(text: Any) -> str:
 # another member's editor. The admin preview does not render that style, so a reviewer could
 # not see it.
 #
-# The rule, in gallery mode only:
+# The rule (first for gallery mode; since round 2 for share and publish too, see
+# `PUBLIC_ATTR_POLICY` below):
 #   * a node keeps `type`, `attrs`, `content`, `marks` and (a text node) `text`: no other key;
 #   * a mark keeps `type` and `attrs`: no other key;
 #   * an attribute travels only when its type has a row here AND the row names it AND its
@@ -466,9 +468,8 @@ def scrub_gallery_text(text: Any) -> str:
 # colour palette (lib/textColor.js NOTE_COLORS), the callout styles (lib/calloutNode.js) and
 # the embed providers (lib/webEmbeds.js).
 #
-# Share links and published pages are NOT changed here: they predate the reviewed diff, they
-# are rendered read-only on a public page rather than copied into another member's editor,
-# and narrowing them is a separate decision (docs/notebook/fin-sec.md).
+# Share links and published pages take the same rule through their own table,
+# `PUBLIC_ATTR_POLICY`, which differs only where a member's own page carries more.
 
 GALLERY_FONT_FAMILIES: tuple[str, ...] = (
     "Instrument Sans, Arial, sans-serif",
@@ -553,13 +554,19 @@ def _v_url(v: Any) -> Any:
     return _OMIT
 
 
-def _v_text(limit: int):
+def _scrub_public_text(text: str) -> str:
+    """Attribute text on a share link or a published page: in-app addresses go (the rule a
+    text node gets there, walk W3). Emails stay; the author chose to publish them."""
+    return _scrub_in_app_addresses(text) if isinstance(text, str) else ""
+
+
+def _v_text(limit: int, scrub=scrub_gallery_text):
     def check(v: Any) -> Any:
         if v is None:
             return None
         if not isinstance(v, str):
             return _OMIT
-        return scrub_gallery_text(v)[:limit]
+        return scrub(v)[:limit]
     return check
 
 
@@ -569,10 +576,12 @@ def _v_domain(v: Any) -> Any:
     return v if isinstance(v, str) and _DOMAIN.match(v) else _OMIT
 
 
-def _v_latex(v: Any) -> Any:
-    if not isinstance(v, str) or len(v) > 4000 or _LATEX_ACTIVE.search(v):
-        return _DROP_NODE
-    return scrub_gallery_text(v)
+def _v_latex(scrub=scrub_gallery_text):
+    def check(v: Any) -> Any:
+        if not isinstance(v, str) or len(v) > 4000 or _LATEX_ACTIVE.search(v):
+            return _DROP_NODE
+        return scrub(v)
+    return check
 
 
 def _v_seconds(v: Any) -> Any:
@@ -599,46 +608,209 @@ def _v_str(pattern: "re.Pattern[str]", *, none_ok: bool = True):
     return check
 
 
+# ── the PUBLIC text-style grammar (share links and published pages) ───────────────────────
+#
+# A gallery template takes the toolbar's own values only (above). A member's OWN note may
+# also hold a font or a size that came in by paste or import (Word's `Calibri`, `11pt`, a
+# Chinese or Arabic font name), and a public page must not strip formatting the member can
+# see in their editor. So the public modes accept the toolbar's values AND anything of a
+# strict SHAPE that cannot carry a second CSS declaration.
+#
+# THE SHAPE OF A FONT FAMILY: one to eight names separated by commas (up to two spaces each
+# side). A name is made of Unicode LETTERS, MARKS and DIGITS (general categories L*, M*, N*),
+# the ASCII space, `_` and `-`, at most 40 characters. Unquoted it starts with a letter (or
+# `-` then a letter). In double quotes it may also hold `'`, in single quotes `"`.
+# ⛔ It is an ALLOW-list by category, so every character that could start a second
+# declaration or a function is out without being named: `; : ( ) { } \ / < > ! @`, every
+# control character, and their Unicode look-alikes (the full-width semicolon and colon are
+# punctuation, category Po; a bidirectional override or a zero-width character is a format
+# character, Cf; a no-break or ideographic space is Zs, and only U+0020 is a space here).
+#
+# ⛔ ONE FACT IN TWO LANGUAGES with `lib/tiptap.js` (`safeFontFamily`, `safeFontSize`),
+# which narrows the same two attributes in the editor. Both are the SAME algorithm and are
+# driven by the SAME case file, tests/fixtures/notebook_text_style_cases.json, look-alike
+# attacks included, so the two cannot drift.
+_FONT_SIZE_KEYWORDS = frozenset({"xx-small", "x-small", "small", "medium", "large", "x-large", "xx-large",
+                                 "xxx-large", "smaller", "larger"})
+MAX_FAMILY_CHARS, MAX_FAMILY_NAMES, MAX_FAMILY_NAME_CHARS = 200, 8, 40
+
+
+def _category(ch: str) -> str:
+    return unicodedata.category(ch)[0]
+
+
+def _family_name_ok(name: str) -> bool:
+    if len(name) >= 2 and name[0] in "\"'" and name[-1] == name[0]:
+        inner, other_quote = name[1:-1], ("'" if name[0] == '"' else '"')
+        return (1 <= len(inner) <= MAX_FAMILY_NAME_CHARS and _category(inner[0]) in "LN"
+                and all(c in " _-" or c == other_quote or _category(c) in "LMN" for c in inner))
+    body = name[1:] if name.startswith("-") else name
+    return (1 <= len(body) <= MAX_FAMILY_NAME_CHARS and _category(body[0]) == "L"
+            and all(c in " _-" or _category(c) in "LMN" for c in body))
+
+
+def _strip_spaces(text: str, *, left: bool, right: bool) -> str:
+    """`text` less at most two ASCII spaces on each named side."""
+    for _ in range(2):
+        if left and text.startswith(" "):
+            text = text[1:]
+        if right and text.endswith(" "):
+            text = text[:-1]
+    return text
+
+
+_SAFE_FONT_SIZE = re.compile(r"([0-9]{1,4}(?:\.[0-9]{1,4})?)(px|pt|em|rem|%)")
+#: unit -> (smallest, largest) a public page renders.
+PUBLIC_FONT_SIZE_BOUNDS = {"px": (6, 200), "pt": (5, 150), "em": (0.5, 10), "rem": (0.5, 10), "%": (50, 1000)}
+_COLOR_HEX = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+_SAFE_MAILTO = re.compile(r"^mailto:[^\s<>\"'`\\]{3,320}$", re.IGNORECASE)
+_SAFE_SRC = re.compile(r"^[^\s<>\"'`\\]{1,2048}$")
+
+
+def safe_font_family(v: Any) -> bool:
+    if not isinstance(v, str) or not 1 <= len(v) <= MAX_FAMILY_CHARS:
+        return False
+    if v in GALLERY_FONT_FAMILIES:
+        return True
+    parts = v.split(",")
+    if len(parts) > MAX_FAMILY_NAMES:
+        return False
+    last = len(parts) - 1
+    return all(_family_name_ok(_strip_spaces(part, left=i > 0, right=i < last)) for i, part in enumerate(parts))
+
+
+def safe_font_size(v: Any) -> bool:
+    if not isinstance(v, str):
+        return False
+    if v in _FONT_SIZE_KEYWORDS:
+        return True
+    m = _SAFE_FONT_SIZE.fullmatch(v)
+    if not m:
+        return False
+    lo, hi = PUBLIC_FONT_SIZE_BOUNDS[m.group(2)]
+    return lo <= float(m.group(1)) <= hi
+
+
+def _v_public_family(v: Any) -> Any:
+    return v if v is None or safe_font_family(v) else _OMIT
+
+
+def _v_public_size(v: Any) -> Any:
+    return v if v is None or safe_font_size(v) else _OMIT
+
+
+def _v_color(*, none_ok: bool, hex_ok: bool):
+    def check(v: Any) -> Any:
+        if v is None:
+            return None if none_ok else _OMIT
+        if isinstance(v, str) and (v in GALLERY_COLOR_NAMES or (hex_ok and _COLOR_HEX.match(v))):
+            return v
+        return _OMIT
+    return check
+
+
+def _v_href_public(v: Any) -> Any:
+    kept = _v_url(v)
+    if kept is not _OMIT and kept is not None:
+        return kept
+    return v if isinstance(v, str) and _SAFE_MAILTO.match(v) else _OMIT
+
+
+def _v_src(v: Any) -> Any:
+    """An image address the reducer has ALREADY decided may be shown (`_public_image_src`:
+    this note's own public proxy, or an http(s) address off our host). This only refuses a
+    value that could not be an address at all."""
+    if v is None:
+        return None
+    return v if isinstance(v, str) and _SAFE_SRC.match(v) else _OMIT
+
+
+def _v_number(lo: float, hi: float):
+    def check(v: Any) -> Any:
+        if v is None:
+            return None
+        return v if type(v) in (int, float) and lo <= v <= hi else _OMIT
+    return check
+
+
+def _v_plain(limit: int):
+    def check(v: Any) -> Any:
+        if v is None:
+            return None
+        return v if isinstance(v, str) and len(v) <= limit else _OMIT
+    return check
+
+
 _CELL_ATTRS = {
     "colspan": _int_in(1, 50), "rowspan": _int_in(1, 50), "colwidth": _v_colwidth,
     "align": _one_of(None, "left", "center", "right"),
 }
 
+
+def _attr_policy(*, gallery: bool) -> dict[str, dict[str, Any]]:
+    scrub = scrub_gallery_text if gallery else _scrub_public_text
+    return {
+        # ── nodes ──
+        "heading": {"level": _int_in(1, 6)},
+        "orderedList": {"start": _int_in(0, 1_000_000), "type": _one_of(None, "1", "a", "A", "i", "I")},
+        "codeBlock": {"language": _v_str(_CODE_LANGUAGE)},
+        "taskItem": {"checked": _one_of(False) if gallery else _v_bool},
+        "tableHeader": _CELL_ATTRS,
+        "tableCell": _CELL_ATTRS,
+        "callout": {"emoji": _v_emoji, "variant": _one_of(None, *GALLERY_CALLOUT_VARIANTS)},
+        "toggle": {"open": _v_bool},
+        "linkPreview": {"url": _v_url, "title": _v_text(300, scrub), "description": _v_text(600, scrub),
+                        "domain": _v_domain, "image": _one_of(None) if gallery else _v_src},
+        "webEmbed": {"provider": _one_of(*GALLERY_EMBED_REFS),
+                     "ref": _v_str(_EMBED_REF_SHAPE, none_ok=False), "url": _v_url},
+        "dateMention": {"date": _v_str(_ISO_DAY)},
+        "videoTimestamp": {"seconds": _v_seconds},
+        "inlineMath": {"latex": _v_latex(scrub)},
+        "blockMath": {"latex": _v_latex(scrub)},
+        # ── marks ──
+        "link": {"href": _v_url if gallery else _v_href_public},   # target and rel are SET, never copied
+        "textStyle": ({"fontFamily": _one_of(None, *GALLERY_FONT_FAMILIES), "fontSize": _v_font_size} if gallery
+                      else {"fontFamily": _v_public_family, "fontSize": _v_public_size}),
+        "textColor": {"color": _v_color(none_ok=False, hex_ok=not gallery)},
+        "highlight": {"color": _v_color(none_ok=True, hex_ok=not gallery)},
+    }
+
+
 #: type (node or mark) -> {attribute: check}. A check returns the value to keep (cleaned),
 #: `_OMIT` to leave the attribute out, or `_DROP_NODE`.
-GALLERY_ATTR_POLICY: dict[str, dict[str, Any]] = {
-    # ── nodes ──
-    "heading": {"level": _int_in(1, 6)},
-    "orderedList": {"start": _int_in(0, 1_000_000), "type": _one_of(None, "1", "a", "A", "i", "I")},
-    "codeBlock": {"language": _v_str(_CODE_LANGUAGE)},
-    "taskItem": {"checked": _one_of(False)},
-    "tableHeader": _CELL_ATTRS,
-    "tableCell": _CELL_ATTRS,
-    "callout": {"emoji": _v_emoji, "variant": _one_of(None, *GALLERY_CALLOUT_VARIANTS)},
-    "toggle": {"open": _v_bool},
-    "linkPreview": {"url": _v_url, "title": _v_text(300), "description": _v_text(600),
-                    "domain": _v_domain, "image": _one_of(None)},
-    "webEmbed": {"provider": _one_of(*GALLERY_EMBED_REFS), "ref": _v_str(_EMBED_REF_SHAPE, none_ok=False),
-                 "url": _v_url},
-    "dateMention": {"date": _v_str(_ISO_DAY)},
-    "videoTimestamp": {"seconds": _v_seconds},
-    "inlineMath": {"latex": _v_latex},
-    "blockMath": {"latex": _v_latex},
-    # ── marks ──
-    "link": {"href": _v_url},                       # target and rel are SET, never copied
-    "textStyle": {"fontFamily": _one_of(None, *GALLERY_FONT_FAMILIES), "fontSize": _v_font_size},
-    "textColor": {"color": _one_of(*GALLERY_COLOR_NAMES)},
-    "highlight": {"color": _one_of(None, *GALLERY_COLOR_NAMES)},
+GALLERY_ATTR_POLICY: dict[str, dict[str, Any]] = _attr_policy(gallery=True)
+
+#: ⛔ THE SAME TABLE FOR SHARE LINKS AND PUBLISHED PAGES (security lane, round 2). Those pages
+#: are public, served from our own domain, and render the body with the real editor
+#: extensions, so an attribute value an AUTHOR controls reached a VISITOR'S browser as inline
+#: CSS (`style="font-family: x; position: fixed; ..."`), and a link could carry any class,
+#: target and rel. Measured on the rendered page before this table applied to them
+#: (docs/notebook/fin-sec.md). The rows differ from the gallery's only where a member's own
+#: page legitimately carries more: a checked task, an image and its size, a `mailto:` link,
+#: a font or size that arrived by paste or import (by shape, see the grammar above), a hex
+#: colour, and emails in attribute text.
+PUBLIC_ATTR_POLICY: dict[str, dict[str, Any]] = {
+    **_attr_policy(gallery=False),
+    "image": {"src": _v_src, "alt": _v_text(300, _scrub_public_text), "title": _v_text(300, _scrub_public_text),
+              "width": _v_number(1, 10_000), "height": _v_number(1, 10_000),
+              "align": _one_of(None, "left", "center", "right", "full")},
+    # an Ask or writing-help block's own labels (share keeps Ask answers, publish writing help)
+    "askInsert": {"insertedAt": _v_plain(40), "scope": _v_plain(40), "question": _v_text(2000, _scrub_public_text),
+                  "action": _v_plain(40), "model": _v_plain(80)},
 }
 
-#: What a gallery link always carries, whatever the stored mark said.
+ATTR_POLICY_BY_MODE: dict[str, dict[str, dict[str, Any]]] = {
+    "gallery": GALLERY_ATTR_POLICY, "share": PUBLIC_ATTR_POLICY, "publish": PUBLIC_ATTR_POLICY,
+}
+
+#: What a public link always carries, whatever the stored mark said.
 GALLERY_LINK_FIXED = {"target": "_blank", "rel": "noreferrer"}
 
 
-def _gallery_attrs(type_name: Any, attrs: Any) -> Any:
-    """The attributes of one node or mark that a gallery copy keeps: a dict (possibly empty),
+def _kept_attrs(policy: dict, type_name: Any, attrs: Any) -> Any:
+    """The attributes of one node or mark that a public copy keeps: a dict (possibly empty),
     or `_DROP_NODE`."""
-    rows = GALLERY_ATTR_POLICY.get(type_name) if isinstance(type_name, str) else None
+    rows = policy.get(type_name) if isinstance(type_name, str) else None
     if not rows or not isinstance(attrs, dict):
         return {}
     kept: dict[str, Any] = {}
@@ -653,28 +825,30 @@ def _gallery_attrs(type_name: Any, attrs: Any) -> Any:
     return kept
 
 
-def _gallery_mark(mark: dict) -> dict | None:
+def _clean_mark(mark: dict, mode: str) -> dict | None:
     """One kept mark, reduced to its named attributes; None when nothing of it is left."""
+    policy = ATTR_POLICY_BY_MODE[mode]
     t = mark.get("type")
-    attrs = _gallery_attrs(t, mark.get("attrs"))
+    attrs = _kept_attrs(policy, t, mark.get("attrs"))
     if t == "link":
         if not isinstance(attrs.get("href"), str):
-            return None                              # not an http(s) address: the words stay
+            return None                              # not an address a public page links to: the words stay
         return {"type": "link", "attrs": {"href": attrs["href"], **GALLERY_LINK_FIXED}}
     if t == "textStyle" and not any(v is not None for v in attrs.values()):
         return None                                  # a style mark that styles nothing
     if t == "textColor" and "color" not in attrs:
         return None
     out: dict[str, Any] = {"type": t}
-    if t in GALLERY_ATTR_POLICY and isinstance(mark.get("attrs"), dict):
+    if t in policy and isinstance(mark.get("attrs"), dict):
         out["attrs"] = attrs
     return out
 
 
-def _gallery_node(out: dict) -> dict | None:
-    """One kept node, reduced to the keys and attributes a gallery copy carries. None drops it."""
+def _clean_node(out: dict, mode: str) -> dict | None:
+    """One kept node, reduced to the keys and attributes a public copy carries. None drops it."""
+    policy = ATTR_POLICY_BY_MODE[mode]
     t = out.get("type")
-    attrs = _gallery_attrs(t, out.get("attrs"))
+    attrs = _kept_attrs(policy, t, out.get("attrs"))
     if attrs is _DROP_NODE:
         return None
     if t == "webEmbed":
@@ -684,8 +858,10 @@ def _gallery_node(out: dict) -> dict | None:
             attrs.pop("ref", None)                   # it reads as a plain link, or nothing
     if t == "linkPreview" and not isinstance(attrs.get("url"), str):
         return None                                  # a card with no address is nothing
+    if t == "image" and not isinstance(attrs.get("src"), str):
+        return None                                  # an image with no address is nothing
     node: dict[str, Any] = {"type": t}
-    if t in GALLERY_ATTR_POLICY and isinstance(out.get("attrs"), dict):
+    if t in policy and isinstance(out.get("attrs"), dict):
         node["attrs"] = attrs
     if t == "text" and isinstance(out.get("text"), str):
         node["text"] = out["text"]
@@ -777,10 +953,9 @@ def _reduce_marks(marks: Any, mode: str = "share") -> list | None:
             if mode == "gallery" and (str(href).strip().lower().startswith("mailto:") or _in_app_shape(href)):
                 continue                             # gallery: an address is personal; the words stay
         if action in ("mark", "link-mark"):
-            if mode == "gallery":
-                m = _gallery_mark(m)                 # the attribute table (I-4)
-                if m is None:
-                    continue
+            m = _clean_mark(m, mode)                 # the attribute table, every mode (I-4)
+            if m is None:
+                continue
             out.append(m)
     return out
 
@@ -908,11 +1083,10 @@ def _reduce_node(node: Any, ctx: _Ctx) -> list:
         out["text"] = _scrub_in_app_addresses(out["text"], strict=ctx.mode == "gallery")  # walk W3
         if ctx.mode == "gallery":
             out["text"] = scrub_emails(out["text"])
-    if ctx.mode == "gallery":
-        cleaned = _gallery_node(out)                 # the attribute table (I-4)
-        if cleaned is None:
-            return []
-        out = cleaned
+    cleaned = _clean_node(out, ctx.mode)             # the attribute table, every mode (I-4)
+    if cleaned is None:
+        return []
+    out = cleaned
     if "marks" in node:
         marks = _reduce_marks(node.get("marks"), ctx.mode)
         if marks is not None and (marks or not node.get("marks")):
@@ -1045,6 +1219,7 @@ __all__ = [
     "NODE_POLICY", "MARKET_DATA_VENDORS", "VENDOR_VERDICT", "EMBED_KEPT_ATTRS", "EMBED_PARAM_KEYS",
     "ATTR_POLICY", "GALLERY_ATTR_POLICY", "GALLERY_FONT_FAMILIES", "GALLERY_FONT_SIZE_RANGE",
     "GALLERY_COLOR_NAMES", "GALLERY_CALLOUT_VARIANTS", "GALLERY_EMBED_REFS", "GALLERY_LINK_FIXED",
+    "PUBLIC_ATTR_POLICY", "ATTR_POLICY_BY_MODE", "PUBLIC_FONT_SIZE_BOUNDS", "safe_font_family", "safe_font_size",
     "SHOWN", "NEUTRAL", "MODES", "not_found", "public_json", "public_file", "enforce_rate",
     "client_key", "market_data_verdict", "reduce", "public_hero", "public_note", "public_facts",
     "read_public_note", "walk_types",

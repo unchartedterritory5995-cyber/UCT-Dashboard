@@ -148,14 +148,13 @@ def test_a_hostile_value_survives_nowhere_in_a_gallery_copy(label, hostile, frag
         assert kept in flat, kept
 
 
-def test_CONTROL_the_same_values_do_survive_the_modes_this_fix_does_not_touch():
-    """The hostile fixture really carries the value: share mode (out of this lane's scope, see
-    docs/notebook/fin-sec.md) still shows it, so the assertions above measure the gallery
-    filter and not an empty fixture."""
+def test_CONTROL_the_hostile_fixture_carries_the_value_in_every_position():
+    """The assertions above measure the filter and not an empty fixture: the body that goes
+    in really does carry the hostile value, many times over. (This control used to read share
+    mode, which kept every attribute; round 2 gave share and publish the same table, see
+    tests/test_notebook_fin_sec_public_attrs.py.)"""
     hostile, fragment = HOSTILE[0][1], HOSTILE[0][2]
-    out = public.reduce(_hostile_body(hostile), mode="share", owner_id=A, note_id="n1",
-                        attachment_base="/api/share/x/", facts={}, note_links={})
-    assert any(fragment in s for s in _strings(out))
+    assert sum(1 for s in _strings(_hostile_body(hostile)) if fragment in s) >= 20
 
 
 def _toolbar_body():
