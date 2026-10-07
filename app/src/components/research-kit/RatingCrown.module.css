@@ -103,12 +103,16 @@
   text-align: center;
 }
 
-/* Score ramp — value ink and meter fill share the tone class. */
-.toneElite { color: var(--score-elite); stroke: var(--score-elite); }
+/* Score ramp — the meter fill and stroke ride the ramp; the two ENDS of the ramp
+   read as TEXT through the text inks (--success-ink / --danger-ink), which tokens.css
+   lifts until they clear AA on every theme's surfaces. --score-elite / --score-poor
+   as text measured 3.43–4.44:1 on the catalog themes' raised surfaces (the earnings
+   research modal follows the theme since 2026-10-07, so this ink is on every theme). */
+.toneElite { color: var(--success-ink); stroke: var(--score-elite); }
 .toneStrong { color: var(--score-strong); stroke: var(--score-strong); }
 .toneNeutral { color: var(--score-neutral); stroke: var(--score-neutral); }
 .toneWeak { color: var(--score-weak); stroke: var(--score-weak); }
-.tonePoor { color: var(--score-poor); stroke: var(--score-poor); }
+.tonePoor { color: var(--danger-ink); stroke: var(--score-poor); }
 
 .meterFill.toneElite { background: var(--score-elite); }
 .meterFill.toneStrong { background: var(--score-strong); }
