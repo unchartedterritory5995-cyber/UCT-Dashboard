@@ -43,8 +43,9 @@ export function registerCapability(cap) {
       || JSON.stringify([...(a.required || [])].sort()) !== JSON.stringify(Object.keys(a.properties || {}).sort())) {
     throw new Error(`${cap.name}: args must be a closed object whose properties are all required`)
   }
-  // A QUERY capability only reads: `answer(snapshot, args)` returns the reply, and
-  // nothing is planned or committed. The model may route to it (so the answer comes
+  // A QUERY capability only reads: `answer(snapshot, args, host)` returns the reply
+  // (a string, or { text, table?, link? } for structured results; it may be async),
+  // and nothing is planned or committed. The model may route to it (so the answer comes
   // from real state, not the model's reading of the context); the fast path too.
   const fns = cap.query ? ['answer'] : ['check', 'apply', 'describe']
   for (const fn of fns) {
@@ -104,6 +105,12 @@ export function registerContextProvider(p) {
   PROVIDERS.set(p.key, p)
   return () => PROVIDERS.delete(p.key)
 }
+
+// A feature may WARM its data when the Agent opens (e.g. fetch a catalog it will
+// need for its context), so the first question doesn't pay for it. Never throws.
+const WARMUPS = new Set()
+export function registerWarmup(fn) { WARMUPS.add(fn); return () => WARMUPS.delete(fn) }
+export function runWarmups(host) { for (const fn of WARMUPS) { try { Promise.resolve(fn(host)).catch(() => {}) } catch { /* a warm-up never breaks the panel */ } } }
 
 export const getCapability = (name) => CAPS.get(name) || null
 export const getTargetKind = (name) => KINDS.get(name) || null

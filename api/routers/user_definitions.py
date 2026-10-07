@@ -76,6 +76,10 @@ class DefinitionIn(BaseModel):
     # gate, like the checkbox); `meta.repaintAck` — the ALERT-arm
     # acknowledgement — is a different fact and is not written from this.
     repaint_acknowledged: Optional[Union[bool, Dict[str, bool]]] = None
+    # ⭐ PHASE 4 — REVISION-AWARE SAVE. The version an editor OPENED. On a PUT the
+    # store refuses (409, nothing written) when the definition has moved on since.
+    # `None` (every pre-existing caller) keeps last-write-wins.
+    base_version: Optional[int] = None
 
 
 class ProposeIn(BaseModel):
@@ -169,7 +173,8 @@ def _save_or_400(user_id, def_id: str, definition: dict,
                  import_id: Optional[str] = None,
                  source_dialect: Optional[str] = None,
                  role: Optional[str] = None,
-                 repaint_acknowledged=None):
+                 repaint_acknowledged=None,
+                 expected_version: Optional[int] = None):
     """Every store refusal is a 400 that carries the store's own sentence.
 
     ⛔ THE MESSAGE IS NOT REWRITTEN HERE. The caps live in one place and their
@@ -194,7 +199,12 @@ def _save_or_400(user_id, def_id: str, definition: dict,
         # definition semantics 2 (`svc.decide_semantics`).
         row = svc.save(user_id, def_id, definition, limits=limits, role=role,
                        repaint_acknowledged=repaint_acknowledged,
-                       source_dialect=source_dialect)
+                       source_dialect=source_dialect,
+                       expected_version=expected_version)
+    except svc.SaveConflict as exc:
+        # ⭐ PHASE 4 — a stale write: 409, the store's own sentence, nothing saved.
+        return JSONResponse(status_code=409,
+                            content={"detail": str(exc), "conflict": exc.as_dict()})
     except svc.SaveRefused as exc:
         # ⭐ P0/0P — THE ADMISSION REFUSAL IS STRUCTURED: a 422 whose `detail`
         # is still the store's own sentence (so every client that renders
@@ -582,7 +592,28 @@ def save_definition(def_id: str, body: DefinitionIn,
     return _save_or_400(user["id"], def_id, definition, limits,
                         import_id=body.import_id, source_dialect=body.source_dialect,
                         role=user.get("role"),
-                        repaint_acknowledged=body.repaint_acknowledged)
+                        repaint_acknowledged=body.repaint_acknowledged,
+                        expected_version=body.base_version)
+
+
+@router.post("/{def_id}/fork")
+def fork_definition(def_id: str,
+                    user: dict = Depends(require_paid),
+                    limits: Limits = Depends(limits_dependency)):
+    """⭐ PHASE 4 — DUPLICATE AS A NEW INDICATOR ("Create custom copy").
+
+    A NEW, independent definition owned by the caller, copied from their OWN
+    live definition `def_id` (`svc.fork`). The chart-instance Duplicate is a
+    different act — a second instance of the SAME definition — and stays a
+    client-side settings write. ⛔ Owner-scoped: another member's id, a deleted
+    one, or a typo is a 404. It takes the toolkit, like `install_shared`: a copy
+    makes a definition live, so the count cap applies."""
+    try:
+        return svc.fork(user["id"], def_id, limits=limits, role=user.get("role"))
+    except svc.ForkRefused as exc:
+        raise HTTPException(status_code=404, detail="Not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.delete("/{def_id}")

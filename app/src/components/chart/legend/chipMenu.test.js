@@ -74,7 +74,8 @@ describe('chipMenuItems — the approved V1 rows, from ONE source', () => {
     const h = handlers()
     const dup = chipMenuItems(chip(), engineRegistry.getDefinition('rsi'), h)
       .find(i => i.key === 'duplicate')
-    expect(dup.label).toBe('Duplicate')
+    // ⭐ PHASE 4 — it says WHAT it duplicates: another instance of the same indicator.
+    expect(dup.label).toBe('Duplicate on chart')
     expect(dup.disabled, 'Duplicate is refused — nothing here can refuse it').toBeUndefined()
     dup.onClick()
     expect(h.onDuplicate).toHaveBeenCalledWith('legacy:rsi')

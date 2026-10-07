@@ -23,7 +23,8 @@ import * as engineRegistry from '../../engine/nativeRegistry'
 import { presentationLines, vocabularyLines } from '../authoring'
 import { converseTurn } from '../authoring/converseClient'
 import useIndicatorConversation, { typeWord } from './useIndicatorConversation'
-import { STUDIO_PREVIEW_DEF_ID, previewInstanceFor } from './chartPreview'
+import { STUDIO_PREVIEW_DEF_ID, previewInstanceFor, previewInstanceLike } from './chartPreview'
+import { conversationEditability, CARRIED_NOTE } from '../authoring/memberWords'
 import styles from './CreateIndicatorPanel.module.css'
 
 const EXAMPLES = Object.freeze(['Add a 20 EMA', 'RSI overbought signal', 'Volume above its 50-day average'])
@@ -126,13 +127,28 @@ const keepKeysInPanel = (e) => e.stopPropagation()
  * @param {string|null} [props.sessionKey]  SLICE 2 — the opaque create context the conversation
  *                                         is kept under while the dock is closed (✕ keeps it;
  *                                         Discard and Add to Chart end it)
+ * @param {{def_id: string, version: number, definition: object}|null} [props.editRow]
+ *   ⭐ PHASE 4 — MODIFY WITH UCT INTELLIGENCE: the STORE's row of an existing user
+ *   definition. The studio opens it as its working snapshot (OPEN != MUTATE: no write
+ *   until Save), previews the change IN PLACE of the saved drawing, and saves it
+ *   revision-aware as a new version of the SAME definition.
+ * @param {Function|null} [props.onEditFormula] ⭐ PHASE 4 — open the manual editor on
+ *   the same definition (offered when the conversation cannot edit it)
  */
 export default function CreateIndicatorPanel({
   onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null,
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
-  dockHost = null, onDocked = null, sessionKey = null,
+  dockHost = null, onDocked = null, sessionKey = null, editRow = null, onEditFormula = null,
 }) {
-  const conv = useIndicatorConversation({ sym, tf, converse, sessionKey })
+  // ⭐ PHASE 4 — held once: the row this studio was opened on (a later list refresh
+  // must not re-open it under the member's feet).
+  const [open] = useState(() => (editRow && editRow.definition && editRow.def_id
+    ? { def: editRow.definition, defId: editRow.def_id, version: Number(editRow.version) || 1 }
+    : null))
+  const editMode = !!open
+  const editability = useMemo(() => (open ? conversationEditability(open.def) : null), [open])
+  const blocked = !!(editability && !editability.editable)
+  const conv = useIndicatorConversation({ sym, tf, converse, sessionKey, open })
   const { state, transcript, rb, busy, saving, previewDefinition } = conv
   const [message, setMessage] = useState('')
   // Floating geometry is measured only when there is no dock to live in.
@@ -170,12 +186,14 @@ export default function CreateIndicatorPanel({
     }
     const { installed } = engineRegistry.installUserDefinitions([previewDefinition])
     if (installed.length === 1) {
-      onPreviewRef.current?.(previewInstanceFor(settingsRef.current, engineRegistry))
+      // ⭐ PHASE 4 — an edit previews IN PLACE of the saved drawing, shaped like it.
+      if (open) onPreviewRef.current?.(previewInstanceLike(settingsRef.current, open.defId, engineRegistry), { replaces: open.defId })
+      else onPreviewRef.current?.(previewInstanceFor(settingsRef.current, engineRegistry))
     } else {
       engineRegistry.uninstallUserDefinition(STUDIO_PREVIEW_DEF_ID)
       onPreviewRef.current?.(null)
     }
-  }, [previewDefinition])
+  }, [previewDefinition, open])
 
   // ⛔ THE TEARDOWN IS NOT OPTIONAL — Cancel, ✕, Save, a symbol-less remount and
   // an unmount of the chart itself all end here: no registry entry, no instance.
@@ -251,6 +269,12 @@ export default function CreateIndicatorPanel({
   // to confirm, and an answer-only conversation never needed saving.
   const close = useCallback(() => { clearPreview(); onClose?.() }, [clearPreview, onClose])
   const cancel = useCallback(() => { conv.discard(); clearPreview(); onClose?.() }, [conv, clearPreview, onClose])
+  // ⭐ PHASE 4 — leaving an EDIT with unsaved changes asks first (keep the draft,
+  // discard it, or keep editing). An opened-but-untouched or just-saved definition
+  // closes without a question; a create keeps the accepted no-prompt contract.
+  const [confirmLeave, setConfirmLeave] = useState(null)   // 'close' | 'discard' | null
+  const askOrClose = useCallback(() => { if (editMode && conv.dirty) setConfirmLeave('close'); else close() }, [editMode, conv.dirty, close])
+  const askOrCancel = useCallback(() => { if (editMode && conv.dirty) setConfirmLeave('discard'); else cancel() }, [editMode, conv.dirty, cancel])
 
   const save = useCallback(async () => {
     const res = await conv.save({ settings: settingsRef.current, onChange, beforeAttach: clearPreview })
@@ -261,6 +285,8 @@ export default function CreateIndicatorPanel({
 
   const look = useMemo(() => lookOf(state.working), [state.working])
   const started = transcript.length > 0 || !!state.working
+  const panelTitle = editMode ? 'Modify Indicator' : 'Create Indicator'
+  const editName = (open && open.def && open.def.meta && open.def.meta.name) || 'this indicator'
 
   const panel = (
     <aside
@@ -272,22 +298,43 @@ export default function CreateIndicatorPanel({
       onKeyPress={keepKeysInPanel}
       role="dialog"
       aria-modal="false"
-      aria-label="Create Indicator"
+      aria-label={panelTitle}
       data-testid="create-indicator"
+      data-mode={editMode ? 'edit' : 'create'}
+      data-def-id={state.defId || ''}
+      data-dirty={conv.dirty ? 'true' : 'false'}
       data-lineage={state.lineage}
       data-revision={state.revision}
     >
       <header className={styles.head}>
         <div className={styles.headText}>
-          <span className={styles.title}>Create Indicator</span>
+          <span className={styles.title}>{panelTitle}</span>
           <span className={styles.identity}>
             <UIcon name="ind-formula" size={11} gold={false} />
             UCT Intelligence
           </span>
         </div>
-        <button type="button" className={styles.close} onClick={close} aria-label="Close Create Indicator (your draft is kept)"
+        <button type="button" className={styles.close} onClick={askOrClose} aria-label={`Close ${panelTitle} (your draft is kept)`}
           title="Close — your draft is kept" data-testid="create-indicator-close">✕</button>
       </header>
+
+      {confirmLeave && (
+        <div className={styles.status} role="alertdialog" aria-label="Unsaved changes" data-testid="create-indicator-confirm-leave">
+          <span>{confirmLeave === 'discard'
+            ? `Discard your unsaved changes to “${editName}”? The saved version stays as it is.`
+            : 'You have unsaved changes. Keep them as a draft for later, or discard them?'}</span>
+          <div className={styles.doors}>
+            {confirmLeave === 'close' && (
+              <button type="button" className={styles.door} data-testid="create-indicator-keep-draft"
+                onClick={() => { setConfirmLeave(null); close() }}>Keep draft</button>
+            )}
+            <button type="button" className={styles.door} data-testid="create-indicator-discard-confirm"
+              onClick={() => { setConfirmLeave(null); cancel() }}>Discard changes</button>
+            <button type="button" className={styles.door} data-testid="create-indicator-keep-editing"
+              onClick={() => setConfirmLeave(null)}>Keep editing</button>
+          </div>
+        </div>
+      )}
 
       <div className={styles.body}>
         {!started && (
@@ -319,6 +366,21 @@ export default function CreateIndicatorPanel({
               </div>
             )}
           </div>
+        )}
+
+        {editMode && blocked && (
+          <div className={styles.status} role="note" data-testid="create-indicator-not-editable" data-code={editability.code}>
+            {editability.text}
+            {onEditFormula && (
+              <div className={styles.doors}>
+                <button type="button" className={styles.door} data-testid="create-indicator-edit-formula"
+                  onClick={() => openDoor(onEditFormula)}>Edit formula instead</button>
+              </div>
+            )}
+          </div>
+        )}
+        {editMode && !blocked && editability && editability.carried > 0 && (
+          <div className={styles.status} role="note" data-testid="create-indicator-carried">{CARRIED_NOTE}</div>
         )}
 
         {conv.restored && (
@@ -420,8 +482,9 @@ export default function CreateIndicatorPanel({
           className={styles.input}
           rows={1}
           value={message}
-          disabled={saving}
-          placeholder={state.working ? 'Refine it — e.g. "make it 50"' : 'Describe the indicator you want to build…'}
+          disabled={saving || blocked}
+          placeholder={editMode ? 'Describe a change — e.g. "make it 21" or "make the line gold"'
+            : (state.working ? 'Refine it — e.g. "make it 50"' : 'Describe the indicator you want to build…')}
           aria-label="Message UCT Intelligence"
           data-testid="create-indicator-input"
           onChange={(e) => setMessage(e.target.value)}
@@ -430,18 +493,23 @@ export default function CreateIndicatorPanel({
           }}
         />
         <button type="button" className={styles.gold} data-testid="create-indicator-send"
-          disabled={busy || saving || !message.trim()} onClick={() => submit()}>Send</button>
+          disabled={busy || saving || blocked || !message.trim()} onClick={() => submit()}>Send</button>
       </div>
 
       <div className={styles.foot}>
         <button type="button" className={styles.ghost} data-testid="create-indicator-undo"
           disabled={!conv.canUndo} onClick={conv.undo}>Undo</button>
         <span className={styles.footSpacer} />
-        <button type="button" className={styles.ghost} data-testid="create-indicator-cancel" onClick={cancel}
-          title={started ? 'Discard this draft and close' : 'Close'}>{started ? 'Discard' : 'Cancel'}</button>
+        {editMode ? (
+          <button type="button" className={styles.ghost} data-testid="create-indicator-cancel" onClick={askOrCancel}
+            title={conv.dirty ? 'Discard your changes and close' : 'Close'}>{conv.dirty ? 'Discard' : 'Cancel'}</button>
+        ) : (
+          <button type="button" className={styles.ghost} data-testid="create-indicator-cancel" onClick={cancel}
+            title={started ? 'Discard this draft and close' : 'Close'}>{started ? 'Discard' : 'Cancel'}</button>
+        )}
         <button type="button" className={styles.gold} data-testid="create-indicator-save"
-          disabled={!conv.canSave || !onChange} onClick={save}>
-          {saving ? 'Adding…' : 'Add to Chart'}
+          disabled={!conv.canSave || (!onChange && !editMode)} onClick={save}>
+          {editMode ? (saving ? 'Saving…' : 'Save changes') : (saving ? 'Adding…' : 'Add to Chart')}
         </button>
       </div>
     </aside>

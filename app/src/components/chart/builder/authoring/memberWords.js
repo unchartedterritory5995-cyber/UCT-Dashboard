@@ -19,7 +19,7 @@
 // (`modelOf`, `fidelityResidual`) — the exact checks a first change would hit —
 // so the member is told up front, instead of on the first change.
 
-import { modelOf, fidelityResidual, AuthoringError } from './model'
+import { modelOf, fidelityPlan, AuthoringError } from './model'
 
 const GENERIC = 'UCT Intelligence proposed a change that does not fit this indicator, so nothing was applied. Try saying it another way.'
 
@@ -90,6 +90,8 @@ export function memberSaveError(stored) {
   const detail = String((stored && stored.error) || '')
   if (stage === 'ack') return Object.freeze({ text: 'Tick the confirmation box first — this indicator reads a bar ahead, so its latest value can still change.', code: 'save:ack', detail })
   if (stage === 'validate') return Object.freeze({ text: 'This indicator is not valid yet, so it was not saved.', code: 'save:validate', detail })
+  // ⭐ PHASE 4 — a stale edit: the store's own sentence already says what happened.
+  if (stage === 'conflict') return Object.freeze({ text: detail || 'This indicator was changed somewhere else after you opened it. Nothing was saved — reopen it to see the latest version.', code: 'save:conflict', detail })
   return Object.freeze({ text: detail || 'The server did not accept this indicator, so it was not saved.', code: `save:${stage || 'store'}`, detail })
 }
 
@@ -112,7 +114,10 @@ export function conversationEditability(def) {
       : m.text
     return Object.freeze({ editable: false, code: e.code, text, detail: m.detail })
   }
-  const residual = fidelityResidual(def, model)
+  // ⭐ PHASE 4 — only maths/structure the conversation cannot hold blocks it; any
+  // other field it cannot author is CARRIED unchanged (`model.fidelityPlan`).
+  const plan = fidelityPlan(def, model)
+  const residual = plan.blocking
   if (residual.length) {
     const imported = !!(def.meta && (def.meta.recurrenceOrigin || def.meta.importedFrom || def.meta.import))
     return Object.freeze({
@@ -123,8 +128,12 @@ export function conversationEditability(def) {
       detail: `authoring:unrepresentable: ${residual.slice(0, 8).join(', ')}`,
     })
   }
-  return Object.freeze({ editable: true })
+  return Object.freeze({ editable: true, carried: plan.carry.length })
 }
+
+/** ⭐ PHASE 4 — the note shown when an opened definition carries fields the
+ *  conversation keeps but cannot change. */
+export const CARRIED_NOTE = 'Some imported settings are kept exactly as they are — UCT Intelligence can’t change those, but everything else can be edited here.'
 
 // ─── ⭐ ROLLOUT — a turn that could not run, in member words ─────────────────
 //

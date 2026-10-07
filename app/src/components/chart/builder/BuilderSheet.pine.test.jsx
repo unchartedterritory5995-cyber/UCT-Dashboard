@@ -245,8 +245,15 @@ describe('paste a real screener script and get a working scan', () => {
     // the additions are EXACTLY the knob machinery, named, so a fifth addition or a
     // changed `mode` still reds here. Owner's call under the red sweep ("do it all");
     // reversible in one line if the ruling goes the other way.
+    // ⭐ PHASE 4 — ONE MORE NAMED ADDITION: an Apply import says where its maths came
+    // from (`meta.importedFrom`), so the store keeps Pine semantics for it on later
+    // edits. Everything else in `meta` is still byte-identical to the typed document.
+    expect(sent.meta.importedFrom).toMatchObject({ dialect: 'pine', via: 'apply' })
+    expect(JSON.stringify(sent.meta.importedFrom)).not.toMatch(/indicator\(|ta\./)
+    const { importedFrom: _prov, ...sentMeta } = sent.meta
+    expect(sentMeta).toEqual(typed.meta)
     for (const k of Object.keys(typed)) {
-      if (k === 'compute' || k === 'inputs' || k === 'plots') continue   // all three pinned below, additions and all
+      if (k === 'compute' || k === 'inputs' || k === 'plots' || k === 'meta') continue   // pinned below / above, additions and all
       expect(sent[k], `top-level \`${k}\` differs from the typed document`).toEqual(typed[k])
     }
     const { paramManifest, scanPlot, sources, trees, treesHash, ...computeRest } = sent.compute
@@ -275,8 +282,12 @@ describe('paste a real screener script and get a working scan', () => {
     // definition and a typed one of the same shape are ONE object to the chart,
     // the alert and the scan.
     expect(sent.compute.fn).toBe(astHash(parseFormula(EXPECTED.formula).ast))
-    // ⛔ AND NOTHING IN IT REMEMBERS IT WAS PINE.
-    expect(JSON.stringify(sent).toLowerCase()).not.toContain('pine')
+    // ⛔ AND NOTHING IN ITS MATHS OR PRESENTATION REMEMBERS IT WAS PINE.
+    // ⭐ PHASE 4 (owner decision: Pine Apply provenance) — the ONE place that does is the
+    // provenance stamp `meta.importedFrom`, which the store reads to keep Pine semantics
+    // through later edits. It carries the dialect and a fingerprint, never the script.
+    const { importedFrom: _stamp, ...metaWithout } = sent.meta
+    expect(JSON.stringify({ ...sent, meta: metaWithout }).toLowerCase()).not.toContain('pine')
   })
 })
 

@@ -434,6 +434,37 @@ function legacyDefinition({ defId, version, rev, source, ast, mode, readback, de
 /** ⭐ P0G — what `stampSemantics` needs to apply the store's rule to a draft:
  *  the stored document being edited (null on a create) and the import dialect
  *  this draft's maths came from (a Pine import is never stamped). */
+/** ⭐ PHASE 4 — FNV-1a over the pasted script: a stable fingerprint for "is this the
+ *  same script?", not a security hash and not the source. */
+function scriptFingerprint(text) {
+  let h1 = 0x811c9dc5
+  let h2 = 0x01000193
+  const t = String(text || '')
+  for (let i = 0; i < t.length; i += 1) {
+    const c = t.charCodeAt(i)
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0
+    h2 = Math.imul(h2 ^ c, 0x811c9dc5) >>> 0
+  }
+  return `fnv1a:${h1.toString(16).padStart(8, '0')}${h2.toString(16).padStart(8, '0')}`
+}
+
+/** ⭐ PHASE 4 — `meta.importedFrom` for PINE maths the Import tab's "Apply" wrote.
+ *  Pine only: it is the dialect whose comparisons keep a different `na` rule, which is
+ *  what the stamp protects. A thinkScript Apply stays plain native text, as its own
+ *  rail requires (`ImportBox.thinkscript.test.jsx`). */
+export function applyProvenanceFor(dialect, sourceText) {
+  const d = String(dialect || '').toLowerCase()
+  if (d !== 'pine') return null
+  const text = String(sourceText || '')
+  return { dialect: d, via: 'apply', ...(text ? { sourceLength: text.length, sourceFingerprint: scriptFingerprint(text) } : {}) }
+}
+
+/** Stamp an Apply import's provenance onto a document (a copy; identity when none). */
+export function withApplyProvenance(doc, provenance) {
+  if (!doc || !provenance) return doc
+  return { ...doc, meta: { ...(doc.meta || {}), importedFrom: provenance } }
+}
+
 function semanticsContext(editing, telemetry) {
   return {
     prior: (editing && editing.prior) || null,
@@ -1224,6 +1255,13 @@ export default function BuilderSheet({
   // concierge/screenshot save whose door already minted its own server-side
   // id) — `save()` simply omits the fields rather than inventing one.
   const importTelemetryRef = useRef(null)
+  // ⭐⭐ PHASE 4 — WHERE THIS DRAFT'S MATHS CAME FROM, when the Import tab's "Apply"
+  // wrote it: `{dialect, via: 'apply', sourceLength, sourceFingerprint}`. Stamped on
+  // the saved document as `meta.importedFrom` so the store keeps Pine semantics for
+  // it through later edits (`user_definitions.is_pine_import`) and the definition can
+  // say it was imported. ⛔ The script text itself is NOT stored (the ast lane never
+  // has — a 34 KB script against a 64 KB cap); its length and a fingerprint are.
+  const applyProvenanceRef = useRef(null)
   const [savedRow, setSavedRow] = useState(null)
   /** Escape / Cancel asked to close while there was unsaved work. See `dirty`. */
   const [confirmDiscard, setConfirmDiscard] = useState(false)
@@ -1294,7 +1332,7 @@ export default function BuilderSheet({
     // fresh `newPlotRow` (acknowledged: false) into `plot0`, which is the row
     // that flag now lives on. A second reset of a value `resetPlots` already
     // resets is the shape that drifts the day one of the two is edited alone.
-    setStoreError(null); setSavedRow(null); setCopied(false); setPineText('')
+    setStoreError(null); setSavedRow(null); setCopied(false); setPineText(''); applyProvenanceRef.current = null
     // ⛔ W4a — THE OPENING MODE COMES FROM `openingMode` AND NOWHERE ELSE. It
     // used to be the literal `'library'`, and the screener's door was written as
     // a SECOND effect setting it again afterwards. That is a second writer over
@@ -1338,7 +1376,7 @@ export default function BuilderSheet({
     const src = compute.source
     // ⛔ NO `setAcknowledged` HERE — the restored rows below each carry their
     // own fresh `acknowledged: false`, which is where that flag lives now.
-    setStoreError(null); setSavedRow(null); setCopied(false); setPineText('')
+    setStoreError(null); setSavedRow(null); setCopied(false); setPineText(''); applyProvenanceRef.current = null
     if (typeof src !== 'string' || src.trim() === '') {
       setEditing(null)
       setStoreError('This formula was stored without its source text, so it cannot be edited here.')
@@ -1933,7 +1971,7 @@ export default function BuilderSheet({
       name,
       look: lookToApply,
     }
-    let doc = documentFor(rows, docArgs)
+    let doc = withApplyProvenance(documentFor(rows, docArgs), applyProvenanceRef.current)
     // ⭐⭐ P2X (owner decision 3) — A SAVE NEVER SILENTLY DESTROYS THE STORED
     // OBJECT PROGRAM. Kept → it rides byte-identically. Lossy → NOTHING is sent
     // until the member confirms a save that names what it removes; Cancel leaves
@@ -1946,7 +1984,7 @@ export default function BuilderSheet({
         setSaving(false)
         return
       }
-      doc = documentFor(rows, { ...docArgs, dropObjects: true })
+      doc = withApplyProvenance(documentFor(rows, { ...docArgs, dropObjects: true }), applyProvenanceRef.current)
     }
     setObjectLoss(null)
     const valueKey = intent === INTENTS.VALUE && intentRead ? intentRead.selectedKey : null
@@ -1988,7 +2026,11 @@ export default function BuilderSheet({
     const previewRows = rows.filter((r) => r.mode === 'preview-repaints')
     const previewAcked = previewRows.length > 0
       && allRows.every((r, i) => rows[i].mode !== 'preview-repaints' || r.acknowledged === true)
-    const saveOptions = previewAcked ? { previewAcked: true } : null
+    // ⭐ PHASE 4 — an EDIT is revision-aware: the store refuses (409, nothing saved)
+    // when the definition moved on after this sheet opened it.
+    const saveOptions = (previewAcked || editing)
+      ? { ...(previewAcked ? { previewAcked: true } : {}), ...(editing ? { baseVersion: editing.version } : {}) }
+      : null
     const res = await saveUserDefinition(doc, editing ? editing.defId : null, importTelemetryRef.current, saveOptions)
     savingRef.current = false
     setSaving(false)
@@ -1998,6 +2040,7 @@ export default function BuilderSheet({
     // manual tweak with no new paste) must not carry a stale `import_id`
     // forward and misattribute itself to an import that already landed.
     importTelemetryRef.current = null
+    applyProvenanceRef.current = null
     const row = res.row || { def_id: doc.id, version: doc.version, rev: 1 }
     setSavedRow(row)
 
@@ -2914,6 +2957,8 @@ export default function BuilderSheet({
                 // where the backend observes the full request/response cycle.
                 const importId = newImportId()
                 importTelemetryRef.current = { importId, dialect }
+                // ⭐ PHASE 4 — the Apply door's provenance for the saved document.
+                applyProvenanceRef.current = applyProvenanceFor(dialect, pineText)
                 logIndicatorTelemetry('import_submitted', { importId, dialect })
                 logIndicatorTelemetry('compile_finished', { importId, dialect, props: { success: true } })
               }}

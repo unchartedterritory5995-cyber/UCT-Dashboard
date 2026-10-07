@@ -52,11 +52,45 @@ export function previewInstanceFor(cs, registry) {
   return list.find((i) => i && i.defId === STUDIO_PREVIEW_DEF_ID && !taken.has(i.instanceId)) || null
 }
 
-/** The read view with the preview laid over it. Identity when there is none. */
-export function withPreviewInstance(view, instance) {
+/** ⭐ PHASE 4 — the preview instance id used while an EXISTING definition is edited. */
+export const STUDIO_EDIT_PREVIEW_INSTANCE_ID = `${STUDIO_PREVIEW_DEF_ID}:edit`
+
+/**
+ * ⭐ PHASE 4 — the preview of an EDIT, shaped like the instance it stands in for:
+ * the first stored instance of `defId` on this chart (its inputs, look and
+ * placement), re-pointed at the preview definition under the preview's own id —
+ * so the member sees THEIR indicator change, not a default-styled second copy.
+ * Falls back to `previewInstanceFor` when the definition is not on this chart.
+ */
+export function previewInstanceLike(cs, defId, registry) {
+  const list = cs && Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
+  const like = defId ? list.find((i) => i && i.defId === defId) : null
+  if (!like) return previewInstanceFor(cs, registry)
+  return { ...like, instanceId: STUDIO_EDIT_PREVIEW_INSTANCE_ID, defId: STUDIO_PREVIEW_DEF_ID, hidden: false }
+}
+
+/** Does any OTHER instance point at one of `ids` (a guest in its pane, `@<id>`)? */
+function hostsAGuest(list, ids) {
+  return list.some((i) => i && !ids.has(i.instanceId) && ids.size
+    && [...ids].some((id) => JSON.stringify(i).includes(`@${id}`)))
+}
+
+/**
+ * The read view with the preview laid over it. Identity when there is none.
+ * ⭐ PHASE 4 — `replaces` (a defId): while an existing definition is edited, its own
+ * instances step aside in the READ VIEW so the preview is the one drawing — never in
+ * `cs`, so nothing about them is written. ⛔ Not when one of them hosts another
+ * indicator's pane (hiding the host would take the guest with it): then both draw.
+ */
+export function withPreviewInstance(view, instance, replaces = null) {
   if (!instance || !view) return view
   const list = Array.isArray(view.indicatorInstances) ? view.indicatorInstances : []
-  return { ...view, indicatorInstances: [...list.filter((i) => !(i && i.defId === STUDIO_PREVIEW_DEF_ID)), instance] }
+  let kept = list.filter((i) => !(i && i.defId === STUDIO_PREVIEW_DEF_ID))
+  if (replaces) {
+    const ids = new Set(kept.filter((i) => i && i.defId === replaces).map((i) => i.instanceId))
+    if (ids.size && !hostsAGuest(kept, ids)) kept = kept.filter((i) => !(i && ids.has(i.instanceId)))
+  }
+  return { ...view, indicatorInstances: [...kept, instance] }
 }
 
 const refersToPreview = (v) => isPreviewInstanceId(v)

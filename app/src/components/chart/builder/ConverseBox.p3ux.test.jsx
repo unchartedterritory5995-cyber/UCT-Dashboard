@@ -55,12 +55,14 @@ describe('P3 UX — the up-front kind check', () => {
 
   it('an IMPORTED definition the Builder cannot reproduce: "imported in a form …" with no schema paths (REFUSAL)', () => {
     const d = plain()
+    // ⭐ PHASE 4 — a carried presentation field (legend decimals) no longer refuses;
+    // an imported MATHS stage the row model cannot hold still does.
     const prior = { ...d, id: 'u_iiiiiiiiiiii', version: 1, meta: { ...d.meta, recurrenceOrigin: 'pine' },
-      plots: d.plots.map((p) => ({ ...p, legend: { decimals: 4 } })) }
+      compute: { ...d.compute, importedStage: { kind: 'foreign' } } }
     render(<ConverseBox sym="SPY" tf="D" converse={stub(createTurn)} editing={{ defId: prior.id, version: 1, prior }} />)
     const note = screen.getByTestId('converse-not-editable')
     expect(note.textContent).toMatch(/^This indicator was imported in a form UCT Intelligence cannot edit yet\. You can still edit it manually\./)
-    expect(note.textContent).not.toMatch(/plots\[|legend|authoring:/)
+    expect(note.textContent).not.toMatch(/plots\[|compute|importedStage|authoring:/)
   })
 
   it('an editable definition keeps the Continue button and shows no note (EXACT)', () => {

@@ -1072,7 +1072,7 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
     select(/^SMA 200$/)
     fireEvent.change(inspector().querySelector('[data-field="lineWidth"] select'), { target: { value: '2' } })
     fireEvent.change(inspector().querySelector('[data-field="__timeframe__"] select'), { target: { value: 'W' } })
-    fireEvent.click([...inspector().querySelectorAll('button')].find((b) => b.textContent === 'Duplicate'))
+    fireEvent.click([...inspector().querySelectorAll('button')].find((b) => b.textContent === 'Duplicate on chart'))   // ⭐ PHASE 4 label
     const src = seen.cs.indicatorInstances.find((i) => i.instanceId === 'ovl:3')
     const copy = seen.cs.indicatorInstances.find((i) => i.defId === 'movingAverage'
       && !/^ovl:/.test(i.instanceId) && i.deleted !== true)
