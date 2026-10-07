@@ -1486,6 +1486,8 @@ export default function BuilderSheet({
     // ⭐ P0G — `prior` is the stored document, so the preview can apply the
     // store's semantics rule (a presentation edit inherits; new maths gets 2).
     setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null })
+    // ⭐ ROLLOUT — the opened version is the clean baseline (taken after this render).
+    openBaselineRef.current = 'pending'
     setName(String(def?.meta?.name || ''))
     setSource(restored[0].source)
     // ⭐ OPENING A SAVED FORMULA IS A LANE LIKE ANY OTHER. Found by enumerating
@@ -2219,11 +2221,23 @@ export default function BuilderSheet({
   const formPrintRef = useRef(formPrint)
   formPrintRef.current = formPrint
   const savedByConversation = !!(supersededByConversation && conversationSaved.formPrint === formPrint)
+  // ⭐ ROLLOUT — OPENING A SAVED FORMULA IS NOT AN EDIT. The edit-open writes every
+  // field at once; the fingerprint of the form it produced is the baseline, so
+  // closing an untouched reopened formula asks nothing, and the first real change
+  // (any field) makes it dirty again. Cleared whenever the sheet leaves that edit.
+  const openBaselineRef = useRef(null)
+  const [openPrint, setOpenPrint] = useState(null)
+  useEffect(() => {
+    if (openBaselineRef.current === 'pending') { openBaselineRef.current = null; setOpenPrint(formPrint) }
+  }, [formPrint])
+  useEffect(() => { if (!editing) setOpenPrint(null) }, [editing])
+  const untouchedSinceOpen = !!(editing && openPrint !== null && openPrint === formPrint)
   const dirty = (pineText.trim() !== '' || source.trim() !== '' || name.trim() !== ''
       || plotRows.some((r) => String(r.source || '').trim() !== '')
       || !isUntouchedRow(plot0) || target !== 'pane' || levelsText.trim() !== '')
     && !(savedRow && savedRow.source === source)
     && !savedByConversation
+    && !untouchedSinceOpen
 
   // ⭐ P3 UX — AN UNSAVED CONVERSATION IS UNSAVED WORK TOO. The conversation's
   // own dirty authority (`isDirty`, reported by the box through `onCommitState`)

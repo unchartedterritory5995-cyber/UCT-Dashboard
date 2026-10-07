@@ -155,3 +155,61 @@ describe('P3S — after the conversation saves, closing does not ask to discard'
     expect(screen.getByTestId('discard-confirm').textContent).toContain('Discard this formula?')
   })
 })
+
+// ─── ⭐ ROLLOUT — OPENING A SAVED FORMULA IS A CLEAN BASELINE ──────────────────
+// ASKED: open a saved formula and close it without touching anything. BEFORE: the
+// sheet asked "Discard this formula?". NOW: it closes; the first real change asks.
+describe('ROLLOUT — reopening a saved formula is not unsaved work', () => {
+  function mount(onClose) {
+    render(
+      <AuthContext.Provider value={{ user: { id: 7, role: 'admin' }, isPaid: true, loading: false }}>
+        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
+          <BuilderSheet open onClose={onClose} onSaved={() => {}} settings={{ indicatorInstances: [], indicators: {} }} onChange={() => {}} />
+        </SWRConfig>
+      </AuthContext.Provider>,
+    )
+  }
+  const cancel = () => fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }))
+  async function openSaved() {
+    await flush()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit My line' }))
+    await flush()
+    expect(screen.getByLabelText('Name').value).toBe('My line')
+  }
+
+  it('open → Cancel closes at once', async () => {
+    const onClose = vi.fn()
+    mount(onClose)
+    await openSaved()
+    cancel()
+    await flush()
+    expect(screen.queryByTestId('discard-confirm')).toBeNull()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('open → a real change → Cancel asks', async () => {
+    const onClose = vi.fn()
+    mount(onClose)
+    await openSaved()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My line, renamed' } })
+    await flush()
+    cancel()
+    await flush()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByTestId('discard-confirm').textContent).toContain('Discard this formula?')
+  })
+
+  it('open → change → change back → Cancel closes (the baseline is the opened version)', async () => {
+    const onClose = vi.fn()
+    mount(onClose)
+    await openSaved()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'tmp' } })
+    await flush()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My line' } })
+    await flush()
+    cancel()
+    await flush()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+})
+
