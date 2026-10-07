@@ -30,6 +30,17 @@
 const NOISE = new Set(['BREADTH', 'METRIC', 'METRICS', 'INDICATOR', 'INDICATORS',
                        'LIBRARY', 'SERIES'])
 
+/** ⭐ HOW TRADERS SPELL WHAT THE CATALOGUE NAMES — a query word on the left is matched as
+ *  the catalogue fragment on the right ("percent" → "%", "dma" → "MA", "advancers" →
+ *  "ADVANC"). ⛔ MIRRORS `breadth_symbols._QUERY_SYNONYMS` EXACTLY; the parity fixture
+ *  pins both lanes, so an edit here without the Python twin goes red by name. */
+export const SYNONYMS = Object.freeze({
+  PERCENT: '%', PERCENTAGE: '%', PCT: '%',
+  DMA: 'MA', SMA: 'MA',
+  ADVANCE: 'ADVANC', ADVANCES: 'ADVANC', ADVANCERS: 'ADVANC', ADVANCING: 'ADVANC',
+  DECLINE: 'DECLIN', DECLINES: 'DECLIN', DECLINERS: 'DECLIN', DECLINING: 'DECLIN',
+})
+
 /** Upper-cased alphanumeric runs. `:` is a separator HERE and nothing more — the
  *  registry, never the tokeniser, decides whether a colon string is an identity. */
 export function tokens(q) {
@@ -114,7 +125,7 @@ export function searchLibrary(rows, q, { limit = 40, metricOrder } = {}) {
   const rest = []
   for (const t of toks) {
     if (idx.universes.has(t)) wantUni.add(idx.universes.get(t))
-    else if (!NOISE.has(t)) rest.push(t)
+    else if (!NOISE.has(t)) rest.push(SYNONYMS[t] || t)
   }
 
   for (let i = 0; i < list.length; i++) {

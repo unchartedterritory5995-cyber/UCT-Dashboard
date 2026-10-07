@@ -88,7 +88,9 @@ _ROWS = [
     # ── Score / Regime ──────────────────────────────────────────────────────
     ("UCTHS",   "breadth_score",    "UCT Breadth Health Score",     G_REG),
     ("UCTX",    "uct_exposure",     "UCT Exposure Rating",          G_REG),
-    ("UCTMC",   "mcclellan_osc",    "McClellan Oscillator",         G_REG),
+    # ⭐ "(Raw)" since 2026-10-07: the ratio-adjusted US/NYSE/NASDAQ McClellans now sit beside it in
+    # search, and a member cannot tell raw from ratio-adjusted by the curve. Name only — symbol unchanged.
+    ("UCTMC",   "mcclellan_osc",    "McClellan Oscillator (Raw)",   G_REG),
     ("UCTAD",   "adv_decline_cum",  "Advance/Decline Line",         G_REG),
     ("UCTNA",   "adv_decline",      "Net Advancers (Daily)",        G_REG),
     ("UCTS2",   "stage2_count",     "Stage 2 Uptrend Count",        G_REG),
@@ -309,6 +311,10 @@ def library_rows(universes=None) -> list[dict]:
                 # metric catalogue would be the copy that drifts.
                 "group_label": (LIST_META.get(m["group"]) or {}).get("label", m["group"]),
                 "unit": m["unit"], "domain": m["domain"],
+                # ⭐ WHAT IT MEANS and WHAT IT IS MEASURED OVER — the two sentences a member
+                # needs to read a breadth line, from the catalogues that own them.
+                "description": _bm.DESCRIPTIONS.get(metric, ""),
+                "universe_description": _bu.DESCRIPTIONS.get(u["id"], ""),
                 "presentation": m["presentation"], "floor": display_floor(u["id"]) or u["floor"],
                 # ⭐ A UCT row is LEGACY: its symbol is recorded history, not a
                 # rendering of the namespace. Anything reading this list can tell
@@ -483,6 +489,9 @@ def search(qq: str, limit: int = 20) -> list[dict]:
             "name": rec["name"],
             "breadth": True,
             "group_label": rec["group_label"],
+            # ⭐ The population, so a search list can say WHICH "New 52-Week Highs" a row is.
+            # A legacy row carries no universe key and is UCT's by definition.
+            "universe_label": rec.get("universe_label") or "UCT",
             "symbol_hit": symbol_hit,
         })
     return out
@@ -663,11 +672,17 @@ def latest_quotes(syms: list[str]) -> dict:
             price = dvals[0][1]
             prev = dvals[1][1] if len(dvals) > 1 else dvals[0][1]
         change = price - prev
-        change_pct = (change / prev * 100.0) if prev else 0.0
+        # ⛔ A PERCENT ONLY WHERE ONE MEANS SOMETHING (finishing pass, 2026-10-07): a SIGNED
+        # series (McClellan, A/D line, net advances, AAII spread) has no percent change, and
+        # neither does any move off a reference ≤ 0 — UCTMC −50 → −25 used to read "−50%". None
+        # tells the watchlist to show the point change alone (it already treats it as optional).
+        from api.services import breadth_metrics as _bm
+        _signed = (_bm.get(metric) or {}).get("domain") == _bm.DOMAIN_SIGNED
+        change_pct = None if (_signed or not prev or prev <= 0) else round(change / prev * 100.0, 2)
         out[s] = {
             "price": round(price, 2),
             "change": round(change, 2),
-            "change_pct": round(change_pct, 2),
+            "change_pct": change_pct,
             "volume": 0,
             "breadth": True,
         }
@@ -1168,6 +1183,20 @@ _LIBRARY_NOISE = frozenset({"BREADTH", "METRIC", "METRICS", "INDICATOR",
                             "INDICATORS", "LIBRARY", "SERIES"})
 
 
+#: ⭐ HOW TRADERS SPELL WHAT THE CATALOGUE NAMES (finishing pass, 2026-10-07). A query word on
+#: the left is matched as the catalogue fragment on the right. Measured misses before this:
+#: "percent above 50-day" (names say "%"), "50 dma" (names say "MA"), "advancers" vs
+#: "Advancing Issues". ⛔ A FRAGMENT, NEVER A NEW NAME: nothing here adds words to a row, it
+#: only lets a member's word reach the words the catalogue already has. Mirrored EXACTLY by
+#: `breadthLibrary.js` `SYNONYMS`; the parity fixture pins both.
+_QUERY_SYNONYMS = {
+    "PERCENT": "%", "PERCENTAGE": "%", "PCT": "%",
+    "DMA": "MA", "SMA": "MA",
+    "ADVANCE": "ADVANC", "ADVANCES": "ADVANC", "ADVANCERS": "ADVANC", "ADVANCING": "ADVANC",
+    "DECLINE": "DECLIN", "DECLINES": "DECLIN", "DECLINERS": "DECLIN", "DECLINING": "DECLIN",
+}
+
+
 def _tokens(q: str) -> list[str]:
     """Upper-cased alphanumeric runs. `:` is a separator here and nothing more —
     the resolver, not the tokeniser, decides whether a colon string is an identity."""
@@ -1231,7 +1260,7 @@ def library_search(q: str, limit: int = 40, published_only: bool = False) -> lis
     toks = _tokens(raw)
     label_to_id = {_bu.label(u).upper(): u for u in _bu.UNIVERSE_IDS}
     want_universes = {label_to_id[t] for t in toks if t in label_to_id}
-    rest = [t for t in toks
+    rest = [_QUERY_SYNONYMS.get(t, t) for t in toks
             if t not in label_to_id and t not in _LIBRARY_NOISE]
 
     for row in rows:

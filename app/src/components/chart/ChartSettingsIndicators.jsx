@@ -70,7 +70,7 @@ import {
 import {
   hiddenLibraryIds, libraryRowFor, symbolLibraryRow, createFromResult,
   SYMBOL_CATEGORY, BREADTH_CATEGORY, CAPABILITY,
-  securityResults, breadthResults, marketIndicatorResults, resultsForTab, liveDiscoveryRows, FUNDAMENTALS_STATUS,
+  securityResults, breadthResults, withLibraryMetadata, marketIndicatorResults, resultsForTab, liveDiscoveryRows, FUNDAMENTALS_STATUS,
   glyphNameOf, glyphFamilyOf, fundamentalResults, economicResults, libraryTabsFor, featureResults,
 } from './discoveryCatalog'
 import useFundamentalsCatalog from './engine/useFundamentalsCatalog'
@@ -953,12 +953,16 @@ export default function ChartSettingsIndicators({
   const browsed = useMemo(() => {
     const secs = securityResults(POPULAR_RESULTS, { tf: TF, bars: BARS })
     const idx = securityResults(INDICES_PRESET, { tf: TF, bars: BARS })
+    // ⭐ THE LIBRARY BLOCK RIDES THE SAME FETCH: its rows carry each series' description and
+    // its universes carry first/last — the row's hover and the "data through" line.
+    const brdLib = breadthAll && typeof breadthAll.library === 'function' ? breadthAll.library() : null
+    const brdUniverses = brdLib && Array.isArray(brdLib.universes) ? brdLib.universes : []
     const brd = breadthAll && typeof breadthAll.all === 'function'
-      ? breadthResults(breadthAll.all(), { tf: TF, bars: BARS }) : []
+      ? breadthResults(withLibraryMetadata(breadthAll.all(), brdLib), { tf: TF, bars: BARS, universes: brdUniverses }) : []
     // ⭐ THE MARKET INDICATORS BROWSE TOO, and through the SAME shapers — so a
     // browsed row and a searched row are the same object with the same capability
     // and the same create door, which is the invariant the browse-add no-op broke.
-    const mkt = marketIndicatorResults(marketAll.rows, { tf: TF, bars: BARS })
+    const mkt = marketIndicatorResults(marketAll.rows, { tf: TF, bars: BARS, universes: brdUniverses })
     // ⭐ FUNDAMENTALS BROWSE THROUGH THE SAME DOOR — their rows are results with a
     // `create` descriptor, so click-to-add, search and grouping need nothing new.
     const fnd = fundAvailable ? fundamentalResults(fundCat.list) : []
@@ -3068,7 +3072,9 @@ export default function ChartSettingsIndicators({
         <span className={`${styles.resMain} ${isEcon ? styles.resMainStacked : ''}`}>
           <span className={styles.resTitleRow}>
             <span className={styles.resName}>{row.name}</span>
-            {!isEcon && <span className={styles.resShort}>{row.shortName}</span>}
+            {/* ⭐ `chip` names a breadth row's POPULATION (UCT · US · NASDAQ · NYSE) so four
+                identically named metrics are told apart; every other kind keeps `shortName`. */}
+            {!isEcon && <span className={styles.resShort}>{row.chip || row.shortName}</span>}
             {row.userDefined && <span className={styles.resMine}>Your formula</span>}
             {row.sessionOnly && <span className={styles.resPill}>Intraday only</span>}
             {/* The LINTER's measurement, per plot — never the definition's own

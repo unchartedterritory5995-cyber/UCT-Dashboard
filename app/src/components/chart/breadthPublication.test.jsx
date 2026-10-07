@@ -76,8 +76,8 @@ describe('TEST-ONLY US publication', () => {
   const symbols = [...LEGACY, ...US_PUBLISHED]
   const familyOf = familyOfFrom(symbols)
 
-  it('publishes exactly the 18 V1 metrics, legacy untouched and first', () => {
-    expect(US_PUBLISHED).toHaveLength(18)
+  it('publishes exactly the 35 V1.1 metrics, legacy untouched and first', () => {
+    expect(US_PUBLISHED).toHaveLength(35)
     expect(symbols.slice(0, 44)).toEqual(LEGACY)
   })
 
@@ -118,13 +118,15 @@ describe('TEST-ONLY US publication', () => {
     expect(got[1].universe_label).toBe('US')
   })
 
-  it('⛔ the deferred V1.1 US metrics stay hidden — every one of them', () => {
+  it('⛔ the withheld and unproducible US metrics stay hidden — every one of them', () => {
     const rows = ROWS.filter((r) => r.legacy || r.universe === 'us')
     const usCodes = new Set(rows.filter((r) => r.universe === 'us').map((r) => r.code))
-    // V1.1: momentum counts, the 20-day highs/lows, near-high, HVC, the stages…
-    for (const code of ['MU', 'MD', 'U20W', 'D20W', 'U25M', 'U50M', 'U25Q',
-                        'NH20', 'NL20', 'NRH', 'HVC', 'S2', 'S4', 'ADV', 'DEC',
-                        'UV', 'UPV', 'DNV', 'XR', 'MC', 'AD']) {
+    // ⭐ V1.1 (2026-10-07) published the stored momentum counts, 20-day highs/lows, near-high,
+    // stages and ADV/DEC; what stays dark is the V2-withheld volume family and the PIT-unproducible.
+    for (const code of ['MU', 'MD', 'U20W', 'NH20', 'NRH', 'S2', 'S4', 'ADV', 'DEC']) {
+      expect(usCodes.has(code), code).toBe(true)
+    }
+    for (const code of ['HVC', 'UV', 'UPV', 'DNV', 'XR', 'MC', 'AD']) {
       expect(usCodes.has(code), code).toBe(false)
       // ⚠️ ASSERT ON THE IDENTITY, NOT ON AN EMPTY RESULT. `US:ADV` legitimately
       // fuzzy-matches "Net Advancers" through the substring tier; what must never
