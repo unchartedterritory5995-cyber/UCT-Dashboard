@@ -19,6 +19,19 @@ zero calls, zero cost -- in the same capability language the post-call gates use
     whatever chart it is added to; only the model can answer that honestly).
 Anything else goes to the model. A false refusal is worse than one model call.
 
+⭐ P3 (2026-10-06):
+  * A QUESTION is never intercepted -- another symbol included ("What does RSI
+    on SPY look like?"). ``shape()`` is the ONE deterministic detector (rules
+    file ``questionShape``): an authoring clause anywhere ("add", "can you make",
+    "I want") wins; otherwise a trailing '?' or an interrogative / advisory
+    opener in any clause ("tell me which...", "so, should I...") is a question.
+    The server's ``/converse`` uses the same detector to route advisory turns
+    past the planner's Title-Case refusal, and ``other_symbol()`` (question or
+    not) backs its no-substitution backstop.
+  * Possessive / adjacent other-symbol AUTHORING ("SPY's RSI", "SPY RSI above
+    50", "use QQQ's close") is caught when the chart symbol is known.
+  * ``notTickerPhrases`` ("CAN SLIM") are blanked before any ticker is read.
+
 The rules are DATA shared with the browser
 (``app/src/components/chart/builder/authoring/preflightRules.json``) and pinned
 by one case table both languages assert (``preflightCases.json``). The browser's
@@ -70,8 +83,80 @@ def _res() -> Dict[str, "re.Pattern[str]"]:
         "tf_word": re.compile(r["tfWord"], re.I),
         "after": re.compile(r["tfContextAfter"], re.I),
         "before": re.compile(r["tfContextBefore"], re.I),
-        "question": re.compile(r["questionLead"], re.I),
+        "possessive": re.compile(r["possessiveTicker"]),   # case-SENSITIVE
+        "adjacent": re.compile(r["adjacentTicker"]),       # case-SENSITIVE
+        # ⭐ P3: "CAN SLIM" is a method, not ticker CAN (space or hyphen between words)
+        "phrases": re.compile(
+            r"\b(?:" + "|".join(r"[\s-]+".join(re.escape(w) for w in re.split(r"[\s-]+", p))
+                                for p in r["notTickerPhrases"]) + r")\b", re.I),
     }
+
+
+@functools.lru_cache(maxsize=1)
+def _q() -> Dict[str, "re.Pattern[str]"]:
+    q = rules()["questionShape"]
+    return {k: re.compile(q[k], re.I) for k in (
+        "clauseSplit", "discourse", "trailingQuestion", "interrogativeLead",
+        "advisoryLead", "compareLead", "requestLead", "wantLead")}
+
+
+@functools.lru_cache(maxsize=1)
+def _adjacent_nouns() -> frozenset:
+    words = {w.lower() for w in rules()["adjacentNouns"]}
+    try:
+        table = json.loads(CLOSED_TABLE_PATH.read_text(encoding="utf-8"))
+        for section in ("functions", "series"):
+            for name in (table.get(section) or {}):
+                words.add(str(name).lower())
+    except (OSError, ValueError):
+        pass
+    return frozenset(words)
+
+
+def _clauses(message: str) -> List[str]:
+    q = _q()
+    out = []
+    for part in q["clauseSplit"].split(message):
+        if part and part.strip():
+            out.append(q["discourse"].sub("", part.strip(), count=1).strip())
+    return [c for c in out if c]
+
+
+def shape(message: Any) -> str:
+    """⭐ P3 -- what the member's words ARE, deterministically:
+    ``'authoring'`` (an edit request anywhere: "add", "can you make", "I want"),
+    ``'question'`` (a trailing '?' or an interrogative / advisory opener in some
+    clause: "what", "should", "tell me", "explain"), ``'compare'`` ("compare X
+    and Y" with no edit verb -- advisory, but still a REQUEST for the pre-flight),
+    or ``'other'``. An authoring clause wins over everything: "Add the McGinley
+    Dynamic. What do you think?" is authoring."""
+    if not isinstance(message, str) or not message.strip():
+        return "other"
+    q = _q()
+    clauses = _clauses(message)
+    for c in clauses:
+        if q["advisoryLead"].match(c):
+            continue
+        if q["requestLead"].match(c) or q["wantLead"].match(c):
+            return "authoring"
+    if q["trailingQuestion"].search(message.strip()):
+        return "question"
+    if any(q["interrogativeLead"].match(c) or q["advisoryLead"].match(c) for c in clauses):
+        return "question"
+    if any(q["compareLead"].match(c) for c in clauses):
+        return "compare"
+    return "other"
+
+
+def is_question(message: Any) -> bool:
+    """A question (never intercepted by the pre-flight)."""
+    return shape(message) == "question"
+
+
+def is_advisory(message: Any) -> bool:
+    """A question OR a bare "compare ..." -- the server routes these to the model
+    even when they name things UCT cannot build (the model may DISCUSS them)."""
+    return shape(message) in ("question", "compare")
 
 
 def _norm_sym(sym: Any) -> Optional[str]:
@@ -111,6 +196,11 @@ def tf_words(code: str) -> str:
     return f"{n // 60}-hour" if n % 60 == 0 else f"{n}-minute"
 
 
+def _unphrased(message: str) -> str:
+    """The message with every not-a-ticker PHRASE ("CAN SLIM") blanked out."""
+    return _res()["phrases"].sub(lambda m: " " * len(m.group(0)), message)
+
+
 def _tickers(message: str) -> List[str]:
     stop = _not_tickers()
     out: List[str] = []
@@ -124,6 +214,7 @@ def _tickers(message: str) -> List[str]:
 def _other_symbol(message: str, chart_sym: Optional[str]) -> Optional[str]:
     res = _res()
     stop = _not_tickers()
+    message = _unphrased(message)
     tickers = _tickers(message)
     if res["compare"].search(message) and tickers:
         if chart_sym:
@@ -137,13 +228,33 @@ def _other_symbol(message: str, chart_sym: Optional[str]) -> Optional[str]:
             t = m.group(1).upper()
             if t not in stop and t != chart_sym:
                 return t
+        # ⭐ P3: "SPY's RSI", "use QQQ's close" -- a possessive ticker ...
+        for m in res["possessive"].finditer(message):
+            t = m.group(1).upper()
+            if t not in stop and t != chart_sym:
+                return t
+        # ... and "SPY RSI above 50", "QQQ close" -- a ticker directly before an
+        # indicator / bar-field word (closedTable functions + series + a few nouns).
+        nouns = _adjacent_nouns()
+        for m in res["adjacent"].finditer(message):
+            t = m.group(1).upper()
+            if t not in stop and t != chart_sym and m.group(2).lower() in nouns:
+                return t
     return None
+
+
+def other_symbol(message: Any, chart: Any = None) -> Optional[str]:
+    """⭐ P3 -- the other-symbol DETECTOR alone, question or not (the server's
+    model-substitution backstop: a question that names another ticker must never
+    come back as a change). None when no other ticker is named."""
+    if not isinstance(message, str) or not message.strip():
+        return None
+    chart = chart if isinstance(chart, Mapping) else {}
+    return _other_symbol(message, _norm_sym(chart.get("sym")))
 
 
 def _wanted_timeframe(message: str) -> Optional[str]:
     res = _res()
-    if res["question"].search(message):
-        return None
     hits: List[Tuple[int, int, str]] = []
     for m in res["tf_num"].finditer(message):
         n = int(m.group(1))
@@ -170,6 +281,13 @@ def check(message: Any, chart: Any = None) -> Optional[Dict[str, Any]]:
     chart_sym = _norm_sym(chart.get("sym"))
     chart_tf = norm_tf(chart.get("tf"))
     copy = rules()["copy"]
+
+    # ⭐ P3: a QUESTION is never intercepted -- about another symbol or another
+    # timeframe alike ("What does RSI on SPY look like?", "Tell me which period
+    # suits weekly bars"). Only the model can answer it; the server's backstop
+    # still refuses a change that comes back for a question naming another ticker.
+    if is_question(message):
+        return None
 
     other = _other_symbol(message, chart_sym)
     if other:

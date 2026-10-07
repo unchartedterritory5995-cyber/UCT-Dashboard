@@ -91,10 +91,16 @@ export default function L0Strip({ layout, isPhone }) {
         <span className={styles.time}>{time}</span>
         <span className={styles.etLabel}>ET</span>
         {/* Phone keeps a short label (OPEN / PRE / AH / CLOSED): the dot's colour alone is
-            not enough, and the full label does not fit beside the command bar. */}
-        <span className={`${styles.sessionLabel} ${toneCls}`} data-testid="l0-session-label"
-          aria-label={isPhone ? label : undefined}>
-          {isPhone ? (SHORT_SESSION_LABEL[label] || label) : label}
+            not enough, and the full label does not fit beside the command bar. The full label
+            is real (visually hidden) TEXT: an aria-label on a bare <span> is not exposed by
+            screen readers, so they heard only "PRE" (a11y audit 2026-10-06). */}
+        <span className={`${styles.sessionLabel} ${toneCls}`} data-testid="l0-session-label">
+          {isPhone ? (
+            <>
+              <span aria-hidden="true" data-testid="l0-session-short">{SHORT_SESSION_LABEL[label] || label}</span>
+              <span className="sr-only">{label}</span>
+            </>
+          ) : label}
         </span>
       </div>
 

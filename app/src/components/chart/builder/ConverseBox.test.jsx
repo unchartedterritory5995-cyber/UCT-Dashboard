@@ -147,49 +147,53 @@ describe('ConverseBox — the 8-turn scenario end to end (items 1–4, 7, 8, 17,
     await say('RSI overbought')
     const lines = linesOf(lastUct())
     expect(lines).toContain('Name: RSI 14 > 70') // derived from the tree (name-drift fix)
-    expect(lines).toContain('RSI 14 > 70 (value) — a yes/no on every bar: 1 when (the 14-bar RSI of close) is greater than 70 and 0 otherwise')
-    expect(lines).toContain('Assumed rsi period = 14 (value)')
-    expect(lines.some((l) => /^Assumed threshold of > = 70/.test(l))).toBe(true)
+    // P3 UX: the condition said as what it is; no internal key with one output
+    expect(lines).toContain('RSI 14 > 70 — true when the 14-bar RSI of close is above 70')
+    expect(lines).toContain('Assumed RSI period 14')
+    expect(lines).toContain('Assumed threshold 70')
     expect(lines).toContain(SEMANTICS_LINE)
     expect(screen.getByTestId('converse').textContent).not.toMatch(/MACD|IGNORE THE ENGINE/)
     expect(identity().revision).toBe('1')
     expect(identity().saved).toBe('unsaved')
-    expect(screen.getByTestId('converse-identity').textContent).toMatch(/RSI 14 > 70.*revision 1.*Unsaved changes/)
+    expect(screen.getByTestId('converse-identity').textContent).toMatch(/RSI 14 > 70.*Unsaved changes/)
+    expect(screen.getByTestId('converse-identity').textContent).not.toMatch(/revision/) // P3 UX: an engine counter, not member-facing
 
     // T2 — "make it 80"
     await say('make it 80')
-    expect(readbackLines().some((l) => /greater than 80/.test(l))).toBe(true)
-    expect(readbackLines().some((l) => /greater than 70/.test(l))).toBe(false)
+    expect(readbackLines().some((l) => /RSI of close is above 80/.test(l))).toBe(true)
+    expect(readbackLines().some((l) => /above 70/.test(l))).toBe(false)
 
     // T3 — add clause
     await say('and close more than 8% above the 20 EMA')
-    expect(readbackLines()).toContain('RSI 14 > 80 (value) — a yes/no on every bar: (1 when (the 14-bar RSI of close) is greater than 80 and 0 otherwise) and (1 when close is greater than ((the 20-bar exponential average of close) times 1.08) and 0 otherwise)')
+    expect(readbackLines()).toContain('RSI 14 > 80 — true when the 14-bar RSI of close is above 80 and close is above (the 20-bar exponential average of close) times 1.08')
     // the decided threshold assumption is gone; the undecided length is still disclosed
-    expect(readbackLines()).toContain('Assumed rsi period = 14 (value)')
+    expect(readbackLines()).toContain('Assumed RSI period 14')
     expect(readbackLines().some((l) => /^Assumed threshold/.test(l))).toBe(false)
 
     // T4 / T5 — presentation
     await say('gold candles')
-    expect(readbackLines()).toContain('Look: candles painted #FFD700 where value is true (nothing where it is false or unknown)')
+    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 > 80 is true (normal colour otherwise)')
     await say('circle below')
-    expect(readbackLines().some((l) => /^Look: .*: circle marker below the bar where it is true/.test(l))).toBe(true)
-    expect(readbackLines()).toContain('Look: candles painted #FFD700 where value is true (nothing where it is false or unknown)')
+    expect(readbackLines()).toContain('Look: RSI 14 > 80: UCT gold circle below the bar where it is true')
+    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 > 80 is true (normal colour otherwise)')
 
     // T6 / T7 — consumer requests (authoring state, not definition)
     await say('alert me when it becomes true')
-    expect(readbackLines()).toContain('Alert when value becomes true')
+    expect(readbackLines()).toContain('Alert when RSI 14 > 80 becomes true')
     await say('show me the RSI value')
-    expect(readbackLines()).toContain('Chart header shows the latest value of rsi')
-    expect(readbackLines().some((l) => /^RSI 14 \(rsi\) — a number on every bar/.test(l))).toBe(true) // derived label
+    expect(readbackLines()).toContain('Chart header shows the latest value of RSI 14')
+    expect(readbackLines()).toContain('RSI 14 — a number on every bar: the 14-bar RSI of close') // derived label
     // ⭐ The LOOK without each plot's leading label: labels are NAMES and follow the
     // maths (name-drift fix); style, colour, width, markers, paints, placement must not.
     const lookOnly = () => readbackLines().filter((l) => l.startsWith('Look: '))
       .map((l) => { const parts = l.split(': '); return parts.length > 2 ? parts.slice(2).join(': ') : l })
+      // P3 UX: a paint names the output it reads by its LABEL, which follows the maths too
+      .map((l) => l.replace(/ where .+ is true \(/, ' where <output> is true ('))
     const presentationBefore = lookOnly()
 
     // T8 — "RSI 75": the threshold slot re-derived from THIS turn's view
     await say('RSI 75')
-    expect(readbackLines().some((l) => /greater than 75/.test(l))).toBe(true)
+    expect(readbackLines().some((l) => /RSI of close is above 75/.test(l))).toBe(true)
     // ⭐ presentation preserved across the maths edit (byte-equal readback lines)
     expect(lookOnly()).toEqual(presentationBefore)
     expect(identity().revision).toBe('8')
@@ -273,7 +277,7 @@ describe('ConverseBox — undo, refusals, questions (items 26, 30, REQUIRED clas
     for (const w of SCENARIO.slice(0, 3)) await say(w)
     const before = readbackLines()
     await say('gold candles')
-    expect(readbackLines()).toContain('Look: candles painted #FFD700 where value is true (nothing where it is false or unknown)')
+    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 > 80 is true (normal colour otherwise)')
     fireEvent.click(screen.getByTestId('converse-undo'))
     await flush()
     expect(readbackLines()).toEqual(before)
@@ -299,7 +303,9 @@ describe('ConverseBox — undo, refusals, questions (items 26, 30, REQUIRED clas
     expect(refusal.dataset.kind).toBe('refusal')
     const lines = linesOf(refusal)
     expect(lines[0]).toBe('Nothing was changed.')
-    expect(lines.some((l) => /\(output rsi\) was refused: .*\[signal:numeric-output\]$/.test(l)), lines.join('\n')).toBe(true)
+    // P3 UX: the gate's own sentence, the output by its name; the code is support detail
+    expect(lines.some((l) => /^RSI 14: /.test(l) && !/signal:numeric-output|\brsi\b/.test(l)), lines.join('\n')).toBe(true)
+    expect(within(refusal).getByTestId('converse-error-detail').textContent).toMatch(/signal:numeric-output: rsi: /)
     // P2X: the op reads in member words, not its wire id
     expect(lines).toContain('Cannot apply: change 2 (alert request on rsi).')
     expect(readbackLines()).toEqual(before)
@@ -309,7 +315,7 @@ describe('ConverseBox — undo, refusals, questions (items 26, 30, REQUIRED clas
     expect(btn.textContent).toMatch(/1 of 2 changes/)
     fireEvent.click(btn)
     await flush()
-    expect(readbackLines().some((l) => /greater than 85/.test(l))).toBe(true)
+    expect(readbackLines().some((l) => /RSI of close is above 85/.test(l))).toBe(true)
     expect(readbackLines().some((l) => /^Alert when/.test(l))).toBe(false)
     expect(identity().revision).toBe(String(Number(rev) + 1))
     expect(screen.queryByTestId('converse-apply-valid')).toBeNull()
@@ -320,7 +326,8 @@ describe('ConverseBox — undo, refusals, questions (items 26, 30, REQUIRED clas
     await say('RSI overbought')
     const before = readbackLines()
     await say('stale')
-    expect(linesOf(lastUct()).some((l) => /\[patch:stale\]/.test(l))).toBe(true)
+    expect(linesOf(lastUct())).toContain('The indicator changed while that reply was on its way, so nothing was applied. Send it again.')
+    expect(within(lastUct()).getByTestId('converse-error-detail').textContent).toMatch(/^Details for supportpatch:stale: /)
     expect(readbackLines()).toEqual(before)
     expect(identity().revision).toBe('1')
   })
@@ -385,7 +392,7 @@ describe('ConverseBox — reopen a saved definition into the conversation', () =
     expect(identity().saved).toBe('saved')
     expect(screen.getByTestId('converse-save').disabled).toBe(true)
     await say('make it 80')
-    expect(readbackLines().some((l) => /greater than 80/.test(l))).toBe(true)
+    expect(readbackLines().some((l) => /RSI of close is above 80/.test(l))).toBe(true)
     fireEvent.click(screen.getByTestId('converse-save'))
     await flush()
     const [doc, defId] = saveUserDefinition.mock.calls[0]

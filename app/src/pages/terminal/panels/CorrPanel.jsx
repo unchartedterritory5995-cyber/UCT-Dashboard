@@ -85,7 +85,7 @@ export default function CorrPanel({ sym, lookback, ...props }) {
         </p>
       )}
       <div className={styles.tableBox}>
-        <table className={styles.table} data-testid="terminal-corr-matrix">
+        <table className={styles.table} data-testid="terminal-corr-matrix" aria-label={`Correlation matrix, ${win} of daily returns`}>
           <thead>
             <tr><th scope="col" aria-label="Symbol" />{read.syms.map((s) => <th key={s} scope="col">{s}</th>)}<th scope="col">Avg r</th></tr>
           </thead>

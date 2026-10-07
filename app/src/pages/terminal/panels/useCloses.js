@@ -27,7 +27,7 @@ export function fetchCloses(sym, tf = 'D') {
   if (memo.has(key)) return memo.get(key)
   const url = `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${BARS_FOR_TF[tf] ?? BARS_FOR_TF.D}`
   const p = jsonFetcher(url, { credentials: 'include' }).then((payload) => {
-    const series = closesFromBars(payload)
+    const series = closesFromBars(payload, { weekly: tf === 'W' })
     if (series.length < 2) throw Object.assign(new Error(`${sym}: no bars`), { status: 404 })
     return series
   })

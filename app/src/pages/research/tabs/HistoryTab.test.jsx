@@ -154,4 +154,35 @@ describe('HistoryTab', () => {
     await renderWith({ ok: true, body: { ...BODY, timeline: [] } })
     expect(screen.getByTestId('history-empty').textContent).toMatch(/No recorded mentions of NVDA/)
   })
+
+  // First open of HIS took 5-6 s because the whole panel waited on the options tape. The
+  // server now answers without it (`pending`) and the panel asks again.
+  it('a lane still being read is named as still reading, never as unreadable or empty', async () => {
+    const lanes = { ...BODY.lanes, flow: { status: 'pending', count: null, retry_after_s: 2 } }
+    await renderWith({ ok: true, body: { ...BODY, lanes } })
+    expect(screen.getByTestId('history-lane-pending').textContent).toMatch(/Still reading: Options flow/)
+    expect(screen.getByTestId('history-lane-pending').textContent).toMatch(/does not mean there are none/)
+    expect(screen.queryByTestId('history-lane-unavailable')).toBeNull()
+    expect(screen.getAllByTestId('history-row')).toHaveLength(3)    // the other lanes are shown now
+  })
+
+  it('an empty answer while a lane is still reading says "so far", not "nothing"', async () => {
+    const lanes = { ...BODY.lanes, flow: { status: 'pending', count: null } }
+    await renderWith({ ok: true, body: { ...BODY, lanes, timeline: [] } })
+    expect(screen.getByTestId('history-empty').textContent).toMatch(/so far \(Options flow still reading\)/)
+  })
+
+  it('asks again while a lane is pending, and stops once every lane has answered', async () => {
+    let opts = null
+    vi.resetModules()
+    vi.doMock('../../../hooks/useMobileSWR', () => ({ default: (k, f, o) => { opts = o; return { data: undefined, isLoading: true } } }))
+    const mod = await import('./HistoryTab')
+    render(<mod.default sym="nvda" />)
+    expect(opts.refreshInterval).toBe(mod.historyRefreshMs)
+    const pending = { ok: true, body: { ...BODY, lanes: { ...BODY.lanes, flow: { status: 'pending', retry_after_s: 2 } } } }
+    expect(mod.historyRefreshMs(pending)).toBe(2000)
+    expect(mod.historyRefreshMs({ ok: true, body: BODY })).toBe(0)
+    expect(mod.historyRefreshMs({ ok: false, httpStatus: 500, body: null })).toBe(0)
+    expect(mod.historyRefreshMs(undefined)).toBe(0)
+  })
 })

@@ -228,15 +228,19 @@ class FiscalCalendar:
             # risk at an exact quarter end (273/364 must be Q3, never Q4).
             q = (elapsed * 4 + total - 1) // total
             return max(1, min(4, q))
+        # The quarter whose month-anchored END is nearest the period end. Whole
+        # calendar quarters off the fiscal start, so Microsoft's 92/92/90/91-day
+        # quarters land exactly. ⛔ It used to COUNT completed months, which is
+        # exact only when every period end sits on its boundary: a filer whose
+        # quarter ends drift a day around a fixed anchor (FMP reports Apple's year
+        # end as 09-27 and its fiscal Q2 as 2026-03-28) counted a seventh month and
+        # resolved Q2 as Q3, so two quarters shared one label (accuracy audit
+        # 2026-10-06). Nearest-boundary absorbs the drift and is identical on
+        # every exact boundary.
         start = prev_year_end + timedelta(days=1)
-        months = (p.year - start.year) * 12 + (p.month - start.month)
-        # A period ending on or after the fiscal start's day-of-month has
-        # completed that month's block (handles year ends that are not month
-        # ends, e.g. a 15th-of-the-month fiscal close).
-        if p.day >= start.day:
-            months += 1
-        q = (months + 2) // 3
-        return max(1, min(4, q))
+        ends = [_add_months(start, 3 * k) - timedelta(days=1) for k in (1, 2, 3)]
+        ends.append(prev_year_end + timedelta(days=total))
+        return 1 + min(range(4), key=lambda i: (abs((p - ends[i]).days), i))
 
     # ── the two questions callers ask ──────────────────────────────────────
     def resolve(self, period_end) -> dict:

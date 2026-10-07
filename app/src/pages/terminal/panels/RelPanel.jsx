@@ -115,10 +115,13 @@ export default function RelPanel({ sym, lookback, ...props }) {
       <p className={styles.lede} data-testid="terminal-rel-lede">
         {read.lines.map((l) => l.sym).join(' vs ')}, rebased to 0 % on {read.dates[0]}, through {read.dates[read.dates.length - 1]} ({read.sessions} sessions).
       </p>
+      {/* The label states the RESULT, not just the axis (a11y audit 2026-10-06). */}
       <LineChart lines={read.lines.map((l) => ({ key: l.sym, values: l.pct }))} classes={classes}
-        label={`Percent change since ${read.dates[0]}`} testId="terminal-rel-chart" />
+        label={`Percent change since ${read.dates[0]} through ${read.dates[read.dates.length - 1]}: ${
+          read.rows.map((r) => `${r.sym} ${formatPercent(r.ret, { decimals: 1, signed: true })}`).join(', ')}`}
+        testId="terminal-rel-chart" />
       <div className={styles.tableBox}>
-        <table className={styles.table} data-testid="terminal-rel-table">
+        <table className={styles.table} data-testid="terminal-rel-table" aria-label={`Relative performance over ${win}`}>
           <thead>
             <tr><th>Symbol</th><th>Return</th><th>Worst drawdown</th><th>vs {read.rows[0].sym}</th></tr>
           </thead>

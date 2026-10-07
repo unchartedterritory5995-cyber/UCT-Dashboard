@@ -37,6 +37,37 @@ export function useInTerminalPanel() {
 /** `null` outside a `Panel` — calling the hook there is a harmless no-op. */
 export const PanelFreshnessContext = createContext(null)
 
+// ── Scan-to-board — a panel's LIST of securities, reported UP to the shell ──────────────────
+// A list panel (MOST, the embedded screener) can turn the names it shows into a board of panels
+// (`BOARD GP`, feature-gaps-2026-10-06 #9). The shell owns the board; this is the one wire from a
+// list up to it, the same opt-in shape as freshness above:
+//   publish(list)   `{ syms, label, total? }` — the securities AS SHOWN, in display order, or null
+//   openBoard(req)  `{ code, syms, label, total? }` — build a board from them now (a button)
+//   codes           the function codes a board can be built from for this member
+// `null` outside a terminal panel: every hook below is a harmless no-op there, and the shared
+// `BoardFromList` control renders nothing.
+export const PanelListContext = createContext(null)
+
+/** The shell's list API inside a terminal panel, `null` everywhere else. */
+export function usePanelBoard() {
+  return useContext(PanelListContext)
+}
+
+/**
+ * A list panel reports the securities it shows, so `BOARD <FUNC>` typed while it is focused can
+ * build a board from them. `list` is `{ syms: [...], label, total? }` or null (nothing to offer).
+ * Cleared on unmount, so a closed or replaced panel never leaves a stale list behind.
+ */
+export function usePanelList(list = null) {
+  const api = useContext(PanelListContext)
+  const publish = api?.publish
+  useEffect(() => {
+    publish?.(list)
+    return () => publish?.(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publish, JSON.stringify(list)])
+}
+
 /**
  * A panel body reports its own freshness up to the terminal panel header.
  *
