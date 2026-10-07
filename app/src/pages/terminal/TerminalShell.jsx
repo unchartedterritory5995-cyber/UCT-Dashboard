@@ -171,6 +171,12 @@ export function isBareTicker(text, cmd) {
     && String(text || '').trim().split(/\s+/).length === 1)
 }
 
+/** A published row that names ONE security with the `$` escape (`$NVDA`): row <GO> loads it into
+ *  the linked group (Shift+Enter's path) instead of opening DES over the list that published it. */
+export function isLoadRow(text) {
+  return /^\$[A-Z][A-Z0-9]{0,5}(?:[.-][A-Z]{1,2})?$/.test(String(text || '').trim())
+}
+
 /** Which list a panel's published rows belong to: the panel and what it is showing. A
  *  popped-out panel shows no list here. */
 function rowsOwner(panel) {
@@ -379,6 +385,8 @@ export default function TerminalShell() {
   // The focused panel's numbered list (row <GO>): the command strings it published.
   // Tagged with the publishing panel (`rowsOwner`), so row <GO> never runs a stale list.
   const rowsRef = useRef({ owner: null, rows: [] })
+  // `loadSecurity` is declared after `run` (it falls back to it), so `run`'s row <GO> reaches it here.
+  const loadSecurityRef = useRef(null)
   const onRows = useCallback((rows, owner) => {
     rowsRef.current = { owner: owner ?? null, rows: Array.isArray(rows) ? rows : [] }
   }, [])
@@ -540,6 +548,9 @@ export default function TerminalShell() {
         return null
       }
       countCommand(cmd)
+      // A `$SYM` row (MOST's list) LOADS the name into the linked group and keeps every
+      // panel's function, exactly as clicking that row does — it never turns the list into DES.
+      if (!fromUrl && isLoadRow(target) && loadSecurityRef.current) return loadSecurityRef.current(target)
       return run(target, { fromUrl })
     }
     countCommand(cmd)
@@ -738,6 +749,7 @@ export default function TerminalShell() {
       : `Loaded ${sym} into ${name}; no panel on screen follows that group yet.` })
     return null
   }, [run, save, commitChannelSym])
+  loadSecurityRef.current = loadSecurity
 
   const runTyped = useCallback((text, opts) => {
     userRunRef.current = null
