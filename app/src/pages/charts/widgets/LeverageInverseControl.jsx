@@ -12,11 +12,20 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import useSingleStockEtfs from '../../../hooks/useSingleStockEtfs'
 import styles from './LeverageInverseControl.module.css'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
-const fmtVol = (v) => v == null ? '—'
-  : v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B/d`
-  : v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M/d`
-  : `$${(v / 1e3).toFixed(0)}K/d`
+// TERM-066: the K/M/B suffix comes from lib/presentation (formatCompact) on this row's own
+// ladder. Exported for the frozen-oracle test (widgetFormatters.term066.test.js).
+const DOLLAR_VOL_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
+export const fmtVol = (v) => {
+  const n = v == null ? NaN : Number(v)
+  if (!Number.isFinite(n)) return '—'
+  return `${formatCompact(n, { tiers: DOLLAR_VOL_TIERS, prefix: '$' })}/d`
+}
 
 // 2 → "2", 1.5 → "1.5" (labels like "2X ↑" / "1.5X ↑")
 const fmtFactor = (f) => {

@@ -32,13 +32,17 @@ import { fmtPct, fmtShares, fmtVol, fmtEps, websiteDomain } from '../../../utils
 import BusinessTrend from './BusinessTrend'
 import { growthCell } from './earningsRows'
 import styles from './dockPanels.module.css'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
 const num = (v, d = 2) => (v == null || Number.isNaN(Number(v)) ? '—' : Number(v).toFixed(d))
 const pctVal = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${Number(v).toFixed(d)}%`)
 const signPct = (v, d = 1) => (v == null || Number.isNaN(Number(v)) ? '—' : `${Number(v) > 0 ? '+' : ''}${Number(v).toFixed(d)}%`)
 const str = (v) => (v == null || v === '' ? '—' : v)
-const compactInt = (v) => (v == null ? '—' : v >= 1000 ? `${Math.round(v / 1000)}K` : String(v))
+// TERM-066: the K suffix comes from lib/presentation (formatCompact) on this fact's own
+// one-tier ladder (thousands, Math.round). Exported for widgetFormatters.term066.test.js.
+const THOUSANDS_ROUND = [{ at: 1e3, suffix: 'K', decimals: 'round' }]
+export const compactInt = (v) => (v == null ? '—' : v >= 1000 ? formatCompact(Number(v), { tiers: THOUSANDS_ROUND }) : String(v))
 // yfinance ships officer names with an honorific ("Mr. Sanjay Mehrotra"). In a
 // compact inline fact that prefix is pure width for zero information.
 const personName = (v) => (v == null ? null : String(v).replace(/^(Mr|Mrs|Ms|Dr|Prof)\.?\s+/i, '').trim() || null)

@@ -30,6 +30,7 @@ import { sectionFetcher } from '../../../components/research/sections/sectionFet
 import { prewarmVisibleList } from '../../../utils/prefetchBars'
 import { KIND, channelFor, useChannel } from '../../../lib/context/contextChannels'
 import Input from '../../../components/ui/Input'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 // TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, and the map
 // said "No data for this universe yet.", a claim about the universe made out of a failed
@@ -48,13 +49,17 @@ const DEFAULTS = { source: 'index', value: 'sp500', xKey: 'rvol', yKey: 'chg_tod
 export const MAP_PLOTTABLE_LIST_SOURCES = new Set(['flagged', 'watchlist', 'tag'])
 
 // ── value formatting by metric unit ──
-function abbrev(v) {
-  const a = Math.abs(v)
-  if (a >= 1e12) return (v / 1e12).toFixed(2) + 'T'
-  if (a >= 1e9) return (v / 1e9).toFixed(2) + 'B'
-  if (a >= 1e6) return (v / 1e6).toFixed(1) + 'M'
-  if (a >= 1e3) return (v / 1e3).toFixed(0) + 'K'
-  return v.toFixed(0)
+// TERM-066: the K/M/B/T suffix comes from lib/presentation (formatCompact) on this map's own
+// ladder; the callers add any "$" themselves. Exported for widgetFormatters.term066.test.js.
+const ABBREV_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 2 },
+  { at: 1e9, suffix: 'B', decimals: 2 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
+export function abbrev(v) {
+  if (!(Math.abs(v) >= 1e3)) return v.toFixed(0)
+  return formatCompact(v, { tiers: ABBREV_TIERS })
 }
 function fmtVal(v, unit) {
   if (v == null || !isFinite(v)) return '—'

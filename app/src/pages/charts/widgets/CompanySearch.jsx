@@ -14,21 +14,30 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 import { searchCompany, groupResults, highlightParts, POPULAR } from './companySearchIndex'
 import styles from './CompanySearch.module.css'
 import Input from '../../../components/ui/Input'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
 const EXPLORE = ['Financial Statements', 'Earnings History', 'Valuation', 'Overview']
 
 // ── formatters ────────────────────────────────────────────────────────────────
-function fmtMoney(v) {
+// TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact). Each formatter
+// passes the ladder it already had; fmtMoney keeps its own sign rule (formatCompact only
+// sees the magnitude), so what a member reads does not move. Exported for the frozen-oracle
+// test (widgetFormatters.term066.test.js).
+const MONEY_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 2 },
+  { at: 1e9, suffix: 'B', decimals: 2 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 1 },
+]
+const SHARES_TIERS = [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 1 }]
+export function fmtMoney(v) {
   if (v == null) return '—'
   const a = Math.abs(v), s = v < 0 ? '-' : ''
-  if (a >= 1e12) return `${s}$${(a / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `${s}$${(a / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${s}$${(a / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `${s}$${(a / 1e3).toFixed(1)}K`
-  return `${s}$${a.toFixed(0)}`
+  if (a < 1e3) return `${s}$${a.toFixed(0)}`
+  return `${s}${formatCompact(a, { tiers: MONEY_TIERS, prefix: '$' })}`
 }
-const fmtShares = (v) => (v == null ? '—' : Math.abs(v) >= 1e9 ? `${(v / 1e9).toFixed(2)}B` : Math.abs(v) >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : `${v}`)
+export const fmtShares = (v) => (v == null ? '—' : Math.abs(v) >= 1e6 ? formatCompact(Number(v), { tiers: SHARES_TIERS }) : `${v}`)
 function fmtBy(v, kind) {
   if (v == null || v === '') return '—'
   switch (kind) {
