@@ -15,7 +15,7 @@
     "  components/StockChart.jsx x2, components/chart/builder/{FormulaField,PineBox}.jsx: chart workstream, not migrated here.",
     "  pages/journal-2-0/components/notebook/AskPanel.jsx: Notebook workstream, not migrated here."
   ],
-  "total": 43,
+  "total": 37,
   "files": {
     "components/RsBadge.jsx": 1,
     "components/StockChart.jsx": 2,
@@ -34,12 +34,6 @@
     "pages/OptionsFlow.jsx": 1,
     "pages/Watchlists.jsx": 1,
     "pages/charts/widgets/AiSearchWidget.jsx": 4,
-    "pages/charts/widgets/NewHighsLowsWidget.jsx": 1,
-    "pages/charts/widgets/NhnlPulseWidget.jsx": 1,
-    "pages/charts/widgets/PeriodSortResults.jsx": 1,
-    "pages/charts/widgets/ScannerResults.jsx": 1,
-    "pages/charts/widgets/ScatterWidget.jsx": 1,
-    "pages/charts/widgets/VolumeScanWidget.jsx": 1,
     "pages/charts/widgets/dockPrefetch.js": 1,
     "pages/journal-2-0/components/notebook/AskPanel.jsx": 1,
     "pages/journal-2-0/components/position/PositionDetailPage.jsx": 1,
