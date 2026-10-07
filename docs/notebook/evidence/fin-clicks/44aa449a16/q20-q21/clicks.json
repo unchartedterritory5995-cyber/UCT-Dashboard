@@ -1,0 +1,5741 @@
+{
+ "tool": "tools/notebook_w13q_clicks.py",
+ "tree": "44aa449a160fb1106ef3852b4506b9762db9bd5d",
+ "started": "2026-10-07T12:25:29+00:00",
+ "partial": {
+  "flows": [
+   "Q20",
+   "Q21"
+  ],
+  "modes": null
+ },
+ "sandbox_flags": {
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED": "1",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": "1",
+  "NOTEBOOK_PLAN_GRADING_ENABLED": "1",
+  "NOTEBOOK_PLAYBOOK_ENABLED": "1",
+  "AWARENESS_NOTE_RESURFACE_ENABLED": "1",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED": "1",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED": "1",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": "1",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED": "1",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED": "1",
+  "NOTEBOOK_CHART_PLAN_ENABLED": "1",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED": "1",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": "1",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED": "1",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED": "1",
+  "NOTEBOOK_VOICE_NOTES_ENABLED": "1",
+  "NOTEBOOK_AI_ACTIONS_ENABLED": "1",
+  "NOTEBOOK_FORMULAS_ENABLED": "1",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_GETTING_STARTED_ENABLED": "1"
+ },
+ "tab_cap": 600,
+ "budgets": {
+  "Q1": {
+   "flow": "new blank note, cursor in body",
+   "mouse": 2,
+   "keys": 3,
+   "taps": 2,
+   "owner": "Notebook core"
+  },
+  "Q2": {
+   "flow": "new note from a template with a ticker",
+   "mouse": 4,
+   "keys": 6,
+   "taps": 4,
+   "owner": "Notebook templates (12B)"
+  },
+  "Q3": {
+   "flow": "open a note by title",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "Notebook core"
+  },
+  "Q4": {
+   "flow": "search, open a hit",
+   "mouse": 3,
+   "keys": 5,
+   "taps": 3,
+   "owner": "Notebook core"
+  },
+  "Q5": {
+   "flow": "today's daily note",
+   "mouse": 1,
+   "keys": 2,
+   "taps": 1,
+   "owner": "Notebook core"
+  },
+  "Q6": {
+   "flow": "link a note to a trade",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "Notebook core / Journal"
+  },
+  "Q7": {
+   "flow": "save Screener results to a note (337 Tabs today)",
+   "mouse": 3,
+   "keys": 10,
+   "taps": 3,
+   "owner": "Screener (ScannerShell.jsx)"
+  },
+  "Q8": {
+   "flow": "save a price or consensus fact",
+   "mouse": 3,
+   "keys": 8,
+   "taps": 3,
+   "owner": "Notebook capture"
+  },
+  "Q9": {
+   "flow": "ask the Notebook, insert the answer",
+   "mouse": 3,
+   "keys": 5,
+   "taps": 3,
+   "owner": "Notebook Ask"
+  },
+  "Q10": {
+   "flow": "task with a due date",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "Notebook core"
+  },
+  "Q11": {
+   "flow": "tag and move 5 notes",
+   "mouse": 8,
+   "keys": 15,
+   "taps": 10,
+   "owner": "Notebook core"
+  },
+  "Q12": {
+   "flow": "export one note as Word",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "Notebook export"
+  },
+  "Q13": {
+   "flow": "plan grade of my last trade (13A)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13A"
+  },
+  "Q14": {
+   "flow": "My Playbook, drill a number (13B)",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "13B"
+  },
+  "Q15": {
+   "flow": "create earnings prep (13C)",
+   "mouse": 2,
+   "keys": 5,
+   "taps": 2,
+   "owner": "13C"
+  },
+  "Q16": {
+   "flow": "open a resurfaced note (13D)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13D"
+  },
+  "Q17": {
+   "flow": "answer \"why did you take it\" (13E)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13E"
+  },
+  "Q18": {
+   "flow": "draft this week's review, open a leak (13F)",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "13F"
+  },
+  "Q19": {
+   "flow": "save a transcript passage to a thesis (13G)",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 4,
+   "owner": "13G"
+  },
+  "Q20": {
+   "flow": "insert a chart, draw entry, stop and target, read size (13H)",
+   "mouse": 6,
+   "keys": 10,
+   "taps": 8,
+   "owner": "13H"
+  },
+  "Q21": {
+   "flow": "arm an alert at a drawn stop (13H)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13H"
+  },
+  "Q22": {
+   "flow": "filter the visual playbook to one setup (13I)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "13I"
+  },
+  "Q23": {
+   "flow": "morning board, open the closest setup, find similar (13J)",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "13J"
+  }
+ },
+ "rows": [
+  {
+   "flow": "Q20",
+   "name": "insert a chart, draw entry, stop and target, read size (13H)",
+   "owner": "13H",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 6,
+   "measured": null,
+   "verdict": "INCONCLUSIVE",
+   "reason": "driver could not complete: TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-widget-embed-view=\\\"chart\\\"]\").first.get_by_role(\"button\", name=\"Draw\", exact=True).first\n    - locator resolved to <button type=\"button\" class=\"_toolBtn_farkn_319 \" data-tour=\"chart-plan-draw\" title=\"Draw on this snapshot (lines, text — saved with the embed)\">Draw</button>\n  - attempting click action\n    - waiting f",
+   "tabs": 0,
+   "keystrokes": 2,
+   "clicks": 1,
+   "taps": 0,
+   "time_s": 46.25,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "chart NVDA",
+     "on": "slash query"
+    },
+    {
+     "do": "click",
+     "on": "Chart — NVDA"
+    }
+   ],
+   "outcome": null,
+   "notes": "bars are a fixture; levels placed by the 13H-2 walk's drawing helper",
+   "measured_before_stop": 1,
+   "traceback": "d_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-widget-embed-view=\\\"chart\\\"]\").first.get_by_role(\"button\", name=\"Draw\", exact=True).first\n    - locator resolved to <button type=\"button\" class=\"_toolBtn_farkn_319 \" data-tour=\"chart-plan-draw\" title=\"Draw on this snapshot (lines, text — saved with the embed)\">Draw</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <button type=\"button\" aria-expanded=\"false\" class=\"_toolBtn_y7ahx_145 \" aria-label=\"Text color and highlight\" title=\"Text color and highlight — Ctrl+Shift+H highlights\">…</button> from <div class=\"_chrome_y7ahx_17\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - element is not visible\n  - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n      - waiting 100ms\n    51 × waiting for element to be visible, enabled and stable\n       - element is not visible\n     - retrying click action\n       - waiting 500ms\n    - waiting for element to be visible, enabled and stable\n\n",
+   "screenshot": "Q20-mouse-1280.png"
+  },
+  {
+   "flow": "Q20",
+   "name": "insert a chart, draw entry, stop and target, read size (13H)",
+   "owner": "13H",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 10,
+   "measured": null,
+   "verdict": "INCONCLUSIVE",
+   "reason": "keyboard: the chart went in for 3 keys, and then there is no keyboard way to place a level on it. Draw arms a pointer tool and a level is placed by a click or tap on the chart; the plan panel (ChartPlanPanel.jsx) names a drawn level and has no field to add one",
+   "tabs": 0,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.99,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "chart NVDA",
+     "on": "slash query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Chart — NVDA"
+    }
+   ],
+   "outcome": null,
+   "notes": "bars are a fixture; levels placed by the 13H-2 walk's drawing helper",
+   "measured_before_stop": 3,
+   "screenshot": "Q20-keys-1280.png"
+  },
+  {
+   "flow": "Q20",
+   "name": "insert a chart, draw entry, stop and target, read size (13H)",
+   "owner": "13H",
+   "mode": "keys",
+   "width": "390",
+   "budget": 10,
+   "measured": null,
+   "verdict": "INCONCLUSIVE",
+   "reason": "keyboard: the chart went in for 3 keys, and then there is no keyboard way to place a level on it. Draw arms a pointer tool and a level is placed by a click or tap on the chart; the plan panel (ChartPlanPanel.jsx) names a drawn level and has no field to add one",
+   "tabs": 0,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 1.99,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "chart NVDA",
+     "on": "slash query"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "choose Chart — NVDA"
+    }
+   ],
+   "outcome": null,
+   "notes": "bars are a fixture; levels placed by the 13H-2 walk's drawing helper",
+   "measured_before_stop": 3,
+   "screenshot": "Q20-keys-390.png"
+  },
+  {
+   "flow": "Q20",
+   "name": "insert a chart, draw entry, stop and target, read size (13H)",
+   "owner": "13H",
+   "mode": "taps",
+   "width": "390",
+   "budget": 8,
+   "measured": 13,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 13,
+   "time_s": 23.13,
+   "steps": [
+    {
+     "do": "already in body (free)",
+     "on": "note body"
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "new line"
+    },
+    {
+     "do": "key",
+     "key": "/",
+     "on": "slash trigger"
+    },
+    {
+     "do": "type (not counted)",
+     "text": "chart NVDA",
+     "on": "slash query"
+    },
+    {
+     "do": "tap",
+     "on": "Chart — NVDA"
+    },
+    {
+     "do": "tap x1 (counted from the helper's record)",
+     "on": "Draw (chart toolbar)"
+    },
+    {
+     "do": "tap x3 (counted from the helper's record)",
+     "on": "Horizontal line tool (once per level it had to be picked again)"
+    },
+    {
+     "do": "tap x3 (counted from the helper's record)",
+     "on": "place a level on the chart"
+    },
+    {
+     "do": "tap x1 (counted from the helper's record)",
+     "on": "Done (leave drawing)"
+    },
+    {
+     "do": "tap",
+     "on": "Plan (chart toolbar)"
+    },
+    {
+     "do": "tap",
+     "on": "level 1: target"
+    },
+    {
+     "do": "tap",
+     "on": "level 2: entry"
+    },
+    {
+     "do": "tap",
+     "on": "level 3: stop"
+    }
+   ],
+   "outcome": {
+    "note": "4311b7dc8d084808ae3ac745fc6a3414",
+    "levels": 3,
+    "tool_picks": 3,
+    "panel": {
+     "rr": "1.00R",
+     "shares": "68 sh"
+    },
+    "roles_stored": [
+     "entry",
+     "stop",
+     "target"
+    ]
+   },
+   "notes": "bars are a fixture; levels placed by the 13H-2 walk's drawing helper",
+   "screenshot": "Q20-taps-390.png"
+  },
+  {
+   "flow": "Q21",
+   "name": "arm an alert at a drawn stop (13H)",
+   "owner": "13H",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 2,
+   "taps": 0,
+   "time_s": 0.49,
+   "steps": [
+    {
+     "do": "click",
+     "on": "Plan (chart toolbar)"
+    },
+    {
+     "do": "click",
+     "on": "Arm alert at this level (the stop)"
+    }
+   ],
+   "outcome": {
+    "note": "cf9b3b7c79474a91b5112070ce6d6cab",
+    "alert": {
+     "sym": "NVDA",
+     "direction": "above",
+     "target_price": 140.0,
+     "drawing_id": "nb:q21-Q21-mouse-1280-6306691:d-stop"
+    }
+   },
+   "notes": "starts on a note whose chart already carries the three levels; bars are a fixture",
+   "screenshot": "Q21-mouse-1280.png"
+  },
+  {
+   "flow": "Q21",
+   "name": "arm an alert at a drawn stop (13H)",
+   "owner": "13H",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 4,
+   "measured": 600,
+   "verdict": "OVER",
+   "reason": "cap reached: 600 Tab presses never reached Plan (chart toolbar)",
+   "tabs": 600,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 12.37,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Plan (chart toolbar)",
+     "presses": 600,
+     "trail": [
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "A L % OCT 7 O 164.32 H 166.13 L 162.09 C 163.89 −2.46 −1.03%",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Arithmetic price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Logarithmic price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Percentage price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show all fields and sources",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "No setup tag Flat Base Breakout Bull Flag IPO Base Launchpad",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Visual playbook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Help & Feedback",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tap to start a conversation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Move this block",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to editor toolbar",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Intelligence — go to landing page",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Search — Ctrl+K",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Terminal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Charts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Morning Wire",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Dashboard",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "AI Search",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT 20",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Breadth",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Screener",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Options Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Flow Record",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Live Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Catalysts History",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Model Book",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Formula Reference",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "The Desk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Portfolio Risk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Account: w13q, Pro",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Support",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Website",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Notebook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Log a trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show keyboard shortcuts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Default $102,260.00 ▾",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Generate report",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open Portfolio Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "More",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide folders panel",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Show folders",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Search notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Collapse Recents",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Alert target Q21-keys-1280-6330708",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Alert target Q21-mouse-1280-6306691",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-taps-390-6270919",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-keys-390-6256377",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-keys-1280-6241543",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-mouse-1280-6132545",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA breakout thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add thesis starter views",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "All notes 23",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Unfiled 23",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Archived 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trash 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add to Favorites",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Ask a question about this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Find in note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Ticker",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Outline",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "More note actions",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Font family",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Text size",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "B",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "I",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Text color and highlight",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "H1",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "H2",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "• List",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "1. List",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "❝",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "</>",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert link",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert image",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Attach a file",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Start voice input",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Horizontal rule",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert widget",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Note title",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Subtitle",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "combobox",
+       "name": "Add a tag to this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add property",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "Note body",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "A L % OCT 7 O 164.32 H 166.13 L 162.09 C 163.89 −2.46 −1.03%",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Arithmetic price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Logarithmic price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Percentage price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show all fields and sources",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "No setup tag Flat Base Breakout Bull Flag IPO Base Launchpad",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Visual playbook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Help & Feedback",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tap to start a conversation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Move this block",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to editor toolbar",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Intelligence — go to landing page",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Search — Ctrl+K",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Terminal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Charts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Morning Wire",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Dashboard",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "AI Search",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT 20",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Breadth",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Screener",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Options Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Flow Record",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Live Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Catalysts History",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Model Book",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Formula Reference",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "The Desk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Portfolio Risk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Account: w13q, Pro",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Support",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Website",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Notebook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Log a trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show keyboard shortcuts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Default $102,260.00 ▾",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Generate report",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open Portfolio Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "More",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide folders panel",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Show folders",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Search notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Collapse Recents",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Alert target Q21-keys-1280-6330708",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Alert target Q21-mouse-1280-6306691",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-taps-390-6270919",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-keys-390-6256377",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-keys-1280-6241543",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-mouse-1280-6132545",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA breakout thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add thesis starter views",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "All notes 23",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Unfiled 23",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Archived 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trash 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add to Favorites",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Ask a question about this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Find in note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Ticker",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Outline",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "More note actions",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Font family",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Text size",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "B",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "I",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Text color and highlight",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "H1",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "H2",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "• List",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "1. List",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "❝",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "</>",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert link",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert image",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Attach a file",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Start voice input",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Horizontal rule",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert widget",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Note title",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Subtitle",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "combobox",
+       "name": "Add a tag to this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add property",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "Note body",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "A L % JUL 27 O 159.57 H 161.32 L 157.71 C 159.46 +0.73 +0.46",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Arithmetic price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Logarithmic price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Percentage price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show all fields and sources",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "No setup tag Flat Base Breakout Bull Flag IPO Base Launchpad",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Visual playbook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Help & Feedback",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tap to start a conversation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Move this block",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to editor toolbar",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Intelligence — go to landing page",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Search — Ctrl+K",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Terminal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Charts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Morning Wire",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Dashboard",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "AI Search",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT 20",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Breadth",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Screener",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Options Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Flow Record",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Live Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Catalysts History",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Model Book",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Formula Reference",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "The Desk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Portfolio Risk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Account: w13q, Pro",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Support",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Website",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Notebook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Log a trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show keyboard shortcuts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Default $102,260.00 ▾",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Generate report",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open Portfolio Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "More",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide folders panel",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Show folders",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Search notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Collapse Recents",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Alert target Q21-keys-1280-6330708",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Alert target Q21-mouse-1280-6306691",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-taps-390-6270919",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-keys-390-6256377",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-keys-1280-6241543",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-mouse-1280-6132545",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA breakout thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add thesis starter views",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "All notes 23",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Unfiled 23",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Archived 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trash 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add to Favorites",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Ask a question about this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Find in note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Ticker",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Outline",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "More note actions",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Font family",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Text size",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "B",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "I",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Text color and highlight",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "H1",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "H2",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "• List",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "1. List",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "❝",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "</>",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert link",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert image",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Attach a file",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Start voice input",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Horizontal rule",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert widget",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Note title",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Subtitle",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "combobox",
+       "name": "Add a tag to this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add property",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "Note body",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "A L % JUL 27 O 159.57 H 161.32 L 157.71 C 159.46 +0.73 +0.46",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Arithmetic price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Logarithmic price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Percentage price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show all fields and sources",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "No setup tag Flat Base Breakout Bull Flag IPO Base Launchpad",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Visual playbook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Help & Feedback",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tap to start a conversation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Move this block",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to editor toolbar",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Intelligence — go to landing page",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Search — Ctrl+K",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Terminal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Charts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Morning Wire",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Dashboard",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "AI Search",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT 20",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Breadth",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Screener",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Options Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Flow Record",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Live Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Catalysts History",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Model Book",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Formula Reference",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "The Desk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Portfolio Risk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Account: w13q, Pro",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Support",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Website",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Notebook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Log a trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show keyboard shortcuts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Default $102,260.00 ▾",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Generate report",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open Portfolio Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "More",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide folders panel",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Show folders",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Search notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Collapse Recents",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Alert target Q21-keys-1280-6330708",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Alert target Q21-mouse-1280-6306691",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-taps-390-6270919",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-keys-390-6256377",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-keys-1280-6241543",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-mouse-1280-6132545",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA breakout thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add thesis starter views",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "All notes 23",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Unfiled 23",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Archived 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trash 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add to Favorites",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Ask a question about this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Find in note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Ticker",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Outline",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "More note actions",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Font family",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Text size",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "B",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "I",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Text color and highlight",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "H1",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "H2",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "• List",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "1. List",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "❝",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "</>",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert link",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert image",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Attach a file",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Start voice input",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Horizontal rule",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert widget",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Note title",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Subtitle",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "combobox",
+       "name": "Add a tag to this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add property",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "Note body",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "A L % JUL 27 O 159.57 H 161.32 L 157.71 C 159.46 +0.73 +0.46",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Arithmetic price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Logarithmic price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Percentage price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show all fields and sources",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "No setup tag Flat Base Breakout Bull Flag IPO Base Launchpad",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Visual playbook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Help & Feedback",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tap to start a conversation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Move this block",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to editor toolbar",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Intelligence — go to landing page",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Search — Ctrl+K",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Terminal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Charts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Morning Wire",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Dashboard",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "AI Search",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT 20",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Breadth",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Screener",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Options Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Flow Record",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Live Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Catalysts History",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Model Book",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Formula Reference",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "The Desk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Portfolio Risk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Account: w13q, Pro",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Support",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Website",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Notebook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Log a trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show keyboard shortcuts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Default $102,260.00 ▾",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Generate report",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open Portfolio Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "More",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide folders panel",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Show folders",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Search notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Collapse Recents",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Alert target Q21-keys-1280-6330708",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Alert target Q21-mouse-1280-6306691",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-taps-390-6270919",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-keys-390-6256377",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-keys-1280-6241543",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-mouse-1280-6132545",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA breakout thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add thesis starter views",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "All notes 23",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Unfiled 23",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Archived 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trash 0",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis keys-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis mouse-1280",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Rename Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add subfolder to Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Delete Semis taps-390",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "+ New folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add to Favorites",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Ask a question about this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Find in note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Ticker",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Outline",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "More note actions",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Font family",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Text size",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "B",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "I",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Text color and highlight",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "H1",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "H2",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "• List",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "1. List",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "❝",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "</>",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert link",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert image",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Attach a file",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Start voice input",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Horizontal rule",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Insert widget",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Note title",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Subtitle",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "combobox",
+       "name": "Add a tag to this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add property",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "Note body",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "A L % OCT 7 O 164.32 H 166.13 L 162.09 C 163.89 −2.43 −1.02%",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Arithmetic price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Logarithmic price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Percentage price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show all fields and sources",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "No setup tag Flat Base Breakout Bull Flag IPO Base Launchpad",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Visual playbook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Help & Feedback",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Tap to start a conversation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Move this block",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BODY",
+       "name": ""
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to editor toolbar",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Intelligence — go to landing page",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Search — Ctrl+K",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Terminal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Charts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Morning Wire",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Dashboard",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "AI Search",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT 20",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Breadth",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Screener",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Options Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Flow Record",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Live Flow",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Catalysts History",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Model Book",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Formula Reference",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "The Desk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Journal",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Portfolio Risk",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Account: w13q, Pro",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Support",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "UCT Website",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Notebook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Log a trade",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Show keyboard shortcuts",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Default $102,260.00 ▾",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Generate report",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Open Portfolio Settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "More",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide folders panel",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Show folders",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Search notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Collapse Recents",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Alert target Q21-keys-1280-6330708",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Alert target Q21-mouse-1280-6306691",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-taps-390-6270919",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-keys-390-6256377",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-keys-1280-6241543",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart target Q20-mouse-1280-6132545",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA breakout thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add thesis starter views",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "All notes 23",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Unfiled 23",
+       "testid": "",
+       "ce": false
+      }
+     ],
+     "capped": true
+    }
+   ],
+   "outcome": null,
+   "notes": "starts on a note whose chart already carries the three levels; bars are a fixture",
+   "screenshot": "Q21-keys-1280.png"
+  },
+  {
+   "flow": "Q21",
+   "name": "arm an alert at a drawn stop (13H)",
+   "owner": "13H",
+   "mode": "keys",
+   "width": "390",
+   "budget": 4,
+   "measured": 37,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 35,
+   "keystrokes": 2,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.76,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Plan (chart toolbar)",
+     "presses": 7,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide toolbar",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Embed timeframe",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Freeze to snapshot",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Half width (pair two side-by-side)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Draw on this snapshot (lines, text — saved with the embed)",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Open NVDA on the Charts page",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trade plan — mark drawn lines as entry, stop or target; size",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Plan (chart toolbar)"
+    },
+    {
+     "do": "tab-run",
+     "to": "Arm alert at this level (the stop)",
+     "presses": 28,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "What happened next — replay bar by bar from this note's date",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Re-capture the archive image",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Chart settings",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Sync from my chart — pull your current Charts-page settings ",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Freeze — make the chart static (no crosshair, not interactiv",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Remove embed",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "A L % OCT 7 O 164.32 H 166.13 L 162.09 C 163.89 −2.36 −0.99%",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Arithmetic price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Logarithmic price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Percentage price scale",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "None",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "Entry",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "Stop",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "Target",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Alert direction at 180.00",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Arm alert at this level, 180.00",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "None",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "Entry",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "Stop",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "Target",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Alert direction at 150.00",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Arm alert at this level, 150.00",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "None",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "Entry",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "Stop",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "radio",
+       "name": "Target",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Alert direction at 140.00",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Arm alert at this level, 140.00",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Arm alert at this level (the stop)"
+    }
+   ],
+   "outcome": {
+    "note": "567135ed86fb4075a71ebdb9b3b3e548",
+    "alert": {
+     "sym": "NVDA",
+     "direction": "above",
+     "target_price": 140.0,
+     "drawing_id": "nb:q21-Q21-keys-390-6365355:d-stop"
+    }
+   },
+   "notes": "starts on a note whose chart already carries the three levels; bars are a fixture",
+   "screenshot": "Q21-keys-390.png"
+  },
+  {
+   "flow": "Q21",
+   "name": "arm an alert at a drawn stop (13H)",
+   "owner": "13H",
+   "mode": "taps",
+   "width": "390",
+   "budget": 2,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 2,
+   "time_s": 0.49,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "Plan (chart toolbar)"
+    },
+    {
+     "do": "tap",
+     "on": "Arm alert at this level (the stop)"
+    }
+   ],
+   "outcome": {
+    "note": "49a6e5a4b2f54b8dac0fe9703710577a",
+    "alert": {
+     "sym": "NVDA",
+     "direction": "above",
+     "target_price": 140.0,
+     "drawing_id": "nb:q21-Q21-taps-390-6388075:d-stop"
+    }
+   },
+   "notes": "starts on a note whose chart already carries the three levels; bars are a fixture",
+   "screenshot": "Q21-taps-390.png"
+  }
+ ],
+ "wide_px": 1280,
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-clicks\\44aa449a16\\q20-q21\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 07:25:38",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 07:26:28",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-07 07:28:24",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 07:33:40",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-clicks\\44aa449a16\\q20-q21\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-nav\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T07-25-32.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "seed_child": "SEEDED C:\\data-fin-clicks\\final-s\\screener.db 30 30",
+ "seed_research_child": "SEEDED C:\\data-fin-clicks\\final-s\\transcript_index.db",
+ "page_errors": [],
+ "auth_me_flags": {
+  "j2_share_links_enabled": false,
+  "notebook_ai_actions_enabled": true,
+  "notebook_ask_insert_on": true,
+  "notebook_attachments_on": false,
+  "notebook_chart_plan_enabled": true,
+  "notebook_conflict_ux_on": false,
+  "notebook_door_guard": "full",
+  "notebook_earnings_prep_enabled": true,
+  "notebook_entry_context_enabled": true,
+  "notebook_find_similar_enabled": true,
+  "notebook_formulas_enabled": true,
+  "notebook_getting_started_enabled": true,
+  "notebook_image_docx_documents_enabled": false,
+  "notebook_offline_default_on": true,
+  "notebook_offline_read_on": false,
+  "notebook_onboarding_enabled": true,
+  "notebook_passed_setups_enabled": true,
+  "notebook_plan_grading_enabled": true,
+  "notebook_playbook_enabled": true,
+  "notebook_publish_enabled": false,
+  "notebook_review_drafts_enabled": true,
+  "notebook_semantic_search_enabled": false,
+  "notebook_setups_board_enabled": true,
+  "notebook_ta_fingerprint_enabled": true,
+  "notebook_task_reminders_enabled": true,
+  "notebook_template_gallery_enabled": true,
+  "notebook_thesis_chips_enabled": true,
+  "notebook_trade_canvas_enabled": true,
+  "notebook_transcript_capture_enabled": true,
+  "notebook_visual_playbook_enabled": true,
+  "notebook_voice_notes_enabled": true,
+  "notebook_writing_help_enabled": false
+ },
+ "seed": {
+  "notes": {
+   "NVDA breakout thesis": "0b51ff62d1ee41f686cfc1e9b8befbea",
+   "Semis rotation notes": "33c14e92d1774d4c86f423f5487fe73a",
+   "AMD earnings recap": "a4639ded71734842b6d80c10e6c3f002",
+   "Weekly review draft": "16d87d3e0c824f1a86b794a486b143d0",
+   "CRWD base watch": "c93765fb09d5490ab27c8c5c5d6db39f",
+   "Market regime journal": "ce4bea13b10b4fcf875e49b4f60a294a",
+   "PLTR pullback plan": "d16de20730d14dc291fbbed051543d59",
+   "Risk rules": "321668fcadc74a4fbd87cc2fb92f4419"
+  },
+  "position_http": 200,
+  "position_id": "6c121336-f090-4e13-9202-66eb9fe39680",
+  "watchlist_http": 200,
+  "folders": {
+   "mouse-1280": {
+    "id": "eaea8ab55c8a413cb58e3aee092862dd",
+    "name": "Semis mouse-1280"
+   },
+   "keys-1280": {
+    "id": "97f8883f4b564428bb41ae054d867576",
+    "name": "Semis keys-1280"
+   },
+   "keys-390": {
+    "id": "39443e1e49c642129d9fe0b06be04607",
+    "name": "Semis keys-390"
+   },
+   "taps-390": {
+    "id": "d971f4d1386848b5a5f551bbf8101f30",
+    "name": "Semis taps-390"
+   }
+  },
+  "trade_id": "60944426-ef9d-4643-8217-a5daa3dc54da",
+  "trade_http": 200,
+  "plan_note_http": 200,
+  "plan_trade_id": "a42ad48e-be10-477f-baf9-98b6b32ffe12",
+  "plan_trade_why": "HTTP 200",
+  "plan_grade_http": 200,
+  "account_risk": {
+   "account": "8b25dec8-03c9-4c23-a765-c285369cf48d",
+   "http": 200
+  },
+  "playbook": {
+   "setup": "Pullback",
+   "trades": 25,
+   "http": [
+    200
+   ]
+  },
+  "review_week": {
+   "week_start": "2026-10-05",
+   "http": [
+    200,
+    200,
+    200,
+    200
+   ]
+  },
+  "why_positions": {
+   "mouse-1280": {
+    "symbol": "COST",
+    "http": 200
+   },
+   "keys-1280": {
+    "symbol": "ADBE",
+    "http": 200
+   },
+   "keys-390": {
+    "symbol": "INTC",
+    "http": 200
+   },
+   "taps-390": {
+    "symbol": "CSCO",
+    "http": 200
+   }
+  },
+  "visual_playbook": {
+   "AMD": {
+    "id": "ea46873ba3ff47e3a177e70c6c88b9a8",
+    "tag": "VCP",
+    "http": 200
+   },
+   "TSLA": {
+    "id": "087919ff95b043898e38c9cadfcb925e",
+    "tag": "VCP",
+    "http": 200
+   },
+   "MSFT": {
+    "id": "f4870864829a4aa9b244913c22c5e18f",
+    "tag": "Flat Base Breakout",
+    "http": 200
+   },
+   "META": {
+    "id": "93037b81c73f448697b80313eed40b6e",
+    "tag": "Bull Flag",
+    "http": 200
+   }
+  },
+  "board_notes_http": {
+   "ZQVA": 200,
+   "ZQVB": 200,
+   "ZQVC": 200
+  },
+  "board_nightly": {
+   "ran": true,
+   "asOf": "2026-10-07",
+   "universe": 1,
+   "universeTruncated": false,
+   "members": 1,
+   "templates": 5,
+   "rows": 5,
+   "thin": 0,
+   "deferred": 0,
+   "errors": 0,
+   "patternReads": 1,
+   "seconds": 0.107
+  },
+  "resurface": {
+   "note": "1760af5defbf41a1a531c3414951ddeb",
+   "link": "/journal/notebook?note=1760af5defbf41a1a531c3414951ddeb&resurfaceVersion=97d34cf1155c46469f45add23174053f",
+   "fired": 1
+  }
+ },
+ "first_visit_text": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\n1\nPortfolio Risk\nw13q\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$102,260.00\n▾\nFolder navigation\nAdd thesis starter views\nAll notes\n17\nUnfiled\n17\nArchived\n0\nTrash\n0\nSemis keys-1280\n+\nSemis keys-390\n+\nSemis mouse-1280\n+\nSemis taps-390\n+\n+ New folder\nResearch home\nAsk Notebook to do something\nREPORTING SOON\nYour watchlist, flagged and open-position names, next 7 days\n$NVDA\nFri, Oct 9, after the close\nOpen position\nCreate prep note\nPASSED SETUPS\nNames you saved from a scan or a watchlist and did not trade — what happened next\nTicker\nPassed on\nAdd\n\nNothing here yet. Names you save from a scanner or add to a watchlist show up here, scored on what they did next — or add one above.\n\nREVIEWS THAT WRITE THEMSELVES\nToday's recap\nThis week's review\nThis month's review\nGET STARTED\n1 of 18 done\nHide\nWrite your first note\nDone\nStart a note from a template\nTake the Notebook basics tour\nTake the Task reminders tour\nTake the Template gallery tour\nTake the Formulas and rollups tour\nTake the Plan versus execution grading tour\nTake the Entry context card tour\nTake the Reviews that write themselves tour\nTake the My Playbook tour\nTake the Char",
+ "onboarding_cleared_in_setup": [
+  "base tour not on screen",
+  "get-started checklist hidden",
+  "tour offer declined: New in your Notebook: Task reminders",
+  "voice dictation tip dismissed"
+ ],
+ "raw": {
+  "bars_fixture_served": [
+   {
+    "url": "bars/warm",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-10-07",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/warm",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-10-07",
+    "n": 353
+   },
+   {
+    "url": "bars/warm",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-10-07",
+    "n": 353
+   },
+   {
+    "url": "bars/warm",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-10-07",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/warm",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=600",
+    "n": 353
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 71
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   }
+  ],
+  "drawing_helper": {
+   "Q20-mouse-1280-6132545": {},
+   "Q20-taps-390-6270919": {
+    "q20_draw_attempts": [
+     {
+      "stuck": true,
+      "events": [
+       [
+        "pointerdown",
+        26817,
+        "BUTTON._toolBtn_farkn_319 []",
+        true,
+        ""
+       ],
+       [
+        "mousedown",
+        26820,
+        "BUTTON._toolBtn_farkn_319 []",
+        true,
+        ""
+       ],
+       [
+        "pm-blur",
+        26820
+       ],
+       [
+        "pm-focus",
+        26823,
+        "    at HTMLDivElement.eval (eval at evaluate (:290:30), <anonymous>:4:12)"
+       ],
+       [
+        "mouseup",
+        26824,
+        "BUTTON._toolBtn_farkn_319 []",
+        true,
+        ""
+       ],
+       [
+        "click",
+        26824,
+        "BUTTON._toolBtn_farkn_319 []",
+        true,
+        ""
+       ],
+       [
+        "class",
+        "annotating",
+        26838
+       ]
+      ]
+     }
+    ],
+    "q20_canvas_box": [
+     61,
+     112.03125,
+     268,
+     300
+    ],
+    "q20_tool_matches": [
+     [
+      {
+       "tag": "BUTTON",
+       "label": "Horizontal",
+       "text": "Horizontal",
+       "rect": [
+        175,
+        363,
+        60,
+        44
+       ],
+       "visible": true
+      }
+     ],
+     [
+      {
+       "tag": "BUTTON",
+       "label": "Horizontal",
+       "text": "Horizontal",
+       "rect": [
+        121,
+        363,
+        60,
+        44
+       ],
+       "visible": true
+      }
+     ],
+     [
+      {
+       "tag": "BUTTON",
+       "label": "Horizontal",
+       "text": "Horizontal",
+       "rect": [
+        121,
+        363,
+        60,
+        44
+       ],
+       "visible": true
+      }
+     ]
+    ],
+    "q20_armed_before_tap": [
+     {
+      "frac": 0.28,
+      "armed": false,
+      "basis": "aria-pressed",
+      "ariaPressed": "false",
+      "boxShadow": "none"
+     },
+     {
+      "frac": 0.5,
+      "armed": false,
+      "basis": "aria-pressed",
+      "ariaPressed": "false",
+      "boxShadow": "none"
+     },
+     {
+      "frac": 0.72,
+      "armed": false,
+      "basis": "aria-pressed",
+      "ariaPressed": "false",
+      "boxShadow": "none"
+     }
+    ],
+    "q20_drawbar_geometry": [
+     {
+      "frac": 0.28,
+      "bar": [
+       61,
+       358,
+       268,
+       54
+      ],
+      "tools": [
+       121,
+       363,
+       59,
+       44
+      ],
+      "allTools": [
+       182,
+       363,
+       44,
+       44
+      ],
+      "done": [
+       65,
+       363,
+       54,
+       44
+      ],
+      "side": [
+       228,
+       363,
+       97,
+       44
+      ],
+      "horizCenter": [
+       205,
+       385
+      ],
+      "elementAtHorizCenter": "BUTTON._scaleToggleBtn_1ommr_2221 _scaleToggleActive_1ommr_2269[Arithmetic price scale]",
+      "toolsScrollWidth": 1099,
+      "toolsClientWidth": 59,
+      "toolsOverflowX": "auto"
+     },
+     {
+      "frac": 0.5,
+      "bar": [
+       61,
+       358,
+       268,
+       54
+      ],
+      "tools": [
+       121,
+       363,
+       59,
+       44
+      ],
+      "allTools": [
+       182,
+       363,
+       44,
+       44
+      ],
+      "done": [
+       65,
+       363,
+       54,
+       44
+      ],
+      "side": [
+       228,
+       363,
+       97,
+       44
+      ],
+      "horizCenter": [
+       151,
+       385
+      ],
+      "elementAtHorizCenter": "svg.[object SVGAnimatedString][]",
+      "toolsScrollWidth": 1099,
+      "toolsClientWidth": 59,
+      "toolsOverflowX": "auto"
+     },
+     {
+      "frac": 0.72,
+      "bar": [
+       61,
+       358,
+       268,
+       54
+      ],
+      "tools": [
+       121,
+       363,
+       59,
+       44
+      ],
+      "allTools": [
+       182,
+       363,
+       44,
+       44
+      ],
+      "done": [
+       65,
+       363,
+       54,
+       44
+      ],
+      "side": [
+       228,
+       363,
+       97,
+       44
+      ],
+      "horizCenter": [
+       151,
+       385
+      ],
+      "elementAtHorizCenter": "svg.[object SVGAnimatedString][]",
+      "toolsScrollWidth": 1099,
+      "toolsClientWidth": 59,
+      "toolsOverflowX": "auto"
+     }
+    ],
+    "q20_tap_points": [
+     {
+      "frac": 0.28,
+      "box": [
+       61,
+       112.03125,
+       268,
+       300
+      ],
+      "x": 181.6,
+      "y": 196.0
+     },
+     {
+      "frac": 0.5,
+      "box": [
+       61,
+       112.03125,
+       268,
+       300
+      ],
+      "x": 181.6,
+      "y": 262.0
+     },
+     {
+      "frac": 0.72,
+      "box": [
+       61,
+       112.03125,
+       268,
+       300
+      ],
+      "x": 181.6,
+      "y": 328.0
+     }
+    ],
+    "q20_lines_after_tap": [
+     {
+      "attempt": 1,
+      "stored_count": 1,
+      "reached_in_10s": true,
+      "class": "_frame_farkn_5 _full_farkn_41  _annotating_farkn_81  "
+     },
+     {
+      "attempt": 2,
+      "stored_count": 2,
+      "reached_in_10s": true,
+      "class": "_frame_farkn_5 _full_farkn_41  _annotating_farkn_81  "
+     },
+     {
+      "attempt": 3,
+      "stored_count": 3,
+      "reached_in_10s": true,
+      "class": "_frame_farkn_5 _full_farkn_41  _annotating_farkn_81  "
+     }
+    ]
+   }
+  }
+ },
+ "driver_imported_api": [],
+ "finished": "2026-10-07T12:34:10+00:00",
+ "status": "COMPLETE"
+}

@@ -1,0 +1,243 @@
+{
+ "result": {
+  "enabled": true,
+  "scanned_users": 2,
+  "fired": 0,
+  "regime_degraded": false,
+  "resurface": {
+   "members": 1,
+   "priced_symbols": 1,
+   "fired": 0,
+   "sides_moved": 2,
+   "notes_projected": 17,
+   "notes_removed": 0,
+   "rows_written": 28,
+   "notes_behind": 0
+  }
+ },
+ "insights": [],
+ "levels": [
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "29bd70df13644820a985cfd51fd07ff7",
+   "level_id": "note",
+   "symbol": "MSFT",
+   "role": "note",
+   "price": null,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "64754bb75a694c22852e63179634e40c",
+   "level_id": "note",
+   "symbol": "TSLA",
+   "role": "note",
+   "price": null,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "6ed373b315874bc4b755d7f9b720dd5e",
+   "level_id": "entry@102.0",
+   "symbol": "ZQVA",
+   "role": "entry",
+   "price": 102.0,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "6ed373b315874bc4b755d7f9b720dd5e",
+   "level_id": "note",
+   "symbol": "ZQVA",
+   "role": "note",
+   "price": null,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "6ed373b315874bc4b755d7f9b720dd5e",
+   "level_id": "stop@97.0",
+   "symbol": "ZQVA",
+   "role": "stop",
+   "price": 97.0,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "6ed373b315874bc4b755d7f9b720dd5e",
+   "level_id": "target@115.0",
+   "symbol": "ZQVA",
+   "role": "target",
+   "price": 115.0,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "76326caee8df4f9593abdc91e05ce389",
+   "level_id": "entry@100.0",
+   "symbol": "NVDA",
+   "role": "entry",
+   "price": 100.0,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "76326caee8df4f9593abdc91e05ce389",
+   "level_id": "note",
+   "symbol": "NVDA",
+   "role": "note",
+   "price": null,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "76326caee8df4f9593abdc91e05ce389",
+   "level_id": "stop@96.0",
+   "symbol": "NVDA",
+   "role": "stop",
+   "price": 96.0,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "76326caee8df4f9593abdc91e05ce389",
+   "level_id": "target@120.0",
+   "symbol": "NVDA",
+   "role": "target",
+   "price": 120.0,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "a1e7a3693281464f95a952440cceb120",
+   "level_id": "note",
+   "symbol": "META",
+   "role": "note",
+   "price": null,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "a9a9f420c40d4007b109623f5fd30073",
+   "level_id": "note",
+   "symbol": "AMD",
+   "role": "note",
+   "price": null,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "aea8fdb800894d03992575b8355a1321",
+   "level_id": "entry@55.0",
+   "symbol": "ZQVB",
+   "role": "entry",
+   "price": 55.0,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "aea8fdb800894d03992575b8355a1321",
+   "level_id": "note",
+   "symbol": "ZQVB",
+   "role": "note",
+   "price": null,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "bbab30c48b3c47d8a2ec979ca3ec00eb",
+   "level_id": "entry@180.0",
+   "symbol": "ZQVC",
+   "role": "entry",
+   "price": 180.0,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "bbab30c48b3c47d8a2ec979ca3ec00eb",
+   "level_id": "note",
+   "symbol": "ZQVC",
+   "role": "note",
+   "price": null,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "bbab30c48b3c47d8a2ec979ca3ec00eb",
+   "level_id": "stop@190.0",
+   "symbol": "ZQVC",
+   "role": "stop",
+   "price": 190.0,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "d40b39b6ff3749668f52391e060e986f",
+   "level_id": "note",
+   "symbol": "ORCL",
+   "role": "note",
+   "price": null,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "d40b39b6ff3749668f52391e060e986f",
+   "level_id": "stop@100.0",
+   "symbol": "ORCL",
+   "role": "stop",
+   "price": 100.0,
+   "on_date": null,
+   "version_id": "a106be43da9148d0aa735138b4a5e59f",
+   "last_side": "above"
+  },
+  {
+   "user_id": "795f7d02-e031-401d-b546-a481a66da787",
+   "note_id": "d40b39b6ff3749668f52391e060e986f",
+   "level_id": "target@130.0",
+   "symbol": "ORCL",
+   "role": "target",
+   "price": 130.0,
+   "on_date": null,
+   "version_id": null,
+   "last_side": "below"
+  }
+ ],
+ "fires": [],
+ "deliver_calls": 0
+}
