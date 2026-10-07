@@ -49,7 +49,7 @@ describe('layout awareness (read-only)', () => {
     expect(L.layouts).toContainEqual({ id: 'uct-default', name: 'UCT Default', kind: 'built-in' })
     expect(JSON.stringify(L)).not.toMatch(/widgets|chartSettings/)
   })
-  it('"what layout am I on" / "what layouts do I have" answer locally from real state; queries are not in the model manifest', () => {
+  it('"what layout am I on" / "what layouts do I have" answer locally from real state', () => {
     const { host, state } = lib()
     const before = JSON.stringify(state)
     const cur = fastParse('What layout am I on?', { host })
@@ -61,10 +61,9 @@ describe('layout awareness (read-only)', () => {
     const text = getCapability('layout.list').answer({ ref: 'layouts', ...snap }, {})
     expect(text).toBe('Yours: Agent Test (open), Intraday Scan, Momentum, Momentum 2, Momentum Swing\nPrebuilt: 1-Chart\nBuilt-in: UCT Default')
     expect(JSON.stringify(state)).toBe(before)
+    // The model can ROUTE to the queries too, so its answer is UCT's real list, never its own reading.
     const names = manifestFor(CTX).map(c => c.name)
-    expect(names).toEqual(expect.arrayContaining(['layout.open', 'layout.saveAs', 'layout.rename']))
-    expect(names).not.toContain('layout.list')
-    expect(names).not.toContain('layout.current')
+    expect(names).toEqual(expect.arrayContaining(['layout.open', 'layout.saveAs', 'layout.rename', 'layout.list', 'layout.current']))
   })
 })
 

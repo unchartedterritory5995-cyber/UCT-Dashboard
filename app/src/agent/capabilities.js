@@ -44,8 +44,8 @@ export function registerCapability(cap) {
     throw new Error(`${cap.name}: args must be a closed object whose properties are all required`)
   }
   // A QUERY capability only reads: `answer(snapshot, args)` returns the reply, and
-  // nothing is planned or committed. Queries are answered locally (fast path) and
-  // are not in the model's manifest — the model answers from the context instead.
+  // nothing is planned or committed. The model may route to it (so the answer comes
+  // from real state, not the model's reading of the context); the fast path too.
   const fns = cap.query ? ['answer'] : ['check', 'apply', 'describe']
   for (const fn of fns) {
     if (typeof cap[fn] !== 'function') throw new Error(`${cap.name}: ${fn}() required`)
@@ -120,7 +120,7 @@ export function availableCapabilities(ctx = {}) {
 
 /** The model-facing manifest: metadata only, no code. */
 export function manifestFor(ctx = {}) {
-  return availableCapabilities(ctx).filter(c => !c.query).map(c => ({
+  return availableCapabilities(ctx).map(c => ({
     name: c.name, domain: c.domain, target: c.target, summary: c.summary,
     hints: c.hints || null, args: c.args, risk: c.risk, reversible: c.reversible !== false,
   }))

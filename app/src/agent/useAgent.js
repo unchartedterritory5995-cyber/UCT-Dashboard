@@ -86,15 +86,18 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const execute = useCallback(async (ops, { path, mode: suggested, member, voice }) => {
-    const targets = collectTargets(host, kindsOf(ops))
-    // QUERIES only read: answered from the target's own snapshot, nothing planned.
-    if (ops.length && ops.every(o => getCapability(o?.action)?.query)) {
-      const text = ops.map(o => getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {})).join('\n\n')
+  const execute = useCallback(async (allOps, { path, mode: suggested, member, voice }) => {
+    const targets = collectTargets(host, kindsOf(allOps))
+    // QUERIES only read: answered from the target's own snapshot, never planned. A
+    // plan that also changes something answers its queries and plans the rest.
+    const queries = allOps.filter(o => getCapability(o?.action)?.query)
+    if (queries.length) {
+      const text = queries.map(o => getCapability(o.action).answer(targets.get(o.target)?.snap || null, o.args || {})).join('\n\n')
       push({ role: 'agent', text })
-      record({ member, outcome: text, outcomeData: { kind: 'answered', actions: ops.map(o => o.action) }, telemetry: { path, disposition: 'answer', actions: ops.map(o => o.action), voice } })
-      return
+      record({ member, outcome: text, outcomeData: { kind: 'answered', actions: queries.map(o => o.action) }, telemetry: { path, disposition: 'answer', actions: queries.map(o => o.action), voice } })
     }
+    const ops = allOps.filter(o => !getCapability(o?.action)?.query)
+    if (!ops.length) return
     const env = await prepareOps(ops)
     const plan = planOps(targets, ops, env, capCtx)
     const actions = ops.map(o => o.action)

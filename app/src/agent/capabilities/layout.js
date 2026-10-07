@@ -164,7 +164,8 @@ export function registerLayoutCapabilities() {
   registerCapability({
     name: 'layout.current',
     target: 'layouts', query: true, surfaces: ['charts'],
-    summary: 'Say which named layout is open.',
+    summary: 'Tell the member which named layout is open. UCT answers from the real state — use this (disposition apply) for "which layout am I on?" instead of answering yourself.',
+    hints: 'target = the ref of the layouts entry.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     fast: ({ lower }) => (/^(what|which) layout (am i (on|in|using)|is (this|open|it)|is currently open|is this board)$|^what('s| is) (my |the )?(current|active|open) layout$/.test(lower) ? {} : null),
     answer(snap) {
@@ -179,7 +180,8 @@ export function registerLayoutCapabilities() {
   registerCapability({
     name: 'layout.list',
     target: 'layouts', query: true, surfaces: ['charts'],
-    summary: 'List the named layouts.',
+    summary: 'List the member\'s named layouts. UCT answers from the real list — use this (disposition apply) whenever they ask what layouts they have, instead of listing them yourself.',
+    hints: 'target = the ref of the layouts entry.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     fast: ({ lower }) => (/^((what|which) layouts (do i have|have i got|are there)|(show|list)( me)?( all)?( of)?( my| the)? layouts|what are my layouts|my layouts)$/.test(lower) ? {} : null),
     answer(snap) {
