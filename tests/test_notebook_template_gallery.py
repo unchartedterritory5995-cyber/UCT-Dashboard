@@ -572,7 +572,6 @@ def test_every_member_route_needs_a_paid_plan(app, client, gate_on, svc):
         client.get(f"/api/j2/template-gallery/{gid}"),
         client.post(f"/api/j2/template-gallery/{gid}/use"),
         client.post(f"/api/j2/template-gallery/{gid}/report", json={"reason": "spam"}),
-        client.delete(f"/api/j2/template-gallery/{gid}"),
     ]
     for r in refused:
         assert r.status_code == 402 and "community template gallery" in r.json()["detail"], r.text
@@ -585,6 +584,23 @@ def test_every_member_route_needs_a_paid_plan(app, client, gate_on, svc):
     assert client.get("/api/j2/template-gallery").status_code == 200
     assert client.post(f"/api/j2/template-gallery/{gid}/use").status_code == 200
     assert client.post(f"/api/j2/template-gallery/{gid}/report", json={"reason": "spam"}).status_code == 200
+
+
+def test_an_author_whose_plan_lapsed_can_still_take_their_template_down(app, client, gate_on, svc):
+    """Owner ruling 2026-10-07: a member can ALWAYS take their own content down, whatever
+    their plan. Unpublish needs a session and nothing else; it removes only the caller's own."""
+    gid = _publish(svc)["id"]                                   # A's template
+    _approve(svc, gid)
+    as_user(app, B, plan=FREE)                                  # not the author: nothing to remove
+    assert client.delete(f"/api/j2/template-gallery/{gid}").status_code == 404
+    signed_out(app)
+    assert client.delete(f"/api/j2/template-gallery/{gid}").status_code == 401
+    as_user(app, A, plan=FREE)                                  # the author, with no paid plan
+    assert client.get("/api/j2/template-gallery").status_code == 402        # browsing stays paid
+    assert client.delete(f"/api/j2/template-gallery/{gid}").status_code == 200
+    conn = _conn()
+    assert conn.execute("SELECT COUNT(*) FROM j2_template_gallery WHERE id = ?", (gid,)).fetchone()[0] == 0
+    conn.close()
 
 
 def test_publish_is_rate_limited_in_process_per_hour(app, client, gate_on, monkeypatch):

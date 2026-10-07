@@ -881,7 +881,6 @@ NOTEBOOK_MODULE_PREFIX = "api.routers.notebook_"
 NOTEBOOK_PAID_BY_RULING: set[tuple[str, str]] = {
     ("GET", "/api/j2/template-gallery"),
     ("GET", "/api/j2/template-gallery/{gallery_id}"),
-    ("DELETE", "/api/j2/template-gallery/{gallery_id}"),
     ("POST", "/api/j2/template-gallery/{gallery_id}/use"),
     ("POST", "/api/j2/template-gallery/{gallery_id}/report"),
     ("GET", "/api/j2/plan-grades/trades/{trade_id}"),
@@ -913,6 +912,12 @@ NOTEBOOK_RULING_FLAGS = (
 #: in waves 12 to 15; each predates the scope the ruling was applied to here.
 _PUBLIC = "a public page: a stranger opens a share link or a published note with no account"
 _BEARER = "its own bearer token, not a session (the personal API); minting a token is paid"
+#: ⛔ OWNER RULING 2026-10-07: a member must ALWAYS be able to take their own content down,
+#: whatever their plan. A takedown is never paywalled. Each of the nineteen routes the
+#: paywall ruling closed was checked against this; only one of them does nothing but remove
+#: the caller's own content (see docs/notebook/fin-sec.md for the other eighteen).
+_TAKEDOWN = ("a member can ALWAYS take their own content down, whatever their plan (owner "
+             "ruling 2026-10-07); this route only removes the caller's own published copy")
 _OLDER = ("older than waves 12 to 15 and outside the scope the ruling was applied to in that "
           "review; session-only, a candidate for a later paid pass")
 NOTEBOOK_NOT_PAID: dict[tuple[str, str], str] = {
@@ -942,6 +947,7 @@ NOTEBOOK_NOT_PAID: dict[tuple[str, str], str] = {
     ("GET", "/api/j2/export/notebook"): _OLDER + " (a member's own data, on its way out)",
     ("GET", "/api/j2/export/notes/{note_id}"): _OLDER + " (a member's own data, on its way out)",
     ("GET", "/api/j2/link-preview"): _OLDER,
+    ("DELETE", "/api/j2/template-gallery/{gallery_id}"): _TAKEDOWN,
     ("GET", "/api/j2/notes/tasks"): _OLDER,
     ("GET", "/api/j2/notes/{note_id}/unlinked-mentions"): _OLDER,
 }
@@ -1035,6 +1041,26 @@ def test_CONTROL_with_the_flags_off_the_same_requests_are_not_plan_refusals(app,
     client = _client(app, FREE_USER)
     for key in sorted(NOTEBOOK_PAID_BY_RULING):
         assert client.request(key[0], _notebook_request(key)).status_code == 404, key
+
+
+#: The takedowns: routes whose only effect is removing the caller's own content.
+NOTEBOOK_TAKEDOWNS = {key for key, why in NOTEBOOK_NOT_PAID.items() if why is _TAKEDOWN}
+
+
+def test_a_TAKEDOWN_is_never_paywalled_but_still_needs_a_session(app, clean_overrides, notebook_flags_on):
+    """⭐ OWNER RULING 2026-10-07. A member whose plan lapsed reaches the handler (here it
+    answers 404, because the sample id names no template of theirs), and a signed-out caller
+    is still refused. Paid here would be a member unable to withdraw what they published."""
+    assert NOTEBOOK_TAKEDOWNS == {("DELETE", "/api/j2/template-gallery/{gallery_id}")}
+    routes = _notebook_routes(app)
+    for key in sorted(NOTEBOOK_TAKEDOWNS):
+        assert _notebook_class(routes[key]) == "open", f"{key[0]} {key[1]} is paywalled: a takedown never is"
+        assert get_current_user in _dep_objects(routes[key]), f"{key[0]} {key[1]} lost its session check"
+        url = _notebook_request(key)
+        free = _client(app, FREE_USER).request(key[0], url)
+        assert free.status_code not in REFUSALS, (
+            f"{key[0]} {key[1]} refused a FREE member {free.status_code}: {free.text[:160]}")
+        assert _client(app, ANON).request(key[0], url).status_code == 401
 
 
 def test_every_NOTEBOOK_require_paid_gate_is_a_REAL_paid_check(app):
