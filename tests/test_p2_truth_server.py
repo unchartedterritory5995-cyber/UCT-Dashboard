@@ -588,7 +588,7 @@ def test_BUDGET_the_cap_is_rechecked_before_the_repair_call(conv, model, monkeyp
     ({"message": "x" * 2001}, "request"),
     ({"view_pad": 40_000}, "indicator view"),
     ({"snippets": [{"role": "member", "text": "x"}] * 7}, "recent turns"),
-    ({"snippets": [{"role": "member", "text": "x" * 401}]}, "recent turn"),
+    ({"snippets": [{"role": "member", "text": "x" * 1201}]}, "recent turn"),  # P3: the cap is 1200
     ({"authoring": {"assumptions": [{"text": "x" * 300}] * 40}}, "authoring state"),
 ], ids=["message", "view", "snippet-count", "snippet-size", "state"])
 def test_BUDGET_oversized_input_is_refused_BEFORE_any_model_call(conv, model, kw, what):

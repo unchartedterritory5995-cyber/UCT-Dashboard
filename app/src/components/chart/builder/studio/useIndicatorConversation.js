@@ -30,7 +30,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { newAuthoringState, applyTurn, undo as undoState, readback, isDirty } from '../authoring'
-import { converseTurn } from '../authoring/converseClient'
+import { converseTurn, transcriptSnippets, distinctNotUnderstood } from '../authoring/converseClient'
 import { classifyTurn, OUTCOMES } from '../authoring/turnOutcome'
 import { preflight } from '../authoring/preflight'
 import { readSession, writeSession, clearSession } from '../authoring/conversationSessions'
@@ -127,9 +127,8 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     const words = String(text || '').trim()
     if (!words || busy) return false
     const before = stateRef.current
-    const snippets = transcriptRef.current.slice(-6).map((t) => (t.role === 'member'
-      ? { role: 'member', text: t.text }
-      : { role: 'assistant', text: (t.lines || []).join(' · ') }))
+    // ⭐ P3: the assistant's own replies (answer AND change) ride along as context.
+    const snippets = transcriptSnippets(transcriptRef.current)
     say({ role: 'member', text: words })
 
     // ⭐ SLICE 2 PRE-FLIGHT — an explicit other-symbol / other-timeframe request is
@@ -145,14 +144,14 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     try {
       const res = await converse({ message: words, state: before, gateCtx, snippets })
       const gaps = [
-        ...((res && res.notUnderstood) || []).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`),
+        ...distinctNotUnderstood(res).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`),
         ...((res && res.unavailable) || []).map((n) => `${n.column || n.name || 'That'} isn't available yet${n.reason ? ` — ${n.reason}` : ''}.`),
       ]
       const turn = classifyTurn(res)
       // ⛔ ANSWER / UNSUPPORTED / REFUSED: the assistant's words, and NOTHING else.
       // `state` is not touched — not even replaced with an equal copy.
       if (turn.outcome === OUTCOMES.ANSWER) {
-        say({ role: 'uct', kind: 'answer', lines: [turn.reply, ...gaps] })
+        say({ role: 'uct', kind: 'answer', reply: turn.reply, lines: [turn.reply, ...gaps] })
         return true
       }
       if (turn.outcome === OUTCOMES.UNSUPPORTED) {
@@ -177,7 +176,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       }
       if (result.status === 'question') {
         commit(out.state)
-        say({ role: 'uct', kind: 'question', questions: out.state.questions,
+        say({ role: 'uct', kind: 'question', questions: out.state.questions, reply: turn.reply || '',
           lines: [...(turn.reply ? [turn.reply] : []), ...gaps, ...out.state.questions.map((q) => q.text)] })
         return true
       }

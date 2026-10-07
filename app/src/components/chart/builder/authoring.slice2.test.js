@@ -18,7 +18,7 @@ describe('pre-flight — the SAME verdicts the server gives (shared case table)'
     expect(got ? got.gate : null).toBe(gate)
   })
   it('the refusal copy is member-safe: the ticker, never a node name or a code', () => {
-    const r = preflight('Can it compare AAPL with SPY?', { sym: 'XRPN', tf: 'D' })
+    const r = preflight('compare AAPL with SPY', { sym: 'XRPN', tf: 'D' })  // P3: an imperative (a question now reaches the model)
     expect(r.gate).toBe(GATE_SYMBOL)
     expect(r.reason).toMatch(/AAPL/)
     expect(r.reason).not.toMatch(/unsupported:|\bsym\b|node|\{/)

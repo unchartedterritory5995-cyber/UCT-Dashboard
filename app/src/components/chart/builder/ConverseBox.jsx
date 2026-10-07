@@ -32,7 +32,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import {
   newAuthoringState, openAuthoringState, applyTurn, undo, readback, isDirty, PATCH_CONTRACT,
 } from './authoring'
-import { converseTurn } from './authoring/converseClient'
+import { converseTurn, transcriptSnippets, distinctNotUnderstood } from './authoring/converseClient'
 import { classifyTurn, OUTCOMES } from './authoring/turnOutcome'
 import { preflight } from './authoring/preflight'
 import { readSession, writeSession, clearSession, editKey } from './authoring/conversationSessions'
@@ -50,6 +50,8 @@ const S = {
   transcript: { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' },
   member: { alignSelf: 'flex-end', fontSize: 13, color: 'var(--text-bright)', background: 'var(--bg-elevated)', padding: '6px 10px', borderRadius: 'var(--radius-md)' },
   uct: { fontSize: 12, color: 'var(--text)', padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' },
+  /** ⭐ P3: the assistant's own words beside the readback — clearly SECONDARY. */
+  assistantReply: { margin: '4px 0 0', fontSize: 11, fontStyle: 'italic', color: 'var(--text-muted)' },
   refusal: { fontSize: 12, color: 'var(--text-bright)', padding: '6px 10px', border: '1px solid var(--loss-border)', background: 'var(--loss-bg)', borderRadius: 'var(--radius-md)' },
   input: { width: '100%', minHeight: 48, padding: '8px 10px', resize: 'vertical', background: 'var(--bg-surface)', color: 'var(--text-bright)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', fontSize: 13 },
   row: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
@@ -173,21 +175,23 @@ export default function ConverseBox({
     }
     setPartial(null)
     commit(out.state)
+    // ⭐ P3: the model's reply rides on the entry as SECONDARY text; the lines (the
+    // deterministic readback) stay the authority on what the indicator is.
+    const reply = typeof extra.reply === 'string' ? extra.reply.trim() : ''
     if (result.status === 'question') {
-      say({ role: 'uct', kind: 'question', questions: out.state.questions, lines: out.readback.questions })
+      say({ role: 'uct', kind: 'question', questions: out.state.questions, reply, lines: out.readback.questions })
       return
     }
     const disclosed = (result.changes || []).map(changeLine).filter(Boolean)
-    say({ role: 'uct', kind: extra.kind || 'readback', updated: true, lines: ['Updated preview.', ...disclosed, ...out.readback.lines] })
+    say({ role: 'uct', kind: extra.kind || 'readback', updated: true, reply, lines: ['Updated preview.', ...disclosed, ...out.readback.lines] })
   }, [gateCtx, commit, say])
 
   const send = useCallback(async (text) => {
     const words = String(text || '').trim()
     if (!words || busy) return
     const before = stateRef.current
-    const snippets = transcript.slice(-6).map((t) => (t.role === 'member'
-      ? { role: 'member', text: t.text }
-      : { role: 'assistant', text: (t.lines || []).join(' · ') }))
+    // ⭐ P3: the assistant's own replies (answer AND change) ride along as context.
+    const snippets = transcriptSnippets(transcript)
     say({ role: 'member', text: words })
     setMessage('')
     // ⭐ SLICE 2 PRE-FLIGHT — an explicit other-symbol / timeframe request: no call.
@@ -201,12 +205,12 @@ export default function ConverseBox({
     try {
       const res = await converse({ message: words, state: before, gateCtx, snippets })
       const gaps = [
-        ...((res && res.notUnderstood) || []).map((n) => `Not understood: "${n.clause || n.text || ''}" — ${n.reason || ''}`),
+        ...distinctNotUnderstood(res).map((n) => `Not understood: "${n.clause || n.text || ''}" — ${n.reason || ''}`),
         ...((res && res.unavailable) || []).map((n) => `Not available: ${n.column || n.name || ''} — ${n.reason || ''}`),
       ]
       const turn = classifyTurn(res)
       if (turn.outcome === OUTCOMES.ANSWER) {
-        say({ role: 'uct', kind: 'answer', lines: [turn.reply, ...gaps] })
+        say({ role: 'uct', kind: 'answer', reply: turn.reply, lines: [turn.reply, ...gaps] })
         return
       }
       if (turn.outcome === OUTCOMES.UNSUPPORTED || turn.outcome === OUTCOMES.REFUSED) {
@@ -216,7 +220,7 @@ export default function ConverseBox({
         return
       }
       if (gaps.length) say({ role: 'uct', kind: 'gaps', lines: gaps })
-      applyEnvelope(turn.envelope, turn.outcome === OUTCOMES.CHANGE ? { updated: true } : {})
+      applyEnvelope(turn.envelope, turn.outcome === OUTCOMES.CHANGE ? { updated: true, reply: turn.reply } : { reply: turn.reply })
     } finally {
       setBusy(false)
     }
@@ -341,7 +345,12 @@ export default function ConverseBox({
           <li key={t.id} data-role={t.role} data-kind={t.kind || 'member'}
             style={t.role === 'member' ? S.member : (t.kind === 'refusal' ? S.refusal : S.uct)}>
             {t.role === 'member' ? t.text : (
-              <ul style={S.list}>{(t.lines || []).map((l, i) => <li key={i}>{l}</li>)}</ul>
+              <>
+                <ul style={S.list}>{(t.lines || []).map((l, i) => <li key={i}>{l}</li>)}</ul>
+                {t.reply && t.kind !== 'answer' && (
+                  <p style={S.assistantReply} data-testid="converse-assistant-reply">Assistant: {t.reply}</p>
+                )}
+              </>
             )}
           </li>
         ))}
