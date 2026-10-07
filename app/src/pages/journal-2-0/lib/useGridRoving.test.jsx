@@ -142,3 +142,16 @@ describe('useGridRoving: the keys', () => {
     expect(sp.defaultPrevented).toBe(false)
   })
 })
+
+// Lane KEYS3: type-ahead is OPT-IN. The notes list does not ask for it, so a letter there is
+// still nobody's key.
+describe('useGridRoving: letters are left alone unless the list asks for type-ahead', () => {
+  it('without the option a letter on a row moves nothing and is not consumed', () => {
+    render(<List />)
+    card('One').focus()
+    const e = new KeyboardEvent('keydown', { key: 't', bubbles: true, cancelable: true })
+    card('One').dispatchEvent(e)
+    expect(e.defaultPrevented).toBe(false)
+    expect(document.activeElement).toBe(card('One'))
+  })
+})

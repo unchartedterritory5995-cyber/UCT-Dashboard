@@ -261,7 +261,9 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
   // row used to be two stops (its symbol cell and its Setup select), so the sixth trade was
   // eleven Tabs down. Down and Up move trade to trade, Home and End go to the ends, Right and
   // Left reach the row's Setup select (the same hook as the Notebook's notes list).
-  const tradesGrid = useGridRoving({ rowSelector: '[data-trade-row]' })
+  // A letter typed on a trade goes to the next trade whose symbol starts with it. "g" first is
+  // left to the Journal's "g then letter" shortcuts (JournalLayout HOTKEY_ROUTES).
+  const tradesGrid = useGridRoving({ rowSelector: '[data-trade-row]', typeahead: true, typeaheadSkipFirst: 'g' })
 
   if (sorted.length === 0) {
     return (
@@ -279,7 +281,7 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
 
   if (isPhone) {
     return (
-      <div className={styles.cardList} tabIndex={-1} data-route-landing="" aria-label="Trades"
+      <div className={styles.cardList} tabIndex={-1} data-route-landing="" aria-label="Trades" data-grid-typeahead=""
         ref={tradesGrid.ref} onKeyDown={tradesGrid.onKeyDown} onFocus={tradesGrid.onFocus}>
         {sorted.map((t) => (
           <TradeCard key={t.id} trade={t} onRowAction={onRowAction} reviewedIds={reviewedIds} planStatuses={planStatuses} />
@@ -320,7 +322,7 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
         </thead>
         {/* Where keyboard focus lands after a move to this page (lib/routeFocus.jsx): the next
             Tab is the first trade, not the column headers. Focusable by script only. */}
-        <tbody tabIndex={-1} data-route-landing="" aria-label="Trades"
+        <tbody tabIndex={-1} data-route-landing="" aria-label="Trades" data-grid-typeahead=""
           ref={tradesGrid.ref} onKeyDown={tradesGrid.onKeyDown} onFocus={tradesGrid.onFocus}>
           {sorted.map((t) => (
             <tr key={t.id} className={styles.row} data-trade-row="">

@@ -106,3 +106,56 @@ describe('TradesTable: the rows are one Tab stop (lane KEYS3)', () => {
     expect(onRowAction).toHaveBeenCalledWith('open', expect.objectContaining({ symbol: 'CRWD' }))
   })
 })
+
+// Lane KEYS3 (Q6), second part. Measured in the browser after the list became one stop: the
+// trade was still five Downs away (it is the sixth of many). A letter typed on a trade moves to
+// the next trade whose symbol starts with it, and typing on narrows it. "g" as a FIRST letter is
+// left alone: it starts the Journal's own "g then letter" shortcuts.
+describe('TradesTable: typing a symbol moves to that trade (lane KEYS3)', () => {
+  it('"c" goes to CRWD, Enter opens it, and the list says it takes letters', () => {
+    const onRowAction = renderTable()
+    cell('NVDA').focus()
+    key('c')
+    expect(document.activeElement).toBe(cell('CRWD'))
+    key('Enter')
+    expect(onRowAction).toHaveBeenCalledWith('open', expect.objectContaining({ symbol: 'CRWD' }))
+    expect(document.querySelector('tbody').hasAttribute('data-grid-typeahead')).toBe(true)
+  })
+
+  it('typing on narrows ("ts" is TSLA), and a letter no symbol starts with moves nothing', () => {
+    renderTable()
+    cell('NVDA').focus()
+    key('t'); key('s')
+    expect(document.activeElement).toBe(cell('TSLA'))
+    cell('NVDA').focus()
+    key('z')
+    expect(document.activeElement).toBe(cell('NVDA'))
+  })
+
+  it('"g" first is NOT taken (the Journal\'s "g then j" shortcuts own it), nor a letter with Ctrl', () => {
+    renderTable()
+    cell('NVDA').focus()
+    const g = new KeyboardEvent('keydown', { key: 'g', bubbles: true, cancelable: true })
+    cell('NVDA').dispatchEvent(g)
+    expect(g.defaultPrevented).toBe(false)
+    fireEvent.keyDown(cell('NVDA'), { key: 'c', ctrlKey: true })
+    expect(document.activeElement).toBe(cell('NVDA'))
+  })
+
+  it('a letter typed in a row\'s Setup select is the select\'s own', () => {
+    renderTable()
+    const select = document.querySelector('tbody select')
+    select.focus()
+    key('c')
+    expect(document.activeElement).toBe(select)
+  })
+
+  it('phone cards take letters too', () => {
+    phone = true
+    renderTable()
+    const cards = screen.getAllByTestId('trade-card')
+    cards[0].focus()
+    key('c')
+    expect(document.activeElement).toBe(cards[3])
+  })
+})

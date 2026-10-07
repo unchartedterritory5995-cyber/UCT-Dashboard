@@ -1345,7 +1345,14 @@ def q6_link_trade(cx: Ctx, pg, m: Meter, width: str) -> dict:
     from_top(m)
     if row.count() == 0:
         raise Inconclusive("the seeded CRWD trade row is not visible on the Trades surface")
-    m.press(_row_opener(row, "CRWD"), "CRWD trade row")
+    opener = _row_opener(row, "CRWD")
+    if m.mode == "keys" and pg.locator("[data-grid-typeahead]").count():
+        # Lane KEYS3: the Trades list is one Tab stop and takes letters. Tab to it, then the
+        # first letter of the symbol (one keystroke, counted). If that did not land on the row
+        # (another symbol starts with the letter), `m.press` below pays the rest in arrows.
+        m.tab_to("el.hasAttribute && el.hasAttribute('data-grid-roving')", "the trades list (one Tab stop)")
+        m.key("c", "type the first letter of CRWD (the list moves to it)")
+    m.press(opener, "CRWD trade row")
     save = pg.get_by_role("button", name=re.compile(r"Save to Notebook")).filter(visible=True)
     try:
         save.first.wait_for(state="visible", timeout=15000)

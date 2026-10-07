@@ -58,9 +58,22 @@ export function gridRows(root, rowSelector) {
     .filter((cells) => cells.length > 0)
 }
 
-export default function useGridRoving({ rowSelector, enabled = true } = {}) {
+/** How long a typed run of letters keeps growing before the next letter starts a new one. */
+const TYPEAHEAD_MS = 600
+
+/**
+ * `typeahead` (lane KEYS3, opt-in, the Trades list): a letter typed on a row moves to the next
+ * row whose text starts with it (a trade's symbol), and typing on narrows it. Off by default:
+ * the notes list does not ask for it. `typeaheadSkipFirst` names letters that are never taken
+ * as a FIRST letter, because something else owns them there (the Journal's "g then letter"
+ * shortcuts). Letters in a text field or a <select> are always that control's own.
+ */
+export default function useGridRoving({
+  rowSelector, enabled = true, typeahead = false, typeaheadSkipFirst = '',
+} = {}) {
   const ref = useRef(null)
   const stopRef = useRef(null)
+  const typed = useRef({ text: '', at: 0 })
 
   const apply = useCallback(() => {
     const root = ref.current
@@ -95,6 +108,32 @@ export default function useGridRoving({ rowSelector, enabled = true } = {}) {
 
   const onKeyDown = useCallback((e) => {
     if (!enabled) return
+    if (typeahead && e.key.length === 1 && /\S/.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const t = e.target
+      if (!t || !t.tagName || isText(t) || t.tagName === 'SELECT') return
+      const rows = gridRows(ref.current, rowSelector)
+      const r = rows.findIndex((cells) => cells.includes(t))
+      if (r === -1) return
+      const now = Date.now()
+      const fresh = now - typed.current.at > TYPEAHEAD_MS
+      const letter = e.key.toLowerCase()
+      if (fresh && typeaheadSkipFirst.includes(letter)) return
+      const text = fresh ? letter : typed.current.text + letter
+      typed.current = { text, at: now }
+      const label = (cells) => (cells[0].closest(rowSelector)?.textContent || '').trim().toLowerCase()
+      // one letter steps to the NEXT row that starts with it; typing on narrows from this row
+      const from = text.length === 1 ? r + 1 : r
+      const order = [...rows.slice(from), ...rows.slice(0, from)]
+      const hit = order.find((cells) => label(cells).startsWith(text))
+      e.preventDefault()
+      if (!hit) return
+      const next = hit[Math.min(rows[r].indexOf(t), hit.length - 1)]
+      if (next === t) return
+      stopRef.current = next
+      apply()
+      next.focus()
+      return
+    }
     if (!['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return
     if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return
     const t = e.target
@@ -118,7 +157,7 @@ export default function useGridRoving({ rowSelector, enabled = true } = {}) {
     stopRef.current = next
     apply()
     next.focus()
-  }, [apply, enabled, rowSelector])
+  }, [apply, enabled, rowSelector, typeahead, typeaheadSkipFirst])
 
   const onFocus = useCallback((e) => {
     if (!enabled) return
