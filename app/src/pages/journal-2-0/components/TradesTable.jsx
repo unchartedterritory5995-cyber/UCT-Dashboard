@@ -310,7 +310,9 @@ export default function TradesTable({ trades, visibleColumns, onRowAction, revie
             })}
           </tr>
         </thead>
-        <tbody>
+        {/* Where keyboard focus lands after a move to this page (lib/routeFocus.jsx): the next
+            Tab is the first trade, not the column headers. Focusable by script only. */}
+        <tbody tabIndex={-1} data-route-landing="" aria-label="Trades">
           {sorted.map((t) => (
             <tr key={t.id} className={styles.row}>
               {visibleColumns.map((c) => (
