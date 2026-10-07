@@ -4,6 +4,7 @@ import styles from './Depth.module.css'
 import { useDepthChrome, DepthLoading } from './depthChrome'
 import PendingGaveUp from './PendingGaveUp'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import { formatCurrency, formatNumber, formatPercent, isForeignCurrency, normalizeCurrencyCode } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
 
@@ -49,6 +50,11 @@ export default function EarningsReactionPanel({ sym }) {
   const { data, error, mutate } = useSWR(s ? `/api/research/earnings-reaction/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
   const reask = usePendingReask(data?.state === 'pending' || (data?.state === 'ok' && data?.implied_move?.state === 'pending'), mutate, s)
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header when it is the
+  // whole panel (a DPTH stack names "several" itself); a no-op outside the terminal.
+  usePanelFreshness(chrome.alone && data && !data.paywalled && !error && data.state === 'ok'
+    ? { source: memberText(data.source) || null, age: { dataClass: 'end_of_day', asOfDate: data.bars_through || null } }
+    : null)
 
   let body
   if (error) body = <div className={styles.error} data-testid="earnings-reaction-unavailable">The earnings reaction is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>

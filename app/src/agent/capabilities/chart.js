@@ -69,6 +69,9 @@ function hasIntradayBars(sym) {
 }
 
 const set = (cs, patch) => ({ ...cs, ...patch, preset: 'custom' })
+const SCALE_LABEL = { linear: 'Linear', log: 'Logarithmic', percent: 'Percent' }
+// Same precedence as StockChart's effectiveScale: percent before log.
+const scaleOf = (cs) => (cs?.percentScale ? 'percent' : (cs?.logScale ? 'log' : 'linear'))
 export const volState = (cs) => (cs?.volume?.removed === true ? 'removed' : (cs?.volume?.visible === false ? 'hidden' : 'visible'))
 export const sessionOf = (cs, tf) => (isIntraday(tf)
   ? (cs?.extendedHoursShading === false ? 'regular' : 'extended')
@@ -117,6 +120,7 @@ export function describeChart(snap, shortRef) {
     background: cs.bgMode === 'gradient' ? 'gradient' : (cs.background || null),
     upColor: cs.candles?.upColor || null, downColor: cs.candles?.downColor || null,
     extendedHours: sessionOf(cs, snap.tf) === 'extended',
+    scale: scaleOf(cs),
     linkedWidgets: snap.linkedCount || 0,
   }
 }
@@ -184,8 +188,11 @@ const CAPABILITIES = [
     // "$NVDA", or chart|open|show|load|pull up + an UPPERCASE ticker in the RAW
     // text (so "show volume" can never read as the ticker VOLUME).
     fast: ({ raw }) => {
+      // An explicit "symbol/ticker to X" may be lowercase: the noun removes the
+      // ambiguity that keeps "show volume" from ever reading as a ticker.
       const m = /^\$([A-Za-z][A-Za-z0-9.]{0,9})$/.exec(raw)
-        || /^(?:chart|open|show|load|pull up|switch to|go to)\s+\$?([A-Z][A-Z0-9.]{0,9})$/.exec(raw)
+        || /^(?:chart|open|show|load|pull up|put|switch to|go to)\s+\$?([A-Z][A-Z0-9.]{0,9})$/.exec(raw)
+        || /^(?:change|switch|set)\s+(?:the\s+)?(?:symbol|ticker)\s+to\s+\$?([A-Za-z][A-Za-z0-9.]{0,9})$/i.exec(raw)
       return m ? { symbol: m[1].toUpperCase() } : null
     },
     // Async lookup BEFORE planning: an unknown ticker is refused, never charted blank.
@@ -219,9 +226,11 @@ const CAPABILITIES = [
     name: 'chart.setSession',
     summary: 'Show or hide pre/post-market (extended hours) on one chart.',
     args: { type: 'object', properties: { mode: { type: 'string', enum: ['regular', 'extended'] } }, required: ['mode'], additionalProperties: false },
-    fast: ({ lower }) => {
-      if (/^(show |turn on |include )?(extended hours|extended|ext hours|pre ?\/ ?post)( on)?$/.test(lower)) return { mode: 'extended' }
-      if (/^(hide extended hours|extended hours off|ext hours off|regular hours( only)?|rth( only)?)$/.test(lower)) return { mode: 'regular' }
+    fast: ({ lower, core }) => {
+      for (const s of [lower, core]) {
+        if (/^(show |turn on |include )?(extended hours|extended|ext hours|extended trading|pre ?\/ ?post)( on)?$/.test(s)) return { mode: 'extended' }
+        if (/^(hide extended hours|extended hours off|ext hours off|regular hours( only)?|regular session|rth( only)?)$/.test(s)) return { mode: 'regular' }
+      }
       return null
     },
     check: (st, { mode }) => (mode === 'regular' || mode === 'extended' ? null : `“${mode}” is not a session.`),
@@ -238,9 +247,41 @@ const CAPABILITIES = [
     noop: (b, a) => (sessionOf(a.cs, a.tf) === 'extended' ? 'Already showing extended hours' : 'Already regular hours only'),
   },
   {
+    name: 'chart.setScale',
+    summary: "Set one chart's price scale: linear (arithmetic), logarithmic, or percent.",
+    args: { type: 'object', properties: { scale: { type: 'string', enum: ['linear', 'log', 'percent'] } }, required: ['scale'], additionalProperties: false },
+    fast: ({ core }) => {
+      if (/^(log|log scale|logarithmic|logarithmic scale)$/.test(core)) return { scale: 'log' }
+      if (/^(linear|linear scale|arithmetic|arithmetic scale|arith)$/.test(core)) return { scale: 'linear' }
+      if (/^(percent scale|percentage scale|% scale)$/.test(core)) return { scale: 'percent' }
+      return null
+    },
+    check(st, { scale }) {
+      if (!SCALE_LABEL[scale]) return `“${scale}” is not a price scale.`
+      // StockChart forces percent while any "new scale" comparison is on
+      // (compareForcesPct) — a receipt must never claim a scale the chart won't show.
+      const forcing = (st.cs.comparisonSymbols || []).some(c => c && c.enabled && c.sym && (c.scaleMode || 'new') !== 'same')
+      if (forcing && scale !== 'percent') return 'Compare overlays keep this chart on a percent scale — remove them first.'
+      return null
+    },
+    // The exact keys StockChart.setScale (the A/L/% toggle) persists.
+    apply: (st, { scale }) => (scaleOf(st.cs) === scale ? st
+      : { ...st, cs: set(st.cs, { logScale: scale === 'log', percentScale: scale === 'percent' }) }),
+    describe: (b, a) => (scaleOf(b.cs) === scaleOf(a.cs) ? null : `Changed scale to ${SCALE_LABEL[scaleOf(a.cs)]}`),
+    noop: (b, a) => `Already on a ${SCALE_LABEL[scaleOf(a.cs)].toLowerCase()} scale`,
+  },
+  {
     name: 'chart.applyTheme',
     summary: "Apply one of UCT's built-in chart color themes (canvas, candles, grid, text) to one chart.",
     args: { type: 'object', properties: { theme: { type: 'string', enum: CHART_THEMES.map(t => t.id) } }, required: ['theme'], additionalProperties: false },
+    // "cream theme" / "apply the nord theme" — only a real chart-theme id or name.
+    fast: ({ core }) => {
+      const m = /^(?:apply\s+)?(?:the\s+)?(.+?)\s+(?:chart\s+)?theme$/.exec(core)
+      if (!m) return null
+      const want = m[1].trim().toLowerCase()
+      const hit = CHART_THEMES.find(t => t.id === want || t.name.toLowerCase() === want)
+      return hit ? { theme: hit.id } : null
+    },
     check: (st, { theme }) => (CHART_THEME_BY_ID[theme] ? null : `UCT has no chart theme “${theme}”.`),
     apply: (st, { theme }) => ({ ...st, cs: applyThemeToSettings(st.cs, CHART_THEME_BY_ID[theme]) }),
     describe: (b, a, { theme }) => `Applied the ${CHART_THEME_BY_ID[theme]?.name || theme} chart theme`,
@@ -250,6 +291,12 @@ const CAPABILITIES = [
     summary: "Set one chart's background to a single solid color.",
     hints: 'Pass a hex color like #f3efe4; translate plain color names to hex.',
     args: { type: 'object', properties: { color: { type: 'string' } }, required: ['color'], additionalProperties: false },
+    // "background to black" / "change the background to #f3efe4" — only a color
+    // that normalizes; anything else goes to the model.
+    fast: ({ core }) => {
+      const m = /^(?:the\s+)?(?:background|bg|background color|canvas)\s+(?:to\s+|=\s*)?(.+)$/.exec(core)
+      return m && normalizeColor(m[1]) ? { color: m[1].trim() } : null
+    },
     check: (st, { color }) => (normalizeColor(color) ? null : `“${color}” isn't a color I can set — use a hex value like #f3efe4.`),
     apply(st, { color }) {
       const c = normalizeColor(color)

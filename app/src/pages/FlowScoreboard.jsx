@@ -10,7 +10,7 @@
 import useSWR from 'swr'
 import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
-import { useInTerminalPanel } from '../components/terminal'
+import { useInTerminalPanel, usePanelFreshness } from '../components/terminal'
 import styles from './FlowScoreboard.module.css'
 import { formatPercent, formatCurrency } from '../lib/presentation/presentationPrimitives'
 import jsonFetcher from '../utils/jsonFetcher'
@@ -85,6 +85,11 @@ export default function FlowScoreboard({ embedded = false }) {
   })
 
   const overall = data?.overall
+  // TERM-019: name this page's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  usePanelFreshness(data && !error
+    ? { source: 'UCT flow record (our options flow tape)', observedAt: data.generated_at || null,
+      age: { asOfDate: asOfText(data.generated_at) } }
+    : null)
   // In a terminal panel the panel header names FREC; the public-page hero copy steps aside.
   const inPanel = useInTerminalPanel()
   const pageCls = embedded ? `${styles.page} ${styles.embedded}`

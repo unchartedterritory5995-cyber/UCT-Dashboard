@@ -3,6 +3,7 @@ import { sectionFetcher } from '../../../components/research/sections/sectionFet
 import styles from './ResearchCov.module.css'
 import { ABSENT, formatCompactTerminal } from '../../../lib/presentation/presentationPrimitives'
 import { memberText } from '../../../lib/presentation/memberCopy'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import { usePendingReask } from '../depth/depthFetch'
 import PendingGaveUp from '../depth/PendingGaveUp'
 
@@ -153,6 +154,14 @@ export default function PeopleTab({ sym }) {
   const { data, error, mutate } = useSWR(key, sectionFetcher, { revalidateOnFocus: false })
   // The Form 4 half answers `pending` while its read is queued; ask again by itself.
   const reask = usePendingReask(data?.insider_roles?.state === 'pending', mutate, key)
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  // Three sections, three sources: the header lists them once each; each section dates its own.
+  const peopleSources = data && !data.paywalled && !error && !data.not_applicable
+    ? [...new Set([data.executives, data.compensation, data.insider_roles].map((p) => memberText(p?.source)).filter(Boolean))]
+    : []
+  usePanelFreshness(peopleSources.length
+    ? { source: peopleSources.join(' · '), age: { asOfDate: data.executives?.as_of || data.compensation?.as_of || null } }
+    : null)
 
   if (error) {
     return <div className={styles.note} data-testid="people-unavailable">

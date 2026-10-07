@@ -5,7 +5,7 @@
   margin: 6px 0 10px;
   max-height: 220px;
   overflow-y: auto;
-  border-left: 2px solid var(--color-border, rgba(255, 255, 255, 0.12));
+  border-left: 2px solid var(--border);
   padding-left: 8px;
 }
 .group { display: flex; flex-direction: column; gap: 2px; }

@@ -5,7 +5,7 @@ identity is read — the same answer as a route that does not exist (the TERM-08
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import ticker_history
@@ -27,7 +27,8 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 
 @router.get("/api/research/history/{sym}", dependencies=[Depends(_armed)])
-def research_history(sym: str, days: int = Query(ticker_history.DEFAULT_DAYS, ge=1, le=ticker_history.MAX_DAYS),
+def research_history(sym: str, response: Response,
+                     days: int = Query(ticker_history.DEFAULT_DAYS, ge=1, le=ticker_history.MAX_DAYS),
                      _user: dict = Depends(require_paid)):
     # Junk is refused with a sentence before any lane reads a store. The lanes get the
     # canonical spelling (BRK.B -> BRK-B); each one then asks its own store in the spelling
@@ -35,4 +36,7 @@ def research_history(sym: str, days: int = Query(ticker_history.DEFAULT_DAYS, ge
     from api.services.ticker_resolver import require_route_symbol
     sym = require_route_symbol(sym)
     # The caller's id keys ONLY their own journal lane (dark behind TICKER_HISTORY_LANES2_ENABLED).
-    return ticker_history.history(sym, days=days, user_id=_user.get("id"))
+    out = ticker_history.history(sym, days=days, user_id=_user.get("id"))
+    # Per-lane times ride a Server-Timing header (browser devtools show it), never the body.
+    response.headers["Server-Timing"] = ticker_history.server_timing(out.pop("_timing", None))
+    return out

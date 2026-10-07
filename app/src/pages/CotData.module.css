@@ -63,7 +63,7 @@
   background: var(--bg-surface);
   border: none;
   border-bottom: 1px solid var(--border);
-  color: white;
+  color: var(--text-bright);
   font-size: var(--text-base);
   outline: none;
 }
@@ -514,7 +514,7 @@
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  color: white;
+  color: var(--text-bright);
   font-size: var(--text-xl); /* prevent iOS focus-zoom */
   outline: none;
 }
@@ -530,7 +530,7 @@
 }
 .sheetItemActive { background: var(--info); }
 .sheetItemActive .dropdownSym,
-.sheetItemActive .dropdownName { color: white; }
+.sheetItemActive .dropdownName { color: var(--bg); }
 
 /* ── Narrow layouts: the rail drops below the chart ──────────────── */
 @media (max-width: 960px) {

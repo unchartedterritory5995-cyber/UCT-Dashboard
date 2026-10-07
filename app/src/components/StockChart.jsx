@@ -2924,6 +2924,20 @@ export default function StockChart({
       handleUpdateChartSettings({ ...cs, logScale: kind === 'log', percentScale: kind === 'pct', preset: 'custom' })
     }
   }
+  // ⭐ A CHANGE TO THE STORED SCALE WINS OVER A STALE LOCAL OVERRIDE. The override
+  // above exists for surfaces whose settings write is MASKED (stored scale never
+  // changes there, so this never fires and the override keeps working). Where the
+  // write lands (/charts), a toggle click sets the override AND moves the stored
+  // scale to the same value, so clearing it changes nothing visible — but an
+  // EXTERNAL writer (UCT Agent's chart.setScale, a template, a restore) used to be
+  // silently outranked by an override left from an earlier click.
+  const storedScale = cs.percentScale ? 'pct' : (cs.logScale ? 'log' : 'arith')
+  const storedScaleRef = useRef(storedScale)
+  useEffect(() => {
+    if (storedScaleRef.current === storedScale) return
+    storedScaleRef.current = storedScale
+    setScaleOverride(null)
+  }, [storedScale])
   // The price pane's right scale, addressed via the candle series so it's always
   // the PRICE scale even when an index-comparison pane sits at pane 0 (where
   // chart.priceScale('right') would otherwise resolve). Falls back to the bare

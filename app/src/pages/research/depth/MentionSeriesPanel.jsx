@@ -3,6 +3,7 @@ import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
 import { useDepthChrome, DepthLoading } from './depthChrome'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 
 // FT-080 — room attention per ticker, from the /buzz mention store. A research
 // panel, not a chart overlay. DARK behind MENTION_SERIES_ENABLED.
@@ -20,6 +21,11 @@ export default function MentionSeriesPanel({ sym }) {
   const s = (sym || '').toUpperCase().trim()
   const { data, error, mutate } = useSWR(s ? `/api/research/mention-series/${encodeURIComponent(s)}` : null,
     depthFetcher, { revalidateOnFocus: false })
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header when it is the
+  // whole panel (a DPTH stack names "several" itself); a no-op outside the terminal.
+  usePanelFreshness(chrome.alone && data && !data.paywalled && !error
+    ? { source: memberText(data.source) || null, age: { dataClass: 'end_of_day', asOfDate: data.window?.through || data.points?.[data.points.length - 1]?.date || null } }
+    : null)
 
   let body
   if (error) body = <div className={styles.error} data-testid="mentions-unavailable">Room attention is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>

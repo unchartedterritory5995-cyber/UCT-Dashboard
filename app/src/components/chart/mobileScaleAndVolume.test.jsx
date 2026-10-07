@@ -290,6 +290,24 @@ describe("MOB-06′ #1 — the phone can reach every price-scale mode", () => {
     expect(view.writeCount()).toBe(1)
   })
 
+  it('an EXTERNAL change to the stored scale wins over an override left by an earlier click', () => {
+    // The click sets a local override; the stored blob does NOT follow here (the
+    // masked-write shape), so the override is all that holds Percent. Then an
+    // external writer — UCT Agent's chart.setScale, a template, a restore — moves
+    // the STORED scale to Log. Before the fix the stale override kept the chart on
+    // Percent while the Agent's receipt said "Changed scale to Logarithmic".
+    const view = draw()
+    act(() => { rowOf(scaleSection(), 'p-pct').onSelect() })
+    expect(tickedIds(scaleSection())).toEqual(['p-pct'])
+    view.rerender(
+      <StockChart
+        sym="AAPL" tf="D" barsOverride={BARS} alwaysShowLegend
+        settingsOverride={mergeChartSettings({ logScale: true, header: { legendMode: 'always' } })}
+        onSettingsPersist={() => {}} />,
+    )
+    expect(tickedIds(scaleSection()), 'a stale local override outranked the stored scale').toEqual(['p-log'])
+  })
+
   it('a chart that OPENS on Percent shows Percent ticked', () => {
     draw({ settings: { percentScale: true } })
     expect(tickedIds(scaleSection())).toEqual(['p-pct'])

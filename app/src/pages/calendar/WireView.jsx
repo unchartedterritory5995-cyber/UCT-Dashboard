@@ -46,8 +46,14 @@ const COV_NAME_CAP = 8
  * `is_current_session`, one authority). Three honest states: complete,
  * incomplete WITH THE NAMES, and unmeasured — which renders as unknown,
  * never as clean.
+ *
+ * ⚰️ This was named `CoverageLine`, the name of S8's shared primitive
+ * (components/provenance/CoverageLine.jsx), while answering a different question — "is every
+ * reported name on the feed", not S8's evaluated / answered / dropped / not-computable counts.
+ * Renamed (TERM-019's census, `pages/terminal/panelProvenance.rail.test.js`) so one name means
+ * one thing; the render is unchanged.
  */
-function CoverageLine({ cov }) {
+function WireCompleteness({ cov }) {
   if (!cov || !cov.is_current_session) return null
   if (cov.measured === false) {
     return (
@@ -117,7 +123,7 @@ export default function WireView({ dateStr }) {
   if (!ordered.length) {
     return (
       <>
-        <CoverageLine cov={cov} />
+        <WireCompleteness cov={cov} />
         <div className={styles.empty}>
           {expected > 0
             ? `${expected} reporters this session — waiting on the first print`
@@ -129,7 +135,7 @@ export default function WireView({ dateStr }) {
 
   return (
     <div className={styles.wire}>
-      <CoverageLine cov={cov} />
+      <WireCompleteness cov={cov} />
       {ordered.map(r => {
         const mv = r.move_pct
         // Seam 20 (Calendar TickerActions Reuse V2, 2026-09-06): the Wire

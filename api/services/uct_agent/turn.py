@@ -19,13 +19,19 @@ TALK vs DO is explicit:
   propose                        -> needs interpretation or is broad; the
                                     browser shows it and waits for approval
 
-RESEARCH is a READ tool only (`web_research`, the shared Perplexity client every
-other UCT door uses). Research can inform an answer or a proposal; it can never
-mutate anything by itself.
+RESEARCH is OPT-IN and READ-ONLY. The model's call carries NO tools; instead the
+envelope has a `research` field (null, or {query, recency}). The server honours
+it ONLY for disposition `answer` -- a command, proposal, clarification or
+unsupported reply can never trigger research -- runs ONE query through the shared
+Perplexity client, and asks the model again with the results and research off.
+⚰️ 2026-10-07: research used to be a tool attached to EVERY call with
+tool_choice auto; Haiku 4.5 called it on every observed turn (3/3 in production,
+"change the left chart to bars" included), spending the shared 500/day
+Perplexity pool and adding latency. Declaring the need, and gating it on the
+disposition, makes the ordinary path research-free by construction.
 
-Structured output (`output_config.format`) + a strict tool with
-`tool_choice: auto`: the shape that works on every current model, including the
-ones that refuse forced tool use, so the model knob can move without a rewrite.
+Structured output (`output_config.format`), no forced tool use: the shape that
+works on every current model, so the model knob can move without a rewrite.
 """
 from __future__ import annotations
 
@@ -40,7 +46,7 @@ MUTATING = ("apply", "propose")
 MAX_MESSAGE = 2000
 MAX_CONTEXT_BYTES = 12000
 MAX_OPS = 12
-MAX_RESEARCH_CALLS = 2
+MAX_RESEARCH_CALLS = 1
 MAX_TOKENS = 2048
 HISTORY_TURNS = 12
 COST_SURFACE = "uct_agent"
@@ -139,38 +145,28 @@ def envelope_schema(capabilities: list[dict]) -> dict:
             ]},
             "ops": {"type": "array", "items": ops_items},
             "unsupported_category": {"type": ["string", "null"]},
+            "research": {"anyOf": [
+                {"type": "null"},
+                {"type": "object",
+                 "properties": {"query": {"type": "string"},
+                                "recency": {"type": "string", "enum": ["any", "day", "week", "month"]}},
+                 "required": ["query", "recency"], "additionalProperties": False},
+            ]},
         },
-        "required": ["disposition", "reply", "question", "ops", "unsupported_category"],
+        "required": ["disposition", "reply", "question", "ops", "unsupported_category", "research"],
         "additionalProperties": False,
     }
 
 
-RESEARCH_TOOL = {
-    "name": "web_research",
-    "description": ("Search the live web (finance-weighted) for CURRENT facts: news, earnings, filings, "
-                    "guidance, macro data, why a stock moved. Returns a short sourced summary. Only for "
-                    "facts that may be newer than your knowledge or specific to a recent event."),
-    "strict": True,
-    "input_schema": {
-        "type": "object",
-        "properties": {
-            "query": {"type": "string"},
-            "recency": {"type": "string", "enum": ["any", "day", "week", "month"]},
-        },
-        "required": ["query", "recency"],
-        "additionalProperties": False,
-    },
-}
-
-_SYSTEM_HEAD = """You are UCT Agent, the assistant built into UCT (Uncharted Territory), a charting and research platform for active stock traders. You can TALK (answer questions about trading, markets, technical analysis and UCT) and DO (operate UCT for the member using ONLY the actions listed under AVAILABLE ACTIONS).
+_SYSTEM_HEAD = """You are UCT Agent, the general-purpose assistant built into UCT (Uncharted Territory), a charting and research platform for active stock traders. You can TALK (answer ANY question helpfully — general knowledge, writing help, everyday questions — with particular depth on trading, markets, technical analysis and UCT) and DO (operate UCT for the member using ONLY the actions listed under AVAILABLE ACTIONS).
 
 YOU NEVER CHANGE ANYTHING YOURSELF. You return a plan; UCT validates it, executes it, and shows the member a receipt of exactly what changed. Never say in `reply` that something has been done, changed or applied. For apply, `reply` is empty or a few words ("On it."). For propose, `reply` is one sentence explaining the idea; the plan itself is shown from `ops`.
 
 DISPOSITIONS
 - answer: informational reply; ops MUST be []. Use for questions, explanations and advice, including advice about what the member could change ("what would you change for swing trading?" is an answer or a propose, never an apply).
-- clarify: you need one thing first, usually WHICH target. ops []; fill `question` with short `choices` (use target labels).
+- clarify: you need one thing first, usually WHICH target. ops []; fill `question` with short `choices` (use target labels). Never clarify a matter of taste or judgment ("cleaner", "nicer", "better for swing trading") — propose your best plan instead; the member can adjust or dismiss it.
 - apply: the member directly asked for specific changes that AVAILABLE ACTIONS can make. ops = exactly what they asked for, nothing extra.
-- propose: the request needs interpretation, taste or judgment ("make it look cleaner", "set this up for day trading"), or touches several targets. ops = your proposed changes; UCT asks before executing.
+- propose: the request needs interpretation, taste or judgment ("make it look cleaner", "set this up for day trading"), or touches several targets. ops = your proposed changes; UCT asks before executing. Example: "make the right chart look cleaner" → propose (not clarify) concrete ops on the right chart, such as hiding its Volume and/or a calmer theme.
 - unsupported: they asked you to DO something no available action can do. ops []. Say plainly that you can't do that yet and, if you know it, where in UCT they can do it by hand. Set unsupported_category to one short lowercase word naming the area (for example indicators, widgets, layouts, alerts, scanners, drawings, navigation, account, other).
 
 TARGETING
@@ -182,8 +178,10 @@ AVAILABLE ACTIONS (ops[].action, with args exactly as the schema says)
 """
 
 _SYSTEM_TAIL = """
-RESEARCH
-You have a web_research tool for current information. Use it when an answer depends on recent events or live facts (news, earnings, filings, guidance, why something moved). Do not use it for general knowledge or for workspace commands. Mention sources briefly in plain words.
+RESEARCH (`research`: null unless truly needed)
+Leave `research` null for almost every turn. Set it ONLY with disposition answer, and ONLY when a correct answer depends on CURRENT or RECENT facts you cannot know: today's or this week's news, why a stock is moving now, a recent earnings report or call, recent filings, guidance, a Fed speech, today's market action. Then put a focused search query in `research.query` and how recent it must be in `research.recency`, and write `reply` as a one-line placeholder; UCT will run the search and ask you again with the results.
+Never request research for workspace commands, proposals, clarifications, or evergreen knowledge (what an indicator measures, EMA vs SMA, how a pattern works, general trading education): answer those directly.
+When <research_results> are provided, answer from them, mention sources briefly in plain words, and set `research` to null.
 
 FOLLOW-UPS
 If <pending_proposal> is present and the member adjusts it ("leave Volume", "only the left one"), return a new propose with the adjusted ops; return apply only if they clearly approved the adjusted version. Approving a proposal as-is ("do it") never reaches you.
@@ -230,6 +228,14 @@ def _block(tag: str, obj: Any) -> str:
     return f"<{tag}>{_esc(body)}</{tag}>"
 
 
+_OUTCOME_LABEL = {
+    "applied": "[UCT executed]",
+    "undo": "[UCT executed]",
+    "proposed": "[UCT proposed -- NOT executed, awaiting approval]",
+    "dismissed": "[UCT]",
+}
+
+
 def history_messages(turns: list[dict]) -> list[dict]:
     """Rebuild alternating user/assistant messages from stored rows. An
     `outcome` row (what UCT actually did) is appended to the agent side, so
@@ -237,7 +243,14 @@ def history_messages(turns: list[dict]) -> list[dict]:
     msgs: list[dict] = []
     for t in turns[-HISTORY_TURNS * 3:]:
         role = "user" if t["role"] == "member" else "assistant"
-        text = t["text"] if t["role"] != "outcome" else f"[UCT executed] {t['text']}"
+        if t["role"] == "outcome":
+            # Label what UCT ACTUALLY did. A proposal was never executed, so it
+            # must not read as "[UCT executed]" in the model's memory.
+            kind = (t.get("data") or {}).get("kind") if isinstance(t.get("data"), dict) else None
+            label = _OUTCOME_LABEL.get(kind, "[UCT]")
+            text = f"{label} {t['text']}"
+        else:
+            text = t["text"]
         if not text:
             continue
         if msgs and msgs[-1]["role"] == role:
@@ -349,13 +362,11 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     started = time.monotonic()
     usage = {"model": model(), "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0,
              "research_calls": 0, "model_calls": 0, "citations": []}
-    research_left = MAX_RESEARCH_CALLS
-    for _ in range(MAX_RESEARCH_CALLS + 1):
+    cap_names = {c["name"] for c in caps}
+    for round_ in range(MAX_RESEARCH_CALLS + 1):
         resp = caller(
             model=model(), max_tokens=MAX_TOKENS,
             system=[{"type": "text", "text": sysprompt, "cache_control": {"type": "ephemeral"}}],
-            tools=[RESEARCH_TOOL],
-            tool_choice={"type": "auto"} if research_left > 0 else {"type": "none"},
             output_config={"format": {"type": "json_schema", "schema": schema}},
             messages=messages,
         )
@@ -364,32 +375,28 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         usage["input_tokens"] += int(getattr(u, "input_tokens", 0) or 0)
         usage["output_tokens"] += int(getattr(u, "output_tokens", 0) or 0)
         usage["cost_usd"] += _record_cost(resp)
-        content = list(getattr(resp, "content", []) or [])
         if getattr(resp, "stop_reason", None) == "refusal":
             raise TurnError("UCT Agent can't help with that request.")
-        tool_uses = [b for b in content if getattr(b, "type", None) == "tool_use"]
-        if tool_uses and research_left > 0:
-            results = []
-            for b in tool_uses:
-                if b.name != "web_research" or research_left <= 0:
-                    results.append({"type": "tool_result", "tool_use_id": b.id, "is_error": True,
-                                    "content": "not available"})
-                    continue
-                research_left -= 1
-                usage["research_calls"] += 1
-                args = dict(b.input or {})
-                r = _research(str(args.get("query") or ""), str(args.get("recency") or "any"))
-                usage["citations"].extend(r["citations"])
-                results.append({"type": "tool_result", "tool_use_id": b.id, "content": json.dumps(r)})
-            messages = messages + [{"role": "assistant", "content": content},
-                                   {"role": "user", "content": results}]
-            continue
+        content = list(getattr(resp, "content", []) or [])
         text = next((getattr(b, "text", "") for b in content if getattr(b, "type", None) == "text"), "")
         try:
             env = json.loads(text)
         except (TypeError, ValueError):
             raise TurnError("UCT Agent returned something unreadable. Try rephrasing.")
-        envelope = sanitize_envelope(env, valid_refs, {c["name"] for c in caps})
+        req = env.get("research") if isinstance(env, dict) else None
+        wants = (env.get("disposition") == "answer" and isinstance(req, dict)
+                 and str(req.get("query") or "").strip() and round_ < MAX_RESEARCH_CALLS)
+        if wants:
+            usage["research_calls"] += 1
+            r = _research(str(req["query"]), str(req.get("recency") or "any"))
+            usage["citations"].extend(r["citations"])
+            messages = messages + [
+                {"role": "assistant", "content": text},
+                {"role": "user", "content": _block("research_results", r)
+                 + "\nAnswer the member's request from these results. Set research to null."},
+            ]
+            continue
+        envelope = sanitize_envelope(env, valid_refs, cap_names)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
         usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
         return {"envelope": envelope, "usage": usage}

@@ -38,7 +38,9 @@ const TILE_KEYS = [
 // A rise in these is deterioration — deltas and mini paths must not read green.
 const BEAR_KEYS = new Set(['down_4pct_today', 'new_52w_lows'])
 
-const TONE_HUE = { gain: '#2faf68', loss: '#df4646', gold: '#dcbb5e' }
+// CSS custom-property values (the hero paints them through `--hero-hue` in CSS), so they
+// are the theme's own tokens and follow a theme switch.
+const TONE_HUE = { gain: 'var(--gain)', loss: 'var(--loss)', gold: 'var(--ut-gold)' }
 
 function tierTone(tier) {
   if (!tier) return null
@@ -232,7 +234,7 @@ export default function DailyOverview({ rows, live, cols, phaseClassFn, onDrill 
     : null
   const sinceTone = sinceOpen == null || sinceOpen === 0 ? null
     : (sinceOpen > 0) !== !!active?.bear ? 'gain' : 'loss'
-  const heroHue = TONE_HUE[heroTone] ?? 'rgba(255,255,255,0.55)'
+  const heroHue = TONE_HUE[heroTone] ?? 'var(--text-muted)'
   const heroValue = active
     ? `${fmtVal(activeCol, geom?.now)}${active.pct ? '%' : ''}`
     : fmtVal(colsByKey.breadth_score, geom?.now)

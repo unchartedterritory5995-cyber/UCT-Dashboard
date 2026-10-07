@@ -13,9 +13,9 @@
 // ⛔ The RS-Ratio / RS-Momentum formula is UCT's stated approximation (relativeMath.RRG_METHOD),
 // printed under the chart. JdK's own formula is proprietary; the panel never claims to be it.
 import { useEffect, useMemo } from 'react'
-import { PanelSkeleton, PanelState } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
-import useCloses from './useCloses'
+import useCloses, { closesProvenance } from './useCloses'
 import { RRG_METHOD, collectSymbols, rrgPath, withArgsKey } from './relativeMath'
 import styles from './comparePanels.module.css'
 
@@ -118,6 +118,8 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
   const universe = useMemo(() => rrgUniverse(sym, props), [sym, withKey])
   const fetchList = useMemo(() => [RRG_BENCHMARK, ...universe.syms], [universe])
   const state = useCloses(fetchList, cadence)
+  // TERM-019: the panel header names the bar store and the newest close on screen.
+  usePanelFreshness(closesProvenance(state, cadence))
   const rows = useMemo(() => (state.phase === 'ready' ? rrgRows(state.series, universe.syms) : []), [state, universe])
   const cmds = useMemo(() => rows.map((r) => `${r.sym} GP`), [rows])
   useEffect(() => { onRows?.(cmds) }, [onRows, cmds])

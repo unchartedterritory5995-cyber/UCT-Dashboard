@@ -13,7 +13,8 @@
 // clause sends the whole message to the model.
 //
 // Returns null (→ model), or:
-//   { kind: 'ops', ops: [{ action, args }] }   targets resolved by the caller
+//   { kind: 'ops', ops: [{ action, args }], target: null | {position} | {all:true} }
+//                                              targets resolved by the caller
 //   { kind: 'undo' } | { kind: 'confirm' } | { kind: 'dismiss' } | { kind: 'subset', count }
 
 import { allCapabilityNames, getCapability } from './capabilities'
@@ -37,6 +38,37 @@ function matchClause(raw) {
   return hits.length === 1 ? hits[0] : null      // ambiguous phrase -> let the model decide
 }
 
+// ── target qualifiers ("the left chart", "on the right", "both charts") ──
+// Stripped from the text before the clauses are parsed, and returned as a HINT
+// the orchestrator resolves against the positions each target kind publishes
+// (exactly one match → that target; several → it asks; "both/all" → one op per
+// target, which the multi-target policy turns into a proposal). The fast path
+// never resolves a target itself.
+const POS = '(top-left|top-right|bottom-left|bottom-right|left|right|top|bottom|upper|lower)'
+const NOUN = '(?:\\s+(?:chart|one|widget))'
+const POS_RE = new RegExp(`\\b(?:(?:on|for|in|to)\\s+)?the\\s+${POS}${NOUN}?\\b|\\b${POS}${NOUN}\\b`, 'i')
+const ALL_RE = /\b(?:(?:on|for|in|to)\s+)?(?:both|all|every)(?:\s+(?:the|of the))?(?:\s+(?:charts?|of them|ones))?\b/i
+const NORM_POS = { upper: 'top', lower: 'bottom' }
+
+const cut = (s, m) => (s.slice(0, m.index) + ' ' + s.slice(m.index + m[0].length)).replace(/\s+/g, ' ').trim()
+
+export function extractTarget(text) {
+  const s = String(text || '')
+  const all = ALL_RE.exec(s)
+  if (all) return { text: cut(s, all), target: { all: true } }
+  const m = POS_RE.exec(s)
+  if (!m) return { text: s, target: null }
+  const word = (m[1] || m[2] || '').toLowerCase()
+  return { text: cut(s, m), target: { position: NORM_POS[word] || word } }
+}
+
+/** Snapshots matching a position hint ("left" matches left, top-left, bottom-left). */
+export function matchPosition(snaps, position) {
+  if (!position) return snaps
+  const parts = position.split('-')
+  return snaps.filter(s => s.position && parts.every(p => s.position.split('-').includes(p)))
+}
+
 export function fastParse(text) {
   const t = clean(String(text || ''))
   if (!t || t.length > 160) return null
@@ -48,7 +80,8 @@ export function fastParse(text) {
     const n = Number(sub[4]) || WORDNUM[sub[4]]
     if (n > 0) return { kind: 'subset', count: n }
   }
-  const clauses = String(text).split(/,|;|\band\b|\bthen\b|&/i).map(s => s.trim()).filter(Boolean)
+  const { text: rest, target } = extractTarget(text)
+  const clauses = rest.split(/,|;|\band\b|\bthen\b|&/i).map(s => s.trim()).filter(Boolean)
   if (!clauses.length || clauses.length > 6) return null
   const ops = []
   for (const c of clauses) {
@@ -56,5 +89,5 @@ export function fastParse(text) {
     if (!op) return null
     ops.push(op)
   }
-  return { kind: 'ops', ops }
+  return { kind: 'ops', ops, target }
 }

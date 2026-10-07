@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import useModelBookAppearances from '../hooks/useModelBookAppearances'
 import { formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 
@@ -17,6 +18,8 @@ import styles from '../ResearchPage.module.css'
 // rather than to a URL shape that would silently do nothing.
 export default function ModelBookTab({ sym }) {
   const { data, isLoading, error, paywalled, mutate } = useModelBookAppearances(sym)
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  usePanelFreshness(data && !error && !paywalled ? { source: 'UCT Model Book' } : null)
 
   if (isLoading) {
     return <ResearchLoading label="Loading Model Book history" />

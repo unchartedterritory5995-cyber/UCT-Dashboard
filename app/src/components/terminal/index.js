@@ -2,7 +2,7 @@
 // The shell (pages/terminal) provides the context; every export here is safe outside it.
 export {
   TerminalPanelContext, useInTerminalPanel, PanelFreshnessContext, usePanelFreshness,
-  PanelListContext, usePanelBoard, usePanelList,
+  PanelListContext, usePanelBoard, usePanelList, QuietPanelFreshness,
 } from './terminalPanel'
 export { default as BoardFromList } from './BoardFromList'
 export { default as PanelSkeleton } from './PanelSkeleton'

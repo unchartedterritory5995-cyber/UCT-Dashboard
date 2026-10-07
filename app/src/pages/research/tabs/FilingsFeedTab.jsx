@@ -3,6 +3,7 @@ import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './ResearchCov.module.css'
 import { memberText } from '../../../lib/presentation/memberCopy'
+import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 
 // COV-09 (roadmap RM-L19) — new SEC filings, live: this ticker, or the whole
 // market. 8-K (with its item codes), 10-Q, 10-K, Form 4, Schedule 13D/G, S-1.
@@ -65,6 +66,10 @@ export default function FilingsFeedTab({ sym }) {
     // live: re-read the cache every minute, every 5s while the server says pending
     refreshInterval: (d) => (d && d.state === 'pending' ? 5000 : 60000),
   })
+  // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
+  usePanelFreshness(data && !data.paywalled && !error && data.source
+    ? { source: memberText(data.source), age: { asOfDate: data.rows?.[0] && (data.rows[0].accepted || data.rows[0].filed) ? when(data.rows[0]) : null } }
+    : null)
 
   const label = scope === 'ticker' ? s : 'the market'
   let body
