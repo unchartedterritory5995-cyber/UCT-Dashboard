@@ -17,7 +17,7 @@
  *
  * Dark behind `notebook_visual_playbook_enabled` (latched): with the gate off nothing fetches.
  */
-import { Suspense } from 'react'
+import { Suspense, useId } from 'react'
 import useSWR from 'swr'
 import lazyChunk from '../../lib/lazyChunk'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
@@ -96,6 +96,7 @@ export default function TradeBeforeAfter({ tradeId }) {
   const on = beforeAfterEnabled()
   const key = on && tradeId != null ? `/api/j2/notebook-visual-playbook/trades/${encodeURIComponent(tradeId)}/before-after` : null
   const { data, error, mutate } = useSWR(key, getJson, { revalidateOnFocus: false })
+  const titleId = useId()
   if (!on) return null
 
   const trade = data?.trade
@@ -106,8 +107,8 @@ export default function TradeBeforeAfter({ tradeId }) {
   const lines = planPriceLines(plan)
 
   return (
-    <section className={styles.card} aria-labelledby="before-after-title" data-testid="trade-before-after">
-      <h2 id="before-after-title" className={styles.title}>Before and after</h2>
+    <section className={styles.card} aria-labelledby={titleId} data-testid="trade-before-after">
+      <h2 id={titleId} className={styles.title}>Before and after</h2>
       {error && (
         <p className={styles.error} role="alert">
           Before and after could not be read ({error.status || 'network'}).{' '}
@@ -128,6 +129,11 @@ export default function TradeBeforeAfter({ tradeId }) {
             ) : (
               <>No frozen plan for this trade, so only the fills are drawn.</>
             )}
+          </p>
+          {/* FIN-A11Y (review R4, M-16): the arrows drawn on the two charts, in words. */}
+          <p className={styles.planLine} data-testid="before-after-fills">
+            Fills drawn: {String(trade.side || '').toLowerCase() === 'short' ? 'short' : 'long'} entry
+            at {trade.entryPrice ?? '—'} on {trade.entryDay}, exit at {trade.exitPrice ?? '—'} on {trade.exitDay}.
           </p>
           <div className={styles.pair}>
             <FrozenChart symbol={trade.symbol} day={trade.entryDay} markers={beforeMarkers} priceLines={lines}

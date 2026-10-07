@@ -9,7 +9,7 @@
  * A trade with no plan is labelled Unplanned: flagged, never hidden. Dark behind
  * `notebook_plan_grading_enabled` (renders nothing while off).
  */
-import { useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import usePlanGrade from '../../hooks/usePlanGrade'
 import styles from './PlanGradeCard.module.css'
@@ -64,15 +64,33 @@ export default function PlanGradeCard({ tradeId, trade, onTagSetup, onOpenNote, 
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState(null)
   const [reviewState, setReviewState] = useState(null)
+  // FIN-A11Y (review R4, M-6): picking a plan closes the list of candidates with focus on
+  // one of them, and the grade above changes silently. Focus goes back to the Re-link
+  // button, and a status line that is always mounted says which plan was linked.
+  const titleId = useId()
+  const relinkBtnRef = useRef(null)
+  const refocusRelinkRef = useRef(false)
+  const [notice, setNotice] = useState('')
+  useEffect(() => {
+    if (relinking || !refocusRelinkRef.current) return
+    refocusRelinkRef.current = false
+    relinkBtnRef.current?.focus()
+  }, [relinking])
 
   if (!enabled) return null
 
   const pick = async (choice) => {
     setBusy(true)
     setActionError(null)
+    setNotice('')
     try {
+      const picked = (grade?.candidates || []).find((c) => c.id === (choice.noteId ?? choice.verdictId))
       await relink(choice)
+      refocusRelinkRef.current = true
       setRelinking(false)
+      setNotice(choice.none
+        ? 'Marked as a trade with no plan.'
+        : `Linked to “${picked?.title || 'the plan you picked'}”. The grade above is for that plan.`)
     } catch (e) {
       setActionError(e.message || 'Could not re-link')
     } finally {
@@ -96,7 +114,7 @@ export default function PlanGradeCard({ tradeId, trade, onTagSetup, onOpenNote, 
 
   let body
   if (isLoading && !grade) {
-    body = <p className={styles.muted} data-testid="plan-grade-loading">Reading your plan…</p>
+    body = <p className={styles.muted} role="status" data-testid="plan-grade-loading">Reading your plan…</p>
   } else if (error) {
     body = (
       <p className={styles.muted} role="alert">
@@ -172,10 +190,11 @@ export default function PlanGradeCard({ tradeId, trade, onTagSetup, onOpenNote, 
   const canReview = grade && grade.status === 'planned'
 
   return (
-    <section className={styles.card} aria-labelledby="plan-grade-title" data-testid="plan-grade-card" data-tour="plan-grade-card">
-      <h2 id="plan-grade-title" className={styles.title}>Plan vs execution</h2>
+    <section className={styles.card} aria-labelledby={titleId} data-testid="plan-grade-card" data-tour="plan-grade-card">
+      <h2 id={titleId} className={styles.title}>Plan vs execution</h2>
       {body}
       {actionError && <p className={styles.error} role="alert">{actionError}</p>}
+      <p className={`${styles.muted} ${styles.notice}`} role="status" data-plan-grade-status="">{notice}</p>
       {(canRelink || canReview) && (
         <div className={styles.actions} data-tour="plan-grade-actions">
           {canReview && (
@@ -184,7 +203,7 @@ export default function PlanGradeCard({ tradeId, trade, onTagSetup, onOpenNote, 
             </button>
           )}
           {canRelink && (
-            <button type="button" className={styles.actionBtn} aria-expanded={relinking}
+            <button type="button" ref={relinkBtnRef} className={styles.actionBtn} aria-expanded={relinking}
               onClick={() => setRelinking((v) => !v)}>
               {grade.status === 'planned' ? 'Re-link' : 'Link a plan'}
             </button>
