@@ -294,6 +294,10 @@ def build_cards(conn: sqlite3.Connection, user_id: str, *, today: str | None = N
                 # never one of the member's setups: it is in no count below, and the client
                 # labels it "Example" from this flag, never by guessing from a title.
                 "example": sample_marker.is_sample(note["import_source"]),
+                # fin walk P9: "Find more like this" on an example promises a match that
+                # cannot come, because the nightly run leaves sample charts out
+                # (`similar_matches.templates_for`). Said on the card, by the same predicate.
+                "similarNeverMatched": sample_marker.is_sample(note["import_source"]),
             })
     quotes = (prices or read_prices)(sorted({c["symbol"] for c in pending}))
     cards = []
