@@ -75,7 +75,14 @@
   .cancelBtn {
     min-height: var(--tap-min, 44px);
   }
-  .linkBtn { display: inline-flex; align-items: center; min-height: var(--tap-min, 44px); }
+  /* 44 in BOTH dimensions: "Edit" alone measured 21.8 x 44 px (FIN-A11Y round 3). */
+  .linkBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+  }
   .row { flex-direction: column; }
   .voiceWrap { align-self: flex-end; }
 }
