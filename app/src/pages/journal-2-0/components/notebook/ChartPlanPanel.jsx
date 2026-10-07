@@ -373,6 +373,10 @@ export default function ChartPlanPanel({
               const role = PRICE_ROLES.includes(d.role) ? d.role : ''
               const armed = embedId && armedIds.has(boundAlertId(embedId, d.id))
               const derived = roleDirection(role, plan?.side)
+              // An alert follows the line's own geometry, so a level with no anchor point on
+              // the chart cannot carry one. The button is offered only where it can work;
+              // elsewhere the row says why, before any click (it used to refuse after one).
+              const canArm = anchorsForDrawing(d, { tf }) != null
               return (
                 <li key={d.id} className={styles.level} data-level-id={d.id}>
                   <LevelPriceField
@@ -387,7 +391,7 @@ export default function ChartPlanPanel({
                     onChange={(r) => setRole(d.id, r)}
                   />
                   <div className={styles.alertCell}>
-                    {!derived && !armed && (
+                    {!derived && !armed && canArm && (
                       <select
                         className={styles.dirSelect}
                         aria-label={`Alert direction at ${fmtPrice(price)}`}
@@ -400,6 +404,8 @@ export default function ChartPlanPanel({
                     )}
                     {armed ? (
                       <span className={styles.armed}>Alert armed</span>
+                    ) : !canArm ? (
+                      <span className={styles.hint}>Draw this level on the chart to set an alert.</span>
                     ) : (
                       <button
                         type="button"
