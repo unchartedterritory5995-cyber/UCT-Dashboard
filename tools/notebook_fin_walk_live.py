@@ -107,10 +107,9 @@ def run_live(C, browser, admin, base, fs, vp: str) -> None:
         toggles = pg.evaluate("""() => [...document.querySelectorAll('input[type=checkbox], [role=switch], button[aria-pressed]')]
             .filter(e => e.getBoundingClientRect().width > 0).map(e => ({ label: (e.getAttribute('aria-label') || (e.closest('label') || e).innerText || '').trim().slice(0, 80),
               checked: e.checked ?? e.getAttribute('aria-checked') ?? e.getAttribute('aria-pressed') }))""")
-        walk_t = [t for t in toggles if re.search(r"walkthrough|how to use", t["label"], re.I)]
-        C.step(pg, inst, "live: templates", "the template picker lists the built-in templates and a walkthrough toggle",
-               "PASS" if len(keys) >= 8 and walk_t else "FAIL", template_count=len(keys), keys=keys, labels=[l for _, l in cards][:len(keys)],
-               walkthrough_toggle=walk_t, all_toggles=toggles[:8], scope=["[role=dialog]"])
+        C.step(pg, inst, "live: templates", "the template picker lists the built-in templates",
+               "PASS" if len(keys) >= 8 else "FAIL", template_count=len(keys), keys=keys, labels=[l for _, l in cards][:len(keys)],
+               scope=["[role=dialog]"])
         tp = next((k for k in keys if re.search(r"trade.?plan", k, re.I)), None)
         if not tp:
             C.step(pg, inst, "live: templates", "Trade Plan template: found in the picker", "FAIL", keys=keys)
@@ -124,6 +123,21 @@ def run_live(C, browser, admin, base, fs, vp: str) -> None:
             nid = pg.url.split("note=")[-1].split("&")[0]
             props = M.get(f"{base}/api/j2/notes/{nid}/properties").json().get("properties") or []
             made.append({"note": nid, "props": [(p.get("id"), p.get("name"), p.get("type")) for p in props]})
+            if i == 0:
+                # the walkthrough: a collapsed toggle block in the new note ("How to use this template")
+                tg = pg.locator('.ProseMirror [data-type="toggle"]').filter(has_text=re.compile("how to use", re.I))
+                before = tg.first.inner_text()[:160] if tg.count() else None
+                opened_txt = None
+                if tg.count():
+                    chev = tg.first.locator("button.uctToggleChevron")
+                    if chev.count():
+                        press(chev.first)
+                        pg.wait_for_timeout(600)
+                        opened_txt = tg.first.inner_text()[:300]
+                C.step(pg, inst, "live: templates", "a note made from a template carries a walkthrough toggle that opens",
+                       "PASS" if tg.count() and opened_txt and len(opened_txt) > len(before or "") else "FAIL", toggles=tg.count(),
+                       collapsed_text=before, opened_text=opened_txt,
+                       all_toggle_titles=[t[:50] for t in pg.locator('.ProseMirror [data-type="toggle"]').all_inner_texts()][:6])
             if i == 0:   # give the first note's property a value: a second use must not touch it
                 rows = pg.locator("li[data-prop-row] input").filter(visible=True)
                 if rows.count():
@@ -313,7 +327,7 @@ def run_live(C, browser, admin, base, fs, vp: str) -> None:
                                         {"type": "paragraph", "content": [{"type": "text", "text": "Bold words.", "marks": [{"type": "bold"}]}]}])
         st, body = C.api(ctx, inst, "POST", base, f"/api/j2/notes/{n['id']}/share", {"expiresInDays": 7})
         sh = (body or {}).get("share") or {} if isinstance(body, dict) else {}
-        url = sh.get("url") or sh.get("path") or (f"/journal/share/{sh.get('token')}" if sh.get("token") else None)
+        url = sh.get("url") or sh.get("path") or (f"/share/n/{sh.get('token')}" if sh.get("token") else None)   # App.jsx: /share/n/:token
         if not url:
             C.step(None, inst, "live: share", "mint a share link for a note", "FAIL", status=st, response=json.dumps(body, default=str)[:400], shot=False)
             return
@@ -355,11 +369,18 @@ def run_live(C, browser, admin, base, fs, vp: str) -> None:
                     pg.keyboard.press("Tab")
                     if (pg.evaluate("() => (document.activeElement.innerText || '').trim().toLowerCase()") or "").startswith("skip"):
                         break
+                href = pg.evaluate("() => document.activeElement.getAttribute('href')")
                 pg.keyboard.press("Enter")
                 pg.wait_for_timeout(500)
-                moved = pg.evaluate("() => { const a = document.activeElement; return a ? [a.tagName, a.id, (a.getAttribute('aria-label') || '').slice(0, 40)] : null }")
+                at = pg.evaluate("() => { const a = document.activeElement; return a ? [a.tagName, a.id] : null }")
+                # a fragment link may leave activeElement on BODY and still move the tab order: the next Tab decides
+                pg.keyboard.press("Tab")
+                moved = pg.evaluate("""(href) => { const a = document.activeElement; const t = href && document.querySelector(href);
+                    return { target: href, target_exists: !!t, focus_after_enter: null, next_tab_lands_inside_target: !!(t && a && t.contains(a)),
+                             next_tab_on: a ? [a.tagName, (a.getAttribute('aria-label') || a.innerText || '').trim().slice(0, 40)] : null } }""", href)
+                moved["focus_after_enter"] = at
             out[label] = {"skip_links_reached_by_tab": seen, "focus_after_using_the_first": moved}
-        ok = all(v["skip_links_reached_by_tab"] and v["focus_after_using_the_first"] and v["focus_after_using_the_first"][0] != "BODY" for v in out.values())
+        ok = all(v["skip_links_reached_by_tab"] and v["focus_after_using_the_first"] and v["focus_after_using_the_first"]["next_tab_lands_inside_target"] for v in out.values())
         C.step(pg, inst, "live: skip links", "Tab from the top reaches a skip link, and using it moves focus into the page", "PASS" if ok else "FAIL", **{k.replace(" ", "_"): v for k, v in out.items()})
     run("skip links", skip_links)
 

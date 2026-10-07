@@ -923,7 +923,7 @@ def run_c3(browser, admin, base: str, fs: dict, data_dir: Path, only) -> None:
     s3, tr = api(ctx, inst, "POST", base, f"/api/j2/positions/{p1.get('id')}/close", {"shares": 10, "exitPrice": 205.0, "exitDate": TODAY.isoformat()})
     tid = ((tr.get("trade") or tr) if isinstance(tr, dict) else {}).get("id")
     notes = notes_list(ctx, base)
-    plan = next((n for n in notes if n.get("ticker") == "AAPL"), None)
+    plan = next((n for n in notes if "AAPL" in (n.get("title") or "")), None)   # the example names its symbol in its title
     step(None, inst, "setup", "member with the sample notebook and one closed trade", "PASS" if st == 200 and tid and plan else "FAIL",
          sample=st, trade=tid, notes=len(notes), plan_note=(plan or {}).get("id"), shot=False)
     storage = ctx.storage_state()
