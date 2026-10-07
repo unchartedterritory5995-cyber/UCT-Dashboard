@@ -35,12 +35,7 @@
     "app/src/pages/OptionsFlow_admin.jsx": 39,
     "app/src/pages/PostMarket.jsx": 2,
     "app/src/pages/Watchlists.jsx": 7,
-    "app/src/pages/charts/widgets/CalendarWidget.jsx": 1,
     "app/src/pages/charts/widgets/DockFundamentals.jsx": 3,
-    "app/src/pages/charts/widgets/LeverageInverseControl.jsx": 3,
-    "app/src/pages/charts/widgets/OptionsFlowWidget.jsx": 2,
-    "app/src/pages/charts/widgets/ScatterWidget.jsx": 4,
-    "app/src/pages/charts/widgets/VolumeScanWidget.jsx": 2,
     "app/src/pages/journal-2-0/lib/positionDetail.js": 3,
     "app/src/pages/optionsFlow/flowCompute.js": 1,
     "app/src/pages/screener/shell/FilterBand.jsx": 4
