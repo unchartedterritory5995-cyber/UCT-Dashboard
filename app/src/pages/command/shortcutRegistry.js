@@ -201,6 +201,16 @@ export const SHORTCUTS = Object.freeze([
   // forbidden, so AltGr (Ctrl+Alt on Windows) still types Polish/German characters. Letters
   // avoid the browser's own Alt keys (D address bar, E/F Chrome menu, F/E/V/S/B/T/H Firefox
   // menus) and StockChart's Alt chords (U, I, G, Q, N, S, Comma; Shift+A/I/W).
+  // The panel-count key (daily-use leftover #3, the audit's "Alt+Shift+digit is free"): Shift
+  // is what separates it from Alt+N, which FOCUSES panel N. Physical key, because Shift turns
+  // the digit's `e.key` into a symbol that differs by layout ('!' on US, '1' on AZERTY).
+  ...[1, 2, 3, 4].map((n) => decl({
+    id: `terminal.count${n}`,
+    chord: { code: `Digit${n}`, alt: true, shift: true, ctrl: false, meta: false },
+    target: 'window', capture: false, inEditable: true, repeat: false,
+    why: `Alt+Shift+${n} shows ${n} terminal panel${n === 1 ? '' : 's'} on the board (the same as the ${n} `
+      + `button on the bar); it says the new count. Alt+${n} without Shift focuses panel ${n} instead.`,
+  })),
   ...[['MoveLeft', 'BracketLeft', '[', 'left'], ['MoveRight', 'BracketRight', ']', 'right']].map(([name, code, ch, word]) => decl({
     id: `terminal.panel${name}`,
     chord: { code, alt: true, shift: true, ctrl: false, meta: false },

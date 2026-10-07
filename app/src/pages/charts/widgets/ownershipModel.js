@@ -19,6 +19,8 @@
  * what someone did.
  */
 
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+
 const num = (v) => {
   if (v == null || v === '') return null
   const n = Number(v)
@@ -26,15 +28,29 @@ const num = (v) => {
 }
 
 // ── formatting ──────────────────────────────────────────────────────────────
+// TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact). Each formatter
+// passes the ladder it already had and keeps its own sign rule (the sign is written by this
+// file, formatCompact only sees the magnitude), so what a member reads does not move. The sign here is the
+// typographic minus (U+2212), which is why formatCompact is handed the magnitude.
+const SHARES_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 2 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
+const MONEY_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 2 },
+  { at: 1e9, suffix: 'B', decimals: 2 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 0 },
+]
+
 export function fmtShares(v) {
   const n = num(v)
   if (n == null) return '—'
   const a = Math.abs(n)
   const s = n < 0 ? '−' : ''
-  if (a >= 1e9) return `${s}${(a / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${s}${(a / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `${s}${(a / 1e3).toFixed(0)}K`
-  return `${s}${a.toFixed(0)}`
+  if (a < 1e3) return `${s}${a.toFixed(0)}`
+  return `${s}${formatCompact(a, { tiers: SHARES_TIERS })}`
 }
 
 export function fmtMoney(v) {
@@ -42,11 +58,8 @@ export function fmtMoney(v) {
   if (n == null) return '—'
   const a = Math.abs(n)
   const s = n < 0 ? '−' : ''
-  if (a >= 1e12) return `${s}$${(a / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `${s}$${(a / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${s}$${(a / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `${s}$${(a / 1e3).toFixed(0)}K`
-  return `${s}$${a.toFixed(0)}`
+  if (a < 1e3) return `${s}$${a.toFixed(0)}`
+  return `${s}${formatCompact(a, { tiers: MONEY_TIERS, prefix: '$' })}`
 }
 
 export const fmtPct = (v, d = 1) => (num(v) == null ? '—' : `${Number(v).toFixed(d)}%`)

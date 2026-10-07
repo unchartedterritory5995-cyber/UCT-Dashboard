@@ -21,6 +21,8 @@ import EpFlag, { isEpSetup } from './EpBaseRate'
 import { CATALYST_TAG_DISPLAY_ORDER, CATALYST_TAGS, keyedBy } from '../../lib/taxonomy/a8Taxonomy'
 import Input from '../ui/Input'
 import Textarea from '../ui/Textarea'
+import { ASC, DESC, nextSort, sortCaretFor } from '../../lib/presentation/dataGrid'
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 
 const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 
@@ -118,13 +120,16 @@ function safeParseSignals(raw) {
   try { return JSON.parse(raw) || {} } catch { return {} }
 }
 
-// $55M / $1.2M / $940K
+// $55M / $1.2M / $940K. TERM-066: the K/M/B/T decision lives in lib/presentation
+// (formatCompact), on this tile's own ladder (K is Math.round, not toFixed(0)), so it is
+// byte-identical to the hand-written version it replaced.
+const PREMIUM_TIERS = [
+  { at: 1e9, suffix: 'B', decimals: 1 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 'round' },
+]
 function fmtPremium(v) {
-  const n = Math.abs(Number(v) || 0)
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(1)}M`
-  if (n >= 1e3) return `$${Math.round(n / 1e3)}K`
-  return `$${Math.round(n)}`
+  return formatCompact(Math.abs(Number(v) || 0), { tiers: PREMIUM_TIERS, prefix: '$' })
 }
 
 // PRE-MOVE: a Catalyst-Hunter-confirmed catalyst whose stock hasn't reacted yet.
@@ -311,9 +316,29 @@ function parseSources(raw) {
   }
 }
 
+// ── TERM-065: the header decisions come from the DataGrid seed ─────────────────
+// The tile keeps its `{col, dir}` shape, its third-click reset to engine-ranked
+// order, and its comparator (live price overlay, localeCompare for text); the
+// seed decides the flip and the caret. Parity with the hand-rolled code:
+// lib/presentation/dataGrid/pageGrids.seedParity.test.js
+const catalystToSeed = (s) => s && { key: s.col, dir: s.dir }
+/** A header click: a new column starts desc, desc flips to asc, asc clears. */
+export function nextCatalystSort(prev, col) {
+  if (prev && prev.col === col && prev.dir === ASC) return null  // third click clears
+  return { col, dir: nextSort(catalystToSeed(prev), col).dir }
+}
+/** The compact rail's Gainers/Losers button: flip % change (anything not asc counts as desc). */
+export function flipCatalystChangeSort(prev) {
+  return { col: 'change', dir: nextSort({ key: 'change', dir: prev?.dir === ASC ? ASC : DESC }, 'change').dir }
+}
+export function catalystCaret(sortBy, col) {
+  const c = sortCaretFor(catalystToSeed(sortBy), col)
+  return c ? ` ${c}` : ''
+}
+
 function SortableTh({ col, className, sortBy, onSort, children }) {
   const active = sortBy && sortBy.col === col
-  const arrow = !active ? '' : (sortBy.dir === 'asc' ? ' ▲' : ' ▼')
+  const arrow = catalystCaret(sortBy, col)
   return (
     <th
       className={`${className} ${styles.sortableHeader} ${active ? styles.sortActive : ''}`}
@@ -512,11 +537,7 @@ export default function CatalystTable({
   const [sortBy, setSortBy] = useState(compact ? { col: 'change', dir: 'desc' } : null)
 
   function toggleSort(col) {
-    setSortBy(prev => {
-      if (!prev || prev.col !== col) return { col, dir: 'desc' }
-      if (prev.dir === 'desc') return { col, dir: 'asc' }
-      return null  // third click clears
-    })
+    setSortBy(prev => nextCatalystSort(prev, col))  // third click clears
   }
 
   function getSortValue(row, col) {
@@ -730,7 +751,7 @@ export default function CatalystTable({
             <button
               type="button"
               className={`${styles.chipBtn} ${styles.sortPctBtn} ${styles.sortPctActive}`}
-              onClick={() => setSortBy(prev => ({ col: 'change', dir: prev?.dir === 'asc' ? 'desc' : 'asc' }))}
+              onClick={() => setSortBy(flipCatalystChangeSort)}
               title="Sort by % change — biggest gainer first / biggest loser first"
             >
               {sortBy?.dir === 'asc' ? 'Losers ▲' : 'Gainers ▼'}

@@ -114,6 +114,7 @@ function NoteEditorInner({ note, update, journalUrl, onBack }) {
         value={title}
         onChange={e => onTitle(e.target.value)}
         placeholder="Untitled note"
+        aria-label="Note title"
       />
       <div className={styles.editorScroll} onClick={() => editor?.chain().focus().run()}>
         {editor
@@ -360,7 +361,7 @@ export default function NotebookWidget({ opts, onOptsChange }) {   // `color` un
       ) : (
         <>
           <div className={styles.toolbar}>
-            <input className={styles.search} placeholder="Search notes…" value={q} onChange={e => setQ(e.target.value)} />
+            <input className={styles.search} placeholder="Search notes…" aria-label="Search notes" value={q} onChange={e => setQ(e.target.value)} />
             <button type="button" className={styles.newBtn} onClick={newNote} disabled={creating} title="New note">
               <UIcon name="plus" size={13} /> New
             </button>

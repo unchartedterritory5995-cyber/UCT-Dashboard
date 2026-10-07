@@ -26,12 +26,17 @@ import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
 import chrome from './NewHighsLowsWidget.module.css'
 import styles from './ScatterWidget.module.css'
+import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import { prewarmVisibleList } from '../../../utils/prefetchBars'
 import { KIND, channelFor, useChannel } from '../../../lib/context/contextChannels'
 import Input from '../../../components/ui/Input'
 
-const getFetcher = (url) =>
-  fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, and the map
+// said "No data for this universe yet.", a claim about the universe made out of a failed
+// request. The universe bundle now has its own error state with a Retry; SWR keeps the last
+// good bundle through a failed 45 s refresh. The metric catalog and universe menu are menu
+// enrichments and stay soft at the render (an empty menu, no claim). A 402 stays absent.
+const getFetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 const GREEN = '#34d17c'
 const RED = '#f24b42'
@@ -317,7 +322,7 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
 
   // ── The universe bundle (daily metrics + a first live snapshot) ──
   const dataUrl = `/api/scatter/data?source=${encodeURIComponent(source)}&value=${encodeURIComponent(value ?? '')}`
-  const { data, isValidating } = useMobileSWR(dataUrl, getFetcher, {
+  const { data, error: dataError, mutate: retryData, isValidating } = useMobileSWR(dataUrl, getFetcher, {
     refreshInterval: 45_000, dedupingInterval: 20_000, revalidateOnFocus: false, keepPreviousData: true,
   })
   const baseTickers = useMemo(() => (data?.tickers || []).map(t => t.sym), [data])
@@ -510,7 +515,14 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
 
       <div className={styles.stage}>
         {!baseTickers.length ? (
-          <div className={styles.hint}>{isValidating ? 'Loading universe…' : 'No data for this universe yet.'}</div>
+          (dataError && !data && !isValidating) ? (
+            <div className={styles.hint} role="alert">
+              This universe could not be loaded.{' '}
+              <button type="button" className={chrome.retry} onClick={() => retryData()}>Retry</button>
+            </div>
+          ) : (
+            <div className={styles.hint}>{isValidating ? 'Loading universe…' : 'No data for this universe yet.'}</div>
+          )
         ) : (
           <>
             <div ref={wrapRef} className={styles.chartWrap}>

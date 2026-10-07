@@ -34,6 +34,16 @@ import {
   mergeCalendarWidgetSettings, calendarWidgetStyleVars, calendarDefaultsForTheme,
 } from './calendarWidgetSettings'
 import styles from './CalendarWidget.module.css'
+import { nextSort } from '../../../lib/presentation/dataGrid'
+
+// TERM-065: a section header click asks the DataGrid seed which way the sort
+// turns (same column flips, a new column starts descending). The ▾/▴ caret
+// glyphs and the comparators stay this widget's own.
+// Parity with the hand-rolled toggle: lib/presentation/dataGrid/pageGrids.seedParity.test.js
+export function nextCalendarWidgetSort(s, col) {
+  const n = nextSort(s && { key: s.by, dir: s.dir }, col)
+  return { by: n.key, dir: n.dir }
+}
 
 const fetcher = url => fetch(url).then(r => (r.ok ? r.json() : null))
 
@@ -185,7 +195,7 @@ function EarningsSection({ title, iconName, cls, items, imMap, mcapMap, onSelect
     })
   }, [items, sort, imMap, mcapMap])
   const shown = showAll ? sorted : sorted.slice(0, TOP_EARNINGS)
-  const clickCol = (col) => setSort(s => (s.by === col ? { by: col, dir: s.dir === 'desc' ? 'asc' : 'desc' } : { by: col, dir: 'desc' }))
+  const clickCol = (col) => setSort(s => nextCalendarWidgetSort(s, col))
   const caret = (col) => (sort.by === col ? <span className={styles.sortCaret}>{sort.dir === 'desc' ? '▾' : '▴'}</span> : null)
   const estTag = est ? <span className={styles.estTag}>(est)</span> : null
   return (

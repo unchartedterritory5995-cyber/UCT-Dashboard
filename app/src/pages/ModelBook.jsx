@@ -21,6 +21,14 @@ import Select from '../components/ui/Select'
 import Textarea from '../components/ui/Textarea'
 import SaveToNotebookButton from './journal-2-0/components/SaveToNotebookButton'
 import { buildModelBookCapture } from './modelbook/notebookCapture'
+import { ASC, DESC, nextSort } from '../lib/presentation/dataGrid'
+
+// TERM-065: the gallery's header decision comes from the DataGrid seed. A new
+// column starts at its own default (gain → top gainers first, rank → ascending);
+// the active column flips. The comparator stays here — it is about the data.
+// Parity with the hand-rolled toggle: lib/presentation/dataGrid/pageGrids.seedParity.test.js
+const modelBookDefaultDir = (key) => (key === 'gain' ? DESC : ASC)
+export const nextModelBookSort = (s, key) => nextSort(s, key, modelBookDefaultDir)
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
 
@@ -1809,9 +1817,7 @@ export default function ModelBook() {
   // Sortable gallery — defaults to top gainers (highest yearly gain first).
   const [sort, setSort] = useState({ key: 'gain', dir: 'desc' })
   function toggleSort(key) {
-    setSort(s => s.key === key
-      ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' }
-      : { key, dir: key === 'gain' ? 'desc' : 'asc' })  // gain defaults to top-gainers
+    setSort(s => nextModelBookSort(s, key))  // gain defaults to top-gainers
   }
   const sortedStocks = useMemo(() => {
     const gain = sym => yearStats[sym]?.open_close_pct

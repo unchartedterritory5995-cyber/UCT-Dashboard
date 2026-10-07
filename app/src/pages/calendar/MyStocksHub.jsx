@@ -268,13 +268,21 @@ function CallsTab({ mineSyms, seen, markSeen }) {
 }
 
 function CallRecapForSym({ sym }) {
-  const { data: recap } = useCallRecap(sym)
+  const { data: recap, error, mutate } = useCallRecap(sym)
   // The transcript renders either way — it is not downstream of the recap.
   return (
     <>
       {recap
         ? <CallRecapSection recap={recap} audio={null} />
-        : <div className={styles.hubCallLoading}>Loading recap…</div>}
+        : error
+          ? (
+            // TERM-033: a failed read used to sit on "Loading recap" forever.
+            <div className={styles.hubCallLoading} role="alert">
+              Could not load this recap.{' '}
+              <button type="button" onClick={() => mutate()}>Retry</button>
+            </div>
+          )
+          : <div className={styles.hubCallLoading}>Loading recap…</div>}
       <TranscriptPanel sym={sym} />
     </>
   )

@@ -115,13 +115,23 @@ function Skeleton() {
 }
 
 export default function AnalystPanel({ sym }) {
-  const { data } = useAnalystIntel(sym)
+  const { data, error, mutate } = useAnalystIntel(sym)
   if (!sym) return <div className={styles.hint}>Pick a ticker.</div>
   // A refusal is not a slow load. `/api/analyst/{sym}` is paid as of 2026-08-09
   // and this panel is reachable from a ticker chip on the FREE Morning Wire, so
   // without this branch a free member gets a skeleton that never resolves.
   if (data?.locked) {
     return <div className={styles.hint}>Analyst coverage is part of a paid plan.</div>
+  }
+  // TERM-033: a failed read with no earlier answer. Not a skeleton (that was a hang) and not
+  // "no coverage" (that is a claim about the company).
+  if (!data && error) {
+    return (
+      <div className={styles.hint} role="alert">
+        Could not load analyst data for {sym}.{' '}
+        <button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button>
+      </div>
+    )
   }
   if (!data) return <Skeleton />
   const has = data.consensus || data.price_target || (data.recent_actions || []).length

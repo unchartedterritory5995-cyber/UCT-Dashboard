@@ -30,6 +30,7 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 import Spark from './Spark'
 import MiniBars from './MiniBars'
 import styles from './dockPanels.module.css'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
 
@@ -179,22 +180,27 @@ const SCHEMA = {
 }
 
 // ── formatters ───────────────────────────────────────────────────────────────
+// TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact). Each formatter
+// passes the ladder it already had and keeps its own sign rule (the sign is written by this
+// file, formatCompact only sees the magnitude), so what a member reads does not move.
+const MONEY_TIERS = [
+  { at: 1e12, suffix: 'T', decimals: 2 },
+  { at: 1e9, suffix: 'B', decimals: 2 },
+  { at: 1e6, suffix: 'M', decimals: 1 },
+  { at: 1e3, suffix: 'K', decimals: 1 },
+]
+const SHARES_TIERS = [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 0 }]
 function fmtMoney(v) {
   if (v == null) return '—'
   const a = Math.abs(v)
   const s = v < 0 ? '-' : ''
-  if (a >= 1e12) return `${s}$${(a / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `${s}$${(a / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${s}$${(a / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `${s}$${(a / 1e3).toFixed(1)}K`
-  return `${s}$${a.toFixed(0)}`
+  if (a < 1e3) return `${s}$${a.toFixed(0)}`
+  return `${s}${formatCompact(a, { tiers: MONEY_TIERS, prefix: '$' })}`
 }
 function fmtSharesN(v) {
   if (v == null) return '—'
-  const a = Math.abs(v)
-  if (a >= 1e9) return `${(v / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${(v / 1e6).toFixed(0)}M`
-  return `${v}`
+  if (Math.abs(v) < 1e6) return `${v}`
+  return formatCompact(v, { tiers: SHARES_TIERS })
 }
 const fmtEpsN = (v) => (v == null ? '—' : `$${Number(v).toFixed(2)}`)
 const fmtPctN = (v) => (v == null ? '—' : `${v.toFixed(1)}%`)

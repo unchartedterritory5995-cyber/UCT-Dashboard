@@ -22,8 +22,10 @@ const DATA = {
     { sym: 'XYZ', name: 'Zed', sector: 'Fin', dir: 'down', m: { chg_today: -1.2, rvol: 0.8, rs_rank: 40 } },
   ],
 }
+let dataOverride = null
 vi.mock('../../../hooks/useMobileSWR', () => ({
   default: (url) => {
+    if (dataOverride && typeof url === 'string' && url.includes('/scatter/data')) return dataOverride
     if (typeof url === 'string' && url.includes('/scatter/metrics')) return { data: { metrics: METRICS } }
     if (typeof url === 'string' && url.includes('/scatter/universes')) return { data: UNIVERSES }
     if (typeof url === 'string' && url.includes('/scatter/data')) return { data: DATA, isValidating: false }
@@ -38,6 +40,7 @@ import ScatterWidget from './ScatterWidget'
 
 beforeEach(() => {
   chartOption = null
+  dataOverride = null
   setGroupSym.mockReset()
   global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ points: {} }) }))
 })
@@ -117,5 +120,25 @@ describe('ScatterWidget', () => {
     render(<ScatterWidget color="A" opts={{ xKey: 'rs_rank', yKey: 'chg_today' }} onOptsChange={() => {}} />)
     // both AAPL + XYZ have rs_rank + chg_today → still 2
     expect(chartOption.series[0].data).toHaveLength(2)
+  })
+})
+
+// TERM-033: a failed universe read used to say "No data for this universe yet." (a claim about
+// the universe made out of a failed request).
+describe('ScatterWidget -- failed universe read (TERM-033)', () => {
+  it('says the universe could not be loaded, with a Retry', () => {
+    const mutate = vi.fn()
+    dataOverride = { data: undefined, error: new Error('Request failed (502)'), mutate, isValidating: false }
+    render(<ScatterWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    expect(screen.getByRole('alert').textContent).toMatch(/could not be loaded/i)
+    expect(screen.queryByText(/No data for this universe yet/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(mutate).toHaveBeenCalled()
+  })
+
+  it('control: an answered-but-empty universe is the honest "no data yet"', () => {
+    dataOverride = { data: { tickers: [] }, error: undefined, mutate: vi.fn(), isValidating: false }
+    render(<ScatterWidget color="A" opts={{}} onOptsChange={() => {}} />)
+    expect(screen.getByText(/No data for this universe yet/)).toBeInTheDocument()
   })
 })

@@ -72,6 +72,7 @@ function BoardRow({ t, active, currentSym, onActivate, onRename, onDelete, canDe
             autoFocus
             value={draft}
             placeholder={label}
+            aria-label="Board name"
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={(e) => {

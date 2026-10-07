@@ -2696,6 +2696,11 @@ _PREFERENCE_KEYS = {
     # per-ticker presets, favourite functions and the keep-the-classic-calendar choice.
     # Versioned with `terminal_layout` as the TERM-021 `terminal` board.
     "terminal_boards": _PREF_OPAQUE,
+    # Daily-use leftover #1 (2026-10-06): the terminal command line's ↑ history, per member, a
+    # JSON array of command lines newest first, capped at 100 (`app/src/pages/terminal/
+    # commandHistory.js`). Written only through `setPrefMerged` (read-modify-write, since this
+    # endpoint replaces the whole value). Not a board key: it is not versioned with the board.
+    "terminal_command_history": _PREF_OPAQUE,
     "theme": _PREF_OPAQUE,
     # A12 CP2 (2026-09-25): the Watchlists surface's chosen performance columns, a
     # JSON array of its PERF_COLS keys (`Watchlists.jsx` WATCHLIST_PERF_COLS_KEY).

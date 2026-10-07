@@ -4,6 +4,16 @@ import UIcon from "../components/ui/UIcon";
 import ShareToFloor from "../components/community/ShareToFloor";
 import TickerPopup from "../components/TickerPopup";
 import useLongPress from "../components/mobile/useLongPress";
+import { nextSort } from "../lib/presentation/dataGrid";
+
+// TERM-065: a header click asks the DataGrid seed which way the sort turns —
+// same column flips, a new column starts descending. The comparator (time /
+// premium / grade) stays here. Parity with the hand-rolled toggle:
+// lib/presentation/dataGrid/pageGrids.seedParity.test.js
+export function nextLiveFlowSort(prev, col) {
+  const n = nextSort(prev && { key: prev.col, dir: prev.dir }, col);
+  return { col: n.key, dir: n.dir };
+}
 
 /**
  * LiveFlow — subscriber-facing
@@ -1588,12 +1598,7 @@ export default function LiveFlow() {
   // for premium/grade desc-first matches the "biggest/best first" intuition;
   // for time, desc-first means newest first).
   const handleSort = (col) => {
-    setSortBy(prev => {
-      if (prev.col === col) {
-        return { col, dir: prev.dir === "desc" ? "asc" : "desc" };
-      }
-      return { col, dir: "desc" };
-    });
+    setSortBy(prev => nextLiveFlowSort(prev, col));
   };
 
   // Bulk on-demand OI fetch. Posts all null-OI contracts to the backend,

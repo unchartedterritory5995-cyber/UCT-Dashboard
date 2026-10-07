@@ -3,6 +3,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import DockNews from './DockNews'
+import { prefetchPanel, clearNewsPrefetch } from './dockPrefetch'
 import {
   dayLabel, descLines, emptyMessage, feedQuery, groupByDay, isBreaking,
   mediaKind, mergePage, relTime, sourceLabel,
@@ -259,6 +260,23 @@ describe('DockNews', () => {
     render(<DockNews sym="ONTO" />)
     expect(await screen.findByText('No recent high-quality news for ONTO.')).toBeInTheDocument()
     expect(screen.getByText(/Filings and company releases/)).toBeInTheDocument()
+  })
+
+  // TERM-033: a failed PREFETCH is "no head start", never the panel's answer. It used to be
+  // taken as the response and rendered as an outage although nothing had asked for real.
+  it('a failed news prefetch falls back to a real request instead of showing an outage', async () => {
+    const feed = mockFeed([{ items: [story()], next_cursor: null, has_more: false }])
+    global.fetch = vi.fn(async (url, opts) => {
+      if (String(url).includes('/api/company-news/') && global.fetch.mock.calls.length === 1) {
+        throw new TypeError('Failed to fetch')
+      }
+      return feed(url, opts)
+    })
+    prefetchPanel('MU', { fetcher: vi.fn() })
+    render(<DockNews sym="MU" />)
+    expect(await screen.findByText(/Micron raises fiscal Q4/)).toBeInTheDocument()
+    expect(screen.queryByText(/temporarily unavailable/)).toBeNull()
+    clearNewsPrefetch()
   })
 
   it('keeps serving on API failure with a retry, not a blank panel', async () => {

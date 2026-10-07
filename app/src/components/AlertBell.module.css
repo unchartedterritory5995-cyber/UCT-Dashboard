@@ -91,6 +91,19 @@
   font-size: 12px;
 }
 
+/* ── "could not check delivery" (TERM-033) ────────────────────────────────
+   The delivery-health read FAILED: a statement about our check, not about the
+   alerts, so it is muted rather than painted like a delivery failure. */
+.deliveryUnknown {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 /* ── "not delivered everywhere" ───────────────────────────────────────────
    The member-facing face of api/services/alert_fired_log.delivery_failures().
    Deliberately reads as a WARNING, not as another notification — it is a

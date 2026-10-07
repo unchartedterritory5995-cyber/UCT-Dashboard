@@ -29,9 +29,12 @@ import NhnlSettingsPanel from './NhnlSettingsPanel'
 import NhnlUniverseMenu from './NhnlUniverseMenu'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
 import styles from './NewHighsLowsWidget.module.css'
+import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 
-const fetcher = (url) =>
-  fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which this
+// widget drew as "0 new highs / 0 new lows", a confident count made out of a failed request. Now SWR keeps the last good answer through a failed poll, and a
+// failure with nothing to stand on says so, with a Retry. A 402 stays an absent answer.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 // The soft "hot" wash, fired ONLY when a row's count actually increases while it's
 // already on screen — never on first mount. That's what keeps a whole list (or a
@@ -80,7 +83,7 @@ function Side({ title, tone, events, total, onPick, groupView, dim, drillBase })
   const drillUrl = (groupView && expanded && dim)
     ? `${drillBase}&group=${dim}&value=${encodeURIComponent(expanded)}&limit=10`
     : null
-  const { data: drill } = useMobileSWR(drillUrl, fetcher, {
+  const { data: drill, error: drillError } = useMobileSWR(drillUrl, fetcher, {
     refreshInterval: 2000, dedupingInterval: 1200, marketHoursOnly: true, revalidateOnFocus: false,
   })
   const sub = (tone === 'up' ? drill?.highs : drill?.lows) || []
@@ -122,7 +125,7 @@ function Side({ title, tone, events, total, onPick, groupView, dim, drillBase })
               {open && (
                 <div className={styles.subList}>
                   {sub.length === 0
-                    ? <div className={styles.subEmpty}>{drill ? 'No names' : 'Loading…'}</div>
+                    ? <div className={styles.subEmpty}>{drill ? 'No names' : drillError ? 'Could not load these names. Retrying…' : 'Loading…'}</div>
                     : sub.map((s) => (
                         <StockRow key={`sub-${tone}-${s.sym}`} e={s} tone={tone} maxCount={subMax} onPick={onPick} nested />
                       ))}
@@ -218,7 +221,7 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
   const url = `/api/nhnl/live?limit=150&${filterQS}${scopeQ}${valueQ}${restrictQ}`
   // Base for a group's inline expansion (Side appends &group=&value=&limit=10).
   const drillBase = `/api/nhnl/live?${filterQS}`
-  const { data } = useMobileSWR(url, fetcher, {
+  const { data, error, mutate } = useMobileSWR(url, fetcher, {
     refreshInterval: 2000,       // feel live; server accumulates every ~2s
     dedupingInterval: 1200,
     marketHoursOnly: true,       // 10x-slow the poll when the market is closed
@@ -283,7 +286,15 @@ export default function NewHighsLowsWidget({ color, opts, onOptsChange }) {
         </button>
       </div>
 
-      {!isActive ? (
+      {error && !data ? (
+        <div className={styles.empty} role="alert">
+          <div className={styles.emptyTitle}>New highs / lows could not be loaded</div>
+          <div className={styles.emptySub}>
+            The live read failed. This is not a count of zero.{' '}
+            <button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button>
+          </div>
+        </div>
+      ) : !isActive ? (
         <div className={styles.empty}>
           <div className={styles.emptyTitle}>Market closed</div>
           <div className={styles.emptySub}>

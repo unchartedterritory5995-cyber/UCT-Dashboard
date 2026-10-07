@@ -15,8 +15,12 @@ import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 import { prefetchListDeep } from '../../../utils/prefetchBars'
 import styles from './ScannerResults.module.css'
+import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 
-const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, and the table
+// read `!data` as "Loading…", so a failed holdings read was a load that never finished. The
+// failure now says so and points at the footer's Refresh. A 402 stays an absent answer.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 // ETF: Flag · Symbol · % Change (live) · Weight % · Industry, sorted by weight desc
 // so the fund's biggest positions lead. A THEMATIC INDEX ($IDX:) is equal-weight, so
@@ -41,7 +45,7 @@ export default function EtfHoldingsResults({ sym, color, settingsOverride = null
   const url = isIdx
     ? `/api/theme-index/${encodeURIComponent(idxSlug)}/holdings`
     : (etf ? `/api/etf/holdings/${encodeURIComponent(etf)}` : null)
-  const { data, mutate, isValidating } = useMobileSWR(
+  const { data, error, mutate, isValidating } = useMobileSWR(
     url, fetcher,
     { revalidateOnFocus: false, dedupingInterval: 60_000 },
   )
@@ -74,7 +78,11 @@ export default function EtfHoldingsResults({ sym, color, settingsOverride = null
       ? [`Stocks in the ${data?.name || 'theme'} equal-weight index`, 'Live prices · updates with the Theme Tracker']
       : [`Holdings of ${etf}`, 'Live prices · weight in fund']
   ), [isIdx, data?.name, etf])
-  const scanEmptyText = !data ? 'Loading…' : (isIdx ? 'No holdings found for this index.' : 'No holdings found for this ETF.')
+  const scanEmptyText = !data
+    ? (error
+      ? `Could not load the holdings for ${isIdx ? 'this index' : etf}. Use Refresh below to try again.`
+      : 'Loading…')
+    : (isIdx ? 'No holdings found for this index.' : 'No holdings found for this ETF.')
   const scanFooter = (
     <div className={styles.scanFooter}>
       <span className={styles.scanCount}>{symbols.length.toLocaleString()} {symbols.length === 1 ? 'holding' : 'holdings'}</span>

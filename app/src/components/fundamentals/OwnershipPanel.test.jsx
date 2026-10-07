@@ -3,7 +3,9 @@ import { vi } from 'vitest'
 import OwnershipPanel from './OwnershipPanel'
 
 const mockData = vi.fn()
-vi.mock('../../hooks/useOwnership', () => ({ default: () => ({ data: mockData() }) }))
+const mockError = vi.fn(() => undefined)
+const mockMutate = vi.fn()
+vi.mock('../../hooks/useOwnership', () => ({ default: () => ({ data: mockData(), error: mockError(), mutate: mockMutate }) }))
 
 test('renders inst %, a holder with a delta chip, and a buyer', () => {
   mockData.mockReturnValue({
@@ -33,4 +35,24 @@ test('a PAYWALL REFUSAL says so — it does not sit on "Loading…" forever', ()
   expect(screen.queryByText(/loading/i)).not.toBeInTheDocument()
   // …and "we refused you" is not "the market has nothing here".
   expect(screen.queryByText(/no ownership data/i)).not.toBeInTheDocument()
+})
+
+// TERM-033: the hook now THROWS on a failed read. A failure with no earlier answer is an
+// error with a Retry: not a loading state that never ends, and not a claim about the company.
+test('TERM-033: a failed read says so, with a Retry', async () => {
+  mockData.mockReturnValue(undefined)
+  mockError.mockReturnValue(new Error('Request failed (502)'))
+  render(<OwnershipPanel sym="AAPL" />)
+  expect(screen.getByRole('alert').textContent).toMatch(/could not load ownership for AAPL/i)
+  expect(screen.queryByText(/^no /i)).not.toBeInTheDocument()
+  screen.getByRole('button', { name: 'Retry' }).click()
+  expect(mockMutate).toHaveBeenCalled()
+  mockError.mockReturnValue(undefined)
+})
+
+test('TERM-033 control: still loading (no error) is not an error', () => {
+  mockData.mockReturnValue(undefined)
+  mockError.mockReturnValue(undefined)
+  render(<OwnershipPanel sym="AAPL" />)
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })

@@ -363,6 +363,7 @@ export default function PatternSidePanel({ detection, onClose }) {
           <textarea
             className={styles.noteInput}
             placeholder="Optional note (what worked, what didn't)…"
+            aria-label="Pattern note"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={2}
