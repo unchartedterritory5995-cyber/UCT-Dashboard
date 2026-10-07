@@ -1,0 +1,52 @@
+{
+ "click_on_chart_body_selects_block": false,
+ "geometry": {
+  "host": [
+   414,
+   602.28125,
+   778,
+   576.328125
+  ],
+  "body": [
+   415,
+   603.28125,
+   776,
+   427
+  ],
+  "caption": [
+   415,
+   1030.28125,
+   776,
+   32.546875
+  ]
+ },
+ "mouse_click_outside_body": [
+  {
+   "where": "caption",
+   "selected": true
+  },
+  {
+   "where": "frame_top_edge",
+   "selected": false
+  },
+  {
+   "where": "frame_left_edge",
+   "selected": false
+  }
+ ],
+ "keyboard_arrow_selects_block": {
+  "selected": true,
+  "arrow_right_presses": 1
+ },
+ "after_backspace_block_count": 0,
+ "after_undo_block_count": 1,
+ "after_cut_block_count": 0,
+ "after_paste_block_count": 1,
+ "order_after_cut_paste": [
+  "before the chart",
+  "after the chart",
+  "CHART",
+  ""
+ ],
+ "remove_button_present": 1
+}

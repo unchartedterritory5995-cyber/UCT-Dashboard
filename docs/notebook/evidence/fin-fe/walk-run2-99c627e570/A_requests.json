@@ -1,0 +1,536 @@
+[
+ {
+  "t": 1791345757.14,
+  "method": "GET",
+  "url": "/api/maintenance",
+  "status": 200
+ },
+ {
+  "t": 1791345757.14,
+  "method": "GET",
+  "url": "/api/auth/me",
+  "status": 200
+ },
+ {
+  "t": 1791345757.388,
+  "method": "GET",
+  "url": "/api/watchlists?include_prebuilt=0",
+  "status": 200
+ },
+ {
+  "t": 1791345757.388,
+  "method": "GET",
+  "url": "/api/voice/insights/pending",
+  "status": 200
+ },
+ {
+  "t": 1791345757.388,
+  "method": "GET",
+  "url": "/api/community/status",
+  "status": 200
+ },
+ {
+  "t": 1791345757.389,
+  "method": "GET",
+  "url": "/api/alerts?limit=20",
+  "status": 200
+ },
+ {
+  "t": 1791345757.389,
+  "method": "GET",
+  "url": "/api/indicator-alerts/delivery-health?limit=10",
+  "status": 200
+ },
+ {
+  "t": 1791345757.389,
+  "method": "GET",
+  "url": "/api/auth/preferences",
+  "status": 200
+ },
+ {
+  "t": 1791345757.389,
+  "method": "GET",
+  "url": "/api/watchlists/flagged",
+  "status": 200
+ },
+ {
+  "t": 1791345757.389,
+  "method": "POST",
+  "url": "/api/auth/track",
+  "status": 200
+ },
+ {
+  "t": 1791345757.389,
+  "method": "GET",
+  "url": "/api/barspack/manifest",
+  "status": 200
+ },
+ {
+  "t": 1791345757.39,
+  "method": "GET",
+  "url": "/api/auth/avatar/15ac5a0a-4e34-42a7-b34d-e275f981028d",
+  "status": 200
+ },
+ {
+  "t": 1791345757.442,
+  "method": "GET",
+  "url": "/api/barspack/manifest",
+  "status": 200
+ },
+ {
+  "t": 1791345757.442,
+  "method": "GET",
+  "url": "/api/intradaypack/manifest",
+  "status": 200
+ },
+ {
+  "t": 1791345757.679,
+  "method": "POST",
+  "url": "/api/watchlists/flagged/sync",
+  "status": 200
+ },
+ {
+  "t": 1791345757.679,
+  "method": "GET",
+  "url": "/api/j2/accounts",
+  "status": 200
+ },
+ {
+  "t": 1791345757.679,
+  "method": "GET",
+  "url": "/api/j2/settings",
+  "status": 200
+ },
+ {
+  "t": 1791345757.679,
+  "method": "GET",
+  "url": "/api/watchlist-alerts",
+  "status": 200
+ },
+ {
+  "t": 1791345757.68,
+  "method": "GET",
+  "url": "/api/ticker-tags",
+  "status": 200
+ },
+ {
+  "t": 1791345757.68,
+  "method": "GET",
+  "url": "/api/ticker-tags/shared",
+  "status": 200
+ },
+ {
+  "t": 1791345757.68,
+  "method": "GET",
+  "url": "/api/ticker-tags/public",
+  "status": 200
+ },
+ {
+  "t": 1791345757.68,
+  "method": "GET",
+  "url": "/api/watchlists?include_items=0",
+  "status": 200
+ },
+ {
+  "t": 1791345757.68,
+  "method": "GET",
+  "url": "/api/j2/accounts/comparison",
+  "status": 200
+ },
+ {
+  "t": 1791345757.683,
+  "method": "GET",
+  "url": "/api/j2/positions",
+  "status": 200
+ },
+ {
+  "t": 1791345757.703,
+  "method": "POST",
+  "url": "/api/j2/broker/sync?background=1",
+  "status": 503
+ },
+ {
+  "t": 1791345757.704,
+  "method": "POST",
+  "url": "/api/j2/broker/fills/check",
+  "status": 200
+ },
+ {
+  "t": 1791345757.943,
+  "method": "GET",
+  "url": "/api/community/unread",
+  "status": 200
+ },
+ {
+  "t": 1791345757.961,
+  "method": "GET",
+  "url": "/api/voice/settings",
+  "status": 200
+ },
+ {
+  "t": 1791345758.488,
+  "method": "GET",
+  "url": "/api/j2/note-folders",
+  "status": 200
+ },
+ {
+  "t": 1791345758.492,
+  "method": "GET",
+  "url": "/api/j2/notes/folder-counts",
+  "status": 200
+ },
+ {
+  "t": 1791345758.492,
+  "method": "GET",
+  "url": "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1",
+  "status": 200
+ },
+ {
+  "t": 1791345758.492,
+  "method": "GET",
+  "url": "/api/j2/notes?sort=updated&limit=1&deleted=true",
+  "status": 200
+ },
+ {
+  "t": 1791345758.493,
+  "method": "GET",
+  "url": "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1",
+  "status": 200
+ },
+ {
+  "t": 1791345758.493,
+  "method": "GET",
+  "url": "/api/j2/notes/favorites",
+  "status": 200
+ },
+ {
+  "t": 1791345758.493,
+  "method": "GET",
+  "url": "/api/j2/notes/recents",
+  "status": 200
+ },
+ {
+  "t": 1791345758.493,
+  "method": "GET",
+  "url": "/api/j2/notes/tags",
+  "status": 200
+ },
+ {
+  "t": 1791345758.494,
+  "method": "GET",
+  "url": "/api/j2/notes/87afef588ea845329dddbfd68dfebaea",
+  "status": 200
+ },
+ {
+  "t": 1791345758.494,
+  "method": "GET",
+  "url": "/api/j2/notes/87afef588ea845329dddbfd68dfebaea/documents",
+  "status": 200
+ },
+ {
+  "t": 1791345758.494,
+  "method": "GET",
+  "url": "/api/j2/notes/87afef588ea845329dddbfd68dfebaea/excerpts",
+  "status": 200
+ },
+ {
+  "t": 1791345758.495,
+  "method": "GET",
+  "url": "/api/j2/notes/87afef588ea845329dddbfd68dfebaea/facts",
+  "status": 200
+ },
+ {
+  "t": 1791345758.495,
+  "method": "GET",
+  "url": "/api/j2/notes/87afef588ea845329dddbfd68dfebaea/evidence-candidates",
+  "status": 200
+ },
+ {
+  "t": 1791345758.496,
+  "method": "GET",
+  "url": "/api/j2/notes/87afef588ea845329dddbfd68dfebaea/thesis-summary",
+  "status": 200
+ },
+ {
+  "t": 1791345758.496,
+  "method": "GET",
+  "url": "/api/j2/saved-views",
+  "status": 200
+ },
+ {
+  "t": 1791345758.496,
+  "method": "GET",
+  "url": "/api/j2/property-defs",
+  "status": 200
+ },
+ {
+  "t": 1791345758.496,
+  "method": "GET",
+  "url": "/api/j2/notes?sort=updated",
+  "status": 200
+ },
+ {
+  "t": 1791345758.497,
+  "method": "GET",
+  "url": "/api/j2/notes?sort=title",
+  "status": 200
+ },
+ {
+  "t": 1791345758.544,
+  "method": "POST",
+  "url": "/api/j2/telemetry",
+  "status": 200
+ },
+ {
+  "t": 1791345758.544,
+  "method": "POST",
+  "url": "/api/j2/telemetry",
+  "status": 200
+ },
+ {
+  "t": 1791345758.544,
+  "method": "POST",
+  "url": "/api/j2/telemetry",
+  "status": 200
+ },
+ {
+  "t": 1791345758.567,
+  "method": "GET",
+  "url": "/api/j2/accounts/08c8ffb3-e27e-491b-9ac3-2e490a1e8f7b/settings",
+  "status": 200
+ },
+ {
+  "t": 1791345758.567,
+  "method": "GET",
+  "url": "/api/j2/positions?account_id=08c8ffb3-e27e-491b-9ac3-2e490a1e8f7b",
+  "status": 200
+ },
+ {
+  "t": 1791345758.85,
+  "method": "GET",
+  "url": "/api/j2/notes/87afef588ea845329dddbfd68dfebaea/trade-ref/resolve",
+  "status": 200
+ },
+ {
+  "t": 1791345758.852,
+  "method": "GET",
+  "url": "/api/j2/notes/87afef588ea845329dddbfd68dfebaea/properties",
+  "status": 200
+ },
+ {
+  "t": 1791345758.852,
+  "method": "GET",
+  "url": "/api/j2/inbox",
+  "status": 200
+ },
+ {
+  "t": 1791345758.852,
+  "method": "GET",
+  "url": "/api/j2/notes/87afef588ea845329dddbfd68dfebaea/backlinks",
+  "status": 200
+ },
+ {
+  "t": 1791345758.853,
+  "method": "GET",
+  "url": "/api/j2/notes/87afef588ea845329dddbfd68dfebaea/related-from",
+  "status": 200
+ },
+ {
+  "t": 1791345758.853,
+  "method": "GET",
+  "url": "/api/j2/notes/87afef588ea845329dddbfd68dfebaea/unlinked-mentions",
+  "status": 200
+ },
+ {
+  "t": 1791345758.853,
+  "method": "POST",
+  "url": "/api/j2/notes/87afef588ea845329dddbfd68dfebaea/opened",
+  "status": 200
+ },
+ {
+  "t": 1791345758.862,
+  "method": "POST",
+  "url": "/api/j2/telemetry",
+  "status": 200
+ },
+ {
+  "t": 1791345759.37,
+  "method": "GET",
+  "url": "/api/j2/notes/recents",
+  "status": 200
+ },
+ {
+  "t": 1791345759.425,
+  "method": "GET",
+  "url": "/api/j2/notebook-fingerprint/meta",
+  "status": 200
+ },
+ {
+  "t": 1791345760.025,
+  "method": "GET",
+  "url": "/api/j2/trades?account_id=08c8ffb3-e27e-491b-9ac3-2e490a1e8f7b",
+  "status": 200
+ },
+ {
+  "t": 1791345760.025,
+  "method": "GET",
+  "url": "/api/user-definitions?graph=1",
+  "status": 200
+ },
+ {
+  "t": 1791345760.026,
+  "method": "GET",
+  "url": "/api/ticker-meta/AMD",
+  "status": 200
+ },
+ {
+  "t": 1791345760.026,
+  "method": "GET",
+  "url": "/api/ticker-ipo/AMD",
+  "status": 200
+ },
+ {
+  "t": 1791345760.026,
+  "method": "GET",
+  "url": "/api/delisted/AMD",
+  "status": 200
+ },
+ {
+  "t": 1791345760.048,
+  "method": "GET",
+  "url": "/api/market-indicators",
+  "status": 200
+ },
+ {
+  "t": 1791345760.049,
+  "method": "GET",
+  "url": "/api/bars-today-pack",
+  "status": 200
+ },
+ {
+  "t": 1791345760.049,
+  "method": "GET",
+  "url": "/api/breadth-symbols",
+  "status": 200
+ },
+ {
+  "t": 1791345760.05,
+  "method": "GET",
+  "url": "/api/etf/symbols",
+  "status": 200
+ },
+ {
+  "t": 1791345760.056,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=D&bars=12500&to=2026-06-15",
+  "status": 200
+ },
+ {
+  "t": 1791345764.351,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=5&bars=1152&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791345764.36,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=60&bars=1138&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791345764.37,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=30&bars=1120&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791345764.378,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=15&bars=1152&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791345764.386,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=W&bars=600&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791345764.394,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=M&bars=600&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791345764.402,
+  "method": "GET",
+  "url": "/api/bars/AMD?tf=1&bars=960&warm=1",
+  "status": 200
+ },
+ {
+  "t": 1791345764.652,
+  "method": "POST",
+  "url": "/api/j2/chart-plan/alerts",
+  "status": 200
+ },
+ {
+  "t": 1791345863.212,
+  "method": "GET",
+  "url": "/api/watchlist-alerts",
+  "status": 200
+ },
+ {
+  "t": 1791345863.212,
+  "method": "POST",
+  "url": "/api/j2/chart-plan/size",
+  "status": 200
+ },
+ {
+  "t": 1791345863.213,
+  "method": "GET",
+  "url": "/api/voice/insights/unspoken",
+  "status": 200
+ },
+ {
+  "t": 1791345863.213,
+  "method": "GET",
+  "url": "/api/voice/insights/pending",
+  "status": 200
+ },
+ {
+  "t": 1791345863.213,
+  "method": "GET",
+  "url": "/api/watchlist-alerts",
+  "status": 200
+ },
+ {
+  "t": 1791345863.214,
+  "method": "GET",
+  "url": "/api/community/unread",
+  "status": 200
+ },
+ {
+  "t": 1791345863.214,
+  "method": "GET",
+  "url": "/api/watchlists?include_prebuilt=0",
+  "status": 200
+ },
+ {
+  "t": 1791345863.214,
+  "method": "GET",
+  "url": "/api/alerts?limit=20",
+  "status": 200
+ },
+ {
+  "t": 1791345863.214,
+  "method": "GET",
+  "url": "/api/ticker-tags/public",
+  "status": 200
+ },
+ {
+  "t": 1791345863.214,
+  "method": "GET",
+  "url": "/api/watchlists?include_items=0",
+  "status": null
+ }
+]
