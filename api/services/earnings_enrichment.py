@@ -698,8 +698,24 @@ def get_key_quotes(sym: str) -> Optional[list]:
 
 # ─── Convenience: run all enrichers in parallel ───────────────────────────────
 
-def enrich_earnings_response(sym: str, av_quarters: list, earnings_date: Optional[str] = None) -> dict:
+def _implied_for_report(sym: str, earnings_date: Optional[str],
+                        timing: Optional[str]) -> Optional[dict]:
+    """The implied move for the report, with its session resolved: the caller's
+    own timing when it has one (the earnings row's bucket), else
+    `implied_move.report_timing` (engine weekly calendar, then Finnhub `hour`).
+    Unknown timing keeps the on-or-after rule -- the documented default."""
+    if not timing and earnings_date:
+        from api.services.implied_move import report_timing
+        timing = report_timing(sym, earnings_date)
+    return get_implied_move(sym, earnings_date, timing=timing)
+
+
+def enrich_earnings_response(sym: str, av_quarters: list, earnings_date: Optional[str] = None,
+                             timing: Optional[str] = None) -> dict:
     """Run all enrichment helpers in parallel; merge into a single dict.
+
+    `timing` is the report's session ('bmo'/'amc') when the caller knows it;
+    see `_implied_for_report`.
 
     Returns dict with keys present (None or value) for each enrichment field.
     Never raises — each helper is wrapped.
@@ -711,7 +727,7 @@ def enrich_earnings_response(sym: str, av_quarters: list, earnings_date: Optiona
         "hist_moves":       lambda: get_historical_earnings_moves(sym, av_quarters),
         "revisions":        lambda: get_estimate_revisions(sym),
         "beat_surprises":   lambda: extract_beat_surprises(av_quarters),
-        "implied_move":     lambda: get_implied_move(sym, earnings_date),
+        "implied_move":     lambda: _implied_for_report(sym, earnings_date, timing),
         "key_quotes":       lambda: get_key_quotes(sym),
     }
     with ThreadPoolExecutor(max_workers=6, thread_name_prefix="earnings-enrich") as pool:

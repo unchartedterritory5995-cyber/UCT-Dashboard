@@ -148,9 +148,17 @@ _executor: Optional[ThreadPoolExecutor] = None
 
 
 def _read_implied(sym: str, next_date: Optional[str]) -> None:
+    """Off-request read. The report's session ('bmo'/'amc') comes from
+    `implied_move.report_timing` -- an after-close print needs the first expiry
+    STRICTLY after the date (a same-day expiry settles before the print). An
+    unknown session keeps the on-or-after rule (documented default)."""
     try:
         from api.services import earnings_enrichment
-        res = earnings_enrichment.get_implied_move(sym, next_date)
+        from api.services.implied_move import report_timing
+        timing = report_timing(sym, next_date) if next_date else None
+        res = earnings_enrichment.get_implied_move(sym, next_date, timing=timing)
+        if isinstance(res, dict):
+            res = {**res, "timing": timing}
     except Exception as exc:  # noqa: BLE001 -- recorded, never raised into a request
         _logger.warning("implied move read failed for %s: %s", sym, exc)
         res = None
