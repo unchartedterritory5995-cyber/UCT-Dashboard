@@ -94,3 +94,14 @@ describe('13Q-2: openFocus="body" lands the caret in the note body', () => {
     expect(onOpenFocused).not.toHaveBeenCalled()
   })
 })
+
+// Lane KEYS3 (Q2): a note made from a template that asks for a ticker, with none known, opens
+// with focus in its Ticker field (NotebookTab decides; this proves the editor does it).
+describe('lane KEYS3: openFocus="ticker" lands in the Ticker field', () => {
+  it('focuses Ticker, not the title, and reports it once', async () => {
+    NOTE = { ...baseNote(), title: 'Investment Thesis' }
+    const { onOpenFocused } = await renderEditor('ticker')
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Ticker')))
+    expect(onOpenFocused).toHaveBeenCalledTimes(1)
+  })
+})

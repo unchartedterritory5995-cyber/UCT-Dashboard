@@ -1168,7 +1168,12 @@ def q1_new_blank(cx: Ctx, pg, m: Meter, width: str) -> dict:
 
 def q2_template_ticker(cx: Ctx, pg, m: Meter, width: str) -> dict:
     open_start(pg, cx.base, "/journal/notebook")
-    go_all_notes(m)
+    if m.mode == "keys":
+        # Lane KEYS3: Research Home has no Templates door, and the path through All notes was
+        # 19 keys. The command palette's "New note from a template" opens the New note sheet.
+        palette_command(m, "template", r"^New note from a template$", "New note from a template")
+    else:
+        go_all_notes(m)
     # 13Q-3: "Templates" lives in the pane's own list header -- the SAME region "Skip to notes
     # list" (NotebookTab.jsx) lands at, right past whatever remains of the sidebar after
     # go_all_notes' own click (the Keys path there still leaves focus on the "All notes" row).
@@ -1176,7 +1181,7 @@ def q2_template_ticker(cx: Ctx, pg, m: Meter, width: str) -> dict:
     # Tabs FORWARD of "All notes". No skip link is needed on a keyboard.
     if m.mode != "keys":
         use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
-    m.press(pg.get_by_role("button", name="Templates", exact=True).filter(visible=True), "Templates")
+        m.press(pg.get_by_role("button", name="Templates", exact=True).filter(visible=True), "Templates")
     dlg = pg.get_by_role("dialog", name="New note")
     dlg.wait_for(state="visible", timeout=20000)
     card = dlg.locator("[data-template-key='thesis']")
@@ -1191,9 +1196,18 @@ def q2_template_ticker(cx: Ctx, pg, m: Meter, width: str) -> dict:
     tick = pg.locator("input[aria-label='Ticker']").filter(visible=True)
     if tick.count() == 0:
         raise Inconclusive("the note header carries no visible Ticker field at this width")
-    if m.mode == "keys" and not is_focused(pg, tick.first):
-        # a new note puts focus in its title; Ticker is a few stops BEFORE it
-        m.shift_tab_to_locator(tick, "Ticker field")
+    if m.mode == "keys":
+        # Lane KEYS3: a note from a template that asks for a ticker opens with focus IN its
+        # Ticker field. Looked for up to a second (the editor focuses after it mounts). If it
+        # is not there, the member goes BACK to it from the title, as before.
+        for _ in range(10):
+            if is_focused(pg, tick.first):
+                break
+            pg.wait_for_timeout(100)
+        if is_focused(pg, tick.first):
+            m.steps.append({"do": "already focused (free)", "on": "Ticker field"})
+        else:
+            m.shift_tab_to_locator(tick, "Ticker field")
     else:
         focus_field(m, tick, "Ticker field")
     m.fill(tick, "NVDA", "ticker")

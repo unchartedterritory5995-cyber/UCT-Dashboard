@@ -810,3 +810,44 @@ describe('Saved view delete clears activeView when it was the active one (UX #1)
     ))
   })
 })
+
+// Finish program, lane KEYS3 (Q2): a note from a template, with a ticker, on a keyboard.
+// It was 25 keys against a budget of 6. Research Home has no Templates door, so the path ran
+// through All notes (19 keys to reach the Templates button), and the new note put focus in
+// its title, four stops after the Ticker field it was made to hold.
+describe('lane KEYS3 (Q2): the templates door, and a ticker template starts in Ticker', () => {
+  const card = (key) => document.querySelector(`[data-template-key="${key}"]`)
+
+  it('"#templates" on the notes list opens the New note sheet (the palette\'s door)', async () => {
+    renderTab('/journal/notebook?view=all#templates')
+    expect(await screen.findByRole('dialog', { name: 'New note' })).toBeTruthy()
+  })
+
+  it('CONTROL: without the door the sheet stays closed', async () => {
+    renderTab('/journal/notebook?view=all')
+    await screen.findByRole('button', { name: 'Templates' })
+    expect(screen.queryByRole('dialog', { name: 'New note' })).toBeNull()
+  })
+
+  it('a template whose title names a ticker, picked with no ticker, opens with focus in TICKER', async () => {
+    renderTab()
+    fireEvent.click(card('thesis'))
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-open-focus', 'ticker')
+    expect(lastPostBody.title).toBe('Investment Thesis')     // the note itself is unchanged
+  })
+
+  it('the same template WITH a ticker already known still opens on the title', async () => {
+    renderTab('/journal/notebook?new=thesis&ticker=nvda')
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-open-focus', 'title')
+    expect(lastPostBody.title).toBe('NVDA Thesis')
+  })
+
+  it('a template that names no ticker (the weekly review) still opens on the title', async () => {
+    renderTab()
+    fireEvent.click(card('weekly-review'))
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-open-focus', 'title')
+  })
+})

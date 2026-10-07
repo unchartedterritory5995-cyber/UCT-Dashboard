@@ -993,12 +993,16 @@ export default function NoteEditorPage({
   // resolves. `openFocusDoneRef` is the ONE claim both effects honour, so
   // whichever of the two branches applies still fires exactly once.
   const titleInputRef = useRef(null)
+  const tickerInputRef = useRef(null)
   const landmarkRef = useRef(null)
   const openFocusDoneRef = useRef(false)
   const askRowRef = useRef(null)
   useEffect(() => {
     if (!openFocus || openFocus === 'body' || openFocusDoneRef.current) return
-    const target = openFocus === 'title' ? titleInputRef.current : landmarkRef.current
+    // Lane KEYS3 (Q2): 'ticker' is a fresh note from a template that asks for one. A note
+    // with no Ticker field on screen falls back to the title, as before.
+    const target = openFocus === 'ticker' ? (tickerInputRef.current || titleInputRef.current)
+      : openFocus === 'title' ? titleInputRef.current : landmarkRef.current
     if (!target) return
     openFocusDoneRef.current = true
     target.focus({ preventScroll: true })
@@ -4103,6 +4107,7 @@ export default function NoteEditorPage({
             ))}
           </select>
           <input
+            ref={tickerInputRef}
             className={styles.headerInput}
             placeholder="Ticker"
             aria-label="Ticker"

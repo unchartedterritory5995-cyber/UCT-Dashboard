@@ -13,7 +13,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import CommandPalette from './CommandPalette'
-import { NOTEBOOK_DOORS, onNotebookDoor } from '../pages/journal-2-0/lib/notebookDoors'
+import { NOTEBOOK_DOORS, NOTEBOOK_TEMPLATES_TO, onNotebookDoor } from '../pages/journal-2-0/lib/notebookDoors'
 import { latchNotebookFlags, __resetNotebookFlags } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import RouteFocusTarget from '../pages/journal-2-0/lib/routeFocus'
 
@@ -191,5 +191,24 @@ describe('palette: Active setups lands keyboard focus on the page (Q23)', () => 
     fireEvent.click(await screen.findByRole('option', { name: 'Active setups' }))
     await waitFor(() => expect(document.activeElement?.hasAttribute('data-route-focus')).toBe(true))
     expect(document.activeElement.textContent).toBe('Active setups')
+  })
+})
+
+describe('palette: New note from a template (Q2)', () => {
+  it('choosing it lands on the notes list with the templates door', async () => {
+    renderPalette('/journal/notebook')
+    await openAndType('template')
+    fireEvent.click(await screen.findByRole('option', { name: 'New note from a template' }))
+    await waitFor(() => expect(screen.getByTestId('route-spy').textContent).toBe(NOTEBOOK_TEMPLATES_TO))
+    expect(NOTEBOOK_TEMPLATES_TO).toBe('/journal/notebook?view=all#templates')
+  })
+
+  it('five characters or fewer never offer it, and "New Note" is still its own command', async () => {
+    renderPalette('/journal/notebook')
+    const box = await openAndType('templ')
+    expect(option('New note from a template')).toBeNull()
+    fireEvent.change(box, { target: { value: 'new note' } })
+    expect(await screen.findByRole('option', { name: 'New Note' })).toBeTruthy()
+    expect(option('New note from a template')).toBeTruthy()      // "new note" starts its phrase too
   })
 })

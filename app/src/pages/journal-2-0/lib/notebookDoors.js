@@ -23,6 +23,14 @@ export const NOTEBOOK_DOORS = Object.freeze({
   ASK: 'ask',                             // AskPanel (scope "note"): Ask about the open note
 })
 
+/**
+ * The door to the New note sheet (the template picker). It is a HASH on the notes list, like
+ * lib/notebookSearchDoor.js, not an event: the sheet is mounted only in the list view, so the
+ * palette goes there and the Notebook (tabs/NotebookTab.jsx) opens the sheet when it arrives.
+ */
+export const NOTEBOOK_TEMPLATES_HASH = '#templates'
+export const NOTEBOOK_TEMPLATES_TO = `/journal/notebook?view=all${NOTEBOOK_TEMPLATES_HASH}`
+
 /** Ask for a door. Returns true when a mounted surface took it. */
 export function openNotebookDoor(door, extra = {}) {
   if (typeof window === 'undefined') return false

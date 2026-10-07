@@ -17,7 +17,7 @@ import NoteConnectorsTrustStrip from '../components/connectors/NoteConnectorsTru
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import { SkipLinkPortal } from '../../../components/skipLinks'
-import { getTemplate } from '../lib/notebookTemplates'
+import { getTemplate, templateWantsTicker } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
 import { createNoteViaApi } from '../lib/noteCreation'
 import { ensureTemplatePropertyDefs, rememberTemplateReveal } from '../lib/templatePropertyDefs'
@@ -52,6 +52,7 @@ import useGridRoving from '../lib/useGridRoving'
 import { useIsDesktop } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
+import { NOTEBOOK_TEMPLATES_HASH } from '../lib/notebookDoors'
 import {
   checkUnsentWork, describeBatch, describeExport, describeUnchecked, describeUnsentRename, exportSelectedNotes,
   joinUndo, runNoteBatch, undoFor,
@@ -455,6 +456,14 @@ export default function NotebookTab() {
     setSearchRequest((n) => n + 1)
   }, [location.hash, location.key])
 
+  // Lane KEYS3 (Q2): the command palette's "New note from a template" arrives on the notes
+  // list with `#templates` (lib/notebookDoors.js). The New note sheet opens, exactly as the
+  // Templates button opens it. Keyed on `location.key`, so choosing the command twice works twice.
+  useEffect(() => {
+    if (location.hash !== NOTEBOOK_TEMPLATES_HASH) return
+    setPickerOpen(true)
+  }, [location.hash, location.key])
+
   // Divider drag. The live width is written straight to a CSS variable on the
   // wrap element (no React state per move) so the panel tracks the pointer 1:1
   // with zero render lag; state + localStorage are committed once, on release.
@@ -759,7 +768,9 @@ export default function NotebookTab() {
   // title. A template or a typed title still lands in the title (I-1 unchanged
   // there); only the bare "+ New note" / palette "New Note" / Ctrl+K path is
   // `blank`. See `createNote`'s own `blank` computation.
-  const openNote = (note, target = null, { task = null, fresh = false, blank = false } = {}) => {
+  // Lane KEYS3 (Q2): `to` names another first field for a fresh note ('ticker': a template
+  // that asks for a ticker, made with none known). Blank still wins; absent means the title.
+  const openNote = (note, target = null, { task = null, fresh = false, blank = false, to = null } = {}) => {
     // ⛔⛔ Wave 6 item 7: the note on the right is not opened a second time on
     // the left — refused, and the side pane (which has it) takes focus.
     if (sideId && note?.id === sideId) { refuseSecondPane('side'); return }
@@ -784,7 +795,7 @@ export default function NotebookTab() {
     // THAT open, not this one.
     paneFocusPlanRef.current = null
     const inside = Boolean(target) || (Number.isInteger(task) && task >= 0)
-    setOpenFocus(inside ? null : { id: note.id, to: fresh ? (blank ? 'body' : 'title') : 'landmark' })
+    setOpenFocus(inside ? null : { id: note.id, to: fresh ? (blank ? 'body' : (to || 'title')) : 'landmark' })
     setSearchParams((prev) => {
       const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
@@ -1555,7 +1566,7 @@ export default function NotebookTab() {
   // than a second creation flow -- this wrapper only adds NotebookTab's OWN
   // UI concerns (app-focus ticker fallback, current-folder scoping, tree/
   // refresh bookkeeping) on top of it.
-  const createNote = async ({ title = '', bodyJson, tags, ticker, properties, revealPropertyIds } = {}) => {
+  const createNote = async ({ title = '', bodyJson, tags, ticker, properties, revealPropertyIds, focusFirst = null } = {}) => {
     setCreating(true)
     setPickerOpen(false)
     try {
@@ -1618,7 +1629,7 @@ export default function NotebookTab() {
       // from the server's response: every note's stored bodyJson is a real doc,
       // even an empty one, so reading `created.bodyJson` could not tell blank
       // from templated).
-      openNote(created, null, { fresh: true, blank: !title && !bodyJson })
+      openNote(created, null, { fresh: true, blank: !title && !bodyJson, to: focusFirst })
     } catch (e) {
       console.error('[notebook] create note failed', e)
       setActionError("Couldn't create that note. Nothing was saved.")
@@ -1678,6 +1689,9 @@ export default function NotebookTab() {
       ticker: ctx.ticker,
       properties: tpl.properties,
       revealPropertyIds,
+      // Lane KEYS3 (Q2): the template's title would have named the ticker and none is
+      // known, so naming it is the member's next act: the note opens in its Ticker field.
+      focusFirst: !ctx.ticker && templateWantsTicker(tpl) ? 'ticker' : null,
     })
   }
 
