@@ -32,7 +32,7 @@ rows) · **h** phone (works as the single visible panel).
 | CAL | Calendar | pass | pass | pass | pass | fixed (loading label) | pass | pass (URL-owning) | pass |
 | MYST | door /calendar/mystocks | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | ERN | Calendar (earnings modal) | pass | pass | pass | blocked(EarningsResearchModal.module.css debt — tf7-themedebt) | pass | pass | pass | pass |
-| DES | OverviewPanel → OverviewTab | pass | open (no loading state; "—" for loading/empty) | pass | pass | pass | open (raw P/E, beta, 52w floats) | pass | pass |
+| DES | OverviewPanel → OverviewTab | pass | fixed (fn8-retry: loading state; a vendor failure carries `status` → error + Retry, a genuine empty says so) | pass | pass | pass | open (raw P/E, beta, 52w floats) | pass | pass |
 | GP | ChartPanel → StockChart | pass | fixed (adapter test) | blocked(chart lane owns the as-of) | pass | pass | pass | pass | pass |
 | CN | NewsTab | pass | fixed (402 = paid gate, not "Couldn't load") | pass | pass | pass | pass | pass | pass |
 | CATS | CatalystsTab | pass | pass | pass | pass | pass | pass | pass | pass |
@@ -40,18 +40,18 @@ rows) · **h** phone (works as the single visible panel).
 | WIIM | MovePanel | pass | fixed (as MOVE) | pass | pass | pass | pass | pass (onRows) | pass |
 | TECH | TechnicalTab | pass | pass | pass | pass | pass | pass | pass | pass |
 | FA | FinancialsDeep | pass | pass | pass | pass | pass | owner (unknown currency prints "$") | pass | pass |
-| EE | ConsensusEstimates | pass | open ("FMP did not answer" when FMP answered empty) | pass | pass | pass | owner (unknown currency prints "$") | pass | pass |
+| EE | ConsensusEstimates | pass | fixed (fn8-retry: the fallback reason is worded per case) | pass | pass | pass | owner (unknown currency prints "$") | pass | pass |
 | EEH | EstimateHistoryTab | pass | pass | pass | pass | pass | pass | pass | pass |
 | ANR | AnalystRatingsTab | pass | fixed (402 = paid gate) | pass | pass | pass | owner (price target always "$") | pass | pass |
 | RTG | RatingsTab | pass | fixed (402 = paid gate) | pass | pass | pass | pass | pass | pass |
 | OWN | OwnershipTab | pass | fixed (402 = paid gate) | pass | pass | pass | owner (Yahoo holder value always "$") | pass | pass |
 | PPL | PeopleTab | pass | pass | pass | pass | pass | fixed (hand-made money formatter) | pass | pass |
-| TRAN | CallsTab | pass | open (recap error renders below the transcript) | pass | pass | pass | pass | pass | pass |
+| TRAN | CallsTab | pass | fixed (fn8-retry: the recap error is the first block, PanelState + Retry) | pass | pass | pass | pass | pass | pass |
 | MB (sec) | ModelBookTab | pass | pass | pass | pass | pass | pass | pass | pass |
 | MB (mkt) | door /model-book | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | DR | DecisionRecordTab | pass | fixed (Unavailable had no Retry) | pass | pass | pass | pass | pass | pass |
 | HIS | HistoryTab | pass | fixed (unavailable had no Retry) | pass | pass | pass | pass | pass | pass |
-| SEAS | SeasonalityTab | pass | open (Retry does not reset the re-ask counter; double fetch) | pass | pass | pass | open (raw `% up`) | pass | pass |
+| SEAS | SeasonalityTab | pass | fixed (fn8-retry: Retry resets the re-ask counter; one read per answer) | pass | pass | pass | open (raw `% up`) | pass | pass |
 | CF | FilingsTab | pass | pass | pass | pass | pass | pass | pass | pass |
 | FEED | FilingsFeedTab | pass | pass | pass | pass | pass | pass | pass | pass |
 | FIL | FilingChangesTab | pass | pass | pass | pass | pass | pass | pass | pass |
@@ -60,7 +60,7 @@ rows) · **h** phone (works as the single visible panel).
 | RES | door /research/{sym} | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | ASK (sec) | AskAiTab | pass | fixed (model outage drawn as "not enough evidence") | pass | pass | pass | pass | pass | pass |
 | ASK (mkt) | door /ai-search | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
-| DPTH | DepthPanel → DepthTab | pass | fixed (adapter test) · open (no panel enabled → blank) | pass | pass | pass | pass | pass | pass |
+| DPTH | DepthPanel → DepthTab | pass | fixed (adapter test; fn8-retry: no panel enabled → a plain `locked` PanelState) | pass | pass | pass | pass | pass | pass |
 | EVTS | EventsPanel | pass | pass | pass | pass | pass | pass | pass | pass |
 | FSRC | FilingSearchPanel | pass | pass | pass | pass | pass | pass | pass | pass |
 | ERX | EarningsReactionPanel | pass | fixed (failed read + Retry test; empty quarters; blank reason) | pass | pass | pass | open (raw `pct_up%`) | pass | pass |
@@ -69,22 +69,22 @@ rows) · **h** phone (works as the single visible panel).
 | BRKE | BrokerEstimatesPanel | pass | fixed (failed read + Retry test; empty periods / actions) | pass | pass | pass | fixed (low–high unlabelled for foreign currency) | pass | pass |
 | OMON | OptionsChainTab | pass | fixed (Retry refetched expirations, not the chain) | pass | pass | pass | pass | pass | pass |
 | OVS | OptionsChainTab (vol surface) | pass | fixed (as OMON) | pass | pass | pass | pass | pass | pass |
-| IVH | IvHistoryPanel | pass | open (no Retry: `useDarkSection` exposes no mutate) | pass | pass | pass | pass | pass | pass |
-| VOL | VolPanels › VolStatsPanel | pass | open (no Retry, as IVH) | pass | pass | pass | open (raw `toLocaleString`, `%`) | pass | pass |
-| POS | PositioningPanel | pass | open (no Retry; empty levels draw an empty list) | pass | pass | pass | open (hand-made `±$`) | pass | pass |
-| OHIS | OptionsHistoryPanel | pass | open (no Retry) | pass | pass | pass | open (hand-made `$` straddle) | pass | pass |
-| OBT | BacktestPanel | pass | open (poll error has no Retry; catalog failure silent) | pass | pass | pass | open (`optionBacktest.money`) | pass | pass |
-| OSCR | OptionsScreener | pass | fixed (ok with 0 rows drew a header-only table) · open (no Retry) | pass | pass | pass | pass | open (publishes no list) | pass |
+| IVH | IvHistoryPanel | pass | fixed (fn8-retry: Retry on the failed read) | pass | pass | pass | pass | pass | pass |
+| VOL | VolPanels › VolStatsPanel | pass | fixed (fn8-retry: `useDarkSection` returns `retry`; one Retry re-asks every failed read) | pass | pass | pass | open (raw `toLocaleString`, `%`) | pass | pass |
+| POS | PositioningPanel | pass | fixed (fn8-retry: Retry per block; an empty levels answer is said) | pass | pass | pass | open (hand-made `±$`) | pass | pass |
+| OHIS | OptionsHistoryPanel | pass | fixed (fn8-retry: Retry per block) | pass | pass | pass | open (hand-made `$` straddle) | pass | pass |
+| OBT | BacktestPanel | pass | fixed (fn8-retry: poll error Retry; a catalog failure is said, with Retry) | pass | pass | pass | open (`optionBacktest.money`) | pass | pass |
+| OSCR | OptionsScreener | pass | fixed (ok with 0 rows drew a header-only table; fn8-retry: Retry on each read) | pass | pass | pass | pass | open (publishes no list) | pass |
 | FLOW (sec) | FlowTab | pass | pass | pass | pass | pass | pass | pass | pass |
 | FLOW (mkt) | door /options-flow | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | GEX | doors /options-flow?view=gex | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
-| TIDE | MarketTidePanel | pass | open (no Retry; two loading lines standalone) | pass | pass | pass | pass | pass | pass |
-| STRS | StrategyScreensPanel | pass | fixed (results loading was a header over nothing) · open (no Retry) | pass | pass | pass | open (`perContract`, block premium) | pass | pass |
+| TIDE | MarketTidePanel | pass | fixed (fn8-retry: Retry on each read; one loading line standalone) | pass | pass | pass | pass | pass | pass |
+| STRS | StrategyScreensPanel | pass | fixed (results loading was a header over nothing; fn8-retry: Retry on each read) | pass | pass | pass | open (`perContract`, block premium) | pass | pass |
 | LIVE | door /live-massive | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | DP | door /dark-pool | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | FREC | FlowScoreboard | pass | pass | pass | pass | pass | open (hand-made `$` strike) | open (publishes no list) | pass |
 | WIRE | MorningWire | pass | fixed (owner note save said "Saved" on failure) | pass | pass | pass | pass | open (catalyst rail publishes no list) | pass |
-| BRD | Breadth | pass | fixed (Daily tab: failed read read "No session recorded yet") · open (Monitor grid swallows its errors) | pass | blocked(heatmapMetrics.js / TreemapView.jsx debt — tf7-themedebt) | pass | open (raw `%`, `toLocaleString`) | pass | fixed (Daily is the phone default) |
+| BRD | Breadth | pass | fixed (Daily tab: failed read read "No session recorded yet"; fn8-retry: Monitor grid failures said, with Retry) | pass | blocked(heatmapMetrics.js / TreemapView.jsx debt — tf7-themedebt) | pass | open (raw `%`, `toLocaleString`) | pass | fixed (Daily is the phone default) |
 | SCR | Screener | pass | pass | pass | pass | pass | pass | pass (usePanelList) | pass |
 | U20 | UCT20 | pass | fixed (holdings read failure blanked DAYS / SINCE ADD silently) | pass | pass | pass | open (hand-made `Entry $`, exposure `%`) | open (publishes no list) | pass |
 | DASH | door /dashboard | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
@@ -116,7 +116,7 @@ A row can be both `fixed` and `open` (one gap closed, another left), so b and f 
 | Column | pass | fixed | blocked | owner | open |
 |---|---|---|---|---|---|
 | a parse + HELP (all 73 codes, doors included) | 73 | — | — | — | — |
-| b panel tests / loading · error+retry · empty | 21 | 26 | — | — | 14 |
+| b panel tests / loading · error+retry · empty | 21 | 36 | — | — | 0 (14 closed by `terminal/fn8-retry`) |
 | c provenance (2 of the passes are reasoned exemptions: HELP, RSCH) | 56 | — | 1 (GP) | — | — |
 | d theme | 55 | — | 2 (ERN, BRD → tf7-themedebt) | — | — |
 | e a11y | 56 | 1 (CAL) | — | — | — |
@@ -166,13 +166,19 @@ A row can be both `fixed` and `open` (one gap closed, another left), so b and f 
   for US listings, unlabelled for foreign ones.
 
 **Open follow-ups (not done here)**
-- No Retry on any `useDarkSection` failure (IVH, VOL, POS, OHIS, TIDE, STRS, OSCR, OBT poll): the hook
-  exposes no `mutate`. One hook change + a Retry per section.
-- DES: OverviewTab has no loading state ("will appear here once available" while loading); a vendor
-  failure on `/api/fundamentals` arrives as a 200 empty dict (backend).
-- EE "FMP did not answer" when FMP answered with zero rows; TRAN recap error renders below the
-  transcript; SEAS Retry does not reset its re-ask counter (and the fetcher reads twice); DPTH blank
-  when no depth panel is enabled; BRD Monitor grid swallows `/dates` and block failures.
+- ~~The b-column (error / retry) gaps~~ — **closed 2026-10-07 on `terminal/fn8-retry`**, each with a
+  test that fails against the old code: `useDarkSection` returns `retry` and every options section's
+  failure is a PanelState with Retry (IVH, VOL, POS, OHIS, TIDE, STRS, OSCR, OBT poll + catalog;
+  `optionsAnalytics/failedRead.retry.test.jsx`); DES — `/api/fundamentals/{ticker}` carries
+  `status` ("ok" / "unavailable" / "empty", `tests/test_fundamentals_router.py::TestFundamentalsStatus`)
+  and the key-stats card says loading / error + Retry / nothing on file
+  (`research/tabs/OverviewTab.statsStates.test.jsx`); EE fallback reason worded per case
+  (`fmpDepth/FmpDepth.test.jsx`); TRAN recap error first (`CallsTab.test.jsx`); SEAS Retry resets the
+  counter and reads once (`SeasonalityTab.retry.test.jsx`); DPTH no-panel explanation
+  (`depth/DepthTab.none.test.jsx`); BRD Monitor grid failures said with Retry
+  (`breadth/useMonitorGrid.failures.test.jsx`, `breadth/monitorGridError.test.jsx`). The completeness
+  rail's ledgers could not shrink: `NO_PANEL_TEST` was already empty and the four
+  `NO_FAILED_READ_TEST` lines are `no-read:` adapters/shell text, none of which these fixes change.
 - Raw number formatting (listed in the f column): VOL, POS, OHIS, OBT, STRS, FREC, U20, BRD, RISK,
   ERX, ATTN, SEAS, DES — mechanical moves onto `presentationPrimitives`.
 - (g) list panels that publish neither `onRows` nor `usePanelList`: REL, CORR, U20, FREC, CATH, RISK,
