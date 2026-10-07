@@ -1730,7 +1730,9 @@ def q17_why(cx: Ctx, pg, m: Meter, width: str) -> dict:
     sym = seat["symbol"]
     words = f"Clean base, tight closes ({m.mode} {width})."
     open_start(pg, cx.base, f"/journal-2-0/position/{sym}")
-    box = pg.locator("#why-prompt-text")
+    # The field's id is generated per card (a page can show one card per lot), so it is found
+    # by its form, never by a fixed id. A fixed id read "no field" on a page that had one.
+    box = pg.locator('[data-testid="why-prompt-editing"] textarea').first
     try:
         box.wait_for(state="visible", timeout=45000)
     except Exception:  # noqa: BLE001
