@@ -1,3 +1,4 @@
+import { cloneElement } from 'react'
 import BlockedBadge from './BlockedBadge'
 import LockedGlyph from './LockedGlyph'
 import { ComputedChips } from './ComputedValue'
@@ -71,9 +72,11 @@ export default function NoteCard({
       </div>
     )
   }
-  if (!selectable) return card
+  // `data-note-row` marks ONE row of the notes list for its keyboard model (lane KEYS round 5,
+  // lib/useGridRoving.js): the outermost element of this note, whatever shape it has.
+  if (!selectable) return cloneElement(card, { 'data-note-row': '' })
   return (
-    <div className={`${styles.selectWrap} ${selected ? styles.selectWrapOn : ''}`}>
+    <div className={`${styles.selectWrap} ${selected ? styles.selectWrapOn : ''}`} data-note-row="">
       <label className={styles.selectBox}>
         <input
           type="checkbox"

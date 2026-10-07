@@ -48,6 +48,7 @@ import { useNoteSelection } from '../lib/noteSelection'
 import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
 import { registerShortcuts } from '../../command/shortcutRegistry'
 import useToolbarRoving from '../lib/useToolbarRoving'
+import useGridRoving from '../lib/useGridRoving'
 import { useIsDesktop } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
@@ -256,6 +257,7 @@ export default function NotebookTab() {
   const [voiceNote, setVoiceNote] = useState(null) // { source }
   const [publishFolder, setPublishFolder] = useState(null) // { id, name, opener, open }
   const listToolbar = useToolbarRoving()
+  const notesGrid = useGridRoving({ rowSelector: '[data-note-row]' })
   const extraFolderActions = useMemo(() => (publishOn ? [{
     id: 'publish',
     label: PUBLISH_FOLDER_ACTION,
@@ -2603,7 +2605,10 @@ export default function NotebookTab() {
                 } : null}
               />
             ) : (
-              <div className={styles.grid} onKeyDown={handleSelectionGridKeyDown}>
+              // Lane KEYS round 5: the list is ONE Tab stop. Down and Up go note to note,
+              // Right and Left between a note's own controls. Shift+Arrow stays 13Q-5's.
+              <div className={styles.grid} role="group" aria-label="Notes" ref={notesGrid.ref} onFocus={notesGrid.onFocus}
+                onKeyDown={(e) => { handleSelectionGridKeyDown(e); notesGrid.onKeyDown(e) }}>
                 {notes.map((n) => (
                   <NoteCard
                     key={n.id}
