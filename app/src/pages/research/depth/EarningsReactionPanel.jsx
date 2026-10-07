@@ -97,6 +97,7 @@ export default function EarningsReactionPanel({ sym }) {
         {data.realized_vol && (
           <p className={styles.muted} data-testid="realized-vol">
             Realized volatility, last {data.realized_vol.sessions} sessions through {data.realized_vol.through}: {data.realized_vol.annualized_pct}% annualized.
+            {data.realized_vol.method ? ` ${data.realized_vol.method}` : ''}
           </p>
         )}
         {isForeignCurrency(data.currency) && (

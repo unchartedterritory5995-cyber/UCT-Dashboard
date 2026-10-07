@@ -113,7 +113,8 @@ class TestPanel:
         out = p.panel("X")
         assert out["state"] == "ok" and out["summary"]["reaction"]["n"] == 1
         assert out["next_report_date"] == "2026-04-30" and out["source"].startswith("UCT daily bar store")
-        assert set(out["method"]) == {"run_in", "gap", "reaction", "drift", "reacting_session"}
+        assert set(out["method"]) == {"run_in", "gap", "reaction", "drift", "reacting_session", "realized_vol"}
+        assert "sample standard deviation" in out["method"]["realized_vol"]   # accuracy follow-up 6
 
     def test_no_reported_quarter_is_a_stated_state(self, monkeypatch):
         monkeypatch.setattr(p, "_cached_earnings", lambda s: {"quarters": [{"reported": False}]})

@@ -15,7 +15,8 @@ const OK = {
       reaction_pct: -0.8, drift_pct: null, drift_state: 'pending', eps_actual: 1.05, eps_estimate: 1.01 },
   ],
   summary: { run_in: stat(2, 0.85, 1.25, 50), gap: stat(2, 1.7, 3.7, 50), reaction: stat(2, 1.23, 2.03, 50), drift: stat(1, -1.2, 1.2, 0) },
-  realized_vol: { annualized_pct: 41.3, sessions: 20, through: '2026-10-01' },
+  realized_vol: { annualized_pct: 41.3, sessions: 20, through: '2026-10-01',
+    method: 'Realized volatility = the sample standard deviation (divisor n-1) of daily log returns, close to close, x sqrt(252), over the last 20 sessions -- the same definition the VOL panel HV uses.' },
   implied_move: { state: 'ok', pct: 6.8, dollar: 12.4, expiry: '2026-11-21', strike: 182.5, call_mark: 6.3, put_mark: 6.1, read_at: 1790000000 },
 }
 let body
@@ -59,6 +60,14 @@ describe('EarningsReactionPanel', () => {
     expect(t).toContain('±6.8%')
     expect(t).toContain('2026-11-21 182.5 straddle')
     expect(t).toContain('call 6.30 + put 6.10')
+  })
+
+  it('the realized vol states its method: the sample standard deviation, same as VOL', async () => {
+    renderTab()
+    const t = (await screen.findByTestId('realized-vol')).textContent
+    expect(t).toContain('41.3% annualized.')
+    expect(t).toContain('sample standard deviation (divisor n-1)')
+    expect(t).toContain('the same definition the VOL panel')
   })
 
   it('a pending earnings history says so', async () => {

@@ -32,16 +32,16 @@ DARK behind EARNINGS_REACTION_PANEL_ENABLED.
 from __future__ import annotations
 
 import logging
-import math
 import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
-from statistics import median, pstdev
+from statistics import median
 from typing import Any, Optional
 
 from api.services import earnings_reaction as er
+from api.services.realized_vol import METHOD as HV_DEFINITION, annualized_hv
 
 _logger = logging.getLogger(__name__)
 
@@ -55,6 +55,10 @@ _MAX_QUEUED = 8
 SOURCE = ("UCT daily bar store (sessions chosen by the reaction strip's rule); quarters from the "
           "earnings payload (earnings_intel); implied move from the front ATM straddle "
           "(earnings_enrichment.get_implied_move)")
+
+
+REALIZED_VOL_METHOD = (f"Realized volatility = {HV_DEFINITION}, over the last {VOL_WINDOW} "
+                       "sessions -- the same definition the VOL panel's HV uses.")
 
 
 def is_enabled() -> bool:
@@ -125,18 +129,22 @@ def _stat(values: list[Optional[float]]) -> dict:
 
 
 def realized_vol(bars: list[dict], window: int = VOL_WINDOW) -> Optional[dict]:
-    """Annualised close-to-close volatility of the last `window` sessions."""
+    """Annualised close-to-close volatility of the last `window` sessions, through the shared
+    `realized_vol.annualized_hv` -- the SAMPLE standard deviation, the same definition VOL/IVH
+    print (it was the population one here: ~2.6 % lower at 20 sessions)."""
     closes = []
     for b in bars[-(window + 1):]:
         try:
             closes.append(float(b.get("c")))
         except (TypeError, ValueError):
             return None
-    if len(closes) < window + 1 or any(c <= 0 for c in closes):
+    if len(closes) < window + 1:
         return None
-    rets = [math.log(b / a) for a, b in zip(closes, closes[1:])]
-    return {"annualized_pct": round(pstdev(rets) * math.sqrt(252) * 100, 1), "sessions": window,
-            "through": str(bars[-1]["t"])[:10]}
+    v = annualized_hv(closes)
+    if v is None:
+        return None
+    return {"annualized_pct": round(v * 100, 1), "sessions": window,
+            "through": str(bars[-1]["t"])[:10], "method": REALIZED_VOL_METHOD}
 
 
 # ── implied move: a vendor read, OFF the request path ──────────────────────
@@ -212,7 +220,8 @@ def panel(sym: str) -> dict:
         "gap": "open of the reacting session over the prior close",
         "reaction": "close of the reacting session over the prior close",
         "drift": f"close {DRIFT} sessions after the reaction over the reaction close",
-        "reacting_session": "of the report day and the next session, the one that opens furthest from its prior close"}}
+        "reacting_session": "of the report day and the next session, the one that opens furthest from its prior close",
+        "realized_vol": REALIZED_VOL_METHOD}}
     payload = _cached_earnings(sym)
     if payload is None:
         return {**base, "state": "pending", "reason": "the earnings history is being read; this panel fills in by itself"}
