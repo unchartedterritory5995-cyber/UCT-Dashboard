@@ -176,7 +176,8 @@ describe('SetupsBoard', () => {
   })
 
   it('a member with no drawn plan is told how to start, and no chart mounts', async () => {
-    latchNotebookFlags({ notebook_setups_board_enabled: true })
+    // with the chart plan ON; with it off the line names no step (honestWhenOff.finFe2.test.jsx)
+    latchNotebookFlags({ notebook_setups_board_enabled: true, notebook_chart_plan_enabled: true })
     stub([[/\/api\/j2\/setups-board$/, contractBody('setups-board.empty')]])
     renderBoard()
     expect(await screen.findByText(/No open setups yet\. Draw an entry line on a chart in a plan note/)).toBeTruthy()

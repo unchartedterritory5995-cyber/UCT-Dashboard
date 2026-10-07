@@ -4,6 +4,7 @@ import useSWR from 'swr'
 import LoadFailed from '../LoadFailed'
 import Sheet from '../../../../components/mobile/Sheet'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
+import { chartPlanEnabled } from '../../lib/widgetEmbedCore'
 import useStaggeredMount from '../../../charts/grid/useStaggeredMount'
 import { makeGridWarmer } from '../../../charts/grid/gridWarm'
 import { GRID_MAX_CELLS } from '../../../charts/grid/gridLayouts'
@@ -48,6 +49,14 @@ export const cardKey = (c) => `${c.noteId}:${c.symbol}`
 
 const warmDaily = (syms) => prefetchListAllTimeframes(syms, { tfs: WARM_TFS })
 
+/** The board's "nothing yet" line. With the chart plan off the member cannot mark a line as an
+ *  entry, so the line says what is missing instead of naming a step they cannot take. */
+export function emptyBoardText({ chartPlanOn }) {
+  return chartPlanOn
+    ? 'No open setups yet. Draw an entry line on a chart in a plan note (and a stop, for the distance in R) and it shows here.'
+    : 'No open setups yet. A setup comes from a chart whose lines are marked as the entry and the stop, and marking lines is not switched on for your account.'
+}
+
 function Board({ onFindSimilar }) {
   const { data, error, isLoading, mutate } = useSWR(BOARD_URL, fetchJson,
     { revalidateOnFocus: false, shouldRetryOnError: false })
@@ -82,10 +91,7 @@ function Board({ onFindSimilar }) {
       {error && <LoadFailed compact what="your setups" error={error} onRetry={() => mutate()} />}
       {!error && isLoading && <p className={styles.quiet} role="status">Reading your plans…</p>}
       {!error && data && !hasOwn && (
-        <p className={styles.quiet}>
-          No open setups yet. Draw an entry line on a chart in a plan note (and a stop, for the
-          distance in R) and it shows here.
-        </p>
+        <p className={styles.quiet}>{emptyBoardText({ chartPlanOn: chartPlanEnabled() })}</p>
       )}
       {!error && data?.capped && (
         <p className={styles.note} role="note">
@@ -210,7 +216,7 @@ export default function SetupsBoard() {
       {similarOn && <Templates onPick={open} />}
       {similarOn && picked && (
         <Sheet open onClose={close} variant="auto" title="Find more like this" labelledByTitle>
-          <SimilarNames noteId={picked.noteId} embedKey={picked.embedKey} />
+          <SimilarNames noteId={picked.noteId} embedKey={picked.embedKey} example={picked.example === true} />
         </Sheet>
       )}
     </div>

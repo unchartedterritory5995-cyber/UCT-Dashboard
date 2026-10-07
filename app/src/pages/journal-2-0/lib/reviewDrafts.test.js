@@ -493,9 +493,12 @@ describe('the review period is the Eastern day, week and month (I1)', () => {
 
 // ── fin-flags I5: no discipline section while plan grading is off ─────────────────────────
 describe('buildDraftBlocks with plan grading off (discipline: null)', () => {
-  it('leaves the Discipline record section out, and keeps every other section', () => {
+  // Finish program FE2 (P7): the section's ROWS stay out (never a row of zeros), but the draft
+  // now SAYS the record is missing and why. It used to say nothing while its box promised it.
+  it('draws no discipline rows, says plainly that the record is not in the draft, and keeps every other section', () => {
     const texts = flattenText({ content: buildDraftBlocks(fixturePayload({ discipline: null })) })
-    expect(texts.some((t) => t.includes('Discipline record'))).toBe(false)
+    expect(texts.some((t) => t.includes('Not in this draft. The discipline record comes from plan grading'))).toBe(true)
+    expect(texts.some((t) => t.includes('Planned:'))).toBe(false)
     expect(texts.some((t) => t.includes('Plan rate'))).toBe(false)
     expect(texts.some((t) => t.includes('The numbers'))).toBe(true)
     expect(texts.some((t) => t.includes('Setup changes'))).toBe(true)
@@ -503,6 +506,7 @@ describe('buildDraftBlocks with plan grading off (discipline: null)', () => {
   it('control: with a discipline payload the section is there', () => {
     const texts = flattenText({ content: buildDraftBlocks(fixturePayload()) })
     expect(texts.some((t) => t.includes('Discipline record'))).toBe(true)
+    expect(texts.some((t) => t.includes('Not in this draft'))).toBe(false)
   })
 })
 
