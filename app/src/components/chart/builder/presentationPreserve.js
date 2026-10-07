@@ -73,7 +73,10 @@ export function restorableRowFields(p) {
 /** Does a stored plot carry presentation the untouched-row test must respect? */
 export function rowCarriesPresentation(row) {
   return !!(row && (row.colorMode || Number.isFinite(row.opacity) || isObj(row.fill)
-    || (row.marker && row.marker.shape)))
+    || (row.marker && row.marker.shape)
+    // ⭐ P3 — a row holding a line style is not the untouched default either:
+    // the schema-1 body would drop it (only the conversational row model holds one).
+    || typeof row.lineStyle === 'string'))
 }
 
 const columnOf = (mode) => (typeof mode === 'string' && mode.startsWith('column:')

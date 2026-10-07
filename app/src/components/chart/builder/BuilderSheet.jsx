@@ -79,7 +79,7 @@ import { useCreateIndicatorFlag } from './studio/createIndicatorFlag'
 import Sheet from '../../mobile/Sheet'
 import UIcon from '../../ui/UIcon'
 import { PORTAL_POPUP_ATTR } from '../ColorPicker'
-import { SCHEMA_VERSION, MARKER_SHAPES, MARKER_POSITIONS } from '../engine/defSchema'
+import { SCHEMA_VERSION, MARKER_SHAPES, MARKER_POSITIONS, PLOT_LINE_STYLES } from '../engine/defSchema'
 import { astHash } from '../engine/ast/parse'
 // ⛔ THE SECOND MACHINE-ASSIGNED BADGE, AND IT IS MEASURED HERE FOR THE SAME
 // REASON `repaint` IS: `validateUserDefinitions` REQUIRES `meta.freshness` on
@@ -598,6 +598,13 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
           ...(Number.isFinite(r.fillOpacity) ? { fillOpacity: r.fillOpacity } : {}),
         }
         : {}),
+      // ⭐ P3 — A ROW'S LINE STYLE (`defSchema.PLOT_LINE_STYLES`, drawn by
+      // `pool.lineStyleValue`). Only a row that CARRIES one writes it, so every
+      // document whose rows name none stays byte-identical. The manual sheet's
+      // rows never hold it (its reopen leaves it to `preservePresentation`); the
+      // conversational row model does, so a dashed plot is representable there.
+      // Last, where `preservePresentation` has always appended it.
+      ...(PLOT_LINE_STYLES.includes(r.lineStyle) ? { lineStyle: r.lineStyle } : {}),
     }
   })
   const guides = Array.isArray(levels) && levels.length

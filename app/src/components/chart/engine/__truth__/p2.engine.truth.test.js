@@ -495,11 +495,13 @@ describe('P2 engine — fidelity, view and the shared patch fixture', () => {
 })
 
 describe('P2 engine — the remaining ops and guards', () => {
-  it('OP RAIL — the schema names exactly the 19 ops the engine implements', async () => {
+  // ⭐ P3 vocab moved this rail deliberately: 19 → 22 (set_levels, set_fill,
+  // remove_fill — additive, contract still uct.authoring.patch/1).
+  it('OP RAIL — the schema names exactly the 22 ops the engine implements', async () => {
     const { OP_NAMES } = await import('../../builder/authoring/patchValidate')
     const { HANDLED_OPS } = await import('../../builder/authoring/applyPatch')
     expect([...OP_NAMES].sort()).toEqual([...HANDLED_OPS].sort())
-    expect(OP_NAMES).toHaveLength(19)
+    expect(OP_NAMES).toHaveLength(22)
   })
 
   it('REMOVE CLAUSE / PLACEMENT / REMOVE MARKER / REMOVE PAINT / CANCEL — each is an explicit, reversible op (EXACT)', () => {

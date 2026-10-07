@@ -20,7 +20,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 import UIcon from '../../../ui/UIcon'
 import * as engineRegistry from '../../engine/nativeRegistry'
-import { presentationLines } from '../authoring'
+import { presentationLines, vocabularyLines } from '../authoring'
 import { converseTurn } from '../authoring/converseClient'
 import useIndicatorConversation, { typeWord } from './useIndicatorConversation'
 import { STUDIO_PREVIEW_DEF_ID, previewInstanceFor } from './chartPreview'
@@ -56,7 +56,9 @@ function lookOf(def) {
   })
   // Paints keep the engine's own sentence (`presentationLines`), minus the plot
   // and placement lines rendered above.
-  const paints = presentationLines(def).filter((l) => /^(candles painted|background shaded|an imported)/.test(l))
+  const paints = [...presentationLines(def).filter((l) => /^(candles painted|background shaded|an imported)/.test(l)),
+    // ⭐ P3 — line styles, bands and levels, in the engine's own words.
+    ...vocabularyLines(def)]
   const placement = def.placement && def.placement.target === 'price' ? 'On the price chart' : 'In its own pane'
   return { plots, paints, placement }
 }
