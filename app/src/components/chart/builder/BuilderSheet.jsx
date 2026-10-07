@@ -2208,10 +2208,21 @@ export default function BuilderSheet({
   // `source` stays empty, so at the exact moment a member has the MOST unsaved
   // work — a long script that does not translate yet — the old predicate saw
   // nothing at all.
+  // ⭐ P3S — A SAVE IS THE NEW CLEAN BASELINE, whichever door made it. When the
+  // conversation saves THIS definition the form is the older version it was
+  // opened at (`supersededByConversation`: it cannot be saved), and closing then
+  // asked "Discard this formula?" about work that was already saved (P3R). The
+  // form's fingerprint is taken at that save; only a form changed SINCE asks.
+  const formPrint = JSON.stringify([pineText, source, name, plotRows.map((r) => r.source || ''),
+    plot0, target, levelsText])
+  const formPrintRef = useRef(formPrint)
+  formPrintRef.current = formPrint
+  const savedByConversation = !!(supersededByConversation && conversationSaved.formPrint === formPrint)
   const dirty = (pineText.trim() !== '' || source.trim() !== '' || name.trim() !== ''
       || plotRows.some((r) => String(r.source || '').trim() !== '')
       || !isUntouchedRow(plot0) || target !== 'pane' || levelsText.trim() !== '')
     && !(savedRow && savedRow.source === source)
+    && !savedByConversation
 
   // ⭐ P3 UX — AN UNSAVED CONVERSATION IS UNSAVED WORK TOO. The conversation's
   // own dirty authority (`isDirty`, reported by the box through `onCommitState`)
@@ -2278,7 +2289,7 @@ export default function BuilderSheet({
               settings={settings} onChange={onChange} sym={sym} tf={tf}
               editing={editing} disabled={saving}
               onCommitState={setConverseCommit} commitRef={converseCommitRef}
-              onSaved={(defId, version) => setConversationSaved({ defId, version })} />
+              onSaved={(defId, version) => setConversationSaved({ defId, version, formPrint: formPrintRef.current })} />
           )}
           {/* ⭐ SLICE 2 ROLLOUT RULE — the one-shot box drafts an INDICATOR only
               while conversation is off; with it on, the conversation replaces it.

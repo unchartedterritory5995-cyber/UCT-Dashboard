@@ -165,21 +165,21 @@ describe('ConverseBox — the 8-turn scenario end to end (items 1–4, 7, 8, 17,
 
     // T3 — add clause
     await say('and close more than 8% above the 20 EMA')
-    expect(readbackLines()).toContain('RSI 14 > 80 — true when the 14-bar RSI of close is above 80 and close is above (the 20-bar exponential average of close) times 1.08')
+    expect(readbackLines()).toContain('RSI 14 > 80 and Close > EMA 20 × 1.08 — true when the 14-bar RSI of close is above 80 and close is above (the 20-bar exponential average of close) times 1.08')
     // the decided threshold assumption is gone; the undecided length is still disclosed
     expect(readbackLines()).toContain('Assumed RSI period 14')
     expect(readbackLines().some((l) => /^Assumed threshold/.test(l))).toBe(false)
 
     // T4 / T5 — presentation
     await say('gold candles')
-    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 > 80 is true (normal colour otherwise)')
+    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 > 80 and Close > EMA 20 × 1.08 is true (normal colour otherwise)')
     await say('circle below')
-    expect(readbackLines()).toContain('Look: RSI 14 > 80: UCT gold circle below the bar where it is true')
-    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 > 80 is true (normal colour otherwise)')
+    expect(readbackLines()).toContain('Look: RSI 14 > 80 and Close > EMA 20 × 1.08: UCT gold circle below the bar where it is true')
+    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 > 80 and Close > EMA 20 × 1.08 is true (normal colour otherwise)')
 
     // T6 / T7 — consumer requests (authoring state, not definition)
     await say('alert me when it becomes true')
-    expect(readbackLines()).toContain('Alert when RSI 14 > 80 becomes true')
+    expect(readbackLines()).toContain('Alert when RSI 14 > 80 and Close > EMA 20 × 1.08 becomes true')
     await say('show me the RSI value')
     expect(readbackLines()).toContain('Chart header shows the latest value of RSI 14')
     expect(readbackLines()).toContain('RSI 14 — a number on every bar: the 14-bar RSI of close') // derived label
@@ -277,7 +277,7 @@ describe('ConverseBox — undo, refusals, questions (items 26, 30, REQUIRED clas
     for (const w of SCENARIO.slice(0, 3)) await say(w)
     const before = readbackLines()
     await say('gold candles')
-    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 > 80 is true (normal colour otherwise)')
+    expect(readbackLines()).toContain('Look: candles painted gold where RSI 14 > 80 and Close > EMA 20 × 1.08 is true (normal colour otherwise)')
     fireEvent.click(screen.getByTestId('converse-undo'))
     await flush()
     expect(readbackLines()).toEqual(before)

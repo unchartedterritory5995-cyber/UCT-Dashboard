@@ -20,6 +20,7 @@ import { AuthContext } from '../../../context/AuthContext'
 import { parseFormula } from '../engine/ast/parse'
 import { clearUserDefinitions } from '../engine/nativeRegistry'
 import { CONVERSE_ENDPOINT } from './authoring/converseClient'
+import { _resetSessions } from './authoring/conversationSessions'
 
 const DEF_ID = 'u_beef0123cafe'
 
@@ -58,7 +59,7 @@ function stubFetch() {
 }
 const flush = async () => { await act(async () => { for (let i = 0; i < 8; i += 1) await Promise.resolve() }) }
 
-beforeEach(() => { stubFetch(); clearUserDefinitions() })
+beforeEach(() => { stubFetch(); clearUserDefinitions(); _resetSessions() })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); delete globalThis.fetch; clearUserDefinitions() })
 
 beforeEach(() => { setCreateIndicatorFlag(true) })
@@ -97,5 +98,58 @@ describe('P2 — the sheet cannot silently revert a conversational save', () => 
     // the sheet's form still says 20 — and it can no longer save it over version 2
     expect(sheetSave().disabled).toBe(true)
     expect(screen.getByText(/The conversation above saved this formula as version 2/)).toBeTruthy()
+  })
+})
+
+// ─── ⭐ P3S — A CONVERSATIONAL SAVE IS THE SHEET'S CLEAN BASELINE ──────────────
+// ASKED (P3R, production): edit a saved formula, continue it in the conversation,
+// save, then close. BEFORE: "Discard this formula?" — about a form that had just
+// been saved by the conversation and that the sheet cannot save anyway. NOW:
+// closes at once; a form changed AFTER that save still asks.
+describe('P3S — after the conversation saves, closing does not ask to discard', () => {
+  function mount(onClose) {
+    render(
+      <AuthContext.Provider value={{ user: { id: 7, role: 'admin' }, isPaid: true, loading: false }}>
+        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
+          <BuilderSheet open onClose={onClose} onSaved={() => {}} settings={{ indicatorInstances: [], indicators: {} }} onChange={() => {}} />
+        </SWRConfig>
+      </AuthContext.Provider>,
+    )
+  }
+  async function editAndConverseSave() {
+    await flush()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit My line' }))
+    await flush()
+    fireEvent.click(screen.getByTestId('converse-open-editing'))
+    await flush()
+    fireEvent.change(screen.getByLabelText('Change it'), { target: { value: 'make it 50' } })
+    fireEvent.click(screen.getByTestId('converse-send'))
+    await flush()
+    fireEvent.click(screen.getByTestId('sheet-save'))
+    await flush()
+    expect(screen.getByText(/The conversation above saved this formula as version 2/)).toBeTruthy()
+  }
+  const cancel = () => fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }))
+
+  it('Cancel closes at once — the save was the baseline', async () => {
+    const onClose = vi.fn()
+    mount(onClose)
+    await editAndConverseSave()
+    cancel()
+    await flush()
+    expect(screen.queryByTestId('discard-confirm')).toBeNull()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('…but a form changed AFTER that save still asks (genuinely unsaved work keeps its guard)', async () => {
+    const onClose = vi.fn()
+    mount(onClose)
+    await editAndConverseSave()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Renamed after the save' } })
+    await flush()
+    cancel()
+    await flush()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByTestId('discard-confirm').textContent).toContain('Discard this formula?')
   })
 })

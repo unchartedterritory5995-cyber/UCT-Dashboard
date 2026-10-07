@@ -188,8 +188,11 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       commit(out.state)
       setAcked(false)
       setChangeSeq((n) => n + 1)
+      // ⛔ P3S: a CHANGE shows the deterministic readback of the RESULT and nothing the
+      // model wrote. Its prose is not the authority on applied state (P3R, real model:
+      // "Its name still says 'EMA 20'" beside a readback of EMA 50), so it is not shown
+      // and -- not being on the entry -- never rides back to the model as context.
       say({ role: 'uct', kind: before.working ? 'patched' : 'created', revision: out.state.revision, updated: true,
-        reply: turn.reply || '',
         lines: [...replyLines(out.readback, out.state, result.changes), ...gaps] })
       return true
     } finally {

@@ -305,6 +305,7 @@ const OPS = {
       lineStyle: row.lineStyle || 'solid' })
     const from = look()
     for (const f of ['color', 'width', 'style', 'hidden']) if (op[f] !== undefined) row[f] = op[f]
+    if (op.hidden !== undefined) st.hiddenSet.add(row.key)
     // ⭐ P3 — solid is the default and is written as NO field, so an undashed
     // plot stays byte-identical to one that never had a line style.
     if (op.lineStyle === 'solid') delete row.lineStyle
@@ -326,6 +327,12 @@ const OPS = {
     const from = row.marker || null
     row.style = 'markers'
     row.marker = marker
+    // ⭐ P3S — markers are a request to DRAW: an output hidden (by the member, or by
+    // `hidePaintedConditionLines`) would otherwise draw nothing at all.
+    if (row.hidden === true) {
+      row.hidden = false
+      st.changes.push({ op: i, kind: 'line-shown', output: row.key, reason: 'marker' })
+    }
     st.touched.add(row.key)
     st.changes.push({ op: i, kind: 'marker-set', output: row.key, from, to: marker })
   },
@@ -350,7 +357,7 @@ const OPS = {
     const [paint] = signalPaintsFor(row.key, { [op.channel]: op.color })
     const from = at >= 0 ? paints[at].colorUp : null
     if (at >= 0) paints[at] = paint
-    else paints.push(paint)
+    else { paints.push(paint); st.newPaints.add(row.key) }
     m.paints = paints
     st.touched.add(row.key)
     st.changes.push({ op: i, kind: 'paint-set', output: row.key, channel: op.channel, from, to: op.color })
@@ -537,12 +544,40 @@ function disclosures(st, input, def, gateCtx) {
   return out
 }
 
+/**
+ * ⭐ P3S — A YES/NO THAT A COLOUR SHOWS IS NOT ALSO A 0/1 LINE. When this patch
+ * gives a CONDITION output its FIRST own paint (candles or background), the output
+ * is still drawn with the default line, and the patch did not set its visibility,
+ * the line is hidden. A hidden plot is COMPUTED, never drawn (`defSchema`), so the
+ * paint — which reads the output's own column — is unchanged; only the flat 0/1
+ * line under it goes (P3R: "RSI 28 > 70 0.00" drawn in the RSI pane). Only when
+ * another output is drawn beside it. Disclosed;
+ * `set_style hidden:false` draws it again, and a later colour change does not
+ * re-hide it. ⛔ Presentation only: the tree, the type and the truth are untouched.
+ */
+function hidePaintedConditionLines(st) {
+  for (const row of st.model.rows) {
+    if (!st.newPaints.has(row.key) || st.hiddenSet.has(row.key)) continue
+    if (row.hidden === true || row.marker || row.style !== 'line' || !row.ast) continue
+    if (treeOutputType(row.ast).type !== OUTPUT_TYPES.CONDITION) continue
+    // ⛔ ONLY BESIDE ANOTHER DRAWN OUTPUT (the P3R shape: an RSI line + its yes/no).
+    // A definition whose ONLY output is the painted condition keeps its line, as P2
+    // accepted it: hiding it would leave its pane empty.
+    if (!st.model.rows.some((o) => o !== row && o.hidden !== true)) continue
+    row.hidden = true
+    st.changes.push({ op: null, kind: 'line-hidden', output: row.key, reason: 'paint' })
+    st.engineAssumptions.push({ output: row.key, source: 'engine',
+      text: 'this yes/no shows through its colour, so it is not also drawn as a 0/1 line' })
+  }
+}
+
 function runOps(input, ops, ctx) {
   const st = {
     model: null, ctx, changes: [], touched: new Set(), removed: new Set(), requested: new Set(),
     intent: ctx.intent ? { ...ctx.intent } : null, requests: normRequests(ctx.requests),
     engineAssumptions: [], replacedForeign: {}, created: false, intentTouched: false, fills: new Set(),
     renamedDefinition: false, renamedOutputs: new Set(),
+    newPaints: new Set(), hiddenSet: new Set(),
   }
   let namingBefore = null
   if (input) {
@@ -569,6 +604,7 @@ function runOps(input, ops, ctx) {
     }
   }
   if (!st.model) return { ok: false, errors: [{ op: null, code: 'definition:none', message: 'There is no definition yet; the first turn must create one.' }] }
+  hidePaintedConditionLines(st)
   // ⭐⭐ THE NAME DESCRIBES THE RESULT (derivedName.js): an auto name and auto
   // labels are re-derived from the patched trees; a custom one is kept.
   st.changes.push(...applyDerivedNaming(st.model, namingBefore,
