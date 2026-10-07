@@ -12,8 +12,8 @@
 //
 // CONTRACT: the board (forty setups, and one card in each state) is the REAL server's answer
 // (`__fixtures__/contract`, written by tools/notebook_contract_fixtures.py from
-// GET /api/j2/setups-board). The one answer still typed here is the similar-names MATCHES:
-// that route only reads rows the nightly job stored, and the generator does not fabricate one.
+// GET /api/j2/setups-board), and so are the similar-names matches: the generator runs the real
+// nightly job over a fixed universe and the route reads the rows it stored.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 
@@ -40,21 +40,15 @@ import { distanceText, daysText, planPriceLines } from './BoardCard'
 import { prefetchListAllTimeframes } from '../../../../utils/prefetchBars'
 import { Providers } from '../../a11y/fixtures'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
-import { contractBody } from '../../__fixtures__/contract'
+import { contract, contractBody } from '../../__fixtures__/contract'
 
 const BOARD = contractBody('setups-board.forty')
 const CARDS = BOARD.cards
 const FIRST = CARDS[0]                 // the closest setup, and the one with a tagged chart
-const MATCHES = {
-  template: { noteId: FIRST.noteId, embedKey: FIRST.similarEmbedKey, noteTitle: FIRST.noteTitle, symbol: FIRST.symbol, setupTag: 'VCP', asOf: '2026-09-30', frozen: true },
-  asOf: '2026-10-01', computedAt: 'x', status: 'ready', matches: [
-    { rank: 1, symbol: 'CRWD', score: 88, distance: 0.12, coverage: 1,
-      reasons: { fields: [
-        { field: 'rs_rank', label: 'RS', unit: '', template: 92, candidate: 94, delta: 2, same: null, d: 0.08 },
-        { field: 'pullback_depth_pct', label: 'depth', unit: '%', template: 12, candidate: 11, delta: -1, same: null, d: 0.1 },
-      ], patterns: { shared: ['vcp'], templateOnly: [], missing: null } } },
-  ],
-}
+// The matches the REAL nightly job stored for the one tagged chart on the six-state board.
+const MATCHES = contractBody('similar-names.matches')
+
+const SECOND_ROW = 'vs 20-day 2% vs 2% · vs 50-day 10% vs 10% · vs 200-day 30% vs 30%'
 
 const respond = (status, body) => Promise.resolve({ ok: status < 400, status, headers: { get: () => null }, json: () => Promise.resolve(body) })
 function stub(routes) {
@@ -213,15 +207,31 @@ describe('SetupsBoard', () => {
 
   it('find more like this opens the precomputed matches for the tagged chart', async () => {
     latchNotebookFlags({ notebook_setups_board_enabled: true, notebook_find_similar_enabled: true })
+    const board = contractBody('setups-board')
+    const tagged = board.cards.filter((c) => c.similarEmbedKey)
+    expect(tagged.map((c) => c.symbol)).toEqual(['SBNV'])
+    expect(MATCHES.template).toMatchObject({ noteId: tagged[0].noteId, embedKey: tagged[0].similarEmbedKey, symbol: 'SBNV' })
+    expect(MATCHES).toMatchObject({ status: 'ready', asOf: '2026-10-02' })
+    expect(MATCHES.matches).toHaveLength(10)
+    const path = `/api/j2/similar-names/${tagged[0].noteId}/${tagged[0].similarEmbedKey}`
+    expect(path).toBe(contract('similar-names.matches')._contract.path)
     const calls = stub([
-      [/\/api\/j2\/setups-board$/, BOARD],
-      [/\/api\/j2\/similar-names\/templates$/, contractBody('similar-names.templates.empty')],
-      [new RegExp(`/api/j2/similar-names/${FIRST.noteId}/${FIRST.similarEmbedKey}$`), MATCHES],
+      [/\/api\/j2\/setups-board$/, board],
+      [/\/api\/j2\/similar-names\/templates$/, contractBody('similar-names.templates')],
+      [new RegExp(`${path}$`), MATCHES],
     ])
-    render(<Providers route="/journal/notebook/setups"><SetupsBoard /></Providers>)
-    fireEvent.click(await screen.findByRole('button', { name: `Find more like ${FIRST.symbol}` }))
-    expect(await screen.findByText('RS 94 vs 92 · depth 11% vs 12% · VCP')).toBeTruthy()
-    expect(calls).toContain(`/api/j2/similar-names/${FIRST.noteId}/${FIRST.similarEmbedKey}`)
-    expect(screen.queryByRole('button', { name: `Find more like ${CARDS[1].symbol}` })).toBeNull()   // untagged
+    const { container } = renderBoard()
+    fireEvent.click(await screen.findByRole('button', { name: 'Find more like SBNV' }))
+    // the second-closest name: its three nearest fields, the name's value first, the chart's second
+    const second = MATCHES.matches[1]
+    expect(second).toMatchObject({ symbol: 'SM01', score: 98, rank: 2 })
+    await screen.findByText('SM01')
+    const rows = [...container.ownerDocument.querySelectorAll('[data-reasons]')].map((el) => el.textContent)
+    expect(rows).toHaveLength(10)
+    expect(rows[1]).toBe(SECOND_ROW)
+    expect(screen.getByText('98 match')).toBeTruthy()
+    expect(screen.getByText(/as of 2026-10-02/)).toBeTruthy()
+    expect(calls).toContain(path)
+    expect(screen.queryByRole('button', { name: 'Find more like SBAM' })).toBeNull()   // untagged
   })
 })

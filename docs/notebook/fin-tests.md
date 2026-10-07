@@ -8,6 +8,52 @@ It closes two gaps the completeness review found (`R6-COMPLETENESS`, Part 4 and 
 - **A.** Seven source files that no test named now each have a focused test file.
 - **B.** The frontend tests of the new Notebook surfaces used to type the server's answer by hand. They now load the server's real answers, and a backend test fails when those answers change.
 
+## 0. Round 2: what changed after the first report
+
+The controller widened this lane's authority for four named files. Everything else stayed test-only.
+
+**Fixed, each by flipping its pinned test to an ordinary passing one, then breaking the fix to see it red:**
+
+| id | fix | file |
+|---|---|---|
+| D2 | A closed trade's percent result in the Earnings Prep note goes through the Journal's own percent formatter (`app/src/lib/journal-2-0/format.js`, the one the Trade Log uses). 12.3% reads "+12.3%". | `lib/earningsPrepShared.js` |
+| D3 | A thesis status is looked up as an own key. A status named after an inherited key is unknown like any other. | `lib/thesisChips.js` |
+| D4 | A failed share with no sentence from the server (a dropped connection, an error page, a detail that is not a sentence) shows "Couldn't submit that template. Nothing was shared." A real server sentence is still shown as it is. | `components/notebook/GalleryPublishForm.jsx` |
+| F2 | The earnings prep backend suite replaces the vendor lookup and refuses every outbound connection, through Python sockets and through yfinance. A control proves the refusal fires. | `tests/test_notebook_earnings_prep.py` |
+
+D1 and D5 stay pinned as strict xfails. D1 is fixed on the landing branch by lane SEC and is flipped at merge. D5 belongs to lane DATA.
+
+**The percent and R sweep found no second slip.** Every percent-like and R-like field in the 170 recorded answers was listed with its real values and checked against what the client prints. The units are:
+
+| server field | unit sent | client prints | pinned by |
+|---|---|---|---|
+| win rates, plan rates and their ranges (My Playbook, Discipline, visual playbook, review drafts) | fraction | times 100 | the literal percent strings in each converted test |
+| plan grade `deltaPct` | fraction | times 100 | `planGradeText.test.js`, `PlanGradeCard.test.jsx` |
+| plan grade `chaseR`, every `avgR`, `rMultiple`, `distanceR` | R | as it is | each converted test |
+| passed setups `pct`, setups board `distancePct` | percent | as it is | `PassedSetups.test.jsx`, `SetupsBoard.test.jsx` |
+| earnings `expectedMove.pct`, growth, reactions, surprises | percent | as it is | `lib/earningsPrep.test.js` (new literals) |
+| earnings `myTrades[].pnlPercent` | **fraction** | was "as it is" (D2), now times 100 | `lib/earningsPrep.test.js` |
+| entry context breadth, fingerprint `*_pct` | percent | as it is | `EntryContextCard.test.jsx`, `VisualPlaybook.test.jsx` |
+| chart plan `riskPct` | percent | divided by 100 to dollars | `ChartPlanPanel.test.jsx` (new literals: $1,000 at risk, 235 shares) |
+
+No other wave 12 to 15 file prints `pnlPercent` or `net_pnl_pct` from a server field.
+
+**One thing seen and not changed** (the file was not in the widened list): `components/notebook/ThesisChip.jsx:133` does the same plain-object status lookup D3 fixed, for the chip's color. It is not reachable through the product's write door.
+
+**The four routes with no successful answer now have one**, each from a stored artefact seeded through the product's own writer, never a vendor:
+
+- find-similar matches and templates: the real nightly job (`similar_matches.run_nightly`) is run over a fixed universe of screener rows, and the route reads the rows it stored;
+- transcript quarters, read and save: a transcript is stored through `transcript_index.put` in a temporary index, then read and quoted into a note;
+- fingerprint freeze: a tagged chart with no fingerprint is frozen through the route, with the computation replaced by a stand-in.
+
+`NO_SUCCESS_RECORDED` in the pytest is empty. `SetupsBoard.test.jsx` no longer types the matches by hand.
+
+**Three more hand-mocked files converted:** `hooks/useThesisChips.test.js`, `components/TradesTable.planGrade.test.jsx`, `components/WhyPrompt.test.jsx`. That is fifteen converted.
+
+**Still hand-mocked (nineteen files, about 2,900 lines).** Not done in this round. The fixtures each one needs exist: the eight `a11y/*.a11y.test.jsx` files, `HoldingsList.thesisChip.test.jsx`, `ThesisChip.test.jsx`, `WhyPrompt.focus.test.jsx`, `PlaybookSection.test.jsx`, `TemplatePicker.gallery.test.jsx`, `TemplatePicker.gallerySearch.test.jsx`, the three `ChartPlanPanel.*.test.jsx`, `WidgetEmbedView.chartPlan.test.jsx`, `SlashMenu.chartPlan.test.jsx`.
+
+Sections 1 to 5 below are the first report, kept as written. Where round 2 changed a fact, this section is the current one.
+
 ## 1. Defects and mismatches found
 
 None of these is fixed here. Each one is pinned by a test that stays visible: a strict `xfail` in pytest, or `it.fails` in vitest. Both turn red the day the defect is fixed, which is the reminder to remove the marker.
@@ -81,7 +127,7 @@ The mutations, for the record:
 
 ### How it works
 
-`tools/notebook_contract_fixtures.py` builds one FastAPI app carrying every wave 12 to 15 Notebook router and asks it, in process with the TestClient, for its real answers. It writes them to `app/src/pages/journal-2-0/__fixtures__/contract/<name>.json`. There are 161 files. Each is `{"_contract": {endpoint, case, status, path, requestBody}, "body": <the answer>}`.
+`tools/notebook_contract_fixtures.py` builds one FastAPI app carrying every wave 12 to 15 Notebook router and asks it, in process with the TestClient, for its real answers. It writes them to `app/src/pages/journal-2-0/__fixtures__/contract/<name>.json`. There are 170 files (161 at the first report). Each is `{"_contract": {endpoint, case, status, path, requestBody}, "body": <the answer>}`.
 
 - It imports the repo-root `conftest` first. That applies the census pins and arms the shared-root tripwire, so nothing can reach `C:\data`. The run fails if the tripwire recorded anything.
 - It uses a fresh temporary `auth.db` for each run.

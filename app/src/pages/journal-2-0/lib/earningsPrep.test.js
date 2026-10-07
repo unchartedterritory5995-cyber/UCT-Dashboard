@@ -89,6 +89,16 @@ describe('the prep note body', () => {
     expect(text).toContain('Wed, Oct 7, 2026')
     expect(text).toContain('after the close')
     expect(text).toContain('±6.5% ($12.40)')
+    // UNITS, read off the real draft: the move, the growth and the reactions arrive as PERCENTS
+    // and are printed as they are; only a trade's own result is a fraction (the D2 case below).
+    expect(FULL.expectedMove.value.pct).toBe(6.5)
+    expect([FULL.street.epsGrowthPct, FULL.street.revenueGrowthPct]).toEqual([61.7, 53.8])
+    expect(text).toContain('+61.7%')
+    expect(text).toContain('+53.8%')
+    expect(FULL.reactions.value[0]).toMatchObject({ reactionPct: -3.1, impliedPct: 6.9, epsSurprisePct: 4.2 })
+    expect(text).toContain('−3.1%')
+    expect(text).toContain('±6.9%')
+    expect(text).not.toMatch(/6170|5380|±650|±0\.1%/)
     expect(text).toContain('$1.31')
     expect(text).toContain('$54.00B')
     expect(text).toContain('Beat +4.2%')

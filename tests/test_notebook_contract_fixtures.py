@@ -117,15 +117,11 @@ def test_CONTROL_missing_and_extra_files_are_named_not_counted():
 
 # ── coverage: every route has a pinned answer ──────────────────────────────────────────────────
 
-#: Routes with no SUCCESSFUL answer recorded, each with the reason. A success here needs a stored
-#: vendor artefact (a transcript, a nightly similar-names row, a live fingerprint computation) the
-#: generator deliberately does not fabricate. Their refusals and both sweeps are recorded.
-NO_SUCCESS_RECORDED = {
-    ("GET", "/api/j2/similar-names/{note_id}/{embed_key}"): "reads only rows the nightly precompute stored",
-    ("GET", "/api/j2/research-capture/transcripts/{symbol}/{quarter}"): "needs a stored vendor transcript",
-    ("POST", "/api/j2/research-capture/transcripts/save"): "needs a stored vendor transcript",
-    ("POST", "/api/j2/notebook-fingerprint/blocks/{note_id}/{embed_key}/freeze"): "freezes a live computation",
-}
+#: Routes with no SUCCESSFUL answer recorded, each with its reason. EMPTY since round 2: the four
+#: that used to be here (find-similar matches, transcript read and save, fingerprint freeze) are
+#: recorded now, each from a stored artefact the generator seeds through the product's own
+#: writer. A route added here needs a reason a reviewer would accept.
+NO_SUCCESS_RECORDED: dict[tuple[str, str], str] = {}
 
 
 def _recorded():

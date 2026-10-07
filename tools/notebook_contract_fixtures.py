@@ -221,7 +221,7 @@ _PREIMPORT = (
     "api.services.calendar_alerts", "api.services.calendar_personalization", "api.services.call_recap_store",
     "api.services.implied_store", "api.services.daily_counters", "api.routers.watchlist_alerts",
     "api.services.watchlist_alert_service", "api.services.ticker_meta", "api.services.entity_master.api",
-    "api.services.journal_two.ticker_research", "api.services.fmp_transcripts",
+    "api.services.journal_two.ticker_research", "api.services.fmp_transcripts", "api.services.transcript_index",
     "api.services.journal_two.note_excerpts", "api.services.journal_two.web_capture",
     "api.services.journal_two.web_capture_store",
     "api.services.journal_two.notes", "api.services.journal_two.note_levels",
@@ -1373,6 +1373,42 @@ def remaining_routes(w: World) -> None:
     context = w.member("context")
     sim, tr, fp = "/api/j2/similar-names", "/api/j2/research-capture/transcripts", "/api/j2/notebook-fingerprint"
 
+    # Find more like this reads only what the nightly job stored. The job itself is run here, the
+    # real one, over a fixed universe of screener rows (no screener store, no vendor): its rows
+    # are the stored artefact, written by the product's own writer.
+    from api.services.journal_two import similar_matches as sm
+    def universe_row(i: int) -> dict[str, Any]:
+        return {"ticker": f"SM{i:02d}", "bars_asof": "20261002", "is_etf": 0, "candle_score": 3,
+                "adr_pct": 5.0 + 0.2 * i, "pct_vs_sma20": 2.0, "pct_vs_sma50": 10.0, "pct_vs_sma200": 30.0,
+                "ma_stack": "full-bull", "ema_stack_intact": 1, "rs_rank": 92 - i, "rs_line_trend": "up",
+                "pullback_depth_pct": 12.0 + 0.5 * i, "vol_nweek_low": None, "close_cv_pct": 1.5,
+                "pole_pct": 60.0}
+    template_values = {"adr_pct": 5.0, "pct_vs_sma20": 2.0, "pct_vs_sma50": 10.0, "pct_vs_sma200": 30.0,
+                       "ma_stack": "full-bull", "ema_stack_intact": True, "rs_rank": 92, "rs_line_trend": "up",
+                       "pullback_depth_pct": 12.0, "close_cv_pct": 1.5, "pole_pct": 60.0}
+    c = w.conn()
+    try:
+        ran = sm.run_nightly(conn=c, universe=sm.universe_from_rows([universe_row(i) for i in range(15)]),
+                             compute=lambda symbol, as_of: _fingerprint(**template_values),
+                             pattern_field=lambda a, sym: {"value": ["vcp"] if sym in ("SM00", "SM01") else [],
+                                                           "missing": None})
+        stored = c.execute("SELECT user_id, note_id, embed_key FROM j2_similar_matches"
+                           " ORDER BY user_id, note_id, embed_key LIMIT 1").fetchone()
+        who = sorted({r[0] for r in c.execute("SELECT DISTINCT user_id FROM j2_similar_matches")})
+    finally:
+        c.close()
+    if not ran.get("ran") or stored is None:
+        raise AssertionError(f"the nightly similar-names job stored nothing: {ran!r}")
+    # The one tagged chart with a full fingerprint is the setups board's own (SBNV, on MEMBER's
+    # board): the visual playbook's charts carry one or two values each and are too thin to rank.
+    if who != [MEMBER] or stored[2] != "e-SBNV":
+        raise AssertionError(f"expected the board's tagged SBNV chart to be the one matched, got {who!r} {stored[2]!r}")
+    board_note = (stored[1],)
+    w.as_user(MEMBER)
+    w.record("similar-names.templates", "GET", f"{sim}/templates", case="success", expect=200,
+             note="The member's tagged charts the nightly job matched.")
+    w.record("similar-names.matches", "GET", f"{sim}/{board_note[0]}/e-SBNV", case="success", expect=200,
+             note="Tonight's stored matches for one tagged chart, written by the real nightly job.")
     w.as_user(EMPTY)
     w.record("similar-names.templates.empty", "GET", f"{sim}/templates", case="empty", expect=200)
     w.record("similar-names.matches.not-found", "GET", f"{sim}/nope/nope", case="error", expect=404)
@@ -1389,6 +1425,37 @@ def remaining_routes(w: World) -> None:
              json_body={"noteId": "nope", "symbol": "TRNV", "quarter": "2026Q2", "turn": 0, "passage": "x"})
     w.record("transcripts.save.body-not-an-object", "POST", f"{tr}/save", case="error", expect=422, content=b"[1]",
              note="FastAPI's own validation answer: `detail` is a LIST here, not a sentence.")
+    # A transcript UCT holds: stored through the index's own writer, in a temporary index file.
+    from api.services import transcript_index
+    from api.services.journal_two import notes as notes_service
+    w.p.setattr(transcript_index, "DB_PATH", w.tmp("transcript_index.db"))
+    w.p.setattr(transcript_index, "_INITED", False)
+    transcript_index.put("TRHD", 2026, 2, "2026-08-27", (
+        "Operator: Good afternoon. Welcome to the second quarter call.\n"
+        "Chief Financial Officer: Revenue was a record, up 56% year over year. Data center revenue grew\n"
+        "sequentially, and gross margin was 72.4%.\n"
+        "Chief Executive Officer: Demand is extraordinary. We are sold out through next year.\n"
+        "Analyst One: Can you talk about supply?\n"
+        "Chief Executive Officer: Supply is improving every quarter.\n"))
+    reader = w.member("transcripts")
+    c = w.conn()
+    try:
+        held_note = notes_service.create_note(reader, {"title": "TRHD thesis", "ticker": "TRHD"}, conn=c)
+    finally:
+        c.close()
+    w.as_user(reader)
+    w.record("transcripts.quarters", "GET", f"{tr}/TRHD/quarters", case="success", expect=200)
+    w.record("transcripts.read", "GET", f"{tr}/TRHD/2026Q2", case="success", expect=200,
+             note="A held transcript as numbered turns.")
+    passage = {"noteId": held_note["id"], "symbol": "TRHD", "quarter": "2026Q2", "turn": 2,
+               "passage": "gross margin was 72.4%", "annotation": "Margins held."}
+    w.record("transcripts.save", "POST", f"{tr}/save", case="success", expect=200, json_body=passage,
+             note="A passage saved into the member's note, cited to its source, date and turn.")
+    w.record("transcripts.save.again", "POST", f"{tr}/save", case="success", expect=200, json_body=passage,
+             note="The same passage saved twice is the one excerpt.")
+    w.record("transcripts.save.passage-not-in-turn", "POST", f"{tr}/save", case="error", expect=422,
+             json_body={**passage, "passage": "words the speaker never said"})
+    w.as_user(EMPTY)
 
     w.p.setattr(tfp, "compute", lambda symbol, as_of=None: _fingerprint(rs_rank=88, base_depth_pct=14.0))
     w.as_user(visual)
@@ -1400,6 +1467,20 @@ def remaining_routes(w: World) -> None:
              expect=200)
     w.record("fingerprint.block.not-found", "GET", f"{fp}/blocks/nope/nope", case="error", expect=404)
     w.record("fingerprint.freeze.not-found", "POST", f"{fp}/blocks/nope/nope/freeze", case="error", expect=404)
+    c = w.conn()
+    try:
+        freezer = w.member("freeze")          # a member of its own: the visual playbook's counts stay put
+        unfrozen = create_note(c, freezer, "VPFZ plan", doc(para("plan"), chart_block(
+            "VPFZ", [], embed_id="vp-z", tag="VCP", image=True, mode="snapshot",
+            to=1759255200 + 365 * 86400, captured="2026-09-30T18:00:00Z")))
+    finally:
+        c.close()
+    w.as_user(freezer)
+    w.record("fingerprint.freeze", "POST", f"{fp}/blocks/{unfrozen['id']}/vp-z/freeze", case="success", expect=200,
+             note="A tagged chart with no fingerprint yet: computed once (a stand-in here) and stored.")
+    w.record("fingerprint.freeze.again", "POST", f"{fp}/blocks/{unfrozen['id']}/vp-z/freeze", case="success",
+             expect=200, note="Frozen is frozen: the second call returns the stored one.")
+    w.as_user(visual)
     # A tagged chart whose trade was entered today, with its market context frozen at the fill:
     # the regime filter has something to count, and something to leave out.
     c = w.conn()

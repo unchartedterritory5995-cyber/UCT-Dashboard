@@ -148,6 +148,13 @@ describe('R:R and size come from the server reading, sized by the starter formul
     const expected = sizePlan({ ...PLAN, accountSize: ACCOUNT.accountSize, riskPct: ACCOUNT.riskPct, compass: sizeAnswer.compass })
     await waitFor(() => expect(document.querySelector('[data-plan-value="shares"]')).toBeTruthy())
     expect(expected.sizedBy).toBe('starter')
+    // UNITS, as literals off the real answer: riskPct 1.0 is ONE PERCENT of 100,000 = $1,000 at
+    // risk; 4.25 a share between entry and stop is 235 shares. Read as a fraction it would be
+    // 23,529; read as a percent of a percent, 2.
+    expect(sizeAnswer.account).toMatchObject({ accountSize: 100000, riskPct: 1 })
+    expect(expected.accountRisk).toBe(1000)
+    expect(expected.shares).toBe(235)
+    expect(expected.rewardToRisk).toBeCloseTo((112 - 101.5) / (101.5 - 97.25), 6)
     expect(document.querySelector('[data-plan-value="shares"]').textContent).toBe(`${expected.shares.toLocaleString()} sh`)
     expect(document.querySelector('[data-plan-value="rr"]').textContent).toBe(`${expected.rewardToRisk.toFixed(2)}R`)
     expect(screen.getByText(SIZED_BY_LABEL.starter)).toBeInTheDocument()
