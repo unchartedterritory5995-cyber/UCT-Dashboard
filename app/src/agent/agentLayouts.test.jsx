@@ -333,3 +333,13 @@ describe('layout.duplicate — a create-only copy of the stored layout', () => {
     expect(state.layouts.calls).toEqual([])
   })
 })
+
+describe('layout.duplicate fast path', () => {
+  it('"make a copy of my Intraday Scan" → duplicate with the default name; a new name or an unknown layout goes to the model', () => {
+    const { host } = lib()
+    expect(fastOps(host, 'make a copy of my Intraday Scan')).toEqual([{ action: 'layout.duplicate', target: 'layouts', args: { layout: '12', name: null } }])
+    expect(fastOps(host, 'duplicate the Intraday Scan layout')).toEqual([{ action: 'layout.duplicate', target: 'layouts', args: { layout: '12', name: null } }])
+    expect(fastOps(host, 'copy Intraday Scan as Scan 2')).toBeNull()
+    expect(fastOps(host, 'make a copy of my Nonexistent')).toBeNull()
+  })
+})

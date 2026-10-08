@@ -382,8 +382,19 @@ export function registerLayoutCapabilities() {
     exclusiveReason: 'Copy the layout on its own, then ask for any other changes.',
     summary: 'Make a copy of a saved layout (its stored version) under a new name, as one of the member\'s own layouts. Does not open it.',
     hints: 'target = the ref of the layouts entry; layout = the id of the layout to copy (the open one for "this layout"); '
-      + 'name = the new name as given, or null for "<name> copy". To save the board AS IT IS NOW under a new name, use layout.saveAs instead.',
+      + 'name = the new name as given, or null when they give none (UCT names it "<name> copy" and the proposal shows it — do not ask for a name). '
+      + 'To save the board AS IT IS NOW under a new name, use layout.saveAs instead.',
     args: { type: 'object', properties: { layout: { type: 'string' }, name: { type: ['string', 'null'] } }, required: ['layout', 'name'], additionalProperties: false },
+    // "make a copy of my Swing Layout" / "duplicate Earnings Watch": an EXACT layout name, no
+    // new name → the default "<name> copy" (shown in the proposal). Measured 2026-10-08: the
+    // production model asked for a name here 2 of 3 times.
+    fast: ({ raw, host }) => {
+      const m = /^(?:please )?(?:make a copy of|copy|duplicate)(?: my| the)? (.+?)[.!]?$/i.exec(String(raw).trim())
+      if (!m || !host?.layouts || / as | to | called | named /i.test(m[1])) return null
+      const entries = host.layouts.snapshot().entries
+      const hit = resolveName(entries, m[1]) || resolveName(entries, m[1].replace(/ layout$/i, ''))
+      return hit ? { layout: String(hit.id), name: null } : null
+    },
     check(st, { layout, name }) {
       const busy = oneAtATime(st)
       if (busy) return busy
