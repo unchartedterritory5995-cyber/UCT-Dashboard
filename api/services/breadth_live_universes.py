@@ -270,6 +270,33 @@ def _iso(ts: int) -> str:
     return bl._iso(ts)
 
 
+def _load_frame_by_key(conn, tickers: list, dates: list):
+    """`breadth_live._load_frame`'s output, read ONE TICKER AT A TIME.
+
+    ⛔ `ohlcv`'s primary key is (ticker, tf, ts). `ticker IN (…800 names…) AND ts BETWEEN` let the
+    planner drive from the 26 GB table — measured on production 2026-10-08: the ~6,000-name frame
+    was still loading after minutes (the same trap `breadth-v2-durable-runner` measured at 59-60 s
+    per IN-list query). A per-key range probe uses the index prefix exactly; it is the only
+    formulation that does (see that note), so it is used here.
+    """
+    pos = {ts: i for i, ts in enumerate(dates)}
+    n, m = len(tickers), len(dates)
+    closes = np.full((n, m), np.nan, dtype=np.float64)
+    volumes = np.full((n, m), np.nan, dtype=np.float64)
+    lo, hi = dates[0], dates[-1]
+    q = "SELECT ts, c, v FROM ohlcv WHERE ticker=? AND tf='D' AND ts BETWEEN ? AND ?"
+    for r, tk in enumerate(tickers):
+        for ts, cl, vol in conn.execute(q, (tk, lo, hi)):
+            j = pos.get(int(ts))
+            if j is None:
+                continue
+            if cl is not None:
+                closes[r, j] = cl
+            if vol is not None:
+                volumes[r, j] = vol
+    return closes, volumes
+
+
 def _build_state(L: int) -> Optional[dict]:
     """The once-per-session heavy half: members, the union frame and its levels."""
     from api.services import breadth_live as bl
@@ -288,7 +315,7 @@ def _build_state(L: int) -> Optional[dict]:
         return None
     _stage("frame")
     t1 = time.time()
-    closes, vols = bl._load_frame(conn, union, dates)
+    closes, vols = _load_frame_by_key(conn, union, dates)
     t_frame = time.time() - t1
     _stage("dividend_basis")
     t2 = time.time()

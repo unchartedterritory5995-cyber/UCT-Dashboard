@@ -70,6 +70,7 @@ def market(monkeypatch):
         cols = [dates.index(d) for d in ds]
         return closes[np.ix_(ix, cols)].copy(), vols[np.ix_(ix, cols)].copy()
     monkeypatch.setattr(bl, "_load_frame", frame)
+    monkeypatch.setattr(blu, "_load_frame_by_key", frame)
     monkeypatch.setattr(bl, "_apply_dividend_basis", lambda t, d, c, m, o=None: c)
     monkeypatch.setattr(blu, "_active_reference", lambda: ref)
     blu._members_cache.clear()
@@ -252,3 +253,19 @@ def test_a_cache_only_reader_accepts_a_slightly_stale_live_payload(monkeypatch):
     assert bl.compute_live(cached_only=True).get("ok") is False
     with bl._live_lock:
         bl._live_cache.clear()
+
+
+
+def test_frame_by_key_matches_the_in_list_loader():
+    """Same frame, index-friendly query."""
+    import sqlite3
+    c = sqlite3.connect(":memory:")
+    c.execute("CREATE TABLE ohlcv(ticker TEXT, tf TEXT, ts INTEGER, c REAL, v REAL, PRIMARY KEY(ticker, tf, ts))")
+    rows = [("AAA", "D", 20260101 + i, 10.0 + i, 100.0 * i) for i in range(5)]
+    rows += [("BBB", "D", 20260102, 5.0, None), ("BBB", "W", 20260102, 99.0, 1.0)]
+    c.executemany("INSERT INTO ohlcv VALUES (?,?,?,?,?)", rows)
+    dates = [20260101, 20260102, 20260103]
+    a = bl._load_frame(c, ["AAA", "BBB", "ZZZ"], dates)
+    b = blu._load_frame_by_key(c, ["AAA", "BBB", "ZZZ"], dates)
+    for x, y in zip(a, b):
+        assert np.array_equal(x, y, equal_nan=True)
