@@ -210,7 +210,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       // ⛔ CLARIFY / CHANGE: THE ENGINE DECIDES. A stale or invalid patch is refused
       // atomically and the working definition is untouched (`applyTurn` returns
       // the same state).
-      const out = applyTurn(stateRef.current, turn.envelope, { gateCtx })
+      const out = applyTurn(stateRef.current, turn.envelope, { gateCtx, memberWords: words })
       const { result } = out
       if (result.status === 'refused') {
         say({ role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),

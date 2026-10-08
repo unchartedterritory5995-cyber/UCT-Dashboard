@@ -19,6 +19,10 @@
 //     not authority. A member who names it says so, and that arrives as an
 //     explicit `rename_definition` (in the same patch or later) — custom.
 //   · The same rule, per output, for labels (`rename_output` = custom).
+//   · ⭐ AND A NAME THE MEMBER GAVE IN THIS TURN'S OWN WORDS — "call it My Trend",
+//     "named 'Position size'" — is CUSTOM even when the model put it only on the
+//     `create` (`memberNamed`). Only an explicit naming cue or a quoted phrase
+//     counts: "Add a 20 EMA" names nothing, so its "EMA 20" still follows the maths.
 //
 // ⭐ NO STORED FLAG. "Auto" is decided by comparison, so it needs no schema field,
 // survives save → reload → reopen, and cannot drift from what it describes. A
@@ -38,6 +42,30 @@ const PREC = Object.freeze({ '||': 1, '&&': 2, '==': 3, '!=': 3, '>': 4, '<': 4,
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 
 export const NAME_MAX = 80
+
+const norm = (s) => String(s).toLowerCase().replace(/[\s ]+/g, ' ').trim()
+const NAMING_CUE = /\b(?:called|named|call it|name it|titled|title it|label it|labelled|labeled)\s+["'“‘]?([^"'”’.,;!?\n]{1,80})/gi
+const QUOTED = /["“]([^"”\n]{1,80})["”]/g
+
+/** The phrases the member explicitly gave as a NAME in `words` (normalised). */
+export function memberNamePhrases(words) {
+  if (typeof words !== 'string' || !words) return new Set()
+  const out = new Set()
+  for (const re of [NAMING_CUE, QUOTED]) {
+    re.lastIndex = 0
+    let m
+    while ((m = re.exec(words))) {
+      const p = norm(m[1])
+      if (p) out.add(p)
+    }
+  }
+  return out
+}
+
+/** Did the member explicitly give `name` (a create name or label) in their words? */
+export function memberNamed(phrases, name) {
+  return typeof name === 'string' && !!name.trim() && phrases.has(norm(name))
+}
 export const LABEL_MAX = 60
 
 const fmtNum = (v) => {

@@ -27,6 +27,7 @@ import { policyLabel, numericAlertWords } from '../../engine/triggerPolicy'
 import { symTickersOf } from '../../engine/otherSymbols'
 import { calcTimeframeLabel } from '../../engine/instanceTimeframe'
 import { helpersOfDefinition, plotColorRule, plotFillRule } from './colorRules'
+import { tableSpecOfDefinition, tableLines } from './tables'
 import { stampSemantics, semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from '../../engine/definitionSemantics'
 import { INTENTS, intentReadback, NO_PAINT } from '../authoringIntent'
 import { untruncatedLabel } from '../../engine/labelText'
@@ -148,6 +149,8 @@ export function presentationLines(def) {
     else out.push(`an imported ${paint.kind === 'barcolor' ? 'candle colouring' : 'background colouring'}${key ? ` reading ${nameOf(key)}` : ''} (kept as imported)`)
   }
   out.push(...vocabularyLines(def))
+  // ⭐ OVERNIGHT D — the chart table, cell by cell
+  out.push(...tableLines(tableSpecOfDefinition(def), nameOf))
   out.push(def.placement && def.placement.target === 'price' ? 'drawn on the price chart' : 'drawn in its own pane')
   return out
 }
@@ -311,8 +314,20 @@ export function readback(def, state = {}, gateCtx = {}) {
     : `Alert when ${nameOf(a.plotKey)} ${String(policyLabel(a.triggerPolicy) || a.triggerPolicy).toLowerCase()}`))
   // ⭐ PHASE 5 — the whole indicator on a higher timeframe.
   const calcLine = typeof req.calculationTimeframe === 'string'
-    ? `Calculated on the ${calcTimeframeLabel(req.calculationTimeframe)} timeframe (the whole indicator), drawn on this chart`
+    // ⭐ OVERNIGHT C — WHAT A CHART BAR SHOWS (`mtfProjection.js`, COMPLETED semantics):
+    // the last higher-timeframe period that had CLOSED before the bar's own period began.
+    // Said, because "inside day" on a 5-minute chart then reads YESTERDAY's answer.
+    ? `Calculated on the ${calcTimeframeLabel(req.calculationTimeframe)} timeframe (the whole indicator), drawn on this chart — each chart bar shows the last COMPLETED ${calcTimeframeLabel(req.calculationTimeframe)} value, never the one still forming`
     : null
+  // ⭐ OVERNIGHT E — the member's own settings: what each is now, and where it is set.
+  // A default of 0 is the honest "not set yet" (UCT never assumes an account size).
+  // ⛔ NOT the plot STYLE inputs (a colour / width a plot names as `$key` — the
+  // Builder's chrome): those are presentation, not the member's own figures.
+  const chromeKeys = new Set((def.plots || []).flatMap((p) => [p && p.color, p && p.width])
+    .filter((v) => typeof v === 'string' && v.startsWith('$')).map((v) => v.slice(1)))
+  const settingLines = (def.inputs || []).filter((x) => x && !chromeKeys.has(x.key)
+    && !['color', 'lineWidth'].includes(x.key) && (x.type === 'float' || x.type === 'int'))
+    .map((x) => `Setting "${x.label || x.key}" = ${x.default}${x.default === 0 ? ' (not set yet)' : ''} — change it in the indicator's settings`)
   // ⭐ PHASE 5 — another symbol, and the alignment rule said as what shows.
   const tickers = symTickersOf(def)
   const symLine = tickers.length
@@ -347,6 +362,7 @@ export function readback(def, state = {}, gateCtx = {}) {
     ...presentation.map((l) => `Look: ${l}`),
     ...(symLine ? [symLine] : []),
     ...(calcLine ? [calcLine] : []),
+    ...settingLines,
     ...(intentLine ? [intentLine] : []),
     ...alerts,
     ...infoValues,
