@@ -36,6 +36,14 @@ PW = "OldPassword123!"
 NEW = "BrandNewPassword456!"
 
 
+@pytest.fixture(autouse=True)
+def _no_device_limit(monkeypatch):
+    """These cases hold 3 sessions per account to prove what a password change revokes.
+    The 2-device limit (session_guard, 2026-10-08) would trim them before the change runs,
+    so it is off here; tests/test_session_guard.py rails the limit itself."""
+    monkeypatch.setenv("SESSION_DEVICE_LIMIT", "0")
+
+
 def _user(email_prefix: str) -> dict:
     auth_db.init_db()
     # ⛔ `.internal`, NOT `.invalid`. `AdminResetRequest.email` is an `EmailStr`, and the

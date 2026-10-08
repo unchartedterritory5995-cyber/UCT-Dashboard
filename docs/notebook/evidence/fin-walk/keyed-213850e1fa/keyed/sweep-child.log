@@ -1,0 +1,2 @@
+SWEEP {"provider": "openai", "result": {"members": 1, "embedded": 90, "deferred": 0}}
+--- stderr tail ---

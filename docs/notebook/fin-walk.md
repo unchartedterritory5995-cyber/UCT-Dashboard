@@ -201,3 +201,244 @@ AMZN draft door (that partial run had no sample).
 - Screen readers: announcements were not listened to; only roles, focus and the card scan.
 - Live vendors and the real scheduler: overnight jobs and the awareness scan were run by hand in
   a child process against the sandbox's data.
+
+## 7. Keyed walk: the AI features against real models (`213850e1fa`)
+
+The owner authorised two model keys for sandbox walks. This closes the "NOT RUN, NO KEY" rows
+above. Tool: `tools/notebook_fin_walk.py --config keyed` with `tools/notebook_fin_walk_keyed.py`,
+started through the key helper. Raw evidence: `evidence/fin-walk/keyed-213850e1fa/keyed/`
+(committed before this section). Tip: `origin/feat/notebook-w14-land` at `213850e1fa`, frontend
+rebuilt from it.
+
+- Snapshot rail: `SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN,
+  post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed`.
+- Boot output: `Model keys : OPT-IN -- passed through unchanged`, `Kill-list : 38 scheduler /
+  outbound flags`, email disabled (no Resend key). Voice notes and meaning search were on in the
+  sandbox only.
+- Keys: never read, printed or stored by the walk. The evidence was searched for `sk-`, `sk-ant-`,
+  `Authorization`, `Bearer` and vendor secrets: no hit. The voice session answer holds a
+  short-lived vendor secret, so only its key names were kept.
+- Only made-up notes, trades and synthesised speech went to the vendors. About 45 model calls in
+  the committed run, and about as many again while the walk was being written.
+- 44 steps: 37 PASS, 5 FAIL, 1 NOT RUN, 1 INFO. 0 page errors, 0 error boundaries, 0 sideways
+  scroll, no unexpected failed request.
+
+### 7.1 Invented facts
+
+**None found.** Every number and proper noun in every Ask answer was compared with the note or
+file text. At 1280 and 390, asked for a dividend yield and a chief financial officer the note does
+not hold, Ask answered "I couldn't find anything in your notebook about that" and named only what
+the note does cover. Autofill's three suggestions each quoted the words in the note they came from.
+
+One false statement that is not a number or a name is listed first below (K1).
+
+### 7.2 PRODUCT findings
+
+**K1. Ask the Notebook tells the member their notes are cut off. They are not.** (MODERATE)
+- Steps: two short notes about CRWD (4 and 3 sentences). Research Home, Ask, "What have I written
+  about CRWD: my planned entry, and what I did after the report?"
+- Answer, 1280: "The catalyst noted was the Falcon Flex [2] (the note cuts off before further
+  detail on the catalyst)" and "both appear truncated at the end, so I don't have the full
+  picture". The notes are whole. The passage handed to the model is shortened, the model reports
+  that as a defect in the note, and it leaves out what the note goes on to say (the renewal cycle;
+  the stop raised to breakeven). Seen in two runs. Ask this note (one note) did not do it.
+- The same sentence is carried into the note by the insert door.
+
+**K2. The one-click weekly review draft never shows the Compass quote.** (MODERATE)
+- Steps: one account, four closed trades this week, a Compass weekly review generated for the
+  week (HTTP 200). Research Home, click the weekly draft. The page asks
+  `GET /api/j2/review-drafts/weekly?weekStart=2026-10-05` with no account id. The answer has
+  `compassText: null` and `compassOmitted: null`, and the note has no Compass block.
+- The same request with `accountId=<the member's one account>` returns the quote. So the quote
+  exists only for a request the page does not make. Nothing tells the member why it is missing.
+- The 13F check itself passes on the request that does carry it: the quote (ends in an ellipsis)
+  is an exact substring of the stored Compass review.
+
+**K3. Ask answers show raw `**` marks.** (MINOR) The model writes Markdown bold. The Ask panel and
+the inserted block show the asterisks as text ("**Planned entry (breakout plan):**"). 1280, both
+Ask scopes.
+
+**K4. An AI action for a new tag is planned one time and refused the next.** (MINOR, model
+behaviour) `Tag my two CRWD notes with "crowdstrike".` gave two changes, three times. `Tag my two
+CRWD notes with "security".` at 390 gave "Review 0 proposed changes" with the reason "The tag
+"security" doesn't exist in the workspace's allowed tag list". Neither tag existed. The empty plan
+still shows an "Apply 0 changes" button.
+
+**K5. The spoken morning briefing cuts the weekly focus mid-word.** (MINOR)
+`POST /api/voice/exec` `play_my_morning_briefing` returned a script ending "...a month of
+unlabeled ones. Af Tap me when you're ready to dig in."
+
+**K6. Ask over a member's own Word file adds a line that the question is off topic.** (MINOR) The
+answer was right and cited the file, then added "this appears unrelated to markets or trading ...
+I'm the UCT research desk".
+
+**K7. Touch sizes on AI surfaces at 390.** (MINOR) The citation chip in an Ask answer is 32 x 44.
+The "Full transcript" fold in a voice note is 29 tall.
+
+Seen once in a development run that is not in the committed evidence: the same recording gave
+"No tickers were mentioned" beside a summary naming NVIDIA and Tesla. The committed run found
+both tickers at both widths.
+
+### 7.3 Table
+
+| # | feature | 1280 | 390 | note |
+|---|---|---|---|---|
+| 1 | Ask this note: answers from the note and cites | PASS | PASS | |
+| 1 | the citation lands on the right passage | PASS | PASS | the paragraph with the stop is selected and in view |
+| 1 | a question the note does not answer | PASS | PASS | says so; nothing invented |
+| 2 | Ask the Notebook: cites both notes | PASS | PASS | see K1, K3 |
+| 2 | insert into a note, provenance shown | PASS (the row reads FAIL: instrument) | door offered | the block is labelled "From Ask Notebook", dated, with its two citations; the walk also looked for the note titles inside the block |
+| 3 | Writing help: Summarize, accept, undo | PASS | PASS | "Written by claude-sonnet-5" in the panel; block "Compass, Summarize, model, time"; undo restores |
+| 3 | Rewrite shorter, discard | PASS | PASS | note unchanged |
+| 3 | Continue writing, accept, undo | PASS | not walked | |
+| 3 | Translate (Spanish), discard | PASS | not walked | |
+| 4 | Ask over a Word file | PASS | not walked | through our ask door as the member, not the preview sheet; cites `zebra-memo.docx, p.1` |
+| 4 | Ask over an image with text | NOT RUN | | no OCR engine on this machine (Tesseract is not installed); the image became a document with status `no_text`. Image text is read locally, not by a model. The walk's row reads FAIL: instrument |
+| 5 | AI actions: plan shown, a checkbox per change | PASS | FAIL-PRODUCT (K4) | |
+| 5 | nothing changes before approval; declining changes nothing | PASS | PASS | |
+| 5 | approving applies exactly what was ticked | PASS | not walked | one of two unticked; only the ticked note gained the tag |
+| 5 | undo reverses it | PASS | not walked | |
+| 5 | move to a folder, then undo | PASS | not walked | |
+| 6 | Property autofill | PASS | PASS | nothing written before Accept; only the accepted property changed |
+| 7 | Compass quote is an exact substring of the review | PASS | n/a | on the request that names the account |
+| 7 | the drafted weekly note shows the quote | FAIL-PRODUCT (K2) | n/a | two rows |
+| 8 | Dictation: speech comes back as the sentence | PASS | n/a | server door; offline synthesised speech |
+| 8 | the cleanup pass | PASS | n/a | "Nvidia" became "NVDA"; meaning kept |
+| 9 | Voice note: transcript, AI-labelled summary, tickers become a note | PASS | PASS | |
+| 10 | Meaning search | PASS | PASS | "rest and fatigue hurting judgement" shares no word with "Bedtime rule"; row says "Related by meaning"; plain search finds nothing. Sweep run by hand |
+| 11 | voice session door mints a session, offers the briefing tools | PASS | n/a | |
+| 11 | `POST /api/voice/exec` briefing tools | PASS | n/a | both answer with the tool's result (a script; no audio in the answer). See K5 |
+| 11 | a live realtime voice session | NOT RUN | | no microphone or speaker in a headless browser |
+
+Not exercised: the Compass notes tool inside a live voice or chat session; the document preview
+sheet's own Ask button; real devices; screen readers.
+
+## 8. Keyed re-walk of the K1 to K7 fixes (`dda0515427`)
+
+Tip: `origin/feat/notebook-fin-ai` at `dda0515427` (holds master at `2265f4ac3b`). Walk branch
+`feat/notebook-fin-ai-walk`: that tip plus this lane's tools and evidence. Frontend rebuilt from
+it. Tool: `tools/notebook_fin_walk.py --config keyedai` with
+`tools/notebook_fin_walk_keyed_ai.py`, started through the key helper. Raw evidence, committed
+before this section: `evidence/fin-walk/keyed-ai-dda0515427/keyedai/` and
+`.../keyed-ai-dda0515427/rerun/keyedai/` (the review-draft scenarios, run again after a walk
+setup error).
+
+- Snapshot rail, both committed boots: `SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN,
+  post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed`.
+- A development boot that I held while writing the walk was stopped by force after 120 s and wrote
+  no shutdown checkpoint. Its three earlier checkpoints were CLEAN, its log has no blocked-write
+  banner, and the newest file under `C:\data` is still the owner's own 6:00 am bars job of
+  10-07. That boot's evidence is not committed.
+- Keys: only through the helper, never printed or stored. Evidence searched for `sk-`, `sk-ant-`,
+  `Authorization`, `Bearer` and vendor secrets: no hit.
+- Main run: 44 steps, 32 PASS, 8 FAIL, 2 NOT RUN, 2 INFO. Re-run: 8 steps, 0 FAIL. 0 page errors,
+  0 error boundaries, 0 sideways scroll, no unexpected failed request.
+
+### 8.0 A cost the keyed boots carried that was not part of any walk
+
+With the model keys passed through, the app's own background profile writer
+(`api/services/stock_brief/service.py`, on by default, `claude-sonnet-4-6`, capped at 300 a day
+per process) called the model for ticker after ticker. The launcher's kill-list does not cover
+it. Counted from the sandbox logs (`stock_brief profile generated`): 162 in the first keyed
+development boot, 59 in the committed keyed run of section 7, 225 in this section's development
+boot. **446 model calls nobody asked for**, all about public tickers, no member or made-up
+note text. From then on the keyed configs set `STOCK_BRIEF_ENABLED=0` (a real read site); the
+two committed boots of this section show 0. Anyone booting a sandbox with
+`HUB_SANDBOX_ALLOW_MODEL_KEYS=1` will meet the same thing until the launcher's kill-list names it.
+
+### 8.1 Invented facts
+
+**None found.** Every number and proper noun in every answer was compared with the notes or the
+file. Three walk false alarms were removed first ("CRWD-related", "I'm", and the word SEARCHED,
+below).
+
+### 8.2 What is NOT fixed
+
+**K1, long note: a question that spans a long note gets "I couldn't find that in your
+Notebook."** (MODERATE; 5 of 5 at 1280 and 390, and again in development)
+- Steps: a 1,878 character note "PLTR deep dive" (17 sentences; entry 26.35 and stop 24.85 in
+  sentence 5, two risks in 8 and 9, "The final rule for this trade: no adds until the stock
+  closes above 28 for two days in a row." last). Research Home, Ask, "What have I written about
+  PLTR: the entry, the stop, the risks, and my final rule for the trade?"
+- Answer: "I couldn't find that in your Notebook." No citation.
+- Our server's answer for the same question: one source, "PLTR deep dive", and the passage it
+  carried was 151 characters, the note's first two lines.
+- Each part alone is answered: "What is my planned entry and my stop for PLTR?" gives 26.35 and
+  24.85 with a citation (4 of 4), and "What is my final rule for the PLTR trade?" gives the
+  rule with a citation. So the note is found, one short passage of it is read, and a question
+  whose answer is spread over the note is told the Notebook does not have it.
+- What IS fixed for the long note: it is never called cut off, truncated or unfinished. Two of
+  the six answers said "this is from an excerpt of a longer note".
+
+**K7, in part: two chips side by side were not seen.** Five chips in the phone answer, each
+44 by 44, none overlapping, but each sat on its own line. The fix is confirmed for size; the
+adjacent-chip case did not come up in this answer.
+
+Nothing else from K1 to K7 is open.
+
+### 8.3 Smaller things seen on the way (not K items)
+
+- An answer said "the SEARCHED line indicates 1 attached document could not be searched". That
+  is the prompt's own label shown to the member. Once, in development.
+- The briefing script reads the weekly focus with its Markdown marks: "- **Label every setup
+  before you enter.**". It now stops at a sentence end, but it says "Two asks for next week" and
+  then gives one.
+- Research Home shows no "Ask" button for a member who has three notes and has not opened one
+  yet (0 buttons before, 1 after opening them). The quiet state of the page leaves it out.
+- From the whole Notebook a citation opens the cited note, not a passage in it. Inside a note it
+  lands on the passage. Both are as built; only the second is a passage landing.
+- A new member's "Default" account is not a stored account until it is used: an account made
+  before the first trade replaces it. That was my setup error in the first run.
+
+### 8.4 Table
+
+| item | check | 1280 | 390 |
+|---|---|---|---|
+| K1 | two short notes: no "cut off / truncated / incomplete / unfinished", and the renewal cycle and the breakeven stop are in the answer; run twice | PASS, PASS | PASS, PASS |
+| K1 | cites both notes; a citation opens the cited note | PASS | PASS |
+| K1 | long note, a fact near its start; run twice; never called defective | PASS, PASS | PASS, PASS |
+| K1 | long note, a question across the whole note; run twice | FAIL-PRODUCT x2 (8.2) | FAIL-PRODUCT x2 |
+| K1 | long note, the last line asked alone (our server door) | PASS | n/a |
+| citations | inside a note the chip lands on the paragraph with the stop, selected | PASS | PASS |
+| K2 | one account, four trades, a Compass weekly review: one click from Research Home shows the quote; exact substring of the stored review | PASS (page asks with `accountId`) | PASS (the note shows the block) |
+| K2 | no review: "Compass has not written a review of this week, so none is quoted here." | PASS | n/a |
+| K2 | monthly draft: no "What Compass said" heading | PASS | n/a |
+| K2 | two accounts, All accounts chosen: "You have several accounts and none is chosen. ... Choose an account to see its review." | PASS (re-run; the first run's setup made one account) | n/a |
+| K3 | bold renders as bold, no raw asterisks, in the Ask panel | PASS (7 bold runs) | PASS (5) |
+| K3 | the same in the block inserted into a note, and in the saved note | PASS | not walked |
+| K3 | chips still open the right source (panel; inserted block) | PASS | PASS (panel) |
+| K4 | `Tag my two CRWD notes with "security".` gives two changes | PASS, PASS | PASS (three in a row in all) |
+| K4 | an impossible request: "Nothing to change", no Apply button | PASS | PASS |
+| K5 | briefing script: every piece ends on a whole sentence; weekly focus not cut mid-word | PASS (both boots) | n/a |
+| K6 | Word file, a subject that is not markets: cited answer, no off-topic remark; run twice | PASS, PASS (our server door) | n/a |
+| K6 | the same from the document's own sheet | NOT RUN: a file uploaded through the attachments door is not shown in the note body, so the walk had nothing to click | |
+| K7 | Ask panel chips at least 44 by 44, none overlapping | n/a | PASS (5 chips; none adjacent, see 8.2) |
+| OCR | Ask over an image with text (8.5) | PASS, PASS (our server door) | n/a |
+
+The 8 FAIL rows of the main run: 5 are the long-note finding (4 browser rows and the server
+row), 2 are "no chip to click" rows that follow from it, 1 is the two-account setup error
+(instrument; PASS in the re-run).
+
+### 8.5 The image question: walked, with a correction
+
+Section 7 said Tesseract is not installed on this machine. **That was wrong.** The program is
+installed at `C:\Program Files\Tesseract-OCR\tesseract.exe` (5.4.0, with English data). It is
+not on `PATH` and `TESSERACT_BINARY` was not set, and those are the only places the app looks
+(`api/services/journal_two/document_ocr_tesseract.py` `binary_path()`: `TESSERACT_BINARY`, then
+`PATH`, then `/usr/bin` and `/usr/local/bin`). So the earlier boots said
+`[startup] j2-ocr: flag=1 binary=absent active=False`.
+
+With `TESSERACT_BINARY` pointed at the installed program for the sandbox only, the boot says
+`binary=C:\Program Files\Tesseract-OCR\tesseract.exe version=tesseract_v5.4.0.20240606
+active=True`. Evidence: `evidence/fin-walk/keyed-ai-dda0515427/ocr/keyedai/` (integrity CLEAN at
+all four checkpoints).
+
+| check | result |
+|---|---|
+| an image with three lines of text becomes a document, status `ready` in 7 s; the page text door returns "ACME FASTENERS / INVOICE 4471 / TOTAL DUE 912 DOLLARS", `textOrigin: ocr` | PASS |
+| Ask over the image, run 1: "total due of 912 dollars and an invoice number of 4471 [1]" | PASS |
+| Ask over the image, run 2: the same facts, cited | PASS |
+| invented facts | none |
+
+Through our server's ask door as the member, at one width (the door has no width). The citation
+is `Image, p.1`, marked `page_only`. Not walked: the document's own sheet in the browser.
