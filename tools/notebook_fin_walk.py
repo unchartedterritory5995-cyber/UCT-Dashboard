@@ -495,7 +495,8 @@ def flag_sets() -> dict:
             "all_names": every,
             "c1": armed, "c2": armed + WAVE_FLAGS + TOUR_ONLY_FLAGS,
             "c3": armed + C3_ON,
-            "keyed": sorted(set(armed + WAVE_FLAGS + KEYED_EXTRA))}
+            "keyed": sorted(set(armed + WAVE_FLAGS + KEYED_EXTRA)),
+            "keyedai": sorted(set(armed + WAVE_FLAGS + KEYED_EXTRA))}
 
 
 # ── seeding children (the driver itself never imports api.*) ───────────────────────────────
@@ -1024,7 +1025,7 @@ def set_env(fs: dict, config: str, data_dir: Path) -> None:
     os.environ.update({name: "1" for name in fs[config]})
     for stub in ("NOTEBOOK_VOICE_SANDBOX_STUB", "NOTEBOOK_AI_ACTIONS_SANDBOX_STUB", "HUB_SANDBOX_ALLOW_MODEL_KEYS"):
         os.environ.pop(stub, None)
-    if config == "keyed":
+    if config in ("keyed", "keyedai"):
         # the launcher's own opt-in (scripts/hub_sandbox_boot.py ALLOW_MODEL_KEYS_ENV); every other
         # configuration leaves it unset, so the launcher blanks the keys as it always has
         os.environ["HUB_SANDBOX_ALLOW_MODEL_KEYS"] = "1"
@@ -1091,6 +1092,9 @@ def run_config(config: str, args, fs: dict) -> int:
                     elif config == "keyed":
                         import notebook_fin_walk_keyed as keyed
                         keyed.run(sys.modules[__name__], browser, admin, base, fs, data_dir, only)
+                    elif config == "keyedai":
+                        import notebook_fin_walk_keyed_ai as keyed_ai
+                        keyed_ai.run(sys.modules[__name__], browser, admin, base, fs, data_dir, only)
                     else:
                         import notebook_fin_walk_features as feat
                         feat.run_c2(sys.modules[__name__], browser, admin, base, fs, data_dir, only)
@@ -1138,7 +1142,7 @@ def run_config(config: str, args, fs: dict) -> int:
 def main(argv=None) -> int:
     global OUT
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--config", required=True, choices=["c1", "c2", "c3", "keyed"])
+    ap.add_argument("--config", required=True, choices=["c1", "c2", "c3", "keyed", "keyedai"])
     ap.add_argument("--data-root", required=True)
     ap.add_argument("--port", type=int, default=PORT)
     ap.add_argument("--out", required=True)
@@ -1154,7 +1158,7 @@ def main(argv=None) -> int:
     if why:
         print(f"REFUSED: {why}")
         return 3
-    if args.config == "keyed":
+    if args.config in ("keyed", "keyedai"):
         missing = [k for k in MODEL_KEY_NAMES if not os.environ.get(k)]
         if missing:
             print(f"REFUSED: the keyed walk needs {missing} in this process (start it through the key helper)")
@@ -1184,7 +1188,7 @@ def main(argv=None) -> int:
     except h.SetupFailed as e:
         print(f"REFUSED: {e}")
         return 3
-    REC["flag_sets"] = {k: fs[k] for k in ("prod_armed", "wave", "c1", "c2", "c3", "keyed")}
+    REC["flag_sets"] = {k: fs[k] for k in ("prod_armed", "wave", "c1", "c2", "c3", "keyed", "keyedai")}
     flush()
     rc = run_config(args.config, args, fs)
     REC.update({"finished": datetime.now(timezone.utc).isoformat(timespec="seconds"), "status": "COMPLETE" if rc in (0, 1) else "NOT COMPLETE"})
