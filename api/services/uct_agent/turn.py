@@ -215,11 +215,13 @@ def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
         try:
             args = json.loads(o.get("args_json") or "{}")
         except (TypeError, ValueError):
-            raise TurnError("UCT Agent returned something unreadable. Try rephrasing.")
+            _unreadable("args_json", action=o.get("action"), size=len(str(o.get("args_json") or "")))
         if cap is not None and isinstance(args, dict):
             args = _fill_absent_nullables(cap["args"], args)
         if cap is None or not args_match(cap["args"], args):
-            raise TurnError("UCT Agent returned something unreadable. Try rephrasing.")
+            _unreadable("args_schema", action=o.get("action"),
+                        keys=sorted(args) if isinstance(args, dict) else type(args).__name__,
+                        want=sorted((cap or {}).get("args", {}).get("properties") or {}))
         out.append({"action": o.get("action"), "target": o.get("target"), "args": args})
     return {**env, "ops": out}
 
@@ -408,11 +410,18 @@ def _record_cost(resp) -> float:
         return 0.0
 
 
+def _unreadable(reason: str, **shape) -> None:
+    """Every "unreadable" refusal says WHY in the server log: its shape only (reason code,
+    action names, argument KEYS, sizes, stop reason), never the member's words or values."""
+    log.warning("uct_agent unreadable: %s %s", reason, shape)
+    raise TurnError("UCT Agent returned something unreadable. Try rephrasing.")
+
+
 def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | None = None) -> dict:
     """The server-side gate between the model and the browser."""
     disp = env.get("disposition")
     if disp not in DISPOSITIONS:
-        raise TurnError("UCT Agent returned something unreadable. Try rephrasing.")
+        _unreadable("disposition", disposition=str(disp)[:20])
     ops = env.get("ops") if isinstance(env.get("ops"), list) else []
     if disp not in MUTATING:
         ops = []                      # TALK never mutates, whatever the model emitted
@@ -440,7 +449,7 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         disp = "answer"               # a plan with nothing in it is just a reply
     if disp == "answer" and not bad_targets and not str(env.get("reply") or "").strip():
         # An answer with nothing in it would show the member a blank reply.
-        raise TurnError("UCT Agent returned something unreadable. Try rephrasing.")
+        _unreadable("empty_answer", ops=len(ops))
     if bad_targets:
         # A target the browser never offered: ask, don't guess.
         return {"disposition": "clarify", "reply": "",
@@ -528,7 +537,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         try:
             env = json.loads(text)
         except (TypeError, ValueError):
-            raise TurnError("UCT Agent returned something unreadable. Try rephrasing.")
+            _unreadable("json", stop_reason=getattr(resp, "stop_reason", None), chars=len(text or ""),
+                        output_tokens=int(getattr(u, "output_tokens", 0) or 0))
         req = env.get("research") if isinstance(env, dict) else None
         # Research rides with a CHANGE only when the member's own words ask a question (a mixed
         # request); a plain command never triggers research, whatever the model asks for.
