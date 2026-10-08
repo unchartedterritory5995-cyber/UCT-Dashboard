@@ -1,0 +1,810 @@
+{
+ "tool": "tools/notebook_w13q_clicks.py",
+ "tree": "63be1fd77db88bb72b69cec198805e1986b25ba6",
+ "started": "2026-10-07T23:56:29+00:00",
+ "partial": {
+  "flows": [
+   "Q1"
+  ],
+  "modes": [
+   "keys"
+  ]
+ },
+ "sandbox_flags": {
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED": "1",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": "1",
+  "NOTEBOOK_PLAN_GRADING_ENABLED": "1",
+  "NOTEBOOK_PLAYBOOK_ENABLED": "1",
+  "AWARENESS_NOTE_RESURFACE_ENABLED": "1",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED": "1",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED": "1",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": "1",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED": "1",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED": "1",
+  "NOTEBOOK_CHART_PLAN_ENABLED": "1",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED": "1",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": "1",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED": "1",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED": "1",
+  "NOTEBOOK_VOICE_NOTES_ENABLED": "1",
+  "NOTEBOOK_AI_ACTIONS_ENABLED": "1",
+  "NOTEBOOK_FORMULAS_ENABLED": "1",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_GETTING_STARTED_ENABLED": "1"
+ },
+ "tab_cap": 600,
+ "budgets": {
+  "Q1": {
+   "flow": "new blank note, cursor in body",
+   "mouse": 2,
+   "keys": 3,
+   "taps": 2,
+   "owner": "Notebook core",
+   "keys_plan": 3,
+   "keys_floor": null
+  },
+  "Q2": {
+   "flow": "new note from a template with a ticker",
+   "mouse": 4,
+   "keys": 6,
+   "taps": 4,
+   "owner": "Notebook templates (12B)",
+   "keys_plan": 6,
+   "keys_floor": null
+  },
+  "Q3": {
+   "flow": "open a note by title",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "Notebook core",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q4": {
+   "flow": "search, open a hit",
+   "mouse": 3,
+   "keys": 5,
+   "taps": 3,
+   "owner": "Notebook core",
+   "keys_plan": 5,
+   "keys_floor": null
+  },
+  "Q5": {
+   "flow": "today's daily note",
+   "mouse": 1,
+   "keys": 2,
+   "taps": 1,
+   "owner": "Notebook core",
+   "keys_plan": 2,
+   "keys_floor": null
+  },
+  "Q6": {
+   "flow": "link a note to a trade",
+   "mouse": 3,
+   "keys": 10,
+   "taps": 3,
+   "owner": "Notebook core / Journal",
+   "keys_plan": 6,
+   "keys_floor": 8
+  },
+  "Q7": {
+   "flow": "save Screener results to a note (337 Tabs today)",
+   "mouse": 3,
+   "keys": 10,
+   "taps": 3,
+   "owner": "Screener (ScannerShell.jsx)",
+   "keys_plan": 10,
+   "keys_floor": null
+  },
+  "Q8": {
+   "flow": "save a price or consensus fact",
+   "mouse": 3,
+   "keys": 8,
+   "taps": 3,
+   "owner": "Notebook capture",
+   "keys_plan": 8,
+   "keys_floor": null
+  },
+  "Q9": {
+   "flow": "ask the Notebook, insert the answer",
+   "mouse": 3,
+   "keys": 9,
+   "taps": 3,
+   "owner": "Notebook Ask",
+   "keys_plan": 5,
+   "keys_floor": 7
+  },
+  "Q10": {
+   "flow": "task with a due date",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "Notebook core",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q11": {
+   "flow": "tag and move 5 notes",
+   "mouse": 8,
+   "keys": 27,
+   "taps": 10,
+   "owner": "Notebook core",
+   "keys_plan": 15,
+   "keys_floor": 25
+  },
+  "Q12": {
+   "flow": "export one note as Word",
+   "mouse": 3,
+   "keys": 12,
+   "taps": 3,
+   "owner": "Notebook export",
+   "keys_plan": 6,
+   "keys_floor": 10
+  },
+  "Q13": {
+   "flow": "plan grade of my last trade (13A)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13A",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q14": {
+   "flow": "My Playbook, drill a number (13B)",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "13B",
+   "keys_plan": 6,
+   "keys_floor": null
+  },
+  "Q15": {
+   "flow": "create earnings prep (13C)",
+   "mouse": 2,
+   "keys": 5,
+   "taps": 2,
+   "owner": "13C",
+   "keys_plan": 5,
+   "keys_floor": null
+  },
+  "Q16": {
+   "flow": "open a resurfaced note (13D)",
+   "mouse": 2,
+   "keys": 8,
+   "taps": 2,
+   "owner": "13D",
+   "keys_plan": 4,
+   "keys_floor": 6
+  },
+  "Q17": {
+   "flow": "answer \"why did you take it\" (13E)",
+   "mouse": 2,
+   "keys": 7,
+   "taps": 2,
+   "owner": "13E",
+   "keys_plan": 4,
+   "keys_floor": 5
+  },
+  "Q18": {
+   "flow": "draft this week's review, open a leak (13F)",
+   "mouse": 3,
+   "keys": 9,
+   "taps": 3,
+   "owner": "13F",
+   "keys_plan": 6,
+   "keys_floor": 7
+  },
+  "Q19": {
+   "flow": "save a transcript passage to a thesis (13G)",
+   "mouse": 3,
+   "keys": 9,
+   "taps": 4,
+   "owner": "13G",
+   "keys_plan": 6,
+   "keys_floor": 7
+  },
+  "Q20": {
+   "flow": "insert a chart, draw entry, stop and target, read size (13H)",
+   "mouse": 6,
+   "keys": 22,
+   "taps": 8,
+   "owner": "13H",
+   "keys_plan": 10,
+   "keys_floor": 20
+  },
+  "Q21": {
+   "flow": "arm an alert at a drawn stop (13H)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13H",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q22": {
+   "flow": "filter the visual playbook to one setup (13I)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "13I",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q23": {
+   "flow": "morning board, open the closest setup, find similar (13J)",
+   "mouse": 3,
+   "keys": 9,
+   "taps": 3,
+   "owner": "13J",
+   "keys_plan": 6,
+   "keys_floor": 7
+  }
+ },
+ "rows": [
+  {
+   "flow": "Q1",
+   "name": "new blank note, cursor in body",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 3,
+   "measured": 17,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 10,
+   "keystrokes": 7,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 3.16,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to folder navigation",
+     "presses": 3,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to folder navigation"
+    },
+    {
+     "do": "tab-run",
+     "to": "a row of the folder tree",
+     "presses": 7,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide folders panel",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Show folders",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Search notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Collapse Recents",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA breakout thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add thesis starter views",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "DIV",
+       "role": "treeitem",
+       "name": "All notes, 17",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "g",
+     "on": "type-ahead: g"
+    },
+    {
+     "do": "key",
+     "key": "a",
+     "on": "type-ahead: a"
+    },
+    {
+     "do": "key",
+     "key": "g",
+     "on": "type-ahead: g"
+    },
+    {
+     "do": "key",
+     "key": "o",
+     "on": "type-ahead: o"
+    },
+    {
+     "do": "key",
+     "key": "g",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "key",
+     "key": "j",
+     "on": "Journal shortcut, g then j: Closed trades"
+    }
+   ],
+   "outcome": {
+    "tree_row_at_start": {
+     "role": "treeitem",
+     "name": "All notes, 17",
+     "tag": "DIV"
+    },
+    "address_before": "http://127.0.0.1:8723/journal/notebook?view=all",
+    "after_g_a": {
+     "url": "http://127.0.0.1:8723/journal/notebook?view=all",
+     "focus": {
+      "role": "treeitem",
+      "name": "Gaps",
+      "tag": "DIV"
+     }
+    },
+    "after_g_o": {
+     "url": "http://127.0.0.1:8723/journal/notebook?view=all",
+     "focus": {
+      "role": "treeitem",
+      "name": "Goals",
+      "tag": "DIV"
+     }
+    },
+    "focus_before_g_j": {
+     "role": null,
+     "name": "",
+     "tag": "BODY"
+    },
+    "after_g_j_from_body": "http://127.0.0.1:8723/journal/trades?seg=closed"
+   },
+   "notes": "NOT Q1: lane KEYS3's type-ahead probe, under the tool's first flow id",
+   "screenshot": "Q1-keys-1280.png"
+  },
+  {
+   "flow": "Q1",
+   "name": "new blank note, cursor in body",
+   "owner": "Notebook core",
+   "mode": "keys",
+   "width": "390",
+   "budget": 3,
+   "measured": 17,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 10,
+   "keystrokes": 7,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 3.18,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to folder navigation",
+     "presses": 3,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to folder navigation"
+    },
+    {
+     "do": "tab-run",
+     "to": "a row of the folder tree",
+     "presses": 7,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Hide folders panel",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Show folders",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "tab",
+       "name": "Search notes",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Collapse Recents",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "NVDA breakout thesis",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add thesis starter views",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "DIV",
+       "role": "treeitem",
+       "name": "All notes, 17",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "g",
+     "on": "type-ahead: g"
+    },
+    {
+     "do": "key",
+     "key": "a",
+     "on": "type-ahead: a"
+    },
+    {
+     "do": "key",
+     "key": "g",
+     "on": "type-ahead: g"
+    },
+    {
+     "do": "key",
+     "key": "o",
+     "on": "type-ahead: o"
+    },
+    {
+     "do": "key",
+     "key": "g",
+     "on": "Journal shortcut, g then j: Closed trades"
+    },
+    {
+     "do": "key",
+     "key": "j",
+     "on": "Journal shortcut, g then j: Closed trades"
+    }
+   ],
+   "outcome": {
+    "tree_row_at_start": {
+     "role": "treeitem",
+     "name": "All notes, 17",
+     "tag": "DIV"
+    },
+    "address_before": "http://127.0.0.1:8723/journal/notebook?view=all",
+    "after_g_a": {
+     "url": "http://127.0.0.1:8723/journal/notebook?view=all",
+     "focus": {
+      "role": "treeitem",
+      "name": "Gaps",
+      "tag": "DIV"
+     }
+    },
+    "after_g_o": {
+     "url": "http://127.0.0.1:8723/journal/notebook?view=all",
+     "focus": {
+      "role": "treeitem",
+      "name": "Goals",
+      "tag": "DIV"
+     }
+    },
+    "focus_before_g_j": {
+     "role": null,
+     "name": "",
+     "tag": "BODY"
+    },
+    "after_g_j_from_body": "http://127.0.0.1:8723/journal/trades?seg=closed"
+   },
+   "notes": "NOT Q1: lane KEYS3's type-ahead probe, under the tool's first flow id",
+   "screenshot": "Q1-keys-390.png"
+  }
+ ],
+ "wide_px": 1280,
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-keys3\\04f0dd940c\\typeahead-probe-2\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 18:56:37",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 18:57:11",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-07 18:59:03",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "INCOMPLETE",
+  "clean": false,
+  "why": "no checkpoint 'shutdown'",
+  "copy": "docs\\notebook\\evidence\\fin-keys3\\04f0dd940c\\typeahead-probe-2\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-keys\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T18-56-31.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "seed_child": "SEEDED C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\61625d99-f8db-4269-a728-231c08d3da11\\scratchpad\\fin\\keys3\\data-ta2\\screener.db 30 30",
+ "seed_research_child": "SEEDED C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\61625d99-f8db-4269-a728-231c08d3da11\\scratchpad\\fin\\keys3\\data-ta2\\transcript_index.db",
+ "page_errors": [
+  {
+   "flow": "Q1",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q1",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  }
+ ],
+ "auth_me_flags": {
+  "j2_share_links_enabled": false,
+  "notebook_ai_actions_enabled": true,
+  "notebook_ask_insert_on": true,
+  "notebook_attachments_on": false,
+  "notebook_chart_plan_enabled": true,
+  "notebook_conflict_ux_on": false,
+  "notebook_door_guard": "full",
+  "notebook_earnings_prep_enabled": true,
+  "notebook_entry_context_enabled": true,
+  "notebook_find_similar_enabled": true,
+  "notebook_formulas_enabled": true,
+  "notebook_getting_started_enabled": true,
+  "notebook_image_docx_documents_enabled": false,
+  "notebook_offline_default_on": true,
+  "notebook_offline_read_on": false,
+  "notebook_onboarding_enabled": true,
+  "notebook_passed_setups_enabled": true,
+  "notebook_plan_grading_enabled": true,
+  "notebook_playbook_enabled": true,
+  "notebook_publish_enabled": false,
+  "notebook_review_drafts_enabled": true,
+  "notebook_semantic_search_enabled": false,
+  "notebook_setups_board_enabled": true,
+  "notebook_ta_fingerprint_enabled": true,
+  "notebook_task_reminders_enabled": true,
+  "notebook_template_gallery_enabled": true,
+  "notebook_thesis_chips_enabled": true,
+  "notebook_trade_canvas_enabled": true,
+  "notebook_transcript_capture_enabled": true,
+  "notebook_visual_playbook_enabled": true,
+  "notebook_voice_notes_enabled": true,
+  "notebook_writing_help_enabled": false
+ },
+ "seed": {
+  "notes": {
+   "NVDA breakout thesis": "9494b62a94264300b51c5cfc78b63cd2",
+   "Semis rotation notes": "11574aab8eeb4f279eb48a6c7df1630d",
+   "AMD earnings recap": "f84dc2dab9a8437cb63ed3afc5912792",
+   "Weekly review draft": "a4488a977f22456292700c859e7e8dcd",
+   "CRWD base watch": "153d1c3f280642ec8f52ee98b1573f3a",
+   "Market regime journal": "fd5897b2ae0141ce9b8a82149be79b92",
+   "PLTR pullback plan": "3d4dcf9f8da445b7ab37735e8530ed5c",
+   "Risk rules": "4b2295f2c7cb49d9b628908fb73da983"
+  },
+  "position_http": 200,
+  "position_id": "e99fb0b8-45ab-4d81-93fb-d76f7714a6bb",
+  "watchlist_http": 200,
+  "folders": {
+   "mouse-1280": {
+    "id": "2769c6d1e5074322a83dcba9ae74dc46",
+    "name": "Semis mouse-1280"
+   },
+   "keys-1280": {
+    "id": "49b816176fd14cf69fc94b0e1675b1e2",
+    "name": "Semis keys-1280"
+   },
+   "keys-390": {
+    "id": "a5f1bc3eb6644142ae324ab47f1dc269",
+    "name": "Semis keys-390"
+   },
+   "taps-390": {
+    "id": "cdb1e949476c4284a677e30bd36fe076",
+    "name": "Semis taps-390"
+   }
+  },
+  "trade_id": "ec2b1008-72a3-4be9-a058-ce81b4b231d3",
+  "trade_http": 200,
+  "plan_note_http": 200,
+  "plan_trade_id": "dcb5da82-2f8d-4889-a784-c8742eb5f215",
+  "plan_trade_why": "HTTP 200",
+  "plan_grade_http": 200,
+  "account_risk": {
+   "account": "a319b7ff-396f-46f9-8f1c-20eea60219b4",
+   "http": 200
+  },
+  "playbook": {
+   "setup": "Pullback",
+   "trades": 25,
+   "http": [
+    200
+   ]
+  },
+  "review_week": {
+   "week_start": "2026-10-05",
+   "http": [
+    200,
+    200,
+    200,
+    200
+   ]
+  },
+  "why_positions": {
+   "mouse-1280": {
+    "symbol": "COST",
+    "http": 200
+   },
+   "keys-1280": {
+    "symbol": "ADBE",
+    "http": 200
+   },
+   "keys-390": {
+    "symbol": "INTC",
+    "http": 200
+   },
+   "taps-390": {
+    "symbol": "CSCO",
+    "http": 200
+   }
+  },
+  "visual_playbook": {
+   "AMD": {
+    "id": "d2aaed32b8b94de1809f262b1e847b73",
+    "tag": "VCP",
+    "http": 200
+   },
+   "TSLA": {
+    "id": "f5cf04c5056f44779c91e376fcfb7efe",
+    "tag": "VCP",
+    "http": 200
+   },
+   "MSFT": {
+    "id": "9613f603d46b49c6826779318442781e",
+    "tag": "Flat Base Breakout",
+    "http": 200
+   },
+   "META": {
+    "id": "6307a009badd419f90e295aed0dafc6c",
+    "tag": "Bull Flag",
+    "http": 200
+   }
+  },
+  "board_notes_http": {
+   "ZQVA": 200,
+   "ZQVB": 200,
+   "ZQVC": 200
+  },
+  "board_nightly": {
+   "ran": true,
+   "asOf": "2026-10-07",
+   "universe": 1,
+   "universeTruncated": false,
+   "members": 1,
+   "templates": 5,
+   "rows": 5,
+   "thin": 0,
+   "deferred": 0,
+   "errors": 0,
+   "patternReads": 1,
+   "seconds": 0.045
+  },
+  "resurface": {
+   "note": "7eb596e36d4541cbb8aa2c0c8375ce55",
+   "link": "/journal/notebook?note=7eb596e36d4541cbb8aa2c0c8375ce55&resurfaceVersion=7e983f135279476784591b22a223b3db",
+   "fired": 1
+  }
+ },
+ "first_visit_text": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nSkip to reviews and setups\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\n1\nPortfolio Risk\nw13q\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$102,260.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n17\nUnfiled\n17\nArchived\n0\nTrash\n0\nSemis keys-1280\n+\nSemis keys-390\n+\nSemis mouse-1280\n+\nSemis taps-390\n+\n+ New folder\nResearch home\nAsk Notebook to do something\nREPORTING SOON\nYour watchlist, flagged and open-position names, next 7 days\n$NVDA\nFri, Oct 9, after the close\nOpen position\nCreate prep note\nPASSED SETUPS\nNames you saved from a scan or a watchlist and did not trade — what happened next\nTicker\nPassed on\nAdd\n\nNothing here yet. Names you save from a scanner or add to a watchlist show up here, scored on what they did next — or add one above.\n\nREVIEWS THAT WRITE THEMSELVES\nToday's recap\nThis week's review\nThis month's review\nGET STARTED\n1 of 18 done\nHide\nWrite your first note\nDone\nStart a note from a template\nTake the Notebook basics tour\nTake the Task reminders tour\nTake the Template gallery tour\nTake the Formulas and rollups tour\nTake the Plan versus execution grading tour\nTake the Entry context card tour\nTake the Reviews that write themselves tour\nTak",
+ "onboarding_cleared_in_setup": [
+  "base tour not on screen",
+  "get-started checklist hidden",
+  "tour offer declined: New in your Notebook: Task reminders",
+  "voice dictation tip dismissed"
+ ],
+ "raw": {},
+ "driver_imported_api": [],
+ "finished": "2026-10-08T00:03:27+00:00",
+ "status": "COMPLETE"
+}

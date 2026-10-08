@@ -1196,7 +1196,8 @@ transcript's turns, a plan level's alert controls, and the notes list's table vi
 
 ### 15.6 Findings
 
-* **IMPORTANT, read from the code, not run in a browser.** The folder tree's type-ahead (round
+* **FIXED in round 2 (15.9).** As first written:
+  **IMPORTANT, read from the code, not run in a browser.** The folder tree's type-ahead (round
   4, `lib/useTreeRoving.js` line 141) takes every letter, and the Journal binds "g then
   letter" shortcuts on the document (`JournalLayout.jsx` lines 186 to 194, nine of them).
   A member on a folder row who types a folder name that starts with "g" and then one of
@@ -1243,3 +1244,79 @@ No screen reader was run.
     a reader may take the letters first.
 15. In the transcript sheet, focus lands on "Quote from turn 1". Is it clear that Down moves
     to the next turn?
+
+### 15.9 Round 2: the type-ahead conflict fixed, the landing merged, the tight flows re-measured
+
+**The conflict in 15.6 was real, and it is fixed** (`e8e1e738d8`).
+
+* Reproduced first, under the real Journal layout and the real shortcut library
+  (`JournalLayout.test.jsx`): on a folder row, typing "ga" moved to a folder called Gaps and
+  the address went to `/journal/calendar`. Three cases were red.
+* The rule followed is the one a text field already follows: the shortcut library ignores keys
+  typed in a form field, because that field owns them. A letter or digit typed on a tree row,
+  or on a row of a list that asks for type-ahead, is the widget's key. The widget stops it, so
+  it does not reach the shortcuts bound on the document. Every such key is stopped, matched or
+  not: a "g" that matched nothing is not left armed as half a shortcut. One definition of such
+  a key (`isTypeaheadKey` in `lib/useTreeRoving.js`) serves both hooks. Keys with Ctrl, Cmd or
+  Alt pass through, and so does punctuation ("?" still opens the shortcut sheet).
+* No letter is special. Round 1 of this lane had the Trades list leave a first "g" alone. That
+  is removed: on the Trades list "g" is a letter.
+* The three lists, each tested under the real layout:
+
+| list | takes letters | typing "ga" on a row | "g then j" from a row |
+|---|---|---|---|
+| folder tree | yes | moves to Gaps, no navigation | not a shortcut there (the letters are the tree's) |
+| Trades list | yes | moves to the GAP trade, no navigation | not a shortcut there |
+| notes list | no (it never asked for type-ahead) | nothing moves | still goes to Closed trades |
+
+  From the page body "g then j" still goes to Closed trades.
+* **In the browser** (`tools/notebook_fin_keys3_typeahead_probe.py`, evidence
+  `docs/notebook/evidence/fin-keys3/04f0dd940c/typeahead-probe-2/`), at 1280 px and 390 px:
+  on a folder row, g then a: the address stayed `/journal/notebook?view=all` and focus was on
+  the row "Gaps". g then o a moment later: same address, focus on "Goals". Then, from the
+  page body, g then j: the address became `/journal/trades?seg=closed`.
+  **Its integrity record is INCOMPLETE, not CLEAN**: the three checkpoints taken (before boot,
+  15 seconds and 120 seconds after) are CLEAN, and there is no shutdown checkpoint, because
+  the sandbox did not exit by itself within 300 seconds and was stopped. Both runs of the
+  probe ended that way; the two flow runs of this round and of round 1 ended CLEAN. The first
+  probe run is kept too (`typeahead-probe/`): its 390 px row is INCONCLUSIVE from a setup
+  mistake in the probe, since fixed.
+
+**The landing is merged in** (`51c6966189`, `origin/feat/notebook-w14-land` at `af0b7ffeea`,
+17 commits, no conflicts).
+
+* `journalGrids.seedParity.test.jsx` went red, as expected, and was re-recorded once, by cause
+  (`04f0dd940c`). The exact difference, checked by undoing it and comparing byte for byte: the
+  trades table's `<tbody>` gains `data-grid-typeahead=""` and each of its five `<tr>` gains
+  `data-trade-row=""`. Nothing else in the two full-HTML snapshots moved. The other 31
+  changed lines are hashes of that HTML.
+* Tests on the merged tree (from `app/`, `--maxWorkers=2`): the a11y directory, the onboarding
+  directory, `src/hub/`, `src/pages/command/`, `styles/tapFloor.test.js`,
+  `lib/offline/baseline.test.js`, the seed parity test, every ResponsiveTable, NotebookTab,
+  FolderSidebar and CommandPalette test, the Journal layout tests, the roving hooks, and the
+  nine files of the landing gate's "Run 1" list: **247 of 249 files passed; 3147 of 3150 tests
+  passed, 1 skipped.** (The seed parity snapshot had been re-recorded before this run.)
+* The 3 failures are master's own, each named in the landing's classification, "Run 2", with
+  the same message: `entryExcludesChartEngine.test.js` (2 rows: `hooks/usePreferences.js`
+  imports `components/chart/instanceShape.js`) and `pollingSites.rail.test.js`
+  (`hooks/useTickerIpo.js`). None of the seven files the landing fixed is red here:
+  `baseline.test.js`, `rawErrorSurface.test.js`, `swallowedFetch.census.test.js`,
+  `TerminalShell.test.jsx` and `terminalReachableContrast.test.js` all pass.
+* Build exit 0. First-open bytes 2,232,394 B of 2,260,793 B, PASS.
+  `python -m pytest tests/test_notebook_w13q_clicks.py -q`: 65 passed.
+
+**Re-measured on the merged build** (`.../04f0dd940c/q/`, 28 rows, integrity CLEAN): the flows
+whose paths changed since the full run (the Trades list: Q6 and Q13; the folder tree, which
+the pointer paths of Q1, Q2 and Q11 cross) and the three that sit on their budget.
+
+| flow | mouse (budget) | touch (budget) | keys 1280 / 390 | keys budget | same as 15.3 |
+|---|---|---|---|---|---|
+| Q1 | 2 (2) | 2 (2) | 2 / 2 | 3 | yes |
+| Q2 | 4 (4) | 4 (4) | 4 / 4 | 6 | yes |
+| Q6 | 5 (3) over | 5 (3) over | 10 / 9 | 10 | yes |
+| Q11 | 9 (8) over | 12 (10) over | 18 / 18 | 27 | yes |
+| Q13 | 3 (2) over | 3 (2) over | 4 / 4 | 4 | yes |
+| Q18 | 2 (3) | 2 (3) | 9 / 9 | 9 | yes |
+| Q21 | 2 (2) | 2 (2) | 4 / 4 | 4 | yes |
+
+The counts of 15.1 stand: keyboard 22 of 23, mouse 19, touch 19.
