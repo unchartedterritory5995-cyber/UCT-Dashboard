@@ -27,6 +27,124 @@ import os
 import sys
 import tempfile
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  INERT IN A DEPLOYED SERVICE — decided FIRST, before anything below can act
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# ⛔⛔ 2026-10-07, ~22:37-22:43 Central: THIS FILE TOOK PRODUCTION DOWN. The live
+# web process executed `import conftest` a few minutes after boot. Everything
+# below then did, inside uvicorn, exactly what it does for a test run: it
+# redirected ~100 data-path environment variables to a temp sandbox and armed
+# the tripwire that refuses every write under `/data`. Sign-in and every
+# authenticated request answered 500 (`SharedDataRootWrite` on
+# `sqlite3.connect('/data/auth.db')`) until a restart.
+#
+# It had happened before (`tools/ast_conformance.py`, fixed 2026-10-06 by
+# `65dc5e4586`), and fixing the IMPORTER is a fix for one path: at the time of
+# writing 84 files under `tools/`, `scripts/` and `api/` still import this
+# module at top level, and server code imports tools lazily, inside functions,
+# where no reviewer and no startup log sees it. So the CAPABILITY is removed
+# here instead. In a deployed service, importing this module — from any path,
+# known or not — pins nothing, patches nothing, derives nothing, and writes ONE
+# line to stderr naming the importer so the next occurrence names its trigger.
+#
+# ⛔ THERE IS NO OVERRIDE, AND THAT IS THE DESIGN. No environment variable on
+# the service can re-arm this — not `UCT_TEST_SHARED_ROOT_GUARD`, not
+# `PYTEST_CURRENT_TEST`. A switch that can turn a production outage back on is
+# a switch somebody eventually flips.
+#
+# ⚠️ What that costs, stated rather than hidden: a tool run BY HAND on a pod
+# (`railway ssh`), or locally under `railway run` (which injects these same
+# variables), is no longer sandboxed by importing this file — its data paths
+# are the LIVE ones. The stderr line says so every time.
+
+#: The variables Railway sets on every service it runs. ⛔ NOT a second
+#: opinion: the same set as `ai_actions.RAILWAY_IDENTITY_ENV`, whose first
+#: member is what `auth.COOKIE_SECURE` and `vendor_socket_guard` already key
+#: on; `tests/test_conftest_is_inert_in_production.py` reads BOTH tuples by AST
+#: and fails when they differ. ⛔ Never "any RAILWAY_* name": the census below
+#: PINS `RAILWAY_VOLUME_MOUNT_PATH`, so every sandbox on a developer's box
+#: carries one.
+_RAILWAY_IDENTITY_ENV = (
+    "RAILWAY_ENVIRONMENT", "RAILWAY_ENVIRONMENT_NAME", "RAILWAY_ENVIRONMENT_ID",
+    "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID", "RAILWAY_SERVICE_NAME",
+    "RAILWAY_DEPLOYMENT_ID")
+
+#: Read BEFORE the `import pytest` below, which makes it true for the rest of
+#: the process. "pytest is importable" is not "this is a pytest run".
+_PYTEST_WAS_LOADED_FIRST = "pytest" in sys.modules
+
+
+def _running_in_production_service() -> bool:
+    """True when this process is a deployed Railway service: ANY identity
+    variable present with a value. Truthiness, not presence, to match
+    `ai_actions.sandbox_stub_active` — a local launcher that blanks one is not
+    a deployment."""
+    return any(os.environ.get(k) for k in _RAILWAY_IDENTITY_ENV)
+
+
+def _import_chain(limit=8):
+    """`(importer, [module:line (function), …], under_pytest)` off the stack.
+
+    The importer is the nearest frame that is neither this file nor the import
+    machinery. `under_pytest` is whether pytest's own code is on this thread's
+    stack — the whole of a real run executes inside `_pytest.config.main`, so
+    the frames are there for the rootdir conftest, for a second copy imported
+    at collection, and for a direct call from a test.
+    """
+    here = os.path.normcase(os.path.abspath(__file__))
+    chain, under_pytest = [], False
+    frame = sys._getframe(1)
+    while frame is not None:
+        name = frame.f_globals.get("__name__") or "?"
+        filename = frame.f_code.co_filename
+        if name == "pytest" or name == "_pytest" or name.startswith("_pytest."):
+            under_pytest = True
+        machinery = filename.startswith("<frozen importlib") \
+            or name == "importlib" or name.startswith("importlib.")
+        mine = os.path.normcase(os.path.abspath(filename)) == here
+        if not machinery and not mine and len(chain) < limit:
+            chain.append(f"{name}:{frame.f_lineno} ({frame.f_code.co_name})")
+        frame = frame.f_back
+    return (chain[0] if chain else "<unknown>"), chain, under_pytest
+
+
+def _inert_in_production() -> bool:
+    """Deployed service AND not a pytest run. The ONE question every side
+    effect in this file asks, at import and again inside the tripwire.
+
+    A pytest run needs BOTH halves: pytest was loaded before this module was,
+    AND pytest is executing right now (its frames are on the stack, or a test
+    is in progress). ⛔ `PYTEST_CURRENT_TEST` alone is deliberately not enough:
+    that would be an environment variable that re-arms the guard on a service.
+    A suite run on a Railway-like box therefore stays fully guarded.
+    """
+    if not _running_in_production_service():
+        return False
+    if not _PYTEST_WAS_LOADED_FIRST:
+        return True
+    _, _, under_pytest = _import_chain()
+    return not (under_pytest or bool(os.environ.get("PYTEST_CURRENT_TEST")))
+
+
+_INERT_IN_PRODUCTION = _inert_in_production()
+
+if _INERT_IN_PRODUCTION:
+    _importer, _chain = _import_chain()[:2]
+    _signals = ",".join(k for k in _RAILWAY_IDENTITY_ENV if os.environ.get(k))
+    try:
+        sys.stderr.write(
+            "[conftest] INERT IN A DEPLOYED SERVICE: the test conftest was "
+            f"imported by {_importer} (pid {os.getpid()}; signals {_signals}); "
+            "no env pin, no tripwire, nothing patched, data paths are LIVE; "
+            "fix the importer, a server-reachable module must never import "
+            f"conftest. chain: {' <- '.join(_chain) or '<unknown>'}\n")
+        sys.stderr.flush()
+    except Exception:  # noqa: BLE001 — a log line must never fail the import
+        pass
+    del _importer, _chain, _signals
+
 import pytest
 
 #: Sandbox directories this file mints, one PAIR PER PYTEST SESSION.
@@ -67,7 +185,8 @@ def _prune_stale_sandboxes() -> None:
                 pass
 
 
-_prune_stale_sandboxes()
+if not _INERT_IN_PRODUCTION:
+    _prune_stale_sandboxes()
 
 # ⛔⛔ THE ATTACHMENT-VOLUME RESERVE IS DERIVED FOR RAILWAY, NOT FOR THIS BOX.
 # `notes_quota` refuses an upload that would leave the attachment volume under
@@ -81,12 +200,18 @@ _prune_stale_sandboxes()
 # the DERIVATION delete or monkeypatch it themselves, so pinning it here cannot
 # make them vacuous (`test_notes_quota.py`). Production sets nothing and
 # resolves byte-identically.
-os.environ.setdefault("NOTE_IMPORT_RESERVE_BYTES", str(64 * 1024**2))
+if not _INERT_IN_PRODUCTION:
+    os.environ.setdefault("NOTE_IMPORT_RESERVE_BYTES", str(64 * 1024**2))
 
-ISOLATED_AUTH_DB = os.path.join(
-    tempfile.mkdtemp(prefix="uct_tests_authdb_"), "auth.db"
-)
-os.environ["AUTH_DB_PATH"] = ISOLATED_AUTH_DB
+if _INERT_IN_PRODUCTION:
+    # A NAME only: no directory is created and `AUTH_DB_PATH` is left alone.
+    ISOLATED_AUTH_DB = os.path.join(
+        tempfile.gettempdir(), "uct_tests_authdb_INERT_IN_PRODUCTION", "auth.db")
+else:
+    ISOLATED_AUTH_DB = os.path.join(
+        tempfile.mkdtemp(prefix="uct_tests_authdb_"), "auth.db"
+    )
+    os.environ["AUTH_DB_PATH"] = ISOLATED_AUTH_DB
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -627,8 +752,17 @@ def _explicit_pin_is_still_real(var, literal):
     return False
 
 
-SHARED_DATA_LITERALS, SHARED_DATA_ENV_PINS, UNPINNABLE_SHARED_LITERALS = \
-    shared_data_root_census()
+# ⚠️ INERT IN A DEPLOYED SERVICE means the four derivations are not RUN at
+# import either: each is an AST walk over all of `api/**` (10-20 s cold,
+# measured 2026-10-07) and the importer may be standing on the server's one
+# event loop. The functions stay callable; only the module-level results are
+# empty, which also leaves the redirect below nothing to pin.
+if _INERT_IN_PRODUCTION:
+    SHARED_DATA_LITERALS, SHARED_DATA_ENV_PINS, UNPINNABLE_SHARED_LITERALS = \
+        {}, {}, []
+else:
+    SHARED_DATA_LITERALS, SHARED_DATA_ENV_PINS, UNPINNABLE_SHARED_LITERALS = \
+        shared_data_root_census()
 
 # ⭐ MERGED, NOT REPLACED — a declared pin never overrides a derived one. If the
 # census learns to see a pairing on its own, the derivation wins and the hand
@@ -701,7 +835,8 @@ def unguarded_literal_sites():
         "unguarded_sites", _derive_unguarded_literal_sites))
 
 
-UNGUARDED_SHARED_LITERAL_SITES = unguarded_literal_sites()
+UNGUARDED_SHARED_LITERAL_SITES = (
+    [] if _INERT_IN_PRODUCTION else unguarded_literal_sites())
 
 #: `C:\data` on this box. DERIVED from the literals the product itself writes —
 #: the first path segment of each — so it cannot drift from the code it guards.
@@ -711,7 +846,10 @@ SHARED_DATA_ROOTS = sorted({
 } or {os.path.normcase(os.path.abspath("/data"))})
 
 #: Where the redirect sends everything instead.
-SANDBOX_DATA_ROOT = tempfile.mkdtemp(prefix="uct_tests_datadir_")
+SANDBOX_DATA_ROOT = (
+    os.path.join(tempfile.gettempdir(), "uct_tests_datadir_INERT_IN_PRODUCTION")
+    if _INERT_IN_PRODUCTION                 # a NAME only: nothing is created
+    else tempfile.mkdtemp(prefix="uct_tests_datadir_"))
 
 
 def sandbox_for(literal: str) -> str:
@@ -745,6 +883,8 @@ _ACTIVE_SHARED_ROOTS = list(SHARED_DATA_ROOTS)
 # OS-level override on a developer's box — is left exactly as it is.
 def _redirect_shared_root_env_vars():
     applied = {}
+    if _inert_in_production():      # a deployed service's env is never ours
+        return applied
     for var, literal in SHARED_DATA_ENV_PINS.items():
         current = os.environ.get(var)
         if current and not any(
@@ -930,7 +1070,14 @@ def _guard_two_arg(real, label):
 
 
 def _arm_shared_root_tripwire():
-    """Install the wrappers. Idempotent; a no-op when the guard is `off`."""
+    """Install the wrappers. Idempotent; a no-op when the guard is `off`.
+
+    ⛔ THE SECOND BELT. Refuses to arm in a deployed service even when called
+    directly, by anything, later: the question is asked again HERE rather than
+    read off the import-time answer, so there is no flag to flip first.
+    """
+    if _inert_in_production():
+        return
     if _GUARD_MODE == "off" or getattr(sqlite3.connect, "_uct_guarded", False):
         return
     _guarded_sqlite_connect._uct_guarded = True
@@ -950,7 +1097,12 @@ def _arm_shared_root_tripwire():
     os.replace = _guard_two_arg(_real_replace, "os.replace")
 
 
-_arm_shared_root_tripwire()
+# The FIRST belt is here (the import does not ask); the second is inside the
+# function (asking directly is refused). Each alone is enough, so a mutation of
+# one survives on the other — prove them as a PAIR, and the inner one by a
+# direct call (`test_the_second_belt_arming_directly_is_refused_…`).
+if not _INERT_IN_PRODUCTION:
+    _arm_shared_root_tripwire()
 
 
 @contextlib.contextmanager
@@ -1170,7 +1322,8 @@ def auth_db_path_capturers():
         "auth_capturers", _derive_auth_db_path_capturers))
 
 
-AUTH_DB_PATH_CAPTURERS = auth_db_path_capturers()
+AUTH_DB_PATH_CAPTURERS = (
+    [] if _INERT_IN_PRODUCTION else auth_db_path_capturers())
 
 
 def repair_auth_db_capturers(path: str) -> list:
@@ -1290,7 +1443,8 @@ def env_derived_module_globals():
         "env_derived_globals", _derive_env_derived_module_globals))
 
 
-ENV_DERIVED_MODULE_GLOBALS = env_derived_module_globals()
+ENV_DERIVED_MODULE_GLOBALS = (
+    [] if _INERT_IN_PRODUCTION else env_derived_module_globals())
 
 
 def _looks_like_a_path(value) -> bool:
@@ -1340,7 +1494,8 @@ def _env_derived_paths_survive_a_reload():
 # with the writes landing outside any fixture's teardown. Setting the flag here
 # (at conftest import, before any test module) makes the warm opt-IN: the tests
 # that exercise it re-enable it explicitly with a stubbed builder and zero delay.
-os.environ.setdefault("SCREENER_SNAPSHOT_WARM_ENABLED", "0")
+if not _INERT_IN_PRODUCTION:
+    os.environ.setdefault("SCREENER_SNAPSHOT_WARM_ENABLED", "0")
 
 
 # ─── prebuilt catalogue memo: cleared between tests ────────────────────────
