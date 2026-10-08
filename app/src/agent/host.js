@@ -307,6 +307,9 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widg
       epoch,
     } : {}),
     ...(widgetOps && epoch ? { boardInSync: buildBoardSync({ readServer, localLayout: () => widgetOps.layout(), localEpoch: epoch }) } : {}),
+    // The board's persistence acknowledgment (ChartsWorkspace `persist`): resolves once the
+    // server has accepted — or refused — this tab's current board. → { ok, conflict, reason }
+    ...(widgetOps?.persist ? { persist: () => widgetOps.persist() } : {}),
     otherWidgets: () => (getWidgets() || []).filter(w => w.type !== 'chart').map(w => widgetLabel(w.type)),
   }
 }

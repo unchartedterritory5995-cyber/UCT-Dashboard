@@ -92,6 +92,11 @@ function noteRevision(res, adopt) {
   }
 }
 
+/** Resolves once every write queued so far for these keys has answered (success or not). */
+export function whenWritesSettle(keys) {
+  return Promise.all((keys || []).map(k => _writeChains.get(k) || Promise.resolve())).then(() => undefined)
+}
+
 /** Tests only. */
 export function __resetRevisionStateForTests() {
   _revBaseline = null; _keyRev.clear(); _conflicted.clear(); _writeChains.clear()

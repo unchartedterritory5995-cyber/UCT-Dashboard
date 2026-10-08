@@ -17,6 +17,9 @@ export const AGENT_FLAG_KEY = 'uct.feature.agent'
 export const AGENT_FLAG_EVENT = 'uct-agent-flag'
 export const AGENT_OPEN_KEY = 'uct.agent.open'
 export const AGENT_CONVERSATION_KEY = 'uct.agent.conversation'
+// An Agent change to the board that STARTED but never reached its receipt (the page reloaded or
+// closed mid-Apply). See useAgent "INTERRUPTED EXECUTION".
+export const AGENT_INFLIGHT_KEY = 'uct.agent.inflight'
 const DEFAULT_ON = false
 
 export function resolveAgentFlag() {
