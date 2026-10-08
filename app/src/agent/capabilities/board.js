@@ -360,7 +360,7 @@ export function registerBoardCapabilities() {
     },
     describe(b, a, { theme }) {
       const n = changedIds(b.board, a.board).length
-      return `Applied the ${CHART_THEME_BY_ID[theme]?.name || theme} chart theme to ${n ? `all ${n} chart${n === 1 ? '' : 's'}` : 'this layout'}`
+      return `Applied the ${CHART_THEME_BY_ID[theme]?.name || theme} chart theme to ${n > 1 ? `all ${n} charts` : n === 1 ? 'the chart' : 'this layout'}`
     },
   })
 }
