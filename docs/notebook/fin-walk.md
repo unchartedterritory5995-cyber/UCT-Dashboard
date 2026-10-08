@@ -413,18 +413,32 @@ Nothing else from K1 to K7 is open.
 | K6 | Word file, a subject that is not markets: cited answer, no off-topic remark; run twice | PASS, PASS (our server door) | n/a |
 | K6 | the same from the document's own sheet | NOT RUN: a file uploaded through the attachments door is not shown in the note body, so the walk had nothing to click | |
 | K7 | Ask panel chips at least 44 by 44, none overlapping | n/a | PASS (5 chips; none adjacent, see 8.2) |
-| OCR | Ask over an image with text | NOT RUN | |
+| OCR | Ask over an image with text (8.5) | PASS, PASS (our server door) | n/a |
 
 The 8 FAIL rows of the main run: 5 are the long-note finding (4 browser rows and the server
 row), 2 are "no chip to click" rows that follow from it, 1 is the two-account setup error
 (instrument; PASS in the re-run).
 
-### 8.5 The image question: what is missing
+### 8.5 The image question: walked, with a correction
 
-The app's OCR path is `api/services/journal_two/document_ocr_tesseract.py`. `binary_path()` looks
-for the Tesseract program in `TESSERACT_BINARY`, then on `PATH`, then `/usr/bin/tesseract` and
-`/usr/local/bin/tesseract`. On this machine none of those has it, and neither Windows install
-folder exists. The boot says so itself: `[startup] j2-ocr: flag=1 binary=absent version=none
-active=False`. The Python package `pytesseract` is installed, but the app does not use it. So an
-image becomes a document with status `no_text` and Ask over it cannot be walked here. Missing:
-the Tesseract OCR program (and `TESSERACT_BINARY` pointing at it, or it on `PATH`).
+Section 7 said Tesseract is not installed on this machine. **That was wrong.** The program is
+installed at `C:\Program Files\Tesseract-OCR\tesseract.exe` (5.4.0, with English data). It is
+not on `PATH` and `TESSERACT_BINARY` was not set, and those are the only places the app looks
+(`api/services/journal_two/document_ocr_tesseract.py` `binary_path()`: `TESSERACT_BINARY`, then
+`PATH`, then `/usr/bin` and `/usr/local/bin`). So the earlier boots said
+`[startup] j2-ocr: flag=1 binary=absent active=False`.
+
+With `TESSERACT_BINARY` pointed at the installed program for the sandbox only, the boot says
+`binary=C:\Program Files\Tesseract-OCR\tesseract.exe version=tesseract_v5.4.0.20240606
+active=True`. Evidence: `evidence/fin-walk/keyed-ai-dda0515427/ocr/keyedai/` (integrity CLEAN at
+all four checkpoints).
+
+| check | result |
+|---|---|
+| an image with three lines of text becomes a document, status `ready` in 7 s; the page text door returns "ACME FASTENERS / INVOICE 4471 / TOTAL DUE 912 DOLLARS", `textOrigin: ocr` | PASS |
+| Ask over the image, run 1: "total due of 912 dollars and an invoice number of 4471 [1]" | PASS |
+| Ask over the image, run 2: the same facts, cited | PASS |
+| invented facts | none |
+
+Through our server's ask door as the member, at one width (the door has no width). The citation
+is `Image, p.1`, marked `page_only`. Not walked: the document's own sheet in the browser.

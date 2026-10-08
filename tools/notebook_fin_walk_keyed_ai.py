@@ -700,22 +700,57 @@ def run(C, browser, admin, base, fs, data_dir, only) -> None:
     def ocr():
         explicit = os.environ.get("TESSERACT_BINARY")
         found = shutil.which("tesseract")
-        usual = [p for p in (r"C:\Program Files\Tesseract-OCR\tesseract.exe", r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe") if os.path.exists(p)]
         try:
             boot = (C.OUT / "sandbox-keyedai.log").read_text(encoding="utf-8", errors="replace")
-            fp = [ln.strip()[:240] for ln in boot.splitlines() if re.search(r"ocr", ln, re.I)][:5]
+            fp = [ln.strip()[:240].encode("ascii", "replace").decode() for ln in boot.splitlines() if re.search(r"j2-ocr|doc-ocr", ln)][:5]
         except Exception:  # noqa: BLE001
             fp = []
-        rows = S.get("doc_rows") or []
-        img = next((d for d in rows if "docx" not in str(d.get("name")).lower()), None)
-        available = bool((explicit and os.path.exists(explicit)) or found)
-        C.step(None, inst, "OCR", "Ask over an image with text", "NOT_RUN" if not available else "INFO",
-               reason=("the app's OCR path (api/services/journal_two/document_ocr_tesseract.py binary_path) looks for the Tesseract program in "
-                       "TESSERACT_BINARY, then on PATH, then /usr/bin and /usr/local/bin. None of those has it on this machine, so no engine is "
-                       "wired and an image document stays `no_text`. What is missing: the Tesseract OCR program itself (the Python wrapper "
-                       "`pytesseract` is installed but the app does not use it)." if not available else "an engine was found; see the fields"),
-               TESSERACT_BINARY_set=bool(explicit), tesseract_on_PATH=found, windows_install_dirs_found=usual, boot_lines_about_ocr=fp,
-               image_document=img, shot=False)
+        active = any("active=True" in ln for ln in fp)
+        C.step(None, inst, "OCR", "the app's own OCR engine in this sandbox", "INFO", TESSERACT_BINARY_set=bool(explicit), tesseract_on_PATH=found,
+               boot_lines_about_ocr=fp, engine_active=active,
+               how_the_app_finds_it="document_ocr_tesseract.binary_path: TESSERACT_BINARY, then PATH, then /usr/bin and /usr/local/bin", shot=False)
+        if not active:
+            C.step(None, inst, "OCR", "Ask over an image with text", "NOT_RUN",
+                   reason="the boot reports no active OCR engine (see the INFO row); an image document stays `no_text`", shot=False)
+            return
+        nid = mk(M, inst, "Invoice photo", None, ["A photo of an invoice is attached."], "ocr_note")
+        up = M.post(f"{base}/api/j2/notes/{nid}/images", multipart={"file": {"name": "acme-invoice.png", "mimeType": "image/png", "buffer": K.make_png(K.IMAGE_LINES)}})
+        rows, t0 = [], time.time()
+        while time.time() - t0 < 150:
+            j_ = M.get(f"{base}/api/j2/notes/{nid}/documents").json()
+            rows = (j_.get("documents") if isinstance(j_, dict) else j_) or []
+            if rows and str(rows[0].get("status")) in ("ready", "failed", "ocr_failed") and time.time() - t0 > 5:
+                break
+            time.sleep(3)
+        d = rows[0] if rows else {}
+        text = None
+        if d.get("id"):
+            t = M.get(f"{base}/api/j2/notes/documents/{d['id']}/pages/1/text")
+            text = (t.text() or "")[:500]
+        C.step(None, inst, "OCR", "an image with text becomes a document whose text was read off the picture", "PASS" if str(d.get("status")) == "ready" else "FAIL",
+               upload_status=up.status, document={k_: d.get(k_) for k_ in ("id", "name", "sourceKind", "status", "pageCount")},
+               page_text_door=text, seconds=round(time.time() - t0, 1), words_on_the_image=K.IMAGE_LINES, shot=False)
+        if str(d.get("status")) != "ready":
+            return
+        q = "What is the total due on the invoice, and what is the invoice number?"
+        for i_ in (1, 2):
+            a = sse(M, "/api/j2/ask/stream", {"scope": "document", "target": d["id"], "query": q, "history": []})
+            bad = check(a["answer"], " ".join(K.IMAGE_LINES) + " " + q + " image invoice")
+            invented = bool(bad["numbers"] or bad["proper_nouns"])
+            cites = bool(a["cited"]) and bool(a["sources"])
+            has = "912" in a["answer"] and "4471" in a["answer"]
+            C.step(None, inst, "OCR", f"Ask over the image: the answer has the words on the picture and cites the file (run {i_})",
+                   "PASS" if has and cites and not invented else "FAIL", question=q, status=a["status"], answer=a["answer"][:700], cited=a["cited"],
+                   sources=[{k_: s_.get(k_) for k_ in ("label", "citation", "textSource", "scanned", "ocr")} for s_ in a["sources"]][:3],
+                   off_topic_remark=OFF_TOPIC.findall(a["answer"]), not_on_the_image=bad, INVENTED=bad if invented else None,
+                   door="our server's ask door, as the member", shot=False)
+        # rendered: the note shows the picture; the document's text status, as the member sees it
+        try:
+            C.goto(pg, base, f"/journal/notebook?note={nid}", ".ProseMirror")
+            pg.wait_for_timeout(2000)
+            C.step(pg, inst, "OCR", "the note with the image, as rendered", "INFO", page_text=pg.locator("main").first.inner_text()[:600])
+        except Exception as e:  # noqa: BLE001
+            C.step(pg, inst, "OCR", "the note with the image, as rendered", "INFO", error=str(e)[:200])
 
     def phone():
         ctxp = C.new_ctx(browser, "390", storage=ctx.storage_state())

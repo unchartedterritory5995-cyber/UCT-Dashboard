@@ -1033,6 +1033,14 @@ def set_env(fs: dict, config: str, data_dir: Path) -> None:
         # (api/services/stock_brief/service.py `_enabled`, default ON) calls a model for ticker after
         # ticker. It is not part of this walk: switched off by its own flag.
         os.environ["STOCK_BRIEF_ENABLED"] = "0"
+        # The app finds its OCR engine through TESSERACT_BINARY, then PATH
+        # (api/services/journal_two/document_ocr_tesseract.py binary_path). On Windows the
+        # installer puts the program in Program Files without adding it to PATH.
+        if not os.environ.get("TESSERACT_BINARY") and not shutil.which("tesseract"):
+            for cand in (r"C:\Program Files\Tesseract-OCR\tesseract.exe", r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe"):
+                if os.path.exists(cand):
+                    os.environ["TESSERACT_BINARY"] = cand
+                    break
     os.environ.update({"NOTEBOOK_EARNINGS_PREP_SANDBOX_CALENDAR": str(data_dir / CAL_FILE),
                        "FMP_API_KEY": "", "FINNHUB_API_KEY": "", "ALPHAVANTAGE_API_KEY": "", "MASSIVE_API_KEY": ""})
 
