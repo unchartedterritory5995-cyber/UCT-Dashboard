@@ -1,0 +1,94 @@
+{
+ "tool": "tools/notebook_w13d_walk.py",
+ "base": "http://127.0.0.1:8621",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13d\\walk-ccf61e227e\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 22:23:31",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 22:25:31",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 22:26:51",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\wave13-13d\\walk-ccf61e227e\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w13d\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T22-23-07.md"
+ },
+ "failure": null,
+ "not_run": "scan child '3-at-103' failed (rc 1); see scan-3-at-103.log",
+ "rows": [
+  {
+   "id": "W0_gate_on_payload",
+   "verdict": "PASS",
+   "detail": "/api/auth/me awareness_note_resurface_enabled=True"
+  },
+  {
+   "id": "W1_note_and_version",
+   "verdict": "PASS",
+   "detail": "update HTTP 200; 1 version(s); version 1b917a6043d7404ca9a855777e7e7a59 holds the stop and not the target; the live note holds both"
+  },
+  {
+   "id": "W2_first_sighting_is_silent",
+   "verdict": "PASS",
+   "detail": "fired 0; stop level indexed {'user_id': '62d02f59-df8f-400d-a09c-76830f318db5', 'note_id': '37bbdba193d8460480c0ffd8fb4ca471', 'level_id': 'stop@100.0', 'symbol': 'NVDA', 'role': 'stop', 'price': 100.0, 'on_date': None, 'version_id': '1b917a6043d7404ca9a855777e7e7a59', 'last_side': 'above'} (side recorded, version 1b917a6043d7404ca9a855777e7e7a59)"
+  },
+  {
+   "id": "W3_cross_fires_one_in_app_notice",
+   "verdict": "PASS",
+   "detail": "fired 1; insights [{'id': 1, 'kind': 'note_level_touch', 'symbol': 'NVDA', 'headline': 'NVDA reached 100.00, the stop you named', 'body': \"In “NVDA swing plan (walk)” you named 100.00 as your stop on 2026-10-02. NVDA is at 98.00 now. Here's what you thought then.\", 'importance': 7}]; deliver_alert_payload calls 0"
+  },
+  {
+   "id": "W4_inbox_shows_the_notice",
+   "verdict": "FAIL",
+   "detail": "door href /journal/notebook?note=37bbdba193d8460480c0ffd8fb4ca471&resurfaceVersion=1b917a6043d7404ca9a855777e7e7a59; inbox row text \"document\\nYOUR NOTES\\nNVDA\\nimportance 7/10\\nOct 3, 2026, 4:25 AM EDT\\nNVDA reached 100.00, the stop you named\\nIn “NVDA swing plan (walk)” you named 100.00 as your stop on 2026-10-02. NVDA is at 98.00 now. Here's what you thought then.\\nOpen what you wrote\\nPENDING\\nDismiss\""
+  },
+  {
+   "id": "W5_opens_the_version_that_named_the_level",
+   "verdict": "PASS",
+   "detail": "opened http://127.0.0.1:8621/journal/notebook?note=37bbdba193d8460480c0ffd8fb4ca471; the sheet held the version that named the stop and no target; closing left ?note=37bbdba193d8460480c0ffd8fb4ca471 with the live note showing the target"
+  },
+  {
+   "id": "W12_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  }
+ ],
+ "raw": {
+  "today_et": "2026-10-02",
+  "auth_me_flag": true,
+  "W1": {
+   "create": 200,
+   "update": 200,
+   "version_id": "1b917a6043d7404ca9a855777e7e7a59",
+   "version_text": "The plan\nStop: 100",
+   "live_text": "The plan\nStop: 100\nTarget: 130"
+  },
+  "link": "/journal/notebook?note=37bbdba193d8460480c0ffd8fb4ca471&resurfaceVersion=1b917a6043d7404ca9a855777e7e7a59",
+  "W4_tile_text": "document\nYOUR NOTES\nNVDA\nimportance 7/10\nOct 3, 2026, 4:25 AM EDT\nNVDA reached 100.00, the stop you named\nIn “NVDA swing plan (walk)” you named 100.00 as your stop on 2026-10-02. NVDA is at 98.00 now. Here's what you thought then.\nOpen what you wrote\nPENDING\nDismiss",
+  "W5_url": "http://127.0.0.1:8621/journal/notebook?note=37bbdba193d8460480c0ffd8fb4ca471&resurfaceVersion=1b917a6043d7404ca9a855777e7e7a59",
+  "W5_sheet_text": "What you wrote then\n×\n\nSaved 11:24 PM EDT. This is the version that first named the level. Your note itself is unchanged.\n\nNVDA swing plan (walk)\n\nThe plan\n\nStop: 100\n\nBack to the note as it is now"
+ }
+}

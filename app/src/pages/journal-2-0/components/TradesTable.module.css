@@ -116,6 +116,20 @@
   cursor: help;
 }
 
+/* Wave 13 lane 13A: a trade with no prior plan is labelled, never hidden. */
+.unplannedChip {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--warn, #d4a017);
+  color: var(--warn, #d4a017);
+  line-height: 1.4;
+  cursor: help;
+}
+
 .setupSelect {
   max-width: 150px;
   padding: 2px 4px;

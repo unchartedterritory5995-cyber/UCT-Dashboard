@@ -1,0 +1,195 @@
+{
+ "chart_toolbar": [
+  {
+   "name": "Hide toolbar",
+   "w": 44,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "Block actions",
+   "w": 44,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "Embed timeframe",
+   "w": 65,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "Go live (max 3 per note)",
+   "w": 44,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "Half width (pair two side-by-side)",
+   "w": 44,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "Draw on this snapshot (lines, text — saved with the embed)",
+   "w": 44,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "What happened next — show this window through today (view-on",
+   "w": 71,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "Trade plan — mark drawn lines as entry, stop or target; size",
+   "w": 44,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "What happened next — replay bar by bar from this note's date",
+   "w": 52,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "Re-capture the archive image",
+   "w": 75,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "Chart settings",
+   "w": 44,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "Sync from my chart — pull your current Charts-page settings ",
+   "w": 44,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "Freeze — make the chart static (no crosshair, not interactiv",
+   "w": 52,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "Remove embed",
+   "w": 44,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "Freeze the fingerprint",
+   "w": 141,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "No setup tagFlat Base BreakoutBull FlagIPO BaseLaunchpadCup ",
+   "w": 248,
+   "h": 44,
+   "visible": true
+  },
+  {
+   "name": "Visual playbook",
+   "w": 108,
+   "h": 44,
+   "visible": true
+  }
+ ],
+ "scroll_note": {
+  "doc": 0,
+  "inner": []
+ },
+ "toolbar_inside_block": {
+  "frame": [
+   60,
+   330
+  ],
+  "toolbar": [
+   69,
+   321,
+   188
+  ]
+ },
+ "template_chips": [
+  {
+   "name": "All",
+   "w": 44,
+   "h": 44
+  },
+  {
+   "name": "Daily & weekly rituals",
+   "w": 140,
+   "h": 44
+  },
+  {
+   "name": "Thesis & research",
+   "w": 121,
+   "h": 44
+  },
+  {
+   "name": "Around a trade",
+   "w": 104,
+   "h": 44
+  },
+  {
+   "name": "Mindset",
+   "w": 65,
+   "h": 44
+  },
+  {
+   "name": "Your templates",
+   "w": 104,
+   "h": 44
+  },
+  {
+   "name": "All",
+   "w": 44,
+   "h": 44
+  },
+  {
+   "name": "Daily & weekly rituals",
+   "w": 140,
+   "h": 44
+  },
+  {
+   "name": "Thesis & research",
+   "w": 121,
+   "h": 44
+  },
+  {
+   "name": "Around a trade",
+   "w": 104,
+   "h": 44
+  },
+  {
+   "name": "Mindset",
+   "w": 65,
+   "h": 44
+  },
+  {
+   "name": "Your templates",
+   "w": 104,
+   "h": 44
+  }
+ ],
+ "reporting_soon_api": {
+  "status": 200,
+  "body": "{\"windowDays\":7,\"today\":\"2026-10-07\",\"items\":[{\"symbol\":\"AMD\",\"date\":\"2026-10-12\",\"daysAway\":5,\"timing\":null,\"sources\":[\"watchlist\"],\"prepNote\":null}],\"partial\":false,\"source\":\"UCT earnings calendar\",\"asOf\":\"2026-10-07T18:19:59+00:00\",\"watched\":1}"
+ },
+ "watchlists": "[{\"id\":\"d0a100ce-5d5\",\"user_id\":\"1f5c8e55-f889-4169-bc00-d0467cf6205b\",\"name\":\"This week\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":0,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T18:24:09.891251+00:00\",\"updated_at\":\"2026-10-07T18:24:09.922846+00:00\",\"items\":[{\"id\":\"929447de-73a\",\"watchlist_id\":\"d",
+ "reporting_soon_error": "TimeoutError: Locator.wait_for: Timeout 25000ms exceeded.",
+ "reporting_soon_symbol_link": null,
+ "reporting_soon_row_controls": null,
+ "scroll_home": {
+  "doc": 0,
+  "inner": []
+ }
+}

@@ -115,8 +115,12 @@ function DocBody({ body }) {
   return <div className={styles.body} data-template-preview-body="">{blocks.map((n, i) => <Block key={i} node={n} />)}</div>
 }
 
+// Wave 12 (lane 12A): `showUse` (default true) -- the community gallery's review queue
+// previews a SUBMISSION, where "Use this template" is not the reviewer's action, so it
+// passes false and the sheet shows Close alone.
 export default function TemplatePreview({
   open, onClose, title, subtitle, body, onUse, busy = false, loading = false, loadError = null,
+  showUse = true,
 }) {
   return (
     <Sheet open={open} onClose={onClose} title={title || 'Preview'} labelledByTitle variant="auto" maxWidth={640}>
@@ -130,15 +134,17 @@ export default function TemplatePreview({
           <DocBody body={body} />
         )}
         <div className={styles.actions}>
-          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={onUse}
-            disabled={busy || loading || !!loadError}
-          >
-            Use this template
-          </button>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>{showUse ? 'Cancel' : 'Close'}</button>
+          {showUse && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={onUse}
+              disabled={busy || loading || !!loadError}
+            >
+              Use this template
+            </button>
+          )}
         </div>
       </div>
     </Sheet>

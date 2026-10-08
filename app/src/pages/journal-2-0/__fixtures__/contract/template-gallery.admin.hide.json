@@ -1,0 +1,46 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "PATCH /api/j2/template-gallery/admin/items/ab5940fa4a9949fe9159e9f1c0a178cb",
+    "path": "/api/j2/template-gallery/admin/items/ab5940fa4a9949fe9159e9f1c0a178cb",
+    "requestBody": {
+      "action": "hide"
+    },
+    "status": 200
+  },
+  "body": {
+    "template": {
+      "author": "Alice Trader",
+      "category": "research",
+      "createdAt": "2026-10-05T14:30:00+00:00",
+      "description": "",
+      "featured": false,
+      "firm": false,
+      "hidden": true,
+      "id": "ab5940fa4a9949fe9159e9f1c0a178cb",
+      "listedAt": "2026-10-05T14:30:00+00:00",
+      "mine": false,
+      "openReports": 0,
+      "preview": [
+        {
+          "kind": "heading",
+          "text": "Before the breakout"
+        },
+        {
+          "kind": "text",
+          "text": "Is the base at least five weeks long?"
+        },
+        {
+          "kind": "text",
+          "text": "Is volume drying up into the pivot?"
+        }
+      ],
+      "propertyCount": 2,
+      "reviewNote": "",
+      "status": "approved",
+      "title": "Sector notes",
+      "updatedAt": "2026-10-05T14:30:00+00:00",
+      "usedBy": 0
+    }
+  }
+}

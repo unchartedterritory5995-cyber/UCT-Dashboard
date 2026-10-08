@@ -1,0 +1,13 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/onboarding/sample-notebook",
+    "note": "A member who never added the sample.",
+    "path": "/api/j2/onboarding/sample-notebook",
+    "status": 200
+  },
+  "body": {
+    "activeIds": [],
+    "ids": []
+  }
+}

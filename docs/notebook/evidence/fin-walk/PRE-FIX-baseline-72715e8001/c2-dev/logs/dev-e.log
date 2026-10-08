@@ -1,0 +1,22 @@
+PASS    [c2 1280] flags: auth payload: every c2 switch reads ON {"email": "q1c2m3326602@local.dev"} 
+PASS    [c2 1280] setup: the AMD position closed at its target; one CRWD trade with no plan (member API) {"amd_close": 200, "ibm_close": 200} 
+PASS    [c2 1280] plan grading: the closed trade is matched to the plan drawn before it and graded on four checks {"api_status": "planned", "checks_rendered": 4, "card_text": "Plan vs execution\n\nChart plan \u00b7 written before entry \u00b7 AMD plan \u00b7 1R = 173.88\n\nEntry\nMisse"} 
+PASS    [c2 1280] entry context: the same card persists on the closed trade's page {"card_text": "Market context at the fill\nRegime\nAmber\nas of 2026-01-02\nExposure\n72 / 150\nas of 2026-01-0"} 
+PASS    [c2 1280] visual playbook: the trade page's before and after charts {"text": "Before and after\n\nPlan levels from \u201cAMD plan\u201d: entry 340.856581, stop 166.976484, target 5"} 
+PASS    [c2 1280] plan grading: a trade with no plan is labelled Unplanned in the trades table and on its page {"chip_in_table": true, "badge_on_page": true} 
+PASS    [c2 1280] plan grading: Insights has a Discipline tab with the record over recent trades {"tab": 1, "record_text": "Discipline record\nLast 20\nLast 60\n\n2 closed trades: 1 planned, 1 unplanned.\n\nPlan checks o"} 
+PASS    [c2 1280] technical fingerprint: the chart's technical shape on the plan note, with its setup tag {"panel_text": "TECHNICAL FINGERPRINT\nAAPL \u00b7 as of 2026-09-26 \u00b7 stored bars \u00b7 frozen\nRS rank 92\nADR % 3.2%", "setup_tag": "Classic Flag/Pullback"} 
+PASS    [c2 1280] visual playbook: the gallery of every tagged chart opens from the fingerprint panel {"opened": true, "cards": 2, "gallery_text": "Setup\nAll setups\nClassic Flag/Pullback (1)\nFlat Base Breakout (1)\nAll Bases & Breakouts\nAl", "reach_error": null} 
+PASS    [c2 1280] my playbook: My Playbook opens from Insights: one card per tagged setup, worded by sample size {"door_on_insights": true, "opened": true, "text": "Back to Insights\nMy Playbook\n\nYour own edge, per setup. Under 10 trades a number is too fe"} 
+PASS    [c2 1280] review drafts: one click drafts the daily review as a note {"box": true, "note": "a25af6251fcd4f00aba489ad0d8a1d4e", "title": "2026-10-07 \u00b7 Wednesday", "text_head": "Today's recap \u2014 Oct 7\nThe numbers\n\n\n\n\n\t\n\nValue\n\n\n\n\nTrades taken\n\n\t\n\n0\n\n\n\n\nWins / losses / ", "mentions_amd": true, "reach_error": null} 
+PASS    [c2 1280] review drafts: one click drafts the weekly review as a note {"box": true, "note": "87c96fae3d814aea87e95fdb31152d64", "title": "Weekly Review \u2014 wk of Oct 5", "text_head": "Week of Oct 5\nThe numbers\n\n\n\n\n\t\n\nValue\n\n\n\n\nTrades taken\n\n\t\n\n2\n\n\n\n\nWins / losses / breakeve", "mentions_amd": true, "reach_error": null} 
+PASS    [c2 1280] review drafts: one click drafts the monthly review as a note {"box": true, "note": "efb7a46dcfb2436882549c1d28c3c8c9", "title": "Monthly Review \u2014 October 2026", "text_head": "Monthly Review \u2014 October 2026\nThe numbers\n\n\n\n\n\t\n\nValue\n\n\n\n\nTrades taken\n\n\t\n\n2\n\n\n\n\nWins / l", "mentions_amd": true, "reach_error": null} 
+NOT_RUN [c2 1280] review drafts: the Compass quote inside a draft {"reason": "NO KEY"} 
+NOT_RUN [c2 1280] writing help: Improve / Shorten / Continue in the editor {"reason": "NO KEY"} 
+NOT_RUN [c2 1280] Ask Notebook: ask a question over notes {"reason": "NO KEY"} 
+NOT_RUN [c2 1280] AI actions: Ask Notebook to do something (plan, approve, undo) {"reason": "NO KEY"} 
+NOT_RUN [c2 1280] meaning search: search by meaning (its tour's steps are walked; the search itself needs an embedding key) {"reason": "NO KEY"} 
+NOT_RUN [c2 1280] dictation: voice dictation and voice notes {"reason": "NO KEY"} 
+VERDICT c2: 19 steps, 0 FAIL
+raw log written: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\61625d99-f8db-4269-a728-231c08d3da11\scratchpad\fin\walk\dev\c2\walk.json
+EXIT 0

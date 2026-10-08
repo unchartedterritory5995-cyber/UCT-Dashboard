@@ -1,0 +1,156 @@
+{
+ "note_id": "8398420809d94f43b51fb946d8a88ad0",
+ "title": "probe: same levels, drawn-line shape",
+ "stored_annotations": [
+  {
+   "id": "ln-entry",
+   "type": "horizontal",
+   "role": "entry",
+   "points": [
+    {
+     "time": 1790539200,
+     "price": 180.0
+    }
+   ]
+  },
+  {
+   "id": "ln-stop",
+   "type": "horizontal",
+   "role": "stop",
+   "points": [
+    {
+     "time": 1790539200,
+     "price": 170.0
+    }
+   ]
+  },
+  {
+   "id": "ln-target",
+   "type": "horizontal",
+   "role": "target",
+   "points": [
+    {
+     "time": 1790539200,
+     "price": 205.0
+    }
+   ]
+  }
+ ],
+ "stored_ta_keys": [
+  "fingerprint",
+  "planBlock",
+  "setupTag"
+ ],
+ "stored_planBlock": {
+  "shares": 100.0
+ },
+ "embedId": "cmp-plan",
+ "mode": "snapshot",
+ "params": {
+  "symbol": "AAPL",
+  "tf": "D",
+  "to": 1790539200
+ },
+ "server_plan_read": {
+  "status": 200,
+  "plan": {
+   "roles": {
+    "entry": {
+     "state": "ok",
+     "value": 180.0,
+     "shape": "chart",
+     "values": []
+    },
+    "stop": {
+     "state": "ok",
+     "value": 170.0,
+     "shape": "chart",
+     "values": []
+    },
+    "target": {
+     "state": "ok",
+     "value": 205.0,
+     "shape": "chart",
+     "values": []
+    },
+    "shares": {
+     "state": "ok",
+     "value": 100.0,
+     "shape": "chart",
+     "values": []
+    }
+   },
+   "setup": null,
+   "entry": 180.0,
+   "stop": 170.0,
+   "target": 205.0,
+   "shares": 100.0,
+   "side": "long"
+  }
+ },
+ "body_kind": {
+  "canvas": true,
+  "img": true,
+  "text": "\t\n\t\n\n\n\n\t\n\t\n\n\t\n\t\nA\nL\n%\nSEP 25\nO\n111.52\nH\n112.99\nL\n110.29\nC\n111.76\n+0.18\n+0.16%\nEM"
+ },
+ "plan_button": "pressed",
+ "panel": {
+  "text": "TRADE PLAN\n205.00\nNone\nEntry\nStop\nTarget\nArm alert at this level\n180.00\nNone\nEntry\nStop\nTarget\nArm alert at this level\n170.00\nNone\nEntry\nStop\nTarget\nArm alert at this level\nR:R\n2.50R\nRisk / share\n$10.00\nAccount risk\n—\nPosition size\n—\n\nNo max risk per trade is set — set it in Journal Settings, Accounts.",
+  "row_count": 3,
+  "rows": [
+   {
+    "level_id": "ln-target",
+    "text": "205.00 | None | Entry | Stop | Target | Arm alert at this level",
+    "checked": [
+     "Target"
+    ]
+   },
+   {
+    "level_id": "ln-entry",
+    "text": "180.00 | None | Entry | Stop | Target | Arm alert at this level",
+    "checked": [
+     "Entry"
+    ]
+   },
+   {
+    "level_id": "ln-stop",
+    "text": "170.00 | None | Entry | Stop | Target | Arm alert at this level",
+    "checked": [
+     "Stop"
+    ]
+   }
+  ],
+  "numbers": [
+   [
+    "rr",
+    "2.50R"
+   ],
+   [
+    "rps",
+    "$10.00"
+   ],
+   [
+    "acct",
+    "—"
+   ],
+   [
+    "shares",
+    "—"
+   ]
+  ]
+ },
+ "console": [
+  "warning: linkifyjs: already initialized - will not register custom scheme \"https\" until manual call of linkify.init(). Register all schemes and plugins before invoking linkify the first time.",
+  "warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+  "warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+  "warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+  "warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+  "warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+  "warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+  "warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+  "warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+  "warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+  "warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently",
+  "warning: Canvas2D: Multiple readback operations using getImageData are faster with the willReadFrequently attribute set to true. See: https://html.spec.whatwg.org/multipage/canvas.html#concept-canvas-will-read-frequently"
+ ]
+}

@@ -1,0 +1,20 @@
+<<<<<<< OURS(prev)
+          saveBar={<>
+            <SaveScanButton spec={s.baseSpec}
+              hasFilters={Object.keys(s.filters).length > 0} />
+            <PromoteButton spec={s.baseSpec} disabled={!result || !total} />
+            {/* AC-11 / UC-4: asks what this screen should BECOME -- a frozen
+                list, a re-runnable screen, or a standing alert -- rather than
+                SaveScanButton's always-a-definition quick save. */}
+            <button type="button" className={styles.toolBtn} onClick={() => setSaveForkOpen(true)}>
+              <UIcon name="save" size={13} /> Save…
+            </button>
+            <SaveToNotebookButton widgetId="screener" buildCapture={buildNotebookCapture}
+              label="Screener results" ariaLabel="Save these results to Notebook"
+              disabled={!result || total == null} />
+          </>} />
+=======
+          saveBar={<SaveScanButton spec={s.baseSpec}
+            hasFilters={Object.keys(s.filters).length > 0} />} />
+>>>>>>> THEIRS(pre-landing)
+

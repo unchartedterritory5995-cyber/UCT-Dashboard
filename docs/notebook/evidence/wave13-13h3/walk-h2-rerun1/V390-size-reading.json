@@ -1,0 +1,45 @@
+{
+ "plan": {
+  "roles": {
+   "entry": {
+    "state": "ok",
+    "value": 136.670277,
+    "shape": "chart",
+    "values": []
+   },
+   "stop": {
+    "state": "ok",
+    "value": 125.746786,
+    "shape": "chart",
+    "values": []
+   },
+   "target": {
+    "state": "ok",
+    "value": 147.593772,
+    "shape": "chart",
+    "values": []
+   },
+   "shares": {
+    "state": "absent",
+    "value": null,
+    "shape": null,
+    "values": []
+   }
+  },
+  "setup": null,
+  "entry": 136.670277,
+  "stop": 125.746786,
+  "target": 147.593772,
+  "shares": null,
+  "side": "long"
+ },
+ "account": {
+  "accountId": "c6ea6f43-6b63-40e1-a9c5-3af0a7738ca9",
+  "accountSize": 100000.0,
+  "riskPct": 1.0
+ },
+ "compass": {
+  "ok": false,
+  "reason": "brain not available"
+ }
+}

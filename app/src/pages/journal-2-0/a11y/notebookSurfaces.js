@@ -45,6 +45,13 @@ export const SURFACES = Object.freeze({
   // it" sheet, opened from either template-picker's own cards or from the
   // "Your templates" section it renders inside.
   'components/notebook/TemplatePreview.jsx': { coveredBy: 'template-picker' },
+  // Wave 12 lane 12A: the community template gallery (dark behind
+  // notebook_template_gallery_enabled, so template-picker never renders it); rail
+  // a11y/templateGallery.a11y.test.jsx. The admin review queue it renders
+  // (components/admin/TemplateGalleryReviewPanel.jsx) is outside this population and is
+  // read by the community-gallery-review recipe.
+  'components/notebook/TemplateGallery.jsx': { recipe: 'community-gallery-browse' },
+  'components/notebook/GalleryPublishForm.jsx': { recipe: 'gallery-publish-form' },
 
   // ── the editor's popups, each opened through its own door ──────────────────
   'components/notebook/SlashMenu.jsx': { coveredBy: 'editor-slash' },
@@ -70,6 +77,11 @@ export const SURFACES = Object.freeze({
   'components/notebook/TradeCanvasBoard.jsx': { recipe: 'trade-canvas' },
   'components/notebook/TradeCanvasItem.jsx': { coveredBy: 'trade-canvas' },
   'components/notebook/TradeCanvasDialogs.jsx': { recipe: 'trade-canvas-dialogs' },
+  // Wave 13 lane 13I-2: the fingerprint panel under a chart block and the visual playbook sheet
+  // (dark behind notebook_ta_fingerprint_enabled / notebook_visual_playbook_enabled, so the
+  // editor recipes never render them); rail a11y/visualPlaybook.a11y.test.jsx.
+  'components/notebook/FingerprintPanel.jsx': { recipe: 'fingerprint-panel' },
+  'components/notebook/VisualPlaybook.jsx': { recipe: 'visual-playbook' },
   'components/notebook/NoteHistoryPanel.jsx': { coveredBy: 'editor-history' },
   'components/notebook/NoteVersionPreview.jsx': { coveredBy: 'editor-history' },
   'components/notebook/WidgetPalette.jsx': { coveredBy: 'editor-palette' },
@@ -83,6 +95,32 @@ export const SURFACES = Object.freeze({
   // sets a note's History lists; rail a11y/aiActions.a11y.test.jsx (request, review, applied).
   'components/notebook/AiActionsPanel.jsx': { recipe: 'ai-actions-review' },
   'components/notebook/AiChangeSetHistory.jsx': { recipe: 'ai-change-set-history' },
+  // Wave 13 lane 13C: Reporting soon on Research Home (dark behind
+  // notebook_earnings_prep_enabled); rail a11y/earningsPrep.a11y.test.jsx.
+  'components/notebook/ReportingSoon.jsx': { recipe: 'reporting-soon' },
+  // Wave 14 lane W14-D: the "get started" checklist on Research Home (behind
+  // notebook_onboarding_enabled); rail a11y/gettingStarted.a11y.test.jsx.
+  'components/notebook/GettingStartedList.jsx': { recipe: 'getting-started-checklist' },
+  // its eager gate renders nothing of its own but the list, inside the same recipe
+  'components/notebook/GettingStartedChecklist.jsx': { coveredBy: 'getting-started-checklist' },
+  // Wave 13 lane 13G-1: research capture (dark behind notebook_transcript_capture_enabled and
+  // notebook_passed_setups_enabled); rail a11y/researchCapture.a11y.test.jsx.
+  'components/notebook/SaveTranscriptPassage.jsx': { recipe: 'save-transcript-passage' },
+  'components/notebook/TranscriptDoors.jsx': { coveredBy: 'ticker-research-transcript' },
+  'components/notebook/PassedSetups.jsx': { recipe: 'passed-setups' },
+  // Wave 13 lane 13D: "what you wrote then", the resurfacing door's read-only version (dark
+  // behind awareness_note_resurface_enabled); rail a11y/resurfaceVersion.a11y.test.jsx.
+  'components/notebook/ResurfaceVersionSheet.jsx': { recipe: 'resurface-version' },
+  // Wave 13 lane 13J: the active setups board and find more like this (dark behind
+  // notebook_setups_board_enabled / notebook_find_similar_enabled, on their own route);
+  // rail a11y/setupsBoard.a11y.test.jsx.
+  'components/notebook/SetupsBoard.jsx': { recipe: 'setups-board' },
+  'components/notebook/BoardCard.jsx': { coveredBy: 'setups-board' },
+  'components/notebook/SimilarNames.jsx': { recipe: 'similar-names' },
+  // Wave 13 lane 13G-2: the thesis chip (status + distance to stop, on Positions/Holdings/
+  // Watchlist rows; dark behind notebook_thesis_chips_enabled); rail a11y/thesisChip.a11y.test.jsx.
+  // Its mount points (PositionsTable.jsx, HoldingsList.jsx) live outside this population.
+  'components/notebook/ThesisChip.jsx': { recipe: 'thesis-chip-closed' },
 
   // ── the editor's side sections ─────────────────────────────────────────────
   'components/notebook/PropertiesSection.jsx': { coveredBy: 'editor-thesis' },
@@ -105,6 +143,10 @@ export const SURFACES = Object.freeze({
   'components/notebook/FinancialFactView.jsx': { coveredBy: 'editor-nodes' },
   'components/notebook/NoteLinkView.jsx': { coveredBy: 'editor-nodes' },
   'components/notebook/WidgetEmbedView.jsx': { coveredBy: 'editor-nodes' },
+  // Landing 12-15 (lane FE round 3): the chart block's "Block actions" button, shown at 1024 px
+  // and under and loaded on demand, so no editor recipe renders it; rail
+  // a11y/embedBlockActions.a11y.test.jsx (the button, and its open menu).
+  'components/notebook/EmbedBlockActions.jsx': { recipe: 'embed-block-actions' },
   'components/notebook/AskInsertPicker.jsx': { coveredBy: 'ask-insert-picker' },
 
   // ── the journal embed renderers ────────────────────────────────────────────
@@ -113,6 +155,16 @@ export const SURFACES = Object.freeze({
   'components/notebook/BreadthEmbed.jsx': { recipe: 'embed-breadth' },
   'components/notebook/CalendarEmbed.jsx': { recipe: 'embed-calendar' },
   'components/notebook/ChartEmbed.jsx': { recipe: 'embed-chart' },
+  // Wave 13 lane 13H-2: the chart plan panel and "what happened next" replay, dark behind
+  // notebook_chart_plan_enabled (so no editor recipe renders them); rail
+  // a11y/chartPlan.a11y.test.jsx (states: sized, empty, refused; the replay stepped once).
+  'components/notebook/ChartPlanPanel.jsx': { recipe: 'chart-plan-panel' },
+  // Lane FIN-A11Y (I-6): the typed door to a level (role radios, price fields, add by price).
+  'components/notebook/ChartPlanLevelControls.jsx': { coveredBy: 'chart-plan-panel' },
+  // Lane FIN-A11Y: a screen-reader-only status that fills after mount; rendered inside the
+  // tour explainer and other surfaces, never a surface of its own.
+  'components/notebook/PoliteStatus.jsx': { exempt: 'a hidden live region with no markup of its own to audit; each surface that renders it is audited with it in place' },
+  'components/notebook/BarReplay.jsx': { recipe: 'bar-replay' },
   'components/notebook/FundamentalsEmbed.jsx': { recipe: 'embed-fundamentals' },
   'components/notebook/IndexesEmbed.jsx': { recipe: 'embed-indexes' },
   'components/notebook/MarketContextEmbed.jsx': { recipe: 'embed-market-context' },
@@ -180,4 +232,40 @@ export const OTHER_LANES_OUTSIDE_POPULATION = Object.freeze({
   'components/SharingCard.jsx': { lane: '8B', railFile: 'a11y/sharing.a11y.test.jsx' },
   'components/notebook/onboarding/NotebookTour.jsx': { lane: '8C', railFile: 'components/notebook/onboarding/NotebookTour.a11y.test.jsx' },
   '../Support.jsx': { lane: '8C', railFile: '../Support.a11y.test.jsx' },
+})
+
+/** Wave 13: surfaces OUTSIDE the derived Notebook population (they live on the Journal side:
+ *  the trade page, Insights, the Trade Journal table) that carry an axe recipe of their own.
+ *  Each maps to `{ recipe: '<surface id>', railFile }`; the owning lane's rail asserts that every
+ *  entry's file exists and its recipe is registered (`axeSurface('<id>'`) in a rail file, so an
+ *  entry here can never be decorative. Paths are relative to app/src/pages/journal-2-0/. */
+export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
+  // Wave 13 lane 13A: plan vs execution grading (dark behind notebook_plan_grading_enabled);
+  // rail a11y/planGrading.a11y.test.jsx.
+  'components/trade/PlanGradeCard.jsx': { recipe: 'plan-grade-card', railFile: 'a11y/planGrading.a11y.test.jsx' },
+  'components/insights/DisciplineRecord.jsx': { recipe: 'discipline-record', railFile: 'a11y/planGrading.a11y.test.jsx' },
+  // The Unplanned chip lives in the Trade Journal table; the recipe renders the table with it.
+  'components/TradesTable.jsx': { recipe: 'trades-table-unplanned', railFile: 'a11y/planGrading.a11y.test.jsx' },
+  // Wave 13 lane 13I-2: before and after on the trade page (dark behind
+  // notebook_visual_playbook_enabled); rail a11y/visualPlaybook.a11y.test.jsx.
+  'components/trade/TradeBeforeAfter.jsx': { recipe: 'trade-before-after', railFile: 'a11y/visualPlaybook.a11y.test.jsx' },
+  // Wave 13 lane 13B: My Playbook and its door in Insights > Playbook (dark behind
+  // notebook_playbook_enabled); rail a11y/myPlaybook.a11y.test.jsx.
+  'components/insights/MyPlaybook.jsx': { recipe: 'my-playbook', railFile: 'a11y/myPlaybook.a11y.test.jsx' },
+  'components/insights/PlaybookSection.jsx': { recipe: 'playbook-section-door', railFile: 'a11y/myPlaybook.a11y.test.jsx' },
+  // Wave 13 lane 13E-2: the Entry-context card and its "Why did you take it?" prompt, on the
+  // position and trade detail pages (dark behind notebook_entry_context_enabled; the dictation
+  // button inside WhyPrompt is further gated on notebook_voice_notes_enabled); rail
+  // a11y/entryContext.a11y.test.jsx.
+  'components/EntryContextCard.jsx': { recipe: 'entry-context-card', railFile: 'a11y/entryContext.a11y.test.jsx' },
+  'components/WhyPrompt.jsx': { recipe: 'entry-context-card', railFile: 'a11y/entryContext.a11y.test.jsx' },
+  // Wave 14 lane W14-A: the first-run welcome's capability preview (a lazy chunk of
+  // ResearchHome, under components/notebook/onboarding/, so outside the derived population);
+  // rail a11y/capabilityPreview.a11y.test.jsx (with the first-run-welcome recipe).
+  'components/notebook/onboarding/CapabilityPreview.jsx': { recipe: 'capability-preview', railFile: 'a11y/capabilityPreview.a11y.test.jsx' },
+  // Wave 14 lane W14-C2: the one-time "new in your Notebook" offer (a lazy chunk behind an
+  // eager gate, both under components/notebook/onboarding/); rail a11y/tourOffer.a11y.test.jsx
+  // (the card alone, and the real gate offering into a first-run slot).
+  'components/notebook/onboarding/TourOfferPrompt.jsx': { recipe: 'tour-offer-prompt', railFile: 'a11y/tourOffer.a11y.test.jsx' },
+  'components/notebook/onboarding/TourOfferGate.jsx': { recipe: 'tour-offer-in-slot', railFile: 'a11y/tourOffer.a11y.test.jsx' },
 })

@@ -1,0 +1,37 @@
+{
+ "defs": {
+  "entry": 200,
+  "stop": 200,
+  "formula": 200,
+  "formula_body": "{\"propertyDef\":{\"id\":\"bff51df04ad7420e889b7314d570a508\",\"name\":\"Risk V1280\",\"type\":\"formula\",\"options\":null,\"sortOrder\":2,\"source\":\"user_set\",\"createdAt\":\"2026-10-07T18:10:15.145103+00:00\",\"updatedAt\""
+ },
+ "anchors_on_screen": [
+  [
+   "properties-add-empty",
+   1
+  ],
+  [
+   "properties-add",
+   0
+  ],
+  [
+   "computed-value",
+   0
+  ],
+  [
+   "computed-edit",
+   0
+  ]
+ ],
+ "cards": [
+  {
+   "progress": "Step 1 of 5",
+   "title": "Numbers that work themselves out",
+   "buttons": [
+    "Skip tour",
+    "Back",
+    "Next"
+   ]
+  }
+ ]
+}

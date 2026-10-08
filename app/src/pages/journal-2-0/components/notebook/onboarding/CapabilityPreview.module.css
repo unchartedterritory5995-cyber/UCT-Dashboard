@@ -1,0 +1,65 @@
+/* Wave 14 lane W14-A: the first-run welcome's capability preview.
+   ⛔ Existing tokens only (a11y/notebookContrast.test.js audits every Notebook stylesheet and
+   forbids literal colours). The same pairs the first-run screen already uses: bright text for
+   the label, muted text for the sentence, on the page background.
+   ⭐ No control lives here (the promotion is text that describes the sample button), so there
+   is nothing for the touch tier's --tap-min floor to lift. It sits inside .firstRun, whose
+   480px column already fits a 390px phone with its own 12px gutter. */
+.preview {
+  margin: 24px 0 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-surface);
+  text-align: left;
+}
+.heading {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.item {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.label {
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.promo {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.list + .promo {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.promoName {
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.preview > .promo:first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  .preview {
+    margin-top: 20px;
+    padding: 12px;
+  }
+}

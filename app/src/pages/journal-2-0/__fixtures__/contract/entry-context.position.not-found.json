@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/entry-context/position/ec-theirs",
+    "path": "/api/j2/entry-context/position/ec-theirs",
+    "status": 404
+  },
+  "body": {
+    "detail": "Not found"
+  }
+}

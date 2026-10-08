@@ -183,6 +183,24 @@ LIVE_ROOT_READERS = {
 }
 
 
+#: A notebook tool that applies the census FIRST and then, on purpose, sets variables for its own
+#: in-process run. Named, with the reason; the ordering check still applies to it in full, and
+#: the test below fails on a stale entry. Landing 12-15: the first entry.
+ENV_WRITES_AFTER_THE_CENSUS = {
+    "notebook_contract_fixtures.py": (
+        "after `import conftest` has pinned every data path to the sandbox, its one patch helper "
+        "(`_Patches.setenv`, with an undo list) points AUTH_DB_PATH at a fresh temporary database "
+        "per run and switches the Notebook capability flags on and off to record each route's "
+        "answer both ways; every write is undone when the run ends, and the run fails if the "
+        "shared-root tripwire recorded anything"),
+    "notebook_w11b_scale.py": (
+        "after `import conftest` has pinned every data path, it switches ONE capability on for its "
+        "own process (NOTEBOOK_FORMULAS_ENABLED, the gate under test) before importing the code "
+        "that reads it; a flag, never a data path, and the process ends with the run"),
+}
+_BY_HAND = "sets an environment variable by hand"
+
+
 def _notebook_api_tools() -> list[Path]:
     import warnings
     out = []
@@ -204,8 +222,26 @@ def test_every_notebook_tool_that_imports_api_applies_the_census_first():
     for path in _notebook_api_tools():
         if path.name in LIVE_ROOT_READERS:
             continue
-        problems.extend(_problems(path.read_text(encoding="utf-8"), path.name))
+        found = _problems(path.read_text(encoding="utf-8"), path.name)
+        if path.name in ENV_WRITES_AFTER_THE_CENSUS:
+            # Only the hand-set-variable finding is excused. A missing or late `import conftest`
+            # in the same tool still fails here.
+            found = [f for f in found if _BY_HAND not in f]
+        problems.extend(found)
     assert not problems, "\n".join(problems)
+
+
+def test_an_env_write_exemption_excuses_only_the_env_writes_and_is_never_stale():
+    names = [p.name for p in _notebook_api_tools()]
+    for exempt, why in ENV_WRITES_AFTER_THE_CENSUS.items():
+        assert exempt in names, f"stale exemption: {exempt} no longer imports api (or is gone)"
+        assert len(why) > 60, f"{exempt}: an exemption must say why"
+        found = _problems((TOOLS / exempt).read_text(encoding="utf-8"), exempt)
+        assert any(_BY_HAND in f for f in found), f"stale exemption: {exempt} no longer sets a variable"
+        assert all(_BY_HAND in f for f in found), f"{exempt} is excused for its variables only; it also has: {found}"
+    # CONTROL: a tool with no conftest import is still reported, whatever else it does.
+    broken = _problems("import os\nfrom api.main import app\nos.putenv('X', 'y')\n", "notebook_x.py")
+    assert any("no module-level `import conftest`" in f for f in broken), broken
 
 
 def test_the_notebook_tool_walk_sees_the_benchmark_and_every_exemption_is_live():

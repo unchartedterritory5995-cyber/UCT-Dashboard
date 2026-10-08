@@ -1,0 +1,72 @@
+PASS    [c2 1280] flags: auth payload: every c2 switch reads ON {"email": "q1c2m3326602@local.dev"} 
+PASS    [c2 1280] note resurfacing: the notices for the two crossed stops are in the in-app inbox (Settings, Voice Insights Inbox) {"insights_api_status": 200, "first_notice_text": null} http=500 /api/voice/cost
+FAIL    [c2 1280] note resurfacing: the notice opens the note at 'What you wrote then': the version that first named the stop {"landed": "/journal/notebook?note=649dba03ea9f414da59a309280b92634&resurfaceVersion=eb165ef0d56d4de28", "sheet_text": "What you wrote then\n\u00d7\n\nSaved 12:10 AM EDT. This is the version that first named the level.", "reach_error": null, "expected_version": "eb165ef0d56d4de282a2d0c271379fa6", "e 
+INFO    [c2 1280] note resurfacing: a plan drawn in one sitting has no saved version naming its stop, so its notice opens the note itself, with no sheet (by design: note_levels.project_note) {"amd_link": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30"} 
+PASS    [c2 820] layout: Research Home {} 
+PASS    [c2 820] layout: plan note with fingerprint (AAPL sample) {} 
+PASS    [c2 820] layout: own chart plan note (AMD) {} 
+PASS    [c2 820] layout: formula note {} 
+FAIL    [c2 820] layout: trade page {} small=1
+PASS    [c2 820] layout: unplanned trade page {} 
+PASS    [c2 820] layout: position page {} 
+PASS    [c2 820] layout: Open Positions rows {} 
+PASS    [c2 820] layout: closed trades table {} 
+PASS    [c2 820] layout: Insights > Discipline {} 
+PASS    [c2 820] layout: Insights > Reviews {} 
+PASS    [c2 820] layout: My Playbook {} 
+PASS    [c2 820] layout: setups board {} 
+FAIL    [c2 820] layout: research workspace (TSLA) {} small=1
+FAIL    [c2 820] layout: review draft note {} small=17
+NOT_RUN [c2 820] layout: earnings prep note: skipped, an earlier step did not produce its page {"reason": "depends on a failed step"} 
+PASS    [c2 820] layout: Help {} 
+PASS    [c2 820] layout: visual playbook gallery (opened) {"opened": true} 
+PASS    [c2 390] layout: Research Home {} 
+PASS    [c2 390] layout: plan note with fingerprint (AAPL sample) {} 
+PASS    [c2 390] layout: own chart plan note (AMD) {} 
+PASS    [c2 390] layout: formula note {} 
+FAIL    [c2 390] layout: trade page {} OVERFLOW small=1
+FAIL    [c2 390] layout: unplanned trade page {} OVERFLOW
+PASS    [c2 390] layout: position page {} 
+PASS    [c2 390] layout: Open Positions rows {} 
+FAIL    [c2 390] layout: closed trades table {} OVERFLOW
+PASS    [c2 390] layout: Insights > Discipline {} 
+PASS    [c2 390] layout: Insights > Reviews {} 
+PASS    [c2 390] layout: My Playbook {} 
+PASS    [c2 390] layout: setups board {} 
+FAIL    [c2 390] layout: research workspace (TSLA) {} OVERFLOW small=1
+FAIL    [c2 390] layout: review draft note {} small=19
+NOT_RUN [c2 390] layout: earnings prep note: skipped, an earlier step did not produce its page {"reason": "depends on a failed step"} 
+FAIL    [c2 390] layout: Help {} OVERFLOW
+PASS    [c2 390] layout: visual playbook gallery (opened) {"opened": true} 
+PASS    [c2 1280] layout: Research Home {} 
+PASS    [c2 1280] layout: plan note with fingerprint (AAPL sample) {} 
+PASS    [c2 1280] layout: own chart plan note (AMD) {} 
+PASS    [c2 1280] layout: formula note {} 
+PASS    [c2 1280] layout: trade page {} 
+PASS    [c2 1280] layout: unplanned trade page {} 
+PASS    [c2 1280] layout: position page {} 
+PASS    [c2 1280] layout: Open Positions rows {} 
+PASS    [c2 1280] layout: closed trades table {} 
+PASS    [c2 1280] layout: Insights > Discipline {} 
+PASS    [c2 1280] layout: Insights > Reviews {} 
+PASS    [c2 1280] layout: My Playbook {} 
+PASS    [c2 1280] layout: setups board {} 
+PASS    [c2 1280] layout: research workspace (TSLA) {} 
+PASS    [c2 1280] layout: review draft note {} 
+NOT_RUN [c2 1280] layout: earnings prep note: skipped, an earlier step did not produce its page {"reason": "depends on a failed step"} 
+PASS    [c2 1280] layout: Help {} 
+PASS    [c2 1280] layout: visual playbook gallery (opened) {"opened": true} 
+INFO    [c2 1280] census control: every absence selector used in c1 matched a real element somewhere in c2 {} 
+VERDICT c2: 59 steps, 10 FAIL
+  [1280] note resurfacing: the notice opens the note at 'What you wrote then': the version that first named the stop
+  [820] layout: trade page
+  [820] layout: research workspace (TSLA)
+  [820] layout: review draft note
+  [390] layout: trade page
+  [390] layout: unplanned trade page
+  [390] layout: closed trades table
+  [390] layout: research workspace (TSLA)
+  [390] layout: review draft note
+  [390] layout: Help
+raw log written: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\61625d99-f8db-4269-a728-231c08d3da11\scratchpad\fin\walk\dev\c2\walk.json
+EXIT 1

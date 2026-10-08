@@ -109,6 +109,49 @@ NOTEBOOK_TYPE_SCHEMA: dict[str, int] = {
     "tradeCanvas": 3,
 }
 
+# {"<nodeType>.<attr>": introducedAtSchema} -- an ATTRIBUTE on an existing type
+# whose absence would change what the note means (wave 13 lane 13H-1, the first
+# one; `docs/notebook/wave5-rollback.md`, "Level 4").
+#
+# Why a second table. TipTap reads an unknown TYPE as "blank the whole note"
+# (the hazard above), but an unknown ATTRIBUTE on a known type is dropped
+# silently at parse time -- the note opens fine and its next save writes the
+# attribute away. The type table cannot express that, so attributes get their
+# own rows here, and `required_schema` counts a row only when the stored node
+# CARRIES the attribute with a value (null, an empty object or an empty list is
+# nothing an older editor could lose, so it needs nothing newer).
+#
+# ⛔ The same rules as the type table: ONE FACT IN TWO FILES (the client half is
+# `NOTEBOOK_ATTR_SCHEMA` in `lib/notebookSchema.js`, pinned equal by
+# tests/test_notebook_schema_guard.py), NEVER REMOVE A ROW, never reverted.
+# Levels continue the type table's numbering: a client declares "everything,
+# types and attributes, at or below N".
+NOTEBOOK_ATTR_SCHEMA: dict[str, int] = {
+    # ── 4: wave 13 lane 13H-1 (2026-10-02) -- chart plan data on a chart embed ──
+    # ⛔ NEVER-REVERT. `widgetEmbed.ta` holds the setup tag, the frozen technical
+    # fingerprint and the plan block (planned shares, which engine sized them).
+    # An editor without the attr would drop it on its next save; level 4 makes
+    # the server refuse that write instead.
+    "widgetEmbed.ta": 4,
+}
+
+
+def _attr_rows() -> dict[str, tuple[tuple[str, int], ...]]:
+    """`NOTEBOOK_ATTR_SCHEMA` grouped by node type: {type: ((attr, level), ...)}."""
+    rows: dict[str, list[tuple[str, int]]] = {}
+    for key, level in NOTEBOOK_ATTR_SCHEMA.items():
+        node_type, _, attr = key.partition(".")
+        rows.setdefault(node_type, []).append((attr, level))
+    return {t: tuple(v) for t, v in rows.items()}
+
+
+_ATTRS_BY_TYPE = _attr_rows()
+
+
+def _carries(value: Any) -> bool:
+    """Does a stored attribute value hold anything an older editor would lose?"""
+    return value is not None and value != {} and value != [] and value != ""
+
 
 class NotebookSchemaTooOld(Exception):
     """A body write from a client that cannot read the stored body. The
@@ -134,9 +177,10 @@ def declared_schema(raw: Any) -> int:
 
 
 def required_schema(body: Any) -> int:
-    """The newest schema any node or mark in `body` needs. A type the map does
-    not know counts as 0 (an importer's stray type is not a newer client's
-    content), and a body that is not JSON, or not a doc, needs 0.
+    """The newest schema any node or mark in `body` needs -- its type's row, and
+    the row of every attribute it carries a value for (`NOTEBOOK_ATTR_SCHEMA`).
+    A type the map does not know counts as 0 (an importer's stray type is not a
+    newer client's content), and a body that is not JSON, or not a doc, needs 0.
 
     Walks with an explicit stack: a stored body can nest deeper than Python's
     recursion limit (a long list of nested bullets)."""
@@ -154,6 +198,12 @@ def required_schema(body: Any) -> int:
         t = node.get("type")
         if isinstance(t, str):
             required = max(required, NOTEBOOK_TYPE_SCHEMA.get(t, 0))
+            attr_rows = _ATTRS_BY_TYPE.get(t)
+            attrs = node.get("attrs")
+            if attr_rows and isinstance(attrs, dict):
+                for attr, level in attr_rows:
+                    if _carries(attrs.get(attr)):
+                        required = max(required, level)
         marks = node.get("marks")
         if isinstance(marks, list):
             for mark in marks:

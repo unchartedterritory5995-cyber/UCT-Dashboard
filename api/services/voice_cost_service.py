@@ -91,13 +91,21 @@ def get_monthly_cost_summary(user_id: str) -> dict:
         mode_c_seconds = int(row["mode_c_seconds"] or 0)
         mode_c_sessions = int(row["mode_c_sessions"] or 0)
 
-        # Mode A from voice_usage_monthly (TTS seconds)
+        # Mode A from voice_usage_monthly (TTS seconds), THIS calendar month's row.
+        # ⛔ The columns are `mode_a_seconds` and `year_month`, the ones the table
+        # has had since it was created and the ones `voice_usage` writes. This
+        # asked for `seconds_used` ordered by `month_key`, names no schema or
+        # migration ever held, so it raised on every database and the endpoint
+        # answered 500 from its first day. It also took the newest row whatever
+        # its month. The month key comes from the writer, never a second format.
+        # Rail: tests/test_voice_cost_summary.py prepares every statement in this
+        # file against a database built from nothing.
+        from api.services.voice_usage import _current_year_month
         row_a = conn.execute(
-            """SELECT COALESCE(seconds_used, 0) AS s
+            """SELECT COALESCE(mode_a_seconds, 0) AS s
                   FROM voice_usage_monthly
-                 WHERE user_id = ?
-                 ORDER BY month_key DESC LIMIT 1""",
-            (user_id,),
+                 WHERE user_id = ? AND year_month = ?""",
+            (user_id, _current_year_month()),
         ).fetchone()
         # Rough: 1 second of TTS ≈ 25 chars at 150 WPM. Use 25 chars/sec.
         mode_a_chars_estimate = (row_a["s"] if row_a else 0) * 25

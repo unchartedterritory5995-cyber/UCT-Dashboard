@@ -67,6 +67,7 @@ import anyio
 
 from api.services.journal_two.attachment_root import read_candidates_with_roots
 from api.services.journal_two import trade_canvas as _trade_canvas
+from api.services.journal_two import chart_plan as _chart_plan
 
 _INLINE_MARKS = {
     "bold": ("**", "**"),
@@ -1155,7 +1156,12 @@ def _block(node: dict[str, Any], resolver=None) -> str:
         # the note look like it lost content, so emit the widget's own
         # pre-computed search line -- the same string that feeds body_plain.
         label = attrs.get("searchText") or attrs.get("widgetId") or "widget"
-        return f"> [{_closed(_prose(label))}]"
+        line = f"> [{_closed(_prose(label))}]"
+        # Wave 13 lane 13H-1: a chart whose drawings carry plan roles keeps its plan levels
+        # (chart_plan.plan_levels_line, read by plan_extract) as a second paragraph of the
+        # same quote -- the web page export renders this Markdown too.
+        plan = _chart_plan.plan_levels_line(attrs)
+        return f"{line}\n>\n> {_prose(plan)}" if plan else line
     if ntype == "table":
         return _table(node, resolver)
     if ntype == "callout":

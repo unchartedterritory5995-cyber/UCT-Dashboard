@@ -583,6 +583,9 @@ CREATE TABLE IF NOT EXISTS j2_note_folders (
     parent_id   TEXT NOT NULL DEFAULT '',
     sort_order  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,
+    -- Which importer MADE this folder, or NULL for one a member made (fin-data2 round 2).
+    -- Only the sample seed sets it; `sample_marker` is the one reader. Nullable and additive.
+    import_source TEXT,
     UNIQUE(user_id, parent_id, name)
 );
 CREATE INDEX IF NOT EXISTS idx_j2_note_folders_user
@@ -1988,6 +1991,32 @@ _PHASE_2_ALTERS = [
     # two columns; `_upgrade_fts_map_note_rowid` (end of ensure_schema) fills the
     # rows, replaces the triggers and builds the covering index on it.
     "ALTER TABLE j2_notes_fts_map ADD COLUMN note_rowid INTEGER",
+    # Wave 13 (lane 13A): plan vs execution grading. ONE row per graded trade, the plan
+    # FROZEN at the first match (ruling R4): the numbers read, where they came from (a
+    # note, a Compass verdict, or the member saying "no plan"), the note version that was
+    # read and the moment that content became current. Only a member's Re-link replaces
+    # it, and the replaced row is kept in `previous_json` (R-11). Keyed on the STABLE
+    # trade_ref (ext:<external_id> broker / id:<row id> manual, trade_refs.py) -- never
+    # j2_trades.id, which a broker purge+reinsert reissues. An unplanned trade has NO
+    # row (unplanned is not frozen: a plan linked later still matches). Purged with the
+    # account (account_purge.py). Grades are computed on read from these frozen inputs
+    # and the trade's own fills; nothing here ever writes j2_trades.
+    "CREATE TABLE IF NOT EXISTS j2_trade_plan_links ("
+    "user_id TEXT NOT NULL, trade_ref TEXT NOT NULL, symbol TEXT NOT NULL, "
+    "source_kind TEXT NOT NULL, match_tier TEXT NOT NULL, "
+    "note_id TEXT, verdict_id TEXT, version_id TEXT, plan_as_of TEXT, "
+    "plan_json TEXT NOT NULL, flags_json TEXT NOT NULL DEFAULT '[]', "
+    "matched_at TEXT NOT NULL, relinked_at TEXT, "
+    "relink_count INTEGER NOT NULL DEFAULT 0, previous_json TEXT, "
+    "PRIMARY KEY (user_id, trade_ref))",
+    # fin-security I-2: the remembered "unplanned" (plan_grading.MatchScope). One row per trade
+    # that had no plan the last time it was matched, with a stamp of everything that could
+    # change that. A memo, never a freeze: a stamp that no longer matches is ignored and the
+    # trade is matched again. Additive; safe to drop (it is rebuilt on read). Purged with the
+    # account (account_purge.py).
+    "CREATE TABLE IF NOT EXISTS j2_trade_plan_misses ("
+    "user_id TEXT NOT NULL, trade_ref TEXT NOT NULL, stamp TEXT NOT NULL, "
+    "checked_at TEXT NOT NULL, PRIMARY KEY (user_id, trade_ref))",
 ]
 
 # ── Wave 7 (lane I): the Notebook's read-path indexes ──────────────────────────
@@ -2099,6 +2128,14 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     from api.services.journal_two.capture_auth import ensure_capture_auth_schema
     ensure_capture_auth_schema(conn)
 
+    # Wave 12 (lane 12A): the community template gallery's three j2_ tables
+    # (j2_template_gallery, _reports, _uses) and its firm "UCT picks" seed. The DDL
+    # lives with the module that owns it, like the capture tables above; it is called
+    # from HERE so the account-purge manifest rail, which reads ensure_schema, sees
+    # every member table it creates. The seed never raises (template_gallery.py).
+    from api.services.journal_two.template_gallery import ensure_gallery_schema
+    ensure_gallery_schema(conn)
+
     # Phase 2 ALTER additions: idempotent via try/except since SQLite
     # doesn't have IF NOT EXISTS for ADD COLUMN.
     for stmt in _PHASE_2_ALTERS:
@@ -2131,6 +2168,18 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         run_notebook_migration_v2(conn)
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration-v2] aborted: {e}")
+
+    # The folder's own maker mark (fin-data2 round 2): additive, nullable, idempotent. HERE and
+    # not inside migration v2, which is skipped once its flag file exists and whose rebuild
+    # recreates the table without it. A folder that existed before the column stays NULL,
+    # which reads as "a member's folder": the sample's removal never deletes it.
+    try:
+        fcols = {r[1] for r in conn.execute("PRAGMA table_info(j2_note_folders)")}
+        if fcols and "import_source" not in fcols:
+            conn.execute("ALTER TABLE j2_note_folders ADD COLUMN import_source TEXT")
+            conn.commit()
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[note-folders import_source] aborted: {e}")
 
     # Partial UNIQUE index on (user_id, import_key) — created here, AFTER both
     # notebook migrations, so it can never reference import_key before that

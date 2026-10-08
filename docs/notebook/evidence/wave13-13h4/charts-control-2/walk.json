@@ -1,0 +1,646 @@
+{
+ "tool": "tools/notebook_w13h4_charts_control.py",
+ "base": "http://127.0.0.1:8693",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13h4\\charts-control-2\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-03 21:19:14",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-03 21:20:35",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-03 21:21:07",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\wave13-13h4\\charts-control-2\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w13h4\\docs\\plans\\joystick\\sandbox-runs\\2026-10-03T21-19-05.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "raw": {
+  "bare_V390_canvas_box": [
+   0,
+   53,
+   300,
+   150
+  ],
+  "bare_V390_armed_after_press": {
+   "ariaPressed": "true",
+   "boxShadow": "none"
+  },
+  "bare_V390_mobile_draw_bar_present": true,
+  "bare_V390_taps": [
+   {
+    "attempt": 1,
+    "frac": 0.28,
+    "x": 135.0,
+    "y": 95.0,
+    "box_used": [
+     0,
+     53,
+     300,
+     150
+    ],
+    "remeasured": false,
+    "element_from_point_chain": [
+     {
+      "tag": "CANVAS",
+      "cls": "",
+      "rect": [
+       0,
+       53,
+       390,
+       736
+      ],
+      "pe": "auto",
+      "z": "4",
+      "pos": "absolute"
+     },
+     {
+      "tag": "DIV",
+      "cls": "_wrapper_1edg7_3 ",
+      "rect": [
+       0,
+       53,
+       390,
+       736
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "relative"
+     },
+     {
+      "tag": "DIV",
+      "cls": "_chartFill_1qgsr_1037",
+      "rect": [
+       0,
+       53,
+       390,
+       736
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "relative"
+     },
+     {
+      "tag": "DIV",
+      "cls": "_chartWidget_1qgsr_339",
+      "rect": [
+       0,
+       53,
+       390,
+       736
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "static"
+     },
+     {
+      "tag": "DIV",
+      "cls": "_paneWrap_1502u_413",
+      "rect": [
+       0,
+       53,
+       390,
+       736
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "static"
+     },
+     {
+      "tag": "DIV",
+      "cls": "_chartArea_1502u_397",
+      "rect": [
+       0,
+       53,
+       390,
+       736
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "relative"
+     },
+     {
+      "tag": "DIV",
+      "cls": "_chartCol_1502u_49",
+      "rect": [
+       0,
+       0,
+       0,
+       0
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "static"
+     },
+     {
+      "tag": "DIV",
+      "cls": "_mobileWorkspace_1qgsr_2967 _shell_1502u_35 ",
+      "rect": [
+       0,
+       0,
+       390,
+       844
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "static"
+     }
+    ],
+    "canvas_tags_before": [
+     "cyd48v2i",
+     "ccla1pov",
+     "ce183p8v",
+     "cki10j0t",
+     "cv3yv0zv",
+     "c9lcvu7g",
+     "coz7686e",
+     "c8f9r271",
+     "czfug91l",
+     "cntd31t6",
+     "cnxso42c",
+     "cwwx2ly1",
+     "cujsi9mx",
+     "cx6165cs",
+     "cejz6s04"
+    ],
+    "canvas_tags_after": [
+     "cyd48v2i",
+     "ccla1pov",
+     "ce183p8v",
+     "cki10j0t",
+     "cv3yv0zv",
+     "c9lcvu7g",
+     "coz7686e",
+     "c8f9r271",
+     "czfug91l",
+     "cntd31t6",
+     "cnxso42c",
+     "cwwx2ly1",
+     "cujsi9mx",
+     "cx6165cs",
+     "cejz6s04"
+    ],
+    "canvas_remounted": false,
+    "events": [
+     {
+      "ty": "pointerdown",
+      "t": 19196,
+      "target": "CANVAS.",
+      "pointerType": "touch",
+      "isTrusted": true,
+      "cancelable": true,
+      "defaultPrevented": false,
+      "touches": null
+     },
+     {
+      "ty": "touchstart",
+      "t": 19212,
+      "target": "CANVAS.",
+      "pointerType": null,
+      "isTrusted": true,
+      "cancelable": true,
+      "defaultPrevented": false,
+      "touches": 1
+     },
+     {
+      "ty": "pointerup",
+      "t": 19214,
+      "target": "CANVAS.",
+      "pointerType": "touch",
+      "isTrusted": true,
+      "cancelable": true,
+      "defaultPrevented": false,
+      "touches": null
+     },
+     {
+      "ty": "touchend",
+      "t": 19217,
+      "target": "CANVAS.",
+      "pointerType": null,
+      "isTrusted": true,
+      "cancelable": true,
+      "defaultPrevented": false,
+      "touches": 0
+     }
+    ]
+   },
+   {
+    "attempt": 2,
+    "frac": 0.5,
+    "x": 135.0,
+    "y": 128.0,
+    "box_used": [
+     0,
+     53,
+     300,
+     150
+    ],
+    "remeasured": false,
+    "element_from_point_chain": [
+     {
+      "tag": "CANVAS",
+      "cls": "",
+      "rect": [
+       0,
+       53,
+       314,
+       622
+      ],
+      "pe": "auto",
+      "z": "2",
+      "pos": "absolute"
+     },
+     {
+      "tag": "DIV",
+      "cls": "",
+      "rect": [
+       0,
+       53,
+       314,
+       622
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "relative"
+     },
+     {
+      "tag": "TD",
+      "cls": "",
+      "rect": [
+       0,
+       53,
+       314,
+       622
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "relative"
+     },
+     {
+      "tag": "TR",
+      "cls": "",
+      "rect": [
+       0,
+       53,
+       390,
+       622
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "static"
+     },
+     {
+      "tag": "TABLE",
+      "cls": "",
+      "rect": [
+       0,
+       53,
+       390,
+       736
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "static"
+     },
+     {
+      "tag": "DIV",
+      "cls": "tv-lightweight-charts",
+      "rect": [
+       0,
+       53,
+       390,
+       736
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "static"
+     },
+     {
+      "tag": "DIV",
+      "cls": "_chart_1edg7_21",
+      "rect": [
+       0,
+       53,
+       390,
+       736
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "static"
+     },
+     {
+      "tag": "DIV",
+      "cls": "_wrapper_1edg7_3 ",
+      "rect": [
+       0,
+       53,
+       390,
+       736
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "relative"
+     }
+    ],
+    "canvas_tags_before": [
+     "cyd48v2i",
+     "ccla1pov",
+     "ce183p8v",
+     "cki10j0t",
+     "cv3yv0zv",
+     "c9lcvu7g",
+     "coz7686e",
+     "c8f9r271",
+     "czfug91l",
+     "cntd31t6",
+     "cnxso42c",
+     "cwwx2ly1",
+     "cujsi9mx",
+     "cx6165cs",
+     "cejz6s04"
+    ],
+    "canvas_tags_after": [
+     "cyd48v2i",
+     "ccla1pov",
+     "ce183p8v",
+     "cki10j0t",
+     "cv3yv0zv",
+     "c9lcvu7g",
+     "coz7686e",
+     "c8f9r271",
+     "czfug91l",
+     "cntd31t6",
+     "cnxso42c",
+     "cwwx2ly1",
+     "cujsi9mx",
+     "cx6165cs",
+     "cejz6s04"
+    ],
+    "canvas_remounted": false,
+    "events": [
+     {
+      "ty": "pointerdown",
+      "t": 19812,
+      "target": "CANVAS.",
+      "pointerType": "touch",
+      "isTrusted": true,
+      "cancelable": true,
+      "defaultPrevented": false,
+      "touches": null
+     },
+     {
+      "ty": "touchstart",
+      "t": 19814,
+      "target": "CANVAS.",
+      "pointerType": null,
+      "isTrusted": true,
+      "cancelable": true,
+      "defaultPrevented": false,
+      "touches": 1
+     },
+     {
+      "ty": "pointerup",
+      "t": 19815,
+      "target": "CANVAS.",
+      "pointerType": "touch",
+      "isTrusted": true,
+      "cancelable": true,
+      "defaultPrevented": false,
+      "touches": null
+     },
+     {
+      "ty": "touchend",
+      "t": 19821,
+      "target": "CANVAS.",
+      "pointerType": null,
+      "isTrusted": true,
+      "cancelable": true,
+      "defaultPrevented": false,
+      "touches": 0
+     }
+    ]
+   },
+   {
+    "attempt": 3,
+    "frac": 0.72,
+    "x": 135.0,
+    "y": 161.0,
+    "box_used": [
+     0,
+     53,
+     300,
+     150
+    ],
+    "remeasured": false,
+    "element_from_point_chain": [
+     {
+      "tag": "CANVAS",
+      "cls": "",
+      "rect": [
+       0,
+       53,
+       314,
+       622
+      ],
+      "pe": "auto",
+      "z": "2",
+      "pos": "absolute"
+     },
+     {
+      "tag": "DIV",
+      "cls": "",
+      "rect": [
+       0,
+       53,
+       314,
+       622
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "relative"
+     },
+     {
+      "tag": "TD",
+      "cls": "",
+      "rect": [
+       0,
+       53,
+       314,
+       622
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "relative"
+     },
+     {
+      "tag": "TR",
+      "cls": "",
+      "rect": [
+       0,
+       53,
+       390,
+       622
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "static"
+     },
+     {
+      "tag": "TABLE",
+      "cls": "",
+      "rect": [
+       0,
+       53,
+       390,
+       736
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "static"
+     },
+     {
+      "tag": "DIV",
+      "cls": "tv-lightweight-charts",
+      "rect": [
+       0,
+       53,
+       390,
+       736
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "static"
+     },
+     {
+      "tag": "DIV",
+      "cls": "_chart_1edg7_21",
+      "rect": [
+       0,
+       53,
+       390,
+       736
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "static"
+     },
+     {
+      "tag": "DIV",
+      "cls": "_wrapper_1edg7_3 ",
+      "rect": [
+       0,
+       53,
+       390,
+       736
+      ],
+      "pe": "auto",
+      "z": "auto",
+      "pos": "relative"
+     }
+    ],
+    "canvas_tags_before": [
+     "cyd48v2i",
+     "ccla1pov",
+     "ce183p8v",
+     "cki10j0t",
+     "cv3yv0zv",
+     "c9lcvu7g",
+     "coz7686e",
+     "c8f9r271",
+     "czfug91l",
+     "cntd31t6",
+     "cnxso42c",
+     "cwwx2ly1",
+     "cujsi9mx",
+     "cx6165cs",
+     "cejz6s04"
+    ],
+    "canvas_tags_after": [
+     "cyd48v2i",
+     "ccla1pov",
+     "ce183p8v",
+     "cki10j0t",
+     "cv3yv0zv",
+     "c9lcvu7g",
+     "coz7686e",
+     "c8f9r271",
+     "czfug91l",
+     "cntd31t6",
+     "cnxso42c",
+     "cwwx2ly1",
+     "cujsi9mx",
+     "cx6165cs",
+     "cejz6s04"
+    ],
+    "canvas_remounted": false,
+    "events": [
+     {
+      "ty": "pointerdown",
+      "t": 20530,
+      "target": "CANVAS.",
+      "pointerType": "touch",
+      "isTrusted": true,
+      "cancelable": true,
+      "defaultPrevented": false,
+      "touches": null
+     },
+     {
+      "ty": "touchstart",
+      "t": 20531,
+      "target": "CANVAS.",
+      "pointerType": null,
+      "isTrusted": true,
+      "cancelable": true,
+      "defaultPrevented": false,
+      "touches": 1
+     },
+     {
+      "ty": "pointerup",
+      "t": 20533,
+      "target": "CANVAS.",
+      "pointerType": "touch",
+      "isTrusted": true,
+      "cancelable": true,
+      "defaultPrevented": false,
+      "touches": null
+     },
+     {
+      "ty": "touchend",
+      "t": 20533,
+      "target": "CANVAS.",
+      "pointerType": null,
+      "isTrusted": true,
+      "cancelable": true,
+      "defaultPrevented": false,
+      "touches": 0
+     }
+    ]
+   }
+  ],
+  "bare_V390_errors": []
+ }
+}

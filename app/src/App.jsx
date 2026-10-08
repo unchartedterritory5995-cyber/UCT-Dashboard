@@ -124,6 +124,8 @@ const TradesSurface = lazy(() => import('./pages/journal-2-0/surfaces/TradesSurf
 const CalendarSurface = lazy(() => import('./pages/journal-2-0/surfaces/CalendarSurface'))
 const NotebookSurface = lazy(() => import('./pages/journal-2-0/surfaces/NotebookSurface'))
 const TickerResearchSurface = lazy(() => import('./pages/journal-2-0/surfaces/TickerResearchSurface'))
+// Wave 13 lane 13J: the active setups board + find more like this (dark behind its own flags).
+const SetupsBoard = lazy(() => import('./pages/journal-2-0/components/notebook/SetupsBoard'))
 const JournalSurface = lazy(() => import('./pages/journal-2-0/surfaces/JournalSurface'))
 const InsightsSurface = lazy(() => import('./pages/journal-2-0/surfaces/InsightsSurface'))
 const CompassSurface = lazy(() => import('./pages/journal-2-0/surfaces/CompassSurface'))
@@ -141,6 +143,12 @@ const ShareTargetPage = lazy(() => import('./pages/journal-2-0/components/notebo
 const J2ReportPage = lazy(() => import('./pages/journal-2-0/components/ReportPage'))
 const J2PositionDetailPage = lazy(() => import('./pages/journal-2-0/components/position/PositionDetailPage'))
 const J2TradeDetailPage = lazy(() => import('./pages/journal-2-0/components/trade/TradeDetailPage'))
+// Wave 13 lane 13B: My Playbook (dark behind notebook_playbook_enabled; the page sends the member
+// back to Insights while it is off, and its API answers 404).
+const J2MyPlaybook = lazy(() => import('./pages/journal-2-0/components/insights/MyPlaybook'))
+// Finish program, lane KEYS: the standalone Journal pages land keyboard focus on arrival
+// (Journal routes only). Lazy, so the app entry does not grow.
+const J2RouteFocus = lazy(() => import('./pages/journal-2-0/lib/routeFocus'))
 const GlobalAddPositionProvider = lazy(() => import('./pages/journal-2-0/GlobalAddPositionProvider'))
 const Watchlists = lazy(() => import('./pages/Watchlists'))
 const ChartsWorkspace = lazyPage('/charts', () => import('./pages/charts/ChartsWorkspace'))
@@ -713,6 +721,9 @@ export default function App() {
                       purpose page, deliberately NOT nested inside
                       NotebookTab's own three-pane shell. */}
                   <Route path="notebook/research/:symbol" element={<TickerResearchSurface />} />
+                  {/* Wave 13 lane 13J: the setups board. The page reads its two flags itself and
+                      fetches nothing while both are off; every route it calls 404s while dark. */}
+                  <Route path="notebook/setups" element={<SetupsBoard />} />
                   {/* Legacy grouped route — redirects to calendar/notebook. */}
                   <Route path="journal" element={<JournalSurface />} />
                   <Route path="insights" element={<InsightsSurface />} />
@@ -722,10 +733,12 @@ export default function App() {
                 </Route>
                 <Route path="/community" element={<Community />} />
                 <Route path="/community/:threadId" element={<Community />} />
-                <Route path="/journal-2-0/calendar/:date" element={<J2DayDetailPage />} />
-                <Route path="/journal-2-0/report" element={<J2ReportPage />} />
-                <Route path="/journal-2-0/position/:sym" element={<J2PositionDetailPage />} />
-                <Route path="/journal-2-0/trade/:id" element={<J2TradeDetailPage />} />
+                <Route path="/journal-2-0/calendar/:date" element={<><J2RouteFocus /><J2DayDetailPage /></>} />
+                <Route path="/journal-2-0/report" element={<><J2RouteFocus /><J2ReportPage /></>} />
+                <Route path="/journal-2-0/position/:sym" element={<><J2RouteFocus /><J2PositionDetailPage /></>} />
+                <Route path="/journal-2-0/trade/:id" element={<><J2RouteFocus /><J2TradeDetailPage /></>} />
+                {/* Wave 13 lane 13B: My Playbook, reached from Insights > Playbook. */}
+                <Route path="/journal-2-0/playbook" element={<><J2RouteFocus /><J2MyPlaybook /></>} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/admin" element={<Admin />} />

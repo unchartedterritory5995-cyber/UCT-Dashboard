@@ -1,0 +1,915 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "flags",
+   "step": "auth payload: every c2 switch reads ON",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:10:09+00:00",
+   "email": "q1c2m3326602@local.dev",
+   "off": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "setup",
+   "step": "two open positions through the member's own API (AMD against the drawn plan, NVDA)",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:10:09+00:00",
+   "amd": 200,
+   "nvda": 200,
+   "entry": 340.86,
+   "stop": 166.98,
+   "ibm_thesis_note": "649dba03ea9f414da59a309280b92634",
+   "ibm_first_version": "eb165ef0d56d4de282a2d0c271379fa6",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "entry context",
+   "step": "the card on the position page: the market at the fill, and why you took it",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:10:20+00:00",
+   "present": true,
+   "card_text": "Market context at the fill\nRegime\nAmber\nas of 2026-01-02\nExposure\n72 / 150\nas of 2026-01-02\n% above the 50-day\n61.0%\nas of 2026-01-02\nRS rank\n98\nas of 2026-10-07\nDays to earnings\n27 days\nas of 2026-10-07\nUCT scans\nNot available\nWhy did you take it?\nSave",
+   "why_box": 0,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/position/AMD",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AMD:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AMD:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/position/AMD\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:10:10.989129+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/entry-context/why",
+     "status": 200,
+     "request": "{\"symbol\":\"AMD\",\"entryDay\":\"2026-10-07\",\"text\":\"Tight base, volume dried up, entered over the pivot.\"}",
+     "response": "{\"context\":{\"symbol\":\"AMD\",\"entryDay\":\"2026-10-07\",\"captureKind\":\"at_entry\",\"capturedLate\":false,\"captureDay\":\"2026-10-07\",\"capturedAt\":\"2026-10-07T04:10:12.538383+00:00\",\"trigger\":\"manual_add\",\"version\":1,\"fields\":{\"regime\":{\"value\":\"amber\",\"source\":\"journal_two.regime.get_current_regime\",\"asOf\":\"2026-01-02\",\"missing\":null,\"detail\":null},\"exposure\":{\"value\":72.0,\"source\":\"journal_two.regime.get_current_regime (wire UCT Exposure Rating)\",\"asOf\":\"2026-01-02\",\"missing\":null,\"detail\":null},\"breadth_pct_above_50\":{\"value\":61.0,\"source\":\"engine.get_breadth pct_above_50ma (the wire's daily breadth)\",\"asOf\":\"2026-01-02\",\"missing\":null,\"detail\":{\"universe\":\"wire\",\"liveUnavailable\":\"no warm live cache (cached_only)\"}},\"rs_rank\":{\"value\":98,\"source\":\"rs_ranking.get_rs_for_ticker\",\"asOf\":\"2026-10-07T04:10:09.453078+00:00\",\"missing\":null,\"detail\":{\"rsScore\":57.41}},\"days_to_earnings\":{\"value\":27,\"source\":\"earnings_table._next_report_date\",\"asOf\":\"2026-10-07T04:10:09.453078+00:00\",\"missing\":null,\"detail\":{\"reportDate\":\"2026-11-03\",\"countedFrom\":\"2026-10-07\"}},\"uct_scans\":{\"value\":null,\"source\":\"engine.get_candidates / engine.candidate_tickers\",\"asOf\":null,\"missing\":\"no_scan_published\",\"detail\":null},\"member_screens\":{\"value\":null,\"source\":\"user_definitions.list_for_user + screener.scan_store.hits\",\"asOf\":null,\"missing\":\"no_screens_swept\",\"detail\":null},\"fingerprint\":{\"value\":{\"v\":1,\"symbol\":\"AMD\",\"requested_as_of\":\"2026-10-07\",\"as_of\":\"2026-10-06\",\"mode\":\"bars\",\"fields\":{\"adr_pct\":{\"value"
+    }
+   ],
+   "screenshot": "c2-1280-entry-context-the-card-on-the-position-page-the-market-at-the-fill-and-why-you-took-it.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "thesis chips",
+   "step": "Open Positions rows carry a chip for a stock the member wrote a thesis on",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:10:34+00:00",
+   "chips": [
+    {
+     "note": "e7c83c4560074e6d9dd69fe10fd3ea30",
+     "text": "+74.3% above stop",
+     "row": "+74.3% above stop"
+    },
+    {
+     "note": "b42aa00944d742ac8b047b0728e597cf",
+     "text": "+54.0% above stop",
+     "row": "+54.0% above stop"
+    },
+    {
+     "note": "b42aa00944d742ac8b047b0728e597cf",
+     "text": "+54.0% above stop",
+     "row": "+54.0% above stop"
+    }
+   ],
+   "nvda_thesis_note": "b42aa00944d742ac8b047b0728e597cf",
+   "preview_link": 1,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/trades?seg=open",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/trades\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:10:21.170201+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/thesis-chips",
+     "status": 200,
+     "request": "{\"symbols\":[\"AMD\",\"NVDA\"]}",
+     "response": "{\"AMD\":{\"noteId\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"title\":\"AMD plan\",\"thesisStatus\":null,\"entry\":340.856581,\"stop\":166.976484,\"target\":514.736679,\"noteUpdatedAt\":\"2026-10-07T03:59:38.092444+00:00\",\"link\":\"/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30\"},\"NVDA\":{\"noteId\":\"b42aa00944d742ac8b047b0728e597cf\",\"title\":\"Thesis: example -- NVDA leadership\",\"thesisStatus\":\"active\",\"entry\":null,\"stop\":110.0,\"target\":null,\"noteUpdatedAt\":\"2026-10-07T03:23:34.821616+00:00\",\"link\":\"/journal/notebook?note=b42aa00944d742ac8b047b0728e597cf\"}}"
+    }
+   ],
+   "screenshot": "c2-1280-thesis-chips-Open-Positions-rows-carry-a-chip-for-a-stock-the-member-wrote-a-thesis-on.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "earnings prep",
+   "step": "Reporting soon lists the member's stock that reports this week",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:10:42+00:00",
+   "box_text": "REPORTING SOON\nYour watchlist, flagged and open-position names, next 7 days\n$AMZN\nFri, Oct 9, time not announced yet\nWatchlist\nOpen prep note",
+   "report_day": "2026-10-12",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:10:35.240468+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"32ef8eb2-7e06-4adb-958b-08899efbc9da\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-07T04:10:35.074Z\"}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-earnings-prep-Reporting-soon-lists-the-member-s-stock-that-reports-this-week.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "earnings prep",
+   "step": "the sample's AMZN draft is offered as that name's prep note (Open, not Create)",
+   "verdict": "INFO",
+   "at": "2026-10-07T04:10:42+00:00",
+   "open_button": 1,
+   "create_button": 0,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "earnings prep",
+   "step": "one click builds the prep note, each part naming its source",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:10:57+00:00",
+   "note": null,
+   "source_lines": [],
+   "body_chars": 0,
+   "reach_error": "Locator.click: Timeout 15000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Create prep note for AMD\").first\n",
+   "note_text": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "screenshot": "c2-1280-earnings-prep-one-click-builds-the-prep-note-each-part-naming-its-source.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "transcript capture",
+   "step": "select a passage from a saved call and save it as a cited quote",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:11:03+00:00",
+   "door": true,
+   "quarter": "FY2026 Q3 · 2026-10-01",
+   "cited": "Already saved to “Call excerpt: example -- TSLA”. Cited as TSLA earnings call FY2026 Q3 · 2026-10-01 · FMP transcript · turn 2 (Vaibhav Taneja).\n\nOpen the note",
+   "stored_excerpts": [
+    {
+     "note": "cf44a2a8235e4bad9e2ad2921de38ea0",
+     "quote": "{\"id\": \"92e4fe40fe40497a8ac88c07b82d8364\", \"noteId\": \"cf44a2a8235e4bad9e2ad2921de38ea0\", \"documentId\": \"a7e8002fb3eb44b883e6c2a265209c93\", \"documentName\": \"TSLA earnings call -- EXAMPLE (not a real transcript)\", \"attachmentUrl\": null, \"sourceKind\": \"web\", \"sourceUrl\": null, \"captureType\": \"sample_example\", \"pageNumber\": 1, \"capturedText\": \"We are pleased with the pace of deliveries this quarter an"
+    },
+    {
+     "note": "cf44a2a8235e4bad9e2ad2921de38ea0",
+     "quote": "{\"id\": \"62aca8dfb62e49ed9b541cbeaaf5e224\", \"noteId\": \"cf44a2a8235e4bad9e2ad2921de38ea0\", \"documentId\": \"9a565aa8c61942f388a07a7d89b16d42\", \"documentName\": \"TSLA earnings call FY2026 Q3 \\u00b7 2026-10-01 \\u00b7 FMP transcript\", \"attachmentUrl\": null, \"sourceKind\": \"web\", \"sourceUrl\": null, \"captureType\": \"web_passage\", \"pageNumber\": 2, \"capturedText\": \"Automotive gross margin\\nexcluding credits was"
+    }
+   ],
+   "sample_tsla_note": "cf44a2a8235e4bad9e2ad2921de38ea0",
+   "reach_error": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook/research/TSLA",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook/research/TSLA\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:10:58.656880+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/research-capture/transcripts/save",
+     "status": 200,
+     "request": "{\"noteId\":\"cf44a2a8235e4bad9e2ad2921de38ea0\",\"symbol\":\"TSLA\",\"quarter\":\"2026Q3\",\"turn\":2,\"passage\":\"Automotive gross margin excluding credits was 17.1%\"}",
+     "response": "{\"excerpt\":{\"id\":\"62aca8dfb62e49ed9b541cbeaaf5e224\",\"noteId\":\"cf44a2a8235e4bad9e2ad2921de38ea0\",\"documentId\":\"9a565aa8c61942f388a07a7d89b16d42\",\"documentName\":\"TSLA earnings call FY2026 Q3 · 2026-10-01 · FMP transcript\",\"attachmentUrl\":\"transcript:fmp:TSLA:2026Q3\",\"sourceKind\":\"web\",\"sourceUrl\":null,\"captureType\":\"web_passage\",\"pageNumber\":2,\"capturedText\":\"Automotive gross margin\\nexcluding credits was 17.1%\",\"quotePrefix\":\"Vaibhav Taneja: Revenue was a record, up 12% year over year. \",\"quoteSuffix\":\", and energy storage deployments reached a new high.\",\"charStart\":61,\"charEnd\":112,\"textOrigin\":null,\"annotation\":null,\"createdAt\":\"2026-10-07T04:01:20.649549+00:00\",\"modifiedAt\":null},\"note\":{\"id\":\"cf44a2a8235e4bad9e2ad2921de38ea0\",\"updatedAt\":\"2026-10-07T04:01:20.652216+00:00\"},\"deduped\":true,\"document\":{\"id\":\"9a565aa8c61942f388a07a7d89b16d42\",\"name\":\"TSLA earnings call FY2026 Q3 · 2026-10-01 · FMP transcript\"},\"symbol\":\"TSLA\",\"quarter\":\"2026Q3\",\"callDate\":\"2026-10-01\",\"source\":\"FMP transcript\",\"turn\":2,\"speaker\":\"Vaibhav Taneja\"}"
+    }
+   ],
+   "screenshot": "c2-1280-transcript-capture-select-a-passage-from-a-saved-call-and-save-it-as-a-cited-quote.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "overnight jobs",
+   "step": "find-similar precompute, passed-setups refresh and one awareness scan (child process, sandbox data)",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:11:13+00:00",
+   "result": "{\"template\": {\"found\": false, \"tag\": null}, \"passed_setups\": {\"added\": 0, \"scored\": 3}, \"projected\": 2, \"scans\": [{\"label\": \"above the stops\", \"price\": {\"AMD\": 253.92, \"IBM\": 200.0}, \"result\": {\"resurface\": {\"members\": 1, \"priced_symbols\": 2, \"fired\": 0, \"sides_moved\": 4, \"notes_projected\": 4, \"notes_removed\": 0, \"rows_written\": 7, \"notes_behind\": 0}}, \"insights\": [{\"id\": 1, \"kind\": \"note_level_touch\", \"symbol\": \"AMD\", \"headline\": \"AMD reached 166.98, the stop you named\", \"importance\": 7}], \"levels\": [{\"note_id\": \"30042b2361c5463c913608de10cb1df5\", \"level_id\": \"entry@180.0\", \"role\": \"entry\", \"price\": 180.0, \"version_id\": null, \"last_side\": null}, {\"note_id\": \"30042b2361c5463c913608de10cb1df5\", \"level_id\": \"note\", \"role\": \"note\", \"price\": null, \"version_id\": null, \"last_side\": null}, {\"note_id\": \"30042b2361c5463c913608de10cb1df5\", \"level_id\": \"stop@170.0\", \"role\": \"stop\", \"price\": 170.0, \"version_id\": null, \"last_side\": null}, {\"note_id\": \"30042b2361c5463c913608de10cb1df5\", \"level_id\": \"target@205.0\", \"role\": \"target\", \"price\": 205.0, \"version_id\": null, \"last_side\": null}, {\"note_id\": \"4051cde9587643df89af6bf7463a4256\", \"level_id\": \"note\", \"role\": \"note\", \"price\": null, \"version_id\": null, \"last_side\": null}, {\"note_id\": \"649dba03ea9f414da59a309280b92634\", \"level_id\": \"entry@205.0\", \"role\": \"entry\", \"price\": 205.0, \"version_id\": \"eb165ef0d56d4de282a2d0c271379fa6\", \"last_side\": \"below\"}, {\"note_id\": \"649dba03ea9f414da59a309280b92634\", \"level_id\": \"note\", \"role\": \"note\", \"price\": null, \"version_id\": null, \"last_side\": null}, {\"note_id\": \"649dba03ea9f414da59a309280b92634\", \"level_id\": \"stop@195.0\", \"role\": \"stop\", \"price\": 195.0, \"version_id\": \"eb165ef0d56d4de282a2d0c271379fa6\", \"last_side\": \"above\"}, {\"note_id\": \"649dba03ea9f414da59a309280b92634\", \"level_id\": \"target@230.",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "note resurfacing",
+   "step": "the notices for the two crossed stops are in the in-app inbox (Settings, Voice Insights Inbox)",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:11:47+00:00",
+   "insights_api_status": 200,
+   "headlines": [
+    "IBM reached 195.00, the stop you named",
+    "AMD reached 166.98, the stop you named"
+   ],
+   "links": {
+    "IBM": "/journal/notebook?note=649dba03ea9f414da59a309280b92634&resurfaceVersion=eb165ef0d56d4de282a2d0c271379fa6",
+    "AMD": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30"
+   },
+   "door_hrefs": [],
+   "first_notice_text": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/settings",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/settings\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:11:14.140964+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-note-resurfacing-the-notices-for-the-two-crossed-stops-are-in-the-in-app-inbox-Settings-Voice-Insights-Inbox-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "note resurfacing",
+   "step": "the notice opens the note at 'What you wrote then': the version that first named the stop",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:11:57+00:00",
+   "landed": "/settings",
+   "sheet_text": null,
+   "reach_error": "Locator.scroll_into_view_if_needed: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\"a[href*=\\\"resurfaceVersion\\\"]\").first\n",
+   "expected_version": "eb165ef0d56d4de282a2d0c271379fa6",
+   "explainer": 0,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/settings",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "screenshot": "c2-1280-note-resurfacing-the-notice-opens-the-note-at-What-you-wrote-then-the-version-that-first-named-the-stop.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "note resurfacing",
+   "step": "a plan drawn in one sitting has no saved version naming its stop, so its notice opens the note itself, with no sheet (by design: note_levels.project_note)",
+   "verdict": "INFO",
+   "at": "2026-10-07T04:11:58+00:00",
+   "amd_level": {
+    "note_id": "e7c83c4560074e6d9dd69fe10fd3ea30",
+    "level_id": "stop@166.976484",
+    "role": "stop",
+    "price": 166.976484,
+    "version_id": null,
+    "last_side": "below"
+   },
+   "amd_link": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "setups board",
+   "step": "the board lists the open chart plans (after the overnight run)",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:12:04+00:00",
+   "cards": [
+    "IBM",
+    "MSFT",
+    "AAPL"
+   ],
+   "page_text": "Meet Compass Tap the compass button to talk to your trading coach — markets, setups, and your journal, all by voice. Got it Trade Journal Today Trades Calendar Notebook Insights Compass Log Trade ? Default $114,549.60 ▾ Setups ACTIVE SETUPS Open plans with levels drawn on a chart, closest to the entry first. IBM Triggered New today Triggered · 0.16% through the entry · 0.03R Entry $205.00 Stop $19",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook/setups",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,IBM:1,MSFT:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,IBM:1,MSFT:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook/setups\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:11:58.500548+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-setups-board-the-board-lists-the-open-chart-plans-after-the-overnight-run-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "find similar",
+   "step": "find similar after the overnight run: the matching name is listed",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:12:09+00:00",
+   "symbol": "MSFT",
+   "matches": 0,
+   "sheet_text": "Find more like this\n×\nNAMES LIKE MSFT (FLAT BASE BREAKOUT)\n\nNo matches yet. Tagged charts are matched against the day’s scored names every night after the scan sweep, so this one is matched tonight.",
+   "reach_error": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook/setups?similar=9e9d103b0f2c4d928dc8ad9fc3083e7d%3Aex-setup",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "screenshot": "c2-1280-find-similar-find-similar-after-the-overnight-run-the-matching-name-is-listed.png"
+  }
+ ],
+ "configs": {
+  "c2": {
+   "base": "http://127.0.0.1:8132",
+   "data_dir": "C:\\data-fin-walk-dev\\c2",
+   "flags_on": [
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+   ],
+   "not_run": null,
+   "failure": null,
+   "port_free_after": null,
+   "driver_imported_api": []
+  }
+ },
+ "config": "c2",
+ "tree": "e8cbd3019c44e201e6ec2e7bdf753a9b36c94738",
+ "started": "2026-10-07T04:10:05+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "COMPLETE",
+ "flag_sets": {
+  "prod_armed": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "c1": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ]
+ },
+ "api_writes": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/watchlists",
+   "status": 200,
+   "request": "{\"name\": \"This week\"}",
+   "response": "{\"id\": \"50719c6c-463\", \"user_id\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"name\": \"This week\", \"description\": \"\", \"is_public\": 0, \"is_flagged_list\": 0, \"is_prebuilt\": 0, \"created_at\": \"2026-10-07T04:10:09.350586+00:00\", \"updated_at\": \"2026-10-07T04:10:09.350586+00:00\", \"items\": [], \"owner_name\": \"q1c2m\"}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/watchlists/50719c6c-463/items",
+   "status": 200,
+   "request": "{\"sym\": \"AMZN\"}",
+   "response": "{\"id\": \"c4ddc242-00f\", \"watchlist_id\": \"50719c6c-463\", \"sym\": \"AMZN\", \"notes\": \"\", \"duplicate\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"AMD\", \"side\": \"Long\", \"shares\": 40, \"entryPrice\": 340.86, \"stopPrice\": 166.98, \"entryDate\": \"2026-10-07\", \"setup\": \"VCP\"}",
+   "response": "{\"id\": \"4ec7e5d9-e909-40c9-8166-d0f54b256586\", \"userId\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"accountId\": \"d5f0618b-208e-4470-a063-cb885341e0db\", \"symbol\": \"AMD\", \"side\": \"Long\", \"entryDate\": \"2026-10-07T00:00:00+00:00\", \"shares\": 40.0, \"originalShares\": 40.0, \"entryPrice\": 340.86, \"stopPrice\": 166.98, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": \"VCP\", \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-07T04:10:09.431118+00:00\", \"updatedAt\": \"2026-10-07T04:10:09.431118+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"NVDA\", \"side\": \"Long\", \"shares\": 30, \"entryPrice\": 121.0, \"stopPrice\": 110.0, \"entryDate\": \"2026-10-07\"}",
+   "response": "{\"id\": \"6f57a9a9-736c-4262-811d-175ffb6e41f8\", \"userId\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"accountId\": \"d5f0618b-208e-4470-a063-cb885341e0db\", \"symbol\": \"NVDA\", \"side\": \"Long\", \"entryDate\": \"2026-10-07T00:00:00+00:00\", \"shares\": 30.0, \"originalShares\": 30.0, \"entryPrice\": 121.0, \"stopPrice\": 110.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-07T04:10:09.472028+00:00\", \"updatedAt\": \"2026-10-07T04:10:09.472028+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"IBM thesis\", \"ticker\": \"IBM\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Long the base; mainframe cycle is the story.\"}]}, {\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"IBM\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-06T15:00:00Z\", \"embedId\": \"e-ibm\", \"mode\": \"live\", \"annotations\": [{\"id\": \"i-entry\", \"type\": \"horizontal\", \"role\": \"entry\", \"price\": 205.0}, {\"id\": \"i-stop\", \"type\": \"horizontal\", \"role\": \"stop\", \"price\": 195.0}]}}]}}",
+   "response": "{\"note\": {\"id\": \"649dba03ea9f414da59a309280b92634\", \"userId\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"accountId\": null, \"folderId\": null, \"title\": \"IBM thesis\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Long the base; mainframe cycle is the story.\"}]}, {\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"IBM\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-06T15:00:00Z\", \"embedId\": \"e-ibm\", \"mode\": \"live\", \"annotations\": [{\"id\": \"i-entry\", \"type\": \"horizontal\", \"role\": \"entry\", \"price\": 205.0}, {\"id\": \"i-stop\", \"type\": \"horizontal\", \"role\": \"stop\", \"price\": 195.0}]}}]}, \"bodyPlain\": \"Long the base; mainframe cycle is the story. [widget]\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": \"IBM\", \"tags\": [], \"createdAt\": \"2026-10-07T04:10:09.672436+00:00\", \"updatedAt\": \"2026-10-07T04:10:09.672436+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "PUT",
+   "url": "/api/j2/notes/649dba03ea9f414da59a309280b92634",
+   "status": 200,
+   "request": "{\"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Long the base; mainframe cycle is the story. Added a target after the print.\"}]}, {\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"IBM\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-06T15:00:00Z\", \"embedId\": \"e-ibm\", \"mode\": \"live\", \"annotations\": [{\"id\": \"i-entry\", \"type\": \"horizontal\", \"role\": \"entry\", \"price\": 205.0}, {\"id\": \"i-stop\", \"type\": \"horizontal\", \"role\": \"stop\", \"price\": 195.0}, {\"id\": \"i-target\", \"type\": \"horizontal\", \"role\": \"target\", \"price\": 230.0}]}}]}, \"properties\": {\"builtin:thesis_status\": \"active\"}, \"baseUpdatedAt\": \"2026-10-07T04:10:09.672436+00:00\"}",
+   "response": "{\"note\": {\"id\": \"649dba03ea9f414da59a309280b92634\", \"userId\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"accountId\": null, \"folderId\": null, \"title\": \"IBM thesis\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Long the base; mainframe cycle is the story. Added a target after the print.\"}]}, {\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"IBM\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-06T15:00:00Z\", \"embedId\": \"e-ibm\", \"mode\": \"live\", \"annotations\": [{\"id\": \"i-entry\", \"type\": \"horizontal\", \"role\": \"entry\", \"price\": 205.0}, {\"id\": \"i-stop\", \"type\": \"horizontal\", \"role\": \"stop\", \"price\": 195.0}, {\"id\": \"i-target\", \"type\": \"horizontal\", \"role\": \"target\", \"price\": 230.0}]}}]}, \"bodyPlain\": \"Long the base; mainframe cycle is the story. Added a target after the print. [widget]\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": \"IBM\", \"tags\": [], \"createdAt\": \"2026-10-07T04:10:09.672436+00:00\", \"updatedAt\": \"2026-10-07T04:10:09.731061+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {\"builtin:thesis_status\": \"active\"}}}"
+  }
+ ],
+ "finished": "2026-10-07T04:12:19+00:00"
+}

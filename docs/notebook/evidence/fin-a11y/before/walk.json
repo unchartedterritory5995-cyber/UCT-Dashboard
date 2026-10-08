@@ -1,0 +1,1402 @@
+{
+ "tool": "tools/notebook_fin_a11y_overflow_walk.py",
+ "sha": "21db9ae95f",
+ "base": "http://127.0.0.1:8135",
+ "data_dir": "C:\\data-fin-a11y",
+ "boots": {
+  "off": {
+   "integrity": {
+    "path": "docs\\notebook\\evidence\\fin-a11y\\before\\integrity-off.md",
+    "required": [
+     "pre-boot (baseline)",
+     "post-boot (+15s)",
+     "shutdown"
+    ],
+    "checkpoints": [
+     {
+      "label": "pre-boot (baseline)",
+      "at": "2026-10-07 07:10:20",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-boot (+15s)",
+      "at": "2026-10-07 07:11:11",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-prewarm (+120s)",
+      "at": "2026-10-07 07:13:13",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     }
+    ],
+    "status": "INCOMPLETE",
+    "clean": false,
+    "why": "no checkpoint 'shutdown'",
+    "copy": "docs\\notebook\\evidence\\fin-a11y\\before\\integrity-off.md",
+    "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-a11y\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T07-10-12.md"
+   },
+   "stop": "FORCED after 120 s without a graceful exit",
+   "port_released": true
+  },
+  "on": {
+   "integrity": {
+    "path": "docs\\notebook\\evidence\\fin-a11y\\before\\integrity-on.md",
+    "required": [
+     "pre-boot (baseline)",
+     "post-boot (+15s)",
+     "shutdown"
+    ],
+    "checkpoints": [
+     {
+      "label": "pre-boot (baseline)",
+      "at": "2026-10-07 07:17:04",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-boot (+15s)",
+      "at": "2026-10-07 07:17:46",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-prewarm (+120s)",
+      "at": "2026-10-07 07:19:41",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "shutdown",
+      "at": "2026-10-07 07:21:25",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": "",
+    "copy": "docs\\notebook\\evidence\\fin-a11y\\before\\integrity-on.md",
+    "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-a11y\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T07-16-58.md"
+   },
+   "stop": "graceful to the shutdown checkpoint, then forced exit",
+   "port_released": true
+  }
+ },
+ "failure": null,
+ "not_run": null,
+ "driver_imported_api": [],
+ "summary": [
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "research workspace",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 390,
+   "pageClientWidth": 390,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "closed trades",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 534,
+   "pageClientWidth": 390,
+   "overflowPx": 144,
+   "widest": {
+    "tag": "div",
+    "cls": "_toolbarRight_mfw33_187",
+    "testid": null,
+    "tour": null,
+    "text": "▦ Columns Delete All Import CSV + Add Trade",
+    "left": 24,
+    "right": 534,
+    "width": 510,
+    "depth": 11
+   },
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "trade page",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 470,
+   "pageClientWidth": 390,
+   "overflowPx": 80,
+   "widest": {
+    "tag": "span",
+    "cls": "",
+    "testid": null,
+    "tour": null,
+    "text": "▶ Replay Save to Notebook Save image Copy image Re",
+    "left": 14,
+    "right": 470,
+    "width": 456,
+    "depth": 8
+   },
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "help",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 406,
+   "pageClientWidth": 390,
+   "overflowPx": 16,
+   "widest": {
+    "tag": "div",
+    "cls": "_header_1ef1h_7",
+    "testid": null,
+    "tour": null,
+    "text": "Support All systems operational New Ticket",
+    "left": -16,
+    "right": 406,
+    "width": 422,
+    "depth": 7
+   },
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "position page (entry context)",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 390,
+   "pageClientWidth": 390,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "research workspace",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "closed trades",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "trade page",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "help",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "position page (entry context)",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "research workspace",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "closed trades",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "trade page",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "help",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "position page (entry context)",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "research workspace",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 763,
+   "pageClientWidth": 390,
+   "overflowPx": 373,
+   "widest": {
+    "tag": "button",
+    "cls": "btn btn-ghost btn-sm",
+    "testid": null,
+    "tour": null,
+    "text": "Save from a transcript",
+    "left": 590,
+    "right": 763,
+    "width": 173,
+    "depth": 11
+   },
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "closed trades",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 534,
+   "pageClientWidth": 390,
+   "overflowPx": 144,
+   "widest": {
+    "tag": "div",
+    "cls": "_toolbarRight_mfw33_187",
+    "testid": null,
+    "tour": null,
+    "text": "▦ Columns Delete All Import CSV + Add Trade",
+    "left": 24,
+    "right": 534,
+    "width": 510,
+    "depth": 11
+   },
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "trade page",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 470,
+   "pageClientWidth": 390,
+   "overflowPx": 80,
+   "widest": {
+    "tag": "span",
+    "cls": "",
+    "testid": null,
+    "tour": null,
+    "text": "▶ Replay Save to Notebook Save image Copy image Re",
+    "left": 14,
+    "right": 470,
+    "width": 456,
+    "depth": 8
+   },
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "help",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 406,
+   "pageClientWidth": 390,
+   "overflowPx": 16,
+   "widest": {
+    "tag": "div",
+    "cls": "_header_1ef1h_7",
+    "testid": null,
+    "tour": null,
+    "text": "Support All systems operational New Ticket",
+    "left": -16,
+    "right": 406,
+    "width": 422,
+    "depth": 7
+   },
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "position page (entry context)",
+   "documentScrollWidth": 390,
+   "documentClientWidth": 390,
+   "pageScrollWidth": 390,
+   "pageClientWidth": 390,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": {
+    "found": true,
+    "width": 21.8,
+    "height": 44
+   }
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "research workspace",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "closed trades",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "trade page",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "help",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "position page (entry context)",
+   "documentScrollWidth": 820,
+   "documentClientWidth": 820,
+   "pageScrollWidth": 820,
+   "pageClientWidth": 820,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": {
+    "found": true,
+    "width": 21.8,
+    "height": 44
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "research workspace",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "closed trades",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "trade page",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "help",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "position page (entry context)",
+   "documentScrollWidth": 1280,
+   "documentClientWidth": 1280,
+   "pageScrollWidth": 1220,
+   "pageClientWidth": 1220,
+   "overflowPx": 0,
+   "widest": null,
+   "editControl": {
+    "found": true,
+    "width": 21.8,
+    "height": 19.2
+   }
+  }
+ ],
+ "rows": [
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "research workspace",
+   "url": "/journal/notebook/research/NVDA",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 390,
+    "clientWidth": 390
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "screenshot": "off-390-research-workspace.png"
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "closed trades",
+   "url": "/journal/trades?seg=closed",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 534,
+    "clientWidth": 390
+   },
+   "overflowPx": 144,
+   "offenders": [
+    {
+     "tag": "div",
+     "cls": "_toolbarRight_mfw33_187",
+     "testid": null,
+     "tour": null,
+     "text": "▦ Columns Delete All Import CSV + Add Trade",
+     "left": 24,
+     "right": 534,
+     "width": 510,
+     "depth": 11
+    },
+    {
+     "tag": "button",
+     "cls": "btn btn-primary",
+     "testid": null,
+     "tour": null,
+     "text": "+ Add Trade",
+     "left": 421,
+     "right": 534,
+     "width": 114,
+     "depth": 12
+    },
+    {
+     "tag": "button",
+     "cls": "btn btn-ghost",
+     "testid": null,
+     "tour": null,
+     "text": "Import CSV",
+     "left": 274,
+     "right": 413,
+     "width": 138,
+     "depth": 12
+    }
+   ],
+   "offenderCount": 3,
+   "screenshot": "off-390-closed-trades.png"
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "trade page",
+   "url": "/journal-2-0/trade/8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 470,
+    "clientWidth": 390
+   },
+   "overflowPx": 80,
+   "offenders": [
+    {
+     "tag": "span",
+     "cls": "",
+     "testid": null,
+     "tour": null,
+     "text": "▶ Replay Save to Notebook Save image Copy image Re",
+     "left": 14,
+     "right": 470,
+     "width": 456,
+     "depth": 8
+    },
+    {
+     "tag": "span",
+     "cls": "_researchMenuWrap_9ssel_273",
+     "testid": null,
+     "tour": null,
+     "text": "Research",
+     "left": 371,
+     "right": 470,
+     "width": 99,
+     "depth": 9
+    },
+    {
+     "tag": "button",
+     "cls": "_cardActionBtn_9ssel_225",
+     "testid": null,
+     "tour": null,
+     "text": "Research",
+     "left": 371,
+     "right": 470,
+     "width": 99,
+     "depth": 10
+    },
+    {
+     "tag": "svg",
+     "cls": "",
+     "testid": null,
+     "tour": null,
+     "text": "",
+     "left": 384,
+     "right": 398,
+     "width": 14,
+     "depth": 11
+    }
+   ],
+   "offenderCount": 4,
+   "screenshot": "off-390-trade-page.png"
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "help",
+   "url": "/support",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 406,
+    "clientWidth": 390
+   },
+   "overflowPx": 16,
+   "offenders": [
+    {
+     "tag": "div",
+     "cls": "_header_1ef1h_7",
+     "testid": null,
+     "tour": null,
+     "text": "Support All systems operational New Ticket",
+     "left": -16,
+     "right": 406,
+     "width": 422,
+     "depth": 7
+    }
+   ],
+   "offenderCount": 1,
+   "screenshot": "off-390-help.png"
+  },
+  {
+   "phase": "off",
+   "width": 390,
+   "screen": "position page (entry context)",
+   "url": "/journal-2-0/position/NVDA",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 390,
+    "clientWidth": 390
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "editControl": null,
+   "screenshot": "off-390-position-page.png"
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "research workspace",
+   "url": "/journal/notebook/research/NVDA",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "closed trades",
+   "url": "/journal/trades?seg=closed",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "trade page",
+   "url": "/journal-2-0/trade/8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "help",
+   "url": "/support",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 820,
+   "screen": "position page (entry context)",
+   "url": "/journal-2-0/position/NVDA",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "editControl": null
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "research workspace",
+   "url": "/journal/notebook/research/NVDA",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "closed trades",
+   "url": "/journal/trades?seg=closed",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "trade page",
+   "url": "/journal-2-0/trade/8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "help",
+   "url": "/support",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "off",
+   "width": 1280,
+   "screen": "position page (entry context)",
+   "url": "/journal-2-0/position/NVDA",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "editControl": null
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "research workspace",
+   "url": "/journal/notebook/research/NVDA",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 763,
+    "clientWidth": 390
+   },
+   "overflowPx": 373,
+   "offenders": [
+    {
+     "tag": "button",
+     "cls": "btn btn-ghost btn-sm",
+     "testid": null,
+     "tour": null,
+     "text": "Save from a transcript",
+     "left": 590,
+     "right": 763,
+     "width": 173,
+     "depth": 11
+    },
+    {
+     "tag": "svg",
+     "cls": "",
+     "testid": null,
+     "tour": null,
+     "text": "",
+     "left": 603,
+     "right": 616,
+     "width": 13,
+     "depth": 12
+    },
+    {
+     "tag": "button",
+     "cls": "btn btn-ghost btn-sm",
+     "testid": null,
+     "tour": null,
+     "text": "Earnings prep",
+     "left": 458,
+     "right": 582,
+     "width": 125,
+     "depth": 11
+    },
+    {
+     "tag": "svg",
+     "cls": "",
+     "testid": null,
+     "tour": null,
+     "text": "",
+     "left": 471,
+     "right": 484,
+     "width": 13,
+     "depth": 12
+    },
+    {
+     "tag": "button",
+     "cls": "btn btn-ghost btn-sm",
+     "testid": null,
+     "tour": null,
+     "text": "Plan this trade",
+     "left": 321,
+     "right": 450,
+     "width": 128,
+     "depth": 11
+    }
+   ],
+   "offenderCount": 5,
+   "screenshot": "on-390-research-workspace.png"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "closed trades",
+   "url": "/journal/trades?seg=closed",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 534,
+    "clientWidth": 390
+   },
+   "overflowPx": 144,
+   "offenders": [
+    {
+     "tag": "div",
+     "cls": "_toolbarRight_mfw33_187",
+     "testid": null,
+     "tour": null,
+     "text": "▦ Columns Delete All Import CSV + Add Trade",
+     "left": 24,
+     "right": 534,
+     "width": 510,
+     "depth": 11
+    },
+    {
+     "tag": "button",
+     "cls": "btn btn-primary",
+     "testid": null,
+     "tour": null,
+     "text": "+ Add Trade",
+     "left": 421,
+     "right": 534,
+     "width": 114,
+     "depth": 12
+    },
+    {
+     "tag": "button",
+     "cls": "btn btn-ghost",
+     "testid": null,
+     "tour": null,
+     "text": "Import CSV",
+     "left": 274,
+     "right": 413,
+     "width": 138,
+     "depth": 12
+    }
+   ],
+   "offenderCount": 3,
+   "screenshot": "on-390-closed-trades.png"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "trade page",
+   "url": "/journal-2-0/trade/8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 470,
+    "clientWidth": 390
+   },
+   "overflowPx": 80,
+   "offenders": [
+    {
+     "tag": "span",
+     "cls": "",
+     "testid": null,
+     "tour": null,
+     "text": "▶ Replay Save to Notebook Save image Copy image Re",
+     "left": 14,
+     "right": 470,
+     "width": 456,
+     "depth": 8
+    },
+    {
+     "tag": "span",
+     "cls": "_researchMenuWrap_9ssel_273",
+     "testid": null,
+     "tour": null,
+     "text": "Research",
+     "left": 371,
+     "right": 470,
+     "width": 99,
+     "depth": 9
+    },
+    {
+     "tag": "button",
+     "cls": "_cardActionBtn_9ssel_225",
+     "testid": null,
+     "tour": null,
+     "text": "Research",
+     "left": 371,
+     "right": 470,
+     "width": 99,
+     "depth": 10
+    },
+    {
+     "tag": "svg",
+     "cls": "",
+     "testid": null,
+     "tour": null,
+     "text": "",
+     "left": 384,
+     "right": 398,
+     "width": 14,
+     "depth": 11
+    }
+   ],
+   "offenderCount": 4,
+   "screenshot": "on-390-trade-page.png"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "help",
+   "url": "/support",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 406,
+    "clientWidth": 390
+   },
+   "overflowPx": 16,
+   "offenders": [
+    {
+     "tag": "div",
+     "cls": "_header_1ef1h_7",
+     "testid": null,
+     "tour": null,
+     "text": "Support All systems operational New Ticket",
+     "left": -16,
+     "right": 406,
+     "width": 422,
+     "depth": 7
+    }
+   ],
+   "offenderCount": 1,
+   "screenshot": "on-390-help.png"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "screen": "position page (entry context)",
+   "url": "/journal-2-0/position/MSFT",
+   "innerWidth": 390,
+   "clientWidth": 390,
+   "scrollWidth": 390,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 390,
+    "clientWidth": 390
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "editControl": {
+    "found": true,
+    "width": 21.8,
+    "height": 44
+   },
+   "screenshot": "on-390-position-page.png"
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "research workspace",
+   "url": "/journal/notebook/research/NVDA",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "closed trades",
+   "url": "/journal/trades?seg=closed",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "trade page",
+   "url": "/journal-2-0/trade/8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "help",
+   "url": "/support",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "screen": "position page (entry context)",
+   "url": "/journal-2-0/position/MSFT",
+   "innerWidth": 820,
+   "clientWidth": 820,
+   "scrollWidth": 820,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 820,
+    "clientWidth": 820
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "editControl": {
+    "found": true,
+    "width": 21.8,
+    "height": 44
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "research workspace",
+   "url": "/journal/notebook/research/NVDA",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "closed trades",
+   "url": "/journal/trades?seg=closed",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "trade page",
+   "url": "/journal-2-0/trade/8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "help",
+   "url": "/support",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0
+  },
+  {
+   "phase": "on",
+   "width": 1280,
+   "screen": "position page (entry context)",
+   "url": "/journal-2-0/position/MSFT",
+   "innerWidth": 1280,
+   "clientWidth": 1280,
+   "scrollWidth": 1280,
+   "documentOverflowPx": 0,
+   "pageScroll": {
+    "tag": "main",
+    "cls": "_main_6uhgd_19",
+    "scrollWidth": 1220,
+    "clientWidth": 1220
+   },
+   "overflowPx": 0,
+   "offenders": [],
+   "offenderCount": 0,
+   "editControl": {
+    "found": true,
+    "width": 21.8,
+    "height": 19.2
+   }
+  }
+ ],
+ "raw": {
+  "off_auth_me": {
+   "notebook_transcript_capture_enabled": false,
+   "notebook_entry_context_enabled": false,
+   "paid_equiv": true,
+   "role": null
+  },
+  "off_seed": {
+   "tradeId": "8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c"
+  },
+  "on_auth_me": {
+   "notebook_transcript_capture_enabled": true,
+   "notebook_entry_context_enabled": true,
+   "paid_equiv": true,
+   "role": null
+  },
+  "on_seed": {
+   "context_position": 200,
+   "why": 200,
+   "tradeId": "8100a04f-82b9-4bbe-91d4-ba5bd9de4c7c"
+  }
+ }
+}

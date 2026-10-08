@@ -29,6 +29,16 @@ MAX_INSIGHTS_PER_USER_PER_DAY = 8
 MIN_SYMBOL_COOLDOWN_HOURS = 6
 MIN_IMPORTANCE_TO_QUEUE = 4  # 1-10 scale
 
+# Wave 13 lane 13D (ruling R6): RESURFACING -- a note the member wrote coming back
+# when its ticker reaches a level the note named, moves 8% or more, or reaches a
+# date the member set (awareness/rules.py R7-R9). These kinds live under their OWN
+# daily sub-cap and are left OUT of the shared MAX_INSIGHTS_PER_USER_PER_DAY count,
+# both ways: a full shared budget never blocks one, and one never spends a slot of
+# the shared budget (so a busy resurfacing day can never silently drop daily_focus).
+# Durable: the count is of this table's own rows over the same 24h window.
+RESURFACE_KINDS = ("note_level_touch", "note_big_move", "note_date_due")
+MAX_RESURFACE_PER_USER_PER_DAY = 2
+
 
 # ── DB helpers ─────────────────────────────────────────────────────────────
 
@@ -69,14 +79,25 @@ def add_insight(
         cutoff_sym = (datetime.now(timezone.utc)
                       - timedelta(hours=MIN_SYMBOL_COOLDOWN_HOURS)).strftime(_TS)
 
-        # Per-day cap
-        per_day = conn.execute(
-            """SELECT COUNT(*) FROM voice_proactive_insights
-                WHERE user_id = ? AND created_at >= ?""",
-            (user_id, cutoff_day),
-        ).fetchone()[0]
-        if per_day >= MAX_INSIGHTS_PER_USER_PER_DAY:
-            return None
+        # Per-day cap. ⛔ Resurfacing kinds (lane 13D) count against their OWN
+        # sub-cap and are excluded from the shared count -- see RESURFACE_KINDS.
+        marks = ",".join("?" * len(RESURFACE_KINDS))
+        if kind in RESURFACE_KINDS:
+            per_day = conn.execute(
+                f"""SELECT COUNT(*) FROM voice_proactive_insights
+                    WHERE user_id = ? AND created_at >= ? AND kind IN ({marks})""",
+                (user_id, cutoff_day, *RESURFACE_KINDS),
+            ).fetchone()[0]
+            if per_day >= MAX_RESURFACE_PER_USER_PER_DAY:
+                return None
+        else:
+            per_day = conn.execute(
+                f"""SELECT COUNT(*) FROM voice_proactive_insights
+                    WHERE user_id = ? AND created_at >= ? AND kind NOT IN ({marks})""",
+                (user_id, cutoff_day, *RESURFACE_KINDS),
+            ).fetchone()[0]
+            if per_day >= MAX_INSIGHTS_PER_USER_PER_DAY:
+                return None
 
         # Per-symbol cooldown, scoped by kind. Scoping by kind lets distinct
         # insight kinds on the same ticker keep independent cooldown windows —
@@ -238,9 +259,32 @@ def list_history(user_id: str, *, limit: int = 50) -> list[dict]:
                 LIMIT ?""",
             (user_id, max(1, min(200, int(limit)))),
         ).fetchall()
-        return [dict(r) for r in rows]
+        out = [dict(r) for r in rows]
+        _attach_resurface_links(conn, user_id, out)
+        return out
     finally:
         conn.close()
+
+
+def _attach_resurface_links(conn, user_id: str, insights: list[dict]) -> None:
+    """Lane 13D: a resurfacing insight carries `link`, the in-app door to the note
+    at the version that named the level (from the lane's own ledger). Only while
+    AWARENESS_NOTE_RESURFACE_ENABLED is on; off, no row gains a key and the
+    payload is exactly what it was. Never raises into the list."""
+    ids = [r["id"] for r in insights if r.get("kind") in RESURFACE_KINDS]
+    if not ids:
+        return
+    try:
+        from api.services.journal_two import note_levels
+        if not note_levels.enabled():
+            return
+        links = note_levels.links_for_insights(conn, user_id, ids)
+    except Exception:  # noqa: BLE001 -- a missing link is a notice without a door, not a failed list
+        _log.warning("[voice_proactive] resurface links unavailable", exc_info=True)
+        return
+    for r in insights:
+        if r.get("id") in links:
+            r["link"] = links[r["id"]]
 
 
 # ── Scanner pass — looks for trade opportunities ────────────────────────────

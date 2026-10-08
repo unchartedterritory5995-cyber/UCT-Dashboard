@@ -305,7 +305,10 @@ def test_the_runner_evaluates_the_probe_file_itself():
     ("app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx", 'aria-label="Search notes"'),
     ("app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx", 'aria-label="Search your notes"'),
     ("app/src/components/CommandPalette.jsx", 'aria-label="Search a security, company, or note"'),
-    ("app/src/components/CommandPalette.jsx", "e.key.toLowerCase() === 'k'"),
+    # Ctrl+K: the palette binds the declared id, and the chord itself lives in the shortcut
+    # registry since TERM-063 moved the listener there (the old literal left the palette on master).
+    ("app/src/components/CommandPalette.jsx", "'palette.toggle': (e) => {"),
+    ("app/src/pages/command/shortcutRegistry.js", "chord: { keys: ['k'], fold: true, mod: 'either' }"),
     ("app/src/pages/journal-2-0/tabs/NotebookTab.jsx", 'data-tour="new-note"'),
     ("app/src/components/CommandPalette.jsx", "No matches for &quot;{query.trim()}&quot;"),
     ("app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx", "<span>All notes</span>"),

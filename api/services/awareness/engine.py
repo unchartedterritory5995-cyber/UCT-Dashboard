@@ -43,6 +43,16 @@ def _thesis_review_enabled() -> bool:
     return os.environ.get("AWARENESS_THESIS_REVIEW_ENABLED", "0") == "1"
 
 
+def _note_resurface_enabled() -> bool:
+    """R7-R9 (wave 13 lane 13D, resurfacing) get their OWN flag, the R6
+    precedent above: a new family of insight kinds that can be turned off alone.
+    Read through the one parse (`note_levels.enabled` -> notebook_flags.flag_on),
+    because the same variable rides the auth payload for the note door's client
+    half. Unset = OFF. Checked here, per cycle, inside the scan job."""
+    from api.services.journal_two.note_levels import enabled
+    return enabled()
+
+
 def _bulk_load_user_contexts() -> dict[str, dict]:
     """One pass over auth.db builds every user's positions + watchlist
     symbols in two (or three, with R6 on) queries total -- not N+1
@@ -234,9 +244,11 @@ def _build_market_scan_ctx(user_ctxs: dict) -> dict:
     }
 
 
-def _fire_candidate(user_id: str, candidate: InsightCandidate) -> bool:
-    """Score -> add_insight (dedup/cap/cooldown enforced there) -> also
-    away-deliver (email/Discord/in-app) when importance clears the floor."""
+def _queue_candidate(user_id: str, candidate: InsightCandidate) -> tuple[int | None, int]:
+    """Score -> add_insight (dedup/cap/cooldown enforced there). The ONE place a
+    candidate becomes an insight row: `_fire_candidate` (R1-R6, which may also
+    away-deliver) and `_fire_resurface` (R7-R9, in-app only) both call it.
+    Returns (insight id or None when suppressed, importance)."""
     from api.services.voice_proactive_service import add_insight
 
     importance = rules.compute_relevance_score(
@@ -257,6 +269,13 @@ def _fire_candidate(user_id: str, candidate: InsightCandidate) -> bool:
         body=candidate.body,
         importance=importance,
     )
+    return insight_id, importance
+
+
+def _fire_candidate(user_id: str, candidate: InsightCandidate) -> bool:
+    """Score -> add_insight (dedup/cap/cooldown enforced there) -> also
+    away-deliver (email/Discord/in-app) when importance clears the floor."""
+    insight_id, importance = _queue_candidate(user_id, candidate)
     if insight_id is None:
         return False  # suppressed by daily cap / per-symbol cooldown
 
@@ -311,5 +330,123 @@ def run_awareness_scan() -> dict:
                 _log.warning("[awareness] fire failed user=%s kind=%s: %s",
                              user_id, candidate.kind, e)
 
-    return {"enabled": True, "scanned_users": len(user_ctxs), "fired": fired,
-            "regime_degraded": bool(scan_ctx.get("regime", {}).get("degraded"))}
+    result = {"enabled": True, "scanned_users": len(user_ctxs), "fired": fired,
+              "regime_degraded": bool(scan_ctx.get("regime", {}).get("degraded"))}
+    # Wave 13 lane 13D: resurfacing is its OWN pass after R1-R6, so nothing above
+    # this line reads or writes anything it adds. Off (the default) -> not run,
+    # not reported.
+    if _note_resurface_enabled():
+        try:
+            result["resurface"] = _run_resurface_pass()
+        except Exception as e:  # noqa: BLE001 -- R7-R9 can never take R1-R6's cycle down
+            _log.warning("[awareness] resurface pass failed: %s", e)
+            result["resurface"] = {"failed": True}
+    return result
+
+
+# ── Wave 13 lane 13D: resurfacing (R7-R9) ─────────────────────────────────────
+
+def _note_quotes(symbols: set[str]) -> dict[str, dict]:
+    """{SYMBOL: {"price", "change_pct"}} from the SHARED live-price cache only --
+    the same cache R1/R2 read. A symbol nobody has polled has no entry and its
+    levels wait for the next cycle: never a per-note fetch."""
+    from api.routers.live_prices import cache as _px_cache, _px_key
+
+    out: dict[str, dict] = {}
+    for sym in symbols:
+        hit = _px_cache.get(_px_key(sym))
+        if not isinstance(hit, dict):
+            continue
+        price = hit.get("price")
+        if not price:
+            continue
+        chg = hit.get("change_pct")
+        out[sym] = {"price": float(price),
+                    "change_pct": float(chg) if isinstance(chg, (int, float))
+                    and not isinstance(chg, bool) else None}
+    return out
+
+
+def _fire_resurface(user_id: str, candidate, day_et: str) -> bool:
+    """One resurfacing candidate -> at most one in-app insight. One per level per
+    day (once ever for a date) from the ledger; the 2-a-day sub-cap is
+    add_insight's own (it never touches the shared 8/day count).
+
+    ⛔ IN-APP ONLY, BY CONSTRUCTION: this function has no delivery branch. It
+    queues through `_queue_candidate`, never `_fire_candidate`, so no importance
+    a rule could ever compute reaches email or Discord."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import note_levels
+
+    conn = get_connection()
+    try:
+        if note_levels.already_fired(conn, user_id, candidate.fire_key, day_et, once=candidate.once):
+            return False
+    finally:
+        conn.close()
+    insight_id, _importance = _queue_candidate(user_id, candidate)
+    if insight_id is None:
+        return False  # the sub-cap or the per-symbol cooldown said no
+    conn = get_connection()
+    try:
+        note_levels.record_fire(conn, user_id, candidate.fire_key, day_et, insight_id,
+                                candidate.kind, candidate.note_id, candidate.version_id)
+    finally:
+        conn.close()
+    return True
+
+
+def _run_resurface_pass() -> dict:
+    """Catch the level index up (bounded), read it in one query, read the shared
+    price cache once for its symbols, run R7-R9 per member, fire, then store each
+    level's side for the next cycle's cross test."""
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import note_levels
+    from api.services.journal_two.calendar import et_today
+
+    conn = get_connection()
+    try:
+        projection = note_levels.catch_up_all(conn)
+        by_user = note_levels.load_index(conn)
+    finally:
+        conn.close()
+
+    symbols = {lv["symbol"] for rows in by_user.values() for lv in rows if lv.get("symbol")}
+    quotes = _note_quotes(symbols)
+    day_et = et_today()
+    ctx = {"note_quotes": quotes, "today": date.fromisoformat(day_et)}
+
+    fired = 0
+    for user_id, rows in by_user.items():
+        user_ctx = {"note_levels": rows}
+        try:
+            candidates = (rules.rule_note_level_touch(ctx, user_ctx)
+                          + rules.rule_note_big_move(ctx, user_ctx)
+                          + rules.rule_note_date_due(ctx, user_ctx))
+        except Exception as e:  # noqa: BLE001 -- one member's index can't abort the rest
+            _log.warning("[awareness] resurface rules failed user=%s: %s", user_id, e)
+            continue
+        for candidate in sorted(candidates, key=lambda c: (c.rank, c.symbol or "", c.fire_key)):
+            try:
+                if _fire_resurface(user_id, candidate, day_et):
+                    fired += 1
+            except Exception as e:  # noqa: BLE001
+                _log.warning("[awareness] resurface fire failed user=%s kind=%s: %s",
+                             user_id, candidate.kind, e)
+
+    # AFTER every rule read the previous side: record where each priced level is now.
+    changes = []
+    for rows in by_user.values():
+        for lv in rows:
+            q = quotes.get(lv.get("symbol"))
+            if q and lv.get("role") in rules.NOTE_PRICE_ROLES and lv.get("price"):
+                side = rules.level_side(q["price"], lv["price"])
+                if side != lv.get("last_side"):
+                    changes.append((side, lv["user_id"], lv["note_id"], lv["level_id"]))
+    conn = get_connection()
+    try:
+        sides = note_levels.record_sides(conn, changes)
+    finally:
+        conn.close()
+    return {"members": len(by_user), "priced_symbols": len(quotes), "fired": fired,
+            "sides_moved": sides, **projection}

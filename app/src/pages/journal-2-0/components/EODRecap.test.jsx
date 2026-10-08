@@ -1,7 +1,13 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import EODRecap from './EODRecap'
+
+// Wave 13 lane 13F added a "Draft in today's note" door that navigates via
+// useNavigate(), which throws outside a Router — every render needs one, even
+// while the door itself is flag-gated off (the hook call is unconditional).
+const renderRecap = (props) => render(<MemoryRouter><EODRecap {...props} /></MemoryRouter>)
 
 const SAMPLE = {
   id: 'e1',
@@ -16,20 +22,20 @@ const SAMPLE = {
 
 describe('EODRecap', () => {
   it('renders the recap body', () => {
-    render(<EODRecap recap={SAMPLE} onFeedback={() => {}} onRegenerate={() => {}} onForget={() => {}} />)
+    renderRecap({ recap: SAMPLE, onFeedback: () => {}, onRegenerate: () => {}, onForget: () => {} })
     expect(screen.getByText(/Pullback on AAPL/i)).toBeInTheDocument()
   })
 
   it('renders the unverified-claims badge when validation.passed is false', () => {
     const withFlag = { ...SAMPLE, validation: { passed: false, flags: ['unverified R-multiple: 9.9R'] } }
-    render(<EODRecap recap={withFlag} onFeedback={() => {}} onRegenerate={() => {}} onForget={() => {}} />)
+    renderRecap({ recap: withFlag, onFeedback: () => {}, onRegenerate: () => {}, onForget: () => {} })
     expect(screen.getByText(/unverified/i)).toBeInTheDocument()
   })
 
   it('clicking 👍 calls onFeedback with "helpful"', async () => {
     const user = userEvent.setup()
     const onFeedback = vi.fn()
-    render(<EODRecap recap={SAMPLE} onFeedback={onFeedback} onRegenerate={() => {}} onForget={() => {}} />)
+    renderRecap({ recap: SAMPLE, onFeedback, onRegenerate: () => {}, onForget: () => {} })
     await user.click(screen.getByRole('button', { name: /helpful/i }))
     expect(onFeedback).toHaveBeenCalledWith('helpful')
   })
@@ -37,8 +43,56 @@ describe('EODRecap', () => {
   it('Forget button calls onForget', async () => {
     const user = userEvent.setup()
     const onForget = vi.fn()
-    render(<EODRecap recap={SAMPLE} onFeedback={() => {}} onRegenerate={() => {}} onForget={onForget} />)
+    renderRecap({ recap: SAMPLE, onFeedback: () => {}, onRegenerate: () => {}, onForget })
     await user.click(screen.getByRole('button', { name: /forget/i }))
     expect(onForget).toHaveBeenCalled()
+  })
+
+  // Wave 13 lane 13F.
+  it('the "Draft in today’s note" door is absent while the flag is off (default)', () => {
+    renderRecap({ recap: SAMPLE, onFeedback: () => {}, onRegenerate: () => {}, onForget: () => {} })
+    expect(screen.queryByRole('button', { name: /draft in today/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('EODRecap — "Draft in today’s note" (wave 13 lane 13F, flag on)', () => {
+  it('drafts the daily recap and navigates to the landed note', async () => {
+    vi.resetModules()
+    vi.doMock('../lib/reviewDrafts', () => ({
+      reviewDraftsEnabled: () => true,
+      draftDailyReview: vi.fn(async () => ({ note: { id: 'daily1' } })),
+      todayDayIso: () => SAMPLE.day || SAMPLE.metadata?.day,
+    }))
+    const navigateSpy = vi.fn()
+    vi.doMock('react-router-dom', async () => {
+      const actual = await vi.importActual('react-router-dom')
+      return { ...actual, useNavigate: () => navigateSpy }
+    })
+    const { default: EODRecapFresh } = await import('./EODRecap')
+    const user = userEvent.setup()
+    render(<MemoryRouter><EODRecapFresh recap={SAMPLE} onFeedback={() => {}} onRegenerate={() => {}} onForget={() => {}} /></MemoryRouter>)
+    const btn = screen.getByRole('button', { name: /draft in today/i })
+    await user.click(btn)
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/journal/notebook?note=daily1'))
+    vi.doUnmock('../lib/reviewDrafts')
+    vi.doUnmock('react-router-dom')
+  })
+
+  it('an OLDER recap card says "that day’s note" and drafts its own day (fin-data M1)', async () => {
+    vi.resetModules()
+    const draft = vi.fn(async () => ({ note: { id: 'daily-old' } }))
+    vi.doMock('../lib/reviewDrafts', () => ({
+      reviewDraftsEnabled: () => true,
+      draftDailyReview: draft,
+      todayDayIso: () => '2026-05-14',   // the card below is for May 11
+    }))
+    const { default: EODRecapFresh } = await import('./EODRecap')
+    const user = userEvent.setup()
+    render(<MemoryRouter><EODRecapFresh recap={SAMPLE} onFeedback={() => {}} onRegenerate={() => {}} onForget={() => {}} /></MemoryRouter>)
+    expect(screen.queryByRole('button', { name: /draft in today/i })).toBeNull()
+    await user.click(screen.getByRole('button', { name: /draft in that day/i }))
+    await waitFor(() => expect(draft).toHaveBeenCalledTimes(1))
+    expect(draft.mock.calls[0][0].day).toBe('2026-05-11')
+    vi.doUnmock('../lib/reviewDrafts')
   })
 })

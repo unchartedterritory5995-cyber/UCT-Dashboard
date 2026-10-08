@@ -1,0 +1,137 @@
+{
+  "id": "M5-gate-open-while-off",
+  "rail": "404 while the gate is off",
+  "path": "api/routers/notebook_research_capture.py",
+  "control_exit": 0,
+  "mutant_exit": 1,
+  "killed": true,
+  "restored_matches_git": true,
+  "restored_matches_capture": true,
+  "at": "2026-10-02T21:48:22"
+}
+
+--- CONTROL (unmutated) ---
+......                                                                   [100%]
+6 passed, 41 deselected in 30.08s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+
+
+--- MUTANT ---
+hile_the_gate_is_off_signed_in_or_not(client, app, monkeypatch, method, path):
+        monkeypatch.delenv(FLAG, raising=False)
+>       assert getattr(client, method)(path, **({"json": {}} if method == "post" else {})).status_code == 404
+E       AssertionError: assert 401 == 404
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+E        +    where <Response [401 Unauthorized]> = post('/api/j2/research-capture/transcripts/save', **{'json': {}})
+E        +      where post = getattr(<starlette.testclient.TestClient object at 0x000002A11B330190>, 'post')
+
+tests\test_notebook_transcript_capture.py:175: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpo6k4xpie.db
+_ test_every_route_is_404_while_the_gate_is_off_signed_in_or_not[get-/api/j2/research-capture/passed-setups] _
+
+client = <starlette.testclient.TestClient object at 0x000002A11B2DE650>
+app = <fastapi.applications.FastAPI object at 0x000002A11B2E2CF0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002A11B2FCAF0>
+method = 'get', path = '/api/j2/research-capture/passed-setups'
+
+    @pytest.mark.parametrize("method,path", ROUTES)
+    def test_every_route_is_404_while_the_gate_is_off_signed_in_or_not(client, app, monkeypatch, method, path):
+        monkeypatch.delenv(FLAG, raising=False)
+        kw = {"json": {}} if method == "post" else {}
+>       assert getattr(client, method)(path, **kw).status_code == 404
+E       AssertionError: assert 401 == 404
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+E        +    where <Response [401 Unauthorized]> = get('/api/j2/research-capture/passed-setups', **{})
+E        +      where get = getattr(<starlette.testclient.TestClient object at 0x000002A11B2DE650>, 'get')
+
+tests\test_notebook_passed_setups.py:176: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpps42g25r.db
+_ test_every_route_is_404_while_the_gate_is_off_signed_in_or_not[post-/api/j2/research-capture/passed-setups] _
+
+client = <starlette.testclient.TestClient object at 0x000002A11B3789D0>
+app = <fastapi.applications.FastAPI object at 0x000002A11B2D0590>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002A11B2FD480>
+method = 'post', path = '/api/j2/research-capture/passed-setups'
+
+    @pytest.mark.parametrize("method,path", ROUTES)
+    def test_every_route_is_404_while_the_gate_is_off_signed_in_or_not(client, app, monkeypatch, method, path):
+        monkeypatch.delenv(FLAG, raising=False)
+        kw = {"json": {}} if method == "post" else {}
+>       assert getattr(client, method)(path, **kw).status_code == 404
+E       AssertionError: assert 401 == 404
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+E        +    where <Response [401 Unauthorized]> = post('/api/j2/research-capture/passed-setups', **{'json': {}})
+E        +      where post = getattr(<starlette.testclient.TestClient object at 0x000002A11B3789D0>, 'post')
+
+tests\test_notebook_passed_setups.py:176: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpsmgkseg9.db
+_ test_every_route_is_404_while_the_gate_is_off_signed_in_or_not[delete-/api/j2/research-capture/passed-setups/x] _
+
+client = <starlette.testclient.TestClient object at 0x000002A11B398950>
+app = <fastapi.applications.FastAPI object at 0x000002A11B2D0EC0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002A11B2D7550>
+method = 'delete', path = '/api/j2/research-capture/passed-setups/x'
+
+    @pytest.mark.parametrize("method,path", ROUTES)
+    def test_every_route_is_404_while_the_gate_is_off_signed_in_or_not(client, app, monkeypatch, method, path):
+        monkeypatch.delenv(FLAG, raising=False)
+        kw = {"json": {}} if method == "post" else {}
+>       assert getattr(client, method)(path, **kw).status_code == 404
+E       AssertionError: assert 401 == 404
+E        +  where 401 = <Response [401 Unauthorized]>.status_code
+E        +    where <Response [401 Unauthorized]> = delete('/api/j2/research-capture/passed-setups/x', **{})
+E        +      where delete = getattr(<starlette.testclient.TestClient object at 0x000002A11B398950>, 'delete')
+
+tests\test_notebook_passed_setups.py:176: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpdlqiyzok.db
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_transcript_capture.py::test_every_route_is_404_while_the_gate_is_off_signed_in_or_not[get-/api/j2/research-capture/transcripts/NVDA/quarters]
+FAILED tests/test_notebook_transcript_capture.py::test_every_route_is_404_while_the_gate_is_off_signed_in_or_not[get-/api/j2/research-capture/transcripts/NVDA/2026Q2]
+FAILED tests/test_notebook_transcript_capture.py::test_every_route_is_404_while_the_gate_is_off_signed_in_or_not[post-/api/j2/research-capture/transcripts/save]
+FAILED tests/test_notebook_passed_setups.py::test_every_route_is_404_while_the_gate_is_off_signed_in_or_not[get-/api/j2/research-capture/passed-setups]
+FAILED tests/test_notebook_passed_setups.py::test_every_route_is_404_while_the_gate_is_off_signed_in_or_not[post-/api/j2/research-capture/passed-setups]
+FAILED tests/test_notebook_passed_setups.py::test_every_route_is_404_while_the_gate_is_off_signed_in_or_not[delete-/api/j2/research-capture/passed-setups/x]
+6 failed, 41 deselected in 24.14s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))

@@ -20,6 +20,7 @@ import { SkipLinkPortal } from '../../../components/skipLinks'
 import { getTemplate } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
 import { createNoteViaApi } from '../lib/noteCreation'
+import { ensureTemplatePropertyDefs, rememberTemplateReveal } from '../lib/templatePropertyDefs'
 import { createVoiceNote, voiceNotesEnabled } from '../lib/voiceNote'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../lib/tradeCanvasCreate'
 import useAppFocus from '../../../hooks/useAppFocus'
@@ -44,8 +45,11 @@ import { stepTrail, stepsBackToList } from '../lib/noteReturnTrail'
 import { DAILY_TEMPLATE_PREF, isDailyShortcut, openDailyNote } from '../lib/dailyNote'
 import usePreferences from '../../../hooks/usePreferences'
 import { useNoteSelection } from '../lib/noteSelection'
+import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
+import { registerShortcuts } from '../../command/shortcutRegistry'
 import { useIsDesktop } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
+import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
 import {
   checkUnsentWork, describeBatch, describeExport, describeUnchecked, describeUnsentRename, exportSelectedNotes,
   joinUndo, runNoteBatch, undoFor,
@@ -56,6 +60,17 @@ import useJ2NoteTags, { NOTE_TAGS_KEY } from '../hooks/useJ2NoteTags'
 import { fallbackNodes } from '../lib/tagTree'
 import lazyChunk from '../lib/lazyChunk'
 import NotebookTourGate from '../components/notebook/onboarding/NotebookTourGate'
+// Wave 14: every OTHER registered tour, beyond the base one above, runs through the generic
+// engine, whose gate (RegistryToursGate) is mounted ONCE in the app shell (components/Layout.jsx,
+// lane W14-C1) so a tour can start on any page and survive the navigation to its start.
+// Wave 14 (lane W14-C2): "newly switched on, offer once" -- a gate that fetches its small
+// card only when a registered tour is due to be offered. It is reached through a DOOR that
+// reads the wave-14 switch first, so with the switch off none of the offer's rules ride in
+// the first open. `OTHER_TOURS` is one frozen module-level array (tourRegistry.js), so the
+// gate's own effects see a stable list.
+import TourOfferDoor from '../components/notebook/onboarding/TourOfferDoor'
+import { GettingStartedSkipLink } from '../components/notebook/onboarding/keyboardDoors'
+import { OTHER_TOURS } from '../components/notebook/onboarding/tourRegistry'
 
 // ── Wave 7 (lane I3): the views and dialogs a member opens ON PURPOSE load on demand ──
 // Graph, board, calendar, timeline and tasks are view modes; Import and Export are
@@ -418,6 +433,17 @@ export default function NotebookTab() {
     return next
   })
 
+  // Lane KEYS: the command palette's "Search Notebook" arrives with `#search`
+  // (lib/notebookSearchDoor.js). The folders panel is shown if it was hidden (for this visit
+  // only: the member's stored choice is not rewritten) and asked to open its search with the
+  // cursor in the box. Keyed on `location.key`, so choosing the command twice works twice.
+  const [searchRequest, setSearchRequest] = useState(0)
+  useEffect(() => {
+    if (location.hash !== NOTEBOOK_SEARCH_HASH) return
+    setSidebarOpen(true)
+    setSearchRequest((n) => n + 1)
+  }, [location.hash, location.key])
+
   // Divider drag. The live width is written straight to a CSS variable on the
   // wrap element (no React state per move) so the panel tracks the pointer 1:1
   // with zero render lag; state + localStorage are committed once, on release.
@@ -716,7 +742,13 @@ export default function NotebookTab() {
   // by the editor — lib/noteTasks.js); any other open drops a stale one.
   // Final-review fix I-1: `fresh` marks a note the member just MADE (createNote
   // below) -- the one open whose next act is typing its title.
-  const openNote = (note, target = null, { task = null, fresh = false } = {}) => {
+  // Wave 13Q-2 (13Q click-budget fix): `blank` narrows that further -- a note
+  // made with NO title and NO template body has nothing in the title worth
+  // reviewing first, so the member's next act is writing in the BODY, not the
+  // title. A template or a typed title still lands in the title (I-1 unchanged
+  // there); only the bare "+ New note" / palette "New Note" / Ctrl+K path is
+  // `blank`. See `createNote`'s own `blank` computation.
+  const openNote = (note, target = null, { task = null, fresh = false, blank = false } = {}) => {
     // ⛔⛔ Wave 6 item 7: the note on the right is not opened a second time on
     // the left — refused, and the side pane (which has it) takes focus.
     if (sideId && note?.id === sideId) { refuseSecondPane('side'); return }
@@ -741,7 +773,7 @@ export default function NotebookTab() {
     // THAT open, not this one.
     paneFocusPlanRef.current = null
     const inside = Boolean(target) || (Number.isInteger(task) && task >= 0)
-    setOpenFocus(inside ? null : { id: note.id, to: fresh ? 'title' : 'landmark' })
+    setOpenFocus(inside ? null : { id: note.id, to: fresh ? (blank ? 'body' : 'title') : 'landmark' })
     setSearchParams((prev) => {
       const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
@@ -1149,6 +1181,66 @@ export default function NotebookTab() {
     return () => document.removeEventListener('keydown', onKey)
   }, [selection.count, clearSelection])
 
+  // 13Q-5: Ctrl+Alt+B jumps focus straight into the bulk-action bar once a
+  // selection exists -- the measured fix for Q11 (167-179 real Tab presses to
+  // reach "Tags"/"Move to select" from a just-ticked row, because the bar sits
+  // above however many notes remain in the view -- not shared chrome, the bar's
+  // own position). The visible hint lives on the bar itself (BulkActionBar's
+  // selectionInfo row), which is on screen, unfocused, the instant the first
+  // Space ticks a row -- a sighted member reads it without needing focus there
+  // first, which is the whole point of a shortcut that gets them there.
+  //
+  // ⛔ MEASURED, and it is why this does NOT land on the roving group's own
+  // active stop: the Move <select> sits BEFORE "Tags" in the bar's own DOM
+  // order, so a first landing on Tags reaches it fine, but after tagging a
+  // SECOND press that again lands on Tags cannot reach "Move to select" by
+  // forward Tab at all -- it wraps the ENTIRE page back around (measured:
+  // 145 real presses, docs/notebook/evidence/wave13-13q5/run-1/clicks.json,
+  // Q11 keys@1200 step 23). The jump target is instead the bar's own STABLE
+  // first control (the Move select where one exists), which every other
+  // control sits AFTER -- cheap to reach from there every time, in either
+  // direction this flow is used.
+  useEffect(() => {
+    if (!selection.count) return undefined
+    // Bound through the shared shortcut registry (declared there as `notebook.bulkBar`).
+    return registerShortcuts({
+      'notebook.bulkBar': (e) => {
+        if (!isBulkActionsShortcut(e)) return       // the AltGr guard lives there
+        const bar = document.querySelector('[data-bulk-bar]')
+        if (!bar) return
+        e.preventDefault()
+        const target = bar.querySelector('[data-bulk-move-select]')
+          || [...bar.querySelectorAll('button, select')].find((el) => !el.disabled)
+        target?.focus()
+      },
+    })
+  }, [selection.count])
+
+  // 13Q-5: Shift+Arrow extends the selection to the adjacent note and moves
+  // focus with it (file-manager convention) -- Space alone already ticks the
+  // focused row cheaply (confirmed in the click-budget trail: 2 Tabs between
+  // adjacent rows), this cuts it to one keystroke with no Tab at all. Reuses
+  // `toggle`'s EXISTING shift-range math (`noteSelection.js`'s `applyToggle`,
+  // the same code Shift+click and Shift+Space already ride) -- never a second
+  // range implementation. `notes` is already in DOM/visual order (it is what
+  // the grid below maps), so the adjacent note is simply `notes[at ± 1]`.
+  const handleSelectionGridKeyDown = (e) => {
+    if (!selectionOn) return
+    if (!e.shiftKey || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return
+    const input = e.target
+    if (!input || input.tagName !== 'INPUT' || input.type !== 'checkbox') return
+    const id = input.getAttribute('data-note-select-id')
+    if (id == null) return
+    const at = notes.findIndex((n) => String(n.id) === id)
+    if (at < 0) return
+    const to = at + (e.key === 'ArrowDown' ? 1 : -1)
+    if (to < 0 || to >= notes.length) return
+    e.preventDefault()
+    const target = notes[to]
+    selection.toggle(target.id, { shift: true })
+    document.querySelector(`[data-note-select-id="${CSS.escape(String(target.id))}"]`)?.focus()
+  }
+
   // Keep a notice on screen long enough to read and act on, then let it go.
   // An error stays until dismissed: it describes something the member has to do.
   useEffect(() => {
@@ -1452,7 +1544,7 @@ export default function NotebookTab() {
   // than a second creation flow -- this wrapper only adds NotebookTab's OWN
   // UI concerns (app-focus ticker fallback, current-folder scoping, tree/
   // refresh bookkeeping) on top of it.
-  const createNote = async ({ title = '', bodyJson, tags, ticker, properties } = {}) => {
+  const createNote = async ({ title = '', bodyJson, tags, ticker, properties, revealPropertyIds } = {}) => {
     setCreating(true)
     setPickerOpen(false)
     try {
@@ -1465,11 +1557,57 @@ export default function NotebookTab() {
       const safeFolderId = folderId && !['__unfiled__', '__trash__', ARCHIVED_FOLDER].includes(folderId)
         ? folderId : undefined
       const created = await createNoteViaApi({ title, bodyJson, tags, ticker: seededTicker, folderId: safeFolderId, properties })
+      // Wave 12 (12B-2): a template's definitions start empty, and the Properties
+      // section hides an empty property -- so the new note shows them (this tab only).
+      if (revealPropertyIds?.length) rememberTemplateReveal(created?.id, revealPropertyIds)
+      // 13Q-Q1check -- PRIME useJ2Note's SWR CACHE WITH WHAT THIS POST ALREADY
+      // RETURNED, before NoteEditorPage ever mounts and asks for it.
+      //
+      // Without this, `useJ2Note(noteId)`'s useSWR has nothing cached for a
+      // note that did not exist a moment ago, so NoteEditorPage's FIRST render
+      // sees `note: null` -- and `useEditor` is deliberately keyed on
+      // `[note?.id]` (see NoteEditorPage.jsx's own comment on that hook call:
+      // the editor must be rebuilt once the real note arrives, or an
+      // ALREADY-templated note would flash empty and risk autosaving a
+      // ProseMirror repair transaction). For a note THIS function just made,
+      // that rebuild is pure cost: `note?.id` silently flips from `undefined`
+      // to `created.id` a render or two after mount, React tears down the
+      // first (empty) TipTap editor instance and builds a second one, and the
+      // 'body' openFocus effect's one `editor.commands.focus('end')' call
+      // -- a useLayoutEffect, correctly beating first paint, exactly as its
+      // own long comment documents -- fires against whichever instance is
+      // current on ITS render. On a freshly-created note that is reliably the
+      // EPHEMERAL first one: its DOM node is gone by the time the command's
+      // own deferred view.focus() rAF would have run, so the caret is lost
+      // with no error and no trace on the instance that survives.
+      //
+      // Measured (R-RAW, addInitScript focusin/MutationObserver recorder, 10
+      // reps x 2 widths, no harness help):
+      // docs/notebook/evidence/wave13-q1check/remount-trace-diagnosis/results.json
+      // -- a second `.ProseMirror` identity is added AND removed in the same
+      // batch every single rep, and `.ProseMirror` never receives a `focusin`
+      // event at all, in any rep. That is this rebuild, caught directly.
+      //
+      // Seeding the cache here (the exact shape `useJ2Note`'s fetcher
+      // returns -- `{note: ...}`, never revalidated, since this response IS
+      // the freshest possible copy) means `note` is already the real object
+      // on NoteEditorPage's FIRST render: `useEditor` builds the ONE stable
+      // instance from the start, the rebuild never happens, and the existing
+      // single-call effect (unchanged) lands on it directly. This is the same
+      // state a member reopening an already-viewed note gets from SWR's
+      // ordinary cache hit -- not a new code path, just reaching the
+      // already-tested one sooner.
+      globalMutate(`/api/j2/notes/${created.id}`, { note: created }, false)
       // Instant: put it in the tree now, then reconcile from the server.
       addNoteToTree(created)
       refreshAll()
       // I-1: the one open that lands in the title -- the member made this note.
-      openNote(created, null, { fresh: true })
+      // 13Q-2: UNLESS it is blank (no title, no template body) -- then straight
+      // to the body (`blank`, computed from what the CALLER passed in, never
+      // from the server's response: every note's stored bodyJson is a real doc,
+      // even an empty one, so reading `created.bodyJson` could not tell blank
+      // from templated).
+      openNote(created, null, { fresh: true, blank: !title && !bodyJson })
     } catch (e) {
       console.error('[notebook] create note failed', e)
       setActionError("Couldn't create that note. Nothing was saved.")
@@ -1507,12 +1645,28 @@ export default function NotebookTab() {
     } catch {
       ctx = { ticker: ticker || null }
     }
+    // Wave 12 (lane 12B-2): a template that declares property DEFINITIONS (the
+    // Position Tracker) has them created or reused first, then the note is made.
+    // Best-effort by design: with formulas off the formulas are left out before any
+    // request, a definition that fails is skipped, and nothing here can stop the
+    // note -- which is ONE create carrying no property values, so it is never
+    // half-applied (lib/templatePropertyDefs.js).
+    let revealPropertyIds
+    if (Array.isArray(tpl.propertyDefinitions) && tpl.propertyDefinitions.length) {
+      try {
+        revealPropertyIds = (await ensureTemplatePropertyDefs(tpl)).revealIds
+      } catch (e) {
+        console.warn('[notebook] template properties were not set up; the note is still made', e)
+      }
+      refreshPropertyDefs()
+    }
     await createNote({
       title: tpl.defaultTitle(ctx),
       bodyJson: tpl.build(ctx),
       tags: tpl.tags,
       ticker: ctx.ticker,
       properties: tpl.properties,
+      revealPropertyIds,
     })
   }
 
@@ -1672,6 +1826,11 @@ export default function NotebookTab() {
           right after "Skip to main content" -- not the 36th, behind the nav
           and the Journal's header. Rendered alone, it stays here. */}
       <SkipLinkPortal>
+        {/* W14-keys: "Skip to getting started", FIRST among the Notebook's skip links while
+            the get-started checklist is on screen (it renders nothing otherwise, so every
+            other member's Tab order is unchanged). Same hidden-until-focused class as the
+            link below, so it has the same H14 tap behaviour (a11y/skipLinkUntappable). */}
+        <GettingStartedSkipLink className={styles.skipLink} />
         <a href="#notebook-pane" className={styles.skipLink} onClick={skipToPane}>
           {noteId ? 'Skip to note' : 'Skip to notes list'}
         </a>
@@ -1795,6 +1954,7 @@ export default function NotebookTab() {
             onOpenNote={openNote}
             activeNoteId={noteId}
             onToggleSidebar={toggleSidebar}
+            searchRequest={searchRequest}
             savedViews={savedViews}
             activeViewId={activeView?.id ?? null}
             onSelectView={handleSelectView}
@@ -1831,6 +1991,31 @@ export default function NotebookTab() {
         {!noteId && (
           <h2 ref={paneHeadingRef} tabIndex={-1} className={styles.paneHeading}>{paneHeading}</h2>
         )}
+        {/* Finish program, lane FE2 round 2: this confirm and its error line sit ABOVE the
+            note / Research Home / notes-list branches. They used to be inside the notes-list
+            branch only, while the folders panel (and its saved views) is also shown beside
+            Research Home and beside an open note: there the Delete button set the state and
+            nothing appeared. Rail: NotebookTab.test.jsx, "on Research Home the Delete button". */}
+        {/* UX #1, 2026-09-22: mirrors the folder-delete ConfirmModal in
+            FolderSidebar.jsx exactly -- same reason it lives here rather
+            than there (folders own rename/remove via their OWN hook call;
+            saved views' rename/remove had to live wherever `activeView`
+            state lives, which is here, not FolderSidebar). */}
+        {deleteViewTarget && (
+          <ConfirmModal
+            title={`Delete view "${deleteViewTarget.name}"?`}
+            body="This removes the saved view. It does not delete any notes."
+            confirmLabel="Delete"
+            tone="danger"
+            onConfirm={onDeleteViewConfirm}
+            onClose={() => setDeleteViewTarget(null)}
+            fallbackFocus={neighbourFallback(wrapRef, 'data-saved-view-row', deleteViewTarget.after || [],
+              paneHeadingRef, () => wrapRef.current?.querySelector('[data-all-notes-row]'))}
+          />
+        )}
+        {savedViewError && (
+          <div className={styles.error} role="alert">{savedViewError}</div>
+        )}
         {noteId ? (
           <>
           {/* D2 (D-1): the way back to the list on a phone, where the folder
@@ -1842,6 +2027,7 @@ export default function NotebookTab() {
             className={styles.phoneBack}
             onClick={phoneBackToNotes}
             data-nb-phone-back=""
+            data-tour="note-phone-back"
           >
             <UIcon name="chevronRight" size={16} gold={false} aria-hidden="true" style={{ transform: 'rotate(180deg)' }} />
             Back to notes
@@ -1973,6 +2159,12 @@ export default function NotebookTab() {
             // Fix I-3: the sample's "Remove it" runs the bulk trash's own pre-check.
             blockedNoteIds={blockedNoteIds}
             titleOf={titleOfAnyNote}
+            // Wave 13 lane 13Q-3 (click-budget fix, Q5): the SAME openToday handler the
+            // All Notes list header already uses below -- one authority, never a second
+            // day-note opener -- so the bare-root Research Home reaches Today in one
+            // click/tap instead of "All notes" -> "Today" (2).
+            onOpenToday={openToday}
+            skipLinkClassName={styles.skipLink}
           />
         ) : (
           <>
@@ -2130,6 +2322,7 @@ export default function NotebookTab() {
               onClick={() => setPickerOpen(true)}
               disabled={creating}
               aria-haspopup="dialog"
+              data-tour="templates"
             >
               Templates
             </button>
@@ -2180,7 +2373,9 @@ export default function NotebookTab() {
               </span>
             </div>
           )}
-          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} />
+          {/* 13Q-5: autoFocus only in the Sheet dialog -- the inline empty-notebook
+              mount below must never steal focus from a page load. */}
+          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} autoFocusSearch />
         </Sheet>
 
         {voiceNote && voiceOn && (
@@ -2209,26 +2404,6 @@ export default function NotebookTab() {
           onSave={handleSaveCurrentView}
         />
 
-        {/* UX #1, 2026-09-22: mirrors the folder-delete ConfirmModal in
-            FolderSidebar.jsx exactly -- same reason it lives here rather
-            than there (folders own rename/remove via their OWN hook call;
-            saved views' rename/remove had to live wherever `activeView`
-            state lives, which is here, not FolderSidebar). */}
-        {deleteViewTarget && (
-          <ConfirmModal
-            title={`Delete view "${deleteViewTarget.name}"?`}
-            body="This removes the saved view. It does not delete any notes."
-            confirmLabel="Delete"
-            tone="danger"
-            onConfirm={onDeleteViewConfirm}
-            onClose={() => setDeleteViewTarget(null)}
-            fallbackFocus={neighbourFallback(wrapRef, 'data-saved-view-row', deleteViewTarget.after || [],
-              paneHeadingRef, () => wrapRef.current?.querySelector('[data-all-notes-row]'))}
-          />
-        )}
-        {savedViewError && (
-          <div className={styles.error} role="alert">{savedViewError}</div>
-        )}
 
         {error && (
           <div className={styles.error} role="alert">
@@ -2421,7 +2596,7 @@ export default function NotebookTab() {
                 } : null}
               />
             ) : (
-              <div className={styles.grid}>
+              <div className={styles.grid} onKeyDown={handleSelectionGridKeyDown}>
                 {notes.map((n) => (
                   <NoteCard
                     key={n.id}
@@ -2483,6 +2658,9 @@ export default function NotebookTab() {
       {notebookFlag('notebook_onboarding_enabled') === true && (
         <NotebookTourGate hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} />
       )}
+      {/* Wave 14 (lane W14-C2): the one-time offer for a tour whose capability is on and
+          which the member has never seen. Never while a note is open (R4). */}
+      <TourOfferDoor tours={OTHER_TOURS} hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} noteOpen={Boolean(noteId)} />
     </div>
     </SplitViewContext.Provider>
   )

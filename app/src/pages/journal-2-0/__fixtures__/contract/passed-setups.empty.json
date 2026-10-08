@@ -1,0 +1,22 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/research-capture/passed-setups",
+    "path": "/api/j2/research-capture/passed-setups",
+    "status": 200
+  },
+  "body": {
+    "bestWindow": 20,
+    "horizons": [
+      1,
+      5,
+      10,
+      20
+    ],
+    "items": [],
+    "lookbackDays": 60,
+    "refreshQueued": true,
+    "tradedCount": 0,
+    "tradedWithin": 10
+  }
+}

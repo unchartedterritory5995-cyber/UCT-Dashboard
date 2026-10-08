@@ -13,6 +13,7 @@ import { useEffect, useImperativeHandle, useState, forwardRef } from 'react'
 import { WIDGET_REGISTRY, JOURNAL_MENU_TYPES, tfText } from '../../../../widgets/registry'
 import {
   parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, chartInsertNodes,
+  parseVsSlashArgs, chartPlanEnabled, VS_BROAD, VS_KEYWORDS,
 } from '../../lib/widgetEmbedCore'
 import { applyComboboxWiring } from '../../lib/comboboxWiring'
 import { BLOCK_MATH, INLINE_MATH, insertMathAndEdit } from '../../lib/mathNodes'
@@ -22,6 +23,7 @@ import { DICTATE_EVENT } from '../../lib/dictationInsert'
 import { WRITING_HELP_EVENT } from '../../lib/writingHelp'
 import { VOICE_NOTE_EVENT } from '../../lib/voiceNote'
 import { CANVAS_EVENT } from '../../lib/tradeCanvas'
+import { TRANSCRIPT_EVENT, transcriptCaptureEnabled } from '../../lib/researchCapture'
 import styles from './SlashMenu.module.css'
 
 // Exported for the rails (SlashMenu.items.test.jsx): the block entries a bare
@@ -238,6 +240,20 @@ export const ITEMS = [
       editor.view.dom.dispatchEvent(new CustomEvent(CANVAS_EVENT, { bubbles: true }))
     },
   },
+  {
+    // Wave 13 lane 13G-1: /transcript -- a passage of a call transcript UCT already holds,
+    // saved as a cited excerpt and placed at the caret. Dark behind
+    // `notebook_transcript_capture_enabled`, and dispatched on this editor's own DOM root (I5);
+    // the sheet is TranscriptDoors' TranscriptInsertHost, mounted by the editor page.
+    title: 'Transcript passage',
+    description: 'Quote an earnings call, cited with the call, its date and the speaker turn',
+    keywords: ['transcript', 'earnings', 'call', 'quote', 'excerpt', 'cite'],
+    available: () => transcriptCaptureEnabled(),
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      editor.view.dom.dispatchEvent(new CustomEvent(TRANSCRIPT_EVENT, { bubbles: true }))
+    },
+  },
 ]
 
 /** Does a block item answer the typed query (its title, or one of its keywords)? */
@@ -437,11 +453,14 @@ export function widgetItems(query) {
   // completes, valid args insert, anything else offers NOTHING (Enter stays
   // a newline — the '/chart looks great here' lesson).
   const restAfterName = singleToken ? '' : raw.trim().slice(first.length).trim()
+  // Wave 13 lane 13H-2: the weekly stack (`/mtf AMD W`) and `/vs` are dark behind the
+  // chart-plan gate -- read once per query, never a second flag.
+  const planOn = chartPlanEnabled()
   if (singleToken ? 'mtf'.startsWith(first) : first === 'mtf') {
-    const args = restAfterName ? parseMtfSlashArgs(restAfterName) : null
+    const args = restAfterName ? parseMtfSlashArgs(restAfterName, { weekly: planOn }) : null
     if (args) {
       out.push({
-        title: `MTF stack — ${args.symbol} · D / 1h / 15m${args.day ? ` @ ${fmtDayTitle(args.day)}` : ''}`,
+        title: `MTF stack — ${args.symbol} · ${args.tfs.map(tfText).join(' / ')}${args.day ? ` @ ${fmtDayTitle(args.day)}` : ''}`,
         description: args.day ? 'Three charts, top-down, anchored at that date' : 'Three frozen charts, top-down',
         command: ({ editor, range }) => {
           const settings = editor.storage?.uctJournalWidgets?.chartSettings
@@ -454,7 +473,9 @@ export function widgetItems(query) {
     } else if (!restAfterName) {
       out.push({
         title: 'MTF stack',
-        description: 'Type a symbol — e.g. /mtf AMD (D + 1h + 15m; add a date to anchor)',
+        description: planOn
+          ? 'Type a symbol — e.g. /mtf AMD (D + 1h + 15m), /mtf AMD W (W + D + 1h); add a date to anchor'
+          : 'Type a symbol — e.g. /mtf AMD (D + 1h + 15m; add a date to anchor)',
         command: ({ editor, range }) => {
           editor.chain().focus().deleteRange(range).insertContent('/mtf ').run()
         },
@@ -486,7 +507,71 @@ export function widgetItems(query) {
       })
     }
   }
+  if (planOn && (singleToken ? 'vs'.startsWith(first) : first === 'vs')) {
+    out.push(...vsItems(restAfterName))
+  }
   return out
+}
+
+/** Wave 13 lane 13H-2 -- `/vs`: the stock beside SPY, QQQ, its sector ETF or its theme ETF,
+ *  both frozen at the same `to` (chartInsertNodes('vs')). Without a benchmark the menu offers
+ *  all four; `sector` / `theme` are resolved by the server at insert time
+ *  (GET /api/j2/chart-plan/benchmarks), and a stock with no such ETF inserts NOTHING -- an
+ *  honest miss, never a guessed benchmark (the /price failure contract). */
+const VS_KEYWORD_TITLE = { sector: 'its sector ETF', theme: 'its theme ETF' }
+function vsItems(rest) {
+  if (!rest) {
+    return [{
+      title: 'Versus',
+      description: 'Type a symbol — e.g. /vs AMD (beside SPY, QQQ, its sector or theme ETF)',
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).insertContent('/vs ').run()
+      },
+    }]
+  }
+  const args = parseVsSlashArgs(rest)
+  if (!args) return []
+  const benches = args.bench ? [args.bench] : [...VS_BROAD, ...VS_KEYWORDS]
+  const at = args.day ? ` @ ${fmtDayTitle(args.day)}` : ''
+  const tfSuffix = args.tf !== 'D' ? ` · ${tfText(args.tf)}` : ''
+  return benches.filter((b) => b !== args.symbol).map((bench) => ({
+    title: `Versus — ${args.symbol} vs ${VS_KEYWORD_TITLE[bench] || bench}${at}${tfSuffix}`,
+    description: 'Two half-width charts frozen at the same moment',
+    command: async ({ editor, range }) => {
+      const settings = editor.storage?.uctJournalWidgets?.chartSettings
+      editor.chain().focus().deleteRange(range).run()
+      let benchmark = bench
+      let label = null
+      if (VS_KEYWORDS.includes(bench)) {
+        try {
+          const res = await fetch(`/api/j2/chart-plan/benchmarks?symbol=${encodeURIComponent(args.symbol)}`,
+            { credentials: 'include' })
+          // A failed lookup inserts nothing (directive §48: the note is untouched) -- and SAYS so,
+          // through the note's own toast. The typed command is already gone, so silence here
+          // read as the command having done nothing at all.
+          const say = (text) => editor.storage?.uctJournalWidgets?.notify?.(text, 'error')
+          const down = `The ${bench} ETF for ${args.symbol} could not be looked up just now, so nothing was added. Try /vs again.`
+          if (!res.ok) { say(down); return }
+          const body = await res.json()
+          const hit = (body?.options || []).find((o) => o.key === bench)
+          if (!hit?.symbol) {
+            say(`${args.symbol} has no ${bench} ETF on file, so nothing was added. Try /vs ${args.symbol} SPY.`)
+            return
+          }
+          benchmark = hit.symbol
+          label = hit.label || null
+        } catch {
+          editor.storage?.uctJournalWidgets?.notify?.(
+            `The ${bench} ETF for ${args.symbol} could not be looked up just now, so nothing was added. Try /vs again.`, 'error')
+          return
+        }
+      }
+      editor.chain().focus()
+        .insertContent(chartInsertNodes('vs', { ...args, benchmark, label }, settings))
+        .caretAfterWidgetEmbed()
+        .run()
+    },
+  }))
 }
 
 const SlashList = forwardRef((props, ref) => {

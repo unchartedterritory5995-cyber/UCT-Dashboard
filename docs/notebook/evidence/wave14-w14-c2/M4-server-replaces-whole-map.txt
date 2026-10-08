@@ -1,0 +1,151 @@
+.FFF.....F.........F...                                                  [100%]
+================================== FAILURES ===================================
+____________ test_a_second_tour_never_touches_the_first_tours_row _____________
+
+app = <fastapi.applications.FastAPI object at 0x000001ED10DEE510>
+
+    def test_a_second_tour_never_touches_the_first_tours_row(app):
+        c = TestClient(app)
+        c.put("/api/j2/onboarding/tours/tour-a", json={"state": "done", "step": "last"})
+        r = c.put("/api/j2/onboarding/tours/tour-b", json={"state": "dismissed", "step": None})
+>       assert json.loads(r.json()["value"]) == {
+            "tour-a": {"v": 1, "state": "done", "step": "last"},
+            "tour-b": {"v": 1, "state": "dismissed", "step": None},
+        }
+E       AssertionError: assert {'tour-b': {'...None, 'v': 1}} == {'tour-a': {'...None, 'v': 1}}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Right contains 1 more item:
+E         {'tour-a': {'state': 'done', 'step': 'last', 'v': 1}}
+E         Use -v to get more diff
+
+tests\test_notebook_tour_seen_state.py:69: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\pytest-of-Patrick\pytest-16959\test_a_second_tour_never_touch0\tours.db
+_________________ test_rewriting_a_row_replaces_only_that_row _________________
+
+app = <fastapi.applications.FastAPI object at 0x000001ED10DED7F0>
+
+    def test_rewriting_a_row_replaces_only_that_row(app):
+        c = TestClient(app)
+        c.put("/api/j2/onboarding/tours/tour-a", json={"state": "started", "step": "s1"})
+        c.put("/api/j2/onboarding/tours/tour-b", json={"state": "started", "step": "x"})
+        c.put("/api/j2/onboarding/tours/tour-a", json={"state": "done", "step": "s2"})
+>       assert _stored() == {
+            "tour-a": {"v": 1, "state": "done", "step": "s2"},
+            "tour-b": {"v": 1, "state": "started", "step": "x"},
+        }
+E       AssertionError: assert {'tour-a': {'...'s2', 'v': 1}} == {'tour-a': {'... 'x', 'v': 1}}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Right contains 1 more item:
+E         {'tour-b': {'state': 'started', 'step': 'x', 'v': 1}}
+E         Use -v to get more diff
+
+tests\test_notebook_tour_seen_state.py:80: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\pytest-of-Patrick\pytest-16959\test_rewriting_a_row_replaces_0\tours.db
+________ test_rows_written_by_the_old_whole_value_door_survive_a_merge ________
+
+db = WindowsPath('C:/Users/Patrick/AppData/Local/Temp/pytest-of-Patrick/pytest-16959/test_rows_written_by_the_old_w0')
+
+    def test_rows_written_by_the_old_whole_value_door_survive_a_merge(db):
+        """A member whose map was written by `POST /api/auth/preferences` (every write before
+        this route) keeps those rows: the merge starts FROM the stored map."""
+        auth_service.set_user_preference(U1, "notebook_tours", json.dumps({"old": {"v": 1, "state": "done", "step": None}}))
+        out = tour_seen_state.record(U1, "new", "started", "s1")
+>       assert out == {"old": {"v": 1, "state": "done", "step": None}, "new": {"v": 1, "state": "started", "step": "s1"}}
+E       AssertionError: assert {'new': {'sta...'s1', 'v': 1}} == {'new': {'sta...None, 'v': 1}}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Right contains 1 more item:
+E         {'old': {'state': 'done', 'step': None, 'v': 1}}
+E         Use -v to get more diff
+
+tests\test_notebook_tour_seen_state.py:91: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\pytest-of-Patrick\pytest-16959\test_rows_written_by_the_old_w0\tours.db
+_________ test_two_tabs_recording_different_tours_at_once_lose_no_row _________
+
+db = WindowsPath('C:/Users/Patrick/AppData/Local/Temp/pytest-of-Patrick/pytest-16959/test_two_tabs_recording_differ0')
+
+    def test_two_tabs_recording_different_tours_at_once_lose_no_row(db):
+        _race(lambda tid: tour_seen_state.record(U1, tid, "done", None))
+        stored = _stored()
+>       assert len(stored) == N_TOURS, sorted(stored)
+E       AssertionError: ['right-11']
+E       assert 1 == 24
+E        +  where 1 = len({'right-11': {'state': 'done', 'step': None, 'v': 1}})
+
+tests\test_notebook_tour_seen_state.py:136: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\pytest-of-Patrick\pytest-16959\test_two_tabs_recording_differ0\tours.db
+________ test_the_map_is_capped_and_a_row_past_the_cap_writes_nothing _________
+
+app = <fastapi.applications.FastAPI object at 0x000001ED10DEF770>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001ED10E35E50>
+
+    def test_the_map_is_capped_and_a_row_past_the_cap_writes_nothing(app, monkeypatch):
+        monkeypatch.setattr(tour_seen_state, "MAX_TOURS", 3)
+        c = TestClient(app)
+        for i in range(3):
+            assert c.put(f"/api/j2/onboarding/tours/t{i}", json={"state": "done", "step": None}).status_code == 200
+        r = c.put("/api/j2/onboarding/tours/t9", json={"state": "done", "step": None})
+>       assert r.status_code == 413
+E       assert 200 == 413
+E        +  where 200 = <Response [200 OK]>.status_code
+
+tests\test_notebook_tour_seen_state.py:179: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\pytest-of-Patrick\pytest-16959\test_the_map_is_capped_and_a_r0\tours.db
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_tour_seen_state.py::test_a_second_tour_never_touches_the_first_tours_row
+FAILED tests/test_notebook_tour_seen_state.py::test_rewriting_a_row_replaces_only_that_row
+FAILED tests/test_notebook_tour_seen_state.py::test_rows_written_by_the_old_whole_value_door_survive_a_merge
+FAILED tests/test_notebook_tour_seen_state.py::test_two_tabs_recording_different_tours_at_once_lose_no_row
+FAILED tests/test_notebook_tour_seen_state.py::test_the_map_is_capped_and_a_row_past_the_cap_writes_nothing
+5 failed, 18 passed in 30.41s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))

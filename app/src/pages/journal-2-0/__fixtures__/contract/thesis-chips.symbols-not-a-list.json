@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/thesis-chips",
+    "path": "/api/j2/thesis-chips",
+    "requestBody": {
+      "symbols": "TCNV"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "symbols must be an array"
+  }
+}

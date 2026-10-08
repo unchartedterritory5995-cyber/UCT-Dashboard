@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "PUT /api/j2/onboarding/tours/reporting-soon",
+    "path": "/api/j2/onboarding/tours/reporting-soon",
+    "requestBody": {
+      "state": "paused"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "Invalid tour state."
+  }
+}

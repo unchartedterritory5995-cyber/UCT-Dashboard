@@ -1,7 +1,8 @@
 /** Generic destructive-action confirm modal.
  *  Used for Position delete (formerly window.confirm), and across the
- *  Notebook: a note's Delete, a folder's and a saved view's Delete, the bulk
- *  Move to Trash, a version restore. Cleaner UX, Esc-closes, focus-traps
+ *  Notebook: a note's Delete, a folder's and a saved view's Delete, a
+ *  version restore. (Bulk Move to Trash is NOT a user: it has no confirm, it
+ *  trashes at once and offers Undo.) Cleaner UX, Esc-closes, focus-traps
  *  inside the modal.
  *
  *  ⛔⛔ F4 / A2R-05 (WCAG 2.4.3), from lane 10E-2's keyboard walk. The dialog
@@ -35,6 +36,7 @@
 import { useEffect, useId, useRef } from 'react'
 import useFocusTrap from '../../../components/mobile/useFocusTrap'
 import { firstFocusable } from '../lib/focusAfterRemoval'
+import useBodyScrollLock from '../lib/useBodyScrollLock'
 import shellStyles from './ModalShell.module.css'
 
 export default function ConfirmModal({
@@ -79,6 +81,9 @@ export default function ConfirmModal({
   }, [])
 
   useFocusTrap(true, dialogRef)
+  // The floating voice orb and feedback button hide on this lock; without it the orb sat on the
+  // confirm button on a phone and took its tap (lib/useBodyScrollLock.js).
+  useBodyScrollLock()
 
   return (
     <div

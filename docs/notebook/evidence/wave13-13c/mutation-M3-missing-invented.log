@@ -1,0 +1,525 @@
+FFFFFFFF                                                                 [100%]
+================================== FAILURES ===================================
+____ test_each_source_stubbed_off_yields_a_labelled_missing_cell[calendar] ____
+
+client = <starlette.testclient.TestClient object at 0x000002840C8D92B0>
+app = <fastapi.applications.FastAPI object at 0x000002840C8D8C20>
+gate_on = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002840C8182B0>
+stores = (<module 'api.services.call_recap_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\call_r...'api.services.implied_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\implied_store.py'>)
+off = 'calendar'
+
+    @pytest.mark.parametrize("off", sorted(MISSING_CASES))
+    def test_each_source_stubbed_off_yields_a_labelled_missing_cell(client, app, gate_on, monkeypatch, stores, off):
+        """One source at a time answers nothing; that cell reads missing WITH its sentence, and the
+        rest of the draft still arrives."""
+        _today(monkeypatch)
+        _full_market(monkeypatch, stores)
+        recap_store, implied_store = stores
+        if off != "notes":
+            _note(A, "NVDA thesis", "NVDA")
+        if off != "position":
+            _position(A, "NVDA")
+        if off != "trades":
+            _trade(A, "NVDA", "t1")
+        if off == "calendar":
+            _window(monkeypatch, {})
+            bare = dict(INTEL, summary={}, next_report_date=None)
+            _intel(monkeypatch, bare)
+        elif off == "intel":
+            _intel(monkeypatch, {"error": "ticker required"})
+        elif off == "implied":
+            monkeypatch.setattr(implied_store, "get_implied_history", lambda sym, limit=8: [])
+        elif off == "recap":
+            monkeypatch.setattr(recap_store, "get", lambda sym, quarter=None: None)
+        as_user(app, A)
+        d = client.post("/api/j2/earnings-prep/NVDA/draft").json()
+        for c in _cells(d):
+>           _assert_cell(c)
+
+tests\test_notebook_earnings_prep.py:434: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+c = {'asOf': None, 'missing': "No report date on the UCT calendar or in UCT's earnings data.", 'source': 'UCT earnings calendar', 'value': 0}
+
+    def _assert_cell(c):
+        assert set(c) == {"value", "source", "asOf", "missing"}, c
+        assert c["source"], c
+        if c["value"] is None:
+            assert c["missing"] and c["asOf"] is None, c
+        else:
+>           assert c["missing"] is None and c["asOf"], c
+E           AssertionError: {'asOf': None, 'missing': "No report date on the UCT calendar or in UCT's earnings data.", 'source': 'UCT earnings calendar', 'value': 0}
+E           assert ("No report date on the UCT calendar or in UCT's earnings data." is None)
+
+tests\test_notebook_earnings_prep.py:345: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp0d4p1trt.db
+____ test_each_source_stubbed_off_yields_a_labelled_missing_cell[implied] _____
+
+client = <starlette.testclient.TestClient object at 0x000002843F0E9A90>
+app = <fastapi.applications.FastAPI object at 0x000002840C293CB0>
+gate_on = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002843F0CD5B0>
+stores = (<module 'api.services.call_recap_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\call_r...'api.services.implied_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\implied_store.py'>)
+off = 'implied'
+
+    @pytest.mark.parametrize("off", sorted(MISSING_CASES))
+    def test_each_source_stubbed_off_yields_a_labelled_missing_cell(client, app, gate_on, monkeypatch, stores, off):
+        """One source at a time answers nothing; that cell reads missing WITH its sentence, and the
+        rest of the draft still arrives."""
+        _today(monkeypatch)
+        _full_market(monkeypatch, stores)
+        recap_store, implied_store = stores
+        if off != "notes":
+            _note(A, "NVDA thesis", "NVDA")
+        if off != "position":
+            _position(A, "NVDA")
+        if off != "trades":
+            _trade(A, "NVDA", "t1")
+        if off == "calendar":
+            _window(monkeypatch, {})
+            bare = dict(INTEL, summary={}, next_report_date=None)
+            _intel(monkeypatch, bare)
+        elif off == "intel":
+            _intel(monkeypatch, {"error": "ticker required"})
+        elif off == "implied":
+            monkeypatch.setattr(implied_store, "get_implied_history", lambda sym, limit=8: [])
+        elif off == "recap":
+            monkeypatch.setattr(recap_store, "get", lambda sym, quarter=None: None)
+        as_user(app, A)
+        d = client.post("/api/j2/earnings-prep/NVDA/draft").json()
+        for c in _cells(d):
+>           _assert_cell(c)
+
+tests\test_notebook_earnings_prep.py:434: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+c = {'asOf': None, 'missing': 'The calendar has not said before or after the bell yet.', 'source': 'UCT earnings calendar', 'value': 0}
+
+    def _assert_cell(c):
+        assert set(c) == {"value", "source", "asOf", "missing"}, c
+        assert c["source"], c
+        if c["value"] is None:
+            assert c["missing"] and c["asOf"] is None, c
+        else:
+>           assert c["missing"] is None and c["asOf"], c
+E           AssertionError: {'asOf': None, 'missing': 'The calendar has not said before or after the bell yet.', 'source': 'UCT earnings calendar', 'value': 0}
+E           assert ('The calendar has not said before or after the bell yet.' is None)
+
+tests\test_notebook_earnings_prep.py:345: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpev89pkv7.db
+_____ test_each_source_stubbed_off_yields_a_labelled_missing_cell[intel] ______
+
+client = <starlette.testclient.TestClient object at 0x000002843F28C190>
+app = <fastapi.applications.FastAPI object at 0x000002843EFFB620>
+gate_on = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002843F1AEB10>
+stores = (<module 'api.services.call_recap_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\call_r...'api.services.implied_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\implied_store.py'>)
+off = 'intel'
+
+    @pytest.mark.parametrize("off", sorted(MISSING_CASES))
+    def test_each_source_stubbed_off_yields_a_labelled_missing_cell(client, app, gate_on, monkeypatch, stores, off):
+        """One source at a time answers nothing; that cell reads missing WITH its sentence, and the
+        rest of the draft still arrives."""
+        _today(monkeypatch)
+        _full_market(monkeypatch, stores)
+        recap_store, implied_store = stores
+        if off != "notes":
+            _note(A, "NVDA thesis", "NVDA")
+        if off != "position":
+            _position(A, "NVDA")
+        if off != "trades":
+            _trade(A, "NVDA", "t1")
+        if off == "calendar":
+            _window(monkeypatch, {})
+            bare = dict(INTEL, summary={}, next_report_date=None)
+            _intel(monkeypatch, bare)
+        elif off == "intel":
+            _intel(monkeypatch, {"error": "ticker required"})
+        elif off == "implied":
+            monkeypatch.setattr(implied_store, "get_implied_history", lambda sym, limit=8: [])
+        elif off == "recap":
+            monkeypatch.setattr(recap_store, "get", lambda sym, quarter=None: None)
+        as_user(app, A)
+        d = client.post("/api/j2/earnings-prep/NVDA/draft").json()
+        for c in _cells(d):
+>           _assert_cell(c)
+
+tests\test_notebook_earnings_prep.py:434: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+c = {'asOf': None, 'missing': 'The calendar has not said before or after the bell yet.', 'source': 'UCT earnings calendar', 'value': 0}
+
+    def _assert_cell(c):
+        assert set(c) == {"value", "source", "asOf", "missing"}, c
+        assert c["source"], c
+        if c["value"] is None:
+            assert c["missing"] and c["asOf"] is None, c
+        else:
+>           assert c["missing"] is None and c["asOf"], c
+E           AssertionError: {'asOf': None, 'missing': 'The calendar has not said before or after the bell yet.', 'source': 'UCT earnings calendar', 'value': 0}
+E           assert ('The calendar has not said before or after the bell yet.' is None)
+
+tests\test_notebook_earnings_prep.py:345: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpo0kap41r.db
+_____ test_each_source_stubbed_off_yields_a_labelled_missing_cell[notes] ______
+
+client = <starlette.testclient.TestClient object at 0x000002843F17F360>
+app = <fastapi.applications.FastAPI object at 0x000002843F134440>
+gate_on = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002843F1D18C0>
+stores = (<module 'api.services.call_recap_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\call_r...'api.services.implied_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\implied_store.py'>)
+off = 'notes'
+
+    @pytest.mark.parametrize("off", sorted(MISSING_CASES))
+    def test_each_source_stubbed_off_yields_a_labelled_missing_cell(client, app, gate_on, monkeypatch, stores, off):
+        """One source at a time answers nothing; that cell reads missing WITH its sentence, and the
+        rest of the draft still arrives."""
+        _today(monkeypatch)
+        _full_market(monkeypatch, stores)
+        recap_store, implied_store = stores
+        if off != "notes":
+            _note(A, "NVDA thesis", "NVDA")
+        if off != "position":
+            _position(A, "NVDA")
+        if off != "trades":
+            _trade(A, "NVDA", "t1")
+        if off == "calendar":
+            _window(monkeypatch, {})
+            bare = dict(INTEL, summary={}, next_report_date=None)
+            _intel(monkeypatch, bare)
+        elif off == "intel":
+            _intel(monkeypatch, {"error": "ticker required"})
+        elif off == "implied":
+            monkeypatch.setattr(implied_store, "get_implied_history", lambda sym, limit=8: [])
+        elif off == "recap":
+            monkeypatch.setattr(recap_store, "get", lambda sym, quarter=None: None)
+        as_user(app, A)
+        d = client.post("/api/j2/earnings-prep/NVDA/draft").json()
+        for c in _cells(d):
+>           _assert_cell(c)
+
+tests\test_notebook_earnings_prep.py:434: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+c = {'asOf': None, 'missing': 'The calendar has not said before or after the bell yet.', 'source': 'UCT earnings calendar', 'value': 0}
+
+    def _assert_cell(c):
+        assert set(c) == {"value", "source", "asOf", "missing"}, c
+        assert c["source"], c
+        if c["value"] is None:
+            assert c["missing"] and c["asOf"] is None, c
+        else:
+>           assert c["missing"] is None and c["asOf"], c
+E           AssertionError: {'asOf': None, 'missing': 'The calendar has not said before or after the bell yet.', 'source': 'UCT earnings calendar', 'value': 0}
+E           assert ('The calendar has not said before or after the bell yet.' is None)
+
+tests\test_notebook_earnings_prep.py:345: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp111cllvj.db
+____ test_each_source_stubbed_off_yields_a_labelled_missing_cell[position] ____
+
+client = <starlette.testclient.TestClient object at 0x000002843F294B00>
+app = <fastapi.applications.FastAPI object at 0x000002843F1817F0>
+gate_on = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002843F1D2470>
+stores = (<module 'api.services.call_recap_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\call_r...'api.services.implied_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\implied_store.py'>)
+off = 'position'
+
+    @pytest.mark.parametrize("off", sorted(MISSING_CASES))
+    def test_each_source_stubbed_off_yields_a_labelled_missing_cell(client, app, gate_on, monkeypatch, stores, off):
+        """One source at a time answers nothing; that cell reads missing WITH its sentence, and the
+        rest of the draft still arrives."""
+        _today(monkeypatch)
+        _full_market(monkeypatch, stores)
+        recap_store, implied_store = stores
+        if off != "notes":
+            _note(A, "NVDA thesis", "NVDA")
+        if off != "position":
+            _position(A, "NVDA")
+        if off != "trades":
+            _trade(A, "NVDA", "t1")
+        if off == "calendar":
+            _window(monkeypatch, {})
+            bare = dict(INTEL, summary={}, next_report_date=None)
+            _intel(monkeypatch, bare)
+        elif off == "intel":
+            _intel(monkeypatch, {"error": "ticker required"})
+        elif off == "implied":
+            monkeypatch.setattr(implied_store, "get_implied_history", lambda sym, limit=8: [])
+        elif off == "recap":
+            monkeypatch.setattr(recap_store, "get", lambda sym, quarter=None: None)
+        as_user(app, A)
+        d = client.post("/api/j2/earnings-prep/NVDA/draft").json()
+        for c in _cells(d):
+>           _assert_cell(c)
+
+tests\test_notebook_earnings_prep.py:434: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+c = {'asOf': None, 'missing': 'The calendar has not said before or after the bell yet.', 'source': 'UCT earnings calendar', 'value': 0}
+
+    def _assert_cell(c):
+        assert set(c) == {"value", "source", "asOf", "missing"}, c
+        assert c["source"], c
+        if c["value"] is None:
+            assert c["missing"] and c["asOf"] is None, c
+        else:
+>           assert c["missing"] is None and c["asOf"], c
+E           AssertionError: {'asOf': None, 'missing': 'The calendar has not said before or after the bell yet.', 'source': 'UCT earnings calendar', 'value': 0}
+E           assert ('The calendar has not said before or after the bell yet.' is None)
+
+tests\test_notebook_earnings_prep.py:345: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmprmunj5t8.db
+_____ test_each_source_stubbed_off_yields_a_labelled_missing_cell[recap] ______
+
+client = <starlette.testclient.TestClient object at 0x000002843F2C0CB0>
+app = <fastapi.applications.FastAPI object at 0x000002843F181FD0>
+gate_on = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002843F1D7750>
+stores = (<module 'api.services.call_recap_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\call_r...'api.services.implied_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\implied_store.py'>)
+off = 'recap'
+
+    @pytest.mark.parametrize("off", sorted(MISSING_CASES))
+    def test_each_source_stubbed_off_yields_a_labelled_missing_cell(client, app, gate_on, monkeypatch, stores, off):
+        """One source at a time answers nothing; that cell reads missing WITH its sentence, and the
+        rest of the draft still arrives."""
+        _today(monkeypatch)
+        _full_market(monkeypatch, stores)
+        recap_store, implied_store = stores
+        if off != "notes":
+            _note(A, "NVDA thesis", "NVDA")
+        if off != "position":
+            _position(A, "NVDA")
+        if off != "trades":
+            _trade(A, "NVDA", "t1")
+        if off == "calendar":
+            _window(monkeypatch, {})
+            bare = dict(INTEL, summary={}, next_report_date=None)
+            _intel(monkeypatch, bare)
+        elif off == "intel":
+            _intel(monkeypatch, {"error": "ticker required"})
+        elif off == "implied":
+            monkeypatch.setattr(implied_store, "get_implied_history", lambda sym, limit=8: [])
+        elif off == "recap":
+            monkeypatch.setattr(recap_store, "get", lambda sym, quarter=None: None)
+        as_user(app, A)
+        d = client.post("/api/j2/earnings-prep/NVDA/draft").json()
+        for c in _cells(d):
+>           _assert_cell(c)
+
+tests\test_notebook_earnings_prep.py:434: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+c = {'asOf': None, 'missing': 'The calendar has not said before or after the bell yet.', 'source': 'UCT earnings calendar', 'value': 0}
+
+    def _assert_cell(c):
+        assert set(c) == {"value", "source", "asOf", "missing"}, c
+        assert c["source"], c
+        if c["value"] is None:
+            assert c["missing"] and c["asOf"] is None, c
+        else:
+>           assert c["missing"] is None and c["asOf"], c
+E           AssertionError: {'asOf': None, 'missing': 'The calendar has not said before or after the bell yet.', 'source': 'UCT earnings calendar', 'value': 0}
+E           assert ('The calendar has not said before or after the bell yet.' is None)
+
+tests\test_notebook_earnings_prep.py:345: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpeqrejgiu.db
+_____ test_each_source_stubbed_off_yields_a_labelled_missing_cell[trades] _____
+
+client = <starlette.testclient.TestClient object at 0x000002843F1D3570>
+app = <fastapi.applications.FastAPI object at 0x000002843F1827B0>
+gate_on = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000284404C0250>
+stores = (<module 'api.services.call_recap_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\call_r...'api.services.implied_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\implied_store.py'>)
+off = 'trades'
+
+    @pytest.mark.parametrize("off", sorted(MISSING_CASES))
+    def test_each_source_stubbed_off_yields_a_labelled_missing_cell(client, app, gate_on, monkeypatch, stores, off):
+        """One source at a time answers nothing; that cell reads missing WITH its sentence, and the
+        rest of the draft still arrives."""
+        _today(monkeypatch)
+        _full_market(monkeypatch, stores)
+        recap_store, implied_store = stores
+        if off != "notes":
+            _note(A, "NVDA thesis", "NVDA")
+        if off != "position":
+            _position(A, "NVDA")
+        if off != "trades":
+            _trade(A, "NVDA", "t1")
+        if off == "calendar":
+            _window(monkeypatch, {})
+            bare = dict(INTEL, summary={}, next_report_date=None)
+            _intel(monkeypatch, bare)
+        elif off == "intel":
+            _intel(monkeypatch, {"error": "ticker required"})
+        elif off == "implied":
+            monkeypatch.setattr(implied_store, "get_implied_history", lambda sym, limit=8: [])
+        elif off == "recap":
+            monkeypatch.setattr(recap_store, "get", lambda sym, quarter=None: None)
+        as_user(app, A)
+        d = client.post("/api/j2/earnings-prep/NVDA/draft").json()
+        for c in _cells(d):
+>           _assert_cell(c)
+
+tests\test_notebook_earnings_prep.py:434: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+c = {'asOf': None, 'missing': 'The calendar has not said before or after the bell yet.', 'source': 'UCT earnings calendar', 'value': 0}
+
+    def _assert_cell(c):
+        assert set(c) == {"value", "source", "asOf", "missing"}, c
+        assert c["source"], c
+        if c["value"] is None:
+            assert c["missing"] and c["asOf"] is None, c
+        else:
+>           assert c["missing"] is None and c["asOf"], c
+E           AssertionError: {'asOf': None, 'missing': 'The calendar has not said before or after the bell yet.', 'source': 'UCT earnings calendar', 'value': 0}
+E           assert ('The calendar has not said before or after the bell yet.' is None)
+
+tests\test_notebook_earnings_prep.py:345: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpe349snjz.db
+____________ test_every_source_failing_still_returns_a_whole_draft ____________
+
+client = <starlette.testclient.TestClient object at 0x000002844042C8D0>
+app = <fastapi.applications.FastAPI object at 0x000002843F183A10>
+gate_on = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x00000284404686E0>
+stores = (<module 'api.services.call_recap_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\call_r...'api.services.implied_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\implied_store.py'>)
+
+    def test_every_source_failing_still_returns_a_whole_draft(client, app, gate_on, monkeypatch, stores):
+        """Each source RAISES; the draft is still whole, each cell missing with a sentence."""
+        _today(monkeypatch)
+        recap_store, implied_store = stores
+        _sets(monkeypatch, {})
+        from api.services import calendar_alerts
+        from api.services.journal_two import ticker_research, trades, positions
+    
+        def boom(*a, **k):
+            raise RuntimeError("source down")
+        monkeypatch.setattr(calendar_alerts, "collect_earnings_window", boom)
+        _intel(monkeypatch, RuntimeError("intel down"))
+        monkeypatch.setattr(implied_store, "get_implied_history", boom)
+        monkeypatch.setattr(recap_store, "get", boom)
+        monkeypatch.setattr(ticker_research, "get_ticker_research_summary", boom)
+        monkeypatch.setattr(trades, "list_trades_for_user", boom)
+        monkeypatch.setattr(positions, "list_open_positions", boom)
+        as_user(app, A)
+        r = client.post("/api/j2/earnings-prep/NVDA/draft")
+        assert r.status_code == 200, r.text
+        for c in _cells(r.json()):
+>           _assert_cell(c)
+
+tests\test_notebook_earnings_prep.py:466: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+c = {'asOf': None, 'missing': 'UCT could not read this source just now.', 'source': 'UCT earnings calendar', 'value': 0}
+
+    def _assert_cell(c):
+        assert set(c) == {"value", "source", "asOf", "missing"}, c
+        assert c["source"], c
+        if c["value"] is None:
+            assert c["missing"] and c["asOf"] is None, c
+        else:
+>           assert c["missing"] is None and c["asOf"], c
+E           AssertionError: {'asOf': None, 'missing': 'UCT could not read this source just now.', 'source': 'UCT earnings calendar', 'value': 0}
+E           assert ('UCT could not read this source just now.' is None)
+
+tests\test_notebook_earnings_prep.py:345: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp3gi2dsqg.db
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 1298 warnings
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 30 warnings
+
+tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[calendar]
+    return asyncio.get_event_loop_policy()
+
+tests/test_notebook_earnings_prep.py: 18 warnings
+
+tests/test_notebook_earnings_prep.py: 66 warnings
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[calendar]
+FAILED tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[implied]
+FAILED tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[intel]
+FAILED tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[notes]
+FAILED tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[position]
+FAILED tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[recap]
+FAILED tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[trades]
+FAILED tests/test_notebook_earnings_prep.py::test_every_source_failing_still_returns_a_whole_draft
+8 failed, 22 deselected, 1413 warnings in 21.17s
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"

@@ -1,0 +1,377 @@
+  [PASS] provision: a paid, verified member
+  [PASS] the gallery renders the catalog (keys read from the page) -- 64
+  [PASS] no gallery card previews the walkthrough
+  [PASS] every gallery card previews its own lines
+  [PASS] every wave-12 new or deepened template is in the gallery
+  [PASS] [1200] daily-prep: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] daily-prep: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] daily-prep: Tab reaches the walkthrough's chevron -- {'tabs': 6, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] daily-prep: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x6 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] daily-prep: opening it is saved like any other edit
+  [PASS] [1200] post-market-debrief: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] post-market-debrief: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] post-market-debrief: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] post-market-debrief: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] post-market-debrief: opening it is saved like any other edit
+  [PASS] [1200] weekly-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] weekly-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] weekly-plan: Tab reaches the walkthrough's chevron -- {'tabs': 6, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] weekly-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x6 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] weekly-plan: opening it is saved like any other edit
+  [PASS] [1200] weekly-review: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] weekly-review: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] weekly-review: Tab reaches the walkthrough's chevron -- {'tabs': 8, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] weekly-review: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x8 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] weekly-review: opening it is saved like any other edit
+  [PASS] [1200] monthly-review: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 2, 'callout': 0}, 'dom': {'table': 2, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] monthly-review: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] monthly-review: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] monthly-review: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] monthly-review: opening it is saved like any other edit
+  [PASS] [1200] quarterly-review: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] quarterly-review: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] quarterly-review: Tab reaches the walkthrough's chevron -- {'tabs': 6, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] quarterly-review: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x6 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] quarterly-review: opening it is saved like any other edit
+  [PASS] [1200] thesis: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] thesis: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] thesis: Tab reaches the walkthrough's chevron -- {'tabs': 10, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] thesis: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x10 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] thesis: opening it is saved like any other edit
+  [PASS] [1200] sector-theme-research: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] sector-theme-research: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] sector-theme-research: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] sector-theme-research: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] sector-theme-research: opening it is saved like any other edit
+  [PASS] [1200] sector-note: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 0}, 'dom': {'table': 1, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] sector-note: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] sector-note: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] sector-note: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] sector-note: opening it is saved like any other edit
+  [PASS] [1200] watchlist-thesis: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] watchlist-thesis: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] watchlist-thesis: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] watchlist-thesis: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] watchlist-thesis: opening it is saved like any other edit
+  [PASS] [1200] catalyst-tracker: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] catalyst-tracker: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] catalyst-tracker: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] catalyst-tracker: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] catalyst-tracker: opening it is saved like any other edit
+  [PASS] [1200] earnings-prep: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 2, 'callout': 1}, 'dom': {'table': 2, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] earnings-prep: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] earnings-prep: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] earnings-prep: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] earnings-prep: opening it is saved like any other edit
+  [PASS] [1200] ipo-notes: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] ipo-notes: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] ipo-notes: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] ipo-notes: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] ipo-notes: opening it is saved like any other edit
+  [PASS] [1200] meeting-notes: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] meeting-notes: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] meeting-notes: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] meeting-notes: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] meeting-notes: opening it is saved like any other edit
+  [PASS] [1200] trade-review: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] trade-review: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] trade-review: Tab reaches the walkthrough's chevron -- {'tabs': 8, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] trade-review: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x8 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] trade-review: opening it is saved like any other edit
+  [PASS] [1200] swing-log: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] swing-log: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] swing-log: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] swing-log: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] swing-log: opening it is saved like any other edit
+  [PASS] [1200] earnings-play: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] earnings-play: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] earnings-play: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] earnings-play: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] earnings-play: opening it is saved like any other edit
+  [PASS] [1200] trade-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] trade-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] trade-plan: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] trade-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] trade-plan: opening it is saved like any other edit
+  [PASS] [1200] breakout-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] breakout-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] breakout-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] breakout-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] breakout-plan: opening it is saved like any other edit
+  [PASS] [1200] pullback-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] pullback-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] pullback-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] pullback-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] pullback-plan: opening it is saved like any other edit
+  [PASS] [1200] episodic-pivot-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] episodic-pivot-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] episodic-pivot-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] episodic-pivot-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] episodic-pivot-plan: opening it is saved like any other edit
+  [PASS] [1200] undercut-rally-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] undercut-rally-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] undercut-rally-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] undercut-rally-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] undercut-rally-plan: opening it is saved like any other edit
+  [PASS] [1200] parabolic-short-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] parabolic-short-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] parabolic-short-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] parabolic-short-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] parabolic-short-plan: opening it is saved like any other edit
+  [PASS] [1200] position-sizing-worksheet: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] position-sizing-worksheet: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] position-sizing-worksheet: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] position-sizing-worksheet: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] position-sizing-worksheet: opening it is saved like any other edit
+  [PASS] [1200] setup-playbook-entry: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] setup-playbook-entry: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] setup-playbook-entry: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] setup-playbook-entry: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] setup-playbook-entry: opening it is saved like any other edit
+  [PASS] [1200] options-trade-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] options-trade-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] options-trade-plan: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] options-trade-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] options-trade-plan: opening it is saved like any other edit
+  [PASS] [1200] risk-checklist: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] risk-checklist: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] risk-checklist: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] risk-checklist: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] risk-checklist: opening it is saved like any other edit
+  [PASS] [1200] mistake-log: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] mistake-log: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] mistake-log: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] mistake-log: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] mistake-log: opening it is saved like any other edit
+  [PASS] [1200] lessons-learned: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] lessons-learned: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] lessons-learned: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] lessons-learned: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] lessons-learned: opening it is saved like any other edit
+  [PASS] [1200] goals: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] goals: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] goals: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] goals: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] goals: opening it is saved like any other edit
+  [PASS] [1200] drawdown-recovery-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] drawdown-recovery-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] drawdown-recovery-plan: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] drawdown-recovery-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] drawdown-recovery-plan: opening it is saved like any other edit
+  [PASS] [1200] tilt-log: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] tilt-log: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] tilt-log: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] tilt-log: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] tilt-log: opening it is saved like any other edit
+  [PASS] [1200] daily-prep: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] daily-prep: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] daily-prep: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] daily-prep: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] daily-prep: opening it is saved like any other edit
+  [PASS] [1200] post-market-debrief: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] post-market-debrief: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] post-market-debrief: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] post-market-debrief: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] post-market-debrief: opening it is saved like any other edit
+  [PASS] [1200] weekly-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] weekly-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] weekly-plan: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] weekly-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] weekly-plan: opening it is saved like any other edit
+  [PASS] [1200] weekly-review: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] weekly-review: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] weekly-review: Tab reaches the walkthrough's chevron -- {'tabs': 8, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] weekly-review: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x8 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] weekly-review: opening it is saved like any other edit
+  [PASS] [1200] monthly-review: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 2, 'callout': 0}, 'dom': {'table': 2, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] monthly-review: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] monthly-review: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] monthly-review: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] monthly-review: opening it is saved like any other edit
+  [PASS] [1200] quarterly-review: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] quarterly-review: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] quarterly-review: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] quarterly-review: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] quarterly-review: opening it is saved like any other edit
+  [PASS] [1200] thesis: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] thesis: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] thesis: Tab reaches the walkthrough's chevron -- {'tabs': 10, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] thesis: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x10 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] thesis: opening it is saved like any other edit
+  [PASS] [1200] sector-theme-research: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] sector-theme-research: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] sector-theme-research: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] sector-theme-research: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] sector-theme-research: opening it is saved like any other edit
+  [PASS] [1200] sector-note: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 0}, 'dom': {'table': 1, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] sector-note: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] sector-note: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] sector-note: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] sector-note: opening it is saved like any other edit
+  [PASS] [1200] watchlist-thesis: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] watchlist-thesis: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] watchlist-thesis: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] watchlist-thesis: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] watchlist-thesis: opening it is saved like any other edit
+  [PASS] [1200] catalyst-tracker: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] catalyst-tracker: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] catalyst-tracker: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] catalyst-tracker: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] catalyst-tracker: opening it is saved like any other edit
+  [PASS] [1200] earnings-prep: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 2, 'callout': 1}, 'dom': {'table': 2, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] earnings-prep: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] earnings-prep: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] earnings-prep: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] earnings-prep: opening it is saved like any other edit
+  [PASS] [1200] ipo-notes: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] ipo-notes: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] ipo-notes: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] ipo-notes: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] ipo-notes: opening it is saved like any other edit
+  [PASS] [1200] meeting-notes: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] meeting-notes: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] meeting-notes: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] meeting-notes: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] meeting-notes: opening it is saved like any other edit
+  [PASS] [1200] trade-review: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] trade-review: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] trade-review: Tab reaches the walkthrough's chevron -- {'tabs': 8, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] trade-review: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x8 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] trade-review: opening it is saved like any other edit
+  [PASS] [1200] swing-log: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] swing-log: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] swing-log: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] swing-log: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] swing-log: opening it is saved like any other edit
+  [PASS] [1200] earnings-play: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] earnings-play: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] earnings-play: Tab reaches the walkthrough's chevron -- {'tabs': 6, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] earnings-play: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x6 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] earnings-play: opening it is saved like any other edit
+  [PASS] [1200] trade-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] trade-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] trade-plan: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] trade-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] trade-plan: opening it is saved like any other edit
+  [PASS] [1200] breakout-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] breakout-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] breakout-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] breakout-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] breakout-plan: opening it is saved like any other edit
+  [PASS] [1200] pullback-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] pullback-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] pullback-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] pullback-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] pullback-plan: opening it is saved like any other edit
+  [PASS] [1200] episodic-pivot-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] episodic-pivot-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] episodic-pivot-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] episodic-pivot-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] episodic-pivot-plan: opening it is saved like any other edit
+  [PASS] [1200] undercut-rally-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] undercut-rally-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] undercut-rally-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] undercut-rally-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] undercut-rally-plan: opening it is saved like any other edit
+  [PASS] [1200] parabolic-short-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [1200] parabolic-short-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] parabolic-short-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] parabolic-short-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] parabolic-short-plan: opening it is saved like any other edit
+  [PASS] [1200] position-sizing-worksheet: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] position-sizing-worksheet: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] position-sizing-worksheet: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] position-sizing-worksheet: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] position-sizing-worksheet: opening it is saved like any other edit
+  [PASS] [1200] setup-playbook-entry: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] setup-playbook-entry: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] setup-playbook-entry: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] setup-playbook-entry: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] setup-playbook-entry: opening it is saved like any other edit
+  [PASS] [1200] options-trade-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] options-trade-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] options-trade-plan: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] options-trade-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] options-trade-plan: opening it is saved like any other edit
+  [PASS] [1200] risk-checklist: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] risk-checklist: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] risk-checklist: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] risk-checklist: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] risk-checklist: opening it is saved like any other edit
+  [PASS] [1200] mistake-log: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] mistake-log: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] mistake-log: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] mistake-log: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] mistake-log: opening it is saved like any other edit
+  [PASS] [1200] lessons-learned: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] lessons-learned: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] lessons-learned: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] lessons-learned: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] lessons-learned: opening it is saved like any other edit
+  [PASS] [1200] goals: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] goals: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] goals: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] goals: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] goals: opening it is saved like any other edit
+  [PASS] [1200] drawdown-recovery-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] drawdown-recovery-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] drawdown-recovery-plan: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [1200] drawdown-recovery-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [1200] drawdown-recovery-plan: opening it is saved like any other edit
+  [PASS] [1200] tilt-log: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 0, 'callout': 0}, 'dom': {'table': 0, 'toggle': 1, 'callout': 0}}
+  [PASS] [1200] tilt-log: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [1200] tilt-log: Tab reaches the walkthrough's chevron -- {'tabs': 7, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [FAIL] [1200] tilt-log: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x7 then Enter', 'opened_by': None, 'first_step_visible': False}
+  [PASS] [390] breakout-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [390] breakout-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [390] breakout-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [390] breakout-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [390] breakout-plan: opening it is saved like any other edit
+  [PASS] [390] pullback-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [390] pullback-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [390] pullback-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [390] pullback-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [390] pullback-plan: opening it is saved like any other edit
+  [PASS] [390] episodic-pivot-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [390] episodic-pivot-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [390] episodic-pivot-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [390] episodic-pivot-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [390] episodic-pivot-plan: opening it is saved like any other edit
+  [PASS] [390] undercut-rally-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [390] undercut-rally-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [390] undercut-rally-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [390] undercut-rally-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [390] undercut-rally-plan: opening it is saved like any other edit
+  [PASS] [390] parabolic-short-plan: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [390] parabolic-short-plan: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [390] parabolic-short-plan: Tab reaches the walkthrough's chevron -- {'tabs': 9, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [390] parabolic-short-plan: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x9 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [390] parabolic-short-plan: opening it is saved like any other edit
+  [PASS] [390] earnings-prep: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 2, 'callout': 1}, 'dom': {'table': 2, 'toggle': 1, 'callout': 1}}
+  [PASS] [390] earnings-prep: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [390] earnings-prep: Tab reaches the walkthrough's chevron -- {'tabs': 11, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [390] earnings-prep: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x11 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [390] earnings-prep: opening it is saved like any other edit
+  [PASS] [390] sector-note: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 0}, 'dom': {'table': 1, 'toggle': 1, 'callout': 0}}
+  [PASS] [390] sector-note: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [390] sector-note: Tab reaches the walkthrough's chevron -- {'tabs': 8, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [390] sector-note: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x8 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [390] sector-note: opening it is saved like any other edit
+  [PASS] [390] trade-review: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [390] trade-review: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [390] trade-review: Tab reaches the walkthrough's chevron -- {'tabs': 8, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [390] trade-review: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x8 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [390] trade-review: opening it is saved like any other edit
+  [PASS] [390] weekly-review: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 1, 'callout': 1}, 'dom': {'table': 1, 'toggle': 1, 'callout': 1}}
+  [PASS] [390] weekly-review: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [390] weekly-review: Tab reaches the walkthrough's chevron -- {'tabs': 8, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [390] weekly-review: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x8 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [390] weekly-review: opening it is saved like any other edit
+  [PASS] [390] monthly-review: the editor opens it (editable, no refusal, every table/toggle/callout built) -- {'refused': [], 'editable': 'true', 'stored': {'toggle': 1, 'table': 2, 'callout': 0}, 'dom': {'table': 2, 'toggle': 1, 'callout': 0}}
+  [PASS] [390] monthly-review: the stored body ends in the collapsed walkthrough -- {'last_type': 'toggle', 'open': False}
+  [PASS] [390] monthly-review: Tab reaches the walkthrough's chevron -- {'tabs': 8, 'last_focus': {'tag': 'button', 'cls': 'uctToggleChevron', 'label': 'Expand toggle', 'inEditor': True, 'isWalkthroughChevron': True}}
+  [PASS] [390] monthly-review: the walkthrough opens by keyboard and shows its first step -- {'how': 'keyboard: Tab x8 then Enter', 'opened_by': 'Space (Enter did not open it)', 'first_step_visible': True}
+  [FAIL] [390] monthly-review: opening it is saved like any other edit
+  [PASS] no uncaught page error during the walk
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\Users\Patrick\uct-worktrees\notebook-w12b\docs\plans\joystick\sandbox-runs\2026-10-02T11-55-14.md
+WALK: 375 rows; FAIL ['[1200] daily-prep: opening it is saved like any other edit', '[1200] post-market-debrief: opening it is saved like any other edit', '[1200] weekly-plan: opening it is saved like any other edit', '[1200] weekly-review: opening it is saved like any other edit', '[1200] monthly-review: opening it is saved like any other edit', '[1200] quarterly-review: opening it is saved like any other edit', '[1200] thesis: opening it is saved like any other edit', '[1200] sector-theme-research: opening it is saved like any other edit', '[1200] sector-note: opening it is saved like any other edit', '[1200] watchlist-thesis: opening it is saved like any other edit', '[1200] catalyst-tracker: opening it is saved like any other edit', '[1200] earnings-prep: opening it is saved like any other edit', '[1200] ipo-notes: opening it is saved like any other edit', '[1200] meeting-notes: opening it is saved like any other edit', '[1200] trade-review: opening it is saved like any other edit', '[1200] swing-log: opening it is saved like any other edit', '[1200] earnings-play: opening it is saved like any other edit', '[1200] trade-plan: opening it is saved like any other edit', '[1200] breakout-plan: opening it is saved like any other edit', '[1200] pullback-plan: opening it is saved like any other edit', '[1200] episodic-pivot-plan: opening it is saved like any other edit', '[1200] undercut-rally-plan: opening it is saved like any other edit', '[1200] parabolic-short-plan: opening it is saved like any other edit', '[1200] position-sizing-worksheet: opening it is saved like any other edit', '[1200] setup-playbook-entry: opening it is saved like any other edit', '[1200] options-trade-plan: opening it is saved like any other edit', '[1200] risk-checklist: opening it is saved like any other edit', '[1200] mistake-log: opening it is saved like any other edit', '[1200] lessons-learned: opening it is saved like any other edit', '[1200] goals: opening it is saved like any other edit', '[1200] drawdown-recovery-plan: opening it is saved like any other edit', '[1200] tilt-log: opening it is saved like any other edit', '[1200] daily-prep: opening it is saved like any other edit', '[1200] post-market-debrief: opening it is saved like any other edit', '[1200] weekly-plan: opening it is saved like any other edit', '[1200] weekly-review: opening it is saved like any other edit', '[1200] monthly-review: opening it is saved like any other edit', '[1200] quarterly-review: opening it is saved like any other edit', '[1200] thesis: opening it is saved like any other edit', '[1200] sector-theme-research: opening it is saved like any other edit', '[1200] sector-note: opening it is saved like any other edit', '[1200] watchlist-thesis: opening it is saved like any other edit', '[1200] catalyst-tracker: opening it is saved like any other edit', '[1200] earnings-prep: opening it is saved like any other edit', '[1200] ipo-notes: opening it is saved like any other edit', '[1200] meeting-notes: opening it is saved like any other edit', '[1200] trade-review: opening it is saved like any other edit', '[1200] swing-log: opening it is saved like any other edit', '[1200] earnings-play: opening it is saved like any other edit', '[1200] trade-plan: opening it is saved like any other edit', '[1200] breakout-plan: opening it is saved like any other edit', '[1200] pullback-plan: opening it is saved like any other edit', '[1200] episodic-pivot-plan: opening it is saved like any other edit', '[1200] undercut-rally-plan: opening it is saved like any other edit', '[1200] parabolic-short-plan: opening it is saved like any other edit', '[1200] position-sizing-worksheet: opening it is saved like any other edit', '[1200] setup-playbook-entry: opening it is saved like any other edit', '[1200] options-trade-plan: opening it is saved like any other edit', '[1200] risk-checklist: opening it is saved like any other edit', '[1200] mistake-log: opening it is saved like any other edit', '[1200] lessons-learned: opening it is saved like any other edit', '[1200] goals: opening it is saved like any other edit', '[1200] drawdown-recovery-plan: opening it is saved like any other edit', '[1200] tilt-log: the walkthrough opens by keyboard and shows its first step', '[390] breakout-plan: opening it is saved like any other edit', '[390] pullback-plan: opening it is saved like any other edit', '[390] episodic-pivot-plan: opening it is saved like any other edit', '[390] undercut-rally-plan: opening it is saved like any other edit', '[390] parabolic-short-plan: opening it is saved like any other edit', '[390] earnings-prep: opening it is saved like any other edit', '[390] sector-note: opening it is saved like any other edit', '[390] trade-review: opening it is saved like any other edit', '[390] weekly-review: opening it is saved like any other edit', '[390] monthly-review: opening it is saved like any other edit']; INCONCLUSIVE none; evidence docs\notebook\evidence\wave12-12b\walk-4.json

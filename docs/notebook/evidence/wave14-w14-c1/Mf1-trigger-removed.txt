@@ -1,0 +1,12 @@
+== Mf1-trigger-removed  (app/src/pages/journal-2-0/components/notebook/ResurfaceVersionSheet.jsx)
+verdict: KILLED (runner exit 1)
+restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/ResurfaceVersionSheet.jsx (blob cbfc4025dc8c)
+× asks for it ONCE, when what the member wrote first renders 139ms
+× a light note inside the sheet: not a dialog, no stepper, focus left where it was; axe clean 5034ms
+× "Got it" closes it 5020ms
+Test Files  1 failed | 1 passed (2)
+Tests  3 failed | 25 passed (28)
+FAIL  src/pages/journal-2-0/components/notebook/ResurfaceVersionSheet.explainer.test.jsx > (f) the trigger > asks for it ONCE, when what the member wrote first renders
+FAIL  src/pages/journal-2-0/components/notebook/ResurfaceVersionSheet.explainer.test.jsx > (f) through the real gate and engine > a light note inside the sheet: not a dialog, no stepper, focus left where it was; axe clean
+×
+FAIL  src/pages/journal-2-0/components/notebook/ResurfaceVersionSheet.explainer.test.jsx > (f) through the real gate and engine > "Got it" closes it

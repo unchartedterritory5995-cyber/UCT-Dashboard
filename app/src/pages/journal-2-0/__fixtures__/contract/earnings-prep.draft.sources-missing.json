@@ -1,0 +1,94 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "POST /api/j2/earnings-prep/EPZZ/draft",
+    "note": "A name the outside sources know nothing about: every cell is a labelled gap.",
+    "path": "/api/j2/earnings-prep/EPZZ/draft",
+    "status": 200
+  },
+  "body": {
+    "expectedMove": {
+      "asOf": null,
+      "missing": "Not captured yet. UCT records the options-implied move the evening before the report, and the calendar shows a live one only once it has computed that day.",
+      "source": "Options-implied move, captured by UCT before the report",
+      "value": null
+    },
+    "frozenAt": "2026-10-05T14:30:00+00:00",
+    "myNotes": {
+      "asOf": null,
+      "missing": "You have no notes on EPZZ yet.",
+      "source": "Your Notebook",
+      "value": null
+    },
+    "myPosition": {
+      "asOf": null,
+      "missing": "You hold no open position in EPZZ.",
+      "source": "Your open positions",
+      "value": null
+    },
+    "myTrades": {
+      "asOf": null,
+      "missing": "You have no closed trades in EPZZ in your journal.",
+      "source": "Your trade journal",
+      "value": null
+    },
+    "reactions": {
+      "asOf": null,
+      "missing": "No reported quarters with an earnings-day reaction in UCT's earnings data.",
+      "source": "UCT earnings data, reactions from UCT daily bars",
+      "value": null
+    },
+    "recap": {
+      "asOf": null,
+      "missing": "No stored call recap for EPZZ. A prep note never generates one, so the recap appears here only once UCT has written it for the Calendar.",
+      "source": "UCT call recap (stored)",
+      "value": null
+    },
+    "report": {
+      "date": {
+        "asOf": null,
+        "missing": "No report date on the UCT calendar or in UCT's earnings data.",
+        "source": "UCT earnings calendar",
+        "value": null
+      },
+      "timing": {
+        "asOf": null,
+        "missing": "The calendar has not said before or after the bell yet.",
+        "source": "UCT earnings calendar",
+        "value": null
+      }
+    },
+    "street": {
+      "eps": {
+        "asOf": null,
+        "missing": "No consensus estimate for the coming quarter in UCT's earnings data.",
+        "source": "UCT earnings data (consensus estimates and reported results)",
+        "value": null
+      },
+      "epsYearAgo": {
+        "asOf": null,
+        "missing": "No reported result for the same quarter a year ago in UCT's earnings data.",
+        "source": "UCT earnings data (consensus estimates and reported results)",
+        "value": null
+      },
+      "quarter": null,
+      "revenue": {
+        "asOf": null,
+        "missing": "No consensus estimate for the coming quarter in UCT's earnings data.",
+        "source": "UCT earnings data (consensus estimates and reported results)",
+        "value": null
+      },
+      "revenueYearAgo": {
+        "asOf": null,
+        "missing": "No reported result for the same quarter a year ago in UCT's earnings data.",
+        "source": "UCT earnings data (consensus estimates and reported results)",
+        "value": null
+      }
+    },
+    "symbol": "EPZZ",
+    "usage": {
+      "cap": 20,
+      "used": 2
+    }
+  }
+}

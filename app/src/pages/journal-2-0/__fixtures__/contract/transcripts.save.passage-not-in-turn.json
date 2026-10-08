@@ -1,0 +1,19 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/research-capture/transcripts/save",
+    "path": "/api/j2/research-capture/transcripts/save",
+    "requestBody": {
+      "annotation": "Margins held.",
+      "noteId": "600891a61bd942e680e18da008bb38ec",
+      "passage": "words the speaker never said",
+      "quarter": "2026Q2",
+      "symbol": "TRHD",
+      "turn": 2
+    },
+    "status": 422
+  },
+  "body": {
+    "detail": "That passage is not in turn 2 of the TRHD 2026Q2 transcript UCT holds, so it cannot be saved as a quote. Your note is unchanged."
+  }
+}

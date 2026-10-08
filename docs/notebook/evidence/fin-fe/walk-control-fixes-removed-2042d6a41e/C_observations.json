@@ -1,0 +1,109 @@
+{
+ "click_on_chart_body_selects_block": false,
+ "geometry": {
+  "host": [
+   414,
+   602.28125,
+   778,
+   568.171875
+  ],
+  "body": [
+   415,
+   603.28125,
+   776,
+   427
+  ],
+  "caption": null
+ },
+ "mouse_click_outside_body": [
+  {
+   "where": "frame_top_edge",
+   "selected": false
+  },
+  {
+   "where": "frame_left_edge",
+   "selected": false
+  }
+ ],
+ "keyboard_arrow_selects_block": {
+  "selected": true,
+  "arrow_right_presses": 1
+ },
+ "after_backspace_block_count": 0,
+ "after_undo_block_count": 1,
+ "after_cut_block_count": 0,
+ "after_paste_block_count": 1,
+ "order_after_cut_paste": [
+  "before the chart",
+  "after the chart",
+  "CHART",
+  ""
+ ],
+ "remove_button_present": 1,
+ "mouse_surfaces_outside_body_no_caption": [
+  {
+   "what": "panel",
+   "tag": "SECTION",
+   "text": "Technical fingerprintAMD · as of 2026-06",
+   "x": 420,
+   "y": 1078.171875,
+   "selected": true
+  },
+  {
+   "what": "title",
+   "tag": "H3",
+   "text": "Technical fingerprint",
+   "x": 457,
+   "y": 1087.171875,
+   "selected": true
+  },
+  {
+   "what": "meta",
+   "tag": "SPAN",
+   "text": "AMD · as of 2026-06-15 · stored bars · f",
+   "x": 605,
+   "y": 1087.171875,
+   "selected": true
+  },
+  {
+   "what": "head",
+   "tag": "DIV",
+   "text": "Technical fingerprintAMD · as of 2026-06",
+   "x": 864,
+   "y": 1087.171875,
+   "selected": true
+  },
+  {
+   "what": "chipLabel",
+   "tag": "SPAN",
+   "text": "RS rank",
+   "x": 457,
+   "y": 1114.171875,
+   "selected": true
+  },
+  {
+   "what": "missing",
+   "tag": "SPAN",
+   "text": "n/a",
+   "x": 494,
+   "y": 1114.171875,
+   "selected": true
+  },
+  {
+   "what": "value",
+   "tag": "SPAN",
+   "text": "5.9%",
+   "x": 568,
+   "y": 1114.171875,
+   "selected": true
+  },
+  {
+   "what": "chip",
+   "tag": "LI",
+   "text": "Base depth n/a",
+   "x": 605,
+   "y": 1114.171875,
+   "selected": true
+  }
+ ]
+}

@@ -1,0 +1,100 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+FFF.....                                                                 [100%]
+================================== FAILURES ===================================
+_ test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_document_excerpt] _
+
+db = 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\pytest-of-Patrick\\pytest-313\\test_a_second_writer_in_the_wi0\\cas.db'
+door = 'append_document_excerpt'
+
+    @pytest.mark.parametrize("door", sorted(DOORS))
+    def test_a_second_writer_in_the_window_never_loses_acknowledged_words(db, door):
+        read_sql, call, first_marker = DOORS[door]
+        note = _seed(db)
+        nid, base = note["id"], note["updatedAt"]
+        outcome: dict = {}
+        real = _open(db)
+        proxy = WindowConn(real, read_sql, _second_writer(db, nid, base, outcome))
+        try:
+            try:
+                call(nid, base, proxy)
+                outcome["first"] = "saved"
+            except svc.NoteConflictError:
+                outcome["first"] = "409"
+        finally:
+            real.close()
+>       assert proxy.thread is not None, f"{door}: the window never opened -- the read was not seen"
+E       AssertionError: append_document_excerpt: the window never opened -- the read was not seen
+E       assert None is not None
+E        +  where None = <tests.test_notes_cas_is_atomic.WindowConn object at 0x0000026971B574D0>.thread
+
+tests\test_notes_cas_is_atomic.py:187: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u-cas: no such table: activity_log
+_ test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_financial_fact] _
+
+db = 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\pytest-of-Patrick\\pytest-313\\test_a_second_writer_in_the_wi1\\cas.db'
+door = 'append_financial_fact'
+
+    @pytest.mark.parametrize("door", sorted(DOORS))
+    def test_a_second_writer_in_the_window_never_loses_acknowledged_words(db, door):
+        read_sql, call, first_marker = DOORS[door]
+        note = _seed(db)
+        nid, base = note["id"], note["updatedAt"]
+        outcome: dict = {}
+        real = _open(db)
+        proxy = WindowConn(real, read_sql, _second_writer(db, nid, base, outcome))
+        try:
+            try:
+                call(nid, base, proxy)
+                outcome["first"] = "saved"
+            except svc.NoteConflictError:
+                outcome["first"] = "409"
+        finally:
+            real.close()
+>       assert proxy.thread is not None, f"{door}: the window never opened -- the read was not seen"
+E       AssertionError: append_financial_fact: the window never opened -- the read was not seen
+E       assert None is not None
+E        +  where None = <tests.test_notes_cas_is_atomic.WindowConn object at 0x00000269738C8910>.thread
+
+tests\test_notes_cas_is_atomic.py:187: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u-cas: no such table: activity_log
+_ test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_widget_embed] _
+
+db = 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\pytest-of-Patrick\\pytest-313\\test_a_second_writer_in_the_wi2\\cas.db'
+door = 'append_widget_embed'
+
+    @pytest.mark.parametrize("door", sorted(DOORS))
+    def test_a_second_writer_in_the_window_never_loses_acknowledged_words(db, door):
+        read_sql, call, first_marker = DOORS[door]
+        note = _seed(db)
+        nid, base = note["id"], note["updatedAt"]
+        outcome: dict = {}
+        real = _open(db)
+        proxy = WindowConn(real, read_sql, _second_writer(db, nid, base, outcome))
+        try:
+            try:
+                call(nid, base, proxy)
+                outcome["first"] = "saved"
+            except svc.NoteConflictError:
+                outcome["first"] = "409"
+        finally:
+            real.close()
+>       assert proxy.thread is not None, f"{door}: the window never opened -- the read was not seen"
+E       AssertionError: append_widget_embed: the window never opened -- the read was not seen
+E       assert None is not None
+E        +  where None = <tests.test_notes_cas_is_atomic.WindowConn object at 0x00000269738C9450>.thread
+
+tests\test_notes_cas_is_atomic.py:187: AssertionError
+---------------------------- Captured stdout call -----------------------------
+[activity] Failed to log j2:notebook_note_created for u-cas: no such table: activity_log
+=========================== short test summary info ===========================
+FAILED tests/test_notes_cas_is_atomic.py::test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_document_excerpt]
+FAILED tests/test_notes_cas_is_atomic.py::test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_financial_fact]
+FAILED tests/test_notes_cas_is_atomic.py::test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_widget_embed]
+3 failed, 5 passed in 12.21s
