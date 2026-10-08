@@ -53,7 +53,9 @@ function lookOf(def) {
   const nameOf = outputNamer(def)
   const plots = (def.plots || []).filter((p) => p && p.style !== 'hlines' && !helpers.has(p.key)).map((p) => {
     const color = resolveRef(def, p.color)
-    if (p.hidden) return { key: p.key, text: `${p.label || p.key}: hidden`, color: null }
+    // the member-facing name (a one-output definition's chip label is its name cut to 12
+    // characters — "High <: hidden" was read on the real-model inside-day turn)
+    if (p.hidden) return { key: p.key, text: `${nameOf(p.key)}: hidden`, color: null }
     if (p.style === 'markers' && p.marker) {
       return { key: p.key, color,
         text: `${SHAPE_WORDS[p.marker.shape] || p.marker.shape} ${POSITION_WORDS[p.marker.position] || ''}`.trim() }
