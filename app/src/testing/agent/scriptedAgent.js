@@ -15,6 +15,29 @@ export function scriptedTurn(body) {
   // Screener requests — the production model's shape (measured 2026-10-07): field keys
   // taken from the screener catalog in context, "above"=gt, "at least"=gte.
   const scr = body.context?.screener?.[0]
+  // Screen → watchlist composition — the production model's shape (measured 2026-10-07):
+  // screener.run {as:"screen1"} → [watchlist.create {as:"new1"}] → watchlist.add {symbols:{from,top}}.
+  const comp = /^(?:find|show me) stocks with (.+?)(?:, then| and then| and)? (?:put|add) the top (\d+) (?:in a (?:new )?watch ?list called (.+?)|to (.+?))[.!]?$/i.exec(String(body.message || '').trim())
+  if (scr && comp) {
+    const keys = String(scr.fields || '').split(';').map(x => x.split(':')[0])
+    const filters = []
+    const adr = /adr (?:above|over) (\d+(?:\.\d+)?)/i.exec(comp[1])
+    if (adr && keys.includes('adr_pct')) filters.push({ field: 'adr_pct', op: 'gt', value: Number(adr[1]), max: null })
+    const px = /price (?:above|over) \$?(\d+(?:\.\d+)?)/i.exec(comp[1])
+    if (px && keys.includes('price')) filters.push({ field: 'price', op: 'gt', value: Number(px[1]), max: null })
+    const sorted = /sort by adr highest first/i.test(comp[1])
+    const ops = [{ action: 'screener.run', target: scr.ref, args: { filters, sort_field: sorted ? 'adr_pct' : null, sort_dir: sorted ? 'desc' : null, mode: 'new', show: null, as: 'screen1' } }]
+    const top = Number(comp[2])
+    if (comp[3]) {
+      const lib = body.context?.watchlistLibrary?.[0]
+      ops.push({ action: 'watchlist.create', target: lib.ref, args: { name: comp[3], as: 'new1' } })
+      ops.push({ action: 'watchlist.add', target: 'new1', args: { symbols: { from: 'screen1', top } } })
+    } else {
+      const wl = (body.context?.watchlists || []).find(w => w.name.toLowerCase() === comp[4].toLowerCase())
+      ops.push({ action: 'watchlist.add', target: wl?.ref || comp[4], args: { symbols: { from: 'screen1', top } } })
+    }
+    return env('propose', ops, 'Screen, then fill the list with the results.')
+  }
   if (scr && /^(show me|find|screen for) stocks/i.test(String(body.message || '').trim())) {
     const keys = String(scr.fields || '').split(';').map(x => x.split(':')[0])
     const filters = []
@@ -25,7 +48,7 @@ export function scriptedTurn(body) {
     const up = /up at least (\d+)% over the last month/i.exec(m)
     if (up && keys.includes('chg_pct_1m')) filters.push({ field: 'chg_pct_1m', op: 'gte', value: Number(up[1]), max: null })
     if (/reddit/i.test(m)) return env('unsupported', [], "The Screener doesn't have a Reddit-mentions field.", null, 'screener')
-    return env('apply', [{ action: 'screener.run', target: scr.ref, args: { filters, sort_field: null, sort_dir: null, mode: 'new', show: null } }])
+    return env('apply', [{ action: 'screener.run', target: scr.ref, args: { filters, sort_field: null, sort_dir: null, mode: 'new', show: null, as: null } }])
   }
 
   // "Create a watchlist called X with A, B and C" — the production model's shape

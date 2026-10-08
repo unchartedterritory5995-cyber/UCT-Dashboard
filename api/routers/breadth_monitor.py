@@ -495,6 +495,9 @@ def get_breadth_symbols(_access: dict = Depends(require_bars_access)):
         "groups": [{"id": g, "label": bs.LIST_META[g]["label"],
                     "list_name": bs.LIST_META[g]["list_name"]} for g in bs.GROUP_ORDER],
         "library": bs.library_catalog(),
+        # ⭐ (2026-10-07) canonical UCT symbol → member-facing `UCT:` ticker. Its own key so
+        # `symbols` stays byte-identical to the legacy projection every consumer parses.
+        "display_symbols": bs.display_symbols(),
     }
 
 

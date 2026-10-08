@@ -313,11 +313,21 @@ SCHEDULE = (
 RAILWAY_CRON_UTC = "0,12,20,30 11,12,13,14,20,21 * * *"
 
 
+#: How many minutes after its slot a job still counts as due. A Railway cron
+#: container can start a minute or two late (image pull, cold boot), and an
+#: exact-minute match turns that into a silently skipped day. It must stay
+#: SMALLER than the shortest gap between cron minutes (8: the :12 and :20
+#: firings), or one slot would match two firings and run twice; a test pins it.
+DUE_GRACE_MIN = 5
+
+
 def due_jobs(now: dt.datetime | None = None) -> list[str]:
-    """Which jobs are due at this ET minute. Empty on a firing that is not one."""
+    """Which jobs are due at this ET minute (or up to DUE_GRACE_MIN after it).
+    Empty on a firing that is not one."""
     n = now or dt.datetime.now(_ET)
+    mins = n.hour * 60 + n.minute
     return [name for name, when, h, m in SCHEDULE
-            if when(n.weekday()) and n.hour == h and n.minute == m]
+            if when(n.weekday()) and 0 <= mins - (h * 60 + m) <= DUE_GRACE_MIN]
 
 
 def job_options_log():
