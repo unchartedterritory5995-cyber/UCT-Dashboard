@@ -130,6 +130,23 @@ def test_a_short_focus_is_spoken_exactly_as_written(briefing):
     assert "This week's focus: Trade smaller on Fridays. Tap me" in script
 
 
+# ── spoken text carries no Markdown marks (keyed re-walk 8.3) ───────────────────────────────
+
+def test_markdown_marks_are_not_read_aloud():
+    """Seen in the keyed re-walk: the script said "- **Label every setup before you enter.**"."""
+    assert vb.speakable("- **Label every setup before you enter.**") == "Label every setup before you enter."
+    assert vb.speakable("## Focus\n1. Trade *smaller* on `Fridays`.\n* Hold the __stop__.") == (
+        "Focus Trade smaller on Fridays. Hold the stop.")
+    assert vb.speakable("A 2 * 3 grid and a dash - here") == "A 2 * 3 grid and a dash - here"   # prose is left alone
+    assert vb.speakable(None) == ""
+
+
+def test_the_script_speaks_a_markdown_focus_as_plain_words(briefing):
+    script = briefing(focus="- **Label every setup before you enter.**\n- **Size down on Fridays.**")["script"]
+    assert "This week's focus: Label every setup before you enter. Size down on Fridays. Tap me" in script
+    assert "*" not in script and "- " not in script.split("focus: ")[1]
+
+
 # ── the rail: no bare character slice of spoken text is left in the module ───────────────────
 
 def test_no_text_in_the_briefing_is_cut_with_a_bare_character_slice():

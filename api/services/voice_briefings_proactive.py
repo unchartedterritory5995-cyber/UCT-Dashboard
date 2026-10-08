@@ -12,6 +12,7 @@ reads the cached briefing if present and generates fresh if not.
 """
 
 import logging
+import re
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -72,6 +73,30 @@ def clip_spoken(text: Any, limit: int, *, close: bool = True) -> str:
         space = cut.rfind(" ")
         cut = cut[:space].rstrip(" ,;:-") if space > 0 else cut[:limit - 1]
     return cut + "."
+
+
+_MD_LINE_START = re.compile(r"^\s*(?:[-*+]\s+|\d+[.)]\s+|#{1,6}\s+|>\s+)")
+_MD_WRAP = re.compile(r"(\*\*|__|`)(.+?)\1|(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])")
+
+
+def speakable(text: Any) -> str:
+    """`text` as it should be SPOKEN: no Markdown marks (keyed re-walk 8.3).
+
+    The weekly focus is written by Compass with bullets and bold, and the briefing read the
+    marks aloud: "- **Label every setup before you enter.**". List markers and headings at the
+    start of a line are dropped, the wrappers `**..**`, `__..__`, `*..*` and backticks are
+    removed around their words, and the lines are joined into one run. A lone `*` or `-` inside
+    a sentence is prose and is left alone."""
+    lines = []
+    for raw in str(text or "").splitlines():
+        line = _MD_LINE_START.sub("", raw)
+        for _ in range(3):                      # nested wrappers: **`x`**
+            line, n = _MD_WRAP.subn(lambda m: m.group(2) or m.group(3) or "", line)
+            if not n:
+                break
+        if line.strip():
+            lines.append(line.strip())
+    return " ".join(lines)
 
 
 def _format_positions(positions: list[dict]) -> str:
@@ -166,7 +191,7 @@ def build_briefing(user_id: str) -> dict[str, Any]:
         positions, interventions, focus = [], [], ""
     sections["positions_summary"] = _format_positions(positions)
     sections["interventions_summary"] = _format_interventions(interventions)
-    sections["weekly_focus"] = clip_spoken(focus, 300)
+    sections["weekly_focus"] = clip_spoken(speakable(focus), 300)
 
     # Build the spoken script — 40-60 seconds of voice
     script_parts = ["Good morning. Here's your briefing."]
