@@ -86,6 +86,39 @@ def serving() -> bool:
 _members_cache: dict = {}
 
 
+#: Active listings only: a live / just-completed session needs today's listings, and the
+#: active enumeration is ~13 pages where the full active+delisted map is up to 600.
+_ACTIVE_REF_TTL = 20 * 3600
+
+
+def _active_reference() -> dict:
+    """`{SYMBOL: [record]}` of ACTIVE listings (type, primary_exchange), cached on the volume."""
+    import json
+    path = os.path.join(os.environ.get("DATA_DIR", "/data"), "breadth_live_active_reference.json")
+    try:
+        if time.time() - os.stat(path).st_mtime < _ACTIVE_REF_TTL:
+            with open(path) as fh:
+                return json.load(fh)
+    except Exception:
+        pass
+    from api.services import massive
+    out: dict = {}
+    for r in massive.list_reference_tickers(active=True, max_pages=60) or []:
+        sym = str(r.get("ticker") or "").upper()
+        if sym:
+            out.setdefault(sym, []).append({"type": r.get("type"),
+                                            "primary_exchange": (r.get("primary_exchange") or "").upper()})
+    if len(out) > 1000:
+        try:
+            tmp = path + ".tmp"
+            with open(tmp, "w") as fh:
+                json.dump(out, fh, separators=(",", ":"))
+            os.replace(tmp, path)
+        except Exception:
+            pass
+    return out
+
+
 def members(on_iso: str, ref_map: Optional[dict] = None) -> dict:
     """`{universe: [ticker, …]}` for a session, from the provider's listing data."""
     hit = _members_cache.get("key")
@@ -93,7 +126,7 @@ def members(on_iso: str, ref_map: Optional[dict] = None) -> dict:
         return _members_cache["value"]
     from api.services import breadth_pit_frame as pf
     from api.services import breadth_universes as bu
-    ref = ref_map if ref_map is not None else pf.reference_map()
+    ref = ref_map if ref_map is not None else _active_reference()
     venues = {u: bu.venues(u) for u in UNIVERSES}
     out: dict = {u: [] for u in UNIVERSES}
     for sym, recs in (ref or {}).items():
@@ -242,7 +275,10 @@ def _build_state(L: int) -> Optional[dict]:
     from api.services import breadth_live as bl
     conn = bl._bars_conn()
     today_ts = bl._ts_int(bl._now_et().date())
+    t0 = time.time()
+    _stage("members")
     mem = members(_iso(L))
+    t_mem = time.time() - t0
     union = sorted(set().union(*[set(v) for v in mem.values()]))
     if len(union) < 500:
         return None
@@ -250,18 +286,41 @@ def _build_state(L: int) -> Optional[dict]:
     dates = bl._session_dates(conn, L, start, limit=bl._FRAME_SESSIONS + 15)
     if len(dates) < 240:
         return None
+    _stage("frame")
+    t1 = time.time()
     closes, vols = bl._load_frame(conn, union, dates)
+    t_frame = time.time() - t1
+    _stage("dividend_basis")
+    t2 = time.time()
     closes = bl._apply_dividend_basis(union, dates, closes, today_ts)
+    t_div = time.time() - t2
     pos = {t: i for i, t in enumerate(union)}
     idx = {u: np.array([pos[t] for t in mem[u]], dtype=int) for u in UNIVERSES}
+    _stage("levels")
+    t3 = time.time()
+    levels_today = bl.build_levels(union, closes, vols, L)
+    timings = {"members_s": round(t_mem, 2), "frame_s": round(t_frame, 2),
+               "dividend_basis_s": round(t_div, 2), "levels_s": round(time.time() - t3, 2),
+               "names": len(union), "sessions": len(dates),
+               "priced_last": int((~np.isnan(closes[:, -1])).sum())}
+    _log.info("[breadth_live_universes] state built: %s", timings)
     return {"L": L, "dates": dates, "union": union, "members": mem, "idx": idx,
             "closes": closes, "vols": vols, "built_at": time.time(),
-            "levels_today": bl.build_levels(union, closes, vols, L)}
+            "levels_today": levels_today, "timings": timings}
+
+
+_progress: dict = {}
+
+
+def _stage(name: str) -> None:
+    """Where a long build currently is — read by the diagnostic job route."""
+    _progress.update(stage=name, at=time.time())
 
 
 def _close_rows(st: dict, k: int) -> dict:
     """The method at the CLOSE of `st['dates'][k]`, per universe (levels from the prior k sessions)."""
     from api.services import breadth_live as bl
+    _stage(f"close_rows:{k}")
     union, closes, vols = st["union"], st["closes"], st["vols"]
     lv = bl.build_levels(union, closes[:, :k], vols[:, :k], st["dates"][k - 1])
     prices = {t: float(closes[i, k]) for i, t in enumerate(union)
@@ -587,4 +646,9 @@ def start_job(name: str, fn, *args) -> dict:
 
 def job(name: str) -> dict:
     with _jobs_lock:
-        return dict(_jobs.get(name) or {"state": "none"})
+        out = dict(_jobs.get(name) or {"state": "none"})
+    out["progress"] = dict(_progress)
+    st = _state.get("value")
+    if st:
+        out["state_timings"] = st.get("timings")
+    return out
