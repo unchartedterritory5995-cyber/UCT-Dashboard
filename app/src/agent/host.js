@@ -122,7 +122,16 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
         count, max: MAX_BOARD_WIDGETS, canGrow: boardCanGrow(count), fits, fitsSequence, capacity, groupPlan,
       }
     },
-    add: (type, place) => widgetOps.add(type, place),
+    add: (type, place, init) => widgetOps.add(type, place, init),
+    // A widget's CONFIGURATION as the workspace holds it (layout + link-group
+    // ticker) — readable whether or not the widget has mounted yet. This is what a
+    // chart will load; it says nothing about whether its data has arrived.
+    configOf(id) {
+      const w = ((widgetOps.layout() || {}).widgets || []).find(x => x.id === id)
+      if (!w) return null
+      const syms = widgetOps.groupSyms?.() || {}
+      return { color: w.color || null, tf: w?.opts?.tf || 'D', symbol: (w.color === 'N' ? syms[`N:${id}`] : syms[w.color]) || null }
+    },
     remove: (id) => widgetOps.remove(id),
     color: (id, color) => widgetOps.color?.(id, color),
     cancelPending: () => widgetOps.cancelPending?.(),
@@ -234,8 +243,59 @@ export function buildWatchlistSource({ getLists, getWidgets, revalidate, request
   }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps, layouts, watchlists }) {
+// What identifies a board's arrangement: each widget's id, type, cell, link colour
+// and timeframe. (Settings blobs are left out: they are rewritten on hydration.)
+export const boardSig = (widgets) => JSON.stringify((widgets || [])
+  .map(w => [w.id, w.type, w.x, w.y, w.w, w.h, w.color || null, w?.opts?.tf || null])
+  .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)))
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms))
+
+/**
+ * ⛔ CROSS-SESSION GUARD. The board and the open-layout pointer are ONE per-member
+ * preference each, written last-write-wins, and a tab never re-reads them after it
+ * loads — so another tab or device can change them under this one. Before the Agent
+ * writes (Apply / Undo), re-read what the server holds and compare it with THIS tab:
+ * a different open layout, or a different arrangement that is not just this tab's
+ * own save still in flight (the workspace debounces its autosave ~500ms), means the
+ * board changed elsewhere — refuse rather than overwrite it. → { ok, reason }
+ */
+export function buildBoardSync({ readServer, localLayout, localEpoch, settleMs = 700, tries = 2 }) {
+  return async function boardInSync() {
+    for (let i = 0; ; i++) {
+      let server
+      try { server = await readServer() } catch { server = null }
+      if (!server) return { ok: true, unchecked: true }               // can't read: never block on a network blip
+      const local = { epoch: localEpoch(), sig: boardSig(localLayout()?.widgets) }
+      const sameLayout = server.epoch == null || server.epoch === local.epoch
+      const sameBoard = server.sig === local.sig
+      if (sameLayout && sameBoard) return { ok: true }
+      if (!sameLayout) return { ok: false, reason: 'a different layout was opened in another window or device' }
+      if (i >= tries) return { ok: false, reason: 'this board was changed in another window or device' }
+      await sleep(settleMs)                                           // maybe just this tab's own pending save
+    }
+  }
+}
+
+const PREFS_URL = '/api/auth/preferences'
+async function readServerBoard() {
+  const r = await fetch(PREFS_URL, { credentials: 'include', cache: 'no-store' })
+  if (!r.ok) return null
+  const p = await r.json()
+  let layout = null
+  let active = null
+  try { layout = typeof p.charts_workspace_layout === 'string' ? JSON.parse(p.charts_workspace_layout) : p.charts_workspace_layout } catch { /* unreadable → unchecked */ }
+  try { active = typeof p.charts_active_template === 'string' ? JSON.parse(p.charts_active_template) : p.charts_active_template } catch { active = null }
+  if (!layout || !Array.isArray(layout.widgets)) return null
+  return { sig: boardSig(layout.widgets), epoch: active && active.id != null ? `${active.scope || 'user'}:${active.id}` : (p.charts_active_template === undefined ? null : 'unsaved') }
+}
+
+export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps, layouts, watchlists, readServer = readServerBoard }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
+  const epoch = layoutSource ? () => {
+    const a = layoutSource.snapshot().active
+    return a ? `${a.scope}:${a.id}` : 'unsaved'
+  } : null
   return {
     ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }) } : {}),
     charts: buildChartSource({ chartApiById, getWidgets }),
@@ -244,11 +304,9 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widg
       layouts: layoutSource,
       // WHICH board this is: the open layout's identity. A plan proposed on one board
       // must never be applied to another, and an undo never reaches across a switch.
-      epoch: () => {
-        const a = layoutSource.snapshot().active
-        return a ? `${a.scope}:${a.id}` : 'unsaved'
-      },
+      epoch,
     } : {}),
+    ...(widgetOps && epoch ? { boardInSync: buildBoardSync({ readServer, localLayout: () => widgetOps.layout(), localEpoch: epoch }) } : {}),
     otherWidgets: () => (getWidgets() || []).filter(w => w.type !== 'chart').map(w => widgetLabel(w.type)),
   }
 }

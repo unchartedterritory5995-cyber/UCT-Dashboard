@@ -92,6 +92,7 @@ export const workspaceKind = {
       return true
     }
     const created = {}
+    const born = {}                     // alias → { symbol, tf } for widgets born complete
     // Several of ONE type: plan them as a group (equal cells in one empty region,
     // via the product's planGroupPlacement) once, from the board as it is now. No
     // group region → null → each add uses the product's normal placement.
@@ -100,7 +101,9 @@ export const workspaceKind = {
     for (let i = 0; i < patch.add.length; i++) {
       const c = patch.add[i]
       const known = new Set(host.widgets.snapshot().widgets.map(w => w.id))
-      host.widgets.add(c.type, cells?.[i] || null)
+      // Born on its ticker/timeframe when known (no default symbol loads first).
+      const init = c.flags?.unlink && c.flags.init?.symbol ? c.flags.init : null
+      host.widgets.add(c.type, cells?.[i] || null, init)
       let fresh = null
       const t0 = Date.now()
       while (!fresh && Date.now() - t0 < 5000) {
@@ -112,10 +115,11 @@ export const workspaceKind = {
       // A new chart that gets its OWN symbol must not share the link group the
       // product assigns by default — that would retarget the member's existing
       // linked widgets. Unlink it the way the member would (the color dot → N).
-      if (c.flags?.unlink) { host.widgets.color(fresh.id, 'N'); await nextFrame(); mark('widget:unlinked', i) }
+      if (c.flags?.unlink && fresh.color !== 'N') { host.widgets.color(fresh.id, 'N'); await nextFrame(); mark('widget:unlinked', i) }
       created[c.alias || `#${i}`] = fresh.id
+      if (init && c.flags?.complete && c.alias) born[c.alias] = init
     }
-    return { created }
+    return { created, born }
   },
   landed(snap, patch) {
     if (!snap) return false
@@ -133,7 +137,10 @@ export const workspaceKind = {
     const ids = createdIds(item)
     return JSON.stringify(ids.map(id => {
       const w = snap.widgets.find(x => x.id === id)
-      return w ? [w.id, w.x, w.y, w.w, w.h, w.color, w.optsSig, host?.charts?.read(id)?.symbol || null] : [id, 'gone']
+      // The ticker as the workspace holds it (same value a mounted chart shows), so a
+      // chart that mounts after this fingerprint was taken never reads as edited.
+      const sym = host?.widgets?.configOf?.(id)?.symbol ?? host?.charts?.read(id)?.symbol ?? null
+      return w ? [w.id, w.x, w.y, w.w, w.h, w.color, w.optsSig, sym] : [id, 'gone']
     }))
   },
 }

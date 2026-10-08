@@ -82,6 +82,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
 
   const landed = []
   const aliases = {}
+  const born = {}                 // alias → what a creator set at birth (verified without mounting)
   const fail = async (label, reason) => {
     const restored = await compensate(host, landed)
     return {
@@ -96,6 +97,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
     let res
     try { res = await kind.commit(host, p.ref, p.patch) } catch (e) { return fail(p.snap.label, `failed (${e?.message || 'error'})`) }
     if (res && res.created) Object.assign(aliases, res.created)
+    if (res && res.born) Object.assign(born, res.born)
     await nextFrame()
     const snap = kind.read(host, p.ref)
     if (!kind.landed(snap, p.patch)) {
@@ -115,6 +117,14 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
     const kind = getTargetKind(p.kind)
     const realRef = aliases[p.ref]
     if (!realRef) return fail(p.snap.label, 'was not created')
+    // Born complete (its creator set everything asked of it): verify that from the
+    // workspace's state — no need to wait for it to mount and load data.
+    if (born[p.ref] && kind.verifyBorn) {
+      if (!kind.verifyBorn(host, realRef, born[p.ref])) return fail(p.snap.label, 'did not take effect')
+      mark('target:born', p.ref)
+      vlanded.push(p)
+      continue
+    }
     mark(`target:wait`, p.ref)
     const snap = await waitForTarget(kind, host, realRef)
     mark(`target:ready`, p.ref)

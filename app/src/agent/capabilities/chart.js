@@ -123,7 +123,24 @@ export const chartKind = {
   }),
   // A new chart given its OWN symbol must be created unlinked, or the symbol
   // would retarget every existing widget in the default link group.
-  createFlags: (ops) => (ops.some(o => o.action === 'chart.setSymbol') ? { unlink: true } : {}),
+  // …and when its ticker (and timeframe) are already known it is BORN on them
+  // (handleAddWidget's unlinkedSymbol) — no default symbol is ever loaded first.
+  createFlags: (ops) => {
+    const sym = [...ops].reverse().find(o => o.action === 'chart.setSymbol')?.args?.symbol
+    if (!sym) return {}
+    const tf = [...ops].reverse().find(o => o.action === 'chart.setTimeframe')?.args?.timeframe || null
+    // `complete`: the ticker and timeframe ARE everything asked of this chart, so once
+    // it is born on them there is nothing left to commit through the mounted widget.
+    const complete = ops.every(o => o.action === 'chart.setSymbol' || o.action === 'chart.setTimeframe')
+    return { unlink: true, init: { symbol: String(sym).trim().toUpperCase(), tf }, complete }
+  },
+  // A chart born complete is verified from the workspace's own state (layout +
+  // link-group ticker) instead of waiting for it to mount: mounting waits on market
+  // data (PANEL_MOUNT_CAP), which says nothing about whether the configuration landed.
+  verifyBorn: (host, ref, born) => {
+    const c = host?.widgets?.configOf?.(ref)
+    return !!c && c.color === 'N' && c.symbol === born.symbol && (!born.tf || c.tf === born.tf)
+  },
 }
 
 export function describeChart(snap, shortRef) {
