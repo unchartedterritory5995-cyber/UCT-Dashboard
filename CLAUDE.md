@@ -2572,6 +2572,39 @@ them:**
   after the import reaches nothing. `scripts/hub_sandbox_boot.py` already does
   this properly for a full boot — prefer it over a hand-rolled probe.
 
+### ⛔⛔ 2026-10-07 — the tripwire armed itself INSIDE the live web process; it is now inert there by construction
+
+**What happened.** About 22:37 to 22:43 Central the production web process answered 500 on
+sign-in and on every authenticated request: `SharedDataRootWrite`, raised from
+`/app/conftest.py`, on `sqlite3.connect('/data/auth.db')`. Something in the running uvicorn
+process had executed `import conftest`, which redirected the data-path variables to a temp
+sandbox and armed this guard against `/data`. A restart cleared it. ⚠️ **The importer was
+never identified** (the server log keeps 500 lines), and it was the second time: commit
+`65dc5e4586` (2026-10-06) had fixed one importer, `tools/ast_conformance.py`, the day before.
+
+**The fix is at `conftest.py` itself, not at an importer.** `_inert_in_production()` is true
+when any variable in `_RAILWAY_IDENTITY_ENV` is set (the same seven as
+`ai_actions.RAILWAY_IDENTITY_ENV`; a test reads both by AST) and the process is not a pytest
+run. When true, importing `conftest` pins nothing, patches nothing, derives nothing and
+creates nothing, and writes ONE stderr line, `[conftest] INERT IN A DEPLOYED SERVICE: …`,
+naming the importing module and the import chain. `_arm_shared_root_tripwire()` asks the same
+question again, so a direct call is refused too. **There is no override, on purpose.** Rail:
+`tests/test_conftest_is_inert_in_production.py` (subprocess per case, with a control that must
+pin and arm, and a `python -m pytest` case that must stay guarded on a Railway-like box).
+
+⛔ **The rule: a module that server code can import must never import `conftest`
+unconditionally.** 71 files under `tools/` and `scripts/` still do, and
+`alert_user_series._conformance()` leaves `tools/` at the front of `sys.path` for the life of
+the process. The capability is removed at `conftest`; the importers are still wrong, and the
+stderr line is how the next one gets found. **If that line appears in a service log, fix the
+module it names.**
+
+⚠️ **Two things this changes, both deliberate.** "pytest is in `sys.modules`" is NOT the
+pytest test: `conftest` imports pytest itself, so that becomes true in the live process the
+moment the inert import finishes. And a tool run by hand on a pod (`railway ssh`), or locally
+under `railway run` (which injects the same variables), is **no longer sandboxed** by
+importing `conftest`: its data paths are the live ones.
+
 ## ⛔ Sandbox boots — the 2026-09-08 incident, and the two rails that make a sandbox trustworthy
 
 **The section above is a *test-suite* rail. This one is about everything else that
