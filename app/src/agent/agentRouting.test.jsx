@@ -122,7 +122,7 @@ describe('routing — offline accuracy over the benchmark messages', () => {
   it('deterministic commands still never reach the model (fast paths unchanged by routing)', () => {
     expect(fastParse('create a new blank layout called Momentum Desk').ops[0].action).toBe('layout.create')
     expect(fastParse('turn off the grid').ops[0].action).toBe('chart.setSetting')
-    expect(fastParse('Can you resize my chart widgets?').ops[0]).toEqual({ action: 'agent.capabilities', args: { topic: 'arrange' } })
+    expect(fastParse('Can you backtest this strategy?').ops[0]).toEqual({ action: 'agent.capabilities', args: { topic: 'backtest' } })
   })
 })
 

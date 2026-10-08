@@ -81,9 +81,14 @@ export function selectGroups(message, { pendingActions = [], recentActions = [] 
  * `extra` adds groups (the bounded reroute).
  */
 export function routeManifest(manifest, message, opts = {}, extra = []) {
-  if (opts.enabled === false) return { manifest, routing: null }
+  const limit = opts.limit ?? Infinity
+  // Kill switch / nothing recognised → the FULL manifest — while it fits the server's limit.
+  // Past the limit the fallback is the always-on groups plus the follow-up groups, with every
+  // other group NAMED, so the model asks for what it needs (need_groups) instead of the server
+  // cutting the list.
+  if (opts.enabled === false && manifest.length <= limit) return { manifest, routing: null }
   const { selected, matched } = selectGroups(message, opts)
-  if (!matched && !extra.length) return { manifest, routing: null }       // unsure → everything
+  if (!matched && !extra.length && manifest.length <= limit) return { manifest, routing: null }
   const want = new Set([...selected, ...extra])
   const present = GROUPS.filter(g => manifest.some(c => groupOfAction(c.name) === g.id))
   const routed = manifest.filter(c => want.has(groupOfAction(c.name)) || groupOfAction(c.name) === null)

@@ -175,12 +175,17 @@ describe('chart.setSetting — one capability over the product descriptor table'
 describe('capability questions — deterministic, truthful, never future-as-present', () => {
   const ask = (q) => fastParse(q)?.ops?.[0] || null
   const answer = (q) => answerFor(ask(q).args.topic)
-  it('"Can you resize my chart widgets?" → not yet; UCT has it; planned (Batch 5)', () => {
-    expect(ask('Can you resize my chart widgets?')).toEqual({ action: 'agent.capabilities', args: { topic: 'arrange' } })
-    const a = answer('Can you resize my chart widgets?')
+  it('"Can you draw trendlines for me?" → not yet; UCT has it; planned (Batch 8)', () => {
+    expect(ask('Can you draw trendlines for me?')).toEqual({ action: 'agent.capabilities', args: { topic: 'drawings' } })
+    const a = answer('Can you draw trendlines for me?')
     expect(a.status).toBe('known')
     expect(a.text).toMatch(/^Not yet\./)
-    expect(a.text).toMatch(/Planned for UCT Agent \(Batch 5, not available yet\)/)
+    expect(a.text).toMatch(/Planned for UCT Agent \(Batch 8, not available yet\)/)
+  })
+  it('Batch 5: "Can you resize my chart widgets?" is now something the Agent DOES — a polite command, not a question', () => {
+    expect(fastDiscovery('Can you resize my chart widgets?')).toBe(null)
+    expect(answerFor('arrange').status).toBe('partial')
+    expect(answerFor('arrange').text).toMatch(/^Partly\. .*move or resize/)
   })
   it('"Can you create a custom indicator?" → known (Create Indicator exists), planned hand-off', () => {
     const a = answer('Can you create a custom indicator?')

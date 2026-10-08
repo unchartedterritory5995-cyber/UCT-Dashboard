@@ -14,6 +14,7 @@ import { registerNewsCapabilities } from './capabilities/news'
 import { registerDigestCapabilities } from './capabilities/digest'
 import { registerSavedScreenCapabilities } from './capabilities/savedScreens'
 import { registerAboutCapabilities } from './capabilities/about'
+import { registerBoardCapabilities } from './capabilities/board'
 
 let done = false
 export function registerBuiltins() {
@@ -31,5 +32,6 @@ export function registerBuiltins() {
   registerNewsCapabilities()
   registerDigestCapabilities()
   registerSavedScreenCapabilities()
+  registerBoardCapabilities()
   registerAboutCapabilities()
 }

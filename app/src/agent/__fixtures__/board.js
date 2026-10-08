@@ -120,6 +120,14 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
         lib.entries = lib.entries.filter(x => x.id !== id)
         delete lib.boards[id]
       },
+      // Layouts ▾ "Save current arrangement": the board into the open layout (own layouts only).
+      async saveCurrent() {
+        lib.calls.push(['saveCurrent', lib.activeId])
+        if (lib.failSaveCurrent) return { ok: false, named: lib.failSaveCurrent }
+        const a = activeEntry()
+        if (a && a.scope === 'user') { lib.boards[a.id] = state.widgets.map(w => ({ ...w })); return { ok: true, named: 'saved' } }
+        return { ok: true, named: 'none' }
+      },
       async duplicate(id, name) {
         lib.calls.push(['duplicate', id, name])
         if (lib.entries.some(e => e.scope === 'user' && e.name === name)) throw new Error('You already have a layout with that name')

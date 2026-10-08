@@ -102,5 +102,5 @@ def test_reroute_stores_the_member_message_once_and_no_plumbing_reply(client, mo
     # the second model call saw the member message exactly once
     user_msgs = [m for m in c.calls[1]["messages"] if m["role"] == "user"]
     assert sum(json.dumps(m["content"]).count("bars and add it to semis") for m in user_msgs) == 1
-    rows = store.telemetry_rows(ADMIN["id"])
+    rows = [r for r in store.telemetry_rows(ADMIN["id"]) if r["conversation_id"] == cid]
     assert [(r["path"], r["disposition"]) for r in sorted(rows, key=lambda r: r["id"])] == [("routed", "need_groups"), ("reroute", "apply")]

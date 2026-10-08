@@ -30,7 +30,7 @@ import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsF
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
 import { BASIC_WIDGET_DEFAULTS, mergeBasicWidgetSettings, basicDefaultsForTheme } from './widgets/basicWidgetSettings'
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
-import { patchOptsWithTheme, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme, appThemeSurface, themeWithAppSurface, tagAppTheme, resolveGlobalPrefSettings } from '../../components/chart/chartThemes'
+import { patchOptsWithTheme, themeAllChartWidgets, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme, appThemeSurface, themeWithAppSurface, tagAppTheme, resolveGlobalPrefSettings } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome, chartTypeCanvasEntry } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
@@ -1516,21 +1516,15 @@ export default function ChartsWorkspace() {
     if (!rawTheme) return
     // An app-mirrored chart theme (Graphite/Slate/Carbon/Navy…) uses the app SURFACE
     // as the chart canvas; other chart themes keep their own designed background.
-    const theme = themeWithAppSurface(rawTheme)
+    // ONE pure function (chartThemes.themeAllChartWidgets): UCT Agent's chart.applyThemeAll
+    // computes exactly this result.
     const seed = mergeChartSettings(prefs.chart_settings)
     setLayout(prev => {
-      const widgets = prev.widgets.map(w => {
-        let nw = w
-        if (w.type === 'chart') nw = { ...nw, opts: patchOptsWithTheme(nw.opts, theme, seed) }
-        if (Array.isArray(w.wtabs) && w.wtabs.some(t => t?.type === 'chart')) {
-          nw = { ...nw, wtabs: nw.wtabs.map(t => (t?.type === 'chart' ? { ...t, opts: patchOptsWithTheme(t.opts, theme, seed) } : t)) }
-        }
-        return nw
-      })
+      const { widgets, layoutTheme } = themeAllChartWidgets(prev.widgets, rawTheme, seed)
       // Remember this as the default look for NEW chart widgets — stored ON THE LAYOUT
       // (not a global pref) so a theme picked here never leaks to another board. Set
       // even when no chart changed, so an empty layout remembers the pick for its first.
-      const next = { ...prev, widgets, layoutTheme: { id: rawTheme.id, scope: 'charts' } }
+      const next = { ...prev, widgets, layoutTheme }
       scheduleSave(next)
       return next
     })
@@ -2375,7 +2369,9 @@ export default function ChartsWorkspace() {
       setPref('charts_workspace_groups', JSON.stringify(groupSyms)),
     ])
     // `false` is setPref's "refused / not saved"; anything else (a confirmed write) goes on.
-    if (boardOk === false || groupsOk === false) return
+    // The RESULT is returned for UCT Agent's layout.saveCurrent receipt; the button ignores it.
+    if (boardOk === false || groupsOk === false) return { ok: false, named: 'none' }
+    let named = 'none'
     const active = parsePref(prefs?.charts_active_template, null)
     if (active?.id != null && (active.scope !== 'global' || isAdmin)) {
       const list = active.scope === 'global' ? globalLayouts : myLayouts
@@ -2388,10 +2384,12 @@ export default function ChartsWorkspace() {
         const watchlistColumns = readWatchlistColumns()
         try {
           await saveLayout({ name: active.name, layout: { ...layout, chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns }, groups: null, scope: active.scope })
-        } catch { /* surfaced by SWR revalidate */ }
+          named = 'saved'
+        } catch { named = 'failed' /* surfaced by SWR revalidate */ }
       }
     }
     flashSaved()
+    return { ok: named !== 'failed', named }
   }, [layout, groupSyms, setPref, flashSaved, prefs?.charts_active_template, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, globalLayouts, myLayouts, saveLayout])
 
   const handleDeleteTemplate = useCallback(async (id) => {
@@ -2902,6 +2900,33 @@ export default function ChartsWorkspace() {
       return { ok: board !== false && groups !== false && !conflict, conflict, reason: conflict ? 'conflict' : (board === false || groups === false ? 'not-saved' : null) }
     },
     remove: handleRemoveWidget, color: handleColorChange, cancelPending: cancelPendingAdd,
+    // ── arrangement (UCT Agent, Batch 5): the board's OWN geometry rules and writer ──
+    grid: () => ({ cols: GRID_COLS, rows: FIXED_ROWS }),
+    minOf: (w) => ({ minW: WIDGET_DEFAULTS[w?.type]?.minW || 2, minH: WIDGET_DEFAULTS[w?.type]?.minH || 3 }),
+    // A DROP, computed (pure): the moved widget lands at `rect` and every other widget
+    // re-tiles around it — exactly handleDragStop's repackAroundMoved.
+    repack: (widgets, id, rect) => repackAroundMoved(widgets, id, rect),
+    // The "all charts" theme result (pure) — applyThemeToAllCharts' own computation.
+    themeAll: (widgets, themeId) => {
+      const t = CHART_THEME_BY_ID[themeId]
+      return t ? themeAllChartWidgets(widgets, t, mergeChartSettings(prefs.chart_settings)) : null
+    },
+    // ONE board write for an arrangement: remove widgets, set fields on widgets, re-insert
+    // exact widgets (Undo of a removal), and the layout's theme — clamped into the grid and
+    // auto-saved like every manual change. A removal is marked as the member's own (the
+    // shrink guard lets it persist, as for the ✕ button).
+    applyBoard: (p) => {
+      if (p.remove?.length) userRemovedRef.current = true
+      setLayout(prev => {
+        const widgets = prev.widgets.filter(w => !(p.remove || []).includes(w.id))
+          .map(w => (p.set?.[w.id] ? { ...w, ...p.set[w.id] } : w))
+        for (const r of p.restore || []) if (!widgets.some(w => w.id === r.id)) widgets.push(r)
+        const next = { ...prev, widgets: clampWidgetsToRows(widgets) }
+        if ('layoutTheme' in p) { if (p.layoutTheme == null) delete next.layoutTheme; else next.layoutTheme = p.layoutTheme }
+        scheduleSave(next)
+        return next
+      })
+    },
   }
   // Named layouts, read EXACTLY as the Layout Dock reads them (dockEntries + the
   // charts_active_template pointer) and changed ONLY through the dock's own handlers:
@@ -2936,6 +2961,9 @@ export default function ChartsWorkspace() {
       // The dock's own delete (DELETE by id; throws if the server refuses). The Agent never
       // deletes the OPEN layout (the dock would first switch the board to UCT Default).
       remove: (id) => deleteLayout(id),
+      // "Save current arrangement" — the Layouts ▾ menu's own handler (board first, then the
+      // open layout's row, only after the board was accepted). {ok, named: saved|none|failed}.
+      saveCurrent: () => handleSaveLayout(),
       // The dock's duplicate (a copy of the STORED layout), but create-only: a name that
       // already exists is refused by the server instead of overwritten.
       duplicate: (id, name) => {
@@ -2965,6 +2993,11 @@ export default function ChartsWorkspace() {
       cancelPending: () => agentWidgetOpsRef.current.cancelPending(),
       groupSyms: () => agentGroupSymsRef.current,
       persist: () => agentWidgetOpsRef.current.persist(),
+      grid: () => agentWidgetOpsRef.current.grid(),
+      minOf: (w) => agentWidgetOpsRef.current.minOf(w),
+      repack: (ws, id, rect) => agentWidgetOpsRef.current.repack(ws, id, rect),
+      themeAll: (ws, themeId) => agentWidgetOpsRef.current.themeAll(ws, themeId),
+      applyBoard: (p) => agentWidgetOpsRef.current.applyBoard(p),
     },
     layouts: () => agentLayoutsRef.current,
     watchlists: {

@@ -20,6 +20,7 @@ import { CHART_THEMES } from '../components/chart/chartThemes'
 import { WORKSPACE_MENU_TYPES } from '../widgets/registry'
 import { CHART_SETTING_DESCRIPTORS, ELIGIBLE_SETTINGS } from '../components/chart/chartSettingsDescriptors'
 import { SETTINGS_SECTIONS } from './capabilities/app'
+import { routeManifest } from './routing'
 
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
 const GOLDEN = path.join(HERE, 'contract', 'manifest.golden.json')
@@ -48,8 +49,26 @@ describe('golden manifest (the JS ⇄ Python contract)', () => {
       expect(String(c.hints || '').length, c.name).toBeLessThanOrEqual(L.maxHints)
     }
   })
-  it('🔴 SCALING: below the routing threshold — past it, activate relevance routing instead of raising the server cap', () => {
-    expect(manifest.length, 'see docs/agent/CAPABILITY-CONTRACT.md §Scaling').toBeLessThanOrEqual(MANIFEST_CONTRACT.routingThreshold)
+  // Batch 5: relevance routing is ACTIVE (agent/routing.js). What the model receives on a routed
+  // turn must stay under the threshold; the full manifest (sent only when nothing is recognised)
+  // must still fit the server limit — past it, routing's fallback names every group instead.
+  it('🔴 SCALING: every routed manifest stays under the routing threshold (never raise the server cap instead)', () => {
+    const msgs = ['Rename my Growth watchlist to Leaders', 'Remove the bottom-right chart and make the remaining charts fill the space',
+      'Run my Momentum Screen and put the results into a new watchlist called Momentum Picks, then open the top three in charts',
+      'Hide the grid on the left chart and turn the crosshair off', 'Change the watchlist widget to show my Semiconductor list', 'Alert me if NVDA crosses 150']
+    for (const m of msgs) {
+      const r = routeManifest(manifest, m, { limit: MANIFEST_CONTRACT.limits.maxCapabilities })
+      expect(r.routing, m).not.toBe(null)
+      expect(r.manifest.length, m).toBeLessThanOrEqual(MANIFEST_CONTRACT.routingThreshold)
+    }
+  })
+  it('the full manifest still fits the server limit; past it the fallback is routed, never cut', () => {
+    expect(manifest.length).toBeLessThanOrEqual(MANIFEST_CONTRACT.limits.maxCapabilities)
+    const big = [...manifest, ...Array.from({ length: 30 }, (_, i) => ({ ...manifest[0], name: `chart.fake${i}` }))]
+    const r = routeManifest(big, 'What is the difference between an EMA and an SMA?', { limit: MANIFEST_CONTRACT.limits.maxCapabilities })
+    expect(r.routing).not.toBe(null)
+    expect(r.manifest.length).toBeLessThanOrEqual(MANIFEST_CONTRACT.routingThreshold)
+    expect(r.routing.groups.length).toBeGreaterThan(r.routing.selected.length)
   })
 })
 

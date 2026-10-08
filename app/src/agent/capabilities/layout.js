@@ -82,6 +82,7 @@ export const layoutsKind = {
     if (op.remove) return { remove: op.remove }
     if (op.create) return { create: op.create }
     if (op.duplicate) return { duplicate: op.duplicate }
+    if (op.saveCurrent) return { saveCurrent: op.saveCurrent }
     return null
   },
   async commit(host, ref, patch) {
@@ -130,6 +131,16 @@ export const layoutsKind = {
       await waitFor(() => snap().entries.some(e => e.name === patch.create.name), 5000)
       return { created: { [`#${patch.create.name}`]: saved?.id ?? snap().entries.find(e => e.name === patch.create.name)?.id } }
     }
+    if (patch.saveCurrent) {
+      // The open layout NOW must still be the one the plan saw, and still yours.
+      const a = snap().active
+      const e = snap().entries.find(x => String(x.id) === String(patch.saveCurrent.id))
+      if (!a || String(a.id) !== String(patch.saveCurrent.id) || !e || e.kind !== 'yours') throw new Error('the open layout changed since I read it — ask again')
+      const res = await L.saveCurrent()
+      if (!res?.ok) throw new Error(res?.named === 'failed' ? `the board was saved but ${quote(e.name)} could not be updated` : 'the board could not be saved (it changed in another tab or device)')
+      if (res.named !== 'saved') throw new Error(`${quote(e.name)} could not be updated`)
+      return true
+    }
     if (patch.duplicate) {
       try { await L.refresh() } catch { /* the server's create-only check still holds */ }
       if (snap().entries.some(e => norm(e.name) === norm(patch.duplicate.name))) {
@@ -149,6 +160,7 @@ export const layoutsKind = {
     if (patch.remove) return !snap.entries.some(e => String(e.id) === String(patch.remove.id))
     if (patch.create) return snap.entries.some(e => e.name === patch.create.name)
     if (patch.duplicate) return snap.entries.some(e => e.name === patch.duplicate.name)
+    if (patch.saveCurrent) return String(snap.active?.id) === String(patch.saveCurrent.id)
     return false
   },
   // Undo a switch = open the previous layout the same way — only when nothing was
@@ -324,6 +336,36 @@ export function registerLayoutCapabilities() {
     },
     apply: (st, { name }) => ({ ...st, op: { saveAs: String(name).trim() } }),
     describe: (b, a) => (a.op?.saveAs ? `Saved this workspace as a new layout ${quote(a.op.saveAs)} (now open)` : null),
+  })
+
+  // ── layout.saveCurrent ──
+  // "Save these changes to my current layout": the Layouts ▾ menu's own "Save current
+  // arrangement" (the board first; the open layout's saved copy only after the board was
+  // accepted). Only the member's OWN layout; there is no Undo (it replaces the saved copy),
+  // so it is always proposed. Your own layouts also auto-save as you work — this makes it
+  // explicit and confirms it.
+  registerCapability({
+    name: 'layout.saveCurrent',
+    target: 'layouts',
+    surfaces: ['charts'],
+    reversible: false,
+    exclusive: true,
+    exclusiveReason: 'Save the layout on its own, after the other changes are done.',
+    summary: 'Save the board as it is now into the layout that is OPEN (only the member’s own layout). Replaces that layout’s saved copy; no Undo.',
+    hints: 'target = the ref of the layouts entry. Use for "save these changes to my layout". For a NEW layout use layout.saveAs.',
+    args: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    fastWhole: true,
+    fast: ({ raw }) => (/^(?:please )?save (?:these |the |my |this |all )?(?:changes|arrangement|layout|workspace|board|it)(?: (?:to|into|in|on) (?:my |the |this )?(?:current |open )?(?:layout|workspace))?[.!]?$/i.test(String(raw).trim()) ? {} : null),
+    check(st) {
+      const busy = oneAtATime(st)
+      if (busy) return busy
+      if (!st.active) return 'No saved layout is open — save this board as a new layout instead (give it a name).'
+      const e = entryOf(st, String(st.active.id))
+      if (!e || e.kind !== 'yours') return `${quote(st.active.name)} is ${e?.kind === 'prebuilt' ? 'a prebuilt' : 'a built-in'} layout — it can't be overwritten. Save this board as a new layout instead.`
+      return null
+    },
+    apply: (st) => ({ ...st, op: { saveCurrent: { id: String(st.active.id), name: st.active.name } } }),
+    describe: (b, a) => (a.op?.saveCurrent ? `Saved the current board into your layout ${quote(a.op.saveCurrent.name)} (replaces its saved copy)` : null),
   })
 
   // ── layout.rename ──

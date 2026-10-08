@@ -563,6 +563,23 @@ export function themeWithAppSurface(theme) {
   return surf ? { ...theme, bg: surf.bg, bgGradient: null } : theme
 }
 
+// THE all-charts theme apply — what Chart Settings → 🎨 does with scope "all charts"
+// (ChartsWorkspace.applyThemeToAllCharts) and what UCT Agent's chart.applyThemeAll does. Pure:
+// every chart widget and every chart TAB gets the theme (app-mirrored themes paint the app
+// surface), and the layout remembers it as the default look for new charts.
+export function themeAllChartWidgets(widgets, rawTheme, seed) {
+  const theme = themeWithAppSurface(rawTheme)
+  const next = (widgets || []).map(w => {
+    let nw = w
+    if (w.type === 'chart') nw = { ...nw, opts: patchOptsWithTheme(nw.opts, theme, seed) }
+    if (Array.isArray(w.wtabs) && w.wtabs.some(t => t?.type === 'chart')) {
+      nw = { ...nw, wtabs: nw.wtabs.map(t => (t?.type === 'chart' ? { ...t, opts: patchOptsWithTheme(t.opts, theme, seed) } : t)) }
+    }
+    return nw
+  })
+  return { widgets: next, layoutTheme: { id: rawTheme.id, scope: 'charts' } }
+}
+
 // THE one-chart theme apply — what Chart Settings → 🎨 does with scope "this chart"
 // (ChartSettingsModal.applyTheme) and what UCT Agent's chart.applyTheme does. One function so
 // the two can never diverge: an app-mirrored theme paints the app SURFACE as its canvas.

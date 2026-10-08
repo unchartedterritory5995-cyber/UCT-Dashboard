@@ -17,7 +17,7 @@ import { UCT_DEFAULT_ID } from '../pages/charts/layoutDockPins'
 
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
 
-function positionWord(w, all) {
+export function positionWord(w, all) {
   if (all.length < 2) return ''
   const cx = w.x + w.w / 2
   const cy = w.y + w.h / 2
@@ -120,8 +120,17 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
         })),
         visible: visible.map(w => ({ id: w.id, type: w.type, position: positionWord(w, visible) || null })),
         count, max: MAX_BOARD_WIDGETS, canGrow: boardCanGrow(count), fits, fitsSequence, capacity, groupPlan,
+        // ── arrangement (Batch 5): the board's exact widgets (for exact Undo) and its own
+        // pure geometry rules. Nothing here writes; applyBoard below is the one writer.
+        raw: all.map(w => JSON.parse(JSON.stringify(w))),
+        layoutTheme: layout.layoutTheme ?? null,
+        grid: widgetOps.grid?.() || null,
+        minOf: (w) => widgetOps.minOf?.(w) || { minW: 2, minH: 3 },
+        repack: (widgets, id, rect) => widgetOps.repack?.(widgets, id, rect) || null,
+        themeAll: (widgets, themeId) => widgetOps.themeAll?.(widgets, themeId) || null,
       }
     },
+    applyBoard: (p) => widgetOps.applyBoard(p),
     add: (type, place, init) => widgetOps.add(type, place, init),
     // A widget's CONFIGURATION as the workspace holds it (layout + link-group
     // ticker) — readable whether or not the widget has mounted yet. This is what a
@@ -158,6 +167,8 @@ export function buildLayoutSource(getLayouts) {
     open: (entry) => getLayouts()?.open(entry),
     rename: (id, name) => getLayouts()?.rename(id, name),
     saveAs: (name) => getLayouts()?.saveAs(name),
+    // The Layouts ▾ "Save current arrangement" handler: {ok, named: saved|none|failed}.
+    saveCurrent: () => getLayouts()?.saveCurrent?.(),
     refresh: () => getLayouts()?.refresh?.(),
     remove: (id) => getLayouts()?.remove(id),
     create: (name) => getLayouts()?.create(name),

@@ -583,6 +583,23 @@
    "query": false
   },
   {
+   "name": "layout.saveCurrent",
+   "domain": "layout",
+   "target": "layouts",
+   "summary": "Save the board as it is now into the layout that is OPEN (only the member’s own layout). Replaces that layout’s saved copy; no Undo.",
+   "hints": "target = the ref of the layouts entry. Use for \"save these changes to my layout\". For a NEW layout use layout.saveAs.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": false,
+   "undo": "none",
+   "query": false
+  },
+  {
    "name": "layout.rename",
    "domain": "layout",
    "target": "layouts",
@@ -1621,6 +1638,289 @@
    "risk": "confirm",
    "reversible": false,
    "undo": "none",
+   "query": false
+  },
+  {
+   "name": "widget.remove",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Remove a widget from the board (any type). Undo puts it back exactly — same place, size, link colour and settings. The space it leaves stays empty unless widget.arrange fills it.",
+   "hints": "target = the ref of the board entry; widget = the id of the widget from the board entry's widgets. If several could be meant, clarify — never guess.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "widget.move",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Move and/or resize ONE widget to a rectangle on the board grid, exactly like dropping it there: the other widgets re-tile around it.",
+   "hints": "target = the ref of the board entry; widget = its id; x, y = the new top-left cell (columns from 0 at the left, rows from 0 at the top); w, h = the new width/height in cells, or null to keep the current size. The board entry gives the grid size and every widget's x/y/w/h. \"to the left\" = x 0; \"narrower\" = smaller w; \"full height\" = y 0 and h = rows.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "x": {
+      "type": "integer"
+     },
+     "y": {
+      "type": "integer"
+     },
+     "w": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "h": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "x",
+     "y",
+     "w",
+     "h"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "widget.arrange",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Re-arrange widgets: \"fill\" grows them into the empty space around them (nothing else moves); \"grid\", \"columns\" or \"rows\" re-tile them evenly over the area they cover.",
+   "hints": "target = the ref of the board entry; widgets = the ids to arrange, or null for every widget on the board; pattern = fill | grid | columns | rows. \"make the remaining charts fill the space\" = fill on those charts (after a widget.remove in the same plan).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widgets": {
+      "type": [
+       "array",
+       "null"
+      ],
+      "items": {
+       "type": "string"
+      }
+     },
+     "pattern": {
+      "type": "string",
+      "enum": [
+       "fill",
+       "grid",
+       "columns",
+       "rows"
+      ]
+     }
+    },
+    "required": [
+     "widgets",
+     "pattern"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "widget.setLink",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Set a widget's link colour: widgets with the same colour follow the same symbol; N = not linked.",
+   "hints": "target = the ref of the board entry; widget = its id; color = A (gold), B (blue), C (green), D (purple), N (not linked). \"Link these two charts\" = give both the same colour (use one already on one of them).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "color": {
+      "type": "string",
+      "enum": [
+       "A",
+       "B",
+       "C",
+       "D",
+       "N"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "color"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "widget.showList",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Make a Watchlist widget show one of the member's own watchlists (what picking it in the widget does).",
+   "hints": "target = the ref of the board entry; widget = the id of a watchlist widget; list = the ref of the watchlist (from watchlists).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "list": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget",
+     "list"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "widget.showScan",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Make a Scanner widget show one of UCT's scans (what picking it in the widget does).",
+   "hints": "target = the ref of the board entry; widget = the id of a scanner widget; scan = highest-volume-1y (Highest Volume In 1-Year), highest-volume-ever (Highest Volume Ever), ipo-1y (IPO in Last 1-Year), top-gainers-30d (Top Gainers (30-Day)), top-gainers-60d (Top Gainers (60-Day)), top-gainers-90d (Top Gainers (90-Day)).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "scan": {
+      "type": "string",
+      "enum": [
+       "highest-volume-1y",
+       "highest-volume-ever",
+       "ipo-1y",
+       "top-gainers-30d",
+       "top-gainers-60d",
+       "top-gainers-90d"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "scan"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.applyThemeAll",
+   "domain": "chart",
+   "target": "board",
+   "summary": "Apply one of UCT's chart themes to EVERY chart on the board (and chart tabs), exactly as the theme gallery's \"all charts\" does; new charts on this layout start with it.",
+   "hints": "target = the ref of the board entry; theme = a chart theme id (the same ids as chart.applyTheme). For ONE chart use chart.applyTheme.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "theme": {
+      "type": "string",
+      "enum": [
+       "graphite",
+       "midnight",
+       "deep-forest",
+       "warm-charcoal",
+       "slate",
+       "obsidian",
+       "carbon",
+       "midnight-navy",
+       "espresso",
+       "plum",
+       "nord",
+       "gunmetal",
+       "bordeaux",
+       "storm",
+       "umber",
+       "paper",
+       "cream",
+       "cool-gray",
+       "soft-blue",
+       "warm-sand",
+       "mint-light",
+       "sand",
+       "mint",
+       "ember",
+       "emerald",
+       "teal-night",
+       "forest-fire",
+       "aurora",
+       "ocean",
+       "twilight",
+       "dawn",
+       "neon",
+       "synthwave",
+       "electric",
+       "citrus-pop",
+       "magenta-dusk",
+       "aqua-neon",
+       "dust",
+       "sage",
+       "fog",
+       "clay",
+       "heather",
+       "stonewash",
+       "grayscale",
+       "paper-mono",
+       "blue-mono",
+       "green-mono",
+       "amber-mono",
+       "slate-mono",
+       "bold",
+       "ink-on-white",
+       "blue-orange",
+       "teal-magenta",
+       "hi-vis",
+       "sunlight"
+      ]
+     }
+    },
+    "required": [
+     "theme"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
    "query": false
   },
   {

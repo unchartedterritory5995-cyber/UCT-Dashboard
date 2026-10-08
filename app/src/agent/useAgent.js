@@ -22,7 +22,7 @@ import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
 import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
 import { traceStart, mark, traceEnd } from './trace'
-import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION } from './capabilities'
+import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { routeManifest, routingEnabled } from './routing'
 import { agentTurn, agentRecord, agentConversation } from './agentClient'
@@ -30,6 +30,20 @@ import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } fro
 
 registerBuiltins()
 
+// An ARGUMENT that names another context target (widget.showList's `list` = a watchlist ref) is
+// translated back like a target — only for the args a capability declares (`argRefs: {arg: kind}`),
+// and only when the short ref really is a target of that kind; anything else stays as the model
+// sent it, and the capability's check refuses it.
+function argRefsBack(op, refMap) {
+  const decl = getCapability(op?.action)?.argRefs
+  if (!decl || !op.args || typeof op.args !== 'object') return op.args
+  const args = { ...op.args }
+  for (const [arg, kind] of Object.entries(decl)) {
+    const hit = typeof args[arg] === 'string' ? refMap[args[arg]] : null
+    if (hit && hit.kind === kind) args[arg] = hit.ref
+  }
+  return args
+}
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
 // Which board the host is showing (null for hosts without layouts).
 const epochOf = (host) => (typeof host?.epoch === 'function' ? host.epoch() : null)
@@ -520,7 +534,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // others named. If the model needs a group it wasn't given it plans NOTHING and says so
       // (need_groups); we ask ONCE more with those groups. Nothing has executed in between.
       const full = manifestFor(capCtx)
-      const routeOpts = { enabled: routingEnabled(), pendingActions: p?.kind === 'proposal' ? p.ops.map(o => o.action) : [], recentActions: lastActionsRef.current }
+      const routeOpts = { enabled: routingEnabled(), pendingActions: p?.kind === 'proposal' ? p.ops.map(o => o.action) : [], recentActions: lastActionsRef.current, limit: MANIFEST_CONTRACT.limits.maxCapabilities }
       let routed = routeManifest(full, text, routeOpts)
       mark('route', routed.routing ? `${routed.manifest.length}/${full.length}` : 'full')
       const ask = (r, extra = {}) => agentTurn({
@@ -557,7 +571,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
-      const ops = bindSourceRefs(env.ops, refMap, { host, message: text }).map(o => ({ ...o, target: refMap[o.target]?.ref || o.target }))
+      const ops = bindSourceRefs(env.ops, refMap, { host, message: text }).map(o => ({ ...o, target: refMap[o.target]?.ref || o.target, args: argRefsBack(o, refMap) }))
       lastActionsRef.current = ops.map(o => o.action)
       await execute(ops, { path: 'model', mode: env.disposition, member: null, voice })
     } finally {
