@@ -316,9 +316,17 @@ function leaksSection(leaks, coverage) {
   return out
 }
 
+// The reasons the server gives for having no Compass quote that are NOT shown (owner ruling,
+// fin walk K2). Compass writes no monthly review as a product, so "there is no monthly review"
+// is not news to the member: a monthly draft gets no heading and no sentence for it. Every
+// other reason is shown, an unknown one included.
+const COMPASS_REASONS_NOT_SHOWN = new Set(['no_monthly_review'])
+
 function compassSection(compassText, omitted) {
-  // Compass counted a different set of trades for this period (its own clock windows), so the
-  // server left its quote out and says so. The sentence is the server's; this only renders it.
+  // The server either quotes Compass or says why it does not (no review for the period, its
+  // windows differ from the draft's, several accounts and none chosen). The sentence is the
+  // server's; this only renders it.
+  if (omitted && COMPASS_REASONS_NOT_SHOWN.has(omitted.reason)) return []
   if (omitted && omitted.sentence) return [h(2, 'What Compass said'), p(omitted.sentence)]
   if (!compassText || !compassText.text) return []
   const node = buildAskInsertNode({
