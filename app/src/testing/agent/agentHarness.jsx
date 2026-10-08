@@ -92,6 +92,9 @@ const PREFS = {
 }
 
 const H = (window.__agentHarness = { refused: [], turns: [], records: [], conversations: new Map(), lib: LIB, layoutWrites: [], wl: WL, wlWrites: [] })
+// ANOTHER SESSION: write a preference on the 'server' without this page knowing
+// (exactly what a second tab/device does — this tab never re-reads after load).
+H.remoteWrite = (key, value) => { PREFS[key] = typeof value === 'string' ? value : JSON.stringify(value) }
 setAgentFlag(true)
 // Only an explicit ?open= seeds the remembered state; otherwise the Agent's own
 // persistence decides (so the harness can prove it survives a reload).

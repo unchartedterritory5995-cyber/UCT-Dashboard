@@ -125,6 +125,31 @@ describe('Screener → Charts', () => {
     expect(newCharts().map(w => host.charts.read(w.id).tf)).toEqual(['5', '5', '5', '5'])
   })
 
+  it('each new chart is BORN unlinked on its own ticker and timeframe — no default (yellow group / SPY) symbol is ever loaded first; a plain "add a chart" keeps the product default', async () => {
+    const { state, host, say, newCharts } = await mount()
+    envelopes.push(b => env('propose', [SCREEN(b), CHARTS(b, { from: 'screen1', top: 4 }, { timeframe: '5' })]))
+    say('Chart the top 4 with ADR above 10% on 5-minute.')
+    await nth('agent-proposal', 1)
+    say('do it')
+    await nth('agent-receipt', 1)
+    expect(state.addCalls.map(c => c.init)).toEqual([
+      { symbol: 'T22', tf: '5' }, { symbol: 'T23', tf: '5' }, { symbol: 'T24', tf: '5' }, { symbol: 'T25', tf: '5' },
+    ])
+    expect(newCharts().map(w => [w.color, host.charts.read(w.id).symbol, host.charts.read(w.id).tf])).toEqual([
+      ['N', 'T22', '5'], ['N', 'T23', '5'], ['N', 'T24', '5'], ['N', 'T25', '5'],
+    ])
+    expect(state.groupSyms.A).toBe('AAPL')                                       // the member's yellow group untouched
+    say('undo')
+    await saysSoon(/Undid: Created 4 5-minute charts/)
+    envelopes.push(b => env('apply', [{ action: 'widget.add', target: WS(b), args: { type: 'chart', as: null } }]))
+    say('Add a chart widget please')
+    await nth('agent-receipt', 3)
+    const plain = newCharts()
+    expect(plain).toHaveLength(1)
+    expect(plain[0].color).toBe('A')                                             // manual default: the linked yellow group
+    expect(state.addCalls[state.addCalls.length - 1].init).toBeNull()
+  })
+
   it('an explicit SORT decides the order; bars type applied to every new chart', async () => {
     const { host, say, newCharts, syms } = await mount()
     envelopes.push(b => env('propose', [SCREEN(b, { sort_field: 'adr_pct', sort_dir: 'desc' }), CHARTS(b, { from: 'screen1', top: 3 }, { chart_type: 'bars' })]))
@@ -272,6 +297,53 @@ describe('Watchlist → Charts and the last screen → Charts', () => {
     expect(screen.queryByTestId('agent-proposal')).toBeNull()
   })
 
+  it('PROVENANCE: the model is never the authority for a list — tickers copied from a NAMED list are bound back to it and read fresh at Apply; the list contents are not in the model context', async () => {
+    const { state, say, syms } = await mount()
+    let seenCtx = null
+    // The model copies the first two of the named list as literal tickers.
+    envelopes.push(b => { seenCtx = b.context.watchlists; return env('apply', [CHARTS(b, ['T03', 'T01'])]) })
+    say('Open the first two stocks in my Agent Test Watchlist as charts.')
+    const card = await nth('agent-proposal', 1)
+    expect(seenCtx[0]).toEqual(expect.objectContaining({ name: 'Agent Test Watchlist', count: 3 }))
+    expect(seenCtx[0].symbols).toBeUndefined()                                    // list contents are not sent to the model
+    expect(card).toContain('Use the stocks in “Agent Test Watchlist” (its saved order) — read when you apply')
+    expect(card).not.toContain('T03')
+    // Reordered AND renamed by hand before Apply: bound by id, read fresh.
+    state.manual('m1', (wl) => { wl.items = [wl.items[2], wl.items[0], wl.items[1]]; wl.name = 'Renamed List' })
+    say('do it')
+    const rec = await nth('agent-receipt', 1)
+    expect(syms()).toEqual(['T02', 'T03'])
+    expect(rec).toContain('Read “Renamed List”: 3 stocks')
+    expect(rec).toContain('Created 2 charts: T02 and T03')
+  })
+
+  it('PROVENANCE is narrow: explicit tickers stay literal, and a near-miss of a named list is not rebound', async () => {
+    const { say, syms, newCharts } = await mount()
+    envelopes.push(b => env('apply', [CHARTS(b, ['SPY', 'QQQ'])]))
+    say('Add two daily charts for SPY and QQQ.')
+    expect(await nth('agent-proposal', 1)).toContain('Create 2 charts: SPY and QQQ')
+    say('do it')
+    await nth('agent-receipt', 1)
+    expect(syms()).toEqual(['SPY', 'QQQ'])
+    say('undo')
+    await saysSoon(/Undid: Created 2 charts/)
+    expect(newCharts()).toHaveLength(0)
+    // Names the list, but the tickers are NOT its first N in order → left as typed (shown in the proposal).
+    envelopes.push(b => env('apply', [CHARTS(b, ['SPY', 'NVDA'])]))
+    say('Chart SPY and NVDA next to my Agent Test Watchlist stuff.')
+    expect(await nth('agent-proposal', 2)).toContain('Create 2 charts: SPY and NVDA')
+  })
+
+  it('PROVENANCE: ALL of a named list (copied) binds with top = its size', async () => {
+    const { say, syms } = await mount()
+    envelopes.push(b => env('apply', [CHARTS(b, ['T03', 'T01', 'T02'], { timeframe: '5' })]))
+    say('Build 5-minute charts from everything in Agent Test Watchlist.')
+    expect(await nth('agent-proposal', 1)).toContain('Use the stocks in “Agent Test Watchlist”')
+    say('do it')
+    expect(await nth('agent-receipt', 1)).toContain('Created 3 5-minute charts: T03, T01 and T02')
+    expect(syms()).toEqual(['T03', 'T01', 'T02'])
+  })
+
   it('a list deleted before Apply → refused; an empty list → nothing created', async () => {
     const { state, say, newCharts } = await mount({ lists: [...LISTS, { id: 'e1', name: 'Empty One', symbols: [] }] })
     envelopes.push(b => env('propose', [{ action: 'watchlist.show', target: LIST(b, 'Empty One'), args: { as: 'list1' } }, CHARTS(b, { from: 'list1', top: 4 })]))
@@ -356,5 +428,110 @@ describe('literal tickers and typed references', () => {
     const m = manifestFor({ surface: 'charts' })
     expect(m.find(c => c.name === 'widget.addCharts')).toBeTruthy()
     expect(m.some(c => c.name.startsWith('indicator.'))).toBe(false)
+  })
+})
+
+describe('cross-session guard (host.boardInSync): another window/device changed this member\'s board', () => {
+  it('buildBoardSync: same → ok; this tab\'s own save still in flight → ok after it lands; changed elsewhere / other layout open → refused; unreadable → never blocks', async () => {
+    const { buildBoardSync, boardSig } = await import('./host')
+    const local = { widgets: [{ id: 'a', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'A', opts: { tf: 'D' } }] }
+    let server = { sig: boardSig(local.widgets), epoch: 'user:1' }
+    const sync = buildBoardSync({ readServer: async () => server, localLayout: () => local, localEpoch: () => 'user:1', settleMs: 5, tries: 2 })
+    expect((await sync()).ok).toBe(true)
+    // In flight: the server catches up after one settle.
+    let n = 0
+    const lagging = buildBoardSync({ readServer: async () => (n++ === 0 ? { sig: '[]', epoch: 'user:1' } : server), localLayout: () => local, localEpoch: () => 'user:1', settleMs: 5 })
+    expect((await lagging()).ok).toBe(true)
+    server = { sig: '[]', epoch: 'user:1' }
+    expect(await sync()).toEqual({ ok: false, reason: 'this board was changed in another window or device' })
+    server = { sig: boardSig(local.widgets), epoch: 'user:2' }
+    expect(await sync()).toEqual({ ok: false, reason: 'a different layout was opened in another window or device' })
+    const broken = buildBoardSync({ readServer: async () => { throw new Error('offline') }, localLayout: () => local, localEpoch: () => 'user:1' })
+    expect(await broken()).toEqual({ ok: true, unchecked: true })
+  })
+
+  it('CASE A/B: a proposal applied after another session changed the board (or opened another layout) is refused BEFORE any source is read or widget written', async () => {
+    const { host, say, newCharts, widgetOps } = await mount()
+    host.epoch = () => 'user:1'
+    let inSync = { ok: true }
+    host.boardInSync = async () => inSync
+    const add = vi.spyOn(widgetOps, 'add')
+    envelopes.push(b => env('propose', [SCREEN(b), CHARTS(b, { from: 'screen1', top: 2 })]))
+    say('Chart the top 2 with ADR above 10%.')
+    await nth('agent-proposal', 1)
+    inSync = { ok: false, reason: 'this board was changed in another window or device' }
+    say('do it')
+    await saysSoon(/I didn't change anything: this board was changed in another window or device\. Reload this page/)
+    expect(scans()).toHaveLength(0)
+    expect(add).not.toHaveBeenCalled()
+    expect(newCharts()).toHaveLength(0)
+  })
+
+  it('CASE C: Undo after another session changed the board is refused — the Agent\'s charts stay, nothing is overwritten', async () => {
+    const { host, say, newCharts } = await mount()
+    host.epoch = () => 'user:1'
+    let inSync = { ok: true }
+    host.boardInSync = async () => inSync
+    envelopes.push(b => env('propose', [SCREEN(b), CHARTS(b, { from: 'screen1', top: 2 })]))
+    say('Chart the top 2 with ADR above 10%.')
+    await nth('agent-proposal', 1)
+    say('do it')
+    await nth('agent-receipt', 1)
+    inSync = { ok: false, reason: 'this board was changed in another window or device' }
+    say('undo')
+    await saysSoon(/I didn't undo anything: this board was changed in another window or device/)
+    expect(newCharts()).toHaveLength(2)
+  })
+})
+
+describe('ticker lookups: a ticker the proposal found KNOWN is not looked up again at Apply', () => {
+  it('known → cached; unknown → asked every time', async () => {
+    const { unknownSymbols, _resetKnownTickers } = await import('./agentClient')
+    _resetKnownTickers()
+    const n0 = calls.filter(c => c[1].startsWith('/api/ticker-search')).length
+    expect([...(await unknownSymbols(['SPY', 'ZZZQ']))]).toEqual(['ZZZQ'])
+    expect([...(await unknownSymbols(['SPY', 'ZZZQ']))]).toEqual(['ZZZQ'])
+    const asked = calls.filter(c => c[1].startsWith('/api/ticker-search')).slice(n0).map(c => new URL(c[1], 'http://x').searchParams.get('q'))
+    expect(asked).toEqual(['SPY', 'ZZZQ', 'ZZZQ'])
+    _resetKnownTickers()
+  })
+})
+
+
+describe('one thing at a time: Apply / Undo / a choice can never run alongside another request', () => {
+  it('Apply clicked while a model reply is still coming does nothing; a double click applies once', async () => {
+    const { say, newCharts, widgetOps } = await mount()
+    const add = vi.spyOn(widgetOps, 'add')
+    envelopes.push(b => env('propose', [CHARTS(b, ['SPY', 'QQQ'])]))
+    say('Chart SPY and QQQ.')
+    await nth('agent-proposal', 1)
+    // A slow model turn is in flight (the member typed something else)…
+    let release
+    const gate = new Promise(r => { release = r })
+    const realFetch = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init) => {
+      if (url === '/api/agent/turn') await gate
+      return realFetch(url, init)
+    })
+    envelopes.push(() => env('answer', [], 'An EMA weights recent prices more.'))
+    say('what is an EMA?')
+    const apply = screen.getAllByRole('button', { name: 'Apply' })[0]
+    expect(apply.disabled).toBe(true)
+    fireEvent.click(apply)                                    // ignored: the lock is held
+    await new Promise(r => setTimeout(r, 50))
+    expect(add).not.toHaveBeenCalled()
+    release()
+    await saysSoon(/An EMA weights recent prices more/)
+    expect(add).not.toHaveBeenCalled()                        // the stale card was replaced, never applied
+    envelopes.push(b => env('propose', [CHARTS(b, ['SPY', 'QQQ'])]))
+    say('Chart SPY and QQQ.')
+    await nth('agent-proposal', 2)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply' }).disabled).toBe(false))
+    const btn = screen.getByRole('button', { name: 'Apply' })
+    fireEvent.click(btn)
+    fireEvent.click(btn)                                      // a double click
+    await nth('agent-receipt', 1)
+    expect(newCharts()).toHaveLength(2)
+    expect(add).toHaveBeenCalledTimes(2)                      // two charts, created once
   })
 })

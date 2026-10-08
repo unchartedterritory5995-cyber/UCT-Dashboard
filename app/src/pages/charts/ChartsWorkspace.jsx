@@ -1625,7 +1625,7 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
-  const handleAddWidget = useCallback((type, seedOpts, { float = false, at = null, instant = false, place: slot = null } = {}) => {
+  const handleAddWidget = useCallback((type, seedOpts, { float = false, at = null, instant = false, place: slot = null, unlinkedSymbol = null } = {}) => {
     if (refuseIfBoardFull()) return
     // `place` = an exact slot a caller already planned in EMPTY space (e.g. one cell of
     // planGroupPlacement, so a group of new widgets comes out equal). Honoured only if it
@@ -1641,6 +1641,13 @@ export default function ChartsWorkspace() {
     // updater, and floating needs the same id the layout committed — hoisting it
     // keeps both in lockstep (same reasoning as handlePopOutLayout below).
     const newId = `w-${type}-${Date.now()}`
+    // `unlinkedSymbol` (a caller that already knows the ticker, e.g. the UCT Agent
+    // building charts from a screen): the widget is born NOT LINKED ('N') on that
+    // ticker — exactly the state a member reaches by picking N then searching — so
+    // its first render loads that ticker, never the yellow group's or SPY's.
+    // Seeded BEFORE the layout update so the widget never renders without it.
+    const bornUnlinked = !!(unlinkedSymbol && !float)
+    if (bornUnlinked) setGroupSym(`N:${newId}`, String(unlinkedSymbol).toUpperCase())
     // Smart-placement: the ghost preview appears ONLY when placing the widget requires
     // resizing/moving an existing one (plan.mutations non-empty). When it fits in empty
     // space, fall through and place it immediately — no confirm step. (Float-on-create
@@ -1656,7 +1663,7 @@ export default function ChartsWorkspace() {
       // else: fits in empty space → place immediately via the setLayout path below.
     }
     setLayout(prev => {
-      const color = pickWidgetColor(prev.widgets, groupSyms, extraGroupsOnRef.current)
+      const color = bornUnlinked ? 'N' : pickWidgetColor(prev.widgets, groupSyms, extraGroupsOnRef.current)
       const defaults = WIDGET_DEFAULTS[type]
       let widgets = prev.widgets
       let place
@@ -1753,7 +1760,7 @@ export default function ChartsWorkspace() {
       const y = at ? Math.max(56, Math.min(at.y, window.innerHeight - SPAWN_H - 8)) : null
       setFloatSpawns(prev => ({ ...prev, [newId]: { w: SPAWN_W, h: SPAWN_H, x, y } }))
     }
-  }, [scheduleSave, groupSyms, refuseIfBoardFull])
+  }, [scheduleSave, groupSyms, refuseIfBoardFull, setGroupSym])
   // Expose the float-on-create path to the workspace context (a chart's right-click
   // "Add widget" submenu). Assigned here now that handleAddWidget exists.
   floatNewWidgetRef.current = (type, at) => handleAddWidget(type, undefined, { float: true, at })
@@ -2842,7 +2849,15 @@ export default function ChartsWorkspace() {
   // widget.add / its undo go through the SAME handlers the Widgets menu and a
   // widget's ✕ use — read through a ref so the host never holds a stale closure.
   const agentWidgetOpsRef = useRef(null)
-  agentWidgetOpsRef.current = { add: (t, place) => handleAddWidget(t, undefined, { place }), remove: handleRemoveWidget, color: handleColorChange, cancelPending: cancelPendingAdd }
+  // The link-group tickers as of this render (what a chart's symbol IS, mounted or not).
+  const agentGroupSymsRef = useRef(groupSyms)
+  agentGroupSymsRef.current = groupSyms
+  agentWidgetOpsRef.current = {
+    // `init` (optional): { tf, symbol } a new chart is BORN with (unlinked, on that
+    // ticker and timeframe) instead of being created on a default and then changed.
+    add: (t, place, init) => handleAddWidget(t, init?.tf ? { tf: init.tf } : undefined, { place, unlinkedSymbol: init?.symbol || null }),
+    remove: handleRemoveWidget, color: handleColorChange, cancelPending: cancelPendingAdd,
+  }
   // Named layouts, read EXACTLY as the Layout Dock reads them (dockEntries + the
   // charts_active_template pointer) and changed ONLY through the dock's own handlers:
   // open = the dock's open (a no-op for the layout already open), rename =
@@ -2877,10 +2892,11 @@ export default function ChartsWorkspace() {
     widgetLabel: (t) => WIDGET_LABELS[t] || t,
     widgetOps: {
       layout: () => layoutRef.current,
-      add: (t, place) => agentWidgetOpsRef.current.add(t, place),
+      add: (t, place, init) => agentWidgetOpsRef.current.add(t, place, init),
       remove: (id) => agentWidgetOpsRef.current.remove(id),
       color: (id, c) => agentWidgetOpsRef.current.color(id, c),
       cancelPending: () => agentWidgetOpsRef.current.cancelPending(),
+      groupSyms: () => agentGroupSymsRef.current,
     },
     layouts: () => agentLayoutsRef.current,
     watchlists: {

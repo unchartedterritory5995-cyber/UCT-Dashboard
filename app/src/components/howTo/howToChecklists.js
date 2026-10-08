@@ -16,41 +16,45 @@ export const HOW_TO_APPROVED = 'approved'
 export const HOW_TO_STATUSES = Object.freeze([HOW_TO_DRAFT, HOW_TO_APPROVED])
 
 const draft = (title, steps) => Object.freeze({ title, status: HOW_TO_DRAFT, steps: Object.freeze(steps) })
+const approved = (title, steps) => Object.freeze({
+  title, status: HOW_TO_APPROVED, approved_by: 'Patrick Gosz', approved_on: '2026-10-07',
+  steps: Object.freeze(steps),
+})
 
 export const HOW_TO_CHECKLISTS = Object.freeze({
-  'screener.stocks': draft('Screener: how to trade with this', [
+  'screener.stocks': approved('Screener: how to trade with this', [
     'Start from the market: check exposure and breadth before acting on any list.',
     'Run one saved screen you trust, not five new ones.',
     'Open each name on a chart; the screen finds candidates, the chart decides.',
     'Write the entry, stop and size before the order, not after.',
   ]),
-  'screener.options': draft('Options screener: how to trade with this', [
+  'screener.options': approved('Options screener: how to trade with this', [
     'Read the as-of time first; a ranked list is only as fresh as its last read.',
     'Check the underlying chart before the contract.',
     'Size from the premium you can lose, not from the notional.',
   ]),
-  'research.depth.earnings_reaction': draft('Earnings reaction: how to trade with this', [
+  'research.depth.earnings_reaction': approved('Earnings reaction: how to trade with this', [
     'Compare the implied move with the past reactions and note each sample size.',
     'Look at the drift after the gap, not only the gap.',
     'Decide before the print whether you hold through it.',
   ]),
-  'research.depth.events': draft('Events around the print: how to trade with this', [
+  'research.depth.events': approved('Events around the print: how to trade with this', [
     'Find where today sits relative to the next print (T-n).',
     'Note any source that could not be read; a gap is not a quiet tape.',
   ]),
-  'research.depth.broker_estimates': draft('Broker estimates: how to trade with this', [
+  'research.depth.broker_estimates': approved('Broker estimates: how to trade with this', [
     'Watch the direction of revisions more than the level.',
     'Treat a consensus with few contributors as thin.',
   ]),
-  'research.depth.ftd': draft('Fails to deliver: how to trade with this', [
+  'research.depth.ftd': approved('Fails to deliver: how to trade with this', [
     'Read balances as of their settlement date; they arrive weeks late.',
     'A spike is context for a squeeze thesis, never the trigger.',
   ]),
-  'research.depth.mention_series': draft('Room attention: how to trade with this', [
+  'research.depth.mention_series': approved('Room attention: how to trade with this', [
     'Rising attention with a flat chart is a watch, not a buy.',
     'Compare the share of room mentions, not the raw count.',
   ]),
-  'research.depth.filing_search': draft('Filing search: how to trade with this', [
+  'research.depth.filing_search': approved('Filing search: how to trade with this', [
     'Search the risk factors for what changed, then read the paragraph in full.',
     'Cite the filing date when you write the idea down.',
   ]),

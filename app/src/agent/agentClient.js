@@ -41,13 +41,24 @@ export async function agentConversation(id) {
  * /api/ticker-search the chart's own symbol search uses. A lookup failure is
  * "unknown": the Agent refuses rather than charting something it couldn't check.
  */
+// A ticker found KNOWN stays known for a while: the proposal already looked it up,
+// so Apply (minutes later at most) need not wait on the search again (~2s measured
+// in production 2026-10-08). Unknown / failed lookups are never cached — they are
+// asked again every time.
+const KNOWN_TTL_MS = 10 * 60 * 1000
+const knownAt = new Map()
+export const _resetKnownTickers = () => knownAt.clear()
+
 export async function unknownSymbols(symbols) {
   const out = new Set()
+  const now = Date.now()
   await Promise.all([...new Set(symbols)].map(async (s) => {
+    if (now - (knownAt.get(s) ?? -Infinity) < KNOWN_TTL_MS) return
     try {
       const r = await fetch(`/api/ticker-search?q=${encodeURIComponent(s)}&limit=10`, { credentials: 'include' })
       const rows = r.ok ? ((await r.json()).results || []) : []
-      if (!rows.some(x => String(x.ticker || x.symbol || '').toUpperCase() === s)) out.add(s)
+      if (rows.some(x => String(x.ticker || x.symbol || '').toUpperCase() === s)) knownAt.set(s, Date.now())
+      else out.add(s)
     } catch { out.add(s) }
   }))
   return out

@@ -76,7 +76,7 @@ function Item({ it, agent }) {
           {it.choices?.length > 0 && (
             <div className={styles.choices}>
               {it.choices.map((c, i) => (
-                <button key={i} type="button" className={styles.choice}
+                <button key={i} type="button" className={styles.choice} disabled={agent.busy}
                   onClick={() => (c.ref ? agent.chooseTarget(c.ref, c.label) : agent.send(c.label, { answering: true }))}>{c.label}</button>
               ))}
             </div>
@@ -90,8 +90,8 @@ function Item({ it, agent }) {
           <ul className={styles.lines}>{(it.lines || []).map((l, i) => <li key={i}>{l}</li>)}</ul>
           {it.status === 'pending' ? (
             <div className={styles.cardActions}>
-              <button type="button" className={styles.primary} onClick={agent.approve}>Apply</button>
-              <button type="button" className={styles.ghost} onClick={agent.dismiss}>Dismiss</button>
+              <button type="button" className={styles.primary} onClick={agent.approve} disabled={agent.busy}>Apply</button>
+              <button type="button" className={styles.ghost} onClick={agent.dismiss} disabled={agent.busy}>Dismiss</button>
             </div>
           ) : <div className={styles.cardMeta}>{it.status === 'approved' ? 'Approved' : it.status === 'replaced' ? 'Replaced' : 'Dismissed'}</div>}
         </div>
@@ -105,7 +105,7 @@ function Item({ it, agent }) {
             ? <div className={styles.cardMeta}>Undone</div>
             : agent.canUndo(it.undoId) && (
               <div className={styles.cardActions}>
-                <button type="button" className={styles.ghost} onClick={() => agent.undo(it.undoId)} data-testid="agent-undo">Undo</button>
+                <button type="button" className={styles.ghost} onClick={() => agent.undo(it.undoId)} disabled={agent.busy} data-testid="agent-undo">Undo</button>
               </div>
             ))}
         </div>

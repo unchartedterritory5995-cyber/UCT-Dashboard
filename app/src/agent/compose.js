@@ -20,7 +20,8 @@
 // the references, and the plan is re-planned and committed like any other — no model
 // call, and nothing is written if a producer fails or a reference comes back empty.
 
-import { getCapability, getOutputSource, isRef, allCapabilityNames } from './capabilities'
+import { getCapability, getOutputSource, getTargetKind, isRef, allCapabilityNames } from './capabilities'
+import { mark } from './trace'
 
 const MAX_TOP = 100
 
@@ -52,7 +53,56 @@ export function consumedProducers(ops) {
  * must be one the context listed (refMap), and its kind must register a query
  * capability that produces the input's type. → ops (producers first)
  */
-export function bindSourceRefs(ops, refMap) {
+// The read-only producer a target kind registers for a type (watchlist → watchlist.show).
+const producerFor = (kind, type) => allCapabilityNames().map(getCapability).find(c => c.target === kind && c.produces === type && c.query) || null
+const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim()
+const names = (name) => {
+  const n = norm(name)
+  const bare = n.replace(/\s+(watch ?list|list)$/, '')
+  return [...new Set([n, bare].filter(x => x.length >= 2))]
+}
+
+/**
+ * PROVENANCE: when the member's own words NAME a saved source (a watchlist) and a
+ * symbol input carries, literally, that source's first N tickers, the model copied
+ * them from what it was shown — the request was "from that list". Such a literal is
+ * bound back to the source (a reference to it), so the list is read FRESH by id at
+ * apply instead of trusting the copy. Explicit tickers ("chart SPY, QQQ…") are never
+ * touched: only an exact ordered prefix of a source the message names is rebound,
+ * and never into the op's own target (adding to a list is not reading from it).
+ */
+function bindCopiedLiterals(ops, refMap, host, message) {
+  const text = ` ${norm(message)} `
+  if (!host || text.trim() === '') return ops
+  const sources = []
+  for (const [short, t] of Object.entries(refMap || {})) {
+    const kind = getTargetKind(t.kind)
+    const snap = kind?.read?.(host, t.ref)
+    if (!snap?.name) continue
+    if (!names(snap.name).some(n => text.includes(` ${n} `))) continue
+    for (const cap of allCapabilityNames().map(getCapability)) {
+      if (cap.target === t.kind && cap.produces && cap.query && cap.peekSymbols) {
+        sources.push({ short, target: t.ref, type: cap.produces, symbols: (cap.peekSymbols(snap) || []).map(s => String(s).toUpperCase()) })
+      }
+    }
+  }
+  if (!sources.length) return ops
+  return ops.map((op) => {
+    const cap = getCapability(op?.action)
+    let args = op.args
+    for (const [arg, type] of Object.entries(cap?.inputs || {})) {
+      const v = args?.[arg]
+      if (!Array.isArray(v) || !v.length) continue
+      const lit = v.map(s => String(s || '').trim().toUpperCase())
+      const src = sources.find(s => s.type === type && s.target !== op.target && lit.length <= s.symbols.length && lit.every((x, i) => s.symbols[i] === x))
+      if (src) args = { ...args, [arg]: { from: src.short, top: lit.length } }
+    }
+    return args === op.args ? op : { ...op, args }
+  })
+}
+
+export function bindSourceRefs(opsIn, refMap, { host = null, message = '' } = {}) {
+  const ops = bindCopiedLiterals(opsIn, refMap, host, message)
   const aliases = new Set((ops || []).filter(o => getCapability(o?.action)?.produces && o.args?.as).map(o => String(o.args.as)))
   const added = new Map()
   const out = []
@@ -64,7 +114,7 @@ export function bindSourceRefs(ops, refMap) {
       if (!isRef(v) || aliases.has(v.from)) continue
       const t = refMap?.[v.from]
       if (!t) continue
-      const prod = allCapabilityNames().map(getCapability).find(c => c.target === t.kind && c.produces === type && c.query)
+      const prod = producerFor(t.kind, type)
       if (!prod) continue
       const alias = `src_${v.from}`
       if (!added.has(alias)) {
@@ -140,7 +190,9 @@ export async function resolveRefs(ops, host) {
     const cap = getCapability(p.action)
     let res
     // The producer's own TARGET (e.g. which saved watchlist) travels with it.
+    mark(`produce:${p.action}`)
     try { res = await cap.produce(p.args, host, p.target) } catch (e) { return { ok: false, reason: e?.message || 'that source could not be read' } }
+    mark(`produced:${p.action}`, (res?.symbols || []).length)
     outputs.set(String(p.args.as), res)
     lines.push(res.summary)
   }
@@ -148,7 +200,9 @@ export async function resolveRefs(ops, host) {
     if (outputs.has(r.ref.from)) continue
     const src = getOutputSource(r.ref.from)
     let res
+    mark(`resolve:${r.ref.from}`)
     try { res = await src.resolve(host) } catch (e) { return { ok: false, reason: e?.message || 'that result is not available' } }
+    mark(`resolved:${r.ref.from}`, (res?.symbols || []).length)
     outputs.set(r.ref.from, res)
     lines.push(res.summary)
   }

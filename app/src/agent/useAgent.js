@@ -21,6 +21,7 @@ import { planOps, prepareOps, collectTargets } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
 import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
+import { traceStart, mark, traceEnd } from './trace'
 import { buildContext, manifestFor, getCapability, getTargetKind, runWarmups } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { agentTurn, agentRecord, agentConversation } from './agentClient'
@@ -49,6 +50,17 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const capCtx = useMemo(() => ({ surface }), [surface])
   const [items, setItems] = useState([])
   const [busy, setBusy] = useState(false)
+  // ⛔ ONE thing at a time: a send, an Apply, an Undo or a choice. A ref (not the
+  // `busy` state) so two clicks in the same tick cannot both get through; every
+  // entry point the panel calls takes it, and the internal calls send() makes
+  // ("undo" / "do it" typed) run inside the lock it already holds.
+  const lockRef = useRef(false)
+  const exclusive = useCallback((fn) => async (...args) => {
+    if (lockRef.current) return undefined
+    lockRef.current = true
+    setBusy(true)
+    try { return await fn(...args) } finally { lockRef.current = false; setBusy(false) }
+  }, [])
   const [conversationId, setConversationIdState] = useState(() => readLocal(AGENT_CONVERSATION_KEY))
   const conversationRef = useRef(conversationId)
   const pendingRef = useRef(null)           // { kind:'proposal', id, ops } | { kind:'target', ops, path }
@@ -98,8 +110,20 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice }) => {
+  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice }) => {
     let allOps = opsIn
+    // ⛔ Another window/device may have changed this member's board (one shared,
+    // last-write-wins preference): never write over it (host.boardInSync).
+    const boardStillOurs = async (ops) => {
+      if (!host?.boardInSync || boardEpoch(host, ops) == null) return true
+      const s = await host.boardInSync()
+      mark('board:synced', s.ok ? 'ok' : 'changed')
+      if (s.ok) return true
+      const text = `I didn't change anything: ${s.reason}. Reload this page to see the current board, then ask again.`
+      push({ role: 'refusal', text })
+      record({ member, outcome: text, outcomeData: { kind: 'refused-stale-board', actions: ops.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
+      return false
+    }
     const refuse = (why) => {
       const text = `I didn't change anything: ${why}`
       push({ role: 'refusal', text })
@@ -124,6 +148,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const bad = checkRefs(allOps, host)
       if (bad) { refuse(bad); return }
       if (suggested === 'approved') {
+        if (!(await boardStillOurs(allOps))) return
         // The consumers are re-checked against the board AS IT IS NOW (capacity,
         // the target list) BEFORE any producer runs — a full workspace never runs
         // the screen it could not use.
@@ -140,7 +165,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
             }
           }
         }
+        mark('gate:capacity')
         const r = await resolveRefs(allOps, host)
+        mark('sources:resolved')
         if (!r.ok) {
           const text = `I didn't change anything: ${r.reason}.`
           push({ role: 'refusal', text })
@@ -155,6 +182,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         }
         // The references are concrete now: macros fed by them expand here.
         const x = expandOps(r.ops)
+        mark('expanded')
         if (!x.ok) { refuse(`${x.reason}.`); return }
         allOps = x.ops
         if (x.expanded) expansion = x
@@ -183,7 +211,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     const ops = allOps.filter(o => !getCapability(o?.action)?.query)
     if (!ops.length) return
     const env = await prepareOps(ops)
+    mark('prepared')
     const plan = planOps(targets, ops, env, capCtx)
+    mark('planned')
     const actions = ops.map(o => o.action)
     if (!plan.ok) {
       const text = refusalText(plan.refusals)
@@ -204,6 +234,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     const wholly = expansion && ops.every(o => o.fromExpand != null)
     // An expansion is always proposed first (it creates several widgets at once).
     const mode = suggested === 'approved' ? 'apply' : (expansion ? 'propose' : decideMode(suggested, plan))
+    // Any write to the board is preceded by the cross-session check (once per Apply).
+    if (mode !== 'propose' && !composed && !(await boardStillOurs(ops))) return
     if (mode === 'propose') {
       const pid = nid()
       // The proposal keeps the UNEXPANDED request: Apply expands it again from scratch.
@@ -220,7 +252,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: text, outcomeData: { kind: 'noop', actions }, telemetry: { path, disposition: 'apply', actions, voice } })
       return
     }
+    mark('commit:start')
     const res = await commitPlan(host, plan, { env, ctx: capCtx })
+    mark('commit:end')
     if (res.ok && wholly) {
       res.lines = expansion.lines
       if (res.undo) res.undo.lines = expansion.lines
@@ -241,6 +275,14 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
   }, [host, push, record, capCtx])
 
+  // Every execution is traced (agent/trace.js): phase timestamps, memory only.
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice }) => {
+    traceStart(`${path}:${suggested || 'apply'}`)
+    try {
+      return await executeInner(opsIn, { path, mode: suggested, member, voice })
+    } finally { traceEnd('done') }
+  }, [executeInner])
+
   const doUndo = useCallback(async (undoId, { member, voice } = {}) => {
     const stack = undoRef.current
     const entry = undoId ? stack.find(e => e.id === undoId) : stack[stack.length - 1]
@@ -249,6 +291,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       push({ role: 'outcome', text })
       record({ member, outcome: text, outcomeData: { kind: 'undo-none' }, telemetry: { path: 'fast', undo: true, voice } })
       return
+    }
+    if (entry.epoch != null && host?.boardInSync) {
+      const s = await host.boardInSync()
+      if (!s.ok) {
+        const text = `I didn't undo anything: ${s.reason}. Reload this page to see the current board.`
+        push({ role: 'refusal', text })
+        record({ member, outcome: text, outcomeData: { kind: 'undo-refused' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
+        return
+      }
     }
     const res = await undoEntry(host, entry)
     if (res.ok) {
@@ -309,7 +360,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
 
   const send = useCallback(async (raw, { voice = false, answering = false } = {}) => {
     const text = String(raw || '').trim()
-    if (!text || busy) return
+    if (!text || lockRef.current) return
+    lockRef.current = true
     push({ role: 'member', text, voice })
     setBusy(true)
     try {
@@ -407,12 +459,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
-      const ops = bindSourceRefs(env.ops, refMap).map(o => ({ ...o, target: refMap[o.target]?.ref || o.target }))
+      const ops = bindSourceRefs(env.ops, refMap, { host, message: text }).map(o => ({ ...o, target: refMap[o.target]?.ref || o.target }))
       await execute(ops, { path: 'model', mode: env.disposition, member: null, voice })
     } finally {
+      lockRef.current = false
       setBusy(false)
     }
-  }, [busy, push, gridMode, host, record, doUndo, approve, dismiss, execute, setConversationId, patchItem, capCtx])
+  }, [push, gridMode, host, record, doUndo, approve, dismiss, execute, setConversationId, patchItem, capCtx])
 
   const newChat = useCallback(() => {
     setConversationId(null)
@@ -435,9 +488,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
 
   return {
     items, busy, restoring, conversationId, send, newChat, openConversation,
-    undo: (undoId) => doUndo(undoId, { member: null }),
-    approve: () => approve(null, { member: null }), dismiss: () => dismiss({ member: null }),
-    chooseTarget, canUndo,
+    undo: exclusive((undoId) => doUndo(undoId, { member: null })),
+    approve: exclusive(() => approve(null, { member: null })), dismiss: () => { if (!lockRef.current) dismiss({ member: null }) },
+    chooseTarget: exclusive(chooseTarget), canUndo,
     hasPending: !!pendingRef.current,
   }
 }

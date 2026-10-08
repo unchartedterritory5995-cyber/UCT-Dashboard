@@ -18,6 +18,7 @@
 
 import { getTargetKind } from './capabilities'
 import { planOps, summarize } from './executor'
+import { mark } from './trace'
 
 const nextFrame = () => new Promise(r => {
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => setTimeout(r, 0))
@@ -81,8 +82,10 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
 
   const landed = []
   const aliases = {}
-  const fail = async (label, reason) => {
-    const restored = await compensate(host, landed)
+  const born = {}                 // alias → what a creator set at birth (verified without mounting)
+  // `dirty`: the failing step itself left something behind it could not take back.
+  const fail = async (label, reason, { dirty = false } = {}) => {
+    const restored = (await compensate(host, landed)) && !dirty
     return {
       ok: false, lines: [], undo: null, compensated: restored,
       failed: [{ label, reason: restored ? `${reason} — nothing was left changed` : `${reason} — and some changes could not be reversed` }],
@@ -93,8 +96,17 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   for (const p of real) {
     const kind = getTargetKind(p.kind)
     let res
-    try { res = await kind.commit(host, p.ref, p.patch) } catch (e) { return fail(p.snap.label, `failed (${e?.message || 'error'})`) }
+    try { res = await kind.commit(host, p.ref, p.patch) } catch (e) {
+      // A step that threw part-way says what it had already made (`e.created`) so it
+      // is taken back too, and whether it left a write it could not undo (`e.unreverted`)
+      // — the receipt never claims "nothing was left changed" when that is not so.
+      if (e?.created && Object.keys(e.created).length) {
+        landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: [], before: p.snap, after: kind.read(host, p.ref), patch: p.patch, partial: e.created })
+      }
+      return fail(p.snap.label, `failed (${e?.message || 'error'})`, { dirty: !!e?.unreverted })
+    }
     if (res && res.created) Object.assign(aliases, res.created)
+    if (res && res.born) Object.assign(born, res.born)
     await nextFrame()
     const snap = kind.read(host, p.ref)
     if (!kind.landed(snap, p.patch)) {
@@ -114,7 +126,17 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
     const kind = getTargetKind(p.kind)
     const realRef = aliases[p.ref]
     if (!realRef) return fail(p.snap.label, 'was not created')
+    // Born complete (its creator set everything asked of it): verify that from the
+    // workspace's state — no need to wait for it to mount and load data.
+    if (born[p.ref] && kind.verifyBorn) {
+      if (!kind.verifyBorn(host, realRef, born[p.ref])) return fail(p.snap.label, 'did not take effect')
+      mark('target:born', p.ref)
+      vlanded.push(p)
+      continue
+    }
+    mark(`target:wait`, p.ref)
     const snap = await waitForTarget(kind, host, realRef)
+    mark(`target:ready`, p.ref)
     if (!snap) return fail(p.snap.label, 'never became available')
     const ops = p.items.map(i => ({ ...i.op, target: realRef }))
     const re = planOps(new Map([[realRef, { kind: p.kind, snap }]]), ops, env, ctx)
@@ -123,6 +145,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
     if (rp.patch) {
       try { await kind.commit(host, realRef, rp.patch) } catch (e) { return fail(p.snap.label, `failed (${e?.message || 'error'})`) }
       await nextFrame()
+      mark(`target:committed`, p.ref)
       if (!kind.landed(kind.read(host, realRef), rp.patch)) return fail(p.snap.label, 'did not take effect')
     }
     // The target did not exist before this request, so its receipt is what was
@@ -172,7 +195,16 @@ export async function undoEntry(host, entry) {
   for (const it of [...entry.items].reverse()) {
     const kind = getTargetKind(it.kind)
     const patch = kind.undoPatch(it)
-    await kind.commit(host, it.ref, patch)
+    try {
+      await kind.commit(host, it.ref, patch)
+    } catch (e) {
+      // Say exactly what was and was not restored — never reject silently.
+      const done = restores.map(r => r.it.label)
+      return {
+        ok: false, lines: [], partial: done.length > 0,
+        reason: `${it.label} could not be undone (${e?.message || 'error'}).${done.length ? ` Already restored: ${done.join(', ')}.` : ' Nothing was undone.'}`,
+      }
+    }
     restores.push({ it, kind, patch })
   }
   await nextFrame()
