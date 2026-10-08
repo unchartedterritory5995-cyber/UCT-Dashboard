@@ -270,7 +270,7 @@ export const PCF_FUSED = Object.freeze({
  *  formulas are not published anywhere; a best effort would put a number under a
  *  name members trust. That is a refusal to keep, not a backlog item. */
 export const PCF_DIFFERENT_FORMULA = Object.freeze({
-  RSI:   "TC2000's RSI is not Wilder's. This table has Wilder's, which TC2000 spells WRSI",
+  RSI:   "TC2000's plain RSI is not Wilder's RSI, so it is not converted. For Wilder's RSI (the RSI most charts show), TC2000 writes WRSI with the same period",
   // ⚰️ `FAVG` WAS THE ONE REFUSED NAME IN THIS WHOLE READER WITH NO SENTENCE.
   // Every other name here tells a member what happened and what would change it;
   // `FAVG(C, 10)` answered only *"this is not a TC2000 name this reader knows"*,
@@ -343,6 +343,14 @@ export const PCF_DIFFERENT_FORMULA = Object.freeze({
  *  becomes genuinely supported stops reaching this and the entry becomes dead
  *  rather than wrong. A look-alike check placed BEFORE the lookup would shadow a
  *  real mapping the day one was added. */
+/** ⭐ BATCH 1 — the supported spelling a look-alike maps to, when there is one. */
+const LOOKALIKE_SWAP = Object.freeze({ RSI: 'WRSI' })
+function lookalikeSwap(text) {
+  const m = /^([A-Za-z]+)(.*)$/.exec(String(text || ''))
+  const to = m && own(LOOKALIKE_SWAP, m[1].toUpperCase()) ? LOOKALIKE_SWAP[m[1].toUpperCase()] : null
+  return to && m[2] ? `${to}${m[2]}` : null
+}
+
 function differentFormula(text) {
   const m = /^([A-Za-z]+)/.exec(String(text || ''))
   const head = m ? m[1].toUpperCase() : ''
@@ -1126,9 +1134,12 @@ function readFused(table, token, letters, nodeTypes) {
   // them TC2000's RSI is not Wilder's — and that `WRSI` is the one they want —
   // is the difference between a dead end and a working scan.
   const lookalike = differentFormula(token.text)
+  // ⭐ BATCH 1 — and where the right spelling is KNOWN, the sentence writes it out
+  // with the member's own period and offset (`RSI14.1` → `WRSI14.1`).
+  const swap = lookalikeSwap(token.text)
   refuse('pcf:name',
     lookalike
-      ? `\`${token.text}\` at character ${token.index} — ${lookalike}`
+      ? `\`${token.text}\` at character ${token.index} — ${lookalike}${swap ? `: \`${swap}\`` : ''}`
       : `\`${token.text}\` at character ${token.index}`, token.index, token.text)
   return null
 }
@@ -1631,6 +1642,12 @@ const PCF_MARKERS = [
       .join('|') + ')\\d+(?![A-Za-z0-9_(])', 'i'),
   /(^|[^A-Za-z0-9_.])[COHLV]\d*(?![A-Za-z0-9_])/,
   /(^|[^<>!=])=(?!=)/,
+  // ⭐ BATCH 1 — THE LOOK-ALIKES ARE MARKERS TOO, so `RSI14 > 70` reaches the reader
+  // that can say "TC2000's RSI is not Wilder's — write WRSI14" instead of the native
+  // reader's "did you mean rsi14". ⛔ CASE-SENSITIVE, unlike the family marker above:
+  // `rsi14` (lower case) is a native nightly scalar and must stay native; TC2000's
+  // fused spellings are written in capitals. Derived from the refusal list itself.
+  new RegExp('\\b(' + Object.keys(PCF_DIFFERENT_FORMULA).join('|') + ')\\d+(?![A-Za-z0-9_(])'),
 ]
 
 /** A marker only the native dialect produces.

@@ -1,5 +1,10 @@
 {
   "description": "SLICE 2 / PHASE 5 - deterministic pre-flight for conversational requests UCT cannot author (a timeframe LOWER than the chart's or off the calculation ladder; another symbol whose spelling is ambiguous). Read by BOTH api/services/conversation_preflight.py (authoritative) and authoring/preflight.js (a latency/cost shortcut). PHASE 5: another symbol and a HIGHER timeframe are authorable (sym / tf / set_calculation_timeframe) and reach the model; the other-symbol DETECTOR stays, for the server's no-substitution backstop. Conservative by design: anything ambiguous goes to the model. A question is NEVER intercepted.",
+  "naming": {
+    "description": "BATCH 1 - ONE naming-cue rule, shared by the browser (derivedName.memberCueNames: the member's own name wins over the model's) and the server (/converse strips a naming clause before the planner, so 'call it Swing Line' on ANY turn is a rename, never an unknown concept). The name ends at the first joining word that starts another instruction.",
+    "cue": "\\b(?:called|named|call it|name it|titled|title it|label it|labelled|labeled|rename (?:it|this|the indicator)(?: to| as)?|rename to)\\s+[\"'“‘]?([^\"'”’.,;!?\\n]{1,80})[\"'”’]?",
+    "stop": "\\s+(?:and|then|with|that|which|so|but|in|on|at|for|to|using|plus|also)\\s+"
+  },
   "notTickers": [
     "I",
     "A",

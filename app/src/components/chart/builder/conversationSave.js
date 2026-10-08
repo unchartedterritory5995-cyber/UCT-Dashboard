@@ -30,6 +30,7 @@ import { withStoredSemantics } from '../engine/definitionSemantics'
 import { signalAlertRequest, policyLabel, numericAlertRequest, numericAlertWords } from '../engine/triggerPolicy'
 import { infoValueRefFor, requestInfoValue, addedInstanceId } from './infoValueDoor'
 import { chromeInputKeys } from './builderInputs'
+import { outputNamer } from './authoring/readback'
 
 /**
  * Validate and store. One call to `saveUserDefinition` at most.
@@ -94,11 +95,13 @@ export function changedInputDefaults(base, stored) {
  */
 export function attachConversation({ storedDoc, created, requests, settings, registry = engineRegistry, base = null }) {
   const outcomes = []
+  // ⭐ BATCH 1 — outcomes name an output as the member knows it, never its key.
+  const nameOf = outputNamer(storedDoc)
   const { installed, errors } = registry.installUserDefinitions([storedDoc])
   if (errors.length || installed.length !== 1) {
     outcomes.push({ kind: 'chart', ok: false, text: `Saved, but it could not be drawn: ${errors.join('; ') || 'the registry refused it'}.` })
     for (const v of (requests && requests.infoValues) || []) {
-      outcomes.push({ kind: 'info_value', plotKey: v.plotKey, ok: false, text: `Header value for ${v.plotKey}: not shown — the definition is not installed.` })
+      outcomes.push({ kind: 'info_value', plotKey: v.plotKey, ok: false, text: `Header value for ${nameOf(v.plotKey)}: not shown — the definition is not installed.` })
     }
     return { settings, instanceId: null, installed: false, outcomes }
   }
@@ -157,7 +160,7 @@ export function attachConversation({ storedDoc, created, requests, settings, reg
     if (req.added) cs = req.settings
     outcomes.push({
       kind: 'info_value', plotKey: v.plotKey, ok: req.added,
-      text: req.added ? `Header value for ${v.plotKey}: shown in the chart header.` : `Header value for ${v.plotKey}: not shown — ${req.reason}`,
+      text: req.added ? `Header value for ${nameOf(v.plotKey)}: shown in the chart header.` : `Header value for ${nameOf(v.plotKey)}: not shown — ${req.reason}`,
     })
   }
   return { settings: cs, instanceId, installed: true, outcomes }
@@ -174,11 +177,12 @@ export async function armConversationAlerts({ storedDoc, requests, sym, tf: char
   // timeframe's closed bars: the numbers the member watches are those, not the chart's.
   const tf = requests && typeof requests.calculationTimeframe === 'string' && chartTf
     ? requests.calculationTimeframe : chartTf
+  const nameOf = outputNamer(storedDoc)
   for (const a of (requests && requests.alerts) || []) {
     const numeric = typeof a.condition === 'string'
     const what = numeric
-      ? `Alert when ${a.plotKey} ${numericAlertWords(a.condition, a.threshold)}`
-      : `Alert when ${a.plotKey} ${String(policyLabel(a.triggerPolicy) || a.triggerPolicy).toLowerCase()}`
+      ? `Alert when ${nameOf(a.plotKey)} ${numericAlertWords(a.condition, a.threshold)}`
+      : `Alert when ${nameOf(a.plotKey)} ${String(policyLabel(a.triggerPolicy) || a.triggerPolicy).toLowerCase()}`
     if (!sym || !tf) {
       outcomes.push({ kind: 'alert', plotKey: a.plotKey, ok: false, text: `${what}: not created — there is no chart symbol and timeframe to arm it on.` })
       continue
@@ -191,7 +195,9 @@ export async function armConversationAlerts({ storedDoc, requests, sym, tf: char
       continue
     }
     const payload = instanceId ? { ...req.payload, instance_id: instanceId } : req.payload
-    const res = await create(payload)
+    // ⭐ BATCH 1 — a thrown create (network) is THIS alert's failure, not the save's.
+    let res
+    try { res = await create(payload) } catch (e) { res = { ok: false, error: (e && e.message) || 'the alert service could not be reached' } }
     outcomes.push(res && res.ok
       ? { kind: 'alert', plotKey: a.plotKey, ok: true, text: `${what} on ${payload.sym} ${tf}: created.` }
       : { kind: 'alert', plotKey: a.plotKey, ok: false, text: `${what}: refused by the server — ${(res && res.error) || 'no reason given'}` })

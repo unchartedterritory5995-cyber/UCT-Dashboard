@@ -187,6 +187,46 @@ def is_advisory(message: Any) -> bool:
     return shape(message) in ("question", "compare")
 
 
+@functools.lru_cache(maxsize=1)
+def _naming() -> Tuple["re.Pattern[str]", "re.Pattern[str]"]:
+    n = rules()["naming"]
+    return re.compile(n["cue"], re.I), re.compile(n["stop"], re.I)
+
+
+def _cue_name(raw: str) -> str:
+    _, stop = _naming()
+    return stop.split(re.sub(r"\s+", " ", raw).strip())[0].strip()
+
+
+def naming_split(message: Any) -> Tuple[List[str], str]:
+    """⭐ BATCH 1 -- the member's explicit names, and the message without them.
+
+    "Make the RSI length 28 and call it Swing Line" -> (["Swing Line"], "Make the
+    RSI length 28"). The browser reads the same rule (``derivedName.memberCueNames``);
+    the name is the member's own words, so it never reaches the planner as a concept
+    to resolve ("Swing Line" is no function -- it is what they want it CALLED). What
+    follows the name in the same clause ("... and colour it red") stays in the rest.
+    """
+    if not isinstance(message, str) or not message:
+        return [], message if isinstance(message, str) else ""
+    cue, _ = _naming()
+    names: List[str] = []
+
+    def cut(m: "re.Match[str]") -> str:
+        name = _cue_name(m.group(1))
+        if name and not any(n.lower() == name.lower() for n in names):
+            names.append(name)
+        whole = m.group(0)
+        at = whole.find(name) if name else -1
+        return " " if at < 0 else " " + whole[at + len(name):].lstrip("\"'”’") + " "
+
+    rest = cue.sub(cut, message)
+    rest = re.sub(r"\s+", " ", rest).strip(" ,;")
+    # a joining word left dangling at either end ("... 28 and" / "and colour it red")
+    rest = re.sub(r"^(?:and|then|also)\s+|\s+(?:and|then|also)$", "", rest, flags=re.I).strip(" ,;")
+    return names, rest
+
+
 def _norm_sym(sym: Any) -> Optional[str]:
     if not isinstance(sym, str) or not sym.strip():
         return None

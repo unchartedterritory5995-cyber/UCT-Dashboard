@@ -239,8 +239,9 @@ describe('ConverseBox — the 8-turn scenario end to end (items 1–4, 7, 8, 17,
     expect(saved).toEqual([
       'Saved — version 1.',
       'Added to the chart.',
-      'Header value for rsi: shown in the chart header.',
-      'Alert when value becomes true on SPY D: created.',
+      // ⭐ BATCH 1 — outcomes name the output as the member knows it, never its key
+      'Header value for RSI 14: shown in the chart header.',
+      'Alert when RSI 14 > 75 becomes true on SPY D: created.',
     ])
     expect(identity().defId).toBe('u_aaaaaaaaaaaa')
     expect(identity().lineage).toBe(lineage)
@@ -375,8 +376,8 @@ describe('ConverseBox — refused consumers are said, not claimed', () => {
     expect(linesOf(lastUct())).toEqual([
       'Saved — version 1.',
       'Saved. No chart is open here, so it was not added to one.',
-      'Header value for rsi: not shown — There is no installed output to show as a value.',
-      'Alert when value becomes true: not created — there is no chart symbol and timeframe to arm it on.',
+      'Header value for RSI 14: not shown — There is no installed output to show as a value.',
+      'Alert when RSI 14 > 70 becomes true: not created — there is no chart symbol and timeframe to arm it on.',
     ])
   })
 })

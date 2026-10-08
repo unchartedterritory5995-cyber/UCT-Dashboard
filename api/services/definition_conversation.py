@@ -1074,6 +1074,10 @@ NOT_IN_VOCABULARY_RULE = ("not in UCT's function vocabulary -- you may discuss i
                           "never author with it")
 OTHER_SYMBOL_RULE = ("another symbol than the chart's -- a change for it reads it "
                      "with a sym node; never the chart's own symbol in its place")
+MEMBER_NAME_RULE = ("the member's own name for the indicator -- use exactly these words "
+                    "(rename_definition, or the create name); it is a name, not a concept")
+#: ⭐ BATCH 1 -- the request text when the member's message was ONLY a name.
+RENAME_REQUEST = "Rename the indicator to the member's name (uct_language_notes.member_names)."
 
 
 def _call_model(messages: List[dict]) -> Tuple[Any, int, int]:
@@ -1475,8 +1479,17 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     # change (below).
     advisory = conversation_preflight.is_advisory(message)
     other_sym = conversation_preflight.other_symbol(message, chart)
-    plain = _product_nouns_plain(message)
-    understanding = dc.plan(plain, dc.INDICATOR_KIND)
+    # ⭐ BATCH 1 -- A NAME IS NOT A CONCEPT. "call it Swing Line" on ANY turn is the
+    # member naming the indicator: the clause is taken out BEFORE the planner (whose
+    # Title-Case rule would refuse "Swing Line" as an ungrounded concept with no model
+    # call), and the names ride to the model as data. ⚰️ Measured 2026-10-08: a later
+    # "Call it Swing Line" was refused outright, and "make it 28 and call it Swing
+    # Line" lost the name. The browser enforces the same name on the result
+    # (`derivedName.memberCueNames`, one shared rule in `preflightRules.json`).
+    member_names, unnamed = conversation_preflight.naming_split(message)
+    plain = _product_nouns_plain(unnamed if member_names else message)
+    understanding = dc.plan(plain, dc.INDICATOR_KIND) if plain.strip() else \
+        {"understood": "", "not_understood": [], "unavailable": [], "concepts": []}
     not_understood = understanding["not_understood"]
     unavailable = understanding["unavailable"]
     discussed: List[dict] = []
@@ -1484,6 +1497,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         discussed = list(not_understood)
         not_understood = []
         request_text = plain.strip()
+    elif member_names and not understanding["understood"] and not not_understood:
+        request_text = RENAME_REQUEST
     elif not understanding["understood"]:
         first = not_understood[0] if not_understood else None
         return {"ok": False,
@@ -1500,6 +1515,8 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
                                       for n in discussed]
     if other_sym:
         notes["other_symbols"] = [{"symbol": other_sym, "rule": OTHER_SYMBOL_RULE}]
+    if member_names:
+        notes["member_names"] = [{"name": n, "rule": MEMBER_NAME_RULE} for n in member_names]
     content = user_turn(request_text, notes, view, state, turns)
     if len(content) > MAX_INPUT_CHARS:
         return _refusal("converse:too-large", f"turn {len(content)} > {MAX_INPUT_CHARS}",

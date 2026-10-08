@@ -42,6 +42,10 @@ import { STUDIO_PREVIEW_DEF_ID } from './chartPreview'
 import { memberError, memberSaveError, memberRefusal } from '../authoring/memberWords'
 import { logStudioAction, definitionKinds, clientFailureOf } from '../authoring/studioTelemetry'
 import { outputNamer, slotWords } from '../authoring/readback'
+import { soleCueName } from '../authoring/derivedName'
+import { renamePatch, withMemberName } from '../authoring/memberNamePatch'
+import { validateUserDefinitions } from '../../engine/nativeRegistry'
+import { saveReceipt } from './saveOutcomeReceipt'
 
 /** The member-facing type word for an output, keyed by the P1 type authority's own values. */
 const TYPE_WORDS = Object.freeze({
@@ -116,11 +120,24 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   // ⭐ PHASE 4 — an EDIT's draft is restored only while it was opened from the
   // version that is STILL the stored one; a draft of an older version is stale
   // and the studio reopens the definition as it is now.
-  const [initial] = useState(() => {
+  // ⭐⭐ BATCH 1 — …AND A DRAFT KEPT ACROSS A RELOAD (`recovered`) IS CHECKED BEFORE IT
+  // OPENS: its working definition must still pass the registry's own validation, and
+  // an edit's base version must still be the stored one. Otherwise it is dropped —
+  // never opened over a newer saved definition — and the member is told why.
+  const [{ initial, dropped }] = useState(() => {
     const kept = readSession(sessionKey)
-    if (!open) return kept
-    const st = kept && kept.state
-    return st && st.defId === open.defId && st.baseVersion === open.version ? kept : null
+    if (!kept) return { initial: null, dropped: null }
+    const st = kept.state
+    if (open && !(st && st.defId === open.defId && st.baseVersion === open.version)) {
+      clearSession(sessionKey)
+      return { initial: null, dropped: kept.recovered || (st && isDirty(st))
+        ? { reason: 'stale', from: st && st.baseVersion, now: open.version } : null }
+    }
+    if (kept.recovered && st && st.working && validateUserDefinitions([st.working]).errors.length) {
+      clearSession(sessionKey)
+      return { initial: null, dropped: { reason: 'invalid' } }
+    }
+    return { initial: kept, dropped: null }
   })
   const [state, setState] = useState(() => (initial && initial.state)
     || (open && open.def ? openAuthoringState(open.def, { defId: open.defId, version: open.version }) : newAuthoringState()))
@@ -135,6 +152,8 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   /** Bumped on every applied change — the "Updated preview" cue keys off it. */
   const [changeSeq, setChangeSeq] = useState(0)
   const restored = !!(initial && ((initial.transcript && initial.transcript.length) || (initial.state && initial.state.working)))
+  /** ⭐ BATCH 1 — restored from before a page reload (not just a closed dock). */
+  const recovered = restored && !!initial.recovered
   /** ⭐ PHASE 4 — true while this studio edits a stored definition. */
   const editing = !!(state.defId && Number.isInteger(state.baseVersion))
   const gateCtx = useMemo(() => ({ tf, symbol: sym }), [tf, sym])
@@ -147,7 +166,9 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     if (!sessionKey || ended.current) return
     if (!transcript.length && !state.working) return
     if (open && !isDirty(state) && transcript.length <= 1) return
-    writeSession(sessionKey, { state, transcript, acked })
+    // ⭐ BATCH 1 — mirrored into this tab's sessionStorage, so a reload keeps it too
+    // (an answer-only conversation included).
+    writeSession(sessionKey, { state, transcript, acked }, { persist: true })
   }, [sessionKey, state, transcript, acked, open])
 
   const say = useCallback((entry) => {
@@ -181,6 +202,25 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       return false
     }
 
+    // ⭐ BATCH 1 — A MESSAGE THAT ONLY NAMES IT ("Call it Swing Line", any turn) is
+    // applied here as the ordinary `rename_definition` op: deterministic, no model
+    // call, same lineage, one revision, one undo step.
+    const soleName = before.working ? soleCueName(words) : null
+    if (soleName) {
+      const out = applyTurn(before, renamePatch(before, soleName), { gateCtx, memberWords: words })
+      if (out.result.status === 'refused') {
+        say({ role: 'uct', kind: 'refusal', codes: (out.result.errors || []).map((e) => e.code),
+          lines: [...(out.result.errors || []).map((e) => errorWords(e, before.working)), NOTHING_CHANGED] })
+        return false
+      }
+      commit(out.state)
+      setAcked(false)
+      setChangeSeq((n) => n + 1)
+      say({ role: 'uct', kind: 'patched', revision: out.state.revision, updated: true,
+        lines: [`Renamed to “${out.readback.name || soleName}”.`] })
+      return true
+    }
+
     setBusy(true)
     try {
       const res = await converse({ message: words, state: before, gateCtx, snippets })
@@ -210,7 +250,9 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       // ⛔ CLARIFY / CHANGE: THE ENGINE DECIDES. A stale or invalid patch is refused
       // atomically and the working definition is untouched (`applyTurn` returns
       // the same state).
-      const out = applyTurn(stateRef.current, turn.envelope, { gateCtx, memberWords: words })
+      // ⭐ BATCH 1 — a name the member gave in the same message rides in this envelope.
+      const envelope = turn.outcome === OUTCOMES.CHANGE ? withMemberName(turn.envelope, words) : turn.envelope
+      const out = applyTurn(stateRef.current, envelope, { gateCtx, memberWords: words })
       const { result } = out
       if (result.status === 'refused') {
         say({ role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),
@@ -275,18 +317,35 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       }
       logStudioAction(cur.lineage, 'saved', { surface: 'studio', created: !!stored.created, origin: 'native',
         kinds: definitionKinds(stored.storedDoc, stored.requests) })
-      if (typeof beforeAttach === 'function') beforeAttach()
-      const attached = attachConversation({ storedDoc: stored.storedDoc, created: stored.created, requests: stored.requests, settings, base: cur.base })
-      if (settings && onChange && attached.settings !== settings) onChange(attached.settings)
-      const alerts = await armConversationAlerts({ storedDoc: stored.storedDoc, requests: stored.requests, sym, tf, instanceId: attached.instanceId })
+      // ⛔ BATCH 1 — FROM HERE THE DEFINITION IS SAVED, WHATEVER FOLLOWS. A step after
+      // the store (drawing it, adding it to the chart, arming an alert) that throws is
+      // an outcome that failed, never a save that "did not happen": the receipt says
+      // saved + what did not complete, and the draft ends (the store holds it now).
+      if (typeof beforeAttach === 'function') { try { beforeAttach() } catch { /* the preview teardown */ } }
+      let attached
+      try {
+        attached = attachConversation({ storedDoc: stored.storedDoc, created: stored.created, requests: stored.requests, settings, base: cur.base })
+        if (settings && onChange && attached.settings !== settings) onChange(attached.settings)
+      } catch {
+        attached = { settings, instanceId: null, installed: false,
+          outcomes: [{ kind: 'chart', ok: false, text: 'Saved, but it could not be added to the chart. Add it from Indicators.' }] }
+      }
+      let alerts = []
+      try {
+        alerts = await armConversationAlerts({ storedDoc: stored.storedDoc, requests: stored.requests, sym, tf, instanceId: attached.instanceId })
+      } catch {
+        alerts = ((stored.requests && stored.requests.alerts) || []).map((a) => ({ kind: 'alert', plotKey: a.plotKey, ok: false,
+          text: 'Alert: not created — the alert service could not be reached. Create it from the chart’s alert menu.' }))
+      }
       const outcomes = [...attached.outcomes, ...alerts]
-      say({ role: 'uct', kind: 'saved', lines: outcomes.map((o) => o.text), outcomes })
+      const receipt = saveReceipt({ storedDoc: stored.storedDoc, created: stored.created, outcomes })
+      say({ role: 'uct', kind: 'saved', lines: [receipt.title, ...receipt.items.map((o) => o.text)], outcomes, receipt })
       // Creation is complete (the dock closes on it): this context's session ends,
       // so the next Create Indicator starts a new definition. ⭐ PHASE 4 — an edit
       // ends the same way: the store's row is the authority again.
       ended.current = true
       clearSession(sessionKey)
-      return { ok: true, storedDoc: stored.storedDoc, instanceId: attached.instanceId, outcomes }
+      return { ok: true, storedDoc: stored.storedDoc, instanceId: attached.instanceId, outcomes, receipt }
     } finally {
       setSaving(false)
     }
@@ -312,23 +371,27 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     return stampSemantics({ ...state.working, id: STUDIO_PREVIEW_DEF_ID }, { prior: state.base || null })
   }, [state.working, state.base])
 
-  const lastEntry = transcript.length ? transcript[transcript.length - 1] : null
-  const questions = lastEntry && lastEntry.kind === 'question' ? (lastEntry.questions || []) : []
+  // ⭐ BATCH 1 — the OPEN questions are the state's (`applyTurn` clears them when a
+  // change lands; undo restores them), not the last transcript entry's: a question
+  // answered with "what does that mean?" keeps its choice buttons.
+  const questions = state.questions || []
   const needsAck = rb.needsAck || []
   const dirty = isDirty(state)
+  const unsaved = dirty || transcript.some((t) => t && t.role === 'member')
 
-  // ⭐ P3 UX — the draft lives in this tab's memory only (✕ keeps it, by design):
-  // a reload or a closed tab would lose an unsaved draft silently, so ask first.
+  // ⭐ P3 UX — ✕ keeps the draft by design, and BATCH 1 keeps it across a reload of
+  // this tab (sessionStorage). Closing the TAB still ends it, so ask first — for an
+  // answer-only conversation too, which would otherwise vanish without a word.
   useEffect(() => {
-    if (!dirty || typeof window === 'undefined') return undefined
+    if (!unsaved || typeof window === 'undefined') return undefined
     const warn = (e) => { e.preventDefault(); e.returnValue = '' }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
-  }, [dirty])
+  }, [unsaved])
 
   return {
     state, transcript, rb, busy, saving, acked, setAcked, needsAck, questions, changeSeq,
-    previewDefinition, send, undo, save, discard, dirty, restored, editing,
+    previewDefinition, send, undo, save, discard, dirty, restored, recovered, dropped, editing,
     canUndo: state.history.length > 0 && !busy && !saving,
     canSave: dirty && !busy && !saving && (!needsAck.length || acked),
   }

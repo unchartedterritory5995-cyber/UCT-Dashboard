@@ -34,6 +34,7 @@
 
 import { helperKeysOfRows, sameTree } from './colorRules'
 import { tableSpecOf } from './tables'
+import PREFLIGHT_RULES from './preflightRules.json'
 
 const OP_WORDS = Object.freeze({
   '>': '>', '<': '<', '>=': '≥', '<=': '≤', '==': '=', '!=': '≠',
@@ -45,8 +46,16 @@ const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 export const NAME_MAX = 80
 
 const norm = (s) => String(s).toLowerCase().replace(/[\s ]+/g, ' ').trim()
-const NAMING_CUE = /\b(?:called|named|call it|name it|titled|title it|label it|labelled|labeled)\s+["'“‘]?([^"'”’.,;!?\n]{1,80})/gi
+// ⭐ BATCH 1 — ONE naming rule, shared with the server (`preflightRules.json` →
+// `naming`): `/converse` strips the same clause before its planner, so a later
+// "call it Swing Line" is a rename on every turn, not an unknown concept.
+const NAMING_CUE = new RegExp(PREFLIGHT_RULES.naming.cue, 'gi')
+const NAMING_STOP = new RegExp(PREFLIGHT_RULES.naming.stop, 'i')
 const QUOTED = /["“]([^"”\n]{1,80})["”]/g
+
+/** A cue's captured text → the name: whitespace collapsed, cut at the first joining
+ *  word that starts another instruction ("Swing Line and colour it red"). */
+const cueName = (raw) => String(raw).replace(/\s+/g, ' ').trim().split(NAMING_STOP)[0].trim()
 
 /** The phrases the member explicitly gave as a NAME in `words` (normalised). */
 export function memberNamePhrases(words) {
@@ -58,6 +67,7 @@ export function memberNamePhrases(words) {
     while ((m = re.exec(words))) {
       const p = norm(m[1])
       if (p) out.add(p)
+      if (re === NAMING_CUE) { const c = norm(cueName(m[1])); if (c) out.add(c) }
     }
   }
   return out
@@ -74,8 +84,7 @@ export function memberCueNames(words) {
   while ((m = NAMING_CUE.exec(words))) {
     // "call it Swing Line and colour it red" names "Swing Line": the name ends at the
     // first joining word that starts another instruction.
-    const text = String(m[1]).replace(/[\s ]+/g, ' ').trim()
-      .split(/\s+(?:and|then|with|that|which|so|but|in|on|at|for|to|using|plus|also)\s+/i)[0].trim()
+    const text = cueName(m[1])
     if (text && !out.some((x) => norm(x) === norm(text))) out.push(text)
   }
   return out
@@ -86,6 +95,41 @@ export function isNamingClause(text) {
   if (typeof text !== 'string' || !text) return false
   NAMING_CUE.lastIndex = 0
   return NAMING_CUE.test(text)
+}
+
+/** Words that carry no instruction of their own around a naming clause. */
+const FILLER = /^(?:please|pls|ok(?:ay)?|now|and|then|also|just|can you|could you|let'?s|i want to|i'd like to|lastly|finally)$/i
+
+/**
+ * ⭐ BATCH 1 — is this message ONLY a naming request ("Call it Swing Line",
+ * "Okay, rename it to Momentum Pulse.")? Then the name is the whole instruction and
+ * the studio renames deterministically, with no model call. Returns the one name,
+ * or null when the message asks anything else (or names two things).
+ */
+export function soleCueName(words) {
+  const names = memberCueNames(words)
+  if (names.length !== 1) return null
+  NAMING_CUE.lastIndex = 0
+  const rest = String(words).replace(NAMING_CUE, (whole, raw) => {
+    const name = cueName(raw)
+    const at = whole.indexOf(name)
+    return at < 0 ? ' ' : ` ${whole.slice(at + name.length)} `
+  })
+  const left = rest.replace(/["'“”‘’]/g, ' ')
+    .split(/[\s,.;!?]+/).filter(Boolean)
+  // what remains after the clause: filler words only (two-word fillers joined back)
+  const joined = left.join(' ')
+  if (!joined) return names[0]
+  const tokens = joined.split(' ')
+  for (let i = 0; i < tokens.length;) {
+    const two = i + 1 < tokens.length ? `${tokens[i]} ${tokens[i + 1]}` : null
+    const three = i + 2 < tokens.length ? `${two} ${tokens[i + 2]}` : null
+    if (three && FILLER.test(three)) { i += 3; continue }
+    if (two && FILLER.test(two)) { i += 2; continue }
+    if (FILLER.test(tokens[i])) { i += 1; continue }
+    return null
+  }
+  return names[0]
 }
 
 /** Did the member explicitly give `name` (a create name or label) in their words? */

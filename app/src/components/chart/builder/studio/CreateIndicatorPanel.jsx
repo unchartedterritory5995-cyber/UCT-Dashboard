@@ -26,6 +26,7 @@ import { helpersOfDefinition, plotColorRule } from '../authoring/colorRules'
 import { converseTurn } from '../authoring/converseClient'
 import useIndicatorConversation, { typeWord } from './useIndicatorConversation'
 import { STUDIO_PREVIEW_DEF_ID, previewInstanceFor, previewInstanceLike, withCalcFrame } from './chartPreview'
+import { withPendingInputs } from './editPreview'
 import { conversationEditability, CARRIED_NOTE } from '../authoring/memberWords'
 import styles from './CreateIndicatorPanel.module.css'
 import { safeCssColour } from '../../engine/objectColour'
@@ -160,6 +161,7 @@ export default function CreateIndicatorPanel({
   const conv = useIndicatorConversation({ sym, tf, converse, sessionKey, open })
   const { state, transcript, rb, busy, saving, previewDefinition } = conv
   const previewCalcTf = (state && state.requests && state.requests.calculationTimeframe) || null
+  const previewBase = (state && state.base) || null
   const [message, setMessage] = useState('')
   // Floating geometry is measured only when there is no dock to live in.
   const rect = useDockRect(anchorRef, !dockHost)
@@ -199,13 +201,18 @@ export default function CreateIndicatorPanel({
       // ⭐ PHASE 4 — an edit previews IN PLACE of the saved drawing, shaped like it.
       // ⭐ PHASE 5 — and on the calculation timeframe the conversation asked for, so the
       // preview is computed exactly as Save will compute it.
-      if (open) onPreviewRef.current?.(withCalcFrame(previewInstanceLike(settingsRef.current, open.defId, engineRegistry), previewCalcTf), { replaces: open.defId })
-      else onPreviewRef.current?.(withCalcFrame(previewInstanceFor(settingsRef.current, engineRegistry), previewCalcTf))
+      // ⭐ BATCH 1 — and with the setting values Save will write to this chart's
+      // instance (`editPreview.withPendingInputs`, the same rule as Save).
+      if (open) {
+        const like = withPendingInputs(previewInstanceLike(settingsRef.current, open.defId, engineRegistry),
+          { base: previewBase, working: previewDefinition, settings: settingsRef.current, registry: engineRegistry })
+        onPreviewRef.current?.(withCalcFrame(like, previewCalcTf), { replaces: open.defId })
+      } else onPreviewRef.current?.(withCalcFrame(previewInstanceFor(settingsRef.current, engineRegistry), previewCalcTf))
     } else {
       engineRegistry.uninstallUserDefinition(STUDIO_PREVIEW_DEF_ID)
       onPreviewRef.current?.(null)
     }
-  }, [previewDefinition, open, previewCalcTf])
+  }, [previewDefinition, previewBase, open, previewCalcTf])
 
   // ⛔ THE TEARDOWN IS NOT OPTIONAL — Cancel, ✕, Save, a symbol-less remount and
   // an unmount of the chart itself all end here: no registry entry, no instance.
@@ -290,7 +297,9 @@ export default function CreateIndicatorPanel({
 
   const save = useCallback(async () => {
     const res = await conv.save({ settings: settingsRef.current, onChange, beforeAttach: clearPreview })
-    if (res.ok) onClose?.({ saved: res })
+    // ⭐ BATCH 1 — the receipt goes WITH the close: the toolbar keeps it on screen
+    // after this panel is gone (`SaveReceipt`), so a step that failed is seen.
+    if (res.ok) onClose?.({ saved: res, receipt: res.receipt })
   }, [conv, onChange, clearPreview, onClose])
 
   const openDoor = useCallback((fn) => { clearPreview(); fn() }, [clearPreview])
@@ -396,8 +405,18 @@ export default function CreateIndicatorPanel({
         )}
 
         {conv.restored && (
-          <div className={styles.status} data-testid="create-indicator-restored">
-            Draft restored — Discard throws it away.
+          <div className={styles.status} data-testid="create-indicator-restored" data-recovered={conv.recovered ? 'true' : undefined}>
+            {conv.recovered
+              ? 'Recovered your unsaved draft from before the page reloaded — nothing is saved until you choose Save. Discard throws it away.'
+              : 'Draft restored — Discard throws it away.'}
+          </div>
+        )}
+        {/* ⭐ BATCH 1 — a kept draft that could not be opened safely, and why. */}
+        {conv.dropped && (
+          <div className={styles.status} role="note" data-testid="create-indicator-draft-dropped" data-reason={conv.dropped.reason}>
+            {conv.dropped.reason === 'stale'
+              ? `Your unsaved changes were made to version ${conv.dropped.from ?? 'an earlier version'}, and this indicator has been saved since (now version ${conv.dropped.now}). They were not restored, so nothing newer is overwritten.`
+              : 'An unsaved draft from before the page reloaded could not be restored.'}
           </div>
         )}
 

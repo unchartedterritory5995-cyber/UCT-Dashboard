@@ -49,7 +49,8 @@ import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 const BuilderSheet = lazy(() => import('./builder/BuilderSheet'))
 // ⭐ P2 Track B — lazy for the same reason: it pulls the authoring engine.
 const CreateIndicatorPanel = lazy(() => import('./builder/studio/CreateIndicatorPanel'))
-import { mintScope, createKey, editKey } from './builder/authoring/conversationSessions'
+const SaveReceipt = lazy(() => import('./builder/studio/SaveReceipt'))
+import { mintScope, chartScope, createKey, editKey } from './builder/authoring/conversationSessions'
 import { useUserDefinitions } from '../../hooks/useUserDefinitions'
 import { createCustomCopy } from './builder/definitionActions'
 import { useCreateIndicatorAccess } from './builder/studio/createIndicatorFlag'
@@ -1155,7 +1156,11 @@ function ChartToolbar({
   // ⭐ SLICE 2 — THIS chart's new-indicator context. One opaque scope per toolbar
   // (per chart), so closing the dock keeps that chart's draft conversation and a
   // different chart never sees it. Never derived from a symbol, name or formula.
-  const [studioScope] = useState(mintScope)
+  // ⭐ BATCH 1 — a chart with a STABLE id (its workspace widget) keeps the same scope
+  // across a page reload, so its persisted draft is found again (hashed, still opaque).
+  const [studioScope] = useState(() => chartScope(chartId) || mintScope())
+  // ⭐ BATCH 1 — the last Save's receipt, kept on screen after the panel closes.
+  const [saveReceipt, setSaveReceipt] = useState(null)
   const [comparePopoverOpen, setComparePopoverOpen] = useState(false)
   const [alertPopoverOpen, setAlertPopoverOpen] = useState(false)
   // ⭐ chart-UX-walls TASK 4 — WHICH CHIP OPENED IT. `{instanceId, plotKey}` when
@@ -1805,7 +1810,7 @@ function ChartToolbar({
               key={createEditRow ? `edit:${createEditRow.def_id}` : 'create'}
               editRow={createEditRow}
               onEditFormula={createEditRow ? () => { const r = createEditRow; setCreateOpen(false); setCreateEditRow(null); setBuilderEditRow(r); setBuilderMode(null); setBuilderEverOpened(true); setBuilderOpen(true) } : null}
-              onClose={() => { setCreateOpen(false); setCreateEditRow(null) }}
+              onClose={(res) => { setCreateOpen(false); setCreateEditRow(null); if (res && res.receipt) setSaveReceipt(res.receipt) }}
               settings={cs}
               onChange={onUpdateSettings}
               sym={currentSym}
@@ -1818,6 +1823,12 @@ function ChartToolbar({
               onOpenBuilder={(mode) => { setCreateOpen(false); openBuilder(mode) }}
               onOpenLibrary={onOpenLibrary ? () => { setCreateOpen(false); onOpenLibrary() } : null}
             />
+          </Suspense>
+        )}
+
+        {saveReceipt && (
+          <Suspense fallback={null}>
+            <SaveReceipt receipt={saveReceipt} anchorRef={anchorRef || favBoundsRef} onDismiss={() => setSaveReceipt(null)} />
           </Suspense>
         )}
 

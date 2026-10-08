@@ -1,0 +1,46 @@
+/* The Save receipt (Batch 1) — the Create Indicator panel's own surface tokens, as a
+ * small card on the chart edge after the panel closes. */
+
+.receipt {
+  position: fixed;
+  z-index: 8500;            /* the panel's layer: above the chart, below Chart Settings */
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  padding: 10px 12px 10px 14px;
+  background: var(--menu-surface, var(--menu-bg, #0e0e10));
+  border: 1px solid var(--menu-border, #242426);
+  border-left: 3px solid var(--success, #3fb27f);
+  border-radius: var(--radius-lg, 10px);
+  box-shadow: 0 16px 48px var(--menu-shadow, rgba(0, 0, 0, 0.6));
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  color: var(--menu-text, #ededed);
+  animation: receiptIn 140ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.partial { border-left-color: var(--warning, #d9a441); }
+
+@keyframes receiptIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.head { display: flex; align-items: flex-start; gap: 8px; }
+.title { flex: 1 1 auto; font-size: 12.5px; font-weight: 700; line-height: 1.35; }
+.close {
+  flex: none;
+  background: transparent; border: none;
+  color: var(--menu-text-faint, #93939a);
+  font-size: 13px; line-height: 1; cursor: pointer;
+  padding: 2px 4px; border-radius: var(--radius-md, 6px);
+}
+.close:hover { color: var(--menu-text, #ededed); background: var(--menu-hover, rgba(255, 255, 255, 0.055)); }
+
+.items { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.item { display: flex; gap: 6px; font-size: 11.5px; line-height: 1.4; color: var(--menu-text-dim, #b3b3b9); }
+.mark { flex: none; width: 12px; font-weight: 700; color: var(--success, #3fb27f); }
+.failed .mark { color: var(--warning, #d9a441); }
+.failed { color: var(--menu-text, #ededed); }
+
+@media (prefers-reduced-motion: reduce) {
+  .receipt { animation: none; }
+}
