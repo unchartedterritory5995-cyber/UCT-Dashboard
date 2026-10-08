@@ -18,6 +18,10 @@ const APPROVED = {
   },
 }
 
+const DRAFT = {
+  'x.surface': { title: 'X: how to trade with this', status: HOW_TO_DRAFT, steps: ['one', 'two'] },
+}
+
 function withAuth(value, ui) {
   return render(<AuthContext.Provider value={value}>{ui}</AuthContext.Provider>)
 }
@@ -32,10 +36,18 @@ describe('the registry', () => {
     }
   })
 
-  test('⛔ nothing ships approved: the copy has not had the owner\'s voice sign-off', () => {
+  test('⛔ only owner-approved entries ship approved (owner sign-off 2026-10-07: all 8)', () => {
     // When the owner approves an entry, this list is where it is recorded on purpose.
     const approved = Object.entries(HOW_TO_CHECKLISTS).filter(([, e]) => e.status !== HOW_TO_DRAFT).map(([k]) => k)
-    expect(approved).toEqual([])
+    expect(approved.sort()).toEqual([
+      'research.depth.broker_estimates', 'research.depth.earnings_reaction', 'research.depth.events',
+      'research.depth.filing_search', 'research.depth.ftd', 'research.depth.mention_series',
+      'screener.options', 'screener.stocks',
+    ])
+    for (const k of approved) {
+      expect(HOW_TO_CHECKLISTS[k].approved_by, k).toBe('Patrick Gosz')
+      expect(approvedChecklist(k), k).not.toBeNull()
+    }
   })
 
   test('every Depth checklist names a real Depth panel key', () => {
@@ -45,7 +57,7 @@ describe('the registry', () => {
 
 describe('approvedChecklist', () => {
   test('a draft is never returned', () => {
-    for (const k of Object.keys(HOW_TO_CHECKLISTS)) expect(approvedChecklist(k)).toBeNull()
+    expect(approvedChecklist('x.surface', DRAFT)).toBeNull()
   })
   test('approved needs approved_by and an ISO approved_on', () => {
     expect(approvedChecklist('x.surface', APPROVED)).toEqual({ title: 'X: how to trade with this', steps: ['one', 'two'] })
@@ -64,8 +76,8 @@ describe('HowToChecklist', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  test('flag ON + DRAFT: renders nothing (the shipped state)', () => {
-    const { container } = withAuth({ howToChecklistsEnabled: true }, <HowToChecklist surface="screener.stocks" />)
+  test('flag ON + DRAFT: renders nothing', () => {
+    const { container } = withAuth({ howToChecklistsEnabled: true }, <HowToChecklist surface="x.surface" registry={DRAFT} />)
     expect(container.innerHTML).toBe('')
   })
 
