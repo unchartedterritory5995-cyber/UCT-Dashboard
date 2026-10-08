@@ -25,11 +25,11 @@
   "x-uct-limits": { "maxOps": 12, "maxOutputs": 8, "maxAssumptions": 12, "maxQuestions": 3, "maxTextLength": 300, "maxLevels": 8 },
   "$defs": {
     "node": {
-      "description": "THE EXISTING CANONICAL AST NODE. Placeholder: the server substitutes definition_concierge.tool_schema()['input_schema']['$defs'] (the advertised emit_formula union: num, series, op, call, offset over the closed table). The engine accepts only canonical trees of those five node types and proves each by print/parse round trip.",
+      "description": "THE EXISTING CANONICAL AST NODE. Placeholder: the server substitutes definition_concierge.tool_schema()['input_schema']['$defs'] (the advertised emit_formula union: num, series, op, call, offset over the closed table) plus PHASE 5's three scope wrappers (sym, tf, tf_live; bounds in crossContext.json). The engine accepts only canonical trees of those node types and proves each by print/parse round trip.",
       "x-uct-node-schema": "concierge.advertised",
       "type": "object",
       "required": ["type"],
-      "properties": { "type": { "enum": ["num", "series", "op", "call", "offset"] } }
+      "properties": { "type": { "enum": ["num", "series", "op", "call", "offset", "sym", "tf", "tf_live"] } }
     },
     "outputKey": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$", "maxLength": 40 },
     "slotId": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*#(root|(\\d+|n)(\\.(\\d+|n))*)$", "maxLength": 120 },
@@ -37,6 +37,8 @@
     "name": { "type": "string", "minLength": 1, "maxLength": 80 },
     "colour": { "type": "string", "pattern": "^(#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?|rgba?\\(\\s*\\d{1,3}\\s*,\\s*\\d{1,3}\\s*,\\s*\\d{1,3}\\s*(,\\s*(0|1|0?\\.\\d+)\\s*)?\\))$" },
     "barField": { "enum": ["open", "high", "low", "close", "volume"] },
+    "ticker": { "type": "string", "pattern": "^[A-Z]{1,5}(\\.[A-Z])?$" },
+    "scopeTimeframe": { "enum": ["W", "M"] },
     "assumption": {
       "type": "object", "additionalProperties": false, "required": ["text"],
       "properties": {
@@ -75,7 +77,8 @@
         { "$ref": "#/$defs/op_request_info_value" }, { "$ref": "#/$defs/op_request_alert" },
         { "$ref": "#/$defs/op_cancel_request" },
         { "$ref": "#/$defs/op_set_levels" }, { "$ref": "#/$defs/op_set_fill" },
-        { "$ref": "#/$defs/op_remove_fill" }
+        { "$ref": "#/$defs/op_remove_fill" },
+        { "$ref": "#/$defs/op_set_color_rule" }, { "$ref": "#/$defs/op_set_calculation_timeframe" }
       ]
     },
     "op_create": {
@@ -112,13 +115,16 @@
       "properties": { "op": { "const": "set_output_tree" }, "output": { "$ref": "#/$defs/outputKey" }, "tree": { "$ref": "#/$defs/node" } }
     },
     "op_set_slot": {
+      "description": "Set ONE parameter slot from the view: a number (value), a price field (series), PHASE 5 the symbol a sym node reads (symbol), or the period a tf / tf_live node reads (timeframe).",
       "type": "object", "additionalProperties": false, "required": ["op", "slot"],
       "properties": {
         "op": { "const": "set_slot" }, "slot": { "$ref": "#/$defs/slotId" },
         "value": { "type": "number", "minimum": 0 },
-        "series": { "$ref": "#/$defs/barField" }
+        "series": { "$ref": "#/$defs/barField" },
+        "symbol": { "$ref": "#/$defs/ticker" },
+        "timeframe": { "$ref": "#/$defs/scopeTimeframe" }
       },
-      "oneOf": [ { "required": ["value"] }, { "required": ["series"] } ]
+      "oneOf": [ { "required": ["value"] }, { "required": ["series"] }, { "required": ["symbol"] }, { "required": ["timeframe"] } ]
     },
     "op_add_clause": {
       "type": "object", "additionalProperties": false, "required": ["op", "output", "join", "tree"],
@@ -189,11 +195,15 @@
       }
     },
     "op_request_alert": {
-      "type": "object", "additionalProperties": false, "required": ["op", "output", "triggerPolicy"],
+      "description": "An alert on one output. A yes/no output: triggerPolicy. PHASE 5 — a NUMBER output: condition (above / below = the closed bar's value is above / below threshold; cross_above / cross_below = it crossed threshold since the bar before) with threshold. An unknown bar never fires and never re-arms.",
+      "type": "object", "additionalProperties": false, "required": ["op", "output"],
       "properties": {
         "op": { "const": "request_alert" }, "output": { "$ref": "#/$defs/outputKey" },
-        "triggerPolicy": { "enum": ["is_true", "becomes_true", "becomes_false"] }
-      }
+        "triggerPolicy": { "enum": ["is_true", "becomes_true", "becomes_false"] },
+        "condition": { "enum": ["above", "below", "cross_above", "cross_below"] },
+        "threshold": { "type": "number" }
+      },
+      "oneOf": [ { "required": ["triggerPolicy"] }, { "required": ["condition", "threshold"] } ]
     },
     "op_cancel_request": {
       "type": "object", "additionalProperties": false, "required": ["op", "kind", "output"],
@@ -211,18 +221,40 @@
       }
     },
     "op_set_fill": {
-      "description": "P3 — shade the area between two SERIES outputs (plots[output].fill.with). color / opacity are the band's own; omitted, the band is drawn in the output's colour at a low alpha.",
+      "description": "P3 — shade the area between two SERIES outputs (plots[output].fill.with). color / opacity are the band's own; omitted, the band is drawn in the output's colour at a low alpha. PHASE 5 — a CONDITIONAL cloud: colorAbove where `output` is above `with` and colorBelow where it is below (both together); with `when` (a yes/no output), colorAbove where it is true and colorBelow where false. An unknown bar is left unshaded.",
       "type": "object", "additionalProperties": false, "required": ["op", "output", "with"],
       "properties": {
         "op": { "const": "set_fill" }, "output": { "$ref": "#/$defs/outputKey" },
         "with": { "$ref": "#/$defs/outputKey" },
         "color": { "$ref": "#/$defs/colour" },
-        "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "colorAbove": { "$ref": "#/$defs/colour" },
+        "colorBelow": { "$ref": "#/$defs/colour" },
+        "when": { "$ref": "#/$defs/outputKey" }
       }
     },
     "op_remove_fill": {
       "type": "object", "additionalProperties": false, "required": ["op", "output"],
       "properties": { "op": { "const": "remove_fill" }, "output": { "$ref": "#/$defs/outputKey" } }
+    },
+    "op_set_color_rule": {
+      "description": "PHASE 5 — per-bar colour of ONE output's line or histogram. sign: up at or above zero, down below. rising: up when higher than the bar before, down otherwise. condition: up where the yes/no output `when` is true, down where false. none: back to one colour (up/down omitted). An unknown bar takes no rule colour.",
+      "type": "object", "additionalProperties": false, "required": ["op", "output", "rule"],
+      "properties": {
+        "op": { "const": "set_color_rule" }, "output": { "$ref": "#/$defs/outputKey" },
+        "rule": { "enum": ["sign", "rising", "condition", "none"] },
+        "up": { "$ref": "#/$defs/colour" },
+        "down": { "$ref": "#/$defs/colour" },
+        "when": { "$ref": "#/$defs/outputKey" }
+      }
+    },
+    "op_set_calculation_timeframe": {
+      "description": "PHASE 5 — run the WHOLE indicator on another timeframe than the chart's (its instance's calculation timeframe), applied when it is saved to the chart; a HIGHER timeframe only. chart = the chart's own timeframe.",
+      "type": "object", "additionalProperties": false, "required": ["op", "timeframe"],
+      "properties": {
+        "op": { "const": "set_calculation_timeframe" },
+        "timeframe": { "enum": ["chart", "5", "15", "30", "60", "D", "W", "M"] }
+      }
     }
   }
 }

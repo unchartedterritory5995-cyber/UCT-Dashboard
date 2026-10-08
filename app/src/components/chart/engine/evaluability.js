@@ -44,6 +44,7 @@ import {
   resolveOtherSymbols, resolveFormulaSymbols, symTickersOf, isPineOriginDoc,
 } from './otherSymbols'
 import { scalarsIn } from './ast/freshness'
+import CROSS from '../builder/authoring/crossContext.json'
 
 export const STATUS = Object.freeze({ SUPPORTED: 'supported', REFUSED: 'refused', DISCLOSED: 'disclosed' })
 
@@ -200,6 +201,20 @@ function alertTreeOf(compute, key) {
   return { tree: compute.ast }
 }
 
+const TICKER_RE = new RegExp(CROSS.tickerPattern)
+const AMBIGUOUS = new Set(CROSS.ambiguousBare)
+const storeKey = (t) => { const m = /^([A-Z]{1,5})\.([A-Z])$/.exec(t); return m ? `${m[1]}-${m[2]}` : t }
+
+/** ⭐ PHASE 5 — why the alert lane cannot supply these tickers, or null (it can).
+ *  Twin of `alert_user_series.cross_symbol_refusal`. */
+export function crossSymbolAlertCode(tickers) {
+  if (!tickers.length) return null
+  if (tickers.some((t) => !TICKER_RE.test(t))) return 'other-symbol:unservable'
+  if (tickers.some((t) => AMBIGUOUS.has(t))) return 'other-symbol:ambiguous'
+  if (new Set(tickers.map(storeKey)).size > CROSS.maxOtherSymbols) return 'other-symbol:fan-out'
+  return null
+}
+
 /** The alert lane's per-plot gates (`_make_value_fn`), in its order. */
 function alertPlotRefusal(compute, key) {
   const { tree, plotRefused } = alertTreeOf(compute, key)
@@ -207,7 +222,12 @@ function alertPlotRefusal(compute, key) {
   const scalars = isObj(tree) ? [...scalarsIn(tree)].sort() : []
   if (scalars.length) return { gate: 'scalar', codes: scalars }
   const codes = []
-  if (treeSymTickers(tree).length) codes.push('other-symbol:unsupplied')
+  // ⭐ PHASE 5 — THE ALERT LANE SUPPLIES ANOTHER SYMBOL now (`alert_user_series`
+  // loads it at evaluation, the scan's local loader): admitted when every ticker is
+  // a servable, unambiguous spelling and there are at most `maxOtherSymbols` of
+  // them. Same codes as the server's `cross_symbol_refusal`.
+  const crossCode = crossSymbolAlertCode(treeSymTickers(tree))
+  if (crossCode) codes.push(crossCode)
   if (treeReadsLtf(tree)) codes.push('lower-tf:unsupplied')
   if (codes.length) return { gate: 'withheld', codes }
   return null
@@ -223,8 +243,8 @@ const ALERT_SENTENCE = {
     + 'cannot tell which number to watch.',
   scalar: 'It reads a current-only screener value that has no bar history, so an alert on it would '
     + 'arm and never fire. It works as a screen.',
-  withheld: 'It reads a series the alert lane is never handed (another symbol, or a timeframe below '
-    + 'the chart), so an alert on it would arm and never fire.',
+  withheld: 'It reads a series the alert lane is never handed (a timeframe below the chart, or another '
+    + 'symbol it cannot load: an ambiguous spelling, or more than two), so an alert on it would arm and never fire.',
 }
 
 function alertAnswer(def, key, base) {

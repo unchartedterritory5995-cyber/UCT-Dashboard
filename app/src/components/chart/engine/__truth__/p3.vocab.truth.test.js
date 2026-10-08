@@ -291,19 +291,35 @@ describe('P3 vocab 3 — fill between two outputs', () => {
     bad(filled, [{ op: 'remove_output', output: 'slow' }], 'output:referenced', 1)
   })
 
-  it('3e ASKED to overwrite / remove an IMPORTED conditional band; DID: refused, the import is kept (REFUSAL)', () => {
+  // ⭐ PHASE 5 SUPERSEDES 3e: an imported TWO-COLOUR conditional band is first-class
+  // editable now (its colours, or the band itself); a PALETTE band is still the import's.
+  it('3e ASKED to recolour / replace / remove an IMPORTED two-colour band; DID: applied, its condition column kept; a PALETTE band is refused and kept (EXACT / REFUSAL)', () => {
     const d = deepFreeze(builderSave({ name: 'Imported band', rows: [
       builderRow('fast', 'ema(close, 10)', { fill: { with: 'slow', colorMode: 'column:up', colorUp: '#00ff00', colorDown: '#ff0000' } }),
       builderRow('slow', 'ema(close, 30)'),
       builderRow('up', 'ema(close, 10) > ema(close, 30)', { hidden: true }),
     ] }))
     expect(fidelityResidual(d, modelOf(d))).toEqual([])
+    expect(readback(d).lines).toEqual(expect.arrayContaining(['Look: area between Imported and slow shaded bright green where up is true, red where false']))
+    const recolour = applyPatch(d, env(0, [{ op: 'set_fill', output: 'fast', with: 'slow', when: 'up', colorAbove: '#089981', colorBelow: '#F23645' }]))
+    expect(recolour.ok, JSON.stringify(recolour.errors)).toBe(true)
+    expect(recolour.definition.plots.find((p) => p.key === 'fast').fill)
+      .toEqual({ with: 'slow', colorMode: 'column:up', colorUp: '#089981', colorDown: '#F23645' })
     for (const op of [{ op: 'set_fill', output: 'fast', with: 'slow' }, { op: 'remove_fill', output: 'fast' }]) {
       const r = applyPatch(d, env(0, [op]))
-      expect(r.errors[0].code).toBe('fill:foreign')
-      expect(r.definition).toBe(d)
+      expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+      expect(r.definition.plots.find((p) => p.key === 'up')).toBeTruthy() // the import's column is never dropped
     }
-    expect(readback(d).lines).toEqual(expect.arrayContaining(['Look: area between Imported and slow shaded (its colour follows an imported rule)']))
+    const palette = deepFreeze(builderSave({ name: 'Palette band', rows: [
+      builderRow('fast', 'ema(close, 10)', { fill: { with: 'slow', colorMode: 'column:up', colorPalette: ['#00ff00', '#ff0000'] } }),
+      builderRow('slow', 'ema(close, 30)'),
+      builderRow('up', 'ema(close, 10) > ema(close, 30)', { hidden: true }),
+    ] }))
+    for (const op of [{ op: 'set_fill', output: 'fast', with: 'slow' }, { op: 'remove_fill', output: 'fast' }]) {
+      const r = applyPatch(palette, env(0, [op]))
+      expect(r.errors[0].code).toBe('fill:foreign')
+      expect(r.definition).toBe(palette)
+    }
   })
 })
 

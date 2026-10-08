@@ -21,9 +21,11 @@ import { createPortal } from 'react-dom'
 import UIcon from '../../../ui/UIcon'
 import * as engineRegistry from '../../engine/nativeRegistry'
 import { presentationLines, vocabularyLines } from '../authoring'
+import { colorRuleWords, outputNamer } from '../authoring/readback'
+import { helpersOfDefinition, plotColorRule } from '../authoring/colorRules'
 import { converseTurn } from '../authoring/converseClient'
 import useIndicatorConversation, { typeWord } from './useIndicatorConversation'
-import { STUDIO_PREVIEW_DEF_ID, previewInstanceFor, previewInstanceLike } from './chartPreview'
+import { STUDIO_PREVIEW_DEF_ID, previewInstanceFor, previewInstanceLike, withCalcFrame } from './chartPreview'
 import { conversationEditability, CARRIED_NOTE } from '../authoring/memberWords'
 import styles from './CreateIndicatorPanel.module.css'
 
@@ -45,7 +47,11 @@ const POSITION_WORDS = Object.freeze({ aboveBar: 'above the candle', belowBar: '
 /** The presentation, from the working definition itself — never from prose. */
 function lookOf(def) {
   if (!def) return { plots: [], paints: [], placement: null }
-  const plots = (def.plots || []).filter((p) => p && p.style !== 'hlines').map((p) => {
+  // ⭐ PHASE 5 — a colour rule's / cloud's hidden column is described through its
+  // owner ("coloured green while it rises"), never as a line of its own.
+  const helpers = helpersOfDefinition(def)
+  const nameOf = outputNamer(def)
+  const plots = (def.plots || []).filter((p) => p && p.style !== 'hlines' && !helpers.has(p.key)).map((p) => {
     const color = resolveRef(def, p.color)
     if (p.hidden) return { key: p.key, text: `${p.label || p.key}: hidden`, color: null }
     if (p.style === 'markers' && p.marker) {
@@ -53,7 +59,7 @@ function lookOf(def) {
         text: `${SHAPE_WORDS[p.marker.shape] || p.marker.shape} ${POSITION_WORDS[p.marker.position] || ''}`.trim() }
     }
     const width = resolveRef(def, p.width)
-    return { key: p.key, color, text: `${STYLE_WORDS[p.style || 'line'] || p.style}${Number.isFinite(Number(width)) ? ` · width ${width}` : ''}` }
+    return { key: p.key, color, text: `${STYLE_WORDS[p.style || 'line'] || p.style}${Number.isFinite(Number(width)) ? ` · width ${width}` : ''}${colorRuleWords(plotColorRule(def, p, helpers), nameOf)}` }
   })
   // Paints keep the engine's own sentence (`presentationLines`), minus the plot
   // and placement lines rendered above.
@@ -150,6 +156,7 @@ export default function CreateIndicatorPanel({
   const blocked = !!(editability && !editability.editable)
   const conv = useIndicatorConversation({ sym, tf, converse, sessionKey, open })
   const { state, transcript, rb, busy, saving, previewDefinition } = conv
+  const previewCalcTf = (state && state.requests && state.requests.calculationTimeframe) || null
   const [message, setMessage] = useState('')
   // Floating geometry is measured only when there is no dock to live in.
   const rect = useDockRect(anchorRef, !dockHost)
@@ -187,13 +194,15 @@ export default function CreateIndicatorPanel({
     const { installed } = engineRegistry.installUserDefinitions([previewDefinition])
     if (installed.length === 1) {
       // ⭐ PHASE 4 — an edit previews IN PLACE of the saved drawing, shaped like it.
-      if (open) onPreviewRef.current?.(previewInstanceLike(settingsRef.current, open.defId, engineRegistry), { replaces: open.defId })
-      else onPreviewRef.current?.(previewInstanceFor(settingsRef.current, engineRegistry))
+      // ⭐ PHASE 5 — and on the calculation timeframe the conversation asked for, so the
+      // preview is computed exactly as Save will compute it.
+      if (open) onPreviewRef.current?.(withCalcFrame(previewInstanceLike(settingsRef.current, open.defId, engineRegistry), previewCalcTf), { replaces: open.defId })
+      else onPreviewRef.current?.(withCalcFrame(previewInstanceFor(settingsRef.current, engineRegistry), previewCalcTf))
     } else {
       engineRegistry.uninstallUserDefinition(STUDIO_PREVIEW_DEF_ID)
       onPreviewRef.current?.(null)
     }
-  }, [previewDefinition, open])
+  }, [previewDefinition, open, previewCalcTf])
 
   // ⛔ THE TEARDOWN IS NOT OPTIONAL — Cancel, ✕, Save, a symbol-less remount and
   // an unmount of the chart itself all end here: no registry entry, no instance.
@@ -445,7 +454,8 @@ export default function CreateIndicatorPanel({
               <div key={o.key} className={styles.formula} data-output={o.key}>
                 <span className={styles.typeTag}>{typeWord(o.type)}</span>
                 <span>{o.phrase || o.sentence || o.label}</span>
-                {o.status === 'refused' && <span className={styles.refused}> — {o.reason}</span>}
+                {/* ⭐ PHASE 5 — a pending refusal is another symbol's bars still loading */}
+                {o.status === 'refused' && !o.pending && <span className={styles.refused}> — {o.reason}</span>}
               </div>
             ))}
           </div>
@@ -460,6 +470,14 @@ export default function CreateIndicatorPanel({
             {look.paints.map((l) => <div key={l} className={styles.detail}>{l}</div>)}
             <div className={styles.detail}>{look.placement}</div>
           </div>
+          {/* ⭐ PHASE 5 — what it reads beyond this chart's own bars */}
+          {(rb.otherSymbols || rb.calculationTimeframe) && (
+            <div className={styles.section} data-testid="studio-data">
+              <span className={styles.sectionLabel}>Data</span>
+              {rb.otherSymbols && <div className={styles.detail}>{rb.otherSymbols}</div>}
+              {rb.calculationTimeframe && <div className={styles.detail}>{rb.calculationTimeframe}</div>}
+            </div>
+          )}
           {(rb.alerts.length > 0 || rb.infoValues.length > 0) && (
             <div className={styles.section}>
               <span className={styles.sectionLabel}>{rb.alerts.length ? 'Alert' : 'Header'}</span>

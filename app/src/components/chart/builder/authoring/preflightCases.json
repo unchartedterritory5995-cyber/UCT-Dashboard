@@ -1,5 +1,5 @@
 {
-  "description": "SLICE 2 - the pre-flight's pinned verdicts, asserted IDENTICALLY by tests/test_conversation_preflight.py and authoring/preflight.test.js. gate null = NOT intercepted (the model handles it). P3: a QUESTION (questionShape) is never intercepted -- other symbol included; possessive ('SPY's RSI') and adjacent ('SPY RSI') tickers are other-symbol authoring; 'CAN SLIM' is never ticker CAN. `shapes` pins the shared question detector (questionShape) verdicts in both languages.",
+  "description": "SLICE 2 - the pre-flight's pinned verdicts, asserted IDENTICALLY by tests/test_conversation_preflight.py and authoring/preflight.test.js. gate null = NOT intercepted (the model handles it). P3: a QUESTION (questionShape) is never intercepted -- other symbol included; possessive ('SPY's RSI') and adjacent ('SPY RSI') tickers are other-symbol authoring; 'CAN SLIM' is never ticker CAN. `shapes` pins the shared question detector (questionShape) verdicts in both languages. PHASE 5: another symbol is AUTHORABLE (sym) and is no longer intercepted -- except a spelling that also names an index/commodity (unsupported:symbol-ambiguous); a HIGHER timeframe (W/M inside a formula, or the whole indicator on a higher calculation timeframe) reaches the model; a LOWER timeframe than the chart's, or one off the calculation ladder, is still refused.",
   "cases": [
     {
       "message": "Can it compare AAPL with SPY?",
@@ -13,7 +13,8 @@
     {
       "message": "compare AAPL to SPY",
       "chart": null,
-      "gate": "unsupported:other-symbol"
+      "gate": null,
+      "p5": "authorable since Phase 5 -- reaches the model"
     },
     {
       "message": "use SPY",
@@ -21,7 +22,8 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-symbol"
+      "gate": null,
+      "p5": "authorable since Phase 5 -- reaches the model"
     },
     {
       "message": "use $SPY",
@@ -29,7 +31,8 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-symbol"
+      "gate": null,
+      "p5": "authorable since Phase 5 -- reaches the model"
     },
     {
       "message": "Plot the RSI of QQQ instead",
@@ -37,7 +40,8 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-symbol"
+      "gate": null,
+      "p5": "authorable since Phase 5 -- reaches the model"
     },
     {
       "message": "how does it do relative to SPY",
@@ -132,7 +136,8 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-timeframe"
+      "gate": "unsupported:other-timeframe",
+      "p5": "LOWER than the daily chart -- still refused"
     },
     {
       "message": "use weekly RSI while chart is daily",
@@ -140,7 +145,8 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-timeframe"
+      "gate": null,
+      "p5": "authorable since Phase 5 -- reaches the model"
     },
     {
       "message": "show the 15-minute close",
@@ -148,7 +154,8 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-timeframe"
+      "gate": "unsupported:other-timeframe",
+      "p5": "LOWER than the daily chart -- still refused"
     },
     {
       "message": "use the hourly chart",
@@ -156,7 +163,8 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-timeframe"
+      "gate": "unsupported:other-timeframe",
+      "p5": "LOWER than the daily chart -- still refused"
     },
     {
       "message": "switch to the 15 minute bars",
@@ -164,7 +172,8 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-timeframe"
+      "gate": "unsupported:other-timeframe",
+      "p5": "LOWER than the daily chart -- still refused"
     },
     {
       "message": "on the 5 minute timeframe",
@@ -383,8 +392,9 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-symbol",
-      "p3": true
+      "gate": null,
+      "p3": true,
+      "p5": "authorable since Phase 5 -- reaches the model"
     },
     {
       "message": "SPY RSI above 50",
@@ -392,8 +402,9 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-symbol",
-      "p3": true
+      "gate": null,
+      "p3": true,
+      "p5": "authorable since Phase 5 -- reaches the model"
     },
     {
       "message": "use QQQ's close",
@@ -401,8 +412,9 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-symbol",
-      "p3": true
+      "gate": null,
+      "p3": true,
+      "p5": "authorable since Phase 5 -- reaches the model"
     },
     {
       "message": "Add a condition: QQQ close above its 50 EMA",
@@ -410,8 +422,9 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-symbol",
-      "p3": true
+      "gate": null,
+      "p3": true,
+      "p5": "authorable since Phase 5 -- reaches the model"
     },
     {
       "message": "Can you use SPY's close instead?",
@@ -419,8 +432,9 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-symbol",
-      "p3": true
+      "gate": null,
+      "p3": true,
+      "p5": "authorable since Phase 5 -- reaches the model"
     },
     {
       "message": "Can you add RSI of QQQ?",
@@ -428,8 +442,9 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-symbol",
-      "p3": true
+      "gate": null,
+      "p3": true,
+      "p5": "authorable since Phase 5 -- reaches the model"
     },
     {
       "message": "use the weekly RSI. Is that ok?",
@@ -437,8 +452,9 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-timeframe",
-      "p3": true
+      "gate": null,
+      "p3": true,
+      "p5": "authorable since Phase 5 -- reaches the model"
     },
     {
       "message": "Only when AAPL's RSI is above 50",
@@ -524,8 +540,108 @@
         "sym": "AAPL",
         "tf": "D"
       },
-      "gate": "unsupported:other-symbol",
-      "p3": true
+      "gate": null,
+      "p3": true,
+      "p5": "authorable since Phase 5 -- reaches the model"
+    },
+    {
+      "message": "use VIX",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:symbol-ambiguous",
+      "p5": "an index/commodity spelling -- refused by name"
+    },
+    {
+      "message": "Only when TRIN's close is below 1",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": "unsupported:symbol-ambiguous",
+      "p5": "an index/commodity spelling -- refused by name"
+    },
+    {
+      "message": "Show the daily EMA 20 on this chart",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "5m"
+      },
+      "gate": null,
+      "p5": "a HIGHER timeframe than the 5-minute chart -- calculation timeframe, reaches the model"
+    },
+    {
+      "message": "use the hourly bars",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "5m"
+      },
+      "gate": null,
+      "p5": "60 minutes is higher than 5 -- reaches the model"
+    },
+    {
+      "message": "use the 1 minute bars",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "5m"
+      },
+      "gate": "unsupported:other-timeframe",
+      "p5": "LOWER than the chart -- refused"
+    },
+    {
+      "message": "use the 2 hour bars",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "5m"
+      },
+      "gate": "unsupported:other-timeframe",
+      "p5": "off the calculation ladder -- refused"
+    },
+    {
+      "message": "use weekly RSI",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "M"
+      },
+      "gate": "unsupported:other-timeframe",
+      "p5": "weekly is LOWER than a monthly chart -- refused"
+    },
+    {
+      "message": "Add SPY RSI above 50 and QQQ RSI above 50",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "D"
+      },
+      "gate": null,
+      "p5": "two other symbols -- reaches the model (the fan-out bound is the tree gate's)"
+    },
+    {
+      "message": "use the 1 minute bars",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "5"
+      },
+      "gate": "unsupported:other-timeframe",
+      "p5": "the app's bare-minute chart code ('5') -- LOWER, refused"
+    },
+    {
+      "message": "Show the daily EMA 20 on this chart",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "5"
+      },
+      "gate": null,
+      "p5": "the app's bare-minute chart code -- daily is HIGHER, reaches the model"
+    },
+    {
+      "message": "use the hourly bars",
+      "chart": {
+        "sym": "AAPL",
+        "tf": "60"
+      },
+      "gate": null,
+      "p5": "the app's bare-minute code for 1 hour -- the same timeframe, reaches the model"
     }
   ],
   "shapes": [
