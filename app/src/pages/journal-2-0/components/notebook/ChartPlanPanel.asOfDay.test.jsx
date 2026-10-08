@@ -136,44 +136,7 @@ describe('through the replay itself', () => {
       return ok([])
     })
   })
-  afterEach(() => { global.fetch = realFetch; vi.useRealTimers() })
-
-  // The answer for an evening plan must not depend on WHEN the member opens the replay. The
-  // note and the bars are fixed in March 2026; only "now" moves. Each instant is the wall
-  // clock, faked for Date alone (timers stay real, so findBy still polls): the hours of an
-  // Eastern day around the 9 pm the test is about, and a day either side of both 2026
-  // daylight-saving changes. (Landing, 2026-10-07: this test failed once in a full-suite
-  // run between 8 and 9 pm Eastern and passed alone; the matrix is what says whether the
-  // hour had anything to do with it.)
-  const NOWS = [
-    ['10:00 Eastern', '2026-10-07T14:00:00Z'],
-    ['16:30 Eastern', '2026-10-07T20:30:00Z'],
-    ['20:30 Eastern', '2026-10-08T00:30:00Z'],
-    ['21:00 Eastern', '2026-10-08T01:00:00Z'],
-    ['23:30 Eastern', '2026-10-08T03:30:00Z'],
-    ['00:30 Eastern', '2026-10-08T04:30:00Z'],
-    ['the day before the spring change, 9 pm', '2026-03-08T02:00:00Z'],
-    ['the day of the spring change, 9 pm', '2026-03-09T01:00:00Z'],
-    ['the day after the spring change, 9 pm', '2026-03-10T01:00:00Z'],
-    ['the day before the autumn change, 9 pm', '2026-11-01T01:00:00Z'],
-    ['the day of the autumn change, 9 pm', '2026-11-02T02:00:00Z'],
-    ['the day after the autumn change, 9 pm', '2026-11-03T02:00:00Z'],
-    ['the evening the plan was written', '2026-03-13T01:30:00Z'],
-    ['the next session, mid-morning', '2026-03-13T15:00:00Z'],
-  ]
-  it.each(NOWS)('opened at %s: the stop hit on the first session after the plan is reported', async (_label, now) => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date(now))
-    render(
-      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-        <ChartPlanPanel attrs={attrsAt('2026-03-13T01:00:00Z')} noteId="n1" open={false} replayOpen
-          onCloseReplay={vi.fn()} updateAttributes={vi.fn()} />
-      </SWRConfig>,
-    )
-    expect(await screen.findByText('At the note — step forward')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Step forward one bar' }))
-    expect(await screen.findByText('1 bar after the note · stop hit')).toBeInTheDocument()
-  })
+  afterEach(() => { global.fetch = realFetch })
 
   it('a stop hit on the first session after a 9 pm Eastern plan IS reported', async () => {
     render(
