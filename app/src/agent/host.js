@@ -160,6 +160,7 @@ export function buildLayoutSource(getLayouts) {
     saveAs: (name) => getLayouts()?.saveAs(name),
     refresh: () => getLayouts()?.refresh?.(),
     remove: (id) => getLayouts()?.remove(id),
+    create: (name) => getLayouts()?.create(name),
     duplicate: (id, name) => getLayouts()?.duplicate(id, name),
   }
 }
@@ -178,6 +179,7 @@ export function buildLayoutSource(getLayouts) {
  */
 export function buildWatchlistSource({ getLists, getWidgets, revalidate, request = (u, o) => fetch(u, { credentials: 'include', ...o }) }) {
   const fresh = new Map()       // id → { row, at }
+  const gone = new Set()        // ids this tab deleted (until the SWR refetch drops them)
   let swrAt = 0
   let lastRows = null
   const slimItems = (row) => (row?.items || []).filter(i => i && i.sym).map(i => ({ id: String(i.id), sym: String(i.sym).toUpperCase(), notes: i.notes || '' }))
@@ -187,6 +189,7 @@ export function buildWatchlistSource({ getLists, getWidgets, revalidate, request
     if (r !== lastRows) { lastRows = r; swrAt = Date.now() }
     const byId = new Map(r.filter(x => x && x.id && !x.is_flagged_list && !x.is_prebuilt).map(x => [String(x.id), x]))
     for (const [id, f] of fresh) if (f.at >= swrAt) byId.set(id, f.row)
+    for (const id of gone) byId.delete(id)
     return [...byId.values()]
   }
   function shownIn(id, widgets) {
@@ -230,6 +233,13 @@ export function buildWatchlistSource({ getLists, getWidgets, revalidate, request
       return row
     },
     rename: async (id, name) => json(await request(`/api/watchlists/${enc(id)}`, send('PUT', { name })), 'Renaming'),
+    /** Delete a whole list (the Watchlists page's DELETE; owner-only server-side, hard). */
+    async deleteList(id) {
+      await json(await request(`/api/watchlists/${enc(id)}`, { method: 'DELETE' }), 'Deleting the watchlist')
+      fresh.delete(String(id))
+      gone.add(String(id))
+      revalidate?.()
+    },
     /** Only to take back a list THIS transaction just created (compensation). */
     async deleteCreated(id) {
       await json(await request(`/api/watchlists/${enc(id)}`, { method: 'DELETE' }), 'Removing the new list')

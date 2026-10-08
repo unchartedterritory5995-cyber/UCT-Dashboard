@@ -26,8 +26,13 @@
 //   layout.duplicate        a copy of a STORED layout under a new name — create-only (the
 //                           dock's own duplicate is a name-keyed upsert). Proposed; no Undo.
 //
-// ⛔ Not here, deliberately: create-blank (the dock blanks the board BEFORE its
-// name-keyed save), deleting the open layout, and overwrite of any kind.
+//   layout.create           a NEW EMPTY layout, saved create-only BEFORE anything else
+//                           and without touching the board (the dock's own "New layout"
+//                           blanks the board first, then upserts by name). Proposed; read
+//                           back; it is NOT opened — switching is the ordinary layout.open.
+//                           Undo deletes it while it is still unopened and unchanged.
+//
+// ⛔ Not here, deliberately: deleting the open layout, and overwrite of any kind.
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { afterRender } from '../frames'
@@ -75,6 +80,7 @@ export const layoutsKind = {
     if (op.saveAs) return { saveAs: op.saveAs }
     if (op.rename) return { rename: op.rename }
     if (op.remove) return { remove: op.remove }
+    if (op.create) return { create: op.create }
     if (op.duplicate) return { duplicate: op.duplicate }
     return null
   },
@@ -115,6 +121,15 @@ export const layoutsKind = {
       await waitFor(() => !snap().entries.some(x => String(x.id) === String(e.id)), 5000)
       return true
     }
+    if (patch.create) {
+      try { await L.refresh() } catch { /* the server's create-only check still holds */ }
+      if (snap().entries.some(e => norm(e.name) === norm(patch.create.name))) {
+        throw new Error(`you already have a layout named ${quote(patch.create.name)}`)
+      }
+      const saved = await L.create(patch.create.name)      // create-only; throws on refusal
+      await waitFor(() => snap().entries.some(e => e.name === patch.create.name), 5000)
+      return { created: { [`#${patch.create.name}`]: saved?.id ?? snap().entries.find(e => e.name === patch.create.name)?.id } }
+    }
     if (patch.duplicate) {
       try { await L.refresh() } catch { /* the server's create-only check still holds */ }
       if (snap().entries.some(e => norm(e.name) === norm(patch.duplicate.name))) {
@@ -132,6 +147,7 @@ export const layoutsKind = {
     if (patch.rename) return snap.entries.find(e => e.id === patch.rename.id)?.name === patch.rename.to
     if (patch.saveAs) return snap.active?.name === patch.saveAs && snap.entries.some(e => e.name === patch.saveAs)
     if (patch.remove) return !snap.entries.some(e => String(e.id) === String(patch.remove.id))
+    if (patch.create) return snap.entries.some(e => e.name === patch.create.name)
     if (patch.duplicate) return snap.entries.some(e => e.name === patch.duplicate.name)
     return false
   },
@@ -142,6 +158,11 @@ export const layoutsKind = {
     const p = item.patch || {}
     if (p.open) return p.from && !p.discarded ? { open: p.from } : null
     if (p.rename) return { rename: { id: p.rename.id, from: p.rename.to, to: p.rename.from } }
+    // Undo a create = delete that new, empty, never-opened layout (the delete re-checks it).
+    if (p.create) {
+      const id = Object.values(item.created || {})[0]
+      return id != null ? { remove: { id, name: p.create.name } } : null
+    }
     return null
   },
   fingerprint: (snap) => JSON.stringify([snap.active?.id ?? null, snap.entries.map(e => [e.id, e.name])]),
@@ -149,6 +170,11 @@ export const layoutsKind = {
   // layout; a rename is stale once that layout is renamed again (or its old name taken).
   fingerprintFor(host, snap, item) {
     const p = item.patch || {}
+    if (p.create) {
+      const id = Object.values(item.created || {})[0]
+      const e = snap.entries.find(x => String(x.id) === String(id))
+      return JSON.stringify([e?.name ?? null, String(snap.active?.id) === String(id)])
+    }
     if (p.rename) {
       const e = snap.entries.find(x => x.id === p.rename.id)
       const oldTaken = snap.entries.some(x => x.id !== p.rename.id && norm(x.name) === norm(p.rename.from))
@@ -340,6 +366,29 @@ export function registerLayoutCapabilities() {
     },
     noop: (st, _a, { layout }) => `It is already called ${quote(entryOf(st, layout)?.name || '')}`,
     describe: (b, a) => (a.op?.rename ? `Renamed ${quote(a.op.rename.from)} to ${quote(a.op.rename.to)}` : null),
+  })
+
+  // ── layout.create ──
+  registerCapability({
+    name: 'layout.create',
+    target: 'layouts',
+    surfaces: ['charts'],
+    risk: 'confirm',
+    exclusive: true,
+    exclusiveReason: 'Create the layout on its own, then ask to open it or for other changes.',
+    summary: 'Create a NEW, EMPTY named layout (no widgets) for the member. The current board is not touched and the new layout is NOT opened.',
+    hints: 'target = the ref of the layouts entry; name = the exact name the member gave. To save the board AS IT IS NOW, use layout.saveAs instead. '
+      + 'If they also want to switch to it, create it now and say in the reply that they can then say "open <name>" (switching is a separate step).',
+    args: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'], additionalProperties: false },
+    fast: ({ raw }) => {
+      const m = /^(?:please )?(?:create|make|start)(?: me)? (?:a )?(?:new )?(?:blank |empty |fresh |clean )+(?:new )?layout (?:called |named )?(.+?)[.!]?$/i.exec(String(raw).trim())
+      if (!m) return null
+      const name = m[1].replace(/^[“"'‘]|[”"'’]$/g, '').trim()
+      return name ? { name } : null
+    },
+    check: (st, { name }) => oneAtATime(st) || nameProblem(st, name),
+    apply: (st, { name }) => ({ ...st, op: { create: { name: String(name).trim() } } }),
+    describe: (b, a) => (a.op?.create ? `Created a new empty layout ${quote(a.op.create.name)} — your current board is unchanged (say “open ${a.op.create.name}” to switch to it)` : null),
   })
 
   // ── layout.delete ──
