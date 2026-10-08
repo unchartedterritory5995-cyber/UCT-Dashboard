@@ -4,8 +4,7 @@
 //   • the live capability registry  — what UCT Agent can execute right now (a topic's `caps`
 //     count only if they are actually registered), and
 //   • the PRODUCT's own registries  — what UCT has but the Agent cannot operate yet (chart
-//     settings classified `known`, the widget catalog, the indicator registry size, the drawing
-//     tool schema), and
+//     settings classified `known`, the drawing tool schema), and
 //   • the roadmap (docs/agent/ROADMAP.md) — what is PLANNED, always worded as future.
 // It never executes anything and never calls the model. A roadmap item is never described as
 // working; a topic with no registered capability is never "available".
@@ -22,7 +21,6 @@
 import { allCapabilityNames } from './capabilities'
 import { CHART_SETTING_DESCRIPTORS } from '../components/chart/chartSettingsDescriptors'
 import { SCHEMA as DRAWING_SCHEMA, RETIRED_TYPES } from '../components/chart/drawingSettingsSchema'
-import { REGISTRY_SIZES } from '../components/chart/engine/registrySizes'
 
 const knownSettings = () => CHART_SETTING_DESCRIPTORS.filter(d => d.agent === 'known' && d.label).map(d => d.label)
 const drawingTools = () => Object.keys(DRAWING_SCHEMA).filter(t => !RETIRED_TYPES.has(t))
@@ -87,7 +85,7 @@ export const TOPICS = [
     id: 'indicators', title: 'Indicators',
     words: [/\bindicators?\b/, /\b(rsi|macd|bollinger|vwap|atr|stochastic|ema|sma|moving averages?|oscillators?|studies|study)\b/, /\bpanes?\b/],
     caps: [], productHas: true,
-    known: () => [`the indicator library (${REGISTRY_SIZES.total} built-in studies) — adding, removing, inputs, colours and pane placement are done in Indicators on the chart toolbar`],
+    known: () => ['the indicator library (Indicators on the chart toolbar): adding, removing, inputs, colours and pane placement'],
     planned: { when: 'Batch 7', what: 'adding and configuring indicators, together with the Indicator team (I only show/hide/remove the built-in Volume pane today)' },
   },
   {

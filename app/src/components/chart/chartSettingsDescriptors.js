@@ -24,8 +24,8 @@
 //   'internal'             — bookkeeping / no member control (never offered)
 // `id` ending in `.*` classifies a whole sub-object (free-form maps such as colour tables).
 
-import { CROSSHAIR_MODES } from './crosshairMode'
-import { LEGEND_MODES } from './legendMode'
+import { CROSSHAIR_MODES, crosshairModeOf } from './crosshairMode'
+import { LEGEND_MODES, legendModeOf } from './legendMode'
 
 export const CHART_SETTINGS_DESCRIPTOR_VERSION = 1
 
@@ -181,10 +181,12 @@ const getPath = (o, path) => path.split('.').reduce((v, k) => (v == null ? undef
 
 /** The setting's current value, as the chart resolves it (missing nested keys read as the UI's default). */
 export function settingValue(settings, d) {
+  // The two 3-way modes resolve through the product's own resolvers (legacy booleans are
+  // fallback INPUTS to them, never read here — legendSingleAuthority.test.js).
+  if (d.id === 'crosshair.mode') return crosshairModeOf(settings)
+  if (d.id === 'header.legendMode') return legendModeOf(settings)
   const v = getPath(settings, d.id)
   if (v !== undefined) return v
-  if (d.id === 'crosshair.mode') return settings?.crosshair?.enabled === false ? 'off' : 'always'
-  if (d.id === 'header.legendMode') return settings?.header?.showLegend === false ? 'off' : 'always'
   return d.type === 'bool' ? false : undefined
 }
 
