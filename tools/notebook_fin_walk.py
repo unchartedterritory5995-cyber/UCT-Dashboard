@@ -1029,6 +1029,10 @@ def set_env(fs: dict, config: str, data_dir: Path) -> None:
         # the launcher's own opt-in (scripts/hub_sandbox_boot.py ALLOW_MODEL_KEYS_ENV); every other
         # configuration leaves it unset, so the launcher blanks the keys as it always has
         os.environ["HUB_SANDBOX_ALLOW_MODEL_KEYS"] = "1"
+        # With the keys passed through, the app's own background profile writer
+        # (api/services/stock_brief/service.py `_enabled`, default ON) calls a model for ticker after
+        # ticker. It is not part of this walk: switched off by its own flag.
+        os.environ["STOCK_BRIEF_ENABLED"] = "0"
     os.environ.update({"NOTEBOOK_EARNINGS_PREP_SANDBOX_CALENDAR": str(data_dir / CAL_FILE),
                        "FMP_API_KEY": "", "FINNHUB_API_KEY": "", "ALPHAVANTAGE_API_KEY": "", "MASSIVE_API_KEY": ""})
 
