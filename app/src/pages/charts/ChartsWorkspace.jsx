@@ -3,6 +3,7 @@ import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import usePreferences, { parsePref, refreshPreferences } from '../../hooks/usePreferences'
+import { onWorkspaceConflict } from '../../lib/workspaceConflict'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
@@ -2357,8 +2358,15 @@ export default function ChartsWorkspace() {
   // active ref is ignored (just saves the working board).
   const handleSaveLayout = useCallback(async () => {
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
-    setPref('charts_workspace_layout', serializeLayout(layout))
-    setPref('charts_workspace_groups', JSON.stringify(groupSyms))
+    // ⛔ REVISION SAFETY: the named layout is written ONLY after the board itself was accepted.
+    // A board the server refused as stale (another tab or device changed it) must never be
+    // copied into the open layout's saved row — that is how a stale tab contaminated a layout.
+    const [boardOk, groupsOk] = await Promise.all([
+      setPref('charts_workspace_layout', serializeLayout(layout)),
+      setPref('charts_workspace_groups', JSON.stringify(groupSyms)),
+    ])
+    // `false` is setPref's "refused / not saved"; anything else (a confirmed write) goes on.
+    if (boardOk === false || groupsOk === false) return
     const active = parsePref(prefs?.charts_active_template, null)
     if (active?.id != null && (active.scope !== 'global' || isAdmin)) {
       const list = active.scope === 'global' ? globalLayouts : myLayouts
@@ -2514,12 +2522,21 @@ export default function ChartsWorkspace() {
   const [workspaceNotice, setWorkspaceNotice] = useState(null)  // { text } | null
   const [layoutHeldDismissed, setLayoutHeldDismissed] = useState(false)
   const noticeTimerRef = useRef(null)
-  const showWorkspaceNotice = useCallback((text) => {
+  const showWorkspaceNotice = useCallback((text, { persistent = false, action = null } = {}) => {
     if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current)
-    setWorkspaceNotice({ text })
-    noticeTimerRef.current = setTimeout(() => setWorkspaceNotice(null), 12000)
+    setWorkspaceNotice({ text, action })
+    if (!persistent) noticeTimerRef.current = setTimeout(() => setWorkspaceNotice(null), 12000)
   }, [])
   workspaceNoticeRef.current = showWorkspaceNotice
+  // ⛔ REVISION SAFETY: a save refused because the workspace changed in another window or
+  // device. Nothing here was saved (the server refused it whole), what is on screen is KEPT, and
+  // nothing reloads by itself — the member decides. It stays up until dismissed.
+  useEffect(() => onWorkspaceConflict(({ code }) => {
+    const text = code === 'workspace_revision_required'
+      ? 'This page is out of date, so your latest workspace changes here have not been saved. Reload to get the current version (reloading discards the unsaved changes in this tab).'
+      : 'Your workspace was changed in another window or device, so your latest changes here have not been saved. Reload to see the current workspace (reloading discards the unsaved changes in this tab).'
+    showWorkspaceNotice(text, { persistent: true, action: { label: 'Reload', run: () => window.location.reload() } })
+  }), [showWorkspaceNotice])
   useEffect(() => () => { if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current) }, [])
   const openVersionHistory = useCallback(() => {
     closeToolbarMenus()
@@ -2816,6 +2833,11 @@ export default function ChartsWorkspace() {
         <div className={vhStyles.notice} data-testid="workspace-notice">
           <UIcon name="info" size={16} gold={false} />
           <span className={vhStyles.noticeText}>{workspaceNotice.text}</span>
+          {workspaceNotice.action && (
+            <button type="button" className={vhStyles.noticeDismiss} data-testid="workspace-notice-action" onClick={workspaceNotice.action.run}>
+              {workspaceNotice.action.label}
+            </button>
+          )}
           <button type="button" className={vhStyles.noticeDismiss} aria-label="Dismiss" onClick={() => setWorkspaceNotice(null)}>
             <UIcon name="x" size={14} gold={false} />
           </button>
