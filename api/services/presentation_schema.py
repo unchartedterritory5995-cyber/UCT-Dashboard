@@ -261,6 +261,55 @@ def _check_paints(paints: Any, columns: set, out: list) -> None:
                  f"{path}.colorPacked.transparency: expected a whole number 0-100", fp)
 
 
+#: ⛔ THE ONE COLOUR GRAMMAR A DRAWING-OBJECT PROGRAM MAY CARRY -- byte-equal to
+#: ``app/src/components/chart/engine/objectColour.js::OBJECT_COLOUR_LITERAL`` (a test
+#: holds them equal and both lanes answer ``tests/fixtures/ast/object_colour_cases.json``).
+#: A stored ``objects`` program's colour literals reach the table renderer's CSS, so a
+#: hand-crafted (and SHARED) definition could otherwise put ``url(...)`` into a
+#: recipient's page. Found in the 2026-10-08 trust review.
+OBJECT_COLOUR_LITERAL = re.compile(
+    r"^(?:#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})"
+    r"|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(?:,\s*(?:0|1|0?\.\d+|1\.0+)\s*)?\)"
+    r"|chart\.(?:fg|bg)_color(?:@\d{1,3})?)$", re.IGNORECASE)
+
+
+def is_object_colour_literal(value: Any) -> bool:
+    return (isinstance(value, str) and len(value) <= 64
+            and OBJECT_COLOUR_LITERAL.match(value) is not None)
+
+
+def object_colour_errors(definition: Mapping[str, Any]) -> list:
+    """Every colour literal (``{"c": "lit", "hex": ...}``) in the definition's
+    ``objects`` program that is not a colour, as ``[{path, code, message}]``.
+    Iterative, bounded; never raises on a malformed document. ENFORCED on every
+    save INCLUDING a copy of a stored row (share install, fork): unlike the rest
+    of presentation, a copy is exactly how an unsafe program would reach a
+    second member."""
+    out: list = []
+    root = definition.get("objects") if isinstance(definition, Mapping) else None
+    if not isinstance(root, (Mapping, list)):
+        return out
+    stack = [(root, "objects")]
+    seen = 0
+    while stack and seen < 200_000:
+        node, path = stack.pop()
+        seen += 1
+        if isinstance(node, Mapping):
+            if (node.get("c") == "lit" and "hex" in node
+                    and not is_object_colour_literal(node.get("hex"))):
+                shown = json.dumps(node.get("hex"))[:48]
+                out.append({"path": f"{path}.hex", "code": "object-colour",
+                            "message": f"{path}.hex: {shown} is not a colour"})
+            for k, v in node.items():
+                if isinstance(v, (Mapping, list)):
+                    stack.append((v, f"{path}.{k}"))
+        elif isinstance(node, list):
+            for i, v in enumerate(node):
+                if isinstance(v, (Mapping, list)):
+                    stack.append((v, f"{path}[{i}]"))
+    return out
+
+
 def presentation_errors(definition: Mapping[str, Any]) -> list:
     """Every presentation error `defSchema` would raise for these fields, as
     ``[{path, code, message, fingerprint}]`` (empty when the presentation is

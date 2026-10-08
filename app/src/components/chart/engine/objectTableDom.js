@@ -40,6 +40,7 @@
 // renderers for one table is the second-authority-over-one-value defect this
 // repo keeps paying for, and here it would have been VISIBLE: two dashboards,
 // one under the other, a few pixels apart. `layoutTables` stays where it is.
+import { cssColourOrNone } from './objectColour.js'
 import { TEXT_SIZE_PX, TABLE_ANCHORS, TABLE_MARGIN } from './objectCanvas'
 import CLOSED_TABLE from './ast/closedTable.json'
 
@@ -103,6 +104,9 @@ export function rowCells(row) {
   return cells.slice(0, last + 1).map((c, col) => ({ col, cell: c, drawn: cellIsDrawn(c) }))
 }
 
+/** A positive, finite width in whole pixels (≤ 50), else 0 — never a string into CSS. */
+const px1 = (w) => (typeof w === 'number' && Number.isFinite(w) && w > 0 ? Math.min(50, Math.round(w)) : 0)
+
 const setStyle = (el, style) => {
   for (const k of Object.keys(style)) {
     const v = style[k]
@@ -148,9 +152,10 @@ export function buildTable(tb, doc) {
     // the one DOM affordance deliberately given up here; the comparison
     // instrument reads `textContent`, which needs no pointer.
     pointerEvents: 'none',
-    background: tb.bgcolor && tb.bgcolor !== 'transparent' ? tb.bgcolor : 'transparent',
-    ...(tb.frame_width > 0 && tb.frame_color
-      ? { border: `${tb.frame_width}px solid ${tb.frame_color}` }
+    // ⛔ ONLY A CSS COLOUR REACHES CSS (objectColour.js) — whatever the program says.
+    background: cssColourOrNone(tb.bgcolor) || 'transparent',
+    ...(px1(tb.frame_width) && cssColourOrNone(tb.frame_color)
+      ? { border: `${px1(tb.frame_width)}px solid ${tb.frame_color}` }
       : {}),
   })
 
@@ -193,7 +198,7 @@ export function buildTable(tb, doc) {
       setStyle(td, {
         padding: `${Math.round(CELL_PAD_PX / 2)}px ${CELL_PAD_PX}px`,
         fontSize: `${px}px`,
-        color: cell.text_color || '#D1D4DC',
+        color: cssColourOrNone(cell.text_color) || '#D1D4DC',
         // ⭐⭐ THE HEADER ROW'S BOLD. Pine's `text_formatting` is what tells a
         // dashboard's headings apart from its data, and without these two lines
         // the property could reach the render state and still change nothing —
@@ -216,9 +221,9 @@ export function buildTable(tb, doc) {
         whiteSpace: 'pre',
         ...(fmt.includes('bold') ? { fontWeight: 'bold' } : {}),
         ...(fmt.includes('italic') ? { fontStyle: 'italic' } : {}),
-        ...(cell.bgcolor ? { background: cell.bgcolor } : {}),
-        ...(tb.border_width > 0 && tb.border_color
-          ? { border: `${tb.border_width}px solid ${tb.border_color}` }
+        ...(cssColourOrNone(cell.bgcolor) ? { background: cell.bgcolor } : {}),
+        ...(px1(tb.border_width) && cssColourOrNone(tb.border_color)
+          ? { border: `${px1(tb.border_width)}px solid ${tb.border_color}` }
           : {}),
       })
       // ⛔ `textContent`, NEVER `innerHTML`. A cell's string comes from a

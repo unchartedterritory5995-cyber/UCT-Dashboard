@@ -1723,6 +1723,18 @@ def save(user_id: Any, def_id: str, definition: dict,
     from api.services import presentation_schema
     presentation_found = (presentation_schema.presentation_errors(definition)
                           if not _copy_of_stored else [])
+    # ⛔ A DRAWING PROGRAM'S COLOURS ARE COLOURS -- on EVERY save, a copy of a stored
+    # row included (share install, fork are how an unsafe program reaches a second
+    # member). No legacy carve-out: no UCT writer ever produced anything else.
+    unsafe_colours = presentation_schema.object_colour_errors(definition)
+    if unsafe_colours:
+        raise SaveRefused(
+            "presentation",
+            "a drawing colour that is not a colour: "
+            + "; ".join(e["message"] for e in unsafe_colours[:3])
+            + ". Nothing was saved.",
+            guard="presentation:object-colour",
+            errors=[{k: e[k] for k in ("path", "code", "message")} for e in unsafe_colours[:20]])
 
     # ⛔ THE BLOB IS `stored`, NEVER `definition`. `definition` is the
     # materialised working copy from here up; persisting it would write the
