@@ -56,9 +56,13 @@ def _make_frozen(path, gaps=ba.PIT_GAPS_RULED, body=("2026-09-01", "pct_above_50
 
 
 @pytest.fixture(autouse=True)
-def _fresh_memos():
+def _fresh_memos(monkeypatch):
     ba._DERIVED_MEMO.clear()
     ba._LEGACY_MEMO.update(at=0.0, data=None)
+    # The shipped fill pins real sessions; these synthetic artifacts opt in per test (_install_fill).
+    monkeypatch.setattr(ba, "FILL_SHA256", None)
+    ba._FILL.update(key=None, rows={}, error=None)
+    ba._RATIO_MEMO.clear()
     yield
 
 
@@ -726,3 +730,17 @@ def test_a_ratio_absent_by_rule_is_filled_from_the_completed_window(monkeypatch)
     out = ba.v2_rows(cal[-1])
     assert out["ratio_5day"][3] == 9.99
     assert ba.v2_rows(cal[6])["ratio_5day"] == (want, want, want, want, ba.RATIO_FILL_SOURCE)
+
+
+
+def test_the_shipped_fill_is_the_verified_runner_output():
+    """The in-repo fill is exactly the runner's verified output (report sha) and covers the ruled gaps."""
+    import importlib
+    real = importlib.reload(ba)
+    try:
+        rows = real._load_fill()
+        assert real._FILL["error"] is None
+        assert sorted(rows) == sorted(real.PIT_GAPS_RULED)
+        assert all(len(r) >= 33 for r in rows.values())
+    finally:
+        importlib.reload(ba)

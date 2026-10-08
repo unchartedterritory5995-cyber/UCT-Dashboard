@@ -398,7 +398,7 @@ def token() -> str:
 #: once on breadth-v2-runner by `uct_gap_fill_v1.py` (report: /data/_audit/v2cc/uct_gap_fill_v1/).
 FILL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "breadth",
                          "uct_gap_fill_v1.json")
-FILL_SHA256 = None
+FILL_SHA256 = "988513579b1d5dfb25d53ea12e7e94c16f9c2f288abb27cdeab937578fa34727"
 _FILL: dict = {"key": None, "rows": {}, "error": None}
 
 
