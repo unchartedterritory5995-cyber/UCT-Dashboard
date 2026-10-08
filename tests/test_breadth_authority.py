@@ -658,3 +658,71 @@ def test_ordinary_stock_history_headers_are_unchanged(monkeypatch):
     assert r.headers["Cache-Control"] == "public, max-age=31536000, immutable" and "ETag" not in r.headers
     r = br.serve_bars_history("AAPL", "D", 400, "", "")
     assert r.headers["Cache-Control"] == "public, max-age=3600, stale-while-revalidate=86400"
+
+
+# ── filled sessions (owner, 2026-10-08) ─────────────────────────────────────
+def _install_fill(tmp_path, monkeypatch, dates=ba.PIT_GAPS_RULED, sha=None):
+    rows = {d: {m: [_val(d, m) - 1, _val(d, m) + 2, _val(d, m) - 3, _val(d, m), "intraday_recon_1m"]
+                for m in M} for d in dates}
+    body = json.dumps({"version": "uct-gap-fill-v1", "rows": rows}, sort_keys=True).encode()
+    p = tmp_path / "fill.json"
+    p.write_bytes(body)
+    monkeypatch.setattr(ba, "FILL_PATH", str(p))
+    monkeypatch.setattr(ba, "FILL_SHA256", sha or hashlib.sha256(body).hexdigest())
+    ba._FILL.update(key=None, rows={}, error=None)
+    ba._RATIO_MEMO.clear()
+    return rows
+
+
+@pytest.mark.parametrize("d", ba.PIT_GAPS_RULED)
+def test_a_filled_session_is_canonical_and_served(v2, tmp_path, monkeypatch, d):
+    rows = _install_fill(tmp_path, monkeypatch)
+    assert ba.session_authority(d) == ba.V2_FILLED and ba.V2_FILLED in ba.CANONICAL
+    assert ba.v2_rows(d)["pct_above_50sma"][3] == rows[d]["pct_above_50sma"][3]
+    assert "filled" in ba.provenance(d)["reason"]
+
+
+def test_a_fill_with_the_wrong_bytes_is_never_served(v2, tmp_path, monkeypatch):
+    _install_fill(tmp_path, monkeypatch, sha="0" * 64)
+    assert ba.session_authority("2026-08-31") == ba.V2_GAP
+    assert ba.v2_rows("2026-08-31") == {}
+
+
+def test_no_fill_pin_is_byte_identical_to_before(v2, monkeypatch):
+    monkeypatch.setattr(ba, "FILL_SHA256", None)
+    assert ba.session_authority("2026-09-23") == ba.V2_GAP
+    assert ":fill-" not in ba.token()
+
+
+def test_mcclellan_and_ad_line_flow_through_a_filled_session(v2, tmp_path, monkeypatch):
+    before = ba._derived_uct()
+    assert before["2026-08-31"]["mcclellan_osc"] is None
+    _install_fill(tmp_path, monkeypatch)
+    ba._DERIVED_MEMO.clear()
+    after = ba._derived_uct()
+    assert after["2026-08-31"]["mcclellan_osc"] is not None
+    assert after["2026-09-01"]["adv_decline_cum"] != before["2026-09-01"]["adv_decline_cum"]
+
+
+def test_a_ratio_absent_by_rule_is_filled_from_the_completed_window(monkeypatch):
+    cal = [f"2026-04-{d:02d}" for d in range(1, 13)]
+    ups = {d: 10 + i for i, d in enumerate(cal)}
+    dns = {d: 20 for d in cal}
+    rows = {d: {"up_4pct_today": (0, 0, 0, ups[d], "s"), "down_4pct_today": (0, 0, 0, dns[d], "s")} for d in cal}
+    rows[cal[-1]]["ratio_5day"] = (9, 9, 9, 9.99, "s")                      # a stored ratio is never overwritten
+    gap = cal[4]
+    fill = {gap: rows.pop(gap)}
+    monkeypatch.setattr(ba, "FILL_SHA256", "x")
+    monkeypatch.setattr(ba, "_load_fill", lambda: fill)
+    monkeypatch.setattr(ba, "v2_dates", lambda: cal)
+    monkeypatch.setattr(ba, "_load_frozen", lambda: {"rows": rows})          # April is in the frozen period
+    monkeypatch.setattr(ba, "_load_live", lambda: {"rows": {}, "sessions": {}})
+    monkeypatch.setattr(ba, "token", lambda: "t")
+    ba._RATIO_MEMO.clear()
+    r = ba._filled_ratios()
+    want = round(sum(ups[d] for d in cal[2:7]) / sum(dns[d] for d in cal[2:7]), 2)
+    assert r[cal[6]]["ratio_5day"] == want
+    assert cal[3] not in r or "ratio_5day" not in r[cal[3]]               # fewer than 5 sessions
+    out = ba.v2_rows(cal[-1])
+    assert out["ratio_5day"][3] == 9.99
+    assert ba.v2_rows(cal[6])["ratio_5day"] == (want, want, want, want, ba.RATIO_FILL_SOURCE)

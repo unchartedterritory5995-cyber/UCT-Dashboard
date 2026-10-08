@@ -80,7 +80,11 @@ V2_LIVE = "v2_live"
 V2_GAP = "v2_gap"
 PROVISIONAL = "provisional_collector"
 V2_PENDING = "v2_pending"
-CANONICAL = (V2_FROZEN, V2_LIVE)
+#: ⭐ (owner, 2026-10-08) a PIT-rejected session that has since been FILLED: the accepted pinned pass over
+#: its own vintage, with membership carried from the previous accepted session (no hindsight). See
+#: `_load_fill`. Canonical in every reader — that is the point: no traded session is blank.
+V2_FILLED = "v2_filled"
+CANONICAL = (V2_FROZEN, V2_LIVE, V2_FILLED)
 #: A completed session may be shown provisionally only while it is one of the newest
 #: collector sessions after the latest canonical V2 session. Two, not one: session D-1 becomes
 #: canonical only after session D's collector row exists (the PIT hindsight gate needs it), so
@@ -383,7 +387,44 @@ def token() -> str:
     live = _load_live()
     base = "%s:%s:%s" % (FROZEN_SHA256[:12] if f else "nofrozen", len(live["sessions"]),
                          max(live["sessions"]) if live["sessions"] else "-")
+    if FILL_SHA256 and _load_fill():
+        base += ":fill-" + FILL_SHA256[:10]
     return ("v2:" if uct_v2 else "v1:") + base + (":us-v2" if us_v2 else "") + exch
+
+
+# ── filled sessions (PIT-rejected sessions computed with a carried membership) ──
+#: The fill set ships IN THE REPO (three sessions, ~35 metrics each) and is accepted only when its
+#: sha256 equals this pin — the same "never unverified bytes" rule as the frozen replica. Produced
+#: once on breadth-v2-runner by `uct_gap_fill_v1.py` (report: /data/_audit/v2cc/uct_gap_fill_v1/).
+FILL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "breadth",
+                         "uct_gap_fill_v1.json")
+FILL_SHA256 = None
+_FILL: dict = {"key": None, "rows": {}, "error": None}
+
+
+def _load_fill() -> dict:
+    """{date: {metric: (o, h, l, c, source)}} of verified filled `uct` sessions, else {}."""
+    if not FILL_SHA256:
+        return {}
+    try:
+        st = os.stat(FILL_PATH)
+    except OSError:
+        _FILL.update(key=None, rows={}, error="fill absent")
+        return {}
+    key = (st.st_ino, st.st_size, st.st_mtime_ns, FILL_SHA256)
+    if _FILL["key"] == key:
+        return _FILL["rows"]
+    rows, err = {}, None
+    try:
+        body = open(FILL_PATH, "rb").read()
+        if hashlib.sha256(body).hexdigest() != FILL_SHA256:
+            raise ValueError("fill sha256 mismatch")
+        doc = json.loads(body)
+        rows = {d: {m: tuple(v) for m, v in r.items()} for d, r in (doc.get("rows") or {}).items()}
+    except Exception as e:      # an unverifiable fill is no fill — never half-trusted
+        rows, err = {}, repr(e)
+    _FILL.update(key=key, rows=rows, error=err)
+    return rows
 
 
 def session_authority(date: str, collector_tail: tuple = ()) -> str:
@@ -392,11 +433,15 @@ def session_authority(date: str, collector_tail: tuple = ()) -> str:
         return V1_LEGACY
     if date <= FROZEN_END:
         f = _load_frozen() or {}
-        return V2_FROZEN if date in (f.get("rows") or {}) else V2_GAP
+        if date in (f.get("rows") or {}):
+            return V2_FROZEN
+        return V2_FILLED if date in _load_fill() else V2_GAP
     live = _load_live()
     s = live["sessions"].get(date)
     if s is not None:
-        return V2_LIVE if s["uct_present"] else V2_GAP
+        if s["uct_present"]:
+            return V2_LIVE
+        return V2_FILLED if date in _load_fill() else V2_GAP
     return PROVISIONAL if date in _provisional_dates(collector_tail, live) else V2_PENDING
 
 
@@ -408,10 +453,65 @@ def _provisional_dates(collector_tail, live) -> set:
 
 
 def v2_rows(date: str) -> dict:
-    """{metric: (o, h, l, c, source)} for a canonical V2 session, else {}."""
+    """{metric: (o, h, l, c, source)} for a canonical V2 session, else {}.
+
+    ⭐ (2026-10-08) A filled session reads its fill rows, and any session whose stored 5/10-day
+    ratio is absent "by rule" (its window crossed a then-blank session) gets the ratio computed
+    from the now-complete window — `_filled_ratios`, the producer's own formula."""
     if LEGACY_END < date <= FROZEN_END:
-        return dict(((_load_frozen() or {}).get("rows") or {}).get(date) or {})
-    return dict(_load_live()["rows"].get(date) or {})
+        out = dict(((_load_frozen() or {}).get("rows") or {}).get(date) or {})
+    else:
+        out = dict(_load_live()["rows"].get(date) or {})
+    if not out:
+        out = dict(_load_fill().get(date) or {})
+    if out and ("ratio_5day" not in out or "ratio_10day" not in out):
+        for m, v in (_filled_ratios().get(date) or {}).items():
+            out.setdefault(m, (v, v, v, v, RATIO_FILL_SOURCE))
+    return out
+
+
+#: Source tag of a serve-time ratio (a body: one close, no observed intraday range).
+RATIO_FILL_SOURCE = "derived_ratio_fill"
+_RATIO_MEMO: dict = {}
+
+
+def _filled_ratios() -> dict:
+    """{date: {ratio_5day|ratio_10day: value}} over the canonical `uct` calendar.
+
+    The producer's rule exactly (`breadth_wick_recon.ROLLING_RATIOS`): sum up_4pct_today / sum
+    down_4pct_today over the last N sessions INCLUDING the day, 2 dp; no value unless all N
+    sessions carry both counts, or when the down-sum is 0. Only used where a stored ratio is absent.
+    """
+    if not _load_fill():
+        return {}
+    key = token()
+    hit = _RATIO_MEMO.get(key)
+    if hit is not None:
+        return hit
+    cal = [d for d in v2_dates() if d >= V2_START]
+    counts = []
+    for d in cal:
+        if LEGACY_END < d <= FROZEN_END:
+            r = ((_load_frozen() or {}).get("rows") or {}).get(d) or _load_fill().get(d) or {}
+        else:
+            r = _load_live()["rows"].get(d) or _load_fill().get(d) or {}
+        up, dn = r.get("up_4pct_today"), r.get("down_4pct_today")
+        counts.append((up[3] if up else None, dn[3] if dn else None))
+    out: dict = {}
+    for i, d in enumerate(cal):
+        for m, n in (("ratio_5day", 5), ("ratio_10day", 10)):
+            if i + 1 < n:
+                continue
+            win = counts[i + 1 - n:i + 1]
+            if any(u is None or x is None for u, x in win):
+                continue
+            sd = sum(float(x) for _, x in win)
+            if sd > 0:
+                out.setdefault(d, {})[m] = round(sum(float(u) for u, _ in win) / sd, 2)
+    if len(_RATIO_MEMO) > 8:
+        _RATIO_MEMO.clear()
+    _RATIO_MEMO[key] = out
+    return out
 
 
 def v2_dates() -> list:
@@ -430,6 +530,10 @@ def provenance(date: str, collector_tail: tuple = ()) -> dict:
         s = _load_live()["sessions"][date]
         p.update(pub_id=s["pub_id"], publication_sha256=s["sha256"], validated_at=s["validated_at"],
                  methodology=s["provenance"].get("methodology"))
+    elif cls == V2_FILLED:
+        p.update(fill_sha256=FILL_SHA256, methodology="rth-1m-composites-v2c2-div (pinned pass)",
+                 reason="PIT-rejected session filled with the previous accepted session's membership "
+                        "(carried, no hindsight) — owner decision 2026-10-08")
     elif cls == V2_GAP:
         p["reason"] = "PIT-rejected session: no canonical V2 value (owner ruling 2026-09-29)"
     elif cls == PROVISIONAL:
