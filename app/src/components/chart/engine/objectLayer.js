@@ -25,6 +25,7 @@
 import { paintObjects, layoutTables } from './objectCanvas'
 import { renderTables, fitFactor, applyFit, TABLES_FIT } from './objectTableDom'
 import { setPaneScaled } from './paneFitNotice'
+import { registerTableLayer, restackTables } from './objectTableStack'
 
 const noop = () => {}
 
@@ -111,6 +112,11 @@ export function createObjectLayer(host) {
   // appear on top of a table; the drawings layer is `3`, so the dashboard is `4`.
   tableRoot.style.zIndex = '4'
   container.appendChild(tableRoot)
+  // ⭐ TABLES THAT SHARE A CORNER STACK (objectTableStack.js) — across every layer
+  // on this chart, grouped by the pane this layer's tables are anchored in.
+  let paneKey = ''
+  let lastPane = null
+  const unregisterTables = registerTableLayer(container, { root: tableRoot, paneKey: () => paneKey })
 
   let state = null
   let dead = false
@@ -150,6 +156,23 @@ export function createObjectLayer(host) {
       lastRightInset = wantRight
       tableRoot.style.right = `${wantRight}px`
     }
+    // ⭐ A TABLE STAYS IN ITS INDICATOR'S PANE. ⚰️ Measured on prod 2026-10-08: a
+    // calculator in its own pane put `bottom_left` at the bottom of the WHOLE
+    // chart, over two other panes' legends. The host reports the pane this
+    // instance draws in (`map.pane`: top / height in the container's px); the
+    // table layer is inset to it — the toolbar inset still applies at the top.
+    // No pane reported → the whole container, exactly as before.
+    const pane = map.pane && Number.isFinite(map.pane.top) && Number.isFinite(map.pane.height) && map.pane.height > 0
+      ? map.pane : null
+    const paneTop = pane ? Math.max(Math.round(pane.top), Math.round(Number(ins.top) || 0)) : null
+    const paneBottom = pane ? Math.max(0, Math.round(h - (pane.top + pane.height))) : null
+    const nextPane = pane ? `${paneTop}:${paneBottom}` : ''
+    if (nextPane !== lastPane) {
+      lastPane = nextPane
+      paneKey = nextPane
+      tableRoot.style.top = px(pane ? paneTop : ins.top)
+      tableRoot.style.bottom = px(pane ? paneBottom : ins.bottom)
+    }
     // ⭐⭐ R-R — FIT THE TABLES TO THE PLOT, PHONE TIER ONLY.
     //
     // ⛔ THE TIER IS THE BREAKPOINT, NOT THE PLOT WIDTH. A narrow WIDGET on a
@@ -184,6 +207,7 @@ export function createObjectLayer(host) {
         fit.scaled ? `${fit.factor.toFixed(3)}${fit.wrap ? ':wrap' : ''}` : 'none')
       setPaneScaled(String((host.instanceId) || '1'), !!fit.scaled)
     }
+    if (tables.length) restackTables(container)
     const ctx = canvas.getContext ? canvas.getContext('2d') : null
     if (!ctx) return
     if (ctx.setTransform) ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -236,6 +260,7 @@ export function createObjectLayer(host) {
       // A layer that stopped updating but left its last table there reads as
       // "the indicator is still on", the ghost-state defect `clear()` exists for.
       tableStats = renderTables(tableRoot, tables, doc)
+      restackTables(container)
       if (tableRoot.setAttribute) {
         tableRoot.setAttribute('data-uct-tables-drawn', JSON.stringify(tableStats))
       }
@@ -297,6 +322,8 @@ export function createObjectLayer(host) {
       try {
         if (tableRoot.parentNode) tableRoot.parentNode.removeChild(tableRoot)
       } catch { noop() }
+      // …and the tables that stacked below this layer's move back up.
+      unregisterTables()
     },
     /** exposed for tests and for a host that wants to position them itself */
     canvas,
