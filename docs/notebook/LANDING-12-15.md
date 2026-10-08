@@ -1,53 +1,119 @@
 # Notebook landing, waves 12 to 15
 
-> **DRAFT. Not final.** Written by the landing lane on 2026-10-06 after the fourth master merge.
-> The six-shard gate has NOT been run on this tree yet; other lanes are still adding fixes, and one
-> final gate runs after them. Every number below names the commit it was measured at.
+Final record, written by the landing lane on 2026-10-07.
 
-Branch `feat/notebook-w14-land`. Merge base with master: `0ae75faf37` (fourth merge, `d97b164dae`).
-Tip when this draft was written: `9c070a4b2d` (before this file was committed).
+- Branch: `feat/notebook-w14-land`.
+- Gated tree: `ef3fcccd19`. Commits after it change documents and evidence only.
+- Master merged in: `18676e3ece` (ninth master merge, `3571134832`).
+- Pull request: #281, opened by the controller.
+- Size against master: 4,609 files: 80 under `api/`, 607 under `app/src/`,
+  72 under `tests/`, 3,788 under `docs/` (committed evidence).
+- Not done by this lane: opening the pull request, merging, any deploy, any Railway variable.
+
+Sections 1 to 10 are true at the gated tree. The appendix is the working record of how the
+branch was built; each appendix section is true at the commit it names.
 
 ## 1. What lands
 
 | Wave | What it is | Reaches members on merge? |
 |---|---|---|
 | 12 | Community template gallery: publish a copy of one of your templates, browse, copy, report | No. `NOTEBOOK_TEMPLATE_GALLERY_ENABLED` |
-| 13 | Trading and research features: plan grading, My Playbook, earnings prep, resurfacing, entry context, review drafts, passed setups, transcript capture, thesis chips, chart plan, technical fingerprint, visual playbook, find similar, setups board | No. One flag each, section 3 |
+| 13 | Trading and research features: plan grading, My Playbook, earnings prep, resurfacing, entry context, review drafts, passed setups, transcript capture, thesis chips, chart plan, technical fingerprint, visual playbook, find similar, setups board | No. One switch each, section 3 |
 | 14 | Onboarding: get-started checklist, sample notebook, tours registry, tour offer, What's new, keyboard doors | No. Needs `NOTEBOOK_ONBOARDING_ENABLED` and `NOTEBOOK_GETTING_STARTED_ENABLED` both on |
-| 15 | Evidence: parity scorecard re-score, walks, gate records | Docs and tools only |
+| 15 | Evidence: parity scorecard re-score, walks, gate records | Documents and tools only |
+| Finish program | Fixes from the review lanes (security, data, frontend, accessibility, navigation, voice and request bodies, keyboard), their tests, and the rollback kit | Partly. Section 2 lists what is live |
 
-Size of the three-dot diff against master at `9c070a4b2d`: 2,221 files, of which 72 are under `api/`.
-Most of the file count is committed evidence under `docs/notebook/`.
+## 2. What is live on merge, with no switch touched
 
-## 2. What is LIVE on merge (no flag)
+Each item comes from the diff or from the lane record named beside it. The confirmation walk
+(section 6) covered most of them in a browser; this lane walked none itself.
 
-Each row was checked against the diff, not taken from a plan.
+**Defects that are live in production today, fixed by this merge**
 
-| Item | Where | What a member notices |
-|---|---|---|
-| Upload size caps answer 413 while the body is read | `api/services/request_body_cap.py` (new), used by `api/routers/journal_two.py`, `voice.py`, `notebook_voice_notes.py`, `notebook_personal_api.py`, `avatar.py`, `community.py`, `desk.py`, `indicator_vision.py` | An upload over the cap is refused with 413 and the same sentence as before, instead of being read whole first. The caps themselves did not change |
-| CSV mapped-import fix | `api/routers/journal_two.py` (`preview-mapped` now reads the `mapping` form field the import dialog sends) | The column mapping chosen in the import dialog is applied |
-| Playbook fixes | `api/services/journal_two/playbook_stats.py` (`untagged_count`, sample-size wording, drill rows) | Insights > Playbook numbers. NOT verified in a browser by this lane |
-| Lazy dialogs, Journal header | `JournalLayout.jsx`: Portfolio settings, New account, Generate report load on first open | A short pause the first time each dialog opens |
-| Lazy dialogs, Log Trade (added by this lane, `e72e9994a2`; kept by controller ruling) | `LogTradeButton.jsx`, `JournalLogFab.jsx`: Add position and Add trade load on first open | Same short pause on the first "Log open position" or "Log closed trade" |
-| AI actions box loads on demand (`c89c5a4c2d`) | `ResearchHome.jsx` | Only while `notebook_ai_actions_enabled` is on: the box appears once its code arrives |
-| Roving Tab stop chosen before paint (this lane, `647cb42bda`) | `app/src/hooks/useRovingTabIndex.js` | The Journal's top tab bar is never briefly out of the Tab order |
-| Three existing gates read through one parser | `note_semantic.py`, `note_tasks.py`, `document_extraction.py` now call `notebook_flags.flag_on` | Nothing. Same answer for every spelling (`tests/test_notebook_flags.py`) |
-| New tables created at boot | `journal_two/db.py::ensure_schema` creates the gallery tables and the wave-13 tables; the firm templates are seeded once | Nothing visible. Additive, idempotent |
-| Chart-plan line in note exports | `notes_export.py`, `notes_export_formats.py` | Only for a chart block whose drawings carry plan roles, which needs the dark chart-plan feature to create |
-| Schema node types | `journal_two/notebook_schema.py` and the client schema | New node types are accepted by the server. See rollback, section 4 |
-| **flow-worker restarts. MERGE OUTSIDE MARKET HOURS** | `api/flow_worker_deploy_marker.txt`, bump 11. It is the only file in the diff on flow-worker's watch list; fifteen `journal_two` files flow-worker reaches but does not watch ride along with it | The options tape drops for the length of the restart and Massive does not replay it |
-| Not this landing's, for the merge summary | `docs/api/member-api-whitelist.json`, `docs/api/skill.md` | Master added four member reads without regenerating these (`/api/agent/conversations`, `/api/agent/conversations/{conversation_id}`, `/api/flow/tape-span`, `/api/flow/ticker/{symbol}/day-counts`), and three `/api/marketcap/pit*` paths its generator does not produce. Master's to fix. This landing leaves the files as master has them plus its own entries, so `tests/test_skill_whitelist.py` stays red until then |
-| Schema layer imports no web framework (this lane, `1a7dd79ff8`) | `journal_two/public_note_payload.py` | Nothing. It unblocks the deploy gate |
+- "Read me the morning briefing" and the closing briefing played nothing in a voice session.
+  They play now (`fin-voice.md` section 1).
+- The Voice Telemetry tile in Settings showed no cost figures, because its request answered
+  500. It shows them now (`fin-voice.md` section 4).
+- Five screens scrolled sideways on a phone: the research workspace header, the closed trades
+  toolbar, the trade page header, the Help header, and the Why prompt's Edit control. They fit
+  now (`fin-a11y.md` section 5b).
+- A saved view's Delete did nothing on Research Home or beside an open note. The confirm was
+  drawn only inside the notes list. It opens everywhere now (`eeccbdf6a2`, `fin-fe2.md`).
+- A brand-new member's first page could answer an error: two first requests at once both
+  tried to create the default account, and one answered 500. One creates it and the other
+  reads it now (`cd3f62ef9f`, `fin-data.md`).
+- A Notebook Delete confirm could sit under the voice orb, which took the tap. The confirm
+  locks the page behind it now and is on top (`fin-fe2.md` P1).
+- Public share links and published pages kept unsafe formatting from the stored note: unknown
+  attributes, a font value that was not a font name, a link's stored class and title. They are
+  stripped now, on the server and in the editor (`fin-sec.md` rounds 2 and 3).
+- 93 Journal, Notebook and voice requests read their body before checking the sign-in, and
+  with no size limit. Each now passes its gates first (switch, sign-in, paid plan, rate limit)
+  and then reads a body with a size limit. What a client can see: a request with no session
+  is refused 401 where it used to answer 422, and a body over its limit is refused 413 where
+  it used to be accepted. Nothing else changed in 2,811 compared requests (section 5).
+- In the CSV import dialog the column mapping the member chose was not applied. It is now.
+- A click on a chart or image block in a note did not select the block. It does again,
+  except in Draw mode.
+- The basics tour could trap the Back button and replay on reload. It no longer does. A tour
+  that cannot start closes and says so. A tour's step counter counts the steps it shows.
 
-Open for the controller: this lane did not walk any of these in a browser.
+**Uploads and imports**
 
-## 3. New flags
+- An upload over its size limit is refused at once with a plain sentence, instead of being
+  read whole first. The limits did not change. During a note import the summary shows that
+  sentence instead of "Upload failed (HTTP 413)".
+- A large note import is sent in pieces by size as well as by count.
+- Unpublishing your own shared content needs a sign-in only, never a paid plan.
 
-All are read per request on `web` and ride the auth payload. All default OFF (unset means off).
-All are declared `dark` in `docs/feature_flags.json`.
+**Keyboard and screen reader**
 
-| Flag | Wave | Turns on |
+- After moving between Journal pages, keyboard focus lands on the new page and its name is
+  read once. The next Tab is the page's first control.
+- The note editor's formatting toolbar, and a chart block's toolbar, are each one Tab stop.
+  Arrow keys move inside them.
+- The pop-up menu shared across the app (`components/mobile/ContextPopover.jsx`) holds real
+  menu items with a menu's arrow keys. A pop-up that holds custom content is a named dialog.
+  This component is used outside the Notebook too, for example by the Terminal.
+- The command palette's "Search Notebook" opens search with the cursor in the box.
+- Screener: a "Skip to save results" link is the second Tab stop, so "Save these results to
+  Notebook" is a few presses away instead of hundreds.
+- The Journal's top tab bar is never briefly out of the Tab order.
+- New keys: Ctrl+Alt+B for bulk actions, Shift+Arrow to extend a selection in the notes list.
+  Skip links on the always-on Notebook pages.
+- Touch targets in the Notebook are at least 44 px wide as well as tall, with the three
+  exceptions in section 6.
+- The other accessibility changes on always-on surfaces are listed in `fin-a11y.md`.
+
+**Notebook and Journal pages**
+
+- Eight more built-in note templates, and a "Today" button on Research Home.
+- Picking the Trade Plan template creates its property definitions once. Existing rows are
+  unchanged.
+- On a chart block at 1024 px and under, the block toolbar is always shown and there is a
+  "Block actions" button (Move up, Move down, Remove).
+- Insights > Playbook numbers changed: the untagged count, the sample-size wording and the
+  drill rows.
+- Five dialogs load on first use (Portfolio settings, New account, Generate report, Add
+  position, Add trade). There is a short pause the first time each opens.
+- A chart block whose drawings carry plan roles gets a plan line in note exports. Creating
+  such drawings needs the dark chart-plan switch.
+
+**Nothing visible, but it happens at boot or on every request**
+
+- Thirteen new tables and two new columns are created at boot (additive, idempotent). The
+  firm's gallery templates are seeded once.
+- The server accepts the new note node types. See rollback, section 9.
+- Nineteen new Notebook member routes require a paid plan. All of them sit behind dark
+  switches, so no member reaches them yet.
+- Three existing switches are read through one parser. Same answer for every spelling.
+
+## 3. What stays dark
+
+All sixteen new switches are read per request on `web`, ride the sign-in payload, default OFF
+(unset means off) and are declared `dark` in `docs/feature_flags.json`.
+
+| Switch | Wave | Turns on |
 |---|---|---|
 | `NOTEBOOK_TEMPLATE_GALLERY_ENABLED` | 12 | Community template gallery |
 | `NOTEBOOK_PLAN_GRADING_ENABLED` | 13A | Plan versus execution grading |
@@ -66,28 +132,211 @@ All are declared `dark` in `docs/feature_flags.json`.
 | `NOTEBOOK_SETUPS_BOARD_ENABLED` | 13J | Active setups board |
 | `NOTEBOOK_GETTING_STARTED_ENABLED` | 14 | Get-started checklist. Wave 14 needs this AND the existing `NOTEBOOK_ONBOARDING_ENABLED` |
 
-Caps that are settings, not gates: `NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP`, `NOTEBOOK_GALLERY_REPORT_DAILY_CAP`,
-`NOTEBOOK_EARNINGS_PREP_DAILY_CAP`. Order of arming and which flags depend on which: `BETA-HANDOFF.md` section 1.
+Caps that are settings, not switches: `NOTEBOOK_GALLERY_PUBLISH_DAILY_CAP`,
+`NOTEBOOK_GALLERY_REPORT_DAILY_CAP`, `NOTEBOOK_EARNINGS_PREP_DAILY_CAP`.
+
+**Arming order, and which switch depends on which: `docs/notebook/BETA-HANDOFF.md`, section 1d
+(the overall order), with sections 1b and 1c for waves 13 and 14.**
 
 Three existing ledger entries changed their text only (`NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED`,
-`NOTEBOOK_SEMANTIC_SEARCH_ENABLED`, `NOTEBOOK_TASK_REMINDERS_ENABLED`); their live values are untouched.
+`NOTEBOOK_SEMANTIC_SEARCH_ENABLED`, `NOTEBOOK_TASK_REMINDERS_ENABLED`). Their live values are
+untouched.
 
-## 4. Rollback
+## 4. What restarts on merge
 
-1. **A dark feature misbehaves after it is armed.** Unset its flag on `web`. Verify a new boot and
-   read the value in the running process. No deploy.
-2. **A live-on-merge item misbehaves.** Revert the commit that carries it and push to master. Each
-   item this lane added is its own commit: `e72e9994a2` (Log Trade dialogs), `647cb42bda` (Tab stop),
-   `1a7dd79ff8` (import seam; reverting this one turns the deploy gate red again, so do not).
-3. **The whole landing.** Revert the merge commit on master with `-m 1`. Open tabs keep the old
-   bundle until they reload.
-4. **Do not revert the schema node types on their own.** A note saved with a new node type must stay
-   readable. Same rule as waves 5 and 6: `docs/notebook/wave5-rollback.md`.
-5. Three Notebook CI checks gate promotion (accessibility, latency, bytes). A revert pushed as a
-   rollback goes through them too.
+**Merge outside market hours.**
 
-Not covered here and reported by the review lane: `tools/notebook_rollback_chain.py` does not yet name
-waves 11 to 15.
+- `flow-worker` restarts. The landing bumps `api/flow_worker_deploy_marker.txt` (bump 11), a
+  file on flow-worker's watch list. It is bumped on purpose: fifteen
+  `api/services/journal_two/` files that flow-worker runs but does not watch ride along with it
+  (`python tools/flow_worker_watch_coverage.py`: OK, 15). While flow-worker restarts, the
+  options tape drops, and the vendor does not replay what was missed. That gap stays until the
+  next day's flat file.
+- `web` restarts, as on every merge. `/api/*` is unavailable for a minute or two.
+- The landing changes files under `api/`, so the services that watch `api/**` restart too
+  (`worker`, `bars-api`, per `docs/runbooks/deploy-windows.md`). This lane did not read the
+  Railway dashboard, which is the authority on watch paths.
+- Open browser tabs keep the old bundle until they reload.
+
+## 5. The gate, and the other checks
+
+**Front-end gate: none of the failures is caused by this landing.** Four six-shard runs. The
+one that counts is run 4, on `ef3fcccd19`: tree identical at both ends, 2,991 test files on disk
+and 2,991 run, **13 failed, 41,606 passed, 41,731 tests**. Twelve fail on master `18676e3ece`
+with the same message, run file by file in a separate worktree. One
+(`ScanObjectCard.test.jsx`, master's file) is load and passes alone. Manifest:
+`docs/notebook/gate-runs/landing-12-15/final/2026-10-07T20-47-06.md`. Classification, with all
+four runs: `final/classification.md`.
+
+- Run 1 found nine rows this landing did cause, in seven files, plus one hidden in a test
+  master already has red. All were fixed at the cause in `9a83a9df12` (appendix section 15).
+- The wrapper exits 1 on every run because the committed baseline is from 2026-09-24 and 124 of
+  its 126 rows no longer fail, so master's newer failures read as NEW. The baseline was not
+  rewritten.
+- One landing test failed once under load in run 3 (`ChartPlanPanel.asOfDay.test.jsx`). It is
+  not the hour: the replay gives the same answer at 14 faked instants. The matrix is filed as a
+  patch for the follow-up, not landed (`final/classification.md`).
+
+**Carry-over (controller ruling, 2026-10-07 21:55 CT).** The branch head has no difference from
+`ef3fcccd19` under `app`, `api`, `tests`, `tools` or `scripts`, so the tool answers CARRIES for
+it (C0 identical). Master moved again after the gate (to `30f564d4e6` when measured here, and
+further since); those commits share no file with this branch and a trial merge is clean. They
+are not merged and not gated: a gate takes 65 minutes and master moved about once an hour. The
+tool's import-graph check (C2) cannot be evaluated, because nothing in the repository produces
+the graph. That is recorded as an accepted risk, backed by the post-deploy smoke.
+
+**Python, on the final tree (`213850e1fa`), named files in 17 chunks, bundle moved aside.**
+
+| What | Result |
+|---|---|
+| 405 named files: every Notebook, Journal, voice, awareness and landing rail run in phases 1 to 10, the Journal's own test folder, `PY_RAIL_FLOOR`, and the carry-over tool's own list | **10,294 passed, 25 failed, 2 skipped** |
+| of the 25: `tests/test_gate_shards.py`, 10 tests | Fail only in company (another file in the chunk claims the module name `scripts`). The five floor files alone: 287 passed, 1 failed, 2 skipped, the same on master |
+| of the 25: the rollback rehearsal probe, 3 tests | Not a rail on this tree. It needs the rehearsal's own settings and is run by `rehearse.sh` on the reverted trees |
+| of the 25: the remaining 12 | Fail on master `18676e3ece` too: the same set, run there by name. Listed in section 7 |
+| Body order, census, router order, voice shapes, contract fixture rail, whitelist, with the bundle mounted | 123 passed |
+
+**Other checks at the gated tree.**
+
+| Check | Result |
+|---|---|
+| `npm run build` | exit 0 |
+| First-open bytes | `2,218,478 B across 57 JS chunks`, PASS (42,315 B under the 2,260,793 B budget) |
+| Flags-off parity, against the wave-13 landing `b06ec4fd85` | 28 identical, 12 differ only by a named expected difference, 0 differ. PASS. Five differences are named; four need their own switch on, and one is always on (the editor toolbar as one Tab stop) |
+| Request-body differential | `93 routes, 2811 requests: 2640 same, 171 intended, 0 REGRESSIONS` |
+| Contract fixtures | 182 match the server |
+| Deletion manifest, nav manifest, hub matrix, parity scorecard, hygiene | match, 0, 0, VERIFY: PASS, clean |
+| `grep -c broker_sync api/main.py` | 10 |
+| Rollback rehearsal (appendix sections 11, 12) | Reverting with the keep-list keeps plan data and leaves 0 rows behind on account deletion. A plain revert loses both |
+
+**CI on this branch, latest run of each workflow.** Notebook accessibility: success at
+`3ef91f83f9` (no Journal file changed since). notebook latency, with write protection: success
+at `b79e1c30cf` (no `journal_two` file changed since). flow-worker deploy coverage: success at
+`f3be943a97`. notebook bytes, notebook budgets, vite build args, wisdom rails, term018 guards:
+success at `ef3fcccd19`. The path-filtered workflows do not run on a push that does not touch
+their paths. The `master deploy gate` does not run on branches.
+
+## 6. The confirmation walk
+
+Record: `docs/notebook/fin-walk.md` (lane WALK, run on landing tip `af0b7ffeea`, merged here as
+`f320a28a3f`). **Verdict: no blocking product failure.** Three items are left for the follow-up
+pull request:
+
+- **F1.** The "Skip to folder navigation" link has no target. Two of the three skip links
+  work.
+- **F2.** Three touch controls are under 44 px: the "All" filter (38 by 44), one checkbox
+  (20 by 20), and the import wizard's destination row (37 px).
+- **F3.** Dragging a chart block with the mouse was not proven by the walk's synthetic
+  pointer. The frontend lane's own browser run recorded it working at 1280 px
+  (`fin-fe.md`, the selection walk).
+
+What the walk says it did not cover is in its sections 5 and 6, and in section 8 below.
+
+## 7. Reds this landing carries, by owning area
+
+Notebook-owned: **none**. Each row below fails on master too, with the same message.
+
+Front-end, from the gate (12):
+
+| Test | What it names | Owning area |
+|---|---|---|
+| `__tests__/entryExcludesChartEngine.test.js` (2 rows: entry chunk, Notebook surface) | `hooks/usePreferences.js` imports `components/chart/instanceShape.js`, which imports the chart engine | Charts and indicators |
+| `__tests__/sourcesAreText.test.js` | a control byte in `pages/terminal/L0Strip.test.jsx:105` | Terminal |
+| `chart/engine/__tests__/enumerationSites.test.js` | `pages/research/tabs/TechnicalTab.jsx` | Research, Technical tab |
+| `chart/engine/__tests__/suiteCoverage.test.js` | the unacknowledged test folder `components/chart/builder/authoring` | Indicator authoring |
+| `provenance/panelAdoption.ratchet.test.js` | `components/settings/StandingAlertsPanel.jsx` | Screener alerts |
+| `screener/reachable.test.js` | the `WAVE 2 IN FLIGHT` parking note, expired 2026-10-06 | Charts and indicator renderer |
+| `lib/context/symbolLinkChannels.test.js` | `testing/marketcap/marketCapHarness.jsx` | Market cap |
+| `lib/persistence/persistenceManifest.test.js` | `agent/capabilities/watchlist.js` | Terminal agent |
+| `lib/swallowedFetch.census.test.js` | `components/admin/AlertOpsPanel.jsx` | Alerts admin |
+| `hooks/pollingSites.rail.test.js` | `hooks/useTickerIpo.js` | Calendar, IPO data |
+| `utils/jsonFetcher.test.js` | a stale exemption for `pages/UCT20.jsx` | UCT 20 |
+
+Python (12):
+
+| Test | The file that has to change | Owning area |
+|---|---|---|
+| `test_feature_flag_ledger.py` | ledger rows for three `BREADTH_EXCH_*` flags | Breadth |
+| `test_notebook_flag_parse.py::test_every_flag_on_call_names_a_payload_flag` | `tools/runtime_pane_smoke.py` defines and calls its own `flag_on` | Pine and indicators |
+| `test_user_definitions_auth.py` | one refusal sentence shared by three Screener routers | Screener |
+| `test_shared_state_landmines.py` | import-time binds in four other workstreams' test files (appendix section 12) | Discord render; mobile audit; Terminal; wave 8 audit |
+| `test_auth_surface_reads.py`, `test_open_reads_gate.py`, `test_rate_limit_policy.py` (5) | routes master added without declaring them. No `/api/j2` route is named | Live trading room; Market cap; Terminal; Options; Pine |
+| `test_gate_shards.py::test_the_read_set_covers_every_root_relative_path_the_suite_reads` | seven paths missing from the gate's read set. Five are other workstreams'. Two are the Notebook AI actions files, which are on master already (PR #267) and are not part of this landing | Gate tooling; follow-up for the Notebook's two |
+
+No longer red: `test_skill_whitelist.py` (master regenerated its whitelist; the merged file
+holds master's 586 rows plus this branch's 28). Fixed here although it is red on master:
+`tests/test_notebook_bench_uct.py`, whose Ctrl+K needle went stale when master moved the palette's
+key listener (`66991f23ff`).
+
+## 8. Known limitations
+
+- **A dark write route can be told from a path that does not exist.** With a built bundle
+  mounted, the page catch-all (GET and HEAD only) answers an unknown POST, PUT, PATCH or DELETE
+  path with 405, where a dark route answers 404. The catch-all is master's and predates this
+  landing. Accepted by ruling, not fixed, and pinned by
+  `test_KNOWN_LIMITATION_with_a_bundle_mounted_an_unknown_write_path_is_405_and_a_dark_route_404`.
+- **The public share and publish pages have no content security policy.** The stored content
+  is stripped (section 2), but there is no browser-side policy behind that. `fin-sec.md`,
+  "Follow-up: a Content-Security-Policy for the public pages".
+- **Features that need a model key were not run** in the walk: writing help, Ask, AI actions,
+  meaning search, dictation and voice notes, the Compass quote in a review draft, and the
+  briefing read aloud. The briefing fix is covered by its unit tests only.
+- **No real device.** The walk used Chromium with a touch viewport, not Safari or a phone.
+- **No screen reader.** Announcements were not listened to. Roles, focus and names were read.
+- **Flags-off parity cannot see everything.** It captures markup in jsdom, with no stylesheet
+  and no width, and compares against the wave-13 landing (`b06ec4fd85`), not against master.
+  No case has a tour card, a confirm dialog or a chart block on screen. (The commit message of
+  `5e5d6c0b0c` says "against master"; that wording is wrong.)
+- **232 routes outside the Journal, Notebook and voice family still take a body with
+  no size limit.** They are other workstreams' and were not changed.
+- **The local gate is the only full front-end run this landing gets.** The master deploy gate
+  runs a handful of fast checks, not the suite.
+
+## 9. Rollback
+
+**The page to follow is `docs/notebook/landing-12-15-rollback.md`.** In short:
+
+1. **A dark feature misbehaves after it is armed.** Unset its switch on `web`. Verify a new boot
+   and read the value in the running process. No deploy.
+2. **The whole landing.** Revert the merge commit on master with `-m 1`, **keeping the files on
+   the keep-list** (`tools/notebook_rollback_chain.py`, `KEEP_WITH_LANDING`). A plain revert
+   loses plan data in notes saved after the landing; the rehearsal shows both outcomes
+   (appendix sections 11 and 12).
+3. **Never revert the note node types on their own.** A note saved with a new node type must
+   stay readable.
+4. The rollback leaves thirteen tables and two columns in place
+   (`j2_template_gallery.preview_json`, `j2_note_folders.import_source`). That is intended: they
+   are additive and the old code does not name them.
+5. Three Notebook checks gate promotion (accessibility, latency with write protection, bytes).
+   A revert pushed as a rollback goes through them too. If one is red for a reason that is not
+   the code, re-run the failed job and promote the commit by hand; the steps are in each
+   workflow's header.
+6. A rollback restarts `flow-worker` too: the revert changes the same `journal_two` files and
+   the marker. Land it outside market hours.
+
+## 10. Evidence index
+
+| What | Where |
+|---|---|
+| Final gate manifest, shard logs, classification | `docs/notebook/gate-runs/landing-12-15/final/` |
+| Earlier gate runs of this landing | `final/run1-5e5d6c0b0c/`, `final/run2-0ebbf27ef1/`, `docs/notebook/gate-runs/landing-12-15/round1/` |
+| Confirmation walk | `docs/notebook/fin-walk.md`, `docs/notebook/evidence/fin-walk/` |
+| Flags-off parity result | `docs/notebook/evidence/wave14-w14-c1/flagsoff-parity.txt` |
+| Request-body differential | `docs/notebook/evidence/fin-voice/differential/` |
+| Rollback page, rehearsal script and probe | `docs/notebook/landing-12-15-rollback.md`, `docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/landing/` |
+| Contract fixtures (182) | `python tools/notebook_contract_fixtures.py --check` |
+| Byte budget | `docs/notebook/perf-budgets.json`, `python tools/notebook_perf_budgets.py --dist app/dist` |
+| Lane records | `docs/notebook/fin-sec.md`, `fin-data.md`, `fin-data2.md`, `fin-fe.md`, `fin-fe2.md`, `fin-a11y.md`, `fin-nav.md`, `fin-voice.md`, `fin-tests.md`, `fin-clicks.md` (keyboard), `fin-walk.md` |
+| Arming order | `docs/notebook/BETA-HANDOFF.md` sections 1b, 1c, 1d |
+| Deletion manifest (generated) | `docs/account-deletion-manifest.md` |
+
+---
+
+# Appendix: how the branch was built, phase by phase
+
+This is the working record, kept as written. Each section is true at the commit it names, and
+a later section overrides an earlier one. Where a section says "section 1" to "section 4" it
+means the first four sections of the draft, which sections 1 to 9 above replace. Lines that say
+"still to come" were true when written; everything they name has since been merged.
 
 ## 5. Fourth master merge: conflicts and how each was resolved
 
@@ -576,3 +825,89 @@ Gates:
 
 Still to come before the final gate: `fin-fe2` round 2, `fin-keys`, the `fin-walk` tools.
 
+## 14. Phase 9 (2026-10-07): the keyboard lane and the walk tools, at `872890dc16`
+
+Where this section disagrees with an earlier one, this section is newer.
+
+| Merge commit | Branch and tip | Conflicts |
+|---|---|---|
+| `05cc742006` | `fin-keys` at `f4a444f15b` | One: `WidgetEmbedView.module.css`, the block toolbar at 1024 px and under. The frontend lane made it always shown; the keyboard lane made it one Tab stop. All three properties are kept (`display: inline-flex; opacity: 1; pointer-events: auto`) with the 44 px floors |
+| `2fd4be7327` | `fin-walk` at `f757b7266c` | None. 587 files, all under `tools/` and `docs/` (582 evidence, 4 tools, 1 document) |
+
+What the keyboard lane adds: where focus lands after a move between Journal pages; the note
+editor's toolbar and a chart block's toolbar as one Tab stop each; the shared pop-up menu
+holding real menu items; a skip link on Research Home to the reviews (needs
+`NOTEBOOK_REVIEW_DRAFTS_ENABLED`); the palette's "Search Notebook" opening search.
+
+Flags-off parity: the tool now names five expected differences. Three are the keyboard lane's:
+the Research Home skip link and its landing heading (both need the review-drafts switch), and
+the editor toolbar as one Tab stop, which is the one entry that is always on. Self-check 73 of
+73. Result: 28 identical, 12 differ only by a named expected difference, 0 differ. PASS.
+
+Gates: build exit 0; first-open bytes `2,215,777 B across 57 JS chunks`, PASS; hygiene clean.
+Frontend: 82 named files (every user of the shared pop-up, the keyboard tests, the layout, embed
+and chart-plan tests): 974 passed, 1 inherited failure. The accessibility, onboarding and
+command directories: 96 files, 1,030 passed, 1 skipped. Backend: the click tool's tests, the
+flag table form and the parity rail: 80 passed.
+
+CI on `872890dc16`: Notebook accessibility, notebook bytes, notebook budgets, vite build args,
+wisdom rails and term018 guards, all success.
+
+## 15. Phase 10 (2026-10-07): the last merges, the final gate, the fixes it forced
+
+| Merge commit | What | Conflicts |
+|---|---|---|
+| `2d1a21a086` | `fin-fe2` final at `91e9a87747` (round 2) | None. `NotebookTab.jsx` is on both sides; its merged change equals the lane's own |
+| `647bc284eb` | `origin/master` at `7409b339e5`, 50 commits (sixth master merge) | None. `StockChart.jsx`, `Watchlists.jsx`, `ScannerShell.module.css` merged automatically, each equal to master's own change |
+| `80021c2cac` | `origin/master` at `809f754574`, 12 commits (seventh) | None. `StockChart.jsx` merged automatically |
+
+`fin-fe2` round 2 brings `eeccbdf6a2`: a saved view's Delete did nothing on Research Home or
+beside an open note, because the confirm was drawn inside the notes-list branch only. That
+defect is live on master. It is on the live-on-merge list as a fixed live defect. The stale
+header comment in `ConfirmModal.jsx` no longer lists bulk Move to Trash, which has no confirm
+(`34a361834e`).
+
+**The first final-gate run, on `5e5d6c0b0c`, found real Notebook failures.** Manifest
+`docs/notebook/gate-runs/landing-12-15/final/run1-5e5d6c0b0c/2026-10-07T15-49-03.md`: tree
+identical at both ends, 2,986 files on disk and 2,986 run, 21 failed, 41,518 passed. 19 NEW
+against the 2026-09-24 baseline. Every failing file was then run alone on this tree and on
+master `7409b339e5` in a separate worktree (`notebook-w14-master-base`). Result: 9 rows are
+master's, 1 passes alone, and 9 rows in 7 files were caused by this branch, plus one more hidden
+inside a test master already has red. No lane had run these files, because lanes run named
+files and these rails live outside the Notebook's folders or scan the whole tree. All were
+fixed at their cause in `9a83a9df12`:
+
+| What was red | Cause | Fix |
+|---|---|---|
+| `lib/offline/baseline.test.js` | The "why" text's compare-and-set version was chosen with `??` in `WhyPrompt.jsx` (6) and `useEntryContext.js` (1). That is the shape the baseline authority forbids: an empty string survives as a version | All seven go through `usableBaseline`. A product change, in a dark feature |
+| `rawErrorSurface.test.js` | `ImportCsvModal.jsx` built the member's message from the caught error inside three catch blocks | The message is built outside the catch from the one vetted value, the server's size sentence. Same words on screen |
+| `lib/swallowedFetch.census.test.js` | `VisionAttachButton.jsx` and `importer/commit.js` read a refusal's sentence with `.catch(() => null)` | The app's usual try and catch form. Same behaviour |
+| `journalGrids.seedParity.test.jsx` (3 rows) | The keyboard lane's focus landing changed the trades table's markup | The snapshot was re-recorded once, by cause. The only difference is `<tbody>` to `<tbody tabindex="-1" data-route-landing="" aria-label="Trades">`. The test file records it |
+| `entryExcludesChartEngine.test.js`, Journal layout row | The Log Trade dialogs load on first open, so the layout no longer holds the embed core the test used as its anchor | The anchor is named per route, and a new test pins that the only path is the lazy dialog |
+| `terminal/TerminalShell.test.jsx` | A row of the shared pop-up menu is a menu item now; the Terminal's test asked for a button | The test asks for the menu item. Same row, same click |
+| `terminal/a11y/terminalReachableContrast.test.js` | The Screener skip link is invisible at rest on purpose (opacity 0), so the contrast rail read its text at 1.00 | The file's baseline entry is 4, was 3, with the reason |
+| `hooks/pollingSites.rail.test.js` (red on master too) | Thesis chips poll with a bare 60 second timer and had no row | A row with its reason. The rail stays red for master's own `useTickerIpo.js` |
+
+
+**After that, in order.**
+
+- Run 2 on `0ebbf27ef1` (after the seventh master merge, `80021c2cac`): 11 failed, all on master.
+- `66991f23ff`: the Notebook benchmark's Ctrl+K rail, red on master, fixed (test only).
+- Eighth master merge `25edb2a276` (`0e5afd9eb5`, 17 commits). Two conflicts, both sides kept:
+  the flow-worker marker file (this landing's bump 11 line and master's 2026-10-07 line), and
+  the skill doc's count line (614 rows: master's 586 plus this branch's 28). Master regenerated
+  its whitelist, so `test_skill_whitelist.py` is green again.
+- `f320a28a3f`: `fin-walk` at `2615dccc51`, the confirmation walk (369 files under `docs/`,
+  three walk tools).
+- The carry-over tool answered RE-GATE. Run 3 on `aa5f43f2ec`: 14 failed, 12 on master, 2 load.
+- Ninth master merge `3571134832` (`18676e3ece`, 2 commits, the Terminal nav entry). The tool
+  answered RE-GATE again (C2 cannot be evaluated). Run 4 on `ef3fcccd19`: 13 failed, 12 on
+  master, 1 load. This is the gate that counts.
+- The hour matrix for the chart-plan replay test: committed (`77a22bf7ee`), then reverted
+  (`e3d454870e`) so the gated tree stands, and filed as a patch.
+- Controller ruling, 2026-10-07 21:55 CT: stop re-gating, do not merge master again, carry the
+  gate on the evidence in section 5. Pull request #281 opened by the controller.
+
+Bytes after each step: 2,218,209 B (sixth merge and the fixes), 2,218,217 B (seventh),
+2,218,478 B (eighth and ninth). Parity PASS with the same fingerprints at every step
+(`A 7c3a6f9b386b41e9 | B e52c2ed7d44450c0`). Differential 0 regressions at every step.
