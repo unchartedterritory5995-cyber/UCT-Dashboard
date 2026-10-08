@@ -180,6 +180,26 @@ def breadth_live_diag(request: Request):
     return {k: p.get(k) for k in keys}
 
 
+@router.get("/api/breadth-monitor/live-universes")
+def breadth_live_universes_diag(request: Request, force: int = 0):
+    """US / NYSE / Nasdaq live breadth — the provisional + live rows, anchors and population
+    drift. PUSH_SECRET-gated; computes even while `BREADTH_LIVE_UNIVERSES` is not serving, so
+    the method can be inspected in production before any member sees it."""
+    _check_auth(request)
+    from api.services import breadth_live_universes as blu
+    p = blu.refresh(force=bool(force)) if (force or not blu.serving()) else blu.payload(cached_only=False)
+    return {"serving": blu.serving(), **(p or {})}
+
+
+@router.get("/api/breadth-monitor/live-universes/reconcile")
+def breadth_live_universes_reconcile(request: Request, sessions: int = 10):
+    """The proof: replay recent canonical sessions with the live method and grade every metric
+    against canonical. PUSH_SECRET-gated, read-only."""
+    _check_auth(request)
+    from api.services import breadth_live_universes as blu
+    return blu.reconcile(sessions=max(2, min(int(sessions), 40)))
+
+
 @router.post("/api/breadth-monitor/history/pull-now")
 def pull_breadth_ohlc_now(request: Request):
     """Force an immediate web-side pull + gap-fill merge of the latest breadth OHLC
