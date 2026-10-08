@@ -71,8 +71,7 @@ def market(monkeypatch):
         return closes[np.ix_(ix, cols)].copy(), vols[np.ix_(ix, cols)].copy()
     monkeypatch.setattr(bl, "_load_frame", frame)
     monkeypatch.setattr(bl, "_apply_dividend_basis", lambda t, d, c, m, o=None: c)
-    from api.services import breadth_pit_frame as pf
-    monkeypatch.setattr(pf, "reference_map", lambda force=False: ref)
+    monkeypatch.setattr(blu, "_active_reference", lambda: ref)
     blu._members_cache.clear()
     blu._state.clear()
     blu._payload.clear()
