@@ -623,10 +623,17 @@ def run(C, browser, admin, base, fs, data_dir, only) -> None:
         p3 = c3.new_page()
         mk(c3.request, i3, "Week notes", None, ["A line so Research Home shows its boxes."], "k2c_note")
         if not S.get("k2_two_made"):
-            mk_acc = c3.request.post(base + "/api/j2/accounts", data={"name": "Second account", "startingBalance": 50000, "color": "teal"})
-            S["k2_two_made"] = mk_acc.status == 200
+            # trades FIRST: a new member's "Default" account only becomes a stored account once it
+            # is used, and an account made before that replaces it instead of joining it
             S["k2_two_trades"] = S.get("k2_two_trades") or seed_trades(c3.request)[1]
-            S["k2_two_seeded"] = [mk_acc.status, (mk_acc.text() or "")[:200]] + S["k2_two_trades"]
+            made = []
+            for nm, col in (("Second account", "teal"), ("Third account", "amber")):
+                if len(c3.request.get(base + "/api/j2/accounts").json().get("accounts") or []) >= 2:
+                    break
+                mk_acc = c3.request.post(base + "/api/j2/accounts", data={"name": nm, "startingBalance": 50000, "color": col})
+                made.append([nm, mk_acc.status])
+            S["k2_two_made"] = True
+            S["k2_two_seeded"] = made + S["k2_two_trades"]
         accs = (c3.request.get(base + "/api/j2/accounts").json().get("accounts") or [])
         p3.goto(base + "/journal/notebook", wait_until="domcontentloaded")
         p3.wait_for_timeout(2500)
