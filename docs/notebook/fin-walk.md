@@ -201,3 +201,114 @@ AMZN draft door (that partial run had no sample).
 - Screen readers: announcements were not listened to; only roles, focus and the card scan.
 - Live vendors and the real scheduler: overnight jobs and the awareness scan were run by hand in
   a child process against the sandbox's data.
+
+## 7. Keyed walk: the AI features against real models (`213850e1fa`)
+
+The owner authorised two model keys for sandbox walks. This closes the "NOT RUN, NO KEY" rows
+above. Tool: `tools/notebook_fin_walk.py --config keyed` with `tools/notebook_fin_walk_keyed.py`,
+started through the key helper. Raw evidence: `evidence/fin-walk/keyed-213850e1fa/keyed/`
+(committed before this section). Tip: `origin/feat/notebook-w14-land` at `213850e1fa`, frontend
+rebuilt from it.
+
+- Snapshot rail: `SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN,
+  post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed`.
+- Boot output: `Model keys : OPT-IN -- passed through unchanged`, `Kill-list : 38 scheduler /
+  outbound flags`, email disabled (no Resend key). Voice notes and meaning search were on in the
+  sandbox only.
+- Keys: never read, printed or stored by the walk. The evidence was searched for `sk-`, `sk-ant-`,
+  `Authorization`, `Bearer` and vendor secrets: no hit. The voice session answer holds a
+  short-lived vendor secret, so only its key names were kept.
+- Only made-up notes, trades and synthesised speech went to the vendors. About 45 model calls in
+  the committed run, and about as many again while the walk was being written.
+- 44 steps: 37 PASS, 5 FAIL, 1 NOT RUN, 1 INFO. 0 page errors, 0 error boundaries, 0 sideways
+  scroll, no unexpected failed request.
+
+### 7.1 Invented facts
+
+**None found.** Every number and proper noun in every Ask answer was compared with the note or
+file text. At 1280 and 390, asked for a dividend yield and a chief financial officer the note does
+not hold, Ask answered "I couldn't find anything in your notebook about that" and named only what
+the note does cover. Autofill's three suggestions each quoted the words in the note they came from.
+
+One false statement that is not a number or a name is listed first below (K1).
+
+### 7.2 PRODUCT findings
+
+**K1. Ask the Notebook tells the member their notes are cut off. They are not.** (MODERATE)
+- Steps: two short notes about CRWD (4 and 3 sentences). Research Home, Ask, "What have I written
+  about CRWD: my planned entry, and what I did after the report?"
+- Answer, 1280: "The catalyst noted was the Falcon Flex [2] (the note cuts off before further
+  detail on the catalyst)" and "both appear truncated at the end, so I don't have the full
+  picture". The notes are whole. The passage handed to the model is shortened, the model reports
+  that as a defect in the note, and it leaves out what the note goes on to say (the renewal cycle;
+  the stop raised to breakeven). Seen in two runs. Ask this note (one note) did not do it.
+- The same sentence is carried into the note by the insert door.
+
+**K2. The one-click weekly review draft never shows the Compass quote.** (MODERATE)
+- Steps: one account, four closed trades this week, a Compass weekly review generated for the
+  week (HTTP 200). Research Home, click the weekly draft. The page asks
+  `GET /api/j2/review-drafts/weekly?weekStart=2026-10-05` with no account id. The answer has
+  `compassText: null` and `compassOmitted: null`, and the note has no Compass block.
+- The same request with `accountId=<the member's one account>` returns the quote. So the quote
+  exists only for a request the page does not make. Nothing tells the member why it is missing.
+- The 13F check itself passes on the request that does carry it: the quote (ends in an ellipsis)
+  is an exact substring of the stored Compass review.
+
+**K3. Ask answers show raw `**` marks.** (MINOR) The model writes Markdown bold. The Ask panel and
+the inserted block show the asterisks as text ("**Planned entry (breakout plan):**"). 1280, both
+Ask scopes.
+
+**K4. An AI action for a new tag is planned one time and refused the next.** (MINOR, model
+behaviour) `Tag my two CRWD notes with "crowdstrike".` gave two changes, three times. `Tag my two
+CRWD notes with "security".` at 390 gave "Review 0 proposed changes" with the reason "The tag
+"security" doesn't exist in the workspace's allowed tag list". Neither tag existed. The empty plan
+still shows an "Apply 0 changes" button.
+
+**K5. The spoken morning briefing cuts the weekly focus mid-word.** (MINOR)
+`POST /api/voice/exec` `play_my_morning_briefing` returned a script ending "...a month of
+unlabeled ones. Af Tap me when you're ready to dig in."
+
+**K6. Ask over a member's own Word file adds a line that the question is off topic.** (MINOR) The
+answer was right and cited the file, then added "this appears unrelated to markets or trading ...
+I'm the UCT research desk".
+
+**K7. Touch sizes on AI surfaces at 390.** (MINOR) The citation chip in an Ask answer is 32 x 44.
+The "Full transcript" fold in a voice note is 29 tall.
+
+Seen once in a development run that is not in the committed evidence: the same recording gave
+"No tickers were mentioned" beside a summary naming NVIDIA and Tesla. The committed run found
+both tickers at both widths.
+
+### 7.3 Table
+
+| # | feature | 1280 | 390 | note |
+|---|---|---|---|---|
+| 1 | Ask this note: answers from the note and cites | PASS | PASS | |
+| 1 | the citation lands on the right passage | PASS | PASS | the paragraph with the stop is selected and in view |
+| 1 | a question the note does not answer | PASS | PASS | says so; nothing invented |
+| 2 | Ask the Notebook: cites both notes | PASS | PASS | see K1, K3 |
+| 2 | insert into a note, provenance shown | PASS (the row reads FAIL: instrument) | door offered | the block is labelled "From Ask Notebook", dated, with its two citations; the walk also looked for the note titles inside the block |
+| 3 | Writing help: Summarize, accept, undo | PASS | PASS | "Written by claude-sonnet-5" in the panel; block "Compass, Summarize, model, time"; undo restores |
+| 3 | Rewrite shorter, discard | PASS | PASS | note unchanged |
+| 3 | Continue writing, accept, undo | PASS | not walked | |
+| 3 | Translate (Spanish), discard | PASS | not walked | |
+| 4 | Ask over a Word file | PASS | not walked | through our ask door as the member, not the preview sheet; cites `zebra-memo.docx, p.1` |
+| 4 | Ask over an image with text | NOT RUN | | no OCR engine on this machine (Tesseract is not installed); the image became a document with status `no_text`. Image text is read locally, not by a model. The walk's row reads FAIL: instrument |
+| 5 | AI actions: plan shown, a checkbox per change | PASS | FAIL-PRODUCT (K4) | |
+| 5 | nothing changes before approval; declining changes nothing | PASS | PASS | |
+| 5 | approving applies exactly what was ticked | PASS | not walked | one of two unticked; only the ticked note gained the tag |
+| 5 | undo reverses it | PASS | not walked | |
+| 5 | move to a folder, then undo | PASS | not walked | |
+| 6 | Property autofill | PASS | PASS | nothing written before Accept; only the accepted property changed |
+| 7 | Compass quote is an exact substring of the review | PASS | n/a | on the request that names the account |
+| 7 | the drafted weekly note shows the quote | FAIL-PRODUCT (K2) | n/a | two rows |
+| 8 | Dictation: speech comes back as the sentence | PASS | n/a | server door; offline synthesised speech |
+| 8 | the cleanup pass | PASS | n/a | "Nvidia" became "NVDA"; meaning kept |
+| 9 | Voice note: transcript, AI-labelled summary, tickers become a note | PASS | PASS | |
+| 10 | Meaning search | PASS | PASS | "rest and fatigue hurting judgement" shares no word with "Bedtime rule"; row says "Related by meaning"; plain search finds nothing. Sweep run by hand |
+| 11 | voice session door mints a session, offers the briefing tools | PASS | n/a | |
+| 11 | `POST /api/voice/exec` briefing tools | PASS | n/a | both answer with the tool's result (a script; no audio in the answer). See K5 |
+| 11 | a live realtime voice session | NOT RUN | | no microphone or speaker in a headless browser |
+
+Not exercised: the Compass notes tool inside a live voice or chat session; the document preview
+sheet's own Ask button; real devices; screen readers.
