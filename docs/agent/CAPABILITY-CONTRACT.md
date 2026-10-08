@@ -104,7 +104,18 @@ The server forwards both flags to the model as "no Undo" or "permanent -- no Und
 
 The server's prompt may name only the reviewed capabilities `widget.addCharts` and `screener.run` (`tests/test_uct_agent.py`).
 
-## 4. Scaling: relevance-routed manifests (designed; NOT active)
+## 4. Scaling: relevance-routed manifests (ACTIVE since Batch 5)
+
+**As built (`app/src/agent/routing.js`, `turn.validate_routing`):**
+- Groups by capability domain: charts, workspace, lists, screener, alerts, data, settings, agent (always on).
+- Selection is deterministic: the member's words, plus the groups of a pending proposal and of the last change. Nothing recognised → the full manifest while it fits the server limit; past the limit, the always-on groups with every other group named.
+- The browser sends `routing: {version, groups: [{id, title}], selected}`. The server adds `need_groups` (enum of the withheld ids) to the schema and names the withheld groups in the prompt. If the model sets it, the server returns a plan with NO ops.
+- The browser re-asks ONCE (`reroute: true`) with those groups added; the member message is not stored twice and the plumbing envelope is not stored. A second `need_groups` ends with an honest sentence. Nothing executes between the two calls.
+- Every op is still validated against the FULL registry in the browser; routing changes only what the model sees.
+- Telemetry: `path` = model | routed | reroute; `disposition` = need_groups. Kill switch: localStorage `uct.agent.routing = 0`.
+- Rails: every registered capability belongs to exactly one group; the benchmark messages' routed manifests stay under `routingThreshold` (55); the full manifest must still fit `maxCapabilities` (60).
+
+**Original design notes (Batch 4):**
 
 The flat manifest is **51 / 60** after Batch 4. `agentContracts.test.js` fails above the **routing threshold of 55**. That forces this design to be activated instead of the server cap being raised. The owner rejected raising the cap.
 

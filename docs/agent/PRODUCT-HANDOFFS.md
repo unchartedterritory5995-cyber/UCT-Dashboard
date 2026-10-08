@@ -6,7 +6,9 @@ Evidence labels:
 - **[V]** — verified by reading the code in this repository.
 - **[I]** — inferred, not reproduced.
 
-## 1. Dock "New layout" can overwrite an existing layout [V]
+## 1. Dock "New layout" can overwrite an existing layout [V] — ✅ FIXED in Batch 5 (`b2f7d16762`)
+
+- **Fix:** `pages/charts/dockCreate.js` creates the empty layout first, create-only (a clash → 409 → a notice; nothing changes), then blanks the board and opens the new layout in the same board commit. Regression: `dockCreate.test.js`; verified against the real server in Batch 5 acceptance.
 
 - **Where:** `app/src/pages/charts/ChartsWorkspace.jsx` `handleDockCreate` saves `{ name, layout: { widgets: [] … }, scope: 'user' }` **without `createOnly`**. The server (`api/routers/charts_layouts.py` `save_layout`) then **upserts by name** (`svc.upsert`).
 - **Risk:** in the Dock library, a member who types the name of one of their existing layouts under "＋ New layout" replaces that layout with an empty board, with no warning.
@@ -14,7 +16,9 @@ Evidence labels:
 - **Owner:** Charts workspace (Layout Dock).
 - **Smallest fix:** pass `createOnly: true` in `handleDockCreate` and surface the server's 409 ("You already have a layout with that name"), as the Agent path already does.
 
-## 2. Moving a widget into tabs loses its settings [V]
+## 2. Moving a widget into tabs loses its settings [V] — ✅ FIXED in Batch 5 (`b2f7d16762`)
+
+- **Fix:** `addWidgetTab` copies the caller's `opts`; regression tests pin both callers' shapes (`widgetTabs.test.js`).
 
 - **Where:** `app/src/pages/charts/widgetTabs.js` `addWidgetTab(widget, { type, color })` always builds the new tab with `opts: {}`. Two callers pass `opts`, and it is dropped:
   - **Float → "Move into another widget's tabs"** (`ChartsWorkspace.jsx` `handleFloatWidgetToTab`) loses the source widget's list and settings.

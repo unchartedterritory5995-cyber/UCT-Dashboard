@@ -38,15 +38,15 @@ UCT Agent is one product initiative. It is not one engine, and not one team.
    - the spend cap (`UCT_AGENT_DAILY_CAP`)
    - production configuration
 
-## Current coverage (after Batch 4)
+## Current coverage (after Batch 5)
 
 | Area | Agent today | Status |
 |---|---|---|
 | Chart symbol / timeframe / type / scale / session | `chart.setSymbol/.setTimeframe/.setType/.setScale/.setSession`. Session follows the UI's pre/post window rules. | available |
-| Chart appearance | `chart.applyTheme` (same result as the UI), `.setBackground`, `.setCandleColors`, `volume.setState`, and **`chart.setSetting`**: 23 approved display settings from the product descriptor table | partial |
-| Widgets | `widget.add`, `widget.addCharts`, into empty space only | partial |
-| Arranging widgets (move, resize, remove, link, tabs) | — | known product feature, not Agent-enabled |
-| Layouts | `layout.*` (8): list, open, save as, rename, create blank, duplicate, delete | available. Saving into the open layout is not supported. |
+| Chart appearance | `chart.applyTheme` (one chart) and **`chart.applyThemeAll`** (every chart — the gallery's "all charts"), `.setBackground`, `.setCandleColors`, `volume.setState`, and `chart.setSetting`: 23 approved display settings from the product descriptor table | partial |
+| Widgets | `widget.add`, `widget.addCharts` (into empty space); **`widget.showList`** (a Watchlist widget shows one of your lists), **`widget.showScan`** (a Scanner widget shows one of UCT's scans) | partial (other widgets' settings are not supported) |
+| Arranging widgets | **`widget.remove`** (exact Undo), **`widget.move`** (a drop: the others re-tile), **`widget.arrange`** (fill / grid / columns / rows), **`widget.setLink`** (A–D, N) | partial (tabs, float, pop-out, merge and link groups E–H are not supported) |
+| Layouts | `layout.*` (9): list, open, save as, **save into the open layout**, rename, create blank, duplicate, delete | available |
 | Watchlists | `watchlist.*` (8) | partial. Reorder, sort and notes are not supported. |
 | Screener | `screener.run` / `.state`: numeric and yes/no fields, one sort, refine | partial |
 | Saved screens | list, run, save as, copy (keeps rank and logic), rename, delete | partial. Overwrite is not supported. |
@@ -66,8 +66,8 @@ UCT Agent is one product initiative. It is not one engine, and not one team.
 | Batch | Outcome | Depends on | Status |
 |---|---|---|---|
 | 1–3 | Symbols → Charts; stabilization; revision safety; Alerts; app, stock and settings; news; layout create/delete/duplicate; watchlist clear/delete; saved screens | — | shipped (see log) |
-| **Batch 4: contract foundation + verification** | Four defect fixes: saved-screen spec, theme parity, session eligibility, honest Undo. Chart-settings descriptor table with a completeness rail. `chart.setSetting`. Manifest contract v1: golden file checked from JS and Python, `undo` metadata, a version number. Product lists imported instead of copied. Truthful capability questions. Relevance-routing design, not active. | — | this batch |
-| **Batch 5: workspace arrangement** | Remove a widget: confirmed first, and Undo restores its id, options and position. Move, resize and arrange through the pure placement helpers. Set link colour. Save into the open layout. Theme all charts. First non-chart widget settings: which list a watchlist widget shows, and which scan a scanner runs. | Bindings on the shared ChartsWorkspace host. Product fixes for the Dock "New layout" overwrite and the `addWidgetTab` options loss (`PRODUCT-HANDOFFS.md`). | next (recommended) |
+| **Batch 4: contract foundation + verification** | Four defect fixes: saved-screen spec, theme parity, session eligibility, honest Undo. Chart-settings descriptor table with a completeness rail. `chart.setSetting`. Manifest contract v1: golden file checked from JS and Python, `undo` metadata, a version number. Product lists imported instead of copied. Truthful capability questions. Relevance-routing design, not active. | — | **shipped** `c2d889a0fe` |
+| **Batch 5: capability routing + workspace arrangement** | **Gate A:** relevance-routed manifests (only the action groups a request needs; one bounded reroute). **Gate B:** product fixes for the Dock "New layout" overwrite and the `addWidgetTab` options loss. Then: remove a widget (Undo restores its id, options and position). Move, resize and arrange through the pure placement helpers. Set link colour. Save into the open layout. Theme all charts. First non-chart widget settings: which list a watchlist widget shows, and which scan a scanner runs. | Bindings on the shared ChartsWorkspace host. Product fixes for the Dock "New layout" overwrite and the `addWidgetTab` options loss (`PRODUCT-HANDOFFS.md`). | this batch |
 | **Batch 6: chart settings depth** | Promote more descriptor rows to eligible: colours, watermark detail, volume style. Chart templates (apply and save). Restore defaults (confirmed first). Go to a date or range: a view change with no Undo. Compare overlays via `chartApiById.setComparison`. Custom timeframes. Chart tabs. | Batch 4 descriptors; relevance routing once the manifest nears the threshold | planned |
 | **Batch 7: indicators** (joint with Indicator Intelligence) | An indicator target kind: add, remove, inputs, style, pane placement and order, catalog queries. Natural-language hand-off to Create Indicator. | An Indicator-owned instance write / read-back / Undo contract (`docs/indicators/INTEGRATION-READINESS.md`, gaps 1–7) | planned |
 | **Batch 8: drawings** | A drawing target kind for horizontal lines, trendlines, rectangles, Fibonacci retracements and extensions, vertical lines and text, all placed from explicit price and date anchors. Style, remove, list. Undo by drawing id. | The drawings owner exports point counts, `validateDrawing` and a display-time helper; a decision on server persistence (`TRACINGS_STORE_ENABLED`) | planned |
@@ -167,4 +167,5 @@ One conversation that coordinates workspace actions, historical queries, visual 
 | Batch 1 (`app.open`, `stock.*`, `settings.*`) | `3d8cb0cb55` | — |
 | Batch 2 (hidden-tab fix, server pref validation, news, layout delete/duplicate, digest) | `9c9807f472` / Railway `04447b00` | — |
 | Batch 3 (`layout.create`, watchlist clear/delete, saved screens) | `39c3ea6ca3` in `a947cbb542` / Railway `d9c5cbd7` | Benchmark: 15 of 25 cases ran. Rank/logic defect, fixed in Batch 4. |
-| Batch 4 (contract foundation + verification) | *(filled in at release)* | |
+| Batch 4 (contract foundation + verification) | `c2d889a0fe` / Railway `978069df` (2026-10-08) | Benchmark blocked by the daily cap (33 cases carried into Batch 5) |
+| Batch 5 (routing, Dock/tab fixes, arrangement, save-into-layout, widget config) | *(filled in at release)* | |
