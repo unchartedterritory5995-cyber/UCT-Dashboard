@@ -10,6 +10,11 @@
 // (the last screen). Nothing else can be referenced: no paths, no properties, no
 // expressions — the only projection is "the first `top` items of that result".
 //
+// A consumer may also EXPAND (capability.expand): once its input is a concrete
+// ticker list, it is replaced by the ordinary ops it stands for (widget.addCharts →
+// widget.add + chart.setSymbol per ticker), so building runs through the SAME
+// creators, placement, compensation and Undo as any request — never a second path.
+//
 // Before approval: references are validated and shown as pending ("the top 20
 // results"); nothing runs. At APPLY: producers run fresh, the actual symbols replace
 // the references, and the plan is re-planned and committed like any other — no model
@@ -39,7 +44,7 @@ export function consumedProducers(ops) {
 }
 
 /** A sentence if any reference is malformed or points at nothing it may use. */
-export function checkRefs(ops) {
+export function checkRefs(ops, host = null) {
   const seen = new Map()                                // alias → produced type, in plan order
   for (const op of ops || []) {
     const cap = getCapability(op?.action)
@@ -59,18 +64,18 @@ export function checkRefs(ops) {
   // A producer's own arguments are checked BEFORE anything is proposed (a screen
   // with an unknown field never reaches a proposal, let alone a write).
   for (const p of consumedProducers(ops)) {
-    const why = getCapability(p.action).validateProduce?.(p.args)
+    const why = getCapability(p.action).validateProduce?.(p.args, p.target, host)
     if (why) return why
   }
   return null
 }
 
 /** What will run, said before anything runs (for the proposal). */
-export function pendingLines(ops) {
+export function pendingLines(ops, host = null) {
   const lines = []
   for (const p of consumedProducers(ops)) {
     const cap = getCapability(p.action)
-    lines.push(cap.describeProduce ? cap.describeProduce(p.args) : `Run ${p.action}`)
+    lines.push(cap.describeProduce ? cap.describeProduce(p.args, p.target, host) : `Run ${p.action}`)
   }
   for (const r of refsOf(ops)) {
     const src = getOutputSource(r.ref.from)
@@ -86,7 +91,7 @@ export function pendingLines(ops) {
  * (their symbols came from UCT, not from model text).
  */
 export async function resolveRefs(ops, host) {
-  const bad = checkRefs(ops)
+  const bad = checkRefs(ops, host)
   if (bad) return { ok: false, reason: bad }
   const producers = consumedProducers(ops)
   const outputs = new Map()
@@ -94,7 +99,8 @@ export async function resolveRefs(ops, host) {
   for (const p of producers) {
     const cap = getCapability(p.action)
     let res
-    try { res = await cap.produce(p.args, host) } catch (e) { return { ok: false, reason: e?.message || 'the screen did not run' } }
+    // The producer's own TARGET (e.g. which saved watchlist) travels with it.
+    try { res = await cap.produce(p.args, host, p.target) } catch (e) { return { ok: false, reason: e?.message || 'that source could not be read' } }
     outputs.set(String(p.args.as), res)
     lines.push(res.summary)
   }
@@ -113,6 +119,7 @@ export async function resolveRefs(ops, host) {
     const cap = getCapability(op?.action)
     let args = op.args
     let trusted = false
+    const asked = {}                                    // arg → the `top` the member asked for
     for (const [arg] of Object.entries(cap?.inputs || {})) {
       const v = args?.[arg]
       if (!isRef(v)) continue
@@ -120,9 +127,37 @@ export async function resolveRefs(ops, host) {
       const picked = (res?.symbols || []).slice(0, v.top ?? MAX_TOP)
       if (!picked.length) empty = true
       args = { ...args, [arg]: picked }
+      asked[arg] = v.top
       trusted = true
     }
-    out.push(trusted ? { ...op, args, trusted: true } : op)
+    out.push(trusted ? { ...op, args, trusted: true, asked } : op)
   }
   return { ok: true, empty, ops: out, lines, outputs }
+}
+
+/**
+ * Replace every op whose capability can EXPAND (and whose inputs are concrete)
+ * with the ordinary ops it stands for. → { ok:false, reason } | { ok:true, ops, lines }
+ * `lines` are the expansions' own receipt lines (used only once the ops landed).
+ */
+export function expandOps(ops) {
+  const out = []
+  const lines = []
+  const proposal = []
+  let k = 0
+  for (const op of ops || []) {
+    const cap = getCapability(op?.action)
+    const pending = Object.keys(cap?.inputs || {}).some(a => isRef(op.args?.[a]))
+    if (!cap?.expand || pending) { out.push(op); continue }
+    k += 1
+    const r = cap.expand(op.args || {}, { key: k, asked: op.asked || {}, target: op.target })
+    if (r.error) return { ok: false, reason: r.error }
+    // `fromExpand` groups the ops one request stands for (the planner's op budget
+    // counts the REQUEST, not its expansion); `trusted` carries over (symbols that
+    // came from UCT's own Screener / saved list are not looked up again).
+    out.push(...r.ops.map(o => ({ ...o, fromExpand: k, ...(op.trusted ? { trusted: true } : {}) })))
+    if (r.line) lines.push(r.line)
+    if (r.proposal) proposal.push(r.proposal)
+  }
+  return { ok: true, ops: out, lines, proposal, expanded: k > 0 }
 }

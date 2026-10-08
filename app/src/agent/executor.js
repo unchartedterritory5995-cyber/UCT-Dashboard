@@ -27,7 +27,9 @@ export function planOps(targets, ops, env = {}, ctx = null) {
   if (!Array.isArray(ops) || ops.length === 0) {
     return { ok: false, refusals: [{ index: -1, reason: 'There was nothing to change.' }] }
   }
-  if (ops.length > MAX_OPS) {
+  // An expanded request (compose.expandOps, e.g. "chart these 8") counts once.
+  const units = new Set(ops.map((o, i) => (o?.fromExpand != null ? `x${o.fromExpand}` : `#${i}`))).size
+  if (units > MAX_OPS || ops.length > MAX_OPS * 4) {
     return { ok: false, refusals: [{ index: -1, reason: `That's more than ${MAX_OPS} changes at once — split it up.` }] }
   }
 

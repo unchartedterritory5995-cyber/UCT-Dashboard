@@ -38,6 +38,35 @@ export function scriptedTurn(body) {
     }
     return env('propose', ops, 'Screen, then fill the list with the results.')
   }
+  // Symbol sources → charts: screener.run|watchlist.show {as} → widget.addCharts {symbols:{from,top}}.
+  const ws0 = body.context?.workspace?.[0]?.ref
+  const tfOf = (t) => (/5-?min/i.test(t) ? '5' : /daily/i.test(t) ? 'D' : /weekly/i.test(t) ? 'W' : null)
+  const chartsOp = (from, top, text) => ({ action: 'widget.addCharts', target: ws0, args: { symbols: { from, top }, timeframe: tfOf(text), chart_type: /\bbars\b/i.test(text) ? 'bars' : null, exact: /exactly/i.test(text) } })
+  const sc = /^find stocks with (.+?),? (?:and |then )?(?:open|chart) (?:exactly )?the top (\d+) as (.*?)charts?[.!]?$/i.exec(String(body.message || '').trim())
+  if (scr && ws0 && sc) {
+    const keys = String(scr.fields || '').split(';').map(x => x.split(':')[0])
+    const filters = []
+    const adr = /adr (?:above|over) (\d+(?:\.\d+)?)/i.exec(sc[1])
+    if (adr && keys.includes('adr_pct')) filters.push({ field: 'adr_pct', op: 'gt', value: Number(adr[1]), max: null })
+    const sorted = /sort(?:ed)? by adr highest first/i.test(sc[1])
+    return env('propose', [
+      { action: 'screener.run', target: scr.ref, args: { filters, sort_field: sorted ? 'adr_pct' : null, sort_dir: sorted ? 'desc' : null, mode: 'new', show: null, as: 'screen1' } },
+      chartsOp('screen1', Number(sc[2]), String(body.message)),
+    ], 'Screen, then chart the results.')
+  }
+  const lc = /^(?:open|chart) (?:the (?:first|top) (\d+) (?:stocks )?(?:in|of) )?(?:my |the )?(.+?) (?:watch ?list )?as (.*?)charts?[.!]?$/i.exec(String(body.message || '').trim())
+  if (ws0 && lc && !/^those$/i.test(lc[2])) {
+    const hits = (body.context?.watchlists || []).filter(w => w.name.toLowerCase().includes(lc[2].toLowerCase().replace(/ watch ?list$/, '')))
+    if (hits.length > 1) return env('clarify', [], '', { text: 'Which watchlist?', choices: hits.map(h => h.name) })
+    if (!hits.length) return env('answer', [], `You don't have a watchlist called ${lc[2]}.`)
+    return env('propose', [
+      { action: 'watchlist.show', target: hits[0].ref, args: { as: 'list1' } },
+      chartsOp('list1', Number(lc[1]) || Math.min(12, hits[0].count || 12), String(body.message)),
+    ], 'Chart that list.')
+  }
+  const tc = /^(?:open|chart) the top (\d+) of (?:those|that screen) as (.*?)charts?[.!]?$/i.exec(String(body.message || '').trim())
+  if (ws0 && tc) return env('propose', [chartsOp('lastScreen', Number(tc[1]), String(body.message))], 'Chart the last screen.')
+
   if (scr && /^(show me|find|screen for) stocks/i.test(String(body.message || '').trim())) {
     const keys = String(scr.fields || '').split(';').map(x => x.split(':')[0])
     const filters = []
