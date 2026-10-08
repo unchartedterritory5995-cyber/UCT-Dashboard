@@ -97,6 +97,7 @@ import { untruncatedLabel } from './labelText'
 import { semanticName, namesItselfSemantically } from './semanticName'
 import { formatFundamentalValue, fundamentalFormatOfInstance } from './fundamentalFormat'
 import { tfLabel } from '../timeframes'
+import { safeCssColour } from './objectColour'
 
 /** LWC's own default when a plot declares no `legend.decimals`. Two, because
  *  that is `seriesOptionsDefaults.priceFormat.precision` and a chip with no
@@ -278,13 +279,16 @@ function chipLabel(def, plot, inputs, displayName) {
  *  without importing it, because that module carries the LWC option vocabulary
  *  and the legend needs one field. */
 function resolvePlotColor(plot, inputs, def) {
+  // ⛔ THE CHIP WRITES THIS INTO CSS. A stored definition, a shared one, or a shared
+  // layout's instance input may carry any string here — only `safeCssColour` values
+  // leave (objectColour.js); anything else wears no colour.
   const refKey = plot.$refs && plot.$refs.color
   if (refKey) {
-    if (inputs && inputs[refKey] !== undefined) return inputs[refKey]
+    if (inputs && inputs[refKey] !== undefined) return safeCssColour(inputs[refKey])
     const declared = (def.inputs || []).find(i => i && i.key === refKey)
-    if (declared && declared.default !== undefined) return declared.default
+    if (declared && declared.default !== undefined) return safeCssColour(declared.default)
   }
-  return plot.color
+  return safeCssColour(plot.color)
 }
 
 /**

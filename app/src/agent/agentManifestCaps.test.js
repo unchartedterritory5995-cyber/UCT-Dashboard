@@ -4,9 +4,11 @@
 // behaviour (a cut hint once dropped widget.add's alias rule). This test fails the build first.
 import { describe, it, expect } from 'vitest'
 import { registerBuiltins } from './builtins'
-import { manifestFor } from './capabilities'
+import { manifestFor, MANIFEST_CONTRACT } from './capabilities'
 
-const SERVER = { MAX_CAPABILITIES: 60, MAX_CAP_BYTES: 6000, MAX_HINTS: 1000, MAX_SUMMARY: 400 }
+// The server's numbers, from the shared contract (tests/test_uct_agent_contract.py holds turn.py to it).
+const L = MANIFEST_CONTRACT.limits
+const SERVER = { MAX_CAPABILITIES: L.maxCapabilities, MAX_CAP_BYTES: L.maxCapBytes, MAX_HINTS: L.maxHints, MAX_SUMMARY: L.maxSummary }
 
 describe('the manifest fits the server caps — nothing is cut on the way to the model', () => {
   registerBuiltins()

@@ -90,6 +90,15 @@ def test_the_server_names_no_capability_of_its_own():
     src = inspect.getsource(turn)
     for name in ("chart.set", "volume.set", "chart.apply"):
         assert name not in src, f"turn.py hard-codes {name}: capabilities must come from the manifest"
+    # The generic prompt text may name a capability only where it is an explicit, reviewed example
+    # (the plan-size rule points at the bulk chart action; the refine rule at screener.run). Any other name in the prompt is a
+    # hard-coded capability the manifest should have carried.
+    import re
+    prompt_text = turn._SYSTEM_HEAD + turn._SYSTEM_TAIL
+    named = set(re.findall(r"\b(?:chart|widget|screener|layout|watchlist|alert|stock|news|settings|app|volume|agent)\.[a-z][A-Za-z]+\b", prompt_text))
+    # Reviewed 2026-10-08 (Batch 4): widget.addCharts (plan-size rule), screener.run (refine rule).
+    assert named <= {"widget.addCharts", "screener.run"}, f"the prompt names capabilities of its own: {sorted(named)}"
+    assert "widget.addCharts" in named   # the rail really reads the prompt
 
 
 def test_EXTENSIBILITY_a_new_capability_joins_through_the_manifest_alone():

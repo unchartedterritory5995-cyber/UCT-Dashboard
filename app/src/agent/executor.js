@@ -212,3 +212,13 @@ export function planShape(plan) {
   const irreversible = plan.plans.some(p => p.items.some(i => getCapability(i.op.action)?.reversible === false))
   return { targets, ops, resources, confirm, irreversible }
 }
+
+/**
+ * Honest receipts: when an applied plan offers NO Undo, the notes say how to reverse it — each
+ * capability's own `undoNote` (e.g. the email digest). A receipt never implies an Undo that
+ * isn't there; when Undo exists, nothing is added.
+ */
+export function undoNotesFor(plan, res) {
+  if (!res?.ok || res.undo) return []
+  return [...new Set(plan.plans.flatMap(p => p.items.map(i => getCapability(i.op.action)?.undoNote).filter(Boolean)))]
+}

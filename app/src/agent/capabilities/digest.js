@@ -35,6 +35,7 @@ const snap = () => ({ ref: 'digest', label: 'Watchlist email digest', frequency:
 
 export const digestKind = {
   name: 'digest',
+  undoable: false,                      // the digest switch keeps no Undo
   boardScoped: false,
   selfDescribing: true,
   list: () => [snap()],
@@ -73,6 +74,9 @@ export function registerDigestCapabilities() {
   })
   registerCapability({
     name: 'settings.setWatchlistDigest',
+    // The digest kind keeps no Undo: the receipt says how to reverse it instead of offering one.
+    undo: 'none',
+    undoNote: 'No Undo for this — ask me to change the digest again, or use Settings → Email Digest.',
     surfaces: ['charts'],
     target: 'digest',
     summary: 'Turn the member\'s watchlist EMAIL digest (a performance summary of their watchlists, emailed to their account email) on — daily or weekly — or off. Same as Settings → Email Digest.',

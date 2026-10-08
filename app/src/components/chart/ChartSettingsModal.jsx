@@ -3,11 +3,13 @@ import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import { CHART_DEFAULTS } from './chartDefaults'
 import ChartThemesModal from './ChartThemesModal'
-import { applyThemeToSettings, themeWithAppSurface } from './chartThemes'
+import { applyThemeToOneChart } from './chartThemes'
 import { legendModeOf, LEGEND_MODES } from './legendMode'
 import { BAR_INFO_FIELDS, barInfoFieldsOf, withBarInfoField } from './barInfoFields'
 import { WM_BOX_WIDTHS, DEFAULT_BOX_W } from './watermarkPrimitive'
 import { crosshairModeOf, CROSSHAIR_MODES } from './crosshairMode'
+// The option lists (and the meaning of every setting) live in the product-owned descriptor table.
+import { COLOR_MODES, TITLE_MODES, TEXT_SIZES, SWING_SENS, EVENT_MARKERS, PDL_LINES } from './chartSettingsDescriptors'
 import {
   listAllIndicators, applyRowPatch, splitIndTarget, isIndTarget, overlayRowId,
   isSignTarget, splitSignTarget,
@@ -132,11 +134,6 @@ const CHART_TYPES = [
   { val: 'area',    label: 'Area' },
 ]
 
-const COLOR_MODES = [
-  { val: 'onecolor',  label: 'One Color' },
-  { val: 'netchange', label: 'Net Change' },
-  { val: 'openclose', label: 'Open vs Close' },
-]
 
 const TARGET_MAP = {
   bodyUp: 'upColor', bodyDown: 'downColor',
@@ -146,11 +143,6 @@ const TARGET_MAP = {
 }
 
 // Header tab options.
-const TITLE_MODES = [
-  { val: 'ticker', label: 'Ticker' },
-  { val: 'company', label: 'Company' },
-  { val: 'both', label: 'Both' },
-]
 // Shape of the on-chart OHLCV legend. Horizontal is the flat, box-less strip.
 // ⚰⚰ `LEGEND_LAYOUTS` ('Vertical' / 'Horizontal') STOOD HERE AND IS RETIRED.
 // There is ONE workspace legend now — a horizontal BAR INFO strip of the candle's
@@ -359,7 +351,7 @@ export default function ChartSettingsModal({
     if (scope === 'allwidgets' && onApplyThemeAllWidgets) onApplyThemeAllWidgets(theme)
     else if (scope === 'all' && onApplyThemeAll) onApplyThemeAll(theme)
     // 'one' = this chart only. An app-mirrored theme uses the app surface as canvas.
-    else onChange?.(applyThemeToSettings(settings, themeWithAppSurface(theme)))
+    else onChange?.(applyThemeToOneChart(settings, theme))
   }
 
   // ─── THE MEMBER'S OWN FORMULAS, SUBSCRIBED FROM A CHILD ───────────────────
@@ -824,14 +816,10 @@ export default function ChartSettingsModal({
   // Previous-day H/L/C reference lines (Markers tab).
   const pdl = settings?.prevDayLevels || {}
   const setPrevDay = (key, patch) => setSetting({ prevDayLevels: { ...pdl, [key]: { ...(pdl[key] || {}), ...patch } } })
-  const PDL_LINES = [['high', 'Prev-day high'], ['low', 'Prev-day low'], ['close', 'Prev-day close']]
   const PDL_COLOR_TARGET = { high: 'pdlHighColor', low: 'pdlLowColor', close: 'pdlCloseColor' }
   const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
-  const SWING_SENS = [['low', 'Low'], ['medium', 'Med'], ['high', 'High']]
   // 'desk' = Desk-mention markers (spec 2026-08-11 §C). Opt-in like News: it carries
   // no default in CHART_DEFAULTS.markers, so an unset blob reads undefined → OFF.
-  const EVENT_MARKERS = [['earnings', 'Earnings'], ['splits', 'Splits'], ['dividends', 'Dividends'], ['news', 'News'], ['desk', 'Desk mentions']]
-  const TEXT_SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40]
   const curTextSize = settings.textSize ?? 11
   const colorSwatch = (target, label, bg) => (
     <button

@@ -39,6 +39,7 @@ const labelFor = ({ page, section, symbol }) => (page === 'research' ? `${upper(
 const appSnap = (host) => ({ ref: 'app', label: 'UCT', here: host?.location?.() || '/charts' })
 export const appKind = {
   name: 'app',
+  undoable: false,                      // navigation: no Undo (agentContracts.test.js rails its capabilities)
   boardScoped: false,
   selfDescribing: true,
   list: (host) => (host?.navigate ? [appSnap(host)] : []),
@@ -67,6 +68,8 @@ export function registerAppCapabilities() {
 
   registerCapability({
     name: 'app.open',
+    // Navigation has no Undo (the member uses Back); it is not destructive, so it may still apply.
+    undo: 'none',
     surfaces: ['charts'],
     target: 'app',
     summary: 'Open another UCT page for the member, exactly like clicking it in the sidebar: the Screener, Dashboard, Breadth, Settings, a stock\'s Research page, etc. This closes this panel (the conversation is kept).',
