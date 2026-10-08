@@ -203,6 +203,24 @@ def _fill_absent_nullables(schema: dict, args: dict) -> dict:
     return out
 
 
+def _wrap_lone_argument(schema: dict, args: dict) -> dict:
+    """An action with exactly ONE argument whose value may be an object: the model sometimes
+    writes that object's keys at the top level. Measured 2026-10-08 (prod logs): after a screen
+    turn, watchlist.add came back as {"from", "top"} instead of {"symbols": {"from", "top"}} and
+    the whole turn failed as unreadable. Wrapped only when the keys are EXACTLY one object form
+    of that argument; the result is still validated like any other args."""
+    props = schema.get("properties") or {}
+    if len(props) != 1 or not args:
+        return args
+    (name, spec), = props.items()
+    if name in args:
+        return args
+    for v in spec.get("anyOf") or [spec]:
+        if isinstance(v, dict) and v.get("type") == "object" and set(v.get("properties") or {}) == set(args):
+            return {name: args}
+    return args
+
+
 def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
     """COMPACT ops → {action, target, args}. Args that are not JSON, or that do not
     match the action's own schema, make the whole envelope unreadable (never guessed)."""
@@ -217,7 +235,7 @@ def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
         except (TypeError, ValueError):
             _unreadable("args_json", action=o.get("action"), size=len(str(o.get("args_json") or "")))
         if cap is not None and isinstance(args, dict):
-            args = _fill_absent_nullables(cap["args"], args)
+            args = _fill_absent_nullables(cap["args"], _wrap_lone_argument(cap["args"], args))
         if cap is None or not args_match(cap["args"], args):
             _unreadable("args_schema", action=o.get("action"),
                         keys=sorted(args) if isinstance(args, dict) else type(args).__name__,

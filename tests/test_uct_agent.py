@@ -562,3 +562,17 @@ def test_compact_op_missing_a_NULLABLE_arg_is_read_as_null_but_missing_a_require
     assert ok["ops"] == [{"action": "watchlist.show", "target": "w2", "args": {"as": None}}]
     with pytest.raises(turn.TurnError):
         turn.expand_compact_ops({"ops": [{"action": "chart.setType", "target": "c1", "args_json": "{}"}]}, caps)
+
+
+def test_a_lone_object_argument_written_FLAT_is_wrapped_only_when_its_keys_match_exactly():
+    """Measured on the production model (2026-10-08 logs): watchlist.add {"from","top"} after a screen turn."""
+    sym = {"anyOf": [{"type": "array", "items": {"type": "string"}},
+                     {"type": "object", "properties": {"from": {"type": "string"}, "top": {"type": ["integer", "null"]}},
+                      "required": ["from", "top"], "additionalProperties": False}]}
+    caps = [{"name": "watchlist.add", "args": {"type": "object", "properties": {"symbols": sym}, "required": ["symbols"], "additionalProperties": False}}]
+    op = lambda a: {"ops": [{"action": "watchlist.add", "target": "w2", "args_json": json.dumps(a)}]}
+    assert turn.expand_compact_ops(op({"from": "lastScreen", "top": 15}), caps)["ops"][0]["args"] == {"symbols": {"from": "lastScreen", "top": 15}}
+    assert turn.expand_compact_ops(op({"symbols": ["NVDA"]}), caps)["ops"][0]["args"] == {"symbols": ["NVDA"]}
+    for bad in ({"from": "lastScreen"}, {"from": "lastScreen", "top": 15, "extra": 1}, {"tickers": ["NVDA"]}):
+        with pytest.raises(turn.TurnError):
+            turn.expand_compact_ops(op(bad), caps)
