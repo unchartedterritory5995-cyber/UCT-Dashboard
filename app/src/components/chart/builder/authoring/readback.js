@@ -311,7 +311,10 @@ export function readback(def, state = {}, gateCtx = {}) {
     : `Alert when ${nameOf(a.plotKey)} ${String(policyLabel(a.triggerPolicy) || a.triggerPolicy).toLowerCase()}`))
   // ⭐ PHASE 5 — the whole indicator on a higher timeframe.
   const calcLine = typeof req.calculationTimeframe === 'string'
-    ? `Calculated on the ${calcTimeframeLabel(req.calculationTimeframe)} timeframe (the whole indicator), drawn on this chart`
+    // ⭐ OVERNIGHT C — WHAT A CHART BAR SHOWS (`mtfProjection.js`, COMPLETED semantics):
+    // the last higher-timeframe period that had CLOSED before the bar's own period began.
+    // Said, because "inside day" on a 5-minute chart then reads YESTERDAY's answer.
+    ? `Calculated on the ${calcTimeframeLabel(req.calculationTimeframe)} timeframe (the whole indicator), drawn on this chart — each chart bar shows the last COMPLETED ${calcTimeframeLabel(req.calculationTimeframe)} value, never the one still forming`
     : null
   // ⭐ PHASE 5 — another symbol, and the alignment rule said as what shows.
   const tickers = symTickersOf(def)
