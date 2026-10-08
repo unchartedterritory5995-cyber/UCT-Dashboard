@@ -31,7 +31,6 @@ import { unknownSymbols } from '../agentClient'
 
 const MAX_PER_REQUEST = 50           // symbols one add/remove may carry
 const CONFIRM_OVER = 10              // a bigger batch is proposed first
-const SHOW_IN_CONTEXT = 40           // symbols per list the model is shown
 const MAX_NAME = 80
 const TICKER = /^[A-Z0-9.$:^_\-/]{1,24}$/
 const norm = (s) => String(s || '').toLowerCase().replace(/[“”"'`‘’]/g, '').replace(/\s+/g, ' ').trim()
@@ -247,8 +246,6 @@ export function registerWatchlistCapabilities() {
       if (!host?.watchlists) return undefined
       return listsOf(host).slice(0, 40).map(l => ({
         ref: refFor('watchlist', l.id), name: l.name, count: l.items.length,
-        symbols: l.items.slice(0, SHOW_IN_CONTEXT).map(i => i.sym),
-        ...(l.items.length > SHOW_IN_CONTEXT ? { moreSymbols: l.items.length - SHOW_IN_CONTEXT } : {}),
         ...(l.shownIn.length ? { shownInWidget: l.shownIn } : {}),
         ...(l.editable ? {} : { readOnly: l.why }),
       }))
@@ -288,6 +285,9 @@ export function registerWatchlistCapabilities() {
     // server at apply (bound to the list's stable id — never its name, never the
     // cache). Reading never changes the list.
     produces: SYMBOLS,
+    // What the list holds right now, as the panel last read it — used ONLY to
+    // recognise a copied literal (compose.bindCopiedLiterals); apply re-reads.
+    peekSymbols: (snap) => snap?.symbols || [],
     validateProduce(args, target, host) {
       if (host && !watchlistKind.read(host, target)) return "I couldn't find that watchlist."
       return null
