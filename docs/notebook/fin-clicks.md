@@ -1320,3 +1320,89 @@ the pointer paths of Q1, Q2 and Q11 cross) and the three that sit on their budge
 | Q21 | 2 (2) | 2 (2) | 4 / 4 | 4 | yes |
 
 The counts of 15.1 stand: keyboard 22 of 23, mouse 19, touch 19.
+
+## 16. Lane KEYS3 round 3: the final walk's leftovers
+
+Same branch. The final browser walk (`docs/notebook/fin-walk.md` on
+`origin/feat/notebook-fin-walk`) left two findings, and this lane's own list left two keyboard
+items. Three are built here; one is left for the owner on purpose (16.4).
+
+### 16.1 F1: "Skip to folder navigation" now always lands (`d6548c328f`)
+
+* **What was wrong.** The link's address was `#notebook-folder-nav` and nothing in the page had
+  that id. Its handler put focus on a hidden heading above the panel's own header buttons. With
+  the folders panel hidden, that heading was off screen.
+* **Now.** The link lands on the folder tree's own Tab stop. With the panel hidden it shows the
+  panel first, then lands. With the panel in search mode (no tree on screen) it lands on the
+  panel's heading, which carries the id.
+* **On master.** Not broken there: master has no such link. It arrived with the landing (wave
+  13, lane 13Q-3), so this was a defect of the landing, not a regression.
+* **Test first.** `a11y/skipLinksLand.test.jsx`: the real Notebook tab and the real folder panel,
+  each of the Notebook's skip links pressed, `document.activeElement` read. Four cases were red.
+  "Skip to main content" belongs to the app shell and has its own rail there.
+
+### 16.2 F2: the touch controls under 44 px (`14f9c5c470`)
+
+| control | walk measured | now, 820 and 390 px | how |
+|---|---|---|---|
+| template picker, "All" chip | 37 x 44 | 44 x 44 | already fixed by the landing after the walk's tree (`380cb32522`); pinned here |
+| import wizard, destination select | 37 px tall | 44 px tall | `min-height` at 1024 px and below |
+| import wizard, a 20 x 20 checkbox | 20 x 20 | the box stays 20 px; its label row is 44 px tall | the hit area is the label. The note rows already had it; the "leave out" rows now do |
+
+The a11y target-floor rail (`a11y/targetFloors.test.js`) pins each: two cases were red first,
+one control proves the helper reads no floor from a sheet that has none.
+
+### 16.3 The sidebar's tags are one Tab stop (`5f38d12aa2`)
+
+Every tag was two stops (its button and its Rename). The tag rows now use the notes list's hook:
+Down and Up move tag to tag, Right and Left reach a tag's Rename and its disclosure arrow, Home
+and End go to the ends, and a typed letter moves to the next tag that starts with it. The letter
+is stopped at the list, the rule of 15.9. The rename form, the tag filter box and "Show all
+tags" stay ordinary stops. Four cases were red first (`FolderSidebar.tags.test.jsx`).
+
+### 16.4 Left for the owner: where focus goes after "Add level" (Q20's last key)
+
+Not changed. Both behaviours, so the choice can be made on its merits:
+
+* **Today (lane FIN-A11Y's rule, pinned by a test).** After a level is added, focus goes to
+  the new level's own price field. A member can step it at once with the arrow keys, and a
+  screen reader lands on the thing that was just made. To add the next level, the member
+  Tabs through the new row (its role, its alert) back to the add form: 3 Tabs.
+  Q20 costs 21 keys.
+* **The other way.** After a level is added, focus goes back to the add form's price field. A
+  member typing a whole plan (entry, stop, target) never leaves the form: 1 Tab per level
+  instead of 3. Q20 would cost about 17. The new level is announced by the status line
+  ("Added a level at 150.00, marked Entry") but focus is not on it, so adjusting it means
+  going back up to its row.
+
+The first favours adjusting one level; the second favours entering several. Q20 is inside its
+budget either way (22).
+
+### 16.5 In the browser, at 1280, 820 and 390 px
+
+`tools/notebook_fin_keys3_leftovers_probe.py`, evidence
+`docs/notebook/evidence/fin-keys3/4f4c491d3b/leftovers-probe/`, integrity CLEAN, port 8720 free
+before and after. The sandbox exited by itself this time.
+
+| check | 1280 | 820 (touch) | 390 (touch) |
+|---|---|---|---|
+| F1, panel shown: Tab 3 times to the link, Enter | focus on the tree row "All notes", on screen | same | same |
+| F1, panel hidden first | panel shown again, focus on "All notes", on screen | same | same |
+| the id `notebook-folder-nav` is in the page | yes | yes | yes |
+| F2, "All" chip | 37 x 24 (no touch floor at this width, by design) | 44 x 44 | 44 x 44 |
+| F2, destination select height | 35 | 44 | 44 |
+
+**Not measured in the browser:** the wizard's own checkbox rows. The probe's label reading
+picked up the notes list's tick labels behind the wizard (44 x 44 on touch), not the wizard's
+rows; a one-file import shows no "leave out" rows. Those rows are held by the CSS rail only.
+
+### 16.6 Gates and tests
+
+* Build exit 0. First-open bytes 2,232,589 B across 58 chunks against 2,260,793 B, PASS.
+* From `app/`, `--maxWorkers=2`: the a11y directory, the onboarding directory,
+  `styles/tapFloor.test.js`, every FolderSidebar and NotebookTab test, the import wizard's
+  tests, plus `src/hub/`, `src/pages/command/`, the Journal layout, the Trades table and the
+  two roving hooks: **230 files passed; 2887 tests passed, 1 skipped.**
+* The counts of 15.1 stand: keyboard 22 of 23, mouse 19, touch 19. No flow's path was changed
+  in this round except that the folder skip link, which no measured flow uses any more, now
+  lands on the tree.
