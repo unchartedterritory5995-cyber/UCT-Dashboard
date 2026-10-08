@@ -1,0 +1,238 @@
+// ── CHART SETTINGS DESCRIPTORS — what every chart setting IS, in one product-owned table ──
+//
+// `chartDefaults.js` says which keys a chart's settings blob may hold (CHART_DEFAULTS +
+// the `mergeChartSettings` allow-list). This table says what each of those keys MEANS:
+// a label, where it lives in Chart Settings, its type and allowed values, any prerequisite
+// the UI enforces, and — the `agent` field — whether UCT Agent may write it.
+//
+// It is METADATA, not behaviour. Nothing here writes settings. The writer is the same
+// `{...settings, <section>: {...section, key: value}, preset: 'custom'}` set that Chart
+// Settings' own `setSetting` / `setHeader` / `setSwing` / `setMarker` / `setPrevDay` do.
+// The option lists below are the ones ChartSettingsModal renders (it imports them from
+// here), so the dialog and every consumer read one list.
+//
+// ⛔ COMPLETENESS RAIL — `chartSettingsDescriptors.test.js` walks `mergeChartSettings({})`
+// and FAILS for any key with no row here. A new setting is therefore known (classified)
+// before it ships, and never executable by accident: only `agent: 'eligible'` rows can be
+// written by the Agent, and only through its approved `chart.setSetting` capability.
+//
+// `agent` classification:
+//   'eligible'             — UCT Agent's chart.setSetting may write it (typed + validated below)
+//   'specialized:<cap>'    — written only by a dedicated Agent capability with its own rules
+//   'owned:<team>'         — owned by another project (indicators); never written here
+//   'known'                — a real member-facing setting the Agent can describe but not change yet
+//   'internal'             — bookkeeping / no member control (never offered)
+// `id` ending in `.*` classifies a whole sub-object (free-form maps such as colour tables).
+
+import { CROSSHAIR_MODES } from './crosshairMode'
+import { LEGEND_MODES } from './legendMode'
+
+export const CHART_SETTINGS_DESCRIPTOR_VERSION = 1
+
+// ── the option lists Chart Settings renders (ChartSettingsModal imports these) ──
+export const COLOR_MODES = [
+  { val: 'onecolor', label: 'One Color' },
+  { val: 'netchange', label: 'Net Change' },
+  { val: 'openclose', label: 'Open vs Close' },
+]
+export const TITLE_MODES = [
+  { val: 'ticker', label: 'Ticker' },
+  { val: 'company', label: 'Company' },
+  { val: 'both', label: 'Both' },
+]
+export const TEXT_SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40]
+export const SWING_SENS = [['low', 'Low'], ['medium', 'Med'], ['high', 'High']]
+export const EVENT_MARKERS = [['earnings', 'Earnings'], ['splits', 'Splits'], ['dividends', 'Dividends'], ['news', 'News'], ['desk', 'Desk mentions']]
+export const PDL_LINES = [['high', 'Prev-day high'], ['low', 'Prev-day low'], ['close', 'Prev-day close']]
+
+const BAR_TYPES = ['bars', 'hlc']
+const vals = (xs) => xs.map(x => (Array.isArray(x) ? x[0] : (x && typeof x === 'object' ? x.val : x)))
+
+// ── eligible: typed, validated, writable by the Agent ──
+const E = (id, section, label, type, extra = {}) => ({ id, section, label, type, agent: 'eligible', ...extra })
+const ELIGIBLE = [
+  E('grid.visible', 'canvas', 'Grid lines', 'bool', { ui: 'Chart Settings → Canvas → Grid', words: ['grid', 'grid lines', 'gridlines'] }),
+  E('crosshair.mode', 'canvas', 'Crosshair', 'enum', { options: CROSSHAIR_MODES, ui: 'Chart Settings → Canvas → Crosshair', words: ['crosshair'],
+    // The Crosshair control writes ONLY `crosshair.mode` (the legacy `enabled` is read-only).
+    boolMap: { true: 'always', false: 'off' } }),
+  E('textSize', 'canvas', 'Scale text size', 'enum', { options: TEXT_SIZES, ui: 'Chart Settings → Canvas → Scale text' }),
+  E('showPriceLabels', 'canvas', 'Price labels on the axis', 'bool', { ui: 'Chart Settings → Canvas', words: ['price labels'] }),
+  E('showMaLabels', 'canvas', 'Moving-average labels', 'bool', { ui: 'Chart Settings → Canvas', words: ['ma labels', 'moving average labels'] }),
+  E('invertScale', 'scale', 'Inverted price scale', 'bool', { ui: 'Alt+I on the chart', words: ['inverted scale', 'invert scale', 'upside down'] }),
+  E('watermark.visible', 'watermark', 'Watermark', 'bool', { ui: 'Chart Settings → Canvas → Watermark', words: ['watermark'] }),
+  E('header.titleMode', 'header', 'Title shows', 'enum', { options: vals(TITLE_MODES), ui: 'Chart Settings → Header → Title' }),
+  E('header.showChange', 'header', 'Day change beside the title', 'bool', { ui: 'Chart Settings → Header → Title', words: ['day change'] }),
+  E('header.legendMode', 'header', 'Chart legend', 'enum', { options: LEGEND_MODES, ui: 'Chart Settings → Header → Chart Legend', words: ['legend', 'chart legend'],
+    boolMap: { true: 'always', false: 'off' } }),
+  E('candleColorMode', 'priceStyle', 'Candle color mode', 'enum', { options: vals(COLOR_MODES), ui: 'Chart Settings → Price Style → Color mode' }),
+  E('candles.thinBars', 'priceStyle', 'Thin bars', 'bool', { ui: 'Chart Settings → Price Style → Bar thickness (Bars / HLC only)',
+    requires: { chartType: BAR_TYPES, why: 'Bar thickness only applies to Bars and HLC charts — the Price Style tab shows it only for those types.' } }),
+  E('countdown', 'markers', 'Bar-close countdown', 'bool', { ui: 'Chart Settings → Markers → Countdown (intraday)', words: ['countdown', 'bar countdown'] }),
+  E('swingLabels.enabled', 'markers', 'Swing labels', 'bool', { ui: 'Chart Settings → Markers → Swing labels', words: ['swing labels'] }),
+  E('swingLabels.sensitivity', 'markers', 'Swing label sensitivity', 'enum', { options: vals(SWING_SENS), ui: 'Chart Settings → Markers → Swing labels' }),
+  ...EVENT_MARKERS.map(([k, label]) => E(`markers.${k}`, 'markers', `${label} markers`, 'bool',
+    { ui: 'Chart Settings → Markers → Events', words: [`${label.toLowerCase()} markers`, `${label.toLowerCase()} marker`] })),
+  ...PDL_LINES.map(([k, label]) => E(`prevDayLevels.${k}.enabled`, 'markers', `${label} line`, 'bool',
+    { ui: 'Chart Settings → Markers → Prev-day levels (intraday)', words: [`${label.toLowerCase()} line`, `previous day ${k}`, `prior day ${k}`] })),
+]
+
+// ── specialized: an Agent capability with its own rules already owns the write ──
+const S = (id, cap) => ({ id, agent: `specialized:${cap}` })
+const SPECIALIZED = [
+  S('chartType', 'chart.setType'),
+  S('logScale', 'chart.setScale'), S('percentScale', 'chart.setScale'),
+  S('extendedHoursShading', 'chart.setSession'), S('sessionView', 'chart.setSession'),
+  S('background', 'chart.setBackground'), S('bgMode', 'chart.setBackground'),
+  ...['upColor', 'downColor', 'upBorder', 'downBorder', 'upWick', 'downWick', 'oneColor'].map(k => S(`candles.${k}`, 'chart.setCandleColors')),
+  S('volume.visible', 'volume.setState'), S('volume.removed', 'volume.setState'),
+  S('comparisonSymbols', 'chart.setSymbol'), S('compareHideBase', 'chart.setSymbol'),
+]
+
+// ── owned by another project (Indicator Intelligence) — never written by chart.setSetting ──
+const O = (id) => ({ id, agent: 'owned:indicator' })
+const OWNED = [
+  O('indicatorInstances'), O('indicators.*'), O('overlays'), O('paneOrder'), O('paneSizes'), O('paneSeriesOrder'),
+  O('volumeOverlayIndicators'), O('infoValues'),
+]
+
+// ── known member settings, not Agent-enabled yet (discoverable, refused) ──
+const K = (id, section, label, ui) => ({ id, section, label, agent: 'known', ui })
+const KNOWN = [
+  K('bgGradient.*', 'canvas', 'Gradient background colors', 'Chart Settings → Canvas → Background'),
+  K('textColor', 'canvas', 'Scale text color', 'Chart Settings → Canvas'),
+  K('grid.color', 'canvas', 'Grid color', 'Chart Settings → Canvas → Grid'),
+  K('crosshair.enabled', 'canvas', 'Crosshair (legacy on/off)', 'Chart Settings → Canvas → Crosshair'),
+  K('crosshair.color', 'canvas', 'Crosshair color', 'Chart Settings → Canvas → Crosshair'),
+  K('crosshair.style', 'canvas', 'Crosshair line style', 'Chart Settings → Canvas → Crosshair'),
+  K('crosshair.width', 'canvas', 'Crosshair line width', 'Chart Settings → Canvas → Crosshair'),
+  K('crosshair.magnet', 'canvas', 'Crosshair magnet', 'Chart Settings → Canvas → Crosshair'),
+  K('header.timeframes', 'header', 'Favorite timeframes', 'Timeframe menu ★'),
+  K('header.customTimeframes', 'header', 'Custom timeframes', 'Timeframe menu → Custom interval'),
+  K('header.showMarketCap', 'header', 'Market cap in the info row', 'Chart Settings → Header → Info row'),
+  K('header.showNextEarnings', 'header', 'Next earnings in the info row', 'Chart Settings → Header → Info row'),
+  K('header.showUctRating', 'header', 'UCT rating in the info row', 'Chart Settings → Header → Info row'),
+  K('header.showLegend', 'header', 'Chart legend (legacy on/off)', 'Chart Settings → Header → Chart Legend'),
+  K('header.colors.*', 'header', 'Header colors', 'Chart Settings → Header'),
+  K('volume.upColor', 'volume', 'Volume up color', 'Chart Settings → Indicators → Volume'),
+  K('volume.downColor', 'volume', 'Volume down color', 'Chart Settings → Indicators → Volume'),
+  K('volume.hvcEnabled', 'volume', 'Highest-volume-candle marking', 'Chart Settings → Indicators → Volume'),
+  K('volume.separatePane', 'volume', 'Volume in its own pane', 'Chart Settings → Indicators → Volume'),
+  K('volume.paneHeightPct', 'volume', 'Volume pane height', 'drag the pane separator'),
+  K('volume.labelVisible', 'volume', 'Volume label', 'Chart Settings → Indicators → Volume'),
+  K('volume.labelColor', 'volume', 'Volume label color', 'Chart Settings → Indicators → Volume'),
+  K('volume.maPeriod', 'volume', 'Volume moving-average period', 'Chart Settings → Indicators → Volume'),
+  K('volume.maColor', 'volume', 'Volume moving-average color', 'Chart Settings → Indicators → Volume'),
+  K('volume.maLineWidth', 'volume', 'Volume moving-average width', 'Chart Settings → Indicators → Volume'),
+  K('volume.maLineStyle', 'volume', 'Volume moving-average style', 'Chart Settings → Indicators → Volume'),
+  K('volume.barStyle', 'volume', 'Volume bar style', 'Chart Settings → Indicators → Volume'),
+  K('volume.plotStyle', 'volume', 'Volume plot style', 'Chart Settings → Indicators → Volume'),
+  K('watermark.opacity', 'watermark', 'Watermark opacity', 'Chart Settings → Canvas → Watermark'),
+  K('watermark.color', 'watermark', 'Watermark color', 'Chart Settings → Canvas → Watermark'),
+  K('watermark.sizeScale', 'watermark', 'Watermark size', 'Chart Settings → Canvas → Watermark'),
+  K('watermark.weight', 'watermark', 'Watermark weight', 'Chart Settings → Canvas → Watermark'),
+  K('watermark.lines.*', 'watermark', 'Watermark lines (ticker/company/sector…)', 'Chart Settings → Canvas → Watermark'),
+  K('watermark.x', 'watermark', 'Watermark position', 'right-click → Move watermark'),
+  K('watermark.y', 'watermark', 'Watermark position', 'right-click → Move watermark'),
+  K('drawingDefaults.*', 'drawings', 'Default drawing style', 'drawing → Save as default'),
+  K('hideDrawings', 'drawings', 'Hide all drawings', 'not on /charts (other chart surfaces)'),
+  K('swingLabels.color', 'markers', 'Swing label color', 'Chart Settings → Markers'),
+  K('swingLabels.tintByType', 'markers', 'Swing labels tinted by type', 'Chart Settings → Markers'),
+  K('swingLabels.upColor', 'markers', 'Swing high color', 'Chart Settings → Markers'),
+  K('swingLabels.downColor', 'markers', 'Swing low color', 'Chart Settings → Markers'),
+  K('swingLabels.bgEnabled', 'markers', 'Swing label background', 'Chart Settings → Markers'),
+  K('swingLabels.bg', 'markers', 'Swing label background color', 'Chart Settings → Markers'),
+  K('markers.ipo', 'markers', 'IPO marker', 'Chart Settings → Markers'),
+  K('markers.earningsBeat', 'markers', 'Earnings beat color', 'Chart Settings → Markers'),
+  K('markers.earningsMiss', 'markers', 'Earnings miss color', 'Chart Settings → Markers'),
+  K('markers.ipoColor', 'markers', 'IPO marker color', 'Chart Settings → Markers'),
+  ...PDL_LINES.flatMap(([k, label]) => ['color', 'style', 'width'].map(f => K(`prevDayLevels.${k}.${f}`, 'markers', `${label} line ${f}`, 'Chart Settings → Markers → Prev-day levels'))),
+  K('darkPool.*', 'markers', 'Dark-pool levels (paid)', 'Chart Settings → Markers → Dark pool'),
+  K('heikinAshi', 'priceStyle', 'Heikin Ashi', 'not on /charts (other chart surfaces)'),
+  K('theme', 'canvas', 'Light/dark palette (Shift+T)', 'Shift+T on the chart'),
+  K('positionCalc.*', 'tools', 'Position calculator defaults', 'Position Calculator'),
+]
+
+// ── internal: bookkeeping or dead data, never offered ──
+const I = (id, why) => ({ id, agent: 'internal', why })
+const INTERNAL = [
+  I('settingsVersion', 'schema version'), I('preset', 'set to "custom" by every manual write'),
+  I('header.legendLayout', 'dead data — nothing reads it'), I('showPatterns', 'control disabled in the product'),
+  I('signature.*', 'not a member control on /charts')
+]
+
+export const CHART_SETTING_DESCRIPTORS = [...ELIGIBLE, ...SPECIALIZED, ...OWNED, ...KNOWN, ...INTERNAL]
+
+export const ELIGIBLE_SETTINGS = ELIGIBLE
+export const settingDescriptor = (id) => CHART_SETTING_DESCRIPTORS.find(d => d.id === id) || null
+
+/** The descriptor that classifies a settings PATH (exact id first, then the nearest `x.*`). */
+export function classifySettingPath(path) {
+  const exact = CHART_SETTING_DESCRIPTORS.find(d => d.id === path)
+  if (exact) return exact
+  const parts = path.split('.')
+  for (let n = parts.length; n >= 1; n -= 1) {
+    const hit = CHART_SETTING_DESCRIPTORS.find(d => d.id === `${parts.slice(0, n).join('.')}.*`)
+    if (hit) return hit
+  }
+  return null
+}
+
+const getPath = (o, path) => path.split('.').reduce((v, k) => (v == null ? undefined : v[k]), o)
+
+/** The setting's current value, as the chart resolves it (missing nested keys read as the UI's default). */
+export function settingValue(settings, d) {
+  const v = getPath(settings, d.id)
+  if (v !== undefined) return v
+  if (d.id === 'crosshair.mode') return settings?.crosshair?.enabled === false ? 'off' : 'always'
+  if (d.id === 'header.legendMode') return settings?.header?.showLegend === false ? 'off' : 'always'
+  return d.type === 'bool' ? false : undefined
+}
+
+/**
+ * Validate a requested value against the descriptor. Returns { ok, value } with the value in
+ * the setting's own type, or { ok: false, why }. A bool-shaped request for a 3-way mode uses
+ * the descriptor's `boolMap` ("crosshair off" → 'off').
+ */
+export function coerceSettingValue(d, raw) {
+  if (!d || d.agent !== 'eligible') return { ok: false, why: 'not a setting UCT Agent can change' }
+  if (d.type === 'bool') {
+    if (typeof raw === 'boolean') return { ok: true, value: raw }
+    const s = String(raw).trim().toLowerCase()
+    if (['true', 'on', 'show', 'yes', 'enabled'].includes(s)) return { ok: true, value: true }
+    if (['false', 'off', 'hide', 'no', 'disabled'].includes(s)) return { ok: true, value: false }
+    return { ok: false, why: `${d.label} is on or off` }
+  }
+  if (d.type === 'enum') {
+    if (typeof raw === 'boolean' && d.boolMap) return { ok: true, value: d.boolMap[String(raw)] }
+    const hit = d.options.find(o => String(o).toLowerCase() === String(raw).trim().toLowerCase())
+    if (hit !== undefined) return { ok: true, value: hit }
+    if (d.boolMap && ['on', 'off', 'true', 'false', 'show', 'hide'].includes(String(raw).trim().toLowerCase())) {
+      return { ok: true, value: d.boolMap[String(['on', 'true', 'show'].includes(String(raw).trim().toLowerCase()))] }
+    }
+    return { ok: false, why: `${d.label} can be ${d.options.join(', ')}` }
+  }
+  return { ok: false, why: `${d.label} has no supported type` }
+}
+
+/** The UI-unavailable reason for this setting on this chart, or null (the same prerequisites the dialog enforces). */
+export function settingUnavailable(d, settings) {
+  const r = d?.requires
+  if (r?.chartType && !r.chartType.includes(settings?.chartType || 'candles')) return r.why
+  return null
+}
+
+/**
+ * THE write — exactly the shape Chart Settings' own setters produce: the nested section is
+ * spread (siblings kept), the leaf set, and `preset: 'custom'` stamped.
+ */
+export function withSetting(settings, d, value) {
+  const parts = d.id.split('.')
+  const next = { ...settings, preset: 'custom' }
+  let o = next
+  for (let i = 0; i < parts.length - 1; i += 1) {
+    o[parts[i]] = { ...((o[parts[i]] && typeof o[parts[i]] === 'object') ? o[parts[i]] : {}) }
+    o = o[parts[i]]
+  }
+  o[parts[parts.length - 1]] = value
+  return next
+}
