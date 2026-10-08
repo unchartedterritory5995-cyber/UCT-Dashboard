@@ -8,8 +8,8 @@ import {
   precisionWords,
   citedSources,
   resolveNoteCitation,
-  splitAnswer,
 } from '../../lib/askCitation'
+import { styledParts } from '../../lib/askEmphasis'
 import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
   from '../../lib/documentProvenance'
 import { buildAskInsertNode } from '../../lib/askInsert'
@@ -268,7 +268,9 @@ export default function AskPanel({
     if (message) setNavNotice(message)
   }, [getEditorDoc, onNavigate, supersedeNavigation])
 
-  const parts = useMemo(() => (answer ? splitAnswer(answer, sources) : []),
+  // Fin-ai K3: the model's `**bold**` / `*italic*` are read once (lib/askEmphasis.js) and
+  // rendered as elements around plain text below. Never as HTML, and the asterisks are not shown.
+  const parts = useMemo(() => (answer ? styledParts(answer, sources) : []),
                         [answer, sources])
   const cited = useMemo(() => citedSources(answer, sources), [answer, sources])
 
@@ -379,7 +381,7 @@ export default function AskPanel({
                     {p.text}
                   </button>
                 )
-                : <span key={i}>{p.text}</span>))}
+                : <EmphasisText key={i} part={p} />))}
             </div>
           )}
 
@@ -486,6 +488,14 @@ export default function AskPanel({
  * body-scroll lock, drag-to-dismiss and safe-area padding that a hand-rolled
  * div silently lacked.
  */
+/** One run of answer text. Emphasis is an element around a text node, never markup. */
+function EmphasisText({ part }) {
+  let node = part.text
+  if (part.italic) node = <em>{node}</em>
+  if (part.bold) node = <strong>{node}</strong>
+  return <span>{node}</span>
+}
+
 function PanelShell({ isTouch, label, onClose, children }) {
   // ⛔⛔ F4 / A2R-06 (WCAG 2.4.3, 2.1.1): THE DESKTOP PANEL CONTAINS TAB AND CLOSES ON ESCAPE,
   // like every other sheet. Lane 10E-2's keyboard walk tabbed straight out of it into the

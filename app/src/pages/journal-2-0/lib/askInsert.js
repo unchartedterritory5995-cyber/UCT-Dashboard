@@ -8,7 +8,7 @@
  * that is not open is OPENED first, and the answer rides the hand-off below.
  */
 import { TextSelection } from '@tiptap/pm/state'
-import { splitAnswer } from './askCitation'
+import { styledParts } from './askEmphasis'
 
 export const ASK_INSERT_TYPE = 'askInsert'
 export const ASK_CITATION_TYPE = 'askCitation'
@@ -43,7 +43,12 @@ export function buildAskInsertNode({
   answer, sources, question = '', scope = null, insertedAt = new Date().toISOString(),
 }) {
   const paragraphs = [[]]
-  for (const part of splitAnswer(answer || '', sources || [])) {
+  // Fin-ai K3: `styledParts` is splitAnswer's parts with the model's `**bold**` / `*italic*`
+  // read once (lib/askEmphasis.js, the same reading the panel renders). The asterisks are
+  // dropped and the text carries the editor's own marks, so the note shows what the panel
+  // showed. A claim is the paragraph's text nodes joined, so it never held the markers once
+  // they are gone, at insert and at render alike.
+  for (const part of styledParts(answer || '', sources || [])) {
     if (part.source) {
       const s = part.source
       const nav = s.navigation && typeof s.navigation === 'object' ? { ...s.navigation } : null
@@ -56,7 +61,9 @@ export function buildAskInsertNode({
     part.text.split(/\r?\n/).forEach((line, i) => {
       if (i > 0) paragraphs.push([])
       // ⛔ ProseMirror rejects an empty text node.
-      if (line) paragraphs[paragraphs.length - 1].push({ type: 'text', text: line })
+      if (!line) return
+      const marks = [...(part.bold ? [{ type: 'bold' }] : []), ...(part.italic ? [{ type: 'italic' }] : [])]
+      paragraphs[paragraphs.length - 1].push(marks.length ? { type: 'text', text: line, marks } : { type: 'text', text: line })
     })
   }
   const kept = paragraphs.filter((content) => content.some(
