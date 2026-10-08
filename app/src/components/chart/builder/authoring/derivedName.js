@@ -147,6 +147,17 @@ export function derivedDefName(model) {
   return clip(parts.join(' · ') + more, NAME_MAX)
 }
 
+/**
+ * ⚰️ Measured on prod 2026-10-08 (real model, a chart table): a HIDDEN `rsi14` CREATED
+ * first with `ema20` primary was stored as "EMA 20" — plot 1's empty label follows the
+ * definition name (`model.js` DEFAULT_PLOT1_LABEL), so an alert or setting on the RSI
+ * would have been named after the EMA. A first row that is NOT primary therefore gets
+ * its OWN derived name when it is created, and keeps following its own maths after.
+ * ⛔ Existing documents are untouched: a stored plot 1 with an EMPTY label still follows
+ * the definition name (the Builder's convention; presentation stays byte-identical).
+ */
+const notPrimary = (model, row) => !!model.scanKey && model.scanKey !== row.key
+
 /** What "auto" looked like before the patch: name + each row's label. */
 export function namingSnapshot(model) {
   if (!model) return null
@@ -155,9 +166,13 @@ export function namingSnapshot(model) {
   // the member (or an import) chose, not a description of the maths, so it is
   // left alone (measured: P2 truth 11 — an imported `sig` must survive a maths
   // edit). Only a label that IS the derived text counts as auto there.
+  // ⭐ A non-primary plot 1 that already carries its own DERIVED name (`notPrimary`) is
+  // auto too — it follows its own maths.
   const rows = new Map(model.rows.map((r, i) => [r.key, {
     label: r.label || '',
-    auto: i === 0 ? (r.label || '') === '' : !!r.label && r.label === derivedRowName(r),
+    auto: i === 0
+      ? (r.label || '') === '' || (notPrimary(model, r) && r.label === derivedRowName(r))
+      : !!r.label && r.label === derivedRowName(r),
   }]))
   return { name: model.name, nameAuto: model.name === derivedDefName(model), rows }
 }
@@ -188,7 +203,8 @@ export function applyDerivedNaming(model, before, explicit) {
     const prior = before ? before.rows.get(row.key) : null
     const isNew = !prior
     if (!isNew && !prior.auto) return                 // custom label: keep
-    if (i === 0) {
+    const ownName = i === 0 && notPrimary(model, row) && (isNew || prior.label !== '')
+    if (i === 0 && !ownName) {
       // Plot 1's empty label means "follow the definition name" (model.js).
       if (row.label) row.label = ''
     } else {

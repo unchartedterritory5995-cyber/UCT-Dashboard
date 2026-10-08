@@ -60,4 +60,31 @@ describe('member names survive; automatic names follow the maths', () => {
     const none = applyTurn(s, create('My Trend'), { gateCtx: GATE })
     expect(none.state.working.meta.name).toBe('EMA 20 · EMA 50')
   })
+
+  it('⚰️ PROD 2026-10-08: a HIDDEN first output that is NOT primary keeps its OWN name (the RSI was stored as "EMA 20")', () => {
+    const turn = env(0, [
+      { op: 'create', name: 'RSI & EMA Table', placement: 'price', primary: 'ema20', outputs: [
+        { key: 'rsi14', label: 'RSI 14', tree: P('rsi(close, 14)'), hidden: true },
+        { key: 'ema20', label: 'EMA 20', tree: P('ema(close, 20)') }] },
+      { op: 'set_table', position: 'top_right', cells: [
+        { row: 0, col: 0, text: 'RSI 14' }, { row: 0, col: 1, output: 'rsi14', format: 'decimal2' },
+        { row: 1, col: 0, text: 'EMA 20' }, { row: 1, col: 1, output: 'ema20', format: 'decimal2' }] }])
+    const r = applyPatch(null, turn, { gateCtx: GATE, memberWords: 'Create a table in the top-right showing RSI 14 and EMA 20.' })
+    expect(r.ok).toBe(true)
+    const label = (d, k) => d.plots.find((p) => p.key === k).label
+    expect(label(r.definition, 'rsi14')).toBe('RSI 14')
+    expect(label(r.definition, 'ema20')).toBe('EMA 20')
+    // REOPEN + a maths edit on the RSI: its auto label follows the maths, never the EMA's name
+    const t = applyPatch(r.definition, env(1, [{ op: 'set_output_tree', output: 'rsi14', tree: P('rsi(close, 21)') }]), { gateCtx: GATE, revision: 1 })
+    expect(t.ok).toBe(true)
+    expect(label(t.definition, 'rsi14')).toBe('RSI 21')
+    expect(label(t.definition, 'ema20')).toBe('EMA 20')
+  })
+
+  it('a PRIMARY plot 1 still follows the definition name (unchanged)', () => {
+    const r = applyPatch(null, env(0, [{ op: 'create', name: 'x', outputs: [{ key: 'value', tree: P('ema(close, 20)') }] }]), { gateCtx: GATE })
+    expect(r.definition.meta.name).toBe('EMA 20')
+    const t = applyPatch(r.definition, to21, { gateCtx: GATE, revision: 1 })
+    expect(t.definition.meta.name).toBe('EMA 21')
+  })
 })
