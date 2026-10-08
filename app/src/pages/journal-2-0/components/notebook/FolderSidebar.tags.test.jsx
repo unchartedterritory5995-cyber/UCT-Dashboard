@@ -181,3 +181,78 @@ describe('nested tags — filtering a long tag list', () => {
     expect(onSelectTag).toHaveBeenCalledWith('macro/rates/fed')
   })
 })
+
+// Finish program, lane KEYS3 round 3: the sidebar's tags are ONE Tab stop. Every tag was two
+// (its own button and its Rename), so a library with twenty tags put forty stops between the
+// folder tree and the notes. Same model as the notes list and the Trades list
+// (lib/useGridRoving.js): Down and Up move tag to tag, Right and Left reach a tag's Rename (and
+// its disclosure arrow in a nested library), Home and End go to the ends, and a typed letter
+// moves to the next tag that starts with it. A key the list takes does not reach the page's
+// "g then letter" shortcuts (the rule of round 2).
+describe('the tags are one Tab stop (lane KEYS3)', () => {
+  const FLAT = {
+    tagCounts: [{ tag: 'swing', count: 2 }, { tag: 'gaps', count: 1 }, { tag: 'thesis', count: 4 }],
+    tagTree: [
+      { path: 'swing', key: 'swing', own: 2, total: 2 },
+      { path: 'gaps', key: 'gaps', own: 1, total: 1 },
+      { path: 'thesis', key: 'thesis', own: 4, total: 4 },
+    ],
+    isLoading: false, error: null,
+  }
+  const rowsOf = () => [...document.querySelectorAll('[data-tag-row]')]
+  const controls = () => rowsOf().flatMap((r) => [...r.querySelectorAll('button')])
+  const select = (path) => rowsOf().find((r) => r.getAttribute('data-typeahead-label') === path).querySelector('button')
+  const key = (k, opts = {}) => fireEvent.keyDown(document.activeElement, { key: k, ...opts })
+
+  it('flat library: one control of all the tag rows is in the Tab order', () => {
+    tagsHook.mockReturnValue(FLAT)
+    renderSidebar({ onRenameTag: vi.fn() })
+    expect(rowsOf()).toHaveLength(3)
+    expect(controls()).toHaveLength(6)                                   // a tag button and a Rename, each
+    const stops = controls().filter((b) => b.getAttribute('tabindex') === '0')
+    expect(stops).toHaveLength(1)
+    expect(controls().filter((b) => b.getAttribute('tabindex') === '-1')).toHaveLength(5)
+  })
+
+  it('Down, End and Home move tag to tag; Right reaches Rename; Enter still selects', () => {
+    tagsHook.mockReturnValue(FLAT)
+    const { onSelectTag } = renderSidebar({ onRenameTag: vi.fn() })
+    const first = controls().find((b) => b.getAttribute('tabindex') === '0')
+    first.focus()
+    key('ArrowDown')
+    const second = document.activeElement
+    expect(second).not.toBe(first)
+    expect(second.closest('[data-tag-row]')).toBe(rowsOf()[1])
+    key('ArrowRight')
+    expect(document.activeElement.getAttribute('aria-label')).toMatch(/^Rename /)
+    key('ArrowLeft')
+    key('End')
+    expect(document.activeElement.closest('[data-tag-row]')).toBe(rowsOf()[2])
+    key('Home')
+    expect(document.activeElement).toBe(first)
+    fireEvent.click(document.activeElement)
+    expect(onSelectTag).toHaveBeenCalledTimes(1)
+  })
+
+  it('a typed letter moves to the tag that starts with it ("g" is gaps), and stays out of the page\'s shortcuts', () => {
+    tagsHook.mockReturnValue(FLAT)
+    renderSidebar({ onRenameTag: vi.fn() })
+    controls().find((b) => b.getAttribute('tabindex') === '0').focus()
+    const seen = vi.fn()
+    document.addEventListener('keydown', seen)
+    key('g')
+    document.removeEventListener('keydown', seen)
+    expect(document.activeElement).toBe(select('gaps'))
+    expect(seen).not.toHaveBeenCalled()
+  })
+
+  it('nested library: still one stop, and a child row joins when its parent is opened', () => {
+    tagsHook.mockReturnValue(NESTED)
+    renderSidebar({ onRenameTag: vi.fn() })
+    expect(controls().filter((b) => b.getAttribute('tabindex') === '0')).toHaveLength(1)
+    const before = rowsOf().length
+    fireEvent.click(screen.getByRole('button', { name: "Expand tag research" }))
+    expect(rowsOf().length).toBeGreaterThan(before)
+    expect(controls().filter((b) => b.getAttribute('tabindex') === '0')).toHaveLength(1)
+  })
+})

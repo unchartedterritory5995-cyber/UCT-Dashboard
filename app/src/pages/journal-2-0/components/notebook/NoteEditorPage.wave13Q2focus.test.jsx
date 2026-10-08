@@ -94,3 +94,48 @@ describe('13Q-2: openFocus="body" lands the caret in the note body', () => {
     expect(onOpenFocused).not.toHaveBeenCalled()
   })
 })
+
+// Lane KEYS3 (Q2): a note made from a template that asks for a ticker, with none known, opens
+// with focus in its Ticker field (NotebookTab decides; this proves the editor does it).
+describe('lane KEYS3: openFocus="ticker" lands in the Ticker field', () => {
+  it('focuses Ticker, not the title, and reports it once', async () => {
+    NOTE = { ...baseNote(), title: 'Investment Thesis' }
+    const { onOpenFocused } = await renderEditor('ticker')
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Ticker')))
+    expect(onOpenFocused).toHaveBeenCalledTimes(1)
+  })
+})
+
+// Lane KEYS3 (Q18): a review the Notebook just drafted opens with focus on its first COLLAPSED
+// block (the first thing it found), not at the top of the note, 18 to 24 Tab stops above it.
+describe('lane KEYS3: openFocus="collapsed" lands on the first collapsed block\'s arrow', () => {
+  const toggleNode = (summary, open) => ({
+    type: 'toggle', attrs: { open },
+    content: [
+      { type: 'toggleSummary', content: [{ type: 'text', text: summary }] },
+      { type: 'toggleContent', content: [P('Detail.')] },
+    ],
+  })
+
+  it('focuses the arrow of the first block that is closed, skipping an open one', async () => {
+    NOTE = { ...baseNote(), title: 'Week of Oct 5', bodyJson: { type: 'doc', content: [
+      P('What the week showed.'), toggleNode('Already open', true), toggleNode('Revenge re-entries', false), toggleNode('Late exits', false),
+    ] } }
+    const { onOpenFocused } = await renderEditor('collapsed')
+    await waitFor(() => {
+      const at = document.activeElement
+      expect(at?.classList.contains('uctToggleChevron')).toBe(true)
+      expect(at.closest('[data-type="toggle"]').textContent).toContain('Revenge re-entries')
+    }, { timeout: 4000 })
+    expect(onOpenFocused).toHaveBeenCalledTimes(1)
+  })
+
+  it('a note with no collapsed block falls back to the top of the note (the landmark), never the title', async () => {
+    NOTE = { ...baseNote(), title: 'Quiet week', bodyJson: { type: 'doc', content: [P('Nothing to open.')] } }
+    await renderEditor('collapsed')
+    await waitFor(() => {
+      expect(document.activeElement?.getAttribute('data-note-landmark')).not.toBeNull()
+    }, { timeout: 6000 })
+    expect(document.activeElement).not.toBe(screen.getByPlaceholderText('Title'))
+  }, 10000)
+})

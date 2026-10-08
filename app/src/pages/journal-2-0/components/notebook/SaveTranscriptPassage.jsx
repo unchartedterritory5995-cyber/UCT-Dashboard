@@ -9,6 +9,7 @@ import {
 import { createNoteViaApi } from '../../lib/noteCreation'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import PoliteStatus from './PoliteStatus'
+import useToolbarRoving from '../../lib/useToolbarRoving'
 import styles from './SaveTranscriptPassage.module.css'
 
 const NEW_NOTE = '__new__'
@@ -58,6 +59,10 @@ export default function SaveTranscriptPassage({
   const [fetchedNotes, setFetchedNotes] = useState(null)
   const turnRefs = useRef({})
   const passageRef = useRef(null)
+  const wrapRef = useRef(null)
+  // Lane KEYS3 (Q19): the turns are ONE Tab stop (a call has fifty or more, each with a Quote
+  // button, all of them before the passage editor). Down and Up move turn to turn.
+  const turnsRoving = useToolbarRoving({ orientation: 'vertical' })
 
   useEffect(() => {
     if (!open) return
@@ -126,6 +131,22 @@ export default function SaveTranscriptPassage({
     return q ? all.filter((t) => t.text.toLowerCase().includes(q)) : all
   }, [transcript, find])
 
+  // Lane KEYS3 (Q19): when the call has loaded, focus lands on the first turn's Quote button,
+  // past Close, the call select and the find box. Not the find box itself: on a phone that
+  // raises the keyboard over the call (it is one Shift+Tab back). Only while focus is still on
+  // the sheet itself or outside it: a member already inside the sheet keeps their place.
+  useEffect(() => {
+    if (!open || !transcript) return
+    const list = turnsRoving.ref.current
+    const first = list?.querySelector('button[tabindex="0"]') || list?.querySelector('button')
+    if (!first) return
+    const dlg = wrapRef.current?.closest('[role="dialog"]')
+    const at = document.activeElement
+    const moved = Boolean(dlg && at && at !== dlg && dlg.contains(at))
+    if (!moved) first.focus({ preventScroll: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per call that loads
+  }, [open, transcript])
+
   const pickTurn = (t) => {
     const chosen = selectionInside(turnRefs.current[t.turn])
     setTurn(t)
@@ -173,7 +194,7 @@ export default function SaveTranscriptPassage({
   return (
     <Sheet open={open} onClose={onClose} variant="auto" ariaLabel="Save a transcript passage"
       className={styles.sheet}>
-      <div className={styles.wrap} data-save-transcript="">
+      <div className={styles.wrap} data-save-transcript="" ref={wrapRef}>
         <div className={styles.head}>
           <h3 className={styles.title}>
             <UIcon name="document" size={13} gold={false} /> Save from a call transcript
@@ -236,7 +257,8 @@ export default function SaveTranscriptPassage({
             {/* FIN-A11Y (review R4, M-16): the find box narrows the turns silently; say how many are left. */}
             <PoliteStatus data-transcript-count=""
               text={find.trim() ? `${turns.length} ${turns.length === 1 ? 'turn mentions' : 'turns mention'} “${find.trim()}”.` : ''} />
-            <ol className={styles.turns} aria-label="Speaker turns" data-tour="transcript-turns">
+            <ol className={styles.turns} aria-label="Speaker turns" data-tour="transcript-turns"
+              ref={turnsRoving.ref} onKeyDown={turnsRoving.onKeyDown} onFocus={turnsRoving.onFocus}>
               {turns.map((t) => (
                 <li key={t.turn} className={`${styles.turn} ${turn?.turn === t.turn ? styles.picked : ''}`}>
                   <div className={styles.turnHead}>

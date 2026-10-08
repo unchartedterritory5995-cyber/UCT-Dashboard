@@ -221,6 +221,39 @@ ROVING_PLAN_JS = """h => {
   return null; }"""
 
 
+# A control inside a row of a tree (role="tree", one Tab stop: lane KEYS round 4). Reports the
+# tree's current stop, and where the control's row is among the rows showing.
+TREE_PLAN_JS = """h => {
+  const row = h && h.closest ? h.closest('[role="treeitem"]') : null;
+  const tree = row ? row.closest('[role="tree"]') : null;
+  if (!tree) return null;
+  const rows = Array.from(tree.querySelectorAll('[role="treeitem"]'));
+  const stop = rows.find(e => e.getAttribute('tabindex') === '0');
+  if (!stop) return null;
+  window.__w13qRovingStop = stop;
+  window.__w13qTreeRow = row;
+  return {from: rows.indexOf(stop), to: rows.indexOf(row), n: rows.length}; }"""
+
+
+# A control in a one-stop LIST OF ROWS (lib/useGridRoving.js: lane KEYS round 5). Reports the
+# list's current stop and how many rows and how many controls along the target is from it.
+GRID_PLAN_JS = """h => {
+  if (!h || !h.hasAttribute || !h.hasAttribute('data-grid-roving')) return null;
+  const rowOf = e => e.closest('[data-note-row]') || e.closest('[data-trade-row]') || e.closest('tr');
+  let root = h.parentElement;
+  while (root && root !== document.body && !root.querySelector('[data-grid-roving][tabindex="0"]')) root = root.parentElement;
+  if (!root) return null;
+  const cells = Array.from(root.querySelectorAll('[data-grid-roving]'));
+  const stop = cells.find(e => e.getAttribute('tabindex') === '0');
+  if (!stop) return null;
+  const rows = []; for (const c of cells) { const r = rowOf(c); if (!rows.includes(r)) rows.push(r); }
+  const col = e => cells.filter(c => rowOf(c) === rowOf(e)).indexOf(e);
+  window.__w13qRovingStop = stop;
+  const at = rows.indexOf(rowOf(h));
+  return {rows: at - rows.indexOf(rowOf(stop)), from_col: col(stop), to_col: col(h),
+          first: at === 0, last: at === rows.length - 1}; }"""
+
+
 class Meter:
     """Counts one flow in one mode. Every counted action goes through here, and is recorded
     in `steps` with what it acted on -- the raw path the reading cites."""
@@ -262,6 +295,48 @@ class Meter:
         the group's stop, then the group's own Arrow key (or Home / End when that is one press).
         Every key is pressed for real and counted; the arrival is checked, never assumed."""
         handle = loc.element_handle(timeout=20000)
+        tree = self.pg.evaluate(TREE_PLAN_JS, handle)
+        if tree:
+            # A row of a tree: Tab to the tree's one stop, then Down / Up (or Home / End) to the
+            # row. Focus ends ON THE ROW; its Enter presses the row's own control.
+            self.tab_to("el === window.__w13qRovingStop", f"the tree holding {label}")
+            a, b, n = tree["from"], tree["to"], tree["n"]
+            if b == 0 and abs(b - a) > 1:
+                self.key("Home", f"first row of the tree: {label}")
+            elif b == n - 1 and abs(b - a) > 1:
+                self.key("End", f"last row of the tree: {label}")
+            else:
+                for _ in range(abs(b - a)):
+                    self.key("ArrowDown" if b > a else "ArrowUp", f"move in the tree towards {label}")
+            if not self.pg.evaluate("() => document.activeElement === window.__w13qTreeRow"):
+                raise Inconclusive(f"the tree's arrow keys did not bring focus to the row of {label} "
+                                   f"({n} rows, stop at {a}, row at {b})")
+            return
+        grid = self.pg.evaluate(GRID_PLAN_JS, handle)
+        if grid:
+            # A list of rows that is one stop: Tab to the stop, Down / Up by row (the control
+            # kept), then Right / Left along the row. Every key real and counted.
+            self.tab_to("el === window.__w13qRovingStop", f"the list holding {label}")
+            # Lane KEYS3: Home / End when the row is the first / last and more than one row
+            # away (the list's own keys, lib/useGridRoving.js), as the tree and toolbar walks do.
+            if grid.get("last") and abs(grid["rows"]) > 1:
+                self.key("End", f"last row of the list: {label}")
+            elif grid.get("first") and abs(grid["rows"]) > 1:
+                self.key("Home", f"first row of the list: {label}")
+            else:
+                for _ in range(abs(grid["rows"])):
+                    self.key("ArrowDown" if grid["rows"] > 0 else "ArrowUp", f"row towards {label}")
+            # after the row moves the column is the stop's own, clamped to the row
+            for _ in range(8):
+                if self.pg.evaluate("h => h === document.activeElement", handle):
+                    break
+                at = self.pg.evaluate("""h => { const rowOf = e => e.closest('[data-note-row]') || e.closest('[data-trade-row]') || e.closest('tr');
+                    const a = document.activeElement; const cs = Array.from(rowOf(h).querySelectorAll('[data-grid-roving]'));
+                    return cs.indexOf(a) - cs.indexOf(h) }""", handle)
+                self.key("ArrowLeft" if at > 0 else "ArrowRight", f"along the row towards {label}")
+            if not self.pg.evaluate("h => h === document.activeElement", handle):
+                raise Inconclusive(f"the list's arrow keys did not bring focus to {label} ({grid})")
+            return
         plan = self.pg.evaluate(ROVING_PLAN_JS, handle)
         if not plan:
             self.tab_to_locator(loc, label)
@@ -813,9 +888,15 @@ def focus_field(m: Meter, loc, label: str):
     """Put focus in a field the member is about to type into. Free when it already has focus."""
     loc = loc.first
     loc.wait_for(state="visible", timeout=20000)
-    if is_focused(m.pg, loc):
-        m.steps.append({"do": "already focused (free)", "on": label})
-        return
+    # A page that focuses its own field does it a frame or two after the field appears (the
+    # Ask panel waits two frames on purpose). Sampling at once read "not focused" on a field
+    # that had focus a moment later, and charged a click the member never makes (Q9, lane KEYS
+    # round 4). So: look for up to 0.6 s. A field that never takes focus still costs its click.
+    for _ in range(6):
+        if is_focused(m.pg, loc):
+            m.steps.append({"do": "already focused (free)", "on": label})
+            return
+        m.pg.wait_for_timeout(100)
     if m.mode == "keys":
         m.keys_to(loc, label)
     else:
@@ -928,6 +1009,14 @@ def journal_chord(m: Meter, letter: str, label: str, url_glob: str) -> bool:
     except Exception:  # noqa: BLE001
         m.steps.append({"do": "the shortcut did not navigate; falling back to the tab row", "on": label})
         return False
+
+
+def palette_command(m: Meter, query: str, name_re: str, label: str) -> None:
+    """Keys mode, lane KEYS3: run a Notebook command from the command palette, as Q1 and Q4
+    already do. Ctrl+K (one keystroke), the command's words (content, not counted), Enter."""
+    m.key("Control+k", "open the command palette")
+    m.type(query, "palette query")
+    pick_option(m, name_re, label)
 
 
 def caret_at_top(pg) -> None:
@@ -1088,13 +1177,20 @@ def q1_new_blank(cx: Ctx, pg, m: Meter, width: str) -> dict:
 
 def q2_template_ticker(cx: Ctx, pg, m: Meter, width: str) -> dict:
     open_start(pg, cx.base, "/journal/notebook")
-    go_all_notes(m)
+    if m.mode == "keys":
+        # Lane KEYS3: Research Home has no Templates door, and the path through All notes was
+        # 19 keys. The command palette's "New note from a template" opens the New note sheet.
+        palette_command(m, "template", r"^New note from a template$", "New note from a template")
+    else:
+        go_all_notes(m)
     # 13Q-3: "Templates" lives in the pane's own list header -- the SAME region "Skip to notes
     # list" (NotebookTab.jsx) lands at, right past whatever remains of the sidebar after
     # go_all_notes' own click (the Keys path there still leaves focus on the "All notes" row).
-    if not use_skip_link_back(m, r"Skip to notes? list", "Skip to notes list"):
+    # Lane KEYS round 4: the folder panel is one Tab stop now, so the list's header is a few
+    # Tabs FORWARD of "All notes". No skip link is needed on a keyboard.
+    if m.mode != "keys":
         use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
-    m.press(pg.get_by_role("button", name="Templates", exact=True).filter(visible=True), "Templates")
+        m.press(pg.get_by_role("button", name="Templates", exact=True).filter(visible=True), "Templates")
     dlg = pg.get_by_role("dialog", name="New note")
     dlg.wait_for(state="visible", timeout=20000)
     card = dlg.locator("[data-template-key='thesis']")
@@ -1109,9 +1205,18 @@ def q2_template_ticker(cx: Ctx, pg, m: Meter, width: str) -> dict:
     tick = pg.locator("input[aria-label='Ticker']").filter(visible=True)
     if tick.count() == 0:
         raise Inconclusive("the note header carries no visible Ticker field at this width")
-    if m.mode == "keys" and not is_focused(pg, tick.first):
-        # a new note puts focus in its title; Ticker is a few stops BEFORE it
-        m.shift_tab_to_locator(tick, "Ticker field")
+    if m.mode == "keys":
+        # Lane KEYS3: a note from a template that asks for a ticker opens with focus IN its
+        # Ticker field. Looked for up to a second (the editor focuses after it mounts). If it
+        # is not there, the member goes BACK to it from the title, as before.
+        for _ in range(10):
+            if is_focused(pg, tick.first):
+                break
+            pg.wait_for_timeout(100)
+        if is_focused(pg, tick.first):
+            m.steps.append({"do": "already focused (free)", "on": "Ticker field"})
+        else:
+            m.shift_tab_to_locator(tick, "Ticker field")
     else:
         focus_field(m, tick, "Ticker field")
     m.fill(tick, "NVDA", "ticker")
@@ -1240,7 +1345,14 @@ def q6_link_trade(cx: Ctx, pg, m: Meter, width: str) -> dict:
     from_top(m)
     if row.count() == 0:
         raise Inconclusive("the seeded CRWD trade row is not visible on the Trades surface")
-    m.press(_row_opener(row, "CRWD"), "CRWD trade row")
+    opener = _row_opener(row, "CRWD")
+    if m.mode == "keys" and pg.locator("[data-grid-typeahead]").count():
+        # Lane KEYS3: the Trades list is one Tab stop and takes letters. Tab to it, then the
+        # first letter of the symbol (one keystroke, counted). If that did not land on the row
+        # (another symbol starts with the letter), `m.press` below pays the rest in arrows.
+        m.tab_to("el.hasAttribute && el.hasAttribute('data-grid-roving')", "the trades list (one Tab stop)")
+        m.key("c", "type the first letter of CRWD (the list moves to it)")
+    m.press(opener, "CRWD trade row")
     save = pg.get_by_role("button", name=re.compile(r"Save to Notebook")).filter(visible=True)
     try:
         save.first.wait_for(state="visible", timeout=15000)
@@ -1404,8 +1516,13 @@ def q9_ask_insert(cx: Ctx, pg, m: Meter, width: str) -> dict:
     # 13Q-3: the Ask toggle sits in the sticky chrome, ABOVE the body the member's caret just
     # landed in (setup) -- "Skip to editor toolbar" (NoteEditorPage.jsx) lands right before it,
     # a couple of presses, instead of the editor's own ~80-tab-stop content tree.
-    use_skip_link(m, r"Skip to editor toolbar", "Skip to editor toolbar")
-    m.press(pg.locator("[data-ask-toggle]").filter(visible=True), "Ask a question about this note")
+    if m.mode == "keys":
+        # Lane KEYS3: the command palette's "Ask about this note" opens the note's own Ask
+        # panel with the cursor in its field. (Before: 8 to 12 Tabs to a skip link, Enter,
+        # 2 Tabs to the Ask button, Enter.)
+        palette_command(m, "ask this note", r"^Ask about this note$", "Ask about this note")
+    else:
+        m.press(pg.locator("[data-ask-toggle]").filter(visible=True), "Ask a question about this note")
     import re
     box = pg.get_by_placeholder(re.compile("What did I say")).filter(visible=True)
     focus_field(m, box, "question field")
@@ -1454,10 +1571,17 @@ def q11_tag_move(cx: Ctx, pg, m: Meter, width: str) -> dict:
         raise Inconclusive("setup: no folder to move into")
     ids = [fresh_note(cx, f"Bulk {tag} {i}") for i in range(5)]
     open_start(pg, cx.base, "/journal/notebook")
-    go_all_notes(m)
+    if m.mode == "keys":
+        # Lane KEYS3: the command palette's "All notes" lands on the list's own heading.
+        # Before: a skip link into the folder panel, 7 Tabs to the tree, Enter on "All notes",
+        # then 7 to 9 Tabs past the sidebar's tags to the list.
+        palette_command(m, "all notes", r"^All notes$", "All notes")
+        pg.wait_for_url("**/journal/notebook?*view=*", timeout=20000)
+    else:
+        go_all_notes(m)
     # 13Q-3: the bulk-select checkboxes are in the pane's own grid -- "Skip to notes list"
     # lands right before it, same reasoning as Q2.
-    if not use_skip_link_back(m, r"Skip to notes? list", "Skip to notes list"):
+    if m.mode != "keys":            # as in Q2: forward of the folder panel on a keyboard
         use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
     try:
         pg.get_by_role("checkbox", name=f"Select Bulk {tag} 0").filter(visible=True).first.wait_for(
@@ -1470,8 +1594,13 @@ def q11_tag_move(cx: Ctx, pg, m: Meter, width: str) -> dict:
         if box.count() == 0:
             raise Inconclusive(f"no 'Select Bulk {tag} {i}' checkbox in the list at this width")
         if m.mode == "keys":
-            m.tab_to_locator(box.first, f"select note {i}")
-            m.key("Space", f"tick note {i}")
+            # Tick the first, then Shift+Down extends the selection one note at a time and
+            # carries focus (lane 13Q-5). One key per further note.
+            if i == len(ids) - 1:
+                m.keys_to(box.first, f"select note {i}")
+                m.key("Space", f"tick note {i}")
+            else:
+                m.key("Shift+ArrowDown", f"extend the selection to note {i}")
         elif m.mode == "mouse":
             # The list's own range select: tick the first, Shift+click the last. Two clicks
             # for five notes (NotebookTab.bulk.test.jsx, "Shift+click selects the range").
@@ -1539,13 +1668,13 @@ def q12_export_word(cx: Ctx, pg, m: Meter, width: str) -> dict:
     # 13Q-3: "More note actions" sits in the sticky chrome, same reasoning as Q9's Ask toggle.
     more = pg.locator("button[aria-label='More note actions']").filter(visible=True)
     if m.mode == "keys":
-        # the member is in the note's body and More is in the header ABOVE it: back, not round
-        m.shift_tab_to_locator(more, "More note actions")
-        m.key("Enter", "activate More note actions")
+        # Lane KEYS3: the command palette's "Export this note" opens More and the Export menu,
+        # with focus on its first format. (Before: 6 Shift+Tabs to More, 8 Tabs to Export.)
+        palette_command(m, "export", r"^Export this note$", "Export this note")
     else:
         m.press(more, "More note actions")
-    panel = pg.locator("[role=group][aria-label='More note actions']")
-    m.press(panel.get_by_role("button", name=re.compile(r"^Export")).filter(visible=True), "Export (in More note actions)")
+        panel = pg.locator("[role=group][aria-label='More note actions']")
+        m.press(panel.get_by_role("button", name=re.compile(r"^Export")).filter(visible=True), "Export (in More note actions)")
     item = pg.get_by_role("menuitem", name=re.compile(r"Word")).filter(visible=True)
     item.first.wait_for(state="visible", timeout=10000)
     with pg.expect_download(timeout=30000) as dl:
@@ -1598,12 +1727,17 @@ def q15_earnings_prep(cx: Ctx, pg, m: Meter, width: str) -> dict:
     import re
     # 13Q-3: bare-root Research Home's own content (ReportingSoon's "Create prep note"
     # button) renders right after the pane heading "Skip to notes list" lands on.
-    use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
     btn = pg.get_by_role("button", name=re.compile(r"^(Create prep note for|Open the) NVDA")).filter(visible=True)
     try:
         btn.first.wait_for(state="visible", timeout=30000)
     except Exception:  # noqa: BLE001
         raise Inconclusive("no 'Create prep note for NVDA' on Research Home (Reporting soon did not render)")
+    if m.mode == "keys":
+        # Lane KEYS3: the command palette's "Earnings prep" lands on the first name's prep
+        # button. Before: 2 Tabs to "Skip to notes list", Enter, then "Ask Notebook" and the
+        # name's research link before the button.
+        palette_command(m, "earnings prep", r"^Earnings prep", "Earnings prep")
+        pg.wait_for_timeout(400)           # the box takes focus a frame after the palette closes
     label = btn.first.get_attribute("aria-label")
     m.press(btn, label or "Create prep note for NVDA")
     nid = wait_note_open(pg, 60000)
@@ -1679,7 +1813,13 @@ def q20_chart(cx: Ctx, pg, m: Meter, width: str) -> dict:
             sel.select_option(role)
             m.keys += 1
             m.steps.append({"do": "key", "key": f"{role[0].upper()} (choose {role} in the select; counted 1)", "on": "Role"})
-            m.press(form.get_by_role("button", name="Add level"), "Add level")
+            if "Enter adds it" in form.inner_text():
+                # Lane KEYS3: Enter in the role select adds the level (the form says so).
+                # Before, a Tab to the Add level button came first, for every level.
+                # Focus is on the select: the Tab that reached it put it there, for real.
+                m.key("Enter", "add the level (Enter in the role select)")
+            else:
+                m.press(form.get_by_role("button", name="Add level"), "Add level")
             pg.wait_for_timeout(500)
         try:
             pg.wait_for_function("() => { const e = document.querySelector('[data-plan-value=\"shares\"]'); "
@@ -1838,6 +1978,12 @@ def q17_why(cx: Ctx, pg, m: Meter, width: str) -> dict:
 def q18_review_leak(cx: Ctx, pg, m: Meter, width: str) -> dict:
     """Start: Research Home. "This week's review" drafts the note; the leak it found is a
     collapsed block in it, opened by its own arrow."""
+    # SETUP (uncounted): this week's review is drafted once per week now, and a second press
+    # opens the same note. So each run starts with no review for this week: the one an earlier
+    # run of this flow drafted goes to the Trash, through the product's own delete.
+    for n in list_notes(cx.req, cx.base):
+        if "weekly-review" in (n.get("tags") or []):
+            cx.req.delete(f"{cx.base}/api/j2/notes/{n['id']}")
     open_start(pg, cx.base, "/journal/notebook")
     before = {n["id"] for n in list_notes(cx.req, cx.base)}
     btn = pg.locator("[data-tour='review-drafts-weekly']").filter(visible=True)
@@ -1976,6 +2122,10 @@ def q21_arm_alert(cx: Ctx, pg, m: Meter, width: str) -> dict:
         arm.first.wait_for(state="visible", timeout=20000)
     except Exception:  # noqa: BLE001
         raise Inconclusive(f"the stop's row offers no 'Arm alert at this level'; panel: {panel.inner_text()[:300]!r}")
+    if m.mode == "keys" and panel.locator("[data-plan-keys]").count():
+        # Lane KEYS3: the plan's own documented key (its hint line names it). From inside the
+        # open plan it moves focus to the stop's alert button; before, that was 12 Tabs.
+        m.key("Control+Alt+s", "the plan's key to the stop's alert (Ctrl+Alt+S)")
     m.press(arm, "Arm alert at this level (the stop)")
     try:
         row.get_by_text("Alert armed").first.wait_for(state="visible", timeout=30000)
@@ -2006,7 +2156,12 @@ def q22_visual_playbook(cx: Ctx, pg, m: Meter, width: str) -> dict:
         raise Inconclusive("no 'Visual playbook' under the tagged chart")
     if m.mode == "keys":
         caret_at_top(pg)                   # the member is working in the note, above its chart
-    m.press(door, "Visual playbook")
+        # Lane KEYS3: the chart's door is 9 Tab stops below the caret. The command palette's
+        # "Visual playbook" opens the same sheet (lib/notebookDoors.js), and the sheet lands
+        # focus on this chart's own shortcut.
+        palette_command(m, "visual playbook", r"^Visual playbook$", "Visual playbook")
+    else:
+        m.press(door, "Visual playbook")
     book = pg.locator('[data-testid="visual-playbook"]')
     try:
         book.wait_for(state="visible", timeout=30000)
@@ -2044,9 +2199,12 @@ def q23_board_similar(cx: Ctx, pg, m: Meter, width: str) -> dict:
         door.first.wait_for(state="visible", timeout=30000)
     except Exception:  # noqa: BLE001
         raise Inconclusive("no 'Active setups' door on Research Home")
-    if not use_skip_link(m, r"^Skip to reviews and setups$", "Skip to reviews and setups"):
-        use_skip_link(m, r"Skip to notes? list", "Skip to notes list")
-    m.press(door, "Active setups")
+    if m.mode == "keys":
+        # Lane KEYS3: the command palette's "Active setups" (a plain route). Before: 4 Tabs to
+        # Research Home's skip link, Enter, 5 Tabs past the reviews box to the board's link.
+        palette_command(m, "active setups", r"^Active setups$", "Active setups")
+    else:
+        m.press(door, "Active setups")
     try:
         pg.wait_for_url("**/journal/notebook/setups", timeout=20000)
         pg.get_by_role("heading", name="Active setups").wait_for(state="visible", timeout=60000)

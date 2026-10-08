@@ -11,6 +11,8 @@ import { exportNoteAsPng } from '../../lib/exportNote'
 import { EXPORT_FORMATS } from './export/exportFormats'
 import { featureCalls, telemetryBodies } from '../../lib/testing/telemetryFetch'
 import { printNote } from '../../lib/exportNote'
+import NoteMoreMenu from './NoteMoreMenu'
+import { NOTEBOOK_DOORS, openNotebookDoor } from '../../lib/notebookDoors'
 
 vi.mock('../../lib/exportNote', () => ({
   exportNoteAsPng: vi.fn(async () => ({ ok: true })),
@@ -378,5 +380,53 @@ describe('export_used — the door says a note left as a file, and nothing about
     fireEvent.click(screen.getByRole('menuitem', { name: 'JSON' }))
     await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('export failed'))
     expect(telemetryBodies(global.fetch).map((b) => b.props.format)).toEqual(['png', 'print'])
+  })
+})
+
+// Lane KEYS3 (Q12): Export sits inside "More note actions", the eighth control of a panel that
+// is six stops above the caret (20 keys against a budget of 12). The command palette's
+// "Export this note" asks for this door: the panel opens, the Export menu opens, and focus is
+// on its first format, exactly where pressing Export puts it.
+describe('NoteExportControls: the palette door opens the Export menu (lane KEYS3)', () => {
+  function InMore() {
+    const [msg, setMsg] = useState('')
+    return (
+      <div>
+        <NoteMoreMenu>
+          <button type="button">History</button>
+          <NoteExportControls noteId="n1" title="Plan" columnRef={{ current: null }} onMessage={setMsg} />
+        </NoteMoreMenu>
+        <p data-testid="chrome-msg">{msg}</p>
+      </div>
+    )
+  }
+
+  it('the door opens More, opens the menu and puts focus on the first format', async () => {
+    render(<InMore />)
+    const panel = document.querySelector('[role="group"][aria-label="More note actions"]')
+    expect(panel.hidden).toBe(true)
+    let took
+    act(() => { took = openNotebookDoor(NOTEBOOK_DOORS.EXPORT) })
+    expect(took).toBe(true)
+    expect(panel.hidden).toBe(false)
+    const items = await screen.findAllByRole('menuitem')
+    expect(items).toHaveLength(EXPORT_FORMATS.length)
+    await waitFor(() => expect(document.activeElement).toBe(items[0]))
+  })
+
+  it('outside a More panel the door still opens the menu (the controls alone)', async () => {
+    render(<Host />)
+    act(() => { openNotebookDoor(NOTEBOOK_DOORS.EXPORT) })
+    const items = await screen.findAllByRole('menuitem')
+    await waitFor(() => expect(document.activeElement).toBe(items[0]))
+  })
+
+  it('CONTROL: another door does nothing here', () => {
+    render(<InMore />)
+    let took
+    act(() => { took = openNotebookDoor('some-other-door') })
+    expect(took).toBe(false)
+    expect(screen.queryAllByRole('menuitem')).toHaveLength(0)
+    expect(document.querySelector('[role="group"][aria-label="More note actions"]').hidden).toBe(true)
   })
 })

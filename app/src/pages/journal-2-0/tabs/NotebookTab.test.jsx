@@ -84,7 +84,15 @@ vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({
 // the tab's OWN isHome-vs-grid wiring, not Home's internal rendering (that
 // lives in ResearchHome.test.jsx).
 vi.mock('../components/notebook/ResearchHome', () => ({
-  default: () => <div data-testid="research-home">Research Home</div>,
+  // Lane KEYS3: two buttons stand in for Home's doors, so the tab's own `openNote` can be
+  // exercised the way Home's boxes call it (a plain open; a drafted review's open).
+  default: ({ onOpenNote }) => (
+    <div data-testid="research-home">
+      Research Home
+      <button type="button" onClick={() => onOpenNote?.({ id: 'n-plain' })}>test: open a note</button>
+      <button type="button" onClick={() => onOpenNote?.({ id: 'rev1' }, null, { to: 'collapsed' })}>test: open a drafted review</button>
+    </div>
+  ),
 }))
 
 import NotebookTab from './NotebookTab'
@@ -808,5 +816,87 @@ describe('Saved view delete clears activeView when it was the active one (UX #1)
       '/api/j2/saved-views/v1',
       expect.objectContaining({ method: 'PUT', body: JSON.stringify({ name: 'Renamed View' }) }),
     ))
+  })
+})
+
+// Finish program, lane KEYS3 (Q2): a note from a template, with a ticker, on a keyboard.
+// It was 25 keys against a budget of 6. Research Home has no Templates door, so the path ran
+// through All notes (19 keys to reach the Templates button), and the new note put focus in
+// its title, four stops after the Ticker field it was made to hold.
+describe('lane KEYS3 (Q2): the templates door, and a ticker template starts in Ticker', () => {
+  const card = (key) => document.querySelector(`[data-template-key="${key}"]`)
+
+  it('"#templates" on the notes list opens the New note sheet (the palette\'s door)', async () => {
+    renderTab('/journal/notebook?view=all#templates')
+    expect(await screen.findByRole('dialog', { name: 'New note' })).toBeTruthy()
+  })
+
+  it('CONTROL: without the door the sheet stays closed', async () => {
+    renderTab('/journal/notebook?view=all')
+    await screen.findByRole('button', { name: 'Templates' })
+    expect(screen.queryByRole('dialog', { name: 'New note' })).toBeNull()
+  })
+
+  it('a template whose title names a ticker, picked with no ticker, opens with focus in TICKER', async () => {
+    renderTab()
+    fireEvent.click(card('thesis'))
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-open-focus', 'ticker')
+    expect(lastPostBody.title).toBe('Investment Thesis')     // the note itself is unchanged
+  })
+
+  it('the same template WITH a ticker already known still opens on the title', async () => {
+    renderTab('/journal/notebook?new=thesis&ticker=nvda')
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-open-focus', 'title')
+    expect(lastPostBody.title).toBe('NVDA Thesis')
+  })
+
+  it('a template that names no ticker (the weekly review) still opens on the title', async () => {
+    renderTab()
+    fireEvent.click(card('weekly-review'))
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-open-focus', 'title')
+  })
+})
+
+// Lane KEYS3 (Q18): Research Home's review box opens the note it drafted asking for the first
+// collapsed block. The tab passes that on to the editor; a plain open is still the landmark.
+describe('lane KEYS3 (Q18): a drafted review opens on its first collapsed block', () => {
+  it('an open that asks for "collapsed" reaches the editor as openFocus="collapsed"', async () => {
+    renderTab('/journal/notebook')
+    fireEvent.click(await screen.findByRole('button', { name: 'test: open a drafted review' }))
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-note-id', 'rev1')
+    expect(editor).toHaveAttribute('data-open-focus', 'collapsed')
+  })
+
+  it('CONTROL: a plain open from Research Home is still the landmark', async () => {
+    renderTab('/journal/notebook')
+    fireEvent.click(await screen.findByRole('button', { name: 'test: open a note' }))
+    const editor = await screen.findByTestId('note-editor')
+    expect(editor).toHaveAttribute('data-open-focus', 'landmark')
+  })
+})
+
+// Finish program, lane KEYS3 (Q11): tag and move five notes, on a keyboard. From Research Home
+// the notes list was 19 to 21 keys away: a skip link into the folder panel, 7 Tabs to the tree,
+// Enter on "All notes", then 7 to 9 Tabs past "+ New folder" and every sidebar tag (two stops
+// each) to the list. The command palette's "All notes" arrives with "#notes", and the Notebook
+// puts focus on the list's own heading: the header toolbar and the list are the next two stops.
+describe('lane KEYS3 (Q11): "#notes" lands keyboard focus on the notes list\'s heading', () => {
+  const heading = () => document.querySelector('h2[tabindex="-1"]')
+
+  it('arriving on the list with "#notes" puts focus on the pane heading', async () => {
+    renderTab('/journal/notebook?view=all#notes')
+    await waitFor(() => expect(document.activeElement).toBe(heading()))
+    expect(heading().textContent).toMatch(/notes/i)
+  })
+
+  it('CONTROL: without the door nothing takes focus', async () => {
+    renderTab('/journal/notebook?view=all')
+    await screen.findByRole('button', { name: 'Templates' })
+    await new Promise((r) => setTimeout(r, 60))
+    expect(document.activeElement).toBe(document.body)
   })
 })

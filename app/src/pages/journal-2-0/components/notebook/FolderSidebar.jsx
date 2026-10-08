@@ -31,6 +31,10 @@ import {
 import styles from './FolderSidebar.module.css'
 import { useSearchUsedTelemetry } from '../../lib/searchTelemetry'
 import { SkipLinkPortal } from '../../../../components/skipLinks'
+import ContextPopover from '../../../../components/mobile/ContextPopover'
+import useTreeRoving from '../../lib/useTreeRoving'
+import useToolbarRoving from '../../lib/useToolbarRoving'
+import useGridRoving from '../../lib/useGridRoving'
 
 // Debounce before the search query reaches the server (below) — short enough
 // to feel instant, long enough that fast typing doesn't fire a request per
@@ -198,6 +202,8 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
   const [expanded, setExpanded] = useState(true)
   // Wave 6 item 7: Ctrl/Cmd+click opens the note beside (desktop split view).
   const openRow = useOpenFromList(onOpenNote)
+  // Lane KEYS round 4: the notes of this section are ONE Tab stop, with Down and Up between them.
+  const rows = useToolbarRoving({ orientation: 'vertical' })
   if (!notes.length) return null
   return (
     <div className={styles.section}>
@@ -216,21 +222,25 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
           {label}
         </span>
       </div>
-      {expanded && notes.map((note) => (
-        <div key={note.id} className={styles.rowWrap}>
-          <span className={styles.disclosureSpacer} aria-hidden="true" />
-          <button
-            type="button"
-            className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
-            onClick={(e) => openRow(note, e)}
-            title={note.title?.trim() || 'Untitled'}
-            data-note-card-id={note.id}
-          >
-            <NoteIcon />
-            <span className={styles.noteTitle}>{note.title?.trim() || 'Untitled'}</span>
-          </button>
+      {expanded && (
+        <div role="group" aria-label={label} ref={rows.ref} onKeyDown={rows.onKeyDown} onFocus={rows.onFocus}>
+          {notes.map((note) => (
+            <div key={note.id} className={styles.rowWrap}>
+              <span className={styles.disclosureSpacer} aria-hidden="true" />
+              <button
+                type="button"
+                className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
+                onClick={(e) => openRow(note, e)}
+                title={note.title?.trim() || 'Untitled'}
+                data-note-card-id={note.id}
+              >
+                <NoteIcon />
+                <span className={styles.noteTitle}>{note.title?.trim() || 'Untitled'}</span>
+              </button>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   )
 }
@@ -445,7 +455,9 @@ function TagRenameableRow({
   const isRenaming = renameEnabled && renaming === path
   return (
     <>
-      <div className={styles.rowWrap} style={{ paddingLeft: depth * 14 }}>
+      {/* Lane KEYS3 round 3: a row of the one-stop tag list (see `tagsGrid` in FolderSidebar).
+          Type-ahead finds the tag by its path, not by the "#" its label starts with. */}
+      <div className={styles.rowWrap} style={{ paddingLeft: depth * 14 }} data-tag-row="" data-typeahead-label={path}>
         {disclosure || <span className={styles.disclosureSpacer} aria-hidden="true" />}
         <button
           type="button"
@@ -640,12 +652,20 @@ function FolderNode({
   const isEditing = editingId === node.id
   const isAddingHere = addForm.parentId === node.id && addForm.active
 
+  // Lane KEYS round 4: this folder is a ROW OF THE TREE (lib/useTreeRoving.js). The row is the
+  // one focus target; nothing inside it is a Tab stop (tabIndex -1), though every control is
+  // still a real button for the pointer. Its children sit in a group inside it.
   return (
-    <div className={styles.folderItem}>
+    <div className={styles.folderItem} role="treeitem" aria-level={depth + 1} aria-label={node.name}
+      aria-expanded={hasChildren ? isExpanded : undefined}
+      aria-selected={activeFolderId === node.id ? 'true' : undefined}
+      data-tree-folder={node.id}>
       <div className={`${styles.rowWrap} ${styles.folderRow}`} style={{ paddingLeft: depth * 14 }}>
         {hasChildren ? (
           <button
             type="button"
+            tabIndex={-1}
+            data-tree-toggle=""
             className={styles.disclosureBtn}
             aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${node.name}`}
             aria-expanded={isExpanded}
@@ -683,6 +703,8 @@ function FolderNode({
           */}
           <button
             type="button"
+            tabIndex={-1}
+            data-tree-primary=""
             className={`${styles.row} ${activeFolderId === node.id ? styles.rowActive : ''}`}
             // Wave 8 (8A): the selected folder is said, not only painted (tag
             // rows already carried this; folders and All notes did not).
@@ -704,6 +726,7 @@ function FolderNode({
             */}
             <button
               type="button"
+              tabIndex={-1}
               className={styles.iconBtn}
               onClick={() => { setEditingId(node.id); setEditName(node.name) }}
               title="Rename folder"
@@ -711,6 +734,7 @@ function FolderNode({
             ><UIcon name="edit" size={11} gold={false} /></button>
             <button
               type="button"
+              tabIndex={-1}
               className={`${styles.iconBtn} ${styles.iconBtnAdd}`}
               onClick={() => onStartAddChild(node.id)}
               title="Add subfolder"
@@ -718,6 +742,7 @@ function FolderNode({
             >+</button>
             <button
               type="button"
+              tabIndex={-1}
               className={styles.iconBtn}
               onClick={() => onDelete(node.id, node.name)}
               title="Delete folder"
@@ -732,6 +757,7 @@ function FolderNode({
               <button
                 key={action.id}
                 type="button"
+                tabIndex={-1}
                 className={styles.iconBtn}
                 onClick={() => action.onSelect(node)}
                 title={action.label}
@@ -742,7 +768,7 @@ function FolderNode({
         </>)}
       </div>
       {isExpanded && (
-        <div className={styles.childrenList} style={{ '--guide-x': `${depth * 14 + 10}px` }}>
+        <div className={styles.childrenList} role="group" style={{ '--guide-x': `${depth * 14 + 10}px` }}>
           {node.children.map((child) => (
             <FolderNode
               key={child.id}
@@ -774,10 +800,14 @@ function FolderNode({
               key={note.id}
               className={styles.rowWrap}
               style={{ paddingLeft: (depth + 1) * 14 }}
+              role="treeitem" aria-level={depth + 2} aria-label={note.title?.trim() || 'Untitled'}
+              aria-selected={activeNoteId === note.id ? 'true' : undefined}
             >
               <span className={styles.disclosureSpacer} aria-hidden="true" />
               <button
                 type="button"
+                tabIndex={-1}
+                data-tree-primary=""
                 className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
                 onClick={(e) => openRow(note, e)}
                 title={note.title?.trim() || 'Untitled'}
@@ -825,6 +855,9 @@ export default function FolderSidebar({
   onOpenNote = () => {},
   activeNoteId = null,
   onToggleSidebar = () => {},
+  // Lane KEYS3 round 3: whether the panel is on screen. "Skip to folder navigation" shows a
+  // hidden panel before it lands. Defaults to shown, which is what a caller that omits it has.
+  sidebarOpen = true,
   // Wave E: populated-conditional, same convention as Favorites/Recents
   // above -- renders nothing at zero saved views (checkpoint §20).
   savedViews = [],
@@ -941,6 +974,22 @@ export default function FolderSidebar({
   }, [trimmedQuery])
 
   const tree = useMemo(() => buildFolderTree(folders), [folders])
+  // Lane KEYS round 4: the folder tree's keyboard model, and the one key that opens a
+  // folder's actions (Shift+F10 or the context-menu key). The menu lists the SAME actions the
+  // row shows as icon buttons and calls the same handlers.
+  const [rowMenu, setRowMenu] = useState(null)
+  const openRowMenu = (rowEl) => {
+    const id = rowEl.getAttribute('data-tree-folder')
+    const folder = id ? folders.find((f) => String(f.id) === id) : null
+    if (!folder) return                       // a standing row or a note: no actions
+    const box = (rowEl.firstElementChild || rowEl).getBoundingClientRect()
+    // A second call for the folder whose menu is already open changes NOTHING: a new anchor
+    // object would make the open menu place itself again, and on doing that it hands focus
+    // back to the row (measured in a real browser, where the menu key arrives twice).
+    setRowMenu((open) => (open && open.folder.id === folder.id
+      ? open : { folder, anchor: { x: box.left + 24, y: box.bottom } }))
+  }
+  const folderTree = useTreeRoving({ onMenu: openRowMenu })
 
   // P0-2 fix: the TRUE whole-library per-folder count, never derived from
   // the one capped page of `notes` below — see useJ2NoteFolderCounts's own
@@ -1300,10 +1349,30 @@ export default function FolderSidebar({
   // reach them; a keyboard member had to tab through the shared app nav AND the Journal's own
   // tab bar to arrive at this panel's own controls. Visually hidden until it takes focus, same
   // H14-safe recipe as every other skip link in this feature.
+  // Lane KEYS3 round 3 (walk finding F1): the link went nowhere. Nothing carried the id its
+  // address names, it put focus on a hidden heading above the panel's own header buttons, and
+  // with the panel HIDDEN that heading was off screen. A skip link must land on something the
+  // member can see and use. So: a hidden panel is shown first; then focus goes to the folder
+  // tree's own Tab stop (the folder navigation itself), or, where no tree is on screen (search
+  // mode), to the panel's heading, which carries the id.
+  // Lane KEYS3 round 3: the tags are ONE Tab stop. Every tag was two (its button and its
+  // Rename), so twenty tags were forty stops between the folder tree and the notes. Down and Up
+  // move tag to tag, Right and Left reach a tag's Rename and its disclosure arrow, Home and End
+  // go to the ends, and a typed letter moves to the next tag that starts with it (stopped at
+  // the list, so it does not reach the Journal's "g then letter" shortcuts).
+  const tagsGrid = useGridRoving({ rowSelector: '[data-tag-row]', typeahead: true })
   const sidebarSkipRef = useRef(null)
   const skipToSidebar = (e) => {
     e.preventDefault()
-    sidebarSkipRef.current?.focus()
+    if (!sidebarOpen) onToggleSidebar()
+    const land = () => {
+      const tree = asideRef.current?.querySelector('[role="tree"]')
+      const stop = tree?.querySelector('[role="treeitem"][tabindex="0"]') || tree?.querySelector('[role="treeitem"]')
+      ;(stop || sidebarSkipRef.current)?.focus()
+    }
+    // a frame later when the panel has to open first: its slide starts on the next paint
+    if (sidebarOpen) land()
+    else requestAnimationFrame(land)
   }
   const onDeleteRequest = (id, name) => setDeleteTarget({
     id, name, after: neighbourKeys(keysInOrder(asideRef.current, 'data-folder-row'), String(id)),
@@ -1337,7 +1406,7 @@ export default function FolderSidebar({
           Skip to folder navigation
         </a>
       </SkipLinkPortal>
-      <h2 ref={sidebarSkipRef} tabIndex={-1} className="sr-only">Folder navigation</h2>
+      <h2 ref={sidebarSkipRef} id="notebook-folder-nav" tabIndex={-1} className="sr-only">Folder navigation</h2>
       {/* Header toolbar: collapse + mode switch (Folders / Search). */}
       <div className={styles.sbHeader}>
         <button
@@ -1793,10 +1862,21 @@ export default function FolderSidebar({
             onAddStarterViews={onAddStarterViews}
           />
           <div className={styles.section}>
-            <div className={styles.rowWrap}>
+            {/* Lane KEYS round 4: ONE Tab stop for the whole folder tree. Down and Up between
+                rows, Right and Left to open, close and move in and out, Home and End, letters
+                to search by name, Enter or Space to select, Shift+F10 (or the context-menu
+                key) for a folder's actions. "+ New folder" below is outside it on purpose. */}
+            <div role="tree" aria-label="Folders" ref={folderTree.ref}
+              onKeyDown={folderTree.onKeyDown} onFocus={folderTree.onFocus}
+              onContextMenu={folderTree.onContextMenu}>
+            <div className={styles.rowWrap} role="treeitem" aria-level={1}
+              aria-label={`All notes, ${notesTotal ?? notes.length}`}
+              aria-selected={activeFolderId == null && !activeTag && !isHome ? 'true' : undefined}>
               <span className={styles.disclosureSpacer} aria-hidden="true" />
               <button
                 type="button"
+                tabIndex={-1}
+                data-tree-primary=""
                 className={`${styles.row} ${activeFolderId == null && !activeTag && !isHome ? styles.rowActive : ''}`}
                 aria-current={activeFolderId == null && !activeTag && !isHome ? 'true' : undefined}
                 onClick={onSelectAllNotes || (() => { onSelectFolder(null); onSelectTag(null) })}
@@ -1812,10 +1892,14 @@ export default function FolderSidebar({
                 <span className={styles.count}>{notesTotal ?? notes.length}</span>
               </button>
             </div>
-            <div className={styles.rowWrap}>
+            <div className={styles.rowWrap} role="treeitem" aria-level={1}
+              aria-label={`Unfiled, ${unfiledCount}`}
+              aria-selected={activeFolderId === '__unfiled__' ? 'true' : undefined}>
               <span className={styles.disclosureSpacer} aria-hidden="true" />
               <button
                 type="button"
+                tabIndex={-1}
+                data-tree-primary=""
                 className={`${styles.row} ${activeFolderId === '__unfiled__' ? styles.rowActive : ''}`}
                 onClick={() => { onSelectFolder('__unfiled__'); onSelectTag(null) }}
               >
@@ -1823,12 +1907,16 @@ export default function FolderSidebar({
                 <span className={styles.count}>{unfiledCount}</span>
               </button>
             </div>
-            <div className={styles.rowWrap}>
+            <div className={styles.rowWrap} role="treeitem" aria-level={1}
+              aria-label={archivedTotalFromServer !== undefined ? `Archived, ${archivedTotalFromServer}` : 'Archived'}
+              aria-selected={activeFolderId === '__archived__' ? 'true' : undefined}>
               <span className={styles.disclosureSpacer} aria-hidden="true" />
               {/* Wave 6: archived notes leave every default list but are never
                   deleted — this is where they are, each still in its folder. */}
               <button
                 type="button"
+                tabIndex={-1}
+                data-tree-primary=""
                 className={`${styles.row} ${activeFolderId === '__archived__' ? styles.rowActive : ''}`}
                 onClick={() => { onSelectFolder('__archived__'); onSelectTag(null) }}
               >
@@ -1838,10 +1926,14 @@ export default function FolderSidebar({
                 )}
               </button>
             </div>
-            <div className={styles.rowWrap}>
+            <div className={styles.rowWrap} role="treeitem" aria-level={1}
+              aria-label={trashTotalFromServer !== undefined ? `Trash, ${trashTotalFromServer}` : 'Trash'}
+              aria-selected={activeFolderId === '__trash__' ? 'true' : undefined}>
               <span className={styles.disclosureSpacer} aria-hidden="true" />
               <button
                 type="button"
+                tabIndex={-1}
+                data-tree-primary=""
                 className={`${styles.row} ${activeFolderId === '__trash__' ? styles.rowActive : ''}`}
                 onClick={() => { onSelectFolder('__trash__'); onSelectTag(null) }}
               >
@@ -1881,6 +1973,7 @@ export default function FolderSidebar({
                 extraFolderActions={extraFolderActions}
               />
             ))}
+            </div>
             {adding && parentForNew == null ? (
               <form onSubmit={submitNew} className={styles.addForm}>
                 <input
@@ -1918,6 +2011,7 @@ export default function FolderSidebar({
                   aria-label="Filter tags"
                 />
               )}
+              <div ref={tagsGrid.ref} onKeyDown={tagsGrid.onKeyDown} onFocus={tagsGrid.onFocus}>
               {filteredTagNodes ? (
                 // Filtering: every matching tag at any level, by its full
                 // path — sharing the ONE rename control with the flat and
@@ -1995,6 +2089,7 @@ export default function FolderSidebar({
                   ))}
                 </div>
               )}
+              </div>
               {filteredTagNodes && filteredTagNodes.length === 0 && (
                 <div className={styles.searchEmpty}>No tags match “{tagFilter.trim()}”.</div>
               )}
@@ -2010,6 +2105,21 @@ export default function FolderSidebar({
             </div>
           )}
         </>
+      )}
+      {rowMenu && (
+        <ContextPopover open onClose={() => setRowMenu(null)} anchor={rowMenu.anchor} title={rowMenu.folder.name}
+          // ⛔ Rename and Add subfolder open a FIELD, and the menu hands focus back to the row
+          // as it closes. Opened in the same turn, the field took focus, lost it to the row,
+          // and (it saves on blur) closed at once. So the field opens a frame later, after the
+          // menu has let go (measured in a real browser, tools/notebook_fin_keys_folder_walk.py).
+          items={[
+            { key: 'rename', label: 'Rename', onClick: () => { const f = rowMenu.folder; requestAnimationFrame(() => { setEditingId(f.id); setEditName(f.name) }) } },
+            { key: 'add', label: 'Add subfolder', onClick: () => { const f = rowMenu.folder; requestAnimationFrame(() => startAddChild(f.id)) } },
+            { key: 'delete', label: 'Delete', danger: true, onClick: () => onDeleteRequest(rowMenu.folder.id, rowMenu.folder.name) },
+            ...extraFolderActions.map((action) => ({
+              key: action.id, label: action.label, onClick: () => action.onSelect(rowMenu.folder),
+            })),
+          ]} />
       )}
       {deleteTarget && (
         <ConfirmModal

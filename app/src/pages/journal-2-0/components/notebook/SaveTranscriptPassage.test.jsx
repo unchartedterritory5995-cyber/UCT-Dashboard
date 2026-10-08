@@ -247,3 +247,81 @@ describe('TranscriptInsertHost (the /transcript insert)', () => {
     await waitFor(() => expect(global.fetch).not.toHaveBeenCalled())
   })
 })
+
+// Finish program, lane KEYS3 (Q19): the transcript sheet on a keyboard.
+// It opened with focus on the sheet, and the turn a member wants was behind Close, the call
+// select, the find box and every turn before it (each turn its own Tab stop: a real call has
+// fifty or more). 12 keys against a budget of 9.
+//   - the turns are ONE Tab stop: Down and Up move turn to turn, Home and End to the ends;
+//   - when the call has loaded, focus lands on the first turn's "Quote" button. Not the find
+//     box: on a phone that would raise the keyboard over the call. It is one Shift+Tab back.
+describe('SaveTranscriptPassage: the turns are one stop and focus lands on them (lane KEYS3)', () => {
+  beforeEach(() => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_transcript_capture_enabled: true })
+  })
+  afterEach(() => __resetNotebookFlags())
+  const LONG = { ...TRANSCRIPT, turns: [
+    ...TRANSCRIPT.turns,
+    { turn: 3, speaker: 'Analyst', text: 'Analyst: What about supply?' },
+    { turn: 4, speaker: 'Jensen Huang', text: 'Jensen Huang: Supply is improving.' },
+  ] }
+  const openSheet = async () => {
+    installFetch([
+      [/\/transcripts\/NVDA\/quarters$/, 'GET', [200, QUARTERS]],
+      [/\/transcripts\/NVDA\/2026Q2$/, 'GET', [200, LONG]],
+    ])
+    wrap(<SaveTranscriptButton symbol="NVDA" notes={NOTES} />)
+    fireEvent.click(screen.getByRole('button', { name: /Save from a transcript/ }))
+    await screen.findByText('Supply is improving.')
+  }
+  const quote = (n) => screen.getByRole('button', { name: `Quote from turn ${n}` })
+  const key = (k) => fireEvent.keyDown(document.activeElement, { key: k })
+
+  it('exactly one turn is in the Tab order, however many turns the call has', async () => {
+    await openSheet()
+    const buttons = [1, 2, 3, 4].map(quote)
+    expect(buttons.filter((b) => b.tabIndex === 0)).toEqual([quote(1)])
+    expect(buttons.filter((b) => b.tabIndex === -1)).toHaveLength(3)
+  })
+
+  it('when the call has loaded, focus is on the first turn\'s Quote button', async () => {
+    await openSheet()
+    await waitFor(() => expect(document.activeElement).toBe(quote(1)))
+  })
+
+  it('Down, End, Up and Home move turn to turn, and Enter still quotes the turn', async () => {
+    await openSheet()
+    await waitFor(() => expect(document.activeElement).toBe(quote(1)))
+    key('ArrowDown')
+    expect(document.activeElement).toBe(quote(2))
+    key('End')
+    expect(document.activeElement).toBe(quote(4))
+    key('ArrowUp')
+    expect(document.activeElement).toBe(quote(3))
+    key('Home')
+    expect(document.activeElement).toBe(quote(1))
+    key('ArrowDown')
+    fireEvent.click(document.activeElement)
+    expect(screen.getByLabelText(/Passage from turn 2 \(Colette Kress\)/).value)
+      .toBe('Revenue was a record and gross margin was 72.4%.')
+  })
+
+  it('a member who is already somewhere in the sheet when the call arrives keeps their place', async () => {
+    let release
+    const held = new Promise((r) => { release = r })
+    global.fetch = vi.fn(async (url) => {
+      if (/\/quarters$/.test(url)) return { ok: true, status: 200, json: async () => QUARTERS }
+      await held
+      return { ok: true, status: 200, json: async () => LONG }
+    })
+    wrap(<SaveTranscriptButton symbol="NVDA" notes={NOTES} />)
+    fireEvent.click(screen.getByRole('button', { name: /Save from a transcript/ }))
+    const select = await screen.findByRole('combobox', { name: 'Call quarter' })
+    select.focus()
+    await act(async () => { release() })
+    await screen.findByText('Supply is improving.')
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(document.activeElement).toBe(select)
+  })
+})

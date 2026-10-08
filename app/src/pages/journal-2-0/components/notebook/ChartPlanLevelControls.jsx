@@ -24,6 +24,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { PRICE_ROLES } from '../../lib/planLevels'
 import { levelStep, roundToStep } from '../../lib/chartPlan'
+import useToolbarRoving from '../../lib/useToolbarRoving'
 import styles from './ChartPlanPanel.module.css'
 
 const ROLE_LABEL = { entry: 'Entry', stop: 'Stop', target: 'Target' }
@@ -134,6 +135,20 @@ export function LevelPriceField({ price, label, onCommit, onInvalid }) {
   )
 }
 
+/**
+ * Lane KEYS3 (Q20): a level row's alert controls (the direction select, where one is offered,
+ * and the Arm button) as ONE Tab stop. Left and Right move between them; Up and Down stay the
+ * select's own. A row with only the button is unchanged in effect: one control, one stop.
+ */
+export function AlertCell({ children }) {
+  const roving = useToolbarRoving()
+  return (
+    <div className={styles.alertCell} ref={roving.ref} onKeyDown={roving.onKeyDown} onFocus={roving.onFocus}>
+      {children}
+    </div>
+  )
+}
+
 export function AddLevelForm({ onAdd, onInvalid }) {
   const id = useId()
   const inputRef = useRef(null)
@@ -170,11 +185,20 @@ export function AddLevelForm({ onAdd, onInvalid }) {
         aria-label="Role of the new level"
         value={role}
         onChange={(e) => setRole(e.target.value)}
+        // Lane KEYS3 (Q20): Enter here adds the level, as it already does in the price field.
+        // A select does not submit its form by itself, so a keyboard member had to Tab on to
+        // the button for every level. Nothing else about the select's keys changes.
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return
+          e.preventDefault()
+          e.currentTarget.form?.requestSubmit()
+        }}
       >
         <option value="">No role yet</option>
         {PRICE_ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
       </select>
       <button type="submit" className={styles.saveBtn}>Add level</button>
+      <span className={styles.hint}>Enter adds it.</span>
     </form>
   )
 }

@@ -1,0 +1,286 @@
+{
+ "tool": "tools/notebook_fin_keys_folder_walk.py",
+ "tree": "44a4c2541daa55be2853e0d95f0082a59c20fbd0",
+ "started": "2026-10-07T21:37:16+00:00",
+ "steps": [
+  {
+   "mode": "mouse",
+   "step": "expand a folder",
+   "ok": true,
+   "detail": {
+    "expanded": "true",
+    "child_showing": true
+   }
+  },
+  {
+   "mode": "mouse",
+   "step": "select a folder",
+   "ok": true,
+   "detail": {
+    "selected": "true"
+   }
+  },
+  {
+   "mode": "mouse",
+   "step": "the panel is still reachable after a selection",
+   "ok": true,
+   "detail": {
+    "panel": "showing"
+   }
+  },
+  {
+   "mode": "mouse",
+   "step": "rename a folder",
+   "ok": true,
+   "detail": {
+    "server_has": true
+   }
+  },
+  {
+   "mode": "mouse",
+   "step": "add a subfolder",
+   "ok": true,
+   "detail": {
+    "server_has": true
+   }
+  },
+  {
+   "mode": "mouse",
+   "step": "the Publish action",
+   "ok": true,
+   "detail": {
+    "door": "not offered on this build (its switch is off)"
+   }
+  },
+  {
+   "mode": "mouse",
+   "step": "delete a folder",
+   "ok": true,
+   "detail": {
+    "server_has": false
+   }
+  },
+  {
+   "mode": "mouse",
+   "step": "list: All notes shows the list",
+   "ok": true,
+   "detail": {
+    "rows": 9
+   }
+  },
+  {
+   "mode": "mouse",
+   "step": "list: tick two notes, the bulk bar counts them, untick",
+   "ok": true,
+   "detail": {
+    "bar": "2 selected\nCtrl+Alt+B jumps here\nSelect all 9 shown\nClear\nFo"
+   }
+  },
+  {
+   "mode": "mouse",
+   "step": "list: a note's card opens the note",
+   "ok": true,
+   "detail": {
+    "opened": "73ecb06b0239433db4f56f9a229b7502"
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "expand a folder",
+   "ok": true,
+   "detail": {
+    "expanded": "true",
+    "child_showing": true
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "select a folder",
+   "ok": true,
+   "detail": {
+    "selected": "true"
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "the panel is still reachable after a selection",
+   "ok": true,
+   "detail": {
+    "panel": "showing"
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "rename a folder",
+   "ok": true,
+   "detail": {
+    "server_has": true
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "add a subfolder",
+   "ok": true,
+   "detail": {
+    "server_has": true
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "the Publish action",
+   "ok": true,
+   "detail": {
+    "door": "not offered on this build (its switch is off)"
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "delete a folder",
+   "ok": true,
+   "detail": {
+    "server_has": false
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "list: All notes shows the list",
+   "ok": true,
+   "detail": {
+    "rows": 9
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "list: tick two notes, the bulk bar counts them, untick",
+   "ok": true,
+   "detail": {
+    "bar": "2 selected\nCtrl+Alt+B jumps here\nSelect all 9 shown\nClear\nFo"
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "list: a note's card opens the note",
+   "ok": true,
+   "detail": {
+    "opened": "73ecb06b0239433db4f56f9a229b7502"
+   }
+  },
+  {
+   "mode": "keys",
+   "step": "the tree is one Tab stop",
+   "ok": true,
+   "detail": {
+    "rows_in_tab_order": 1,
+    "controls_in_tab_order": 0,
+    "rows": 12
+   }
+  },
+  {
+   "mode": "keys",
+   "step": "one Tab leaves the tree",
+   "ok": true,
+   "detail": {
+    "on": "treeitem:All notes, 9",
+    "one_tab_later": "BUTTON:+ New folder"
+   }
+  },
+  {
+   "mode": "keys",
+   "step": "Home, End, typing a name, Right into a folder, Left back out",
+   "ok": true,
+   "detail": {
+    "trail": [
+     "treeitem:All notes, 9",
+     "treeitem:Walk taps A",
+     "treeitem:All notes, 9",
+     "treeitem:Walk keys A",
+     "treeitem:Walk keys child",
+     "treeitem:Walk keys A"
+    ]
+   }
+  },
+  {
+   "mode": "keys",
+   "step": "Enter selects the folder",
+   "ok": true,
+   "detail": {
+    "focus": "treeitem:Walk keys A"
+   }
+  },
+  {
+   "mode": "keys",
+   "step": "Shift+F10 opens the folder's menu; Rename from it works",
+   "ok": true,
+   "detail": {
+    "menu_items": [
+     "Rename",
+     "Add subfolder",
+     "Delete"
+    ],
+    "server_has": true,
+    "focus_after": "BODY:Skip to main contentSkip to no"
+   }
+  },
+  {
+   "mode": "keys",
+   "step": "list: one Tab stop; Down, Right, Space, Shift+Down; one Tab leaves",
+   "ok": true,
+   "detail": {
+    "controls": 18,
+    "in_tab_order": 1,
+    "down_right": [
+     true,
+     true
+    ],
+    "bar": "2 selected\nCtrl+Alt+B jumps here\nSelect all 9 shown\nClear\nFo",
+    "one_tab_leaves": true
+   }
+  }
+ ],
+ "status": "COMPLETE",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-keys2\\44a4c2541d\\walk\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 16:37:24",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 16:37:57",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 16:39:39",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-07 16:39:48",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-keys2\\44a4c2541d\\walk\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-keys\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T16-37-19.md"
+ },
+ "failure": null,
+ "finished": "2026-10-07T21:40:09+00:00"
+}

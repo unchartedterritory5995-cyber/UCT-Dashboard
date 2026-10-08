@@ -25,7 +25,7 @@
  * Mounted as a sheet from the fingerprint panel. `VisualPlaybookBody` is the page body for the
  * integrator's route (App.jsx and My Playbook's link arrive after lane 13B, plan section 5.5).
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import Sheet from '../../../../components/mobile/Sheet'
 import { MQ } from '../../../../styles/breakpoints'
@@ -158,8 +158,10 @@ function Card({ card }) {
   )
 }
 
-export function VisualPlaybookBody({ initialSetup = null }) {
+export function VisualPlaybookBody({ initialSetup = null, landOnSetup = false }) {
   const tag = canonicalSetupTag(initialSetup)
+  const bodyRef = useRef(null)
+  const landedRef = useRef(false)
   // ⛔ '' — the WHOLE playbook. Never `tag:${tag}` (see the file header, item 2).
   const [setupChoice, setSetupChoice] = useState('')
   const [outcome, setOutcome] = useState('')
@@ -180,8 +182,25 @@ export function VisualPlaybookBody({ initialSetup = null }) {
   const regimeInfo = data?.regime
   const totalTagged = Object.values(facets.setups || {}).reduce((a, n) => a + n, 0)
 
+  // Lane KEYS3 (Q22): opened from a chart (`landOnSetup`), focus lands on that chart's own
+  // shortcut, "Only this chart's setup", once the playbook has loaded: it is what the chart's
+  // door is for, and it sat behind the Close button and nine filter fields. Once per opening,
+  // and only while focus is still on the sheet itself or outside it: a member who has
+  // already moved inside the sheet keeps their place. The filters are one Shift+Tab back.
+  const scopeShown = Boolean(tag && data && setupChoice === '')
+  useEffect(() => {
+    if (!landOnSetup || !scopeShown || landedRef.current) return
+    landedRef.current = true
+    const btn = bodyRef.current?.querySelector('[data-scope-only]')
+    const dlg = bodyRef.current?.closest('[role="dialog"]')
+    const at = document.activeElement
+    // inside the sheet and not on the sheet itself: the member (or a tour) put it there
+    const moved = Boolean(dlg && at && at !== dlg && dlg.contains(at))
+    if (btn && !moved) btn.focus()
+  }, [landOnSetup, scopeShown])
+
   return (
-    <div className={styles.body} data-testid="visual-playbook">
+    <div className={styles.body} data-testid="visual-playbook" ref={bodyRef}>
       <form className={styles.filters} aria-label="Filter your playbook" onSubmit={(e) => e.preventDefault()} data-tour="vp-filters">
         <label className={styles.field}>
           <span>Setup</span>
@@ -253,7 +272,7 @@ export function VisualPlaybookBody({ initialSetup = null }) {
           ) : setupChoice === '' ? (
             <>
               All {totalTagged} tagged {totalTagged === 1 ? 'chart' : 'charts'}.{' '}
-              <button type="button" className={styles.linkBtn} onClick={() => setSetupChoice(`tag:${tag}`)}>
+              <button type="button" className={styles.linkBtn} data-scope-only="" onClick={() => setSetupChoice(`tag:${tag}`)}>
                 Only this chart's setup ({tag})
               </button>
             </>
@@ -303,7 +322,7 @@ export function VisualPlaybookBody({ initialSetup = null }) {
   )
 }
 
-export default function VisualPlaybook({ open, onClose, initialSetup = null }) {
+export default function VisualPlaybook({ open, onClose, initialSetup = null, landOnSetup = false }) {
   // ⛔ The layout is decided when the sheet OPENS (a click), by asking the media query then.
   // This component is mounted, closed, long before that, and `useIsTouch()` answers from
   // its mount (FIN-A11Y, review R4 M-13: the old comment said "read on a click"; the hook
@@ -317,7 +336,7 @@ export default function VisualPlaybook({ open, onClose, initialSetup = null }) {
   return (
     <Sheet open={open} onClose={onClose} title="Visual playbook" labelledByTitle
       variant={isTouch ? 'fullscreen' : 'modal'} maxWidth={1100}>
-      <VisualPlaybookBody initialSetup={initialSetup} />
+      <VisualPlaybookBody initialSetup={initialSetup} landOnSetup={landOnSetup} />
     </Sheet>
   )
 }

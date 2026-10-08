@@ -300,6 +300,9 @@ export default function NotesTableView({
       // F4 / A2R-02: the row is a Tab stop that opens its note on Enter or
       // Space, and its name says what that does (the title alone reads as data).
       rowLabel={(n) => `Open ${n.title || 'Untitled'}`}
+      // Lane KEYS3: the rows are ONE Tab stop (Down / Up between notes, Right / Left to a
+      // row's tick box and value chips), as the card view's list already is.
+      oneTabStop
       emptyText="No notes match this view."
     />
   )

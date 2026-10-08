@@ -410,3 +410,32 @@ describe('TradeDetailPage — trade-card PNG actions', () => {
     })
   })
 })
+
+// Finish program, lane KEYS3 (Q6): after a move to a trade's page, keyboard focus lands on the
+// trade's own heading (lib/routeFocus.jsx reads `data-route-landing`), so the page's actions are
+// the next stops. It used to land before the page: the back link and Previous / Next came
+// first, and "Save to Notebook" was the fifth stop.
+describe('lane KEYS3 (Q6): the trade page marks its landing on the trade\'s heading', () => {
+  const TABBABLE = 'a[href], button:not([disabled]), select, input, textarea, [tabindex]:not([tabindex="-1"])'
+  const stopsAfter = (el) => [...document.body.querySelectorAll(TABBABLE)]
+    .filter((n) => el.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING)
+
+  it('the landing is the heading, focusable by script only, and it names the trade', async () => {
+    renderPage('t1')
+    const h1 = await screen.findByRole('heading', { level: 1, name: 'NVDA' })
+    expect(document.body.querySelector('[data-route-landing]')).toBe(h1)
+    expect(h1.getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('"Save to Notebook" is within two stops of the landing (it was the fifth stop of the page)', async () => {
+    renderPage('t1')
+    const h1 = await screen.findByRole('heading', { level: 1, name: 'NVDA' })
+    const save = await screen.findByRole('button', { name: /Save to Notebook/ })
+    const after = stopsAfter(h1)
+    expect(after.indexOf(save)).toBeGreaterThanOrEqual(0)
+    expect(after.indexOf(save)).toBeLessThanOrEqual(1)
+    // NON-VACUITY: the back link and the Previous / Next buttons are real, and BEFORE the landing
+    const back = screen.getByRole('link', { name: /Trade Journal/ })
+    expect(h1.compareDocumentPosition(back) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+  })
+})

@@ -437,4 +437,11 @@
     width: 20px;
     height: 20px;
   }
+  /* Lane KEYS3 round 3 (walk finding F2, 820 and 390 px). The destination select was 37 px
+     tall. And a checkbox keeps its 20 px box: its hit area is the <label> row it sits in, so
+     the "leave out" rows get the 44 px the note rows above already have. */
+  .destSelect,
+  .excludeRow {
+    min-height: 44px;
+  }
 }

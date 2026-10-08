@@ -10,6 +10,7 @@ import { render, screen, act, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import FingerprintPanel, { FREEZE_RETRY_MS, embedKeyFor } from './FingerprintPanel'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
+import { NOTEBOOK_DOORS, openNotebookDoor } from '../../lib/notebookDoors'
 
 const cell = (value, missing = null) => ({ value, source: 'screener_row', missing })
 const FP = {
@@ -146,5 +147,57 @@ describe('FingerprintPanel', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(3000) })
     expect(global.fetch.mock.calls.filter(([u]) => String(u).includes('/freeze'))).toEqual([])
     expect(screen.queryByRole('combobox')).toBeNull()
+  })
+})
+
+// Lane KEYS3 (Q22): the command palette's "Visual playbook" asks for the chart's own door
+// (lib/notebookDoors.js). The panel opens its sheet exactly as its own button does, and only
+// one panel answers when a note holds several charts.
+describe('FingerprintPanel: the palette door opens the visual playbook (lane KEYS3)', () => {
+  afterEach(() => { __resetNotebookFlags(); vi.restoreAllMocks() })
+  const tagged = (embedId, setupTag) => ({ ...ATTRS, embedId, ta: { v: 1, fingerprint: FP, ...(setupTag ? { setupTag } : {}) } })
+  const serveAll = () => {
+    global.fetch = vi.fn((url) => (String(url).endsWith('/meta') ? respond(200, META)
+      : respond(200, { cards: [], facets: { setups: {}, timeframes: {} }, stats: null })))
+  }
+
+  it('the door opens the sheet, and a second door while it is open changes nothing', async () => {
+    latchNotebookFlags({ notebook_ta_fingerprint_enabled: true, notebook_visual_playbook_enabled: true })
+    serveAll()
+    renderPanel({ attrs: tagged('e-1', 'VCP'), updateAttributes: vi.fn(), editor: editorWith() })
+    await screen.findByText(/as of 2026-09-30/)
+    expect(screen.queryByRole('dialog', { name: 'Visual playbook' })).toBeNull()
+    let took
+    act(() => { took = openNotebookDoor(NOTEBOOK_DOORS.VISUAL_PLAYBOOK) })
+    expect(took).toBe(true)
+    expect(await screen.findByRole('dialog', { name: 'Visual playbook' })).toBeTruthy()
+  })
+
+  it('two charts: the TAGGED one answers, once', async () => {
+    latchNotebookFlags({ notebook_ta_fingerprint_enabled: true, notebook_visual_playbook_enabled: true })
+    serveAll()
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+        <FingerprintPanel attrs={tagged('e-1', null)} updateAttributes={vi.fn()} editor={editorWith()} />
+        <FingerprintPanel attrs={tagged('e-2', 'VCP')} updateAttributes={vi.fn()} editor={editorWith()} />
+      </SWRConfig>,
+    )
+    await screen.findAllByText(/as of 2026-09-30/)
+    act(() => { openNotebookDoor(NOTEBOOK_DOORS.VISUAL_PLAYBOOK) })
+    await screen.findByRole('dialog', { name: 'Visual playbook' })
+    expect(screen.getAllByRole('dialog', { name: 'Visual playbook' })).toHaveLength(1)
+    const from = String(global.fetch.mock.calls.map(([u]) => String(u)).find((u) => u.includes('visual-playbook/cards')))
+    expect(from).toBeTruthy()
+  })
+
+  it('DARK: with the playbook switch off nobody answers the door', async () => {
+    latchNotebookFlags({ notebook_ta_fingerprint_enabled: true, notebook_visual_playbook_enabled: false })
+    serveAll()
+    renderPanel({ attrs: tagged('e-1', 'VCP'), updateAttributes: vi.fn(), editor: editorWith() })
+    await screen.findByText(/as of 2026-09-30/)
+    let took
+    act(() => { took = openNotebookDoor(NOTEBOOK_DOORS.VISUAL_PLAYBOOK) })
+    expect(took).toBe(false)
+    expect(screen.queryByRole('dialog', { name: 'Visual playbook' })).toBeNull()
   })
 })

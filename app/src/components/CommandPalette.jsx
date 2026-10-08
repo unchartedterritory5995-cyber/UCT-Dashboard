@@ -21,6 +21,11 @@ import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../pages/journal-2-0/lib/no
 import { notebookFlag } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { checklistEnabled } from '../pages/journal-2-0/components/notebook/onboarding/gettingStartedPref'
 import { NOTEBOOK_SEARCH_HASH } from '../pages/journal-2-0/lib/notebookSearchDoor'
+import {
+  NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_PREP_FLAG, NOTEBOOK_PREP_TO, NOTEBOOK_TEMPLATES_TO,
+  noteOpenAt, openNotebookDoor,
+} from '../pages/journal-2-0/lib/notebookDoors'
+import { SETUPS_BOARD_PATH, setupsBoardEnabled } from '../pages/journal-2-0/lib/setupsBoardLink'
 import styles from './CommandPalette.module.css'
 
 const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
@@ -36,6 +41,13 @@ export const PALETTE_DEBOUNCE_MS = 150
 // dead/future commands per §13). "Create Thesis" was evaluated and dropped:
 // with no trade/strategy already in context, there is no genuine
 // context-free destination for it yet.
+// Lane KEYS3: a Notebook command that names what it does needs SIX typed characters and must
+// be the start of one of its own phrases. A command row LEADS the palette (orderPaletteRows)
+// and a ticker is five letters at most, so such a row can never sit above a ticker the member
+// typed and take its Enter ("expo" stays Exponent; "export" is the command).
+const KEYS3_MIN_CHARS = 6
+const phraseStart = (...phrases) => (q) => q.length >= KEYS3_MIN_CHARS && phrases.some((p) => p.startsWith(q))
+
 const NOTEBOOK_COMMANDS = [
   { id: 'nb-new', kind: 'command', label: 'New Note', icon: 'document',
     to: '/journal/notebook?new=blank', keywords: ['note', 'notebook', 'new', 'create'] },
@@ -69,13 +81,49 @@ const NOTEBOOK_COMMANDS = [
     to: '/support#walkthroughs', keywords: [],
     match: (q) => q.length >= 5 && ('walkthroughs'.startsWith(q) || q.startsWith('walkthrough')),
     when: () => checklistEnabled(notebookFlag) },
+  // -- Lane KEYS3: the keyboard doors of an open note (docs/notebook/fin-clicks.md section 15).
+  // `action: 'door'` asks the surface that owns the action to do what its own button does
+  // (lib/notebookDoors.js); nothing navigates. Each is offered only where it can work.
+  // Q22: the chart's own "Visual playbook", 9 Tab stops below the caret of a note.
+  { id: 'nb-visual-playbook', kind: 'command', label: 'Visual playbook', icon: 'library',
+    action: 'door', door: NOTEBOOK_DOORS.VISUAL_PLAYBOOK, keywords: [],
+    match: phraseStart('visual playbook', 'playbook'),
+    when: ({ location }) => notebookFlag('notebook_visual_playbook_enabled') === true && noteOpenAt(location) },
+  // Q12: the note's Export menu (Markdown, web page, JSON, Word), inside "More note actions".
+  { id: 'nb-export', kind: 'command', label: 'Export this note', icon: 'document',
+    action: 'door', door: NOTEBOOK_DOORS.EXPORT, keywords: [],
+    match: phraseStart('export this note', 'export note', 'export as word'),
+    when: ({ location }) => noteOpenAt(location) },
+  // Q9: the note's own Ask panel, with the cursor in its question field.
+  { id: 'nb-ask-note', kind: 'command', label: 'Ask about this note', icon: 'sparkle',
+    action: 'door', door: NOTEBOOK_DOORS.ASK, keywords: [],
+    match: phraseStart('ask about this note', 'ask this note', 'ask note'),
+    when: ({ location }) => noteOpenAt(location) },
+  // Q2: the New note sheet (the template picker), which Research Home has no door to.
+  { id: 'nb-templates', kind: 'command', label: 'New note from a template', icon: 'document',
+    to: NOTEBOOK_TEMPLATES_TO, keywords: [],
+    match: phraseStart('new note from a template', 'note from a template', 'from a template', 'templates') },
+  // Q11: the notes list ("Open Notebook" above is Research Home). Focus lands on its heading.
+  { id: 'nb-all-notes', kind: 'command', label: 'All notes', icon: 'library',
+    to: NOTEBOOK_LIST_TO, keywords: [],
+    match: phraseStart('all notes', 'notes list') },
+  // Q15: "Reporting soon" on Research Home, focus on the first name's prep button.
+  { id: 'nb-earnings-prep', kind: 'command', label: 'Earnings prep: reporting soon', icon: 'document',
+    to: NOTEBOOK_PREP_TO, keywords: [],
+    match: phraseStart('earnings prep', 'reporting soon', 'prep note'),
+    when: () => notebookFlag(NOTEBOOK_PREP_FLAG) === true },
+  // Q23: the active setups board, a plain route. Its link on Research Home is 9 Tab stops in.
+  { id: 'nb-active-setups', kind: 'command', label: 'Active setups', icon: 'library',
+    to: SETUPS_BOARD_PATH, keywords: [],
+    match: phraseStart('active setups', 'setups board', 'setups'),
+    when: () => setupsBoardEnabled() },
 ]
 // Natural-terminology matching (§14): a 2-character floor avoids a bare
 // letter matching half the keyword list, and `.includes()` (not an exact
 // match) lets a partial word like "note" or "thesis" surface the right
 // command without requiring the user to type the full label.
-function commandMatches(cmd, q) {
-  if (typeof cmd.when === 'function' && !cmd.when()) return false
+function commandMatches(cmd, q, ctx) {
+  if (typeof cmd.when === 'function' && !cmd.when(ctx)) return false
   if (typeof cmd.match === 'function') return cmd.match(q)
   if (q.length < 2) return false
   if (cmd.label.toLowerCase().includes(q)) return true
@@ -402,9 +450,9 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
 
   const notebookCommandRows = useMemo(() => {
     if (isHelp || !qLower) return []
-    return NOTEBOOK_COMMANDS.filter((cmd) => commandMatches(cmd, qLower))
+    return NOTEBOOK_COMMANDS.filter((cmd) => commandMatches(cmd, qLower, { location }))
       .map((cmd) => ({ kind: 'command', ...cmd }))
-  }, [isHelp, qLower])
+  }, [isHelp, qLower, location])
 
   const notebookNoteRows = useMemo(() => {
     if (isHelp || !wantsNoteRows) return []
@@ -509,6 +557,15 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
         openCapture(destination ? { source: 'palette', destination }
                                 : { source: 'palette' })
         close()
+        return
+      }
+      if (row.action === 'door') {
+        // Lane KEYS3: a Notebook surface does what its own control does. Asked for AFTER the
+        // palette has closed and handed focus back, so a sheet the door opens records the
+        // member's own place (the note), not the palette's input, as where focus returns.
+        const door = row.door
+        close()
+        setTimeout(() => openNotebookDoor(door, { source: 'palette' }), 0)
         return
       }
       navigate(row.to)

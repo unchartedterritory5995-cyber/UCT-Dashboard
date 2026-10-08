@@ -328,6 +328,15 @@ export const SHORTCUTS = Object.freeze([
       + 'selected on the Notebook list. Physical key, AltGr excluded by the handler.',
   }),
   decl({
+    id: 'notebook.planStopAlert',
+    chord: { code: 'KeyS', alt: true, shift: false, mod: 'either' },
+    target: 'window', capture: false, inEditable: true, repeat: false,
+    why: 'Ctrl/Cmd+Alt+S moves focus to the stop\'s alert button in a note chart\'s trade plan. '
+      + 'Bound only while a plan is open, and it acts only while focus is inside that plan (it '
+      + 'fires from the plan\'s price fields, so inEditable). Physical key, AltGr excluded by '
+      + 'the handler. It arms nothing: Enter on the button does.',
+  }),
+  decl({
     id: 'notebook.toggleChevron',
     chord: { keys: ['Enter'], ctrl: false, meta: false, alt: false },
     target: 'document', capture: true, inEditable: true, repeat: true,

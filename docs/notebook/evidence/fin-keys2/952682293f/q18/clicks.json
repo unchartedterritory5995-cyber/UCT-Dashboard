@@ -1,0 +1,1055 @@
+{
+ "tool": "tools/notebook_w13q_clicks.py",
+ "tree": "952682293ff0313472ec725b2fdc42b9104e2a45",
+ "started": "2026-10-07T21:40:57+00:00",
+ "partial": {
+  "flows": [
+   "Q18"
+  ],
+  "modes": null
+ },
+ "sandbox_flags": {
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_EARNINGS_PREP_ENABLED": "1",
+  "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": "1",
+  "NOTEBOOK_PLAN_GRADING_ENABLED": "1",
+  "NOTEBOOK_PLAYBOOK_ENABLED": "1",
+  "AWARENESS_NOTE_RESURFACE_ENABLED": "1",
+  "NOTEBOOK_ENTRY_CONTEXT_ENABLED": "1",
+  "NOTEBOOK_REVIEW_DRAFTS_ENABLED": "1",
+  "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": "1",
+  "NOTEBOOK_PASSED_SETUPS_ENABLED": "1",
+  "NOTEBOOK_THESIS_CHIPS_ENABLED": "1",
+  "NOTEBOOK_CHART_PLAN_ENABLED": "1",
+  "NOTEBOOK_TA_FINGERPRINT_ENABLED": "1",
+  "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": "1",
+  "NOTEBOOK_SETUPS_BOARD_ENABLED": "1",
+  "NOTEBOOK_FIND_SIMILAR_ENABLED": "1",
+  "NOTEBOOK_VOICE_NOTES_ENABLED": "1",
+  "NOTEBOOK_AI_ACTIONS_ENABLED": "1",
+  "NOTEBOOK_FORMULAS_ENABLED": "1",
+  "NOTEBOOK_TRADE_CANVAS_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_GETTING_STARTED_ENABLED": "1"
+ },
+ "tab_cap": 600,
+ "budgets": {
+  "Q1": {
+   "flow": "new blank note, cursor in body",
+   "mouse": 2,
+   "keys": 3,
+   "taps": 2,
+   "owner": "Notebook core",
+   "keys_plan": 3,
+   "keys_floor": null
+  },
+  "Q2": {
+   "flow": "new note from a template with a ticker",
+   "mouse": 4,
+   "keys": 6,
+   "taps": 4,
+   "owner": "Notebook templates (12B)",
+   "keys_plan": 6,
+   "keys_floor": null
+  },
+  "Q3": {
+   "flow": "open a note by title",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "Notebook core",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q4": {
+   "flow": "search, open a hit",
+   "mouse": 3,
+   "keys": 5,
+   "taps": 3,
+   "owner": "Notebook core",
+   "keys_plan": 5,
+   "keys_floor": null
+  },
+  "Q5": {
+   "flow": "today's daily note",
+   "mouse": 1,
+   "keys": 2,
+   "taps": 1,
+   "owner": "Notebook core",
+   "keys_plan": 2,
+   "keys_floor": null
+  },
+  "Q6": {
+   "flow": "link a note to a trade",
+   "mouse": 3,
+   "keys": 10,
+   "taps": 3,
+   "owner": "Notebook core / Journal",
+   "keys_plan": 6,
+   "keys_floor": 8
+  },
+  "Q7": {
+   "flow": "save Screener results to a note (337 Tabs today)",
+   "mouse": 3,
+   "keys": 10,
+   "taps": 3,
+   "owner": "Screener (ScannerShell.jsx)",
+   "keys_plan": 10,
+   "keys_floor": null
+  },
+  "Q8": {
+   "flow": "save a price or consensus fact",
+   "mouse": 3,
+   "keys": 8,
+   "taps": 3,
+   "owner": "Notebook capture",
+   "keys_plan": 8,
+   "keys_floor": null
+  },
+  "Q9": {
+   "flow": "ask the Notebook, insert the answer",
+   "mouse": 3,
+   "keys": 9,
+   "taps": 3,
+   "owner": "Notebook Ask",
+   "keys_plan": 5,
+   "keys_floor": 7
+  },
+  "Q10": {
+   "flow": "task with a due date",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "Notebook core",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q11": {
+   "flow": "tag and move 5 notes",
+   "mouse": 8,
+   "keys": 27,
+   "taps": 10,
+   "owner": "Notebook core",
+   "keys_plan": 15,
+   "keys_floor": 25
+  },
+  "Q12": {
+   "flow": "export one note as Word",
+   "mouse": 3,
+   "keys": 12,
+   "taps": 3,
+   "owner": "Notebook export",
+   "keys_plan": 6,
+   "keys_floor": 10
+  },
+  "Q13": {
+   "flow": "plan grade of my last trade (13A)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13A",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q14": {
+   "flow": "My Playbook, drill a number (13B)",
+   "mouse": 3,
+   "keys": 6,
+   "taps": 3,
+   "owner": "13B",
+   "keys_plan": 6,
+   "keys_floor": null
+  },
+  "Q15": {
+   "flow": "create earnings prep (13C)",
+   "mouse": 2,
+   "keys": 5,
+   "taps": 2,
+   "owner": "13C",
+   "keys_plan": 5,
+   "keys_floor": null
+  },
+  "Q16": {
+   "flow": "open a resurfaced note (13D)",
+   "mouse": 2,
+   "keys": 8,
+   "taps": 2,
+   "owner": "13D",
+   "keys_plan": 4,
+   "keys_floor": 6
+  },
+  "Q17": {
+   "flow": "answer \"why did you take it\" (13E)",
+   "mouse": 2,
+   "keys": 7,
+   "taps": 2,
+   "owner": "13E",
+   "keys_plan": 4,
+   "keys_floor": 5
+  },
+  "Q18": {
+   "flow": "draft this week's review, open a leak (13F)",
+   "mouse": 3,
+   "keys": 9,
+   "taps": 3,
+   "owner": "13F",
+   "keys_plan": 6,
+   "keys_floor": 7
+  },
+  "Q19": {
+   "flow": "save a transcript passage to a thesis (13G)",
+   "mouse": 3,
+   "keys": 9,
+   "taps": 4,
+   "owner": "13G",
+   "keys_plan": 6,
+   "keys_floor": 7
+  },
+  "Q20": {
+   "flow": "insert a chart, draw entry, stop and target, read size (13H)",
+   "mouse": 6,
+   "keys": 22,
+   "taps": 8,
+   "owner": "13H",
+   "keys_plan": 10,
+   "keys_floor": 20
+  },
+  "Q21": {
+   "flow": "arm an alert at a drawn stop (13H)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 2,
+   "owner": "13H",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q22": {
+   "flow": "filter the visual playbook to one setup (13I)",
+   "mouse": 2,
+   "keys": 4,
+   "taps": 3,
+   "owner": "13I",
+   "keys_plan": 4,
+   "keys_floor": null
+  },
+  "Q23": {
+   "flow": "morning board, open the closest setup, find similar (13J)",
+   "mouse": 3,
+   "keys": 9,
+   "taps": 3,
+   "owner": "13J",
+   "keys_plan": 6,
+   "keys_floor": 7
+  }
+ },
+ "rows": [
+  {
+   "flow": "Q18",
+   "name": "draft this week's review, open a leak (13F)",
+   "owner": "13F",
+   "mode": "mouse",
+   "width": "1280",
+   "budget": 3,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 2,
+   "taps": 0,
+   "time_s": 0.64,
+   "steps": [
+    {
+     "do": "click",
+     "on": "This week's review"
+    },
+    {
+     "do": "click",
+     "on": "open the leak (Revenge re-entries)"
+    }
+   ],
+   "outcome": {
+    "note": "7b22878156964d6c9bacde1e35b6a94e",
+    "title": "Weekly Review — wk of Oct 5",
+    "leak_opened": "Revenge re-entries"
+   },
+   "notes": "starts on Research Home; this week's trades seeded with one revenge re-entry",
+   "screenshot": "Q18-mouse-1280.png"
+  },
+  {
+   "flow": "Q18",
+   "name": "draft this week's review, open a leak (13F)",
+   "owner": "13F",
+   "mode": "keys",
+   "width": "1280",
+   "budget": 9,
+   "measured": 27,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 24,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.99,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to reviews and setups",
+     "presses": 4,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to reviews and setups",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to reviews and setups"
+    },
+    {
+     "do": "tab-run",
+     "to": "This week's review",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Today's recap",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "This week's review",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate This week's review"
+    },
+    {
+     "do": "tab-run",
+     "to": "open the leak (Revenge re-entries)",
+     "presses": 18,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add to Favorites",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Ask a question about this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Find in note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Ticker",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Outline",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "More note actions",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Font family",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Note title",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Subtitle",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Remove tag weekly-review",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "combobox",
+       "name": "Add a tag to this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add property",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "Note body",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "Note body",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trade plan — mark drawn lines as entry, stop or target; size",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trade plan — mark drawn lines as entry, stop or target; size",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Expand toggle",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate open the leak (Revenge re-entries)"
+    }
+   ],
+   "outcome": {
+    "note": "61221db4bdd14fdcbde34bc5280336cd",
+    "title": "Weekly Review — wk of Oct 5",
+    "leak_opened": "Revenge re-entries"
+   },
+   "notes": "starts on Research Home; this week's trades seeded with one revenge re-entry",
+   "screenshot": "Q18-keys-1280.png"
+  },
+  {
+   "flow": "Q18",
+   "name": "draft this week's review, open a leak (13F)",
+   "owner": "13F",
+   "mode": "keys",
+   "width": "390",
+   "budget": 9,
+   "measured": 33,
+   "verdict": "OVER",
+   "reason": "",
+   "tabs": 30,
+   "keystrokes": 3,
+   "clicks": 0,
+   "taps": 0,
+   "time_s": 0.98,
+   "steps": [
+    {
+     "do": "tab-run",
+     "to": "Skip to reviews and setups",
+     "presses": 4,
+     "trail": [
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to main content",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to notes list",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to folder navigation",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "A",
+       "role": "",
+       "name": "Skip to reviews and setups",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate Skip to reviews and setups"
+    },
+    {
+     "do": "tab-run",
+     "to": "This week's review",
+     "presses": 2,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Today's recap",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "This week's review",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate This week's review"
+    },
+    {
+     "do": "tab-run",
+     "to": "open the leak (Revenge re-entries)",
+     "presses": 24,
+     "trail": [
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add to Favorites",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Ask a question about this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Find in note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "Folder",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Ticker",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Outline",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "More note actions",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Undo",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Note title",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "",
+       "name": "Subtitle",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Remove tag weekly-review",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "INPUT",
+       "role": "combobox",
+       "name": "Add a tag to this note",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Add property",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "Note body",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "DIV",
+       "role": "",
+       "name": "Note body",
+       "testid": "",
+       "ce": true
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trade plan — mark drawn lines as entry, stop or target; size",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Freeze the fingerprint",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "No setup tag Flat Base Breakout Bull Flag IPO Base Launchpad",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Visual playbook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Trade plan — mark drawn lines as entry, stop or target; size",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Freeze the fingerprint",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "SELECT",
+       "role": "",
+       "name": "No setup tag Flat Base Breakout Bull Flag IPO Base Launchpad",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Visual playbook",
+       "testid": "",
+       "ce": false
+      },
+      {
+       "tag": "BUTTON",
+       "role": "",
+       "name": "Expand toggle",
+       "testid": "",
+       "ce": false
+      }
+     ]
+    },
+    {
+     "do": "key",
+     "key": "Enter",
+     "on": "activate open the leak (Revenge re-entries)"
+    }
+   ],
+   "outcome": {
+    "note": "d6ac0e3e9cf645f4888bd374063248dc",
+    "title": "Weekly Review — wk of Oct 5",
+    "leak_opened": "Revenge re-entries"
+   },
+   "notes": "starts on Research Home; this week's trades seeded with one revenge re-entry",
+   "screenshot": "Q18-keys-390.png"
+  },
+  {
+   "flow": "Q18",
+   "name": "draft this week's review, open a leak (13F)",
+   "owner": "13F",
+   "mode": "taps",
+   "width": "390",
+   "budget": 3,
+   "measured": 2,
+   "verdict": "PASS",
+   "reason": "",
+   "tabs": 0,
+   "keystrokes": 0,
+   "clicks": 0,
+   "taps": 2,
+   "time_s": 0.78,
+   "steps": [
+    {
+     "do": "tap",
+     "on": "This week's review"
+    },
+    {
+     "do": "tap",
+     "on": "open the leak (Revenge re-entries)"
+    }
+   ],
+   "outcome": {
+    "note": "cfed9046526843f0880c2934d99a4be3",
+    "title": "Weekly Review — wk of Oct 5",
+    "leak_opened": "Revenge re-entries"
+   },
+   "notes": "starts on Research Home; this week's trades seeded with one revenge re-entry",
+   "screenshot": "Q18-taps-390.png"
+  }
+ ],
+ "wide_px": 1280,
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-keys2\\952682293f\\q18\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 16:41:04",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 16:41:39",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-07 16:43:31",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 16:43:58",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-keys2\\952682293f\\q18\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-keys\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T16-40-59.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "seed_child": "SEEDED C:\\data-fin-clicks\\keys5-q18\\screener.db 30 30",
+ "seed_research_child": "SEEDED C:\\data-fin-clicks\\keys5-q18\\transcript_index.db",
+ "page_errors": [
+  {
+   "flow": "Q18",
+   "mode": "mouse",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q18",
+   "mode": "keys",
+   "width": "1280",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q18",
+   "mode": "keys",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  },
+  {
+   "flow": "Q18",
+   "mode": "taps",
+   "width": "390",
+   "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+  }
+ ],
+ "auth_me_flags": {
+  "j2_share_links_enabled": false,
+  "notebook_ai_actions_enabled": true,
+  "notebook_ask_insert_on": true,
+  "notebook_attachments_on": false,
+  "notebook_chart_plan_enabled": true,
+  "notebook_conflict_ux_on": false,
+  "notebook_door_guard": "full",
+  "notebook_earnings_prep_enabled": true,
+  "notebook_entry_context_enabled": true,
+  "notebook_find_similar_enabled": true,
+  "notebook_formulas_enabled": true,
+  "notebook_getting_started_enabled": true,
+  "notebook_image_docx_documents_enabled": false,
+  "notebook_offline_default_on": true,
+  "notebook_offline_read_on": false,
+  "notebook_onboarding_enabled": true,
+  "notebook_passed_setups_enabled": true,
+  "notebook_plan_grading_enabled": true,
+  "notebook_playbook_enabled": true,
+  "notebook_publish_enabled": false,
+  "notebook_review_drafts_enabled": true,
+  "notebook_semantic_search_enabled": false,
+  "notebook_setups_board_enabled": true,
+  "notebook_ta_fingerprint_enabled": true,
+  "notebook_task_reminders_enabled": true,
+  "notebook_template_gallery_enabled": true,
+  "notebook_thesis_chips_enabled": true,
+  "notebook_trade_canvas_enabled": true,
+  "notebook_transcript_capture_enabled": true,
+  "notebook_visual_playbook_enabled": true,
+  "notebook_voice_notes_enabled": true,
+  "notebook_writing_help_enabled": false
+ },
+ "seed": {
+  "notes": {
+   "NVDA breakout thesis": "a11b00a51e904cf59358404637e9a2a3",
+   "Semis rotation notes": "09664bfe9a784812ad156c2f4e06ca69",
+   "AMD earnings recap": "95dbf4e7940d43daa8980bd3a85f9a05",
+   "Weekly review draft": "1bbed880cff94b31b59f91431d889de7",
+   "CRWD base watch": "c14292a1434b4124afee118e5d179eeb",
+   "Market regime journal": "a834d07e534b464db0d5206592fffb3d",
+   "PLTR pullback plan": "975c6bc3cfd141cf961946389af006bd",
+   "Risk rules": "bafa78a375614f3bae7f717dff4e055f"
+  },
+  "position_http": 200,
+  "position_id": "b5cf8210-af99-482c-ad61-9b4241d89070",
+  "watchlist_http": 200,
+  "folders": {
+   "mouse-1280": {
+    "id": "ccf52638e67c47f09e2bdfea5b3484ae",
+    "name": "Semis mouse-1280"
+   },
+   "keys-1280": {
+    "id": "262e98143eeb4e1db9f82ad380ac2ee7",
+    "name": "Semis keys-1280"
+   },
+   "keys-390": {
+    "id": "4394aea1ae654c9a87de650c9f6958a1",
+    "name": "Semis keys-390"
+   },
+   "taps-390": {
+    "id": "32da834961494fe8a3aa6eeb2d724754",
+    "name": "Semis taps-390"
+   }
+  },
+  "trade_id": "1e014cf3-af6e-4200-8b85-e816a44ad3cf",
+  "trade_http": 200,
+  "plan_note_http": 200,
+  "plan_trade_id": "ef28e915-0e6b-47e0-9508-25ffd67fbba5",
+  "plan_trade_why": "HTTP 200",
+  "plan_grade_http": 200,
+  "account_risk": {
+   "account": "2e811ec4-e670-4521-a552-f6989aff45bd",
+   "http": 200
+  },
+  "playbook": {
+   "setup": "Pullback",
+   "trades": 25,
+   "http": [
+    200
+   ]
+  },
+  "review_week": {
+   "week_start": "2026-10-05",
+   "http": [
+    200,
+    200,
+    200,
+    200
+   ]
+  },
+  "why_positions": {
+   "mouse-1280": {
+    "symbol": "COST",
+    "http": 200
+   },
+   "keys-1280": {
+    "symbol": "ADBE",
+    "http": 200
+   },
+   "keys-390": {
+    "symbol": "INTC",
+    "http": 200
+   },
+   "taps-390": {
+    "symbol": "CSCO",
+    "http": 200
+   }
+  },
+  "visual_playbook": {
+   "AMD": {
+    "id": "8862a052e0214418939d849078aa7a66",
+    "tag": "VCP",
+    "http": 200
+   },
+   "TSLA": {
+    "id": "aa72ae4cf7874cb28d8861a61421beb1",
+    "tag": "VCP",
+    "http": 200
+   },
+   "MSFT": {
+    "id": "f48e92acf7154924b84bb987c3e20e0a",
+    "tag": "Flat Base Breakout",
+    "http": 200
+   },
+   "META": {
+    "id": "d390c5f9b5d94ffea6d6e96799e78230",
+    "tag": "Bull Flag",
+    "http": 200
+   }
+  },
+  "board_notes_http": {
+   "ZQVA": 200,
+   "ZQVB": 200,
+   "ZQVC": 200
+  },
+  "board_nightly": {
+   "ran": true,
+   "asOf": "2026-10-07",
+   "universe": 1,
+   "universeTruncated": false,
+   "members": 1,
+   "templates": 5,
+   "rows": 5,
+   "thin": 0,
+   "deferred": 0,
+   "errors": 0,
+   "patternReads": 1,
+   "seconds": 0.066
+  },
+  "resurface": {
+   "note": "100dfe60109646b893673eebd2088acb",
+   "link": "/journal/notebook?note=100dfe60109646b893673eebd2088acb&resurfaceVersion=fa1353ce4faa40518afcc855bf6b3f5c",
+   "fired": 1
+  }
+ },
+ "first_visit_text": "Skip to main content\nSkip to getting started\nSkip to notes list\nSkip to folder navigation\nSkip to reviews and setups\nUCT\nINTELLIGENCE\nSearch\n⌘K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\n1\nPortfolio Risk\nw13q\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$102,260.00\n▾\nNotebook\nFolder navigation\nAdd thesis starter views\nAll notes\n17\nUnfiled\n17\nArchived\n0\nTrash\n0\nSemis keys-1280\n+\nSemis keys-390\n+\nSemis mouse-1280\n+\nSemis taps-390\n+\n+ New folder\nResearch home\nAsk Notebook to do something\nREPORTING SOON\nYour watchlist, flagged and open-position names, next 7 days\n$NVDA\nFri, Oct 9, after the close\nOpen position\nCreate prep note\nPASSED SETUPS\nNames you saved from a scan or a watchlist and did not trade — what happened next\nTicker\nPassed on\nAdd\n\nNothing here yet. Names you save from a scanner or add to a watchlist show up here, scored on what they did next — or add one above.\n\nREVIEWS THAT WRITE THEMSELVES\nToday's recap\nThis week's review\nThis month's review\nGET STARTED\n1 of 18 done\nHide\nWrite your first note\nDone\nStart a note from a template\nTake the Notebook basics tour\nTake the Task reminders tour\nTake the Template gallery tour\nTake the Formulas and rollups tour\nTake the Plan versus execution grading tour\nTake the Entry context card tour\nTake the Reviews that write themselves tour\nTak",
+ "onboarding_cleared_in_setup": [
+  "base tour not on screen",
+  "get-started checklist hidden",
+  "tour offer declined: New in your Notebook: Task reminders",
+  "voice dictation tip dismissed"
+ ],
+ "raw": {},
+ "driver_imported_api": [],
+ "finished": "2026-10-07T21:44:28+00:00",
+ "status": "COMPLETE"
+}

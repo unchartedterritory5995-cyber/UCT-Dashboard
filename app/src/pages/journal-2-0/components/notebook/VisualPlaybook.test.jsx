@@ -278,3 +278,42 @@ describe('VisualPlaybookBody — sample cards', () => {
     expect(screen.queryByText(/Tag a chart in a note/)).toBeNull()
   })
 })
+
+// Lane KEYS3 (Q22): opened from a chart, the sheet's ten filter stops stood between a keyboard
+// member and the one thing that chart's door is for, "Only this chart's setup". When the sheet
+// is opened from a chart, focus lands on that button once the playbook has loaded.
+describe('VisualPlaybookBody: opened from a chart, focus lands on its setup shortcut (lane KEYS3)', () => {
+  const dialog = (props) => render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+      <div role="dialog" tabIndex={-1} data-testid="sheet"><button type="button">Close</button><VisualPlaybookBody {...props} /></div>
+    </SWRConfig>,
+  )
+  const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+
+  it('focus goes to "Only this chart\'s setup (VCP)" when the cards arrive', async () => {
+    serve('visual-playbook.cards')
+    dialog({ initialSetup: 'VCP', landOnSetup: true })
+    screen.getByTestId('sheet').focus()                 // where a sheet puts focus when it opens
+    await screen.findAllByTestId('playbook-card')
+    await waitFor(() => expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: "Only this chart's setup (VCP)" })))
+  })
+
+  it('a member who has already moved focus keeps it', async () => {
+    serve('visual-playbook.cards')
+    dialog({ initialSetup: 'VCP', landOnSetup: true })
+    screen.getByRole('button', { name: 'Close' }).focus()
+    await screen.findAllByTestId('playbook-card')
+    await settle()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' }))
+  })
+
+  it('CONTROL: without landOnSetup (the page body, a tour) focus is left alone', async () => {
+    serve('visual-playbook.cards')
+    dialog({ initialSetup: 'VCP' })
+    screen.getByTestId('sheet').focus()
+    await screen.findAllByTestId('playbook-card')
+    await settle()
+    expect(document.activeElement).toBe(screen.getByTestId('sheet'))
+  })
+})
