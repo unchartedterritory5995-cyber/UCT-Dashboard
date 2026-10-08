@@ -22,7 +22,7 @@ import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
 import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
 import { traceStart, mark, traceEnd } from './trace'
-import { buildContext, manifestFor, getCapability, getTargetKind, runWarmups } from './capabilities'
+import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { agentTurn, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
@@ -503,7 +503,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
 
       // ── model path ──
       // Context from every registered provider; actions from every AVAILABLE
-      // capability's manifest. Nothing here names a feature.
+      // capability's manifest. Nothing here names a feature. Data that can change outside
+      // this panel is re-read first (bounded), so the model never targets a stale list.
+      await refreshContext()
       const { context, refMap } = buildContext(host, { ...capCtx, message: text })
       const back = Object.fromEntries(Object.entries(refMap).map(([k, v]) => [v.ref, k]))
       const p = pendingRef.current

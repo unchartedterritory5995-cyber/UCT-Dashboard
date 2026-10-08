@@ -267,6 +267,15 @@ describe('in the panel: proposal → Apply once → receipt; delete offers no Un
     expect(posts()).toHaveLength(1)
     expect(screen.getAllByTestId('agent-undo')).toHaveLength(1)
   })
+  it('an alert made OUTSIDE the panel after it opened is in the very next turn\'s context (measured in prod 2026-10-08: it was not, and the model offered to delete a different real alert)', async () => {
+    const { say } = await mount()
+    server = [row('outside', 'SPY', 9998, 'above'), ...server]       // e.g. from the chart menu, just now
+    let seen = null
+    envelopes.push(b => { seen = b.context.alerts.map(a => [a.symbol, a.when]); return env('answer', [], 'ok') })
+    say('delete my SPY alert at 9998')
+    await waitFor(() => expect(seen).not.toBeNull(), { timeout: 4000 })
+    expect(seen).toContainEqual(['SPY', 'at or above $9,998'])
+  })
   it('delete is proposed, applied once, and its receipt has no Undo', async () => {
     const { say } = await mount()
     envelopes.push(b => env('apply', [{ action: 'alert.delete', target: b.context.alerts.find(a => a.when === 'at or below $120').ref, args: {} }]))

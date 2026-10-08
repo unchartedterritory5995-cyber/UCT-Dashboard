@@ -162,6 +162,18 @@ export function manifestFor(ctx = {}) {
   }))
 }
 
+/**
+ * Before a model turn: every provider's optional async `refresh()` (re-read data that can change
+ * OUTSIDE this panel — e.g. an alert made from a chart menu), all at once, capped at `budgetMs`.
+ * A slow or failing refresh never blocks the turn; the provider then builds from what it has.
+ */
+export async function refreshContext(budgetMs = 1500) {
+  const jobs = [...PROVIDERS.values()].filter(p => typeof p.refresh === 'function')
+    .map(p => Promise.resolve().then(() => p.refresh()).catch(() => {}))
+  if (!jobs.length) return
+  await Promise.race([Promise.all(jobs), new Promise(r => setTimeout(r, budgetMs))])
+}
+
 /** Build every registered provider's context section. Short refs ("c1") map to real refs. */
 export function buildContext(host, ctx = {}) {
   const refMap = {}
