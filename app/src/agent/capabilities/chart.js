@@ -211,8 +211,10 @@ const CAPABILITIES = [
       return m ? { symbol: m[1].toUpperCase() } : null
     },
     // Async lookup BEFORE planning: an unknown ticker is refused, never charted blank.
+    // Symbols that came from UCT itself (`trusted`: a screen's results, a saved
+    // list's rows) are not looked up again.
     async prepare(ops) {
-      const syms = ops.map(o => String(o.args?.symbol || '').trim().toUpperCase()).filter(Boolean)
+      const syms = ops.filter(o => !o.trusted).map(o => String(o.args?.symbol || '').trim().toUpperCase()).filter(Boolean)
       return syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
     },
     check(st, { symbol }, env) {
