@@ -19,8 +19,15 @@
 //   layout.rename           the dock's rename (PATCH by id; a duplicate is a 409).
 //                           Your own layouts only. Proposed; Undo renames back.
 //
+//   layout.delete           the dock's delete (DELETE by id): your own layouts only,
+//                           never the OPEN one (the dock would switch the board to UCT
+//                           Default first). Always proposed; re-checked against the
+//                           server at Apply; no Undo (a hard delete).
+//   layout.duplicate        a copy of a STORED layout under a new name — create-only (the
+//                           dock's own duplicate is a name-keyed upsert). Proposed; no Undo.
+//
 // ⛔ Not here, deliberately: create-blank (the dock blanks the board BEFORE its
-// name-keyed save), delete (destructive), and overwrite of any kind.
+// name-keyed save), deleting the open layout, and overwrite of any kind.
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { afterRender } from '../frames'
@@ -67,6 +74,8 @@ export const layoutsKind = {
     if (op.open) return { open: op.open, from: before.active, discarded: !!before.unsaved }
     if (op.saveAs) return { saveAs: op.saveAs }
     if (op.rename) return { rename: op.rename }
+    if (op.remove) return { remove: op.remove }
+    if (op.duplicate) return { duplicate: op.duplicate }
     return null
   },
   async commit(host, ref, patch) {
@@ -94,6 +103,27 @@ export const layoutsKind = {
       await waitFor(() => snap().active?.name === patch.saveAs)
       return true
     }
+    if (patch.remove) {
+      // The CURRENT library, never the plan's: still yours, same name, and not open now.
+      try { await L.refresh() } catch { /* checked below against what we have */ }
+      const e = snap().entries.find(x => String(x.id) === String(patch.remove.id))
+      if (!e) throw new Error(`${quote(patch.remove.name)} is already gone`)
+      if (e.name !== patch.remove.name || e.kind !== 'yours') throw new Error('that layout changed since I read it — ask again')
+      if (String(snap().active?.id) === String(e.id)) throw new Error(`${quote(e.name)} is open now — open another layout first`)
+      await L.remove(e.id)                       // throws if the server refuses
+      try { await L.refresh() } catch { /* landed() reads the cache the delete already updated */ }
+      await waitFor(() => !snap().entries.some(x => String(x.id) === String(e.id)), 5000)
+      return true
+    }
+    if (patch.duplicate) {
+      try { await L.refresh() } catch { /* the server's create-only check still holds */ }
+      if (snap().entries.some(e => norm(e.name) === norm(patch.duplicate.name))) {
+        throw new Error(`you already have a layout named ${quote(patch.duplicate.name)}`)
+      }
+      await L.duplicate(patch.duplicate.fromId, patch.duplicate.name)   // create-only; throws on refusal
+      await waitFor(() => snap().entries.some(e => e.name === patch.duplicate.name), 5000)
+      return true
+    }
     return false
   },
   landed(snap, patch) {
@@ -101,6 +131,8 @@ export const layoutsKind = {
     if (patch.open) return snap.active?.id === patch.open.id
     if (patch.rename) return snap.entries.find(e => e.id === patch.rename.id)?.name === patch.rename.to
     if (patch.saveAs) return snap.active?.name === patch.saveAs && snap.entries.some(e => e.name === patch.saveAs)
+    if (patch.remove) return !snap.entries.some(e => String(e.id) === String(patch.remove.id))
+    if (patch.duplicate) return snap.entries.some(e => e.name === patch.duplicate.name)
     return false
   },
   // Undo a switch = open the previous layout the same way — only when nothing was
@@ -308,5 +340,63 @@ export function registerLayoutCapabilities() {
     },
     noop: (st, _a, { layout }) => `It is already called ${quote(entryOf(st, layout)?.name || '')}`,
     describe: (b, a) => (a.op?.rename ? `Renamed ${quote(a.op.rename.from)} to ${quote(a.op.rename.to)}` : null),
+  })
+
+  // ── layout.delete ──
+  registerCapability({
+    name: 'layout.delete',
+    target: 'layouts',
+    surfaces: ['charts'],
+    risk: 'confirm',
+    reversible: false,
+    exclusive: true,
+    exclusiveReason: 'Delete the layout on its own, then ask for any other changes.',
+    summary: 'Delete one of the member\'s OWN saved layouts (permanent). Not the layout that is open now, not prebuilt or built-in layouts.',
+    hints: 'target = the ref of the layouts entry; layout = the id of that layout in the layouts list. If more than one layout could be meant, '
+      + 'or none matches exactly, clarify with the real names — never pick one by similarity. Deleting is always shown as a proposal first, so do not ask "are you sure?".',
+    args: { type: 'object', properties: { layout: { type: 'string' } }, required: ['layout'], additionalProperties: false },
+    check(st, { layout }) {
+      const busy = oneAtATime(st)
+      if (busy) return busy
+      const e = entryOf(st, layout)
+      if (!e) return "That layout isn't in your layout list."
+      if (e.kind !== 'yours') return `${quote(e.name)} is a ${e.kind} layout — only your own layouts can be deleted.`
+      if (String(st.active?.id) === String(e.id)) return `${quote(e.name)} is the layout open now — open another layout first, then ask me to delete it.`
+      return null
+    },
+    apply(st, { layout }) {
+      const e = entryOf(st, layout)
+      return { ...st, op: { remove: { id: e.id, name: e.name } } }
+    },
+    describe: (b, a) => (a.op?.remove ? `Deleted the layout ${quote(a.op.remove.name)} (permanent)` : null),
+  })
+
+  // ── layout.duplicate ──
+  registerCapability({
+    name: 'layout.duplicate',
+    target: 'layouts',
+    surfaces: ['charts'],
+    risk: 'confirm',
+    reversible: false,
+    exclusive: true,
+    exclusiveReason: 'Copy the layout on its own, then ask for any other changes.',
+    summary: 'Make a copy of a saved layout (its stored version) under a new name, as one of the member\'s own layouts. Does not open it.',
+    hints: 'target = the ref of the layouts entry; layout = the id of the layout to copy (the open one for "this layout"); '
+      + 'name = the new name as given, or null for "<name> copy". To save the board AS IT IS NOW under a new name, use layout.saveAs instead.',
+    args: { type: 'object', properties: { layout: { type: 'string' }, name: { type: ['string', 'null'] } }, required: ['layout', 'name'], additionalProperties: false },
+    check(st, { layout, name }) {
+      const busy = oneAtATime(st)
+      if (busy) return busy
+      const e = entryOf(st, layout)
+      if (!e) return "That layout isn't in your layout list."
+      return name == null ? null : nameProblem(st, name)
+    },
+    apply(st, { layout, name }) {
+      const e = entryOf(st, layout)
+      let to = name == null ? `${e.name} copy` : String(name).trim()
+      if (name == null) for (let n = 2; st.entries.some(x => norm(x.name) === norm(to)); n += 1) to = `${e.name} copy ${n}`
+      return { ...st, op: { duplicate: { fromId: e.id, fromName: e.name, name: to.slice(0, MAX_NAME) } } }
+    },
+    describe: (b, a) => (a.op?.duplicate ? `Copied ${quote(a.op.duplicate.fromName)} to a new layout ${quote(a.op.duplicate.name)}` : null),
   })
 }
