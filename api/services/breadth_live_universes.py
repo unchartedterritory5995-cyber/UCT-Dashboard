@@ -552,3 +552,39 @@ def indicator_points(series_id: str, universe: str, canon_points: list) -> list:
         out.append({"t": d, "v": round(v, 4)})
     _ind_cache[series_id] = (key, out)
     return out
+
+
+# ── background jobs for the diagnostic routes ────────────────────────────────
+#
+# ⛔ The reconcile replay and a cold `compute` cost tens of seconds (a ~5,500-name frame and one
+# level build per replayed session). A request thread must never hold that: the edge times out
+# at 100 s (measured: HTTP 524 on the first production call) and the web pod is ONE process. The
+# routes start a job and return; a later call reads the result.
+
+_jobs: dict = {}
+_jobs_lock = threading.Lock()
+
+
+def start_job(name: str, fn, *args) -> dict:
+    with _jobs_lock:
+        cur = _jobs.get(name)
+        if cur and cur.get("state") == "running":
+            return {"state": "running", "started_at": cur["started_at"]}
+        _jobs[name] = {"state": "running", "started_at": time.time()}
+
+    def run():
+        try:
+            res = fn(*args)
+            with _jobs_lock:
+                _jobs[name] = {"state": "done", "finished_at": time.time(), "result": res}
+        except Exception as e:
+            with _jobs_lock:
+                _jobs[name] = {"state": "failed", "finished_at": time.time(), "error": repr(e)}
+
+    threading.Thread(target=run, name=f"blu-{name}", daemon=True).start()
+    return {"state": "running", "started_at": _jobs[name]["started_at"]}
+
+
+def job(name: str) -> dict:
+    with _jobs_lock:
+        return dict(_jobs.get(name) or {"state": "none"})
