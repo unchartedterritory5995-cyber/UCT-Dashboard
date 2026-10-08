@@ -1,0 +1,14 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/template-gallery/de29e1904cb84c159ce6535dab55786b/report",
+    "path": "/api/j2/template-gallery/de29e1904cb84c159ce6535dab55786b/report",
+    "requestBody": {
+      "reason": "boring"
+    },
+    "status": 400
+  },
+  "body": {
+    "detail": "Pick a reason for the report."
+  }
+}

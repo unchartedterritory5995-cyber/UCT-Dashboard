@@ -1,0 +1,16 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "PUT /api/j2/entry-context/why",
+    "path": "/api/j2/entry-context/why",
+    "requestBody": {
+      "entryDay": "2026-10-01",
+      "symbol": "ECAM",
+      "text": "late"
+    },
+    "status": 409
+  },
+  "body": {
+    "detail": "No market context was captured for this entry, so there is nothing to attach the note to."
+  }
+}

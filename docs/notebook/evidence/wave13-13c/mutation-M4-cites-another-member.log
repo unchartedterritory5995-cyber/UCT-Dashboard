@@ -1,0 +1,55 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+________ test_the_draft_cites_the_members_own_notes_and_never_anothers ________
+
+client = <starlette.testclient.TestClient object at 0x000001D2F9027E00>
+app = <fastapi.applications.FastAPI object at 0x000001D2F91D0EC0>
+gate_on = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001D2F91A82B0>
+stores = (<module 'api.services.call_recap_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\call_r...'api.services.implied_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\implied_store.py'>)
+
+    def test_the_draft_cites_the_members_own_notes_and_never_anothers(client, app, gate_on, monkeypatch, stores):
+        _today(monkeypatch)
+        _full_market(monkeypatch, stores)
+        mine = [_note(A, "NVDA thesis", "NVDA"), _note(A, "NVDA after Q2", "NVDA")]
+        _note(A, "AMD idea", "AMD")
+        theirs = _note(B, "B's NVDA note", "NVDA")
+        _trade(B, "NVDA", "t-b")
+        _position(B, "NVDA")
+        as_user(app, A)
+        d = client.post("/api/j2/earnings-prep/NVDA/draft").json()
+>       cited = [n["id"] for n in d["myNotes"]["value"]]
+E       TypeError: 'NoneType' object is not iterable
+
+tests\test_notebook_earnings_prep.py:482: TypeError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp8oqpxb81.db
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 1298 warnings
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 30 warnings
+
+tests/test_notebook_earnings_prep.py::test_the_draft_cites_the_members_own_notes_and_never_anothers
+    return asyncio.get_event_loop_policy()
+
+tests/test_notebook_earnings_prep.py::test_the_draft_cites_the_members_own_notes_and_never_anothers
+tests/test_notebook_earnings_prep.py::test_the_draft_cites_the_members_own_notes_and_never_anothers
+tests/test_notebook_earnings_prep.py::test_the_draft_cites_the_members_own_notes_and_never_anothers
+tests/test_notebook_earnings_prep.py::test_the_draft_cites_the_members_own_notes_and_never_anothers
+
+tests/test_notebook_earnings_prep.py: 10 warnings
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_earnings_prep.py::test_the_draft_cites_the_members_own_notes_and_never_anothers
+1 failed, 29 deselected, 1343 warnings in 15.06s
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"

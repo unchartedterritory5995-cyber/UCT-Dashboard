@@ -1,5 +1,5 @@
 {
-  "description": "SLICE 2 - deterministic pre-flight for OBVIOUSLY unsupported conversational requests (another symbol, another timeframe). Read by BOTH api/services/conversation_preflight.py (authoritative) and authoring/preflight.js (a latency/cost shortcut). Conservative by design: anything ambiguous goes to the model. Ticker-shaped words that are product/indicator vocabulary are never tickers (plus every closedTable function/series name, added at load). A question about timeframes ('Does this work on a 5 minute chart?') is NEVER intercepted: an indicator runs on whatever chart it is added to, so only the model can answer it honestly.",
+  "description": "SLICE 2 / PHASE 5 - deterministic pre-flight for conversational requests UCT cannot author (a timeframe LOWER than the chart's or off the calculation ladder; another symbol whose spelling is ambiguous). Read by BOTH api/services/conversation_preflight.py (authoritative) and authoring/preflight.js (a latency/cost shortcut). PHASE 5: another symbol and a HIGHER timeframe are authorable (sym / tf / set_calculation_timeframe) and reach the model; the other-symbol DETECTOR stays, for the server's no-substitution backstop. Conservative by design: anything ambiguous goes to the model. A question is NEVER intercepted.",
   "notTickers": [
     "I",
     "A",
@@ -219,8 +219,10 @@
   "tfContextAfter": "^\\s*(?:time\\s*frame|timeframe|tf|candles?|bars?|interval|rsi|ema|sma|macd|atr|close|closes|open|high|low|volume|data|values?)\\b",
   "tfContextBefore": "\\b(?:use|using|from|switch(?:ing)? to|change (?:it )?to)\\s+(?:the\\s+)?$",
   "copy": {
-    "unsupported:other-symbol": "This asks for {symbol}, another symbol. Conversational authoring draws on the chart's own symbol and bars only, so it can't read {symbol} here.",
-    "unsupported:other-timeframe": "This asks for the {wanted} timeframe. Conversational authoring draws on the chart's own bars only, so it can't read {wanted} bars while this chart is {chart}."
+    "unsupported:other-symbol": "This asks for {symbol}, but the change that came back did not read {symbol}, so nothing was offered to apply rather than quietly using this chart's own symbol in its place.",
+    "unsupported:symbol-ambiguous": "This asks for {symbol}. Those letters also name a market index or commodity outside UCT's bar store, so which instrument they mean can't be settled here.",
+    "unsupported:other-timeframe": "This asks for the {wanted} timeframe, which is finer than this {chart} chart. An indicator can read the chart's own bars or a higher timeframe, never finer bars than the chart's.",
+    "unsupported:other-timeframe:ladder": "This asks for the {wanted} timeframe, which UCT can't calculate an indicator on. Higher timeframes it can use: 5, 15, 30 and 60 minutes, daily, weekly and monthly."
   },
   "questionShape": {
     "description": "P3 - ONE deterministic question/advisory detector, shared by the pre-flight (a QUESTION is never intercepted) and the server's /converse routing (a question may name things UCT cannot build: the model may DISCUSS them). Per clause (split at sentence punctuation), after a discourse prefix: an AUTHORING request anywhere (an imperative edit verb, a polite 'can you add', 'I want', 'let's') makes the whole message authoring; otherwise a trailing '?' or an interrogative / advisory opener makes it a question. 'compare' as an opener is ADVISORY (the server's routing) but not a QUESTION (the pre-flight still refuses 'compare AAPL to SPY').",

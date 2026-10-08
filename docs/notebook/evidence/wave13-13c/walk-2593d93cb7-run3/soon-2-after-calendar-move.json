@@ -1,0 +1,34 @@
+{
+ "windowDays": 7,
+ "today": "2026-10-02",
+ "items": [
+  {
+   "symbol": "AMD",
+   "date": "2026-10-05",
+   "daysAway": 3,
+   "timing": null,
+   "sources": [
+    "watchlist"
+   ],
+   "prepNote": null
+  },
+  {
+   "symbol": "NVDA",
+   "date": "2026-10-08",
+   "daysAway": 6,
+   "timing": "amc",
+   "sources": [
+    "positions"
+   ],
+   "prepNote": {
+    "id": "77f68d8af4a14af8895c4612f20aa87e",
+    "title": "Earnings Prep — NVDA (Wed, Oct 7)",
+    "createdAt": "2026-10-02T22:59:14.230653+00:00"
+   }
+  }
+ ],
+ "partial": false,
+ "source": "UCT earnings calendar",
+ "asOf": "2026-10-02T22:59:19+00:00",
+ "watched": 2
+}

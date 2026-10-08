@@ -9,7 +9,8 @@ import io
 import json
 import sqlite3
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Request, Response, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Request, Response, Depends, UploadFile
+from api.services import request_body_cap as body_cap
 from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel, EmailStr
 
@@ -173,6 +174,83 @@ NOTEBOOK_FLAGS = {
     # `notebook_trade_canvas_enabled` and every create door + the board's editing
     # controls read it (lib/tradeCanvas.js `tradeCanvasEnabled`).
     "NOTEBOOK_TRADE_CANVAS_ENABLED": False,  # enablement  — unset means OFF (trade-plan canvas, lane 11D)
+    # Wave 12 lane 12A: the community template gallery. The router's gate
+    # (journal_two/template_gallery.enabled) reads the same variable through
+    # flag_on, per request; the payload key is `notebook_template_gallery_enabled`.
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": False,  # enablement — unset means OFF (community gallery, lane 12A)
+    # Wave 13 lane 13I-1: the technical fingerprint and the chart-block index. The router's
+    # gate (journal_two/tech_fingerprint.enabled) reads the same variable through flag_on,
+    # per request; the payload key is `notebook_ta_fingerprint_enabled`.
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED": False,  # enablement — unset means OFF (fingerprint, lane 13I-1)
+    # Wave 13 lane 13C: earnings prep (Reporting soon + a one-click prep note). The router's
+    # gate (journal_two/earnings_prep.enabled) reads the same variable through flag_on, per
+    # request; the payload key is `notebook_earnings_prep_enabled`.
+    "NOTEBOOK_EARNINGS_PREP_ENABLED": False,  # enablement — unset means OFF (earnings prep, lane 13C)
+    # Wave 13 lane 13H-1: the chart plan (sizing from drawn levels, alerts at drawn levels). The
+    # router's gate (journal_two/chart_plan.enabled) reads the same variable through flag_on, per
+    # request; the payload key is `notebook_chart_plan_enabled`. The `ta` schema attr is NOT gated.
+    "NOTEBOOK_CHART_PLAN_ENABLED": False,  # enablement — unset means OFF (chart plan, lane 13H-1)
+    # Wave 13 lane 13A: plan vs execution grading. The router's gate
+    # (journal_two/plan_grading.enabled) reads the same variable through flag_on, per
+    # request; the payload key is `notebook_plan_grading_enabled`.
+    "NOTEBOOK_PLAN_GRADING_ENABLED": False,  # enablement — unset means OFF (plan grading, lane 13A)
+    # Wave 13 lane 13E-1: the market context frozen at the fill. The router's gate
+    # (journal_two/entry_context.enabled) reads the same variable through flag_on, per
+    # request, and so do the capture hooks; the payload key is `notebook_entry_context_enabled`.
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED": False,  # enablement — unset means OFF (entry context, lane 13E-1)
+    # Wave 13 lane 13G-1: research capture. Two gates, one per router in
+    # api/routers/notebook_research_capture.py (journal_two/transcript_capture.enabled and
+    # journal_two/passed_setups.enabled read these through flag_on, per request); the payload keys
+    # are `notebook_transcript_capture_enabled` and `notebook_passed_setups_enabled`.
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": False,  # enablement — unset means OFF (transcript passage -> excerpt, lane 13G-1)
+    "NOTEBOOK_PASSED_SETUPS_ENABLED": False,  # enablement — unset means OFF (passed-setups journal, lane 13G-1)
+    # Wave 13 lane 13G-2: thesis chips on Positions/Holdings/Watchlist rows (status + distance to
+    # invalidation, from 13D's j2_note_levels projection). The router's gate
+    # (journal_two/thesis_chips.enabled) reads the same variable through flag_on, per request; the
+    # payload key is `notebook_thesis_chips_enabled`.
+    "NOTEBOOK_THESIS_CHIPS_ENABLED": False,  # enablement — unset means OFF (thesis chips, lane 13G-2)
+    # Wave 13 lane 13I-2: the visual playbook grid, the setup-tag suggestion at insert and the
+    # trade page's before/after. The router's gate (journal_two/visual_playbook.enabled) reads
+    # the same variable through flag_on, per request; the payload key is
+    # `notebook_visual_playbook_enabled`. The fingerprint panel rides 13I-1's flag.
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": False,  # enablement — unset means OFF (visual playbook, lane 13I-2)
+    # Wave 13 lane 13D: resurfacing (Awareness Engine R7-R9 bring a note back in-app when its
+    # ticker reaches a level it named, moves 8%+, or reaches its date). The scan's gate
+    # (journal_two/note_levels.enabled, read by awareness/engine.py per cycle) reads the same
+    # variable through flag_on; the payload key `awareness_note_resurface_enabled` gates the
+    # note door's "what you wrote then" sheet. AWARENESS_ENGINE_ENABLED must also be on.
+    "AWARENESS_NOTE_RESURFACE_ENABLED": False,  # enablement — unset means OFF (resurfacing, lane 13D)
+    # Wave 13 lane 13J: the active setups board, and find more like this. Each router's gate
+    # (journal_two/setups_board.enabled, journal_two/similar_matches.enabled) reads its variable
+    # through flag_on, per request, and so does the nightly matches job; the payload keys are
+    # `notebook_setups_board_enabled` and `notebook_find_similar_enabled`.
+    "NOTEBOOK_SETUPS_BOARD_ENABLED": False,  # enablement — unset means OFF (setups board, lane 13J)
+    "NOTEBOOK_FIND_SIMILAR_ENABLED": False,  # enablement — unset means OFF (find similar, lane 13J)
+    # Wave 13 lane 13B: My Playbook. The router's gate (routers/notebook_playbook.enabled)
+    # reads the same variable through flag_on, per request; the payload key is
+    # `notebook_playbook_enabled`.
+    "NOTEBOOK_PLAYBOOK_ENABLED": False,  # enablement — unset means OFF (My Playbook, lane 13B)
+    # Wave 13 lane 13F: reviews that write themselves, with the leak finder. The service's gate
+    # (journal_two/review_drafts.enabled) reads the same variable through flag_on, per request;
+    # the payload key is `notebook_review_drafts_enabled`.
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED": False,  # enablement — unset means OFF (review drafts, lane 13F)
+    # Wave 14 lane W14-D: the "get started" checklist on Research Home. Client-only (no route
+    # of its own: it reads the member's preferences and Research Home's own read); the payload
+    # key is `notebook_getting_started_enabled`, and the checklist shows only while BOTH it and
+    # `notebook_onboarding_enabled` are on (GettingStartedChecklist.jsx).
+    "NOTEBOOK_GETTING_STARTED_ENABLED": False,  # enablement — unset means OFF (get started checklist, lane W14-D)
+    # Wave 14 lane W14-C1: three capabilities whose gate lived ONLY on the server, so their
+    # walkthroughs (onboarding/tours/b1Core.js) could never open. Each row mirrors the
+    # capability's OWN read -- same variable, same polarity -- and `flag_on`'s parse agrees
+    # with each own parse on every spelling (tests/test_notebook_flags.py proves it). The
+    # payload key only lets the client see the state; the capability's own server read is
+    # unchanged and remains the authority over what the capability does.
+    #   image/docx documents: document_extraction.image_docx_documents_enabled (on: 1/true/yes/on)
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": False,  # enablement — unset means OFF (image/docx documents, wave 7 G)
+    #   task reminders: note_tasks.reminders_enabled, a KILL SWITCH (off: 0/false/no/off); on in prod
+    "NOTEBOOK_TASK_REMINDERS_ENABLED": True,  # kill switch — unset means ON (daily task reminder, wave 6 F)
+    #   meaning search: note_semantic.semantic_enabled (on: 1/true/yes/on)
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": False,  # enablement — unset means OFF (search by meaning, wave 7 H3)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
@@ -2228,12 +2306,31 @@ def get_faq_votes(user: dict = Depends(get_current_user)):
 #   3. Thread rendering reads GET /tickets/{ticket_id}/attachments and inlines
 #      matching rows below their parent message
 
+# ⛔ WAVE 14 (cap 2): the upload is taken through `request_body_cap`, never
+# `File(...)`. FastAPI parses a `File(...)` parameter IN FULL before any
+# dependency runs -- before the session check -- so a chunked or lying upload was
+# spooled whole before its size was measured. The dependency caps the body WHILE
+# it is read and is declared AFTER the auth dependency, so an anonymous caller
+# reads nothing.
+def _ticket_cap() -> int:
+    from api.services import support_attachments as att
+    return att.MAX_SOURCE_BYTES
+
+
+def _ticket_sentence() -> str:
+    from api.services import support_attachments as att
+    return att.TOO_BIG_SENTENCE
+
+
+_TICKET_UPLOAD = body_cap.capped_upload("file", _ticket_cap, _ticket_sentence)
+
+
 @router.post("/tickets/{ticket_id}/messages/{message_id}/attachments")
 async def upload_ticket_attachment(
     ticket_id: str,
     message_id: str,
-    file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
+    file: UploadFile = Depends(_TICKET_UPLOAD),
 ):
     """Attach an image to a ticket message. Owner-only."""
     from api.services import support_attachments as att
@@ -2659,12 +2756,24 @@ _PREFERENCE_KEYS = {
     # master the whole time; the landing ran only the Python rails its own diff
     # touched, and this one reads a JS writer. Run it before any `setPref(` lands.
     "notebook_daily_template": _PREF_OPAQUE,
+    # Wave 14 lane W14-D: the "get started" checklist's ONE key
+    # (`GettingStartedChecklist.jsx`, {v:1, state: dismissed|done, at}). Added in the
+    # same commit as its writer, because an unlisted key answers 400 and the list would
+    # reopen on every visit (the wave-8 `notebook_tour` defect recorded just below).
+    "notebook_getting_started": _PREF_OPAQUE,
     # Wave 8: the sample-notebook strip and the first-run tour each write one
     # key (`ResearchHome.jsx` dismissStrip, `NotebookTour.jsx`). Without these two rows
     # the server answered 400 "Unknown preference key" and neither ever
     # persisted — the tour reopened on every visit.
     "notebook_sample": _PREF_OPAQUE,
     "notebook_tour": _PREF_OPAQUE,
+    # Wave 14 (lane W14-0): the per-tour seen state for every registered tour
+    # beyond the base one -- ONE map keyed by tour id (tourSeenState.js
+    # `TOURS_PREF`), written read-modify-write through `setPrefMerged`. Without
+    # this row every such save answered 400 "Unknown preference key" (caught by
+    # the W14-D lane before any tour shipped; the 9/26 `notebook_daily_template`
+    # class). The base tour keeps its own `notebook_tour` row above.
+    "notebook_tours": _PREF_OPAQUE,
     "notebook_widget_settings": _PREF_OPAQUE,
     "options_flow_widget_settings": _PREF_OPAQUE,
     "profile_widget_settings": _PREF_OPAQUE,

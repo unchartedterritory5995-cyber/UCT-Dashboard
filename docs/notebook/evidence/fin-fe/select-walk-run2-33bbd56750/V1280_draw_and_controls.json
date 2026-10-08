@@ -1,0 +1,13 @@
+{
+ "marker_in_draw_mode": "draw",
+ "done_button_after_two_clicks": 1,
+ "selected_while_drawing": true,
+ "marker_after_done": "",
+ "inner_button": {
+  "x": 433.84375,
+  "y": 438.640625,
+  "name": "Hide toolbar",
+  "inside_body": false
+ },
+ "selected_after_button_click": false
+}

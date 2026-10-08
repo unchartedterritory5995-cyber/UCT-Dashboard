@@ -10,6 +10,7 @@ import RollupEditor, { rollupReady } from './RollupEditor'
 import useSWR from 'swr'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { checkFormula, displayExpression, formulaInputIds } from '../../lib/formula/computed'
+import { templateRevealFor } from '../../lib/templatePropertyDefs'
 import {
   AUTOFILL_NOTHING_SENTENCE, AUTOFILL_NOT_SAVED, AUTOFILL_SOURCE_LABEL, autofillAlreadySetSentence,
   autofillCandidates, requestAutofill,
@@ -92,7 +93,9 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
   // The computed property being edited in place: { id, type, text | config, error }.
   const [editing, setEditing] = useState(null)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [manuallyShown, setManuallyShown] = useState(() => new Set())
+  // Wave 12 (12B-2): a note just made from a template that declares property
+  // definitions (the Position Tracker) shows them while still empty -- this tab only.
+  const [manuallyShown, setManuallyShown] = useState(() => new Set(templateRevealFor(noteId)))
   const [newPropOpen, setNewPropOpen] = useState(false)
   const [newPropName, setNewPropName] = useState('')
   const [newPropType, setNewPropType] = useState('text')
@@ -422,6 +425,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
           type="button"
           className={styles.addLink}
           aria-expanded={false}
+          data-tour="properties-add-empty"
           onClick={() => { focusAfterRef.current = { toggle: true }; setPickerOpen(true) }}
         >
           <UIcon name="plus" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />
@@ -449,11 +453,13 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
               <li key={p.id} className={`${styles.row} ${isEditing ? styles.rowEditing : ''}`} data-prop-row={p.id}>
                 <span className={styles.label} id={labelId}>{p.name}</span>
                 <span className={styles.control}>
-                  <span className={styles.readonlyValue}>
+                  <span className={styles.readonlyValue}
+                    data-tour="computed-value">
                     <ComputedValue cell={p.computedValue} />
                   </span>
                   <button type="button" className={styles.editComputed} onClick={() => (isEditing ? setEditing(null) : startEdit(p))}
-                    aria-expanded={isEditing} aria-label={`Edit ${p.type} ${p.name}`}>
+                    aria-expanded={isEditing} aria-label={`Edit ${p.type} ${p.name}`}
+                    data-tour="computed-edit">
                     {isEditing ? 'Close' : 'Edit'}
                   </button>
                 </span>
@@ -501,6 +507,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
           type="button"
           className={styles.addLink}
           aria-expanded={pickerOpen}
+          data-tour="properties-add"
           onClick={() => setPickerOpen((o) => !o)}
         >
           <UIcon name="plus" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />

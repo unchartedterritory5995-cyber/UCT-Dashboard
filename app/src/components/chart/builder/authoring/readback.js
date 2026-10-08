@@ -23,7 +23,10 @@ import { TABLE } from '../../engine/ast/parse'
 import { declaredInputs, lintRepaint } from '../../engine/ast/lint'
 import { outputTreeOf } from '../../engine/outputType'
 import { STATUS } from '../../engine/evaluability'
-import { policyLabel } from '../../engine/triggerPolicy'
+import { policyLabel, numericAlertWords } from '../../engine/triggerPolicy'
+import { symTickersOf } from '../../engine/otherSymbols'
+import { calcTimeframeLabel } from '../../engine/instanceTimeframe'
+import { helpersOfDefinition, plotColorRule, plotFillRule } from './colorRules'
 import { stampSemantics, semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from '../../engine/definitionSemantics'
 import { INTENTS, intentReadback, NO_PAINT } from '../authoringIntent'
 import { untruncatedLabel } from '../../engine/labelText'
@@ -118,7 +121,10 @@ export function outputNamer(def) {
 export function presentationLines(def) {
   const out = []
   const nameOf = outputNamer(def)
-  const plots = (def.plots || []).filter((p) => p && p.style !== 'hlines')
+  const helpers = helpersOfDefinition(def)
+  // ⭐ PHASE 5 — a colour rule's / cloud's hidden column is described through its
+  // owner's line ("coloured green while it rises"), never as an output of its own.
+  const plots = (def.plots || []).filter((p) => p && p.style !== 'hlines' && !helpers.has(p.key))
   for (const p of plots) {
     const colour = colourWords(resolveRef(def, p.color))
     const width = resolveRef(def, p.width)
@@ -130,10 +136,7 @@ export function presentationLines(def) {
         + (p.marker.text ? `, labelled "${p.marker.text}"` : ''))
     } else {
       const style = STYLE_WORDS[p.style || 'line'] || p.style
-      const by = typeof p.colorMode === 'string' && p.colorMode.startsWith('column:')
-        ? nameOf(p.colorMode.slice(7)) : String(p.colorMode || '').slice(7)
-      out.push(`${label}: ${colour} ${style}, width ${width}`
-        + (p.colorMode && p.colorUp ? ` (coloured ${colourWords(p.colorUp)} / ${colourWords(p.colorDown)} by ${by})` : ''))
+      out.push(`${label}: ${colour} ${style}, width ${width}${colorRuleWords(plotColorRule(def, p, helpers), nameOf)}`)
     }
   }
   for (const paint of def.paints || []) {
@@ -147,6 +150,18 @@ export function presentationLines(def) {
   out.push(...vocabularyLines(def))
   out.push(def.placement && def.placement.target === 'price' ? 'drawn on the price chart' : 'drawn in its own pane')
   return out
+}
+
+/** ⭐ PHASE 5 — a per-bar colour rule in a trader's words (EXACT: the rule as drawn;
+ *  ⚰️ a sign rule used to read "coloured green / red by )"). */
+export function colorRuleWords(rule, nameOf) {
+  if (!rule) return ''
+  const up = rule.up ? colourWords(rule.up) : ''
+  const down = rule.down ? colourWords(rule.down) : ''
+  if (rule.rule === 'sign') return ` (coloured ${up} at or above zero, ${down} below)`
+  if (rule.rule === 'rising') return ` (coloured ${up} while it rises, ${down} otherwise)`
+  if (rule.rule === 'condition') return ` (coloured ${up} where ${nameOf(rule.when)} is true, ${down} otherwise)`
+  return ' (its colour follows an imported rule)'
 }
 
 // ─── ⭐ P3 — line style, fills and levels ─────────────────────────────────────
@@ -164,8 +179,9 @@ export function vocabularyLines(def) {
   // ⭐ ROLLOUT — the SAME member-facing name every other readback line uses (a
   // one-output definition's 12-character chip label read "TC2000: drawn dashed").
   const labelOf = outputNamer(def)
+  const helpers = helpersOfDefinition(def)
   for (const p of plots) {
-    if (!p || p.style === 'hlines') continue
+    if (!p || p.style === 'hlines' || helpers.has(p.key)) continue
     const label = labelOf(p.key)
     if (!p.hidden && LINE_STYLE_WORDS[p.lineStyle] && LINE_DRAWN.includes(p.style || 'line')) {
       out.push(`${label}: drawn ${LINE_STYLE_WORDS[p.lineStyle]}`)
@@ -173,8 +189,14 @@ export function vocabularyLines(def) {
     if (p.fill && typeof p.fill.with === 'string') {
       const colour = typeof p.fillColor === 'string' ? `, colour ${colourWords(p.fillColor)}` : ''
       const opacity = Number.isFinite(p.fillOpacity) ? `, ${Math.round(p.fillOpacity * 100)}% opaque` : ''
-      const how = p.fill.colorMode ? ' (its colour follows an imported rule)' : (colour || opacity ? '' : ' in its own colour')
-      out.push(`area between ${label} and ${labelOf(p.fill.with)} shaded${how}${colour}${opacity}`)
+      const fr = plotFillRule(def, p, helpers) || {}
+      // ⭐ PHASE 5 — a conditional cloud, said as the two colours and where each shows.
+      const how = fr.colorAbove && fr.when
+        ? ` ${colourWords(fr.colorAbove)} where ${labelOf(fr.when)} is true, ${colourWords(fr.colorBelow)} where false`
+        : fr.colorAbove
+          ? ` ${colourWords(fr.colorAbove)} where ${label} is above ${labelOf(p.fill.with)}, ${colourWords(fr.colorBelow)} where below`
+          : fr.imported ? ' (its colour follows an imported rule)' : (colour || opacity ? '' : ' in its own colour')
+      out.push(`area between ${label} and ${labelOf(p.fill.with)} shaded${how}${fr.colorAbove ? '' : colour}${opacity}`)
     }
   }
   const guide = plots.find((p) => p && p.style === 'hlines' && Array.isArray(p.levels) && p.levels.length)
@@ -256,7 +278,10 @@ export function readback(def, state = {}, gateCtx = {}) {
   const rb = intentReadback(def, intent ? intent.intent : INTENTS.PLOT,
     { ctx: gateCtx, requestedKey: intent ? intent.output : null })
   let compares = false
-  const outputs = rb.outputs.map((o) => {
+  // ⭐ PHASE 5 — a colour rule's / cloud's hidden column is not an output the member
+  // reads: it is said through its owner's look ("coloured green while it rises").
+  const helperKeys = helpersOfDefinition(def)
+  const outputs = rb.outputs.filter((o) => !helperKeys.has(o.key)).map((o) => {
     const tree = outputTreeOf(def, o.key)
     let sentence = null
     let mode = null
@@ -265,11 +290,14 @@ export function readback(def, state = {}, gateCtx = {}) {
     if (comparesAnything(tree)) compares = true
     const base = { key: o.key, label: o.label, type: o.type, words: o.words, sentence }
     return { ...base, name: nameOf(o.key), phrase: phraseOf(base, tree, scope), lane: o.lane,
-      status: o.verdict.status, reason: o.verdict.reason || null, mode }
+      status: o.verdict.status, reason: o.verdict.reason || null, mode,
+      ...(o.verdict.pending ? { pending: true } : {}) }
   })
   const outputLines = outputs.map((o) => {
     let line = `${o.name} — ${o.phrase}`
-    if (o.status === STATUS.REFUSED) line += ` — cannot be used this way here: ${o.reason}`
+    // ⭐ PHASE 5 — a pending refusal (another symbol's bars still loading) is not
+    // "cannot be used": the preview draws it once they land.
+    if (o.status === STATUS.REFUSED && !o.pending) line += ` — cannot be used this way here: ${o.reason}`
     return line
   })
   const presentation = presentationLines(def)
@@ -277,7 +305,19 @@ export function readback(def, state = {}, gateCtx = {}) {
     ? `${intent.intent === INTENTS.SIGNAL ? 'Used as a signal' : 'Used as a value'}: ${nameOf(intent.output || rb.selectedKey)}`
     : null
   const req = state.requests || {}
-  const alerts = (req.alerts || []).map((a) => `Alert when ${nameOf(a.plotKey)} ${String(policyLabel(a.triggerPolicy) || a.triggerPolicy).toLowerCase()}`)
+  const alerts = (req.alerts || []).map((a) => (typeof a.condition === 'string'
+    // ⭐ PHASE 5 — a numeric alert, and what an unknown bar does.
+    ? `Alert when ${nameOf(a.plotKey)} ${numericAlertWords(a.condition, a.threshold)} on a closed bar (a bar with no value never alerts)`
+    : `Alert when ${nameOf(a.plotKey)} ${String(policyLabel(a.triggerPolicy) || a.triggerPolicy).toLowerCase()}`))
+  // ⭐ PHASE 5 — the whole indicator on a higher timeframe.
+  const calcLine = typeof req.calculationTimeframe === 'string'
+    ? `Calculated on the ${calcTimeframeLabel(req.calculationTimeframe)} timeframe (the whole indicator), drawn on this chart`
+    : null
+  // ⭐ PHASE 5 — another symbol, and the alignment rule said as what shows.
+  const tickers = symTickersOf(def)
+  const symLine = tickers.length
+    ? `Reads ${tickers.join(' and ')} bar by bar on the same dates as this chart; a date ${tickers.length > 1 ? 'one of them has' : `${tickers[0]} has`} no bar is left unknown, never filled in`
+    : null
   const infoValues = (req.infoValues || []).map((v) => `Chart header shows the latest value of ${nameOf(v.plotKey)}${v.format === 'yesno' ? ' as Yes/No' : ''}`)
   // the output an assumption is about, named only when there is more than one
   const on = (key) => (key && outputs.length > 1 ? ` (on ${nameOf(key)})` : '')
@@ -286,22 +326,46 @@ export function readback(def, state = {}, gateCtx = {}) {
     : (a.source === 'engine' ? `Default: ${a.text}${on(a.output)}` : `UCT Intelligence assumed: "${a.text}"`)))
   const questions = (state.questions || []).map((q) => `Question: ${q.text}`)
   const needsAck = outputs.filter((o) => o.mode === 'preview-repaints').map((o) => o.key)
+  // ⭐ PHASE 5 — a FORMING-period read repaints for a reason a member can name.
+  const formingOf = (key) => readsTfLive(outputTreeOf(def, key))
   const semantics = semanticsOf(stampSemantics(def, { prior: state.base || null }))
   const semanticsLine = compares
     ? (semantics === SEMANTICS_UNKNOWN_PROPAGATES ? SEMANTICS_LINE : SEMANTICS_LINE_LEGACY)
+    : null
+  // ⭐ PHASE 5 — what a per-bar colour rule / conditional cloud draws on an UNKNOWN bar
+  // (`binder.unknownColourRule`: semantics 2 = no rule colour; legacy = the else colour).
+  const hasRule = (def.plots || []).some((p) => p && ((typeof p.colorMode === 'string' && p.colorMode !== 'fixed'
+    && p.colorMode !== 'sign' && p.colorUp) || (p.fill && p.fill.colorMode && p.fill.colorUp)))
+  const ruleUnknownLine = hasRule
+    ? (semantics === SEMANTICS_UNKNOWN_PROPAGATES
+      ? 'Where a colour rule has no answer yet, the line keeps its own colour and a cloud is left unshaded.'
+      : 'Where a colour rule has no answer yet, it takes its second colour (this indicator keeps its original rule).')
     : null
   const lines = [
     `Name: ${(def.meta && def.meta.name) || ''}`,
     ...outputLines,
     ...presentation.map((l) => `Look: ${l}`),
+    ...(symLine ? [symLine] : []),
+    ...(calcLine ? [calcLine] : []),
     ...(intentLine ? [intentLine] : []),
     ...alerts,
     ...infoValues,
     ...assumptions,
-    ...needsAck.map((k) => `${nameOf(k)} reads a bar ahead, so it can change until that bar closes — confirm below before saving`),
+    ...needsAck.map((k) => (formingOf(k)
+      ? `${nameOf(k)} reads the period still forming (so far this week or month), so it changes until that period closes — it repaints; confirm below before saving`
+      : `${nameOf(k)} reads a bar ahead, so it can change until that bar closes — confirm below before saving`)),
     ...(semanticsLine ? [semanticsLine] : []),
+    ...(ruleUnknownLine ? [ruleUnknownLine] : []),
     ...questions,
   ]
   return Object.freeze({ lines, name: (def.meta && def.meta.name) || '', outputs, presentation, intent: intentLine,
-    alerts, infoValues, assumptions, questions, needsAck, status: rb.status })
+    alerts, infoValues, assumptions, questions, needsAck, status: rb.status,
+    ...(calcLine ? { calculationTimeframe: calcLine } : {}), ...(symLine ? { otherSymbols: symLine } : {}) })
+}
+
+/** Does a tree read a FORMING higher-timeframe period (`tf_live`)? */
+function readsTfLive(node) {
+  if (!node || typeof node !== 'object') return false
+  if (node.type === 'tf_live') return true
+  return Array.isArray(node.args) && node.args.some(readsTfLive)
 }

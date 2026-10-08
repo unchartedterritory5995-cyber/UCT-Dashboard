@@ -14,10 +14,19 @@
 // ⛔ CONSERVATIVE: see the server module's docstring. Ambiguous → the model.
 
 import RULES from './preflightRules.json'
+import CROSS from './crossContext.json'
 import TABLE from '../../engine/ast/closedTable.json'
 
 export const GATE_SYMBOL = 'unsupported:other-symbol'
 export const GATE_TIMEFRAME = 'unsupported:other-timeframe'
+/** ⭐ PHASE 5 — an other-symbol spelling that also names an index / commodity. */
+export const GATE_SYMBOL_AMBIGUOUS = 'unsupported:symbol-ambiguous'
+
+const AMBIGUOUS = new Set(CROSS.ambiguousBare)
+// ⭐ PHASE 5 — the calculation ladder, ranked (D/W/M above every intraday code).
+const RANK = { D: 10000, W: 50000, M: 210000 }
+const rankOf = (code) => (code in RANK ? RANK[code] : Number(code.slice(0, -1)))
+const LADDER = CROSS.calculationTimeframes.map((c) => (c in RANK ? c : `${c}m`))
 
 const NOT_TICKERS = new Set([
   ...RULES.notTickers.map((w) => w.toUpperCase()),
@@ -86,6 +95,8 @@ const normSym = (s) => (typeof s === 'string' && s.trim() ? s.trim().replace(/^\
 export function normTf(tf) {
   if (typeof tf !== 'string') return null
   const t = tf.trim()
+  // ⭐ PHASE 5 — the app's own intraday codes are BARE minutes ('5', '60').
+  if (/^\d+$/.test(t)) return `${Number(t)}m`
   let m = /^(\d+)\s*m$/.exec(t)
   if (m) return `${Number(m[1])}m`
   m = /^(\d+)\s*[hH]$/.exec(t)
@@ -186,16 +197,25 @@ export function preflight(message, chart = null) {
   // that comes back for a question naming another ticker).
   if (isQuestion(message)) return null
 
+  // ⭐ PHASE 5: another symbol is AUTHORABLE (`sym`) — unless its spelling is ambiguous.
   const other = otherSymbol(message, chartSym)
-  if (other) {
-    return { gate: GATE_SYMBOL, detail: other, reason: RULES.copy[GATE_SYMBOL].replaceAll('{symbol}', other) }
+  if (other && AMBIGUOUS.has(other)) {
+    return { gate: GATE_SYMBOL_AMBIGUOUS, detail: other,
+      reason: RULES.copy[GATE_SYMBOL_AMBIGUOUS].replaceAll('{symbol}', other) }
   }
+  // ⭐ PHASE 5: a HIGHER timeframe is authorable; LOWER, or off the ladder, is not.
   if (chartTf) {
     const wanted = wantedTimeframe(message)
     if (wanted && wanted !== chartTf) {
-      return {
-        gate: GATE_TIMEFRAME, detail: wanted,
-        reason: RULES.copy[GATE_TIMEFRAME].replaceAll('{wanted}', tfWords(wanted)).replaceAll('{chart}', tfWords(chartTf)),
+      if (rankOf(wanted) < rankOf(chartTf)) {
+        return {
+          gate: GATE_TIMEFRAME, detail: wanted,
+          reason: RULES.copy[GATE_TIMEFRAME].replaceAll('{wanted}', tfWords(wanted)).replaceAll('{chart}', tfWords(chartTf)),
+        }
+      }
+      if (!LADDER.includes(wanted)) {
+        return { gate: GATE_TIMEFRAME, detail: wanted,
+          reason: RULES.copy[`${GATE_TIMEFRAME}:ladder`].replaceAll('{wanted}', tfWords(wanted)) }
       }
     }
   }

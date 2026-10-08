@@ -1,0 +1,97 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.[notebook-migration] migrated=0 skipped=0 errored=0
+[activity] Failed to log j2:notebook_note_created for u1: no such table: activity_log
+AB-PROBE save: {"status": 200, "plan_data_still_in_the_note": false}
+FAB-PROBE purge: {"rows_left_behind": 12, "other_members_rows": 12}
+F
+================================== FAILURES ===================================
+________ test_a_level_3_editor_saves_a_plan_note_without_its_plan_data ________
+
+tmp_path = WindowsPath('C:/Users/Patrick/AppData/Local/Temp/pytest-of-Patrick/pytest-679/test_a_level_3_editor_saves_a_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000018E9ACB75C0>
+
+    def test_a_level_3_editor_saves_a_plan_note_without_its_plan_data(tmp_path, monkeypatch):
+        monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "auth.db"))
+        monkeypatch.setenv("DATA_DIR", str(tmp_path))
+        conn = auth_db.get_connection()
+        j2_ensure_schema(conn)
+        conn.close()
+        from api.routers import journal_two as j2_router
+        app = FastAPI()
+        app.include_router(j2_router.router)
+        app.dependency_overrides[authmw.get_current_user] = lambda: {"id": "u1", "role": "member"}
+        client = TestClient(app)
+    
+        # the note as a landing bundle wrote it (it declares 4; an older server ignores the number)
+        r = client.post("/api/j2/notes", headers={HEADER: "4"}, json={"title": "NVDA plan", "bodyJson": TA_BODY})
+        assert r.status_code == 200, r.text
+        note = r.json()["note"]
+    
+        def stored_attrs():
+            c = auth_db.get_connection()
+            try:
+                body = c.execute("SELECT body_json FROM j2_notes WHERE id = ?", (note["id"],)).fetchone()[0]
+            finally:
+                c.close()
+            return json.loads(body)["content"][1]["attrs"]
+        assert stored_attrs()["ta"] == TA                       # non-vacuity: the plan data was stored
+    
+        # what the rolled-back editor sends: it declares 3, and its copy of the note has no `ta`
+        stripped = json.loads(json.dumps(TA_BODY))
+        stripped["content"][1]["attrs"].pop("ta")
+        r = client.put(f"/api/j2/notes/{note['id']}", headers={HEADER: "3"},
+                       json={"bodyJson": stripped, "baseUpdatedAt": note["updatedAt"]})
+        outcome = {"status": r.status_code, "plan_data_still_in_the_note": stored_attrs().get("ta") == TA}
+        print("AB-PROBE save:", json.dumps(outcome))
+        want = ({"status": 409, "plan_data_still_in_the_note": True} if EXPECT == "keeplist"
+                else {"status": 200, "plan_data_still_in_the_note": False})
+>       assert outcome == want
+E       AssertionError: assert {'plan_data_s...'status': 200} == {'plan_data_s...'status': 409}
+E         
+E         Differing items:
+E         {'plan_data_still_in_the_note': False} != {'plan_data_still_in_the_note': True}
+E         {'status': 200} != {'status': 409}
+E         Use -v to get more diff
+
+docs\notebook\evidence\rollback-rehearsal-2026-10-06-fin\landing\test_ab_probe.py:91: AssertionError
+__________ test_account_deletion_on_a_database_the_landing_wrote_to ___________
+
+    def test_account_deletion_on_a_database_the_landing_wrote_to():
+        conn = sqlite3.connect(":memory:")
+        for table in LANDING_TABLES:
+            # The two gallery child tables carry `gallery_id`: the kept account_purge.py also removes
+            # what OTHER members recorded about the leaving member's templates, by that column
+            # (security lane M-7, merged after this probe was written). Left NULL, so that pass
+            # matches nothing and the counts below are the direct `user_id` pass, as before.
+            extra = ", gallery_id TEXT" if table in ("j2_template_gallery_reports", "j2_template_gallery_uses") else ""
+            conn.execute(f'CREATE TABLE "{table}" (id INTEGER PRIMARY KEY, user_id TEXT NOT NULL, v TEXT{extra})')
+            conn.executemany(f'INSERT INTO "{table}" (user_id, v) VALUES (?, ?)',
+                             [("member-leaving", "theirs"), ("member-staying", "not theirs")])
+        conn.commit()
+    
+        def left(user):
+            return sum(conn.execute(f'SELECT COUNT(*) FROM "{t}" WHERE user_id = ?', (user,)).fetchone()[0]
+                       for t in LANDING_TABLES)
+        assert left("member-leaving") == 12 and left("member-staying") == 12       # non-vacuity
+        report = ap.purge_user_rows("member-leaving", conn)     # this tree's purge, this tree's list
+        assert report["errors"] == [], report["errors"]
+        outcome = {"rows_left_behind": left("member-leaving"), "other_members_rows": left("member-staying")}
+        print("AB-PROBE purge:", json.dumps(outcome))
+        want = ({"rows_left_behind": 0, "other_members_rows": 12} if EXPECT == "keeplist"
+                else {"rows_left_behind": 12, "other_members_rows": 12})
+>       assert outcome == want
+E       AssertionError: assert {'other_membe...t_behind': 12} == {'other_membe...ft_behind': 0}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Differing items:
+E         {'rows_left_behind': 12} != {'rows_left_behind': 0}
+E         Use -v to get more diff
+
+docs\notebook\evidence\rollback-rehearsal-2026-10-06-fin\landing\test_ab_probe.py:117: AssertionError
+=========================== short test summary info ===========================
+FAILED docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/landing/test_ab_probe.py::test_a_level_3_editor_saves_a_plan_note_without_its_plan_data
+FAILED docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/landing/test_ab_probe.py::test_account_deletion_on_a_database_the_landing_wrote_to
+2 failed, 1 passed in 2.58s

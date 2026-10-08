@@ -69,6 +69,13 @@ export function previewInstanceLike(cs, defId, registry) {
   return { ...like, instanceId: STUDIO_EDIT_PREVIEW_INSTANCE_ID, defId: STUDIO_PREVIEW_DEF_ID, hidden: false }
 }
 
+/** ⭐ PHASE 5 — the preview instance on the conversation's requested calculation
+ *  timeframe (`null` leaves the instance's own — an edit keeps the stored one). */
+export function withCalcFrame(instance, calcTf) {
+  if (!instance || typeof calcTf !== 'string' || !calcTf) return instance
+  return { ...instance, calculationTimeframe: calcTf }
+}
+
 /** Does any OTHER instance point at one of `ids` (a guest in its pane, `@<id>`)? */
 function hostsAGuest(list, ids) {
   return list.some((i) => i && !ids.has(i.instanceId) && ids.size

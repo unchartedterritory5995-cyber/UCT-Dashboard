@@ -1,0 +1,804 @@
+{
+ "id": "c5f951b75bb2431e97fe89613323bb95",
+ "userId": "1927097c-b44b-4ddc-83b1-98e796088d4d",
+ "accountId": null,
+ "folderId": null,
+ "title": "Earnings Prep",
+ "subtitle": null,
+ "bodyJson": {
+  "type": "doc",
+  "content": [
+   {
+    "type": "callout",
+    "attrs": {
+     "variant": "info"
+    },
+    "content": [
+     {
+      "type": "paragraph",
+      "content": [
+       {
+        "type": "text",
+        "text": "Drafted by UCT from the sources named under each value. The values are frozen in this note: they will not change when the data does."
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "The report"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "bold"
+       }
+      ],
+      "text": "Date:"
+     },
+     {
+      "type": "text",
+      "text": " — not available: Not available."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: unknown."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "bold"
+       }
+      ],
+      "text": "Before or after the bell:"
+     },
+     {
+      "type": "text",
+      "text": " — not available: Not available."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: unknown."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "bold"
+       }
+      ],
+      "text": "Expected move (from options):"
+     },
+     {
+      "type": "text",
+      "text": " — not available: Not available."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: unknown."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "What the Street expects"
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "content": [
+     {
+      "type": "tableRow",
+      "content": [
+       {
+        "type": "tableHeader",
+        "content": [
+         {
+          "type": "paragraph"
+         }
+        ]
+       },
+       {
+        "type": "tableHeader",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Estimate"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableHeader",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "A year ago"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableHeader",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Growth"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "tableRow",
+      "content": [
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "EPS"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "tableRow",
+      "content": [
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "Revenue"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "tableCell",
+        "content": [
+         {
+          "type": "paragraph",
+          "content": [
+           {
+            "type": "text",
+            "text": "—"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "EPS estimate: — not available: Not available."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Revenue estimate: — not available: Not available."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "EPS a year ago: — not available: Not available."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Revenue a year ago: — not available: Not available."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "The last four reactions"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "— not available: Not available."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: unknown."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "Last call recap"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "— not available: Not available."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: unknown."
+     }
+    ]
+   },
+   {
+    "type": "horizontalRule"
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "What the market will listen for"
+     }
+    ]
+   },
+   {
+    "type": "bulletList",
+    "content": [
+     {
+      "type": "listItem",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "Guidance: —"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "listItem",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "The metric that moves this stock: —"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "listItem",
+      "content": [
+       {
+        "type": "paragraph",
+        "content": [
+         {
+          "type": "text",
+          "text": "Anything new: —"
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "My history on the name"
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 3
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "My notes"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "— not available: Not available."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: unknown."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 3
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "My trades"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "— not available: Not available."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: unknown."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "My position going in"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "— not available: Not available."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "marks": [
+       {
+        "type": "italic"
+       }
+      ],
+      "text": "Source: unknown."
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "Holding through it, trimming, or flat? Say why before the print, not after."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "Where the stock sits going in"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "In a base near highs, extended after a run, or broken down? The setup decides how much a good report can do."
+     }
+    ]
+   },
+   {
+    "type": "heading",
+    "attrs": {
+     "level": 2
+    },
+    "content": [
+     {
+      "type": "text",
+      "text": "After the report"
+     }
+    ]
+   },
+   {
+    "type": "paragraph",
+    "content": [
+     {
+      "type": "text",
+      "text": "The numbers, the reaction, and whether the setup you described held."
+     }
+    ]
+   },
+   {
+    "type": "toggle",
+    "attrs": {
+     "open": false
+    },
+    "content": [
+     {
+      "type": "toggleSummary",
+      "content": [
+       {
+        "type": "text",
+        "text": "How to use this template"
+       }
+      ]
+     },
+     {
+      "type": "toggleContent",
+      "content": [
+       {
+        "type": "orderedList",
+        "attrs": {
+         "start": 1
+        },
+        "content": [
+         {
+          "type": "listItem",
+          "content": [
+           {
+            "type": "paragraph",
+            "content": [
+             {
+              "type": "text",
+              "text": "Fill the report date and the expectations table from the consensus and last year's numbers."
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "listItem",
+          "content": [
+           {
+            "type": "paragraph",
+            "content": [
+             {
+              "type": "text",
+              "text": "Fill the last four reactions: the gap, and where the stock closed that day."
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "listItem",
+          "content": [
+           {
+            "type": "paragraph",
+            "content": [
+             {
+              "type": "text",
+              "text": "List the two or three things the market will listen for beyond the headline numbers."
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "listItem",
+          "content": [
+           {
+            "type": "paragraph",
+            "content": [
+             {
+              "type": "text",
+              "text": "Note where the stock sits going in: in a base, extended, or broken."
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "listItem",
+          "content": [
+           {
+            "type": "paragraph",
+            "content": [
+             {
+              "type": "text",
+              "text": "If you will trade the report, size it in an Earnings Play Plan."
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ },
+ "bodyPlain": "Drafted by UCT from the sources named under each value. The values are frozen in this note: they will not change when the data does. The report Date: — not available: Not available. Source: unknown. Before or after the bell: — not available: Not available. Source: unknown. Expected move (from options): — not available: Not available. Source: unknown. What the Street expects  Estimate A year ago Growth EPS — — — Revenue — — — EPS estimate: — not available: Not available. Revenue estimate: — not available: Not available. EPS a year ago: — not available: Not available. Revenue a year ago: — not available: Not available. The last four reactions — not available: Not available. Source: unknown. Last call recap — not available: Not available. Source: unknown. What the market will listen for Guidance: — The metric that moves this stock: — Anything new: — My history on the name My notes — not available: Not available. Source: unknown. My trades — not available: Not available. Source: unknown. My position going in — not available: Not available. Source: unknown. Holding through it, trimming, or flat? Say why before the print, not after. Where the stock sits going in In a base near highs, extended after a run, or broken down? The setup decides how much a good report can do. After the report The numbers, the reaction, and whether the setup you described held. How to use this template Fill the report date and the expectations table from the consensus and last year's numbers. Fill the last four reactions: the gap, and where the stock closed that day. List the two or three things the market will listen for beyond the headline numbers. Note where the stock sits going in: in a base, extended, or broken. If you will trade the report, size it in an Earnings Play Plan.",
+ "heroImageUrl": null,
+ "firstImageUrl": null,
+ "ticker": null,
+ "tags": [
+  "earnings",
+  "earnings-prep"
+ ],
+ "createdAt": "2026-10-03T09:10:48.566206+00:00",
+ "updatedAt": "2026-10-03T09:10:48.566206+00:00",
+ "deletedAt": null,
+ "archivedAt": null,
+ "locked": false,
+ "dailyDate": null,
+ "propertiesJson": {},
+ "isFavorite": false
+}

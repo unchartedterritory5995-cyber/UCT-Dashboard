@@ -1,0 +1,20 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "DELETE /api/j2/onboarding/sample-notebook",
+    "note": "A second removal finds nothing left to remove.",
+    "path": "/api/j2/onboarding/sample-notebook",
+    "status": 200
+  },
+  "body": {
+    "examplesRemoved": {
+      "insightDismissed": false,
+      "passedSetupDismissed": false,
+      "planLinksForgotten": 0
+    },
+    "foldersKept": [],
+    "foldersOlder": [],
+    "foldersRemoved": [],
+    "trashed": []
+  }
+}

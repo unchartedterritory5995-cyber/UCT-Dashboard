@@ -407,6 +407,18 @@
       ]
     },
     {
+      "key": "notebook_getting_started",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "Get started checklist progress",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/GettingStartedList.jsx"
+      ]
+    },
+    {
       "key": "notebook_sample",
       "store": "server-preference",
       "scope": "cross-device",
@@ -428,6 +440,18 @@
       "serverAllowlisted": true,
       "files": [
         "app/src/pages/journal-2-0/components/notebook/onboarding/NotebookTour.jsx"
+      ]
+    },
+    {
+      "key": "notebook_tours",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "Walkthroughs already seen",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.js"
       ]
     },
     {
@@ -2459,6 +2483,17 @@
       "label": "Intro already played in this tab",
       "files": [
         "app/src/components/intro/introStorage.js"
+      ]
+    },
+    {
+      "key": "uct:notebook-tour-offer",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "Walkthrough offered this session",
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/onboarding/tourEligibility.js"
       ]
     },
     {

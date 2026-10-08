@@ -23,6 +23,9 @@ import { MARKER_SHAPES, MARKER_POSITIONS, PLOT_LINE_STYLES } from '../../engine/
 import { typeWords, intentReadback, INTENTS, NO_PAINT } from '../authoringIntent'
 import { slotsOfTree, clausesOfTree } from './slots'
 import { OP_NAMES, PATCH_LIMITS, PATCH_CONTRACT } from './patchValidate'
+import { NUMERIC_CONDITIONS } from '../../engine/triggerPolicy'
+import { helpersOfDefinition, plotColorRule, plotFillRule, COLOR_RULES } from './colorRules'
+import CROSS from './crossContext.json'
 
 export const VIEW_CONTRACT = 'uct.authoring.view/1'
 export const VIEW_MAX_CHARS = 24000
@@ -39,9 +42,18 @@ function resolveRef(def, v) {
   return spec ? spec.default : v
 }
 
-function outputView(def, o, scope, gateCtx, chartVerdict, primary) {
+function outputView(def, o, scope, gateCtx, chartVerdict, primary, helpers) {
   const plot = (def.plots || []).find((p) => p && p.key === o.key) || {}
   const tree = outputTreeOf(def, o.key)
+  // ⭐ PHASE 5 — a colour rule's / cloud's hidden column is shown as WHAT IT IS, with
+  // no slots or clauses of its own: it is re-derived from its owner, never edited.
+  const helper = helpers.get(o.key)
+  if (helper) {
+    return { key: o.key, role: helper.kind === 'rising' ? 'colour-rule-column' : 'cloud-column', of: helper.owner,
+      type: o.type, typeWords: typeWords(o.type), primary: false }
+  }
+  const colorRule = plotColorRule(def, plot, helpers)
+  const fillRule = plotFillRule(def, plot, helpers)
   let formula = null
   let sentence = null
   try { formula = printFormula(tree) } catch { formula = null }
@@ -71,12 +83,9 @@ function outputView(def, o, scope, gateCtx, chartVerdict, primary) {
       ...(plot.marker ? { marker: { shape: plot.marker.shape, position: plot.marker.position } } : {}),
       // ⭐ P3 — only when the plot says so, so every other view is unchanged.
       ...(typeof plot.lineStyle === 'string' ? { lineStyle: plot.lineStyle } : {}),
-      ...(plot.fill && typeof plot.fill.with === 'string' ? { fill: {
-        with: plot.fill.with,
-        ...(typeof plot.fillColor === 'string' ? { color: plot.fillColor } : {}),
-        ...(Number.isFinite(plot.fillOpacity) ? { opacity: plot.fillOpacity } : {}),
-        ...(plot.fill.colorMode ? { imported: true } : {}),
-      } } : {}),
+      ...(fillRule ? { fill: fillRule } : {}),
+      // ⭐ PHASE 5 — the per-bar colour rule, only when the plot has one.
+      ...(colorRule ? { colorRule } : {}),
       paints,
     },
     lanes: {
@@ -99,6 +108,12 @@ const CAPABILITIES = Object.freeze({
   lineStyles: PLOT_LINE_STYLES,
   maxLevels: PATCH_LIMITS.maxLevels,
   triggerPolicies: Object.values(TRIGGER_POLICIES),
+  // ⭐ PHASE 5 — cross-context and expressive outputs.
+  numericAlertConditions: NUMERIC_CONDITIONS,
+  colorRules: COLOR_RULES,
+  scopeTimeframes: CROSS.tfCodes,
+  calculationTimeframes: CROSS.calculationTimeframes,
+  maxOtherSymbols: CROSS.maxOtherSymbols,
   infoValueFormats: INFO_VALUE_FORMATS,
   maxOutputs: PATCH_LIMITS.maxOutputs,
   maxOpsPerPatch: PATCH_LIMITS.maxOps,
@@ -123,8 +138,12 @@ export function compactView(def, state = {}, gateCtx = {}) {
     definition: null,
     intent: state.intent || null,
     requests: {
-      alerts: ((state.requests && state.requests.alerts) || []).map((a) => ({ plotKey: a.plotKey, triggerPolicy: a.triggerPolicy })),
+      alerts: ((state.requests && state.requests.alerts) || []).map((a) => (typeof a.condition === 'string'
+        ? { plotKey: a.plotKey, condition: a.condition, threshold: a.threshold }
+        : { plotKey: a.plotKey, triggerPolicy: a.triggerPolicy })),
       infoValues: ((state.requests && state.requests.infoValues) || []).map((a) => ({ plotKey: a.plotKey, format: a.format })),
+      ...(state.requests && typeof state.requests.calculationTimeframe === 'string'
+        ? { calculationTimeframe: state.requests.calculationTimeframe } : {}),
     },
     assumptions: (state.assumptions || []).map((a) => (a.label !== undefined
       ? { output: a.output, label: a.label, value: a.value }
@@ -139,6 +158,7 @@ export function compactView(def, state = {}, gateCtx = {}) {
   const rb = intentReadback(def, INTENTS.PLOT, { ctx: gateCtx })
   const chartOf = new Map(rb.outputs.map((o) => [o.key, o.verdict]))
   const primary = (def.compute && def.compute.scanPlot) || (all[0] && all[0].key) || null
+  const helpers = helpersOfDefinition(def)
   const shown = all.slice(0, VIEW_MAX_OUTPUTS)
   const chrome = new Set((def.plots || []).flatMap((p) => [p.color, p.width])
     .filter((v) => typeof v === 'string' && v.startsWith('$')).map((v) => v.slice(1)))
@@ -150,7 +170,7 @@ export function compactView(def, state = {}, gateCtx = {}) {
       placement: def.placement && def.placement.target === 'price' ? 'price' : 'pane',
       ...levelsView(def),
       primary,
-      outputs: shown.map((o) => outputView(def, o, scope, gateCtx, chartOf.get(o.key), primary)),
+      outputs: shown.map((o) => outputView(def, o, scope, gateCtx, chartOf.get(o.key), primary, helpers)),
       ...(all.length > shown.length ? { omittedOutputs: all.length - shown.length } : {}),
       memberInputs: (def.inputs || []).filter((s) => s && !chrome.has(s.key))
         .map((s) => ({ key: s.key, type: s.type, default: s.default, label: untrusted(s.label || s.key) })),
@@ -162,7 +182,7 @@ export function compactView(def, state = {}, gateCtx = {}) {
     view.truncated = true
     for (const o of view.definition.outputs) delete o.tree
     if (JSON.stringify(view).length > VIEW_MAX_CHARS) for (const o of view.definition.outputs) delete o.readback
-    if (JSON.stringify(view).length > VIEW_MAX_CHARS) for (const o of view.definition.outputs) o.clauses = []
+    if (JSON.stringify(view).length > VIEW_MAX_CHARS) for (const o of view.definition.outputs) if (o.clauses) o.clauses = []
   }
   return view
 }

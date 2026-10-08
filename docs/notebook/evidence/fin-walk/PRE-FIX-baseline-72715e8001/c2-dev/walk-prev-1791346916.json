@@ -1,0 +1,5487 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "flags",
+   "step": "auth payload: every c2 switch reads ON",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:14:03+00:00",
+   "email": "q1c2m3326602@local.dev",
+   "off": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "note resurfacing",
+   "step": "the notices for the two crossed stops are in the in-app inbox (Settings, Voice Insights Inbox)",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:14:05+00:00",
+   "insights_api_status": 200,
+   "headlines": [
+    "IBM reached 195.00, the stop you named",
+    "AMD reached 166.98, the stop you named"
+   ],
+   "links": {
+    "IBM": "/journal/notebook?note=649dba03ea9f414da59a309280b92634&resurfaceVersion=eb165ef0d56d4de282a2d0c271379fa6",
+    "AMD": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30"
+   },
+   "door_hrefs": [
+    "/journal/notebook?note=649dba03ea9f414da59a309280b92634&resurfaceVersion=eb165ef0d56d4de282a2d0c271379fa6",
+    "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30"
+   ],
+   "first_notice_text": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/settings?section=compass",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 500,
+     "method": "GET",
+     "url": "/api/voice/cost",
+     "benign": false,
+     "body": "Internal Server Error"
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/settings\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:14:05.047056+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-note-resurfacing-the-notices-for-the-two-crossed-stops-are-in-the-in-app-inbox-Settings-Voice-Insights-Inbox-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "note resurfacing",
+   "step": "the notice opens the note at 'What you wrote then': the version that first named the stop",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:14:08+00:00",
+   "landed": "/journal/notebook?note=649dba03ea9f414da59a309280b92634&resurfaceVersion=eb165ef0d56d4de282a2d0c271379fa6",
+   "sheet_text": "What you wrote then\n×\n\nSaved 12:10 AM EDT. This is the version that first named the level. Your note itself is unchanged.\n\nIBM thesis\n\nLong the base; mainframe cycle is the story.\n\nChart — IBM D · captured Oct 6, 2026\nLIVE\n\n\n\n\nBack to the note as it is now",
+   "reach_error": null,
+   "expected_version": "eb165ef0d56d4de282a2d0c271379fa6",
+   "explainer": 0,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=649dba03ea9f414da59a309280b92634&resurfaceVersion=eb165ef0d56d4de282a2d0c271379fa6",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"61471654-b5cf-40e9-a39b-154da0c631c8\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-07T04:14:07.250Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/649dba03ea9f414da59a309280b92634/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":247}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notebook-fingerprint/blocks/649dba03ea9f414da59a309280b92634/e-ibm/freeze",
+     "status": 200,
+     "request": "",
+     "response": "{\"block\":{\"noteId\":\"649dba03ea9f414da59a309280b92634\",\"noteTitle\":\"IBM thesis\",\"embedKey\":\"e-ibm\",\"embedId\":\"e-ibm\",\"position\":0,\"symbol\":\"IBM\",\"timeframe\":\"D\",\"asOf\":\"2026-10-06\",\"setupTag\":null,\"mode\":\"live\",\"fingerprint\":{\"v\":1,\"symbol\":\"IBM\",\"requested_as_of\":\"2026-10-06\",\"as_of\":\"2026-10-06\",\"mode\":\"bars\",\"fields\":{\"adr_pct\":{\"value\":2.62,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma10\":{\"value\":-1.08,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma20\":{\"value\":-4.2,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma50\":{\"value\":-4.51,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma200\":{\"value\":-12.62,\"source\":\"bars\",\"missing\":null},\"ma_stack\":{\"value\":\"bear\",\"source\":\"bars\",\"missing\":null},\"ema_stack_intact\":{\"value\":false,\"source\":\"bars\",\"missing\":null},\"rs_rank\":{\"value\":null,\"source\":\"screener_row\",\"missing\":\"rank_is_nightly_only\"},\"rs_line_trend\":{\"value\":\"down\",\"source\":\"bars\",\"missing\":null},\"base_length_bars\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"base_depth_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"pullback_depth_pct\":{\"value\":12.12,\"source\":\"bars\",\"missing\":null},\"vol_nweek_low\":{\"value\":0,\"source\":\"bars\",\"missing\":null},\"close_cv_pct\":{\"value\":1.73,\"source\":\"bars\",\"missing\":null},\"pole_pct\":{\"value\":19.0,\"source\":\"bars\",\"missing\":null},\"patterns\":{\"value\":[],\"source\":\"pattern_vision\",\"missing\":null}}},\"fingerprintSource\":\"ledger\",\"frozenAt\":\"2026-10-07T04:13:14.713822+00:00\",\"values\":{\"adr_pct\":2.62,\"pct_vs_sma10\":-1.08,\"pct_vs_sma20\":-4.2,\""
+    }
+   ],
+   "screenshot": "c2-1280-note-resurfacing-the-notice-opens-the-note-at-What-you-wrote-then-the-version-that-first-named-the-stop.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "note resurfacing",
+   "step": "a plan drawn in one sitting has no saved version naming its stop, so its notice opens the note itself, with no sheet (by design: note_levels.project_note)",
+   "verdict": "INFO",
+   "at": "2026-10-07T04:14:08+00:00",
+   "amd_level": {
+    "note_id": "e7c83c4560074e6d9dd69fe10fd3ea30",
+    "level_id": "stop@166.976484",
+    "role": "stop",
+    "price": 166.976484,
+    "version_id": null,
+    "last_side": "below"
+   },
+   "amd_link": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "Research Home",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:14:18+00:00",
+   "path": "/journal/notebook",
+   "surfaces_present": {
+    "reporting_soon": 1,
+    "passed_setups": 1,
+    "review_box_home": 1
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 3,
+    "controls": 13,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:14:15.264288+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-820-layout-Research-Home.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "plan note with fingerprint (AAPL sample)",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:14:26+00:00",
+   "path": "/journal/notebook?note=30042b2361c5463c913608de10cb1df5",
+   "surfaces_present": {
+    "fingerprint_panel": 1,
+    "chart_plan_button": 1,
+    "chart_replay_button": 1,
+    "visual_playbook_door": 1
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 4,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=30042b2361c5463c913608de10cb1df5",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:14:19.899079+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/30042b2361c5463c913608de10cb1df5/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":267}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-820-layout-plan-note-with-fingerprint-AAPL-sample-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "own chart plan note (AMD)",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:14:33+00:00",
+   "path": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30",
+   "surfaces_present": {
+    "fingerprint_panel": 1,
+    "chart_plan_button": 1,
+    "chart_replay_button": 1,
+    "visual_playbook_door": 1
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 3,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:14:27.050268+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":256}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-820-layout-own-chart-plan-note-AMD-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "formula note",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:14:40+00:00",
+   "path": "/journal/notebook?note=748efd006f294d6cbbd5330bcb86353d",
+   "surfaces_present": {},
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 5,
+    "controls": 5,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=748efd006f294d6cbbd5330bcb86353d",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:14:34.659246+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/748efd006f294d6cbbd5330bcb86353d/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":284}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-820-layout-formula-note.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "trade page",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:14:48+00:00",
+   "path": "/journal-2-0/trade/a8a6cc76-86de-4e99-a963-2935bf1db44c",
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 3,
+    "controls": 4,
+    "inline_links": 0,
+    "under": 1,
+    "sample": [
+     {
+      "label": "Edit",
+      "tag": "BUTTON",
+      "w": 22,
+      "h": 44,
+      "host": "why-prompt-saved"
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/a8a6cc76-86de-4e99-a963-2935bf1db44c",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AMD:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AMD:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/a8a6cc76-86de-4e99-a963-2935bf1db44c\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:14:41.913781+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-820-layout-trade-page.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "unplanned trade page",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:14:55+00:00",
+   "path": "/journal-2-0/trade/dce2ec1d-9f3e-4b1c-b6e7-382e4d714f1d",
+   "surfaces_present": {
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 2,
+    "controls": 1,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/dce2ec1d-9f3e-4b1c-b6e7-382e4d714f1d",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=CRWD:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=CRWD:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/dce2ec1d-9f3e-4b1c-b6e7-382e4d714f1d\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:14:49.328226+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-820-layout-unplanned-trade-page.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "position page",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:15:03+00:00",
+   "path": "/journal-2-0/position/NVDA",
+   "surfaces_present": {
+    "entry_context_card": 2
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 2,
+    "controls": 4,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/position/NVDA",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/NVDA?tf=30&bars=1120&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/NVDA?tf=15&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/NVDA?tf=M&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/NVDA?tf=1&bars=960&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/position/NVDA\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:14:56.715261+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-820-layout-position-page.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "Open Positions rows",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:15:10+00:00",
+   "path": "/journal?j2tab=positions",
+   "surfaces_present": {
+    "thesis_chip": 3
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 3,
+    "controls": 3,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/trades?seg=open",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/trades\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:15:04.130826+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/thesis-chips",
+     "status": 200,
+     "request": "{\"symbols\":[\"AMD\",\"NVDA\"]}",
+     "response": "{\"AMD\":{\"noteId\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"title\":\"AMD plan\",\"thesisStatus\":null,\"entry\":340.856581,\"stop\":166.976484,\"target\":514.736679,\"noteUpdatedAt\":\"2026-10-07T03:59:38.092444+00:00\",\"link\":\"/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30\"},\"NVDA\":{\"noteId\":\"b42aa00944d742ac8b047b0728e597cf\",\"title\":\"Thesis: example -- NVDA leadership\",\"thesisStatus\":\"active\",\"entry\":null,\"stop\":110.0,\"target\":null,\"noteUpdatedAt\":\"2026-10-07T03:23:34.821616+00:00\",\"link\":\"/journal/notebook?note=b42aa00944d742ac8b047b0728e597cf\"}}"
+    }
+   ],
+   "screenshot": "c2-820-layout-Open-Positions-rows.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "closed trades table",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:15:18+00:00",
+   "path": "/journal/trades?seg=closed",
+   "surfaces_present": {
+    "unplanned_chip": 1
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 0,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/trades?seg=closed",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/trades\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:15:11.430396+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-820-layout-closed-trades-table.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "Insights > Discipline",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:15:25+00:00",
+   "path": "/journal/insights?ins=discipline",
+   "surfaces_present": {
+    "discipline_record": 1,
+    "discipline_tab": 1,
+    "reviews_tab": 1
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 7,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/insights?ins=discipline",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/insights\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:15:18.765606+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-820-layout-Insights-Discipline.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "Insights > Reviews",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:15:32+00:00",
+   "path": "/journal/insights?ins=reviews",
+   "surfaces_present": {
+    "review_box_home": 1,
+    "discipline_tab": 1,
+    "reviews_tab": 1,
+    "review_drafts_section": 1
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 3,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/insights?ins=reviews",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/insights\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:15:26.118325+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-820-layout-Insights-Reviews.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "My Playbook",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:15:40+00:00",
+   "path": "/journal-2-0/playbook",
+   "surfaces_present": {
+    "my_playbook": 1
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 14,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/playbook",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/playbook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:15:33.552406+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-820-layout-My-Playbook.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "setups board",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:15:47+00:00",
+   "path": "/journal/notebook/setups",
+   "surfaces_present": {
+    "setups_board_card": 3,
+    "setups_board_heading": 1,
+    "find_similar_button": 4
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 3,
+    "controls": 5,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook/setups",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,IBM:1,MSFT:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,IBM:1,MSFT:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook/setups\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:15:41.045219+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-820-layout-setups-board.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "research workspace (TSLA)",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:15:55+00:00",
+   "path": "/journal/notebook/research/TSLA",
+   "surfaces_present": {
+    "transcript_door": 1
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 35,
+    "inline_links": 0,
+    "under": 1,
+    "sample": [
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook/research/TSLA",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook/research/TSLA\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:15:48.361879+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-820-layout-research-workspace-TSLA-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "review draft note",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:16:02+00:00",
+   "path": "/journal/notebook?note=87c96fae3d814aea87e95fdb31152d64",
+   "surfaces_present": {
+    "fingerprint_panel": 2,
+    "chart_plan_button": 2,
+    "chart_replay_button": 2,
+    "visual_playbook_door": 2
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 138,
+    "inline_links": 2,
+    "under": 17,
+    "sample": [
+     {
+      "label": "Folder",
+      "tag": "SELECT",
+      "w": 146,
+      "h": 28,
+      "host": "ask-row"
+     },
+     {
+      "label": "Ticker",
+      "tag": "INPUT",
+      "w": 84,
+      "h": 26,
+      "host": "ask-row"
+     },
+     {
+      "label": "Hide toolbar",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Live",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Half",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Plan",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 44,
+      "host": "chart-plan-open"
+     },
+     {
+      "label": "Chart settings",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Sync",
+      "tag": "BUTTON",
+      "w": 43,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Remove embed",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Hide toolbar",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Live",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Half",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Plan",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 44,
+      "host": "chart-plan-open"
+     },
+     {
+      "label": "Chart settings",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Sync",
+      "tag": "BUTTON",
+      "w": 43,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Remove embed",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=87c96fae3d814aea87e95fdb31152d64",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:15:55.999734+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/87c96fae3d814aea87e95fdb31152d64/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":281}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-820-layout-review-draft-note.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "earnings prep note: skipped, an earlier step did not produce its page",
+   "verdict": "NOT_RUN",
+   "at": "2026-10-07T04:16:02+00:00",
+   "reason": "depends on a failed step",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "Help",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:16:09+00:00",
+   "path": "/support",
+   "surfaces_present": {
+    "review_box_home": 3,
+    "help_whats_new": 1,
+    "help_replay_links": 20
+   },
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 3,
+    "controls": 39,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/support",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/support\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:16:03.191641+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-820-layout-Help.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "820",
+   "feature": "layout",
+   "step": "visual playbook gallery (opened)",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:16:16+00:00",
+   "opened": true,
+   "overflow": {
+    "vw": 820,
+    "doc": 820,
+    "body": 820,
+    "main": [
+     820,
+     820
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 11,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=30042b2361c5463c913608de10cb1df5",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:16:10.862613+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":269}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/30042b2361c5463c913608de10cb1df5/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-820-layout-visual-playbook-gallery-opened-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "Research Home",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:16:28+00:00",
+   "path": "/journal/notebook",
+   "surfaces_present": {
+    "reporting_soon": 1,
+    "passed_setups": 1,
+    "review_box_home": 1
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 3,
+    "controls": 13,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:16:24.748796+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-390-layout-Research-Home.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "plan note with fingerprint (AAPL sample)",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:16:35+00:00",
+   "path": "/journal/notebook?note=30042b2361c5463c913608de10cb1df5",
+   "surfaces_present": {
+    "fingerprint_panel": 1,
+    "chart_plan_button": 1,
+    "chart_replay_button": 1,
+    "visual_playbook_door": 1
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 4,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=30042b2361c5463c913608de10cb1df5",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:16:29.367204+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/30042b2361c5463c913608de10cb1df5/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":272}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-390-layout-plan-note-with-fingerprint-AAPL-sample-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "own chart plan note (AMD)",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:16:43+00:00",
+   "path": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30",
+   "surfaces_present": {
+    "fingerprint_panel": 1,
+    "chart_plan_button": 1,
+    "chart_replay_button": 1,
+    "visual_playbook_door": 1
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 3,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:16:36.581309+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":268}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-390-layout-own-chart-plan-note-AMD-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "formula note",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:16:50+00:00",
+   "path": "/journal/notebook?note=748efd006f294d6cbbd5330bcb86353d",
+   "surfaces_present": {},
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 5,
+    "controls": 5,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=748efd006f294d6cbbd5330bcb86353d",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:16:43.828933+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/748efd006f294d6cbbd5330bcb86353d/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":251}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-390-layout-formula-note.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "trade page",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:16:57+00:00",
+   "path": "/journal-2-0/trade/a8a6cc76-86de-4e99-a963-2935bf1db44c",
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     470,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "SPAN",
+      "cls": "",
+      "right": 470,
+      "testid": null
+     },
+     {
+      "tag": "SPAN",
+      "cls": "_researchMenuWrap_9ssel_273",
+      "right": 470,
+      "testid": null
+     },
+     {
+      "tag": "BUTTON",
+      "cls": "_cardActionBtn_9ssel_225",
+      "right": 470,
+      "testid": null
+     },
+     {
+      "tag": "svg",
+      "cls": "[object SVGAnimatedString]",
+      "right": 398,
+      "testid": null
+     },
+     {
+      "tag": "path",
+      "cls": "[object SVGAnimatedString]",
+      "right": 395,
+      "testid": null
+     },
+     {
+      "tag": "DIV",
+      "cls": "_chartMeta_1gxfq_1389 ",
+      "right": 648,
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 3,
+    "controls": 4,
+    "inline_links": 0,
+    "under": 1,
+    "sample": [
+     {
+      "label": "Edit",
+      "tag": "BUTTON",
+      "w": 22,
+      "h": 44,
+      "host": "why-prompt-saved"
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/a8a6cc76-86de-4e99-a963-2935bf1db44c",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AMD:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AMD:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/a8a6cc76-86de-4e99-a963-2935bf1db44c\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:16:51.075149+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-390-layout-trade-page.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "unplanned trade page",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:17:04+00:00",
+   "path": "/journal-2-0/trade/dce2ec1d-9f3e-4b1c-b6e7-382e4d714f1d",
+   "surfaces_present": {
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     470,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "SPAN",
+      "cls": "",
+      "right": 470,
+      "testid": null
+     },
+     {
+      "tag": "SPAN",
+      "cls": "_researchMenuWrap_9ssel_273",
+      "right": 470,
+      "testid": null
+     },
+     {
+      "tag": "BUTTON",
+      "cls": "_cardActionBtn_9ssel_225",
+      "right": 470,
+      "testid": null
+     },
+     {
+      "tag": "svg",
+      "cls": "[object SVGAnimatedString]",
+      "right": 398,
+      "testid": null
+     },
+     {
+      "tag": "path",
+      "cls": "[object SVGAnimatedString]",
+      "right": 395,
+      "testid": null
+     },
+     {
+      "tag": "DIV",
+      "cls": "_chartMeta_1gxfq_1389 ",
+      "right": 664,
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 2,
+    "controls": 1,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/dce2ec1d-9f3e-4b1c-b6e7-382e4d714f1d",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=CRWD:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=CRWD:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/dce2ec1d-9f3e-4b1c-b6e7-382e4d714f1d\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:16:58.408578+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-390-layout-unplanned-trade-page.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "position page",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:17:12+00:00",
+   "path": "/journal-2-0/position/NVDA",
+   "surfaces_present": {
+    "entry_context_card": 2
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 2,
+    "controls": 4,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/position/NVDA",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/position/NVDA\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:17:05.617623+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-390-layout-position-page.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "Open Positions rows",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:17:19+00:00",
+   "path": "/journal?j2tab=positions",
+   "surfaces_present": {
+    "thesis_chip": 3
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 3,
+    "controls": 3,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/trades?seg=open",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/trades\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:17:12.823996+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/thesis-chips",
+     "status": 200,
+     "request": "{\"symbols\":[\"AMD\",\"NVDA\"]}",
+     "response": "{\"AMD\":{\"noteId\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"title\":\"AMD plan\",\"thesisStatus\":null,\"entry\":340.856581,\"stop\":166.976484,\"target\":514.736679,\"noteUpdatedAt\":\"2026-10-07T03:59:38.092444+00:00\",\"link\":\"/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30\"},\"NVDA\":{\"noteId\":\"b42aa00944d742ac8b047b0728e597cf\",\"title\":\"Thesis: example -- NVDA leadership\",\"thesisStatus\":\"active\",\"entry\":null,\"stop\":110.0,\"target\":null,\"noteUpdatedAt\":\"2026-10-07T03:23:34.821616+00:00\",\"link\":\"/journal/notebook?note=b42aa00944d742ac8b047b0728e597cf\"}}"
+    }
+   ],
+   "screenshot": "c2-390-layout-Open-Positions-rows.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "closed trades table",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:17:26+00:00",
+   "path": "/journal/trades?seg=closed",
+   "surfaces_present": {
+    "unplanned_chip": 1
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     534,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "DIV",
+      "cls": "_toolbarRight_mfw33_187",
+      "right": 534,
+      "testid": null
+     },
+     {
+      "tag": "BUTTON",
+      "cls": "btn btn-ghost",
+      "right": 413,
+      "testid": null
+     },
+     {
+      "tag": "BUTTON",
+      "cls": "btn btn-primary",
+      "right": 534,
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 0,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/trades?seg=closed",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/trades\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:17:19.908431+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-390-layout-closed-trades-table.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "Insights > Discipline",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:17:33+00:00",
+   "path": "/journal/insights?ins=discipline",
+   "surfaces_present": {
+    "discipline_record": 1,
+    "discipline_tab": 1,
+    "reviews_tab": 1
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 7,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/insights?ins=discipline",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/insights\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:17:27.128037+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-390-layout-Insights-Discipline.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "Insights > Reviews",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:17:40+00:00",
+   "path": "/journal/insights?ins=reviews",
+   "surfaces_present": {
+    "review_box_home": 1,
+    "discipline_tab": 1,
+    "reviews_tab": 1,
+    "review_drafts_section": 1
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 3,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/insights?ins=reviews",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/insights\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:17:34.296041+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-390-layout-Insights-Reviews.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "My Playbook",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:17:48+00:00",
+   "path": "/journal-2-0/playbook",
+   "surfaces_present": {
+    "my_playbook": 1
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 14,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal-2-0/playbook",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/playbook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:17:41.826182+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-390-layout-My-Playbook.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "setups board",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:17:55+00:00",
+   "path": "/journal/notebook/setups",
+   "surfaces_present": {
+    "setups_board_card": 3,
+    "setups_board_heading": 1,
+    "find_similar_button": 4
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 3,
+    "controls": 5,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook/setups",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,IBM:1,MSFT:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,IBM:1,MSFT:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook/setups\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:17:48.852091+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-390-layout-setups-board.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "research workspace (TSLA)",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:18:02+00:00",
+   "path": "/journal/notebook/research/TSLA",
+   "surfaces_present": {
+    "transcript_door": 1
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     763,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "BUTTON",
+      "cls": "btn btn-ghost btn-sm",
+      "right": 450,
+      "testid": null
+     },
+     {
+      "tag": "BUTTON",
+      "cls": "btn btn-ghost btn-sm",
+      "right": 582,
+      "testid": null
+     },
+     {
+      "tag": "svg",
+      "cls": "[object SVGAnimatedString]",
+      "right": 484,
+      "testid": null
+     },
+     {
+      "tag": "rect",
+      "cls": "[object SVGAnimatedString]",
+      "right": 482,
+      "testid": null
+     },
+     {
+      "tag": "path",
+      "cls": "[object SVGAnimatedString]",
+      "right": 482,
+      "testid": null
+     },
+     {
+      "tag": "BUTTON",
+      "cls": "btn btn-ghost btn-sm",
+      "right": 763,
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 32,
+    "inline_links": 0,
+    "under": 1,
+    "sample": [
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook/research/TSLA",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook/research/TSLA\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:17:55.985185+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-390-layout-research-workspace-TSLA-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "review draft note",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:18:09+00:00",
+   "path": "/journal/notebook?note=87c96fae3d814aea87e95fdb31152d64",
+   "surfaces_present": {
+    "fingerprint_panel": 2,
+    "chart_plan_button": 2,
+    "chart_replay_button": 2,
+    "visual_playbook_door": 2
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 82,
+    "inline_links": 2,
+    "under": 19,
+    "sample": [
+     {
+      "label": "Folder",
+      "tag": "SELECT",
+      "w": 186,
+      "h": 37,
+      "host": "ask-row"
+     },
+     {
+      "label": "Ticker",
+      "tag": "INPUT",
+      "w": 84,
+      "h": 36,
+      "host": "ask-row"
+     },
+     {
+      "label": "Note title",
+      "tag": "INPUT",
+      "w": 270,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "Subtitle",
+      "tag": "INPUT",
+      "w": 270,
+      "h": 43,
+      "host": null
+     },
+     {
+      "label": "Hide toolbar",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Live",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Half",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Plan",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 44,
+      "host": "chart-plan-open"
+     },
+     {
+      "label": "Chart settings",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Sync",
+      "tag": "BUTTON",
+      "w": 43,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Remove embed",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Hide toolbar",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Live",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Half",
+      "tag": "BUTTON",
+      "w": 39,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Plan",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 44,
+      "host": "chart-plan-open"
+     },
+     {
+      "label": "Chart settings",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Sync",
+      "tag": "BUTTON",
+      "w": 43,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "Remove embed",
+      "tag": "BUTTON",
+      "w": 34,
+      "h": 44,
+      "host": "chart-embed"
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=87c96fae3d814aea87e95fdb31152d64",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:18:03.364483+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":273}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/87c96fae3d814aea87e95fdb31152d64/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-390-layout-review-draft-note.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "earnings prep note: skipped, an earlier step did not produce its page",
+   "verdict": "NOT_RUN",
+   "at": "2026-10-07T04:18:09+00:00",
+   "reason": "depends on a failed step",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "Help",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:18:16+00:00",
+   "path": "/support",
+   "surfaces_present": {
+    "review_box_home": 3,
+    "help_whats_new": 1,
+    "help_replay_links": 20
+   },
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     406,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": true,
+    "offenders": [
+     {
+      "tag": "DIV",
+      "cls": "_header_1ef1h_7",
+      "right": 406,
+      "testid": null
+     }
+    ]
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 3,
+    "controls": 39,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/support",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/support\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:18:10.335794+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-390-layout-Help.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "390",
+   "feature": "layout",
+   "step": "visual playbook gallery (opened)",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:18:23+00:00",
+   "opened": true,
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": true,
+    "scope_matched": 1,
+    "controls": 11,
+    "inline_links": 0,
+    "under": 0,
+    "sample": []
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=30042b2361c5463c913608de10cb1df5",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:18:17.780916+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":235}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/30042b2361c5463c913608de10cb1df5/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-390-layout-visual-playbook-gallery-opened-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "Research Home",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:18:42+00:00",
+   "path": "/journal/notebook",
+   "surfaces_present": {
+    "reporting_soon": 1,
+    "passed_setups": 1,
+    "review_box_home": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:18:38.728207+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-Research-Home.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "plan note with fingerprint (AAPL sample)",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:18:49+00:00",
+   "path": "/journal/notebook?note=30042b2361c5463c913608de10cb1df5",
+   "surfaces_present": {
+    "fingerprint_panel": 1,
+    "visual_playbook_door": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=30042b2361c5463c913608de10cb1df5",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:18:43.447322+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/30042b2361c5463c913608de10cb1df5/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":298}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-plan-note-with-fingerprint-AAPL-sample-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "own chart plan note (AMD)",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:18:57+00:00",
+   "path": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30",
+   "surfaces_present": {
+    "fingerprint_panel": 1,
+    "visual_playbook_door": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:18:50.750755+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":296}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-own-chart-plan-note-AMD-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "formula note",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:19:04+00:00",
+   "path": "/journal/notebook?note=748efd006f294d6cbbd5330bcb86353d",
+   "surfaces_present": {},
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=748efd006f294d6cbbd5330bcb86353d",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:18:58.016443+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/748efd006f294d6cbbd5330bcb86353d/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":272}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-formula-note.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "trade page",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:19:11+00:00",
+   "path": "/journal-2-0/trade/a8a6cc76-86de-4e99-a963-2935bf1db44c",
+   "surfaces_present": {
+    "entry_context_card": 1,
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/a8a6cc76-86de-4e99-a963-2935bf1db44c",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AMD:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AMD:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/a8a6cc76-86de-4e99-a963-2935bf1db44c\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:19:05.116257+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-trade-page.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "unplanned trade page",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:19:18+00:00",
+   "path": "/journal-2-0/trade/dce2ec1d-9f3e-4b1c-b6e7-382e4d714f1d",
+   "surfaces_present": {
+    "plan_grade_card": 1,
+    "trade_before_after": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/dce2ec1d-9f3e-4b1c-b6e7-382e4d714f1d",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=CRWD:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=CRWD:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/dce2ec1d-9f3e-4b1c-b6e7-382e4d714f1d\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:19:12.514502+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-unplanned-trade-page.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "position page",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:19:26+00:00",
+   "path": "/journal-2-0/position/NVDA",
+   "surfaces_present": {
+    "entry_context_card": 2
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/position/NVDA",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/position/NVDA\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:19:20.064670+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-position-page.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "Open Positions rows",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:19:33+00:00",
+   "path": "/journal?j2tab=positions",
+   "surfaces_present": {
+    "thesis_chip": 3
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/trades?seg=open",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:19:27.589652+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/trades\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/thesis-chips",
+     "status": 200,
+     "request": "{\"symbols\":[\"AMD\",\"NVDA\"]}",
+     "response": "{\"AMD\":{\"noteId\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"title\":\"AMD plan\",\"thesisStatus\":null,\"entry\":340.856581,\"stop\":166.976484,\"target\":514.736679,\"noteUpdatedAt\":\"2026-10-07T03:59:38.092444+00:00\",\"link\":\"/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30\"},\"NVDA\":{\"noteId\":\"b42aa00944d742ac8b047b0728e597cf\",\"title\":\"Thesis: example -- NVDA leadership\",\"thesisStatus\":\"active\",\"entry\":null,\"stop\":110.0,\"target\":null,\"noteUpdatedAt\":\"2026-10-07T03:23:34.821616+00:00\",\"link\":\"/journal/notebook?note=b42aa00944d742ac8b047b0728e597cf\"}}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-Open-Positions-rows.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "closed trades table",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:19:40+00:00",
+   "path": "/journal/trades?seg=closed",
+   "surfaces_present": {
+    "unplanned_chip": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/trades?seg=closed",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/trades\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:19:34.379880+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-closed-trades-table.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "Insights > Discipline",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:19:48+00:00",
+   "path": "/journal/insights?ins=discipline",
+   "surfaces_present": {
+    "discipline_record": 1,
+    "discipline_tab": 1,
+    "reviews_tab": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/insights?ins=discipline",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/insights\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:19:41.659073+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-Insights-Discipline.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "Insights > Reviews",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:19:55+00:00",
+   "path": "/journal/insights?ins=reviews",
+   "surfaces_present": {
+    "review_box_home": 1,
+    "discipline_tab": 1,
+    "reviews_tab": 1,
+    "review_drafts_section": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/insights?ins=reviews",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/insights\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:19:49.139407+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-Insights-Reviews.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "My Playbook",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:20:02+00:00",
+   "path": "/journal-2-0/playbook",
+   "surfaces_present": {
+    "my_playbook": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/playbook",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/playbook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:19:56.123589+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-My-Playbook.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "setups board",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:20:10+00:00",
+   "path": "/journal/notebook/setups",
+   "surfaces_present": {
+    "setups_board_card": 3,
+    "setups_board_heading": 1,
+    "find_similar_button": 4
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook/setups",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,IBM:1,MSFT:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AAPL:1,IBM:1,MSFT:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook/setups\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:20:03.411808+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-setups-board.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "research workspace (TSLA)",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:20:17+00:00",
+   "path": "/journal/notebook/research/TSLA",
+   "surfaces_present": {
+    "transcript_door": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook/research/TSLA",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook/research/TSLA\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:20:10.730217+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-research-workspace-TSLA-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "review draft note",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:20:24+00:00",
+   "path": "/journal/notebook?note=87c96fae3d814aea87e95fdb31152d64",
+   "surfaces_present": {
+    "fingerprint_panel": 2,
+    "visual_playbook_door": 2
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=87c96fae3d814aea87e95fdb31152d64",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:20:18.196100+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":278}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/87c96fae3d814aea87e95fdb31152d64/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-review-draft-note.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "earnings prep note: skipped, an earlier step did not produce its page",
+   "verdict": "NOT_RUN",
+   "at": "2026-10-07T04:20:24+00:00",
+   "reason": "depends on a failed step",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "Help",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:20:31+00:00",
+   "path": "/support",
+   "surfaces_present": {
+    "review_box_home": 3,
+    "help_whats_new": 1,
+    "help_replay_links": 20
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/support",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/support\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:20:25.347092+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-Help.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "layout",
+   "step": "visual playbook gallery (opened)",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:20:38+00:00",
+   "opened": true,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=30042b2361c5463c913608de10cb1df5",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:20:32.920592+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/30042b2361c5463c913608de10cb1df5/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":268}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-layout-visual-playbook-gallery-opened-.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "census control",
+   "step": "every absence selector used in c1 matched a real element somewhere in c2",
+   "verdict": "INFO",
+   "at": "2026-10-07T04:20:38+00:00",
+   "seen": [
+    "chart_plan_button",
+    "chart_replay_button",
+    "discipline_record",
+    "discipline_tab",
+    "entry_context_card",
+    "find_similar_button",
+    "fingerprint_panel",
+    "help_replay_links",
+    "help_whats_new",
+    "my_playbook",
+    "passed_setups",
+    "plan_grade_card",
+    "reporting_soon",
+    "review_box_home",
+    "review_drafts_section",
+    "reviews_tab",
+    "setups_board_card",
+    "setups_board_heading",
+    "thesis_chip",
+    "trade_before_after",
+    "transcript_door",
+    "unplanned_chip",
+    "visual_playbook",
+    "visual_playbook_door"
+   ],
+   "never_seen": [
+    "capability_preview",
+    "get_started_list",
+    "tour_offer",
+    "tour_card",
+    "tour_explainer",
+    "chart_plan_panel",
+    "my_playbook_door",
+    "gallery_door",
+    "help_walkthroughs",
+    "resurface_sheet"
+   ],
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/IBM?tf=5&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/IBM?tf=60&bars=1138&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/IBM?tf=30&bars=1120&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/IBM?tf=15&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/IBM?tf=W&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/IBM?tf=M&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/IBM?tf=1&bars=960&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=IBM:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/649dba03ea9f414da59a309280b92634",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Long the base; mainframe cycle is the story. Added a target after the print.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"IBM\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-06T15:00:00Z\",\"embedId\":\"e-ibm\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[{\"id\":\"i-entry\",\"type\":\"horizontal\",\"role\":\"entry\",\"price\":205},{\"id\":\"i-stop\",\"type\":\"horizontal\",\"role\":\"stop\",\"price\":195},{\"id\":\"i-target\",\"type\":\"horizontal\",\"role\":\"target\",\"price\":230}],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":{\"v\":1,\"fingerprint\":{\"v\":1,\"symbol\":\"IBM\",\"requested_as_of\":\"2026-10-06\",\"as_of\":\"2026-10-06\",\"mode\":\"bars\",\"fields\":{\"adr_pct\":{\"value\":2.62,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma10\":{\"value\":-1.08,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma20\":{\"value\":-4.2,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma50\":{\"value\":-4.51,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma200\":{\"value\":-12.62,\"source\":\"bars\",\"missing\":null},\"ma_stack\":{\"value\":\"bear\",\"source\":\"bars\",\"missing\":null},\"ema_stack_intact\":{\"value\":false,\"source\":\"bars\",\"missing\":null},\"rs_rank\":{\"value\":null,\"source\":\"screener_row\",\"missing\":\"rank_is_nightly_only\"},\"rs_line_trend\":{\"value\":\"down\",\"source\":\"bars\",\"missing\":null},\"base_length_bars\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"base_depth_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":",
+     "response": "{\"note\":{\"id\":\"649dba03ea9f414da59a309280b92634\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"IBM thesis\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Long the base; mainframe cycle is the story. Added a target after the print.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"IBM\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-06T15:00:00Z\",\"embedId\":\"e-ibm\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[{\"id\":\"i-entry\",\"type\":\"horizontal\",\"role\":\"entry\",\"price\":205},{\"id\":\"i-stop\",\"type\":\"horizontal\",\"role\":\"stop\",\"price\":195},{\"id\":\"i-target\",\"type\":\"horizontal\",\"role\":\"target\",\"price\":230}],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":{\"v\":1,\"fingerprint\":{\"v\":1,\"symbol\":\"IBM\",\"requested_as_of\":\"2026-10-06\",\"as_of\":\"2026-10-06\",\"mode\":\"bars\",\"fields\":{\"adr_pct\":{\"value\":2.62,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma10\":{\"value\":-1.08,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma20\":{\"value\":-4.2,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma50\":{\"value\":-4.51,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma200\":{\"value\":-12.62,\"source\":\"bars\",\"missing\":null},\"ma_stack\":{\"value\":\"bear\",\"source\":\"bars\",\"missing\":null},\"ema_stack_intact\":{\"value\":false,\"source\":\"bars\",\"missing\":null},\"rs_rank\":{\"value\":null,\"source\":\"screener_row\",\"missing\":\"rank_is_nightly_only\"},\"rs_line_trend\":{\"value\":\"down"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ]
+  }
+ ],
+ "configs": {
+  "c2": {
+   "base": "http://127.0.0.1:8132",
+   "data_dir": "C:\\data-fin-walk-dev\\c2",
+   "flags_on": [
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+   ],
+   "not_run": null,
+   "failure": null,
+   "port_free_after": null,
+   "driver_imported_api": []
+  }
+ },
+ "config": "c2",
+ "tree": "e8cbd3019c44e201e6ec2e7bdf753a9b36c94738",
+ "started": "2026-10-07T04:14:01+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "COMPLETE",
+ "flag_sets": {
+  "prod_armed": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "c1": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ]
+ },
+ "surfaces_seen_present_in_c2": {
+  "reporting_soon": 3,
+  "passed_setups": 3,
+  "review_box_home": 15,
+  "fingerprint_panel": 12,
+  "chart_plan_button": 8,
+  "chart_replay_button": 8,
+  "visual_playbook_door": 12,
+  "entry_context_card": 9,
+  "plan_grade_card": 6,
+  "trade_before_after": 6,
+  "thesis_chip": 9,
+  "unplanned_chip": 3,
+  "discipline_record": 3,
+  "discipline_tab": 6,
+  "reviews_tab": 6,
+  "review_drafts_section": 3,
+  "my_playbook": 3,
+  "setups_board_card": 9,
+  "setups_board_heading": 3,
+  "find_similar_button": 12,
+  "transcript_door": 3,
+  "help_whats_new": 3,
+  "help_replay_links": 60,
+  "visual_playbook": 3
+ },
+ "finished": "2026-10-07T04:20:51+00:00"
+}

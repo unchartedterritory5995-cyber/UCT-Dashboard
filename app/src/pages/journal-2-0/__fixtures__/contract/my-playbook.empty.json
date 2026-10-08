@@ -1,0 +1,82 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/my-playbook",
+    "path": "/api/j2/my-playbook",
+    "status": 200
+  },
+  "body": {
+    "accountId": null,
+    "asOf": "2026-10-05T14:30:00+00:00",
+    "notesBySetup": {},
+    "patterns": {
+      "caption": "Patterns, not proof",
+      "constants": {
+        "MAX_FINDINGS": 6,
+        "MAX_TRADES": 500,
+        "MIN_MENTIONS": 3,
+        "MIN_NOTED_PER_SIDE": 5
+      },
+      "excludes": "Break-even trades, and notes written or edited after entry, are not read.",
+      "findings": [],
+      "message": "Patterns need at least 5 wins and 5 losses with a note written before the trade. You have 0 and 0.",
+      "noted": {
+        "losses": 0,
+        "wins": 0
+      },
+      "status": "too_few_notes",
+      "tradesRead": 0,
+      "vocabulary": {
+        "source": "standard",
+        "terms": [
+          "confident",
+          "anxious",
+          "greedy",
+          "fearful",
+          "calm",
+          "frustrated",
+          "euphoric",
+          "bored",
+          "disciplined",
+          "impulsive",
+          "patient",
+          "rushed",
+          "focused",
+          "distracted",
+          "revenge-driven",
+          "overtrading",
+          "FOMO",
+          "chasing",
+          "early_exit",
+          "late_entry",
+          "no_stop",
+          "oversized",
+          "countertrend",
+          "revenge",
+          "ignored_thesis",
+          "added_to_loser",
+          "cut_winner",
+          "broke_loss_rule",
+          "broke_size_rule",
+          "broke_checklist",
+          "boredom",
+          "hesitation"
+        ]
+      }
+    },
+    "sample": {
+      "normalFrom": 25,
+      "rangeZ": 1.96,
+      "tooFewBelow": 10,
+      "wording": {
+        "normal": null,
+        "thin": "thin sample",
+        "too_few": "too few to judge"
+      }
+    },
+    "setups": [],
+    "untagged": {
+      "count": 0
+    }
+  }
+}

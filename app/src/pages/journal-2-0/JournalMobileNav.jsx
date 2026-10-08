@@ -20,6 +20,7 @@
 import { NavLink } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
 import { useIsPaid } from '../../context/AuthContext'
+import useRovingTabIndex from '../../hooks/useRovingTabIndex'
 import { NOTEBOOK_PATH } from './lib/journalRoutes'
 import styles from './JournalMobileNav.module.css'
 
@@ -38,8 +39,20 @@ const MOBILE_NAV = [
 export default function JournalMobileNav() {
   const isPaid = useIsPaid()
 
+  // Wave 13 (13Q-4): the same roving-tabindex treatment as the desktop rail
+  // in JournalLayout.jsx (one Tab stop, Arrow/Home/End move focus) — this
+  // component mirrors the same 6 surfaces for the phone width, where the
+  // click-budget instrument measured the same shared-chrome cost. See
+  // useRovingTabIndex.js and docs/notebook/wave13-13q2.md §4.
+  const { containerProps: mobileNavRovingProps, itemProps: mobileNavItemProps } =
+    useRovingTabIndex({ orientation: 'horizontal' })
+
   return (
-    <nav className={styles.mobileNav} aria-label="Journal sections (mobile)">
+    <nav
+      className={styles.mobileNav}
+      aria-label="Journal sections (mobile)"
+      {...mobileNavRovingProps}
+    >
       {MOBILE_NAV.map((item) => {
         const locked = item.paidOnly && !isPaid
         if (locked) {
@@ -53,6 +66,7 @@ export default function JournalMobileNav() {
               className={`${styles.item} ${styles.itemLocked}`}
               data-locked="true"
               title="Compass — upgrade to unlock AI coaching"
+              {...mobileNavItemProps(item.to, { disabled: true })}
             >
               <span className={styles.icon} aria-hidden="true">
                 <UIcon name={item.icon} size={18} />
@@ -72,6 +86,7 @@ export default function JournalMobileNav() {
             className={({ isActive }) =>
               `${styles.item} ${isActive ? styles.itemActive : ''}`
             }
+            {...mobileNavItemProps(item.to)}
           >
             <span className={styles.icon} aria-hidden="true">
               <UIcon name={item.icon} size={18} />

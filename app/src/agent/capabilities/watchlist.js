@@ -280,16 +280,35 @@ export function registerWatchlistCapabilities() {
     surfaces: ['charts'],
     target: 'watchlist', query: true,
     summary: 'Say which symbols are in one of the member\'s watchlists. UCT answers from the real list — use this (disposition apply) for "what\'s in <list>?".',
-    hints: 'target = the ref of that watchlist.',
-    args: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    hints: 'target = the ref of that watchlist. as: name this list\'s STOCKS (e.g. "list1") when a later op in the same request uses them '
+      + '(e.g. widget.addCharts symbols {from:"list1", top:N}); else null.',
+    args: { type: 'object', properties: { as: { type: ['string', 'null'] } }, required: ['as'], additionalProperties: false },
     fastWhole: true,
+    // ── PRODUCER: a saved list's tickers, in its saved order, read FRESH from the
+    // server at apply (bound to the list's stable id — never its name, never the
+    // cache). Reading never changes the list.
+    produces: SYMBOLS,
+    validateProduce(args, target, host) {
+      if (host && !watchlistKind.read(host, target)) return "I couldn't find that watchlist."
+      return null
+    },
+    describeProduce(args, target, host) {
+      const snap = host ? watchlistKind.read(host, target) : null
+      return `Use the stocks in ${quote(snap?.name || 'that watchlist')} (its saved order) — read when you apply`
+    },
+    async produce(args, host, target) {
+      const row = await host.watchlists.fetchList(target)
+      const symbols = [...new Set((row?.items || []).map(i => String(i?.sym || '').toUpperCase()).filter(Boolean))]
+      const name = row?.name || watchlistKind.read(host, target)?.name || 'that watchlist'
+      return { symbols, summary: symbols.length ? `Read ${quote(name)}: ${symbols.length} stock${symbols.length === 1 ? '' : 's'}` : `${quote(name)} is empty` }
+    },
     fast: ({ raw, host }) => {
       // The whole phrase reaches resolveList, which tries it as-is and without a
       // trailing "watchlist" — a list may itself be named "… Watchlist".
       const m = /^(?:what(?:'s| is) in|show(?: me)?|list(?: the symbols in)?|what(?:'s| is) on) (?:my |the )?(.+?)[?.!]?$/i.exec(String(raw).trim())
       if (!m || !host?.watchlists) return null
       const l = resolveList(host, m[1])
-      return l ? { __target: l.id } : null
+      return l ? { as: null, __target: l.id } : null
     },
     answer(snap) {
       if (!snap) return "I couldn't find that watchlist."

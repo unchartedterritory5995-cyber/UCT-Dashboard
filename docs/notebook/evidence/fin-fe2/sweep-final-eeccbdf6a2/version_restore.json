@@ -1,0 +1,31 @@
+{
+ "history_controls": 1,
+ "dialogs_history": [
+  {
+   "name": "Version history",
+   "box": [
+    0,
+    315,
+    390,
+    529
+   ],
+   "shown": true
+  }
+ ],
+ "dialog": "Restore this version?\n×\n\nYour current content is saved to History first, so nothing is lost — you can always undo this by restoring again.\n\nCancel\nRestore",
+ "hit": {
+  "box": [
+   277,
+   786,
+   91,
+   44
+  ],
+  "cx": 322.3515625,
+  "cy": 808,
+  "top_is_button": true,
+  "top_tag": "BUTTON._primaryBtn_wu5n8_211"
+ },
+ "voice_button_while_open": 0,
+ "body_overflow": "hidden",
+ "dialog_left": 0
+}

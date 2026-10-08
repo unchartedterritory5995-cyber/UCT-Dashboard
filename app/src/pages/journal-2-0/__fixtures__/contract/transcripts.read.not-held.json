@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/research-capture/transcripts/TRNV/2026Q2",
+    "path": "/api/j2/research-capture/transcripts/TRNV/2026Q2",
+    "status": 404
+  },
+  "body": {
+    "detail": "UCT does not hold that transcript yet. Open it in the UCT Terminal's transcript panel first, then save from it here."
+  }
+}

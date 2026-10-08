@@ -1,0 +1,90 @@
+/* The "new in your Notebook" offer (wave 14, lane W14-C2). Portaled into Layout's in-flow
+   first-run slot, the same seat and visual idiom as the "Meet Compass" card
+   (FloatingOrb.module.css .coachmark): it takes page space and pushes the page down, so it
+   can never cover a control. ⛔ IN FLOW -- no position: fixed/absolute/sticky here; the
+   rail reads this file. Existing tokens only, no literal colour; the global
+   :focus-visible ring is the focus indicator. */
+.card {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin: 12px 20px 0;
+  padding: 10px 12px 10px 14px;
+  border: 1px solid var(--border-accent);
+  border-left: 3px solid var(--ut-gold);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.text {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.title {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+.body {
+  margin: 0;
+  color: var(--text-muted);
+}
+.actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+.accept,
+.later {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  cursor: pointer;
+}
+.accept {
+  border: 1px solid var(--ut-gold);
+  background: transparent;
+  color: var(--text-bright);
+  font-weight: 600;
+}
+.later {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-bright);
+}
+.accept:hover,
+.later:hover {
+  border-color: var(--ut-gold);
+}
+
+/* The touch tier is <=1024px (phone AND tablet), never <=640 alone. */
+@media (max-width: 1024px) {
+  .accept,
+  .later {
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+  }
+}
+@media (max-width: 640px) {
+  .card {
+    margin: 10px 12px 0;
+  }
+  .actions {
+    flex: 1 1 100%;
+  }
+  .accept,
+  .later {
+    flex: 1 1 0;
+  }
+}
+/* Desktop: clear of the feedback "?" in the viewport's top-right corner, exactly as the
+   Compass card in the same slot does (FloatingOrb.module.css). */
+@media (min-width: 1025px) {
+  .card {
+    margin-right: 48px;
+  }
+}

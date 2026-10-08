@@ -56,7 +56,8 @@ def _client_facts(path: Path = CLIENT_TABLE) -> dict:
                   "bundle does, and a rail that cannot run is not a gate")
     url = path.resolve().as_uri()
     js = (f"import({json.dumps(url)}).then((m) => process.stdout.write(JSON.stringify({{"
-          "table: m.NOTEBOOK_TYPE_SCHEMA, refusal: m.SCHEMA_REFUSAL_DETAIL, "
+          "table: m.NOTEBOOK_TYPE_SCHEMA, attrs: m.NOTEBOOK_ATTR_SCHEMA, "
+          "refusal: m.SCHEMA_REFUSAL_DETAIL, "
           "header: m.NOTEBOOK_SCHEMA_HEADER})))")
     r = subprocess.run([node, "--input-type=module", "-e", js], capture_output=True, timeout=120)
     err = (r.stderr or b"").decode("utf-8", errors="replace")
@@ -105,6 +106,75 @@ def test_the_client_table_is_read_WHATEVER_its_layout__two_entries_on_one_line(t
     assert len(mutated) == len(real) + 2, f"{len(real)} -> {len(mutated)}: an entry was dropped"
     assert mutated["diagram"] == next_level and mutated["chart3d"] == next_level
     assert mutated != nbs.NOTEBOOK_TYPE_SCHEMA, "the drift is invisible to the parity rail"
+
+
+# ── wave 13 13H-1: the ATTRIBUTE table, the same one fact in two files ─────────
+
+def _client_attr_table(path: Path = CLIENT_TABLE) -> dict[str, int]:
+    table = _client_facts(path)["attrs"]
+    assert isinstance(table, dict), f"NOTEBOOK_ATTR_SCHEMA did not come back as an object: {table!r}"
+    return {k: int(v) for k, v in table.items()}
+
+
+def test_the_server_and_client_ATTRIBUTE_tables_CANNOT_drift():
+    client = _client_attr_table()
+    # Non-vacuity: the 13H-1 row is the reason the table exists.
+    assert client.get("widgetEmbed.ta") == 4, f"read {client!r}"
+    assert client == nbs.NOTEBOOK_ATTR_SCHEMA, (
+        f"client-only {sorted(set(client.items()) - set(nbs.NOTEBOOK_ATTR_SCHEMA.items()))} / "
+        f"server-only {sorted(set(nbs.NOTEBOOK_ATTR_SCHEMA.items()) - set(client.items()))}")
+
+
+def test_every_attribute_row_names_a_known_type_and_one_attribute():
+    for key in nbs.NOTEBOOK_ATTR_SCHEMA:
+        node_type, dot, attr = key.partition(".")
+        assert dot and attr and "." not in attr, f"{key}: a row is '<nodeType>.<attr>'"
+        assert node_type in nbs.NOTEBOOK_TYPE_SCHEMA, f"{key}: {node_type} is not a node type"
+
+
+def test_levels_stay_contiguous_across_types_AND_attributes():
+    """A client declares "everything at or below N", types and attributes alike, so the
+    two tables share one numbering: an attribute level is never a gap and never a level
+    no bundle could declare."""
+    levels = sorted(set(nbs.NOTEBOOK_TYPE_SCHEMA.values()) | set(nbs.NOTEBOOK_ATTR_SCHEMA.values()))
+    assert levels == list(range(levels[-1] + 1)), f"levels {levels} skip one"
+    assert max(nbs.NOTEBOOK_ATTR_SCHEMA.values()) == 4
+
+
+def test_every_attribute_row_sits_under_a_section_comment_naming_its_level():
+    js = CLIENT_TABLE.read_text(encoding="utf-8").replace("\r\n", "\n")
+    start = js.index("NOTEBOOK_ATTR_SCHEMA = Object.freeze({")
+    end = js.index("\n})", start)
+    section = None
+    seen: dict[str, int] = {}
+    for line in js[start:end].split("\n")[1:]:
+        m = _SECTION.match(line)
+        if m:
+            section = int(m.group(1))
+            continue
+        code = line.split("//", 1)[0]
+        for name, level in re.findall(r"['\"]([\w$]+\.[\w$]+)['\"]\s*:\s*(\d+)", code):
+            assert section is not None and int(level) == section, f"{name}: {level} under {section}"
+            seen[name] = int(level)
+    assert seen and seen == _client_attr_table()
+
+
+def test_required_schema_counts_an_attribute_only_when_the_node_CARRIES_a_value():
+    ta = {"v": 1, "setupTag": "Breakout"}
+    chart = lambda **attrs: {"type": "widgetEmbed", "attrs": {"widgetId": "chart", **attrs}}  # noqa: E731
+    assert nbs.required_schema(_doc(chart(ta=ta))) == 4
+    assert nbs.required_schema(json.dumps(_doc(_p(_t("x")), chart(ta=ta)))) == 4   # stored as TEXT
+    # nested inside a column, like any other node
+    assert nbs.required_schema(_doc({"type": "columns", "content": [{"type": "column", "content": [
+        chart(ta=ta)]}]})) == 4
+    # CONTROLS: nothing an older editor could lose needs nothing newer
+    for empty in (None, {}, [], ""):
+        assert nbs.required_schema(_doc(chart(ta=empty))) == 0, empty
+    assert nbs.required_schema(_doc(chart())) == 0
+    # the row is per TYPE: a `ta` on another node is not this attribute
+    assert nbs.required_schema(_doc({"type": "paragraph", "attrs": {"ta": ta}})) == 0
+    for junk in ({"type": "widgetEmbed", "attrs": "nope"}, {"type": "widgetEmbed", "attrs": [1]}):
+        assert nbs.required_schema(_doc(junk)) == 0
 
 
 # ⛔ N1: no copy of the level-1 NAMES lives here (the brief that produced this
@@ -314,6 +384,54 @@ def test_a_mark_alone_is_enough_to_refuse(client):
     note = _note(client, _doc(_p(_t("key level", "textColor"))))
     r = client.put(f"/api/j2/notes/{note['id']}", json={"bodyJson": BLANK_PLUS_TYPED})
     assert r.status_code == 409
+
+
+# ── wave 13 13H-1: the `ta` attribute through the real note door ─────────────
+
+TA_BODY = _doc(_p(_t("NVDA plan")), {"type": "widgetEmbed", "attrs": {
+    "widgetId": "chart", "params": {"symbol": "NVDA"},
+    "annotations": [{"id": "d1", "type": "horizontal", "role": "stop",
+                     "points": [{"time": 1, "price": 40.1}]}],
+    "ta": {"v": 1, "setupTag": "Breakout", "planBlock": {"shares": 200, "sizedBy": "starter"}}}})
+
+
+def _without_ta(body):
+    """What an editor without the attr would save: the same note, `ta` silently gone."""
+    stripped = json.loads(json.dumps(body))
+    stripped["content"][1]["attrs"].pop("ta")
+    return stripped
+
+
+def test_a_bundle_without_ta_cannot_save_a_ta_note_and_the_note_is_byte_identical(client):
+    """⛔ The never-revert reason, measured at the door: production's bundle (level 3)
+    and a rollback of the attr both open this note fine and would save it WITHOUT `ta`."""
+    note = _note(client, TA_BODY)
+    before = _stored_note_body(note["id"])
+    for declared in (None, "3"):
+        r = client.put(f"/api/j2/notes/{note['id']}", headers={HEADER: declared} if declared else {},
+                       json={"bodyJson": _without_ta(TA_BODY), "baseUpdatedAt": note["updatedAt"]})
+        assert r.status_code == 409, (declared, r.text)
+        assert r.json()["detail"] == nbs.REFUSAL_DETAIL
+    assert _stored_note_body(note["id"]) == before
+
+
+def test_a_level_4_bundle_saves_a_ta_note(client):
+    note = _note(client, TA_BODY)
+    r = client.put(f"/api/j2/notes/{note['id']}", headers={HEADER: "4"},
+                   json={"bodyJson": TA_BODY, "baseUpdatedAt": note["updatedAt"]})
+    assert r.status_code == 200, r.text
+    assert json.loads(_stored_note_body(note["id"]))["content"][1]["attrs"]["ta"]["setupTag"] == "Breakout"
+
+
+def test_a_chart_whose_ta_is_null_stays_writable_by_a_level_3_bundle(client):
+    """⛔ THE CONTROL: every chart a 13H bundle saves carries `ta: null` until the member
+    gives it plan data; those notes must not lock older tabs out."""
+    body = json.loads(json.dumps(TA_BODY))
+    body["content"][1]["attrs"]["ta"] = None
+    note = _note(client, body)
+    r = client.put(f"/api/j2/notes/{note['id']}", headers={HEADER: "3"},
+                   json={"bodyJson": _without_ta(body), "baseUpdatedAt": note["updatedAt"]})
+    assert r.status_code == 200, r.text
 
 
 # ── the playbook-entry door ───────────────────────────────────────────────────

@@ -1,0 +1,152 @@
+[
+  {
+    "name": "M1-freeze-twice",
+    "file": "api/services/journal_two/entry_context.py",
+    "test": "test_a_second_freeze_open_or_resync_changes_nothing_and_recomputes_nothing",
+    "control": [
+      0,
+      "1 passed in 9.44s"
+    ],
+    "mutant": [
+      1,
+      "1 failed in 12.41s"
+    ],
+    "restored_matches_HEAD": true,
+    "verdict": "KILLED"
+  },
+  {
+    "name": "M2-insert-or-replace",
+    "file": "api/services/journal_two/entry_context.py",
+    "test": "test_two_writers_racing_the_first_row_wins_and_the_second_writes_nothing",
+    "control": [
+      0,
+      "1 passed in 9.76s"
+    ],
+    "mutant": [
+      1,
+      "1 failed in 10.75s"
+    ],
+    "restored_matches_HEAD": true,
+    "verdict": "KILLED"
+  },
+  {
+    "name": "M3-hook-unguarded",
+    "file": "api/services/journal_two/entry_context.py",
+    "test": "test_a_hook_exception_never_fails_the_sync_WITH_A_CONTROL",
+    "control": [
+      0,
+      "1 passed in 9.94s"
+    ],
+    "mutant": [
+      1,
+      "1 failed in 22.24s"
+    ],
+    "restored_matches_HEAD": true,
+    "verdict": "KILLED"
+  },
+  {
+    "name": "M4-hook-writes-synced-rows",
+    "file": "api/services/journal_two/entry_context.py",
+    "test": "test_the_after_sync_hook_freezes_todays_entries_and_leaves_the_synced_rows_byte_identical",
+    "control": [
+      0,
+      "1 passed in 10.85s"
+    ],
+    "mutant": [
+      1,
+      "1 failed in 10.84s"
+    ],
+    "restored_matches_HEAD": true,
+    "verdict": "KILLED"
+  },
+  {
+    "name": "M5-trade-joined-by-position-id",
+    "file": "api/services/journal_two/entry_context.py",
+    "test": "test_a_broker_trade_with_a_sentinel_position_id_reaches_its_context_by_the_key",
+    "control": [
+      0,
+      "1 passed in 9.47s"
+    ],
+    "mutant": [
+      1,
+      "1 failed in 14.34s"
+    ],
+    "restored_matches_HEAD": true,
+    "verdict": "KILLED"
+  },
+  {
+    "name": "M6-rs-constant-not-the-authority",
+    "file": "api/services/journal_two/entry_context.py",
+    "test": "test_every_field_equals_its_authority_with_source_and_as_of",
+    "control": [
+      0,
+      "1 passed in 9.73s"
+    ],
+    "mutant": [
+      1,
+      "1 failed in 10.51s"
+    ],
+    "restored_matches_HEAD": true,
+    "verdict": "KILLED"
+  },
+  {
+    "name": "M7-missing-invented",
+    "file": "api/services/journal_two/entry_context.py",
+    "test": "test_every_missing_value_is_labelled_with_its_reason_never_invented",
+    "control": [
+      0,
+      "1 passed in 12.03s"
+    ],
+    "mutant": [
+      1,
+      "1 failed in 19.55s"
+    ],
+    "restored_matches_HEAD": true,
+    "verdict": "KILLED"
+  },
+  {
+    "name": "M8-gate-ignored",
+    "file": "api/routers/notebook_entry_context.py",
+    "test": "test_every_route_is_404_while_the_flag_is_off_even_signed_out",
+    "control": [
+      0,
+      "1 passed in 19.40s"
+    ],
+    "mutant": [
+      1,
+      "1 failed in 19.88s"
+    ],
+    "restored_matches_HEAD": true,
+    "verdict": "KILLED"
+  },
+  {
+    "name": "M9-purge-drops-the-table",
+    "file": "api/services/journal_two/account_purge.py",
+    "test": "test_account_purge_takes_the_table_and_only_that_member",
+    "control": [
+      0,
+      "1 passed in 19.64s"
+    ],
+    "mutant": [
+      1,
+      "1 failed in 27.60s"
+    ],
+    "restored_matches_HEAD": true,
+    "verdict": "KILLED"
+  },
+  {
+    "name": "M10-past-day-captured",
+    "file": "api/services/journal_two/entry_context.py",
+    "test": "test_a_past_day_reads_not_captured_and_is_never_reconstructed",
+    "control": [
+      0,
+      "1 passed in 18.65s"
+    ],
+    "mutant": [
+      1,
+      "1 failed in 19.78s"
+    ],
+    "restored_matches_HEAD": true,
+    "verdict": "KILLED"
+  }
+]

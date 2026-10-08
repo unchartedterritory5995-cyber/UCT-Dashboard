@@ -1,0 +1,156 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/plan-grades/discipline",
+    "path": "/api/j2/plan-grades/discipline",
+    "status": 200
+  },
+  "body": {
+    "constants": {
+      "DISCIPLINE_WINDOWS": [
+        20,
+        60
+      ],
+      "ENTRY_TOL_PCT": 0.005,
+      "ENTRY_TOL_R": 0.25,
+      "MATCH_WINDOW_DAYS": 30,
+      "RANGE_Z": 1.96,
+      "SAMPLE_NORMAL_FROM": 25,
+      "SAMPLE_TOO_FEW_BELOW": 10,
+      "SIZE_TOL_PCT": 0.1,
+      "STOP_SLIP_R": 0.25,
+      "TARGET_SHORTFALL_R": 0.25
+    },
+    "totalClosed": 0,
+    "windows": [
+      {
+        "editedAfterEntry": 0,
+        "entry": {
+          "band": "too_few",
+          "k": 0,
+          "n": 0,
+          "range": null,
+          "rate": null,
+          "wording": "too few to judge"
+        },
+        "equity": 0,
+        "followedPlan": {
+          "band": "too_few",
+          "k": 0,
+          "n": 0,
+          "range": null,
+          "rate": null,
+          "wording": "too few to judge"
+        },
+        "needsPick": 0,
+        "options": 0,
+        "planRate": {
+          "band": "too_few",
+          "k": 0,
+          "n": 0,
+          "range": null,
+          "rate": null,
+          "wording": "too few to judge"
+        },
+        "planned": 0,
+        "size": 20,
+        "size_": {
+          "band": "too_few",
+          "k": 0,
+          "n": 0,
+          "range": null,
+          "rate": null,
+          "wording": "too few to judge"
+        },
+        "stop": {
+          "band": "too_few",
+          "k": 0,
+          "n": 0,
+          "range": null,
+          "rate": null,
+          "wording": "too few to judge"
+        },
+        "target": {
+          "hit": 0,
+          "hitRate": {
+            "band": "too_few",
+            "k": 0,
+            "n": 0,
+            "range": null,
+            "rate": null,
+            "wording": "too few to judge"
+          },
+          "notReached": 0,
+          "reachedNotTaken": 0,
+          "unknown": 0
+        },
+        "trades": 0,
+        "unplanned": 0
+      },
+      {
+        "editedAfterEntry": 0,
+        "entry": {
+          "band": "too_few",
+          "k": 0,
+          "n": 0,
+          "range": null,
+          "rate": null,
+          "wording": "too few to judge"
+        },
+        "equity": 0,
+        "followedPlan": {
+          "band": "too_few",
+          "k": 0,
+          "n": 0,
+          "range": null,
+          "rate": null,
+          "wording": "too few to judge"
+        },
+        "needsPick": 0,
+        "options": 0,
+        "planRate": {
+          "band": "too_few",
+          "k": 0,
+          "n": 0,
+          "range": null,
+          "rate": null,
+          "wording": "too few to judge"
+        },
+        "planned": 0,
+        "size": 60,
+        "size_": {
+          "band": "too_few",
+          "k": 0,
+          "n": 0,
+          "range": null,
+          "rate": null,
+          "wording": "too few to judge"
+        },
+        "stop": {
+          "band": "too_few",
+          "k": 0,
+          "n": 0,
+          "range": null,
+          "rate": null,
+          "wording": "too few to judge"
+        },
+        "target": {
+          "hit": 0,
+          "hitRate": {
+            "band": "too_few",
+            "k": 0,
+            "n": 0,
+            "range": null,
+            "rate": null,
+            "wording": "too few to judge"
+          },
+          "notReached": 0,
+          "reachedNotTaken": 0,
+          "unknown": 0
+        },
+        "trades": 0,
+        "unplanned": 0
+      }
+    ]
+  }
+}

@@ -1,0 +1,350 @@
+{
+  "tool": "notebook_w12b2_walk",
+  "formulas": "on",
+  "base": "http://127.0.0.1:8595",
+  "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w12b2-on1",
+  "started_utc": "2026-10-02T18:12:11+00:00",
+  "sandbox_env": {
+    "NOTEBOOK_FORMULAS_ENABLED": "1",
+    "ANTHROPIC_API_KEY": "(blank)",
+    "OPENAI_API_KEY": "(blank)"
+  },
+  "rows": [
+    {
+      "row": "provision: a paid, verified member",
+      "result": "PASS"
+    },
+    {
+      "row": "the auth payload carries notebook_formulas_enabled = true",
+      "result": "PASS",
+      "saw": true
+    },
+    {
+      "row": "a fresh member has no definitions of their own",
+      "result": "FAIL",
+      "saw": [
+        "Thesis Status",
+        "Confidence",
+        "Research Type",
+        "Review Date"
+      ]
+    },
+    {
+      "row": "the walk ran to the end",
+      "result": "FAIL",
+      "why": "TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Position Tracker\", exact=True).filter(visible=True).first\n    - locator resolved to <button type=\"button\" data-template-card=\"\" class=\"_card_1rfu8_43\" aria-label=\"Position Tracker\" data-template-key=\"position-tracker\" aria-describedby=\"_r_d_-tpl-position-tracker-when _r_d_-tpl-position-tracker-desc\">\u2026</b"
+    }
+  ],
+  "keyboard": [],
+  "screenshots": [
+    "01-picker.png"
+  ],
+  "api_log": [
+    {
+      "method": "GET",
+      "path": "/api/maintenance",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlists?include_prebuilt=0",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/voice/insights/pending",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/community/status",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/preferences",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts?limit=20",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/auth/avatar/6da816f8-7a8c-4b51-9786-0dce9d8e4009",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/indicator-alerts/delivery-health?limit=10",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlists/flagged",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/barspack/manifest",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/track",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/ticker-tags/shared",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/ticker-tags",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlist-alerts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/settings",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/accounts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/ticker-tags/public",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/watchlists/flagged/sync",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlists?include_items=0",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/broker/fills/check",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/intradaypack/manifest",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/accounts/comparison",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/positions",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/broker/sync?background=1",
+      "status": 503
+    },
+    {
+      "method": "GET",
+      "path": "/api/barspack/manifest",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/note-folders",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/voice/settings",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=updated&limit=1&deleted=true",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/folder-counts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/saved-views",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/tags",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/recents",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/connectors/status",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes/favorites",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=updated",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/property-defs",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notes?sort=title",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/telemetry",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/telemetry",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/accounts/1acc0a6c-b679-4505-a713-cac04b360f37/settings",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/j2/telemetry",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/positions?account_id=1acc0a6c-b679-4505-a713-cac04b360f37",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/note-templates",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/voice/insights/unspoken",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/positions?account_id=1acc0a6c-b679-4505-a713-cac04b360f37",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/voice/insights/pending",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/accounts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/watchlist-alerts",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/positions?account_id=1acc0a6c-b679-4505-a713-cac04b360f37",
+      "status": 200
+    }
+  ],
+  "page_errors": [],
+  "stop": "graceful to the shutdown checkpoint, then forced exit",
+  "integrity": {
+    "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w12b2\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T13-12-13.md",
+    "required": [
+      "pre-boot (baseline)",
+      "post-boot (+15s)",
+      "post-prewarm (+120s)",
+      "shutdown"
+    ],
+    "checkpoints": [
+      {
+        "label": "pre-boot (baseline)",
+        "at": "2026-10-02 13:12:20",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-boot (+15s)",
+        "at": "2026-10-02 13:13:30",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-prewarm (+120s)",
+        "at": "2026-10-02 13:15:23",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "shutdown",
+        "at": "2026-10-02 13:15:35",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+  },
+  "integrity_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w12b2\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T13-12-13.md",
+  "finished_utc": "2026-10-02T18:16:05+00:00"
+}

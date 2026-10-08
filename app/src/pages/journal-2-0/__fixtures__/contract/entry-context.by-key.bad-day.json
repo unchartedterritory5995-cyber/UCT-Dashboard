@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/entry-context",
+    "path": "/api/j2/entry-context?symbol=ECNV&entryDay=yesterday",
+    "status": 422
+  },
+  "body": {
+    "detail": "A day is YYYY-MM-DD."
+  }
+}

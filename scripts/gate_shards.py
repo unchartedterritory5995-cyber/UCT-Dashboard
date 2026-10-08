@@ -380,6 +380,9 @@ GATE_READ_PATHS = (
     "tests/test_notes_cas_is_atomic.py",
     "tests/test_notes_import_router.py",
     "tests/test_sample_notebook.py",
+    # W14-E (landing 12-15): a vitest source names the seeded-examples module and its test.
+    "api/services/journal_two/sample_examples.py",
+    "tests/test_sample_notebook_examples.py",
     "tests/test_typing_burst_rail.py",
     # generators the rails execute, and the artifacts they byte-compare
     "tools/hub_surface_matrix.mjs",

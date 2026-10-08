@@ -1,0 +1,1020 @@
+"""Wave 13 lane 13A -- plan vs execution grading.
+
+Every closed equity trade gets four checks against the plan the member wrote BEFORE it:
+Entry, Stop, Size, Target. A trade with no prior plan is labelled Unplanned -- flagged, never
+hidden. A discipline record covers the last 20 and 60 trades.
+
+WHERE THE PLAN COMES FROM. `plan_extract.py` is the one reader of plan levels. This file only
+decides WHICH source is the plan for a trade, freezes it, and grades.
+
+MATCHING (same member, same symbol). Candidates, in order -- the first tier that has one wins:
+  1. ``explicit`` -- a note the member linked to this trade (`note_trade_links.notes_linked_to_
+     trade`, including a thesis note linked to the position that closed into it);
+  2. ``verdict``  -- a Compass pre-trade verdict: the one the trade was entered against
+     (`context_at_entry.compass_verdict_id`), else the latest verdict for the symbol within
+     `MATCH_WINDOW_DAYS` before entry;
+  3. ``window``   -- a note on the ticker whose content at entry was written within
+     `MATCH_WINDOW_DAYS` before entry and names an entry or a stop.
+Two candidates in the winning tier is a TIE: the member picks (status ``needs_pick``). None is
+``unplanned``. A date-only entry (no time of day) is judged by its ET day and labelled so.
+
+FREEZE (ruling R4). At the first match the numbers, the source, the note version read and the
+time are stored in `j2_trade_plan_links` with INSERT OR IGNORE, so a second matcher can never
+overwrite the first. A note is read AS IT STOOD AT ENTRY: its current row when it has not
+changed since, else its latest version (`j2_note_versions`) from before entry. A plan whose only
+readable version post-dates entry is graded and labelled "plan edited after entry". Only a Re-link
+by the member replaces a frozen plan, and the replaced row is kept (R-11). Editing the note later
+changes nothing.
+
+KEYS. `trade_ref` (ext:<external_id> / id:<row id>, `trade_refs.py`), never `j2_trades.id`: a
+broker purge reissues ids and a grade keyed on the id would silently fall off its trade.
+
+MIRROR. Nothing here writes, filters or alters a trade. Every trade the broker sent is listed and
+counted; an unplanned one is labelled. The one trade write in this feature is the member's own
+setup-chip click, through the existing `PATCH /api/j2/trades/{id}`.
+
+DETERMINISTIC. Every number below is arithmetic on stored values: no model call, no clock in a
+grade (the clock is read only to stamp `matched_at`).
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+import sqlite3
+from datetime import date, datetime, time, timedelta, timezone
+from types import MappingProxyType
+from typing import Any
+from zoneinfo import ZoneInfo
+
+from api.services.journal_two import plan_extract, sample_marker, sample_size
+# R3 lives in ONE place (lane 13B took it over from this file, 13A's decision 6). The names stay
+# importable from here for this file's own callers and tests.
+from api.services.journal_two.sample_size import band as sample_band, rate_stat, wilson  # noqa: F401
+from api.services.journal_two.trade_refs import trade_ref_for_row
+from api.services.notebook_flags import flag_on
+
+FLAG = "NOTEBOOK_PLAN_GRADING_ENABLED"
+
+# ── THE CONSTANTS (rulings R3, R4, P4). ONE block; tests pin every value. ────────────────────
+CONSTANTS = MappingProxyType({
+    # R4: entry kept when |fill - planned entry| <= max(ENTRY_TOL_R x R, ENTRY_TOL_PCT x entry).
+    "ENTRY_TOL_R": 0.25,
+    "ENTRY_TOL_PCT": 0.005,
+    # R4: stop honoured when the exit is at or better than the stop plus STOP_SLIP_R x R.
+    "STOP_SLIP_R": 0.25,
+    # R4: size kept within +/- SIZE_TOL_PCT of the planned shares.
+    "SIZE_TOL_PCT": 0.10,
+    # P4 (planner's value; R4 did not set it): the target counts as hit within this much of it.
+    "TARGET_SHORTFALL_R": 0.25,
+    # Matching: a verdict or an unlinked plan note counts only from this far before entry.
+    "MATCH_WINDOW_DAYS": 30,
+    # R3: n < 10 "too few to judge"; 10-24 "thin sample" with a range; 25+ normal.
+    # READ from sample_size (the one home); shown here so the payload carries them.
+    "SAMPLE_TOO_FEW_BELOW": sample_size.TOO_FEW_BELOW,
+    "SAMPLE_NORMAL_FROM": sample_size.NORMAL_FROM,
+    # The discipline record's two windows (last N closed trades).
+    "DISCIPLINE_WINDOWS": (20, 60),
+    # The Wilson interval's z for the thin-sample range (95%), from sample_size.
+    "RANGE_Z": sample_size.RANGE_Z,
+})
+
+#: Comparisons are made on values rounded to this many decimals, so a boundary that is exactly
+#: on the line reads as ON it (a float's 1e-15 noise must never flip a check).
+_DP = 6
+
+#: How many ids one status request may name (a Trade Journal page is far below this).
+MAX_STATUS_IDS = 200
+
+ET = ZoneInfo("America/New_York")
+
+STATUS_PLANNED = "planned"
+STATUS_UNPLANNED = "unplanned"
+STATUS_NEEDS_PICK = "needs_pick"
+STATUS_MEMBER_NONE = "member_none"   # the member said "this trade had no plan"
+
+SOURCE_LABELS = {
+    "chart": "Chart plan", "canvas": "Trade-plan canvas", "properties": "Plan properties",
+    "text": "Plan note", "verdict": "Compass verdict",
+}
+
+SAMPLE_WORDING = sample_size.WORDING
+
+
+def enabled() -> bool:
+    """The gate, read per call through the one parser (unset = OFF)."""
+    return flag_on(FLAG, False)
+
+
+# ── time ─────────────────────────────────────────────────────────────────────────────────────
+
+def _parse_ts(v: Any) -> datetime | None:
+    """An aware UTC datetime from an ISO string (Z, offset, naive = UTC) or a bare date."""
+    if not isinstance(v, str) or not v.strip():
+        return None
+    s = v.strip()
+    try:
+        if "T" not in s and " " not in s:
+            d = date.fromisoformat(s[:10])
+            return datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def entry_moment(entry_date: Any) -> dict[str, Any] | None:
+    """When the trade was entered, as the matcher needs it.
+
+    A DATE-ONLY entry (a bare date, or the journal's date-only convention of UTC midnight,
+    `trades._combine_manual_datetime`) has no time of day: it is judged by its ET day -- the
+    cut-off is the END of that day -- and labelled so. A timed entry cuts off at the instant."""
+    s = entry_date if isinstance(entry_date, str) else ""
+    dt = _parse_ts(s)
+    if dt is None:
+        return None
+    date_only = ("T" not in s and " " not in s) or (dt.time() == time(0, 0) and dt.utcoffset() == timedelta(0))
+    if date_only:
+        day = date.fromisoformat(s.strip()[:10])
+        cutoff = datetime.combine(day + timedelta(days=1), time(0, 0), tzinfo=ET).astimezone(timezone.utc)
+        start = datetime.combine(day - timedelta(days=CONSTANTS["MATCH_WINDOW_DAYS"]), time(0, 0),
+                                 tzinfo=ET).astimezone(timezone.utc)
+    else:
+        day = dt.astimezone(ET).date()
+        cutoff = dt
+        start = dt - timedelta(days=CONSTANTS["MATCH_WINDOW_DAYS"])
+    return {"cutoff": cutoff, "start": start, "day": day.isoformat(), "dateOnly": date_only}
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+# ── reading candidates ──────────────────────────────────────────────────────────────────────
+
+def _prop_defs(conn: sqlite3.Connection, user_id: str) -> list[dict[str, Any]]:
+    try:
+        from api.services.journal_two.note_properties import list_property_defs
+        return list_property_defs(user_id, conn=conn)
+    except Exception:  # noqa: BLE001 -- no properties reads as "no property levels", never a 500
+        return []
+
+
+class MatchScope:
+    """One request's worth of matching: what has been read is not read again, and an
+    "unplanned" answer is remembered until something that could change it changes.
+
+    ⛔ WHY (fin-security I-2). `statuses` (up to 200 trades), the discipline record (60) and a
+    review draft (a whole period) each matched every trade from scratch. Every trade re-read
+    every note body on its ticker, re-listed each note's versions and re-parsed the bodies; and
+    because only a MATCH is frozen, an unplanned trade repeated the whole walk on every later
+    request. Many trades and many large notes on one ticker stalled the one process.
+
+    WITHIN A REQUEST, each of these is read at most once: a ticker's candidate notes, a note's
+    version list, a version's body, the parse of one note state for one symbol, the frozen
+    links and remembered misses for the trades asked about, the member's sample note ids.
+
+    ACROSS REQUESTS, "unplanned" is stored in `j2_trade_plan_misses` with a STAMP of everything
+    that could turn it into a match: the member's notes (count, newest edit, how many are in
+    Trash), their trade-linked embeds, their verdicts, their property definitions, and the
+    trade's own symbol, side and entry. While the stamp is unchanged the answer is reused with
+    no candidate read at all. Any note write, link, verdict or trade edit changes the stamp
+    and the trade is matched again. ⛔ It is a memo, never a freeze: "unplanned" is still not
+    frozen (a plan that appears later still matches), which is the stamp's whole job.
+
+    Not thread-safe and not kept: make one per request with the request's own connection."""
+
+    def __init__(self, conn: sqlite3.Connection, user_id: str, defs: list[dict[str, Any]] | None = None):
+        self.conn = conn
+        self.user_id = user_id
+        self.defs = _prop_defs(conn, user_id) if defs is None else defs
+        self._window: dict[str, list[sqlite3.Row]] = {}
+        self._versions: dict[str, list[tuple[datetime, str, str]]] = {}
+        self._version_rows: dict[str, sqlite3.Row | None] = {}
+        self._readings: dict[tuple[str, str, str], Any] = {}
+        self._links: dict[str, dict[str, Any] | None] = {}
+        self._misses: dict[str, str | None] = {}
+        self._new_misses: dict[str, str] = {}
+        self._sample: set[str] | None = None
+        self._member_stamp: str | None = None
+
+    # -- what a request reads once -------------------------------------------------------------
+    def window_rows(self, symbol: str) -> list[sqlite3.Row]:
+        if symbol not in self._window:
+            self._window[symbol] = self.conn.execute(
+                f"SELECT {_NOTE_COLS} FROM j2_notes WHERE user_id = ? AND ticker IN (?, ?) AND {_LIVE_OWN_NOTE}",
+                (self.user_id, symbol, symbol.lower())).fetchall()
+        return self._window[symbol]
+
+    def versions(self, note_id: str) -> list[tuple[datetime, str, str]]:
+        """(when, version id, raw created_at) for one note, every version with a readable time."""
+        if note_id not in self._versions:
+            out = []
+            for v in self.conn.execute(
+                    "SELECT id, created_at FROM j2_note_versions WHERE user_id = ? AND note_id = ?",
+                    (self.user_id, note_id)).fetchall():
+                ts = _parse_ts(v["created_at"])
+                if ts is not None:
+                    out.append((ts, v["id"], v["created_at"]))
+            self._versions[note_id] = out
+        return self._versions[note_id]
+
+    def version_row(self, version_id: str) -> sqlite3.Row | None:
+        if version_id not in self._version_rows:
+            self._version_rows[version_id] = self.conn.execute(
+                "SELECT body_json, properties_json FROM j2_note_versions WHERE id = ? AND user_id = ?",
+                (version_id, self.user_id)).fetchone()
+        return self._version_rows[version_id]
+
+    def reading(self, note_id: str, version_id: str, symbol: str, body: Any, props: Any):
+        key = (note_id, version_id, symbol)
+        if key not in self._readings:
+            self._readings[key] = plan_extract.read_note_plan(body, props, self.defs, symbol)
+        return self._readings[key]
+
+    def sample_ids(self) -> set[str]:
+        if self._sample is None:
+            self._sample = sample_marker.sample_note_ids(self.conn, self.user_id)
+        return self._sample
+
+    # -- frozen links and remembered misses ----------------------------------------------------
+    def preload(self, trades: list[sqlite3.Row]) -> None:
+        """Read the frozen links and the remembered misses for these trades in two statements
+        (per 400 trades), instead of one each per trade."""
+        refs = [r for r in dict.fromkeys(trade_ref_for_row(t) for t in trades)
+                if r not in self._links]
+        for i in range(0, len(refs), 400):
+            chunk = refs[i:i + 400]
+            marks = ",".join("?" for _ in chunk)
+            found = {r["trade_ref"]: _row_to_link(r) for r in self.conn.execute(
+                f"SELECT * FROM j2_trade_plan_links WHERE user_id = ? AND trade_ref IN ({marks})",
+                (self.user_id, *chunk))}
+            missed = {r["trade_ref"]: r["stamp"] for r in self.conn.execute(
+                f"SELECT trade_ref, stamp FROM j2_trade_plan_misses WHERE user_id = ? AND trade_ref IN ({marks})",
+                (self.user_id, *chunk))}
+            for ref in chunk:
+                self._links[ref] = found.get(ref)
+                self._misses[ref] = missed.get(ref)
+
+    def link(self, ref: str) -> dict[str, Any] | None:
+        if ref not in self._links:
+            self._links[ref] = get_link(self.conn, self.user_id, ref)
+        return self._links[ref]
+
+    def set_link(self, ref: str, link: dict[str, Any] | None) -> None:
+        self._links[ref] = link
+
+    def member_stamp(self) -> str:
+        """Everything of the member's that could turn an unplanned trade into a planned one.
+        Six small indexed reads, once per request."""
+        if self._member_stamp is None:
+            c, u = self.conn, self.user_id
+            one = lambda sql: c.execute(sql, (u,)).fetchone()[0]  # noqa: E731
+            parts = [
+                one("SELECT COUNT(*) FROM j2_notes WHERE user_id = ?"),
+                one("SELECT MAX(updated_at) FROM j2_notes WHERE user_id = ?"),
+                one("SELECT COUNT(*) FROM j2_notes WHERE user_id = ? AND deleted_at IS NOT NULL"),
+                one("SELECT COUNT(*) FROM j2_note_embeds WHERE user_id = ? AND trade_ref IS NOT NULL"),
+                one("SELECT COUNT(*) FROM j2_verdicts WHERE user_id = ?"),
+                one("SELECT MAX(created_at) FROM j2_verdicts WHERE user_id = ?"),
+                json.dumps(sorted((str(d.get("id")), str(d.get("type"))) for d in self.defs)),
+            ]
+            self._member_stamp = "|".join("" if p is None else str(p) for p in parts)
+        return self._member_stamp
+
+    def _stamp_for(self, trade: sqlite3.Row) -> str:
+        raw = "|".join([self.member_stamp(), str(trade["symbol"]), str(trade["side"]),
+                        str(trade["entry_date"]), str(trade["context_at_entry"] or "")])
+        return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
+    def is_known_miss(self, ref: str, trade: sqlite3.Row) -> bool:
+        if ref not in self._misses:
+            r = self.conn.execute(
+                "SELECT stamp FROM j2_trade_plan_misses WHERE user_id = ? AND trade_ref = ?",
+                (self.user_id, ref)).fetchone()
+            self._misses[ref] = r["stamp"] if r is not None else None
+        stored = self._misses[ref]
+        return stored is not None and stored == self._stamp_for(trade)
+
+    def note_miss(self, ref: str, trade: sqlite3.Row) -> None:
+        """Remember "unplanned" for this trade at today's stamp. Written at `flush`, in one
+        statement for the whole request."""
+        stamp = self._stamp_for(trade)
+        self._misses[ref] = stamp
+        self._new_misses[ref] = stamp
+
+    def flush(self) -> None:
+        """Write what this request learned, in one statement. (Every caller is behind plan
+        grading's own switch: `tests/test_review_drafts.py` lists them.)"""
+        if not self._new_misses:
+            return
+        rows, self._new_misses = self._new_misses, {}
+        now = _now_iso()
+        self.conn.executemany(
+            "INSERT OR REPLACE INTO j2_trade_plan_misses (user_id, trade_ref, stamp, checked_at)"
+            " VALUES (?,?,?,?)", [(self.user_id, ref, stamp, now) for ref, stamp in rows.items()])
+        self.conn.commit()
+
+
+def _note_state_at(conn: sqlite3.Connection, user_id: str, note: sqlite3.Row,
+                   cutoff: datetime, scope: "MatchScope | None" = None) -> dict[str, Any]:
+    """The note's content as it stood at `cutoff`: the current row if it has not changed since,
+    else the latest version captured at or before it, else the current row marked post-entry.
+    With a `scope`, a note's version list and each version body are read once per request."""
+    scope = scope or MatchScope(conn, user_id, defs=[])
+    current = {"body": note["body_json"], "props": note["properties_json"],
+               "version_id": f"current@{note['updated_at']}", "as_of": note["updated_at"],
+               "post_entry": False}
+    upd = _parse_ts(note["updated_at"])
+    if upd is not None and upd <= cutoff:
+        return current
+    best: tuple[datetime, str, str] | None = None
+    for ts, vid, raw in scope.versions(note["id"]):
+        if ts <= cutoff and (best is None or ts > best[0]):
+            best = (ts, vid, raw)
+    if best is not None:
+        row = scope.version_row(best[1])
+        if row is not None:
+            return {"body": row["body_json"], "props": row["properties_json"], "version_id": best[1],
+                    "as_of": best[2], "post_entry": False}
+    return {**current, "post_entry": True}
+
+
+def _note_candidate(conn: sqlite3.Connection, user_id: str, note: sqlite3.Row, symbol: str,
+                    moment: dict[str, Any], defs: list[dict[str, Any]], tier: str,
+                    scope: "MatchScope | None" = None) -> dict[str, Any] | None:
+    """One note as a plan candidate, read as it stood at entry -- or, when that state names no
+    plan and the current one does, the current one labelled "plan edited after entry".
+    With a `scope`, one note state is parsed once per request, not once per trade."""
+    scope = scope or MatchScope(conn, user_id, defs=defs)
+    need = (lambda r: r.names_any_level) if tier in ("explicit", "member") else (lambda r: r.is_plan)
+    state = _note_state_at(conn, user_id, note, moment["cutoff"], scope)
+    reading = scope.reading(note["id"], state["version_id"], symbol, state["body"], state["props"])
+    if not need(reading) and not state["post_entry"]:
+        cur_reading = scope.reading(note["id"], f"current@{note['updated_at']}", symbol,
+                                    note["body_json"], note["properties_json"])
+        if need(cur_reading):
+            state = {"body": note["body_json"], "props": note["properties_json"],
+                     "version_id": f"current@{note['updated_at']}", "as_of": note["updated_at"],
+                     "post_entry": True}
+            reading = cur_reading
+    if not need(reading):
+        return None
+    return {"kind": "note", "id": note["id"], "title": note["title"] or "", "tier": tier,
+            "reading": reading, "version_id": state["version_id"], "plan_as_of": state["as_of"],
+            "edited_after_entry": bool(state["post_entry"])}
+
+
+_NOTE_COLS = ("id, title, ticker, tags, body_json, properties_json, created_at, updated_at, deleted_at,"
+              " import_source")
+
+#: ⛔ A SAMPLE NOTE IS NEVER A PLAN (fin-data I3). The sample notebook's examples name real
+#: tickers and real-looking stops; read as plans they froze themselves onto the member's real
+#: trades (a real NVDA trade graded against the example NVDA thesis, the plan rate going up).
+#: Every tier below leaves them out through the one predicate (`sample_marker`), the Re-link
+#: refuses one, and a link frozen from one before this rule is dropped on the next read.
+_LIVE_OWN_NOTE = "deleted_at IS NULL AND " + sample_marker.not_sample_sql()
+
+SAMPLE_RELINK_SENTENCE = ("That note is an example from the sample notebook. "
+                          "Link a note of your own to grade this trade against.")
+
+#: A note carrying this tag is a REVIEW of a graded trade (lib/planReview.js). Its grade table
+#: names an Entry and a Stop, so without this it would read as the plan for the NEXT trade on
+#: the same ticker. Skipped by the unlinked-note tier only: a member may still link one.
+REVIEW_TAG = "plan-review"
+
+
+def _tagged_review(note: sqlite3.Row) -> bool:
+    try:
+        tags = json.loads(note["tags"] or "[]")
+    except (ValueError, TypeError):
+        return False
+    return isinstance(tags, list) and REVIEW_TAG in tags
+
+
+def _explicit_notes(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row) -> list[sqlite3.Row]:
+    from api.services.journal_two.note_trade_links import notes_linked_to_trade
+    try:
+        ids = notes_linked_to_trade(conn, user_id, trade["id"], "equity_trade")
+    except Exception:  # noqa: BLE001
+        ids = []
+    rows = []
+    for nid in sorted(set(ids)):
+        r = conn.execute(f"SELECT {_NOTE_COLS} FROM j2_notes WHERE id = ? AND user_id = ? AND {_LIVE_OWN_NOTE}",
+                         (nid, user_id)).fetchone()
+        if r is not None:
+            rows.append(r)
+    return rows
+
+
+def _window_notes(conn: sqlite3.Connection, user_id: str, symbol: str,
+                  moment: dict[str, Any], scope: "MatchScope | None" = None) -> list[sqlite3.Row]:
+    # ONE read of a ticker's notes per request (`scope.window_rows`); the per-trade part is
+    # only the cheap filter below.
+    rows = (scope or MatchScope(conn, user_id, defs=[])).window_rows(symbol)
+    out = []
+    for r in rows:
+        created = _parse_ts(r["created_at"])
+        if created is None or created > moment["cutoff"]:
+            continue   # written after the trade: never an unlinked plan for it
+        if _tagged_review(r):
+            continue
+        out.append(r)
+    return out
+
+
+def _verdict_candidates(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row, symbol: str,
+                        moment: dict[str, Any]) -> list[dict[str, Any]]:
+    """The verdict the trade was entered against, else the latest one in the window."""
+    side = trade["side"]
+    linked_id = None
+    try:
+        ctx = json.loads(trade["context_at_entry"] or "{}")
+        if isinstance(ctx, dict) and isinstance(ctx.get("compass_verdict_id"), str):
+            linked_id = ctx["compass_verdict_id"].strip() or None
+    except (ValueError, TypeError):
+        linked_id = None
+    rows = []
+    if linked_id:
+        r = conn.execute("SELECT * FROM j2_verdicts WHERE id = ? AND user_id = ?", (linked_id, user_id)).fetchone()
+        if r is not None:
+            rows = [r]
+    if not rows:
+        best = None
+        for r in conn.execute("SELECT * FROM j2_verdicts WHERE user_id = ? AND symbol IN (?, ?) AND label != 'ERROR'",
+                              (user_id, symbol, symbol.lower())).fetchall():
+            ts = _parse_ts(r["created_at"])
+            if ts is None or ts > moment["cutoff"] or ts < moment["start"]:
+                continue
+            if best is None or ts > best[0]:
+                best = (ts, r)
+        rows = [best[1]] if best else []
+    out = []
+    for r in rows:
+        reading = plan_extract.read_verdict_plan(r)
+        if not reading.is_plan:
+            continue
+        if reading.side and side and reading.side != side:
+            continue
+        out.append({"kind": "verdict", "id": r["id"], "title": f"Compass verdict ({r['label']})",
+                    "tier": "verdict", "reading": reading, "version_id": r["id"],
+                    "plan_as_of": r["created_at"], "edited_after_entry": False})
+    return out
+
+
+def find_candidates(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row,
+                    defs: list[dict[str, Any]] | None = None,
+                    scope: "MatchScope | None" = None) -> tuple[str | None, list[dict[str, Any]]]:
+    """(winning tier, its candidates) -- the first tier with any candidate; (None, []) when the
+    trade has no plan anywhere."""
+    moment = entry_moment(trade["entry_date"])
+    if moment is None:
+        return None, []
+    symbol = (trade["symbol"] or "").strip().upper()
+    scope = scope or MatchScope(conn, user_id, defs=defs)
+    defs = scope.defs
+    explicit = [c for c in (_note_candidate(conn, user_id, n, symbol, moment, defs, "explicit", scope)
+                            for n in _explicit_notes(conn, user_id, trade)) if c]
+    if explicit:
+        return "explicit", explicit
+    verdicts = _verdict_candidates(conn, user_id, trade, symbol, moment)
+    if verdicts:
+        return "verdict", verdicts
+    window = []
+    for n in _window_notes(conn, user_id, symbol, moment, scope):
+        c = _note_candidate(conn, user_id, n, symbol, moment, defs, "window", scope)
+        if c is None:
+            continue
+        as_of = _parse_ts(c["plan_as_of"])
+        if not c["edited_after_entry"] and as_of is not None and as_of < moment["start"]:
+            continue   # the plan as it stood at entry is older than the window
+        window.append(c)
+    if window:
+        return "window", window
+    return None, []
+
+
+# ── the frozen link ─────────────────────────────────────────────────────────────────────────
+
+def _row_to_link(r: sqlite3.Row | None) -> dict[str, Any] | None:
+    if r is None:
+        return None
+    return {
+        "tradeRef": r["trade_ref"], "symbol": r["symbol"], "sourceKind": r["source_kind"],
+        "matchTier": r["match_tier"], "noteId": r["note_id"], "verdictId": r["verdict_id"],
+        "versionId": r["version_id"], "planAsOf": r["plan_as_of"],
+        "plan": json.loads(r["plan_json"] or "{}"), "flags": json.loads(r["flags_json"] or "[]"),
+        "matchedAt": r["matched_at"], "relinkedAt": r["relinked_at"], "relinkCount": r["relink_count"],
+    }
+
+
+def get_link(conn: sqlite3.Connection, user_id: str, trade_ref: str) -> dict[str, Any] | None:
+    return _row_to_link(conn.execute(
+        "SELECT * FROM j2_trade_plan_links WHERE user_id = ? AND trade_ref = ?", (user_id, trade_ref)).fetchone())
+
+
+def _candidate_row(user_id: str, trade_ref: str, symbol: str, cand: dict[str, Any] | None,
+                   tier: str, moment: dict[str, Any] | None) -> tuple:
+    flags = []
+    if moment and moment["dateOnly"]:
+        flags.append("date_only")
+    if cand is None:   # the member said "no plan"
+        return (user_id, trade_ref, symbol, "none", tier, None, None, None, None,
+                json.dumps(plan_extract.PlanReading().as_dict()), json.dumps(flags), _now_iso())
+    if cand["edited_after_entry"]:
+        flags.append("edited_after_entry")
+    return (user_id, trade_ref, symbol, cand["kind"], tier,
+            cand["id"] if cand["kind"] == "note" else None,
+            cand["id"] if cand["kind"] == "verdict" else None,
+            cand["version_id"], cand["plan_as_of"],
+            json.dumps(cand["reading"].as_dict()), json.dumps(flags), _now_iso())
+
+
+_INSERT_COLS = ("user_id, trade_ref, symbol, source_kind, match_tier, note_id, verdict_id, version_id, "
+                "plan_as_of, plan_json, flags_json, matched_at")
+
+
+def freeze(conn: sqlite3.Connection, user_id: str, trade_ref: str, symbol: str,
+           cand: dict[str, Any], tier: str, moment: dict[str, Any] | None) -> bool:
+    """Store the FIRST match. ⛔ INSERT OR IGNORE, never REPLACE: a second matcher (another tab,
+    a later request after the note changed) can never overwrite the plan that was frozen.
+    True when this call is the one that froze it."""
+    cur = conn.execute(
+        f"INSERT OR IGNORE INTO j2_trade_plan_links ({_INSERT_COLS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        _candidate_row(user_id, trade_ref, symbol, cand, tier, moment),
+    )
+    # The trade has a plan now: a remembered "unplanned" for it is spent.
+    conn.execute("DELETE FROM j2_trade_plan_misses WHERE user_id = ? AND trade_ref = ?", (user_id, trade_ref))
+    conn.commit()
+    return cur.rowcount == 1
+
+
+def forget_sample_links(conn: sqlite3.Connection, user_id: str, trade_ref: str | None = None) -> int:
+    """Drop every frozen plan link whose plan came from one of this member's SAMPLE notes (all
+    of them, or the one for `trade_ref`). Returns how many were dropped.
+
+    A link like that was never a plan: the member did not write it. It is deleted, not kept in
+    `previous_json`, because that history is "plans this trade was graded against" and a sample
+    must not appear there either. Trashed samples count (`sample_note_ids` includes Trash), so
+    this works after "Remove sample" as well as before. The member's own links are untouched."""
+    sample = sample_marker.sample_note_ids(conn, user_id)
+    if not sample:
+        return 0
+    marks = ",".join("?" for _ in sample)
+    sql = f"DELETE FROM j2_trade_plan_links WHERE user_id = ? AND note_id IN ({marks})"
+    params: list[Any] = [user_id, *sorted(sample)]
+    if trade_ref is not None:
+        sql += " AND trade_ref = ?"
+        params.append(trade_ref)
+    cur = conn.execute(sql, params)
+    conn.commit()
+    return cur.rowcount or 0
+
+
+def match_trade(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row,
+                defs: list[dict[str, Any]] | None = None,
+                scope: MatchScope | None = None) -> dict[str, Any]:
+    """The plan for one trade: the frozen link if there is one; else match now (freezing a
+    unique winner); else the tie or the absence. Never writes j2_trades.
+
+    Pass ONE `scope` for every trade of a request (`MatchScope`): notes are then read per
+    ticker, not per trade, and the caller calls `scope.flush()` once at the end. Without one
+    this call makes its own and flushes it."""
+    own = scope is None
+    scope = scope or MatchScope(conn, user_id, defs=defs)
+    try:
+        return _match_in_scope(conn, user_id, trade, scope)
+    finally:
+        if own:
+            scope.flush()
+
+
+def _match_in_scope(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row,
+                    scope: MatchScope) -> dict[str, Any]:
+    ref = trade_ref_for_row(trade)
+    link = scope.link(ref)
+    if link is not None and link["noteId"] and link["noteId"] in scope.sample_ids():
+        # Frozen from a sample before sample notes were kept out of matching: not a plan.
+        forget_sample_links(conn, user_id, ref)
+        scope.set_link(ref, None)
+        link = None
+    if link is not None:
+        return {"status": STATUS_MEMBER_NONE if link["sourceKind"] == "none" else STATUS_PLANNED,
+                "link": link, "candidates": None}
+    if scope.is_known_miss(ref, trade):
+        # Unplanned the last time it was matched, and nothing that could change that has
+        # changed since (the stamp): answered with no candidate read at all.
+        return {"status": STATUS_UNPLANNED, "link": None, "candidates": []}
+    tier, cands = find_candidates(conn, user_id, trade, scope.defs, scope)
+    if tier is None:
+        scope.note_miss(ref, trade)
+        return {"status": STATUS_UNPLANNED, "link": None, "candidates": []}
+    if len(cands) > 1:
+        return {"status": STATUS_NEEDS_PICK, "link": None, "candidates": cands, "tier": tier}
+    moment = entry_moment(trade["entry_date"])
+    freeze(conn, user_id, ref, (trade["symbol"] or "").upper(), cands[0], tier, moment)
+    scope.set_link(ref, get_link(conn, user_id, ref))
+    return {"status": STATUS_PLANNED, "link": scope.link(ref), "candidates": None}
+
+
+class RelinkError(ValueError):
+    """A re-link the server refuses (unknown note, a note that names no plan)."""
+
+
+def relink(conn: sqlite3.Connection, user_id: str, trade: sqlite3.Row, *,
+           note_id: str | None = None, verdict_id: str | None = None, none: bool = False) -> dict[str, Any]:
+    """The member's Re-link: the ONE way a frozen plan changes (R4). The replaced row is kept in
+    `previous_json` (R-11). `none=True` records "this trade had no plan"."""
+    ref = trade_ref_for_row(trade)
+    symbol = (trade["symbol"] or "").upper()
+    moment = entry_moment(trade["entry_date"])
+    if moment is None:
+        raise RelinkError("This trade has no entry date to read a plan against")
+    cand = None
+    if not none:
+        defs = _prop_defs(conn, user_id)
+        if note_id:
+            n = conn.execute(f"SELECT {_NOTE_COLS} FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+                             (note_id, user_id)).fetchone()
+            if n is None:
+                raise RelinkError("Note not found")
+            if sample_marker.is_sample(n["import_source"]):
+                raise RelinkError(SAMPLE_RELINK_SENTENCE)
+            cand = _note_candidate(conn, user_id, n, symbol, moment, defs, "member")
+            if cand is None:
+                raise RelinkError("That note names no entry, stop, target or shares")
+        elif verdict_id:
+            v = conn.execute("SELECT * FROM j2_verdicts WHERE id = ? AND user_id = ?", (verdict_id, user_id)).fetchone()
+            if v is None:
+                raise RelinkError("Verdict not found")
+            reading = plan_extract.read_verdict_plan(v)
+            if not reading.names_any_level:
+                raise RelinkError("That verdict names no levels")
+            cand = {"kind": "verdict", "id": v["id"], "title": "", "tier": "member", "reading": reading,
+                    "version_id": v["id"], "plan_as_of": v["created_at"], "edited_after_entry": False}
+        else:
+            raise RelinkError("Choose a note, a verdict, or no plan")
+    # Everything that needs no lock is done first: the new row is fully built before the write
+    # lock is taken, so the lock is held for one read and two statements.
+    row = _candidate_row(user_id, ref, symbol, cand, "member", moment)
+    # ⛔ THE LOCK IS TAKEN BEFORE THE ROW BEING REPLACED IS READ (fin-data M7). The read and the
+    # replace are one transaction. ⚰️ The read used to come first and unlocked: a second Re-link
+    # landing between it and the write was replaced without ever being read, so it was missing
+    # from `previous_json` (the history R-11 keeps) and `relink_count` was one short.
+    if not conn.in_transaction:
+        conn.execute("BEGIN IMMEDIATE")
+    try:
+        previous = conn.execute("SELECT * FROM j2_trade_plan_links WHERE user_id = ? AND trade_ref = ?",
+                                (user_id, ref)).fetchone()
+        history = []
+        count = 0
+        if previous is not None:
+            count = int(previous["relink_count"] or 0) + 1
+            try:
+                history = json.loads(previous["previous_json"] or "[]")
+            except ValueError:
+                history = []
+            prev = dict(previous)
+            prev.pop("previous_json", None)
+            history = (history if isinstance(history, list) else []) + [prev]
+        conn.execute("DELETE FROM j2_trade_plan_links WHERE user_id = ? AND trade_ref = ?", (user_id, ref))
+        conn.execute(
+            f"INSERT INTO j2_trade_plan_links ({_INSERT_COLS}, relinked_at, relink_count, previous_json)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (*row, _now_iso(), count, json.dumps(history[-20:]) if history else None),
+        )
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
+    return get_link(conn, user_id, ref)
+
+
+# ── grading (pure) ──────────────────────────────────────────────────────────────────────────
+
+def _r(v: float) -> float:
+    return round(v, _DP)
+
+
+def _role_state(plan: dict[str, Any], role: str) -> str:
+    roles = plan.get("roles") if isinstance(plan.get("roles"), dict) else {}
+    r = roles.get(role) if isinstance(roles.get(role), dict) else {}
+    return r.get("state") or plan_extract.STATE_ABSENT
+
+
+def _missing(plan: dict[str, Any], *roles: str) -> dict[str, Any] | None:
+    """The check's state when an input is missing: unreadable beats absent."""
+    states = [_role_state(plan, r) for r in roles]
+    if plan_extract.STATE_UNREADABLE in states:
+        return {"state": "unreadable"}
+    if any(plan.get(r) is None for r in roles):
+        return {"state": "none"}
+    return None
+
+
+def grade_checks(plan: dict[str, Any], trade: dict[str, Any], *, mfe_price: float | None = None,
+                 entered_shares: float | None = None) -> dict[str, Any]:
+    """The four checks for one trade against its frozen plan. Pure arithmetic, never raises on
+    a missing input -- it reads ``none`` (the UI's "—") or ``unreadable``.
+
+    `trade`: {side 'Long'|'Short', entryPrice, exitPrice, shares}. The R unit is the PLAN's
+    |entry - stop|, so a broker trade with a placeholder stop is graded on the plan's stop."""
+    side = trade.get("side")
+    sign = 1.0 if side == "Long" else -1.0
+    pe, ps, pt, pn = plan.get("entry"), plan.get("stop"), plan.get("target"), plan.get("shares")
+    fill_entry, fill_exit = trade.get("entryPrice"), trade.get("exitPrice")
+    r_unit = abs(pe - ps) if isinstance(pe, (int, float)) and isinstance(ps, (int, float)) and pe != ps else None
+    side_mismatch = False
+    if r_unit is not None and side in ("Long", "Short"):
+        plan_side = "Long" if ps < pe else "Short"
+        side_mismatch = plan_side != side
+    out: dict[str, Any] = {"r": _r(r_unit) if r_unit else None, "sideMismatch": side_mismatch}
+
+    # Entry
+    miss = _missing(plan, "entry", "stop")
+    if miss is not None or r_unit is None:
+        out["entry"] = miss or {"state": "none"}
+    else:
+        tol = max(CONSTANTS["ENTRY_TOL_R"] * r_unit, CONSTANTS["ENTRY_TOL_PCT"] * pe)
+        d = float(fill_entry) - pe
+        kept = _r(abs(d)) <= _r(tol)
+        out["entry"] = {"state": "kept" if kept else "missed", "planned": pe, "actual": float(fill_entry),
+                        "tolerance": _r(tol), "chaseR": _r(sign * d / r_unit),
+                        "deltaPct": _r(d / pe)}
+
+    # Stop
+    miss = _missing(plan, "entry", "stop")
+    if miss is not None or r_unit is None:
+        out["stop"] = miss or {"state": "none"}
+    elif side_mismatch:
+        out["stop"] = {"state": "none", "reason": "side_mismatch"}
+    else:
+        limit = ps - sign * CONSTANTS["STOP_SLIP_R"] * r_unit
+        honoured = _r(sign * (float(fill_exit) - limit)) >= 0
+        out["stop"] = {"state": "kept" if honoured else "missed", "planned": ps, "limit": _r(limit),
+                       "exit": float(fill_exit), "exitVsStopR": _r(sign * (float(fill_exit) - ps) / r_unit)}
+
+    # Size
+    miss = _missing(plan, "shares")
+    actual_shares = entered_shares if entered_shares is not None else trade.get("shares")
+    if miss is not None or actual_shares is None:
+        out["size"] = miss or {"state": "none"}
+    else:
+        d = float(actual_shares) - pn
+        kept = _r(abs(d)) <= _r(CONSTANTS["SIZE_TOL_PCT"] * pn)
+        out["size"] = {"state": "kept" if kept else "missed", "planned": pn, "actual": float(actual_shares),
+                       "deltaPct": _r(d / pn)}
+
+    # Target
+    miss = _missing(plan, "entry", "stop", "target")
+    if miss is not None or r_unit is None:
+        out["target"] = miss or {"state": "none"}
+    elif side_mismatch:
+        out["target"] = {"state": "none", "reason": "side_mismatch"}
+    else:
+        hit_line = pt - sign * CONSTANTS["TARGET_SHORTFALL_R"] * r_unit
+        if _r(sign * (float(fill_exit) - hit_line)) >= 0:
+            state = "hit"
+        elif mfe_price is None:
+            state = "unknown"
+        elif _r(sign * (float(mfe_price) - pt)) >= 0:
+            state = "reached_not_taken"
+        else:
+            state = "not_reached"
+        out["target"] = {"state": state, "planned": pt, "hitLine": _r(hit_line), "exit": float(fill_exit),
+                         "mfePrice": mfe_price}
+
+    graded = [out[k]["state"] for k in ("entry", "stop", "size") if out[k]["state"] in ("kept", "missed")]
+    out["followedPlan"] = (all(s == "kept" for s in graded) if graded else None)
+    return out
+
+
+# ── sample-size wording (R3): `sample_size.py`, imported above ────────────────────────────
+
+
+# ── per-trade payloads ──────────────────────────────────────────────────────────────────────
+
+def _trade_dict(t: sqlite3.Row) -> dict[str, Any]:
+    return {"id": t["id"], "symbol": t["symbol"], "side": t["side"], "shares": float(t["shares"]),
+            "entryPrice": float(t["entry_price"]), "exitPrice": float(t["exit_price"]),
+            "entryDate": t["entry_date"], "exitDate": t["exit_date"], "setup": t["setup"],
+            "source": t["source"] if "source" in t.keys() else None,
+            "originalStop": float(t["original_stop"]) if t["original_stop"] is not None else None}
+
+
+def _entered_shares(conn: sqlite3.Connection, user_id: str, t: sqlite3.Row) -> tuple[float, int]:
+    """Shares ENTERED: a position closed in pieces is several trade rows that share the same
+    entry (symbol, side, entry date, entry price); the plan's size is the whole entry."""
+    row = conn.execute(
+        "SELECT COALESCE(SUM(shares), 0) AS s, COUNT(*) AS n FROM j2_trades WHERE user_id = ? AND symbol = ?"
+        " AND side = ? AND entry_date = ? AND ABS(entry_price - ?) < 0.000001",
+        (user_id, t["symbol"], t["side"], t["entry_date"], float(t["entry_price"])),
+    ).fetchone()
+    n = int(row["n"] or 0)
+    return (float(row["s"]) if n else float(t["shares"])), max(n, 1)
+
+
+def _mfe(conn: sqlite3.Connection, user_id: str, ref: str) -> float | None:
+    try:
+        r = conn.execute("SELECT mfe_price FROM j2_trade_excursions WHERE user_id = ? AND trade_ref = ?",
+                         (user_id, ref)).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    if r is None or r["mfe_price"] is None:
+        return None
+    v = float(r["mfe_price"])
+    return v if math.isfinite(v) else None
+
+
+def _candidate_public(c: dict[str, Any]) -> dict[str, Any]:
+    reading: plan_extract.PlanReading = c["reading"]
+    return {"kind": c["kind"], "id": c["id"], "title": c["title"], "tier": c["tier"],
+            "plan": reading.as_dict(), "planAsOf": c["plan_as_of"],
+            "editedAfterEntry": c["edited_after_entry"]}
+
+
+def _note_title(conn: sqlite3.Connection, user_id: str, note_id: str | None) -> str | None:
+    if not note_id:
+        return None
+    r = conn.execute("SELECT title, deleted_at FROM j2_notes WHERE id = ? AND user_id = ?", (note_id, user_id)).fetchone()
+    if r is None:
+        return None
+    return r["title"] or ""
+
+
+def grade_payload(conn: sqlite3.Connection, user_id: str, t: sqlite3.Row,
+                  defs: list[dict[str, Any]] | None = None, *, with_candidates: bool = True,
+                  scope: MatchScope | None = None) -> dict[str, Any]:
+    """Everything the trade page shows for one trade. A caller grading many trades passes one
+    `scope` for all of them and flushes it once (`MatchScope`)."""
+    own = scope is None
+    scope = scope or MatchScope(conn, user_id, defs=defs)
+    try:
+        return _grade_in_scope(conn, user_id, t, scope, with_candidates=with_candidates)
+    finally:
+        if own:
+            scope.flush()
+
+
+def _grade_in_scope(conn: sqlite3.Connection, user_id: str, t: sqlite3.Row, scope: MatchScope, *,
+                    with_candidates: bool) -> dict[str, Any]:
+    defs = scope.defs
+    m = _match_in_scope(conn, user_id, t, scope)
+    ref = trade_ref_for_row(t)
+    trade = _trade_dict(t)
+    moment = entry_moment(t["entry_date"])
+    out: dict[str, Any] = {"tradeId": t["id"], "tradeRef": ref, "symbol": t["symbol"], "side": t["side"],
+                           "status": m["status"], "dateOnly": bool(moment and moment["dateOnly"]),
+                           "entryDay": moment["day"] if moment else None,
+                           "plan": None, "checks": None, "labels": [], "setupChip": None,
+                           "candidates": [_candidate_public(c) for c in (m.get("candidates") or [])]}
+    link = m["link"]
+    if link is not None and link["sourceKind"] != "none":
+        plan = link["plan"]
+        entered, closes = _entered_shares(conn, user_id, t)
+        checks = grade_checks(plan, trade, mfe_price=_mfe(conn, user_id, ref), entered_shares=entered)
+        labels = list(link["flags"])
+        if closes > 1:
+            labels.append("size_from_closes")
+        try:
+            from api.services.placeholder_stop import is_placeholder_stop
+            if trade["source"] == "broker" and is_placeholder_stop(trade["originalStop"], trade["entryPrice"]):
+                labels.append("stop_from_plan")
+        except Exception:  # noqa: BLE001
+            pass
+        if checks.get("sideMismatch"):
+            labels.append("side_mismatch")
+        source = "verdict" if link["sourceKind"] == "verdict" else (plan.get("primaryShape") or "text")
+        out.update({
+            "plan": {**plan, "source": source, "sourceLabel": SOURCE_LABELS.get(source, "Plan"),
+                     "sourceKind": link["sourceKind"], "matchTier": link["matchTier"],
+                     "noteId": link["noteId"], "noteTitle": _note_title(conn, user_id, link["noteId"]),
+                     "verdictId": link["verdictId"], "versionId": link["versionId"],
+                     "planAsOf": link["planAsOf"], "matchedAt": link["matchedAt"],
+                     "relinkedAt": link["relinkedAt"], "relinkCount": link["relinkCount"]},
+            "checks": checks, "labels": labels, "enteredShares": entered, "closes": closes,
+        })
+        if trade["source"] == "broker" and not (trade["setup"] or "").strip() and plan.get("setup"):
+            out["setupChip"] = {"setup": plan["setup"]}
+    elif link is not None:
+        out["plan"] = {"sourceKind": "none", "matchedAt": link["matchedAt"], "relinkedAt": link["relinkedAt"]}
+    if with_candidates and m["status"] != STATUS_NEEDS_PICK:
+        # The Re-link picker's choices: every candidate in every tier, so a member can move a
+        # frozen plan to the note they meant.
+        out["candidates"] = _all_candidates(conn, user_id, t, defs, scope)
+    return out
+
+
+def _all_candidates(conn: sqlite3.Connection, user_id: str, t: sqlite3.Row,
+                    defs: list[dict[str, Any]] | None,
+                    scope: MatchScope | None = None) -> list[dict[str, Any]]:
+    moment = entry_moment(t["entry_date"])
+    if moment is None:
+        return []
+    symbol = (t["symbol"] or "").strip().upper()
+    scope = scope or MatchScope(conn, user_id, defs=defs)
+    defs = scope.defs
+    seen: set[tuple[str, str]] = set()
+    out: list[dict[str, Any]] = []
+    groups = [[_note_candidate(conn, user_id, n, symbol, moment, defs, "explicit", scope)
+               for n in _explicit_notes(conn, user_id, t)],
+              _verdict_candidates(conn, user_id, t, symbol, moment),
+              [_note_candidate(conn, user_id, n, symbol, moment, defs, "window", scope)
+               for n in _window_notes(conn, user_id, symbol, moment, scope)]]
+    for group in groups:
+        for c in group:
+            if c and (c["kind"], c["id"]) not in seen:
+                seen.add((c["kind"], c["id"]))
+                out.append(_candidate_public(c))
+    return out[:20]
+
+
+def get_trade(conn: sqlite3.Connection, user_id: str, trade_id: str) -> sqlite3.Row | None:
+    return conn.execute("SELECT * FROM j2_trades WHERE user_id = ? AND id = ?", (user_id, trade_id)).fetchone()
+
+
+def statuses(conn: sqlite3.Connection, user_id: str, trade_ids: list[str]) -> dict[str, dict[str, Any]]:
+    """{tradeId: {tradeRef, status}} for the Trade Journal's Unplanned chip. Every id the member
+    owns is answered -- an unplanned trade is labelled, never left out."""
+    ids = [i for i in dict.fromkeys(trade_ids) if isinstance(i, str) and i][:MAX_STATUS_IDS]
+    if not ids:
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    marks = ",".join("?" for _ in ids)
+    trades = conn.execute(f"SELECT * FROM j2_trades WHERE user_id = ? AND id IN ({marks})", (user_id, *ids)).fetchall()
+    # ONE scope for the page (fin-security I-2): links and remembered misses are read in two
+    # statements for all of it, a ticker's notes once, and "unplanned" is written once at the end.
+    scope = MatchScope(conn, user_id)
+    scope.preload(trades)
+    for t in trades:
+        m = _match_in_scope(conn, user_id, t, scope)
+        out[t["id"]] = {"tradeRef": trade_ref_for_row(t), "status": m["status"]}
+    scope.flush()
+    return out
+
+
+# ── the discipline record ───────────────────────────────────────────────────────────────────
+
+def _closed_items(conn: sqlite3.Connection, user_id: str, account_id: str | None) -> list[tuple[datetime, str, Any]]:
+    """Every closed trade, equity AND options, newest exit first. ⛔ No filter on source,
+    exclusion flag or anything else: the record counts what the broker sent."""
+    where, params = "user_id = ?", [user_id]
+    if account_id:
+        where += " AND account_id = ?"
+        params.append(account_id)
+    items: list[tuple[datetime, str, Any]] = []
+    for t in conn.execute(f"SELECT * FROM j2_trades WHERE {where}", params).fetchall():
+        items.append((_parse_ts(t["exit_date"]) or datetime.min.replace(tzinfo=timezone.utc), "equity", t))
+    for s in conn.execute(f"SELECT id, closed_at, created_at FROM j2_option_strategies WHERE {where} AND status != 'open'",
+                          params).fetchall():
+        when = _parse_ts(s["closed_at"]) or _parse_ts(s["created_at"]) or datetime.min.replace(tzinfo=timezone.utc)
+        items.append((when, "option", s))
+    items.sort(key=lambda x: (x[0], x[2]["id"]), reverse=True)
+    return items
+
+
+def discipline_record(conn: sqlite3.Connection, user_id: str, account_id: str | None = None) -> dict[str, Any]:
+    items = _closed_items(conn, user_id, account_id)
+    biggest = max(CONSTANTS["DISCIPLINE_WINDOWS"])
+    scope = MatchScope(conn, user_id)      # one for the whole record (fin-security I-2)
+    scope.preload([row for _, kind, row in items[:biggest] if kind != "option"])
+    graded: list[dict[str, Any]] = []
+    for _, kind, row in items[:biggest]:
+        if kind == "option":
+            graded.append({"kind": "option", "id": row["id"]})
+            continue
+        p = _grade_in_scope(conn, user_id, row, scope, with_candidates=False)
+        graded.append({"kind": "equity", "id": row["id"], "status": p["status"], "checks": p["checks"],
+                       "labels": p["labels"]})
+    scope.flush()
+    windows = []
+    for size in CONSTANTS["DISCIPLINE_WINDOWS"]:
+        rows = graded[:size]
+        equity = [r for r in rows if r["kind"] == "equity"]
+        planned = [r for r in equity if r["status"] == STATUS_PLANNED and r["checks"]]
+        unplanned = [r for r in equity if r["status"] in (STATUS_UNPLANNED, STATUS_MEMBER_NONE)]
+        needs_pick = [r for r in equity if r["status"] == STATUS_NEEDS_PICK]
+
+        def kept(check: str) -> dict[str, Any]:
+            states = [r["checks"][check]["state"] for r in planned]
+            k = sum(1 for s in states if s == "kept")
+            return rate_stat(k, k + sum(1 for s in states if s == "missed"))
+
+        tstates = [r["checks"]["target"]["state"] for r in planned]
+        decided = [s for s in tstates if s in ("hit", "reached_not_taken", "not_reached")]
+        followed = [r["checks"]["followedPlan"] for r in planned if r["checks"]["followedPlan"] is not None]
+        windows.append({
+            "size": size, "trades": len(rows), "equity": len(equity),
+            "options": sum(1 for r in rows if r["kind"] == "option"),
+            "planned": len(planned), "unplanned": len(unplanned), "needsPick": len(needs_pick),
+            "planRate": rate_stat(len(planned), len(planned) + len(unplanned)),
+            "editedAfterEntry": sum(1 for r in planned if "edited_after_entry" in r["labels"]),
+            "entry": kept("entry"), "stop": kept("stop"), "size_": kept("size"),
+            "target": {"hit": tstates.count("hit"), "reachedNotTaken": tstates.count("reached_not_taken"),
+                       "notReached": tstates.count("not_reached"), "unknown": tstates.count("unknown"),
+                       "hitRate": rate_stat(tstates.count("hit"), len(decided))},
+            "followedPlan": rate_stat(sum(1 for f in followed if f), len(followed)),
+        })
+    return {"windows": windows, "constants": dict(CONSTANTS), "totalClosed": len(items)}

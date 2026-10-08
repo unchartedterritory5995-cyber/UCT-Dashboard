@@ -1,0 +1,1109 @@
+{
+ "tool": "tools/notebook_fin_keys_stall_probe.py",
+ "label": "tip",
+ "start": "note",
+ "tree": "4698eb550648518d20f612f602ff8155ed933053",
+ "dist_index_bytes": 16750,
+ "dist_entry": "assets/index-dr6rljyi.js",
+ "started": "2026-10-07T17:57:18+00:00",
+ "runs": [
+  {
+   "run": 1,
+   "start": "note",
+   "cpu_before": 73.0,
+   "ok": true,
+   "arrived_s": 0.64,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 14,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 88.0,
+   "requests": 62,
+   "unanswered": [],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.061,
+     "status": 503,
+     "ms": 316,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.067,
+     "status": 200,
+     "ms": 437,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.067,
+     "status": 200,
+     "ms": 360,
+     "failed": null
+    },
+    {
+     "url": "/api/indicator-alerts/delivery-health?limit=10",
+     "t": 0.067,
+     "status": 200,
+     "ms": 353,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts",
+     "t": 0.067,
+     "status": 200,
+     "ms": 347,
+     "failed": null
+    },
+    {
+     "url": "/api/auth/track",
+     "t": 0.062,
+     "status": 200,
+     "ms": 323,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "run": 2,
+   "start": "note",
+   "cpu_before": 88.0,
+   "ok": true,
+   "arrived_s": 0.63,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 14,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 79.0,
+   "requests": 62,
+   "unanswered": [],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.055,
+     "status": 503,
+     "ms": 311,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.061,
+     "status": 200,
+     "ms": 373,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.061,
+     "status": 200,
+     "ms": 331,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts/f96a7ff1-ded1-43ac-b227-5d1d32585166/settings",
+     "t": 0.061,
+     "status": 200,
+     "ms": 323,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts",
+     "t": 0.061,
+     "status": 200,
+     "ms": 319,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.055,
+     "status": 503,
+     "ms": 311,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "run": 3,
+   "start": "note",
+   "cpu_before": 85.0,
+   "ok": true,
+   "arrived_s": 0.63,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 14,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 74.0,
+   "requests": 62,
+   "unanswered": [],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.057,
+     "status": 503,
+     "ms": 327,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.06,
+     "status": 200,
+     "ms": 403,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.06,
+     "status": 200,
+     "ms": 362,
+     "failed": null
+    },
+    {
+     "url": "/api/indicator-alerts/delivery-health?limit=10",
+     "t": 0.06,
+     "status": 200,
+     "ms": 356,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts",
+     "t": 0.06,
+     "status": 200,
+     "ms": 348,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts/f96a7ff1-ded1-43ac-b227-5d1d32585166/settings",
+     "t": 0.06,
+     "status": 200,
+     "ms": 343,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "run": 4,
+   "start": "note",
+   "cpu_before": 80.0,
+   "ok": true,
+   "arrived_s": 0.63,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 15,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 91.0,
+   "requests": 62,
+   "unanswered": [],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.064,
+     "status": 503,
+     "ms": 408,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.069,
+     "status": 200,
+     "ms": 524,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts/f96a7ff1-ded1-43ac-b227-5d1d32585166/settings",
+     "t": 0.069,
+     "status": 200,
+     "ms": 492,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.069,
+     "status": 200,
+     "ms": 464,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts",
+     "t": 0.069,
+     "status": 200,
+     "ms": 463,
+     "failed": null
+    },
+    {
+     "url": "/api/auth/track",
+     "t": 0.064,
+     "status": 200,
+     "ms": 454,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "run": 5,
+   "start": "note",
+   "cpu_before": 82.0,
+   "ok": true,
+   "arrived_s": 0.63,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 14,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 3.0,
+   "requests": 62,
+   "unanswered": [],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.054,
+     "status": 503,
+     "ms": 309,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.059,
+     "status": 200,
+     "ms": 370,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.059,
+     "status": 200,
+     "ms": 369,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts/f96a7ff1-ded1-43ac-b227-5d1d32585166/settings",
+     "t": 0.058,
+     "status": 200,
+     "ms": 341,
+     "failed": null
+    },
+    {
+     "url": "/api/indicator-alerts/delivery-health?limit=10",
+     "t": 0.058,
+     "status": 200,
+     "ms": 338,
+     "failed": null
+    },
+    {
+     "url": "/api/auth/track",
+     "t": 0.054,
+     "status": 200,
+     "ms": 327,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "run": 6,
+   "start": "note",
+   "cpu_before": 7.0,
+   "ok": true,
+   "arrived_s": 0.63,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 14,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 2.0,
+   "requests": 62,
+   "unanswered": [],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.045,
+     "status": 503,
+     "ms": 323,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.051,
+     "status": 200,
+     "ms": 340,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.051,
+     "status": 200,
+     "ms": 334,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts/f96a7ff1-ded1-43ac-b227-5d1d32585166/settings",
+     "t": 0.051,
+     "status": 200,
+     "ms": 329,
+     "failed": null
+    },
+    {
+     "url": "/api/auth/track",
+     "t": 0.046,
+     "status": 200,
+     "ms": 324,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts",
+     "t": 0.051,
+     "status": 200,
+     "ms": 324,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "run": 7,
+   "start": "note",
+   "cpu_before": 9.0,
+   "ok": true,
+   "arrived_s": 0.64,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 14,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 40.0,
+   "requests": 62,
+   "unanswered": [],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.055,
+     "status": 503,
+     "ms": 283,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.057,
+     "status": 200,
+     "ms": 352,
+     "failed": null
+    },
+    {
+     "url": "/api/auth/track",
+     "t": 0.056,
+     "status": 200,
+     "ms": 320,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.057,
+     "status": 200,
+     "ms": 319,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts",
+     "t": 0.057,
+     "status": 200,
+     "ms": 318,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts/f96a7ff1-ded1-43ac-b227-5d1d32585166/settings",
+     "t": 0.057,
+     "status": 200,
+     "ms": 317,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "run": 8,
+   "start": "note",
+   "cpu_before": 57.0,
+   "ok": true,
+   "arrived_s": 0.44,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 9,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 42.0,
+   "requests": 62,
+   "unanswered": [
+    {
+     "url": "/api/j2/plan-grades/status?ids=0d3bfe7d-8fd4-4741-ab1e-d4fb154a369c,f7797373-b21a-4fd0-81a6-f9f99b1fa515",
+     "t": 0.439,
+     "status": 200,
+     "ms": 1294,
+     "failed": null
+    }
+   ],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.054,
+     "status": 503,
+     "ms": 316,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.059,
+     "status": 200,
+     "ms": 386,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.059,
+     "status": 200,
+     "ms": 339,
+     "failed": null
+    },
+    {
+     "url": "/api/auth/track",
+     "t": 0.054,
+     "status": 200,
+     "ms": 319,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.054,
+     "status": 503,
+     "ms": 316,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts",
+     "t": 0.059,
+     "status": 200,
+     "ms": 315,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "run": 9,
+   "start": "note",
+   "cpu_before": 43.0,
+   "ok": true,
+   "arrived_s": 0.64,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 14,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 73.0,
+   "requests": 62,
+   "unanswered": [],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.058,
+     "status": 503,
+     "ms": 322,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.061,
+     "status": 200,
+     "ms": 375,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.061,
+     "status": 200,
+     "ms": 372,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts",
+     "t": 0.06,
+     "status": 200,
+     "ms": 360,
+     "failed": null
+    },
+    {
+     "url": "/api/indicator-alerts/delivery-health?limit=10",
+     "t": 0.06,
+     "status": 200,
+     "ms": 350,
+     "failed": null
+    },
+    {
+     "url": "/api/auth/track",
+     "t": 0.058,
+     "status": 200,
+     "ms": 337,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "run": 10,
+   "start": "note",
+   "cpu_before": 53.0,
+   "ok": true,
+   "arrived_s": 0.65,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 14,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 68.0,
+   "requests": 62,
+   "unanswered": [],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.063,
+     "status": 503,
+     "ms": 315,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.069,
+     "status": 200,
+     "ms": 349,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.069,
+     "status": 200,
+     "ms": 340,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts",
+     "t": 0.069,
+     "status": 200,
+     "ms": 335,
+     "failed": null
+    },
+    {
+     "url": "/api/indicator-alerts/delivery-health?limit=10",
+     "t": 0.069,
+     "status": 200,
+     "ms": 333,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts/f96a7ff1-ded1-43ac-b227-5d1d32585166/settings",
+     "t": 0.069,
+     "status": 200,
+     "ms": 321,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "run": 11,
+   "start": "note",
+   "cpu_before": 69.0,
+   "ok": true,
+   "arrived_s": 0.67,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 14,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 45.0,
+   "requests": 62,
+   "unanswered": [],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.042,
+     "status": 503,
+     "ms": 316,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.048,
+     "status": 200,
+     "ms": 437,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts",
+     "t": 0.047,
+     "status": 200,
+     "ms": 320,
+     "failed": null
+    },
+    {
+     "url": "/api/auth/track",
+     "t": 0.042,
+     "status": 200,
+     "ms": 319,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.048,
+     "status": 200,
+     "ms": 319,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.042,
+     "status": 503,
+     "ms": 316,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "run": 12,
+   "start": "note",
+   "cpu_before": 68.0,
+   "ok": true,
+   "arrived_s": 0.44,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 11,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 57.0,
+   "requests": 62,
+   "unanswered": [],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.034,
+     "status": 503,
+     "ms": 314,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.038,
+     "status": 200,
+     "ms": 376,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.038,
+     "status": 200,
+     "ms": 341,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts",
+     "t": 0.038,
+     "status": 200,
+     "ms": 318,
+     "failed": null
+    },
+    {
+     "url": "/api/indicator-alerts/delivery-health?limit=10",
+     "t": 0.038,
+     "status": 200,
+     "ms": 317,
+     "failed": null
+    },
+    {
+     "url": "/api/auth/track",
+     "t": 0.035,
+     "status": 200,
+     "ms": 316,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "run": 13,
+   "start": "note",
+   "cpu_before": 55.0,
+   "ok": true,
+   "arrived_s": 0.63,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 14,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 74.0,
+   "requests": 62,
+   "unanswered": [],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.063,
+     "status": 503,
+     "ms": 321,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.069,
+     "status": 200,
+     "ms": 361,
+     "failed": null
+    },
+    {
+     "url": "/api/auth/track",
+     "t": 0.063,
+     "status": 200,
+     "ms": 357,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.07,
+     "status": 200,
+     "ms": 349,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts",
+     "t": 0.069,
+     "status": 200,
+     "ms": 341,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts/f96a7ff1-ded1-43ac-b227-5d1d32585166/settings",
+     "t": 0.069,
+     "status": 200,
+     "ms": 340,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "run": 14,
+   "start": "note",
+   "cpu_before": 80.0,
+   "ok": true,
+   "arrived_s": 0.65,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 14,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 88.0,
+   "requests": 62,
+   "unanswered": [],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.045,
+     "status": 503,
+     "ms": 320,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.049,
+     "status": 200,
+     "ms": 369,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.049,
+     "status": 200,
+     "ms": 350,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts",
+     "t": 0.049,
+     "status": 200,
+     "ms": 338,
+     "failed": null
+    },
+    {
+     "url": "/api/auth/track",
+     "t": 0.045,
+     "status": 200,
+     "ms": 332,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts/f96a7ff1-ded1-43ac-b227-5d1d32585166/settings",
+     "t": 0.049,
+     "status": 200,
+     "ms": 323,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  },
+  {
+   "run": 15,
+   "start": "note",
+   "cpu_before": 74.0,
+   "ok": true,
+   "arrived_s": 0.45,
+   "active_before": "BODY",
+   "url_changed": true,
+   "commits_to_arrival_or_timeout": 10,
+   "active_after": "TBODY[landing]",
+   "cpu_after": 70.0,
+   "requests": 62,
+   "unanswered": [
+    {
+     "url": "/api/j2/plan-grades/status?ids=0d3bfe7d-8fd4-4741-ab1e-d4fb154a369c,f7797373-b21a-4fd0-81a6-f9f99b1fa515",
+     "t": 0.445,
+     "status": 200,
+     "ms": 1274,
+     "failed": null
+    }
+   ],
+   "failed": [],
+   "not_200": [
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.069,
+     "status": 503,
+     "ms": 309,
+     "failed": null
+    }
+   ],
+   "slowest": [
+    {
+     "url": "/api/j2/accounts/comparison",
+     "t": 0.076,
+     "status": 200,
+     "ms": 333,
+     "failed": null
+    },
+    {
+     "url": "/api/auth/track",
+     "t": 0.069,
+     "status": 200,
+     "ms": 313,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/broker/sync?background=1",
+     "t": 0.069,
+     "status": 503,
+     "ms": 309,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/accounts",
+     "t": 0.076,
+     "status": 200,
+     "ms": 305,
+     "failed": null
+    },
+    {
+     "url": "/api/j2/positions?account_id=f96a7ff1-ded1-43ac-b227-5d1d32585166",
+     "t": 0.076,
+     "status": 200,
+     "ms": 305,
+     "failed": null
+    }
+   ],
+   "errors": [
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    },
+    {
+     "console": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+    }
+   ]
+  }
+ ],
+ "status": "COMPLETE",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-keys\\stall\\tip-1\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 12:57:26",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 12:58:03",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-07 12:59:54",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 13:02:47",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-keys\\stall\\tip-1\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-keys\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T12-57-21.md"
+ },
+ "failure": null,
+ "stalls": [],
+ "finished": "2026-10-07T18:03:18+00:00"
+}

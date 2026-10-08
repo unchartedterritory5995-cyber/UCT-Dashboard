@@ -3,7 +3,8 @@ import Sheet from '../../../components/mobile/Sheet'
 import CompanyLogo from '../../../components/CompanyLogo'
 import UIcon from '../../../components/ui/UIcon'
 import haptics from '../../../components/mobile/haptics'
-import { POPULAR_RESULTS, CHIPS, INDICES_PRESET, matchQ, rowIdentity } from '../../../components/chart/symbolSearchModel'
+import { POPULAR_RESULTS, CHIPS, INDICES_PRESET, matchQ, rowIdentity, shownTicker, isBreadthRow, breadthChipRows, canonicalTicker } from '../../../components/chart/symbolSearchModel'
+import useMarketIndicators from '../../../hooks/useMarketIndicators'
 import uctMark from '../../../components/intro/assets/compass-mark.png'
 import { listRecents } from './mobileRecents'
 import styles from './MobileCharts.module.css'
@@ -36,7 +37,14 @@ function SearchBody({ onClose, onPick, economic = false }) {
      chips for it; the phone — the surface where a long ambiguous list costs the
      most — had no control at all. */
   const [chip, setChip] = useState('all')
-  const [breadthAll, setBreadthAll] = useState([])
+  const [breadthPayload, setBreadthPayload] = useState(null)
+  // ⭐ The desktop dropdown's Breadth list, from the same shared builder (UCT + the
+  // breadth-derived market indicators + the published universes).
+  const marketIndicators = useMarketIndicators()
+  const miRows = marketIndicators.ready ? marketIndicators.rows : null
+  const breadthAll = useMemo(
+    () => breadthChipRows(breadthPayload?.symbols, breadthPayload?.display_symbols, miRows),
+    [breadthPayload, miRows])
   // ⭐ ECONOMIC — the desktop dropdown's rule, same lazy module: opt-in per host,
   // present only once `/api/econ/catalog` answered 200 for this member.
   const [econ, setEcon] = useState(null)
@@ -62,21 +70,17 @@ function SearchBody({ onClose, onPick, economic = false }) {
   // The UCT breadth catalog, fetched once — the Breadth chip filters this list
   // rather than the ticker index, exactly as the desktop dropdown does.
   useEffect(() => {
-    if (breadthAll.length) return undefined
+    if (breadthPayload) return undefined
     let alive = true
     fetch('/api/breadth-symbols')
       .then((r) => (r.ok ? r.json() : { symbols: [] }))
       .then((d) => {
         if (!alive) return
-        setBreadthAll((d.symbols || []).map((x) => ({
-          ticker: String(x.symbol || '').toUpperCase(),
-          name: x.name || x.label || '',
-          type: 'breadth', breadth: true, group_label: x.group,
-        })).filter((r) => r.ticker))
+        setBreadthPayload({ symbols: d.symbols || [], display_symbols: d.display_symbols || {} })
       })
       .catch(() => { /* leave empty — the chip then shows nothing, never a crash */ })
     return () => { alive = false }
-  }, [breadthAll.length])
+  }, [breadthPayload])
 
   // Debounced predictive fetch — the same endpoint + cadence the desktop
   // SymbolSearch uses (150ms, aborting the in-flight request on re-key).
@@ -117,11 +121,11 @@ function SearchBody({ onClose, onPick, economic = false }) {
 
   const commit = (ticker) => {
     haptics.tap()
-    onPick(ticker)
+    onPick(canonicalTicker(ticker, breadthAll))
   }
 
   const q = query.trim().toUpperCase()
-  const exactShown = results.some((r) => r.ticker === q)
+  const exactShown = results.some((r) => r.ticker === q || shownTicker(r) === q)
   const recents = q ? [] : listRecents()
 
   /* ⛔ THE ROW NOW SAYS WHAT THE SYMBOL IS. It used to render a logo, a ticker
@@ -149,10 +153,10 @@ function SearchBody({ onClose, onPick, economic = false }) {
       <button key={`${keyPrefix}${r.ticker}`} type="button"
         className={`${styles.resultRow} ${badge?.kind === 'delisted' ? styles.resultRowDelisted : ''}`}
         onClick={() => commit(r.ticker)}>
-        {r.breadth
+        {isBreadthRow(r)
           ? <img src={uctMark} alt="" width={30} height={30} className={styles.resultMark} />
           : <CompanyLogo sym={r.ticker} size={30} round />}
-        <span className={styles.resultTicker}>{r.ticker}</span>
+        <span className={styles.resultTicker}>{shownTicker(r)}</span>
         <span className={styles.resultName}>{r.name || ''}</span>
         <span className={styles.resultTags}>
           {exchange && <span className={styles.resultExch}>{exchange}</span>}

@@ -1526,6 +1526,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/j2/chart-plan/benchmarks",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/j2/community/positions",
       "rate_limit_family": "member-workspace",
       "tier": "member"
@@ -1541,6 +1547,42 @@
       "path": "/api/j2/community/trades",
       "rate_limit_family": "member-workspace",
       "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/earnings-prep/soon",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/entry-context",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/entry-context/list",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/entry-context/meta",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/entry-context/position/{position_id}",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/entry-context/trade/{trade_id}",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -1592,6 +1634,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/j2/my-playbook",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/j2/note-folders",
       "rate_limit_family": "member-workspace",
       "tier": "member"
@@ -1607,6 +1655,42 @@
       "path": "/api/j2/note-templates/{template_id}",
       "rate_limit_family": "member-workspace",
       "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notebook-fingerprint/blocks",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notebook-fingerprint/blocks/{note_id}/{embed_key}",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notebook-fingerprint/compute",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notebook-fingerprint/meta",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notebook-visual-playbook/cards",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/notebook-visual-playbook/trades/{trade_id}/before-after",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -1856,6 +1940,24 @@
     },
     {
       "method": "GET",
+      "path": "/api/j2/plan-grades/discipline",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/plan-grades/status",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/plan-grades/trades/{trade_id}",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/j2/positions",
       "rate_limit_family": "member-workspace",
       "tier": "member"
@@ -1892,6 +1994,42 @@
     },
     {
       "method": "GET",
+      "path": "/api/j2/research-capture/passed-setups",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/research-capture/transcripts/{symbol}/quarters",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/research-capture/transcripts/{symbol}/{quarter}",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/review-drafts/daily",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/review-drafts/monthly",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/review-drafts/weekly",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/j2/reviews/search",
       "rate_limit_family": "member-workspace",
       "tier": "member"
@@ -1910,9 +2048,27 @@
     },
     {
       "method": "GET",
+      "path": "/api/j2/setups-board",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/j2/share/links",
       "rate_limit_family": "member-workspace",
       "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/similar-names/templates",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/similar-names/{note_id}/{embed_key}",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
     },
     {
       "method": "GET",
@@ -1925,6 +2081,18 @@
       "path": "/api/j2/tax-report",
       "rate_limit_family": "member-workspace",
       "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/template-gallery",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/j2/template-gallery/{gallery_id}",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
     },
     {
       "method": "GET",

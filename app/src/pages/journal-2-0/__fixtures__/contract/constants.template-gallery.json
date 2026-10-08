@@ -1,0 +1,23 @@
+{
+  "_contract": {
+    "case": "constant",
+    "endpoint": "template_gallery.CATEGORIES / REPORT_REASONS",
+    "path": "",
+    "status": 0
+  },
+  "body": {
+    "categories": [
+      "trade_plan",
+      "journal",
+      "research",
+      "review"
+    ],
+    "reportReasons": [
+      "spam",
+      "personal_info",
+      "offensive",
+      "broken",
+      "other"
+    ]
+  }
+}

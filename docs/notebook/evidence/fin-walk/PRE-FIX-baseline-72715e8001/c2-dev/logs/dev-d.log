@@ -1,0 +1,19 @@
+PASS    [c2 1280] flags: auth payload: every c2 switch reads ON {"email": "q1c2m3326602@local.dev"} 
+PASS    [c2 1280] earnings prep: Reporting soon lists the member's stock that reports this week {"box_text": "REPORTING SOON\nYour watchlist, flagged and open-position names, next 7 days\n$AMZN\nFri, Oct", "report_day": "2026-10-09"} 
+FAIL    [c2 1280] earnings prep: one click builds the prep note, each part naming its source {"note": null, "body_chars": 0, "reach_error": "Locator.click: Timeout 15000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", n", "note_text": null} 
+FAIL    [c2 1280] transcript capture: select a passage from a saved call and save it as a cited quote {"door": true, "quarter": "FY2026 Q3 \u00b7 2026-10-01", "cited": "Saved to \u201cCall excerpt: example -- TSLA\u201d. Cited as TSLA earnings call FY2026 Q3 \u00b7 2026-10-", "sample_tsla_note": "cf44a2a8235e4bad9e2ad2921de38ea0", "reach_error": null} 
+PASS    [c2 1280] passed setups: the list on Research Home shows the passed name and how it moved since {} 
+PASS    [c2 1280] passed setups: add a name you passed on: scored from the day you passed {"row_text": "$IBM Added by you Saved Sep 1 \u00b7 from the Sep 1 close +1 day +0.2% +5 days +0.7% +10 days +", "day": "2026-09-01"} 
+PASS    [c2 1280] passed setups: remove it again {} 
+FAIL    [c2 1280] overnight jobs: find-similar precompute, passed-setups refresh and one awareness scan (child process, sandbox data) {"result": "{\"template\": {\"found\": false, \"tag\": null}, \"passed_setups\": {\"added\": 0, \"scored\": 2}, \"p"} 
+FAIL    [c2 1280] note resurfacing: a notice for the crossed stop opens the note at 'What you wrote then' {"insights_api_status": 200, "insights": "{\"insights\": [{\"id\": 1, \"kind\": \"note_level_touch\", \"symbol\": \"AMD\", \"headline\": \"AMD reac", "door": null, "sheet_text": null, "reach_error": null, "explainer": 0} 
+PASS    [c2 1280] setups board: the board lists the open chart plans (after the overnight run) {} 
+FAIL    [c2 1280] find similar: find similar after the overnight run: the matching name is listed {"symbol": "MSFT", "matches": 0, "sheet_text": "Find more like this\n\u00d7\nNAMES LIKE THIS CHART\n\nNo matches yet. Tagged charts are matched aga", "reach_error": null} 
+VERDICT c2: 11 steps, 5 FAIL
+  [1280] earnings prep: one click builds the prep note, each part naming its source
+  [1280] transcript capture: select a passage from a saved call and save it as a cited quote
+  [1280] overnight jobs: find-similar precompute, passed-setups refresh and one awareness scan (child process, sandbox data)
+  [1280] note resurfacing: a notice for the crossed stop opens the note at 'What you wrote then'
+  [1280] find similar: find similar after the overnight run: the matching name is listed
+raw log written: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\61625d99-f8db-4269-a728-231c08d3da11\scratchpad\fin\walk\dev\c2\walk.json
+EXIT 1

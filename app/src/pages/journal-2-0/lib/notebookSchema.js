@@ -111,8 +111,38 @@ export const NOTEBOOK_TYPE_SCHEMA = Object.freeze({
 })
 
 /**
+ * ⛔⛔ WHICH SCHEMA INTRODUCED EACH NON-OPTIONAL ATTRIBUTE ON AN EXISTING TYPE —
+ * the client half of `NOTEBOOK_ATTR_SCHEMA` in `notebook_schema.py`, pinned equal
+ * by `tests/test_notebook_schema_guard.py` (keys are `'<nodeType>.<attr>'`).
+ *
+ * A missing TYPE blanks a note; a missing ATTRIBUTE is dropped in silence — the
+ * note opens fine and its next save writes the attribute away. So an attribute
+ * whose absence changes what the note means gets a row here, and a bundle whose
+ * live schema lacks it declares below its level (`deriveDeclaredSchema`). The
+ * server counts a row only when the stored node carries a value for it.
+ *
+ * ⛔ Same rules as the type table: never remove a row, never revert this file,
+ * levels continue the type table's numbering.
+ */
+export const NOTEBOOK_ATTR_SCHEMA = Object.freeze({
+  // ── 4: wave 13 lane 13H-1 (2026-10-02) — chart plan data on a chart embed ──
+  // ⛔ NEVER-REVERT. `widgetEmbed.ta`: setup tag, frozen fingerprint, plan block
+  // (lib/chartPlan.js). An editor without it would save the note without it.
+  'widgetEmbed.ta': 4,
+})
+
+/** Does `schema` register the attribute `key` ('<nodeType>.<attr>')? */
+function attrRegistered(schema, key) {
+  const dot = key.indexOf('.')
+  const type = schema?.nodes?.[key.slice(0, dot)]
+  const attr = key.slice(dot + 1)
+  return Boolean(type && (type.attrs?.[attr] || type.spec?.attrs?.[attr]))
+}
+
+/**
  * The newest schema a bundle whose editor has `schema` can READ: the largest N
- * such that EVERY type the table introduces at or below N is registered.
+ * such that EVERY type the table introduces at or below N is registered, and
+ * every attribute `NOTEBOOK_ATTR_SCHEMA` introduces at or below N with it.
  *
  * ⛔ DERIVED FROM THE LIVE SCHEMA, NEVER `max(table)`. The table keeps every
  * entry through a rollback (see above), so after "revert the features, keep this
@@ -124,9 +154,14 @@ export const NOTEBOOK_TYPE_SCHEMA = Object.freeze({
  */
 export function deriveDeclaredSchema(schema) {
   const registered = (name) => Boolean(schema?.nodes?.[name] || schema?.marks?.[name])
-  let declared = Math.max(...Object.values(NOTEBOOK_TYPE_SCHEMA))
+  let declared = Math.max(...Object.values(NOTEBOOK_TYPE_SCHEMA), ...Object.values(NOTEBOOK_ATTR_SCHEMA))
   for (const [name, level] of Object.entries(NOTEBOOK_TYPE_SCHEMA)) {
     if (!registered(name)) declared = Math.min(declared, level - 1)
+  }
+  // Wave 13 13H-1: an attribute row counts like a type — a bundle whose editor
+  // lacks it (production before 13H, or a rollback of the attr) declares below.
+  for (const [key, level] of Object.entries(NOTEBOOK_ATTR_SCHEMA)) {
+    if (!attrRegistered(schema, key)) declared = Math.min(declared, level - 1)
   }
   return Math.max(declared, 0)
 }

@@ -1,0 +1,12 @@
+PASS    [c2 1280] flags: auth payload: every c2 switch reads ON {"email": "q1c2m3326602@local.dev"} 
+PASS    [c2 1280] transcript capture: select a passage from a saved call and save it as a cited quote {"door": true, "quarter": "FY2026 Q3 \u00b7 2026-10-01", "cited": "Already saved to \u201cCall excerpt: example -- TSLA\u201d. Cited as TSLA earnings call FY2026 Q3 \u00b7 ", "sample_tsla_note": "cf44a2a8235e4bad9e2ad2921de38ea0", "reach_error": null} 
+PASS    [c2 1280] overnight jobs: find-similar precompute, passed-setups refresh and one awareness scan (child process, sandbox data) {"result": "{\"block_keys\": [\"asOf\", \"embedId\", \"embedKey\", \"fingerprint\", \"fingerprintSource\", \"frozen"} 
+PASS    [c2 1280] note resurfacing: the notices for the two crossed stops are in the in-app inbox (Settings, Voice Insights Inbox) {"insights_api_status": 200, "first_notice_text": null} http=500 /api/voice/cost
+FAIL    [c2 1280] note resurfacing: the notice opens the note at 'What you wrote then': the version that first named the stop {"landed": "/journal/notebook?note=649dba03ea9f414da59a309280b92634&resurfaceVersion=eb165ef0d56d4de28", "sheet_text": "What you wrote then\n\u00d7\nBack to the note as it is now", "reach_error": null, "expected_version": "eb165ef0d56d4de282a2d0c271379fa6", "explainer": 0} 
+INFO    [c2 1280] note resurfacing: a plan drawn in one sitting has no saved version naming its stop, so its notice opens the note itself, with no sheet (by design: note_levels.project_note) {"amd_link": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30"} 
+PASS    [c2 1280] setups board: the board lists the open chart plans (after the overnight run) {} 
+PASS    [c2 1280] find similar: find similar after the overnight run: the matching name is listed {"symbol": "MSFT", "matches": 1, "sheet_text": "Find more like this\n\u00d7\nNAMES LIKE MSFT (FLAT BASE BREAKOUT)\n\nToday\u2019s scored names closest t", "reach_error": null} 
+VERDICT c2: 8 steps, 1 FAIL
+  [1280] note resurfacing: the notice opens the note at 'What you wrote then': the version that first named the stop
+raw log written: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\61625d99-f8db-4269-a728-231c08d3da11\scratchpad\fin\walk\dev\c2\walk.json
+EXIT 1

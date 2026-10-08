@@ -1,0 +1,9 @@
+== Mc1-next-decides-at-once  (app/src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.jsx)
+verdict: KILLED (runner exit 1)
+restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.jsx (blob a97ab18da17e)
+× a missing anchor skips its step, after the bounded wait 64ms
+× a step whose anchor appears AFTER the tour opened is shown, not dropped 3282ms
+Test Files  2 failed (2)
+Tests  2 failed | 29 passed (31)
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.c1.test.jsx > (c) the step list is re-evaluated on every Next > a step whose anchor appears AFTER the tour opened is shown, not dropped
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/GenericTourEngine.test.jsx > how it walks (same contract as the base engine) > a missing anchor skips its step, after the bounded wait

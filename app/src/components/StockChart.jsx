@@ -2396,6 +2396,10 @@ export default function StockChart({
   hideWatermark = false,      // force the symbol watermark OFF regardless of settings (intraday popup)
   subtleSeparator = false,    // thin grey pane divider (matches the Model Book main chart) even without boldCandles
   hideLegend = false,         // suppress the crosshair OHLCV/overlay legend on hover (intraday popup)
+  hideScaleToggle = false,    // suppress the Arithmetic/Log/Percent price-scale toggle: a HOST veto for a canvas too
+                              // small for a 9px toolbar to clear the --tap-min touch floor (wave 13 lane 13I-2's
+                              // two side-by-side before/after charts) -- same shape as hideLegend/hideCompare, not a
+                              // user preference, so it never reaches chart settings.
   legendColor = null,         // workspace: override the base OHLCV legend text color (time + O/H/L/C/V). null = CSS default. Change%/overlay/indicator colors keep their own (semantic) colors.
   savedColors = [],           // shared saved-color swatches (workspace) → the drawing color picker reuses the same list as Chart Settings
   onSaveColor = null,         //   (hex) => void
@@ -2556,6 +2560,16 @@ export default function StockChart({
   // a labeled bottom strip sharing THIS chart's activeTool/undo/magnet state —
   // and hide the desktop ChartToolbar entirely (its dialogs still portal, its
   // ref API still serves). expandDrawToolbar() then opens the drawer.
+  // ⭐ Wave 13 lane 13H-4: the SAME prop also swaps `annotationsEditable`'s
+  // ChartToolbar for MobileDrawBar (the Notebook chart embed's Draw mode runs
+  // on that branch, never showDrawingTools — see docs/notebook/wave13-13h3.md
+  // §2). One name, two consumer branches, both opt-in: a caller that never
+  // passes it (every existing showDrawingTools OR annotationsEditable caller)
+  // is byte-identical to before. The annotations layer has no undo/redo
+  // history (useChartDrawings — undo/redo/canUndo/canRedo — backs ONLY the
+  // showDrawingTools overlay), so the bar's Undo/Redo tiles render permanently
+  // disabled there, same as the desktop ChartToolbar simply omitting them
+  // (`onUndo` absent ⇒ no row) — never invented history to make them live.
   mobileDrawBar = false,
   // "Back to live" chip: while the newest bar is off the right edge, a small »
   // button floats above the time axis; one tap snaps back to realtime. Only
@@ -18891,7 +18905,7 @@ export default function StockChart({
       {/* Price-scale mode toggle — sits on the right price axis, just above the
           volume/indicator pane stack (top of the sub-panes = main.bottom frac).
           26px allows for the time axis below the price-pane drawing area. */}
-      {!showFatalError && chartReady && (
+      {!showFatalError && chartReady && !hideScaleToggle && (
         <div
           className={styles.scaleToggle}
           /* Docked at the very bottom, lined up with the date axis (right: 6px keeps
@@ -20279,7 +20293,31 @@ export default function StockChart({
             selectedId={annotationsEditable ? selectedId : null}
             setSelectedId={setSelectedId}
             repeatMode={repeatMode}
+            quickBarInset={annotationsEditable && mobileDrawBar ? 62 : 10}
           />
+          {/* Wave 13 lane 13H-4: the SAME MobileDrawBar ⇄ ChartToolbar swap the
+              showDrawingTools branch has (above), now on the annotations
+              branch the Notebook chart embed's Draw mode actually runs on
+              (docs/notebook/wave13-13h3.md §2, §8 open item). Opt-in via
+              `mobileDrawBar` — unset on every existing annotationsEditable
+              caller (Model Book, Setup Library, index-pane marks), so none of
+              them change behaviour. No `open`/`onClose` state: this block only
+              renders while annotationsEditable is already true, so the bar is
+              visible for the whole of Draw mode; the embed's own "Done"
+              control (outside StockChart) is what exits annotate mode, so
+              MobileDrawBar's own Done just clears the armed tool. */}
+          {annotationsEditable && mobileDrawBar && (
+            <MobileDrawBar
+              open
+              onClose={NOOP}
+              activeTool={activeTool}
+              setActiveTool={setActiveTool}
+              magnet={magnet}
+              setMagnet={setMagnet}
+              repeatMode={repeatMode}
+              setRepeatMode={handleSetRepeatMode}
+            />
+          )}
           {annotationsEditable && (
             <ChartToolbar
               favBoundsRef={containerRef}
@@ -20316,6 +20354,7 @@ export default function StockChart({
               hidePatterns
               hideCompare
               hideCountdown
+              hiddenHost={mobileDrawBar}
             />
           )}
         </div>

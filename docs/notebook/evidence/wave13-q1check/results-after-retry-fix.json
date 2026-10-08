@@ -1,0 +1,517 @@
+{
+  "meta": {
+    "port": 8628,
+    "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\q1check-after-data",
+    "member": "w13q1check@local.dev",
+    "headless": true,
+    "read_at_ms": [
+      100,
+      500,
+      2000
+    ],
+    "sandbox_healthy": true,
+    "stop_how": "graceful to the shutdown checkpoint, then forced exit"
+  },
+  "rows": [
+    {
+      "width": "1200",
+      "rep": 1,
+      "note_id": "429e8c536969483d96036db4eb16114c",
+      "click_to_url_ms": 644.8,
+      "readings": [
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 708.3,
+          "target_ms": 100
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 737.2,
+          "target_ms": 500
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 2016.0,
+          "target_ms": 2000
+        }
+      ],
+      "in_body_at_2s": false,
+      "typed_marker": "Q1CHK-1200-R1",
+      "typed_landed": "neither",
+      "note_after": {
+        "title": "",
+        "body_text": ""
+      },
+      "page_errors": [],
+      "screenshot": "q1check-1200-r1.png"
+    },
+    {
+      "width": "1200",
+      "rep": 2,
+      "note_id": "a595c6dc06a347799b91dea868f65c38",
+      "click_to_url_ms": 1082.7,
+      "readings": [
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 1093.6,
+          "target_ms": 100
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 1162.0,
+          "target_ms": 500
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 2007.5,
+          "target_ms": 2000
+        }
+      ],
+      "in_body_at_2s": false,
+      "typed_marker": "Q1CHK-1200-R2",
+      "typed_landed": "neither",
+      "note_after": {
+        "title": "",
+        "body_text": ""
+      },
+      "page_errors": [],
+      "screenshot": "q1check-1200-r2.png"
+    },
+    {
+      "width": "1200",
+      "rep": 3,
+      "note_id": "26c9a062a83849478c4234062fb5f636",
+      "click_to_url_ms": 218.8,
+      "readings": [
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 228.1,
+          "target_ms": 100
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 523.7,
+          "target_ms": 500
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 2019.3,
+          "target_ms": 2000
+        }
+      ],
+      "in_body_at_2s": false,
+      "typed_marker": "Q1CHK-1200-R3",
+      "typed_landed": "neither",
+      "note_after": {
+        "title": "",
+        "body_text": ""
+      },
+      "page_errors": [],
+      "screenshot": "q1check-1200-r3.png"
+    },
+    {
+      "width": "1200",
+      "rep": 4,
+      "note_id": "80266fd8a668417e931ce45d76df3ace",
+      "click_to_url_ms": 336.3,
+      "readings": [
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 344.9,
+          "target_ms": 100
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 570.0,
+          "target_ms": 500
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 2016.8,
+          "target_ms": 2000
+        }
+      ],
+      "in_body_at_2s": false,
+      "typed_marker": "Q1CHK-1200-R4",
+      "typed_landed": "neither",
+      "note_after": {
+        "title": "",
+        "body_text": ""
+      },
+      "page_errors": [],
+      "screenshot": "q1check-1200-r4.png"
+    },
+    {
+      "width": "1200",
+      "rep": 5,
+      "note_id": "10f139f7470d43cfb347ae15f149c60c",
+      "click_to_url_ms": 240.5,
+      "readings": [
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 304.2,
+          "target_ms": 100
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 513.8,
+          "target_ms": 500
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 2020.3,
+          "target_ms": 2000
+        }
+      ],
+      "in_body_at_2s": false,
+      "typed_marker": "Q1CHK-1200-R5",
+      "typed_landed": "neither",
+      "note_after": {
+        "title": "",
+        "body_text": ""
+      },
+      "page_errors": [],
+      "screenshot": "q1check-1200-r5.png"
+    },
+    {
+      "width": "390",
+      "rep": 1,
+      "note_id": "da21691a35f64e14a01116ac54d1c430",
+      "click_to_url_ms": 394.8,
+      "readings": [
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 402.7,
+          "target_ms": 100
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 519.4,
+          "target_ms": 500
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 2022.5,
+          "target_ms": 2000
+        }
+      ],
+      "in_body_at_2s": false,
+      "typed_marker": "Q1CHK-390-R1",
+      "typed_landed": "neither",
+      "note_after": {
+        "title": "",
+        "body_text": ""
+      },
+      "page_errors": [],
+      "screenshot": "q1check-390-r1.png"
+    },
+    {
+      "width": "390",
+      "rep": 2,
+      "note_id": "9240d7b16efd420b9ba317647fa0dc1e",
+      "click_to_url_ms": 728.6,
+      "readings": [
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 736.4,
+          "target_ms": 100
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 788.2,
+          "target_ms": 500
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 2014.7,
+          "target_ms": 2000
+        }
+      ],
+      "in_body_at_2s": false,
+      "typed_marker": "Q1CHK-390-R2",
+      "typed_landed": "neither",
+      "note_after": {
+        "title": "",
+        "body_text": ""
+      },
+      "page_errors": [],
+      "screenshot": "q1check-390-r2.png"
+    },
+    {
+      "width": "390",
+      "rep": 3,
+      "note_id": "c9ac3a38dbc44df7b1d651c0f5ad46d6",
+      "click_to_url_ms": 475.0,
+      "readings": [
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 537.0,
+          "target_ms": 100
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 578.0,
+          "target_ms": 500
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 2020.0,
+          "target_ms": 2000
+        }
+      ],
+      "in_body_at_2s": false,
+      "typed_marker": "Q1CHK-390-R3",
+      "typed_landed": "neither",
+      "note_after": {
+        "title": "",
+        "body_text": ""
+      },
+      "page_errors": [],
+      "screenshot": "q1check-390-r3.png"
+    },
+    {
+      "width": "390",
+      "rep": 4,
+      "note_id": "6dd1c58bc2074ba49ea01102db2fde48",
+      "click_to_url_ms": 524.0,
+      "readings": [
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 532.8,
+          "target_ms": 100
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 602.1,
+          "target_ms": 500
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 2033.3,
+          "target_ms": 2000
+        }
+      ],
+      "in_body_at_2s": false,
+      "typed_marker": "Q1CHK-390-R4",
+      "typed_landed": "neither",
+      "note_after": {
+        "title": "",
+        "body_text": ""
+      },
+      "page_errors": [],
+      "screenshot": "q1check-390-r4.png"
+    },
+    {
+      "width": "390",
+      "rep": 5,
+      "note_id": "34c09b69f21a4a23847902a88f55c546",
+      "click_to_url_ms": 433.3,
+      "readings": [
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 441.8,
+          "target_ms": 100
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": false,
+          "titleExists": false,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 540.1,
+          "target_ms": 500
+        },
+        {
+          "tag": "BODY",
+          "isTitle": false,
+          "inPM": false,
+          "pmExists": true,
+          "titleExists": true,
+          "hasFocusDoc": true,
+          "visibilityState": "visible",
+          "t_ms": 2010.6,
+          "target_ms": 2000
+        }
+      ],
+      "in_body_at_2s": false,
+      "typed_marker": "Q1CHK-390-R5",
+      "typed_landed": "neither",
+      "note_after": {
+        "title": "",
+        "body_text": ""
+      },
+      "page_errors": [],
+      "screenshot": "q1check-390-r5.png"
+    }
+  ]
+}

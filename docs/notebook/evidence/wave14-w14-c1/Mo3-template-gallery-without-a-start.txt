@@ -1,0 +1,9 @@
+== Mo3-template-gallery-without-a-start  (app/src/pages/journal-2-0/components/notebook/onboarding/tours/b1Core.js)
+verdict: KILLED (runner exit 1)
+restored: matches HEAD:app/src/pages/journal-2-0/components/notebook/onboarding/tours/b1Core.js (blob cd114787d89d)
+× no replayable tour beyond the base one is without a start (the engine navigates there) 7ms
+× W14-C1: the four editor tours start in a note; the rest on a Notebook screen (every one declares a start) 5ms
+Test Files  2 failed (2)
+Tests  2 failed | 117 passed (119)
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourRegistry.test.js > every replayable registry tour declares where it starts > no replayable tour beyond the base one is without a start (the engine navigates there)
+FAIL  src/pages/journal-2-0/components/notebook/onboarding/tours/b1Core.test.jsx > the B1 track is registered > W14-C1: the four editor tours start in a note; the rest on a Notebook screen (every one declares a start)

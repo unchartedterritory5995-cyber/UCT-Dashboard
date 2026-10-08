@@ -8,7 +8,7 @@
  * action modals arrive in Phase 4.
  */
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import {
   activeStop,
   positionPnlDollar,
@@ -31,6 +31,9 @@ import TickerPopup from '../../../components/TickerPopup'
 import UIcon from '../../../components/ui/UIcon'
 import { useGridSort } from '../../../lib/presentation/dataGrid'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
+import ThesisChip from './notebook/ThesisChip'
+import useThesisChips from '../hooks/useThesisChips'
+import { thesisChipsEnabled } from '../lib/thesisChips'
 import styles from './PositionsTable.module.css'
 
 export const POSITIONS_COLUMNS = [
@@ -78,7 +81,7 @@ function pnlCell(value, fmt) {
 
 const DASH = (title) => <span className={styles.dash} title={title || undefined}>—</span>
 
-function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, onDelete, onOptionClose, onOptionDelete }) {
+function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, onDelete, onOptionClose, onOptionDelete, thesisChip }) {
   // Option rows (merged into the same table as shares): all option-specific
   // values are precomputed on the row (no per-share price formula applies).
   const isOpt = !!position.isOption
@@ -186,7 +189,18 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
     }
     switch (key) {
       case 'symbol':
-        return position.symbol
+        // ⛔ Flag-off must be byte-identical to before the thesis chip existed
+        // (journalGrids.seedParity.test.jsx's snapshot: "a member-visible change,
+        // never updated through"). The flex wrapper exists only to lay the chip
+        // beside the ticker, so with no chip the cell is the bare symbol, exactly
+        // as it rendered before wave 13G-2.
+        if (!thesisChip) return position.symbol
+        return (
+          <span className={styles.symCell}>
+            {position.symbol}
+            {thesisChip && <ThesisChip chip={thesisChip} currentPrice={hasPrice ? current : null} />}
+          </span>
+        )
       case 'side':
         return sideBadge(position.side)
       case 'date':
@@ -316,7 +330,7 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
  * Phone card — one position per card (3-5 key fields + 44px actions),
  * replacing the dense table on ≤640px. Same sorted order as the table.
  */
-function PhoneCard({ position, current, onEdit, onClose, onDelete, onOptionClose, onOptionDelete }) {
+function PhoneCard({ position, current, onEdit, onClose, onDelete, onOptionClose, onOptionDelete, thesisChip }) {
   const isOpt = !!position.isOption
   const hasPrice = typeof current === 'number' && Number.isFinite(current)
   const allowFractional = isFractional(position)
@@ -346,20 +360,29 @@ function PhoneCard({ position, current, onEdit, onClose, onDelete, onOptionClose
          (`:525-527`), which renders `<PhoneCard>`, a component: a data attribute there would
          land on a React prop, not on a DOM node, so it sits on the card's own root instead. */
       data-hub-pos={String(position.id)}
+      /* ⛔ Lane FIN-A11Y round 2: the card is a named GROUP, not a button. It used to be
+         `role="button"` with the thesis chip and Edit/Close/Delete inside it, and interactive
+         content inside a button is ONE control to a screen reader. The primary action is the
+         real <button> on the title below; the chip and the three actions are its siblings.
+         The click handler stays as a pointer convenience (a tap anywhere on the card still
+         opens it); the keyboard and screen-reader door is the title button. tabIndex -1 keeps
+         the card focusable FROM A SCRIPT, which the delete-focus fallback relies on
+         (OpenPositionsTab: the card after a deleted one takes focus by this attribute). */
       onClick={handleCardClick}
-      role="button"
-      tabIndex={0}
-      aria-label={`${position.symbol} position — open chart, research, and actions`}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          handleCardClick(e)
-        }
-      }}
+      role="group"
+      tabIndex={-1}
+      aria-label={`${position.symbol} position`}
     >
       <div className={styles.cardHead}>
         <div className={styles.cardIdent}>
-          <span className={styles.cardSym}>{position.symbol}</span>
+          <button
+            type="button"
+            className={`${styles.cardSym} ${styles.cardOpen}`}
+            aria-label={`${position.symbol} position — open chart, research, and actions`}
+          >
+            {position.symbol}
+          </button>
+          {thesisChip && <ThesisChip chip={thesisChip} currentPrice={hasPrice ? current : null} />}
           {sideBadge(position.side, isOpt ? position.sideKind === 'long' : undefined)}
         </div>
         <div className={styles.cardFigures}>
@@ -488,6 +511,17 @@ export default function PositionsTable({
 }) {
   const isPhone = useIsPhone()
 
+  // Wave 13 lane 13G-2: one batch read for every (non-option) symbol on screen. Option
+  // rows are excluded -- their "current" is the contract's own mark, not the underlying's
+  // price, so a stop-distance number here would be wrong; a note on the underlying is
+  // reached through its own equity row when one exists.
+  const thesisSymbols = useMemo(
+    () => [...new Set(positions.filter((p) => !p.isOption).map((p) => p.symbol))],
+    [positions],
+  )
+  const { chips: thesisChips } = useThesisChips(thesisSymbols)
+  const thesisOn = thesisChipsEnabled()
+
   // Sort on the price the ROWS display (live tick → broker mark), not the
   // raw feed — otherwise after-hours broker rows show values but sort as
   // blanks and sink to the bottom.
@@ -532,6 +566,7 @@ export default function PositionsTable({
             onDelete={onDelete}
             onOptionClose={onOptionClose}
             onOptionDelete={onOptionDelete}
+            thesisChip={(!p.isOption && thesisOn) ? thesisChips[p.symbol] : null}
           />
         ))}
       </div>
@@ -586,6 +621,7 @@ export default function PositionsTable({
               onDelete={onDelete}
               onOptionClose={onOptionClose}
               onOptionDelete={onOptionDelete}
+              thesisChip={(!p.isOption && thesisOn) ? thesisChips[p.symbol] : null}
             />
           ))}
         </tbody>

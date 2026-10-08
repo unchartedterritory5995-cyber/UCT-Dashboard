@@ -368,6 +368,79 @@ def _withheld_reason(codes: Sequence[str]) -> str:
 UNSUPPLIED_OTHER_SYMBOL = "other-symbol:unsupplied"
 UNSUPPLIED_LOWER_TF = "lower-tf:unsupplied"
 
+#: ⭐ PHASE 5 -- the codes a ``sym`` read is refused under now that the lane DOES
+#: supply another symbol (``_symbol_bars``): a spelling the store cannot hold, one
+#: that also names an index / commodity, or more than ``maxOtherSymbols`` tickers.
+#: Twin of ``evaluability.js::crossSymbolAlertCode``.
+OTHER_SYMBOL_UNSERVABLE = "other-symbol:unservable"
+OTHER_SYMBOL_AMBIGUOUS = "other-symbol:ambiguous"
+OTHER_SYMBOL_FAN_OUT = "other-symbol:fan-out"
+
+
+def _cross_context() -> Mapping[str, Any]:
+    # the light reader (no model client, no schema validator) of ``crossContext.json``
+    from api.services import conversation_preflight
+    return conversation_preflight.cross_context()
+
+
+def store_ticker(ticker: str) -> str:
+    """``BRK.B`` -> ``BRK-B`` (the store's key; ``otherSymbols.js::storeTickerOf``)."""
+    m = re.fullmatch(r"([A-Z]{1,5})\.([A-Z])", ticker)
+    return f"{m.group(1)}-{m.group(2)}" if m else ticker
+
+
+def cross_symbol_refusal(tickers: Sequence[str]) -> Optional[str]:
+    """⭐ PHASE 5 -- why this lane cannot supply ``tickers``, or ``None`` (it can)."""
+    if not tickers:
+        return None
+    cc = _cross_context()
+    pattern = re.compile(cc["tickerPattern"])
+    if any(not pattern.match(t) for t in tickers):
+        return OTHER_SYMBOL_UNSERVABLE
+    if any(t in set(cc["ambiguousBare"]) for t in tickers):
+        return OTHER_SYMBOL_AMBIGUOUS
+    if len({store_ticker(t) for t in tickers}) > int(cc["maxOtherSymbols"]):
+        return OTHER_SYMBOL_FAN_OUT
+    return None
+
+
+#: ⭐ PHASE 5 -- a SHORT-LIVED cache of another symbol's bars, so the alerts of one
+#: cycle that read the same benchmark read the store once. Keyed (ticker, tf, want);
+#: an entry lives ``_SYMBOL_TTL_S`` seconds -- under one 60-second cycle, so a later
+#: cycle always reads the store again (no stale bar outlives the cycle it was read in).
+_SYMBOL_TTL_S = 20.0
+_SYMBOL_CACHE_MAX = 64
+_SYMBOL_CACHE: "dict" = {}
+_SYMBOL_LOCK = threading.Lock()
+
+
+def _symbol_bars(ticker: str, tf: str, want: int) -> list:
+    """Another symbol's latest ``want`` bars at ``tf`` -- THE SCAN'S OWN LOCAL LOADER
+    (``scan_evaluator._read_bars``: ``bars_sqlite``, no network), so ``t`` is the
+    same store key the alert's own bars carry and ``sym``'s exact-``t`` alignment
+    holds. A bar the benchmark lacks is NaN there (UNKNOWN), never forward-filled."""
+    import time as _time
+    key = (ticker, str(tf), int(want))
+    now = _time.monotonic()
+    with _SYMBOL_LOCK:
+        hit = _SYMBOL_CACHE.get(key)
+        if hit is not None and now - hit[0] < _SYMBOL_TTL_S:
+            return hit[1]
+    from api.services.screener.scan_evaluator import _read_bars
+    try:
+        series = _read_bars(store_ticker(ticker), str(tf), int(want))
+    except Exception:                                    # noqa: BLE001 -- unknown, not wrong
+        series = []
+    with _SYMBOL_LOCK:
+        if len(_SYMBOL_CACHE) >= _SYMBOL_CACHE_MAX:
+            _SYMBOL_CACHE.clear()
+        _SYMBOL_CACHE[key] = (now, series)
+    return series
+
+
+#: The most bars another symbol is read for, whatever the formula asks.
+_SYMBOL_MAX_BARS = 5000
+
 
 def _external_reads(tree: Any) -> tuple:
     """(tickers read through ``sym``, whether any ``ltf`` node is read) -- an
@@ -417,6 +490,16 @@ def unsupplied_reads(tree: Any, opts: Optional[Mapping[str, Any]] = None) -> lis
 def _unsupplied_reason(tree: Any, codes: Sequence[str]) -> str:
     tickers, _lower = _external_reads(tree)
     parts = []
+    if OTHER_SYMBOL_UNSERVABLE in codes:
+        parts.append("it reads %s, a spelling the bar store cannot hold"
+                     % ", ".join("`sym('%s', …)`" % t for t in tickers))
+    if OTHER_SYMBOL_AMBIGUOUS in codes:
+        parts.append("it reads %s, letters that also name a market index or commodity, "
+                     "so which instrument it means cannot be settled"
+                     % ", ".join("`sym('%s', …)`" % t for t in tickers))
+    if OTHER_SYMBOL_FAN_OUT in codes:
+        parts.append("it reads %d other symbols (%s); an alert may read at most %d"
+                     % (len(tickers), ", ".join(tickers), int(_cross_context()["maxOtherSymbols"])))
     if UNSUPPLIED_OTHER_SYMBOL in codes:
         parts.append("it reads another symbol (%s), and the alert lane evaluates "
                      "each alert on its own symbol's bars only"
@@ -542,7 +625,19 @@ def _make_value_fn(def_id: str, plot_key: str,
     # plot armed, evaluated "no number" on every bar (or, in a comparison, a
     # confident 0), and never fired. Refused here, under the SAME gate and with
     # the same sibling rule as a whole-series withholding: it is one.
-    unsupplied = unsupplied_reads(tree, lane_opts)
+    # ⭐⭐ PHASE 5 -- ANOTHER SYMBOL IS SUPPLIED NOW. A servable, unambiguous ticker
+    # (at most `maxOtherSymbols`) is loaded at EVALUATION from the store the scan
+    # reads (`_symbol_bars`), at the alert's own timeframe; anything else keeps a
+    # named refusal. The supply check below is asked with the tickers marked
+    # supplied, so `ltf` keeps its own refusal unchanged.
+    tickers, _lower = _external_reads(tree)
+    cross_code = cross_symbol_refusal(tickers)
+    supplied_syms = tuple(tickers) if tickers and cross_code is None else ()
+    check_opts = (dict(lane_opts, symbols={t: (True,) for t in supplied_syms})
+                  if supplied_syms else lane_opts)
+    unsupplied = unsupplied_reads(tree, check_opts)
+    if cross_code:
+        unsupplied = [cross_code] + [c for c in unsupplied if c != UNSUPPLIED_OTHER_SYMBOL]
     if unsupplied:
         raise AdmissionRefused(
             "withheld",
@@ -558,7 +653,7 @@ def _make_value_fn(def_id: str, plot_key: str,
             + " An alert on it would arm and never fire. It still draws on a "
             "chart that can answer it.")
 
-    def column(bars: list, params: dict) -> list:
+    def column(bars: list, params: dict, tf: Optional[str] = None) -> list:
         from api.services import ast_interpret
         # 🔴 NOT COMPUTABLE IS NOT ZERO, AND THE COMPARISON IS WHERE IT STOPS
         # BEING VISIBLE. `interpret` pads a warmup with NaN and `_cmp` answers 0
@@ -571,9 +666,18 @@ def _make_value_fn(def_id: str, plot_key: str,
         short = ast_interpret.unresolved_lookback(tree, bars)
         if short:
             return [None] * len(bars)
+        run_opts = lane_opts
+        if supplied_syms:
+            # ⛔ NO TIMEFRAME, NO OTHER SYMBOL: its bars cannot be read at the
+            # alert's resolution, so every bar is UNKNOWN -- never the alert's own
+            # symbol in its place.
+            if not tf:
+                return [None] * len(bars)
+            want = min(_SYMBOL_MAX_BARS, len(bars) + int(getattr(fn, "lookback", 0) or 0))
+            run_opts = dict(lane_opts, symbols={t: _symbol_bars(t, tf, want) for t in supplied_syms})
         out = ast_interpret.interpret(tree, bars,
                                       inputs=_inputs_for(definition, params),
-                                      budget=budget, opts=lane_opts)
+                                      budget=budget, opts=run_opts)
         if len(out) != len(bars):
             raise AssertionError(
                 f"{address}: series is {len(out)} long for {len(bars)} bars. "
@@ -588,12 +692,16 @@ def _make_value_fn(def_id: str, plot_key: str,
         return [None if (v is None or (isinstance(v, float) and math.isnan(v)))
                 else v for v in out]
 
-    def fn(bars: list, params: dict) -> Optional[float]:
-        return _last_finite(column(bars, params))
+    def fn(bars: list, params: dict, tf: Optional[str] = None) -> Optional[float]:
+        return _last_finite(column(bars, params, tf))
 
     column.__name__ = f"_user_column_{def_id}_{plot_key}"
     fn.__name__ = f"_user_value_{def_id}_{plot_key}"
     fn.column = column                                  # type: ignore[attr-defined]
+    # ⭐ PHASE 5 -- the other symbols this plot reads: the evaluator passes the
+    # alert's timeframe (``tf=``) to a function that names any.
+    fn.reads_symbols = supplied_syms                    # type: ignore[attr-defined]
+    column.reads_symbols = supplied_syms                # type: ignore[attr-defined]
     # ⭐ THE TREE'S OWN DECLARED HISTORY, CARRIED ON THE ADMITTED OBJECT. The
     # evaluator sizes its bar fetch from this BEFORE it fetches, and a second
     # resolution of the definition to answer "how much past does it need" would

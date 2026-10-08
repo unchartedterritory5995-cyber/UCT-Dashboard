@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useId, useRef, useState } from 'react'
+import lazyChunk, { importWithOneRetry } from '../../lib/lazyChunk'
 import { Link, useNavigate } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
@@ -8,19 +9,45 @@ import useNotebookHome from '../../hooks/useNotebookHome'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { openNotebookTour } from './onboarding/tourControl'
 import {
-  SAMPLE_URL, SAMPLE_PREF, SAMPLE_COPY, readSamplePref, addSampleNotebook, removeSampleNotebook, isNotebookKey,
+  SAMPLE_URL, SAMPLE_PREF, SAMPLE_COPY, readSamplePref, addSampleNotebook, removeSampleNotebook, removedMessage, isNotebookKey,
   describeSampleHold,
 } from './onboarding/sampleNotebook'
 import { precheckNoteBatch } from '../../lib/noteBatch'
 import { openSpanningCitation } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
-import AiActionsBox from './AiActionsPanel'
+import { earningsPrepEnabled } from '../../lib/earningsPrepShared'
+import { passedSetupsEnabled } from '../../lib/researchCapture'
+import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
+import { setupsBoardEnabled, SETUPS_BOARD_PATH } from '../../lib/setupsBoardLink'
+import GettingStartedChecklist from './GettingStartedChecklist'
+import { checklistEnabled } from './onboarding/gettingStartedPref'
+import { FIRST_RUN_HEADING_ATTR } from './onboarding/keyboardDoors'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import LoadFailed from '../LoadFailed'
+import { SkipLinkPortal } from '../../../../components/skipLinks'
 import styles from './ResearchHome.module.css'
+
+// Wave 13 lane 13G-1: Passed setups, loaded only when its gate is on (the Notebook's
+// first-open bytes do not carry it).
+const PassedSetups = lazyChunk(() => import('./PassedSetups'))
+// Wave 14 lane W14-A: the first-run welcome's capability preview. Only a member with no
+// notes ever sees it, so every other open does not pay for it (plan G7: onboarding must not
+// regrow the Notebook's first-open bytes).
+const CapabilityPreview = lazyChunk(() => import('./onboarding/CapabilityPreview'))
+// Wave 14 perf lane (docs/notebook/wave14-perf.md): the same for wave 13's two other dark
+// boxes. "Reporting soon" loads only while notebook_earnings_prep_enabled is on, and the
+// review-drafts box's doc builder (`lib/reviewDrafts.js`) loads on its first click -- the box's
+// own flag is read from `lib/reviewDraftsFlag.js`, which carries nothing else.
+const ReportingSoon = lazyChunk(() => import('./ReportingSoon'))
+// Landing 12-15 (byte gate): wave 11's "Ask Notebook to do something" box, the lever
+// docs/notebook/wave14-perf.md section 5 named. Fetched only while notebook_ai_actions_enabled is
+// on (the box still checks the flag itself), at the same tree position in every return, so a
+// quiet/full flip keeps its state exactly as before.
+const AiActionsBox = lazyChunk(() => import('./AiActionsPanel'))
+const loadReviewDrafts = () => importWithOneRetry(() => import('../../lib/reviewDrafts'))
 
 const STATUS_LABEL = { watching: 'Watching', active: 'Active', invalidated: 'Invalidated', closed: 'Closed' }
 const CONFIDENCE_LABEL = { low: 'Low', medium: 'Medium', high: 'High' }
@@ -52,6 +79,67 @@ function NoteRow({ note, onOpen, reason }) {
         {reason || <span className={styles.rowDate}>{relativeDate(note.updatedAt)}</span>}
       </span>
     </button>
+  )
+}
+
+// Wave 13 lane 13F: one small, self-contained door on Home -- "Reviews that write
+// themselves". Renders nothing (and calls nothing) while notebook_review_drafts_enabled
+// is off, the same contract as the other Home boxes below (aiBox/prepBox/passedBox).
+export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '' }) {
+  const [busy, setBusy] = useState(null)
+  const [error, setError] = useState(null)
+  const headingRef = useRef(null)
+  if (!reviewDraftsEnabled()) return null
+
+  const run = async (period, fn) => {
+    if (busy) return
+    setBusy(period)
+    setError(null)
+    try {
+      // A failed fetch of the drafts chunk lands in the catch below, like a failed draft.
+      const { note } = await fn(await loadReviewDrafts())
+      onOpenNote(note)
+    } catch (e) {
+      // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
+      setError(e?.memberMessage || `Could not draft the ${period} review — try again.`)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  return (
+    <div className={styles.section} data-tour="review-drafts-home">
+      {/* Lane KEYS: the reviews and the morning board sat 21 and 24 Tabs into this page. This
+          link goes in the shell's skip-link slot (hidden until focused) and lands on the
+          heading below, so the next Tab is "Today's recap". Only when the Notebook hands in
+          its skip-link class: rendered alone, the box is unchanged. */}
+      {skipLinkClassName && (
+        <SkipLinkPortal>
+          <a href="#nb-home-reviews" className={skipLinkClassName}
+            onClick={(e) => { e.preventDefault(); headingRef.current?.focus() }}>
+            Skip to reviews and setups
+          </a>
+        </SkipLinkPortal>
+      )}
+      <div className={styles.sectionHeader}>
+        <h3 id="nb-home-reviews" ref={headingRef} tabIndex={-1} className={styles.sectionTitle}>Reviews that write themselves</h3>
+      </div>
+      <div className={styles.rows} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '4px 0' }}>
+        <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} data-tour="review-drafts-daily"
+          onClick={() => run('daily', (m) => m.draftDailyReview({ day: m.todayDayIso() }))}>
+          <UIcon name="book" size={14} gold={false} /> {busy === 'daily' ? 'Drafting…' : "Today's recap"}
+        </button>
+        <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} data-tour="review-drafts-weekly"
+          onClick={() => run('weekly', (m) => m.draftWeeklyReview({ weekStart: m.mondayOfIso() }))}>
+          <UIcon name="book" size={14} gold={false} /> {busy === 'weekly' ? 'Drafting…' : "This week's review"}
+        </button>
+        <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} data-tour="review-drafts-monthly"
+          onClick={() => run('monthly', (m) => m.draftMonthlyReview({ month: m.thisMonthIso() }))}>
+          <UIcon name="book" size={14} gold={false} /> {busy === 'monthly' ? 'Drafting…' : "This month's review"}
+        </button>
+      </div>
+      {error && <p className={styles.sampleError} role="alert">{error}</p>}
+    </div>
   )
 }
 
@@ -94,6 +182,12 @@ export default function ResearchHome({
   // Fix I-3: what the sample's "Remove it" pre-check needs from the Notebook -- the notes
   // this device holds as blocked (useBlockedNotes), and a title for each held note it names.
   blockedNoteIds = null, titleOf = () => null,
+  // Wave 13 lane 13Q-3 (click-budget fix, Q5): NotebookTab's own `openToday` -- the SAME
+  // function its All Notes list header's "Today" button already calls (one authority, never
+  // a second day-note opener). Optional so every existing caller/test keeps working unchanged.
+  onOpenToday = null,
+  // Lane KEYS: the Notebook's hidden-until-focused skip-link class, for this page's own link.
+  skipLinkClassName = '',
 }) {
   const { home, isLoading, error: homeError, refresh: refreshHome } = useNotebookHome()
   const navigate = useNavigate()
@@ -109,6 +203,12 @@ export default function ResearchHome({
   // for a paid member who has never had the sample (its ids are in `notebook_sample`).
   // While any recorded sample note is still out of Trash, a strip offers to remove them.
   const onboarding = notebookFlag('notebook_onboarding_enabled') === true
+  // Wave 14 integration ruling: W14-A's capability preview and sample promotion are NOT
+  // live on merge. They ride the SAME check as W14-D's checklist (checklistEnabled: the
+  // onboarding flag AND notebook_getting_started_enabled) -- one gate, no second flag.
+  // Off, the first-run screen is the pre-wave-14 screen: no preview chunk, no promotion,
+  // and no aria-describedby on the sample button.
+  const welcomeExtras = checklistEnabled(notebookFlag)
   const isPaid = useIsPaid()
   const { prefs, setPref } = usePreferences()
   const { mutate } = useSWRConfig()
@@ -120,6 +220,9 @@ export default function ResearchHome({
   const [sampleMessage, setSampleMessage] = useState(null)
   const anywayRef = useRef(null)
   const anywayConfirmRef = useRef(null)
+  // Wave 14 lane W14-A: the capability preview's sample promotion describes the sample
+  // button (aria-describedby), so the button and the sentence about it stay one door.
+  const samplePromoId = useId()
   const wantStatus = onboarding && hasAnyNotes && !!sample && !sample.dismissedAt
   const { data: sampleStatus, error: sampleStatusError, mutate: refreshSampleStatus } = useSWR(
     wantStatus ? SAMPLE_URL : null, fetchStatus, { revalidateOnFocus: false, shouldRetryOnError: false })
@@ -165,7 +268,7 @@ export default function ResearchHome({
         setSampleMessage({ alert: true, text: out.message })
         return
       }
-      setSampleMessage({ alert: false, text: SAMPLE_COPY.removed })
+      setSampleMessage({ alert: false, text: removedMessage(out) })
       mutate(isNotebookKey)
     } finally {
       setRemoving(false)
@@ -233,6 +336,16 @@ export default function ResearchHome({
     </>
   )
 
+  // ── Wave 14 lane W14-D's mount point: the "get started" checklist (plan 4.4) ──────────
+  // ⛔ ONE line for W14-D to fill, rendered in the first-run screen AND in all three Home
+  // returns below (plan 4.1: visible on first run and from then on until dismissed). In the
+  // Home returns it is the FIFTH child of the same fragment, after the four boxes, so a home
+  // that flips between quiet and full never remounts it mid-task. ResearchHome.welcome.test
+  // .jsx holds this to exactly one assignment and four uses.
+  // Integration (wave 14): W14-D's checklist fills it. It decides its own visibility
+  // (checklistEnabled + its closed key), so the slot itself is unconditional.
+  const gettingStartedSlot = <GettingStartedChecklist hasAnyNotes={hasAnyNotes} onCreateNote={onCreateNote} onAddSample={isPaid ? addSample : null} /> // W14-D
+
   if (isLoading) {
     // G-106 (Wave B lower-frequency sweep): a skeleton approximating Home's
     // own section-row layout (title, then a couple of rows) -- same idiom
@@ -248,9 +361,20 @@ export default function ResearchHome({
   }
 
   if (!hasAnyNotes) {
+    // Wave 14 lane W14-A (plan 4.1, default D1): today's buttons stay exactly as they are,
+    // first. Under them, a short text preview of what the Notebook can do (only the
+    // capabilities armed for this member) and the sample notebook's promotion. Both ride
+    // `welcomeExtras` (onboarding AND the checklist's own flag; integration ruling).
+    const canAddSample = onboarding && isPaid && !sample
     return (
       <div className={styles.firstRun}>
-        <h2 className={styles.firstRunTitle}>Welcome to your Notebook</h2>
+        {/* W14-keys: with the wave-14 switch on, the heading is where focus lands when the
+            auto-started base tour closes with nothing to hand focus back to (NotebookTour.jsx),
+            so the next Tab is "Start a note". Script-focusable only; off, it is the old heading. */}
+        <h2 className={styles.firstRunTitle}
+          {...(welcomeExtras ? { tabIndex: -1, [FIRST_RUN_HEADING_ATTR]: '' } : {})}>
+          Welcome to your Notebook
+        </h2>
         <p className={styles.firstRunHint}>
           This is where your research lives — theses, company notes, captured facts, and everything
           connected to your trades. It fills in as you use it.
@@ -265,8 +389,14 @@ export default function ResearchHome({
           <button type="button" className="btn btn-ghost" onClick={onImport}>
             <UIcon name="upload" size={14} gold={false} /> Import notes
           </button>
-          {onboarding && isPaid && !sample && (
-            <button type="button" className="btn btn-ghost" onClick={addSample} disabled={adding}>
+          {onOpenToday && (
+            <button type="button" className="btn btn-ghost" onClick={onOpenToday} title="Open today's daily note (Ctrl+Alt+D)">
+              <UIcon name="sun" size={14} gold={false} /> Today
+            </button>
+          )}
+          {canAddSample && (
+            <button type="button" className="btn btn-ghost" onClick={addSample} disabled={adding}
+              aria-describedby={welcomeExtras ? samplePromoId : undefined}>
               <UIcon name="book" size={14} gold={false} /> {adding ? SAMPLE_COPY.adding : SAMPLE_COPY.add}
             </button>
           )}
@@ -277,6 +407,12 @@ export default function ResearchHome({
           )}
         </div>
         {addError && <p className={styles.sampleError} role="alert">{addError}</p>}
+        {welcomeExtras && (
+          <Suspense fallback={null}>
+            <CapabilityPreview canAddSample={canAddSample} promoId={samplePromoId} />
+          </Suspense>
+        )}
+        {gettingStartedSlot}
         {sampleNotice}
       </div>
     )
@@ -296,16 +432,68 @@ export default function ResearchHome({
   // the same fragment in both returns, React keeps it, and its state, across the flip.
   const aiBox = (
     <div className={styles.aiSlot}>
-      <AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} />
+      {notebookFlag('notebook_ai_actions_enabled') === true
+        ? <Suspense fallback={null}><AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} /></Suspense>
+        : null}
     </div>
   )
+  // Wave 13 lane 13C: "Reporting soon" -- renders nothing while notebook_earnings_prep_enabled
+  // is off. The SECOND child of the same fragment in every return below, for the same reason
+  // as the box above: a home that flips between quiet and full must not remount it mid-draft.
+  // Wave 14 perf lane: loaded on demand, and only while its flag is on (the box itself still
+  // checks the flag too). Same element type at the same position, so a flip keeps its state.
+  const prepBox = earningsPrepEnabled()
+    ? <Suspense fallback={null}><ReportingSoon onOpenNote={openNote} /></Suspense>
+    : null
+  // Wave 13 lane 13G-1: "Passed setups" -- nothing (and no fetch) while
+  // notebook_passed_setups_enabled is off. The THIRD child of the same fragment in every
+  // return below, for the same reason as the two boxes above.
+  const passedBox = passedSetupsEnabled()
+    ? <Suspense fallback={null}><PassedSetups /></Suspense>
+    : null
+  // Wave 13 lane 13F: "Reviews that write themselves" -- the FOURTH child of the same
+  // fragment in every return below, for the same reason as the three boxes above (a
+  // home that flips between quiet and full must not remount it mid-draft).
+  const reviewBox = <ReviewDraftsHomeBox onOpenNote={openNote} skipLinkClassName={skipLinkClassName} />
+  // Wave 13 lane 13Q-3 (click-budget fix, Q5): same "one authority" reasoning as the three
+  // boxes above -- rendered in EVERY non-first-run, non-loading state (quiet-with-error,
+  // quiet, and the full home) so a member landing on bare-root Research Home always has a
+  // one-press door to Today, whatever else is or isn't on the page that day.
+  const todayBox = onOpenToday ? (
+    <button
+      type="button"
+      className="btn btn-ghost"
+      onClick={onOpenToday}
+      title="Open today's daily note (Ctrl+Alt+D)"
+      style={{ marginBottom: 10 }}
+    >
+      <UIcon name="sun" size={14} gold={false} /> Today
+    </button>
+  ) : null
+  // Finish program, lane NAV: the active setups board's one door (BETA-HANDOFF 1b said "No
+  // menu link to it yet"). Rendered beside Today in the same three states, and ONLY while
+  // notebook_setups_board_enabled is on: off, this is null and the page is the page it was
+  // (ResearchHome.setupsDoor.test.jsx compares the two renders). A link, never an import of
+  // the board page: Research Home is on the first-open path and the board carries charts.
+  const setupsLink = setupsBoardEnabled() ? (
+    <Link className={`btn btn-ghost ${styles.setupsLink}`} to={SETUPS_BOARD_PATH}
+      title="Your open chart plans, closest to their entry first">
+      Active setups
+    </Link>
+  ) : null
 
   if (nothingToShow && homeError) {
     return (
       <>
         {aiBox}
+        {prepBox}
+        {passedBox}
+        {reviewBox}
+        {gettingStartedSlot}
         <div className={styles.quietState}>
           {sampleNotice}
+          {todayBox}
+          {setupsLink}
           <LoadFailed what="your research home" error={homeError} onRetry={refreshHome} />
         </div>
       </>
@@ -316,8 +504,14 @@ export default function ResearchHome({
     return (
       <>
         {aiBox}
+        {prepBox}
+        {passedBox}
+        {reviewBox}
+        {gettingStartedSlot}
         <div className={styles.quietState}>
           {sampleNotice}
+          {todayBox}
+          {setupsLink}
           <p>Nothing needs your attention right now.</p>
           <p className={styles.quietHint}>Favorite a note or set a thesis to Active to see it here.</p>
         </div>
@@ -328,8 +522,14 @@ export default function ResearchHome({
   return (
     <>
     {aiBox}
+    {prepBox}
+    {passedBox}
+    {reviewBox}
+    {gettingStartedSlot}
     <div className={styles.home} data-export-exclude>
       {sampleNotice}
+      {todayBox}
+      {setupsLink}
       {/* ⛔ A CALM ENTRY POINT, NOT AN AI DASHBOARD. Research Home still
           answers "what was I working on, and where do I resume?" -- Ask is
           one affordance on that page, not the page. */}

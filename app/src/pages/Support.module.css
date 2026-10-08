@@ -520,6 +520,52 @@
 .faqA a { color: var(--ut-gold); text-decoration: none; }
 .faqA a:hover { text-decoration: underline; }
 
+/* ── Walkthroughs (wave 14, lane W14-0) ── */
+.walkthroughList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.walkthroughRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-bright);
+}
+.walkthroughRow:last-child { border-bottom: none; }
+/* Help > What's new (wave 14, W14-C2): one line of lead under the heading. */
+.whatsNewTitle {
+  margin-top: 0;
+}
+.whatsNewLead {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.walkthroughReplay {
+  flex-shrink: 0;
+  color: var(--ut-gold);
+  font-size: 12px;
+  text-decoration: none;
+}
+.walkthroughReplay:hover { text-decoration: underline; }
+/* W14-Q1: the floor is BOTH dimensions. With min-height alone the real browser measured
+   "Start" at 27 x 44 px and "Replay" at 37 x 44 px at 390 and 820 px
+   (docs/notebook/wave14-w14-q1.md, walk S4). */
+@media (max-width: 1024px) {
+  .walkthroughReplay {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--tap-min);
+    min-width: var(--tap-min);
+  }
+}
+
 /* ── New Ticket Form ── */
 .formWrap {
   background: var(--bg-surface);
@@ -908,7 +954,10 @@
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
-  .page { padding: 16px 12px 80px; }
+  /* The header's negative margin is derived from these two variables. They have to move with
+     the padding, or the header is 16 px wider than the page on each side and the page
+     scrolls sideways (measured: 406 px in a 390 px page; FIN-A11Y round 3). */
+  .page { --page-pad-top: 16px; --page-pad-x: 12px; padding: 16px 12px 80px; }
   .msgBubble { max-width: 92%; }
   /* 16px form fonts prevent iOS focus-zoom; comfortable touch padding. */
   .formSelect,
@@ -964,4 +1013,32 @@
   .backLink {
     min-height: var(--tap-min);
   }
+}
+
+/* W14-keys: "Skip to Walkthroughs" (Support.jsx). Same recipe as every other skip link
+   (NotebookTab.module.css .skipLink): invisible and pointer-transparent until it takes focus,
+   so it can never take a tap meant for something else (H14; a11y/skipLinkUntappable.test.js).
+   Inside the shell it renders in Layout's fixed skip-link slot. */
+.skipLink {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 7;
+  padding: 8px 14px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+  opacity: 0;
+  pointer-events: none;
+}
+.skipLink:focus {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
 }

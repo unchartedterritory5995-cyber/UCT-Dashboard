@@ -89,6 +89,26 @@ li:last-child > .row {
   background: var(--surface-2, rgba(255, 255, 255, 0.03));
 }
 
+/* A row that carries a thesis chip (lane FIN-A11Y, I-3): the link is a sibling that
+   COVERS the row, so no button or link is ever nested inside it. The chip sits above
+   the cover; everything else is under it and a click lands on the link. */
+.rowShell {
+  position: relative;
+  border-radius: var(--radius-lg);
+}
+
+.rowCover {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.chipSlot {
+  position: relative;
+  z-index: 2;
+  align-self: flex-start;
+}
+
 .ident {
   display: flex;
   flex-direction: column;

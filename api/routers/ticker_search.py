@@ -339,7 +339,8 @@ def ticker_search(
             from api.services import breadth_symbols as _breadth_syms
             b_front, b_back = [], []
             for rec in _breadth_syms.search(qq, limit):
-                row = {"ticker": rec["ticker"], "name": rec["name"], "type": "breadth",
+                row = {"ticker": rec["ticker"], "display_ticker": rec.get("display_ticker"),
+                       "name": rec["name"], "type": "breadth",
                        "exchange": "UCT", "entity_id": None,
                        "breadth": True, "group_label": rec.get("group_label"),
                        "universe_label": rec.get("universe_label")}
@@ -364,7 +365,10 @@ def ticker_search(
             from api.services.market_indicators import discovery as _mi_disc
             m_front, m_back = [], []
             for rec in _mi_disc.search(qq, limit=limit, include_breadth=False):
-                row = {"ticker": rec["symbol"], "name": rec["display"],
+                row = {"ticker": rec["symbol"],
+                       # ⭐ What the row SHOWS (NYMO); `ticker` (NYSE:MCO) is what it submits.
+                       "display_ticker": rec.get("display_symbol") or rec["symbol"],
+                       "name": rec["display"],
                        "type": "indicator", "exchange": "UCT", "entity_id": None,
                        "indicator": True, "group_label": rec["family_label"],
                        # ⭐ (2026-10-07) what the client needs to file a SERIES row as the

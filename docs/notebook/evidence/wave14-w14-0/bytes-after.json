@@ -1,0 +1,48 @@
+{
+  "budgets": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w14-0\\docs\\notebook\\perf-budgets.json",
+  "breaches": [
+    "bytes.notebook_first_open: 2,283,705 B > budget 2,260,793 B (+22,912 B over); largest chunks: assets/index-B1fVJRTG.js 555,363, assets/vendor-react-9O4lRsAt.js 378,369, assets/NotebookFlagGate-CkRjoDc0.js 352,122, assets/tiptap-CUBRVyw8.js 265,895"
+  ],
+  "bytes": {
+    "notebook_first_open": {
+      "bytes": 2283705,
+      "max": 2260793,
+      "baseline": 2153137,
+      "chunks": 66,
+      "largest": [
+        [
+          "assets/index-B1fVJRTG.js",
+          555363
+        ],
+        [
+          "assets/vendor-react-9O4lRsAt.js",
+          378369
+        ],
+        [
+          "assets/NotebookFlagGate-CkRjoDc0.js",
+          352122
+        ],
+        [
+          "assets/tiptap-CUBRVyw8.js",
+          265895
+        ],
+        [
+          "assets/index-aLycy4uk.js",
+          216080
+        ],
+        [
+          "assets/askInsert-DYmJFK2f.js",
+          95711
+        ],
+        [
+          "assets/ShortcutCheatSheet-hq3JNJOj.js",
+          42209
+        ],
+        [
+          "assets/FolderSidebar-BjJTx9aX.js",
+          41095
+        ]
+      ]
+    }
+  }
+}

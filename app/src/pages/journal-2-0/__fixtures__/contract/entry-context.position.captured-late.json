@@ -1,0 +1,196 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/entry-context/position/ec-old",
+    "note": "An older entry the backfill captured afterwards, labelled late.",
+    "path": "/api/j2/entry-context/position/ec-old",
+    "status": 200
+  },
+  "body": {
+    "context": {
+      "captureDay": "2026-10-05",
+      "captureKind": "captured_late",
+      "capturedAt": "2026-10-05T14:30:00+00:00",
+      "capturedLate": true,
+      "entryDay": "2026-10-01",
+      "fields": {
+        "breadth_pct_above_50": {
+          "asOf": "2026-10-05T10:15:00-04:00",
+          "detail": {
+            "degraded": false,
+            "measured": 3000,
+            "universe": "live"
+          },
+          "missing": null,
+          "source": "breadth_live.compute_live(cached_only) pct_above_50sma",
+          "value": 55.1
+        },
+        "days_to_earnings": {
+          "asOf": "2026-10-05T14:30:00+00:00",
+          "detail": {
+            "countedFrom": "2026-10-05",
+            "reportDate": "2026-10-20"
+          },
+          "missing": null,
+          "source": "earnings_table._next_report_date",
+          "value": 15
+        },
+        "exposure": {
+          "asOf": "2026-10-05",
+          "detail": null,
+          "missing": null,
+          "source": "journal_two.regime.get_current_regime (wire UCT Exposure Rating)",
+          "value": 72.5
+        },
+        "fingerprint": {
+          "asOf": "2026-09-30",
+          "detail": {
+            "mode": "nightly",
+            "version": 1
+          },
+          "missing": null,
+          "source": "journal_two.tech_fingerprint.compute",
+          "value": {
+            "as_of": "2026-09-30",
+            "fields": {
+              "adr_pct": {
+                "missing": "not_in_screener_row",
+                "source": "screener_row",
+                "value": null
+              },
+              "base_depth_pct": {
+                "missing": null,
+                "source": "screener_row",
+                "value": 14.0
+              },
+              "base_length_bars": {
+                "missing": "not_in_screener_row",
+                "source": "screener_row",
+                "value": null
+              },
+              "close_cv_pct": {
+                "missing": "not_in_screener_row",
+                "source": "screener_row",
+                "value": null
+              },
+              "ema_stack_intact": {
+                "missing": "not_in_screener_row",
+                "source": "screener_row",
+                "value": null
+              },
+              "ma_stack": {
+                "missing": "not_in_screener_row",
+                "source": "screener_row",
+                "value": null
+              },
+              "patterns": {
+                "missing": "not_in_screener_row",
+                "source": "screener_row",
+                "value": null
+              },
+              "pct_vs_sma10": {
+                "missing": "not_in_screener_row",
+                "source": "screener_row",
+                "value": null
+              },
+              "pct_vs_sma20": {
+                "missing": "not_in_screener_row",
+                "source": "screener_row",
+                "value": null
+              },
+              "pct_vs_sma200": {
+                "missing": "not_in_screener_row",
+                "source": "screener_row",
+                "value": null
+              },
+              "pct_vs_sma50": {
+                "missing": "not_in_screener_row",
+                "source": "screener_row",
+                "value": null
+              },
+              "pole_pct": {
+                "missing": "not_in_screener_row",
+                "source": "screener_row",
+                "value": null
+              },
+              "pullback_depth_pct": {
+                "missing": "not_in_screener_row",
+                "source": "screener_row",
+                "value": null
+              },
+              "rs_line_trend": {
+                "missing": "not_in_screener_row",
+                "source": "screener_row",
+                "value": null
+              },
+              "rs_rank": {
+                "missing": null,
+                "source": "screener_row",
+                "value": 88
+              },
+              "vol_nweek_low": {
+                "missing": "not_in_screener_row",
+                "source": "screener_row",
+                "value": null
+              }
+            },
+            "mode": "nightly",
+            "requested_as_of": "2026-09-30",
+            "symbol": "X",
+            "v": 1
+          }
+        },
+        "member_screens": {
+          "asOf": "20261002",
+          "detail": {
+            "swept": 1
+          },
+          "missing": null,
+          "source": "user_definitions.list_for_user + screener.scan_store.hits",
+          "value": []
+        },
+        "regime": {
+          "asOf": "2026-10-05",
+          "detail": null,
+          "missing": null,
+          "source": "journal_two.regime.get_current_regime",
+          "value": "amber"
+        },
+        "rs_rank": {
+          "asOf": "2026-10-05T14:30:00+00:00",
+          "detail": {
+            "rsScore": 0.9
+          },
+          "missing": null,
+          "source": "rs_ranking.get_rs_for_ticker",
+          "value": 77
+        },
+        "uct_scans": {
+          "asOf": "2026-10-05",
+          "detail": {
+            "scans": [
+              "pullback_ma",
+              "gapper_news",
+              "remount"
+            ]
+          },
+          "missing": null,
+          "source": "engine.get_candidates / engine.candidate_tickers",
+          "value": [
+            "remount"
+          ]
+        }
+      },
+      "symbol": "ECAM",
+      "trigger": "backfill",
+      "version": 1,
+      "why": null
+    },
+    "key": {
+      "entryDay": "2026-10-01",
+      "symbol": "ECAM"
+    },
+    "reason": null,
+    "status": "captured"
+  }
+}

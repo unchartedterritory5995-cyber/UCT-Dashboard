@@ -30,6 +30,7 @@ import {
 } from '../../lib/tagTree'
 import styles from './FolderSidebar.module.css'
 import { useSearchUsedTelemetry } from '../../lib/searchTelemetry'
+import { SkipLinkPortal } from '../../../../components/skipLinks'
 
 // Debounce before the search query reaches the server (below) — short enough
 // to feel instant, long enough that fast typing doesn't fire a request per
@@ -819,6 +820,8 @@ export default function FolderSidebar({
   onSelectFolder,
   activeTag,
   onSelectTag,
+  // Lane KEYS: a counter the parent bumps to ask for the search view with the cursor in the box.
+  searchRequest = 0,
   onOpenNote = () => {},
   activeNoteId = null,
   onToggleSidebar = () => {},
@@ -917,6 +920,15 @@ export default function FolderSidebar({
   useEffect(() => {
     if (mode === 'search') searchInputRef.current?.focus()
   }, [mode])
+
+  // Lane KEYS: the palette's "Search Notebook" (NotebookTab bumps `searchRequest`). Switch to
+  // search; the effect above focuses the box when the mode changes, and when the panel was
+  // already in search the box is focused here.
+  useEffect(() => {
+    if (!searchRequest) return
+    setMode('search')
+    searchInputRef.current?.focus()
+  }, [searchRequest])
 
   const trimmedQuery = query.trim()
 
@@ -1281,6 +1293,18 @@ export default function FolderSidebar({
   // before, else "All notes". (A deleted folder's subfolders move up a level and stay in
   // the list, so the first "after" is often where its contents went.)
   const asideRef = useRef(null)
+  // Wave 13 lane 13Q-3 (click-budget fix): a skip link into the folder panel itself. The
+  // Notebook's existing "Skip to note(s) list" (NotebookTab.jsx) lands in the MAIN pane
+  // (#notebook-pane) -- a DIFFERENT region than this sidebar, which renders BEFORE it in DOM.
+  // "All notes" (Q2, Q11) and the "Search notes" tab (Q4) live HERE, so that skip link cannot
+  // reach them; a keyboard member had to tab through the shared app nav AND the Journal's own
+  // tab bar to arrive at this panel's own controls. Visually hidden until it takes focus, same
+  // H14-safe recipe as every other skip link in this feature.
+  const sidebarSkipRef = useRef(null)
+  const skipToSidebar = (e) => {
+    e.preventDefault()
+    sidebarSkipRef.current?.focus()
+  }
   const onDeleteRequest = (id, name) => setDeleteTarget({
     id, name, after: neighbourKeys(keysInOrder(asideRef.current, 'data-folder-row'), String(id)),
   })
@@ -1308,6 +1332,12 @@ export default function FolderSidebar({
 
   return (
     <aside ref={asideRef} className={styles.sidebar} data-tour="sidebar">
+      <SkipLinkPortal>
+        <a href="#notebook-folder-nav" className={styles.skipLink} onClick={skipToSidebar}>
+          Skip to folder navigation
+        </a>
+      </SkipLinkPortal>
+      <h2 ref={sidebarSkipRef} tabIndex={-1} className="sr-only">Folder navigation</h2>
       {/* Header toolbar: collapse + mode switch (Folders / Search). */}
       <div className={styles.sbHeader}>
         <button
@@ -1520,7 +1550,8 @@ export default function FolderSidebar({
                   undefined` (a non-empty `serverSearchResults` implies the
                   response that produced it also carried `total`), mirroring
                   NotebookTab's own comment on the identical fallback. */}
-              <div className={styles.searchCount}>
+              <div className={styles.searchCount}
+                data-tour="search-count">
                 {searchCountText(serverSearchResults, searchTotal)}
               </div>
               {serverSearchResults.map((n) => {

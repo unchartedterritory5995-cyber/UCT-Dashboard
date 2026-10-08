@@ -1,0 +1,21 @@
+<<<<<<< OURS(prev)
+        <span className={styles.rating}>{fmtRating(rating) ?? '—'}</span>
+        {/* The row's own expand/collapse control — a REAL <button>, a sibling of
+            the ticker chip above, never a wrapper around it. `stopPropagation`
+            keeps this from also firing the row's onClick (which would toggle
+            twice — once here, once from the bubble — and net to a no-op, but
+            for the wrong reason). `aria-expanded` moved here from the row. */}
+        <button
+          type="button"
+          className={styles.caret}
+          aria-expanded={expanded}
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} ${sym} details`}
+          onClick={e => { e.stopPropagation(); onToggle() }}
+        >
+          <UIcon name={expanded ? 'chevronDown' : 'chevronRight'} size={14} gold={false} />
+        </button>
+=======
+        <span className={styles.rating}>{rating != null ? rating.toFixed(1) : '—'}</span>
+        <span className={styles.caret}>{expanded ? '▾' : '▸'}</span>
+>>>>>>> THEIRS(pre-landing)
+

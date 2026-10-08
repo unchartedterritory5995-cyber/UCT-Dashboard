@@ -40,6 +40,9 @@ import TagSuggestions from './TagSuggestions'
 import useTagSuggestions from '../../hooks/useTagSuggestions'
 import CaptureMenu from '../CaptureMenu'
 import LinkedNotesPanel from '../notebook/LinkedNotesPanel'
+import EntryContextCard from '../EntryContextCard'
+import { planGradingEnabled } from '../../hooks/usePlanGrade'
+import { notebookFlag } from '../../lib/offline/notebookFlags'
 import SymbolSearch from '../../../../components/chart/SymbolSearch'
 import { useJournalToast, JournalToast } from '../../lib/useJournalToast'
 import styles from './TradeDetailPage.module.css'
@@ -61,6 +64,11 @@ function tradeChartWindow(trade) {
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
 // gear and drawing tools. Lazy, so none of it lands in the eager entry chunk.
 const ChartPane = lazyChunk(() => import('../../../../components/chart/pane/ChartPane'))
+// Wave 13 lane 13A: the plan-grade card is loaded only while its gate is latched on, so the
+// trade page's own graph is unchanged with the feature dark.
+const PlanGradeCard = lazyChunk(() => import('./PlanGradeCard'))
+// Wave 13 lane 13I-2: before and after (dark behind notebook_visual_playbook_enabled).
+const TradeBeforeAfter = lazyChunk(() => import('./TradeBeforeAfter'))
 
 // Exit-efficiency honest-state copy. EFFICIENCY_TITLE = the pending default
 // (kept for the "not yet computed" state + shown in the chart footer then).
@@ -576,7 +584,8 @@ export default function TradeDetailPage() {
             {trade.result}
           </span>
         )}
-        <span style={{ marginLeft: 'auto', display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+        {/* A class, so it can wrap on a phone (an inline no-wrap style ran to 470 px at 390). */}
+        <span className={styles.headActions}>
           <ReplayButton trade={trade} />
           <SaveToNotebookButton trade={trade} tf={tf} />
           <TradeCardActions trade={trade} />
@@ -588,6 +597,10 @@ export default function TradeDetailPage() {
       {trade.id != null && (
         <LinkedNotesPanel tradeRef={String(trade.id)} tradeRefType="equity_trade" />
       )}
+      {/* Wave 13 lane 13E-2: the market context frozen at the fill — the SAME frozen row the
+          position page showed (the backend key is symbol + entry day, not an id), so the card
+          stays after the trade closes. Dark behind notebook_entry_context_enabled. */}
+      {trade.id != null && <EntryContextCard kind="trade" id={trade.id} />}
 
       <div className={styles.outcomeGrid}>
         <div className={styles.outcomeCell}>
@@ -746,6 +759,24 @@ export default function TradeDetailPage() {
       </div>
 
       {patchError && <div className={styles.errorLine} role="alert">Couldn’t save: {patchError}</div>}
+
+      {/* Wave 13 lane 13A: plan vs execution (dark behind notebook_plan_grading_enabled;
+          renders nothing while off). The setup chip writes through the same PATCH. */}
+      {planGradingEnabled() && (
+        <Suspense fallback={null}>
+          <PlanGradeCard
+            tradeId={trade.id}
+            trade={trade}
+            onTagSetup={(setup) => patchTrade({ setup }, { setup })}
+            onOpenNote={(noteId) => navigate(`/journal?j2tab=notebook&note=${encodeURIComponent(noteId)}`)}
+          />
+        </Suspense>
+      )}
+      {notebookFlag('notebook_visual_playbook_enabled') === true && trade.id != null && (
+        <Suspense fallback={null}>
+          <TradeBeforeAfter tradeId={trade.id} />
+        </Suspense>
+      )}
 
       {/* ── 3. The story ──────────────────────────────────────────────── */}
       <section className={styles.section}>

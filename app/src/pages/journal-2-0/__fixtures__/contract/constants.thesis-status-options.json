@@ -1,0 +1,32 @@
+{
+  "_contract": {
+    "case": "constant",
+    "endpoint": "note_properties.BUILTIN_PROPERTY_DEFS['builtin:thesis_status'].options",
+    "path": "",
+    "status": 0
+  },
+  "body": {
+    "options": [
+      {
+        "color": "blue",
+        "id": "watching",
+        "label": "Watching"
+      },
+      {
+        "color": "green",
+        "id": "active",
+        "label": "Active"
+      },
+      {
+        "color": "red",
+        "id": "invalidated",
+        "label": "Invalidated"
+      },
+      {
+        "color": "gray",
+        "id": "closed",
+        "label": "Closed"
+      }
+    ]
+  }
+}

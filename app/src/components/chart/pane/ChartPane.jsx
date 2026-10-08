@@ -201,6 +201,12 @@ function ChartPane({
   // the symbol, which carries the universe.
   const _miDisplay = miRec ? String(miRec.display || sym) : ''
   const _miPrefix = miRec && miRec.universe_label ? `${miRec.universe_label} · ` : ''
+  // ⭐ THE TICKER A MEMBER READS (2026-10-07): `UCT:A50` for the canonical `UCTA50`, and the
+  // conventional `NYMO` for the canonical id `NYSE:MCO` (registry `display_symbol`). Presentation only —
+  // `sym` (what the chart is keyed, fetched and persisted by) is unchanged.
+  const breadthLikeSym = isBreadth ? (breadthRec.display_symbol || sym)
+    : (isIndicatorSeries && (miRec.display_symbol || miRec.symbol)
+      ? String(miRec.display_symbol || miRec.symbol) : sym)
   const breadthLikeName = isBreadth ? breadthRec.name
     : (_miPrefix && _miDisplay.startsWith(_miPrefix) ? _miDisplay.slice(_miPrefix.length) : _miDisplay)
   const { isEtf } = useEtfSymbols()
@@ -433,7 +439,7 @@ function ChartPane({
   const headerLabel = _themeViewLabel
     ? _themeViewLabel
     : isBreadthLike
-    ? `${sym} · ${breadthLikeName}`
+    ? `${breadthLikeSym} · ${breadthLikeName}`
     : isEcon
     ? (econName && econName !== econSym ? `${econName} · ${econSym}` : econSym)
     : themeIdx.isIndex
@@ -936,7 +942,7 @@ function ChartPane({
             // with the indicator's full name beneath it, mirroring a stock's ticker +
             // company name.
             liveUpdates: false,
-            watermark: sym,
+            watermark: breadthLikeSym,
             watermarkName: breadthLikeName,
             // UCT pseudo-ticker — its watermark logo is the UCT compass brand mark,
             // not a (wrong) company-logo lookup on the synthetic symbol.

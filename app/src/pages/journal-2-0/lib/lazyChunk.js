@@ -51,7 +51,11 @@ export const chunkRetry = {
   importUrl: (specifier) => import(/* @vite-ignore */ specifier),
 }
 
-export function importWithOneRetry(load, waitMs = RETRY_WAIT_MS) {
+const hasDefault = (mod) => !!mod && 'default' in mod
+
+/** `accept` says whether a module fetched under the retry name is the one the caller wants.
+ *  Views pass nothing (a default export); a data chunk (a tour's steps) passes its own test. */
+export function importWithOneRetry(load, waitMs = RETRY_WAIT_MS, accept = hasDefault) {
   return load().catch((err) => {
     // Only a failed FETCH is worth asking for again. A module that loaded and then threw is a
     // bug, and a second evaluation would throw the same way.
@@ -63,7 +67,7 @@ export function importWithOneRetry(load, waitMs = RETRY_WAIT_MS) {
         // Every caller hands a plain `() => import('./X')` of a default export. A module with no
         // `default` would mean a loader that maps its import; then the original failure stands
         // and takes its usual path, rather than a view that renders `undefined`.
-        if (mod && 'default' in mod) return mod
+        if (accept(mod)) return mod
         throw err
       })
     })
