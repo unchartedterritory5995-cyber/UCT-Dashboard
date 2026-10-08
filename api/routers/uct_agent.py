@@ -81,6 +81,11 @@ class TurnIn(BaseModel):
     # The manifest wire contract version (app/src/agent/contract/manifest.contract.json).
     # Absent = a browser from before v1; it still works (the entries simply lack `undo`).
     manifestVersion: Optional[int] = None
+    # Capability routing (app/src/agent/routing.js): {version, groups: [{id, title}], selected: [id]}.
+    routing: Optional[dict] = None
+    # The ONE bounded second call after the model asked for more action groups (need_groups):
+    # the member's message is already stored, so it is not stored again.
+    reroute: bool = False
     pending: Optional[dict] = None
     recentOutcome: Optional[str] = None
     voice: bool = False
@@ -108,7 +113,10 @@ def agent_turn(body: TurnIn, user: dict = Depends(require_admin_dark)):
     try:
         cid = store.ensure_conversation(uid, body.conversationId, body.message)
         history = store.get_turns(uid, cid) or []
-        store.add_turn(uid, cid, "member", body.message, {"voice": bool(body.voice)})
+        if body.reroute and history and history[-1].get("role") == "member" and history[-1].get("text") == body.message:
+            history = history[:-1]        # the same message, asked again with more actions
+        else:
+            store.add_turn(uid, cid, "member", body.message, {"voice": bool(body.voice)})
     except Exception:  # noqa: BLE001 -- logged with its traceback; the member gets a sentence
         log.exception("[uct-agent] conversation store failed before the model call")
         _give_back(uid)
@@ -117,7 +125,7 @@ def agent_turn(body: TurnIn, user: dict = Depends(require_admin_dark)):
         out = agent.run_turn(message=body.message, context=body.context, history=history,
                              capabilities=body.capabilities,
                              pending=body.pending, recent_outcome=body.recentOutcome,
-                             manifest_version=body.manifestVersion)
+                             manifest_version=body.manifestVersion, routing=body.routing)
     except agent.TurnError as e:
         _give_back(uid)
         store.add_turn(uid, cid, "outcome", f"Refused: {e}", {"kind": "error"})
@@ -129,13 +137,16 @@ def agent_turn(body: TurnIn, user: dict = Depends(require_admin_dark)):
         raise HTTPException(status_code=503, detail=f"UCT Agent is unavailable right now ({type(e).__name__}). No changes were made.")
     env, usage = out["envelope"], out["usage"]
     try:
-        turn_id = store.add_turn(uid, cid, "agent", env.get("reply") or (env.get("question") or {}).get("text") or "",
+        # A request for more action groups is plumbing, not a reply: nothing is stored for it.
+        turn_id = None if env.get("need_groups") else store.add_turn(uid, cid, "agent", env.get("reply") or (env.get("question") or {}).get("text") or "",
                              {"envelope": env, "citations": usage.get("citations")})
     except Exception:  # noqa: BLE001 -- the answer stands; only its transcript row is lost
         log.exception("[uct-agent] could not store the agent turn")
         turn_id = None
     store.record_telemetry(uid, cid, {
-        "path": "model", "disposition": env["disposition"],
+        # routing in the existing columns: path model | routed | reroute; disposition need_groups
+        "path": "reroute" if body.reroute else ("routed" if body.routing else "model"),
+        "disposition": "need_groups" if env.get("need_groups") else env["disposition"],
         "actions": [o.get("action") for o in env.get("ops") or []],
         "clarified": env["disposition"] == "clarify", "latency_ms": usage.get("latency_ms"),
         "model": usage.get("model"), "cost_usd": usage.get("cost_usd"),

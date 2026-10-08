@@ -24,6 +24,7 @@ import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expand
 import { traceStart, mark, traceEnd } from './trace'
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION } from './capabilities'
 import { registerBuiltins } from './builtins'
+import { routeManifest, routingEnabled } from './routing'
 import { agentTurn, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
 
@@ -96,6 +97,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   // browser: not an exactly-once guarantee.
   const interruptedRef = useRef(null)       // { sig, lines, at } from a mark found at load
   const undoRef = useRef([])                // newest last
+  const lastActionsRef = useRef([])         // actions of the last plan (routing keeps follow-ups' groups)
   const [, force] = useState(0)
   const rerender = () => force(n => n + 1)
 
@@ -466,6 +468,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       // Ops whose capability already resolved the target (a named saved list) run as-is.
       if (fast?.kind === 'ops' && fast.ops.every(o => o.target)) {
+        lastActionsRef.current = fast.ops.map(o => o.action)
         return await execute(fast.ops, { path: 'fast', mode: 'apply', member: text, voice })
       }
       if (fast?.kind === 'ops' && kindsOf(fast.ops).length === 1) {
@@ -513,10 +516,29 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         // Transaction-local aliases (new1…) are not context refs: they pass through.
         ? { ops: p.ops.map(o => ({ ...o, target: back[o.target] || o.target })) }
         : null
-      const res = await agentTurn({
+      // Capability ROUTING (agent/routing.js): only the action groups this message needs, the
+      // others named. If the model needs a group it wasn't given it plans NOTHING and says so
+      // (need_groups); we ask ONCE more with those groups. Nothing has executed in between.
+      const full = manifestFor(capCtx)
+      const routeOpts = { enabled: routingEnabled(), pendingActions: p?.kind === 'proposal' ? p.ops.map(o => o.action) : [], recentActions: lastActionsRef.current }
+      let routed = routeManifest(full, text, routeOpts)
+      mark('route', routed.routing ? `${routed.manifest.length}/${full.length}` : 'full')
+      const ask = (r, extra = {}) => agentTurn({
         conversationId: conversationRef.current, message: text, voice, pending,
-        context, capabilities: manifestFor(capCtx), manifestVersion: MANIFEST_VERSION,
+        context, capabilities: r.manifest, manifestVersion: MANIFEST_VERSION, routing: r.routing, ...extra,
       })
+      let res = await ask(routed)
+      const need = res.ok ? (res.data.envelope?.need_groups || []).filter(g => !routed.routing?.selected?.includes(g)) : []
+      if (res.ok && routed.routing && need.length) {
+        if (res.data.conversationId !== conversationRef.current) setConversationId(res.data.conversationId)
+        routed = routeManifest(full, text, routeOpts, [...routed.routing.selected, ...need])
+        mark('reroute', need.join(','))
+        res = await ask(routed, { conversationId: res.data.conversationId, reroute: true })
+        if (res.ok && (res.data.envelope?.need_groups || []).length) {
+          push({ role: 'agent', text: 'That needs more of UCT than I can plan in one step. Try asking for one part at a time.' })
+          return
+        }
+      }
       if (!res.ok) { push({ role: 'error', text: res.error }); return }
       if (res.data.conversationId !== conversationRef.current) setConversationId(res.data.conversationId)
       const env = res.data.envelope
@@ -536,6 +558,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
       const ops = bindSourceRefs(env.ops, refMap, { host, message: text }).map(o => ({ ...o, target: refMap[o.target]?.ref || o.target }))
+      lastActionsRef.current = ops.map(o => o.action)
       await execute(ops, { path: 'model', mode: env.disposition, member: null, voice })
     } finally {
       lockRef.current = false

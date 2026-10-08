@@ -76,6 +76,35 @@ _SCHEMA_KEYS = {"type", "properties", "required", "additionalProperties", "enum"
                 "items", "anyOf", "description"}
 
 
+# ── capability routing (app/src/agent/routing.js) ──────────────────────────────
+# The browser may send only the action GROUPS a message needs, plus the list of every group.
+# The model is told which groups exist but were not given; if it needs one it sets
+# `need_groups` and plans nothing, and the browser asks once more with those groups.
+_GROUP_ID = re.compile(r"^[a-z][a-zA-Z]{1,23}$")
+MAX_GROUPS = 24
+
+
+def validate_routing(routing: Any) -> dict | None:
+    """{groups: [{id, title}], selected: [id]} -> {"unselected": [{id, title}]} or None."""
+    if not isinstance(routing, dict):
+        return None
+    groups = routing.get("groups")
+    selected = routing.get("selected")
+    if not isinstance(groups, list) or not isinstance(selected, list):
+        return None
+    seen, out = set(), []
+    for g in groups[:MAX_GROUPS]:
+        if not isinstance(g, dict):
+            continue
+        gid = str(g.get("id") or "")
+        if not _GROUP_ID.match(gid) or gid in seen:
+            continue
+        seen.add(gid)
+        out.append({"id": gid, "title": str(g.get("title") or gid)[:160]})
+    sel = {str(x) for x in selected}
+    unselected = [g for g in out if g["id"] not in sel]
+    return {"unselected": unselected} if unselected else None
+
 def _closed_schema(node: Any, depth: int = 0) -> bool:
     """Only the structured-output-safe subset, every object closed and fully required."""
     if depth > 6 or not isinstance(node, dict) or set(node) - _SCHEMA_KEYS:
@@ -251,7 +280,7 @@ def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
     return {**env, "ops": out}
 
 
-def envelope_schema(capabilities: list[dict]) -> dict:
+def envelope_schema(capabilities: list[dict], unselected: list[dict] | None = None) -> dict:
     op_variants = [{
         "type": "object",
         "properties": {
@@ -266,7 +295,7 @@ def envelope_schema(capabilities: list[dict]) -> dict:
         ops_items = _compact_op_schema(capabilities)
     else:
         ops_items = {"anyOf": op_variants} if op_variants else {"type": "null"}
-    return {
+    schema = {
         "type": "object",
         "properties": {
             "disposition": {"type": "string", "enum": list(DISPOSITIONS)},
@@ -291,6 +320,13 @@ def envelope_schema(capabilities: list[dict]) -> dict:
         "required": ["disposition", "reply", "question", "ops", "unsupported_category", "research"],
         "additionalProperties": False,
     }
+    if unselected:
+        schema["properties"]["need_groups"] = {"anyOf": [
+            {"type": "null"},
+            {"type": "array", "items": {"type": "string", "enum": [g["id"] for g in unselected]}},
+        ]}
+        schema["required"].append("need_groups")
+    return schema
 
 
 _SYSTEM_HEAD = """You are UCT Agent, the general-purpose assistant built into UCT (Uncharted Territory), a charting and research platform for active stock traders. You can TALK (answer ANY question helpfully — general knowledge, writing help, everyday questions — with particular depth on trading, markets, technical analysis and UCT) and DO (operate UCT for the member using ONLY the actions listed under AVAILABLE ACTIONS).
@@ -342,8 +378,22 @@ def _arg_text(spec: dict) -> str:
     return t if isinstance(t, str) else "/".join(map(str, t or []))
 
 
-def system_prompt(capabilities: list[dict]) -> str:
+def system_prompt(capabilities: list[dict], unselected: list[dict] | None = None) -> str:
     """Generic rules + an action list GENERATED from the manifest."""
+    return _system_prompt_core(capabilities) + _routing_note(unselected)
+
+
+def _routing_note(unselected: list[dict] | None) -> str:
+    if not unselected:
+        return ""
+    lines = "\n".join(f"- {g['id']}: {g['title']}" for g in unselected)
+    return ("\nOTHER ACTION GROUPS exist in UCT but their actions are NOT listed above:\n" + lines + "\n"
+            "If doing what the member asked needs an action from one of these groups, set need_groups to those group ids, "
+            "use disposition clarify with ops [] and reply \"\", and plan nothing else: UCT will ask you again with those "
+            "actions listed. Never invent an action. Otherwise set need_groups to null.\n")
+
+
+def _system_prompt_core(capabilities: list[dict]) -> str:
     if not capabilities:
         return _SYSTEM_HEAD + "(none available here -- answer, clarify or say unsupported)\n" + _SYSTEM_TAIL
     lines = []
@@ -451,8 +501,16 @@ def _unreadable(reason: str, **shape) -> None:
     raise TurnError("UCT Agent returned something unreadable. Try rephrasing.")
 
 
-def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | None = None) -> dict:
+def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | None = None,
+                      unselected_ids: set[str] | None = None) -> dict:
     """The server-side gate between the model and the browser."""
+    need = env.get("need_groups") if unselected_ids else None
+    need = [g for g in need if g in unselected_ids] if isinstance(need, list) else []
+    if need:
+        # The model needs actions it was not shown: it plans NOTHING (whatever it emitted) and
+        # the browser asks once more with those groups. Never a partial plan.
+        return {"disposition": "clarify", "reply": "", "question": {"text": "Looking at more of UCT…", "choices": []},
+                "ops": [], "unsupported_category": None, "need_groups": sorted(set(need))}
     disp = env.get("disposition")
     if disp not in DISPOSITIONS:
         _unreadable("disposition", disposition=str(disp)[:20])
@@ -543,7 +601,8 @@ def _context_refs(context: dict) -> set[str]:
 
 def run_turn(*, message: str, context: dict, history: list[dict], capabilities: list | None = None,
              pending: dict | None = None, recent_outcome: str | None = None,
-             caller: Callable[..., Any] | None = None, manifest_version: int | None = None) -> dict:
+             caller: Callable[..., Any] | None = None, manifest_version: int | None = None,
+             routing: dict | None = None) -> dict:
     """Returns {envelope, usage}. Raises TurnError with a member sentence."""
     msg = (message or "").strip()
     if not msg:
@@ -559,9 +618,13 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         # Still served (every op is re-validated in the browser); logged so a skew is visible.
         log.warning("[uct-agent] manifest version %r is not one this server knows (%s)", manifest_version, sorted(MANIFEST_VERSIONS))
 
+    route = validate_routing(routing)
+    unselected = route["unselected"] if route else None
+    unselected_ids = {g["id"] for g in unselected} if unselected else None
+
     caller = caller or _default_caller
-    schema = envelope_schema(caps)
-    sysprompt = system_prompt(caps)
+    schema = envelope_schema(caps, unselected)
+    sysprompt = system_prompt(caps, unselected)
     blocks = [_block("workspace_context", context or {})]
     if pending:
         blocks.append(_block("pending_proposal", pending))
@@ -597,6 +660,8 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             _unreadable("json", stop_reason=getattr(resp, "stop_reason", None), chars=len(text or ""),
                         output_tokens=int(getattr(u, "output_tokens", 0) or 0))
         req = env.get("research") if isinstance(env, dict) else None
+        if unselected_ids and isinstance(env, dict) and isinstance(env.get("need_groups"), list) and env["need_groups"]:
+            req = None                # it asked for more actions: no research on this call
         # Research rides with a CHANGE only when the member's own words ask a question (a mixed
         # request); a plain command never triggers research, whatever the model asks for.
         disp = env.get("disposition") if isinstance(env, dict) else None
@@ -632,7 +697,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             # The change planned before the research, with the researched answer as its reply.
             env = {**env, "disposition": pre_research["disposition"], "ops": pre_research["ops"],
                    "question": None, "research": None}
-            envelope = sanitize_envelope(env, valid_refs, cap_names)
+            envelope = sanitize_envelope(env, valid_refs, cap_names, unselected_ids)
             usage["latency_ms"] = int((time.monotonic() - started) * 1000)
             usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
             return {"envelope": envelope, "usage": usage}
@@ -648,7 +713,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    else env.get("reply")}
         if compact_ops(caps) and isinstance(env, dict) and env.get("disposition") in MUTATING:
             env = expand_compact_ops(env, caps)
-        envelope = sanitize_envelope(env, valid_refs, cap_names)
+        envelope = sanitize_envelope(env, valid_refs, cap_names, unselected_ids)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)
         usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
         return {"envelope": envelope, "usage": usage}
