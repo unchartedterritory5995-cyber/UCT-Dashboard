@@ -262,6 +262,15 @@ _MC_METHOD_RATIO = (
 _SAME_SESSION = "The date is the trading session the value was measured on."
 _KNOWN_AT_CLOSE = "Known after that session's close; no publication lag."
 
+#: ⭐ (2026-10-07) The Summation Index's level, stated once. Verified identity:
+#: SUM = C + 19·EMA5% − 9·EMA10%; we serve C = 0, as StockCharts' $NASI/$NYSI do.
+_MCS_NATURAL = (
+    "Running total of the oscillator, served at its NATURAL level: Summation = 19 × the 5% trend "
+    "− 9 × the 10% trend (the running total with no arbitrary starting offset), so zero is neutral "
+    "breadth and the level is directly comparable in kind to StockCharts' $NASI/$NYSI. History "
+    "begins at the first session with 120 real observations behind it."
+)
+
 _NOT_NYMO = (
     "⛔ NOT NYMO. Computed over UCT's US common-stock universe, which is a different "
     "census from the NYSE composite (all issues, incl. ETFs, closed-end funds, "
@@ -325,13 +334,11 @@ def _exchange_row(universe: str, kind: str) -> "Series":
                       metric_name="McClellan Summation Index", metric_short="Summation",
                       synonyms=(f"{label.upper()} SUMMATION", "MCCLELLAN SUMMATION", "SUMMATION INDEX"),
                       presentation=PRES_LINE, centerline=0.0, reference_lines=(-500.0, 500.0),
-                      methodology=_MC_METHOD_RATIO + " Cumulative sum of the oscillator from a DECLARED "
-                                  "epoch (the first session with 120 real observations behind it) at "
-                                  "base 0 — neutral at zero, not the classic +1000. " + pop,
-                      methodology_version="mcclellan-v1/ratio_adjusted",
+                      methodology=_MC_METHOD_RATIO + " " + _MCS_NATURAL + " " + pop,
+                      methodology_version="mcclellan-v1.1/ratio_adjusted/natural-level",
                       provenance=f"Cumulated from {X}:MCO in one forward pass from the pinned epoch.",
                       summation_epoch=EXCHANGE_MCS_EPOCH[universe], summation_base=0.0,
-                      summation_anchor_source="declared")
+                      summation_anchor_source="natural")
     return Series(**common, unit=UNIT_COUNT, domain=DOMAIN_SIGNED,
                   metric_name="Advance/Decline Line", metric_short="A/D Line",
                   synonyms=(f"{label.upper()} ADVANCE DECLINE", "ADVANCE DECLINE", "AD LINE",
@@ -459,10 +466,8 @@ _ROWS: list[Series] = [
         presentation=PRES_LINE, centerline=0.0, reference_lines=(-500.0, 500.0),
         synonyms=("MCCLELLAN SUMMATION", "SUMMATION INDEX", "RASI", "SUMMATION",
                   "US SUMMATION"),
-        methodology=_MC_METHOD_RATIO + " Cumulative sum of the oscillator, anchored at a "
-                    "declared epoch and base (ratio-adjusted summation is neutral at "
-                    "ZERO, unlike the classic +1000 convention). " + _NOT_NYMO,
-        methodology_version="mcclellan-v1/ratio_adjusted",
+        methodology=_MC_METHOD_RATIO + " " + _MCS_NATURAL + " " + _NOT_NYMO,
+        methodology_version="mcclellan-v1.1/ratio_adjusted/natural-level",
         history_start="2008-01-02",
         observation_semantics=_SAME_SESSION, knowledge_semantics=_KNOWN_AT_CLOSE,
         provenance="Cumulated from US:MCO in ONE forward pass over the whole history, "
@@ -489,7 +494,9 @@ _ROWS: list[Series] = [
         # comparable to NYSI — which the methodology field says in words.
         summation_epoch="2008-06-24",
         summation_base=0.0,
-        summation_anchor_source="declared",
+        # ⭐ (2026-10-07) the epoch fixes where the series STARTS; the LEVEL is natural (C = 0) —
+        # `producers.natural_summation_shift`. The 0.0 above is the pre-shift running-total seed.
+        summation_anchor_source="natural",
     ),
 
     # ⛔⛔ DORMANT — Exchange Breadth V1 (2026-10-03). Fully specified, NOT servable and NOT
