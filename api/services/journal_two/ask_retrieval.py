@@ -190,6 +190,32 @@ def resolve_entity(conn, user_id: str, query: str) -> dict[str, Any] | None:
 # real one further down the ranking.
 _INSERT_OVERFETCH = 3
 
+#: A note whose own text is at most this long is handed to the model WHOLE (fin walk K1).
+#: ⚰️ Every note used to be a 240-character window around the first matching word, whatever
+#: its length. On a live model, two whole notes of four and three sentences came back as "the
+#: note cuts off" and "both appear truncated", and what they went on to say was left out.
+#: Four whole notes at this size fit `ask_ranking.MAX_CHARS` (pinned by a test).
+NOTE_WHOLE_MAX_CHARS = 1200
+
+#: The window around the matched word when a note is too long to send whole.
+_EXCERPT_BEFORE = 90
+_EXCERPT_AFTER = 150
+
+
+def _excerpt_window(text: str, idx: int, term_len: int) -> tuple[int, int]:
+    """[start, end) around a match, moved inward to whole words. A window that starts or ends
+    inside a word reads as damaged text, which is half of why a model called a note cut off."""
+    start = max(0, idx - _EXCERPT_BEFORE)
+    end = min(len(text), idx + term_len + _EXCERPT_AFTER)
+    if start > 0 and not text[start - 1].isspace():
+        while start < idx and not text[start].isspace():
+            start += 1
+    if end < len(text) and not text[end].isspace():
+        floor = idx + term_len
+        while end > floor and not text[end - 1].isspace():
+            end -= 1
+    return start, end
+
 
 def _notes(conn, user_id: str, expr: str, limit: int,
            note_ids: list[str] | None = None) -> list[dict[str, Any]]:
@@ -220,19 +246,38 @@ def _notes(conn, user_id: str, expr: str, limit: int,
             break
         row = dict(r)
         doc = _json(row.get("body_json"))
-        snippet, location, validity = _best_note_passage(doc, expr, row.get("title") or "")
+        snippet, location, validity, partial = _note_passage(doc, expr, row.get("title") or "")
         if snippet is None:
             # G-064 (spec §7.2): the body is only inserted Ask answers.
             # Presenting it would hand the model its own earlier output as
             # "notes they wrote".
             continue
-        out.append(ev.from_note(row, snippet=snippet, location=location,
-                                citation_validity=validity, score=-row["score"]))
+        item = ev.from_note(row, snippet=snippet, location=location,
+                            citation_validity=validity, score=-row["score"])
+        if partial:
+            # The one flag for "this is part of a longer source": the same one
+            # `ask_ranking.budget` sets when it shortens an item, so the prompt has one
+            # mark to render and one rule about it (`ask_prompt.EXCERPT_MARK`).
+            item["truncated"] = True
+        out.append(item)
     return out
 
 
 def _best_note_passage(doc, expr: str, title: str = ""):
-    """Pick a passage to cite and give it a real ProseMirror location.
+    """(snippet, location, validity) of `_note_passage`, for the callers that locate a
+    citation and do not send the text to a model."""
+    return _note_passage(doc, expr, title)[:3]
+
+
+def _note_passage(doc, expr: str, title: str = ""):
+    """Pick a passage to cite and give it a real ProseMirror location. Returns
+    (snippet, location, validity, partial).
+
+    ⛔ THE SNIPPET AND THE LOCATION ARE TWO THINGS (fin walk K1). The location is the matched
+    word's own range and is what a citation opens; it is the same whatever is sent. The
+    snippet is what the model reads: the member's WHOLE note when it fits
+    `NOTE_WHOLE_MAX_CHARS`, and otherwise a window around the match with `partial` True, so
+    the prompt can say it is part of a longer note. Inserted Ask answers are cut out of both.
 
     Falls back honestly: if no query term can be located in the canonical
     text, the citation opens the note WITHOUT claiming a passage (§21) rather
@@ -252,10 +297,11 @@ def _best_note_passage(doc, expr: str, title: str = ""):
     flat = nct.flatten(doc)
     text = flat["text"]
     if not text:
-        return "", None, ev.CITE_NOTE_ONLY
+        return "", None, ev.CITE_NOTE_ONLY, False
     own = nct.member_text(flat)
     if not own.strip():
-        return None, None, None
+        return None, None, None, False
+    whole = len(own.strip()) <= NOTE_WHOLE_MAX_CHARS
     terms = [t for t in _terms(expr) if len(t) > 2]
     found_only_in_insert = False
     index = nct.SpanIndex(flat["spans"])  # one index for every occurrence's lookups
@@ -295,9 +341,11 @@ def _best_note_passage(doc, expr: str, title: str = ""):
             if saw_any:
                 found_only_in_insert = True
             continue
-        start = max(0, idx - 90)
-        end = min(len(text), idx + len(term) + 150)
-        snippet = nct.member_text(flat, start, end).strip()
+        if whole:
+            snippet = own.strip()
+        else:
+            start, end = _excerpt_window(text, idx, len(term))
+            snippet = nct.member_text(flat, start, end).strip()
         rng = index.pm_range(idx, idx + len(term))
         if rng:
             location = {**rng, "fingerprint": nct.fingerprint(doc),
@@ -308,12 +356,16 @@ def _best_note_passage(doc, expr: str, title: str = ""):
                 # atom by identity, never by that text (review N1).
                 location["atom"] = atom
             return snippet, location, (ev.CITE_EXACT if index.precise(rng)
-                                       else ev.CITE_NOTE_ONLY)
+                                       else ev.CITE_NOTE_ONLY), not whole
     if found_only_in_insert:
         low_title = (title or "").lower()
         if not any(t.lower() in low_title for t in terms):
-            return None, None, None
-    return own[:200].strip(), None, ev.CITE_NOTE_ONLY
+            return None, None, None, False
+    if whole:
+        return own.strip(), None, ev.CITE_NOTE_ONLY, False
+    lead = own.strip()[:200]
+    cut = lead.rfind(" ")
+    return (lead[:cut] if cut > 0 else lead).strip(), None, ev.CITE_NOTE_ONLY, True
 
 
 # Words that cannot decide whether a passage ANSWERS a question. Kept small
