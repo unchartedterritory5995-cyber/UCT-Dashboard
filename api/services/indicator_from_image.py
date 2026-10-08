@@ -130,6 +130,15 @@ MEDIA_TYPES: frozenset = frozenset({"image/png", "image/jpeg", "image/gif", "ima
 #: upload costs no tokens and gets a sentence that names the fix.
 MAX_IMAGE_BYTES: int = 5 * 1024 * 1024
 
+
+def upload_too_large_sentence() -> str:
+    """The 413 for an upload BODY past the door's while-read cap (wave 14, cap 2):
+    the image ceiling plus room for the bars and the note. An image only a little
+    over MAX_IMAGE_BYTES never meets this; it reaches `candidates_from_image` and
+    gets the graceful `vision:image-too-large` refusal, as before."""
+    return (f"That upload is too large: the screenshot may be at most {MAX_IMAGE_BYTES // 1024} KB; "
+            "crop it to the indicator itself")
+
 #: Bounds on the model's PROSE, applied in the schema and again on the way out.
 #: An unbounded string from a model is an unbounded row in somebody's UI.
 LABEL_MAX: int = 80

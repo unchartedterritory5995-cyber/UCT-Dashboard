@@ -1,0 +1,4 @@
+  Model keys   : BLANKED ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring -> null backend (opt in: --allow-model-keys or HUB_SANDBOX_ALLOW_MODEL_KEYS=1)
+SEEDED C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\w13q2-after-q1\screener.db 30 30
+
+--- stderr ---

@@ -1,0 +1,1000 @@
+{
+ "tool": "tools/notebook_w13h2_walk.py",
+ "base": "http://127.0.0.1:8615",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13h2\\walk-4512d76-run9\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 23:23:54",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 23:25:31",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-02 23:27:29",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 23:28:03",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\wave13-13h2\\walk-4512d76-run9\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w13h2\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T23-23-42.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "W0_gate_on_payload",
+   "verdict": "PASS",
+   "detail": "/api/auth/me notebook_chart_plan_enabled=True"
+  },
+  {
+   "id": "V1200-1_insert_chart",
+   "verdict": "PASS",
+   "detail": "/chart typed + Enter -> stored widgetEmbed NVDA D to=2026-06-15 embedId=d6b6fa09-9c95-4da0-8210-7ee864675c6d"
+  },
+  {
+   "id": "V1200-2_draw_and_assign_roles",
+   "verdict": "PASS",
+   "detail": "3 lines placed by click, 3 stored; roles stored {'target': 146.9441023942476, 'entry': 135.50067366503848, 'stop': 124.0572449358293} (target > entry > stop: True); no price copy"
+  },
+  {
+   "id": "V1200-3_rr_and_size_with_engine_label",
+   "verdict": "FAIL",
+   "detail": "panel R:R=1.00R risk/share=$11.44 account risk=$1,000.00 size=87 sh; label='Sized by the Position size formula (account risk ÷ risk per share)'; server plan_extract reading entry/stop/target == the drawn roles: False"
+  },
+  {
+   "id": "V1200-4_arm_alert_listed",
+   "verdict": "PASS",
+   "detail": "panel says armed=True; alerts list row drawing_id='nb:d6b6fa09-9c95-4da0-8210-7ee864675c6d:fba25d89-ca1a-4e4e-be46-4838dafc7bb1' found=True sym=NVDA direction=below price=124.0572449358293"
+  },
+  {
+   "id": "V1200-x_walk_raised",
+   "verdict": "FAIL",
+   "detail": "TimeoutError: Locator.click: Timeout 30000ms exceeded."
+  },
+  {
+   "id": "V390-1_insert_chart",
+   "verdict": "PASS",
+   "detail": "/chart typed + Enter -> stored widgetEmbed NVDA D to=2026-06-15 embedId=3f3c085f-e259-4c0c-80d2-fb37cb0536b6"
+  },
+  {
+   "id": "V390-x_walk_raised",
+   "verdict": "FAIL",
+   "detail": "TimeoutError: Locator.wait_for: Timeout 20000ms exceeded."
+  },
+  {
+   "id": "W9_mtf_weekly_stack",
+   "verdict": "PASS",
+   "detail": "/mtf NVDA W -> stored tfs ['W', 'D', '60']"
+  },
+  {
+   "id": "W10_gate_off_client",
+   "verdict": "PASS",
+   "detail": "Plan absent=True, Replay absent=True, /vs offers nothing=True, chart-plan requests=[]"
+  },
+  {
+   "id": "W11_no_page_errors",
+   "verdict": "PASS",
+   "detail": "0 unforced page errors"
+  },
+  {
+   "id": "W12_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  }
+ ],
+ "raw": {
+  "account_seed": {
+   "account": "c4d162e3-2e77-4d0f-9a39-7aa11ffdc647",
+   "put": 200,
+   "accountSize": 100000.0
+  },
+  "V1200_note": "dff2130a286741a59637dc8802aa0bc2",
+  "V1200_inserted_chart": {
+   "embedId": "d6b6fa09-9c95-4da0-8210-7ee864675c6d",
+   "params": {
+    "symbol": "NVDA",
+    "tf": "D",
+    "to": "2026-06-15",
+    "settings": {
+     "chartType": "candles",
+     "invertScale": false,
+     "candles": {
+      "upColor": "#2faf68",
+      "downColor": "#df4646",
+      "upBorder": "#2faf68",
+      "downBorder": "#df4646",
+      "upWick": "#2faf68",
+      "downWick": "#df4646",
+      "oneColor": "#2faf68",
+      "thinBars": true
+     },
+     "candleColorMode": "netchange",
+     "background": "#17181a",
+     "bgMode": "solid",
+     "bgGradient": {
+      "top": "#16233b",
+      "bottom": "#17181a"
+     },
+     "textColor": "#706b5e",
+     "textSize": 11,
+     "grid": {
+      "color": "rgba(46,49,39,0.25)",
+      "visible": true
+     },
+     "crosshair": {
+      "enabled": true,
+      "color": "#706b5e",
+      "style": 1,
+      "width": 1,
+      "magnet": false
+     },
+     "header": {
+      "titleMode": "company",
+      "showChange": true,
+      "timeframes": [
+       "1",
+       "5",
+       "15",
+       "30",
+       "60",
+       "D",
+       "W",
+       "M"
+      ],
+      "customTimeframes": [],
+      "showMarketCap": true,
+      "showNextEarnings": true,
+      "showUctRating": true,
+      "showLegend": true,
+      "legendLayout": "vertical",
+      "colors": {}
+     },
+     "overlays": [
+      {
+       "enabled": true,
+       "type": "EMA",
+       "period": 9,
+       "color": "#4ade80",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:0"
+      },
+      {
+       "enabled": true,
+       "type": "EMA",
+       "period": 20,
+       "color": "#f472b6",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:1"
+      },
+      {
+       "enabled": true,
+       "type": "SMA",
+       "period": 50,
+       "color": "#60a5fa",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:2"
+      },
+      {
+       "enabled": true,
+       "type": "SMA",
+       "period": 200,
+       "color": "#fb923c",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:3"
+      }
+     ],
+     "volume": {
+      "visible": true,
+      "upColor": "#2faf68",
+      "downColor": "#df4646",
+      "hvcEnabled": true,
+      "separatePane": false,
+      "paneHeightPct": 22,
+      "labelVisible": true,
+      "labelColor": "#9b9684",
+      "maPeriod": 0,
+      "maColor": "rgba(168,162,144,0.55)",
+      "maLineWidth": 1,
+      "maLineStyle": "solid",
+      "barStyle": "columns",
+      "plotStyle": "histogram"
+     },
+     "watermark": {
+      "visible": true,
+      "opacity": 0.07,
+      "color": "#a8a290",
+      "sizeScale": 1.25,
+      "weight": 500,
+      "lines": {
+       "ticker": true,
+       "company": true,
+       "sector": true,
+       "industry": true,
+       "theme": true
+      },
+      "x": 0.5,
+      "y": 0.5
+     },
+     "drawingDefaults": {
+      "color": "#c9a84c",
+      "width": 1,
+      "style": "solid",
+      "fontSize": 13
+     },
+     "indicators": {
+      "volumeProfile": {
+       "enabled": false,
+       "bins": 24,
+       "color": "rgba(120,160,100,0.25)",
+       "pocColor": "rgba(200,160,40,0.65)"
+      }
+     },
+     "swingLabels": {
+      "enabled": false,
+      "sensitivity": "medium",
+      "color": "#d4d0c4",
+      "tintByType": false,
+      "upColor": "#4ade80",
+      "downColor": "#f87171",
+      "bgEnabled": true,
+      "bg": null
+     },
+     "heikinAshi": false,
+     "logScale": false,
+     "percentScale": false,
+     "comparisonSymbols": [],
+     "compareHideBase": false,
+     "markers": {
+      "earnings": false,
+      "splits": false,
+      "dividends": false,
+      "news": false,
+      "ipo": true,
+      "earningsBeat": "#2faf68",
+      "earningsMiss": "#df4646",
+      "ipoColor": "#dcbb5e"
+     },
+     "prevDayLevels": {
+      "high": {
+       "enabled": true,
+       "color": "#3cb868",
+       "style": "dashed",
+       "width": 1
+      },
+      "low": {
+       "enabled": true,
+       "color": "#e74c3c",
+       "style": "dashed",
+       "width": 1
+      },
+      "close": {
+       "enabled": true,
+       "color": "#9aa0a6",
+       "style": "dotted",
+       "width": 1
+      }
+     },
+     "countdown": false,
+     "showPatterns": false,
+     "showPriceLabels": true,
+     "showMaLabels": false,
+     "darkPool": {
+      "enabled": false,
+      "barColor": "#c9a84ccc",
+      "labelColor": "#c9a84c"
+     },
+     "signature": {
+      "darkPoolLevels": false,
+      "gexWalls": false,
+      "flowSignals": false
+     },
+     "settingsVersion": 2,
+     "indicatorInstances": [
+      {
+       "instanceId": "ovl:0",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 9,
+        "maType": "ema",
+        "color": "#4ade80"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:1",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 20,
+        "maType": "ema",
+        "color": "#f472b6"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:2",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 50,
+        "maType": "sma",
+        "color": "#60a5fa"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:3",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 200,
+        "maType": "sma",
+        "color": "#fb923c"
+       },
+       "hidden": false
+      }
+     ],
+     "paneOrder": [],
+     "paneSizes": {},
+     "paneSeriesOrder": {},
+     "hideDrawings": false,
+     "extendedHoursShading": true,
+     "sessionView": "regular",
+     "volumeOverlayIndicators": [],
+     "theme": "dark",
+     "positionCalc": {
+      "accountSize": 50000,
+      "riskPct": 1
+     },
+     "preset": "classic"
+    }
+   },
+   "mode": "snapshot"
+  },
+  "V1200_archive_landed": {
+   "landed": true,
+   "after_s": 3.9
+  },
+  "V1200_draw_attempts": [
+   {
+    "stuck": true,
+    "events": [
+     [
+      "pointerdown",
+      23244,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "mousedown",
+      23245,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "pm-blur",
+      23246
+     ],
+     [
+      "pm-focus",
+      23254,
+      "    at HTMLDivElement.eval (eval at evaluate (:290:30), <anonymous>:4:12)"
+     ],
+     [
+      "mouseup",
+      23257,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "click",
+      23257,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "class",
+      "annotating",
+      23271
+     ]
+    ]
+   }
+  ],
+  "V1200_canvas_box": [
+   415,
+   473.28125,
+   696,
+   383
+  ],
+  "V1200_drawn": [
+   {
+    "id": "8d153553-fc81-4c4b-8e72-d8c2d9fab4b5",
+    "price": 146.9441023942476
+   },
+   {
+    "id": "ea5b5514-0b16-4272-a197-d114277a771e",
+    "price": 135.50067366503848
+   },
+   {
+    "id": "fba25d89-ca1a-4e4e-be46-4838dafc7bb1",
+    "price": 124.0572449358293
+   }
+  ],
+  "V1200_roles_stored": {
+   "target": {
+    "id": "8d153553-fc81-4c4b-8e72-d8c2d9fab4b5",
+    "price": 146.9441023942476,
+    "has_price_copy": false
+   },
+   "entry": {
+    "id": "ea5b5514-0b16-4272-a197-d114277a771e",
+    "price": 135.50067366503848,
+    "has_price_copy": false
+   },
+   "stop": {
+    "id": "fba25d89-ca1a-4e4e-be46-4838dafc7bb1",
+    "price": 124.0572449358293,
+    "has_price_copy": false
+   }
+  },
+  "V1200_panel_values": {
+   "rr": "1.00R",
+   "rps": "$11.44",
+   "acct": "$1,000.00",
+   "shares": "87 sh",
+   "label": "Sized by the Position size formula (account risk ÷ risk per share)"
+  },
+  "V1200_traceback": " \"Replay\", touch), touch)\n    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\uct-worktrees\\notebook-w13h2\\tools\\notebook_w13h2_walk.py\", line 240, in press\n    btn.click()\n    ~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\sync_api\\_generated.py\", line 15631, in click\n    self._sync(\n    ~~~~~~~~~~^\n        self._impl_obj.click(\n        ^^^^^^^^^^^^^^^^^^^^^\n    ...<10 lines>...\n        )\n        ^\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 162, in click\n    return await self._frame._click(self._selector, strict=True, **params)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 566, in _click\n    await self._channel.send(\"click\", self._timeout, locals_to_params(locals()))\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-widget-embed-view=\\\"chart\\\"]\").first.get_by_role(\"button\", name=\"Replay\", exact=True).first\n    - locator resolved to <button type=\"button\" class=\"_toolBtn_1qu7a_307\" title=\"What happened next — replay bar by bar from this note's date\">Replay</button>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <select aria-label=\"Folder\" class=\"_headerSelect_d4m6u_289\">…</select> from <div class=\"_chrome_d4m6u_17\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <canvas width=\"620\" height=\"311\"></canvas> from <div class=\"_body_1qu7a_127\" data-widget-embed-body=\"\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is not visible\n    - retrying click action\n      - waiting 100ms\n    54 × waiting for element to be visible, enabled and stable\n       - element is not visible\n     - retrying click action\n       - waiting 500ms\n\n",
+  "V390_note": "bb1e39f8d52a43f9938e3107ed664e43",
+  "V390_inserted_chart": {
+   "embedId": "3f3c085f-e259-4c0c-80d2-fb37cb0536b6",
+   "params": {
+    "symbol": "NVDA",
+    "tf": "D",
+    "to": "2026-06-15",
+    "settings": {
+     "chartType": "candles",
+     "invertScale": false,
+     "candles": {
+      "upColor": "#2faf68",
+      "downColor": "#df4646",
+      "upBorder": "#2faf68",
+      "downBorder": "#df4646",
+      "upWick": "#2faf68",
+      "downWick": "#df4646",
+      "oneColor": "#2faf68",
+      "thinBars": true
+     },
+     "candleColorMode": "netchange",
+     "background": "#17181a",
+     "bgMode": "solid",
+     "bgGradient": {
+      "top": "#16233b",
+      "bottom": "#17181a"
+     },
+     "textColor": "#706b5e",
+     "textSize": 11,
+     "grid": {
+      "color": "rgba(46,49,39,0.25)",
+      "visible": true
+     },
+     "crosshair": {
+      "enabled": true,
+      "color": "#706b5e",
+      "style": 1,
+      "width": 1,
+      "magnet": false
+     },
+     "header": {
+      "titleMode": "company",
+      "showChange": true,
+      "timeframes": [
+       "1",
+       "5",
+       "15",
+       "30",
+       "60",
+       "D",
+       "W",
+       "M"
+      ],
+      "customTimeframes": [],
+      "showMarketCap": true,
+      "showNextEarnings": true,
+      "showUctRating": true,
+      "showLegend": true,
+      "legendLayout": "vertical",
+      "colors": {}
+     },
+     "overlays": [
+      {
+       "enabled": true,
+       "type": "EMA",
+       "period": 9,
+       "color": "#4ade80",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:0"
+      },
+      {
+       "enabled": true,
+       "type": "EMA",
+       "period": 20,
+       "color": "#f472b6",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:1"
+      },
+      {
+       "enabled": true,
+       "type": "SMA",
+       "period": 50,
+       "color": "#60a5fa",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:2"
+      },
+      {
+       "enabled": true,
+       "type": "SMA",
+       "period": 200,
+       "color": "#fb923c",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:3"
+      }
+     ],
+     "volume": {
+      "visible": true,
+      "upColor": "#2faf68",
+      "downColor": "#df4646",
+      "hvcEnabled": true,
+      "separatePane": false,
+      "paneHeightPct": 22,
+      "labelVisible": true,
+      "labelColor": "#9b9684",
+      "maPeriod": 0,
+      "maColor": "rgba(168,162,144,0.55)",
+      "maLineWidth": 1,
+      "maLineStyle": "solid",
+      "barStyle": "columns",
+      "plotStyle": "histogram"
+     },
+     "watermark": {
+      "visible": true,
+      "opacity": 0.07,
+      "color": "#a8a290",
+      "sizeScale": 1.25,
+      "weight": 500,
+      "lines": {
+       "ticker": true,
+       "company": true,
+       "sector": true,
+       "industry": true,
+       "theme": true
+      },
+      "x": 0.5,
+      "y": 0.5
+     },
+     "drawingDefaults": {
+      "color": "#c9a84c",
+      "width": 1,
+      "style": "solid",
+      "fontSize": 13
+     },
+     "indicators": {
+      "volumeProfile": {
+       "enabled": false,
+       "bins": 24,
+       "color": "rgba(120,160,100,0.25)",
+       "pocColor": "rgba(200,160,40,0.65)"
+      }
+     },
+     "swingLabels": {
+      "enabled": false,
+      "sensitivity": "medium",
+      "color": "#d4d0c4",
+      "tintByType": false,
+      "upColor": "#4ade80",
+      "downColor": "#f87171",
+      "bgEnabled": true,
+      "bg": null
+     },
+     "heikinAshi": false,
+     "logScale": false,
+     "percentScale": false,
+     "comparisonSymbols": [],
+     "compareHideBase": false,
+     "markers": {
+      "earnings": false,
+      "splits": false,
+      "dividends": false,
+      "news": false,
+      "ipo": true,
+      "earningsBeat": "#2faf68",
+      "earningsMiss": "#df4646",
+      "ipoColor": "#dcbb5e"
+     },
+     "prevDayLevels": {
+      "high": {
+       "enabled": true,
+       "color": "#3cb868",
+       "style": "dashed",
+       "width": 1
+      },
+      "low": {
+       "enabled": true,
+       "color": "#e74c3c",
+       "style": "dashed",
+       "width": 1
+      },
+      "close": {
+       "enabled": true,
+       "color": "#9aa0a6",
+       "style": "dotted",
+       "width": 1
+      }
+     },
+     "countdown": false,
+     "showPatterns": false,
+     "showPriceLabels": true,
+     "showMaLabels": false,
+     "darkPool": {
+      "enabled": false,
+      "barColor": "#c9a84ccc",
+      "labelColor": "#c9a84c"
+     },
+     "signature": {
+      "darkPoolLevels": false,
+      "gexWalls": false,
+      "flowSignals": false
+     },
+     "settingsVersion": 2,
+     "indicatorInstances": [
+      {
+       "instanceId": "ovl:0",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 9,
+        "maType": "ema",
+        "color": "#4ade80"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:1",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 20,
+        "maType": "ema",
+        "color": "#f472b6"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:2",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 50,
+        "maType": "sma",
+        "color": "#60a5fa"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:3",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 200,
+        "maType": "sma",
+        "color": "#fb923c"
+       },
+       "hidden": false
+      }
+     ],
+     "paneOrder": [],
+     "paneSizes": {},
+     "paneSeriesOrder": {},
+     "hideDrawings": false,
+     "extendedHoursShading": true,
+     "sessionView": "regular",
+     "volumeOverlayIndicators": [],
+     "theme": "dark",
+     "positionCalc": {
+      "accountSize": 50000,
+      "riskPct": 1
+     },
+     "preset": "classic"
+    }
+   },
+   "mode": "snapshot"
+  },
+  "V390_archive_landed": {
+   "landed": true,
+   "after_s": 6.2
+  },
+  "V390_draw_attempts": [
+   {
+    "stuck": true,
+    "events": [
+     [
+      "pointerdown",
+      12508,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "mousedown",
+      12515,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "pm-blur",
+      12516
+     ],
+     [
+      "pm-focus",
+      12521,
+      "    at HTMLDivElement.eval (eval at evaluate (:290:30), <anonymous>:4:12)"
+     ],
+     [
+      "mouseup",
+      12522,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "click",
+      12522,
+      "BUTTON._toolBtn_1qu7a_307 []",
+      true,
+      ""
+     ],
+     [
+      "class",
+      "annotating",
+      12536
+     ]
+    ]
+   }
+  ],
+  "V390_canvas_box": [
+   61,
+   542.28125,
+   268,
+   300
+  ],
+  "V390_drawn": [
+   {
+    "id": "16e3a4c1-7b7a-406b-ba84-7ba9ba88abeb",
+    "price": 123.13326013864813
+   }
+  ],
+  "V390_traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\Patrick\\uct-worktrees\\notebook-w13h2\\tools\\notebook_w13h2_walk.py\", line 516, in run\n    walk_viewport(br, state, base, req, w, width, errors, served)\n    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\uct-worktrees\\notebook-w13h2\\tools\\notebook_w13h2_walk.py\", line 362, in walk_viewport\n    rows.nth(2).wait_for(state=\"visible\", timeout=20000)\n    ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\sync_api\\_generated.py\", line 18074, in wait_for\n    self._sync(self._impl_obj.wait_for(timeout=timeout, state=state))\n    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 20000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-chart-plan-panel]\").first.locator(\"li[data-level-id]\").nth(2) to be visible\n\n",
+  "bars_fixture_served": [
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-06-15",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 70
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-06-15",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 70
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/warm",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=4000&to=2026-10-03",
+    "n": 70
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=600&warm=1",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=D&bars=12500&to=2026-06-15",
+    "n": 350
+   },
+   {
+    "url": "bars/NVDA?tf=5&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=60&bars=1138&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=30&bars=1120&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=15&bars=1152&warm=1",
+    "n": 140
+   },
+   {
+    "url": "bars/NVDA?tf=W&bars=600&warm=1",
+    "n": 70
+   },
+   {
+    "url": "bars/NVDA?tf=M&bars=600&warm=1",
+    "n": 17
+   },
+   {
+    "url": "bars/NVDA?tf=1&bars=960&warm=1",
+    "n": 140
+   }
+  ]
+ }
+}

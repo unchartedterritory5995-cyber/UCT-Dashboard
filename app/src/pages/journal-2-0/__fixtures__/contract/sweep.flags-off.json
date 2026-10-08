@@ -1,0 +1,311 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "every route",
+    "note": "Every flag off, no session: the gate answers before the session is read.",
+    "path": "",
+    "status": 404
+  },
+  "body": {
+    "DELETE /api/j2/onboarding/sample-notebook": {
+      "body": {
+        "detail": "Not Found"
+      },
+      "status": 404
+    },
+    "DELETE /api/j2/research-capture/passed-setups/{item_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "DELETE /api/j2/template-gallery/{gallery_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/chart-plan/benchmarks": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/earnings-prep/soon": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/entry-context": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/entry-context/list": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/entry-context/meta": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/entry-context/position/{position_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/entry-context/trade/{trade_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/my-playbook": {
+      "body": {
+        "detail": "Not Found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/notebook-fingerprint/blocks": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/notebook-fingerprint/blocks/{note_id}/{embed_key}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/notebook-fingerprint/compute": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/notebook-fingerprint/meta": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/notebook-visual-playbook/cards": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/notebook-visual-playbook/trades/{trade_id}/before-after": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/onboarding/sample-notebook": {
+      "body": {
+        "detail": "Not Found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/plan-grades/discipline": {
+      "body": {
+        "detail": "Not Found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/plan-grades/status": {
+      "body": {
+        "detail": "Not Found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/plan-grades/trades/{trade_id}": {
+      "body": {
+        "detail": "Not Found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/research-capture/passed-setups": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/research-capture/transcripts/{symbol}/quarters": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/research-capture/transcripts/{symbol}/{quarter}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/review-drafts/daily": {
+      "body": {
+        "detail": "Not Found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/review-drafts/monthly": {
+      "body": {
+        "detail": "Not Found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/review-drafts/weekly": {
+      "body": {
+        "detail": "Not Found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/setups-board": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/similar-names/templates": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/similar-names/{note_id}/{embed_key}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/template-gallery": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/template-gallery/admin/queue": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "GET /api/j2/template-gallery/{gallery_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "PATCH /api/j2/template-gallery/admin/items/{gallery_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "PATCH /api/j2/template-gallery/admin/reports/{report_id}": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/chart-plan/alerts": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/chart-plan/size": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/earnings-prep/{symbol}/draft": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/entry-context/backfill": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/notebook-fingerprint/blocks/{note_id}/{embed_key}/freeze": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/onboarding/sample-notebook": {
+      "body": {
+        "detail": "Not Found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/plan-grades/trades/{trade_id}/relink": {
+      "body": {
+        "detail": "Not Found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/research-capture/passed-setups": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/research-capture/transcripts/save": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/{gallery_id}/report": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/template-gallery/{gallery_id}/use": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "POST /api/j2/thesis-chips": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "PUT /api/j2/entry-context/why": {
+      "body": {
+        "detail": "Not found"
+      },
+      "status": 404
+    },
+    "PUT /api/j2/onboarding/tours/{tour_id}": {
+      "body": {
+        "detail": "Not Found"
+      },
+      "status": 404
+    }
+  }
+}

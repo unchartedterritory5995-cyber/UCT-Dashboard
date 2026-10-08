@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/template-gallery/admin/queue",
+    "path": "/api/j2/template-gallery/admin/queue",
+    "status": 403
+  },
+  "body": {
+    "detail": "Admin access required"
+  }
+}

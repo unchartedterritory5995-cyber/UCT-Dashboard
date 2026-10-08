@@ -1,0 +1,55 @@
+lane 13J mutation proof at HEAD da6bb328212397d3421861098750a2680fcc6df2
+CONTROL before (unmutated) rc=0 failed=0
+vitest: Test Files  1 passed (1)
+vitest: Tests  5 passed (5)
+pytest: 38 passed in 18.89s
+D1 drawn-only: a text-labelled entry counts as drawn: KILLED (rc=1, failed tests=1); restored sha 8c5fb57b487db411 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 18 passed in 6.36s
+      FAILED tests/test_notebook_setups_board.py::test_only_drawn_open_live_notes_are_on_the_board
+D2 review: a plan-review note is never excluded: KILLED (rc=1, failed tests=1); restored sha 8c5fb57b487db411 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 18 passed in 9.66s
+      FAILED tests/test_notebook_setups_board.py::test_only_drawn_open_live_notes_are_on_the_board
+D3 consumed: a plan 13A already froze against a trade stays on the board: KILLED (rc=1, failed tests=1); restored sha 8c5fb57b487db411 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 18 passed in 6.51s
+      FAILED tests/test_notebook_setups_board.py::test_only_drawn_open_live_notes_are_on_the_board
+B1 boundary: price AT the stop reads waiting, not invalidated (<= turned <): KILLED (rc=1, failed tests=2); restored sha 8c5fb57b487db411 == captured: True; == committed blob (LF-normalised): True
+    pytest: 2 failed, 17 passed in 7.36s
+      FAILED tests/test_notebook_setups_board.py::test_distance_to_trigger_on_fixtures[105-100-100-want2]
+      FAILED tests/test_notebook_setups_board.py::test_the_board_reads_levels_only_through_plan_extract
+S1 sort: the invalidated bucket collapsed into the live one: KILLED (rc=1, failed tests=1); restored sha 8c5fb57b487db411 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 18 passed in 6.45s
+      FAILED tests/test_notebook_setups_board.py::test_the_sort_is_closeness_to_entry_then_the_broken_then_the_blind
+G1 gate: the board router's flag dependency ignored: KILLED (rc=1, failed tests=1); restored sha b386d65a6e7f6f00 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 18 passed in 7.16s
+      FAILED tests/test_notebook_setups_board.py::test_the_board_route_is_404_while_off_even_signed_out
+G2 gate: the find-similar router's flag dependency ignored: KILLED (rc=1, failed tests=1); restored sha b386d65a6e7f6f00 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 18 passed in 9.13s
+      FAILED tests/test_notebook_similar_matches.py::test_every_similar_route_is_404_while_off_even_signed_out
+P1 paid gate: find more like this answers a free plan: KILLED (rc=1, failed tests=1); restored sha b386d65a6e7f6f00 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 18 passed in 14.45s
+      FAILED tests/test_notebook_similar_matches.py::test_a_free_plan_is_refused - ...
+U1 nightly-only: the request path reaches the universe: KILLED (rc=1, failed tests=2); restored sha db89f06840f82056 == captured: True; == committed blob (LF-normalised): True
+    pytest: 2 failed, 17 passed in 9.69s
+      FAILED tests/test_notebook_similar_matches.py::test_the_request_path_only_reads_precomputed_rows_never_the_universe
+      FAILED tests/test_notebook_similar_matches.py::test_a_tagged_chart_with_no_run_yet_is_pending_and_another_members_note_is_404
+C1 constants: the rs_rank scale widened (a weaker RS still reads close): KILLED (rc=1, failed tests=3); restored sha db89f06840f82056 == captured: True; == committed blob (LF-normalised): True
+    pytest: 3 failed, 16 passed in 10.68s
+      FAILED tests/test_notebook_similar_matches.py::test_the_constants_block_is_pinned
+      FAILED tests/test_notebook_similar_matches.py::test_the_fingerprint_distance_on_a_fixture_pair
+      FAILED tests/test_notebook_similar_matches.py::test_the_pattern_term_and_the_score
+H1 herd safety: the mount cap raised past the grid's own limit: KILLED (rc=1, failed tests=1); restored sha bc576e6c4f046733 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 4 passed (5)
+      × a board of 40 mounts at most 3 charts at once, none warming itself, in closeness order 4183ms
+      FAIL  src/pages/journal-2-0/components/notebook/SetupsBoard.test.jsx > SetupsBoard > a board of 40 mounts at most 3 charts at once, none warming itself, in closeness order
+H2 herd safety: a card's chart warms itself in the background: KILLED (rc=1, failed tests=1); restored sha d361e0ab37b92819 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 4 passed (5)
+      × a board of 40 mounts at most 3 charts at once, none warming itself, in closeness order 335ms
+      FAIL  src/pages/journal-2-0/components/notebook/SetupsBoard.test.jsx > SetupsBoard > a board of 40 mounts at most 3 charts at once, none warming itself, in closeness order
+CONTROL after restore rc=0 failed=0
+vitest: Test Files  1 passed (1)
+vitest: Tests  5 passed (5)
+pytest: 38 passed in 16.61s
+git status over api/ and app/src after the run: M app/src/components/screener/reachable.test.js
+VERDICT: FAIL

@@ -1,0 +1,179 @@
+{
+ "wave": 13,
+ "lane": "13E-2",
+ "checks": {
+  "P0_gate_and_identity": {
+   "verdict": "PASS",
+   "payload_flag": true,
+   "voice_flag": false,
+   "note": "voice_flag must NOT be True for P6 to mean anything"
+  },
+  "P1_log_a_position_the_card_shows_1200": {
+   "verdict": "PASS",
+   "nvda_position": "6b3267a9-db83-414c-9eca-6cd9aa67dfbe",
+   "amd_position": "5286b454-5d5c-4f7f-955f-68a61cb396c1",
+   "card": {
+    "text": "Market context at the fill Regime Amber as of 2026-01-02 Exposure 72 / 150 as of 2026-01-02 % above the 50-day 61.0% as of 2026-01-02 RS rank Not available Days to earnings 46 days as of 2026-10-03 UCT scans Not available Why did you take it? Save",
+    "fields": {
+     "regime": "Regime Amber as of 2026-01-02",
+     "exposure": "Exposure 72 / 150 as of 2026-01-02",
+     "breadth_pct_above_50": "% above the 50-day 61.0% as of 2026-01-02",
+     "rs_rank": "RS rank Not available",
+     "days_to_earnings": "Days to earnings 46 days as of 2026-10-03",
+     "uct_scans": "UCT scans Not available"
+    },
+    "late": false
+   },
+   "screenshot": "p1-card-1200.jpg",
+   "how": "both positions logged over the member's API; the card read from the NVDA page"
+  },
+  "P2_answer_the_prompt_keyboard_1200": {
+   "verdict": "PASS",
+   "saved_text": "Why did you take it?\n\nTight flag at the 21EMA, volume dried up\n\nEdit",
+   "screenshot": "p2-why-saved-1200.jpg"
+  },
+  "P3_one_bell_line_a_day": {
+   "verdict": "PASS",
+   "bell_rows_for_today": 1,
+   "bell_rows": [
+    {
+     "id": "notebook_entry_context_new_fill_1791019318174",
+     "type": "notebook_entry_context_new_fill",
+     "severity": "info",
+     "title": "New fill captured",
+     "message": "A new fill's market context was captured in your Notebook.",
+     "timestamp": "2026-10-03T05:21:58.174321-04:00",
+     "read": false,
+     "user_id": "de9aa5ed-a94c-4f51-93e2-f3941f07fa7e",
+     "data": {
+      "source": "notebook_entry_context_new_fill",
+      "day": "2026-10-03",
+      "research_url": "/journal?j2tab=positions"
+     }
+    }
+   ],
+   "bell_on_screen": 1,
+   "fills_logged_today": 2,
+   "screenshot": "p3-bell-390.jpg",
+   "how": "two positions froze today (NVDA, AMD); the per-day claim allows exactly one; the UI read is from MobileNav's AlertBell (the desktop NavBar has none mounted)"
+  },
+  "P4_close_the_trade_the_card_stays_1200": {
+   "verdict": "PASS",
+   "trade": "66e60c7f-3925-4664-abb0-1af26aa6473c",
+   "card": {
+    "text": "Market context at the fill Regime Amber as of 2026-01-02 Exposure 72 / 150 as of 2026-01-02 % above the 50-day 61.0% as of 2026-01-02 RS rank Not available Days to earnings 46 days as of 2026-10-03 UCT scans Not available Why did you take it? Tight flag at the 21EMA, volume dried up Edit",
+    "fields": {
+     "regime": "Regime Amber as of 2026-01-02",
+     "exposure": "Exposure 72 / 150 as of 2026-01-02",
+     "breadth_pct_above_50": "% above the 50-day 61.0% as of 2026-01-02",
+     "rs_rank": "RS rank Not available",
+     "days_to_earnings": "Days to earnings 46 days as of 2026-10-03",
+     "uct_scans": "UCT scans Not available"
+    },
+    "late": false
+   },
+   "why_text": "Why did you take it?\n\nTight flag at the 21EMA, volume dried up\n\nEdit",
+   "screenshot": "p4-trade-card-1200.jpg",
+   "how": "same (symbol, entry day) key -- the trade page reads the position's frozen row"
+  },
+  "P5_a_past_day_reads_not_captured": {
+   "verdict": "PASS",
+   "position": "b5c3dde2-f9c1-4cd3-8d1d-7611f767c527",
+   "entry_date": "2026-09-23",
+   "text": "Market context at the fill\n\nNo market context was captured for this entry. It is frozen only on the day of the entry, and a past day is never reconstructed.",
+   "card_absent": true,
+   "screenshot": "p5-not-captured-1200.jpg"
+  },
+  "P6_no_microphone_with_voice_off": {
+   "verdict": "PASS",
+   "voice_button_present": false,
+   "start_voice_button_present": false,
+   "getUserMedia_calls": 0,
+   "how": "getUserMedia wrapped by an init script present on every document in this context"
+  },
+  "P7_phone_390": {
+   "verdict": "PASS",
+   "probe": {
+    "scrollW": 390,
+    "clientW": 390,
+    "small": []
+   },
+   "screenshot": "p7-trade-card-390.jpg"
+  },
+  "P8_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "requests": [
+  "GET /api/j2/entry-context/meta",
+  "GET /api/j2/entry-context/position/6b3267a9-db83-414c-9eca-6cd9aa67dfbe",
+  "PUT /api/j2/entry-context/why",
+  "GET /api/j2/entry-context/position/6b3267a9-db83-414c-9eca-6cd9aa67dfbe",
+  "GET /api/j2/entry-context/meta",
+  "GET /api/j2/entry-context/trade/66e60c7f-3925-4664-abb0-1af26aa6473c",
+  "GET /api/j2/entry-context/meta",
+  "GET /api/j2/entry-context/position/b5c3dde2-f9c1-4cd3-8d1d-7611f767c527"
+ ],
+ "tip": "62b0eec5d3",
+ "base": "http://127.0.0.1:8652",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13e2-data3",
+ "instrument": "tools\\notebook_w13e2_walk.py",
+ "gate_source": "the sandbox's auth payload (row P0 payload_flag)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8652 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w13e2\\docs\\plans\\joystick\\sandbox-runs\\2026-10-03T04-21-05.md (identity adaf1bb44e4b..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13e2-data3)"
+ },
+ "run": "r042154",
+ "accounts": {
+  "member": "w13e2-member-r042154@local.dev",
+  "admin": "hubtest@local.dev"
+ },
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\evidence\\wave13-13e2\\walk-62b0eec5d3\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13e2\\walk-62b0eec5d3\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-03 04:21:12",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-03 04:21:53",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-03 04:23:49",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-03 04:24:00",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

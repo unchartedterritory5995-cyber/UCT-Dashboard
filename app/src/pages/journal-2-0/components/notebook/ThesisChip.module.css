@@ -1,0 +1,151 @@
+/* Wave 13 lane 13G-2: the thesis chip + its hover/tap preview. */
+
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chip:hover,
+.chip:focus-visible {
+  border-color: var(--accent, #c9a84c);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex: none;
+}
+
+.toneNone .dot { background: var(--text-muted); }
+.tone_blue .dot { background: var(--info); }
+.tone_green .dot { background: var(--color-success, #4ade80); }
+.tone_red .dot { background: var(--color-danger, #f87171); }
+.tone_gray .dot { background: var(--text-muted); }
+
+/* M-9: the status word beside the distance (the dot's colour is never the only cue). */
+.status {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.label {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Desktop only. `position: fixed` and top/left come from ThesisChip.jsx (measured from
+   the chip's rect), so a scrolling table wrapper cannot clip it. */
+.popover {
+  z-index: 20;
+  min-width: 200px;
+  max-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* The gap between the chip and its preview: a mouse crossing it must not leave both. */
+.popover::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -8px;
+  height: 8px;
+}
+
+/* Touch: the same details inside the shared Sheet. */
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sheetBody .popLevels { font-size: 14px; }
+.sheetBody .popLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap-min, 44px);
+  font-size: 14px;
+}
+
+.popTitle {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-bright);
+  overflow-wrap: break-word;
+}
+
+.popStatus {
+  align-self: flex-start;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-surface);
+}
+.popStatus.tone_blue { color: var(--info); }
+.popStatus.tone_green { color: var(--success-ink); }
+.popStatus.tone_red { color: var(--danger-ink); }
+.popStatus.tone_gray { color: var(--text-muted); }
+
+.popLevels {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 10px;
+  margin: 0;
+  font-size: 12px;
+}
+.popLevels dt { color: var(--text-muted); }
+.popLevels dd { margin: 0; color: var(--text-bright); text-align: right; }
+
+.popHint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.popLink {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent, #c9a84c);
+  text-decoration: none;
+}
+.popLink:hover,
+.popLink:focus-visible {
+  text-decoration: underline;
+}
+
+/* Touch tier (<=1024px): tap is the only door, so the chip itself meets the 44px floor. */
+@media (max-width: 1024px) {
+  .chip {
+    min-height: var(--tap-min, 44px);
+    padding: 3px 10px;
+  }
+}

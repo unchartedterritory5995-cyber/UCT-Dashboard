@@ -53,11 +53,18 @@
   color: var(--ut-gold);
   margin-top: 6px;
 }
+/* The buttons WRAP (lane FIN-A11Y round 3). This was a no-wrap row that could not shrink, and
+   each capability adds a button to it: measured at 390 px it ran to 763 px and the whole page
+   scrolled sideways. */
 .headerActions {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
-  flex-shrink: 0;
+  /* May shrink (FIN-A11Y round 3) and never wider than the header (the Terminal panel fix,
+     60b8ba0b49). The header itself wraps, so this group drops to its own line before the
+     name is squeezed; on that line it shrinks and wraps its buttons. */
+  min-width: 0;
   max-width: 100%;
 }
 .empty {
@@ -213,6 +220,7 @@
   }
   .headerActions {
     align-self: stretch;
+    justify-content: flex-start;
   }
   .row {
     flex-wrap: wrap;

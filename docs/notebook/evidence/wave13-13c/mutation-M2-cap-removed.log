@@ -1,0 +1,98 @@
+.FF...                                                                   [100%]
+================================== FAILURES ===================================
+___________ test_the_cap_admits_twenty_then_refuses_with_a_sentence ___________
+
+client = <starlette.testclient.TestClient object at 0x0000021FD37B9310>
+app = <fastapi.applications.FastAPI object at 0x0000021FD36CB620>
+gate_on = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000021FA0D68510>
+stores = (<module 'api.services.call_recap_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\call_r...'api.services.implied_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\implied_store.py'>)
+
+    def test_the_cap_admits_twenty_then_refuses_with_a_sentence(client, app, gate_on, monkeypatch, stores):
+        _today(monkeypatch)
+        _quiet_market(monkeypatch, stores)
+        as_user(app, A)
+        for i in range(20):
+            r = client.post("/api/j2/earnings-prep/NVDA/draft")
+            assert r.status_code == 200, (i, r.text)
+>       assert r.json()["usage"] == {"used": 20, "cap": 20}
+E       AssertionError: assert {'cap': 20, 'used': 0} == {'cap': 20, 'used': 20}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Differing items:
+E         {'used': 0} != {'used': 20}
+E         Use -v to get more diff
+
+tests\test_notebook_earnings_prep.py:503: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmpuhq5a7og.db
+_____________________ test_the_cap_holds_across_a_restart _____________________
+
+db_path = 'C:\\Users\\Patrick\\AppData\\Local\\Temp\\tmp6xnnjlvu.db'
+gate_on = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000021FD3879910>
+stores = (<module 'api.services.call_recap_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\call_r...'api.services.implied_store' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c\\api\\services\\implied_store.py'>)
+
+    def test_the_cap_holds_across_a_restart(db_path, gate_on, monkeypatch, stores):
+        """The count lives in daily_usage_counters, not in the process: re-import the router and
+        the counter module (what a deploy does) and the 21st draft is still refused."""
+        _today(monkeypatch)
+        _quiet_market(monkeypatch, stores)
+        monkeypatch.setenv("NOTEBOOK_EARNINGS_PREP_DAILY_CAP", "3")
+    
+        def fresh_client():
+            from api.services import daily_counters
+            importlib.reload(daily_counters)
+            from api.routers import notebook_earnings_prep
+            importlib.reload(notebook_earnings_prep)
+            fa = FastAPI()
+            fa.include_router(notebook_earnings_prep.router)
+            as_user(fa, A)
+            return TestClient(fa)
+    
+        c1 = fresh_client()
+        assert [c1.post("/api/j2/earnings-prep/NVDA/draft").status_code for _ in range(3)] == [200, 200, 200]
+        c2 = fresh_client()                                  # "the restart"
+>       assert c2.post("/api/j2/earnings-prep/NVDA/draft").status_code == 429
+E       AssertionError: assert 200 == 429
+E        +  where 200 = <Response [200 OK]>.status_code
+E        +    where <Response [200 OK]> = post('/api/j2/earnings-prep/NVDA/draft')
+E        +      where post = <starlette.testclient.TestClient object at 0x0000021FD384E2C0>.post
+
+tests\test_notebook_earnings_prep.py:533: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmp6xnnjlvu.db
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 1298 warnings
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 30 warnings
+
+tests/test_notebook_earnings_prep.py::test_each_source_stubbed_off_yields_a_labelled_missing_cell[recap]
+    return asyncio.get_event_loop_policy()
+
+tests/test_notebook_earnings_prep.py: 16 warnings
+
+tests/test_notebook_earnings_prep.py: 47 warnings
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_earnings_prep.py::test_the_cap_admits_twenty_then_refuses_with_a_sentence
+FAILED tests/test_notebook_earnings_prep.py::test_the_cap_holds_across_a_restart
+2 failed, 4 passed, 24 deselected, 1392 warnings in 30.98s
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"

@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "empty",
+    "endpoint": "GET /api/j2/entry-context/position/ec-carried",
+    "note": "A broker holding with no entry date: there is no entry day to freeze.",
+    "path": "/api/j2/entry-context/position/ec-carried",
+    "status": 200
+  },
+  "body": {
+    "context": null,
+    "key": null,
+    "reason": "The broker reported this holding without its entry date, so there is no entry day to freeze a market context for.",
+    "status": "entry_day_unknown"
+  }
+}

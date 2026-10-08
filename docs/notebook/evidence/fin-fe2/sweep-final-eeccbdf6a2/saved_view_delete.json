@@ -1,0 +1,43 @@
+{
+ "delete_buttons": 1,
+ "door": {
+  "box": [
+   310,
+   431,
+   44,
+   44
+  ],
+  "cx": 332,
+  "cy": 453.375,
+  "top_is_button": true,
+  "top_tag": "path."
+ },
+ "dialogs_after_tap": [
+  {
+   "name": "Delete view \"Sweep view\"?",
+   "box": [
+    0,
+    0,
+    390,
+    844
+   ],
+   "shown": true
+  }
+ ],
+ "dialog": "Delete view \"Sweep view\"?\n×\n\nThis removes the saved view. It does not delete any notes.\n\nCancel\nDelete",
+ "hit": {
+  "box": [
+   284,
+   786,
+   84,
+   44
+  ],
+  "cx": 325.8203125,
+  "cy": 808,
+  "top_is_button": true,
+  "top_tag": "BUTTON._dangerBtn_wu5n8_211"
+ },
+ "voice_button_while_open": 0,
+ "body_overflow": "hidden",
+ "dialog_left": 0
+}

@@ -394,6 +394,16 @@ const BARE_POLL_SITES = {
   'app/src/pages/journal-2-0/hooks/useJ2Nudges.js': 1,
   'app/src/pages/journal-2-0/hooks/useProfileSuggestions.js': 1,
   'app/src/pages/journal-2-0/hooks/useReviewedTradeIds.js': 1,
+  // Notebook wave 13G thesis chips (POST-CENSUS row, recorded at the wave 12-15 landing,
+  // 2026-10-07; the feature is dark behind `notebook_thesis_chips_enabled`, and with it off the
+  // key is null, so there is no request and no tick). ONE batched POST for every visible row's
+  // symbol, at 60 s. Bare, not `useMobileSWR`, for two reasons. The hook is mounted by three
+  // surfaces at once (PositionsTable, HoldingsList, Watchlists), and the wrapper would add a
+  // visibilitychange listener and a 60 s market-clock timer to each of them for a chip that
+  // changes only when a member edits a note. And a hidden tab is already covered: SWR does not
+  // tick while the page is hidden (`refreshWhenHidden` is off by default), and the app-global
+  // `revalidateOnFocus: false` keeps applying. A phone gets the same 60 s tick as a desktop.
+  'app/src/pages/journal-2-0/hooks/useThesisChips.js': 1,
   // ⭐ BRK-01 (roadmap §3.3 / RM-L01) -- the Research > Options tab, two POST-CENSUS rows and ONE
   // decision. The chain grid (increment 1) shipped its site without a row and turned this rail red
   // in the full suite; increment 3 records that decision and makes the same one for the vol surface:

@@ -1,0 +1,15 @@
+<<<<<<< OURS(prev)
+    # Wave 11 (lane 11C, "Ask Notebook to do something") -- the member's AI change
+    # sets: the request they typed, the validated plan, and one row per proposed
+    # change (with what an undo needs: a previous tag, folder or property value,
+    # or the block that was added). Self-ensured by ai_actions.py (never db.py),
+    # so on a pod where the door never ran this is a "no such table" no-op.
+    "j2_ai_change_sets",
+    "j2_ai_change_items",
+    # FT-072 (lane/o-options-remainders) -- the member's saved Spread Book. Self-ensured by
+    # api/services/options_analytics/spread_book.py (never db.py), so on a pod where the book
+    # was never opened this is a "no such table" no-op.
+    "options_spread_book",
+=======
+>>>>>>> THEIRS(pre-landing)
+

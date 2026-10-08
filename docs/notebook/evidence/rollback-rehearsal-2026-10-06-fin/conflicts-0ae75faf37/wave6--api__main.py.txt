@@ -1,0 +1,22 @@
+<<<<<<< OURS(prev)
+# Wave 6 (controller wiring) -- ORDER IS LOAD-BEARING: notebook_insights before
+# journal_two, or /api/j2/notes/tasks is answered as a note called "tasks"
+# (lane F's report; rail tests/test_main_router_order.py).
+app.include_router(notebook_insights_router.router)
+app.include_router(client_errors_router.router)
+app.include_router(notebook_link_preview_router.router)
+# Wave 8 seam S8-2: the share routes' own router, BEFORE journal_two (same family,
+# same pre-journal_two slot; tests/test_notebook_share_routes.py +
+# tests/test_main_router_order.py).
+app.include_router(notebook_shares_router.router)
+app.include_router(journal_two_router.router, dependencies=_OPEN_READS)
+# Wave 8 seam S8-2: three STUB routers (prefix, no routes yet) for lanes 8B/8C --
+# /api/j2/publish*|published* (8B), /api/j2/export (8C), /api/j2/onboarding (8C).
+# Outside /api/j2/notes/..., so mount order against journal_two does not matter.
+app.include_router(notebook_publish_router.router)
+app.include_router(notebook_export_router.router)
+app.include_router(notebook_onboarding_router.router)
+=======
+app.include_router(journal_two_router.router)
+>>>>>>> THEIRS(pre-landing)
+

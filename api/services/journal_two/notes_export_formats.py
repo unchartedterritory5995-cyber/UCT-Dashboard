@@ -985,10 +985,14 @@ class _Walker:
             fb = attrs.get("fallback") if isinstance(attrs.get("fallback"), dict) else {}
             label = str(attrs.get("searchText") or attrs.get("widgetId") or "widget")
             img = self.dx.image(fb.get("url") if isinstance(fb.get("url"), str) else None)
+            # Wave 13 lane 13H-1: the chart's plan levels -- the same line the Markdown export
+            # writes (chart_plan.plan_levels_line, read by plan_extract) -- under the chart.
+            plan = _nx._chart_plan.plan_levels_line(attrs)
+            tail = [self.para(_run(plan), self._ppr(ctx))] if plan else []
             if img:
                 return [self.para(self.dx.drawing(img, label), self._ppr(ctx)),
-                        self.para(_run(label, "<w:i/>"), self._ppr(ctx))]
-            return [self.para(_run(f"[{label}]", "<w:i/>"), self._ppr(ctx))]
+                        self.para(_run(label, "<w:i/>"), self._ppr(ctx))] + tail
+            return [self.para(_run(f"[{label}]", "<w:i/>"), self._ppr(ctx))] + tail
         if t == "askInsert":
             return self.ask_insert(attrs, kids, ctx)
         if t == "documentExcerpt":

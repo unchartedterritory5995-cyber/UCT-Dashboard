@@ -24,6 +24,16 @@
 #         gh workflow run promote-production.yml -f sha=<the master commit sha>
 #       A red that reproduces on the re-run is not infrastructure: read the step's output.
 #   (Fix round 1, review M-3; the same two steps as notebook-a11y.yml's recovery.)
+#
+# SECOND JOB, `write-protection` (landing 12-15, 2026-10-07): tests/test_notes_cas_is_atomic.py,
+#   the rail on the Notebook's core write protection (every note write's compare-and-set holds
+#   the write lock, so a second writer never loses acknowledged words). It sat RED ON MASTER
+#   FOR SIX DAYS (wave 10 L14 0e7d0561a7 changed a SQL string the test located a door by; a
+#   test defect, fixed in 4c9520c606) because no gating workflow ran it. It runs here because
+#   this workflow already installs the backend (requirements.txt) and already gates promotion;
+#   it shares this header's marker, so a red in EITHER job refuses promotion, with the same
+#   recovery above. It is a logic test, not a timing: a red is real until shown otherwise.
+#   The ratio job's flap clause above is about the ratio job only.
 # ─── NOTEBOOK READ LATENCY, IN CI, AS A RATIO (RULING R-10) ─────────────────
 #
 # A shared runner's speed is not ours: the millisecond check in notebook-budgets.yml went
@@ -56,6 +66,7 @@ on:
       - 'tools/notebook_scale_benchmark.py'
       - 'tools/notebook_perf_budgets.py'
       - 'docs/notebook/perf-budgets.json'
+      - 'tests/test_notes_cas_is_atomic.py'
       - '.github/workflows/notebook-latency.yml'
   pull_request:
     paths:
@@ -64,6 +75,7 @@ on:
       - 'tools/notebook_scale_benchmark.py'
       - 'tools/notebook_perf_budgets.py'
       - 'docs/notebook/perf-budgets.json'
+      - 'tests/test_notes_cas_is_atomic.py'
       - '.github/workflows/notebook-latency.yml'
 
 jobs:
@@ -97,3 +109,30 @@ jobs:
           name: notebook-latency
           path: notebook-latency.json
           if-no-files-found: warn
+
+  # The Notebook's write protection (see the header's SECOND JOB note). Its own job so the
+  # pytest load never lands on the ratio job's timings, and so each verdict reads by name.
+  write-protection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: python -m pip install --quiet -r requirements.txt
+
+      - name: Every note write's compare-and-set holds the write lock
+        run: python -m pytest tests/test_notes_cas_is_atomic.py -q
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::tests/test_notes_cas_is_atomic.py is red. This guards the Notebook's core write protection."
+          echo "If the install step failed, it is infrastructure: gh run rerun <run-id> --failed, then promote by hand."
+          echo "If the test failed: a note write door reads and writes outside one BEGIN IMMEDIATE, or the test"
+          echo "can no longer find a door (it locates each door's read by its SQL). Run it locally:"
+          echo "  python -m pytest tests/test_notes_cas_is_atomic.py -q"

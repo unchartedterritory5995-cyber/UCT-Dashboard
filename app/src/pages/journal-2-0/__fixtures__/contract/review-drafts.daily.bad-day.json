@@ -1,0 +1,11 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/review-drafts/daily",
+    "path": "/api/j2/review-drafts/daily?day=yesterday",
+    "status": 422
+  },
+  "body": {
+    "detail": "day must be YYYY-MM-DD"
+  }
+}

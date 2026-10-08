@@ -14,6 +14,7 @@ import { MemoryRouter } from 'react-router-dom'
 import Support, { FAQS, inferSourceTopic, visibleFaqs } from './Support'
 import { AuthContext } from '../context/AuthContext'
 import { __resetNotebookFlags, latchNotebookFlags } from './journal-2-0/lib/offline/notebookFlags'
+import { replayableTours, startPath } from './journal-2-0/components/notebook/onboarding/tourRegistry'
 
 const JsxParser = Parser.extend(jsx())
 const SRC = path.resolve(process.cwd(), 'src')
@@ -66,11 +67,22 @@ function settingsSections() {
 }
 
 /** Every <Link to> in a topic:'notebook' article, and in the helpers those articles use. */
-const HELPERS = ['TourLink', 'ShareLinkSentence', 'PublishSentence']
+const HELPERS = ['TourLink', 'ShareLinkSentence', 'PublishSentence', 'WalkthroughsSection', 'WhatsNewSection']
 function notebookLinks() {
   const links = []
   const collect = (node) => visit(node, (n) => {
-    if (n.type === 'JSXElement' && n.openingElement.name?.name === 'Link') links.push(literal(attr(n, 'to')))
+    if (n.type !== 'JSXElement' || n.openingElement.name?.name !== 'Link') return
+    const to = attr(n, 'to')
+    // Help > Walkthroughs links each tour to `startPath(t)` (its declared start,
+    // else the Notebook root). That is not a literal, so every value it can take
+    // -- one per replayable registered tour -- is checked instead; any OTHER
+    // expression still reads as null and fails below.
+    const ex = to?.value?.expression
+    if (ex?.type === 'CallExpression' && ex.callee?.name === 'startPath') {
+      links.push(...replayableTours().map((t) => startPath(t)))
+    } else {
+      links.push(literal(to))
+    }
   })
   visit(parse('pages/Support.jsx'), (n) => {
     if (n.type === 'ObjectExpression') {
@@ -230,6 +242,44 @@ describe('the gated articles', () => {
     expect(screen.queryByRole('button', { name: SHARE_Q })).toBeNull()
     expect(screen.queryByRole('button', { name: SAMPLE_Q })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Take the tour' })).toBeNull()
+  })
+})
+
+// Wave 14 (lane W14-0): Help > Walkthroughs, reading the tour registry.
+describe('Walkthroughs (the tour registry\'s Help list)', () => {
+  // W14-C1: task reminders is a kill switch that reads ON when a payload omits it, and its
+  // tour is listed whenever it is on; these two cases pin it OFF to isolate the base tour.
+  it('hidden while the onboarding gate is off', async () => {
+    latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: false })
+    renderSupport()
+    await quickAnswer('How do I get started with the Notebook?')
+    expect(screen.queryByText('Walkthroughs')).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Replay' })).toBeNull()
+  })
+
+  it('W14-C1 ruling: hidden while the wave-14 switch is off, even with onboarding on (Help as before wave 14)', async () => {
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: false, notebook_formulas_enabled: true })
+    renderSupport()
+    await quickAnswer('How do I get started with the Notebook?')
+    expect(screen.queryByText('Walkthroughs')).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Replay' })).toBeNull()
+  })
+
+  it('lists the base tour by name, with a Replay link into the Notebook, independent of seen-state', async () => {
+    latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
+    renderSupport()
+    await quickAnswer('How do I get started with the Notebook?')
+    const heading = screen.getByText('Walkthroughs')
+    const list = heading.parentElement
+    expect(within(list).getByText('Notebook basics')).toBeInTheDocument()
+    // Lane FIN-A11Y (review R4, M-14): every row said just "Replay", twenty links with one
+    // name. The visible word stays; the link's NAME now says which tour it replays.
+    const replay = within(list).getByRole('link', { name: 'Replay the Notebook basics tour' })
+    expect(replay).toHaveAttribute('href', '/journal/notebook')
+    expect(replay).toHaveTextContent(/^Replay$/)
+    expect(within(list).queryByRole('link', { name: 'Replay' })).toBeNull()
+    const names = within(list).getAllByRole('link').map((a) => a.getAttribute('aria-label'))
+    expect(new Set(names).size).toBe(names.length)
   })
 })
 

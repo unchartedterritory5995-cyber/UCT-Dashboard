@@ -33,10 +33,11 @@ import os
 import threading
 import time
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException
 
 from api.routers.user_definitions import MAX_PROPOSE_BARS, require_paid
 from api.services import indicator_from_image as svc
+from api.services import request_body_cap as body_cap
 from api.services import indicator_telemetry as telemetry
 
 router = APIRouter(prefix="/api/indicator-vision", tags=["indicator-vision"])
@@ -125,12 +126,26 @@ def _bars_from(raw: str) -> list:
     return parsed
 
 
+# ⛔ WAVE 14 (cap 2): the upload is taken through `request_body_cap`, never
+# `File(...)`. FastAPI parses a `File(...)` parameter IN FULL before any
+# dependency runs -- before the session check -- so a chunked or lying upload was
+# spooled whole before its size was measured. The dependency caps the body WHILE
+# it is read and is declared AFTER the auth dependency, so an anonymous caller
+# reads nothing.
+#
+# `exact=False`: an image just over svc.MAX_IMAGE_BYTES keeps its graceful 200
+# refusal from the service (`vision:image-too-large`); the body cap -- the image
+# ceiling plus two text parts at Starlette's per-part ceiling, for `bars` and
+# `note` -- bounds everything else and answers 413.
+_SCREENSHOT_UPLOAD = body_cap.capped_multipart(
+    "file", lambda: svc.MAX_IMAGE_BYTES, lambda: svc.upload_too_large_sentence(),
+    fields=("note", "bars"), text_parts=2, exact=False)
+
+
 @router.post("/candidates")
 def candidates_from_screenshot(
-    file: UploadFile = File(...),
-    note: str = Form(""),
-    bars: str = Form(""),
     user: dict = Depends(require_paid),
+    parts: body_cap.CappedMultipart = Depends(_SCREENSHOT_UPLOAD),
 ):
     """A picture of somebody else's indicator; this engine's own candidates back.
 
@@ -145,6 +160,9 @@ def candidates_from_screenshot(
     limiter charges anybody: a member who cannot use the feature should not be
     spending their hourly allowance discovering that.
     """
+    file = parts.file
+    note = parts.fields["note"] or ""
+    bars = parts.fields["bars"] or ""
     if not svc.vision_enabled():
         return svc.disabled_refusal()
 

@@ -1,0 +1,76 @@
+{
+ "result": {
+  "enabled": true,
+  "scanned_users": 1,
+  "fired": 0,
+  "regime_degraded": false,
+  "resurface": {
+   "members": 1,
+   "priced_symbols": 1,
+   "fired": 0,
+   "sides_moved": 1,
+   "notes_projected": 0,
+   "notes_removed": 0,
+   "rows_written": 0,
+   "notes_behind": 0
+  }
+ },
+ "insights": [
+  {
+   "id": 1,
+   "kind": "note_level_touch",
+   "symbol": "NVDA",
+   "headline": "NVDA reached 100.00, the stop you named",
+   "body": "In \u201cNVDA swing plan (walk)\u201d you named 100.00 as your stop on 2026-10-03. NVDA is at 98.00 now. Here's what you thought then.",
+   "importance": 7
+  }
+ ],
+ "levels": [
+  {
+   "user_id": "8584cb94-83c2-4241-80af-5c494a6652a5",
+   "note_id": "fc5ccb2ab65549b69886d2352ee00091",
+   "level_id": "note",
+   "symbol": "NVDA",
+   "role": "note",
+   "price": null,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "8584cb94-83c2-4241-80af-5c494a6652a5",
+   "note_id": "fc5ccb2ab65549b69886d2352ee00091",
+   "level_id": "stop@100.0",
+   "symbol": "NVDA",
+   "role": "stop",
+   "price": 100.0,
+   "on_date": null,
+   "version_id": "5a47f8225f4d408bac8663c22889915b",
+   "last_side": "above"
+  },
+  {
+   "user_id": "8584cb94-83c2-4241-80af-5c494a6652a5",
+   "note_id": "fc5ccb2ab65549b69886d2352ee00091",
+   "level_id": "target@130.0",
+   "symbol": "NVDA",
+   "role": "target",
+   "price": 130.0,
+   "on_date": null,
+   "version_id": null,
+   "last_side": "below"
+  }
+ ],
+ "fires": [
+  {
+   "user_id": "8584cb94-83c2-4241-80af-5c494a6652a5",
+   "fire_key": "fc5ccb2ab65549b69886d2352ee00091|stop@100.0",
+   "day_et": "2026-10-03",
+   "insight_id": 1,
+   "kind": "note_level_touch",
+   "note_id": "fc5ccb2ab65549b69886d2352ee00091",
+   "version_id": "5a47f8225f4d408bac8663c22889915b",
+   "fired_at": "2026-10-03T04:03:30.760105+00:00"
+  }
+ ],
+ "deliver_calls": 0
+}

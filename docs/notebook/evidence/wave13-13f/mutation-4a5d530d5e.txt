@@ -1,0 +1,80 @@
+lane 13F mutation proof at HEAD 4a5d530d5e130b529f05be839def5130b9baa396
+CONTROL before (unmutated) rc=0 failed=0
+vitest: Test Files  3 passed (3)
+vitest: Tests  35 passed (35)
+pytest: 26 passed in 6.17s
+F1 a finding's dollars no longer equal the sum of its own cited trades: KILLED (rc=1, failed tests=3); restored sha 65b241c34de7b480 == captured: True; == committed blob (LF-normalised): True
+    pytest: 3 failed, 15 passed in 1.50s
+      FAILED tests/test_leak_finder.py::test_a_findings_trades_sum_to_its_dollars_at_every_sample_band
+      FAILED tests/test_leak_finder.py::test_revenge_reentry_cites_exactly_the_flagged_reentries
+      FAILED tests/test_leak_finder.py::test_skip_overridden_cites_the_skip_verdict_trades_and_matches_the_scorecards_own_sum
+F2 a finding with nothing to cite is returned anyway (a placeholder): KILLED (rc=1, failed tests=3); restored sha 65b241c34de7b480 == captured: True; == committed blob (LF-normalised): True
+    pytest: 3 failed, 15 passed in 1.56s
+      FAILED tests/test_leak_finder.py::test_a_finding_with_nothing_to_cite_is_None_never_a_placeholder
+      FAILED tests/test_leak_finder.py::test_revenge_reentry_absent_when_no_reentry_fired
+      FAILED tests/test_leak_finder.py::test_size_up_after_loss_never_fires_on_a_NEAR_placeholder_stop_even_with_huge_shares
+S1 sizing-up-after-a-loss stops skipping the broker placeholder stop: KILLED (rc=1, failed tests=1); restored sha 65b241c34de7b480 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 17 passed in 1.38s
+      FAILED tests/test_leak_finder.py::test_size_up_after_loss_never_fires_on_a_NEAR_placeholder_stop_even_with_huge_shares
+R1 regime vocabulary: amber joins the unfavourable set: KILLED (rc=1, failed tests=1); restored sha 65b241c34de7b480 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 17 passed in 0.78s
+      FAILED tests/test_leak_finder.py::test_regime_at_entry_flags_only_unfavourable_regimes
+E1 held-into-earnings: the window test is inverted: KILLED (rc=1, failed tests=1); restored sha 65b241c34de7b480 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 17 passed in 0.90s
+      FAILED tests/test_leak_finder.py::test_held_into_earnings_flags_a_report_date_between_entry_and_exit
+W1 weak time window: the WORST hour is replaced by the best: KILLED (rc=1, failed tests=1); restored sha 65b241c34de7b480 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 17 passed in 1.20s
+      FAILED tests/test_leak_finder.py::test_weak_time_window_flags_the_hour_below_the_periods_own_baseline
+K1 Compass SKIP membership: GO verdicts are cited instead of SKIP: KILLED (rc=1, failed tests=1); restored sha 65b241c34de7b480 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 17 passed in 1.16s
+      FAILED tests/test_leak_finder.py::test_skip_overridden_cites_the_skip_verdict_trades_and_matches_the_scorecards_own_sum
+U1 stops-not-honoured reads 'kept' instead of 'missed': KILLED (rc=1, failed tests=1); restored sha 65b241c34de7b480 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 17 passed in 1.40s
+      FAILED tests/test_leak_finder.py::test_unplanned_and_stops_not_honoured_read_off_13as_own_status_and_checks
+G1 the router's gate is inverted: a 404 on, not off: KILLED (rc=1, failed tests=8); restored sha 82e168c59257d493 == captured: True; == committed blob (LF-normalised): True
+    pytest: 8 failed in 6.14s
+      FAILED tests/test_review_drafts.py::test_the_gate_is_a_router_dependency - As...
+      FAILED tests/test_review_drafts.py::test_daily_aggregates_equal_coach_data_assemblers_own_field
+      FAILED tests/test_review_drafts.py::test_weekly_tradecount_matches_the_periods_own_raw_fetch
+      FAILED tests/test_review_drafts.py::test_monthly_uses_the_shared_primitives_and_the_numbers_still_close
+      FAILED tests/test_review_drafts.py::test_member_scoping_another_members_trades_never_appear
+      FAILED tests/test_review_drafts.py::test_best_and_worst_trade_are_the_actual_extremes_and_cite_their_exit
+B1 the weekly window is one day short: KILLED (rc=1, failed tests=1); restored sha b34a2137b2a697bb == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 7 passed in 6.08s
+      FAILED tests/test_review_drafts.py::test_weekly_tradecount_matches_the_periods_own_raw_fetch
+V1 the reveal: a too-few finding is shown OPEN, never collapsed: KILLED (rc=1, failed tests=1); restored sha 156cf522df2b31d6 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 23 passed (24)
+      × a finding below n=10 is BEHIND THE REVEAL (a collapsed toggle) 6ms
+      FAIL  src/pages/journal-2-0/lib/reviewDrafts.test.js > buildDraftBlocks — leaks: the reveal, and the dollars > a finding below n=10 is BEHIND THE REVEAL (a collapsed toggle)
+C1 a frozen trade chart inherits the symbol's live workspace drawings: KILLED (rc=1, failed tests=1); restored sha 156cf522df2b31d6 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 23 passed (24)
+      × charts best and worst trade as frozen widgetEmbed nodes, anchored to the exit 6ms
+      FAIL  src/pages/journal-2-0/lib/reviewDrafts.test.js > buildDraftBlocks — structure > charts best and worst trade as frozen widgetEmbed nodes, anchored to the exit
+Q1 Compass is quoted even when the payload carries none: KILLED (rc=1, failed tests=1); restored sha 156cf522df2b31d6 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 23 passed (24)
+      × quotes Compass only when the payload carries one, as a G-064 askInsert node (labelled AI) 4ms
+      FAIL  src/pages/journal-2-0/lib/reviewDrafts.test.js > buildDraftBlocks — structure > quotes Compass only when the payload carries one, as a G-064 askInsert node (labelled AI)
+D1 the daily append drops its compare-and-set baseline: KILLED (rc=1, failed tests=1); restored sha 156cf522df2b31d6 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 23 passed (24)
+      × PUTs the daily note with the CAS baseline it was just read at 5ms
+      FAIL  src/pages/journal-2-0/lib/reviewDrafts.test.js > draftDailyReview — appends to the member’s OWN daily note, never a second note > PUTs the daily note with the CAS baseline it was just read at
+DOOR1 EODRecap's draft door ignores the flag gate: KILLED (rc=1, failed tests=1); restored sha 7ec8a6e67103a85a == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 5 passed (6)
+      × the "Draft in today’s note" door is absent while the flag is off (default) 35ms
+      FAIL  src/pages/journal-2-0/components/EODRecap.test.jsx > EODRecap > the "Draft in today’s note" door is absent while the flag is off (default)
+DOOR2 CompassReview's draft door ignores the flag gate: KILLED (rc=1, failed tests=1); restored sha 43218bbef938ef8a == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 4 passed (5)
+      × the "Draft weekly review note" door is absent while the flag is off (default) 35ms
+      FAIL  src/pages/journal-2-0/components/CompassReview.test.jsx > CompassReview > the "Draft weekly review note" door is absent while the flag is off (default)
+CONTROL after restore rc=0 failed=0
+vitest: Test Files  3 passed (3)
+vitest: Tests  35 passed (35)
+pytest: 26 passed in 4.47s
+git status over api/ and app/src after the run: clean
+VERDICT: PASS - every mutation killed, every restore verified against the committed blob

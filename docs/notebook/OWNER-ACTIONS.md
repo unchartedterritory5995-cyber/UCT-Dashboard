@@ -35,10 +35,16 @@ repository alone. Three of its rows are further along than it says. The source f
 three lines below is the controller's working ledger, which is not in git, and the owner's own
 words in chat; the scheduled-task readings were taken on this machine on 2026-10-01.
 
-- **Row 2 (browser extension): already submitted.** The owner submitted it to the Chrome Web
-  Store on 2026-09-26 as an unlisted item. What is left is the store's review, which is outside
+- **Row 2 (browser extension): reported submitted 2026-09-26, not verified in the store.** ⚰️ This line said "already
+  submitted" as a fact until 2026-10-07. Its only source is the controller's working ledger and the
+  owner's words in chat, neither of which is in git, and nothing in the repository shows a
+  store listing: the scorecard still reads `BLOCKED (owner)` for G-043
+  (`parity-scorecard.md`, the G-043 row) and `BETA-HANDOFF.md` section 2 still lists the
+  submission as open. So: the owner is reported to have submitted it on 2026-09-26 as an
+  unlisted item. If that is right, what is left is the store's review, which is outside
   anyone's control, and then two small steps: put the install link in the Notebook's capture
-  help, and switch the listing to Public at launch.
+  help, and switch the listing to Public at launch. If it is not, row 2 is still to do. One
+  look at the Chrome Web Store developer dashboard settles it.
 - **Row 6 (the soak): already running.** The nightly roll-up task `UCT-NB-Soak` has run since
   2026-09-26; its last run was 2026-09-30 18:30 and exited 0. That run's line reads day 4.2 of
   30, verdict INCONCLUSIVE, with 2 of the 5 organic members and 3 of the 20 active members the
@@ -51,25 +57,43 @@ words in chat; the scheduled-task readings were taken on this machine on 2026-10
   (`docs/notebook/user-study-kit.md` §9), both added on 2026-10-01. So the trader study can
   also settle standard #1's third clause, "the list is what Notion/Evernote/Obsidian users
   actually reach for weekly". With rows 1, 2 and 7 all done, #1 Features would read 3 of 3, and
-  the totals below become 55 of 61 clauses and 11 of 16 standards, not 54 and 10.
-- **The weekly restore drill (standard #7): next unattended run is Sunday 2026-10-04 at 09:00.**
-  The folder the task runs from, `C:\Users\Patrick\uct-worktrees\notebook-soak-ref`, was
-  missing on 2026-10-01 and was re-created that day, so the run can start. The last scheduled run
-  (2026-09-27) ended INCONCLUSIVE because that night's attachment backup predated the checksum
-  list; a run by hand on 2026-09-28 passed. Nothing for the owner to do unless Sunday's run fails.
+  the totals below become 56 of 61 clauses and 11 of 16 standards, not 55 and 10.
+  (⚰️ "55 ... not 54" until 2026-10-07: every total here was one low, see the arithmetic note below.)
+- **The weekly restore drill (standard #7): next unattended run is Sunday 2026-10-11 at 09:00.**
+  ⚰️ Until 2026-10-07 this said the next run was 2026-10-04 and that it could start. It did not start.
+  `C:\Users\Patrick\uct-q1-observe\restore_drill.run.log` reads, for `Sun 10/04/2026  9:00:01`:
+  "can't open file 'C:\Windows\System32\tools\authdb_restore_drill.py'" and
+  `DRILL exit=2`: the task ran from the wrong folder and the drill never began. A run by hand
+  at 09:15 the same day passed (same log: "auth.db restore drill - PASS";
+  `soak-drills\drill-2026-10-04.md`), which does not count as a scheduled run. The hardened
+  wrapper that fixes the folder and turns a missing checkout into a loud failure was deployed on
+  2026-10-06 (`wave14-ops.md`, section 5B). Task Scheduler shows the next run as
+  `10/11/2026 9:00:00 AM` (read 2026-10-07). Earlier history, unchanged: the scheduled run of
+  2026-09-27 ended INCONCLUSIVE because that night's attachment backup predated the checksum
+  list, and a run by hand on 2026-09-28 passed. For the owner: keep the PC on and logged in on
+  Sunday morning.
+
+> ⚰️ **Corrected 2026-10-07: the counts in this paragraph were one low.** The scorecard's own table
+> (`parity-scorecard.md`, section B, "clauses met k/n") sums to **41**, not 40:
+> 0+4+2+5+1+3+2+3+3+0+3+2+3+3+4+3. The clause that moved is #14 "no super-linear curve", which
+> the scorecard now reads `MET` (`docs/notebook/gate-runs/wave10-PC/curve-d22-q2.log`:211,
+> "VERDICT: PASS -- curve: every op's slope <= 1.1"). It was never one of the fourteen the owner
+> can close, so the fourteen still stand and every total moves up by one: 41 today, 55 with
+> every row done, and **6** clauses still unmet then, not 7. `BETA-HANDOFF.md` already says 41.
+> The struck numbers are kept so the old figures can be recognised.
 
 **The arithmetic, derived from `docs/notebook/parity-scorecard.md` §B and §C (checked today
-against the committed file, not estimated):** the scorecard reads **40 of 61 clauses met, 3 of
+against the committed file, not estimated):** the scorecard reads **~~40~~ 41 of 61 clauses met, 3 of
 16 standards at the bar** today. If every row above runs, and both vendor letters in row 1 come
 back yes, **14 more clauses close** (rows 1, 2, 3, 4, 5, 6 and 7 — rows 8 through 12 close none),
-for **54 of 61 clauses met**, and **10 of 16 standards at the bar** (the seven newly at the bar —
+for **~~54~~ 55 of 61 clauses met**, and **10 of 16 standards at the bar** (the seven newly at the bar —
 #1 Features, #3 Reliability, #5 User experience, #8 Security & privacy, #9 Accessibility, #12 AI
 trustworthiness & usefulness, #13 Search quality, #16 Onboarding & learnability — minus #1, which
 stays short one clause for the reason in row 7 — join the three already there, #2 Functionality,
 #6 User interface, #15 Operability & observability). Re-counted by standard: #1 Features would
 read 2/3 (not at bar, see row 7's note); #4 Speed stays 5/6; #7 Data safety & durability stays
 2/3; #10 Mobile, offline & cross-device would read 2/3; #11 Import, export & interoperability
-stays 3/4; #14 Performance at scale stays 2/4. **7 clauses would still be unmet even then**, for
+stays 3/4; #14 Performance at scale stays ~~2/4~~ 3/4. **~~7~~ 6 clauses would still be unmet even then**, for
 four different reasons, none of them owner-actionable today:
 
 - **Two are permanent, already-decided "no"s**, not open questions: #10 `"cold-start offline"`
@@ -83,8 +107,10 @@ four different reasons, none of them owner-actionable today:
 - **Two need a quiet-machine reading from the controller or an agent**, not an owner action: #4
   `"typing < 16 ms/char up to the size cap"` (`:463` — a quiet-box reading exists at `17.35–17.75
   ms` median for 2,000 paragraphs, `docs/notebook/perf-runs/ty2-quiet/README.md:29`, still over
-  the line) and #14 `"no super-linear curve"` (`:572` — the measurement method changed under
-  ruling D22, but the re-read on the new default has not yet been taken).
+  the line) and ~~#14 `"no super-linear curve"` (`:572` — the measurement method changed under
+  ruling D22, but the re-read on the new default has not yet been taken)~~ (⚰️ struck 2026-10-07: the
+  re-read was taken and passed, and the scorecard reads this clause `MET`; so ONE needs a quiet
+  reading, not two).
 - **And the seventh is #1's `"the list is what Notion/Evernote/Obsidian users actually reach for
   weekly"`** (`:431`), open for the reason given in row 7 above: the trader-study kit does not
   yet ask the question that would answer it.

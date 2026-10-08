@@ -11,7 +11,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
   endpoint answers 402 to a member without a paid plan; report that, do not retry elsewhere.
 - Every endpoint is rate limited per member; on 429 wait for the `Retry-After` header.
 
-## Endpoints (586)
+## Endpoints (614)
 
 | method | path | tier | rate-limit family |
 |---|---|---|---|
@@ -269,9 +269,16 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/j2/broker/unreviewed` | member | member-workspace |
 | GET | `/api/j2/calendar` | member | member-workspace |
 | GET | `/api/j2/calendar/day/{date}` | member | member-workspace |
+| GET | `/api/j2/chart-plan/benchmarks` | paid | member-workspace |
 | GET | `/api/j2/community/positions` | member | member-workspace |
 | GET | `/api/j2/community/traders` | member | member-workspace |
 | GET | `/api/j2/community/trades` | member | member-workspace |
+| GET | `/api/j2/earnings-prep/soon` | paid | member-workspace |
+| GET | `/api/j2/entry-context` | paid | member-workspace |
+| GET | `/api/j2/entry-context/list` | paid | member-workspace |
+| GET | `/api/j2/entry-context/meta` | paid | member-workspace |
+| GET | `/api/j2/entry-context/position/{position_id}` | paid | member-workspace |
+| GET | `/api/j2/entry-context/trade/{trade_id}` | paid | member-workspace |
 | GET | `/api/j2/excerpts/{excerpt_id}` | member | member-workspace |
 | GET | `/api/j2/export/notebook` | member | member-workspace |
 | GET | `/api/j2/export/notes/{note_id}` | member | member-workspace |
@@ -280,9 +287,16 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/j2/link-preview` | member | member-workspace |
 | GET | `/api/j2/metrics` | member | member-workspace |
 | GET | `/api/j2/metrics/registry` | member | member-workspace |
+| GET | `/api/j2/my-playbook` | paid | member-workspace |
 | GET | `/api/j2/note-folders` | member | member-workspace |
 | GET | `/api/j2/note-templates` | member | member-workspace |
 | GET | `/api/j2/note-templates/{template_id}` | member | member-workspace |
+| GET | `/api/j2/notebook-fingerprint/blocks` | paid | member-workspace |
+| GET | `/api/j2/notebook-fingerprint/blocks/{note_id}/{embed_key}` | paid | member-workspace |
+| GET | `/api/j2/notebook-fingerprint/compute` | paid | member-workspace |
+| GET | `/api/j2/notebook-fingerprint/meta` | paid | member-workspace |
+| GET | `/api/j2/notebook-visual-playbook/cards` | paid | member-workspace |
+| GET | `/api/j2/notebook-visual-playbook/trades/{trade_id}/before-after` | paid | member-workspace |
 | GET | `/api/j2/notebook/home` | member | member-workspace |
 | GET | `/api/j2/notes` | member | member-workspace |
 | GET | `/api/j2/notes/attachments/{user_id_param}/{note_id}/{sub}/{filename}` | member | member-workspace |
@@ -324,18 +338,32 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/j2/onboarding/sample-notebook` | member | member-workspace |
 | GET | `/api/j2/options` | member | member-workspace |
 | GET | `/api/j2/options/{strategy_id}` | member | member-workspace |
+| GET | `/api/j2/plan-grades/discipline` | paid | member-workspace |
+| GET | `/api/j2/plan-grades/status` | paid | member-workspace |
+| GET | `/api/j2/plan-grades/trades/{trade_id}` | paid | member-workspace |
 | GET | `/api/j2/positions` | member | member-workspace |
 | GET | `/api/j2/positions/attention` | member | member-workspace |
 | GET | `/api/j2/positions/{position_id}` | member | member-workspace |
 | GET | `/api/j2/property-defs` | member | member-workspace |
 | GET | `/api/j2/publish` | member | member-workspace |
 | GET | `/api/j2/regime` | member | member-workspace |
+| GET | `/api/j2/research-capture/passed-setups` | paid | member-workspace |
+| GET | `/api/j2/research-capture/transcripts/{symbol}/quarters` | paid | member-workspace |
+| GET | `/api/j2/research-capture/transcripts/{symbol}/{quarter}` | paid | member-workspace |
+| GET | `/api/j2/review-drafts/daily` | paid | member-workspace |
+| GET | `/api/j2/review-drafts/monthly` | paid | member-workspace |
+| GET | `/api/j2/review-drafts/weekly` | paid | member-workspace |
 | GET | `/api/j2/reviews/search` | member | member-workspace |
 | GET | `/api/j2/saved-views` | member | member-workspace |
 | GET | `/api/j2/settings` | member | member-workspace |
+| GET | `/api/j2/setups-board` | paid | member-workspace |
 | GET | `/api/j2/share/links` | member | member-workspace |
+| GET | `/api/j2/similar-names/templates` | paid | member-workspace |
+| GET | `/api/j2/similar-names/{note_id}/{embed_key}` | paid | member-workspace |
 | GET | `/api/j2/strategies/{strategy_id}/excursion` | member | member-workspace |
 | GET | `/api/j2/tax-report` | member | member-workspace |
+| GET | `/api/j2/template-gallery` | paid | member-workspace |
+| GET | `/api/j2/template-gallery/{gallery_id}` | paid | member-workspace |
 | GET | `/api/j2/track-record-link` | member | member-workspace |
 | GET | `/api/j2/trade-evidence` | member | member-workspace |
 | GET | `/api/j2/trades` | member | member-workspace |

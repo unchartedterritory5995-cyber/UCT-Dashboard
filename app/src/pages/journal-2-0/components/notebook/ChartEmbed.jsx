@@ -1,26 +1,15 @@
 import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react'
 import ChartPane from '../../../../components/chart/pane/ChartPane'
 import { embedAutoCaption } from '../../lib/widgetEmbedCore'
+import { etDayOf } from '../../lib/calendar'
 
 // A ts param (epoch seconds or 'YYYY-MM-DD') → the ET SESSION day the cutoff
 // speaks. ⛔ Never toISOString(): UTC flips to the next calendar day at
 // 8:00 PM ET, so an evening capture would stamp TOMORROW as the cutoff and
 // the "frozen" snapshot would include a full session that printed after the
 // user wrote the entry (review finding). en-CA locale renders YYYY-MM-DD.
-export function tsToAnchorDay(v) {
-  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10)
-  if (typeof v === 'number' && Number.isFinite(v)) {
-    const ms = v > 10_000_000_000 ? v : v * 1000
-    const d = new Date(ms)
-    if (Number.isNaN(d.getTime())) return null
-    try {
-      return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
-    } catch {
-      return d.toISOString().slice(0, 10)
-    }
-  }
-  return null
-}
+// One authority: lib/calendar.js `etDayOf` (the plan panel's as-of day reads the same one).
+export const tsToAnchorDay = etDayOf
 
 const noopStore = () => {}
 
@@ -41,6 +30,13 @@ function ChartEmbed({
   // (height:100%) so the chart tracks the embed's live size during a resize
   // drag; the parent (WidgetEmbedView body) owns the pixel height.
   attrs, annotate = false, onAnnotationsChange = null, onBarsReady = null,
+  // Wave 13 lane 13H-4: on a coarse pointer, present Draw mode's toolbar as
+  // StockChart's MobileDrawBar instead of the desktop ChartToolbar it would
+  // otherwise wrap into three rows over most of the embed's canvas (the
+  // 13H-3 bug). The caller (WidgetEmbedView) already knows annotate + pointer
+  // coarseness; this is a straight pass-through, gated a second time below so
+  // the prop can never reach StockChart true while annotate is false.
+  mobileDrawBar = false,
   // Linked crosshair (spec Phase 6 #6): the per-note bus every chart embed
   // shares. StockChart owns both halves already — onCrosshairMove publishes,
   // subscribeCrosshair applies payloads imperatively with echo suppression
@@ -130,14 +126,20 @@ function ChartEmbed({
     annotationsEditable: !!annotate,
     ...(onAnnotationsChange ? { onAnnotationsChange } : {}),
     ...(backgroundWarm ? {} : { backgroundWarm: false }),
+    // Second gate on `annotate`: a stale `true` arriving the same render Draw
+    // mode exits must never light up StockChart's MobileDrawBar swap over a
+    // read-only chart.
+    mobileDrawBar: !!annotate && !!mobileDrawBar,
   }), [live, anchorDay, annotations, annotate, onAnnotationsChange, onBarsReady,
-    peekToNow, crosshairBus, reportCrosshair, subscribeCrosshair, backgroundWarm])
+    peekToNow, crosshairBus, reportCrosshair, subscribeCrosshair, backgroundWarm, mobileDrawBar])
 
   return (
     // Wave 8 (8A): a figure named by the embed's own caption (the same words
     // its archived image uses for alt), so a screen reader hears what the
     // chart IS before it meets the chart's own controls.
-    <div style={{ height: '100%' }} role="figure" aria-label={embedAutoCaption(attrs)}>
+    // `data-notebook-chart-embed` scopes the touch-tier tap floor for StockChart's mini
+    // chrome (StockChart.module.css + IndicatorChip.module.css; wave 14 playbook fixes).
+    <div style={{ height: '100%' }} role="figure" aria-label={embedAutoCaption(attrs)} data-notebook-chart-embed="">
       <ChartPane
         ref={paneRef}
         sym={params.symbol}

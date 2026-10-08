@@ -27,6 +27,7 @@ import PlayableTranscript from './PlayableTranscript'
 import TranscriptSearchAll from './TranscriptSearchAll'
 import TranscriptChapters from './TranscriptChapters'
 import search from './TranscriptSearch.module.css'
+import { SaveTranscriptButton } from '../../pages/journal-2-0/components/notebook/TranscriptDoors' // 13G-1 mount (P2)
 
 const hasSpeechSynthesis = () =>
   typeof window !== 'undefined' && 'speechSynthesis' in window
@@ -311,6 +312,7 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
                   </span>
                 )}
 
+                <SaveTranscriptButton symbol={sym} quarter={transcript.quarter} />{/* 13G-1 mount (P2); renders nothing while its gate is off */}
                 {/* Only when the transcript actually states the boundary. Three
                     of seven live calls never say "question-and-answer", so the
                     chip is absent rather than pointing somewhere invented. */}

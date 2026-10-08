@@ -1,0 +1,22 @@
+{
+ "hit": {
+  "box": [
+   57,
+   555,
+   120,
+   44
+  ],
+  "cx": 117.1484375,
+  "cy": 576.75,
+  "top_is_button": true,
+  "top_tag": "BUTTON._action_x7dzq_95 _danger_x7dzq_141"
+ },
+ "voice_buttons_on_page": 1,
+ "dialogs_after_tap": [],
+ "confirm_dialog": false,
+ "voice_button_while_open": 0,
+ "dialog_left": 0,
+ "notice": [
+  "Moved 2 notes to the Trash.Undo"
+ ]
+}

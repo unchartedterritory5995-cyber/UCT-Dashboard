@@ -2148,3 +2148,32 @@ describe('search_used — a settled search counts itself, and never the query', 
     expect(JSON.stringify(sent)).not.toMatch(/private|nvda|query/)
   })
 })
+
+// Finish program, lane KEYS: the command palette's "Search Notebook" door. NotebookTab bumps
+// `searchRequest`; the panel switches to search and the cursor is in the box.
+describe('FolderSidebar: a search request from outside opens search with the cursor in the box', () => {
+  const mount = (searchRequest) => (
+    <FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+      activeTag={null} onSelectTag={() => {}} searchRequest={searchRequest} />)
+
+  it('at rest (no request) the panel shows folders and the search box is not there', () => {
+    render(mount(0))
+    expect(screen.queryByLabelText('Search your notes')).toBeNull()
+  })
+
+  it('a request switches to search and focuses the box', async () => {
+    const { rerender } = render(mount(0))
+    rerender(mount(1))
+    const box = await screen.findByLabelText('Search your notes')
+    await waitFor(() => expect(document.activeElement).toBe(box))
+  })
+
+  it('a second request while already searching puts the cursor back in the box', async () => {
+    const { rerender } = render(mount(1))
+    const box = await screen.findByLabelText('Search your notes')
+    box.blur()
+    expect(document.activeElement).not.toBe(box)
+    rerender(mount(2))
+    await waitFor(() => expect(document.activeElement).toBe(box))
+  })
+})

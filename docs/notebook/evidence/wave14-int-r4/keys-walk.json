@@ -1,0 +1,1680 @@
+{
+ "tool": "tools/notebook_w14_onboarding_walk.py",
+ "tree": "39784a2a526ebc39c46ea32cffa9dc3518a519ed",
+ "started": "2026-10-05T09:25:43+00:00",
+ "widths": [
+  [
+   1200,
+   900
+  ],
+  [
+   820,
+   1180
+  ],
+  [
+   390,
+   844
+  ]
+ ],
+ "status": "COMPLETE",
+ "offered": {
+  "1200": "New in your Notebook: Writing help",
+  "820": "New in your Notebook: Writing help",
+  "390": "New in your Notebook: Writing help"
+ },
+ "phases": {
+  "on": {
+   "base": "http://127.0.0.1:8715",
+   "stop_how": "graceful to the shutdown checkpoint, then forced exit",
+   "not_run": null,
+   "armed": [
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
+   ]
+  }
+ },
+ "finished": "2026-10-05T09:28:52+00:00",
+ "driver_imported_api": [],
+ "not_run": [],
+ "checks": [
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "setup",
+   "check": "fresh paid member",
+   "verdict": "PASS",
+   "email": "q1on12002377801@local.dev",
+   "flags": {
+    "notebook_onboarding_enabled": true,
+    "notebook_getting_started_enabled": true,
+    "notebook_template_gallery_enabled": true
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S1 base tour",
+   "check": "auto-starts at step 1 on the first-run screen",
+   "verdict": "PASS",
+   "title": "Welcome to your Notebook",
+   "step": 1,
+   "of": 3
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S1 base tour",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "screenshot": "on-S1-base-tour-1200.png",
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "contentScroll": [
+    1092,
+    1092
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S1 base tour",
+   "check": "no stacked first-run surfaces",
+   "verdict": "PASS",
+   "tourDialogs": [
+    "Welcome to your Notebook"
+   ],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 0,
+   "slotOthers": [],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S1 base tour",
+   "check": "keyboard-only reach to every control",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S1 base tour",
+   "check": "axe (wcag2a/aa, 21aa, 22aa, best-practice)",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S1 base tour",
+   "check": "Escape dismisses it",
+   "verdict": "PASS",
+   "notebook_tour": "{\"v\":1,\"state\":\"dismissed\",\"step\":\"first-run\"}"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S2 first-run welcome",
+   "check": "preview, promotion and checklist all render",
+   "verdict": "PASS",
+   "promotion": true,
+   "sample_button_describedby": "_r_e_",
+   "describedby_resolves": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S2 first-run welcome",
+   "check": "the offer waits while the checklist is open",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 1,
+   "slotOthers": [
+    "Meet Compass\n\nTap the compass button  to talk to your tradin"
+   ],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S2 first-run welcome",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "screenshot": "on-S2-first-run-welcome-1200.png",
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "contentScroll": [
+    1092,
+    1092
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S2 first-run welcome",
+   "check": "no stacked first-run surfaces",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 1,
+   "slotOthers": [
+    "Meet Compass\n\nTap the compass button  to talk to your tradin"
+   ],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S2 first-run welcome",
+   "check": "keyboard-only reach to every control",
+   "verdict": "PASS",
+   "controls": [
+    "Start a note",
+    "Create a thesis",
+    "Import notes",
+    "Today",
+    "Add a sample notebook",
+    "Take the tour",
+    "Hide the get started list",
+    "Write your first note",
+    "Start a note from a template",
+    "Open the sample notebook",
+    "Take the Notebook basics tour",
+    "Take the Writing help tour",
+    "Take the Task reminders tour",
+    "Take the Template gallery tour"
+   ],
+   "reached_at": {
+    "Start a note": 1,
+    "Create a thesis": 2,
+    "Import notes": 3,
+    "Today": 4,
+    "Add a sample notebook": 5,
+    "Take the tour": 6,
+    "Hide the get started list": 7,
+    "Write your first note": 8,
+    "Start a note from a template": 9,
+    "Open the sample notebook": 10,
+    "Take the Notebook basics tour": 11,
+    "Take the Writing help tour": 12,
+    "Take the Task reminders tour": 13,
+    "Take the Template gallery tour": 14
+   },
+   "missing": [],
+   "presses": 14,
+   "trail": [
+    "BUTTON:Start a note",
+    "BUTTON:Create a thesis",
+    "BUTTON:Import notes",
+    "BUTTON:Today",
+    "BUTTON:Add a sample notebook",
+    "BUTTON:Take the tour",
+    "BUTTON:Hide the get started list",
+    "BUTTON:Write your first note",
+    "A:Start a note from a template",
+    "BUTTON:Open the sample notebook",
+    "BUTTON:Take the Notebook basics tour",
+    "BUTTON:Take the Writing help tour",
+    "BUTTON:Take the Task reminders tour",
+    "BUTTON:Take the Template gallery tour"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S2 first-run welcome",
+   "check": "axe (wcag2a/aa, 21aa, 22aa, best-practice)",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S3 offer",
+   "check": "Hide records the checklist closed",
+   "verdict": "PASS",
+   "notebook_getting_started": "{\"v\":1,\"state\":\"dismissed\",\"at\":\"2026-10-05T09:26:22.808Z\"}",
+   "write_seen_on_the_wire": true
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S3 offer",
+   "check": "the offer waits while another first-run card holds the slot",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 1,
+   "slotOthers": [
+    "Meet Compass\n\nTap the compass button  to talk to your tradin"
+   ],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S3 offer",
+   "check": "the offer appears once the checklist and the Compass card are gone",
+   "verdict": "PASS",
+   "title": "New in your Notebook: Writing help"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S3 offer",
+   "check": "the offer never takes focus",
+   "verdict": "PASS",
+   "frames_with_offer": 92,
+   "frames_focus_in_offer": 0,
+   "active_after": "BODY"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S3 offer",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "screenshot": "on-S3-offer-1200.png",
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "contentScroll": [
+    1092,
+    1092
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S3 offer",
+   "check": "no stacked first-run surfaces",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 1,
+   "slotPresent": true,
+   "slotChildren": 1,
+   "slotOthers": [],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S3 offer",
+   "check": "keyboard-only reach to every control",
+   "verdict": "PASS",
+   "controls": [
+    "Take the tour",
+    "Not now"
+   ],
+   "reached_at": {
+    "Take the tour": 1,
+    "Not now": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Take the tour",
+    "BUTTON:Not now"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S3 offer",
+   "check": "axe (wcag2a/aa, 21aa, 22aa, best-practice)",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S3 offer",
+   "check": "Not now hides it and records dismissed, step null",
+   "verdict": "PASS",
+   "notebook_tours": {
+    "writing-help": {
+     "v": 1,
+     "state": "dismissed",
+     "step": null
+    }
+   }
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S3 offer",
+   "check": "no second offer in the same session (reload)",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S4 Help",
+   "check": "Walkthroughs lists the base tour and every armed capability's tour",
+   "verdict": "FAIL",
+   "rows": [
+    "Notebook basics\nReplay",
+    "Writing help\nReplay",
+    "Task reminders\nReplay",
+    "Template gallery\nReplay"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S4 Help",
+   "check": "What's new lists every armed tour not taken, the declined one included",
+   "verdict": "FAIL",
+   "starts": [
+    "Start the Writing help tour",
+    "Start the Task reminders tour",
+    "Start the Template gallery tour"
+   ],
+   "offered": "New in your Notebook: Writing help"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S4 Help",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "screenshot": "on-S4-Help-1200.png",
+   "vw": 1200,
+   "docScrollWidth": 1200,
+   "bodyScrollWidth": 1200,
+   "contentScroll": null,
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S4 Help",
+   "check": "no stacked first-run surfaces",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 0,
+   "slotOthers": [],
+   "surfaces": 0
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S4 Help",
+   "check": "keyboard-only reach to every control",
+   "verdict": "PASS",
+   "controls": [
+    "Start the Writing help tour",
+    "Start the Task reminders tour",
+    "Start the Template gallery tour",
+    "Replay",
+    "Replay",
+    "Replay",
+    "Replay"
+   ],
+   "reached_at": {
+    "Start the Writing help tour": 29,
+    "Start the Task reminders tour": 30,
+    "Start the Template gallery tour": 31,
+    "Replay": 35
+   },
+   "missing": [],
+   "presses": 35,
+   "trail": [
+    "A:Skip to main content",
+    "A:Skip to Walkthroughs",
+    "A:UCT Intelligence — go to landing page",
+    "BUTTON:Search — Ctrl+K",
+    "A:UCT Terminal",
+    "A:Charts",
+    "A:Morning Wire",
+    "A:Dashboard",
+    "A:AI Search",
+    "A:UCT 20",
+    "A:Breadth",
+    "A:Screener",
+    "A:Options Flow",
+    "A:Flow Record",
+    "A:Live Flow",
+    "A:Catalysts History",
+    "A:Model Book",
+    "A:Formula Reference",
+    "A:The Desk",
+    "A:Journal",
+    "A:Portfolio Risk",
+    "A:Account: q1on1200, Pro",
+    "A:Settings",
+    "A:Support",
+    "A:UCT Website",
+    "BUTTON:System status: All systems operational",
+    "BUTTON:New Ticket",
+    "A:contact@uctintelligence.com",
+    "A:Start the Writing help tour",
+    "A:Start the Task reminders tour",
+    "A:Start the Template gallery tour",
+    "A:Replay",
+    "A:Replay",
+    "A:Replay",
+    "A:Replay"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S4 Help",
+   "check": "axe (wcag2a/aa, 21aa, 22aa, best-practice)",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S5 replay",
+   "check": "Replay on a cold page opens the base tour at step one",
+   "verdict": "PASS",
+   "title": "Welcome to your Notebook",
+   "step": 1,
+   "of": 3,
+   "screenshot": "on-S5-replay-1200.png"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S6 What's new Start",
+   "check": "Start the Writing help tour: a tour opens",
+   "verdict": "PASS",
+   "title": "This walkthrough runs inside a note",
+   "step": null,
+   "of": null,
+   "url": "http://127.0.0.1:8715/journal/notebook"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S6 What's new Start",
+   "check": "Start the Task reminders tour: a tour opens",
+   "verdict": "PASS",
+   "title": "Every task, one list",
+   "step": 1,
+   "of": 3,
+   "url": "http://127.0.0.1:8715/journal/notebook?view=all"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "S6 What's new Start",
+   "check": "Start the Template gallery tour: a tour opens",
+   "verdict": "FAIL",
+   "url": "http://127.0.0.1:8715/journal/notebook?view=all",
+   "stage": {
+    "tourDialogs": [],
+    "offers": 0,
+    "slotPresent": true,
+    "slotChildren": 0,
+    "slotOthers": [],
+    "surfaces": 0
+   },
+   "screenshot": "on-S6-noopen-1200.png",
+   "notebook_tours": "{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null},\"task-reminders\":{\"v\":1,\"state\":\"dismissed\",\"step\":\"list\"},\"template-gallery\":{\"v\":1,\"state\":\"started\",\"step\":\"templates\"}}"
+  },
+  {
+   "phase": "on",
+   "width": 1200,
+   "surface": "driver",
+   "check": "no uncaught page errors",
+   "verdict": "PASS",
+   "errors": []
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "setup",
+   "check": "fresh paid member",
+   "verdict": "PASS",
+   "email": "q1on8202423650@local.dev",
+   "flags": {
+    "notebook_onboarding_enabled": true,
+    "notebook_getting_started_enabled": true,
+    "notebook_template_gallery_enabled": true
+   }
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S1 base tour",
+   "check": "auto-starts at step 1 on the first-run screen",
+   "verdict": "PASS",
+   "title": "Welcome to your Notebook",
+   "step": 1,
+   "of": 3
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S1 base tour",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "screenshot": "on-S1-base-tour-820.png",
+   "vw": 820,
+   "docScrollWidth": 820,
+   "bodyScrollWidth": 820,
+   "contentScroll": [
+    772,
+    772
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S1 base tour",
+   "check": "touch targets >= --tap-min",
+   "verdict": "PASS",
+   "tapMinRaw": "44px",
+   "tapMin": 44,
+   "controls": 2,
+   "small": []
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S1 base tour",
+   "check": "no stacked first-run surfaces",
+   "verdict": "PASS",
+   "tourDialogs": [
+    "Welcome to your Notebook"
+   ],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 0,
+   "slotOthers": [],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S1 base tour",
+   "check": "keyboard-only reach to every control",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S1 base tour",
+   "check": "axe (wcag2a/aa, 21aa, 22aa, best-practice)",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S1 base tour",
+   "check": "Escape dismisses it",
+   "verdict": "PASS",
+   "notebook_tour": "{\"v\":1,\"state\":\"dismissed\",\"step\":\"first-run\"}"
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S2 first-run welcome",
+   "check": "preview, promotion and checklist all render",
+   "verdict": "PASS",
+   "promotion": true,
+   "sample_button_describedby": "_r_f_",
+   "describedby_resolves": true
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S2 first-run welcome",
+   "check": "the offer waits while the checklist is open",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 1,
+   "slotOthers": [
+    "Meet Compass\n\nTap the compass button  to talk to your tradin"
+   ],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S2 first-run welcome",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "screenshot": "on-S2-first-run-welcome-820.png",
+   "vw": 820,
+   "docScrollWidth": 820,
+   "bodyScrollWidth": 820,
+   "contentScroll": [
+    772,
+    772
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S2 first-run welcome",
+   "check": "touch targets >= --tap-min",
+   "verdict": "PASS",
+   "tapMinRaw": "44px",
+   "tapMin": 44,
+   "controls": 14,
+   "small": []
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S2 first-run welcome",
+   "check": "no stacked first-run surfaces",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 1,
+   "slotOthers": [
+    "Meet Compass\n\nTap the compass button  to talk to your tradin"
+   ],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S2 first-run welcome",
+   "check": "keyboard-only reach to every control",
+   "verdict": "PASS",
+   "controls": [
+    "Start a note",
+    "Create a thesis",
+    "Import notes",
+    "Today",
+    "Add a sample notebook",
+    "Take the tour",
+    "Hide the get started list",
+    "Write your first note",
+    "Start a note from a template",
+    "Open the sample notebook",
+    "Take the Notebook basics tour",
+    "Take the Writing help tour",
+    "Take the Task reminders tour",
+    "Take the Template gallery tour"
+   ],
+   "reached_at": {
+    "Start a note": 1,
+    "Create a thesis": 2,
+    "Import notes": 3,
+    "Today": 4,
+    "Add a sample notebook": 5,
+    "Take the tour": 6,
+    "Hide the get started list": 7,
+    "Write your first note": 8,
+    "Start a note from a template": 9,
+    "Open the sample notebook": 10,
+    "Take the Notebook basics tour": 11,
+    "Take the Writing help tour": 12,
+    "Take the Task reminders tour": 13,
+    "Take the Template gallery tour": 14
+   },
+   "missing": [],
+   "presses": 14,
+   "trail": [
+    "BUTTON:Start a note",
+    "BUTTON:Create a thesis",
+    "BUTTON:Import notes",
+    "BUTTON:Today",
+    "BUTTON:Add a sample notebook",
+    "BUTTON:Take the tour",
+    "BUTTON:Hide the get started list",
+    "BUTTON:Write your first note",
+    "A:Start a note from a template",
+    "BUTTON:Open the sample notebook",
+    "BUTTON:Take the Notebook basics tour",
+    "BUTTON:Take the Writing help tour",
+    "BUTTON:Take the Task reminders tour",
+    "BUTTON:Take the Template gallery tour"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S2 first-run welcome",
+   "check": "axe (wcag2a/aa, 21aa, 22aa, best-practice)",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S3 offer",
+   "check": "Hide records the checklist closed",
+   "verdict": "PASS",
+   "notebook_getting_started": "{\"v\":1,\"state\":\"dismissed\",\"at\":\"2026-10-05T09:27:07.711Z\"}",
+   "write_seen_on_the_wire": true
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S3 offer",
+   "check": "the offer waits while another first-run card holds the slot",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 1,
+   "slotOthers": [
+    "Meet Compass\n\nTap the compass button  to talk to your tradin"
+   ],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S3 offer",
+   "check": "the offer appears once the checklist and the Compass card are gone",
+   "verdict": "PASS",
+   "title": "New in your Notebook: Writing help"
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S3 offer",
+   "check": "the offer never takes focus",
+   "verdict": "PASS",
+   "frames_with_offer": 92,
+   "frames_focus_in_offer": 0,
+   "active_after": "BODY"
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S3 offer",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "screenshot": "on-S3-offer-820.png",
+   "vw": 820,
+   "docScrollWidth": 820,
+   "bodyScrollWidth": 820,
+   "contentScroll": [
+    772,
+    772
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S3 offer",
+   "check": "touch targets >= --tap-min",
+   "verdict": "PASS",
+   "tapMinRaw": "44px",
+   "tapMin": 44,
+   "controls": 2,
+   "small": []
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S3 offer",
+   "check": "no stacked first-run surfaces",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 1,
+   "slotPresent": true,
+   "slotChildren": 1,
+   "slotOthers": [],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S3 offer",
+   "check": "keyboard-only reach to every control",
+   "verdict": "PASS",
+   "controls": [
+    "Take the tour",
+    "Not now"
+   ],
+   "reached_at": {
+    "Take the tour": 1,
+    "Not now": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Take the tour",
+    "BUTTON:Not now"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S3 offer",
+   "check": "axe (wcag2a/aa, 21aa, 22aa, best-practice)",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S3 offer",
+   "check": "Not now hides it and records dismissed, step null",
+   "verdict": "PASS",
+   "notebook_tours": {
+    "writing-help": {
+     "v": 1,
+     "state": "dismissed",
+     "step": null
+    }
+   }
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S3 offer",
+   "check": "no second offer in the same session (reload)",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S4 Help",
+   "check": "Walkthroughs lists the base tour and every armed capability's tour",
+   "verdict": "FAIL",
+   "rows": [
+    "Notebook basics\nReplay",
+    "Writing help\nReplay",
+    "Task reminders\nReplay",
+    "Template gallery\nReplay"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S4 Help",
+   "check": "What's new lists every armed tour not taken, the declined one included",
+   "verdict": "FAIL",
+   "starts": [
+    "Start the Writing help tour",
+    "Start the Task reminders tour",
+    "Start the Template gallery tour"
+   ],
+   "offered": "New in your Notebook: Writing help"
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S4 Help",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "screenshot": "on-S4-Help-820.png",
+   "vw": 820,
+   "docScrollWidth": 820,
+   "bodyScrollWidth": 820,
+   "contentScroll": null,
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S4 Help",
+   "check": "touch targets >= --tap-min",
+   "verdict": "PASS",
+   "tapMinRaw": "44px",
+   "tapMin": 44,
+   "controls": 7,
+   "small": []
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S4 Help",
+   "check": "no stacked first-run surfaces",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 0,
+   "slotOthers": [],
+   "surfaces": 0
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S4 Help",
+   "check": "keyboard-only reach to every control",
+   "verdict": "PASS",
+   "controls": [
+    "Start the Writing help tour",
+    "Start the Task reminders tour",
+    "Start the Template gallery tour",
+    "Replay",
+    "Replay",
+    "Replay",
+    "Replay"
+   ],
+   "reached_at": {
+    "Start the Writing help tour": 10,
+    "Start the Task reminders tour": 11,
+    "Start the Template gallery tour": 12,
+    "Replay": 16
+   },
+   "missing": [],
+   "presses": 16,
+   "trail": [
+    "A:Skip to main content",
+    "A:Skip to Walkthroughs",
+    "BUTTON:Open menu",
+    "BUTTON:Search",
+    "BUTTON:Market movers",
+    "BUTTON:Notifications",
+    "BUTTON:System status: All systems operational",
+    "BUTTON:New Ticket",
+    "A:contact@uctintelligence.com",
+    "A:Start the Writing help tour",
+    "A:Start the Task reminders tour",
+    "A:Start the Template gallery tour",
+    "A:Replay",
+    "A:Replay",
+    "A:Replay",
+    "A:Replay"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S4 Help",
+   "check": "axe (wcag2a/aa, 21aa, 22aa, best-practice)",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S5 replay",
+   "check": "Replay on a cold page opens the base tour at step one",
+   "verdict": "PASS",
+   "title": "Welcome to your Notebook",
+   "step": 1,
+   "of": 3,
+   "screenshot": "on-S5-replay-820.png"
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S6 What's new Start",
+   "check": "Start the Writing help tour: a tour opens",
+   "verdict": "PASS",
+   "title": "This walkthrough runs inside a note",
+   "step": null,
+   "of": null,
+   "url": "http://127.0.0.1:8715/journal/notebook"
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S6 What's new Start",
+   "check": "Start the Task reminders tour: a tour opens",
+   "verdict": "PASS",
+   "title": "Every task, one list",
+   "step": 1,
+   "of": 3,
+   "url": "http://127.0.0.1:8715/journal/notebook?view=all"
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "S6 What's new Start",
+   "check": "Start the Template gallery tour: a tour opens",
+   "verdict": "FAIL",
+   "url": "http://127.0.0.1:8715/journal/notebook?view=all",
+   "stage": {
+    "tourDialogs": [],
+    "offers": 0,
+    "slotPresent": true,
+    "slotChildren": 0,
+    "slotOthers": [],
+    "surfaces": 0
+   },
+   "screenshot": "on-S6-noopen-820.png",
+   "notebook_tours": "{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null},\"task-reminders\":{\"v\":1,\"state\":\"dismissed\",\"step\":\"list\"},\"template-gallery\":{\"v\":1,\"state\":\"started\",\"step\":\"templates\"}}"
+  },
+  {
+   "phase": "on",
+   "width": 820,
+   "surface": "driver",
+   "check": "no uncaught page errors",
+   "verdict": "PASS",
+   "errors": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "setup",
+   "check": "fresh paid member",
+   "verdict": "PASS",
+   "email": "q1on3902458403@local.dev",
+   "flags": {
+    "notebook_onboarding_enabled": true,
+    "notebook_getting_started_enabled": true,
+    "notebook_template_gallery_enabled": true
+   }
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S1 base tour",
+   "check": "auto-starts at step 1 on the first-run screen",
+   "verdict": "PASS",
+   "title": "Welcome to your Notebook",
+   "step": 1,
+   "of": 3
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S1 base tour",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "screenshot": "on-S1-base-tour-390.png",
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "contentScroll": [
+    342,
+    342
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S1 base tour",
+   "check": "touch targets >= --tap-min",
+   "verdict": "PASS",
+   "tapMinRaw": "44px",
+   "tapMin": 44,
+   "controls": 2,
+   "small": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S1 base tour",
+   "check": "no stacked first-run surfaces",
+   "verdict": "PASS",
+   "tourDialogs": [
+    "Welcome to your Notebook"
+   ],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 0,
+   "slotOthers": [],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S1 base tour",
+   "check": "keyboard-only reach to every control",
+   "verdict": "PASS",
+   "controls": [
+    "Skip tour",
+    "Next"
+   ],
+   "reached_at": {
+    "Skip tour": 1,
+    "Next": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Skip tour",
+    "BUTTON:Next"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S1 base tour",
+   "check": "axe (wcag2a/aa, 21aa, 22aa, best-practice)",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S1 base tour",
+   "check": "Escape dismisses it",
+   "verdict": "PASS",
+   "notebook_tour": "{\"v\":1,\"state\":\"dismissed\",\"step\":\"first-run\"}"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S2 first-run welcome",
+   "check": "preview, promotion and checklist all render",
+   "verdict": "PASS",
+   "promotion": true,
+   "sample_button_describedby": "_r_a_",
+   "describedby_resolves": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S2 first-run welcome",
+   "check": "the offer waits while the checklist is open",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 1,
+   "slotOthers": [
+    "Meet Compass\n\nTap the compass button  to talk to your tradin"
+   ],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S2 first-run welcome",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "screenshot": "on-S2-first-run-welcome-390.png",
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "contentScroll": [
+    342,
+    342
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S2 first-run welcome",
+   "check": "touch targets >= --tap-min",
+   "verdict": "PASS",
+   "tapMinRaw": "44px",
+   "tapMin": 44,
+   "controls": 14,
+   "small": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S2 first-run welcome",
+   "check": "no stacked first-run surfaces",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 1,
+   "slotOthers": [
+    "Meet Compass\n\nTap the compass button  to talk to your tradin"
+   ],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S2 first-run welcome",
+   "check": "keyboard-only reach to every control",
+   "verdict": "PASS",
+   "controls": [
+    "Start a note",
+    "Create a thesis",
+    "Import notes",
+    "Today",
+    "Add a sample notebook",
+    "Take the tour",
+    "Hide the get started list",
+    "Write your first note",
+    "Start a note from a template",
+    "Open the sample notebook",
+    "Take the Notebook basics tour",
+    "Take the Writing help tour",
+    "Take the Task reminders tour",
+    "Take the Template gallery tour"
+   ],
+   "reached_at": {
+    "Start a note": 1,
+    "Create a thesis": 2,
+    "Import notes": 3,
+    "Today": 4,
+    "Add a sample notebook": 5,
+    "Take the tour": 6,
+    "Hide the get started list": 7,
+    "Write your first note": 8,
+    "Start a note from a template": 9,
+    "Open the sample notebook": 10,
+    "Take the Notebook basics tour": 11,
+    "Take the Writing help tour": 12,
+    "Take the Task reminders tour": 13,
+    "Take the Template gallery tour": 14
+   },
+   "missing": [],
+   "presses": 14,
+   "trail": [
+    "BUTTON:Start a note",
+    "BUTTON:Create a thesis",
+    "BUTTON:Import notes",
+    "BUTTON:Today",
+    "BUTTON:Add a sample notebook",
+    "BUTTON:Take the tour",
+    "BUTTON:Hide the get started list",
+    "BUTTON:Write your first note",
+    "A:Start a note from a template",
+    "BUTTON:Open the sample notebook",
+    "BUTTON:Take the Notebook basics tour",
+    "BUTTON:Take the Writing help tour",
+    "BUTTON:Take the Task reminders tour",
+    "BUTTON:Take the Template gallery tour"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S2 first-run welcome",
+   "check": "axe (wcag2a/aa, 21aa, 22aa, best-practice)",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S3 offer",
+   "check": "Hide records the checklist closed",
+   "verdict": "PASS",
+   "notebook_getting_started": "{\"v\":1,\"state\":\"dismissed\",\"at\":\"2026-10-05T09:27:43.096Z\"}",
+   "write_seen_on_the_wire": true
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S3 offer",
+   "check": "the offer waits while another first-run card holds the slot",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 1,
+   "slotOthers": [
+    "Meet Compass\n\nTap the compass button  to talk to your tradin"
+   ],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S3 offer",
+   "check": "the offer appears once the checklist and the Compass card are gone",
+   "verdict": "PASS",
+   "title": "New in your Notebook: Writing help"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S3 offer",
+   "check": "the offer never takes focus",
+   "verdict": "PASS",
+   "frames_with_offer": 93,
+   "frames_focus_in_offer": 0,
+   "active_after": "BODY"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S3 offer",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "screenshot": "on-S3-offer-390.png",
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "contentScroll": [
+    342,
+    342
+   ],
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S3 offer",
+   "check": "touch targets >= --tap-min",
+   "verdict": "PASS",
+   "tapMinRaw": "44px",
+   "tapMin": 44,
+   "controls": 2,
+   "small": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S3 offer",
+   "check": "no stacked first-run surfaces",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 1,
+   "slotPresent": true,
+   "slotChildren": 1,
+   "slotOthers": [],
+   "surfaces": 1
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S3 offer",
+   "check": "keyboard-only reach to every control",
+   "verdict": "PASS",
+   "controls": [
+    "Take the tour",
+    "Not now"
+   ],
+   "reached_at": {
+    "Take the tour": 1,
+    "Not now": 2
+   },
+   "missing": [],
+   "presses": 2,
+   "trail": [
+    "BUTTON:Take the tour",
+    "BUTTON:Not now"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S3 offer",
+   "check": "axe (wcag2a/aa, 21aa, 22aa, best-practice)",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S3 offer",
+   "check": "Not now hides it and records dismissed, step null",
+   "verdict": "PASS",
+   "notebook_tours": {
+    "writing-help": {
+     "v": 1,
+     "state": "dismissed",
+     "step": null
+    }
+   }
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S3 offer",
+   "check": "no second offer in the same session (reload)",
+   "verdict": "PASS"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S4 Help",
+   "check": "Walkthroughs lists the base tour and every armed capability's tour",
+   "verdict": "FAIL",
+   "rows": [
+    "Notebook basics\nReplay",
+    "Writing help\nReplay",
+    "Task reminders\nReplay",
+    "Template gallery\nReplay"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S4 Help",
+   "check": "What's new lists every armed tour not taken, the declined one included",
+   "verdict": "FAIL",
+   "starts": [
+    "Start the Writing help tour",
+    "Start the Task reminders tour",
+    "Start the Template gallery tour"
+   ],
+   "offered": "New in your Notebook: Writing help"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S4 Help",
+   "check": "no horizontal overflow",
+   "verdict": "PASS",
+   "screenshot": "on-S4-Help-390.png",
+   "vw": 390,
+   "docScrollWidth": 390,
+   "bodyScrollWidth": 390,
+   "contentScroll": null,
+   "horizontal": false,
+   "offenders": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S4 Help",
+   "check": "touch targets >= --tap-min",
+   "verdict": "PASS",
+   "tapMinRaw": "44px",
+   "tapMin": 44,
+   "controls": 7,
+   "small": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S4 Help",
+   "check": "no stacked first-run surfaces",
+   "verdict": "PASS",
+   "tourDialogs": [],
+   "offers": 0,
+   "slotPresent": true,
+   "slotChildren": 0,
+   "slotOthers": [],
+   "surfaces": 0
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S4 Help",
+   "check": "keyboard-only reach to every control",
+   "verdict": "PASS",
+   "controls": [
+    "Start the Writing help tour",
+    "Start the Task reminders tour",
+    "Start the Template gallery tour",
+    "Replay",
+    "Replay",
+    "Replay",
+    "Replay"
+   ],
+   "reached_at": {
+    "Start the Writing help tour": 10,
+    "Start the Task reminders tour": 11,
+    "Start the Template gallery tour": 12,
+    "Replay": 16
+   },
+   "missing": [],
+   "presses": 16,
+   "trail": [
+    "A:Skip to main content",
+    "A:Skip to Walkthroughs",
+    "BUTTON:Open menu",
+    "BUTTON:Search",
+    "BUTTON:Market movers",
+    "BUTTON:Notifications",
+    "BUTTON:System status: All systems operational",
+    "BUTTON:New Ticket",
+    "A:contact@uctintelligence.com",
+    "A:Start the Writing help tour",
+    "A:Start the Task reminders tour",
+    "A:Start the Template gallery tour",
+    "A:Replay",
+    "A:Replay",
+    "A:Replay",
+    "A:Replay"
+   ]
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S4 Help",
+   "check": "axe (wcag2a/aa, 21aa, 22aa, best-practice)",
+   "verdict": "PASS",
+   "axe_version": "4.13.0",
+   "error": null,
+   "violation_ids": [],
+   "violations": []
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S5 replay",
+   "check": "Replay on a cold page opens the base tour at step one",
+   "verdict": "PASS",
+   "title": "Welcome to your Notebook",
+   "step": 1,
+   "of": 3,
+   "screenshot": "on-S5-replay-390.png"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S6 What's new Start",
+   "check": "Start the Writing help tour: a tour opens",
+   "verdict": "PASS",
+   "title": "This walkthrough runs inside a note",
+   "step": null,
+   "of": null,
+   "url": "http://127.0.0.1:8715/journal/notebook"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S6 What's new Start",
+   "check": "Start the Task reminders tour: a tour opens",
+   "verdict": "PASS",
+   "title": "Every task, one list",
+   "step": 1,
+   "of": 3,
+   "url": "http://127.0.0.1:8715/journal/notebook?view=all"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "S6 What's new Start",
+   "check": "Start the Template gallery tour: a tour opens",
+   "verdict": "FAIL",
+   "url": "http://127.0.0.1:8715/journal/notebook?view=all",
+   "stage": {
+    "tourDialogs": [],
+    "offers": 0,
+    "slotPresent": true,
+    "slotChildren": 0,
+    "slotOthers": [],
+    "surfaces": 0
+   },
+   "screenshot": "on-S6-noopen-390.png",
+   "notebook_tours": "{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null},\"task-reminders\":{\"v\":1,\"state\":\"dismissed\",\"step\":\"list\"},\"template-gallery\":{\"v\":1,\"state\":\"started\",\"step\":\"templates\"}}"
+  },
+  {
+   "phase": "on",
+   "width": 390,
+   "surface": "driver",
+   "check": "no uncaught page errors",
+   "verdict": "PASS",
+   "errors": []
+  }
+ ]
+}

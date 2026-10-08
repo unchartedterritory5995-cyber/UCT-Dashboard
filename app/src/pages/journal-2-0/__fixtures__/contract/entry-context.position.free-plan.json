@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "GET /api/j2/entry-context/position/ec-today",
+    "note": "A free plan: the card renders nothing, it is not an error banner.",
+    "path": "/api/j2/entry-context/position/ec-today",
+    "status": 402
+  },
+  "body": {
+    "detail": "The entry context requires a paid plan"
+  }
+}

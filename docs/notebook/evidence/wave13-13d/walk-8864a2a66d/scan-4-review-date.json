@@ -1,0 +1,116 @@
+{
+ "result": {
+  "enabled": true,
+  "scanned_users": 1,
+  "fired": 0,
+  "regime_degraded": false,
+  "resurface": {
+   "members": 1,
+   "priced_symbols": 1,
+   "fired": 1,
+   "sides_moved": 0,
+   "notes_projected": 1,
+   "notes_removed": 0,
+   "rows_written": 2,
+   "notes_behind": 0
+  }
+ },
+ "insights": [
+  {
+   "id": 1,
+   "kind": "note_level_touch",
+   "symbol": "NVDA",
+   "headline": "NVDA reached 100.00, the stop you named",
+   "body": "In \u201cNVDA swing plan (walk)\u201d you named 100.00 as your stop on 2026-10-03. NVDA is at 98.00 now. Here's what you thought then.",
+   "importance": 7
+  },
+  {
+   "id": 2,
+   "kind": "note_date_due",
+   "symbol": "AMD",
+   "headline": "AMD: the review date you set is today",
+   "body": "\u201cAMD thesis (walk)\u201d has a review date of 2026-10-02. Here's what you thought then.",
+   "importance": 5
+  }
+ ],
+ "levels": [
+  {
+   "user_id": "02decaa2-9c52-4674-a800-8cb625dd3440",
+   "note_id": "55ccf381ff864e3e868d9db53e0a2252",
+   "level_id": "note",
+   "symbol": "AMD",
+   "role": "note",
+   "price": null,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "02decaa2-9c52-4674-a800-8cb625dd3440",
+   "note_id": "55ccf381ff864e3e868d9db53e0a2252",
+   "level_id": "review_date@2026-10-02",
+   "symbol": "AMD",
+   "role": "review_date",
+   "price": null,
+   "on_date": "2026-10-02",
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "02decaa2-9c52-4674-a800-8cb625dd3440",
+   "note_id": "b470e4c56a224d7b8b8a7b684db825b0",
+   "level_id": "note",
+   "symbol": "NVDA",
+   "role": "note",
+   "price": null,
+   "on_date": null,
+   "version_id": null,
+   "last_side": null
+  },
+  {
+   "user_id": "02decaa2-9c52-4674-a800-8cb625dd3440",
+   "note_id": "b470e4c56a224d7b8b8a7b684db825b0",
+   "level_id": "stop@100.0",
+   "symbol": "NVDA",
+   "role": "stop",
+   "price": 100.0,
+   "on_date": null,
+   "version_id": "3b7707661b084565a5704c29b643a27f",
+   "last_side": "above"
+  },
+  {
+   "user_id": "02decaa2-9c52-4674-a800-8cb625dd3440",
+   "note_id": "b470e4c56a224d7b8b8a7b684db825b0",
+   "level_id": "target@130.0",
+   "symbol": "NVDA",
+   "role": "target",
+   "price": 130.0,
+   "on_date": null,
+   "version_id": null,
+   "last_side": "below"
+  }
+ ],
+ "fires": [
+  {
+   "user_id": "02decaa2-9c52-4674-a800-8cb625dd3440",
+   "fire_key": "b470e4c56a224d7b8b8a7b684db825b0|stop@100.0",
+   "day_et": "2026-10-02",
+   "insight_id": 1,
+   "kind": "note_level_touch",
+   "note_id": "b470e4c56a224d7b8b8a7b684db825b0",
+   "version_id": "3b7707661b084565a5704c29b643a27f",
+   "fired_at": "2026-10-03T03:01:44.725848+00:00"
+  },
+  {
+   "user_id": "02decaa2-9c52-4674-a800-8cb625dd3440",
+   "fire_key": "55ccf381ff864e3e868d9db53e0a2252|review_date@2026-10-02",
+   "day_et": "2026-10-02",
+   "insight_id": 2,
+   "kind": "note_date_due",
+   "note_id": "55ccf381ff864e3e868d9db53e0a2252",
+   "version_id": null,
+   "fired_at": "2026-10-03T03:04:45.682137+00:00"
+  }
+ ],
+ "deliver_calls": 0
+}

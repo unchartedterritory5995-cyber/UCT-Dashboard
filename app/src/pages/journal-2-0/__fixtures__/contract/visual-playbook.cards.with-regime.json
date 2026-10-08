@@ -1,0 +1,295 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/notebook-visual-playbook/cards",
+    "note": "One chart's trade has a regime frozen at entry; the others have none.",
+    "path": "/api/j2/notebook-visual-playbook/cards",
+    "status": 200
+  },
+  "body": {
+    "cards": [
+      {
+        "asOf": "2026-10-05",
+        "embedKey": "vp-r",
+        "example": false,
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vp-r.png",
+          "w": 800
+        },
+        "noteId": "fa1c27f7bec14997bed9e10aee6fe202",
+        "noteTitle": "VPRG plan",
+        "outcome": "win",
+        "regime": {
+          "asOf": "2026-10-05",
+          "entryDay": "2026-10-05",
+          "status": "captured",
+          "value": "amber"
+        },
+        "setupTag": "VCP",
+        "symbol": "VPRG",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-10-05T14:00:00+00:00",
+            "exitDate": "2026-10-05T14:20:00+00:00",
+            "outcome": "win",
+            "pnlDollar": 400.0,
+            "rMultiple": 1.0,
+            "result": "Win",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VPRG",
+            "tradeId": "vp-today",
+            "tradeRef": "id:vp-today"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": null,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 90,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vp-b",
+        "example": false,
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vp-b.png",
+          "w": 800
+        },
+        "noteId": "0302e58263324ad6a9a7867c7777f499",
+        "noteTitle": "VPAM plan",
+        "outcome": "loss",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VPAM",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T16:00:00Z",
+            "outcome": "loss",
+            "pnlDollar": -400.0,
+            "rMultiple": -1.0,
+            "result": "Loss",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VPAM",
+            "tradeId": "vp-loss",
+            "tradeRef": "id:vp-loss"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": 22.0,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 80,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vp-f",
+        "example": false,
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vp-f.png",
+          "w": 800
+        },
+        "noteId": "7572b453420c4180abb0dd30d51cdb06",
+        "noteTitle": "VPTS plan",
+        "outcome": "none",
+        "regime": {
+          "entryDay": null,
+          "status": "no_trade",
+          "value": null
+        },
+        "setupTag": "Bull Flag",
+        "symbol": "VPTS",
+        "timeframe": "W",
+        "trades": [],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": 9.0,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": null,
+          "vol_nweek_low": null
+        }
+      },
+      {
+        "asOf": "2026-09-30",
+        "embedKey": "vp-a",
+        "example": false,
+        "fingerprintAsOf": "2026-09-30",
+        "fingerprintSource": "note",
+        "image": {
+          "h": 400,
+          "url": "/img/vp-a.png",
+          "w": 800
+        },
+        "noteId": "fb08dd6d9e324713ae68baf0a3ae56f1",
+        "noteTitle": "VPNV plan",
+        "outcome": "win",
+        "regime": {
+          "entryDay": "2026-09-30",
+          "status": "not_captured",
+          "value": null
+        },
+        "setupTag": "VCP",
+        "symbol": "VPNV",
+        "timeframe": "D",
+        "trades": [
+          {
+            "entryDate": "2026-09-30T14:00:00Z",
+            "exitDate": "2026-10-01T15:00:00Z",
+            "outcome": "win",
+            "pnlDollar": 800.0,
+            "rMultiple": 2.0,
+            "result": "Win",
+            "setup": null,
+            "side": "Long",
+            "symbol": "VPNV",
+            "tradeId": "vp-win",
+            "tradeRef": "ext:X-VPNV-1"
+          }
+        ],
+        "values": {
+          "adr_pct": null,
+          "base_depth_pct": 12.0,
+          "base_length_bars": null,
+          "close_cv_pct": null,
+          "ema_stack_intact": null,
+          "ma_stack": null,
+          "patterns": null,
+          "pct_vs_sma10": null,
+          "pct_vs_sma20": null,
+          "pct_vs_sma200": null,
+          "pct_vs_sma50": null,
+          "pole_pct": null,
+          "pullback_depth_pct": null,
+          "rs_line_trend": null,
+          "rs_rank": 95,
+          "vol_nweek_low": null
+        }
+      }
+    ],
+    "count": 4,
+    "exampleCount": 0,
+    "excludedMissing": {},
+    "facets": {
+      "setups": {
+        "Bull Flag": 1,
+        "VCP": 3
+      },
+      "timeframes": {
+        "D": 3,
+        "W": 1
+      }
+    },
+    "pending": 0,
+    "rangeFields": [
+      "adr_pct",
+      "pct_vs_sma10",
+      "pct_vs_sma20",
+      "pct_vs_sma50",
+      "pct_vs_sma200",
+      "rs_rank",
+      "base_length_bars",
+      "base_depth_pct",
+      "pullback_depth_pct",
+      "vol_nweek_low",
+      "close_cv_pct",
+      "pole_pct"
+    ],
+    "regime": {
+      "available": true,
+      "excludedUnknown": 0,
+      "facets": {
+        "amber": 1,
+        "green": 0,
+        "orange": 0,
+        "red": 0
+      },
+      "selected": null,
+      "source": "entry_context (13E, at_entry rows only)",
+      "unknown": 3,
+      "unknownReasons": {
+        "captured_late": "the context was frozen after the entry day, so it is not the market at the fill",
+        "no_trade": "no trade is linked to this chart, so there is no entry day",
+        "not_captured": "no market context was frozen on this trade's entry day",
+        "regime_missing": "the frozen context has no regime value"
+      },
+      "values": [
+        "green",
+        "amber",
+        "orange",
+        "red"
+      ]
+    },
+    "sampleSizeSource": "adapter:plan_grading (swap for 13B sample_size.py)",
+    "stats": {
+      "avgR": 0.6667,
+      "avgRRange": null,
+      "band": "too_few",
+      "breakeven": 0,
+      "charts": 4,
+      "losses": 1,
+      "n": 3,
+      "rTrades": 3,
+      "totalPnlDollar": 800.0,
+      "trades": 3,
+      "unlinkedCharts": 1,
+      "winRate": 0.6666666666666666,
+      "winRateRange": null,
+      "wins": 2,
+      "wording": "too few to judge"
+    }
+  }
+}

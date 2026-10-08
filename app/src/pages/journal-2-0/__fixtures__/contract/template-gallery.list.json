@@ -1,0 +1,212 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/template-gallery",
+    "note": "UCT's picks and one member's approved template.",
+    "path": "/api/j2/template-gallery",
+    "status": 200
+  },
+  "body": {
+    "templates": [
+      {
+        "author": "Alice Trader",
+        "category": "trade_plan",
+        "description": "What I check before a breakout.",
+        "featured": false,
+        "firm": false,
+        "id": "de29e1904cb84c159ce6535dab55786b",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "Before the breakout"
+          },
+          {
+            "kind": "text",
+            "text": "Is the base at least five weeks long?"
+          },
+          {
+            "kind": "text",
+            "text": "Is volume drying up into the pivot?"
+          }
+        ],
+        "propertyCount": 2,
+        "title": "Breakout checklist",
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0
+      },
+      {
+        "author": "UCT",
+        "category": "review",
+        "description": "Patterns, leaks, and the ONE commitment for next week.",
+        "featured": true,
+        "firm": true,
+        "id": "0ee7e05c09ce4658a8b9531403ac30af",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "The numbers"
+          },
+          {
+            "kind": "bullet",
+            "text": "Trades / wins / losses: —"
+          },
+          {
+            "kind": "bullet",
+            "text": "Net R: —"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Weekly Review",
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0
+      },
+      {
+        "author": "UCT",
+        "category": "review",
+        "description": "Setup, execution, and the lesson — while it’s fresh.",
+        "featured": true,
+        "firm": true,
+        "id": "d67736ebbf084b249b82d12629e4c6d6",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "What was the setup?"
+          },
+          {
+            "kind": "text",
+            "text": "Name the pattern and the market context. Why did this trade earn a plac…"
+          },
+          {
+            "kind": "heading",
+            "text": "Entry & thesis"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Trade Review",
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0
+      },
+      {
+        "author": "UCT",
+        "category": "research",
+        "description": "The report, the play, and sizing for binary risk.",
+        "featured": true,
+        "firm": true,
+        "id": "7910925934934f26a90f3a44a6fe2769",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "The report"
+          },
+          {
+            "kind": "bullet",
+            "text": "Date / before or after the bell: —"
+          },
+          {
+            "kind": "bullet",
+            "text": "Expected move: —"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Earnings Prep",
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0
+      },
+      {
+        "author": "UCT",
+        "category": "trade_plan",
+        "description": "The rules for one setup, written down so future-you trades it the same way every time.",
+        "featured": true,
+        "firm": true,
+        "id": "faad9a781240499ab0c16cf0d4a0ba31",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "text",
+            "text": "Setup name: —"
+          },
+          {
+            "kind": "heading",
+            "text": "What it looks like"
+          },
+          {
+            "kind": "text",
+            "text": "The chart pattern or condition that defines this setup — specific enoug…"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Setup Checklist",
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0
+      },
+      {
+        "author": "UCT",
+        "category": "trade_plan",
+        "description": "Entry, stop, target, size, and the line that invalidates it — written before you are in it.",
+        "featured": true,
+        "firm": true,
+        "id": "593739206a6047dda753891098973091",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "heading",
+            "text": "The setup"
+          },
+          {
+            "kind": "text",
+            "text": "Name the pattern and why it qualifies as an A+ setup today."
+          },
+          {
+            "kind": "heading",
+            "text": "Entry / Stop / Target / Size"
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Trade Plan",
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0
+      },
+      {
+        "author": "UCT",
+        "category": "trade_plan",
+        "description": "Regime, levels, scenarios, and your risk budget for the day.",
+        "featured": true,
+        "firm": true,
+        "id": "d6c0ea3ad652423fa60981c7dad0a717",
+        "listedAt": "2026-10-05T14:30:00+00:00",
+        "mine": false,
+        "preview": [
+          {
+            "kind": "text",
+            "text": "Regime: —"
+          },
+          {
+            "kind": "heading",
+            "text": "Overnight & premarket"
+          },
+          {
+            "kind": "text",
+            "text": "Index futures, notable gaps, news, and earnings that matter for today."
+          }
+        ],
+        "propertyCount": 0,
+        "title": "Pre-Market Plan",
+        "updatedAt": "2026-10-05T14:30:00+00:00",
+        "usedBy": 0
+      }
+    ],
+    "viewer": {
+      "admin": false
+    }
+  }
+}

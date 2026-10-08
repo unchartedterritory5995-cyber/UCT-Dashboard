@@ -1,0 +1,15 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "PUT /api/j2/onboarding/tours/reporting-soon",
+    "path": "/api/j2/onboarding/tours/reporting-soon",
+    "requestBody": {
+      "state": "started",
+      "step": "open-box"
+    },
+    "status": 200
+  },
+  "body": {
+    "value": "{\"reporting-soon\":{\"v\":1,\"state\":\"started\",\"step\":\"open-box\"}}"
+  }
+}

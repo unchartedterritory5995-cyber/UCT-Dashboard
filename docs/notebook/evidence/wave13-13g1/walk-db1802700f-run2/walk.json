@@ -1,0 +1,367 @@
+{
+ "tool": "tools/notebook_w13g1_walk.py",
+ "base": "http://127.0.0.1:8631",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13g1\\walk-db1802700f-run2\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 22:14:17",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 22:16:31",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-02 22:18:31",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 22:20:06",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\wave13-13g1\\walk-db1802700f-run2\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w13g1\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T22-14-02.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "W0_gates_on_payload",
+   "verdict": "PASS",
+   "detail": "/api/auth/me {'notebook_transcript_capture_enabled': True, 'notebook_passed_setups_enabled': True}"
+  },
+  {
+   "id": "W1_save_passage_1200",
+   "verdict": "PASS",
+   "detail": "option='FY2026 Q2 · 2026-08-27'; cited='Saved to “NVDA thesis (walk)”. Cited as NVDA earnings call FY2026 Q2 · 2026-08-27 · FMP transcript · turn 2 (Colette Kress).\\n\\nOpen the note'"
+  },
+  {
+   "id": "W2_cited_excerpt_in_note",
+   "verdict": "PASS",
+   "detail": "stored page=2 name='NVDA earnings call FY2026 Q2 · 2026-08-27 · FMP transcript'; card='“gross margin was 72.4%”\\nNVDA earnings call FY2026 Q2 · 2026-08-27 · FMP transcript · p.2'"
+  },
+  {
+   "id": "W3_keyboard_slash_insert",
+   "verdict": "PASS",
+   "detail": "6 Tabs to turn 3, 2 to Save; editor cards=2; stored body excerpts=['fadd6c6470f0409abdb6770dfa663ec0', 'bd9779e77dfe4bc1862fee70374523ff']; sync-conflict copies=0"
+  },
+  {
+   "id": "W4_altered_quote_refused",
+   "verdict": "PASS",
+   "detail": "status 422; excerpts 2 -> 2; detail={'detail': 'That passage is not in turn 2 of the NVDA 2026Q2 transcript UCT holds, so it cannot be saved as a quote. Your note is unchanged.'}"
+  },
+  {
+   "id": "W6_scanner_capture_scored_1200",
+   "verdict": "PASS",
+   "detail": "NVDA cells={'r1': '+1.0%', 'r5': '+5.0%', 'r10': '+10.0%', 'r20': '+20.0%', 'best20': '+20.5%'}; source=scanner; from the 2026-08-27 close"
+  },
+  {
+   "id": "W7_gaps_labelled_never_invented",
+   "verdict": "PASS",
+   "detail": "QZXT={'r1': '+1.0%', 'r5': 'Bars missing from the store', 'r10': 'Bars missing from the store', 'r20': 'Bars missing from the store', 'best20': 'Bars missing from the store'}; ZZZZ='No stored daily bars for this name on or before the save.'"
+  },
+  {
+   "id": "W8_traded_leaves_the_list",
+   "verdict": "PASS",
+   "detail": "TSLA rows=0; tradedCount=1; note='1 name you traded within 10 sessions of saving is not listed.'"
+  },
+  {
+   "id": "W5_phone_390_transcript",
+   "verdict": "PASS",
+   "detail": "scrollWidth 390 vs 390; min control height 44; cited='Saved to “NVDA thesis (walk)”. Cited as NVDA earnings call FY2026 Q2 · 2026-08-27 · FMP transcript · turn 4 (Analyst One).\\n\\nOpen the note'"
+  },
+  {
+   "id": "W9_phone_390_passed",
+   "verdict": "PASS",
+   "detail": "scrollWidth 390 vs 390; min control height 44; ZZZZ removed=True"
+  },
+  {
+   "id": "W10_gates_off_client",
+   "verdict": "PASS",
+   "detail": "Passed setups absent=True; transcript door absent=True; research-capture requests=[]"
+  },
+  {
+   "id": "W11_no_page_errors",
+   "verdict": "PASS",
+   "detail": "0 unforced page errors"
+  },
+  {
+   "id": "W12_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  }
+ ],
+ "raw": {
+  "meta": {
+   "pass_day": "2026-08-27",
+   "after": [
+    "2026-08-28",
+    "2026-08-31",
+    "2026-09-01",
+    "2026-09-02",
+    "2026-09-03",
+    "2026-09-04",
+    "2026-09-07",
+    "2026-09-08",
+    "2026-09-09",
+    "2026-09-10",
+    "2026-09-11",
+    "2026-09-14",
+    "2026-09-15",
+    "2026-09-16",
+    "2026-09-17",
+    "2026-09-18",
+    "2026-09-21",
+    "2026-09-22",
+    "2026-09-23",
+    "2026-09-24",
+    "2026-09-25",
+    "2026-09-28",
+    "2026-09-29",
+    "2026-09-30",
+    "2026-10-01"
+   ]
+  },
+  "seed_child": "SEEDED C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13g1-walk-run2\\transcript_index.db C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13g1-walk-run2\\bars.db 96",
+  "auth_me_flags": {
+   "notebook_transcript_capture_enabled": true,
+   "notebook_passed_setups_enabled": true
+  },
+  "seed_http": {
+   "thesis": 200,
+   "scan_note": 200,
+   "position": 200,
+   "thesis_id": "69884f016b5f410985ba3663e0e763bd"
+  },
+  "W1": {
+   "quarter_option": "FY2026 Q2 · 2026-08-27",
+   "source_line": "FMP transcript · FY2026 Q2 · call of 2026-08-27",
+   "prefilled": "Revenue was a record, up 56% year over year. Data center revenue grew\nsequentially, and gross margin was 72.4%.",
+   "cited": "Saved to “NVDA thesis (walk)”. Cited as NVDA earnings call FY2026 Q2 · 2026-08-27 · FMP transcript · turn 2 (Colette Kress).\n\nOpen the note",
+   "excerpt_id": "fadd6c6470f0409abdb6770dfa663ec0"
+  },
+  "W2": {
+   "stored": {
+    "id": "fadd6c6470f0409abdb6770dfa663ec0",
+    "noteId": "69884f016b5f410985ba3663e0e763bd",
+    "documentId": "3c64284496584f3fbf56c829795eb140",
+    "documentName": "NVDA earnings call FY2026 Q2 · 2026-08-27 · FMP transcript",
+    "attachmentUrl": null,
+    "sourceKind": "web",
+    "sourceUrl": null,
+    "captureType": "web_passage",
+    "pageNumber": 2,
+    "capturedText": "gross margin was 72.4%",
+    "quotePrefix": "Colette Kress: Revenue was a record, up 56% year over year. Data center revenue grew\nsequentially, and ",
+    "quoteSuffix": ".",
+    "charStart": 103,
+    "charEnd": 125,
+    "textOrigin": "web_passage",
+    "annotation": null,
+    "createdAt": "2026-10-03T03:16:02.069864+00:00",
+    "modifiedAt": null
+   },
+   "card_text": "“gross margin was 72.4%”\nNVDA earnings call FY2026 Q2 · 2026-08-27 · FMP transcript · p.2",
+   "body_excerpts": [
+    "fadd6c6470f0409abdb6770dfa663ec0"
+   ]
+  },
+  "W3": {
+   "tab_presses_to_turn3": 6,
+   "focus_on_passage_after_enter": true,
+   "tab_presses_to_save": 2,
+   "excerpt_id": "bd9779e77dfe4bc1862fee70374523ff",
+   "editor_cards": 2,
+   "stored_body_excerpts": [
+    "fadd6c6470f0409abdb6770dfa663ec0",
+    "bd9779e77dfe4bc1862fee70374523ff"
+   ],
+   "notes": [
+    [
+     "69884f016b5f410985ba3663e0e763bd",
+     "NVDA thesis (walk)",
+     []
+    ],
+    [
+     "91dbf67d74bd4578bd1862a09ac5a278",
+     "Gainers scan (walk)",
+     []
+    ]
+   ]
+  },
+  "W4": {
+   "status": 422,
+   "body": {
+    "detail": "That passage is not in turn 2 of the NVDA 2026Q2 transcript UCT holds, so it cannot be saved as a quote. Your note is unchanged."
+   },
+   "before": 2,
+   "after": 2
+  },
+  "W6": {
+   "row": {
+    "cells": {
+     "r1": "+1.0%",
+     "r5": "+5.0%",
+     "r10": "+10.0%",
+     "r20": "+20.0%",
+     "best20": "+20.5%"
+    },
+    "noBars": null,
+    "text": "$NVDA\nScanner\nSaved Aug 27 · from the Aug 27 close\n+1 day\n+1.0%\n+5 days\n+5.0%\n+10 days\n+10.0%\n+20 days\n+20.0%\nBest in 20\n+20.5%"
+   },
+   "expected": {
+    "r1": "+1.0%",
+    "r5": "+5.0%",
+    "r10": "+10.0%",
+    "r20": "+20.0%",
+    "best20": "+20.5%"
+   },
+   "item": {
+    "id": "a018a44c849847028bf85e00c3ee9517",
+    "symbol": "NVDA",
+    "savedAt": "2026-08-27T21:30:00+00:00",
+    "savedDay": "2026-08-27",
+    "source": "scanner",
+    "sourceRef": "91dbf67d74bd4578bd1862a09ac5a278",
+    "status": "scored",
+    "baseDate": "2026-08-27",
+    "baseClose": 200.0,
+    "sessionsStored": 20,
+    "tradedOn": null,
+    "outcomes": [
+     {
+      "key": "r1",
+      "sessions": 1,
+      "pct": 1.0,
+      "missing": null,
+      "label": null
+     },
+     {
+      "key": "r5",
+      "sessions": 5,
+      "pct": 5.0,
+      "missing": null,
+      "label": null
+     },
+     {
+      "key": "r10",
+      "sessions": 10,
+      "pct": 10.0,
+      "missing": null,
+      "label": null
+     },
+     {
+      "key": "r20",
+      "sessions": 20,
+      "pct": 20.0,
+      "missing": null,
+      "label": null
+     },
+     {
+      "key": "best20",
+      "sessions": 20,
+      "pct": 20.5,
+      "missing": null,
+      "label": null,
+      "best": true
+     }
+    ],
+    "noBarsLabel": null
+   }
+  },
+  "W7_add_TSLA_wait": "Locator.wait_for: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-passed-symbol=\\\"TSLA\\\"]\")\n",
+  "W7": {
+   "QZXT": {
+    "cells": {
+     "r1": "+1.0%",
+     "r5": "Bars missing from the store",
+     "r10": "Bars missing from the store",
+     "r20": "Bars missing from the store",
+     "best20": "Bars missing from the store"
+    },
+    "noBars": null,
+    "text": "$QZXT\nAdded by you\nSaved Aug 27 · from the Aug 27 close\n+1 day\n+1.0%\n+5 days\nBars missing from the store\n+10 days\nBars missing from the store\n+20 days\nBars missing from the store\nBest in 20\nBars missing from the store"
+   },
+   "ZZZZ": {
+    "cells": {},
+    "noBars": "No stored daily bars for this name on or before the save.",
+    "text": "$ZZZZ\nAdded by you\nSaved Aug 27\n\nNo stored daily bars for this name on or before the save."
+   }
+  },
+  "W8": {
+   "traded_note": "1 name you traded within 10 sessions of saving is not listed.",
+   "tsla_rows": 0,
+   "tradedCount": 1
+  },
+  "W5": {
+   "geometry": {
+    "sw": 390,
+    "cw": 390,
+    "count": 8,
+    "minH": 44,
+    "heights": [
+     44,
+     44,
+     44,
+     44,
+     44,
+     44,
+     44,
+     44
+    ]
+   },
+   "cited": "Saved to “NVDA thesis (walk)”. Cited as NVDA earnings call FY2026 Q2 · 2026-08-27 · FMP transcript · turn 4 (Analyst One).\n\nOpen the note"
+  },
+  "W9": {
+   "geometry": {
+    "sw": 390,
+    "cw": 390,
+    "count": 6,
+    "minH": 44,
+    "heights": [
+     44,
+     44,
+     44,
+     44,
+     44,
+     44
+    ]
+   },
+   "nvda_cells": {
+    "r1": "+1.0%",
+    "r5": "+5.0%",
+    "r10": "+10.0%",
+    "r20": "+20.0%",
+    "best20": "+20.5%"
+   },
+   "removed_ZZZZ": true
+  },
+  "W10": {
+   "no_passed": true,
+   "no_door": true,
+   "requests": []
+  }
+ }
+}

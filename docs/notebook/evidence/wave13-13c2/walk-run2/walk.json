@@ -1,0 +1,134 @@
+{
+ "tool": "tools/notebook_w13c2_walk.py",
+ "base": "http://127.0.0.1:8656",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13c2\\walk-run2\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-03 04:10:21",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-03 04:11:01",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-03 04:11:24",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\wave13-13c2\\walk-run2\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w13c2\\docs\\plans\\joystick\\sandbox-runs\\2026-10-03T04-10-15.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "W0_gate_on_payload",
+   "verdict": "PASS",
+   "detail": "/api/auth/me notebook_earnings_prep_enabled=True"
+  },
+  {
+   "id": "W1_deeplink_fetches_real_draft",
+   "verdict": "PASS",
+   "detail": "title_has_day=True; tags=True; ticker=True; date_sourced=True; consensus=True; reactions=True; recap_missing_labelled=True"
+  },
+  {
+   "id": "W2_draft_counts_the_shared_cap",
+   "verdict": "PASS",
+   "detail": "POST .../NVDA/draft seen 1 time(s): ['POST http://127.0.0.1:8656/api/j2/earnings-prep/NVDA/draft']"
+  },
+  {
+   "id": "W3_blank_pick_is_honest_scaffold",
+   "verdict": "PASS",
+   "detail": "title_no_ticker=True; tags=True; generic_missing=True; generic_source=True; never_the_old_static_table=True; no_numbers_invented=True"
+  },
+  {
+   "id": "W3b_no_draft_spent_without_a_ticker",
+   "verdict": "PASS",
+   "detail": "draft-endpoint requests during the ticker-less pick: []"
+  },
+  {
+   "id": "W4_phone_390",
+   "verdict": "PASS",
+   "detail": "scrollWidth 390 vs clientWidth 390; card {'h': 163.796875, 'w': 356, 'right': 373}; tap opened note 13db8f6a33a047fab8dc5ce58e0f4474"
+  },
+  {
+   "id": "W5_gate_off_degrades_honestly",
+   "verdict": "PASS",
+   "detail": "no_crash=True; no_request_reached_the_draft_endpoint=True; falls_back_to_blank=True; title_falls_back=True"
+  },
+  {
+   "id": "W6_no_page_errors",
+   "verdict": "PASS",
+   "detail": "0 unforced page errors"
+  },
+  {
+   "id": "W7_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  }
+ ],
+ "raw": {
+  "seed_child": "SEEDED C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13c2-walk-data-2\\implied_moves.db 1",
+  "dates": {
+   "today": "2026-10-03",
+   "NVDA": "2026-10-06"
+  },
+  "auth_me_flag": true,
+  "note_nvda_deeplink_text": "Drafted by UCT on Oct 3, 2026, 4:10 AM from the sources named under each value. The values are frozen in this note: they will not change when the data does.\nThe report\nDate:\n Tue, Oct 6, 2026\nSource: UCT earnings calendar, as of Oct 3, 2026, 4:10 AM.\nBefore or after the bell:\n after the close\nSource: UCT earnings calendar, as of Oct 3, 2026, 4:10 AM.\nExpected move (from options):\n ±7.2% ($13.10)\nSource: Options-implied move, captured by UCT before the report, as of Oct 3, 2026, 4:10 AM.\nWhat the Street expects (FY2027 Q3)\nEstimate\nA year ago\nGrowth\nEPS\n$1.31\n$0.81\n+61.7%\nRevenue\n$54.00B\n$35.10B\n+53.8%\nSource: UCT earnings data (consensus estimates and reported results), as of Oct 3, 2026, 4:10 AM.\nThe last four reactions\nQuarter\nReported\nEPS\nRevenue\nImplied move\nReaction\nFY2027 Q2\nThu, Aug 27\nBeat +4.2%\nBeat +1.1%\n—\n−3.1%\nFY2027 Q1\nThu, May 28\nMiss −1.3%\n—\n—\n+2.4%\nFY2026 Q4\nThu, Feb 26\nBeat +2.0%\nBeat +0.5%\n—\n−8.5%\nFY2026 Q3\nThu, Nov 20\nBeat +3.0%\nBeat +2.0%\n—\n+1.0%\nSource: UCT earnings data, reactions from UCT daily bars, as of Oct 3, 2026, 4:10 AM.\n— in a cell: UCT holds no value for it (no consensus to score against, no implied move captured before that report, or no bars for that day).\nLast call recap\n— not available: No stored call recap for NVDA. A prep note never generates one, so the recap appears here only once UCT has written it for the Calendar.\nSource: UCT call recap (stored).\nWhat the market will listen for\nGuidance: —\nThe metric that moves this stock: —\nAnything new: —\nMy history on the name\nMy notes\n— not available: You have no notes on NVDA yet.\nSource: Your Notebook.\nMy trades\n— not available: You have no closed trades in NVDA in your journal.\nSource: Your trade journal.\nMy position going in\n— not available: You hold no open position in NVDA.\nSource: Your open positions.\nHolding through it, trimming, or flat? Say why before the print, not after.\nWhere the stock sits going in\nIn a base near highs, extended after a run, or broken down? The setup decides how much a good report can do.\nAfter the report\nThe numbers, the reaction, and whether the setup you described held.\nHow to use this template\nFill the report date and the expectations table from the consensus and last year's numbers.\nFill the last four reactions: the gap, and where the stock closed that day.\nList the two or three things the market will listen for beyond the headline numbers.\nNote where the stock sits going in: in a base, extended, or broken.\nIf you will trade the report, size it in an Earnings Play Plan.",
+  "W1_checks": {
+   "title_has_day": true,
+   "tags": true,
+   "ticker": true,
+   "date_sourced": true,
+   "consensus": true,
+   "reactions": true,
+   "recap_missing_labelled": true
+  },
+  "W1_draft_requests": [
+   "POST http://127.0.0.1:8656/api/j2/earnings-prep/NVDA/draft"
+  ],
+  "note_blank_picker_text": "Drafted by UCT from the sources named under each value. The values are frozen in this note: they will not change when the data does.\nThe report\nDate:\n — not available: Not available.\nSource: unknown.\nBefore or after the bell:\n — not available: Not available.\nSource: unknown.\nExpected move (from options):\n — not available: Not available.\nSource: unknown.\nWhat the Street expects\nEstimate\nA year ago\nGrowth\nEPS\n—\n—\n—\nRevenue\n—\n—\n—\nEPS estimate: — not available: Not available.\nRevenue estimate: — not available: Not available.\nEPS a year ago: — not available: Not available.\nRevenue a year ago: — not available: Not available.\nThe last four reactions\n— not available: Not available.\nSource: unknown.\nLast call recap\n— not available: Not available.\nSource: unknown.\nWhat the market will listen for\nGuidance: —\nThe metric that moves this stock: —\nAnything new: —\nMy history on the name\nMy notes\n— not available: Not available.\nSource: unknown.\nMy trades\n— not available: Not available.\nSource: unknown.\nMy position going in\n— not available: Not available.\nSource: unknown.\nHolding through it, trimming, or flat? Say why before the print, not after.\nWhere the stock sits going in\nIn a base near highs, extended after a run, or broken down? The setup decides how much a good report can do.\nAfter the report\nThe numbers, the reaction, and whether the setup you described held.\nHow to use this template\nFill the report date and the expectations table from the consensus and last year's numbers.\nFill the last four reactions: the gap, and where the stock closed that day.\nList the two or three things the market will listen for beyond the headline numbers.\nNote where the stock sits going in: in a base, extended, or broken.\nIf you will trade the report, size it in an Earnings Play Plan.",
+  "W3_checks": {
+   "title_no_ticker": true,
+   "tags": true,
+   "generic_missing": true,
+   "generic_source": true,
+   "never_the_old_static_table": true,
+   "no_numbers_invented": true
+  },
+  "W3_draft_requests": [],
+  "phone_geometry": {
+   "h": 163.796875,
+   "w": 356,
+   "right": 373,
+   "sw": 390,
+   "cw": 390
+  },
+  "W5_checks": {
+   "no_crash": true,
+   "no_request_reached_the_draft_endpoint": true,
+   "falls_back_to_blank": true,
+   "title_falls_back": true
+  },
+  "W5_draft_requests": []
+ }
+}

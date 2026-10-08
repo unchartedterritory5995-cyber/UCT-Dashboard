@@ -1,0 +1,32 @@
+{
+ "body_markup": {
+  "marker": "",
+  "has_canvas": false,
+  "has_img": true,
+  "caption": false
+ },
+ "selected_before": false,
+ "selected_after_click": true,
+ "blocks_after_delete": 0,
+ "blocks_after_undo": 1,
+ "order_before_drag": [
+  "before the block",
+  "BLOCK",
+  "after the block"
+ ],
+ "drag_events_seen": [
+  "dragstart",
+  "dragstart",
+  "dragover",
+  "drop",
+  "drop",
+  "dragend",
+  "dragend"
+ ],
+ "order_after_drag": [
+  "before the block",
+  "BLOCK",
+  "after the block"
+ ],
+ "blocks_after_drag": 1
+}

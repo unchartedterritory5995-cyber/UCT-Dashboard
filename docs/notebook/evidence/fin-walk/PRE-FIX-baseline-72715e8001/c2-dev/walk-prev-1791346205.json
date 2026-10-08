@@ -1,0 +1,1351 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "flags",
+   "step": "auth payload: every c2 switch reads ON",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:07:15+00:00",
+   "email": "q1c2m3326602@local.dev",
+   "off": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "setup",
+   "step": "the AMD position closed at its target; one CRWD trade with no plan (member API)",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:07:15+00:00",
+   "amd_close": 200,
+   "ibm_close": 200,
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "plan grading",
+   "step": "the closed trade is matched to the plan drawn before it and graded on four checks",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:07:17+00:00",
+   "api_status": "planned",
+   "api_checks": {
+    "entry": "missed",
+    "stop": "kept",
+    "size": "none",
+    "target": "hit"
+   },
+   "checks_rendered": 4,
+   "card_text": "Plan vs execution\n\nChart plan · written before entry · AMD plan · 1R = 173.88\n\nEntry\nMissed\nPlanned 340.86 · filled 150.00 (-1.10R)\nStop\nHonoured\nStop 166.98 · exit 514.74 · line 123.51\nSize\n—\nNo planned shares.\nTarget\nHit\nTarget 514.74 · exit 514.74\nEntry time unknown, so it is judged by day\n\nFrozen when it was first matched. Editing the plan does not change this grade.\n\nWrite review note\nRe-link",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/a8a6cc76-86de-4e99-a963-2935bf1db44c",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/a8a6cc76-86de-4e99-a963-2935bf1db44c\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:07:16.882182+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-plan-grading-the-closed-trade-is-matched-to-the-plan-drawn-before-it-and-graded-on-four-checks.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "entry context",
+   "step": "the same card persists on the closed trade's page",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:07:18+00:00",
+   "card_text": "Market context at the fill\nRegime\nAmber\nas of 2026-01-02\nExposure\n72 / 150\nas of 2026-01-02\n% above the 50-day\n61.0%\nas of 2026-01-02\nRS rank\n98\nas of 2026-10-07\nDays to earnings\n28 days\nas of 2026-10-07\nUCT scans\nNot available\nWhy did you take it?\n\nTight base, volume dried up, entered over the pivot.\n\nEdit",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/a8a6cc76-86de-4e99-a963-2935bf1db44c",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=AMD:1",
+     "benign": true
+    }
+   ],
+   "writes": [],
+   "screenshot": "c2-1280-entry-context-the-same-card-persists-on-the-closed-trade-s-page.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "visual playbook",
+   "step": "the trade page's before and after charts",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:07:18+00:00",
+   "text": "Before and after\n\nPlan levels from “AMD plan”: entry 340.856581, stop 166.976484, target 514.736679 (frozen when the plan was matched).\n\nBefore: AMD as of the entry day, 2026-10-06\n\t\n\t\n\n\n\n\t\n\t\n\n\t\n\t\nVolume\n24.2M\nAfter: AMD as of the exit day, 2026-10-06\n\t\n\t\n\n\n\n\t\n\t\n\n\t\n\t\nVolume\n24.2M\nThe chart you plann",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/a8a6cc76-86de-4e99-a963-2935bf1db44c",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [],
+   "screenshot": "c2-1280-visual-playbook-the-trade-page-s-before-and-after-charts.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "plan grading",
+   "step": "a trade with no plan is labelled Unplanned in the trades table and on its page",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:07:27+00:00",
+   "chip_in_table": true,
+   "badge_on_page": true,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/trade/dce2ec1d-9f3e-4b1c-b6e7-382e4d714f1d",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=CRWD:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/CRWD?tf=5&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/CRWD?tf=60&bars=1138&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/CRWD?tf=30&bars=1120&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/CRWD?tf=15&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/CRWD?tf=W&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/CRWD?tf=M&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/CRWD?tf=1&bars=960&warm=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/trades\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/trade/dce2ec1d-9f3e-4b1c-b6e7-382e4d714f1d\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"trade_page_open\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:07:24.096469+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-plan-grading-a-trade-with-no-plan-is-labelled-Unplanned-in-the-trades-table-and-on-its-page.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "plan grading",
+   "step": "Insights has a Discipline tab with the record over recent trades",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:07:31+00:00",
+   "tab": 1,
+   "record_text": "Discipline record\nLast 20\nLast 60\n\n2 closed trades: 1 planned, 1 unplanned.\n\nPlan checks over the last 20 closed trades\nCheck\tHow often\nTrades with a plan\t\ntoo few to judge\n\nEntry kept\t\ntoo few to judge\n\nStop honoured\t\ntoo few to judge\n\nSize kept\tno graded trades\nTarget hit\t\ntoo few to judge\n\nFollowed the whole plan\t\ntoo few to judge",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/insights?ins=discipline",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/insights\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:07:28.190958+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    }
+   ],
+   "screenshot": "c2-1280-plan-grading-Insights-has-a-Discipline-tab-with-the-record-over-recent-trades.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "technical fingerprint",
+   "step": "the chart's technical shape on the plan note, with its setup tag",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:07:36+00:00",
+   "panel_text": "TECHNICAL FINGERPRINT\nAAPL · as of 2026-09-26 · stored bars · frozen\nRS rank 92\nADR % 3.2%\nBase depth 9.4%\nPrior run (pole) 28.5%\nMA stack yes\nShow all fields and sources\nSetup\nNo setup tag\nFlat Base Breakout\nBull Flag\nIPO Base\nLaunchpad\nCup & Handle\nHigh Tight Flag (Powerplay)\nVCP\n4B Setup (Stan Weinstein)\nEpisodic Pivot\nPower Earnings Gap\nNews/Earnings Gapper\nHigh Volume Edge\nGap Support\nKicker ",
+   "setup_tag": "Classic Flag/Pullback",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=30042b2361c5463c913608de10cb1df5",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=5&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=60&bars=1138&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=30&bars=1120&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=15&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=W&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=M&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/AAPL?tf=1&bars=960&warm=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:07:32.721346+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"c4c2ed8d-bda4-4cf1-9f7c-09aa31c91c5a\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-07T04:07:32.677Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/30042b2361c5463c913608de10cb1df5/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":317}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/bars/warm",
+     "status": 200,
+     "request": "{\"ticker\":\"AAPL\",\"tf\":\"D\",\"to\":1790452800}",
+     "response": "{\"ok\":true,\"kicked\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-technical-fingerprint-the-chart-s-technical-shape-on-the-plan-note-with-its-setup-tag.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "visual playbook",
+   "step": "the gallery of every tagged chart opens from the fingerprint panel",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:07:39+00:00",
+   "opened": true,
+   "cards": 2,
+   "gallery_text": "Setup\nAll setups\nClassic Flag/Pullback (1)\nFlat Base Breakout (1)\nAll Bases & Breakouts\nAll Gaps & Catalysts\nAll Momentum & Trend\nAll Reversals & Reclaims\nAll Intraday\nOutcome\nAny outcome\nWin\nLoss\nBreakeven\nNo trade linked\nTimeframe\nAny timeframe\nD\nMarket regime\nAny regime\nGreen (0)\nAmber (0)\nOrange (0)\nRed (0)\nThe regime frozen on the trade's entry day.\nRS rank at least\nBase depth at most (%)\nADR at least (%)\nPrior run at least (%)\n\nAll 2 tagged charts. Only this chart's setup (Classic Flag/Pul",
+   "reach_error": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=30042b2361c5463c913608de10cb1df5",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/30042b2361c5463c913608de10cb1df5/images",
+     "status": 200,
+     "request": "",
+     "response": "{\"url\":\"/api/j2/notes/attachments/f127fc04-090c-4bd4-a50b-677ceee4fb35/30042b2361c5463c913608de10cb1df5/inline/54f3817159ac954a6a594e40a078de88.png\",\"width\":776,\"height\":427}"
+    }
+   ],
+   "screenshot": "c2-1280-visual-playbook-the-gallery-of-every-tagged-chart-opens-from-the-fingerprint-panel.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "my playbook",
+   "step": "My Playbook opens from Insights: one card per tagged setup, worded by sample size",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:07:48+00:00",
+   "door_on_insights": true,
+   "opened": true,
+   "setups": [
+    "VCP"
+   ],
+   "text": "Back to Insights\nMy Playbook\n\nYour own edge, per setup. Under 10 trades a number is too few to judge; under 25 it is a thin sample with a likely range. Every number opens its trades.\n\nSave a snapshot note\n\n1 closed trade has no setup and sits on no card. Tag them in the Trade Journal\n\nVCP\n1 trade · too few to judge\nWin rate\ntoo few to judge\n n=1\nAvg R\ntoo few to judge\n n=1\nExpectancy\ntoo few to judge\n n=1\nProfit factor\ntoo few to judge\n n=1\nTotal P&L\ntoo few to judge\n n=1\nFrom your notes\nAMD plan · linked to 1 trade\nWhat you wrote before losses vs wins\n\nPatterns, not proof. Counts of your own words in notes linked to a trade, read as they stood at entry.\n\nPatterns need at least 5 wins and 5 ",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal-2-0/playbook",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/insights\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:07:40.300627+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal-2-0/playbook\"}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-my-playbook-My-Playbook-opens-from-Insights-one-card-per-tagged-setup-worded-by-sample-size.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "review drafts",
+   "step": "one click drafts the daily review as a note",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:07:56+00:00",
+   "box": true,
+   "note": "a25af6251fcd4f00aba489ad0d8a1d4e",
+   "title": "2026-10-07 · Wednesday",
+   "headings": [
+    "Today's recap \\u2014 Oct 7",
+    "The numbers",
+    "Discipline record",
+    "Setup changes",
+    "Links",
+    "Plans used this period",
+    "Prior reviews",
+    "Resurfaced this period",
+    "Best and worst trade",
+    "Leaks"
+   ],
+   "text_head": "Today's recap — Oct 7\nThe numbers\n\n\n\n\n\t\n\nValue\n\n\n\n\nTrades taken\n\n\t\n\n0\n\n\n\n\nWins / losses / breakeven\n\n\t\n\n0 / 0 / 0\n\n\n\n\nWin rate\n\n\t\n\n—\n\n\n\n\nAverage R\n\n\t\n\n—\n\n\n\n\nNet P&L\n\n\t\n\n$0.00\n\n\n\n\nProfit factor\n\n\t\n\n—\n\nDiscipline record\n\nPlanned: 0 · Unplanned: 0 · Needs a pick: 0\n\nPlan rate: —\n\nEntry kept: —\n\nStop honored: —\n\nSize kept: —\n\nTarget hit rate: —\n\nSetup changes\n\nNo tagged setups this period.\n\nLinks\nPlans used this period\n\nNo plan notes linked to this period’s trades.\n\nPrior reviews\n\nNo prior review no",
+   "mentions_amd": true,
+   "alerts": [],
+   "reach_error": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=a25af6251fcd4f00aba489ad0d8a1d4e",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/30042b2361c5463c913608de10cb1df5",
+     "status": 200,
+     "request": "{\"title\":\"Trade plan: example -- AAPL pullback\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"marks\":[{\"type\":\"bold\"}],\"text\":\"Example\"},{\"type\":\"text\",\"text\":\" -- a plan written BEFORE a trade. AAPL is a real ticker; the numbers are hand-written for this example, not advice, and no trade was added to your journal.\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The plan\"}]},{\"type\":\"bulletList\",\"content\":[{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Entry 180.00, stop 170.00, target 205.00, 100 shares.\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Setup: Classic Flag/Pullback.\"}]}]}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"The chart below carries the same three lines as drawn levels, plus the technical fingerprint frozen for this day -- open it to see the fingerprint panel.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AAPL\",\"tf\":\"D\",\"to\":1790452800},\"capturedAt\":\"2026-09-26T16:00:00Z\",\"embedId\":\"ex-plan\",\"mode\":\"snapshot\",\"fallback\":{\"url\":\"/api/j2/notes/attachments/f127fc04-090c-4bd4-a50b-677ceee4fb35/30042b2361c5463c913608de10cb1df5/inline/54f3817159ac954a6a594e40a078de88.png\",\"w\":776,\"h\":427},\"frozen\":false,\"tradeRef\":null,\"annotations\":[{\"role\":\"entry\",\"type\":\"horizontal\",\"price\":180},{\"role\":\"stop\",\"type\":\"horizontal\",\"price\":170},{\"role\":\"target\",\"type\":\"hori",
+     "response": "{\"note\":{\"id\":\"30042b2361c5463c913608de10cb1df5\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":\"bf5b4199993c49b69cd858ffab645a64\",\"title\":\"Trade plan: example -- AAPL pullback\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"marks\":[{\"type\":\"bold\"}],\"text\":\"Example\"},{\"type\":\"text\",\"text\":\" -- a plan written BEFORE a trade. AAPL is a real ticker; the numbers are hand-written for this example, not advice, and no trade was added to your journal.\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The plan\"}]},{\"type\":\"bulletList\",\"content\":[{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Entry 180.00, stop 170.00, target 205.00, 100 shares.\"}]}]},{\"type\":\"listItem\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Setup: Classic Flag/Pullback.\"}]}]}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"The chart below carries the same three lines as drawn levels, plus the technical fingerprint frozen for this day -- open it to see the fingerprint panel.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AAPL\",\"tf\":\"D\",\"to\":1790452800},\"capturedAt\":\"2026-09-26T16:00:00Z\",\"embedId\":\"ex-plan\",\"mode\":\"snapshot\",\"fallback\":{\"url\":\"/api/j2/notes/attachments/f127fc04-090c-4bd4-a50b-677ceee4fb35/30042b2361c5463c913608de10cb1df5/inline/54f3817159ac954a6a594e40a078de88.png\",\"w\":776,\"h\":427},\"frozen\":fals"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:07:49.800937+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"outbox\",\"queued\":true}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/daily",
+     "status": 200,
+     "request": "{\"date\":\"2026-10-07\"}",
+     "response": "{\"note\":{\"id\":\"a25af6251fcd4f00aba489ad0d8a1d4e\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":\"fbd50dde68674e9b983395cb0501039a\",\"title\":\"2026-10-07 · Wednesday\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[]},\"bodyPlain\":\"\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-07T04:07:54.847375+00:00\",\"updatedAt\":\"2026-10-07T04:07:54.847375+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":\"2026-10-07\",\"propertiesJson\":{}},\"created\":true,\"templateMissing\":false}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/a25af6251fcd4f00aba489ad0d8a1d4e",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"horizontalRule\"},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Today's recap — Oct 7\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"0 / 0 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"—\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"—\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",",
+     "response": "{\"note\":{\"id\":\"a25af6251fcd4f00aba489ad0d8a1d4e\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":\"fbd50dde68674e9b983395cb0501039a\",\"title\":\"2026-10-07 · Wednesday\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"horizontalRule\"},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Today's recap — Oct 7\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"0 / 0 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"—\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\""
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":152}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/a25af6251fcd4f00aba489ad0d8a1d4e/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-review-drafts-one-click-drafts-the-daily-review-as-a-note.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "review drafts",
+   "step": "one click drafts the weekly review as a note",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:08:04+00:00",
+   "box": true,
+   "note": "87c96fae3d814aea87e95fdb31152d64",
+   "title": "Weekly Review — wk of Oct 5",
+   "headings": [
+    "Week of Oct 5",
+    "The numbers",
+    "Discipline record",
+    "Setup changes",
+    "Links",
+    "Plans used this period",
+    "Prior reviews",
+    "Resurfaced this period",
+    "Best and worst trade",
+    "Leaks",
+    "The trades"
+   ],
+   "text_head": "Week of Oct 5\nThe numbers\n\n\n\n\n\t\n\nValue\n\n\n\n\nTrades taken\n\n\t\n\n2\n\n\n\n\nWins / losses / breakeven\n\n\t\n\n1 / 1 / 0\n\n\n\n\nWin rate\n\n\t\n\n50%\n\n\n\n\nAverage R\n\n\t\n\n+24.12R\n\n\n\n\nNet P&L\n\n\t\n\n$14549.60\n\n\n\n\nProfit factor\n\n\t\n\n364.74\n\nDiscipline record\n\nPlanned: 1 · Unplanned: 1 · Needs a pick: 0\n\nPlan rate: too few to judge\n\nEntry kept: too few to judge\n\nStop honored: too few to judge\n\nSize kept: —\n\nTarget hit rate: too few to judge\n\nSetup changes\n\nSetup\n\n\t\n\nTrades\n\n\t\n\nPeriod avg R\n\n\t\n\nAll-time avg R\n\n\t\n\nChange\n\n\n\n\nVCP\n",
+   "mentions_amd": true,
+   "alerts": [],
+   "reach_error": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=87c96fae3d814aea87e95fdb31152d64",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:07:57.717699+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes",
+     "status": 200,
+     "request": "{\"title\":\"Weekly Review — wk of Oct 5\",\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Week of Oct 5\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1 / 1 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"50%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"+24.12R\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"t",
+     "response": "{\"note\":{\"id\":\"87c96fae3d814aea87e95fdb31152d64\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"Weekly Review — wk of Oct 5\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Week of Oct 5\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1 / 1 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"50%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\","
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":145}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/87c96fae3d814aea87e95fdb31152d64/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notebook-fingerprint/blocks/87c96fae3d814aea87e95fdb31152d64/631b6610-c815-48c7-bbb2-a76aadc9000a/freeze",
+     "status": 200,
+     "request": "",
+     "response": "{\"block\":{\"noteId\":\"87c96fae3d814aea87e95fdb31152d64\",\"noteTitle\":\"Weekly Review — wk of Oct 5\",\"embedKey\":\"631b6610-c815-48c7-bbb2-a76aadc9000a\",\"embedId\":\"631b6610-c815-48c7-bbb2-a76aadc9000a\",\"position\":1,\"symbol\":\"CRWD\",\"timeframe\":\"D\",\"asOf\":\"2026-10-05\",\"setupTag\":null,\"mode\":\"snapshot\",\"fingerprint\":{\"v\":1,\"symbol\":\"CRWD\",\"requested_as_of\":\"2026-10-05\",\"as_of\":\"2026-10-05\",\"mode\":\"bars\",\"fields\":{\"adr_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma10\":{\"value\":4.08,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma20\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma50\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma200\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"ma_stack\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"ema_stack_intact\":{\"value\":true,\"source\":\"bars\",\"missing\":null},\"rs_rank\":{\"value\":null,\"source\":\"screener_row\",\"missing\":\"rank_is_nightly_only\"},\"rs_line_trend\":{\"value\":\"up\",\"source\":\"bars\",\"missing\":null},\"base_length_bars\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"base_depth_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"pullback_depth_pct\":{\"value\":0.57,\"source\":\"bars\",\"missing\":null},\"vol_nweek_low\":{\"value\":20,\"source\":\"bars\",\"missing\":null},\"close_cv_pct\":{\"value\":2.58,\"source\":\"bars\",\"missing\":null},\"pole_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itse"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notebook-fingerprint/blocks/87c96fae3d814aea87e95fdb31152d64/4bfcc1e1-b6e6-4f9f-b454-0b9c8c739da9/freeze",
+     "status": 200,
+     "request": "",
+     "response": "{\"block\":{\"noteId\":\"87c96fae3d814aea87e95fdb31152d64\",\"noteTitle\":\"Weekly Review — wk of Oct 5\",\"embedKey\":\"4bfcc1e1-b6e6-4f9f-b454-0b9c8c739da9\",\"embedId\":\"4bfcc1e1-b6e6-4f9f-b454-0b9c8c739da9\",\"position\":0,\"symbol\":\"AMD\",\"timeframe\":\"D\",\"asOf\":\"2026-10-05\",\"setupTag\":null,\"mode\":\"snapshot\",\"fingerprint\":{\"v\":1,\"symbol\":\"AMD\",\"requested_as_of\":\"2026-10-05\",\"as_of\":\"2026-10-05\",\"mode\":\"bars\",\"fields\":{\"adr_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma10\":{\"value\":1.78,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma20\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma50\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma200\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"ma_stack\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"ema_stack_intact\":{\"value\":true,\"source\":\"bars\",\"missing\":null},\"rs_rank\":{\"value\":null,\"source\":\"screener_row\",\"missing\":\"rank_is_nightly_only\"},\"rs_line_trend\":{\"value\":\"up\",\"source\":\"bars\",\"missing\":null},\"base_length_bars\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"base_depth_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"pullback_depth_pct\":{\"value\":2.12,\"source\":\"bars\",\"missing\":null},\"vol_nweek_low\":{\"value\":20,\"source\":\"bars\",\"missing\":null},\"close_cv_pct\":{\"value\":1.58,\"source\":\"bars\",\"missing\":null},\"pole_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/87c96fae3d814aea87e95fdb31152d64",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Week of Oct 5\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1 / 1 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"",
+     "response": "{\"note\":{\"id\":\"87c96fae3d814aea87e95fdb31152d64\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"Weekly Review — wk of Oct 5\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Week of Oct 5\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1 / 1 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-review-drafts-one-click-drafts-the-weekly-review-as-a-note.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "review drafts",
+   "step": "one click drafts the monthly review as a note",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:08:12+00:00",
+   "box": true,
+   "note": "efb7a46dcfb2436882549c1d28c3c8c9",
+   "title": "Monthly Review — October 2026",
+   "headings": [
+    "Monthly Review \\u2014 October 2026",
+    "The numbers",
+    "Discipline record",
+    "Setup changes",
+    "Links",
+    "Plans used this period",
+    "Prior reviews",
+    "Resurfaced this period",
+    "Best and worst trade",
+    "Leaks",
+    "The trades"
+   ],
+   "text_head": "Monthly Review — October 2026\nThe numbers\n\n\n\n\n\t\n\nValue\n\n\n\n\nTrades taken\n\n\t\n\n2\n\n\n\n\nWins / losses / breakeven\n\n\t\n\n1 / 1 / 0\n\n\n\n\nWin rate\n\n\t\n\n50%\n\n\n\n\nAverage R\n\n\t\n\n+24.12R\n\n\n\n\nNet P&L\n\n\t\n\n$14549.60\n\n\n\n\nProfit factor\n\n\t\n\n364.74\n\nDiscipline record\n\nPlanned: 1 · Unplanned: 1 · Needs a pick: 0\n\nPlan rate: too few to judge\n\nEntry kept: too few to judge\n\nStop honored: too few to judge\n\nSize kept: —\n\nTarget hit rate: too few to judge\n\nSetup changes\n\nSetup\n\n\t\n\nTrades\n\n\t\n\nPeriod avg R\n\n\t\n\nAll-time avg R\n\n\t\n",
+   "mentions_amd": true,
+   "alerts": [],
+   "reach_error": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=efb7a46dcfb2436882549c1d28c3c8c9",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T04:08:05.736006+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes",
+     "status": 200,
+     "request": "{\"title\":\"Monthly Review — October 2026\",\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Monthly Review — October 2026\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1 / 1 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"50%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"+24.12R\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragra",
+     "response": "{\"note\":{\"id\":\"efb7a46dcfb2436882549c1d28c3c8c9\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"Monthly Review — October 2026\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Monthly Review — October 2026\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1 / 1 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"50%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\"}]}]},{\"type\":\"tableCell\",\"content\":[{\""
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":158}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/efb7a46dcfb2436882549c1d28c3c8c9/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notebook-fingerprint/blocks/efb7a46dcfb2436882549c1d28c3c8c9/b1214b57-469d-445b-9268-fb173cd77ffa/freeze",
+     "status": 200,
+     "request": "",
+     "response": "{\"block\":{\"noteId\":\"efb7a46dcfb2436882549c1d28c3c8c9\",\"noteTitle\":\"Monthly Review — October 2026\",\"embedKey\":\"b1214b57-469d-445b-9268-fb173cd77ffa\",\"embedId\":\"b1214b57-469d-445b-9268-fb173cd77ffa\",\"position\":0,\"symbol\":\"AMD\",\"timeframe\":\"D\",\"asOf\":\"2026-10-05\",\"setupTag\":null,\"mode\":\"snapshot\",\"fingerprint\":{\"v\":1,\"symbol\":\"AMD\",\"requested_as_of\":\"2026-10-05\",\"as_of\":\"2026-10-05\",\"mode\":\"bars\",\"fields\":{\"adr_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma10\":{\"value\":1.78,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma20\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma50\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma200\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"ma_stack\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"ema_stack_intact\":{\"value\":true,\"source\":\"bars\",\"missing\":null},\"rs_rank\":{\"value\":null,\"source\":\"screener_row\",\"missing\":\"rank_is_nightly_only\"},\"rs_line_trend\":{\"value\":\"up\",\"source\":\"bars\",\"missing\":null},\"base_length_bars\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"base_depth_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"pullback_depth_pct\":{\"value\":2.12,\"source\":\"bars\",\"missing\":null},\"vol_nweek_low\":{\"value\":20,\"source\":\"bars\",\"missing\":null},\"close_cv_pct\":{\"value\":1.58,\"source\":\"bars\",\"missing\":null},\"pole_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itse"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notebook-fingerprint/blocks/efb7a46dcfb2436882549c1d28c3c8c9/18684b08-2b0b-45d6-b7ee-9fb97bea79e8/freeze",
+     "status": 200,
+     "request": "",
+     "response": "{\"block\":{\"noteId\":\"efb7a46dcfb2436882549c1d28c3c8c9\",\"noteTitle\":\"Monthly Review — October 2026\",\"embedKey\":\"18684b08-2b0b-45d6-b7ee-9fb97bea79e8\",\"embedId\":\"18684b08-2b0b-45d6-b7ee-9fb97bea79e8\",\"position\":1,\"symbol\":\"CRWD\",\"timeframe\":\"D\",\"asOf\":\"2026-10-05\",\"setupTag\":null,\"mode\":\"snapshot\",\"fingerprint\":{\"v\":1,\"symbol\":\"CRWD\",\"requested_as_of\":\"2026-10-05\",\"as_of\":\"2026-10-05\",\"mode\":\"bars\",\"fields\":{\"adr_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma10\":{\"value\":4.08,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma20\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma50\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma200\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"ma_stack\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"ema_stack_intact\":{\"value\":true,\"source\":\"bars\",\"missing\":null},\"rs_rank\":{\"value\":null,\"source\":\"screener_row\",\"missing\":\"rank_is_nightly_only\"},\"rs_line_trend\":{\"value\":\"up\",\"source\":\"bars\",\"missing\":null},\"base_length_bars\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"base_depth_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"pullback_depth_pct\":{\"value\":0.57,\"source\":\"bars\",\"missing\":null},\"vol_nweek_low\":{\"value\":20,\"source\":\"bars\",\"missing\":null},\"close_cv_pct\":{\"value\":2.58,\"source\":\"bars\",\"missing\":null},\"pole_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_it"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/efb7a46dcfb2436882549c1d28c3c8c9",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Monthly Review — October 2026\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1 / 1 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"typ",
+     "response": "{\"note\":{\"id\":\"efb7a46dcfb2436882549c1d28c3c8c9\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"Monthly Review — October 2026\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Monthly Review — October 2026\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"attrs\":{\"colspan\":1,\"rowspan\":1,\"colwidth\":null,\"align\":null},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"1 / 1 / 0\"}]}]}]},{\"type\":\"tabl"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-review-drafts-one-click-drafts-the-monthly-review-as-a-note.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "review drafts",
+   "step": "the Compass quote inside a draft",
+   "verdict": "NOT_RUN",
+   "at": "2026-10-07T04:08:13+00:00",
+   "reason": "NO KEY",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "writing help",
+   "step": "Improve / Shorten / Continue in the editor",
+   "verdict": "NOT_RUN",
+   "at": "2026-10-07T04:08:13+00:00",
+   "reason": "NO KEY",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "Ask Notebook",
+   "step": "ask a question over notes",
+   "verdict": "NOT_RUN",
+   "at": "2026-10-07T04:08:13+00:00",
+   "reason": "NO KEY",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "AI actions",
+   "step": "Ask Notebook to do something (plan, approve, undo)",
+   "verdict": "NOT_RUN",
+   "at": "2026-10-07T04:08:13+00:00",
+   "reason": "NO KEY",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "meaning search",
+   "step": "search by meaning (its tour's steps are walked; the search itself needs an embedding key)",
+   "verdict": "NOT_RUN",
+   "at": "2026-10-07T04:08:13+00:00",
+   "reason": "NO KEY",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "dictation",
+   "step": "voice dictation and voice notes",
+   "verdict": "NOT_RUN",
+   "at": "2026-10-07T04:08:13+00:00",
+   "reason": "NO KEY",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  }
+ ],
+ "configs": {
+  "c2": {
+   "base": "http://127.0.0.1:8132",
+   "data_dir": "C:\\data-fin-walk-dev\\c2",
+   "flags_on": [
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+   ],
+   "not_run": null,
+   "failure": null,
+   "port_free_after": null,
+   "driver_imported_api": []
+  }
+ },
+ "config": "c2",
+ "tree": "e8cbd3019c44e201e6ec2e7bdf753a9b36c94738",
+ "started": "2026-10-07T04:07:01+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "COMPLETE",
+ "flag_sets": {
+  "prod_armed": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "c1": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ]
+ },
+ "api_writes": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions/b7a01134-6818-47b0-855e-37c94ff9fef7/close",
+   "status": 200,
+   "request": "{\"shares\": 40, \"exitPrice\": 514.74, \"exitDate\": \"2026-10-06\"}",
+   "response": "{\"trade\": {\"id\": \"a8a6cc76-86de-4e99-a963-2935bf1db44c\", \"userId\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"positionId\": \"b7a01134-6818-47b0-855e-37c94ff9fef7\", \"symbol\": \"AMD\", \"side\": \"Long\", \"shares\": 40.0, \"entryPrice\": 150.0, \"entryDate\": \"2026-10-06T00:00:00+00:00\", \"exitPrice\": 514.74, \"exitDate\": \"2026-10-06T00:00:00+00:00\", \"originalStop\": 142.5, \"setup\": \"VCP\", \"notes\": null, \"pnlDollar\": 14589.6, \"pnlPercent\": 2.4316, \"rMultiple\": 48.632, \"holdDays\": 0, \"result\": \"Win\", \"contextAtEntry\": {}, \"createdAt\": \"2026-10-07T04:07:15.352302+00:00\", \"mistakeTags\": [], \"emotionTags\": []}, \"position\": {\"id\": \"b7a01134-6818-47b0-855e-37c94ff9fef7\", \"userId\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"accountId\": null, \"symbol\": \"AMD\", \"side\": \"Long\", \"entryDate\": \"2026-10-06T00:00:00+00:00\", \"shares\": 0.0, \"originalShares\": 40.0, \"entryPrice\": 150.0, \"stopPrice\": 142.5, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": \"VCP\", \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-07T03:57:54.418711+00:00\", \"updatedAt\": \"2026-10-07T04:07:15.352302+00:00\", \"closedAt\": \"2026-10-07T04:07:15.352302+00:00\", \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions",
+   "status": 200,
+   "request": "{\"symbol\": \"CRWD\", \"side\": \"Long\", \"shares\": 10, \"entryPrice\": 300.0, \"stopPrice\": 290.0, \"entryDate\": \"2026-10-06\"}",
+   "response": "{\"id\": \"915dbea6-f6c1-48fd-9a27-e59bb54aab70\", \"userId\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"accountId\": \"d5f0618b-208e-4470-a063-cb885341e0db\", \"symbol\": \"CRWD\", \"side\": \"Long\", \"entryDate\": \"2026-10-06T00:00:00+00:00\", \"shares\": 10.0, \"originalShares\": 10.0, \"entryPrice\": 300.0, \"stopPrice\": 290.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-07T04:07:15.394382+00:00\", \"updatedAt\": \"2026-10-07T04:07:15.394382+00:00\", \"closedAt\": null, \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/positions/915dbea6-f6c1-48fd-9a27-e59bb54aab70/close",
+   "status": 200,
+   "request": "{\"shares\": 10, \"exitPrice\": 296.0, \"exitDate\": \"2026-10-06\"}",
+   "response": "{\"trade\": {\"id\": \"dce2ec1d-9f3e-4b1c-b6e7-382e4d714f1d\", \"userId\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"positionId\": \"915dbea6-f6c1-48fd-9a27-e59bb54aab70\", \"symbol\": \"CRWD\", \"side\": \"Long\", \"shares\": 10.0, \"entryPrice\": 300.0, \"entryDate\": \"2026-10-06T00:00:00+00:00\", \"exitPrice\": 296.0, \"exitDate\": \"2026-10-06T00:00:00+00:00\", \"originalStop\": 290.0, \"setup\": null, \"notes\": null, \"pnlDollar\": -40.0, \"pnlPercent\": -0.013333333333333334, \"rMultiple\": -0.4, \"holdDays\": 0, \"result\": \"Loss\", \"contextAtEntry\": {}, \"createdAt\": \"2026-10-07T04:07:15.435317+00:00\", \"mistakeTags\": [], \"emotionTags\": []}, \"position\": {\"id\": \"915dbea6-f6c1-48fd-9a27-e59bb54aab70\", \"userId\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"accountId\": null, \"symbol\": \"CRWD\", \"side\": \"Long\", \"entryDate\": \"2026-10-06T00:00:00+00:00\", \"shares\": 0.0, \"originalShares\": 10.0, \"entryPrice\": 300.0, \"stopPrice\": 290.0, \"breakevenStop\": null, \"raiseToBreakeven\": false, \"setup\": null, \"notes\": null, \"contextAtEntry\": {}, \"createdAt\": \"2026-10-07T04:07:15.394382+00:00\", \"updatedAt\": \"2026-10-07T04:07:15.435317+00:00\", \"closedAt\": \"2026-10-07T04:07:15.435317+00:00\", \"source\": null, \"entryEstimated\": false, \"brokerPrice\": null, \"brokerPricePrev\": null, \"brokerPriceSession\": null, \"brokerPrevSession\": null, \"provisional\": false}}"
+  }
+ ],
+ "finished": "2026-10-07T04:09:51+00:00"
+}

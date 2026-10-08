@@ -1,0 +1,13 @@
+<<<<<<< OURS(prev)
+// S8 provenance rail (presentationSingleFormatter.test.js): a `/.../` literal is
+// a shape the family's comment-stripper cannot model, so this is `new RegExp`
+// instead -- same pattern, no flags, `.test()` behaves identically.
+// Dual-class suffix (BRK.B / BRK-B / BF.B): a single dot or hyphen followed by
+// 1-2 letters, mirroring the class-share spelling used elsewhere in this app
+// (lib/tickerResolver.js's cashtag suffix, massive.to_polygon_symbol's dot form).
+// No spaces, no repeated separators, max length kept tight so garbage still fails.
+export const TICKER_RE = new RegExp('^[A-Z]{1,6}(?:[.-][A-Z]{1,2})?$')
+=======
+const TICKER_RE = /^[A-Z]{1,6}$/
+>>>>>>> THEIRS(pre-landing)
+

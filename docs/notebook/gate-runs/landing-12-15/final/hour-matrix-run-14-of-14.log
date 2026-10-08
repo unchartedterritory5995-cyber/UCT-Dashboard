@@ -1,0 +1,25 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w14-land/app
+
+ ✓ src/pages/journal-2-0/components/notebook/ChartPlanPanel.asOfDay.test.jsx (26 tests) 4884ms
+     ✓ opened at 10:00 Eastern: the stop hit on the first session after the plan is reported  345ms
+     ✓ opened at 16:30 Eastern: the stop hit on the first session after the plan is reported  327ms
+     ✓ opened at 20:30 Eastern: the stop hit on the first session after the plan is reported  313ms
+     ✓ opened at 21:00 Eastern: the stop hit on the first session after the plan is reported  325ms
+     ✓ opened at 23:30 Eastern: the stop hit on the first session after the plan is reported  326ms
+     ✓ opened at 00:30 Eastern: the stop hit on the first session after the plan is reported  328ms
+     ✓ opened at the day before the spring change, 9 pm: the stop hit on the first session after the plan is reported  313ms
+     ✓ opened at the day of the spring change, 9 pm: the stop hit on the first session after the plan is reported  328ms
+     ✓ opened at the day after the spring change, 9 pm: the stop hit on the first session after the plan is reported  325ms
+     ✓ opened at the day before the autumn change, 9 pm: the stop hit on the first session after the plan is reported  328ms
+     ✓ opened at the day of the autumn change, 9 pm: the stop hit on the first session after the plan is reported  312ms
+     ✓ opened at the day after the autumn change, 9 pm: the stop hit on the first session after the plan is reported  328ms
+     ✓ opened at the evening the plan was written: the stop hit on the first session after the plan is reported  325ms
+     ✓ opened at the next session, mid-morning: the stop hit on the first session after the plan is reported  328ms
+     ✓ a stop hit on the first session after a 9 pm Eastern plan IS reported  328ms
+
+ Test Files  1 passed (1)
+      Tests  26 passed (26)
+   Start at  20:49:27
+   Duration  5.85s (transform 270ms, setup 185ms, import 272ms, tests 4.88s, environment 407ms)
+

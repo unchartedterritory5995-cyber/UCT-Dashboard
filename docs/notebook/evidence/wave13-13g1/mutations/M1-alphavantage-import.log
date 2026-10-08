@@ -1,0 +1,46 @@
+{
+  "id": "M1-alphavantage-import",
+  "rail": "the import graph never reaches AlphaVantage",
+  "path": "api/services/journal_two/transcript_capture.py",
+  "control_exit": 0,
+  "mutant_exit": 1,
+  "killed": true,
+  "restored_matches_git": true,
+  "restored_matches_capture": true,
+  "at": "2026-10-02T21:41:26"
+}
+
+--- CONTROL (unmutated) ---
+.                                                                        [100%]
+1 passed in 26.30s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+
+
+--- MUTANT ---
+F                                                                        [100%]
+================================== FAILURES ===================================
+______________ test_the_import_graph_never_reaches_alphavantage _______________
+
+    def test_the_import_graph_never_reaches_alphavantage():
+        reached = _reach(CAPTURE_MODULES)
+        # non-vacuity: the walk follows function-level imports into what the module reuses
+        assert {"api.services.fmp_transcripts", "api.services.transcript_index",
+                "api.services.journal_two.note_excerpts", "api.services.journal_two.notes",
+                "api.services.journal_two.web_capture"} <= reached
+>       assert not reached & FORBIDDEN_MODULES, sorted(reached & FORBIDDEN_MODULES)
+E       AssertionError: ['api.services.alphavantage_client', 'api.services.av_transcripts']
+E       assert not ({'api', 'api.backfill_from_patches', 'api.color_rebuild', 'api.daily_tracker', 'api.darkpool_db', 'api.dealer_positioning', ...} & {'api.routers.earnings', 'api.routers.earnings_intel', 'api.services.alphavantage_client', 'api.services.av_transcripts', 'api.services.call_recap', 'api.services.call_recap_warmer'})
+
+tests\test_notebook_transcript_capture.py:439: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_transcript_capture.py::test_the_import_graph_never_reaches_alphavantage
+1 failed in 8.94s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))

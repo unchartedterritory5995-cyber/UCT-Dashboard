@@ -1,6 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import {
-  Suspense, useCallback, useEffect, useId, useMemo, useReducer, useRef, useState,
+  Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState,
 } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
@@ -37,6 +37,7 @@ import { useDeskVideoByYoutube } from '../../../../hooks/useDeskVideoByYoutube'
 import { useVideoInsights } from '../../../../hooks/useVideoInsights'
 import linkifyTimestamps from '../../lib/linkifyTimestamps'
 import UIcon from '../../../../components/ui/UIcon'
+import { SkipLinkPortal } from '../../../../components/skipLinks'
 import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import {
@@ -114,10 +115,12 @@ import {
 } from '../../lib/writingHelp'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import lazyChunk from '../../lib/lazyChunk'
+import useToolbarRoving from '../../lib/useToolbarRoving'
 import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvas'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
 import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
+import { TranscriptInsertHost } from './TranscriptDoors'
 
 // Wave 7 lane H1 — the toolbar mic. LAZY: the recorder (MediaRecorder, the Web
 // Speech fallback, the Whisper upload) is not needed to open a note, and a
@@ -138,6 +141,9 @@ const VoiceNoteDialog = lazyChunk(() => import('./VoiceNoteDialog'))
 // Wave 11 lane 11D — the trade-plan canvas board. LAZY: only a canvas note
 // renders it, and only a chart card on it ever loads the chart.
 const TradeCanvasBoard = lazyChunk(() => import('./TradeCanvasBoard'))
+// Wave 13 lane 13D — "what you wrote then": a resurfacing insight opens the note with
+// `?resurfaceVersion=<id>`. LAZY: only that door ever renders it.
+const ResurfaceVersionSheet = lazyChunk(() => import('./ResurfaceVersionSheet'))
 // The canvas's link-from-a-thesis offer, shown on the note the member picked:
 // "Add a link to <plan> at the end of this note?" -- nothing is written until
 // the member presses Add (an editor transaction on THIS note's own autosave).
@@ -725,10 +731,12 @@ function stripTrailingEmptyParagraph(doc) {
 export default function NoteEditorPage({
   noteId, onBack, showBack = true, onTitleChange = null, noteMenu = null,
   // Wave 8 (8A, A4; final-review fix I-1): where an explicit open from the
-  // Notebook puts focus -- 'title' for a note the member just made (typing the
-  // title is the next act), 'landmark' for a note that already exists (the
-  // note's heading, which is not editable), null for an open aimed inside the
-  // note (a task, a page, an excerpt), which places focus itself.
+  // Notebook puts focus -- 'title' for a note the member just made with a
+  // title or a template (typing/reviewing the title is the next act),
+  // 'landmark' for a note that already exists (the note's heading, which is
+  // not editable), 'body' (13Q-2) for a note the member just made BLANK (no
+  // title, no template -- the next act is writing), null for an open aimed
+  // inside the note (a task, a page, an excerpt), which places focus itself.
   openFocus = null, onOpenFocused = null,
 }) {
   const { note, isLoading, error: loadError, update, refresh, patchTags } = useJ2Note(noteId)
@@ -954,6 +962,17 @@ export default function NoteEditorPage({
   // stale the moment the header wraps — review finding).
   const chromeRef = useRef(null)
   const pageRef = useRef(null)
+  // Wave 13 lane 13Q-3 (click-budget fix): a second skip link, landing BEFORE the header so a
+  // keyboard member reaches the Ask toggle, Export (inside More note actions) and Insert
+  // widget -- all of which sit in the sticky chrome, ABOVE the title -- without first tabbing
+  // through the shared app nav AND past where "Skip to note" already lands (the note's title,
+  // itself further down than this chrome). Visually hidden until it takes focus, same pattern
+  // as NotebookTab.jsx's own skip link and `paneHeading`.
+  const toolbarSkipRef = useRef(null)
+  const skipToToolbar = (e) => {
+    e.preventDefault()
+    toolbarSkipRef.current?.focus()
+  }
   // Wave 8 (8A, A4): focus has somewhere to land -- the note on an explicit
   // open, the Ask toggle when Ask closes (see `askRowRef` below).
   // ⛔⛔ Final-review fix I-1: an EXISTING note's open lands on the note's
@@ -961,13 +980,24 @@ export default function NoteEditorPage({
   // caret in the title, a reader's Space typed into the title and autosave wrote
   // it, and a phone raised its keyboard over the note on every open. A heading
   // takes no text: Space scrolls, and the screen reader says the note's name.
-  // Only a note the member just MADE focuses its title.
+  // Only a note the member just MADE focuses its title -- and 13Q-2: only when
+  // it is NOT blank. A bare "+ New note" has nothing in the title worth a
+  // look first, so `openFocus === 'body'` (NotebookTab's `blank` computation)
+  // places the caret straight into the body instead -- handled in a SEPARATE
+  // effect below (near `editorRef.current = editor`), because the title/
+  // landmark refs below are DOM nodes ready on the first render `openFocus`
+  // is set, while the editor is an ASYNC TipTap instance that can still be
+  // `null` on that same render; sharing one effect/dependency array for both
+  // would bail out while `editorRef.current` is still null and then never
+  // retry, since nothing in THIS effect's deps changes once `editor` finally
+  // resolves. `openFocusDoneRef` is the ONE claim both effects honour, so
+  // whichever of the two branches applies still fires exactly once.
   const titleInputRef = useRef(null)
   const landmarkRef = useRef(null)
   const openFocusDoneRef = useRef(false)
   const askRowRef = useRef(null)
   useEffect(() => {
-    if (!openFocus || openFocusDoneRef.current) return
+    if (!openFocus || openFocus === 'body' || openFocusDoneRef.current) return
     const target = openFocus === 'title' ? titleInputRef.current : landmarkRef.current
     if (!target) return
     openFocusDoneRef.current = true
@@ -1706,6 +1736,21 @@ export default function NoteEditorPage({
   // review would have nothing to render. The anchor is passed down to the
   // review panel, which owns the only place a review can truthfully be shown.
   const reviewAnchor = reviewTargetFromParams(searchParams)
+  // ⭐ Wave 13 lane 13D: a resurfacing insight's door. Dark behind
+  // `awareness_note_resurface_enabled` (latched per tab) -- off, the parameter is ignored.
+  // Only the editor the `?note=` door opened answers it (a side pane holds another note).
+  const resurfaceParam = searchParams.get('resurfaceVersion')
+  const routedNote = searchParams.get('note')
+  const resurfaceVersionId = resurfaceParam
+    && notebookFlag('awareness_note_resurface_enabled') === true
+    && (!routedNote || routedNote === noteId) ? resurfaceParam : null
+  const clearResurfaceParam = useCallback(() => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('resurfaceVersion')
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
   const clearReviewParam = useCallback(() => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev)
@@ -2265,6 +2310,13 @@ export default function NoteEditorPage({
       // and a snapshot taken here would offer "Dictate" to nobody or to everybody.
       ed.storage.uctJournalWidgets = {
         ...(ed.storage.uctJournalWidgets || {}), noteId,
+        // When this note's editor opened. A node view compares a block's own capturedAt with
+        // it to tell "added during this visit" from "was already here" (FingerprintPanel:
+        // viewing a note must never write to it).
+        openedAt: Date.now(),
+        // One sentence in this note's own toast, for an editor command that could not do what
+        // was asked (the /vs lookup). Commands cannot take React props.
+        notify: (message, tone = 'error') => setUploadToast({ message, tone }),
         canDictate: () => micRef.current?.available === true,
         // Wave 7 H2: read when the slash menu opens, like `canDictate`.
         canWritingHelp: () => writingHelpOnRef.current === true,
@@ -2293,7 +2345,13 @@ export default function NoteEditorPage({
     editorProps: {
       // Wave 8 (8A): TipTap makes the body role="textbox" with no name, so a
       // screen reader announced a bare "edit text". It is the note's body.
-      attributes: { class: styles.proseEditor, 'aria-label': 'Note body' },
+      // 13Q-2: an explicit `tabindex="0"` is a no-op for a real browser's tab
+      // order (a `contenteditable` region is already focusable and already in
+      // it) but it is NOT a no-op for `editor.commands.focus()` in jsdom, which
+      // this file's own test harness and `focusableWithin`'s `[tabindex]`
+      // selector both need to recognise the body as focusable at all --
+      // without it `openFocus="body"` (Q1's fix) silently focused nothing.
+      attributes: { class: styles.proseEditor, 'aria-label': 'Note body', tabindex: '0' },
       handlePaste(view, event) {
         const items = event.clipboardData?.items
         if (!items) return false
@@ -2343,6 +2401,129 @@ export default function NoteEditorPage({
   // Keep the ref current so the paste/drop handlers (captured at creation) always
   // reach the live editor instance.
   editorRef.current = editor
+  // 13Q-2: the 'body' half of the openFocus contract above -- deliberately its
+  // own effect, depending on `editor` itself (not just `openFocus`/`note`), so
+  // it retries once the async TipTap instance actually exists rather than
+  // firing once against a still-null `editorRef.current` and going quiet.
+  // `editor.commands.focus('end')` (not a bare DOM `.focus()`) because the
+  // ProseMirror root carries no caret position of its own to restore --
+  // TipTap's own command is what actually places one, at the end of a
+  // genuinely blank document.
+  // ⛔⛔ `useLayoutEffect`, NOT `useEffect` -- measured, not guessed. The
+  // 13Q-1 instrument's own check for "is the member's keyboard focus in the
+  // body" (`focus_in_editor`) runs the instant `.ProseMirror` is PAINTED
+  // (Playwright's own visibility poll), with no settle wait of its own (a
+  // member would not wait either). A PASSIVE `useEffect` fires only after the
+  // browser paints -- strictly later -- so by the time it set focus, the
+  // check (and a real member's very next keystroke) had already landed
+  // against an unfocused page. Measured live twice: a same-frame `useEffect`
+  // call AND a double-`requestAnimationFrame`-delayed one (the AskPanel
+  // pattern for a DIFFERENT race -- losing to a focus-stealer, not to paint
+  // itself) both left the caret on document.body
+  // (`docs/notebook/evidence/wave13-13q2/after-q1-run{1,2}`). `useLayoutEffect`
+  // runs synchronously after the DOM mutation, before paint, which is the only
+  // place that can still beat a check keyed on the paint itself.
+  //
+  // ⛔⛔ 13Q-Q1check (re-verification lane, product fix attempted and REVERTED --
+  // read before changing this effect again). Re-measured with NO focus()/click
+  // from any test after the note was created -- a real foreground page, 5 reps
+  // at 1200px and 390px -- `document.activeElement` stayed `BODY` for the full
+  // 2s window in 10 of 10 reps, and a real member's next keystrokes (typed
+  // with no focus() call) landed in neither the title nor the body, also
+  // 10 of 10 (`docs/notebook/evidence/wave13-q1check/results.json`). The PASS
+  // 13Q-3's own instrument measured was its OWN compensation's work, not the
+  // product's (confirmed).
+  //
+  // Two different PRODUCT-side fixes were then tried and BOTH measured to
+  // fail in this exact real-browser flow, with no exception across 20 more
+  // real repetitions: (1) retrying `editor.commands.focus('end')` a second
+  // time -- still 0/10, 0/10 typed-landed
+  // (`docs/notebook/evidence/wave13-q1check/results-after-retry-fix.json`);
+  // (2) a SYNCHRONOUS, un-deferred `editor.view.dom.focus()` call (bypassing
+  // TipTap's own command, which defers the real `view.focus()` via its own
+  // `requestAnimationFrame`) -- also still 0/10, 0/10 typed-landed
+  // (`docs/notebook/evidence/wave13-q1check/results-final.json`), DESPITE the
+  // identical direct-DOM call succeeding 3/3 when tried in isolation
+  // (`docs/notebook/evidence/wave13-q1check/direct-dom-focus-diagnosis/`).
+  //
+  // The isolating measurement that settled it
+  // (`docs/notebook/evidence/wave13-q1check/natural-vs-injected-diagnosis/`):
+  // on the SAME note, SAME page, SAME element, back-to-back -- the product's
+  // own effect (this code, running in the page's own natural execution
+  // context) left `document.activeElement` on `BODY`; the IDENTICAL
+  // `pm.focus()` call, injected a moment later via Playwright's
+  // `page.evaluate()` (a DevTools-protocol-level execution, not page script),
+  // landed it immediately. The variable is NOT timing, retry count, deferred
+  // vs. synchronous, headed vs. headless, or context freshness (all measured
+  // and ruled out) -- it is specifically whether the call originates from the
+  // page's own natural script or from a CDP-injected one. A page's own code,
+  // including this effect, can only ever run in the natural context: there is
+  // no way to reach the CDP-privileged one from here. This is the same
+  // conclusion 13Q-2/13Q-3 reached, now with a controlled, same-element A/B
+  // measurement behind it rather than an assumption.
+  //
+  // ⛔⛔ SUPERSEDED, 13Q-Q1check controller follow-up #2 -- the CDP-vs-natural
+  // theory two paragraphs above was the wrong explanation and no longer
+  // governs this effect; read this note instead before touching it again.
+  //
+  // Measured directly (R-RAW,
+  // `docs/notebook/evidence/wave13-q1check/focus-hook-probe/results.json`,
+  // commit a90976c005, 10/10 reps across both widths, no harness help):
+  // at the exact moment this effect used to call `editor.commands.focus('end')`,
+  // `editor.view.dom.isConnected` was FALSE. `@tiptap/react`'s `EditorContent`
+  // is a class component that attaches `editor.view.dom`'s contents into its
+  // own rendered container inside ITS OWN `componentDidMount`/
+  // `componentDidUpdate` (`node_modules/@tiptap/react/dist/index.js`), which
+  // is a CHILD effect relative to this `useLayoutEffect` -- and on the first
+  // commit `editor.view.dom.parentNode` is not yet truthy, so that attach is
+  // deferred past this effect's first (and, before this fix, only) run. The
+  // SAME `.ProseMirror` node (tracked by stable WeakMap identity) was then
+  // observed becoming connected to the document 135-807ms later in every one
+  // of the 10 reps. `focus()` on a disconnected node is a silent no-op -- no
+  // `focusin`, no `document.activeElement` change -- which is exactly what
+  // every earlier measurement in this lane saw (`BODY` stays active, 0/10),
+  // including the two PRODUCT fixes recorded above as having failed: a
+  // second `focus('end')` call and a synchronous `editor.view.dom.focus()`
+  // call. Both were measured to fail because both still fired before the
+  // node was attached; neither retried. No CDP/automation-context theory is
+  // needed to explain any of it.
+  //
+  // THE FIX: poll `editor.view.dom.isConnected` across animation frames and
+  // fire the one-shot focus only once it is true (and the editor is still
+  // editable), giving up quietly after a bounded number of frames rather
+  // than retrying forever. `openFocusDoneRef.current` is still set exactly
+  // once, and only at the moment focus is actually applied -- so if the note
+  // is destroyed/unmounted before the DOM ever attaches, nothing claims the
+  // one-shot and nothing throws. The title/landmark effect above is
+  // untouched.
+  useLayoutEffect(() => {
+    if (openFocus !== 'body' || openFocusDoneRef.current) return
+    if (!editor || editor.isDestroyed) return
+    let cancelled = false
+    let rafId = null
+    let frames = 0
+    // ~3s at 60fps -- generous against the measured 135-807ms attach gap.
+    const FRAME_CAP = 180
+    const tryFocus = () => {
+      if (cancelled) return
+      if (!editor || editor.isDestroyed) return
+      const dom = editor.view && editor.view.dom
+      if (dom && dom.isConnected && editor.isEditable) {
+        openFocusDoneRef.current = true
+        editor.commands.focus('end')
+        onOpenFocused?.()
+        return
+      }
+      frames += 1
+      if (frames >= FRAME_CAP) return
+      rafId = requestAnimationFrame(tryFocus)
+    }
+    tryFocus()
+    return () => {
+      cancelled = true
+      if (rafId != null) cancelAnimationFrame(rafId)
+    }
+  }, [openFocus, editor, onOpenFocused])
   const unreadable = useUnreadableNote(editor)
   // Wave 11 lane 11D: how many blocks a canvas note holds besides its board.
   useEffect(() => {
@@ -2433,6 +2614,10 @@ export default function NoteEditorPage({
   const [formatOpen, setFormatOpen] = useState(false)
   const formatToggleRef = useRef(null)
   const toolbarRowRef = useRef(null)
+  // Lane KEYS: the formatting toolbar is ONE Tab stop (Left and Right inside it, Home and End
+  // to its ends). Off while the phone's Format panel is open: that panel keeps Tab inside the
+  // row, so there every control stays an ordinary stop.
+  const editorToolbarRoving = useToolbarRoving({ enabled: !formatOpen })
   const formatRunId = useId()
   const closeFormat = useCallback(() => setFormatOpen(false), [])
   const firstFormatControl = useCallback(
@@ -3762,6 +3947,12 @@ export default function NoteEditorPage({
         }
       />
       <div className={styles.chrome} ref={chromeRef}>
+      <SkipLinkPortal>
+        <a href="#notebook-editor-toolbar" className={styles.skipLink} onClick={skipToToolbar}>
+          Skip to editor toolbar
+        </a>
+      </SkipLinkPortal>
+      <h2 ref={toolbarSkipRef} tabIndex={-1} className="sr-only">Editor toolbar</h2>
       <header className={styles.header}>
         {showBack && (
           <button type="button" className={styles.backBtn} onClick={onBack}>
@@ -3933,6 +4124,7 @@ export default function NoteEditorPage({
               onMouseDown={(e) => e.preventDefault()}
               onClick={openWritingHelp}
               aria-label="Writing help"
+              data-tour="writing-help"
               title="Writing help — summarize, rewrite, continue or translate"
             >
               <UIcon name="sparkle" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
@@ -4078,10 +4270,13 @@ export default function NoteEditorPage({
           (review M-4: it rendered as an empty, named toolbar). */}
       {editor && !locked && !isCanvas && (
         <div
-          ref={toolbarRowRef}
+          ref={(el) => { toolbarRowRef.current = el; editorToolbarRoving.ref.current = el }}
           className={styles.toolbarRow}
           role="toolbar"
           aria-label="Editor toolbar"
+          onKeyDown={editorToolbarRoving.onKeyDown}
+          onFocus={editorToolbarRoving.onFocus}
+          data-tour="note-toolbar"
           data-export-exclude
           data-format-open={formatOpen ? 'true' : undefined}
           {...(formatOpen ? formatDisclosureProps : {})}
@@ -4133,6 +4328,7 @@ export default function NoteEditorPage({
               onClick={() => setFormatOpen((o) => !o)}
               aria-expanded={formatOpen}
               aria-controls={`${formatRunId}-a ${formatRunId}-b ${formatRunId}-c ${formatRunId}-d`}
+              data-tour="note-format"
               title="More formatting: font, size, colour, headings, numbered list, quote, code, links, images, files, rule and widgets"
               data-format-toggle=""
             >
@@ -4265,6 +4461,7 @@ export default function NoteEditorPage({
               onClick={() => scanInputRef.current?.click()}
               aria-label="Scan a document with the camera"
               title="Scan a document with the camera"
+              data-tour="note-scan"
             >
               <UIcon name="camera" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
               Scan
@@ -4510,6 +4707,7 @@ export default function NoteEditorPage({
           onClickCapture={handleEditorClickCapture}
           hidden={isCanvas && canvasExtra === 0}
           className={isCanvas ? styles.canvasExtra : undefined}
+          data-tour="note-body"
         >
           {isCanvas && canvasExtra > 0 && <h3 className={styles.canvasExtraTitle}>Also in this note</h3>}
           <EditorContent editor={editor} />
@@ -4574,6 +4772,11 @@ export default function NoteEditorPage({
         currentNote={note}
         onRestored={onVersionRestored}
       />
+      {resurfaceVersionId && (
+        <Suspense fallback={null}>
+          <ResurfaceVersionSheet noteId={noteId} versionId={resurfaceVersionId} onClose={clearResurfaceParam} />
+        </Suspense>
+      )}
       {voiceNoteOpen && voiceNoteOn && (
         <Suspense fallback={null}>
           <VoiceNoteDialog
@@ -4583,6 +4786,8 @@ export default function NoteEditorPage({
           />
         </Suspense>
       )}
+      {/* Wave 13 lane 13G-1: the /transcript insert's sheet (renders nothing while its gate is off). */}
+      <TranscriptInsertHost editor={editor} noteId={noteId} ticker={note?.ticker} />
       {writingHelp && (
         <Suspense fallback={null}>
           <WritingHelpPanel

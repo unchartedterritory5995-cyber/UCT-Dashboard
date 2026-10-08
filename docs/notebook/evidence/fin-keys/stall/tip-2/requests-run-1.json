@@ -1,0 +1,436 @@
+[
+ {
+  "url": "/api/maintenance",
+  "t": 0.048,
+  "status": 200,
+  "ms": 1,
+  "failed": null
+ },
+ {
+  "url": "/assets/TradesSurface-DdvnDnhC.js",
+  "t": 0.084,
+  "status": 200,
+  "ms": 160,
+  "failed": null
+ },
+ {
+  "url": "/assets/TradeJournalTab-pafzvuIU.js",
+  "t": 0.084,
+  "status": 200,
+  "ms": 203,
+  "failed": null
+ },
+ {
+  "url": "/assets/ImportCsvModal-DzzErYji.js",
+  "t": 0.085,
+  "status": 200,
+  "ms": 160,
+  "failed": null
+ },
+ {
+  "url": "/assets/Sparkline-FgFXTY6T.js",
+  "t": 0.085,
+  "status": 200,
+  "ms": 158,
+  "failed": null
+ },
+ {
+  "url": "/assets/useThesisChips-BLrEbMHi.js",
+  "t": 0.085,
+  "status": 200,
+  "ms": 250,
+  "failed": null
+ },
+ {
+  "url": "/assets/useThesisChips-8pugXu-e.css",
+  "t": 0.085,
+  "status": 200,
+  "ms": 157,
+  "failed": null
+ },
+ {
+  "url": "/assets/optionCalcs-DDkgY4GH.js",
+  "t": 0.085,
+  "status": 200,
+  "ms": 270,
+  "failed": null
+ },
+ {
+  "url": "/assets/calculations-DS08O3gh.js",
+  "t": 0.085,
+  "status": 200,
+  "ms": 267,
+  "failed": null
+ },
+ {
+  "url": "/assets/useJ2BrokerPerformance-DHj8OTc1.js",
+  "t": 0.086,
+  "status": 200,
+  "ms": 250,
+  "failed": null
+ },
+ {
+  "url": "/assets/useAnimatedNumber-wAlEut-3.js",
+  "t": 0.086,
+  "status": 200,
+  "ms": 268,
+  "failed": null
+ },
+ {
+  "url": "/assets/ImportCsvModal-aYgstnkF.css",
+  "t": 0.086,
+  "status": 200,
+  "ms": 184,
+  "failed": null
+ },
+ {
+  "url": "/assets/useJ2OptionMarks-BL5_jir0.js",
+  "t": 0.086,
+  "status": 200,
+  "ms": 278,
+  "failed": null
+ },
+ {
+  "url": "/assets/useJ2PositionsAttention-DW6FZrzp.js",
+  "t": 0.087,
+  "status": 200,
+  "ms": 276,
+  "failed": null
+ },
+ {
+  "url": "/assets/TradeDrawer-abMFUQdm.js",
+  "t": 0.088,
+  "status": 200,
+  "ms": 331,
+  "failed": null
+ },
+ {
+  "url": "/assets/TradeReviewCard-CB4ovfiV.js",
+  "t": 0.088,
+  "status": 200,
+  "ms": 331,
+  "failed": null
+ },
+ {
+  "url": "/assets/CaptureMenu-B_aBxNKW.js",
+  "t": 0.089,
+  "status": 200,
+  "ms": 308,
+  "failed": null
+ },
+ {
+  "url": "/assets/sendToJournal-C0exCZYa.js",
+  "t": 0.089,
+  "status": 200,
+  "ms": 309,
+  "failed": null
+ },
+ {
+  "url": "/assets/CaptureMenu-Bv_uBcvv.css",
+  "t": 0.089,
+  "status": 200,
+  "ms": 181,
+  "failed": null
+ },
+ {
+  "url": "/assets/LinkedNotesPanel-BxRLmQgO.js",
+  "t": 0.089,
+  "status": 200,
+  "ms": 321,
+  "failed": null
+ },
+ {
+  "url": "/assets/LinkedNotesPanel-CgJZLirE.css",
+  "t": 0.089,
+  "status": 200,
+  "ms": 177,
+  "failed": null
+ },
+ {
+  "url": "/assets/researchReturnContext-CEE1AXQC.js",
+  "t": 0.09,
+  "status": 200,
+  "ms": 349,
+  "failed": null
+ },
+ {
+  "url": "/assets/useBrokerMarkPreference-vLfftFbt.js",
+  "t": 0.09,
+  "status": 200,
+  "ms": 348,
+  "failed": null
+ },
+ {
+  "url": "/assets/BrokerEquityCurve-Cz0SBQIb.js",
+  "t": 0.09,
+  "status": 200,
+  "ms": 365,
+  "failed": null
+ },
+ {
+  "url": "/assets/index-BoeTxg4R.js",
+  "t": 0.09,
+  "status": 200,
+  "ms": 598,
+  "failed": null
+ },
+ {
+  "url": "/assets/index-ibFC5x0Y.js",
+  "t": 0.09,
+  "status": 200,
+  "ms": 612,
+  "failed": null
+ },
+ {
+  "url": "/assets/BrokerEquityCurve-0w8zH4BJ.css",
+  "t": 0.091,
+  "status": 200,
+  "ms": 180,
+  "failed": null
+ },
+ {
+  "url": "/assets/useJ2Trades-DkEsD2Rk.js",
+  "t": 0.091,
+  "status": 200,
+  "ms": 397,
+  "failed": null
+ },
+ {
+  "url": "/assets/useBrokerWarming-ip2zkjFl.js",
+  "t": 0.091,
+  "status": 200,
+  "ms": 398,
+  "failed": null
+ },
+ {
+  "url": "/assets/useBrokerWarming-Dwl5LkUN.css",
+  "t": 0.091,
+  "status": 200,
+  "ms": 213,
+  "failed": null
+ },
+ {
+  "url": "/assets/drawingLabels-CihLMpqP.js",
+  "t": 0.091,
+  "status": 200,
+  "ms": 398,
+  "failed": null
+ },
+ {
+  "url": "/assets/PlanTradeSheet-C5oAna3E.js",
+  "t": 0.091,
+  "status": 200,
+  "ms": 463,
+  "failed": null
+ },
+ {
+  "url": "/assets/TagChipPicker-CMy1FF2g.js",
+  "t": 0.092,
+  "status": 200,
+  "ms": 442,
+  "failed": null
+ },
+ {
+  "url": "/assets/useScope-DNKtPwvR.js",
+  "t": 0.092,
+  "status": 200,
+  "ms": 463,
+  "failed": null
+ },
+ {
+  "url": "/assets/StatsGrid-p1Mdzsik.js",
+  "t": 0.092,
+  "status": 200,
+  "ms": 466,
+  "failed": null
+ },
+ {
+  "url": "/assets/StatsGrid-1foGD7kZ.css",
+  "t": 0.092,
+  "status": 200,
+  "ms": 203,
+  "failed": null
+ },
+ {
+  "url": "/assets/gridSort-C-mRLdl6.js",
+  "t": 0.092,
+  "status": 200,
+  "ms": 506,
+  "failed": null
+ },
+ {
+  "url": "/assets/usePlanGrade-EzhcKSw0.js",
+  "t": 0.092,
+  "status": 200,
+  "ms": 507,
+  "failed": null
+ },
+ {
+  "url": "/assets/ScopeBar-qCW1ZtKy.js",
+  "t": 0.092,
+  "status": 200,
+  "ms": 516,
+  "failed": null
+ },
+ {
+  "url": "/assets/ScopeBar-CLwOVfR2.css",
+  "t": 0.092,
+  "status": 200,
+  "ms": 214,
+  "failed": null
+ },
+ {
+  "url": "/assets/AddTradeModal-71a5S0AX.js",
+  "t": 0.092,
+  "status": 200,
+  "ms": 517,
+  "failed": null
+ },
+ {
+  "url": "/assets/TradeJournalTab-QmVgiefu.css",
+  "t": 0.093,
+  "status": 200,
+  "ms": 212,
+  "failed": null
+ },
+ {
+  "url": "/assets/SyncFreshnessChip-Cuth_d5Q.js",
+  "t": 0.093,
+  "status": 200,
+  "ms": 541,
+  "failed": null
+ },
+ {
+  "url": "/assets/SyncFreshnessChip-uhLX52Tx.css",
+  "t": 0.093,
+  "status": 200,
+  "ms": 211,
+  "failed": null
+ },
+ {
+  "url": "/api/j2/broker/sync?background=1",
+  "t": 0.093,
+  "status": 503,
+  "ms": 606,
+  "failed": null
+ },
+ {
+  "url": "/api/j2/broker/fills/check",
+  "t": 0.093,
+  "status": 200,
+  "ms": 542,
+  "failed": null
+ },
+ {
+  "url": "/api/auth/track",
+  "t": 0.093,
+  "status": 200,
+  "ms": 670,
+  "failed": null
+ },
+ {
+  "url": "/api/voice/insights/pending",
+  "t": 0.093,
+  "status": 200,
+  "ms": 647,
+  "failed": null
+ },
+ {
+  "url": "/api/community/status",
+  "t": 0.093,
+  "status": 200,
+  "ms": 608,
+  "failed": null
+ },
+ {
+  "url": "/api/alerts?limit=20",
+  "t": 0.093,
+  "status": 200,
+  "ms": 648,
+  "failed": null
+ },
+ {
+  "url": "/api/indicator-alerts/delivery-health?limit=10",
+  "t": 0.093,
+  "status": 200,
+  "ms": 671,
+  "failed": null
+ },
+ {
+  "url": "/api/j2/accounts",
+  "t": 0.094,
+  "status": 200,
+  "ms": 671,
+  "failed": null
+ },
+ {
+  "url": "/api/j2/accounts/82e56250-acdf-4389-a786-96cd47be7cb6/settings",
+  "t": 0.094,
+  "status": 200,
+  "ms": 667,
+  "failed": null
+ },
+ {
+  "url": "/api/j2/accounts/comparison",
+  "t": 0.094,
+  "status": 200,
+  "ms": 672,
+  "failed": null
+ },
+ {
+  "url": "/api/j2/positions?account_id=82e56250-acdf-4389-a786-96cd47be7cb6",
+  "t": 0.094,
+  "status": 200,
+  "ms": 671,
+  "failed": null
+ },
+ {
+  "url": "/api/j2/broker/status",
+  "t": 0.742,
+  "status": 200,
+  "ms": 93,
+  "failed": null
+ },
+ {
+  "url": "/api/j2/trades?account_id=82e56250-acdf-4389-a786-96cd47be7cb6&limit=50&offset=0",
+  "t": 0.743,
+  "status": 200,
+  "ms": 65,
+  "failed": null
+ },
+ {
+  "url": "/api/j2/trades?account_id=82e56250-acdf-4389-a786-96cd47be7cb6",
+  "t": 0.743,
+  "status": 200,
+  "ms": 90,
+  "failed": null
+ },
+ {
+  "url": "/api/j2/options?account_id=82e56250-acdf-4389-a786-96cd47be7cb6&status=closed",
+  "t": 0.743,
+  "status": 200,
+  "ms": 91,
+  "failed": null
+ },
+ {
+  "url": "/api/j2/accounts/82e56250-acdf-4389-a786-96cd47be7cb6/coach/trade-reviews",
+  "t": 0.743,
+  "status": 200,
+  "ms": 85,
+  "failed": null
+ },
+ {
+  "url": "/api/j2/plan-grades/status?ids=3861d860-fdf6-4388-bfbc-cceb2445f749,8da95e7d-ce18-46c4-9b4c-62770fedb1f4",
+  "t": 0.828,
+  "status": 200,
+  "ms": 12,
+  "failed": null
+ },
+ {
+  "url": "/fonts/instrument-sans-v4-latin-italic.woff2",
+  "t": 0.828,
+  "status": 200,
+  "ms": 15,
+  "failed": null
+ }
+]

@@ -1,0 +1,121 @@
+{
+  "meta": {
+    "stop_how": "exited-on-its-own (rc 3221225725)",
+    "typed": "the attach fix landed"
+  },
+  "rows": [
+    {
+      "width": "1200",
+      "rep": 1,
+      "note_id": "90c60627c66a4e08ae78f7e25c98f510",
+      "checkpoints": {
+        "t100": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t500": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t2000": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        }
+      },
+      "active_in_pm_final": true,
+      "typed_landed_in_title": false,
+      "typed_landed_in_body": false,
+      "page_errors": [],
+      "screenshot": "postattachfix-1200-r1.png"
+    },
+    {
+      "width": "1200",
+      "rep": 2,
+      "note_id": "ab5e4301bc8246f38df8a56273a17efe",
+      "checkpoints": {
+        "t100": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t500": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t2000": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        }
+      },
+      "active_in_pm_final": true,
+      "typed_landed_in_title": false,
+      "typed_landed_in_body": false,
+      "page_errors": [],
+      "screenshot": "postattachfix-1200-r2.png"
+    },
+    {
+      "width": "1200",
+      "rep": 3,
+      "note_id": "80cfd54a412740978993e6f766a3326c",
+      "checkpoints": {
+        "t100": {
+          "activeTag": "BODY",
+          "activeInPM": false
+        },
+        "t500": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        },
+        "t2000": {
+          "activeTag": "DIV",
+          "activeInPM": true
+        }
+      },
+      "active_in_pm_final": true,
+      "typed_landed_in_title": false,
+      "typed_landed_in_body": false,
+      "page_errors": [],
+      "screenshot": "postattachfix-1200-r3.png"
+    },
+    {
+      "width": "1200",
+      "rep": 4,
+      "driver_error": "TimeoutError: Page.goto: Timeout 60000ms exceeded.\nCall log:\n  - navigating to \"http://127.0.0.1:8649/journal/notebook?view=all\", waiting until \"domcontentloaded\"\n"
+    },
+    {
+      "width": "1200",
+      "rep": 5,
+      "driver_error": "Error: Page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:8649/journal/notebook?view=all\nCall log:\n  - navigating to \"http://127.0.0.1:8649/journal/notebook?view=all\", waiting until \"domcontentloaded\"\n",
+      "screenshot": "postattachfix-1200-r5.png"
+    },
+    {
+      "width": "390",
+      "rep": 1,
+      "driver_error": "Error: Page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:8649/journal/notebook?view=all\nCall log:\n  - navigating to \"http://127.0.0.1:8649/journal/notebook?view=all\", waiting until \"domcontentloaded\"\n",
+      "screenshot": "postattachfix-390-r1.png"
+    },
+    {
+      "width": "390",
+      "rep": 2,
+      "driver_error": "Error: Page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:8649/journal/notebook?view=all\nCall log:\n  - navigating to \"http://127.0.0.1:8649/journal/notebook?view=all\", waiting until \"domcontentloaded\"\n",
+      "screenshot": "postattachfix-390-r2.png"
+    },
+    {
+      "width": "390",
+      "rep": 3,
+      "driver_error": "Error: Page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:8649/journal/notebook?view=all\nCall log:\n  - navigating to \"http://127.0.0.1:8649/journal/notebook?view=all\", waiting until \"domcontentloaded\"\n",
+      "screenshot": "postattachfix-390-r3.png"
+    },
+    {
+      "width": "390",
+      "rep": 4,
+      "driver_error": "Error: Page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:8649/journal/notebook?view=all\nCall log:\n  - navigating to \"http://127.0.0.1:8649/journal/notebook?view=all\", waiting until \"domcontentloaded\"\n",
+      "screenshot": "postattachfix-390-r4.png"
+    },
+    {
+      "width": "390",
+      "rep": 5,
+      "driver_error": "Error: Page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:8649/journal/notebook?view=all\nCall log:\n  - navigating to \"http://127.0.0.1:8649/journal/notebook?view=all\", waiting until \"domcontentloaded\"\n",
+      "screenshot": "postattachfix-390-r5.png"
+    }
+  ]
+}

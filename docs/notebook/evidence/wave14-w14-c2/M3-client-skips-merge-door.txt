@@ -1,0 +1,129 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w14-c2/app
+
+ ✓ src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.test.js (8 tests) 14ms
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.crossTab.test.js (6 tests | 5 failed) 50ms
+     × ⛔⛔ both rows survive, and the row written before either tab loaded is kept 17ms
+     ✓ CONTROL: without the merge door the SAME race loses a row (so the rail above can fail) 2ms
+     × sends ONE row -- {state, step} -- to the tour's own URL, never the map 3ms
+     × a network failure falls back to the old read-modify-write path 2ms
+     × a refusal that is not "no door" (413) writes nothing more -- no whole-map POST around the cap 1ms
+     × writes for one tab go out one at a time, in call order 22ms
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  5 failed | 9 passed (14)
+   Start at  20:24:01
+   Duration  849ms (transform 312ms, setup 610ms, import 338ms, tests 63ms, environment 0ms)
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.crossTab.test.js > two tabs, two tours, one moment > ⛔⛔ both rows survive, and the row written before either tab loaded is kept
+AssertionError: expected { 'old-tour': { v: 1, …(2) }, …(1) } to deeply equal { 'old-tour': { v: 1, …(2) }, …(2) }
+
+- Expected
++ Received
+
+@@ -2,15 +2,10 @@
+    "old-tour": {
+      "state": "done",
+      "step": null,
+      "v": 1,
+    },
+-   "tour-a": {
+-     "state": "started",
+-     "step": "s1",
+-     "v": 1,
+-   },
+    "tour-b": {
+      "state": "dismissed",
+      "step": null,
+      "v": 1,
+    },
+
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.crossTab.test.js:68:47
+     66|       recordTourState(b.setPrefMerged, 'tour-b', 'dismissed', null),
+     67|     ])
+     68|     expect(readToursPref(server[TOURS_PREF])).toEqual({
+       |                                               ^
+     69|       'old-tour': { v: 1, state: 'done', step: null },
+     70|       'tour-a': { v: 1, state: 'started', step: 's1' },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.crossTab.test.js > the request > sends ONE row -- {state, step} -- to the tour's own URL, never the map
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.crossTab.test.js:96:20
+     94|     const a = tab()
+     95|     await recordTourState(a.setPrefMerged, 'tour-a', 'done', 'last')
+     96|     expect(puts()).toHaveLength(1)
+       |                    ^
+     97|     const [url, init] = puts()[0]
+     98|     expect(url).toBe(TOUR_ROW_URL('tour-a'))
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.crossTab.test.js > the request > a network failure falls back to the old read-modify-write path
+TypeError: offline
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.crossTab.test.js:104:61
+    102| 
+    103|   it('a network failure falls back to the old read-modify-write path',…
+    104|     global.fetch.mockImplementationOnce(async () => { throw new TypeEr…
+       |                                                             ^
+    105|     const a = tab()
+    106|     await recordTourState(a.setPrefMerged, 'tour-a', 'done', null)
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.crossTab.test.js:45:11
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.js:98:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.crossTab.test.js > the request > a refusal that is not "no door" (413) writes nothing more -- no whole-map POST around the cap
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.crossTab.test.js:115:17
+    113|     const a = tab()
+    114|     const out = await recordTourState(a.setPrefMerged, 'tour-a', 'done…
+    115|     expect(out).toBe(false)
+       |                 ^
+    116|     expect(a.setPrefMerged).not.toHaveBeenCalled()
+    117|     expect(posts()).toEqual([])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.crossTab.test.js > the request > writes for one tab go out one at a time, in call order
+AssertionError: expected [ 'sent undefined', …(3) ] to deeply equal [ 'sent s1' ]
+
+- Expected
++ Received
+
+  [
+-   "sent s1",
++   "sent undefined",
++   "done undefined",
++   "sent undefined",
++   "done undefined",
+  ]
+
+ ❯ src/pages/journal-2-0/components/notebook/onboarding/tourSeenState.crossTab.test.js:135:19
+    133|     const p2 = recordTourState(a.setPrefMerged, 'tour-a', 'started', '…
+    134|     await new Promise((r) => setTimeout(r, 20))
+    135|     expect(order).toEqual(['sent s1'])           // s2 waits for s1
+       |                   ^
+    136|     release()
+    137|     await Promise.all([p1, p2])
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+

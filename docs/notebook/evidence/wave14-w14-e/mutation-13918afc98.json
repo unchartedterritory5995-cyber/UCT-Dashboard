@@ -1,0 +1,60 @@
+{
+  "lane": "W14-E",
+  "tip": "13918afc98",
+  "claim": "the removal guarantee: sample_notebook.remove() + sample_examples.remove() actually undo every row sample_examples.seed() wrote",
+  "restore_method": "write back the captured HEAD blob bytes (git cat-file blob HEAD:<path>), then verify with `git status --porcelain` (empty = identical to HEAD, accounting for this repo's core.autocrlf normalization) -- never `git checkout --`",
+  "control": "the full suite (tests/test_sample_notebook.py + tests/test_sample_notebook_examples.py, 47 tests) is green on the unmutated tip before and after every mutation below",
+  "mutations": [
+    {
+      "id": "M1",
+      "file": "api/services/journal_two/sample_examples.py",
+      "target": "remove(): `if trade_id:` -> `if False and trade_id:`",
+      "claim_killed": "the example trade is hard-deleted on removal",
+      "ran": [
+        "tests/test_sample_notebook_examples.py::test_removal_clears_every_capability_surface",
+        "tests/test_sample_notebook.py::test_remove_trashes_exactly_the_recorded_ids_still_active"
+      ],
+      "result": "2 failed, 0 passed of the 2 named -- KILLED"
+    },
+    {
+      "id": "M2",
+      "file": "api/services/journal_two/sample_examples.py",
+      "target": "remove(): `if isinstance(ectx, dict) and ...` -> `if False and isinstance(ectx, dict) and ...`",
+      "claim_killed": "the frozen entry-context row is hard-deleted on removal",
+      "ran": [
+        "tests/test_sample_notebook_examples.py::test_removal_clears_every_capability_surface",
+        "tests/test_sample_notebook.py::test_remove_trashes_exactly_the_recorded_ids_still_active"
+      ],
+      "result": "2 failed, 0 passed of the 2 named -- KILLED"
+    },
+    {
+      "id": "M3",
+      "file": "api/services/journal_two/sample_examples.py",
+      "target": "remove(): `if passed_id:` -> `if False and passed_id:`",
+      "claim_killed": "the example passed setup is dismissed on removal",
+      "ran": ["tests/test_sample_notebook_examples.py::test_removal_clears_every_capability_surface"],
+      "result": "1 failed -- KILLED"
+    },
+    {
+      "id": "M4",
+      "file": "api/services/journal_two/sample_examples.py",
+      "target": "remove(): `if insight_id:` -> `if False and insight_id:`",
+      "claim_killed": "the resurfacing insight is dismissed on removal",
+      "ran": ["tests/test_sample_notebook_examples.py::test_removal_clears_every_capability_surface"],
+      "result": "1 failed -- KILLED"
+    },
+    {
+      "id": "M5",
+      "file": "api/services/journal_two/sample_notebook.py",
+      "target": "remove(): `recorded_ids(user_id)` -> `recorded_ids(user_id)[:0]` in the note-trash loop",
+      "claim_killed": "every recorded note id (base five + capability examples) is trashed on removal",
+      "ran": [
+        "tests/test_sample_notebook.py::test_remove_trashes_exactly_the_recorded_ids_still_active",
+        "tests/test_sample_notebook.py::test_the_routes_seed_report_and_remove"
+      ],
+      "result": "2 failed, 0 passed of the 2 named -- KILLED"
+    }
+  ],
+  "summary": "control green; 5 of 5 mutations killed; every mutation restored and verified against the committed HEAD blob (`git status --porcelain` empty on both touched files after the final restore)",
+  "final_full_suite": "python -m pytest tests/test_sample_notebook.py tests/test_sample_notebook_examples.py -q -> 47 passed"
+}

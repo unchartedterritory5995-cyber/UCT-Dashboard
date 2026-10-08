@@ -1,0 +1,6 @@
+<<<<<<< OURS(prev)
+    "app/src/pages/journal-2-0/components/notebook/ScreenerEmbed.jsx",
+    "app/src/pages/optionsAnalytics/StrategyScreensPanel.jsx",
+=======
+>>>>>>> THEIRS(pre-landing)
+

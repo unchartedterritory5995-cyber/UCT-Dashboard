@@ -6,20 +6,43 @@
  *   onFeedback(value: 'helpful'|'unhelpful'): void
  *   onRegenerate(): void
  *   onForget(): void
+ *   accountId: the J2 selected account (or null for unified) — wave 13 lane 13F's
+ *     "Draft weekly review note" door reads the same week this review covers
  *
  * Markdown rendering: minimal naive parser (headings + bullets + bold +
  * paragraphs). Avoids adding a heavy markdown lib for v1.
  */
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import UIcon from '../../../components/ui/UIcon'
 import { renderMarkdown } from '../lib/coachMarkdown'
 import CompassAssistButton from '../../../components/voice/CompassAssistButton'
 import { formatETFull } from '../../../utils/timeAgo'
+import { reviewDraftsEnabled, draftWeeklyReview } from '../lib/reviewDrafts'
+import { compassScope } from '../hooks/compassScope'
 
-export default function CompassReview({ review, onFeedback, onRegenerate, onForget }) {
+export default function CompassReview({ review, onFeedback, onRegenerate, onForget, accountId }) {
   const body = useMemo(() => renderMarkdown(review?.body), [review?.body])
+  const navigate = useNavigate()
+  const [drafting, setDrafting] = useState(false)
+  const [draftError, setDraftError] = useState(null)
   if (!review) return null
+
+  const weekStart = review.week_start || review.metadata?.week_start
+  const handleDraft = async () => {
+    if (drafting || !weekStart) return
+    setDrafting(true)
+    setDraftError(null)
+    try {
+      const { note } = await draftWeeklyReview({ accountId: compassScope(accountId), weekStart })
+      navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)
+    } catch {
+      setDraftError('Could not draft this week’s review note — try again.')
+    } finally {
+      setDrafting(false)
+    }
+  }
 
   const feedback = review.feedback
 
@@ -61,6 +84,17 @@ export default function CompassReview({ review, onFeedback, onRegenerate, onForg
           ><UIcon name="thumbsDown" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Unhelpful</button>
           <button type="button" onClick={onRegenerate} style={ghostBtn()}>Regenerate</button>
           <button type="button" onClick={onForget} style={ghostBtn()}>Forget</button>
+          {reviewDraftsEnabled() && (
+            <button
+              type="button"
+              className="touchTarget"
+              onClick={handleDraft}
+              disabled={drafting}
+              style={ghostBtn()}
+            >
+              {drafting ? 'Drafting…' : 'Draft weekly review note'}
+            </button>
+          )}
           <CompassAssistButton
             pageHint={`Weekly Review · week of ${
               review.week_start || review.metadata?.week_start || 'unknown'
@@ -69,6 +103,11 @@ export default function CompassReview({ review, onFeedback, onRegenerate, onForg
           />
         </div>
       </header>
+      {draftError && (
+        <p role="alert" style={{ color: 'var(--danger-ink)', fontSize: 11, margin: '0 0 8px' }}>
+          {draftError}
+        </p>
+      )}
       <div>{body}</div>
     </article>
   )
