@@ -23,6 +23,7 @@
 // name-keyed save), delete (destructive), and overwrite of any kind.
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
+import { afterRender } from '../frames'
 
 const MAX_NAME = 60
 const norm = (s) => String(s || '').toLowerCase().replace(/[“”"'`‘’]/g, '').replace(/\s+/g, ' ').trim()
@@ -30,10 +31,8 @@ const quote = (n) => `“${n}”`
 const entryOf = (st, id) => st.entries.find(e => String(e.id) === String(id)) || null
 const KIND_WORD = { yours: 'yours', prebuilt: 'prebuilt', 'built-in': 'built-in' }
 
-const nextFrame = () => new Promise(r => {
-  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => setTimeout(r, 0))
-  else setTimeout(r, 0)
-})
+// Wait for React to commit (never for a paint: a hidden tab never paints) — see agent/frames.js.
+const nextFrame = afterRender
 async function waitFor(fn, budgetMs = 8000) {
   const t0 = Date.now()
   for (;;) {

@@ -28,6 +28,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider, isRef, SYMBOLS } from '../capabilities'
 import { unknownSymbols } from '../agentClient'
+import { afterRender } from '../frames'
 // Each list's tickers ARE shown to the model (removing "TSLA from Momentum" needs it:
 // without them the production model asked whether TSLA was in the list, 0/5 —
 // measured 2026-10-08). Provenance does not depend on hiding them: a copied list
@@ -79,10 +80,8 @@ function resolveList(host, phrase) {
   return hits.length === 1 ? hits[0] : null
 }
 
-const nextFrame = () => new Promise(r => {
-  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => setTimeout(r, 0))
-  else setTimeout(r, 0)
-})
+// Wait for React to commit (never for a paint: a hidden tab never paints) — see agent/frames.js.
+const nextFrame = afterRender
 
 export const watchlistKind = {
   name: 'watchlist',

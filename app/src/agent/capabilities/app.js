@@ -14,6 +14,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { NAV_ITEMS } from '../../components/NavBar'
 import { unknownSymbols } from '../agentClient'
+import { whenVisible } from '../frames'
 
 const slug = (to) => String(to).replace(/^\//, '').replace(/\//g, '-')
 // name → { to, label }
@@ -45,8 +46,10 @@ export const appKind = {
   stateOf: (s) => ({ here: s.here, go: null }),
   patch: (before, after) => (after.go ? { go: after.go } : null),
   async commit(host, ref, patch) {
-    // After the receipt (the runtime returns first, then the panel renders it).
-    setTimeout(() => host.navigate(patch.go.path), NAV_DELAY_MS)
+    // After the receipt (the runtime returns first, then the panel renders it). From a hidden
+    // tab, only once the member is back: leaving a page nobody is looking at helps no one, and
+    // a hidden tab's timers are throttled to as little as once a minute.
+    setTimeout(() => whenVisible(() => host.navigate(patch.go.path)), NAV_DELAY_MS)
     return true
   },
   landed: () => true,
