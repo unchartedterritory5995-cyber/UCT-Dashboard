@@ -190,6 +190,121 @@ def resolve_entity(conn, user_id: str, query: str) -> dict[str, Any] | None:
 # real one further down the ranking.
 _INSERT_OVERFETCH = 3
 
+#: A note whose own text is at most this long is handed to the model WHOLE (fin walk K1).
+#: ⚰️ Every note used to be a 240-character window around the first matching word, whatever
+#: its length. On a live model, two whole notes of four and three sentences came back as "the
+#: note cuts off" and "both appear truncated", and what they went on to say was left out.
+#: Four whole notes at this size fit `ask_ranking.MAX_CHARS` (pinned by a test).
+NOTE_WHOLE_MAX_CHARS = 1200
+
+#: The most one note may take when it is the ONLY note that matched (keyed re-walk 8.2).
+#: ⚰️ A 1,878-character note was the single match for a four-part question and still went out
+#: as one 151-character window, because the base budget is sized for four notes sharing a
+#: packet. The packet had room for all of it.
+NOTE_WHOLE_SOLO_MAX_CHARS = 4000
+
+#: Put between two passages of one note that are not next to each other.
+EXCERPT_GAP = " … "
+
+#: The window around a matched word when a note is too long to send whole.
+_EXCERPT_BEFORE = 90
+_EXCERPT_AFTER = 150
+
+
+def whole_note_budget(matched_notes: int) -> int:
+    """How long a note may be and still be sent whole, given how many notes matched.
+
+    The packet (`ask_ranking.MAX_CHARS`) is shared. One matching note may use most of it;
+    five or more each get the base `NOTE_WHOLE_MAX_CHARS`. Never below the base, never above
+    `NOTE_WHOLE_SOLO_MAX_CHARS`."""
+    share = rk.MAX_CHARS // max(1, int(matched_notes or 1))
+    return max(NOTE_WHOLE_MAX_CHARS, min(NOTE_WHOLE_SOLO_MAX_CHARS, share))
+
+
+def _word_forms(term: str) -> list[str]:
+    """The term as asked, then its singular. The search index stems ("risks" finds a note that
+    says "risk"); locating the passage is a literal match and must not lose that note's
+    sentence for the sake of one letter."""
+    forms = [term]
+    low = term.lower()
+    if low.endswith("es") and len(term) > 4:
+        forms.append(term[:-2])
+    if low.endswith("s") and len(term) > 3:
+        forms.append(term[:-1])
+    return forms
+
+
+#: How many places one word of the question may bring a passage from. "The risks" is two
+#: sentences in the walk's note; a word that is on every line must not take the whole excerpt.
+_OCCURRENCES_PER_TERM = 3
+
+
+def _member_occurrences(text: str, index, term: str) -> list[tuple[int, int]]:
+    """Up to `_OCCURRENCES_PER_TERM` (offset, length) places a form of `term` appears outside
+    an inserted Ask answer, in note order. The first form that appears at all is the one used."""
+    for form in _word_forms(term):
+        found: list[tuple[int, int]] = []
+        for m in re.finditer(f"(?={re.escape(form)})", text, re.IGNORECASE):
+            if not index.in_ask_insert(m.start(), m.start() + len(form)):
+                found.append((m.start(), len(form)))
+                if len(found) >= _OCCURRENCES_PER_TERM:
+                    break
+        if found:
+            return found
+    return []
+
+
+def _spanning_excerpt(flat, text: str, index, terms: list[str], anchor: tuple[int, int],
+                      budget: int) -> str:
+    """Passages of a note too long to send whole: one around the cited word, then one around
+    each other word of the question the note holds, in the question's order, while they fit
+    `budget`. Overlapping passages are joined; passages apart are shown with `EXCERPT_GAP`.
+
+    ⚰️ One window around the FIRST word found was all that was sent. For a question that
+    names a ticker first, that was the note's opening line, which answers nothing."""
+    def joined(spans: list[tuple[int, int]]) -> list[list[int]]:
+        out: list[list[int]] = []
+        for start, end in sorted(spans):
+            if out and start <= out[-1][1]:
+                out[-1][1] = max(out[-1][1], end)
+            else:
+                out.append([start, end])
+        return out
+
+    def size(spans: list[tuple[int, int]]) -> int:
+        """What the excerpt would cost: overlapping passages count once, plus the gaps."""
+        j = joined(spans)
+        return sum(b - a for a, b in j) + len(EXCERPT_GAP) * (len(j) - 1)
+
+    windows = [_excerpt_window(text, anchor[0], anchor[1])]
+    places = [_member_occurrences(text, index, term) for term in terms]
+    # Round by round: every word's first place before any word's second, so one frequent
+    # word cannot spend the budget before a rarer one has a passage at all.
+    for nth in range(_OCCURRENCES_PER_TERM):
+        for hits in places:
+            if nth >= len(hits):
+                continue
+            window = _excerpt_window(text, hits[nth][0], hits[nth][1])
+            if size(windows + [window]) <= budget:
+                windows.append(window)
+    parts = [nct.member_text(flat, a, b).strip() for a, b in joined(windows)]
+    return EXCERPT_GAP.join(p for p in parts if p)[:budget]
+
+
+def _excerpt_window(text: str, idx: int, term_len: int) -> tuple[int, int]:
+    """[start, end) around a match, moved inward to whole words. A window that starts or ends
+    inside a word reads as damaged text, which is half of why a model called a note cut off."""
+    start = max(0, idx - _EXCERPT_BEFORE)
+    end = min(len(text), idx + term_len + _EXCERPT_AFTER)
+    if start > 0 and not text[start - 1].isspace():
+        while start < idx and not text[start].isspace():
+            start += 1
+    if end < len(text) and not text[end].isspace():
+        floor = idx + term_len
+        while end > floor and not text[end - 1].isspace():
+            end -= 1
+    return start, end
+
 
 def _notes(conn, user_id: str, expr: str, limit: int,
            note_ids: list[str] | None = None) -> list[dict[str, Any]]:
@@ -215,24 +330,53 @@ def _notes(conn, user_id: str, expr: str, limit: int,
     params.append(limit * _INSERT_OVERFETCH)
 
     out: list[dict[str, Any]] = []
-    for r in conn.execute(sql, params).fetchall():
+    rows = conn.execute(sql, params).fetchall()
+    # How much of the packet one note may take depends on how many notes share it.
+    whole_max = whole_note_budget(min(len(rows), limit))
+    for r in rows:
         if len(out) >= limit:
             break
         row = dict(r)
         doc = _json(row.get("body_json"))
-        snippet, location, validity = _best_note_passage(doc, expr, row.get("title") or "")
+        snippet, location, validity, partial = _note_passage(
+            doc, expr, row.get("title") or "", whole_max=whole_max)
         if snippet is None:
             # G-064 (spec §7.2): the body is only inserted Ask answers.
             # Presenting it would hand the model its own earlier output as
             # "notes they wrote".
             continue
-        out.append(ev.from_note(row, snippet=snippet, location=location,
-                                citation_validity=validity, score=-row["score"]))
+        item = ev.from_note(row, snippet=snippet, location=location,
+                            citation_validity=validity, score=-row["score"])
+        if partial:
+            # The one flag for "this is part of a longer source": the same one
+            # `ask_ranking.budget` sets when it shortens an item, so the prompt has one
+            # mark to render and one rule about it (`ask_prompt.EXCERPT_MARK`).
+            item["truncated"] = True
+        out.append(item)
     return out
 
 
 def _best_note_passage(doc, expr: str, title: str = ""):
-    """Pick a passage to cite and give it a real ProseMirror location.
+    """(snippet, location, validity) of `_note_passage`, for the callers that locate a
+    citation and do not send the text to a model.
+
+    It reads ONE occurrence when the first is usable (review M5, pinned by
+    `tests/test_note_citation_text.py`): the passages for the other words of the question are
+    only gathered when the text is going to a model."""
+    return _note_passage(doc, expr, title, spanning=False)[:3]
+
+
+def _note_passage(doc, expr: str, title: str = "", *, whole_max: int = NOTE_WHOLE_MAX_CHARS,
+                  spanning: bool = True):
+    """Pick a passage to cite and give it a real ProseMirror location. Returns
+    (snippet, location, validity, partial).
+
+    ⛔ THE SNIPPET AND THE LOCATION ARE TWO THINGS (fin walk K1). The location is the matched
+    word's own range and is what a citation opens; it is the same whatever is sent. The
+    snippet is what the model reads: the member's WHOLE note when it fits `whole_max`
+    (`whole_note_budget`: more when few notes matched), and otherwise passages around each
+    word of the question the note holds (`_spanning_excerpt`) with `partial` True, so the
+    prompt can say it is part of a longer note. Inserted Ask answers are cut out of both.
 
     Falls back honestly: if no query term can be located in the canonical
     text, the citation opens the note WITHOUT claiming a passage (§21) rather
@@ -252,10 +396,11 @@ def _best_note_passage(doc, expr: str, title: str = ""):
     flat = nct.flatten(doc)
     text = flat["text"]
     if not text:
-        return "", None, ev.CITE_NOTE_ONLY
+        return "", None, ev.CITE_NOTE_ONLY, False
     own = nct.member_text(flat)
     if not own.strip():
-        return None, None, None
+        return None, None, None, False
+    whole = len(own.strip()) <= whole_max
     terms = [t for t in _terms(expr) if len(t) > 2]
     found_only_in_insert = False
     index = nct.SpanIndex(flat["spans"])  # one index for every occurrence's lookups
@@ -295,9 +440,13 @@ def _best_note_passage(doc, expr: str, title: str = ""):
             if saw_any:
                 found_only_in_insert = True
             continue
-        start = max(0, idx - 90)
-        end = min(len(text), idx + len(term) + 150)
-        snippet = nct.member_text(flat, start, end).strip()
+        if whole:
+            snippet = own.strip()
+        elif spanning:
+            snippet = _spanning_excerpt(flat, text, index, terms, (idx, len(term)), whole_max)
+        else:
+            start, end = _excerpt_window(text, idx, len(term))
+            snippet = nct.member_text(flat, start, end).strip()
         rng = index.pm_range(idx, idx + len(term))
         if rng:
             location = {**rng, "fingerprint": nct.fingerprint(doc),
@@ -308,12 +457,16 @@ def _best_note_passage(doc, expr: str, title: str = ""):
                 # atom by identity, never by that text (review N1).
                 location["atom"] = atom
             return snippet, location, (ev.CITE_EXACT if index.precise(rng)
-                                       else ev.CITE_NOTE_ONLY)
+                                       else ev.CITE_NOTE_ONLY), not whole
     if found_only_in_insert:
         low_title = (title or "").lower()
         if not any(t.lower() in low_title for t in terms):
-            return None, None, None
-    return own[:200].strip(), None, ev.CITE_NOTE_ONLY
+            return None, None, None, False
+    if whole:
+        return own.strip(), None, ev.CITE_NOTE_ONLY, False
+    lead = own.strip()[:200]
+    cut = lead.rfind(" ")
+    return (lead[:cut] if cut > 0 else lead).strip(), None, ev.CITE_NOTE_ONLY, True
 
 
 # Words that cannot decide whether a passage ANSWERS a question. Kept small

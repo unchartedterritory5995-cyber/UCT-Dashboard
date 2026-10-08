@@ -1,0 +1,67 @@
+{
+ "asked_bodies": 1,
+ "answer_text": "Planned entry (breakout plan): above 412 [1][2]. It was not chased.",
+ "strong": [
+  "Planned entry (breakout plan):"
+ ],
+ "em": [
+  "not"
+ ],
+ "chips": [
+  {
+   "text": "[1]",
+   "label": "Source 1: CRWD breakout plan",
+   "tag": "BUTTON",
+   "x": 272.9,
+   "y": 565.8,
+   "w": 44,
+   "h": 44,
+   "own_centre": true,
+   "top_tag": "BUTTON"
+  },
+  {
+   "text": "[2]",
+   "label": "Source 2: CRWD review",
+   "tag": "BUTTON",
+   "x": 318.9,
+   "y": 565.8,
+   "w": 44,
+   "h": 44,
+   "own_centre": true,
+   "top_tag": "BUTTON"
+  }
+ ],
+ "insert_offered": 1,
+ "block_count": 1,
+ "block_text": "From Ask Notebook\n · Oct 7, 2026\n\nPlanned entry (breakout plan): above 412 [1][2]. It was not chased.",
+ "block_strong": [
+  "Planned entry (breakout plan):"
+ ],
+ "block_em": [
+  "not"
+ ],
+ "block_chips": [
+  {
+   "text": "[1]",
+   "label": "Source 1: CRWD breakout plan",
+   "tag": "BUTTON",
+   "x": 211.4,
+   "y": 766.5,
+   "w": 32.1,
+   "h": 23.5,
+   "own_centre": false,
+   "top_tag": "DIV"
+  },
+  {
+   "text": "[2]",
+   "label": "Source 2: CRWD review",
+   "tag": "BUTTON",
+   "x": 245.4,
+   "y": 766.5,
+   "w": 32.1,
+   "h": 23.5,
+   "own_centre": false,
+   "top_tag": "DIV"
+  }
+ ]
+}
