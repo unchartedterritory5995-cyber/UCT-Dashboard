@@ -91,6 +91,12 @@ TOUR_ONLY_FLAGS = ["NOTEBOOK_SEMANTIC_SEARCH_ENABLED"]
 C3_ON = ["NOTEBOOK_VISUAL_PLAYBOOK_ENABLED", "NOTEBOOK_SETUPS_BOARD_ENABLED", "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
          "NOTEBOOK_GETTING_STARTED_ENABLED"]
 C3_OFF = ["NOTEBOOK_TA_FINGERPRINT_ENABLED", "NOTEBOOK_CHART_PLAN_ENABLED", "NOTEBOOK_PLAN_GRADING_ENABLED"]
+# keyed: the AI features, walked with the two model keys the owner authorised (sandbox only).
+# Voice notes and meaning search stay OFF in production; they are armed here in the sandbox.
+KEYED_EXTRA = ["NOTEBOOK_WRITING_HELP_ENABLED", "NOTEBOOK_ASK_INSERT_ON", "NOTEBOOK_ATTACHMENTS_ON",
+               "NOTEBOOK_AI_ACTIONS_ENABLED", "NOTEBOOK_VOICE_NOTES_ENABLED", "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+               "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED", "COMPASS_NOTES_TOOL_ENABLED", "J2_OCR_ENABLED"]
+MODEL_KEY_NAMES = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY")   # presence is read; a value is never printed
 # Ledger-armed names that are jobs / infrastructure / a mode, not a member-facing gate: left unset.
 NOT_MEMBER_GATES = {"NOTEBOOK_DOOR_GUARD", "J2_ATTACHMENT_BACKUP_ENABLED", "J2_ATTACHMENT_GC_ENABLED", "J2_OCR_ENABLED"}
 
@@ -488,7 +494,8 @@ def flag_sets() -> dict:
     return {"gates": gates, "prod_armed": armed, "wave": WAVE_FLAGS, "armed_wave_flags_in_ledger": armed_wave,
             "all_names": every,
             "c1": armed, "c2": armed + WAVE_FLAGS + TOUR_ONLY_FLAGS,
-            "c3": armed + C3_ON}
+            "c3": armed + C3_ON,
+            "keyed": sorted(set(armed + WAVE_FLAGS + KEYED_EXTRA))}
 
 
 # ── seeding children (the driver itself never imports api.*) ───────────────────────────────
@@ -1015,6 +1022,12 @@ def set_env(fs: dict, config: str, data_dir: Path) -> None:
     for k in [k for k in os.environ if k.startswith("RAILWAY_")]:
         os.environ.pop(k, None)
     os.environ.update({name: "1" for name in fs[config]})
+    for stub in ("NOTEBOOK_VOICE_SANDBOX_STUB", "NOTEBOOK_AI_ACTIONS_SANDBOX_STUB", "HUB_SANDBOX_ALLOW_MODEL_KEYS"):
+        os.environ.pop(stub, None)
+    if config == "keyed":
+        # the launcher's own opt-in (scripts/hub_sandbox_boot.py ALLOW_MODEL_KEYS_ENV); every other
+        # configuration leaves it unset, so the launcher blanks the keys as it always has
+        os.environ["HUB_SANDBOX_ALLOW_MODEL_KEYS"] = "1"
     os.environ.update({"NOTEBOOK_EARNINGS_PREP_SANDBOX_CALENDAR": str(data_dir / CAL_FILE),
                        "FMP_API_KEY": "", "FINNHUB_API_KEY": "", "ALPHAVANTAGE_API_KEY": "", "MASSIVE_API_KEY": ""})
 
@@ -1075,6 +1088,9 @@ def run_config(config: str, args, fs: dict) -> int:
                         run_c1(browser, admin, base, fs, data_dir, only)
                     elif config == "c3":
                         run_c3(browser, admin, base, fs, data_dir, only)
+                    elif config == "keyed":
+                        import notebook_fin_walk_keyed as keyed
+                        keyed.run(sys.modules[__name__], browser, admin, base, fs, data_dir, only)
                     else:
                         import notebook_fin_walk_features as feat
                         feat.run_c2(sys.modules[__name__], browser, admin, base, fs, data_dir, only)
@@ -1122,7 +1138,7 @@ def run_config(config: str, args, fs: dict) -> int:
 def main(argv=None) -> int:
     global OUT
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--config", required=True, choices=["c1", "c2", "c3"])
+    ap.add_argument("--config", required=True, choices=["c1", "c2", "c3", "keyed"])
     ap.add_argument("--data-root", required=True)
     ap.add_argument("--port", type=int, default=PORT)
     ap.add_argument("--out", required=True)
@@ -1138,6 +1154,11 @@ def main(argv=None) -> int:
     if why:
         print(f"REFUSED: {why}")
         return 3
+    if args.config == "keyed":
+        missing = [k for k in MODEL_KEY_NAMES if not os.environ.get(k)]
+        if missing:
+            print(f"REFUSED: the keyed walk needs {missing} in this process (start it through the key helper)")
+            return 3
     if args.port not in PORTS:
         print(f"REFUSED: this lane's ports are {PORTS}")
         return 3
@@ -1163,7 +1184,7 @@ def main(argv=None) -> int:
     except h.SetupFailed as e:
         print(f"REFUSED: {e}")
         return 3
-    REC["flag_sets"] = {k: fs[k] for k in ("prod_armed", "wave", "c1", "c2", "c3")}
+    REC["flag_sets"] = {k: fs[k] for k in ("prod_armed", "wave", "c1", "c2", "c3", "keyed")}
     flush()
     rc = run_config(args.config, args, fs)
     REC.update({"finished": datetime.now(timezone.utc).isoformat(timespec="seconds"), "status": "COMPLETE" if rc in (0, 1) else "NOT COMPLETE"})
