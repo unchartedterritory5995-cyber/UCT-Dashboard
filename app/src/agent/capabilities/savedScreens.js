@@ -6,8 +6,9 @@
 //   PUT    /api/screener/saved-screens/{id}     {name}            rename
 //   DELETE /api/screener/saved-screens/{id}                       delete (hard)
 // The spec saved is exactly the wire spec the Agent's last screen RAN with
-// ({filters:[{key,op,min,max,value}], sort}) — the Screener's own stored shape — or, for a
-// copy, the source screen's stored spec, unchanged. Nothing is re-parsed or rebuilt.
+// ({filters, sort, rank?, logic?}) — the Screener's own stored shape — or, for a copy, the
+// source screen's stored spec, unchanged (view/columns/rank/logic included; see `storable`).
+// Nothing is re-parsed or rebuilt.
 //
 // ⛔ The server checks nothing about names (no uniqueness, no length) and has no revision:
 // the Agent re-reads the list right before every write and refuses a name you already use,
@@ -53,8 +54,17 @@ function nameProblem(st, name, exceptId = null) {
   return null
 }
 const oneAtATime = (st) => (st.op ? 'One saved-screen change at a time — ask for the next one after this.' : null)
-// Exactly the shape the Screener stores; page/page_size never belong in a saved screen.
-const storable = (spec) => ({ filters: spec?.filters || [], ...(spec?.sort ? { sort: spec.sort } : {}) })
+// Exactly the shape the Screener itself stores — `useScreenSpec`'s `baseSpec`
+// ({filters, sort, view, columns?, rank?, logic?}; pages/screener/shell/useScreenSpec.js), the
+// object SaveScanButton / ScreensManager hand to `create`. Every key the source carries is
+// kept (rank and logic change WHICH stocks match and in what order — dropping them made a
+// copy a different screen); only paging, which never belongs in a saved screen, is left out.
+export const SAVED_SPEC_KEYS = ['filters', 'sort', 'view', 'columns', 'rank', 'logic']
+export const storable = (spec) => {
+  const out = { filters: Array.isArray(spec?.filters) ? spec.filters : [] }
+  for (const k of SAVED_SPEC_KEYS.slice(1)) if (spec?.[k] != null) out[k] = spec[k]
+  return out
+}
 
 export const savedScreensKind = {
   name: 'savedScreens',
@@ -136,7 +146,7 @@ export function registerSavedScreenCapabilities() {
     name: 'screener.saveAs',
     risk: 'confirm',
     createsResource: true,
-    summary: 'Save the LAST screen run here (its exact filters and sort) as a new saved screen in the member\'s Screener. Never replaces an existing one.',
+    summary: 'Save the LAST screen run here (its exact filters, sort, ranking and logic) as a new saved screen in the member\'s Screener. Never replaces an existing one.',
     hints: 'target = the ref of the savedScreenLibrary entry; name = the name as given. Only when a screen was already run here (lastScreenHere is not null). '
       + 'If they ask to run a NEW screen and save it in one go, run it now (screener.run) and say in the reply that they can then say "save it as <name>".',
     args: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'], additionalProperties: false },
@@ -154,7 +164,7 @@ export function registerSavedScreenCapabilities() {
     name: 'screener.duplicateSaved',
     risk: 'confirm',
     createsResource: true,
-    summary: 'Copy a saved screen (one of the member\'s or a UCT starter) to a new saved screen with the same filters and sort.',
+    summary: 'Copy a saved screen (one of the member\'s or a UCT starter) to a new saved screen with exactly the same definition (filters, sort, ranking, logic, view, columns).',
     hints: 'target = the ref of the savedScreenLibrary entry; screen = the id of the screen to copy (from yours, or a starter id from the screener entry\'s savedScreens); '
       + 'name = the new name as given, or null for "<name> copy" (do not ask for a name).',
     args: { type: 'object', properties: { screen: { type: 'string' }, name: { type: ['string', 'null'] } }, required: ['screen', 'name'], additionalProperties: false },

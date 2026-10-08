@@ -176,7 +176,7 @@ def test_library_bars_append_only_after_the_canonical_end(monkeypatch):
 
 
 def test_nothing_is_served_while_the_flag_is_off(monkeypatch):
-    monkeypatch.delenv("BREADTH_LIVE_UNIVERSES", raising=False)
+    monkeypatch.setenv("BREADTH_LIVE_UNIVERSES", "0")
     assert blu.serving() is False
     assert blu.rows_for("us") == []
     body = [{"t": "2026-10-06", "o": 1, "h": 1, "l": 1, "c": 1.0, "v": 0}]
@@ -293,3 +293,24 @@ def test_frame_from_the_bars_pack(monkeypatch):
     assert c[0].tolist() == [10.0, 11.0] and np.isnan(c[1, 0]) and c[1, 1] == 20.0
     assert np.isnan(c[2]).all() and v[0].tolist() == [5, 6]
     assert blu._load_frame_from_pack(["AAA"], "2026-10-08") is None      # pack not current
+
+
+
+def test_a_slow_dividend_store_never_hangs_the_build(monkeypatch):
+    import time as _t
+    monkeypatch.setattr(blu, "DIVIDEND_BUDGET_SECONDS", 0.2)
+    monkeypatch.setattr(bl, "dividend_basis_enabled", lambda: True)
+    monkeypatch.setattr(bl, "_apply_dividend_basis", lambda *a, **k: (_t.sleep(2), a[2] * 2)[1])
+    c = np.ones((2, 3))
+    out, st = blu._dividend_basis_with_budget(["A", "B"], [1, 2, 3], c, 3)
+    assert st == "timeout" and out is c
+    monkeypatch.setattr(bl, "_apply_dividend_basis", lambda *a, **k: a[2] * 2)
+    out, st = blu._dividend_basis_with_budget(["A", "B"], [1, 2, 3], c, 3)
+    assert st == "applied" and out[0, 0] == 2
+
+
+
+def test_serving_is_on_by_default(monkeypatch):
+    monkeypatch.delenv("BREADTH_LIVE_UNIVERSES", raising=False)
+    monkeypatch.setattr(bl, "enabled", lambda: True)
+    assert blu.serving() is True

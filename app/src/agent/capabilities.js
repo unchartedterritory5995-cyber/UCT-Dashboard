@@ -29,8 +29,15 @@ const CAPS = new Map()
 const KINDS = new Map()
 const PROVIDERS = new Map()
 
+// The manifest wire contract shared with the server (api/services/uct_agent/turn.py reads the
+// same numbers; tests/test_uct_agent_contract.py and agentContracts.test.js hold both to it).
+import MANIFEST_CONTRACT from './contract/manifest.contract.json'
+export { MANIFEST_CONTRACT }
+export const MANIFEST_VERSION = MANIFEST_CONTRACT.manifestVersion
+
 const NAME = /^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$/
 const RISKS = new Set(['local', 'confirm'])
+const UNDO = new Set(['exact', 'none'])
 
 /** Throws on a malformed registration — a broken capability never reaches a member. */
 export function registerCapability(cap) {
@@ -51,7 +58,14 @@ export function registerCapability(cap) {
   for (const fn of fns) {
     if (typeof cap[fn] !== 'function') throw new Error(`${cap.name}: ${fn}() required`)
   }
-  CAPS.set(cap.name, { risk: 'local', reversible: true, domain: cap.name.split('.')[0], ...cap })
+  // `reversible` is POLICY (false ⇒ always proposed: permanent / hard to take back).
+  // `undo` is the TRUTH about the receipt: 'exact' = the kind restores it (an Undo button),
+  // 'none' = no Undo exists (navigation, a recurring-email switch). It defaults from
+  // `reversible`, and a capability whose kind cannot undo MUST say 'none' — the manifest tells
+  // the model, and the receipt says so, so nothing ever implies an Undo that isn't there.
+  const undo = cap.undo ?? (cap.query || cap.reversible === false ? 'none' : 'exact')
+  if (!UNDO.has(undo)) throw new Error(`${cap.name}: undo must be exact|none`)
+  CAPS.set(cap.name, { risk: 'local', reversible: true, domain: cap.name.split('.')[0], ...cap, undo })
   return () => CAPS.delete(cap.name)
 }
 
@@ -158,7 +172,7 @@ export function availableCapabilities(ctx = {}) {
 export function manifestFor(ctx = {}) {
   return availableCapabilities(ctx).map(c => ({
     name: c.name, domain: c.domain, target: c.target, summary: c.summary,
-    hints: c.hints || null, args: c.args, risk: c.risk, reversible: c.reversible !== false,
+    hints: c.hints || null, args: c.args, risk: c.risk, reversible: c.reversible !== false, undo: c.undo, query: !!c.query,
   }))
 }
 
