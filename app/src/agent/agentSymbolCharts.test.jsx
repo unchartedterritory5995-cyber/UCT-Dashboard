@@ -496,3 +496,42 @@ describe('ticker lookups: a ticker the proposal found KNOWN is not looked up aga
     _resetKnownTickers()
   })
 })
+
+
+describe('one thing at a time: Apply / Undo / a choice can never run alongside another request', () => {
+  it('Apply clicked while a model reply is still coming does nothing; a double click applies once', async () => {
+    const { say, newCharts, widgetOps } = await mount()
+    const add = vi.spyOn(widgetOps, 'add')
+    envelopes.push(b => env('propose', [CHARTS(b, ['SPY', 'QQQ'])]))
+    say('Chart SPY and QQQ.')
+    await nth('agent-proposal', 1)
+    // A slow model turn is in flight (the member typed something else)…
+    let release
+    const gate = new Promise(r => { release = r })
+    const realFetch = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url, init) => {
+      if (url === '/api/agent/turn') await gate
+      return realFetch(url, init)
+    })
+    envelopes.push(() => env('answer', [], 'An EMA weights recent prices more.'))
+    say('what is an EMA?')
+    const apply = screen.getAllByRole('button', { name: 'Apply' })[0]
+    expect(apply.disabled).toBe(true)
+    fireEvent.click(apply)                                    // ignored: the lock is held
+    await new Promise(r => setTimeout(r, 50))
+    expect(add).not.toHaveBeenCalled()
+    release()
+    await saysSoon(/An EMA weights recent prices more/)
+    expect(add).not.toHaveBeenCalled()                        // the stale card was replaced, never applied
+    envelopes.push(b => env('propose', [CHARTS(b, ['SPY', 'QQQ'])]))
+    say('Chart SPY and QQQ.')
+    await nth('agent-proposal', 2)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply' }).disabled).toBe(false))
+    const btn = screen.getByRole('button', { name: 'Apply' })
+    fireEvent.click(btn)
+    fireEvent.click(btn)                                      // a double click
+    await nth('agent-receipt', 1)
+    expect(newCharts()).toHaveLength(2)
+    expect(add).toHaveBeenCalledTimes(2)                      // two charts, created once
+  })
+})

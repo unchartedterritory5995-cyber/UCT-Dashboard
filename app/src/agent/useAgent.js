@@ -50,6 +50,17 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const capCtx = useMemo(() => ({ surface }), [surface])
   const [items, setItems] = useState([])
   const [busy, setBusy] = useState(false)
+  // ⛔ ONE thing at a time: a send, an Apply, an Undo or a choice. A ref (not the
+  // `busy` state) so two clicks in the same tick cannot both get through; every
+  // entry point the panel calls takes it, and the internal calls send() makes
+  // ("undo" / "do it" typed) run inside the lock it already holds.
+  const lockRef = useRef(false)
+  const exclusive = useCallback((fn) => async (...args) => {
+    if (lockRef.current) return undefined
+    lockRef.current = true
+    setBusy(true)
+    try { return await fn(...args) } finally { lockRef.current = false; setBusy(false) }
+  }, [])
   const [conversationId, setConversationIdState] = useState(() => readLocal(AGENT_CONVERSATION_KEY))
   const conversationRef = useRef(conversationId)
   const pendingRef = useRef(null)           // { kind:'proposal', id, ops } | { kind:'target', ops, path }
@@ -349,7 +360,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
 
   const send = useCallback(async (raw, { voice = false, answering = false } = {}) => {
     const text = String(raw || '').trim()
-    if (!text || busy) return
+    if (!text || lockRef.current) return
+    lockRef.current = true
     push({ role: 'member', text, voice })
     setBusy(true)
     try {
@@ -450,9 +462,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const ops = bindSourceRefs(env.ops, refMap, { host, message: text }).map(o => ({ ...o, target: refMap[o.target]?.ref || o.target }))
       await execute(ops, { path: 'model', mode: env.disposition, member: null, voice })
     } finally {
+      lockRef.current = false
       setBusy(false)
     }
-  }, [busy, push, gridMode, host, record, doUndo, approve, dismiss, execute, setConversationId, patchItem, capCtx])
+  }, [push, gridMode, host, record, doUndo, approve, dismiss, execute, setConversationId, patchItem, capCtx])
 
   const newChat = useCallback(() => {
     setConversationId(null)
@@ -475,9 +488,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
 
   return {
     items, busy, restoring, conversationId, send, newChat, openConversation,
-    undo: (undoId) => doUndo(undoId, { member: null }),
-    approve: () => approve(null, { member: null }), dismiss: () => dismiss({ member: null }),
-    chooseTarget, canUndo,
+    undo: exclusive((undoId) => doUndo(undoId, { member: null })),
+    approve: exclusive(() => approve(null, { member: null })), dismiss: () => { if (!lockRef.current) dismiss({ member: null }) },
+    chooseTarget: exclusive(chooseTarget), canUndo,
     hasPending: !!pendingRef.current,
   }
 }
