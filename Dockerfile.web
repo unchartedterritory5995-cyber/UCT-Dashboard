@@ -204,6 +204,17 @@ WORKDIR /app
 COPY . /app
 COPY --from=frontend /src/app/dist /app/app/dist
 
+# ⛔ THE CROSS-LANE ALERT PROOF RUNS SHIPPED SOURCE UNDER A BARE `node`, AND
+# THAT SOURCE IMPORTS ONE NPM PACKAGE. Arming a user-formula alert runs
+# `tools/ast_conformance.run_js`, which imports `app/src/.../ast/interpret.js` →
+# `parse.js` → bare `jsep`. With no `app/node_modules` in this image node raised
+# ERR_MODULE_NOT_FOUND, the lane was unavailable, and EVERY user-formula alert
+# arm was refused with a 400 (measured on prod 2026-10-08). ONLY that package is
+# carried — not the frontend's whole node_modules — and `jsep` has no
+# dependencies of its own. `tests/test_js_lane_runtime_packages.py` walks the
+# lane's real import closure and fails if a new bare import is not copied here.
+COPY --from=frontend /src/app/node_modules/jsep /app/app/node_modules/jsep
+
 # ⛔ OCR IS DARK. The engine is INSTALLED, not ENABLED: nothing here sets
 # `J2_OCR_ENABLED`, so `document_ocr_tesseract.install_if_enabled()` wires no
 # adapter and `document_ocr.ocr_available()` stays false. Presence of the binary
