@@ -65,6 +65,9 @@ def model() -> str:
 
 
 # ── the capability manifest (from the browser registry) ──────────────────────
+# Manifest wire contract (app/src/agent/contract/manifest.contract.json holds the same numbers;
+# tests/test_uct_agent_contract.py fails if the two ever differ).
+MANIFEST_VERSIONS = frozenset({1})
 MAX_CAPABILITIES = 60
 MAX_CAP_BYTES = 6000
 MAX_HINTS = 1000
@@ -124,6 +127,10 @@ def validate_manifest(caps: Any) -> list[dict]:
             "hints": str(c.get("hints"))[:MAX_HINTS] if c.get("hints") else None,
             "target": str(c.get("target") or "")[:40],
             "risk": "confirm" if c.get("risk") == "confirm" else "local",
+            # Manifest v1: the TRUTH about each action's aftermath, so the model never promises an
+            # Undo that isn't there. Absent (an older browser) reads as the old default.
+            "reversible": c.get("reversible") is not False,
+            "undo": "none" if c.get("undo") == "none" else "exact",
             "args": args,
         })
     return out
@@ -310,6 +317,7 @@ AVAILABLE ACTIONS (ops[].action, with args exactly as the schema says)
 """
 
 _SYSTEM_TAIL = """
+UNDO. An action marked "permanent -- no Undo" or "no Undo" cannot be undone from UCT Agent: never say or imply the member can undo it.
 RESEARCH (`research`: null unless truly needed)
 Leave `research` null for almost every turn. Set it ONLY when a correct answer depends on CURRENT or RECENT facts you cannot know: today's or this week's news, why a stock is moving now, a recent earnings report or call, recent filings, guidance, a Fed speech, today's market action. Then put a focused search query in `research.query` and how recent it must be in `research.recency`, and write `reply` as a one-line placeholder; UCT will run the search and ask you again with the results. Usually the disposition is answer. If the member ALSO asked for a change (a MIXED REQUEST, such as "why is NVDA moving? also put it on the left chart"), use apply or propose with that change's ops NOW, planned from the member's words alone; the research answer comes back as the reply and the change runs as planned here.
 Never request research for workspace commands, proposals, clarifications, or evergreen knowledge (except the current-facts question of a MIXED request, below) (what an indicator measures, EMA vs SMA, how a pattern works, general trading education): answer those directly.
@@ -342,6 +350,10 @@ def system_prompt(capabilities: list[dict]) -> str:
     for a in capabilities:
         props = ", ".join(f"{k}: {_arg_text(v)}" for k, v in a["args"]["properties"].items())
         risk = ", needs confirmation" if a["risk"] == "confirm" else ""
+        if a.get("reversible") is False:
+            risk += ", permanent -- no Undo"
+        elif a.get("undo") == "none":
+            risk += ", no Undo"
         line = f"- {a['name']}({props}) [target: {a['target']}{risk}]: {a['summary']}"
         if a.get("hints"):
             line += f" {a['hints']}"
@@ -531,7 +543,7 @@ def _context_refs(context: dict) -> set[str]:
 
 def run_turn(*, message: str, context: dict, history: list[dict], capabilities: list | None = None,
              pending: dict | None = None, recent_outcome: str | None = None,
-             caller: Callable[..., Any] | None = None) -> dict:
+             caller: Callable[..., Any] | None = None, manifest_version: int | None = None) -> dict:
     """Returns {envelope, usage}. Raises TurnError with a member sentence."""
     msg = (message or "").strip()
     if not msg:
@@ -543,6 +555,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         raise TurnError("Your workspace is too large for me to read at once.")
     valid_refs = _context_refs(context)
     caps = validate_manifest(capabilities or [])
+    if manifest_version is not None and manifest_version not in MANIFEST_VERSIONS:
+        # Still served (every op is re-validated in the browser); logged so a skew is visible.
+        log.warning("[uct-agent] manifest version %r is not one this server knows (%s)", manifest_version, sorted(MANIFEST_VERSIONS))
 
     caller = caller or _default_caller
     schema = envelope_schema(caps)

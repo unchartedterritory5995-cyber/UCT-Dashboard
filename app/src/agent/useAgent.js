@@ -17,12 +17,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fastParse, matchPosition } from './fastPath'
-import { planOps, prepareOps, collectTargets } from './executor'
+import { planOps, prepareOps, collectTargets, undoNotesFor } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
 import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
 import { traceStart, mark, traceEnd } from './trace'
-import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups } from './capabilities'
+import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { agentTurn, agentRecord, agentConversation } from './agentClient'
 import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
@@ -330,7 +330,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
         return
       }
-      push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: wholly ? [] : plan.noops })
+      push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: [...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
     } else {
       const text = `Some of that didn't take effect: ${res.failed.map(f => `${f.label} ${f.reason}`).join('; ')}.`
@@ -515,7 +515,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         : null
       const res = await agentTurn({
         conversationId: conversationRef.current, message: text, voice, pending,
-        context, capabilities: manifestFor(capCtx),
+        context, capabilities: manifestFor(capCtx), manifestVersion: MANIFEST_VERSION,
       })
       if (!res.ok) { push({ role: 'error', text: res.error }); return }
       if (res.data.conversationId !== conversationRef.current) setConversationId(res.data.conversationId)
