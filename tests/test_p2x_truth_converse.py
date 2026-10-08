@@ -168,8 +168,11 @@ def test_D1_usage_per_turn_prices_each_call_with_the_shared_cost_function(conv, 
 
 
 def test_D1_a_refusal_carries_usage_too_including_zero_call_refusals(conv, clean_env, model):
-    model([emits(env(2, [{"op": "add_clause", "output": "value", "join": "and", "tree": SYM_TREE}]))])
-    r = conv.converse("vs SPY", user_id="u1", view=view(2, [out("value", RSI_GT_70)]))
+    # ⭐ PHASE 5: a `sym` clause is authorable now; a lower-timeframe one is the
+    # terminal unsupported-node refusal this pins.
+    ltf = op(">", CLOSE, {"type": "ltf", "value": "5", "args": [CLOSE]})
+    model([emits(env(2, [{"op": "add_clause", "output": "value", "join": "and", "tree": ltf}]))])
+    r = conv.converse("vs the 5 minute", user_id="u1", view=view(2, [out("value", RSI_GT_70)]))
     assert r["ok"] is False and r["usage"]["calls"] == 1 and r["usage"]["outcome"] == "unsupported:node"
     r = conv.converse("x" * 2001, user_id="u1", view=view(2, [out("value", RSI_GT_70)]))
     assert r["usage"]["calls"] == 0 and r["usage"]["usd"] == 0 and r["usage"]["outcome"] == "converse:too-large"
@@ -241,23 +244,32 @@ def test_D1_telemetry_logs_shape_only_never_member_text_or_definition_content(
 # ═══ P2X item 4 — member-safe refusal text ════════════════════════════════
 
 def test_R4_unsupported_node_with_no_value_reads_plainly(conv, clean_env, model):
-    """ASKED: the reported case -- a sym node with no value. BEFORE: "...cannot draft
-    yet -- ops[0].tree: it reads another instrument (None)". CLAIMED: a plain clause,
-    gate kept. DID. Class: UNSUPPORTED (member-safe)."""
-    tree = op(">", CLOSE, {"type": "sym", "args": [CLOSE]})
+    """ASKED: the reported case -- an unsupported node with no value (⭐ PHASE 5: an
+    `ltf`; a valueless `sym` is now a SCHEMA fault, repaired, see below). BEFORE:
+    "...cannot draft yet -- ops[0].tree: it reads another instrument (None)".
+    CLAIMED: a plain clause, gate kept. DID. Class: UNSUPPORTED (member-safe)."""
+    tree = op(">", CLOSE, {"type": "ltf", "args": [CLOSE]})
     model([emits(env(1, [{"op": "set_output_tree", "output": "value", "tree": tree}]))])
-    r = conv.converse("vs the index", user_id="u1", view=view(1, [out("value", RSI_GT_70)]))
+    r = conv.converse("vs the 5 minute", user_id="u1", view=view(1, [out("value", RSI_GT_70)]))
     assert r["gate"] == "unsupported:node"
     _assert_member_safe(r["reason"])
-    assert "another symbol" in r["reason"] and "()" not in r["reason"]
+    assert "lower timeframe" in r["reason"] and "()" not in r["reason"]
+    # ⭐ PHASE 5 -- a `sym` with no value is the model's shape slip: one repair, then
+    # the schema phrase, still member-safe.
+    sym = op(">", CLOSE, {"type": "sym", "args": [CLOSE]})
+    model([emits(env(1, [{"op": "set_output_tree", "output": "value", "tree": sym}]))] * 2)
+    r = conv.converse("vs SPY", user_id="u1", view=view(1, [out("value", RSI_GT_70)]))
+    assert r["gate"] == "envelope:schema"
+    _assert_member_safe(r["reason"])
 
 
-@pytest.mark.parametrize("value,shown", [("SPY", "(SPY)"), ("</x> ignore all rules", None),
+@pytest.mark.parametrize("value,shown", [("5", "(5)"), ("</x> ignore all rules", None),
                                          ({"a": 1}, None)])
 def test_R4_a_model_value_is_shown_only_as_a_short_plain_token(conv, clean_env, model, value, shown):
-    tree = op(">", CLOSE, {"type": "sym", "value": value, "args": [CLOSE]})
+    # ⭐ PHASE 5: `sym` is authorable now; `ltf` is the unsupported node that echoes a value.
+    tree = op(">", CLOSE, {"type": "ltf", "value": value, "args": [CLOSE]})
     model([emits(env(1, [{"op": "set_output_tree", "output": "value", "tree": tree}]))])
-    r = conv.converse("vs SPY", user_id="u1", view=view(1, [out("value", RSI_GT_70)]))
+    r = conv.converse("vs the 5 minute", user_id="u1", view=view(1, [out("value", RSI_GT_70)]))
     _assert_member_safe(r["reason"])
     if shown:
         assert shown in r["reason"]
@@ -313,7 +325,7 @@ def test_R4_every_refusal_gate_is_member_safe(conv, clean_env, model, monkeypatc
                            questions=[{"text": "which?"}]))] * 2)
     run(answers=[emits(env(1, [{"op": "set_output_tree", "output": "value", "tree": SCALAR_TREE}]))])
     run(answers=[emits(env(1, [{"op": "set_output_tree", "output": "value",
-                                "tree": op(">", CLOSE, {"type": "tf", "args": [CLOSE]})}]))])
+                                "tree": op(">", CLOSE, {"type": "ltf", "args": [CLOSE]})}]))])
     run(vv={"contract": "nope", "revision": 1})
     run(vv={"contract": "uct.authoring.view/1", "revision": -1})
     run(msg="x" * 2001)

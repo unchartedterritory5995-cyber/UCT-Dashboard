@@ -46,7 +46,7 @@ from __future__ import annotations
 import datetime
 import math
 import re
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from api.services.nyse_calendar import (
     NYSE_EARLY_CLOSES_YYYYMMDD,
@@ -4263,6 +4263,16 @@ def interpret(ast: Any, bars: List[dict],
                     real[i] = math.nan
         column = real
     if not probing:
+        # ⭐ PHASE 5 -- the port of ``interpret.js::withSymAlignment`` (C26): a bar
+        # whose answer depends on an other-symbol bar that series does not hold is
+        # UNKNOWN, and so is every root bar within the tree's reach of it. Before
+        # this port the Python lane computed ``sma(sym('SPY', close), 3)`` straight
+        # THROUGH a missing SPY bar -- a value on a date SPY has no bar, which an
+        # alert reading another symbol would then fire on.
+        aligned = sym_alignment_mask(ast, bars, opts)
+        if aligned is not None:
+            column = [math.nan if aligned[i] else v for i, v in enumerate(column)]
+    if not probing:
         # C38 -- the port of ``interpret.js::withReadsWithheld``'s history half
         held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
         if held is not None:
@@ -4284,6 +4294,103 @@ def interpret(ast: Any, bars: List[dict],
     # `indicator_compute`'s alignment rule and spec §4's format, and the same
     # mapping `tools/ast_conformance.py` applies to the JS lane's NaN.
     return [None if math.isnan(v) else v for v in column]
+
+
+def _tree_reads_sym(tree: Any) -> bool:
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") == "sym":
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
+
+
+def _key_kind(v: Any) -> str:
+    """JS ``typeof`` for a bar key: a number (int or float) or a string."""
+    if isinstance(v, bool):
+        return "boolean"
+    if isinstance(v, (int, float)):
+        return "number"
+    return type(v).__name__
+
+
+def sym_alignment_mask(tree: Any, bars: List[dict],
+                       opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """⭐ PHASE 5 -- ``interpret.js::symAlignmentMask`` (C26), ported: the bars of a
+    tree whose answer depends on an other-symbol bar we do NOT hold (1 = withheld),
+    or ``None``. Asked only when the caller supplies ``opts["symbols"]`` (the chart
+    bind, and now the alert lane's supply); a caller that supplies nothing gets the
+    column it always got.
+
+    * a ``sym`` read UNDER a ``tf`` / ``tf_live`` / ``ltf`` / another ``sym`` is not
+      aligned on these bars at all: the whole tree is withheld;
+    * an unsupplied ticker withholds every bar;
+    * otherwise a chart bar with no counterpart AFTER that series' first bar (a
+      halt, a one-sided holiday, a series that ends early) is unknown, and so is
+      every bar within ``max_lookback(root) - max_lookback(sym)`` after it. A bar
+      before the series began is the plain NaN the alignment already gives."""
+    supplied = (opts or {}).get("symbols")
+    if not isinstance(supplied, Mapping) or not _tree_reads_sym(tree):
+        return None
+    n = len(bars) if isinstance(bars, list) else 0
+    nodes: List[Mapping[str, Any]] = []
+    nested = False
+    stack: List[Tuple[Any, bool]] = [(tree, False)]
+    seen: set = set()
+    while stack:
+        node, under = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        kind = node.get("type")
+        if kind == "sym":
+            if under:
+                nested = True
+            nodes.append(node)
+        into = under or kind in ("sym", "tf", "tf_live", "ltf")
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend((a, into) for a in args)
+    if not nodes:
+        return None
+    if nested:
+        return [1] * n
+    root_reach = max_lookback(tree)
+    mask = [0] * n
+    hit = False
+    for a in nodes:
+        series = supplied.get(str(a.get("value")).strip().upper())
+        if not isinstance(series, list) or not series:
+            return [1] * n
+        reach = max(0, root_reach - max_lookback(a))
+        held: set = set()
+        first: Any = None
+        for b in series:
+            key = b.get("t") if isinstance(b, Mapping) else None
+            if key is None:
+                continue
+            held.add(key)
+            if first is None or key < first:
+                first = key
+        last = -math.inf
+        for i in range(n):
+            b = bars[i]
+            key = b.get("t") if isinstance(b, Mapping) else None
+            missing = (key is None or first is None or _key_kind(key) != _key_kind(first)
+                       or (key not in held and key > first))
+            if missing:
+                last = i
+            if i - last <= reach:
+                mask[i] = 1
+                hit = True
+    return mask if hit else None
 
 
 def history_read_mask(tree: Any, bars: List[dict],

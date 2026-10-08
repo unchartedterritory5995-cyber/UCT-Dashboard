@@ -231,12 +231,16 @@ def test_P1_18_a_numeric_series_is_refused_never_thresholded(client):
 
 
 def test_P1_10_sym_unsupplied_refuses_through_policy_arming(client):
-    """ASKED: `becomes_true` on `close > sym('SPY', close)`. CLAIMED: refused at
-    arm (`withheld`, `other-symbol:unsupplied`) -- the policy changes nothing
-    about P0's sym supply-or-refuse. DID: 400, no row. Class: REFUSAL."""
+    """⭐ PHASE 5 SUPERSEDES P1-10: `becomes_true` on `close > sym('SPY', close)`
+    now ARMS (the lane supplies SPY at evaluation); an ambiguous spelling
+    (`sym('VIX', close)`) is still refused at arm by name. Class: SUPPLY / REFUSAL."""
     save_legacy(USER, DEF_ID, defn(tree=SYM_GT))
     r = post(client, trigger_policy="becomes_true")
-    _refused(client, 0, r, aus.UNSUPPLIED_OTHER_SYMBOL, "withheld")
+    assert r.status_code == 200, r.text
+    vix = json.loads(json.dumps(SYM_GT).replace('"SPY"', '"VIX"'))
+    save_legacy(USER, DEF_ID, defn(tree=vix))
+    r = post(client, trigger_policy="becomes_true")
+    _refused(client, 1, r, aus.OTHER_SYMBOL_AMBIGUOUS, "withheld")
 
 
 def test_P1_18_ltf_refuses_through_policy_arming(client):

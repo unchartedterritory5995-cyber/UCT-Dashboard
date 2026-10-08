@@ -47,6 +47,8 @@ RS = op("/", CLOSE, sym("SPY"))
 RS_HIGH = op(">", RS, call("highest", {"type": "offset", "value": 1, "args": [RS]}, num(63)))
 ABOVE_AVERAGE = op(">", CLOSE, call("sma", CLOSE, num(3)))
 PINE = {"name": "from pine", "recurrenceOrigin": "pine"}
+#: ⭐ PHASE 5 -- a sym the alert lane still cannot supply: letters that also name an index
+VIX_RS = op("/", CLOSE, sym("VIX"))
 
 
 def _doc(tree, meta=None) -> dict:
@@ -69,15 +71,18 @@ def date_bars(n: int = 120) -> list:
 
 def test_alert_sym_formula_is_REFUSED_at_arm():
     """ASKED: alert when `close / sym('SPY', close)` makes a 63-bar high.
-    CLAIMED (before): admitted -- the plot armed.
-    DID (before): the lane supplies no SPY series, so every bar was "no number"
-    -- an alert that arms and never fires (SILENT).
-    AFTER: REFUSAL, gate `withheld`, code `other-symbol:unsupplied`, naming SPY."""
+    P0: REFUSED (`withheld`, `other-symbol:unsupplied`) -- the lane supplied no SPY.
+    ⭐ PHASE 5 SUPERSEDES: the lane SUPPLIES SPY now (`alert_user_series._symbol_bars`,
+    the scan's local loader, at the alert's timeframe), so the plot is ADMITTED and
+    names what it reads; a sym it still cannot supply (`VIX`, an index spelling) keeps
+    the P0 refusal shape: `withheld`, named, "would arm and never fire"."""
+    fn = aus._make_value_fn("u_0000000005e1", "value", _doc(RS_HIGH))
+    assert fn.reads_symbols == ("SPY",)
     with pytest.raises(aus.AdmissionRefused) as exc:
-        aus._make_value_fn("u_0000000005e1", "value", _doc(RS_HIGH))
+        aus._make_value_fn("u_0000000005e1", "value", _doc(op(">", VIX_RS, num(1))))
     assert exc.value.gate == "withheld"
-    assert aus.UNSUPPLIED_OTHER_SYMBOL in str(exc.value)
-    assert "sym('SPY'" in str(exc.value)
+    assert aus.OTHER_SYMBOL_AMBIGUOUS in str(exc.value)
+    assert "sym('VIX'" in str(exc.value)
     assert "would arm and never fire" in str(exc.value)
 
 
@@ -94,11 +99,12 @@ def test_alert_ltf_formula_is_REFUSED_at_arm():
 
 def test_alert_pine_origin_sym_is_REFUSED_too():
     """ASKED: an alert on a Pine import's `request.security("AMEX:SPY", …)` plot.
-    The alert lane supplies other symbols for NO origin, so the Pine document is
-    refused exactly as the typed formula is. AFTER: REFUSAL."""
+    ⭐ PHASE 5: the supply is per TICKER, not per origin -- the Pine document is
+    treated exactly as the typed formula is: SPY admitted, VIX refused."""
+    assert aus._make_value_fn("u_0000000005e1", "value", _doc(RS, PINE)).reads_symbols == ("SPY",)
     with pytest.raises(aus.AdmissionRefused) as exc:
-        aus._make_value_fn("u_0000000005e1", "value", _doc(RS, PINE))
-    assert exc.value.gate == "withheld" and aus.UNSUPPLIED_OTHER_SYMBOL in str(exc.value)
+        aus._make_value_fn("u_0000000005e1", "value", _doc(VIX_RS, PINE))
+    assert exc.value.gate == "withheld" and aus.OTHER_SYMBOL_AMBIGUOUS in str(exc.value)
 
 
 def test_CONTROL_alert_without_external_read_still_arms():
@@ -117,13 +123,14 @@ def test_unsupplied_reads_is_satisfied_by_a_supply():
 
 
 def test_alert_sibling_plot_survives_the_refused_sym_plot(monkeypatch):
-    """ASKED: a two-plot formula -- `rs` reads SPY, `signal` reads nothing else.
+    """ASKED: a two-plot formula -- `rs` reads a symbol the lane cannot supply
+    (⭐ PHASE 5: VIX; SPY is supplied now), `signal` reads nothing else.
     AFTER: `signal` is admitted (VALUE), `rs` is kept as a `withheld` REFUSAL and
     raised when THAT plot is armed -- the C45 sibling rule, unchanged."""
     doc = {
         "meta": {"name": "typed"},
         "compute": {"kind": "ast", "ast": ABOVE_AVERAGE,
-                    "trees": {"signal": ABOVE_AVERAGE, "rs": RS},
+                    "trees": {"signal": ABOVE_AVERAGE, "rs": VIX_RS},
                     "treesHash": "sha256:" + "0" * 64, "scanPlot": "signal"},
         "plots": [{"key": "signal"}, {"key": "rs"}],
     }
