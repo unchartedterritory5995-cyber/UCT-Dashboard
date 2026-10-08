@@ -1,0 +1,361 @@
+/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.....F....................................................F............. [  1%]
+.............F.......................................................... [  3%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+......................FFF.F............................................. [ 48%]
+.............................................s.......................... [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................F............................... [ 63%]
+........................................................................ [ 65%]
+.......................................................s................ [ 67%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 78%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+...................................................................ss... [ 95%]
+..........ss...s........................................................ [ 97%]
+........................................................................ [ 99%]
+.............                                                            [100%]
+==============================================================================
+SHARED PRODUCTION DATA ROOT WRITTEN TO BY THE TEST SUITE — 2 attempt(s)
+==============================================================================
+  sqlite3.connect -> /data/flow.db
+      test   : tests/test_admin_oi_routes_off_the_loop.py::test_route_answers_without_a_bare_500[/api/admin/flow/plan]
+      thread : AnyIO worker thread
+      at     : /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/threading.py:1032 _bootstrap
+      at     : /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/threading.py:1075 _bootstrap_inner
+      at     : /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1100 run
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/main.py:9818 _flow_plan_sync
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/conftest.py:1033 _guarded_sqlite_connect
+  sqlite3.connect -> /data/flow.db
+      test   : tests/test_admin_oi_routes_off_the_loop.py::test_route_answers_without_a_bare_500[/api/admin/flow/optimize]
+      thread : AnyIO worker thread
+      at     : /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/threading.py:1032 _bootstrap
+      at     : /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/threading.py:1075 _bootstrap_inner
+      at     : /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1100 run
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/main.py:9861 _flow_optimize_sync
+      at     : /home/runner/work/UCT-Dashboard/UCT-Dashboard/conftest.py:1033 _guarded_sqlite_connect
+
+=================================== FAILURES ===================================
+__________________ test_column_presets_have_a_typed_store_now __________________
+
+    def test_column_presets_have_a_typed_store_now():
+        """§2 gap 1 -- FLIPPED 2026-09-25 by A12 CP2 (the pin below did exactly what it
+        was written to do: it failed the day the store landed, and was updated rather
+        than made to pass again). `visiblePerf` is now backed by the per-member server
+        preference `watchlist_perf_cols` through `usePreferences`: hydrated once after
+        prefs load, written on change, unknown keys dropped on read. Pinned the same way
+        the gap was -- by the literals -- so a regression to session state fails here."""
+        path = os.path.join(_AT_ROOT, "app", "src", "pages", "Watchlists.jsx")
+        src = open(path, encoding="utf-8").read()
+        assert "const [visiblePerf, setVisiblePerf] = useState(new Set())" not in src, (
+            "visiblePerf is plain session state again -- A12 CP2's persistence was reverted")
+        assert "const WATCHLIST_PERF_COLS_KEY = 'watchlist_perf_cols'" in src
+        assert "parsePref(prefs?.[WATCHLIST_PERF_COLS_KEY], null)" in src, "the read side is gone"
+>       assert "setPref(WATCHLIST_PERF_COLS_KEY, serialized)" in src, "the write side is gone"
+E       AssertionError: the write side is gone
+E       assert 'setPref(WATCHLIST_PERF_COLS_KEY, serialized)' in '// app/src/pages/Watchlists.jsx\n//\n// ⚠️ READ BEFORE CHANGING THE LAYOUT OF THIS FILE.\n//\n// This component has T...        onUnavailable={() => setWlHistoryId(null)}\n          />\n        </Sheet>\n      )}\n\n    </div>\n  )\n}\n\n'
+
+tests/test_a12_s6_consistency_rail.py:250: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at /tmp/pytest-of-runner/pytest-0/test_column_presets_have_a_typ0/auth.db
+_ test_the_default_store_is_NEVER_the_real_bucket_unless_the_backups_are_armed _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fb21d4ea6f0>
+
+    def test_the_default_store_is_NEVER_the_real_bucket_unless_the_backups_are_armed(monkeypatch):
+        """⛔ DATA_SYNC_* is set on the owner's machine; credentials alone must not be enough."""
+        from api.services import data_sync
+        monkeypatch.delenv(at.LOCAL_STORE_ENV, raising=False)
+        monkeypatch.setattr(data_sync, "_client", lambda: object())
+        monkeypatch.setattr(data_sync, "_bucket", lambda: "real-bucket")
+        monkeypatch.delenv("AUTHDB_BACKUP_ENABLED", raising=False)
+        assert at.default_store() is None
+        monkeypatch.setenv("AUTHDB_BACKUP_ENABLED", "1")
+>       assert isinstance(at.default_store(), at.R2ObjectStore)
+E       AssertionError: assert False
+E        +  where False = isinstance(None, <class 'api.services.account_tombstones.R2ObjectStore'>)
+E        +    where None = <function default_store at 0x7fb28a7e58a0>()
+E        +      where <function default_store at 0x7fb28a7e58a0> = at.default_store
+E        +    and   <class 'api.services.account_tombstones.R2ObjectStore'> = at.R2ObjectStore
+
+tests/test_account_tombstones.py:167: AssertionError
+___ test_every_owned_named_table_is_an_address_kind_or_exempt_with_a_reason ____
+
+    def test_every_owned_named_table_is_an_address_kind_or_exempt_with_a_reason():
+        derived = a.saved_object_tables()
+        assert len(derived) >= 20, f"census found only {len(derived)} tables -- a broken scan passes everything"
+        kinds = {k.table for k in a.KINDS.values()}
+        unclassified = sorted(set(derived) - kinds - set(a.EXEMPT))
+>       assert not unclassified, (
+            f"owned + named tables with no address and no exemption: {unclassified} "
+            "-- give each an address kind in KINDS, or an EXEMPT line with its reason")
+E       AssertionError: owned + named tables with no address and no exemption: ['agent_conversations'] -- give each an address kind in KINDS, or an EXEMPT line with its reason
+E       assert not ['agent_conversations']
+
+tests/test_address_space.py:44: AssertionError
+___________________ test_a_fire_is_signed_and_delivered_once ___________________
+
+armed = None
+
+    def test_a_fire_is_signed_and_delivered_once(armed):
+        made = wh.create("u1", "https://hooks.example.com/a")
+        ids = wh.enqueue_fire("u1", FIRE)
+        assert len(ids) == 1
+        assert wh.enqueue_fire("u1", FIRE) == []          # the same fire is queued once per webhook
+        sent = []
+    
+        def poster(url, body, headers):
+            sent.append((url, body, headers))
+            return 204
+        out = wh.drain(poster=poster, now=T0)
+>       assert out["delivered"] == 1
+E       assert 0 == 1
+
+tests/test_alert_outbound.py:144: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+2026-10-08 04:20:50,617 INFO slowapi: Storage has been reset and all limits cleared
+------------------------------ Captured log setup ------------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+--------------------------- Captured stderr teardown ---------------------------
+2026-10-08 04:20:50,635 INFO slowapi: Storage has been reset and all limits cleared
+---------------------------- Captured log teardown -----------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+__________________ test_failures_back_off_then_fail_for_good ___________________
+
+armed = None
+
+    def test_failures_back_off_then_fail_for_good(armed):
+        made = wh.create("u1", "https://hooks.example.com/a")
+        wh.enqueue_fire("u1", FIRE)
+        t = T0
+        for attempt in range(1, wh.MAX_ATTEMPTS + 1):
+            out = wh.drain(poster=lambda *a: 500, now=t)
+>           assert out["sent"] == 1
+E           assert 0 == 1
+
+tests/test_alert_outbound.py:160: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+2026-10-08 04:20:50,640 INFO slowapi: Storage has been reset and all limits cleared
+------------------------------ Captured log setup ------------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+--------------------------- Captured stderr teardown ---------------------------
+2026-10-08 04:20:50,655 INFO slowapi: Storage has been reset and all limits cleared
+---------------------------- Captured log teardown -----------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+________________ test_send_time_recheck_refuses_a_rebound_host _________________
+
+armed = None
+
+    def test_send_time_recheck_refuses_a_rebound_host(armed):
+        made = wh.create("u1", "https://hooks.example.com/a")
+        wh.enqueue_fire("u1", FIRE)
+        called = []
+        out = wh.drain(poster=lambda *a: called.append(a) or 200, resolver=PRIVATE, now=T0)
+>       assert called == [] and out["retry"] == 1
+E       assert ([] == []
+E         
+E         Full diff:
+E           [] and 0 == 1)
+
+tests/test_alert_outbound.py:176: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+2026-10-08 04:20:50,660 INFO slowapi: Storage has been reset and all limits cleared
+------------------------------ Captured log setup ------------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+--------------------------- Captured stderr teardown ---------------------------
+2026-10-08 04:20:50,675 INFO slowapi: Storage has been reset and all limits cleared
+---------------------------- Captured log teardown -----------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+______________________ test_a_revoked_webhook_is_not_sent ______________________
+
+armed = None
+
+    def test_a_revoked_webhook_is_not_sent(armed):
+        made = wh.create("u1", "https://hooks.example.com/a")
+        wh.enqueue_fire("u1", FIRE)
+        wh.revoke("u1", made["id"])
+        called = []
+        wh.drain(poster=lambda *a: called.append(a) or 200, now=T0)
+        assert called == []
+>       assert wh.deliveries("u1", made["id"])[0]["status"] == "dropped_revoked"
+E       AssertionError: assert 'pending' == 'dropped_revoked'
+E         
+E         - dropped_revoked
+E         + pending
+
+tests/test_alert_outbound.py:196: AssertionError
+---------------------------- Captured stderr setup -----------------------------
+2026-10-08 04:20:50,700 INFO slowapi: Storage has been reset and all limits cleared
+------------------------------ Captured log setup ------------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+--------------------------- Captured stderr teardown ---------------------------
+2026-10-08 04:20:50,720 INFO slowapi: Storage has been reset and all limits cleared
+---------------------------- Captured log teardown -----------------------------
+INFO     slowapi:extension.py:360 Storage has been reset and all limits cleared
+______ test_the_callers_of_the_type_module_are_exactly_the_declared_four _______
+
+    def test_the_callers_of_the_type_module_are_exactly_the_declared_four():
+        """§2a item 3: *what calls this, and which test fails if that wire is cut?*
+    
+        ⚰️ UPDATED BY NAMING, 2026-09-13. This asserted the harness was the ONLY
+        caller, which was true and load-bearing at CP1-CP2. CP3 adds exactly two
+        more by design — the projection, and `main.py`'s registration — so the set
+        is WIDENED TO A DECLARED ONE rather than loosened to a `>=`. A membership
+        test that only ever grows is not a test.
+    
+        ⭐ The projection is what the sweep calls; `main.py` is where `register()`
+        lives. A FOURTH name appearing here is a wire nobody classified, and that is
+        exactly what this fails on.
+    
+        ⭐⭐ UPDATED AGAIN, 2026-09-19, D2 §4-CP3 (a DIFFERENT "CP3" than the one
+        above — this file's CP1-CP3 is `indicator-condition`'s own taxonomy build
+        sequence; D2 §4-CP3 is the canonical-data-model packet retiring the
+        timeframe-map duplicates). `indicator_alert_evaluator.py` now imports
+        `timeframe_labels()` from this module instead of carrying its own
+        `_LEDGER_TIMEFRAME` dict — a declared FOURTH name, classified here rather
+        than discovered by this rail failing silently elsewhere.
+        """
+        naming = _modules_naming("indicator_condition")
+        # ⚠️ The type module does NOT appear here and that is correct: it names
+        # itself only through `__name__`, which carries no literal.
+>       assert naming == {"indicator_alert_evaluator.py",
+                          "indicator_condition_compare.py",
+                          "indicator_condition_projection.py",
+                          "main.py"}, (
+            f"the caller set changed: {sorted(naming)}")
+E       AssertionError: the caller set changed: ['dark_report.py', 'indicator_alert_evaluator.py', 'indicator_condition_compare.py', 'indicator_condition_projection.py', 'main.py']
+E       assert {'dark_report...y', 'main.py'} == {'indicator_a...y', 'main.py'}
+E         
+E         Extra items in the left set:
+E         'dark_report.py'
+E         
+E         Full diff:
+E           {
+E         +     'dark_report.py',
+E               'indicator_alert_evaluator.py',
+E               'indicator_condition_compare.py',
+E               'indicator_condition_projection.py',
+E               'main.py',
+E           }
+
+tests/test_alert_taxonomy_indicator_condition_schema.py:840: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_alert_taxonomy_price_level_projection.py:968
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_alert_taxonomy_price_level_projection.py:968: SyntaxWarning: invalid escape sequence '\d'
+    incident reached `C:\data\auth.db` while reporting a clean start. A tool
+
+tests/test_a8_primary_mention.py::test_every_reader_of_the_join_is_tweet_store_or_a_recorded_mention_lister
+tests/test_alert_ledger_admission.py::test_the_door_has_EXACTLY_ONE_production_call_site
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_ai_meters.py: 23 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/voice_usage.py:20: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m")
+
+tests/test_alpha_gold_eod.py::test_render_card_returns_png
+tests/test_alpha_gold_eod.py::test_render_card_empty_day_ok
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/alpha_gold_eod.py:478: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in _logo.getdata()])
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_alert_replay.py:625: walks 1,845 bars; set ALERT_REPLAY_FULL=1 (or run `python tools/alert_replay.py --check`)
+SKIPPED [1] tests/test_alert_taxonomy_price_level_projection.py:982: no live data root on this box to test the refusal against
+SKIPPED [1] tests/test_ast_conformance.py:663: Task 4 has landed; this rail is superseded by --check
+SKIPPED [1] tests/test_ast_conformance.py:670: Task 5 has landed; this rail is superseded by --check
+SKIPPED [1] tests/test_ast_conformance.py:785: both lanes exist; Task 5 owns --record from here
+SKIPPED [1] tests/test_ast_conformance.py:791: the conformance log exists; --check is the real gate now
+SKIPPED [1] tests/test_ast_conformance.py:898: a guarded interpreter exists; Task 6 owns this exit code
+FAILED tests/test_a12_s6_consistency_rail.py::test_column_presets_have_a_typed_store_now - AssertionError: the write side is gone
+assert 'setPref(WATCHLIST_PERF_COLS_KEY, serialized)' in '// app/src/pages/Watchlists.jsx\n//\n// ⚠️ READ BEFORE CHANGING THE LAYOUT OF THIS FILE.\n//\n// This component has T...        onUnavailable={() => setWlHistoryId(null)}\n          />\n        </Sheet>\n      )}\n\n    </div>\n  )\n}\n\n'
+FAILED tests/test_account_tombstones.py::test_the_default_store_is_NEVER_the_real_bucket_unless_the_backups_are_armed - AssertionError: assert False
+ +  where False = isinstance(None, <class 'api.services.account_tombstones.R2ObjectStore'>)
+ +    where None = <function default_store at 0x7fb28a7e58a0>()
+ +      where <function default_store at 0x7fb28a7e58a0> = at.default_store
+ +    and   <class 'api.services.account_tombstones.R2ObjectStore'> = at.R2ObjectStore
+FAILED tests/test_address_space.py::test_every_owned_named_table_is_an_address_kind_or_exempt_with_a_reason - AssertionError: owned + named tables with no address and no exemption: ['agent_conversations'] -- give each an address kind in KINDS, or an EXEMPT line with its reason
+assert not ['agent_conversations']
+FAILED tests/test_alert_outbound.py::test_a_fire_is_signed_and_delivered_once - assert 0 == 1
+FAILED tests/test_alert_outbound.py::test_failures_back_off_then_fail_for_good - assert 0 == 1
+FAILED tests/test_alert_outbound.py::test_send_time_recheck_refuses_a_rebound_host - assert ([] == []
+  
+  Full diff:
+    [] and 0 == 1)
+FAILED tests/test_alert_outbound.py::test_a_revoked_webhook_is_not_sent - AssertionError: assert 'pending' == 'dropped_revoked'
+  
+  - dropped_revoked
+  + pending
+FAILED tests/test_alert_taxonomy_indicator_condition_schema.py::test_the_callers_of_the_type_module_are_exactly_the_declared_four - AssertionError: the caller set changed: ['dark_report.py', 'indicator_alert_evaluator.py', 'indicator_condition_compare.py', 'indicator_condition_projection.py', 'main.py']
+assert {'dark_report...y', 'main.py'} == {'indicator_a...y', 'main.py'}
+  
+  Extra items in the left set:
+  'dark_report.py'
+  
+  Full diff:
+    {
+  +     'dark_report.py',
+        'indicator_alert_evaluator.py',
+        'indicator_condition_compare.py',
+        'indicator_condition_projection.py',
+        'main.py',
+    }
+8 failed, 3814 passed, 7 skipped, 30 warnings in 743.99s (0:12:23)
