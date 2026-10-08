@@ -1,0 +1,35 @@
+{
+ "report_day": "2026-10-12",
+ "data_dir": "C:\\data-fin-walk-k2\\keyed",
+ "keyed_email": "q1key7589387@local.dev",
+ "note_a": "10c991b5009e41558fa0537165f1978f",
+ "note_b": "d0b3569afdaf41a39374ce149456160c",
+ "insert_note": "dfa8fac7ba3e429c9b2c9e4d93aad047",
+ "raw_markdown_in_block": true,
+ "wh_note2_1280": "ef069120885c422899435d0f266facd7",
+ "doc_note2": "214fec1bfb854e7ebec28794ead56ddf",
+ "autofill_note3_1280": "6b0c655266af4f53a7c0880d5292e2f2",
+ "compass_trades": [
+  200,
+  200,
+  200,
+  200
+ ],
+ "compass_generated": 200,
+ "meaning_0": "281eb4c1ed014f8e99d24fc93855cf6c",
+ "meaning_1": "91650954ddd740b1a90094ba5b2b4b89",
+ "meaning_2": "a62f5bc6f5054096a184c52b34766435",
+ "meaning_3": "848e014107b941698a0c7ddc8c3ee8e1",
+ "meaning_4": "3fc24d863bf8475caa3c5972fada756c",
+ "sweep": {
+  "provider": "openai",
+  "result": {
+   "members": 1,
+   "embedded": 90,
+   "deferred": 0
+  }
+ },
+ "wh_note2_390": "9f0f2d788a274d1fb204e38b83569119",
+ "autofill_note3_390": "ac43f3cc9f2941949f8f507503edf112",
+ "tip": "213850e1fa"
+}

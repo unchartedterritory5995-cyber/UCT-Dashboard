@@ -1,0 +1,62 @@
+{
+ "report_day": "2026-10-13",
+ "data_dir": "C:\\data-fin-walk-ai2\\keyedai",
+ "ai_email": "q1kai7782729@local.dev",
+ "note_a": "bae5829a2bd740fd840be6955feebb94",
+ "note_b": "c4f540634ce742d99a5a376a41948c8c",
+ "note_long": "4deaf7e2c5294a6398b1d81066eec4cd",
+ "doc_note": "52564988095e4c1c81c187d6007df326",
+ "doc_uploaded": [
+  200,
+  200
+ ],
+ "doc_rows": [
+  {
+   "id": "98725a016ffa4d99a93b125e6867f4dd",
+   "name": "zebra-memo.docx",
+   "sourceKind": "attachment",
+   "status": "ready",
+   "pageCount": 1
+  },
+  {
+   "id": "9d6a6fb4b19f48b0bdbf157c91ff09fe",
+   "name": "Image",
+   "sourceKind": "attachment",
+   "status": "no_text",
+   "pageCount": 1
+  }
+ ],
+ "k2_review_email": "q1k2a8081559@local.dev",
+ "k2a_note": "b3f14cca47c14d90a3406a04257cef46",
+ "k2_review_week": "2026-10-05",
+ "k2_review_gen": 200,
+ "k2_review_note": "f3376a4035b8412ba309d2735011d8f2",
+ "k2_review_account": "ba921709-c92a-4f3a-94a3-31f9cc3ec9e0",
+ "k2_none_email": "q1k2b8137498@local.dev",
+ "k2b_note": "9cb72b5e2f7640758e1186a1933d6718",
+ "k2_none_seeded": [
+  200,
+  200,
+  200,
+  200
+ ],
+ "k2_two_email": "q1k2c8161507@local.dev",
+ "k2c_note": "0cbe170dd4b04e1ba811ad0e69105abf",
+ "k2_two_made": true,
+ "k2_two_trades": [
+  200,
+  200,
+  200,
+  200
+ ],
+ "k2_two_seeded": [
+  200,
+  "{\"id\":\"8359ab05-1fca-49a8-9eb1-ee860599539b\",\"userId\":\"9a1c8784-fade-455c-a3ae-a618fea28862\",\"name\":\"Second account\",\"color\":\"teal\",\"broker\":null,\"startingBalance\":50000.0,\"goals\":{},\"compassEnabled\":",
+  200,
+  200,
+  200,
+  200
+ ],
+ "_k5_ctx": true,
+ "tip": "dda0515427"
+}
