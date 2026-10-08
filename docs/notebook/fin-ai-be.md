@@ -180,3 +180,60 @@ Runs on the combined branch: backend 22 named files, 1044 passed; the whole `a11
 actions, Research Home, review draft and voice note tests, 54 files, 1093 passed; the frontend
 build; the byte gate (2,233,193 B against a budget of 2,260,793 B, PASS); the contract fixture
 check (exit 0); the hygiene check (clean).
+
+## After the keyed re-walk: the long note (section 8.2 of the walk record)
+
+**Found.** On `dda0515427`, 5 of 5: "What have I written about PLTR: the entry, the stop, the
+risks, and my final rule for the trade?" over one 1,878-character note answered "I couldn't
+find that in your Notebook." with no citation.
+
+**Verified cause** (captured by a test before any change). The model was never asked. For a
+note too long to send whole, the one passage sent was a window around the FIRST question word
+found in the note. Here that was the ticker in the first sentence, so the passage was the
+note's first two lines (151 characters). It held none of the question's own words, so
+`ask_retrieval._answers_the_question` marked the note "context about the security, not an
+answer", `no_answer` was true, and the server gave its fixed refusal. The walker's reading
+(one short passage reaches the model) was half right: nothing reached a model at all.
+
+**What changed** (`f7ee46114d`).
+
+- `ask_retrieval.whole_note_budget(n)`: how long a note may be and still go whole depends on
+  how many notes matched. One note: up to 4000 characters (`NOTE_WHOLE_SOLO_MAX_CHARS`) of the
+  6000-character packet. Two: 3000 each. Five or more: the base 1200.
+- A note still too long is an excerpt of several passages (`_spanning_excerpt`): a window
+  around the cited word, then around each other word of the question the note holds, round by
+  round, up to three places a word, within the same budget. Passages that overlap are joined;
+  passages apart are shown with ` … `. A plural in the question finds the singular in the note
+  ("risks", "risk").
+- The citation locator (`_best_note_passage`) still reads one occurrence when the first is
+  usable. The extra passages are gathered only when the text goes to a model.
+- The prompt tells the model never to name its own labels to the member. The re-walk saw "the
+  SEARCHED line indicates ..." once.
+
+**Keyed check, 3 of 3.** The exact question, the walk's note and its two CRWD notes, the
+product's own Ask path in one process (no server boot, so no background writer; and
+`STOCK_BRIEF_ENABLED=0`), keys only through the helper, a throwaway data directory, 0
+shared-root violations. Each run: one source, the whole note (1,894 characters sent, not an
+excerpt), cited `[1]`, no invalid citation. Each answer gave the entry 26.35, the stop 24.85,
+both risks (government budget timing; stock based compensation) and the final rule (no adds
+until the stock closes above 28 for two days in a row). Two more runs, one each:
+
+- A question with two parts the note lacks (dividend yield, chief financial officer): the entry
+  was answered and cited, and both missing parts were said to be absent. Nothing invented.
+- The two short CRWD notes: both sent whole, both cited, no claim that a note is cut off.
+
+Five model calls in all.
+
+**Spoken briefing** (`2cd95d029a`). `speakable` removes Markdown marks before the weekly focus
+is spoken ("- **Label every setup before you enter.**" is now read as the sentence).
+
+**Not done.**
+
+- The briefing saying "Two asks for next week" and then giving one. The focus is cut at 300
+  characters for speech, on a sentence end, so a second ask can fall off. Fixing it means
+  choosing a longer spoken focus, and `voice_session_context._load_weekly_focus` cuts the text
+  at 500 characters with a plain slice before the briefing sees it. Left for a ruling.
+- The two-chips-side-by-side case of K7 is the client's.
+- Seen in the keyed answers and left alone: two of five answers ended with a remark about how
+  many notes were searched ("the search covered 3 notes ..."). It is true and uses no internal
+  label.
