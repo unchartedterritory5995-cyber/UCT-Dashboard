@@ -306,6 +306,55 @@ def test_research_results_can_never_drive_a_write_in_the_same_turn(monkeypatch):
     assert "Done." not in out["envelope"]["reply"] and "don't make changes based on what I find online" in out["envelope"]["reply"]
 
 
+def test_a_CURRENT_news_question_answered_from_memory_is_looked_up_with_the_members_own_words(monkeypatch):
+    """Measured on the production model (2026-10-08): "Summarize the latest news about Tesla" was
+    sometimes answered with research null — stale facts presented as current."""
+    seen = []
+    monkeypatch.setattr(turn, "_research", lambda q, r: seen.append((q, r))
+                        or {"answer": "Tesla shares fell after deliveries missed.", "citations": ["https://t"]})
+    c = caller_of(_resp(env("answer", reply="Tesla recently launched a new model.")),
+                  _resp(env("answer", reply="Tesla fell after deliveries missed estimates (per recent reports).")))
+    out = turn.run_turn(message="Summarize the latest news about Tesla", context=TWO_CHARTS, history=[],
+                        capabilities=CAPS, caller=c)
+    assert seen == [("Summarize the latest news about Tesla", "week")]
+    assert out["usage"]["research_calls"] == 1 and out["usage"]["research_forced"] is True
+    assert "deliveries" in out["envelope"]["reply"] and out["envelope"]["ops"] == []
+    assert "could not retrieve current information" in c.calls[1]["messages"][-1]["content"]
+
+
+@pytest.mark.parametrize("message", [
+    "What is an EMA?",
+    "Explain what ADR means",
+    "which of my alerts triggered today?",           # the member's own UCT data, never the web
+    "what's on my Momentum watchlist today?",
+    "how do I read the latest candle on my chart?",
+])
+def test_evergreen_and_UCT_native_questions_are_never_forced_to_research(no_research, message):
+    c = caller_of(_resp(env("answer", reply="Here you go.")))
+    out = turn.run_turn(message=message, context=TWO_CHARTS, history=[], capabilities=CAPS, caller=c)
+    assert out["usage"]["research_calls"] == 0 and len(c.calls) == 1 and no_research == []
+
+
+def test_a_COMMAND_that_mentions_today_is_never_forced_to_research(no_research):
+    op = {"action": "chart.setType", "target": "c1", "args": {"type": "bars"}}
+    c = caller_of(_resp(env("apply", ops=[op])))
+    out = turn.run_turn(message="switch the left chart to bars for today's session", context=TWO_CHARTS,
+                        history=[], capabilities=CAPS, caller=c)
+    assert out["envelope"]["ops"] == [op] and out["usage"]["research_calls"] == 0 and no_research == []
+
+
+@pytest.mark.parametrize("reply,kept", [
+    ("Done.", False), ("All set!", False), ("Deleted the NVDA alert.", False), ("Switched to bars", False),
+    ("", True), ("Bars make the open and close easier to see.", True),
+    ("RSI measures momentum on a 0-100 scale; switching the left chart to weekly.", True),
+])
+def test_a_plan_never_carries_a_reply_that_claims_it_already_happened(reply, kept):
+    """Measured on the production model (2026-10-08): a PROPOSED alert delete came back with reply "Done."."""
+    out = turn.sanitize_envelope(env("propose", ops=[OP], reply=reply), {"c1", "c2"})
+    assert out["reply"] == (reply if kept else "")
+    assert turn.sanitize_envelope(env("answer", reply="Done."), {"c1"})["reply"] == "Done."   # an answer is untouched
+
+
 def test_research_has_a_hard_ceiling_of_one(monkeypatch):
     monkeypatch.setattr(turn, "_research", lambda q, r: {"answer": "a", "citations": []})
     ask = env("answer", reply="x", research={"query": "q", "recency": "any"})

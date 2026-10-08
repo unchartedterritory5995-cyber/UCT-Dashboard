@@ -428,6 +428,10 @@ def _record_cost(resp) -> float:
         return 0.0
 
 
+_CLAIMS_DONE = re.compile(r"^\s*(done|all set|deleted|created|added|removed|applied|changed|updated|switched|"
+                          r"finished|completed|set|saved)\b[^.!?]{0,40}[.!]?\s*$", re.I)
+
+
 def _unreadable(reason: str, **shape) -> None:
     """Every "unreadable" refusal says WHY in the server log: its shape only (reason code,
     action names, argument KEYS, sizes, stop reason), never the member's words or values."""
@@ -476,9 +480,15 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
     q = env.get("question") if disp == "clarify" else None
     if disp == "clarify" and not (isinstance(q, dict) and q.get("text")):
         q = {"text": env.get("reply") or "Which one do you mean?", "choices": []}
+    reply = str(env.get("reply") or "")[:6000]
+    if disp in MUTATING and _CLAIMS_DONE.match(reply):
+        # ⛔ A plan's reply is shown BEFORE anything runs (and a proposal may never run): a bare
+        # "Done." would be a receipt the model wrote itself. Measured 2026-10-08 (prod): a
+        # proposed alert delete came back with reply "Done.". UCT's receipt is the only record.
+        reply = ""
     return {
         "disposition": disp,
-        "reply": str(env.get("reply") or "")[:6000],
+        "reply": reply,
         "question": q,
         "ops": ops,
         "unsupported_category": (str(env.get("unsupported_category"))[:40]
@@ -492,6 +502,20 @@ _QUESTION = re.compile(r"\?|\b(why|what|how|who|when|news|today|latest|happening
 def _asks_question(message: str) -> bool:
     """Does the member's own message ask something (so research may ride with a change)?"""
     return bool(_QUESTION.search(message or ""))
+
+
+# CURRENT EXTERNAL FACTS the model must not answer from memory. Measured 2026-10-08 (prod):
+# "Summarize the latest news about Tesla" was sometimes answered with no research, presenting
+# stale facts as current. Narrow on purpose: news/headlines/latest/today/this week/right now/
+# why … moving — and never a question about the member's own UCT data (my alerts, my lists…).
+_CURRENT = re.compile(r"\b(news|headlines?|latest|today'?s?|tonight|this (morning|week)|right now|currently|"
+                      r"just (announced|reported)|why (is|are)\b.{0,40}\b(moving|up|down|falling|rising|dropping|ripping))\b", re.I)
+_UCT_NATIVE = re.compile(r"\b(my|alerts?|watch ?lists?|layouts?|charts?|screens?|screener|widgets?)\b", re.I)
+
+
+def _needs_current_facts(message: str) -> bool:
+    m = message or ""
+    return bool(_CURRENT.search(m)) and not _UCT_NATIVE.search(m)
 
 
 def _context_refs(context: dict) -> set[str]:
@@ -561,6 +585,12 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         # Research rides with a CHANGE only when the member's own words ask a question (a mixed
         # request); a plain command never triggers research, whatever the model asks for.
         disp = env.get("disposition") if isinstance(env, dict) else None
+        if (round_ == 0 and disp == "answer" and not (isinstance(req, dict) and str(req.get("query") or "").strip())
+                and _needs_current_facts(msg)):
+            # A clearly time-sensitive external question answered from memory: look it up once,
+            # with the member's own words as the query (never the model's answer).
+            req = {"query": msg, "recency": "week"}
+            usage["research_forced"] = True
         wants = ((disp == "answer" or (disp in MUTATING and _asks_question(msg))) and isinstance(req, dict)
                  and str(req.get("query") or "").strip() and round_ < MAX_RESEARCH_CALLS)
         if wants:
@@ -578,7 +608,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             messages = messages + [
                 {"role": "assistant", "content": text},
                 {"role": "user", "content": _block("research_results", r)
-                 + "\nAnswer the member's request from these results. Set research to null."},
+                 + "\nAnswer the member's request from these results. Set research to null. If the results "
+                   "say research is unavailable or do not cover the question, say plainly that you could not "
+                   "retrieve current information; never present facts from memory as current."},
             ]
             continue
         if pre_research is not None and isinstance(env, dict):
