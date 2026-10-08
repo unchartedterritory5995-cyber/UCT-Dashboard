@@ -45,11 +45,11 @@ const symsOf = (state, id) => state.server.lists.find(l => l.id === id).items.ma
 const fastOps = (host, text) => { const f = fastParse(text, { host }); return f && f.kind === 'ops' ? f.ops : null }
 
 describe('read awareness', () => {
-  it('compact context: own lists with ids/refs, sizes, symbols, which one a widget shows; read-only flagged', () => {
+  it('compact context: own lists with ids/refs, sizes (NOT contents — the model is never the authority for a list), which one a widget shows; read-only flagged', () => {
     const { host } = lib()
     const { context, refMap } = buildContext(host, CTX)
     const m = context.watchlists.find(l => l.name === 'Momentum')
-    expect(m).toMatchObject({ count: 4, symbols: ['NVDA', 'TSLA', 'META', 'AAPL'], shownInWidget: ['on the board'] })
+    expect(m).toMatchObject({ count: 4, shownInWidget: ['on the board'] }); expect(m.symbols).toBeUndefined()
     expect(refMap[m.ref]).toEqual({ kind: 'watchlist', ref: 'm1' })
     expect(context.watchlists.find(l => l.name === 'Copied').readOnly).toMatch(/linked/)
     expect(refMap[context.watchlistLibrary[0].ref]).toEqual({ kind: 'watchlistLibrary', ref: 'watchlists' })

@@ -101,6 +101,18 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   // ── execution (shared by the fast path, the model path and approvals) ──
   const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice }) => {
     let allOps = opsIn
+    // ⛔ Another window/device may have changed this member's board (one shared,
+    // last-write-wins preference): never write over it (host.boardInSync).
+    const boardStillOurs = async (ops) => {
+      if (!host?.boardInSync || boardEpoch(host, ops) == null) return true
+      const s = await host.boardInSync()
+      mark('board:synced', s.ok ? 'ok' : 'changed')
+      if (s.ok) return true
+      const text = `I didn't change anything: ${s.reason}. Reload this page to see the current board, then ask again.`
+      push({ role: 'refusal', text })
+      record({ member, outcome: text, outcomeData: { kind: 'refused-stale-board', actions: ops.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
+      return false
+    }
     const refuse = (why) => {
       const text = `I didn't change anything: ${why}`
       push({ role: 'refusal', text })
@@ -125,6 +137,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const bad = checkRefs(allOps, host)
       if (bad) { refuse(bad); return }
       if (suggested === 'approved') {
+        if (!(await boardStillOurs(allOps))) return
         // The consumers are re-checked against the board AS IT IS NOW (capacity,
         // the target list) BEFORE any producer runs — a full workspace never runs
         // the screen it could not use.
@@ -210,6 +223,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     const wholly = expansion && ops.every(o => o.fromExpand != null)
     // An expansion is always proposed first (it creates several widgets at once).
     const mode = suggested === 'approved' ? 'apply' : (expansion ? 'propose' : decideMode(suggested, plan))
+    // Any write to the board is preceded by the cross-session check (once per Apply).
+    if (mode !== 'propose' && !composed && !(await boardStillOurs(ops))) return
     if (mode === 'propose') {
       const pid = nid()
       // The proposal keeps the UNEXPANDED request: Apply expands it again from scratch.
@@ -265,6 +280,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       push({ role: 'outcome', text })
       record({ member, outcome: text, outcomeData: { kind: 'undo-none' }, telemetry: { path: 'fast', undo: true, voice } })
       return
+    }
+    if (entry.epoch != null && host?.boardInSync) {
+      const s = await host.boardInSync()
+      if (!s.ok) {
+        const text = `I didn't undo anything: ${s.reason}. Reload this page to see the current board.`
+        push({ role: 'refusal', text })
+        record({ member, outcome: text, outcomeData: { kind: 'undo-refused' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
+        return
+      }
     }
     const res = await undoEntry(host, entry)
     if (res.ok) {
@@ -423,7 +447,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
-      const ops = bindSourceRefs(env.ops, refMap).map(o => ({ ...o, target: refMap[o.target]?.ref || o.target }))
+      const ops = bindSourceRefs(env.ops, refMap, { host, message: text }).map(o => ({ ...o, target: refMap[o.target]?.ref || o.target }))
       await execute(ops, { path: 'model', mode: env.disposition, member: null, voice })
     } finally {
       setBusy(false)
