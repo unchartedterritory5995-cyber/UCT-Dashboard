@@ -24,7 +24,10 @@
       "n": 0
     },
     "bestTrade": null,
-    "compassOmitted": null,
+    "compassOmitted": {
+      "reason": "no_monthly_review",
+      "sentence": "Compass writes daily and weekly reviews, not monthly ones, so none is quoted here."
+    },
     "compassText": null,
     "discipline": {
       "entry": {

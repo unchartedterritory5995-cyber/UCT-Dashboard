@@ -3,6 +3,7 @@ import UIcon from '../../ui/UIcon'
 import useLongPress from '../../mobile/useLongPress'
 import styles from './IndicatorChip.module.css'
 import { chipValueText as formatChipValue } from '../engine/readout'
+import { safeCssColour } from '../engine/objectColour'
 
 /**
  * ONE legend chip. **The chip IS the control.**
@@ -269,8 +270,10 @@ export default function IndicatorChip({
    * ⛔ THE VALUE INHERITS RATHER THAN RE-DECLARING. `.chipVal` carries the bright
    * legend ink for a chip with no colour of its own; a coloured chip defeats it
    * with `inherit`, so the row has exactly one source of colour. */
-  const ink = chip.color ? { color: chip.color } : undefined
-  const valInk = chip.color ? { color: 'inherit' } : undefined
+  // ⛔ a colour reaches CSS only through `safeCssColour` (objectColour.js) — a stored or shared value may carry anything
+  const chipColor = safeCssColour(chip.color)
+  const ink = chipColor ? { color: chipColor } : undefined
+  const valInk = chipColor ? { color: 'inherit' } : undefined
 
   // The value, as its own ink. Absent (hidden / off-cursor / never computed) the
   // chip prints `chip.text`, which in that case IS the bare label.
@@ -297,7 +300,7 @@ export default function IndicatorChip({
          hover box. */
       <span
         className={`${styles.chipGridRow} ${secondary ? styles.chipGridSub : ''} ${interactive ? styles.rowLive : ''} ${chip.hidden ? styles.chipHidden : ''} ${className || ''}`}
-        style={{ '--chip-color': chip.color, ...ink }}
+        style={{ '--chip-color': chipColor, ...ink }}
         {...triggerProps}
         {...(interactive ? longPress : null)}
         onClick={onBody}
@@ -306,7 +309,7 @@ export default function IndicatorChip({
         {/* The twin of `LegendRow`'s micro-rail — read that one for the two
             retired marks it is not. Per PLOT, because `chip.color` is per plot:
             MACD and its signal are two drawn lines and each names its own. */}
-        <i className={styles.rail} style={chip.color ? { background: chip.color } : undefined} aria-hidden="true" />
+        <i className={styles.rail} style={chipColor ? { background: chipColor } : undefined} aria-hidden="true" />
         <span
           className={`${cls} ${styles.chipGridLabel}`}
           /* ⛔ `inherit`, because `.chip` declares a colour on THIS element and a
@@ -356,7 +359,7 @@ export default function IndicatorChip({
          computing it. */
       data-computed={chip.computed === false ? 'false' : undefined}
       title={chipTitle}
-      style={{ '--chip-color': chip.color, ...ink }}
+      style={{ '--chip-color': chipColor, ...ink }}
       {...triggerProps}
       {...(interactive ? longPress : null)}
       onClick={onBody}

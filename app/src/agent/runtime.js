@@ -19,11 +19,10 @@
 import { getTargetKind } from './capabilities'
 import { planOps, summarize } from './executor'
 import { mark } from './trace'
+import { afterRender } from './frames'
 
-const nextFrame = () => new Promise(r => {
-  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => setTimeout(r, 0))
-  else setTimeout(r, 0)
-})
+// Wait for React to commit (never for a paint: a hidden tab never paints) — see agent/frames.js.
+const nextFrame = afterRender
 
 /** Wait (a bounded TIME, not a frame count — several heavy widgets may be
  *  mounting at once) for a freshly created target to be readable. */

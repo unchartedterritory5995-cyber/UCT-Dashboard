@@ -221,3 +221,33 @@ def test_breadth_symbols_endpoint_carries_display_map_beside_unchanged_symbols()
     out = get_breadth_symbols(_access={})
     assert out["display_symbols"]["UCTA50"] == "UCT:A50"
     assert all("display_symbol" not in r for r in out["symbols"])
+
+
+def test_derived_row_fields_get_a_developing_candle():
+    """(2026-10-08) UCTR5 / UCTPH had no today candle: their values only exist in the derived
+    live row. The live map now carries them, computed by the SAME derive_live_row."""
+    from api.services import breadth_monitor, breadth_live
+    bs._derived_live_cache.clear()
+    hist = [{"date": "2020-03-10", "hi_ratio": 1.5, "up_4pct_today": 10, "down_4pct_today": 20,
+             "universe_count": 2000},
+            {"date": "2020-03-09", "hi_ratio": 1.0, "up_4pct_today": 10, "down_4pct_today": 10,
+             "universe_count": 2000}]
+    live = {"anchored": True, "as_of": "t1",
+            "metrics": {"new_52w_highs": 60, "new_52w_lows": 20, "universe_count": 2000,
+                        "up_4pct_today": 30, "down_4pct_today": 10}}
+    with patch.object(breadth_monitor, "get_history", return_value=hist), \
+         patch.object(breadth_live, "enabled", return_value=True), \
+         patch.object(breadth_live, "_session_started", return_value=True), \
+         patch.object(breadth_live, "compute_live", return_value=live):
+        m = bs._live_map()
+    assert m["hi_ratio"] == 3.0 and m["lo_ratio"] == 1.0
+    assert m["ratio_5day"] == round((10 + 10 + 30) / (10 + 20 + 10), 2)
+
+
+def test_ad_line_today_candle_continues_its_own_level():
+    from api.services import breadth_live
+    daily = [{"t": "2020-03-10", "o": 100.0, "h": 100.0, "l": 100.0, "c": 100.0, "v": 0}]
+    with patch.object(bs, "_live_map", return_value={"adv_decline": -35}), \
+         patch.object(bs, "_et_today", return_value="2020-03-11"):
+        out = bs._append_today_candle(daily, "adv_decline_cum")
+    assert out[-1]["t"] == "2020-03-11" and out[-1]["c"] == 65.0

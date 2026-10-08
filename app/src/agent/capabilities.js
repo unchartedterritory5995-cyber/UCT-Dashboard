@@ -29,8 +29,15 @@ const CAPS = new Map()
 const KINDS = new Map()
 const PROVIDERS = new Map()
 
+// The manifest wire contract shared with the server (api/services/uct_agent/turn.py reads the
+// same numbers; tests/test_uct_agent_contract.py and agentContracts.test.js hold both to it).
+import MANIFEST_CONTRACT from './contract/manifest.contract.json'
+export { MANIFEST_CONTRACT }
+export const MANIFEST_VERSION = MANIFEST_CONTRACT.manifestVersion
+
 const NAME = /^[a-z][a-zA-Z0-9]*(\.[a-z][a-zA-Z0-9]*)+$/
 const RISKS = new Set(['local', 'confirm'])
+const UNDO = new Set(['exact', 'none'])
 
 /** Throws on a malformed registration — a broken capability never reaches a member. */
 export function registerCapability(cap) {
@@ -51,7 +58,14 @@ export function registerCapability(cap) {
   for (const fn of fns) {
     if (typeof cap[fn] !== 'function') throw new Error(`${cap.name}: ${fn}() required`)
   }
-  CAPS.set(cap.name, { risk: 'local', reversible: true, domain: cap.name.split('.')[0], ...cap })
+  // `reversible` is POLICY (false ⇒ always proposed: permanent / hard to take back).
+  // `undo` is the TRUTH about the receipt: 'exact' = the kind restores it (an Undo button),
+  // 'none' = no Undo exists (navigation, a recurring-email switch). It defaults from
+  // `reversible`, and a capability whose kind cannot undo MUST say 'none' — the manifest tells
+  // the model, and the receipt says so, so nothing ever implies an Undo that isn't there.
+  const undo = cap.undo ?? (cap.query || cap.reversible === false ? 'none' : 'exact')
+  if (!UNDO.has(undo)) throw new Error(`${cap.name}: undo must be exact|none`)
+  CAPS.set(cap.name, { risk: 'local', reversible: true, domain: cap.name.split('.')[0], ...cap, undo })
   return () => CAPS.delete(cap.name)
 }
 
@@ -99,7 +113,10 @@ export function registerTargetKind(kind) {
 //   host.epoch() -> string   which board the targets belong to; a plan proposed
 //        on one board is never applied to another, and undo never crosses it
 
-/** provider = { key, kind?, build(host, refFor) -> JSON-able context section } */
+/** provider = { key, kind?, build(host, refFor, { message }) -> JSON-able context section,
+ *               compact?(section) -> a smaller section that still says what was left out }
+ *  `message` is the member's request, so a provider may send its detail only when relevant
+ *  (it must still leave enough for the model to DISCOVER it is relevant). */
 export function registerContextProvider(p) {
   if (!p || !p.key || typeof p.build !== 'function') throw new Error('context provider needs key + build()')
   PROVIDERS.set(p.key, p)
@@ -155,8 +172,20 @@ export function availableCapabilities(ctx = {}) {
 export function manifestFor(ctx = {}) {
   return availableCapabilities(ctx).map(c => ({
     name: c.name, domain: c.domain, target: c.target, summary: c.summary,
-    hints: c.hints || null, args: c.args, risk: c.risk, reversible: c.reversible !== false,
+    hints: c.hints || null, args: c.args, risk: c.risk, reversible: c.reversible !== false, undo: c.undo, query: !!c.query,
   }))
+}
+
+/**
+ * Before a model turn: every provider's optional async `refresh()` (re-read data that can change
+ * OUTSIDE this panel — e.g. an alert made from a chart menu), all at once, capped at `budgetMs`.
+ * A slow or failing refresh never blocks the turn; the provider then builds from what it has.
+ */
+export async function refreshContext(budgetMs = 1500) {
+  const jobs = [...PROVIDERS.values()].filter(p => typeof p.refresh === 'function')
+    .map(p => Promise.resolve().then(() => p.refresh()).catch(() => {}))
+  if (!jobs.length) return
+  await Promise.race([Promise.all(jobs), new Promise(r => setTimeout(r, budgetMs))])
 }
 
 /** Build every registered provider's context section. Short refs ("c1") map to real refs. */
@@ -172,10 +201,22 @@ export function buildContext(host, ctx = {}) {
   }
   const sections = { surface: ctx.surface || null }
   for (const p of PROVIDERS.values()) {
-    try { sections[p.key] = p.build(host, refFor) } catch { /* a broken provider drops out, never breaks the turn */ }
+    try { sections[p.key] = p.build(host, refFor, { message: ctx.message || '' }) } catch { /* a broken provider drops out, never breaks the turn */ }
+  }
+  // ⛔ AN EXPLICIT BUDGET, NEVER A SILENT CUT. Over it, providers that can compact themselves do
+  // so, one at a time in registration order, and the compacted section says what it left out
+  // (the server would otherwise refuse the whole turn as too large).
+  const size = () => JSON.stringify(sections).length
+  for (const p of PROVIDERS.values()) {
+    if (size() <= CONTEXT_BUDGET_BYTES) break
+    if (typeof p.compact !== 'function' || sections[p.key] === undefined) continue
+    try { sections[p.key] = p.compact(sections[p.key]) } catch { /* keep the full section */ }
   }
   return { context: sections, refMap }
 }
+
+/** The client's context budget, under the server's hard cap (MAX_CONTEXT_BYTES = 24000). */
+export const CONTEXT_BUDGET_BYTES = 20000
 
 /**
  * Shape-check args against the capability's own JSON schema (closed object,

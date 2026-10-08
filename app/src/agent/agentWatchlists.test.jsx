@@ -326,3 +326,81 @@ describe('failure honesty: a half-applied step is taken back, or said plainly', 
     expect(u.reason).toMatch(/Already restored: /)
   })
 })
+
+
+describe('context budget: explicit compaction, never a silent cut', () => {
+  it('many large lists: over budget the watchlist section keeps every list but fewer tickers per list, and says how many more', async () => {
+    const { CONTEXT_BUDGET_BYTES } = await import('./capabilities')
+    const many = Array.from({ length: 40 }, (_, i) => ({ id: `L${i}`, name: `List number ${i}`, symbols: Array.from({ length: 40 }, (_, k) => `TICKERNAME${i}X${k}`) }))
+    const { host } = lib(many, [])
+    const { context } = buildContext(host, CTX)
+    expect(JSON.stringify(context).length).toBeLessThanOrEqual(CONTEXT_BUDGET_BYTES)
+    expect(context.watchlists).toHaveLength(40)
+    expect(context.watchlists[0]).toMatchObject({ name: 'List number 0', count: 40, moreSymbols: 32 })
+    expect(context.watchlists[0].symbols).toHaveLength(8)
+  })
+  it('a normal library is sent in full (no compaction)', () => {
+    const { host } = lib()
+    const m = buildContext(host, CTX).context.watchlists.find(l => l.name === 'Momentum')
+    expect(m.symbols).toEqual(['NVDA', 'TSLA', 'META', 'AAPL'])
+    expect(m.moreSymbols).toBeUndefined()
+  })
+})
+
+describe('watchlist.clear — every symbol out, proposed, exact Undo', () => {
+  it('proposed with the count; Apply removes exactly those rows; Undo restores them in order with their notes', async () => {
+    const { host, state } = lib()
+    const { p, env } = await plan(host, [{ action: 'watchlist.clear', target: 'm1', args: {} }])
+    expect(p.ok).toBe(true)
+    expect(decideMode('apply', p)).toBe('propose')
+    expect(p.lines).toEqual(['Cleared all 4 stocks from “Momentum”'])
+    const res = await commitPlan(host, p, { env })
+    expect(res.ok).toBe(true)
+    expect(symsOf(state, 'm1')).toEqual([])
+    expect((await undoEntry(host, res.undo)).ok).toBe(true)
+    expect(symsOf(state, 'm1')).toEqual(['NVDA', 'TSLA', 'META', 'AAPL'])
+    expect(state.server.lists.find(l => l.id === 'm1').items.find(i => i.sym === 'TSLA').notes).toBe('earnings 10/22')
+  })
+  it('a symbol added since the proposal → refused at Apply, nothing removed; an empty list is a no-op; a linked list is refused', async () => {
+    const { host, state } = lib()
+    const { p, env } = await plan(host, [{ action: 'watchlist.clear', target: 's1', args: {} }])
+    state.server.lists.find(l => l.id === 's1').items.push({ id: 'new', sym: 'AMD', notes: '' })
+    const res = await commitPlan(host, p, { env })
+    expect(res.ok).toBe(false)
+    expect(symsOf(state, 's1')).toEqual(['MSFT', 'AMD'])
+    expect((await plan(host, [{ action: 'watchlist.clear', target: 'l1', args: {} }])).p.changed).toBe(false)
+    expect((await plan(host, [{ action: 'watchlist.clear', target: 'k1', args: {} }])).p.ok).toBe(false)
+  })
+})
+
+describe('watchlist.delete — the whole list, proposed, never one a widget here shows, no Undo', () => {
+  it('a list no widget shows: proposed; Apply deletes it (server), read back as gone; no Undo', async () => {
+    const { host, state } = lib()
+    const { p, env } = await plan(host, [{ action: 'watchlist.delete', target: 's1', args: {} }])
+    expect(decideMode('apply', p)).toBe('propose')
+    expect(p.lines).toEqual(['Deleted the watchlist “Swing” and its 1 stock (permanent)'])
+    const res = await commitPlan(host, p, { env })
+    expect(res.ok).toBe(true)
+    expect(res.undo).toBeNull()
+    expect(state.server.lists.some(l => l.id === 's1')).toBe(false)
+    expect(host.watchlists.snapshot().some(l => l.id === 's1')).toBe(false)
+  })
+  it('the list a Watchlist widget on this board shows is refused (the widget would point at nothing)', async () => {
+    const { host, state } = lib()
+    const { p } = await plan(host, [{ action: 'watchlist.delete', target: 'm1', args: {} }])
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0].reason).toMatch(/is showing in a Watchlist widget on this board/)
+    expect(state.server.calls.some(c => c[0] === 'DELETE')).toBe(false)
+  })
+  it('STALE: renamed, changed, or deleted elsewhere since the proposal → refused, nothing deleted', async () => {
+    const a = lib(); const pa = await plan(a.host, [{ action: 'watchlist.delete', target: 's1', args: {} }])
+    a.state.server.lists.find(l => l.id === 's1').name = 'Swing (keep)'
+    expect((await commitPlan(a.host, pa.p, { env: pa.env })).ok).toBe(false)
+    expect(a.state.server.lists.some(l => l.id === 's1')).toBe(true)
+    const b = lib(); const pb = await plan(b.host, [{ action: 'watchlist.delete', target: 's1', args: {} }])
+    b.state.server.lists = b.state.server.lists.filter(l => l.id !== 's1')
+    const rb = await commitPlan(b.host, pb.p, { env: pb.env })
+    expect(rb.ok).toBe(false)
+    expect(rb.failed[0].reason).toMatch(/already gone/)
+  })
+})

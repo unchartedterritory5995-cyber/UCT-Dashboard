@@ -22,9 +22,10 @@
 // C3A's markers: the container, the two coordinate functions and the frame
 // scheduler. A host that cannot provide them gets no drawings and no error —
 // the columns, the legend and the scan are untouched.
-import { paintObjects, layoutTables } from './objectCanvas'
+import { paintObjects, layoutTables, TABLE_MARGIN as TABLE_MARGIN_EDGE } from './objectCanvas'
 import { renderTables, fitFactor, applyFit, TABLES_FIT } from './objectTableDom'
 import { setPaneScaled } from './paneFitNotice'
+import { registerTableLayer, restackTables, TABLE_STACK_GAP } from './objectTableStack'
 
 const noop = () => {}
 
@@ -111,6 +112,24 @@ export function createObjectLayer(host) {
   // appear on top of a table; the drawings layer is `3`, so the dashboard is `4`.
   tableRoot.style.zIndex = '4'
   container.appendChild(tableRoot)
+  // ⭐ TABLES THAT SHARE A CORNER STACK (objectTableStack.js) — across every layer
+  // on this chart, grouped by the pane this layer's tables are anchored in.
+  let paneKey = ''
+  let lastPane = null
+  const unregisterTables = registerTableLayer(container, { root: tableRoot, paneKey: () => paneKey })
+  /** The tallest corner stack of THIS layer's own tables, in px (0 = none / unmeasurable). */
+  const ownStackHeight = () => {
+    if (typeof tableRoot.querySelectorAll !== 'function') return 0
+    const byPos = new Map()
+    for (const el of tableRoot.querySelectorAll('[data-uct-object-table]')) {
+      let hgt = 0
+      try { const r = el.getBoundingClientRect ? el.getBoundingClientRect() : null; hgt = (r && r.height) || 0 } catch { hgt = 0 }
+      hgt = hgt || Number(el.offsetHeight) || 0
+      const pos = (el.getAttribute && el.getAttribute('data-uct-table-position')) || 'top_right'
+      byPos.set(pos, (byPos.get(pos) || 0) + hgt + (byPos.has(pos) ? TABLE_STACK_GAP : 0))
+    }
+    return Math.max(0, ...byPos.values())
+  }
 
   let state = null
   let dead = false
@@ -150,6 +169,30 @@ export function createObjectLayer(host) {
       lastRightInset = wantRight
       tableRoot.style.right = `${wantRight}px`
     }
+    // ⭐ A TABLE STAYS IN ITS INDICATOR'S PANE. ⚰️ Measured on prod 2026-10-08: a
+    // calculator in its own pane put `bottom_left` at the bottom of the WHOLE
+    // chart, over two other panes' legends. The host reports the pane this
+    // instance draws in (`map.pane`: top / height in the container's px); the
+    // table layer is inset to it — the toolbar inset still applies at the top.
+    // No pane reported → the whole container, exactly as before.
+    // ⚰️ …BUT ONLY A PANE THE TABLES FIT IN (measured on prod 2026-10-08, the first
+    // deploy of this rule): a calculator's own pane is a ~25px strip and its 143px
+    // table was confined to it — drawn below the chart and clipped away. A pane too
+    // short for this layer's tallest corner stack falls back to the PRICE pane
+    // (`map.mainPane`), then to the whole container, exactly as before.
+    const okRect = (r) => !!r && Number.isFinite(r.top) && Number.isFinite(r.height) && r.height > 0
+    const need = ownStackHeight()
+    const fits = (r) => okRect(r) && (need === 0 || need + 2 * TABLE_MARGIN_EDGE <= r.height)
+    const pane = fits(map.pane) ? map.pane : fits(map.mainPane) ? map.mainPane : null
+    const paneTop = pane ? Math.max(Math.round(pane.top), Math.round(Number(ins.top) || 0)) : null
+    const paneBottom = pane ? Math.max(0, Math.round(h - (pane.top + pane.height))) : null
+    const nextPane = pane ? `${paneTop}:${paneBottom}` : ''
+    if (nextPane !== lastPane) {
+      lastPane = nextPane
+      paneKey = nextPane
+      tableRoot.style.top = px(pane ? paneTop : ins.top)
+      tableRoot.style.bottom = px(pane ? paneBottom : ins.bottom)
+    }
     // ⭐⭐ R-R — FIT THE TABLES TO THE PLOT, PHONE TIER ONLY.
     //
     // ⛔ THE TIER IS THE BREAKPOINT, NOT THE PLOT WIDTH. A narrow WIDGET on a
@@ -184,6 +227,7 @@ export function createObjectLayer(host) {
         fit.scaled ? `${fit.factor.toFixed(3)}${fit.wrap ? ':wrap' : ''}` : 'none')
       setPaneScaled(String((host.instanceId) || '1'), !!fit.scaled)
     }
+    if (tables.length) restackTables(container)
     const ctx = canvas.getContext ? canvas.getContext('2d') : null
     if (!ctx) return
     if (ctx.setTransform) ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
@@ -236,6 +280,7 @@ export function createObjectLayer(host) {
       // A layer that stopped updating but left its last table there reads as
       // "the indicator is still on", the ghost-state defect `clear()` exists for.
       tableStats = renderTables(tableRoot, tables, doc)
+      restackTables(container)
       if (tableRoot.setAttribute) {
         tableRoot.setAttribute('data-uct-tables-drawn', JSON.stringify(tableStats))
       }
@@ -297,6 +342,8 @@ export function createObjectLayer(host) {
       try {
         if (tableRoot.parentNode) tableRoot.parentNode.removeChild(tableRoot)
       } catch { noop() }
+      // …and the tables that stacked below this layer's move back up.
+      unregisterTables()
     },
     /** exposed for tests and for a host that wants to position them itself */
     canvas,

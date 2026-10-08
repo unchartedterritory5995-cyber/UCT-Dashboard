@@ -116,6 +116,14 @@ _SNIPPET_ROLES = ("member", "assistant")
 #: (``authoring/crossContext.json``) so the two languages cannot disagree.
 CROSS_CONTEXT_PATH = PATCH_SCHEMA_PATH.parent / "crossContext.json"
 
+#: ⭐ OVERNIGHT E -- the key shape of a member input (patchSchema `memberInput.key`).
+INPUT_KEY_PATTERN = "^[a-z][A-Za-z0-9]{0,23}$"
+#: Keys the browser refuses as Object.prototype members (``applyPatch.declareInput``).
+JS_PROTOTYPE_KEYS = frozenset((
+    "constructor", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable",
+    "toLocaleString", "toString", "valueOf", "__defineGetter__", "__defineSetter__",
+    "__lookupGetter__", "__lookupSetter__", "__proto__"))
+
 #: The scope wrappers this door authors (Phase 5). ``ltf`` stays translated-only.
 SCOPE_NODES: Tuple[str, ...] = ("sym", "tf", "tf_live")
 
@@ -208,6 +216,13 @@ def composed_schema() -> Dict[str, Any]:
             raise RuntimeError(f"$defs collision on {kind!r} adding the scope wrappers")
         schema["$defs"][kind] = spec
         schema["$defs"]["node"]["oneOf"].append({"$ref": f"#/$defs/{kind}"})
+    # ⭐ OVERNIGHT E -- A MEMBER INPUT IS READ AS A SERIES NAMED BY ITS KEY. The name
+    # enum stays the closed table's; an input-shaped name is admitted beside it and
+    # checked against the inputs this indicator (or this turn) DECLARES (`_check_tree`),
+    # so an undeclared name is still refused by the concierge's own gate.
+    name = schema["$defs"]["series"]["properties"]["name"]
+    schema["$defs"]["series"]["properties"]["name"] = {
+        "anyOf": [name, {"type": "string", "pattern": INPUT_KEY_PATTERN}]}
     # ⭐ SLICE 2 — THE MODEL MUST SAY WHAT ITS TURN IS. Optional in the shared
     # engine file (older envelopes and the engine's own tests carry none); required
     # of the model here, so mutation is never inferred from which fields happen to
@@ -493,7 +508,16 @@ CONVERSE_SYSTEM_PROMPT = (
     "becomes_true or becomes_false; on a NUMBER output with condition above, below, "
     "cross_above or cross_below and a numeric threshold. Run the WHOLE indicator on "
     "another (higher) timeframe than the chart's: set_calculation_timeframe (\"a daily "
-    "EMA on my 5-minute chart\"). Use only what `capabilities` lists.\n"
+    "EMA on my 5-minute chart\"). A TABLE drawn on the chart: set_table (a position and cells; a "
+    "cell is fixed text or the latest value of an output -- put values that belong only in the "
+    "table in HIDDEN outputs and point cells at them); remove_table removes it. A number the "
+    "MEMBER sets (account size, risk %, entry, stop): declare it as an input (create `inputs`, "
+    "or set_input) and read it in a tree as a series named by its key. NEVER invent the member's "
+    "own figures -- default 0 and tell them to set it in the indicator's settings. Changing a "
+    "setting's value (set_input) also sets it on the chart being edited when the member saves. Informational "
+    "only: nothing here places an order. When the member NAMES the indicator or an output "
+    "(\"call it My Trend\"), use exactly their words; to rename later, rename_definition / "
+    "rename_output. Use only what `capabilities` lists.\n"
     f"  * At most {MAX_OPS} ops per turn.\n\n"
     "TREES\n"
     "  A tree is the canonical node shape and nothing else:\n"
@@ -887,8 +911,52 @@ def _check_scopes(where: str, tree: Any) -> None:
                            member=f"it asks for {_member_value(value).strip() or 'another timeframe'}")
 
 
-def _check_tree(where: str, tree: Any) -> None:
+def declared_inputs(envelope: Mapping[str, Any], view: Any) -> frozenset:
+    """⭐ OVERNIGHT E -- the member inputs a tree in this turn may read: those the
+    current indicator declares (the view's ``memberInputs``) and those this turn
+    declares (``create.inputs``, ``set_input``)."""
+    keys = set()
+    d = (view or {}).get("definition") if isinstance(view, Mapping) else None
+    for x in ((d or {}).get("memberInputs") or []):
+        if isinstance(x, Mapping) and isinstance(x.get("key"), str):
+            keys.add(x["key"])
+    for o in envelope.get("ops") or []:
+        if not isinstance(o, Mapping):
+            continue
+        for x in (o.get("inputs") or []) if o.get("op") == "create" else []:
+            if isinstance(x, Mapping) and isinstance(x.get("key"), str):
+                keys.add(x["key"])
+        if o.get("op") == "set_input" and isinstance(o.get("input"), Mapping):
+            k = o["input"].get("key")
+            if isinstance(k, str):
+                keys.add(k)
+    return frozenset(keys)
+
+
+def _inputs_as_constants(tree: Any, inputs: frozenset) -> Any:
+    """The tree with every read of a DECLARED input replaced by a constant -- what
+    the shape / budget / repaint gates see (an input is one number per instance)."""
+    if not inputs:
+        return tree
+    root = copy.deepcopy(tree)
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            args = node.get("args")
+            if isinstance(args, list):
+                for j, a in enumerate(args):
+                    if isinstance(a, dict) and a.get("type") == "series" and a.get("name") in inputs:
+                        args[j] = {"type": "num", "value": 1}
+                stack.extend(args)
+    if isinstance(root, dict) and root.get("type") == "series" and root.get("name") in inputs:
+        return {"type": "num", "value": 1}
+    return root
+
+
+def _check_tree(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
     """The concierge's own tree gates, minus evaluation (the engine probes)."""
+    tree = _inputs_as_constants(tree, inputs)
     _check_scopes(where, tree)
     try:
         dc._assert_within_schema(_unscoped(tree))
@@ -938,7 +1006,7 @@ def _check_disposition(envelope: Mapping[str, Any], ops: List[Any]) -> None:
                        f"{'' if has_reply else ' and no reply'}")
 
 
-def check_envelope(envelope: Any, revision: int) -> Dict[str, Any]:
+def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, Any]:
     """Structural pre-check of the model's answer. Returns it UNCHANGED, or raises
     ``_Refused``. ⛔ Never applies, never repairs, never strips: an envelope with
     a field outside the contract is refused whole, so prose cannot smuggle an op."""
@@ -959,8 +1027,18 @@ def check_envelope(envelope: Any, revision: int) -> Dict[str, Any]:
     if envelope.get("baseRevision") != revision:
         raise _Refused("envelope:revision",
                        f"baseRevision {envelope.get('baseRevision')!r}; the view is revision {revision}")
+    inputs = declared_inputs(envelope, view)
+    # ⭐ OVERNIGHT E -- an input may not shadow a name of the formula language (a scalar
+    # such as `price` included): the browser refuses it too (`applyPatch.declareInput`).
+    from api.services import ast_table
+    names = {n for sec in ast_table.TABLE.values() if isinstance(sec, Mapping) for n in sec}
+    clash = sorted(k for k in inputs
+                   if k in names or k in ("color", "lineWidth") or k in JS_PROTOTYPE_KEYS)
+    if clash:
+        raise _Refused("input:name", f"input key(s) {', '.join(clash)} shadow a formula name",
+                       member=f"a setting may not be named {', '.join(clash)}")
     for where, tree in _trees_of(envelope):
-        _check_tree(where, tree)
+        _check_tree(where, tree, inputs)
     # ⭐ PHASE 5 -- THE FAN-OUT BOUND, over the whole turn (the browser gate holds
     # it over the whole RESULT, which also counts symbols already in the indicator).
     named = scope_tickers(_trees_of(envelope))
@@ -1473,7 +1551,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
             logger.info("[converse] unwrapped %r on attempt=%d", wrapper, attempts)
             trace.setdefault("input_wrapper", wrapper)
         try:
-            envelope = check_envelope(candidate, revision)
+            envelope = check_envelope(candidate, revision, view)
         except _Refused as refused:
             last = refused
             # the diagnostic (op path, validator text) is for the model and a DEBUG

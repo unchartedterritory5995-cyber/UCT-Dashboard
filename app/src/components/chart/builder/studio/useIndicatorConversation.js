@@ -210,7 +210,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       // ⛔ CLARIFY / CHANGE: THE ENGINE DECIDES. A stale or invalid patch is refused
       // atomically and the working definition is untouched (`applyTurn` returns
       // the same state).
-      const out = applyTurn(stateRef.current, turn.envelope, { gateCtx })
+      const out = applyTurn(stateRef.current, turn.envelope, { gateCtx, memberWords: words })
       const { result } = out
       if (result.status === 'refused') {
         say({ role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),
@@ -276,7 +276,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
       logStudioAction(cur.lineage, 'saved', { surface: 'studio', created: !!stored.created, origin: 'native',
         kinds: definitionKinds(stored.storedDoc, stored.requests) })
       if (typeof beforeAttach === 'function') beforeAttach()
-      const attached = attachConversation({ storedDoc: stored.storedDoc, created: stored.created, requests: stored.requests, settings })
+      const attached = attachConversation({ storedDoc: stored.storedDoc, created: stored.created, requests: stored.requests, settings, base: cur.base })
       if (settings && onChange && attached.settings !== settings) onChange(attached.settings)
       const alerts = await armConversationAlerts({ storedDoc: stored.storedDoc, requests: stored.requests, sym, tf, instanceId: attached.instanceId })
       const outcomes = [...attached.outcomes, ...alerts]

@@ -12,6 +12,7 @@ reads the cached briefing if present and generates fresh if not.
 """
 
 import logging
+import re
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -32,6 +33,70 @@ def _safe(fn, default, *args, **kwargs):
     except Exception as e:
         _log.warning("morning_briefing subcall failed: %s", e)
         return default
+
+
+#: A sentence end this early in the limit is not worth ending on: the clip would throw away
+#: most of the text to finish on a two-word sentence.
+_MIN_SENTENCE_SHARE = 0.4
+
+
+def clip_spoken(text: Any, limit: int, *, close: bool = True) -> str:
+    """`text` shortened to at most `limit` characters WITHOUT cutting a word (fin walk K5).
+
+    ⚰️ Every limit here was a character slice. The weekly focus came out as "...a month of
+    unlabeled ones. Af" and the next sentence was glued to the stub: "Af Tap me when you're
+    ready to dig in."
+
+    Ends on the last whole sentence inside the limit when that keeps a fair share of the
+    text. Otherwise ends on the last whole word and, with `close`, adds a full stop so the
+    next spoken part starts a new sentence. Text that already fits is returned as written.
+    """
+    s = str(text or "").strip()
+    if len(s) <= limit:
+        return s
+    head = s[:limit]
+    last_end = -1
+    for i, ch in enumerate(head):
+        if ch in ".!?" and s[i + 1:i + 2].isspace():
+            last_end = i
+    if last_end >= 0 and last_end + 1 >= limit * _MIN_SENTENCE_SHARE:
+        return head[:last_end + 1]
+    if s[limit:limit + 1].isspace():
+        cut = head                                   # the limit fell exactly between two words
+    else:
+        space = head.rfind(" ")
+        cut = head[:space] if space > 0 else head    # one word longer than the limit: keep its start
+    cut = cut.rstrip(" ,;:-")
+    if not close or (cut and cut[-1] in ".!?"):
+        return cut
+    if len(cut) + 1 > limit:                         # no room for the full stop: give up a word
+        space = cut.rfind(" ")
+        cut = cut[:space].rstrip(" ,;:-") if space > 0 else cut[:limit - 1]
+    return cut + "."
+
+
+_MD_LINE_START = re.compile(r"^\s*(?:[-*+]\s+|\d+[.)]\s+|#{1,6}\s+|>\s+)")
+_MD_WRAP = re.compile(r"(\*\*|__|`)(.+?)\1|(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])")
+
+
+def speakable(text: Any) -> str:
+    """`text` as it should be SPOKEN: no Markdown marks (keyed re-walk 8.3).
+
+    The weekly focus is written by Compass with bullets and bold, and the briefing read the
+    marks aloud: "- **Label every setup before you enter.**". List markers and headings at the
+    start of a line are dropped, the wrappers `**..**`, `__..__`, `*..*` and backticks are
+    removed around their words, and the lines are joined into one run. A lone `*` or `-` inside
+    a sentence is prose and is left alone."""
+    lines = []
+    for raw in str(text or "").splitlines():
+        line = _MD_LINE_START.sub("", raw)
+        for _ in range(3):                      # nested wrappers: **`x`**
+            line, n = _MD_WRAP.subn(lambda m: m.group(2) or m.group(3) or "", line)
+            if not n:
+                break
+        if line.strip():
+            lines.append(line.strip())
+    return " ".join(lines)
 
 
 def _format_positions(positions: list[dict]) -> str:
@@ -77,7 +142,7 @@ def build_briefing(user_id: str) -> dict[str, Any]:
                     .build_regime_prompt_line(),
         "",
     )
-    sections["regime"] = regime_line[:300]
+    sections["regime"] = clip_spoken(regime_line, 300)
 
     # 2. Overnight market news (Perplexity finance pack, recency=hour-ish)
     news_summary = _safe(
@@ -89,7 +154,7 @@ def build_briefing(user_id: str) -> dict[str, Any]:
                     ),
         {},
     )
-    sections["news"] = (news_summary or {}).get("answer", "")[:600]
+    sections["news"] = clip_spoken((news_summary or {}).get("answer", ""), 600)
 
     # 3. Top catalysts (from existing Opus-scored table)
     catalysts = _safe(
@@ -99,7 +164,7 @@ def build_briefing(user_id: str) -> dict[str, Any]:
     )
     sections["catalysts"] = [
         {"rank": c.get("rank"), "ticker": c.get("ticker"),
-         "headline": (c.get("headline") or "")[:120]}
+         "headline": clip_spoken(c.get("headline"), 120, close=False)}
         for c in (catalysts or [])[:5]
     ]
 
@@ -126,7 +191,7 @@ def build_briefing(user_id: str) -> dict[str, Any]:
         positions, interventions, focus = [], [], ""
     sections["positions_summary"] = _format_positions(positions)
     sections["interventions_summary"] = _format_interventions(interventions)
-    sections["weekly_focus"] = focus[:300]
+    sections["weekly_focus"] = clip_spoken(speakable(focus), 300)
 
     # Build the spoken script — 40-60 seconds of voice
     script_parts = ["Good morning. Here's your briefing."]
@@ -139,7 +204,7 @@ def build_briefing(user_id: str) -> dict[str, Any]:
     if sections["interventions_summary"]:
         script_parts.append(sections["interventions_summary"])
     if sections["news"]:
-        script_parts.append(f"Overnight news: {sections['news'][:300]}")
+        script_parts.append(f"Overnight news: {clip_spoken(sections['news'], 300)}")
     if sections["catalysts"]:
         cat_summary = ", ".join(
             f"{c['ticker']}" for c in sections["catalysts"][:5] if c.get("ticker")

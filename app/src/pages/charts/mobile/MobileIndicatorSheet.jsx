@@ -141,6 +141,7 @@ function SwatchRow({ label, value, onChange }) {
 // sheet still lists them by slot, reading and writing through the adopted
 // instance so the switch here and the chart agree.
 import { averageSlotView, writeAverageSlot, MA_DEF_ID } from '../../../components/chart/maAdoption'
+import { safeCssColour } from '../../../components/chart/engine/objectColour'
 
 const QUICK_STUDY_IDS = ['rsi', 'macd', 'bb', 'vwap', 'atr', 'stoch']
 
@@ -254,7 +255,7 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
               onClick={() => setEditing({ kind: 'ma', idx: i })}
               aria-label={`Edit ${o.type || 'MA'} ${o.period}`}
             >
-              <span className={styles.indDot} style={{ background: o.color || 'var(--text-dim)' }} aria-hidden="true" />
+              <span className={styles.indDot} style={{ background: safeCssColour(o.color) || 'var(--text-dim)' }} aria-hidden="true" />
               <span className={styles.indName}>{o.type || 'MA'} {o.period}</span>
               <span className={styles.rowRight}><UIcon name="chevronRight" size={13} gold={false} /></span>
             </button>

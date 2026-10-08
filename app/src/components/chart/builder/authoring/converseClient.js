@@ -23,6 +23,7 @@
 // computed from the resulting definition.
 
 import { compactView } from './compactView'
+import { isNamingClause } from './derivedName'
 
 export const CONVERSE_ENDPOINT = '/api/user-definitions/converse'
 /** The server's bounds (`definition_conversation.py`), mirrored so the client
@@ -65,7 +66,10 @@ export function transcriptSnippets(transcript) {
  * that item again made the member read the same sentence twice.
  */
 export function distinctNotUnderstood(res) {
-  const items = (res && Array.isArray(res.notUnderstood)) ? res.notUnderstood : []
+  // ⭐ "call it Swing Line" is a NAME the authoring door keeps (derivedName.memberCueNames),
+  // not an unsupported concept — never listed as "I didn't understand" (prod 2026-10-08).
+  const items = ((res && Array.isArray(res.notUnderstood)) ? res.notUnderstood : [])
+    .filter((n) => !(n && isNamingClause(String(n.clause || n.text || ''))))
   if (!res || res.ok !== false || typeof res.reason !== 'string') return items
   return items.filter((n) => !(n && n.reason && n.reason === res.reason))
 }

@@ -3,6 +3,8 @@ import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import usePreferences, { parsePref, refreshPreferences } from '../../hooks/usePreferences'
+import { onWorkspaceConflict, hasWorkspaceConflict } from '../../lib/workspaceConflict'
+import { whenWritesSettle } from '../../hooks/usePreferences'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
@@ -13,6 +15,8 @@ import { WorkspaceContext } from './WorkspaceContext'
 import useSWR, { useSWRConfig } from 'swr'
 import { useAgentFlag, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
 import { buildWorkspaceHost } from '../../agent/host'
+import { useInRouterContext } from 'react-router-dom'
+import AgentNavBridge from '../../agent/AgentNavBridge'
 const AgentPanel = lazy(() => import('../../agent/AgentPanel'))
 // TERM-079 — the board's typed context channels (list-ref, symbol-set, range, …).
 // A SEPARATE, never-changing context beside WorkspaceContext: its value is one store
@@ -2357,8 +2361,15 @@ export default function ChartsWorkspace() {
   // active ref is ignored (just saves the working board).
   const handleSaveLayout = useCallback(async () => {
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
-    setPref('charts_workspace_layout', serializeLayout(layout))
-    setPref('charts_workspace_groups', JSON.stringify(groupSyms))
+    // ⛔ REVISION SAFETY: the named layout is written ONLY after the board itself was accepted.
+    // A board the server refused as stale (another tab or device changed it) must never be
+    // copied into the open layout's saved row — that is how a stale tab contaminated a layout.
+    const [boardOk, groupsOk] = await Promise.all([
+      setPref('charts_workspace_layout', serializeLayout(layout)),
+      setPref('charts_workspace_groups', JSON.stringify(groupSyms)),
+    ])
+    // `false` is setPref's "refused / not saved"; anything else (a confirmed write) goes on.
+    if (boardOk === false || groupsOk === false) return
     const active = parsePref(prefs?.charts_active_template, null)
     if (active?.id != null && (active.scope !== 'global' || isAdmin)) {
       const list = active.scope === 'global' ? globalLayouts : myLayouts
@@ -2514,12 +2525,21 @@ export default function ChartsWorkspace() {
   const [workspaceNotice, setWorkspaceNotice] = useState(null)  // { text } | null
   const [layoutHeldDismissed, setLayoutHeldDismissed] = useState(false)
   const noticeTimerRef = useRef(null)
-  const showWorkspaceNotice = useCallback((text) => {
+  const showWorkspaceNotice = useCallback((text, { persistent = false, action = null } = {}) => {
     if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current)
-    setWorkspaceNotice({ text })
-    noticeTimerRef.current = setTimeout(() => setWorkspaceNotice(null), 12000)
+    setWorkspaceNotice({ text, action })
+    if (!persistent) noticeTimerRef.current = setTimeout(() => setWorkspaceNotice(null), 12000)
   }, [])
   workspaceNoticeRef.current = showWorkspaceNotice
+  // ⛔ REVISION SAFETY: a save refused because the workspace changed in another window or
+  // device. Nothing here was saved (the server refused it whole), what is on screen is KEPT, and
+  // nothing reloads by itself — the member decides. It stays up until dismissed.
+  useEffect(() => onWorkspaceConflict(({ code }) => {
+    const text = code === 'workspace_revision_required'
+      ? 'This page is out of date, so your latest workspace changes here have not been saved. Reload to get the current version (reloading discards the unsaved changes in this tab).'
+      : 'Your workspace was changed in another window or device, so your latest changes here have not been saved. Reload to see the current workspace (reloading discards the unsaved changes in this tab).'
+    showWorkspaceNotice(text, { persistent: true, action: { label: 'Reload', run: () => window.location.reload() } })
+  }), [showWorkspaceNotice])
   useEffect(() => () => { if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current) }, [])
   const openVersionHistory = useCallback(() => {
     closeToolbarMenus()
@@ -2816,6 +2836,11 @@ export default function ChartsWorkspace() {
         <div className={vhStyles.notice} data-testid="workspace-notice">
           <UIcon name="info" size={16} gold={false} />
           <span className={vhStyles.noticeText}>{workspaceNotice.text}</span>
+          {workspaceNotice.action && (
+            <button type="button" className={vhStyles.noticeDismiss} data-testid="workspace-notice-action" onClick={workspaceNotice.action.run}>
+              {workspaceNotice.action.label}
+            </button>
+          )}
           <button type="button" className={vhStyles.noticeDismiss} aria-label="Dismiss" onClick={() => setWorkspaceNotice(null)}>
             <UIcon name="x" size={14} gold={false} />
           </button>
@@ -2856,6 +2881,24 @@ export default function ChartsWorkspace() {
     // `init` (optional): { tf, symbol } a new chart is BORN with (unlinked, on that
     // ticker and timeframe) instead of being created on a default and then changed.
     add: (t, place, init) => handleAddWidget(t, init?.tf ? { tf: init.tf } : undefined, { place, unlinkedSymbol: init?.symbol || null }),
+    // PERSISTENCE ACK for the Agent's receipt: write the board and the link-group tickers NOW
+    // (instead of after their debounce) through the SAME writer the autosave uses, and answer
+    // only once the server has. `{ ok, conflict, reason }` — `ok` means the server accepted
+    // this tab's current board; anything else means it is on screen but NOT saved. The
+    // autosave's own guards apply: an unreadable stored board or a board commit in flight is
+    // never written over, and is reported as not confirmed rather than bypassed.
+    persist: async () => {
+      if (storedLayoutUnreadableRef.current || boardCommitInFlightRef.current) return { ok: false, conflict: false, reason: 'not-saved' }
+      if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+      if (groupsSaveTimerRef.current) { clearTimeout(groupsSaveTimerRef.current); groupsSaveTimerRef.current = null }
+      const [board, groups] = await Promise.all([
+        setPref('charts_workspace_layout', serializeLayout(layoutRef.current)),
+        setPref('charts_workspace_groups', JSON.stringify(agentGroupSymsRef.current)),
+      ])
+      await whenWritesSettle(['charts_active_template', 'chart_settings'])
+      const conflict = hasWorkspaceConflict(['charts_workspace_layout', 'charts_workspace_groups', 'charts_active_template', 'chart_settings'])
+      return { ok: board !== false && groups !== false && !conflict, conflict, reason: conflict ? 'conflict' : (board === false || groups === false ? 'not-saved' : null) }
+    },
     remove: handleRemoveWidget, color: handleColorChange, cancelPending: cancelPendingAdd,
   }
   // Named layouts, read EXACTLY as the Layout Dock reads them (dockEntries + the
@@ -2884,8 +2927,30 @@ export default function ChartsWorkspace() {
       rename: (id, name) => handleDockRename(id, name),
       saveAs: (name) => saveCurrentAs(name, 'user', { createOnly: true }),
       refresh: () => refreshLayouts(),
+      // A NEW empty layout — the dock's own blank shape ({ widgets: [], cols }) — saved
+      // create-only and WITHOUT touching the board (the dock's "New layout" blanks the board
+      // first, then upserts by name). Switching to it stays a separate, ordinary open.
+      create: (name) => saveLayout({ name, layout: { widgets: [], cols: GRID_COLS }, groups: null, scope: 'user', createOnly: true }),
+      // The dock's own delete (DELETE by id; throws if the server refuses). The Agent never
+      // deletes the OPEN layout (the dock would first switch the board to UCT Default).
+      remove: (id) => deleteLayout(id),
+      // The dock's duplicate (a copy of the STORED layout), but create-only: a name that
+      // already exists is refused by the server instead of overwritten.
+      duplicate: (id, name) => {
+        const src = id === UCT_DEFAULT_ID
+          ? { layout: parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT }
+          : (globalLayouts.find(t => t.id === id) || myLayouts.find(t => t.id === id))
+        if (!src?.layout) return Promise.reject(new Error('that layout has no stored content to copy'))
+        return saveLayout({ name, layout: src.layout, groups: null, scope: 'user', createOnly: true })
+      },
     }
   }
+  // UCT Agent's settings + navigation reach: the SAME preference writer the Settings page
+  // uses (resolves true only once the server accepted it) and the router's navigate().
+  const agentPrefsRef = useRef(null)
+  agentPrefsRef.current = { prefs, setPref }
+  const agentNavRef = useRef(null)
+  const inRouter = useInRouterContext()
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
     getWidgets: () => agentWidgetsRef.current,
@@ -2897,12 +2962,29 @@ export default function ChartsWorkspace() {
       color: (id, c) => agentWidgetOpsRef.current.color(id, c),
       cancelPending: () => agentWidgetOpsRef.current.cancelPending(),
       groupSyms: () => agentGroupSymsRef.current,
+      persist: () => agentWidgetOpsRef.current.persist(),
     },
     layouts: () => agentLayoutsRef.current,
     watchlists: {
       getLists: () => agentWatchlistsRef.current.lists,
       revalidate: () => agentWatchlistsRef.current.revalidate(),
     },
+    // ONE writer per setting the Agent may change (literal keys — the preference rails
+    // check every write site); any other key is refused here, whatever is asked.
+    prefs: {
+      read: () => agentPrefsRef.current.prefs,
+      write: (k, v) => {
+        const sp = agentPrefsRef.current.setPref
+        const w = {
+          theme: (x) => sp('theme', x),
+          default_chart_tf: (x) => sp('default_chart_tf', x),
+          alert_sound: (x) => sp('alert_sound', x),
+          alert_sound_type: (x) => sp('alert_sound_type', x),
+        }[k]
+        return w ? w(v) : Promise.resolve(false)
+      },
+    },
+    navigate: (to) => agentNavRef.current?.(to),
   }), [])
 
   if (isMobile) {
@@ -3434,6 +3516,7 @@ export default function ChartsWorkspace() {
             <AgentPanel host={agentHost} gridMode={gridMode} onClose={() => setAgentOpen(false)} />
           </Suspense>
         )}
+        {agentAllowed && agentOpen && inRouter && <AgentNavBridge navRef={agentNavRef} />}
         </div>
 
         {/* Pop-outs live OUTSIDE <main> but INSIDE the provider: each renders

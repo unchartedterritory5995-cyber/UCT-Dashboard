@@ -17,20 +17,32 @@
 //
 // ⛔ EVERY WRITE IS A KEY THE MANUAL UI ALREADY WRITES, in the shape the manual
 // control writes it (ChartPane session toggles, ChartSettingsModal canvas and
-// candle pickers, the legend's Volume remove, chartThemes.applyThemeToSettings).
+// candle pickers, the legend's Volume remove, chartThemes.applyThemeToOneChart).
 // No new settings key, so the chartDefaults allow-list is untouched.
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
-import { CHART_THEMES, CHART_THEME_BY_ID, applyThemeToSettings } from '../../components/chart/chartThemes'
+import { CHART_THEMES, CHART_THEME_BY_ID, applyThemeToOneChart } from '../../components/chart/chartThemes'
 import { primaryChartTypeFor } from '../../components/chart/engine/sourceCapability'
 import { canonicalFamily, canonicalProduct, canonicalSourceCapability } from '../../hooks/useMarketIndicators'
 import { isEconomicId } from '../../components/chart/engine/econMark'
+import { getExtSessionCached } from '../../utils/extSession'
 import { unknownSymbols } from '../agentClient'
-import { mergeChartSettings } from '../../components/chart/chartDefaults'
+import { mergeChartSettings, CHART_TYPE_OPTIONS } from '../../components/chart/chartDefaults'
+import { NATIVE_TFS, tfLabel as productTfLabel } from '../../components/chart/timeframes'
+import { ELIGIBLE_SETTINGS, settingDescriptor, coerceSettingValue, settingUnavailable, withSetting, settingValue } from '../../components/chart/chartSettingsDescriptors'
 
-const TYPE_LABEL = { candles: 'Candles', hollow: 'Hollow Candles', bars: 'Bars', hlc: 'HLC Bars', line: 'Line', area: 'Area' }
-const TF_LABEL = { 1: '1 minute', 5: '5 minutes', 15: '15 minutes', 30: '30 minutes', 60: '1 hour', D: 'Daily', W: 'Weekly', M: 'Monthly' }
-const INTRADAY = new Set(['1', '5', '15', '30', '60'])
+// The chart types and the timeframes UCT charts natively are the PRODUCT's lists
+// (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
+// type or timeframe reaches the Agent's enums the day it ships (agentContracts.test.js rails it).
+// Only the Agent's receipt wording lives here; a type or timeframe without a word falls back to
+// the product's own label.
+export const CHART_TYPE_IDS = CHART_TYPE_OPTIONS.map(([id]) => id)
+export const CHART_TIMEFRAMES = [...NATIVE_TFS]
+const TYPE_WORDING = { hollow: 'Hollow Candles', hlc: 'HLC Bars' }
+const TYPE_LABEL = Object.fromEntries(CHART_TYPE_OPTIONS.map(([id, label]) => [id, TYPE_WORDING[id] || label]))
+const TF_WORDING = { 1: '1 minute', 5: '5 minutes', 15: '15 minutes', 30: '30 minutes', 60: '1 hour', D: 'Daily', W: 'Weekly', M: 'Monthly' }
+const TF_LABEL = Object.fromEntries(CHART_TIMEFRAMES.map(tf => [tf, TF_WORDING[tf] || productTfLabel(tf)]))
+const INTRADAY = new Set(CHART_TIMEFRAMES.filter(tf => !['D', 'W', 'M'].includes(tf)))
 export const tfLabel = (tf) => TF_LABEL[tf] || String(tf)
 export const chartTypeLabel = (t) => TYPE_LABEL[t] || String(t)
 const isIntraday = (tf) => INTRADAY.has(String(tf))
@@ -81,7 +93,37 @@ export const volState = (cs) => (cs?.volume?.removed === true ? 'removed' : (cs?
 export const sessionOf = (cs, tf) => (isIntraday(tf)
   ? (cs?.extendedHoursShading === false ? 'regular' : 'extended')
   : (cs?.sessionView === 'extended' ? 'extended' : 'regular'))
+// ChartPane's `extEnabled`: the D/W/M Extended button is live only in the pre/post window.
+export const extWindowOpen = () => { const s = getExtSessionCached()?.session; return s === 'pre' || s === 'post' }
 const sameJson = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
+
+// ── chart.setSetting helpers (generated from the product's descriptor table) ──
+const settingWord = (d, v) => (d.type === 'bool' ? (v ? 'on' : 'off') : String(v))
+const SETTING_HINTS = (() => {
+  const enums = ELIGIBLE_SETTINGS.filter(d => d.type === 'enum').map(d => `${d.id}: ${d.options.join('|')}`)
+  return 'value = true/false for on/off settings (crosshair.mode and header.legendMode also take true/false). '
+    + `Allowed values — ${enums.join('; ')}. `
+    + 'Only these settings: for any other chart setting (colors, watermark opacity, volume style…) do NOT plan an op — '
+    + 'say it is not Agent-enabled yet and where it lives in Chart Settings.'
+})()
+// "turn off the grid", "hide the watermark", "crosshair off", "show swing labels"
+const SETTING_WORDS = new Map(ELIGIBLE_SETTINGS.flatMap(d => (d.words || []).map(w => [w, d])))
+function fastSetting(text) {
+  const t = String(text || '').trim().replace(/[.!]$/, '').replace(/ on (?:this|the|my) chart$/, '')
+  const pats = [
+    [/^(?:turn|switch) (on|off) (?:the )?(.+)$/, 1, 2], [/^(?:turn|switch) (?:the )?(.+?) (on|off)$/, 2, 1],
+    [/^(show|hide|enable|disable) (?:the )?(.+)$/, 1, 2], [/^(?:the )?(.+?) (on|off)$/, 2, 1],
+  ]
+  for (const [re, vi, wi] of pats) {
+    const m = re.exec(t)
+    if (!m) continue
+    const d = SETTING_WORDS.get(m[wi])
+    if (!d) continue
+    const on = ['on', 'show', 'enable'].includes(m[vi])
+    return { setting: d.id, value: d.type === 'bool' ? on : d.boolMap[String(on)] }
+  }
+  return null
+}
 
 // ── target kind ─────────────────────────────────────────────────────────────
 // `host.charts` is the workspace binding (agent/host.js) over every mounted
@@ -185,7 +227,7 @@ const CAPABILITIES = [
   {
     name: 'chart.setType',
     summary: 'Change how price is drawn on one chart.',
-    args: { type: 'object', properties: { type: { type: 'string', enum: ['candles', 'hollow', 'bars', 'hlc', 'line', 'area'] } }, required: ['type'], additionalProperties: false },
+    args: { type: 'object', properties: { type: { type: 'string', enum: CHART_TYPE_IDS } }, required: ['type'], additionalProperties: false },
     check(st, { type }) {
       if (!TYPE_LABEL[type]) return `“${type}” is not a chart type UCT has.`
       const { econ, cap } = capabilityFor(st.symbol)
@@ -202,7 +244,7 @@ const CAPABILITIES = [
     name: 'chart.setTimeframe',
     summary: "Change one chart's timeframe.",
     hints: 'Codes: 1, 5, 15, 30, 60 are minutes; D daily, W weekly, M monthly.',
-    args: { type: 'object', properties: { timeframe: { type: 'string', enum: ['1', '5', '15', '30', '60', 'D', 'W', 'M'] } }, required: ['timeframe'], additionalProperties: false },
+    args: { type: 'object', properties: { timeframe: { type: 'string', enum: CHART_TIMEFRAMES } }, required: ['timeframe'], additionalProperties: false },
     check(st, { timeframe }) {
       if (!TF_LABEL[timeframe]) return `“${timeframe}” is not a timeframe UCT charts.`
       if (isIntraday(timeframe) && !hasIntradayBars(st.symbol)) return `${st.symbol} has daily, weekly and monthly data only.`
@@ -267,7 +309,19 @@ const CAPABILITIES = [
       }
       return null
     },
-    check: (st, { mode }) => (mode === 'regular' || mode === 'extended' ? null : `“${mode}” is not a session.`),
+    // The SAME eligibility as the manual toggle (ChartPane → ChartIdentityRow): economic-data
+    // charts have no session control at all, and on D/W/M "Include pre/post-market" is DISABLED
+    // outside the pre/post window (ChartPane's `extEnabled`, from getExtSessionCached()). The
+    // Agent refuses exactly where the button is disabled, instead of writing a state the member
+    // could not have chosen.
+    check(st, { mode }) {
+      if (mode !== 'regular' && mode !== 'extended') return `“${mode}” is not a session.`
+      if (st.symbol && isEconomicId(st.symbol)) return 'Economic-data charts have no regular/extended session setting.'
+      if (mode === 'extended' && !isIntraday(st.tf) && sessionOf(st.cs, st.tf) !== 'extended' && !extWindowOpen()) {
+        return 'On daily, weekly and monthly charts “Include pre/post-market” is only available during pre-market and post-market — the same as the chart’s own toggle. Try again then, or switch this chart to an intraday timeframe.'
+      }
+      return null
+    },
     apply(st, { mode }) {
       if (sessionOf(st.cs, st.tf) === mode) return st
       // The key the manual toggle for THIS timeframe writes: ChartPane.setExtHours
@@ -317,7 +371,8 @@ const CAPABILITIES = [
       return hit ? { theme: hit.id } : null
     },
     check: (st, { theme }) => (CHART_THEME_BY_ID[theme] ? null : `UCT has no chart theme “${theme}”.`),
-    apply: (st, { theme }) => ({ ...st, cs: applyThemeToSettings(st.cs, CHART_THEME_BY_ID[theme]) }),
+    // The SAME function Chart Settings -> theme gallery -> 'this chart' calls (app-mirrored themes use the app surface).
+    apply: (st, { theme }) => ({ ...st, cs: applyThemeToOneChart(st.cs, CHART_THEME_BY_ID[theme]) }),
     describe: (b, a, { theme }) => `Applied the ${CHART_THEME_BY_ID[theme]?.name || theme} chart theme`,
   },
   {
@@ -394,6 +449,45 @@ const CAPABILITIES = [
       return now === 'visible' ? 'Showed Volume' : now === 'hidden' ? 'Hid Volume' : 'Removed Volume'
     },
     noop: (b, a) => ({ visible: 'Volume is already showing', hidden: 'Volume is already hidden', removed: 'Volume is already removed' })[volState(a.cs)],
+  },  {
+    // ── chart.setSetting: ONE capability over the product's own descriptor table ──
+    // Only rows classified `agent: 'eligible'` in components/chart/chartSettingsDescriptors.js
+    // are offered (the id enum is generated from that table); the value is typed and validated
+    // by the descriptor; the write is the descriptor's `withSetting` — the same shape Chart
+    // Settings' own setters produce — committed through the chart's normal onOptsChange path,
+    // read back, and undoable like every other chart change. A UI prerequisite (thin bars only
+    // on Bars/HLC) refuses exactly where the dialog hides the control.
+    name: 'chart.setSetting',
+    summary: 'Change one chart display setting from UCT\'s approved list (grid, crosshair, legend, watermark, labels, markers, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale).',
+    hints: SETTING_HINTS,
+    args: { type: 'object', properties: {
+      setting: { type: 'string', enum: ELIGIBLE_SETTINGS.map(d => d.id) },
+      value: { type: ['string', 'number', 'boolean'] },
+    }, required: ['setting', 'value'], additionalProperties: false },
+    fast: ({ lower, core }) => fastSetting(lower) || fastSetting(core),
+    check(st, { setting, value }) {
+      const d = settingDescriptor(setting)
+      if (!d || d.agent !== 'eligible') return `“${setting}” isn't a chart setting UCT Agent can change.`
+      const v = coerceSettingValue(d, value)
+      if (!v.ok) return `${d.label}: ${v.why}.`
+      return settingUnavailable(d, st.cs)
+    },
+    apply(st, { setting, value }) {
+      const d = settingDescriptor(setting)
+      const v = coerceSettingValue(d, value).value
+      if (sameJson(settingValue(st.cs, d), v)) return st
+      return { ...st, cs: withSetting(st.cs, d, v) }
+    },
+    describe(b, a, { setting }) {
+      const d = settingDescriptor(setting)
+      const now = settingValue(a.cs, d)
+      if (sameJson(settingValue(b.cs, d), now)) return null
+      return `${d.label}: ${settingWord(d, now)}`
+    },
+    noop: (b, a, { setting } = {}) => {
+      const d = settingDescriptor(setting)
+      return d ? `${d.label} is already ${settingWord(d, settingValue(a.cs, d))}` : 'Already set'
+    },
   },
 ]
 

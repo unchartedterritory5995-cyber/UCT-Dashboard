@@ -3,7 +3,7 @@
 // Real AgentPanel + useAgent + planner + runtime; fixture Screener engine, fixture
 // watchlist server and fixture board (the product's own placement rules).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
 import { expandOps, checkRefs } from './compose'
 import { getCapability, manifestFor } from './capabilities'
@@ -533,5 +533,113 @@ describe('one thing at a time: Apply / Undo / a choice can never run alongside a
     await nth('agent-receipt', 1)
     expect(newCharts()).toHaveLength(2)
     expect(add).toHaveBeenCalledTimes(2)                      // two charts, created once
+  })
+})
+
+describe('receipts claim only what the server confirmed (host.persist)', () => {
+  const applyTwo = async (m) => {
+    envelopes.push(b => env('propose', [CHARTS(b, ['SPY', 'QQQ'])]))
+    m.say('Chart SPY and QQQ.')
+    await nth('agent-proposal', 1)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply' }).disabled).toBe(false))
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    return nth('agent-receipt', 1)
+  }
+
+  it('saved → the ordinary receipt, with Undo', async () => {
+    const m = await mount()
+    m.host.epoch = () => 'user:1'
+    m.host.persist = vi.fn(async () => ({ ok: true, conflict: false, reason: null }))
+    const text = await applyTwo(m)
+    expect(m.host.persist).toHaveBeenCalledTimes(1)
+    expect(text).not.toMatch(/NOT saved|not confirmed/)
+    expect(screen.getAllByTestId('agent-undo')).toHaveLength(1)
+  })
+
+  it('a revision conflict → "on screen, NOT saved", and no Undo', async () => {
+    const m = await mount()
+    m.host.epoch = () => 'user:1'
+    m.host.persist = async () => ({ ok: false, conflict: true, reason: 'conflict' })
+    const text = await applyTwo(m)
+    expect(text).toMatch(/Shown on this screen but NOT saved: your workspace was changed in another window or device/)
+    expect(screen.queryAllByTestId('agent-undo')).toHaveLength(0)
+    expect(m.newCharts()).toHaveLength(2)                    // on screen — the receipt says so, honestly
+  })
+
+  it('an unconfirmed save (or a persist that throws) → "not confirmed", no Undo', async () => {
+    const m = await mount()
+    m.host.epoch = () => 'user:1'
+    m.host.persist = async () => { throw new Error('offline') }
+    const text = await applyTwo(m)
+    expect(text).toMatch(/the save was not confirmed/)
+    expect(screen.queryAllByTestId('agent-undo')).toHaveLength(0)
+  })
+
+  it('Undo whose save is refused → an "Undone on screen, NOT saved" receipt', async () => {
+    const m = await mount()
+    m.host.epoch = () => 'user:1'
+    let verdict = { ok: true }
+    m.host.persist = async () => verdict
+    await applyTwo(m)
+    verdict = { ok: false, conflict: true, reason: 'conflict' }
+    fireEvent.click(screen.getByTestId('agent-undo'))
+    const text = await nth('agent-receipt', 2)
+    expect(text).toMatch(/NOT saved/)
+    expect(m.newCharts()).toHaveLength(0)
+  })
+})
+
+describe('interrupted execution (best-effort, this browser): a change cut off by a reload is never re-run blind', () => {
+  const KEY = 'uct.agent.inflight'
+
+  // Apply a 2-chart proposal whose save never answers: the page "reloads" mid-Apply.
+  const applyAndCutOff = async (m) => {
+    m.host.epoch = () => 'user:1'
+    m.host.persist = () => new Promise(() => {})
+    envelopes.push(b => env('propose', [CHARTS(b, ['SPY', 'QQQ'])]))
+    m.say('Chart SPY and QQQ.')
+    await nth('agent-proposal', 1)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply' }).disabled).toBe(false))
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    await waitFor(() => expect(m.newCharts()).toHaveLength(2))
+    return JSON.parse(localStorage.getItem(KEY))
+  }
+
+  it('the in-flight mark is written before the first board write and cleared at the receipt', async () => {
+    const m = await mount()
+    m.host.epoch = () => 'user:1'
+    let seen
+    const realAdd = m.widgetOps.add
+    m.widgetOps.add = (...a) => { if (seen === undefined) seen = localStorage.getItem(KEY); return realAdd(...a) }
+    envelopes.push(b => env('propose', [CHARTS(b, ['SPY'])]))
+    m.say('Chart SPY.')
+    await nth('agent-proposal', 1)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Apply' }).disabled).toBe(false))
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    await nth('agent-receipt', 1)
+    expect(JSON.parse(seen).lines.join(' ')).toMatch(/SPY/)
+    expect(localStorage.getItem(KEY)).toBeNull()
+  })
+
+  it('a mark surviving a reload → the member is told; the SAME change comes back as a warned proposal, not a silent re-run', async () => {
+    const mark = await applyAndCutOff(await mount())
+    expect(mark.lines.join(' ')).toMatch(/SPY and QQQ/)
+    cleanup()                                                  // the reload: page state gone, the mark stays
+    const m = await mount()
+    m.host.epoch = () => 'user:1'
+    await saysSoon(/Your last change was interrupted before it finished.*SPY and QQQ.*check it before asking again/)
+    expect(localStorage.getItem(KEY)).toBeNull()               // told once
+    envelopes.push(b => env('apply', [CHARTS(b, ['SPY', 'QQQ'])]))
+    m.say('Chart SPY and QQQ.')
+    await saysSoon(/same change that was interrupted/)
+    expect(m.newCharts()).toHaveLength(0)                      // proposed, NOT applied
+  })
+
+  it('an old mark (past 30 minutes) is dropped silently', async () => {
+    localStorage.setItem(KEY, JSON.stringify({ sig: '[]', lines: ['x'], at: Date.now() - 31 * 60 * 1000 }))
+    await mount()
+    await new Promise(r => setTimeout(r, 20))
+    expect(transcript()).not.toMatch(/interrupted/)
+    expect(localStorage.getItem(KEY)).toBeNull()
   })
 })

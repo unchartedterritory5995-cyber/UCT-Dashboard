@@ -12971,12 +12971,36 @@ export default function StockChart({
               const w = ps && typeof ps.width === 'function' ? ps.width() : 0
               if (Number.isFinite(w) && w > 0) rightInset = Math.round(w)
             } catch { rightInset = 0 }
+            // ⭐ THE PANE THIS INSTANCE DRAWS IN, so its tables stay inside it
+            // (`objectLayer.js`). Read off the renderer: the pane of one of the
+            // instance's own series (a visible one first), else the candles' pane.
+            // ⛔ Unreadable → no `pane`, and the table layer keeps the whole container.
+            // …and the PRICE pane, the layer's fallback when its own pane is too short
+            // for its tables (a calculator's one-line pane).
+            let pane = null
+            let mainPane = null
+            try {
+              const rectOf = (lwPane) => {
+                const pel = lwPane?.getHTMLElement?.()
+                if (!pel || !el || !pel.getBoundingClientRect || !el.getBoundingClientRect) return null
+                const pr = pel.getBoundingClientRect()
+                const cr = el.getBoundingClientRect()
+                return pr.height > 0 ? { top: pr.top - cr.top, height: pr.height } : null
+              }
+              const mine = (engineRef.current?.binder?.bindings?.() || [])
+                .filter((b) => b && b.instanceId === (inst && inst.instanceId) && b.series)
+              const shown = mine.find((b) => b.series.options?.()?.visible !== false) || mine[0]
+              mainPane = rectOf(series.getPane?.())
+              pane = rectOf(shown?.series?.getPane?.()) || mainPane
+            } catch { pane = null; mainPane = null }
             return {
               timeToX: (t) => ts.timeToCoordinate(adjustTime(t)),
               priceToY: (p) => series.priceToCoordinate(p),
               width: el ? el.clientWidth : 0,
               height: el ? el.clientHeight : 0,
               rightInset,
+              pane,
+              mainPane,
             }
           },
         }),

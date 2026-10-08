@@ -78,6 +78,9 @@ class TurnIn(BaseModel):
     # The manifest of capabilities AVAILABLE to this member on this surface,
     # from the browser registry; turn.validate_manifest decides what the model sees.
     capabilities: list = Field(default_factory=list)
+    # The manifest wire contract version (app/src/agent/contract/manifest.contract.json).
+    # Absent = a browser from before v1; it still works (the entries simply lack `undo`).
+    manifestVersion: Optional[int] = None
     pending: Optional[dict] = None
     recentOutcome: Optional[str] = None
     voice: bool = False
@@ -113,7 +116,8 @@ def agent_turn(body: TurnIn, user: dict = Depends(require_admin_dark)):
     try:
         out = agent.run_turn(message=body.message, context=body.context, history=history,
                              capabilities=body.capabilities,
-                             pending=body.pending, recent_outcome=body.recentOutcome)
+                             pending=body.pending, recent_outcome=body.recentOutcome,
+                             manifest_version=body.manifestVersion)
     except agent.TurnError as e:
         _give_back(uid)
         store.add_turn(uid, cid, "outcome", f"Refused: {e}", {"kind": "error"})

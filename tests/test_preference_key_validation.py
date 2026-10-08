@@ -242,7 +242,10 @@ def test_every_key_the_client_writes_is_still_accepted(client):
 
     refused = []
     for key in sorted(keys):
-        value = "{}" if key == "joystick_hub" else "x"
+        # A key with a closed value set is driven with one of ITS values (the key is what this
+        # rail checks; the values are railed by test_preference_value_validation.py).
+        closed = auth_router._CLOSED_VALUES.get(key)
+        value = "{}" if key == "joystick_hub" else (sorted(closed)[0] if closed else "x")
         resp = client.post("/api/auth/preferences", json={"key": key, "value": value})
         if resp.status_code != 200:
             refused.append((key, resp.status_code, resp.json().get("detail")))

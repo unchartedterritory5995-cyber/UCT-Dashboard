@@ -196,7 +196,13 @@ describe('UCT Agent panel', () => {
 
   it('a failed model turn changes nothing and the conversation continues', async () => {
     const host = makeHost([{ ref: 'w1' }])
-    globalThis.fetch.mockImplementationOnce(async () => new Response('boom', { status: 500 }))
+    // Fail the MODEL turn itself (other reads, e.g. the alerts refresh, still answer).
+    const real = globalThis.fetch.getMockImplementation()
+    let failed = false
+    globalThis.fetch.mockImplementation(async (url, init) => {
+      if (url === '/api/agent/turn' && !failed) { failed = true; return new Response('boom', { status: 500 }) }
+      return real(url, init)
+    })
     render(<AgentPanel host={host} onClose={() => {}} />)
     type('make the chart look cleaner')
     await screen.findByText(/couldn't complete that request. No changes were made/)

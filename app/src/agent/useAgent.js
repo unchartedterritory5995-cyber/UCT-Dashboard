@@ -17,15 +17,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fastParse, matchPosition } from './fastPath'
-import { planOps, prepareOps, collectTargets } from './executor'
+import { planOps, prepareOps, collectTargets, undoNotesFor } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
 import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
 import { traceStart, mark, traceEnd } from './trace'
-import { buildContext, manifestFor, getCapability, getTargetKind, runWarmups } from './capabilities'
+import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { agentTurn, agentRecord, agentConversation } from './agentClient'
-import { AGENT_CONVERSATION_KEY, readLocal, writeLocal } from './agentFlag'
+import { AGENT_CONVERSATION_KEY, AGENT_INFLIGHT_KEY, readLocal, writeLocal } from './agentFlag'
 
 registerBuiltins()
 
@@ -34,6 +34,30 @@ const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.targ
 const epochOf = (host) => (typeof host?.epoch === 'function' ? host.epoch() : null)
 // A proposal is pinned to the board only if it touches something ON the board.
 const boardEpoch = (host, ops) => (kindsOf(ops).some(k => getTargetKind(k)?.boardScoped !== false) ? epochOf(host) : null)
+
+// ⛔ A RECEIPT CLAIMS ONLY WHAT IS PROVEN. A change to the board is on screen the moment it
+// lands, but it is SAVED only when the server accepts the workspace write (which a newer change
+// in another window can refuse). The board host's `persist()` writes it now and answers with
+// the server's verdict; until it says ok, the receipt says "on screen, not saved" and offers no
+// Undo (an Undo of something that was never saved would be a second unsaved change).
+const INFLIGHT_TTL_MS = 30 * 60 * 1000
+// What a plan DOES, in the member's words ("Create 2 charts: SPY, QQQ") — to recognise the same
+// change coming back after a reload. Not the raw ops: their refs are minted per page load.
+const planSig = (lines) => JSON.stringify(lines || [])
+
+const UNSAVED_NOTE = {
+  conflict: 'Shown on this screen but NOT saved: your workspace was changed in another window or device. Reload to see the current workspace (reloading discards this change).',
+  'not-saved': 'Shown on this screen, but the save was not confirmed — it is not saved yet.',
+}
+async function persistBoard(host, ops) {
+  if (!host?.persist || boardEpoch(host, ops) == null) return { ok: true }
+  try {
+    const r = await host.persist()
+    return r && r.ok ? { ok: true } : { ok: false, reason: (r && r.reason) || 'not-saved' }
+  } catch {
+    return { ok: false, reason: 'not-saved' }
+  }
+}
 
 let _id = 0
 const nid = () => `i${Date.now().toString(36)}${(_id++).toString(36)}`
@@ -64,6 +88,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const [conversationId, setConversationIdState] = useState(() => readLocal(AGENT_CONVERSATION_KEY))
   const conversationRef = useRef(conversationId)
   const pendingRef = useRef(null)           // { kind:'proposal', id, ops } | { kind:'target', ops, path }
+  // INTERRUPTED EXECUTION. A board change is marked in-flight (this browser) before its first
+  // write and cleared at its receipt. A mark that survives a reload means the change was cut off
+  // part-way — some of it may already be on the board, and the Agent cannot know how much. The
+  // member is told; and the SAME plan, if it comes back, is proposed with a warning instead of
+  // run blind (re-running it would e.g. build the charts a second time). Best-effort, per
+  // browser: not an exactly-once guarantee.
+  const interruptedRef = useRef(null)       // { sig, lines, at } from a mark found at load
   const undoRef = useRef([])                // newest last
   const [, force] = useState(0)
   const rerender = () => force(n => n + 1)
@@ -101,6 +132,16 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
 
   // Features warm their data (catalogs) once the Agent is open.
   useEffect(() => { runWarmups(host) }, [host])
+
+  useEffect(() => {
+    let mark = null
+    try { mark = JSON.parse(readLocal(AGENT_INFLIGHT_KEY) || 'null') } catch { mark = null }
+    writeLocal(AGENT_INFLIGHT_KEY, null)
+    if (!mark || !mark.sig || Date.now() - (mark.at || 0) > INFLIGHT_TTL_MS) return
+    interruptedRef.current = mark
+    const what = (mark.lines || []).join(' · ')
+    push({ role: 'refusal', text: `Your last change was interrupted before it finished (the page reloaded or closed)${what ? `: ${what}` : ''}. Part of it may already be on the board — check it before asking again.` })
+  }, [push])
 
   const record = useCallback(async (body) => {
     const res = await agentRecord({ conversationId: conversationRef.current, ...body })
@@ -232,8 +273,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     // Every op came from expansions → the member reads ONE line per request
     // ("Create 4 5-minute charts: SPY, QQQ, …"), not the per-chart steps.
     const wholly = expansion && ops.every(o => o.fromExpand != null)
+    // The very plan an interrupted Apply was running: never run it blind — propose it, warned.
+    const sig = planSig(wholly ? expansion.lines : plan.lines)
+    const repeatOfInterrupted = interruptedRef.current && interruptedRef.current.sig === sig
+    if (repeatOfInterrupted) {
+      interruptedRef.current = null
+      push({ role: 'refusal', text: 'This is the same change that was interrupted a moment ago, and part of it may already be on the board. Check the board first — apply it again only if it is still needed.' })
+    }
     // An expansion is always proposed first (it creates several widgets at once).
-    const mode = suggested === 'approved' ? 'apply' : (expansion ? 'propose' : decideMode(suggested, plan))
+    const mode = repeatOfInterrupted ? 'propose' : (suggested === 'approved' ? 'apply' : (expansion ? 'propose' : decideMode(suggested, plan)))
     // Any write to the board is preceded by the cross-session check (once per Apply).
     if (mode !== 'propose' && !composed && !(await boardStillOurs(ops))) return
     if (mode === 'propose') {
@@ -252,20 +300,37 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: text, outcomeData: { kind: 'noop', actions }, telemetry: { path, disposition: 'apply', actions, voice } })
       return
     }
-    mark('commit:start')
-    const res = await commitPlan(host, plan, { env, ctx: capCtx })
-    mark('commit:end')
-    if (res.ok && wholly) {
-      res.lines = expansion.lines
-      if (res.undo) res.undo.lines = expansion.lines
+    if (boardEpoch(host, ops) != null) {
+      writeLocal(AGENT_INFLIGHT_KEY, JSON.stringify({ sig, lines: (wholly ? expansion.lines : plan.lines).slice(0, 4), at: Date.now() }))
     }
-    if (res.undo) {
+    mark('commit:start')
+    let res, saved
+    try {
+      res = await commitPlan(host, plan, { env, ctx: capCtx })
+      mark('commit:end')
+      if (res.ok && wholly) {
+        res.lines = expansion.lines
+        if (res.undo) res.undo.lines = expansion.lines
+      }
+      // Persistence acknowledgment (board changes): the receipt and its Undo wait for the server.
+      saved = res.ok ? await persistBoard(host, ops) : { ok: true }
+    } finally {
+      // Reached an outcome (even a thrown one): no longer in flight. Only a reload/close skips this.
+      writeLocal(AGENT_INFLIGHT_KEY, null)
+    }
+    mark('persist', saved.ok ? 'ok' : saved.reason)
+    if (res.undo && saved.ok) {
       undoRef.current = [...undoRef.current, res.undo].slice(-UNDO_MAX)
     }
     if (res.ok) {
       // A composed request says first what its producers actually returned.
       const lines = composed ? [...composed.lines, ...res.lines] : res.lines
-      push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: wholly ? [] : plan.noops })
+      if (!saved.ok) {
+        push({ role: 'receipt', lines, undoId: null, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']], unsaved: true })
+        record({ member, outcome: `${lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'applied-unsaved', actions, lines, reason: saved.reason }, telemetry: { path, disposition: 'apply', actions, voice, refused: true } })
+        return
+      }
+      push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: [...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
     } else {
       const text = `Some of that didn't take effect: ${res.failed.map(f => `${f.label} ${f.reason}`).join('; ')}.`
@@ -305,6 +370,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (res.ok) {
       undoRef.current = stack.filter(e => e.id !== entry.id)
       setItems(xs => xs.map(x => (x.undoId === entry.id ? { ...x, undone: true } : x)))
+      const saved = entry.epoch != null && host?.persist
+        ? await (async () => { try { const r = await host.persist(); return r && r.ok ? { ok: true } : { ok: false, reason: (r && r.reason) || 'not-saved' } } catch { return { ok: false, reason: 'not-saved' } } })()
+        : { ok: true }
+      if (!saved.ok) {
+        push({ role: 'receipt', lines: res.lines, undoId: null, isUndo: true, unsaved: true, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']] })
+        record({ member, outcome: `${res.lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'undo-unsaved' }, telemetry: { path: 'fast', undo: true, voice, refused: true } })
+        rerender()
+        return
+      }
       push({ role: 'receipt', lines: res.lines, undoId: null, isUndo: true })
       record({ member, outcome: res.lines.join(' · '), outcomeData: { kind: 'undo' }, telemetry: { path: 'fast', undo: true, voice } })
     } else {
@@ -429,8 +503,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
 
       // ── model path ──
       // Context from every registered provider; actions from every AVAILABLE
-      // capability's manifest. Nothing here names a feature.
-      const { context, refMap } = buildContext(host, capCtx)
+      // capability's manifest. Nothing here names a feature. Data that can change outside
+      // this panel is re-read first (bounded), so the model never targets a stale list.
+      await refreshContext()
+      const { context, refMap } = buildContext(host, { ...capCtx, message: text })
       const back = Object.fromEntries(Object.entries(refMap).map(([k, v]) => [v.ref, k]))
       const p = pendingRef.current
       const pending = p?.kind === 'proposal'
@@ -439,7 +515,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         : null
       const res = await agentTurn({
         conversationId: conversationRef.current, message: text, voice, pending,
-        context, capabilities: manifestFor(capCtx),
+        context, capabilities: manifestFor(capCtx), manifestVersion: MANIFEST_VERSION,
       })
       if (!res.ok) { push({ role: 'error', text: res.error }); return }
       if (res.data.conversationId !== conversationRef.current) setConversationId(res.data.conversationId)

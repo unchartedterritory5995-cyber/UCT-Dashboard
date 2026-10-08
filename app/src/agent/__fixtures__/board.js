@@ -100,7 +100,34 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
         lib.unsaved = false
         return { id, name, scope: 'user' }
       },
-      refresh: async () => {},
+      // A refresh may reveal what only the SERVER knew (another tab's change): `onRefresh`.
+      refresh: async () => { if (lib.onRefresh) { lib.onRefresh(); lib.onRefresh = null } },
+      // A new EMPTY layout, create-only (POST create_only). The board is untouched.
+      async create(name) {
+        lib.calls.push(['create', name])
+        if (lib.failCreate) throw new Error('Save failed')
+        if (lib.entries.some(e => e.scope === 'user' && e.name === name)) throw new Error('You already have a layout with that name')
+        const nid = 3000 + lib.entries.length
+        lib.entries = [...lib.entries, { id: nid, name, scope: 'user' }]
+        lib.boards[nid] = []
+        return { id: nid, name, scope: 'user' }
+      },
+      // The dock's delete (DELETE by id, owner-only server-side) and a create-only duplicate.
+      async remove(id) {
+        lib.calls.push(['remove', id])
+        const e = lib.entries.find(x => x.id === id)
+        if (lib.failRemove || !e || e.scope !== 'user') throw new Error('Delete failed')
+        lib.entries = lib.entries.filter(x => x.id !== id)
+        delete lib.boards[id]
+      },
+      async duplicate(id, name) {
+        lib.calls.push(['duplicate', id, name])
+        if (lib.entries.some(e => e.scope === 'user' && e.name === name)) throw new Error('You already have a layout with that name')
+        const nid = 2000 + lib.entries.length
+        lib.entries = [...lib.entries, { id: nid, name, scope: 'user' }]
+        lib.boards[nid] = (lib.boards[id] || []).map(w => ({ ...w }))
+        return { id: nid, name, scope: 'user' }
+      },
     }
     const source = buildLayoutSource(() => {
       const a = activeEntry()

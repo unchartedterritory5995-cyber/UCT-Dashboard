@@ -1,0 +1,1672 @@
+{
+ "manifestVersion": 1,
+ "capabilities": [
+  {
+   "name": "chart.setType",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Change how price is drawn on one chart.",
+   "hints": null,
+   "args": {
+    "type": "object",
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "candles",
+       "hollow",
+       "bars",
+       "hlc",
+       "line",
+       "area"
+      ]
+     }
+    },
+    "required": [
+     "type"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.setTimeframe",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Change one chart's timeframe.",
+   "hints": "Codes: 1, 5, 15, 30, 60 are minutes; D daily, W weekly, M monthly.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "timeframe": {
+      "type": "string",
+      "enum": [
+       "1",
+       "5",
+       "15",
+       "30",
+       "60",
+       "D",
+       "W",
+       "M"
+      ]
+     }
+    },
+    "required": [
+     "timeframe"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.setSymbol",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Show a different ticker on one chart. Widgets linked to the same color group follow, exactly as a manual symbol search does.",
+   "hints": null,
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "symbol"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.setSession",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Show or hide pre/post-market (extended hours) on one chart.",
+   "hints": null,
+   "args": {
+    "type": "object",
+    "properties": {
+     "mode": {
+      "type": "string",
+      "enum": [
+       "regular",
+       "extended"
+      ]
+     }
+    },
+    "required": [
+     "mode"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.setScale",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Set one chart's price scale: linear (arithmetic), logarithmic, or percent.",
+   "hints": null,
+   "args": {
+    "type": "object",
+    "properties": {
+     "scale": {
+      "type": "string",
+      "enum": [
+       "linear",
+       "log",
+       "percent"
+      ]
+     }
+    },
+    "required": [
+     "scale"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.applyTheme",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Apply one of UCT's built-in chart color themes (canvas, candles, grid, text) to one chart.",
+   "hints": null,
+   "args": {
+    "type": "object",
+    "properties": {
+     "theme": {
+      "type": "string",
+      "enum": [
+       "graphite",
+       "midnight",
+       "deep-forest",
+       "warm-charcoal",
+       "slate",
+       "obsidian",
+       "carbon",
+       "midnight-navy",
+       "espresso",
+       "plum",
+       "nord",
+       "gunmetal",
+       "bordeaux",
+       "storm",
+       "umber",
+       "paper",
+       "cream",
+       "cool-gray",
+       "soft-blue",
+       "warm-sand",
+       "mint-light",
+       "sand",
+       "mint",
+       "ember",
+       "emerald",
+       "teal-night",
+       "forest-fire",
+       "aurora",
+       "ocean",
+       "twilight",
+       "dawn",
+       "neon",
+       "synthwave",
+       "electric",
+       "citrus-pop",
+       "magenta-dusk",
+       "aqua-neon",
+       "dust",
+       "sage",
+       "fog",
+       "clay",
+       "heather",
+       "stonewash",
+       "grayscale",
+       "paper-mono",
+       "blue-mono",
+       "green-mono",
+       "amber-mono",
+       "slate-mono",
+       "bold",
+       "ink-on-white",
+       "blue-orange",
+       "teal-magenta",
+       "hi-vis",
+       "sunlight"
+      ]
+     }
+    },
+    "required": [
+     "theme"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.setBackground",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Set one chart's background to a single solid color.",
+   "hints": "Pass a hex color like #f3efe4; translate plain color names to hex.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "color": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "color"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.setCandleColors",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Set one chart's up and/or down candle colors.",
+   "hints": "Hex colors; pass null for a side that should not change.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "up": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "down": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "up",
+     "down"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "volume.setState",
+   "domain": "volume",
+   "target": "chart",
+   "summary": "Show, hide, or remove one chart's built-in Volume pane.",
+   "hints": "\"hide volume\" is hidden (stays in the legend); \"remove volume\" is removed (off the chart).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "state": {
+      "type": "string",
+      "enum": [
+       "visible",
+       "hidden",
+       "removed"
+      ]
+     }
+    },
+    "required": [
+     "state"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.setSetting",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, legend, watermark, labels, markers, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale).",
+   "hints": "value = true/false for on/off settings (crosshair.mode and header.legendMode also take true/false). Allowed values — crosshair.mode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; header.legendMode: always|hold|off; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high. Only these settings: for any other chart setting (colors, watermark opacity, volume style…) do NOT plan an op — say it is not Agent-enabled yet and where it lives in Chart Settings.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "setting": {
+      "type": "string",
+      "enum": [
+       "grid.visible",
+       "crosshair.mode",
+       "textSize",
+       "showPriceLabels",
+       "showMaLabels",
+       "invertScale",
+       "watermark.visible",
+       "header.titleMode",
+       "header.showChange",
+       "header.legendMode",
+       "candleColorMode",
+       "candles.thinBars",
+       "countdown",
+       "swingLabels.enabled",
+       "swingLabels.sensitivity",
+       "markers.earnings",
+       "markers.splits",
+       "markers.dividends",
+       "markers.news",
+       "markers.desk",
+       "prevDayLevels.high.enabled",
+       "prevDayLevels.low.enabled",
+       "prevDayLevels.close.enabled"
+      ]
+     },
+     "value": {
+      "type": [
+       "string",
+       "number",
+       "boolean"
+      ]
+     }
+    },
+    "required": [
+     "setting",
+     "value"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "widget.add",
+   "domain": "widget",
+   "target": "workspace",
+   "summary": "Add ONE widget of a given type to the Charts workspace, placed automatically in empty space. Use one op per widget.",
+   "hints": "target = the ref of the workspace entry. \"as\" NAMES THE NEW WIDGET: if any later op in this plan changes the new widget (a new chart's symbol, timeframe, …), set \"as\" to a short unique name (new1, new2, …) and use exactly that name as those ops' target — a later op may not target a new widget whose \"as\" is null. Otherwise \"as\" is null. Example: \"add 2 charts on SPY and QQQ\" → widget.add{type:chart, as:\"new1\"}, widget.add{type:chart, as:\"new2\"}, chart.setSymbol@new1{SPY}, chart.setSymbol@new2{QQQ}. Types: chart (Chart), watchlist (Watchlist), themes (Theme Tracker), scanner (Scanner), fundamentals (Fundamentals), breadth (Breadth), aisearch (AI Search), news (News & Catalysts), notebook (Notebook), profile (Stock Profile), alerts (Alerts), calendar (UCT Terminal), optionsflow (Options Flow), nhnl (New Highs / Lows), nhnlPulse (H/L Pulse), volumescan (Volume Surge), scatter (Market Map).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "type": {
+      "type": "string",
+      "enum": [
+       "chart",
+       "watchlist",
+       "themes",
+       "scanner",
+       "fundamentals",
+       "breadth",
+       "aisearch",
+       "news",
+       "notebook",
+       "profile",
+       "alerts",
+       "calendar",
+       "optionsflow",
+       "nhnl",
+       "nhnlPulse",
+       "volumescan",
+       "scatter"
+      ]
+     },
+     "as": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "type",
+     "as"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "widget.addCharts",
+   "domain": "widget",
+   "target": "workspace",
+   "summary": "Add one NEW chart per symbol of an ordered list (tickers, a screen's results, or a saved watchlist), placed together in empty space. Existing widgets are never changed.",
+   "hints": "target = the ref of the workspace entry. symbols = the tickers, uppercase, OR {from, top} to chart a source's stocks in its order: from = the ref of a saved watchlist (its stocks, read fresh in its saved order when they apply), the \"as\" of a screener.run / screener.runSaved op in this request, or \"lastScreen\" for the last screen run here; top = how many charts (required, at most 12). timeframe: 1|5|15|30|60 minutes, D, W, M, or null to keep the default. chart_type: candles|hollow|bars|hlc|line|area or null. exact: true only if they insist on exactly that many (else fewer results just make fewer charts). Use this — not widget.add + chart.setSymbol — whenever the charts' symbols come from a screen or watchlist. Never type tickers you have not been given.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbols": {
+      "anyOf": [
+       {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       {
+        "type": "object",
+        "properties": {
+         "from": {
+          "type": "string"
+         },
+         "top": {
+          "type": [
+           "integer",
+           "null"
+          ]
+         }
+        },
+        "required": [
+         "from",
+         "top"
+        ],
+        "additionalProperties": false
+       }
+      ]
+     },
+     "timeframe": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "1",
+       "5",
+       "15",
+       "30",
+       "60",
+       "D",
+       "W",
+       "M",
+       null
+      ]
+     },
+     "chart_type": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "candles",
+       "hollow",
+       "bars",
+       "hlc",
+       "line",
+       "area",
+       null
+      ]
+     },
+     "exact": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "symbols",
+     "timeframe",
+     "chart_type",
+     "exact"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "layout.current",
+   "domain": "layout",
+   "target": "layouts",
+   "summary": "Tell the member which named layout is open. UCT answers from the real state — use this (disposition apply) for \"which layout am I on?\" instead of answering yourself.",
+   "hints": "target = the ref of the layouts entry.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "layout.list",
+   "domain": "layout",
+   "target": "layouts",
+   "summary": "List the member's named layouts. UCT answers from the real list — use this (disposition apply) whenever they ask what layouts they have, instead of listing them yourself.",
+   "hints": "target = the ref of the layouts entry.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "layout.open",
+   "domain": "layout",
+   "target": "layouts",
+   "summary": "Open (switch to) one of the member's named layouts on the Charts workspace — exactly like clicking it in the Layout Dock.",
+   "hints": "target = the ref of the layouts entry; layout = the id of one entry in its `layouts` list (never invent one). If more than one layout could be what the member means, or none matches, clarify with the real names instead of guessing. Only the open layout's widgets are in workspace_context; after a switch, ask again for changes on the new board.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "layout": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "layout"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "layout.saveAs",
+   "domain": "layout",
+   "target": "layouts",
+   "summary": "Save the current Charts workspace as a NEW named layout (it becomes the open layout). Never replaces an existing layout.",
+   "hints": "target = the ref of the layouts entry; name = the exact name the member gave. If that name is already in the layouts list, do not use this — tell the member instead.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false
+  },
+  {
+   "name": "layout.rename",
+   "domain": "layout",
+   "target": "layouts",
+   "summary": "Rename one of the member's OWN layouts (not prebuilt or built-in ones).",
+   "hints": "target = the ref of the layouts entry; layout = the id of the layout to rename (the open one if they say \"this layout\"); name = the new name exactly as given.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "layout": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "layout",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "layout.create",
+   "domain": "layout",
+   "target": "layouts",
+   "summary": "Create a NEW, EMPTY named layout (no widgets) for the member. The current board is not touched and the new layout is NOT opened.",
+   "hints": "target = the ref of the layouts entry; name = the exact name the member gave. To save the board AS IT IS NOW, use layout.saveAs instead. If they also want to switch to it, create it now and say in the reply that they can then say \"open <name>\" (switching is a separate step).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "layout.delete",
+   "domain": "layout",
+   "target": "layouts",
+   "summary": "Delete one of the member's OWN saved layouts (permanent). Not the layout that is open now, not prebuilt or built-in layouts.",
+   "hints": "target = the ref of the layouts entry; layout = the id of that layout in the layouts list. If more than one layout could be meant, or none matches exactly, clarify with the real names — never pick one by similarity. Deleting is always shown as a proposal first, so do not ask \"are you sure?\".",
+   "args": {
+    "type": "object",
+    "properties": {
+     "layout": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "layout"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false
+  },
+  {
+   "name": "layout.duplicate",
+   "domain": "layout",
+   "target": "layouts",
+   "summary": "Make a copy of a saved layout (its stored version) under a new name, as one of the member's own layouts. Does not open it.",
+   "hints": "target = the ref of the layouts entry; layout = the id of the layout to copy (the open one for \"this layout\"); name = the new name as given, or null when they give none (UCT names it \"<name> copy\" and the proposal shows it — do not ask for a name). To save the board AS IT IS NOW under a new name, use layout.saveAs instead.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "layout": {
+      "type": "string"
+     },
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "layout",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false
+  },
+  {
+   "name": "watchlist.list",
+   "domain": "watchlist",
+   "target": "watchlistLibrary",
+   "summary": "List the member's saved watchlists (names and sizes). UCT answers from the real lists — use this (disposition apply) whenever they ask what watchlists they have.",
+   "hints": "target = the ref of the watchlistLibrary entry.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "watchlist.show",
+   "domain": "watchlist",
+   "target": "watchlist",
+   "summary": "Say which symbols are in one of the member's watchlists. UCT answers from the real list — use this (disposition apply) for \"what's in <list>?\".",
+   "hints": "target = the ref of that watchlist. as: name this list's STOCKS (e.g. \"list1\") when a later op in the same request uses them (e.g. widget.addCharts symbols {from:\"list1\", top:N}); else null.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "as": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "as"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "watchlist.add",
+   "domain": "watchlist",
+   "target": "watchlist",
+   "summary": "Add tickers to one of the member's saved watchlists (the list itself, not a widget). Symbols already in the list are skipped.",
+   "hints": "target = the ref of the watchlist (or the \"as\" name of a list created earlier in this request); symbols = the tickers, uppercase, OR {from, top} to add a SCREEN's stocks: from = the \"as\" of a screener op earlier in this request (or \"lastScreen\" for the last screen run here), top = how many of its results, in its order (null = all, at most 50). Never type tickers you have not been given. If they say \"my watchlist\" and it is not clear which list, clarify with the real list names. One op per list.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbols": {
+      "anyOf": [
+       {
+        "type": "array",
+        "items": {
+         "type": "string"
+        }
+       },
+       {
+        "type": "object",
+        "properties": {
+         "from": {
+          "type": "string"
+         },
+         "top": {
+          "type": [
+           "integer",
+           "null"
+          ]
+         }
+        },
+        "required": [
+         "from",
+         "top"
+        ],
+        "additionalProperties": false
+       }
+      ]
+     }
+    },
+    "required": [
+     "symbols"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "watchlist.remove",
+   "domain": "watchlist",
+   "target": "watchlist",
+   "summary": "Remove specific tickers from one of the member's saved watchlists. Never clears a whole list.",
+   "hints": "target = the ref of the watchlist; symbols = exactly the tickers to remove.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbols": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "symbols"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "watchlist.clear",
+   "domain": "watchlist",
+   "target": "watchlist",
+   "summary": "Remove EVERY symbol from one of the member's saved watchlists (the list itself stays). Always shown as a proposal with the count first.",
+   "hints": "target = the ref of the watchlist. For only some symbols use watchlist.remove. If it is not clear which list, clarify with the real names.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "watchlist.delete",
+   "domain": "watchlist",
+   "target": "watchlist",
+   "summary": "Delete one of the member's saved watchlists entirely (permanent). Not a list a Watchlist widget on this board is showing.",
+   "hints": "target = the ref of the watchlist. If more than one list could be meant, clarify with the real names — never pick one by similarity. Deleting is always shown as a proposal first, so do not ask \"are you sure?\". To empty a list but keep it, use watchlist.clear.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false
+  },
+  {
+   "name": "watchlist.create",
+   "domain": "watchlist",
+   "target": "watchlistLibrary",
+   "summary": "Create a NEW saved watchlist (a named list of tickers) — only when they ask to create or make a list. \"Add a watchlist\" with no list name means a Watchlist WIDGET on the board: that is widget.add, not this.",
+   "hints": "target = the ref of the watchlistLibrary entry; name = exactly as given. To COPY a list (\"duplicate my X watchlist\"), create \"<X> copy\" (or the name they give — do not ask for one) and add {from: the ref of X, top: null} to it. To fill it in the same request set \"as\" to a short name (new1) and target watchlist.add at that name; otherwise \"as\" is null. Never use this for a name already in the watchlists list — if they ask to put stocks in a list \"called X\" and X already exists, clarify (add to the existing X, or a new name); never silently append.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     },
+     "as": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "name",
+     "as"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false
+  },
+  {
+   "name": "watchlist.rename",
+   "domain": "watchlist",
+   "target": "watchlist",
+   "summary": "Rename one of the member's saved watchlists.",
+   "hints": "target = the ref of the watchlist; name = the new name exactly as given.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "screener.run",
+   "domain": "screener",
+   "target": "screener",
+   "summary": "Run a stock screen on UCT's Screener and show the real matches (count + top rows). Changes nothing in UCT. Use this for \"show me / find stocks with …\".",
+   "hints": "target = the ref of the screener entry. filters: each {field: a key from the screener `fields` list (never invent one), op: gt|gte|lt|lte|eq|between, value: number, max: number for between else null}. Percent fields take plain numbers (5 means 5%). Yes/no fields: op eq, value 1 or 0. \"above\"=gt, \"at least\"=gte. sort_field: a field key or null; sort_dir: asc|desc|null. mode: \"refine\" when they add to / narrow / change the LAST screen (\"also\", \"and price above…\"), else \"new\". show: rows to show (null = 10, max 25). If they ask for a measure that is not in `fields`, say the Screener doesn't have it — never substitute another field. as: name this screen's RESULT (e.g. \"screen1\") when a later op in the same request uses its stocks (watchlist.add symbols {from:\"screen1\", top:N}); else null.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "filters": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "field": {
+         "type": "string"
+        },
+        "op": {
+         "type": "string",
+         "enum": [
+          "gt",
+          "gte",
+          "lt",
+          "lte",
+          "eq",
+          "between"
+         ]
+        },
+        "value": {
+         "type": "number"
+        },
+        "max": {
+         "type": [
+          "number",
+          "null"
+         ]
+        }
+       },
+       "required": [
+        "field",
+        "op",
+        "value",
+        "max"
+       ],
+       "additionalProperties": false
+      }
+     },
+     "sort_field": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "sort_dir": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "asc",
+       "desc",
+       null
+      ]
+     },
+     "mode": {
+      "type": "string",
+      "enum": [
+       "new",
+       "refine"
+      ]
+     },
+     "show": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "as": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "filters",
+     "sort_field",
+     "sort_dir",
+     "mode",
+     "show",
+     "as"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "screener.runSaved",
+   "domain": "screener",
+   "target": "screener",
+   "summary": "Run one of the member's saved screens (or a UCT starter screen) and show the real matches.",
+   "hints": "target = the ref of the screener entry; screen = the id of an entry in savedScreens (never invent one; clarify with the real names if unsure). show: rows (null = 10). as: name its RESULT when a later op in the same request uses its stocks; else null.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "screen": {
+      "type": "string"
+     },
+     "show": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     },
+     "as": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "screen",
+     "show",
+     "as"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "screener.state",
+   "domain": "screener",
+   "target": "screener",
+   "summary": "Say what the last screen run here was: its filters, sort and number of matches.",
+   "hints": "target = the ref of the screener entry.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "screener.listSaved",
+   "domain": "screener",
+   "target": "screener",
+   "summary": "List the member's saved screens and UCT's starter screens.",
+   "hints": "target = the ref of the screener entry.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "alert.list",
+   "domain": "alert",
+   "target": "alertLibrary",
+   "summary": "Show the member's price alerts from UCT's real alert list: which are active, which went off (and when). Use this (disposition apply) for \"show my alerts\", \"do I have an alert on NVDA?\", \"which alerts went off today?\".",
+   "hints": "target = the ref of the alertLibrary entry. symbol: one ticker to filter by, or null. status: active | triggered | all, or null (= all). triggered_today: true only for \"today\"; else null. These are PRICE alerts only — indicator alerts (RSI, MACD…) are not listed here.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "status": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "active",
+       "triggered",
+       "all",
+       null
+      ]
+     },
+     "triggered_today": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "symbol",
+     "status",
+     "triggered_today"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "alert.create",
+   "domain": "alert",
+   "target": "alertLibrary",
+   "summary": "Create ONE price alert in UCT's Alerts: it goes off ONCE when the stock is at or above (direction above) or at or below (direction below) a price level, checked while the market is open. Only price levels — no percent-move, indicator, volume or time alerts; alerts cannot be paused, edited or made repeating.",
+   "hints": "target = the ref of the alertLibrary entry; symbol = the ticker, uppercase; price = the level as a number; direction = above (\"crosses above\", \"breaks above\", \"rises to\", \"gets to … from below\") or below (\"drops below\", \"falls to\", \"breaks down under\"). If they give a level WITHOUT saying above or below (e.g. \"an alert on NVDA at 200\", \"when it hits 200\"), clarify with choices above / below — never guess. One op per alert, at most 5 in one request. An earlier alert at that level that already went off does NOT stop a new one — create it. Creating is always shown to the member as a proposal first, so plan it (disposition propose) — even inside a question (\"why is TSLA moving? and set an alert above 300\": propose the alert AND ask research for the question). For an alert on an indicator (RSI, MACD, a moving average…) or a percent move, use disposition unsupported: those are not price-level alerts.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": "string"
+     },
+     "price": {
+      "type": "number"
+     },
+     "direction": {
+      "type": "string",
+      "enum": [
+       "above",
+       "below"
+      ]
+     }
+    },
+    "required": [
+     "symbol",
+     "price",
+     "direction"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "alert.delete",
+   "domain": "alert",
+   "target": "alert",
+   "summary": "Delete one of the member's price alerts (permanent — UCT cannot restore a deleted alert).",
+   "hints": "target = the ref of that alert in the alerts list. One op per alert. Deleting is always shown to the member as a proposal first, so when the alert is clear (including \"it\" / \"that one\" right after an alert was named) plan the op — never ask \"are you sure?\". \"All my inactive alerts\" = one op per alert whose status is not active. If more than one alert could be the one they mean (e.g. two alerts on AMD), clarify with the real alerts as choices — never pick one. If the alerts list is not shown, use alert.list first.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false
+  },
+  {
+   "name": "stock.profile",
+   "domain": "stock",
+   "target": "market",
+   "summary": "Answer a question about ONE stock's profile, price or fundamentals from UCT's own data: company name, sector/industry, price and today's change, market cap, P/E, 52-week range, revenue, margins, beta, next earnings date. Use this (disposition apply, research null) for \"what's NVDA's market cap?\", \"what sector is AMD in?\", \"what's TSLA's P/E?\" instead of answering from memory.",
+   "hints": "target = the ref of the stockData entry; symbol = the ticker, uppercase. Not for news or \"why is it moving\" (that needs research).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "symbol"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "stock.earnings",
+   "domain": "stock",
+   "target": "market",
+   "summary": "Answer earnings questions about ONE stock from UCT's earnings data: the latest REPORTED quarter's revenue and EPS versus consensus estimates, year-over-year change, and the next report date with its estimates. Use this (disposition apply, research null) for \"what was AMD's latest quarterly revenue?\", \"when does TSLA report earnings?\", \"did NVDA beat last quarter?\".",
+   "hints": "target = the ref of the stockData entry; symbol = the ticker, uppercase.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "symbol"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "stock.compare",
+   "domain": "stock",
+   "target": "market",
+   "summary": "Compare the fundamentals of TWO stocks side by side from UCT's Research data (market cap, P/E, revenue, growth, margins, beta, next earnings, UCT composite rating). Use this (disposition apply, research null) for \"compare NVDA and AMD\".",
+   "hints": "target = the ref of the stockData entry; symbols = exactly two tickers, uppercase. For three or more, clarify which two.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbols": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "symbols"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "settings.show",
+   "domain": "settings",
+   "target": "settings",
+   "summary": "Say what the member's app settings are now (app theme, default chart timeframe, alert sound). Use this (disposition apply) for \"show my settings\".",
+   "hints": "target = the ref of the settings entry.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "settings.setAppTheme",
+   "domain": "settings",
+   "target": "settings",
+   "summary": "Change the WHOLE APP's colour theme (sidebar, panels, pages) — e.g. \"switch to dark mode / light mode\". Not a chart's colours: for one chart use chart.applyTheme.",
+   "hints": "target = the ref of the settings entry. theme: dark = Graphite (the default dark), oled = OLED Black, light = Light; or one of UCT's themes: slate (Slate, dark), graphite (Graphite, dark), carbon (Carbon, dark), navy (Midnight Navy, dark), forest (Deep Forest, dark), espresso (Espresso, dark), plum (Plum, dark), nord (Nord, dark), gunmetal (Gunmetal, dark), bordeaux (Bordeaux, dark), storm (Storm, dark), umber (Umber, dark), paper (Paper, light), cream (Cream, light), coolgray (Cool Gray, light), softblue (Soft Blue, light), sand (Sand, light), mint (Mint, light). \"Dark mode\" = dark; \"light mode\" = light.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "theme": {
+      "type": "string",
+      "enum": [
+       "dark",
+       "oled",
+       "light",
+       "slate",
+       "graphite",
+       "carbon",
+       "navy",
+       "forest",
+       "espresso",
+       "plum",
+       "nord",
+       "gunmetal",
+       "bordeaux",
+       "storm",
+       "umber",
+       "paper",
+       "cream",
+       "coolgray",
+       "softblue",
+       "sand",
+       "mint"
+      ]
+     }
+    },
+    "required": [
+     "theme"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "settings.setDefaultTimeframe",
+   "domain": "settings",
+   "target": "settings",
+   "summary": "Change the timeframe NEW charts open on by default (Settings → Charts). Charts already on the board keep theirs — for one of those use chart.setTimeframe.",
+   "hints": "target = the ref of the settings entry. timeframe: 5 | 30 | 60 (minutes), D (daily), W (weekly) — the only choices Settings offers.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "timeframe": {
+      "type": "string",
+      "enum": [
+       "5",
+       "30",
+       "60",
+       "D",
+       "W"
+      ]
+     }
+    },
+    "required": [
+     "timeframe"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "settings.setAlertSound",
+   "domain": "settings",
+   "target": "settings",
+   "summary": "Turn the in-app alert sound on or off, and/or pick which sound plays (Settings → Preferences → Alerts). Does not change whether alerts are delivered.",
+   "hints": "target = the ref of the settings entry. enabled: true | false | null (keep); sound: chime (Chime), bell (Bell), ding (Ding), double_tap (Double Tap), triple_pop (Triple Pop), radar (Radar), urgent (Urgent), soft (Soft), pulse (Pulse), major (Major Chord), or null (keep).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "enabled": {
+      "type": [
+       "boolean",
+       "null"
+      ]
+     },
+     "sound": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "chime",
+       "bell",
+       "ding",
+       "double_tap",
+       "triple_pop",
+       "radar",
+       "urgent",
+       "soft",
+       "pulse",
+       "major",
+       null
+      ]
+     }
+    },
+    "required": [
+     "enabled",
+     "sound"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "app.open",
+   "domain": "app",
+   "target": "app",
+   "summary": "Open another UCT page for the member, exactly like clicking it in the sidebar: the Screener, Dashboard, Breadth, Settings, a stock's Research page, etc. This closes this panel (the conversation is kept).",
+   "hints": "target = the ref of the app entry. page: one of terminal (UCT Terminal), charts (Charts), morning-wire (Morning Wire), dashboard (Dashboard), ai-search (AI Search), uct-20 (UCT 20), breadth (Breadth), screener (Screener), options-flow (Options Flow), flow-scoreboard (Flow Record), live-massive (Live Flow), catalysts-history (Catalysts History), model-book (Model Book), formulas-reference (Formula Reference), desk (The Desk), journal (Journal), portfolio-heat (Portfolio Risk), community (Community), support (Support), settings (Settings), research (Research). section: only for page settings — account | billing | preferences | charts | compass | connections | legal — else null. symbol: only for page research (the ticker) — else null. Use this only when they ask to GO somewhere (\"open / take me to / go to\"); a question about data is answered here instead. Watchlists and Theme Tracker live on Charts (this page).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "page": {
+      "type": "string",
+      "enum": [
+       "terminal",
+       "charts",
+       "morning-wire",
+       "dashboard",
+       "ai-search",
+       "uct-20",
+       "breadth",
+       "screener",
+       "options-flow",
+       "flow-scoreboard",
+       "live-massive",
+       "catalysts-history",
+       "model-book",
+       "formulas-reference",
+       "desk",
+       "journal",
+       "portfolio-heat",
+       "community",
+       "support",
+       "settings",
+       "research"
+      ]
+     },
+     "section": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "account",
+       "billing",
+       "preferences",
+       "charts",
+       "compass",
+       "connections",
+       "legal",
+       null
+      ]
+     },
+     "symbol": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "page",
+     "section",
+     "symbol"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false
+  },
+  {
+   "name": "news.latest",
+   "domain": "news",
+   "target": "market",
+   "summary": "Show the latest news headlines UCT has stored for ONE stock (the Company Panel's News tab), each with time, source and tone. Use this (disposition apply, research null) for \"show me the latest NVDA news\", \"what news is UCT showing for PLTR\".",
+   "hints": "target = the ref of the stockData entry; symbol = the ticker, uppercase; limit = how many headlines (null = 8, at most 15). For WHY a stock is moving right now, or a summary of today's news across the web, use research instead. To compare two stocks' news, one op per stock.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": "string"
+     },
+     "limit": {
+      "type": [
+       "integer",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "symbol",
+     "limit"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "news.catalysts",
+   "domain": "news",
+   "target": "market",
+   "summary": "Show the catalysts UCT's catalyst engine has recorded for ONE stock (the Catalysts History page): the days it was flagged, catalyst type, grade, gap and the thesis written at the time. Use this (disposition apply, research null) for \"what are the recent catalysts for AMD?\". UCT has no calendar of future events besides earnings (use stock.earnings for the next report).",
+   "hints": "target = the ref of the stockData entry; symbol = the ticker, uppercase.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "symbol": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "symbol"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "settings.setWatchlistDigest",
+   "domain": "settings",
+   "target": "digest",
+   "summary": "Turn the member's watchlist EMAIL digest (a performance summary of their watchlists, emailed to their account email) on — daily or weekly — or off. Same as Settings → Email Digest.",
+   "hints": "target = the ref of the watchlistDigest entry; frequency = daily (every day 5 PM ET) | weekly (Fridays 5 PM ET) | off. Turning it on starts recurring emails: plan it (propose) and say so in the reply. To just see the current setting, answer from the watchlistDigest entry.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "frequency": {
+      "type": "string",
+      "enum": [
+       "off",
+       "daily",
+       "weekly"
+      ]
+     }
+    },
+    "required": [
+     "frequency"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false
+  },
+  {
+   "name": "screener.saveAs",
+   "domain": "screener",
+   "target": "savedScreens",
+   "summary": "Save the LAST screen run here (its exact filters, sort, ranking and logic) as a new saved screen in the member's Screener. Never replaces an existing one.",
+   "hints": "target = the ref of the savedScreenLibrary entry; name = the name as given. Only when a screen was already run here (lastScreenHere is not null). If they ask to run a NEW screen and save it in one go, run it now (screener.run) and say in the reply that they can then say \"save it as <name>\".",
+   "args": {
+    "type": "object",
+    "properties": {
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "screener.duplicateSaved",
+   "domain": "screener",
+   "target": "savedScreens",
+   "summary": "Copy a saved screen (one of the member's or a UCT starter) to a new saved screen with exactly the same definition (filters, sort, ranking, logic, view, columns).",
+   "hints": "target = the ref of the savedScreenLibrary entry; screen = the id of the screen to copy (from yours, or a starter id from the screener entry's savedScreens); name = the new name as given, or null for \"<name> copy\" (do not ask for a name).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "screen": {
+      "type": "string"
+     },
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "screen",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "screener.renameSaved",
+   "domain": "screener",
+   "target": "savedScreens",
+   "summary": "Rename one of the member's own saved screens.",
+   "hints": "target = the ref of the savedScreenLibrary entry; screen = the id of one of YOUR screens; name = the new name as given.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "screen": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "screen",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "screener.deleteSaved",
+   "domain": "screener",
+   "target": "savedScreens",
+   "summary": "Delete one of the member's own saved screens (permanent). UCT's starter screens cannot be deleted.",
+   "hints": "target = the ref of the savedScreenLibrary entry; screen = the id of one of YOUR screens. If more than one could be meant, clarify with the real names — never pick one by similarity. Deleting is always shown as a proposal first, so do not ask \"are you sure?\".",
+   "args": {
+    "type": "object",
+    "properties": {
+     "screen": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "screen"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false
+  },
+  {
+   "name": "agent.capabilities",
+   "domain": "agent",
+   "target": "about",
+   "summary": "Answer what UCT Agent can and cannot do (now, partly, not yet, planned) about a topic — from UCT's own capability list, never from memory.",
+   "hints": "target = the ref of the agent entry. Use ONLY for a question ABOUT abilities (\"can you draw trendlines?\", \"what can you do with layouts?\", \"can you backtest?\"). A polite request to DO something you can do (\"can you switch this to weekly?\") is a command: plan it, do not use this. topic: overview for \"what can you do?\"; other when no topic fits.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "topic": {
+      "type": "string",
+      "enum": [
+       "backtest",
+       "vision",
+       "history",
+       "arrange",
+       "widgets",
+       "layouts",
+       "customIndicator",
+       "indicators",
+       "drawings",
+       "chartSettings",
+       "charts",
+       "savedScreens",
+       "screener",
+       "watchlists",
+       "alerts",
+       "stockInfo",
+       "appSettings",
+       "similarity",
+       "overview",
+       "other"
+      ]
+     }
+    },
+    "required": [
+     "topic"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  }
+ ]
+}

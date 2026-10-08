@@ -352,7 +352,15 @@ def daily_bars(series_id: str) -> list[dict]:
         ds = producers.build(row.id)
         if ds is None:
             return []
-        return scalar_to_bars(ds.as_points())
+        pts = ds.as_points()
+        # ⭐ (2026-10-08) Provisional completed sessions + today's live value for the PIT
+        # universes, appended AFTER the canonical (cached) series — never inside it.
+        try:
+            from api.services import breadth_live_universes as _blu
+            pts = pts + _blu.indicator_points(row.id, row.universe, pts)
+        except Exception:
+            pass
+        return scalar_to_bars(pts)
 
     return []
 

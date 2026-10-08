@@ -2,11 +2,14 @@ import useSWR, { mutate as mutateGlobal } from 'swr'
 import { useCallback } from 'react'
 import { mergeSettingsOverride } from '../components/chart/instanceShape'
 import { noteWorkspaceDocResponse } from '../lib/workspaceDoc'
+import { emitWorkspaceConflict } from '../lib/workspaceConflict'
+
+export { onWorkspaceConflict } from '../lib/workspaceConflict'
 
 // TERM-021 read-new: every preferences response says whether the versioned workspace
 // document is armed (the `X-Workspace-Doc` header, absent while dark). Recording it here
 // costs nothing — no request, and the body is read exactly as before.
-const fetcher = url => fetch(url).then(r => { noteWorkspaceDocResponse(r); return r.ok ? r.json() : {} })
+const fetcher = url => fetch(url).then(r => { noteWorkspaceDocResponse(r); noteRevision(r, false); return r.ok ? r.json() : {} })
 
 const DEFAULTS = {
   default_chart_tf: 'D',
@@ -45,6 +48,90 @@ export function parsePref(raw, fallback) {
 // merge that had just been computed correctly. One request per key at a time
 // makes arrival order equal merge order.
 const _writeChains = new Map()
+
+// ─── Revision safety ─────────────────────────────────────────────────────────
+//
+// ⛔ The workspace (the board, the open-layout pointer, every Charts setting) is one shared
+// per-member preference set, and a tab never re-reads it after it loads. An older tab — or
+// another device — saving its copy would silently overwrite newer work. While the server's
+// versioned workspace document is armed, every write names the document version at which THIS
+// tab last read or wrote that key (`base_version`), and the server commits it only if the key is
+// unchanged since then (`api/services/workspace_doc_store.write_pref_checked`); otherwise 409 and
+// nothing is written.
+//
+// The revision comes from the server only — the `v=` in `X-Workspace-Doc` on a read, the
+// `version` in a write's answer — never fabricated here. It advances only on a confirmed write.
+//
+// ⭐ A BACKGROUND RE-READ DOES NOT ADVANCE IT. The Charts board is hydrated ONCE from the first
+// read; a later SWR refetch refreshes the cache, not the board on screen. Advancing the
+// revision then would let the board, built from the OLD values, be saved over newer ones. Only
+// `refreshPreferences()` — an explicit "take the server's state", after which its callers
+// re-seed the board — adopts the newer revision.
+let _revBaseline = null            // the document version this tab loaded at; null = store dark
+const _keyRev = new Map()          // key -> version of this tab's last confirmed write of it
+const _conflicted = new Set()      // keys refused as stale: no further writes until a reload
+
+function revisionOf(res) {
+  let stamp = null
+  try { stamp = res && res.headers && typeof res.headers.get === 'function' ? res.headers.get('X-Workspace-Doc') : null } catch { stamp = null }
+  if (!stamp) return undefined                 // dark (or no header): send no revision
+  const m = /\bv=(\d+)/.exec(stamp)
+  if (m) return Number(m[1])
+  if (/reason=absent/.test(stamp)) return 0    // no document yet: the server compares against its first copy
+  return undefined
+}
+
+function noteRevision(res, adopt) {
+  if (!res || !res.ok) return
+  const v = revisionOf(res)
+  if (adopt) {
+    _revBaseline = v === undefined ? null : v
+    _keyRev.clear()
+  } else if (_revBaseline === null && v !== undefined) {
+    _revBaseline = v
+  }
+}
+
+/** Resolves once every write queued so far for these keys has answered (success or not). */
+export function whenWritesSettle(keys) {
+  return Promise.all((keys || []).map(k => _writeChains.get(k) || Promise.resolve())).then(() => undefined)
+}
+
+/** Tests only. */
+export function __resetRevisionStateForTests() {
+  _revBaseline = null; _keyRev.clear(); _conflicted.clear(); _writeChains.clear()
+}
+
+// THE one POST. Runs inside the per-key queue, so the revision is read at SEND time — after this
+// tab's previous write of the key has answered — and a tab's rapid edits never refuse each other.
+async function postPref(key, serialized) {
+  if (_conflicted.has(key)) return { ok: false, conflict: true }
+  const base = _keyRev.has(key) ? _keyRev.get(key) : _revBaseline
+  const body = { key, value: serialized }
+  if (base !== null && base !== undefined) body.base_version = base
+  const res = await fetch(PREFS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (res && res.ok) {
+    try {
+      const j = await res.json()
+      if (j && Number.isInteger(j.version)) _keyRev.set(key, j.version)
+    } catch { /* an answer without a version (dark store, non-board key) changes nothing */ }
+    return { ok: true }
+  }
+  if (res && res.status === 409) {
+    let d = null
+    try { d = (await res.json())?.detail } catch { d = null }
+    if (d && (d.code === 'workspace_conflict' || d.code === 'workspace_revision_required')) {
+      _conflicted.add(key)
+      emitWorkspaceConflict({ key, code: d.code, message: d.message || null })
+      return { ok: false, conflict: true }
+    }
+  }
+  return { ok: false }
+}
 
 function queueWrite(key, task) {
   const previous = _writeChains.get(key) || Promise.resolve()
@@ -111,6 +198,7 @@ export async function refreshPreferences() {
   try {
     const res = await fetch(PREFS_URL)
     noteWorkspaceDocResponse(res)
+    noteRevision(res, true)
     if (!res || !res.ok) return null
     data = await res.json()
   } catch {
@@ -196,12 +284,11 @@ export default function usePreferences(enabled = true) {
      * behaviour every release before MOB-09 shipped.
      */
     try {
-      const res = await fetch(PREFS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, value: serialized }),
-      })
-      if (!res || !res.ok) {
+      // Queued per key (see `postPref`): the revision it sends is read after this tab's previous
+      // write of the key answered. A refused stale write keeps the local value on screen and
+      // returns false — it is NOT saved and nothing claims it was.
+      const r = await queueWrite(key, () => postPref(key, serialized))
+      if (!r.ok) {
         // A 4xx/5xx used to read exactly like success. It is still reported —
         // that is MOB-09's real requirement — but it is reported by the RETURN
         // VALUE, not by mutating shared cache state. See the settle note above.
@@ -289,11 +376,7 @@ export default function usePreferences(enabled = true) {
     // resolves would make that handling unreachable. The revert therefore hangs
     // off the returned promise, which still resolves — a fire-and-forget caller
     // never gets an unhandled rejection.
-    return queueWrite(key, () => fetch(PREFS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, value: serialized }),
-    })).catch(() => {
+    return queueWrite(key, () => postPref(key, serialized)).catch(() => {
       // Revert on failure — same contract as setPref.
       mutate()
     })

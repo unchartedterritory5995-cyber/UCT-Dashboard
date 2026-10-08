@@ -19,10 +19,23 @@
 //   layout.rename           the dock's rename (PATCH by id; a duplicate is a 409).
 //                           Your own layouts only. Proposed; Undo renames back.
 //
-// ⛔ Not here, deliberately: create-blank (the dock blanks the board BEFORE its
-// name-keyed save), delete (destructive), and overwrite of any kind.
+//   layout.delete           the dock's delete (DELETE by id): your own layouts only,
+//                           never the OPEN one (the dock would switch the board to UCT
+//                           Default first). Always proposed; re-checked against the
+//                           server at Apply; no Undo (a hard delete).
+//   layout.duplicate        a copy of a STORED layout under a new name — create-only (the
+//                           dock's own duplicate is a name-keyed upsert). Proposed; no Undo.
+//
+//   layout.create           a NEW EMPTY layout, saved create-only BEFORE anything else
+//                           and without touching the board (the dock's own "New layout"
+//                           blanks the board first, then upserts by name). Proposed; read
+//                           back; it is NOT opened — switching is the ordinary layout.open.
+//                           Undo deletes it while it is still unopened and unchanged.
+//
+// ⛔ Not here, deliberately: deleting the open layout, and overwrite of any kind.
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
+import { afterRender } from '../frames'
 
 const MAX_NAME = 60
 const norm = (s) => String(s || '').toLowerCase().replace(/[“”"'`‘’]/g, '').replace(/\s+/g, ' ').trim()
@@ -30,10 +43,8 @@ const quote = (n) => `“${n}”`
 const entryOf = (st, id) => st.entries.find(e => String(e.id) === String(id)) || null
 const KIND_WORD = { yours: 'yours', prebuilt: 'prebuilt', 'built-in': 'built-in' }
 
-const nextFrame = () => new Promise(r => {
-  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => setTimeout(r, 0))
-  else setTimeout(r, 0)
-})
+// Wait for React to commit (never for a paint: a hidden tab never paints) — see agent/frames.js.
+const nextFrame = afterRender
 async function waitFor(fn, budgetMs = 8000) {
   const t0 = Date.now()
   for (;;) {
@@ -68,6 +79,9 @@ export const layoutsKind = {
     if (op.open) return { open: op.open, from: before.active, discarded: !!before.unsaved }
     if (op.saveAs) return { saveAs: op.saveAs }
     if (op.rename) return { rename: op.rename }
+    if (op.remove) return { remove: op.remove }
+    if (op.create) return { create: op.create }
+    if (op.duplicate) return { duplicate: op.duplicate }
     return null
   },
   async commit(host, ref, patch) {
@@ -95,6 +109,36 @@ export const layoutsKind = {
       await waitFor(() => snap().active?.name === patch.saveAs)
       return true
     }
+    if (patch.remove) {
+      // The CURRENT library, never the plan's: still yours, same name, and not open now.
+      try { await L.refresh() } catch { /* checked below against what we have */ }
+      const e = snap().entries.find(x => String(x.id) === String(patch.remove.id))
+      if (!e) throw new Error(`${quote(patch.remove.name)} is already gone`)
+      if (e.name !== patch.remove.name || e.kind !== 'yours') throw new Error('that layout changed since I read it — ask again')
+      if (String(snap().active?.id) === String(e.id)) throw new Error(`${quote(e.name)} is open now — open another layout first`)
+      await L.remove(e.id)                       // throws if the server refuses
+      try { await L.refresh() } catch { /* landed() reads the cache the delete already updated */ }
+      await waitFor(() => !snap().entries.some(x => String(x.id) === String(e.id)), 5000)
+      return true
+    }
+    if (patch.create) {
+      try { await L.refresh() } catch { /* the server's create-only check still holds */ }
+      if (snap().entries.some(e => norm(e.name) === norm(patch.create.name))) {
+        throw new Error(`you already have a layout named ${quote(patch.create.name)}`)
+      }
+      const saved = await L.create(patch.create.name)      // create-only; throws on refusal
+      await waitFor(() => snap().entries.some(e => e.name === patch.create.name), 5000)
+      return { created: { [`#${patch.create.name}`]: saved?.id ?? snap().entries.find(e => e.name === patch.create.name)?.id } }
+    }
+    if (patch.duplicate) {
+      try { await L.refresh() } catch { /* the server's create-only check still holds */ }
+      if (snap().entries.some(e => norm(e.name) === norm(patch.duplicate.name))) {
+        throw new Error(`you already have a layout named ${quote(patch.duplicate.name)}`)
+      }
+      await L.duplicate(patch.duplicate.fromId, patch.duplicate.name)   // create-only; throws on refusal
+      await waitFor(() => snap().entries.some(e => e.name === patch.duplicate.name), 5000)
+      return true
+    }
     return false
   },
   landed(snap, patch) {
@@ -102,6 +146,9 @@ export const layoutsKind = {
     if (patch.open) return snap.active?.id === patch.open.id
     if (patch.rename) return snap.entries.find(e => e.id === patch.rename.id)?.name === patch.rename.to
     if (patch.saveAs) return snap.active?.name === patch.saveAs && snap.entries.some(e => e.name === patch.saveAs)
+    if (patch.remove) return !snap.entries.some(e => String(e.id) === String(patch.remove.id))
+    if (patch.create) return snap.entries.some(e => e.name === patch.create.name)
+    if (patch.duplicate) return snap.entries.some(e => e.name === patch.duplicate.name)
     return false
   },
   // Undo a switch = open the previous layout the same way — only when nothing was
@@ -111,6 +158,11 @@ export const layoutsKind = {
     const p = item.patch || {}
     if (p.open) return p.from && !p.discarded ? { open: p.from } : null
     if (p.rename) return { rename: { id: p.rename.id, from: p.rename.to, to: p.rename.from } }
+    // Undo a create = delete that new, empty, never-opened layout (the delete re-checks it).
+    if (p.create) {
+      const id = Object.values(item.created || {})[0]
+      return id != null ? { remove: { id, name: p.create.name } } : null
+    }
     return null
   },
   fingerprint: (snap) => JSON.stringify([snap.active?.id ?? null, snap.entries.map(e => [e.id, e.name])]),
@@ -118,6 +170,11 @@ export const layoutsKind = {
   // layout; a rename is stale once that layout is renamed again (or its old name taken).
   fingerprintFor(host, snap, item) {
     const p = item.patch || {}
+    if (p.create) {
+      const id = Object.values(item.created || {})[0]
+      const e = snap.entries.find(x => String(x.id) === String(id))
+      return JSON.stringify([e?.name ?? null, String(snap.active?.id) === String(id)])
+    }
     if (p.rename) {
       const e = snap.entries.find(x => x.id === p.rename.id)
       const oldTaken = snap.entries.some(x => x.id !== p.rename.id && norm(x.name) === norm(p.rename.from))
@@ -309,5 +366,110 @@ export function registerLayoutCapabilities() {
     },
     noop: (st, _a, { layout }) => `It is already called ${quote(entryOf(st, layout)?.name || '')}`,
     describe: (b, a) => (a.op?.rename ? `Renamed ${quote(a.op.rename.from)} to ${quote(a.op.rename.to)}` : null),
+  })
+
+  // ── layout.create ──
+  registerCapability({
+    name: 'layout.create',
+    target: 'layouts',
+    surfaces: ['charts'],
+    risk: 'confirm',
+    exclusive: true,
+    exclusiveReason: 'Create the layout on its own, then ask to open it or for other changes.',
+    summary: 'Create a NEW, EMPTY named layout (no widgets) for the member. The current board is not touched and the new layout is NOT opened.',
+    hints: 'target = the ref of the layouts entry; name = the exact name the member gave. To save the board AS IT IS NOW, use layout.saveAs instead. '
+      + 'If they also want to switch to it, create it now and say in the reply that they can then say "open <name>" (switching is a separate step).',
+    args: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'], additionalProperties: false },
+    fastWhole: true,                // the whole sentence first (it may contain "and")
+    // "…and switch to it" is accepted and NOT acted on here: creating comes first, alone, and
+    // the receipt says how to open it (measured 2026-10-08: the production model planned
+    // create + open together, which a creating plan refuses).
+    fast: ({ raw }) => {
+      const m = /^(?:please )?(?:create|make|start)(?: me)? (?:a )?(?:new )?(?:blank |empty |fresh |clean )+(?:new )?layout (?:called |named )?(.+?)(?:,? and (?:then )?(?:switch|go|move|change)(?: over)? to it|,? and open it)?[.!]?$/i.exec(String(raw).trim())
+      if (!m) return null
+      const name = m[1].replace(/^[“"'‘]|[”"'’]$/g, '').trim()
+      return name ? { name } : null
+    },
+    check: (st, { name }) => oneAtATime(st) || nameProblem(st, name),
+    apply: (st, { name }) => ({ ...st, op: { create: { name: String(name).trim() } } }),
+    describe: (b, a) => (a.op?.create ? `Created a new empty layout ${quote(a.op.create.name)} — your current board is unchanged (say “open ${a.op.create.name}” to switch to it)` : null),
+  })
+
+  // ── layout.delete ──
+  registerCapability({
+    name: 'layout.delete',
+    target: 'layouts',
+    surfaces: ['charts'],
+    risk: 'confirm',
+    reversible: false,
+    exclusive: true,
+    exclusiveReason: 'Delete the layout on its own, then ask for any other changes.',
+    summary: 'Delete one of the member\'s OWN saved layouts (permanent). Not the layout that is open now, not prebuilt or built-in layouts.',
+    hints: 'target = the ref of the layouts entry; layout = the id of that layout in the layouts list. If more than one layout could be meant, '
+      + 'or none matches exactly, clarify with the real names — never pick one by similarity. Deleting is always shown as a proposal first, so do not ask "are you sure?".',
+    args: { type: 'object', properties: { layout: { type: 'string' } }, required: ['layout'], additionalProperties: false },
+    check(st, { layout }) {
+      const busy = oneAtATime(st)
+      if (busy) return busy
+      const e = entryOf(st, layout)
+      if (!e) return "That layout isn't in your layout list."
+      if (e.kind !== 'yours') return `${quote(e.name)} is a ${e.kind} layout — only your own layouts can be deleted.`
+      if (String(st.active?.id) === String(e.id)) return `${quote(e.name)} is the layout open now — open another layout first, then ask me to delete it.`
+      return null
+    },
+    apply(st, { layout }) {
+      const e = entryOf(st, layout)
+      return { ...st, op: { remove: { id: e.id, name: e.name } } }
+    },
+    describe: (b, a) => (a.op?.remove ? `Deleted the layout ${quote(a.op.remove.name)} (permanent)` : null),
+  })
+
+  // ── layout.duplicate ──
+  registerCapability({
+    name: 'layout.duplicate',
+    target: 'layouts',
+    surfaces: ['charts'],
+    risk: 'confirm',
+    reversible: false,
+    exclusive: true,
+    exclusiveReason: 'Copy the layout on its own, then ask for any other changes.',
+    summary: 'Make a copy of a saved layout (its stored version) under a new name, as one of the member\'s own layouts. Does not open it.',
+    hints: 'target = the ref of the layouts entry; layout = the id of the layout to copy (the open one for "this layout"); '
+      + 'name = the new name as given, or null when they give none (UCT names it "<name> copy" and the proposal shows it — do not ask for a name). '
+      + 'To save the board AS IT IS NOW under a new name, use layout.saveAs instead.',
+    args: { type: 'object', properties: { layout: { type: 'string' }, name: { type: ['string', 'null'] } }, required: ['layout', 'name'], additionalProperties: false },
+    // "make a copy of my Swing Layout" / "duplicate Earnings Watch": an EXACT layout name, no
+    // new name → the default "<name> copy" (shown in the proposal). Measured 2026-10-08: the
+    // production model asked for a name here 2 of 3 times.
+    fastWhole: true,                // the whole sentence first (it may contain "and")
+    // …and "duplicate my Trading Layout and call it Morning Prep": the source is resolved by its
+    // EXACT name (measured 2026-10-08: the production model picked "Main Trading" for it).
+    fast: ({ raw, host }) => {
+      const t = String(raw).trim()
+      const named = /^(?:please )?(?:make a copy of|copy|duplicate)(?: my| the)? (.+?)(?:,? and (?:call|name) it| as| named| called) (.+?)[.!]?$/i.exec(t)
+      const bare = named ? null : /^(?:please )?(?:make a copy of|copy|duplicate)(?: my| the)? (.+?)[.!]?$/i.exec(t)
+      const m = named || bare
+      if (!m || !host?.layouts) return null
+      if (!named && / as | to | called | named /i.test(m[1])) return null
+      const entries = host.layouts.snapshot().entries
+      const hit = resolveName(entries, m[1]) || resolveName(entries, m[1].replace(/ layout$/i, ''))
+      if (!hit) return null
+      const name = named ? m[2].replace(/^[“"'‘]|[”"'’]$/g, '').trim() : null
+      return { layout: String(hit.id), name: name || null }
+    },
+    check(st, { layout, name }) {
+      const busy = oneAtATime(st)
+      if (busy) return busy
+      const e = entryOf(st, layout)
+      if (!e) return "That layout isn't in your layout list."
+      return name == null ? null : nameProblem(st, name)
+    },
+    apply(st, { layout, name }) {
+      const e = entryOf(st, layout)
+      let to = name == null ? `${e.name} copy` : String(name).trim()
+      if (name == null) for (let n = 2; st.entries.some(x => norm(x.name) === norm(to)); n += 1) to = `${e.name} copy ${n}`
+      return { ...st, op: { duplicate: { fromId: e.id, fromName: e.name, name: to.slice(0, MAX_NAME) } } }
+    },
+    describe: (b, a) => (a.op?.duplicate ? `Copied ${quote(a.op.duplicate.fromName)} to a new layout ${quote(a.op.duplicate.name)}` : null),
   })
 }

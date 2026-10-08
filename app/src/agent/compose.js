@@ -119,7 +119,10 @@ export function bindSourceRefs(opsIn, refMap, { host = null, message = '' } = {}
       const alias = `src_${v.from}`
       if (!added.has(alias)) {
         const blank = Object.fromEntries(Object.keys(prod.args?.properties || {}).map(k => [k, null]))
-        added.set(alias, { action: prod.name, target: t.ref, args: { ...blank, as: alias } })
+        // The SHORT ref, like every op the model wrote: targets are translated to real refs
+        // exactly once, afterwards. (A real id here was translated a second time whenever it
+        // happened to look like another target's short ref — list "m1" became the market.)
+        added.set(alias, { action: prod.name, target: v.from, args: { ...blank, as: alias } })
       }
       args = { ...args, [arg]: { from: alias, top: v.top } }
     }

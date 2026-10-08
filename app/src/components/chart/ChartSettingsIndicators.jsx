@@ -138,6 +138,7 @@ import { paneMap, paneRowMeta } from './chartDataMap'
 // `engine/__tests__/paneOrder.test.js`.
 import { movePane, movePaneTo } from './engine/paneOrder'
 import { moveSeriesWithinPane, moveSeriesTo, canMoveSeries } from './engine/paneSeriesOrder'
+import { safeCssColour } from './engine/objectColour'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -1558,7 +1559,7 @@ export default function ChartSettingsIndicators({
     const meta = paneRowMeta(row, group, settings, defOf)
     const on = rowVisible(row)
     const isSel = selected === row.id
-    const tint = rowColor(row)
+    const tint = safeCssColour(rowColor(row))   // ⛔ only a CSS-safe colour reaches the rail (objectColour.js)
     // ⛔ A PANE OF ONE HAS NOTHING TO REORDER (§11), so its grip is not a control
     // — and it is not removed either, because a row that loses its grip when a
     // sibling is deleted would shift its name 14px left under the pointer.
@@ -2357,7 +2358,7 @@ export default function ChartSettingsIndicators({
     const plotStyle = styleControl(row)
     const signColors = signColorControl(row)
     const duplicate = duplicateWriter(row)
-    const tint = rowColor(row)
+    const tint = safeCssColour(rowColor(row))   // ⛔ only a CSS-safe colour reaches the rail (objectColour.js)
 
     return (
       <div className={styles.insPanel} id={inspectorDomId(row.id)} data-inspector-for={row.id}>

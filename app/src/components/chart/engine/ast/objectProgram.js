@@ -58,6 +58,7 @@
 // that must outlive its bar has to be stored in a register, which is exactly
 // what Pine's `var line l = na` says and why 24 of the reachable 27 need one.
 
+import { isObjectColourLiteral } from '../objectColour.js'
 import { MESSAGE_NUMBER_PATTERNS } from '../pineTextFormat.js'
 import { RUNTIME_AT_CALL } from './parse.js'
 import { wholeTransparency } from '../colorInt.js'
@@ -611,6 +612,8 @@ function assertColorNode(v, where, depth = 0) {
   switch (v.c) {
     case 'lit':
       if (typeof v.hex !== 'string') throw new Error(`${where}: a colour literal must be a string`)
+      // ⛔ ONLY A COLOUR (objectColour.js): a stored program's literal reaches CSS.
+      if (!isObjectColourLiteral(v.hex)) throw new Error(`${where}: ${JSON.stringify(v.hex.slice(0, 40))} is not a colour`)
       return
     case 'if':
       // ⭐ C37 — a pass condition (`isPassCondition`) is the one live shape a

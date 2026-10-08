@@ -1,0 +1,255 @@
+{
+ "tool": "tools/notebook_fin_ai_fe_walk.py",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-ai\\fe-walk-final-51737ae2d9\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 22:10:04",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 22:10:42",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 22:11:18",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-ai\\fe-walk-final-51737ae2d9\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-fe\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T22-09-58.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "V390_K3_panel_shows_emphasis_not_asterisks",
+   "verdict": "PASS",
+   "detail": "text='Planned entry (breakout plan): above 412 [1][2]. It was not chased.'; strong=['Planned entry (breakout plan):']; em=['not']"
+  },
+  {
+   "id": "V390_K7_panel_chips_44_by_44_and_own_their_centre",
+   "verdict": "PASS",
+   "detail": "[1] 44x44 at 272.9,565.8 own centre=True; [2] 44x44 at 318.9,565.8 own centre=True; boxes overlap=False"
+  },
+  {
+   "id": "V390_K3_inserted_block_has_the_editors_bold_and_italic",
+   "verdict": "PASS",
+   "detail": "block text='From Ask Notebook\\n · Oct 7, 2026\\n\\nPlanned entry (breakout plan): above 412 [1][2]. It was not chased.'; strong=['Planned entry (breakout plan):']; em=['not']; edited chips=[]"
+  },
+  {
+   "id": "V390_K7_toggle_title_line_is_44_tall",
+   "verdict": "PASS",
+   "detail": "summary 'Full transcript · 31 words' 222x44; fold button 44x44"
+  },
+  {
+   "id": "V390_K7_in_note_chips_keep_their_own_centre",
+   "verdict": "PASS",
+   "detail": "[1] 32.1x23.5 own centre=True; [2] 32.1x23.5 own centre=True; [3] 32.1x23.5 own centre=True; sideways scroll=0"
+  },
+  {
+   "id": "V390_K4_empty_plan_is_a_message_with_no_apply",
+   "verdict": "PASS",
+   "detail": "Apply buttons=0; checkboxes=0; text='Ask Notebook to do something\\nNothing to change\\n\\nYou asked: “Tag my two CRWD notes with \"security\".”\\n\\nThe tag \"security\" doesn\\'t exist in the workspace\\'s allowed tag list, so no changes are proposed.\\n\\nNothing was written.\\n\\nChange the request'"
+  },
+  {
+   "id": "V390_K2_weekly_draft_request_names_the_account",
+   "verdict": "PASS",
+   "detail": "request=['review-drafts/weekly?weekStart=2026-10-05&accountId=33eca530-95d0-428f-ade3-210609d0c519']; the member's accounts=['33eca530-95d0-428f-ade3-210609d0c519']"
+  },
+  {
+   "id": "V390_no_page_errors",
+   "verdict": "PASS",
+   "detail": "page errors: []"
+  },
+  {
+   "id": "W10_port_free_after_shutdown",
+   "verdict": "PASS",
+   "detail": "listener on 8133: False"
+  }
+ ],
+ "raw": {
+  "seed": {
+   "plan": "efdf129faa484665a4dd7fed23645c72",
+   "review": "1a1e82ef470f43b5a868444bb5fee531",
+   "voice": "d37f772b1a1a48f2a7f5424a96f990b2"
+  },
+  "stage": "Research Home, weekly review",
+  "k3_k7_panel": {
+   "asked_bodies": 1,
+   "answer_text": "Planned entry (breakout plan): above 412 [1][2]. It was not chased.",
+   "strong": [
+    "Planned entry (breakout plan):"
+   ],
+   "em": [
+    "not"
+   ],
+   "chips": [
+    {
+     "text": "[1]",
+     "label": "Source 1: CRWD breakout plan",
+     "tag": "BUTTON",
+     "x": 272.9,
+     "y": 565.8,
+     "w": 44,
+     "h": 44,
+     "own_centre": true,
+     "top_tag": "BUTTON"
+    },
+    {
+     "text": "[2]",
+     "label": "Source 2: CRWD review",
+     "tag": "BUTTON",
+     "x": 318.9,
+     "y": 565.8,
+     "w": 44,
+     "h": 44,
+     "own_centre": true,
+     "top_tag": "BUTTON"
+    }
+   ],
+   "insert_offered": 1,
+   "block_count": 1,
+   "block_text": "From Ask Notebook\n · Oct 7, 2026\n\nPlanned entry (breakout plan): above 412 [1][2]. It was not chased.",
+   "block_strong": [
+    "Planned entry (breakout plan):"
+   ],
+   "block_em": [
+    "not"
+   ],
+   "block_chips": [
+    {
+     "text": "[1]",
+     "label": "Source 1: CRWD breakout plan",
+     "tag": "BUTTON",
+     "x": 211.4,
+     "y": 766.5,
+     "w": 32.1,
+     "h": 23.5,
+     "own_centre": false,
+     "top_tag": "DIV"
+    },
+    {
+     "text": "[2]",
+     "label": "Source 2: CRWD review",
+     "tag": "BUTTON",
+     "x": 245.4,
+     "y": 766.5,
+     "w": 32.1,
+     "h": 23.5,
+     "own_centre": false,
+     "top_tag": "DIV"
+    }
+   ]
+  },
+  "k7_note": {
+   "summary": [
+    {
+     "text": "Full transcript · 31 words",
+     "label": null,
+     "tag": "SUMMARY",
+     "x": 108,
+     "y": 761.3,
+     "w": 222,
+     "h": 44,
+     "own_centre": true,
+     "top_tag": "SUMMARY"
+    }
+   ],
+   "chevron": [
+    {
+     "text": "",
+     "label": "Collapse toggle",
+     "tag": "BUTTON",
+     "x": 60,
+     "y": 762.3,
+     "w": 44,
+     "h": 44,
+     "own_centre": true,
+     "top_tag": "svg"
+    }
+   ],
+   "note_chips": [
+    {
+     "text": "[1]",
+     "label": "Source 1: CRWD breakout plan",
+     "tag": "BUTTON",
+     "x": 201,
+     "y": 424.3,
+     "w": 32.1,
+     "h": 23.5,
+     "own_centre": true,
+     "top_tag": "BUTTON"
+    },
+    {
+     "text": "[2]",
+     "label": "Source 2: CRWD review",
+     "tag": "BUTTON",
+     "x": 235,
+     "y": 424.3,
+     "w": 32.1,
+     "h": 23.5,
+     "own_centre": true,
+     "top_tag": "BUTTON"
+    },
+    {
+     "text": "[3]",
+     "label": "Source 3: CRWD breakout plan",
+     "tag": "BUTTON",
+     "x": 269.1,
+     "y": 424.3,
+     "w": 32.1,
+     "h": 23.5,
+     "own_centre": true,
+     "top_tag": "BUTTON"
+    }
+   ],
+   "sideways_scroll": 0
+  },
+  "k4": {
+   "text": "Ask Notebook to do something\nNothing to change\n\nYou asked: “Tag my two CRWD notes with \"security\".”\n\nThe tag \"security\" doesn't exist in the workspace's allowed tag list, so no changes are proposed.\n\nNothing was written.\n\nChange the request",
+   "apply_buttons": 0,
+   "checkboxes": 0,
+   "change_button": [
+    {
+     "text": "Change the request",
+     "label": null,
+     "tag": "BUTTON",
+     "x": 57,
+     "y": 617.3,
+     "w": 168.3,
+     "h": 44,
+     "own_centre": true,
+     "top_tag": "BUTTON"
+    }
+   ]
+  },
+  "k2": {
+   "account_ids": [
+    "33eca530-95d0-428f-ade3-210609d0c519"
+   ],
+   "selected_in_browser": "33eca530-95d0-428f-ade3-210609d0c519",
+   "urls": [
+    "review-drafts/weekly?weekStart=2026-10-05&accountId=33eca530-95d0-428f-ade3-210609d0c519"
+   ]
+  },
+  "page_errors": []
+ }
+}

@@ -563,6 +563,13 @@ export function themeWithAppSurface(theme) {
   return surf ? { ...theme, bg: surf.bg, bgGradient: null } : theme
 }
 
+// THE one-chart theme apply — what Chart Settings → 🎨 does with scope "this chart"
+// (ChartSettingsModal.applyTheme) and what UCT Agent's chart.applyTheme does. One function so
+// the two can never diverge: an app-mirrored theme paints the app SURFACE as its canvas.
+export function applyThemeToOneChart(settings, theme) {
+  return applyThemeToSettings(settings, themeWithAppSurface(theme))
+}
+
 // The DEFAULT appearance a widget should show when uncustomized, matched to the app
 // theme. Two things happen here:
 //   1. The widget CANVAS uses the app theme's SURFACE (sidebar/header) color, not

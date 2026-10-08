@@ -84,7 +84,7 @@ function carryAssumptions(prev, changes, fresh, revision) {
 export function applyTurn(state, patch, ctx = {}) {
   const result = applyPatch(state.working, patch, {
     revision: state.revision, intent: state.intent, requests: state.requests,
-    gateCtx: ctx.gateCtx, defId: ctx.defId,
+    gateCtx: ctx.gateCtx, defId: ctx.defId, memberWords: ctx.memberWords,
   })
   if (result.status === 'refused') return { state, result, readback: readback(state.working, state, ctx.gateCtx) }
   if (result.status === 'question') {
