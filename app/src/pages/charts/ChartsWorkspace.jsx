@@ -2953,7 +2953,21 @@ export default function ChartsWorkspace() {
       getLists: () => agentWatchlistsRef.current.lists,
       revalidate: () => agentWatchlistsRef.current.revalidate(),
     },
-    prefs: { read: () => agentPrefsRef.current.prefs, write: (k, v) => agentPrefsRef.current.setPref(k, v) },
+    // ONE writer per setting the Agent may change (literal keys — the preference rails
+    // check every write site); any other key is refused here, whatever is asked.
+    prefs: {
+      read: () => agentPrefsRef.current.prefs,
+      write: (k, v) => {
+        const sp = agentPrefsRef.current.setPref
+        const w = {
+          theme: (x) => sp('theme', x),
+          default_chart_tf: (x) => sp('default_chart_tf', x),
+          alert_sound: (x) => sp('alert_sound', x),
+          alert_sound_type: (x) => sp('alert_sound_type', x),
+        }[k]
+        return w ? w(v) : Promise.resolve(false)
+      },
+    },
     navigate: (to) => agentNavRef.current?.(to),
   }), [])
 
