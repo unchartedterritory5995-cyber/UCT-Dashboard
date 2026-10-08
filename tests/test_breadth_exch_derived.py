@@ -86,8 +86,10 @@ def test_deterministic():
 
 
 def test_the_production_derivation_path_equals_the_locked_derivation(monkeypatch):
-    """ONE AUTHORITY. The member path (producers._build_uncached) serves the exchange authority's AD/MCO/MCS
-    VERBATIM and never recomputes from the store; and the authority's own continuity rule
+    """ONE AUTHORITY. The member path (producers._build_uncached) serves the exchange authority's AD/MCO
+    VERBATIM, and MCS as the authority's running total + ONE constant that puts it at its natural level
+    (owner decision 2026-10-07; measured from the authority's own advancing/declining), and never reads
+    the general store; and the authority's own continuity rule
     (live_core.derive_step, which `verify_set` folds over frozen + live) IS the locked derivation."""
     import importlib.util
     import os as _os
@@ -115,11 +117,25 @@ def test_the_production_derivation_path_equals_the_locked_derivation(monkeypatch
     served = {f"{X}:{k}": {x: v for x, v in zip(d, want[k]) if v is not None}
               for X in ("NYSE", "NASDAQ") for k in ("AD", "MCO", "MCS")}
     monkeypatch.setattr(ea, "derived", lambda sid: served.get(sid))
+    hist = {"advancing": {x: {"c": v} for x, v in zip(d, a) if v is not None},
+            "declining": {x: {"c": v} for x, v in zip(d, b) if v is not None}}
+    monkeypatch.setattr(ea, "universe_history", lambda metric, universe, *k, **kw: hist.get(metric, {}))
+    from api.services.market_indicators import mcclellan as mc
+    res = mc.compute(d, a, b, method=mc.RATIO_ADJUSTED)
+    natural = {x: 19 * w - 9 * f for x, f, w in zip(res.dates, res.ema19, res.ema39)
+               if f is not None and w is not None}
     for X in ("NYSE", "NASDAQ"):
-        for k in ("AD", "MCO", "MCS"):
+        for k in ("AD", "MCO"):
             ds = p._build_uncached(f"{X}:{k}")
             assert dict(zip(ds.dates, ds.values)) == served[f"{X}:{k}"]
-        assert p._build_uncached(f"{X}:MCS").base == 0.0
+        ds = p._build_uncached(f"{X}:MCS")
+        got = dict(zip(ds.dates, ds.values))
+        assert set(got) == set(served[f"{X}:MCS"])
+        shifts = [got[x] - served[f"{X}:MCS"][x] for x in got]
+        assert max(shifts) - min(shifts) < 1e-9, "one constant for every session"
+        tail = sorted(got)[-50:]
+        assert max(abs(got[x] - natural[x]) for x in tail) < 1e-3, "lands on the natural level"
+        assert ds.base == got[sorted(got)[0]]
     # (3) authority not serving → nothing (fail closed), never a recomputation
     monkeypatch.setattr(ea, "derived", lambda sid: None)
     assert p._build_uncached("NYSE:MCO") is None and p._build_uncached("NASDAQ:AD") is None
