@@ -1,0 +1,166 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 5,
+    "fixed": 5,
+    "unchanged": 197,
+    "missing": 0,
+    "baseline": 202,
+    "current": 203,
+    "current_ran": 39898,
+    "new_flaky": 1,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 5
+  },
+  "arithmetic": "baseline 202 = unchanged 197 + fixed 5 + missing 0  |  current 203 = unchanged 197 + new 5 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "37680294140",
+  "current_run_id": "37703530663",
+  "baseline_sha": "809f754574eaee3405ff23e594f1cdbd129c97d4",
+  "current_sha": "18676e3eceb6cbeb2ec71550478f7782d29db45c",
+  "commit_range": "809f754574eaee3405ff23e594f1cdbd129c97d4..18676e3eceb6cbeb2ec71550478f7782d29db45c",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_earnings_window_single_walk|test_both_consumers_agree_across_the_window",
+    "pytest|tests.test_hub_nav_smoke_routes|test_nav_items_reads_alsoActive_off_the_row_and_only_that_row",
+    "pytest|tests.test_hub_nav_smoke_routes|test_the_real_nav_puts_terminal_in_the_sweep_right_after_its_owner",
+    "pytest|tests.test_term018_every_guard_can_fire|test_the_pytest_collection_probe_can_answer_NO",
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_skill_whitelist|test_the_committed_whitelist_is_exactly_what_the_route_table_generates",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "pytest|tests.test_terminal_next_kill_switch|test_every_frontend_gate_answers_from_the_payload_the_switch_empties"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_earnings_window_single_walk|test_both_consumers_agree_across_the_window": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 809f75457..18676e3ec touched tests/test_earnings_window_single_walk.py or anything it imports"
+    },
+    "pytest|tests.test_hub_nav_smoke_routes|test_nav_items_reads_alsoActive_off_the_row_and_only_that_row": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 809f75457..18676e3ec touched tests/test_hub_nav_smoke_routes.py or anything it imports"
+    },
+    "pytest|tests.test_hub_nav_smoke_routes|test_the_real_nav_puts_terminal_in_the_sweep_right_after_its_owner": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 809f75457..18676e3ec touched tests/test_hub_nav_smoke_routes.py or anything it imports"
+    },
+    "pytest|tests.test_term018_every_guard_can_fire|test_the_pytest_collection_probe_can_answer_NO": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 809f75457..18676e3ec touched tests/test_term018_every_guard_can_fire.py or anything it imports"
+    },
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 809f75457..18676e3ec touched tests/test_theme_index_watchlist.py or anything it imports"
+    },
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 809f75457..18676e3ec touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_skill_whitelist|test_the_committed_whitelist_is_exactly_what_the_route_table_generates": {
+      "class": "imported-file-change",
+      "commits": [
+        "14f41ddd9",
+        "1ae91d07c",
+        "65771d5ef",
+        "9e69eddd9",
+        "bc8298dc6"
+      ],
+      "workstreams": [
+        {
+          "commit": "14f41ddd9",
+          "workstream": "wip",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "1ae91d07c",
+          "workstream": "lane/s2-finish",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "65771d5ef",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "9e69eddd9",
+          "workstream": "merge",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "bc8298dc6",
+          "workstream": "origin/terminal/fn9-s2",
+          "confidence": "merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 809f75457..18676e3ec touched tests/test_stream_charge_first_delta.py or anything it imports"
+    },
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 809f75457..18676e3ec touched tests/test_stream_charge_first_delta.py or anything it imports"
+    },
+    "pytest|tests.test_terminal_next_kill_switch|test_every_frontend_gate_answers_from_the_payload_the_switch_empties": {
+      "class": "test-file-change",
+      "commits": [
+        "6d7640bf2"
+      ],
+      "workstreams": [
+        {
+          "commit": "6d7640bf2",
+          "workstream": "chore",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    }
+  }
+}
