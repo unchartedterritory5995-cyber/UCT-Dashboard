@@ -22,7 +22,8 @@
 // list-valued fields (sector, exchange, …) need their options and are not offered.
 //
 // ⛔ Not here: operating the Screener PAGE's own filters (it only exists inside
-// /screener), saving screens, My Scans (Indicator formulas), logic groups.
+// /screener), My Scans (Indicator formulas), logic groups. Saving / renaming / copying /
+// deleting SAVED screens is capabilities/savedScreens.js (the same routes the Screener's menu uses).
 
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup, registerOutputSource, SYMBOLS } from '../capabilities'
 import { encodeSpec } from '../../pages/screener/shell/specUrl'
@@ -62,8 +63,8 @@ export function loadMeta() {
   }
   return cache.metaP
 }
-async function loadSaved() {
-  if (cache.saved && Date.now() - cache.savedAt < SAVED_TTL_MS) return cache.saved
+export async function loadSaved({ force = false } = {}) {
+  if (!force && cache.saved && Date.now() - cache.savedAt < SAVED_TTL_MS) return cache.saved
   const b = await json(await req('/api/screener/saved-screens'), 'Reading your screens')
   cache.saved = {
     saved: (b.saved || []).map(s => ({ id: String(s.id), name: s.name, spec: s.spec, kind: 'yours' })),
@@ -73,6 +74,9 @@ async function loadSaved() {
   return cache.saved
 }
 const post = (path, body) => req(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+/** The saved-screens list as last read (sync), and the last screen run here (its wire spec). */
+export const savedScreensNow = () => cache.saved
+export const lastScreenNow = () => cache.last
 
 // ── catalog helpers ──
 const fieldOf = (key) => cache.meta?.fields.find(f => f.key === key) || null

@@ -71,6 +71,7 @@ def market(monkeypatch):
         return closes[np.ix_(ix, cols)].copy(), vols[np.ix_(ix, cols)].copy()
     monkeypatch.setattr(bl, "_load_frame", frame)
     monkeypatch.setattr(blu, "_load_frame_by_key", frame)
+    monkeypatch.setattr(blu, "_load_frame_from_pack", lambda tickers, L_iso: None)
     monkeypatch.setattr(bl, "_apply_dividend_basis", lambda t, d, c, m, o=None: c)
     monkeypatch.setattr(blu, "_active_reference", lambda: ref)
     blu._members_cache.clear()
@@ -269,3 +270,26 @@ def test_frame_by_key_matches_the_in_list_loader():
     b = blu._load_frame_by_key(c, ["AAA", "BBB", "ZZZ"], dates)
     for x, y in zip(a, b):
         assert np.array_equal(x, y, equal_nan=True)
+
+
+
+def test_frame_from_the_bars_pack(monkeypatch):
+    """The pack (manifest + gzip shards) yields the same frame; a stale pack yields None."""
+    import gzip
+    import json
+    from api.services import data_sync
+    shards = {
+        "barspack/d/000.json.gz": {"tickers": {
+            "SPY": {"D": {"t": ["2026-10-06", "2026-10-07"], "c": [1, 2], "v": [1, 1]}},
+            "AAA": {"D": {"t": ["2026-10-06", "2026-10-07"], "c": [10.0, 11.0], "v": [5, 6]}}}},
+        "barspack/d/001.json.gz": {"tickers": {
+            "BBB": {"D": {"t": ["2026-10-07"], "c": [20.0], "v": [7]}}}},
+    }
+    store = {"barspack/latest.json": json.dumps({"shards": [{"name": k} for k in shards]}).encode()}
+    store.update({k: gzip.compress(json.dumps(v).encode()) for k, v in shards.items()})
+    monkeypatch.setattr(data_sync, "get_bytes", lambda k: store.get(k))
+    dates, c, v = blu._load_frame_from_pack(["AAA", "BBB", "ZZZ"], "2026-10-07")
+    assert dates == [20261006, 20261007]
+    assert c[0].tolist() == [10.0, 11.0] and np.isnan(c[1, 0]) and c[1, 1] == 20.0
+    assert np.isnan(c[2]).all() and v[0].tolist() == [5, 6]
+    assert blu._load_frame_from_pack(["AAA"], "2026-10-08") is None      # pack not current

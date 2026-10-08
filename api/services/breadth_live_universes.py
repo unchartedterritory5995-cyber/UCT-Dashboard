@@ -297,6 +297,62 @@ def _load_frame_by_key(conn, tickers: list, dates: list):
     return closes, volumes
 
 
+def _load_frame_from_pack(tickers: list, L_iso: str):
+    """`(dates_int, closes, volumes)` from the published Universe Bars Pack, or None.
+
+    ⭐ THE PACK IS THE FRAME, ALREADY BUILT. The worker publishes it every evening
+    (`barspack`, R2 `barspack/latest.json` + 40 gzip shards, `PACK_DEPTH` daily bars per
+    ticker, sanitized exactly as charts serve them). Measured 2026-10-08: reading the same
+    ~6,000-name frame from the web pod's 26 GB bars.db took 20+ minutes (cold, scattered
+    rows) whether by IN-list or per-key probe; the pack is ~40 sequential downloads.
+
+    ⛔ Used only when the pack's newest session IS the last completed session `L_iso`; an
+    older pack would silently measure yesterday's levels as today's, so the caller falls
+    back to bars.db instead.
+    """
+    import gzip as _gz
+    import json as _json
+    from api.services import data_sync
+    raw = data_sync.get_bytes("barspack/latest.json")
+    if not raw:
+        return None
+    man = _json.loads(raw)
+    want = set(tickers)
+    series: dict = {}
+    for sh in man.get("shards") or []:
+        body = data_sync.get_bytes(sh["name"])
+        if not body:
+            return None
+        doc = _json.loads(_gz.decompress(body))
+        for sym, entry in (doc.get("tickers") or {}).items():
+            if sym in want or sym == "SPY":
+                d = entry.get("D")
+                if d:
+                    series[sym] = d
+    spy = series.get("SPY")
+    if not spy or not spy.get("t") or spy["t"][-1] != L_iso:
+        return None
+    iso_dates = list(spy["t"])
+    pos = {t: i for i, t in enumerate(iso_dates)}
+    n, m = len(tickers), len(iso_dates)
+    closes = np.full((n, m), np.nan, dtype=np.float64)
+    volumes = np.full((n, m), np.nan, dtype=np.float64)
+    for r, sym in enumerate(tickers):
+        d = series.get(sym)
+        if not d:
+            continue
+        for t, c, v in zip(d["t"], d["c"], d["v"]):
+            j = pos.get(t)
+            if j is None:
+                continue
+            if c is not None:
+                closes[r, j] = c
+            if v is not None:
+                volumes[r, j] = v
+    dates = [int(t.replace("-", "")) for t in iso_dates]
+    return dates, closes, volumes
+
+
 def _build_state(L: int) -> Optional[dict]:
     """The once-per-session heavy half: members, the union frame and its levels."""
     from api.services import breadth_live as bl
@@ -309,13 +365,23 @@ def _build_state(L: int) -> Optional[dict]:
     union = sorted(set().union(*[set(v) for v in mem.values()]))
     if len(union) < 500:
         return None
-    start = bl._ts_int(date.fromisoformat(_iso(L)) - timedelta(days=bl._LOAD_CALENDAR_DAYS + 30))
-    dates = bl._session_dates(conn, L, start, limit=bl._FRAME_SESSIONS + 15)
-    if len(dates) < 240:
-        return None
     _stage("frame")
     t1 = time.time()
-    closes, vols = _load_frame_by_key(conn, union, dates)
+    source = "barspack"
+    try:
+        packed = _load_frame_from_pack(union, _iso(L))
+    except Exception as e:
+        _log.warning("[breadth_live_universes] pack frame failed: %s", e)
+        packed = None
+    if packed is not None and len(packed[0]) >= 240:
+        dates, closes, vols = packed
+    else:
+        source = "bars.db"
+        start = bl._ts_int(date.fromisoformat(_iso(L)) - timedelta(days=bl._LOAD_CALENDAR_DAYS + 30))
+        dates = bl._session_dates(conn, L, start, limit=bl._FRAME_SESSIONS + 15)
+        if len(dates) < 240:
+            return None
+        closes, vols = _load_frame_by_key(conn, union, dates)
     t_frame = time.time() - t1
     _stage("dividend_basis")
     t2 = time.time()
@@ -328,7 +394,7 @@ def _build_state(L: int) -> Optional[dict]:
     levels_today = bl.build_levels(union, closes, vols, L)
     timings = {"members_s": round(t_mem, 2), "frame_s": round(t_frame, 2),
                "dividend_basis_s": round(t_div, 2), "levels_s": round(time.time() - t3, 2),
-               "names": len(union), "sessions": len(dates),
+               "frame_source": source, "names": len(union), "sessions": len(dates),
                "priced_last": int((~np.isnan(closes[:, -1])).sum())}
     _log.info("[breadth_live_universes] state built: %s", timings)
     return {"L": L, "dates": dates, "union": union, "members": mem, "idx": idx,

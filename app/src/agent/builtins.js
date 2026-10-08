@@ -12,6 +12,7 @@ import { registerSettingsCapabilities } from './capabilities/settings'
 import { registerAppCapabilities } from './capabilities/app'
 import { registerNewsCapabilities } from './capabilities/news'
 import { registerDigestCapabilities } from './capabilities/digest'
+import { registerSavedScreenCapabilities } from './capabilities/savedScreens'
 
 let done = false
 export function registerBuiltins() {
@@ -28,4 +29,5 @@ export function registerBuiltins() {
   registerAppCapabilities()
   registerNewsCapabilities()
   registerDigestCapabilities()
+  registerSavedScreenCapabilities()
 }

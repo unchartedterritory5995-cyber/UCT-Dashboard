@@ -339,7 +339,67 @@ describe('layout.duplicate fast path', () => {
     const { host } = lib()
     expect(fastOps(host, 'make a copy of my Intraday Scan')).toEqual([{ action: 'layout.duplicate', target: 'layouts', args: { layout: '12', name: null } }])
     expect(fastOps(host, 'duplicate the Intraday Scan layout')).toEqual([{ action: 'layout.duplicate', target: 'layouts', args: { layout: '12', name: null } }])
-    expect(fastOps(host, 'copy Intraday Scan as Scan 2')).toBeNull()
     expect(fastOps(host, 'make a copy of my Nonexistent')).toBeNull()
+  })
+})
+
+describe('layout.create — a new EMPTY layout, created before anything else, board untouched', () => {
+  const create = (name) => ({ action: 'layout.create', target: 'layouts', args: { name } })
+  it('proposed; Apply creates exactly that row (create-only) and reads it back; the board and the open layout are untouched; Undo deletes it', async () => {
+    const { host, state } = lib()
+    const board = JSON.stringify(state.widgets)
+    const p = plan(host, [create('Research')])
+    expect(decideMode('apply', p)).toBe('propose')
+    expect(p.lines[0]).toMatch(/^Created a new empty layout “Research” — your current board is unchanged \(say “open Research” to switch to it\)$/)
+    const res = await commitPlan(host, p)
+    expect(res.ok).toBe(true)
+    expect(state.layouts.calls).toEqual([['create', 'Research']])
+    expect(JSON.stringify(state.widgets)).toBe(board)
+    expect(state.layouts.activeId).toBe(11)
+    const back = await undoEntry(host, res.undo)
+    expect(back.ok).toBe(true)
+    expect(state.layouts.entries.some(e => e.name === 'Research')).toBe(false)
+  })
+  it('the fast path: "create a new blank layout called Swing Trading"', () => {
+    const { host } = lib()
+    expect(fastOps(host, 'create a new blank layout called Swing Trading')).toEqual([{ action: 'layout.create', target: 'layouts', args: { name: 'Swing Trading' } }])
+    expect(fastOps(host, 'start a fresh layout called Research')).toEqual([{ action: 'layout.create', target: 'layouts', args: { name: 'Research' } }])
+  })
+  it('duplicate / invalid names refused before any write; a name taken elsewhere meanwhile or a server refusal → nothing claimed, board untouched', async () => {
+    expect(plan(lib().host, [create('Momentum')]).refusals[0].reason).toMatch(/already have a layout named “Momentum”/)
+    expect(plan(lib().host, [create('   ')]).refusals[0].reason).toMatch(/needs a name/)
+    expect(plan(lib().host, [create('x'.repeat(61))]).refusals[0].reason).toMatch(/at most 60/)
+    const a = lib(); const pa = plan(a.host, [create('Research')])
+    a.state.layouts.onRefresh = () => { a.state.layouts.entries = [...a.state.layouts.entries, { id: 88, name: 'Research', scope: 'user' }] }
+    const ra = await commitPlan(a.host, pa)
+    expect(ra.ok).toBe(false)
+    expect(a.state.layouts.calls).toEqual([])
+    const b = lib(); const board = JSON.stringify(b.state.widgets); const pb = plan(b.host, [create('Research')])
+    b.state.layouts.failCreate = true
+    const rb = await commitPlan(b.host, pb)
+    expect(rb.ok).toBe(false)
+    expect(rb.failed[0].reason).toMatch(/Save failed/)
+    expect(JSON.stringify(b.state.widgets)).toBe(board)
+  })
+  it('Undo is refused once the new layout was opened (it is in use now)', async () => {
+    const { host, state } = lib()
+    const res = await commitPlan(host, plan(host, [create('Research')]))
+    state.layouts.activeId = state.layouts.entries.find(e => e.name === 'Research').id
+    const back = await undoEntry(host, res.undo)
+    expect(back.ok).toBe(false)
+    expect(state.layouts.entries.some(e => e.name === 'Research')).toBe(true)
+  })
+})
+
+describe('Batch 3 benchmark fixes — deterministic phrasing', () => {
+  it('"make a blank layout called Research and switch to it" → create only (switching stays a separate step)', () => {
+    const { host } = lib()
+    expect(fastOps(host, 'Make a blank layout called Research and switch to it')).toEqual([{ action: 'layout.create', target: 'layouts', args: { name: 'Research' } }])
+  })
+  it('"duplicate my Intraday Scan and call it Morning Prep" → the EXACT source, the given name', () => {
+    const { host } = lib()
+    expect(fastOps(host, 'Duplicate my Intraday Scan and call it Morning Prep')).toEqual([{ action: 'layout.duplicate', target: 'layouts', args: { layout: '12', name: 'Morning Prep' } }])
+    expect(fastOps(host, 'copy Intraday Scan as Scan 2')).toEqual([{ action: 'layout.duplicate', target: 'layouts', args: { layout: '12', name: 'Scan 2' } }])
+    expect(fastOps(host, 'duplicate my Nonexistent and call it X')).toBeNull()
   })
 })

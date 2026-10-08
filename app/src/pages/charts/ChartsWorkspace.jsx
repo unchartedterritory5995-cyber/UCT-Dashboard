@@ -2927,6 +2927,10 @@ export default function ChartsWorkspace() {
       rename: (id, name) => handleDockRename(id, name),
       saveAs: (name) => saveCurrentAs(name, 'user', { createOnly: true }),
       refresh: () => refreshLayouts(),
+      // A NEW empty layout — the dock's own blank shape ({ widgets: [], cols }) — saved
+      // create-only and WITHOUT touching the board (the dock's "New layout" blanks the board
+      // first, then upserts by name). Switching to it stays a separate, ordinary open.
+      create: (name) => saveLayout({ name, layout: { widgets: [], cols: GRID_COLS }, groups: null, scope: 'user', createOnly: true }),
       // The dock's own delete (DELETE by id; throws if the server refuses). The Agent never
       // deletes the OPEN layout (the dock would first switch the board to UCT Default).
       remove: (id) => deleteLayout(id),

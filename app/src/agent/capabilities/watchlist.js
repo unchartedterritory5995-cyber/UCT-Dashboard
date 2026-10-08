@@ -21,7 +21,13 @@
 //                            later ops in the same request (create + populate).
 //   watchlist.rename         proposed; Undo renames it back.
 //
-// ⛔ Not here: delete a list, clear a list, reorder, the flagged list (it syncs as a
+//   watchlist.clear          every symbol out (the remove path: per item, re-checked first,
+//                            taken back on a partial failure); proposed; Undo re-adds them.
+//   watchlist.delete         the whole list (the Watchlists page's DELETE, hard): proposed;
+//                            never a list a Watchlist widget on this board is showing (the
+//                            widget would keep pointing at a list that is gone); no Undo.
+//
+// ⛔ Not here: reorder, the flagged list (it syncs as a
 // whole set — an overwrite race), prebuilt / community / linked lists (read-only).
 // No revision exists server-side, so every write re-reads the list from the server
 // first and refuses if it moved since the plan was made.
@@ -91,8 +97,9 @@ export const watchlistKind = {
   list: (host) => { const all = listsOf(host); return all.map(l => snapOf(l, all)) },
   read: (host, ref) => { const all = listsOf(host); const l = all.find(x => x.id === ref); return l ? snapOf(l, all) : null },
   virtual: ({ alias, spec }) => ({ ref: alias, label: spec?.name || 'New watchlist', name: spec?.name || 'New watchlist', items: [], symbols: [], editable: true, why: null, shownIn: [], position: null, otherNames: [], virtual: true }),
-  stateOf: (snap) => ({ name: snap.name, symbols: snap.symbols, items: snap.items, otherNames: snap.otherNames || [], add: [], skipped: [], remove: [], absent: [], rename: null, addFrom: null }),
+  stateOf: (snap) => ({ name: snap.name, symbols: snap.symbols, items: snap.items, otherNames: snap.otherNames || [], add: [], skipped: [], remove: [], absent: [], rename: null, addFrom: null, deleteList: false }),
   patch(before, after) {
+    if (after.deleteList) return { deleteList: true, name: before.name, beforeSig: sigOf(before.items) }
     const p = {}
     if (after.add.length) p.add = after.add
     if (after.remove.length) p.remove = after.remove
@@ -104,9 +111,21 @@ export const watchlistKind = {
     const W = host.watchlists
     // No revision exists server-side: re-read the list and refuse if it moved since
     // this plan was made (a write in another tab, a manual edit, a pending undo).
-    const cur = await W.fetchList(ref)
+    let cur
+    try { cur = await W.fetchList(ref) } catch (e) {
+      if (patch.deleteList) throw new Error(`${patch.name ? `“${patch.name}”` : 'that watchlist'} is already gone`)
+      throw e
+    }
     const curItems = (cur.items || []).map(i => ({ id: String(i.id), sym: String(i.sym).toUpperCase(), notes: i.notes || '' }))
     if (patch.beforeSig && sigOf(curItems) !== patch.beforeSig) throw new Error('changed since I read it — ask again')
+    if (patch.deleteList) {
+      if (cur.name !== patch.name) throw new Error('changed since I read it — ask again')
+      const shown = (W.snapshot().find(l => l.id === String(ref))?.shownIn || [])
+      if (shown.length) throw new Error('a Watchlist widget on this board is showing it now')
+      await W.deleteList(ref)                    // throws if the server refuses
+      await nextFrame()
+      return true
+    }
     if (patch.undoAdd) {
       const ids = new Set(curItems.map(i => i.id))
       if (!patch.undoAdd.every(id => ids.has(id))) throw new Error('changed since — undoing would remove the wrong things')
@@ -154,6 +173,7 @@ export const watchlistKind = {
     return true
   },
   landed(snap, patch) {
+    if (patch.deleteList) return !snap
     if (!snap) return false
     const have = new Set(snap.symbols)
     if (patch.add && !patch.add.every(s => have.has(s))) return false
@@ -168,6 +188,7 @@ export const watchlistKind = {
   // list before and after). Undo a remove = re-add them and restore the old order.
   undoPatch(item) {
     const p = item.patch || {}
+    if (p.deleteList) return null              // a hard delete: nothing brings the same list back
     const out = {}
     if (p.add) {
       const before = new Set((item.before?.items || []).map(i => i.id))
@@ -182,11 +203,12 @@ export const watchlistKind = {
     if (p.rename) out.undoRename = p.rename.from
     return Object.keys(out).length ? out : null
   },
-  fingerprint: (snap) => sigOf(snap.items) + '|' + snap.name,
+  fingerprint: (snap) => (snap ? sigOf(snap.items) + '|' + snap.name : 'gone'),
   // Stale undo, delta-aware: an ADD can be taken back while every row it created is
   // still there (other edits to the list are left alone); a REMOVE restores the old
   // order, so it needs the list exactly as the Agent left it; a RENAME needs the name.
   fingerprintFor(host, snap, item) {
+    if (!snap) return 'gone'                   // after a whole-list delete there is nothing to read
     const p = item.patch || {}
     if (p.remove) return sigOf(snap.items)
     if (p.add) {
@@ -477,6 +499,49 @@ export function registerWatchlistCapabilities() {
     },
   })
 
+  // ── watchlist.clear ──
+  registerCapability({
+    name: 'watchlist.clear',
+    surfaces: ['charts'],
+    target: 'watchlist',
+    risk: 'confirm',
+    summary: 'Remove EVERY symbol from one of the member\'s saved watchlists (the list itself stays). Always shown as a proposal with the count first.',
+    hints: 'target = the ref of the watchlist. For only some symbols use watchlist.remove. If it is not clear which list, clarify with the real names.',
+    args: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    check(st, _a, env) {
+      const bad = editProblem(st, env)
+      if (bad) return bad
+      if (st.remove.length || st.add.length) return 'Clear the list on its own, then ask for other changes.'
+      if (!st.items.length) return null
+      if (st.items.length > MAX_PER_REQUEST) return `${quote(st.name)} has ${st.items.length} stocks — more than I clear at once (${MAX_PER_REQUEST}). Clear it on the Watchlists page.`
+      return null
+    },
+    apply: (st) => (st.items.length ? { ...st, remove: st.items.map(it => ({ id: it.id, sym: it.sym, notes: it.notes })) } : st),
+    noop: (st) => `${quote(st.name)} is already empty`,
+    describe: (b, a) => (a.remove.length ? `Cleared all ${a.remove.length} stock${a.remove.length === 1 ? '' : 's'} from ${quote(a.name)}` : null),
+  })
+
+  // ── watchlist.delete ──
+  registerCapability({
+    name: 'watchlist.delete',
+    surfaces: ['charts'],
+    target: 'watchlist',
+    risk: 'confirm',
+    reversible: false,
+    summary: 'Delete one of the member\'s saved watchlists entirely (permanent). Not a list a Watchlist widget on this board is showing.',
+    hints: 'target = the ref of the watchlist. If more than one list could be meant, clarify with the real names — never pick one by similarity. '
+      + 'Deleting is always shown as a proposal first, so do not ask "are you sure?". To empty a list but keep it, use watchlist.clear.',
+    args: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    check(st, _a, env) {
+      const snap = env?.target
+      if (snap?.shownIn?.length) return `${quote(st.name)} is showing in a Watchlist widget on this board — switch that widget to another list (or remove it) first, then ask me to delete the list.`
+      if (st.remove.length || st.add.length || st.rename) return 'Delete the list on its own.'
+      return null
+    },
+    apply: (st) => ({ ...st, deleteList: true }),
+    describe: (b, a) => (a.deleteList ? `Deleted the watchlist ${quote(b.name)} and its ${b.items.length} stock${b.items.length === 1 ? '' : 's'} (permanent)` : null),
+  })
+
   // ── watchlist.create ──
   registerCapability({
     name: 'watchlist.create',
@@ -485,7 +550,8 @@ export function registerWatchlistCapabilities() {
     risk: 'confirm', reversible: false,
     createsResource: true,
     summary: 'Create a NEW saved watchlist (a named list of tickers) — only when they ask to create or make a list. "Add a watchlist" with no list name means a Watchlist WIDGET on the board: that is widget.add, not this.',
-    hints: 'target = the ref of the watchlistLibrary entry; name = exactly as given. To fill it in the same request set "as" to a short name (new1) '
+    hints: 'target = the ref of the watchlistLibrary entry; name = exactly as given. To COPY a list ("duplicate my X watchlist"), create "<X> copy" '
+      + '(or the name they give — do not ask for one) and add {from: the ref of X, top: null} to it. To fill it in the same request set "as" to a short name (new1) '
       + 'and target watchlist.add at that name; otherwise "as" is null. Never use this for a name already in the watchlists list — '
       + 'if they ask to put stocks in a list "called X" and X already exists, clarify (add to the existing X, or a new name); never silently append.',
     args: {

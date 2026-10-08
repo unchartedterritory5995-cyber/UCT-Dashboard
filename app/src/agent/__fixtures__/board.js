@@ -102,6 +102,16 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
       },
       // A refresh may reveal what only the SERVER knew (another tab's change): `onRefresh`.
       refresh: async () => { if (lib.onRefresh) { lib.onRefresh(); lib.onRefresh = null } },
+      // A new EMPTY layout, create-only (POST create_only). The board is untouched.
+      async create(name) {
+        lib.calls.push(['create', name])
+        if (lib.failCreate) throw new Error('Save failed')
+        if (lib.entries.some(e => e.scope === 'user' && e.name === name)) throw new Error('You already have a layout with that name')
+        const nid = 3000 + lib.entries.length
+        lib.entries = [...lib.entries, { id: nid, name, scope: 'user' }]
+        lib.boards[nid] = []
+        return { id: nid, name, scope: 'user' }
+      },
       // The dock's delete (DELETE by id, owner-only server-side) and a create-only duplicate.
       async remove(id) {
         lib.calls.push(['remove', id])
