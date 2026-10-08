@@ -262,7 +262,12 @@
   .askToggle, .askBtn { padding: 0 14px; }
   .closeBtn { min-width: var(--tap-min, 44px); }
   .input { height: var(--tap-min, 44px); font-size: 16px; /* no iOS zoom */ }
-  .citationChip { padding: 4px 8px; }
+  /* Fin-ai K7: the chip measured 32 x 44 at 390: tall enough, too narrow. A REAL 44 px box,
+     never a wider invisible hit area: two real boxes side by side cannot overlap, so
+     run-together chips `[1][2]` each keep their own source (the in-note chip's `::after`
+     extension once let `[2]` open source 3; see AskCitationView.module.css, which hands this
+     width back for a chip inside a line of prose). */
+  .citationChip { padding: 4px 8px; min-width: var(--tap-min, 44px); text-align: center; }
 }
 
 /* PHONE / TOUCH — geometry belongs to `Sheet` now (see PanelShell). A

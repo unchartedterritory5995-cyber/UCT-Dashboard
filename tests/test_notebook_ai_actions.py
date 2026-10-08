@@ -776,3 +776,56 @@ def test_an_AI_change_block_exports_with_its_own_provenance_label():
     md = notes_export._block(block)
     assert md.split("\n")[0] == "> **Compass · AI change · claude-sonnet-5** · 2026-10-01 · Asked: tag my notes"
     assert "From Ask Notebook" not in md and "> Next earnings: Nov 19" in md
+
+
+# ── fin walk K4: a tag that does not exist yet is a tag the member may ask for ───────────────
+#
+# Measured live: `Tag my two CRWD notes with "security".` came back as zero changes with the
+# reason "The tag "security" doesn't exist in the workspace's allowed tag list". No such list
+# exists. The workspace fence shows the member's existing tags, and the prompt's rule about a
+# property's "listed options" was being read as covering them.
+
+def test_the_prompt_says_a_tag_need_not_exist_yet():
+    p = ai.system_prompt()
+    assert ai.TAG_RULE in p
+    rule = ai.TAG_RULE
+    assert "does not have to exist" in rule
+    assert "created when" in rule
+    assert "not a list of allowed tags" in rule
+    assert "Never refuse" in rule
+
+
+def test_the_listed_options_rule_is_about_choice_properties_and_says_so():
+    p = ai.system_prompt()
+    assert ai.OPTIONS_RULE in p
+    rule = ai.OPTIONS_RULE
+    assert "select" in rule and "listed options" in rule
+    assert "only to properties" in rule and "never to tags" in rule
+    # the old wording, which named no type and so reached tags, is gone
+    assert "and, for a choice, one of its listed options." not in p
+
+
+def test_the_system_prompt_still_takes_no_arguments():
+    import inspect
+    assert list(inspect.signature(ai.system_prompt).parameters) == []
+
+
+def test_the_server_plans_and_applies_a_tag_no_note_has_ever_carried(app, client, gate_on, stub, db_path):
+    """The control the prompt rule rests on: the server itself has no allowed-tag list."""
+    _as_member(app, "u1")
+    a = _note("u1", "CRWD plan", "CRWD breakout", tags=["crowdstrike"])
+    b = _note("u1", "CRWD after", "CRWD report")
+
+    def answer(kwargs):
+        workspace = re.search(rf"<<{ai.FENCE_WORKSPACE} BEGIN>>\n(.*?)\n<<{ai.FENCE_WORKSPACE} END>>",
+                              kwargs["messages"][0]["content"], re.S)
+        assert "security" not in json.loads(workspace.group(1))["tags"]      # the tag is brand new
+        return {"summary": "Tag both with security.", "changes": [
+            {"note": key_of(kwargs, "CRWD plan"), "op": "add_tag", "tag": "security"},
+            {"note": key_of(kwargs, "CRWD after"), "op": "add_tag", "tag": "security"}]}
+
+    stub["client"] = _StubClient(answer)
+    cs = _plan(client, 'Tag my two CRWD notes with "security".')
+    assert [c["op"] for c in cs["changes"]] == ["add_tag", "add_tag"]
+    _apply(client, cs)
+    assert "security" in _get("u1", a["id"])["tags"] and "security" in _get("u1", b["id"])["tags"]

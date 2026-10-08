@@ -1,0 +1,18 @@
+{
+ "text": "Ask Notebook to do something\nNothing to change\n\nYou asked: “Tag my two CRWD notes with \"security\".”\n\nThe tag \"security\" doesn't exist in the workspace's allowed tag list, so no changes are proposed.\n\nNothing was written.\n\nChange the request",
+ "apply_buttons": 0,
+ "checkboxes": 0,
+ "change_button": [
+  {
+   "text": "Change the request",
+   "label": null,
+   "tag": "BUTTON",
+   "x": 57,
+   "y": 617.3,
+   "w": 168.3,
+   "h": 44,
+   "own_centre": true,
+   "top_tag": "BUTTON"
+  }
+ ]
+}
