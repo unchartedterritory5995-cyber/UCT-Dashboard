@@ -48,6 +48,7 @@ import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 // close-and-reopen exactly as before.
 const BuilderSheet = lazy(() => import('./builder/BuilderSheet'))
 // ⭐ P2 Track B — lazy for the same reason: it pulls the authoring engine.
+import { delegateIndicatorRequest } from './builder/authoring/agentContract'
 const CreateIndicatorPanel = lazy(() => import('./builder/studio/CreateIndicatorPanel'))
 import { mintScope, createKey, editKey } from './builder/authoring/conversationSessions'
 import { useUserDefinitions } from '../../hooks/useUserDefinitions'
@@ -1208,6 +1209,10 @@ function ChartToolbar({
   // available. `StockChart` calls it; it does not own the state.
   const canManageIndicators = !!(chartSettings && onUpdateSettings)
   useImperativeHandle(ref, () => ({
+    // ⭐ OVERNIGHT H — the UCT Agent's delegation seam (`agentContract.js`): a typed,
+    // validated request opens Create Indicator with the member's words prefilled.
+    // Called as `handle.delegateIndicator(req)`, so `this` is this handle.
+    delegateIndicator(req) { return delegateIndicatorRequest(req, this) },
     openSettings: () => {
       setShowColors(false)
       setShowWidths(false)

@@ -40,6 +40,7 @@ describe('agentContract — typed, closed, opens a dock and never saves', () => 
     expect(toolbar).toMatch(/setCreateSeed\(opts && typeof opts\.prompt === 'string'/)
     expect(toolbar).toMatch(/initialPrompt=\{createSeed\}/)
     expect(panel).toMatch(/useState\(\(\) => \(typeof initialPrompt === 'string' \? initialPrompt : ''\)\)/)
+    expect(toolbar).toContain('delegateIndicator(req) { return delegateIndicatorRequest(req, this) }')
     // the Agent itself still owns no indicator capability (its own README rule)
     const agentDir = path.resolve(globalThis.process.cwd(), 'src/agent/capabilities')
     const names = fs.readdirSync(agentDir).join(' ')

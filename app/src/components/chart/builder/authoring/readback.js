@@ -321,8 +321,12 @@ export function readback(def, state = {}, gateCtx = {}) {
     : null
   // ⭐ OVERNIGHT E — the member's own settings: what each is now, and where it is set.
   // A default of 0 is the honest "not set yet" (UCT never assumes an account size).
-  const settingLines = (def.inputs || []).filter((x) => x && !['color', 'lineWidth'].includes(x.key)
-    && (x.type === 'float' || x.type === 'int'))
+  // ⛔ NOT the plot STYLE inputs (a colour / width a plot names as `$key` — the
+  // Builder's chrome): those are presentation, not the member's own figures.
+  const chromeKeys = new Set((def.plots || []).flatMap((p) => [p && p.color, p && p.width])
+    .filter((v) => typeof v === 'string' && v.startsWith('$')).map((v) => v.slice(1)))
+  const settingLines = (def.inputs || []).filter((x) => x && !chromeKeys.has(x.key)
+    && !['color', 'lineWidth'].includes(x.key) && (x.type === 'float' || x.type === 'int'))
     .map((x) => `Setting "${x.label || x.key}" = ${x.default}${x.default === 0 ? ' (not set yet)' : ''} — change it in the indicator's settings`)
   // ⭐ PHASE 5 — another symbol, and the alignment rule said as what shows.
   const tickers = symTickersOf(def)
