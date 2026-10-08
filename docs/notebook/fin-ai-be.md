@@ -160,3 +160,23 @@ K1 and K6 share one commit: they meet in one line, the system prompt's compositi
 - Nothing was run in a browser.
 - The image-with-text Ask row stayed NOT RUN in the walk (no OCR engine on that machine); it
   was not looked at here.
+
+## On the combined branch `feat/notebook-fin-ai`
+
+The server lane and the client lane (`origin/feat/notebook-fin-ai-fe`, `7d6b557d0e`) were
+merged with no conflict. The tree is master (`2265f4ac3b`) plus exactly the two lanes' files,
+compared by numstat (16 + 38, none shared).
+
+- **Owner ruling on K2.** A monthly draft must not gain a "What Compass said" heading merely
+  because Compass writes no monthly review. The client shows the server's sentence for
+  `no_review`, `windows_differ` and `several_accounts`, and shows nothing for
+  `no_monthly_review`. A reason it has never heard of is still shown. The server answer is
+  unchanged: it says the reason either way.
+- **The red frontend test is fixed.** Its overlay that adds a quote now sets
+  `compassOmitted: null` beside it.
+
+Runs on the combined branch: backend 22 named files, 1044 passed; the whole `a11y/` directory,
+44 files, 392 passed and 1 skipped; `styles/tapFloor.test.js` with the Ask, citation, AI
+actions, Research Home, review draft and voice note tests, 54 files, 1093 passed; the frontend
+build; the byte gate (2,233,193 B against a budget of 2,260,793 B, PASS); the contract fixture
+check (exit 0); the hygiene check (clean).
