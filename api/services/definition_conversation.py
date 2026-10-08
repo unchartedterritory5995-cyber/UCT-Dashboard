@@ -1501,11 +1501,13 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         # prose), or when an advisory turn bypassed the planner's refusal (the model
         # may DISCUSS those phrases, never author with them).
         # ⭐ PHASE 5: another symbol is authorable now, so a change for one is
-        # refused only when it does NOT read that symbol (the substitution).
-        reads_other = bool(other_sym) and (
-            conversation_preflight.store_ticker(other_sym)
-            in {conversation_preflight.store_ticker(t)
-                for t in envelope_tickers(envelope)})
+        # refused only when it reads NONE of the symbols the member named (the
+        # substitution). "From SPY to QQQ" names both; a change reading QQQ is it.
+        named = {conversation_preflight.store_ticker(t)
+                 for t in conversation_preflight.named_tickers(message, chart)} | (
+            {conversation_preflight.store_ticker(other_sym)} if other_sym else set())
+        reads_other = bool(other_sym) and bool(
+            named & {conversation_preflight.store_ticker(t) for t in envelope_tickers(envelope)})
         unasked = unasked_tickers(envelope, message, view)
         if envelope.get("disposition") == "change" and unasked:
             refused = _Refused("unsupported:symbol-unasked", f"reads {', '.join(unasked)}",

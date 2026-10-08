@@ -314,3 +314,22 @@ def test_P5_BACKSTOP_a_symbol_SLOT_edit_reads_the_symbol_it_writes(conv, model):
     model([emits(env(1, [{"op": "set_slot", "slot": "value#0", "symbol": "IWM"}]))])
     r = conv.converse("make it 60", user_id="u1", view=v, chart={"sym": "AAPL", "tf": "D"})
     assert r["ok"] is False and r["gate"] == "unsupported:symbol-unasked" and "IWM" in r["reason"]
+
+
+def test_P5_BACKSTOP_a_benchmark_SWITCH_names_both_symbols_and_reads_the_new_one(conv, model):
+    """ASKED (Phase 5 real-model acceptance, verbatim): "Change the benchmark from SPY
+    to QQQ." -- the real model answered with the QQQ change. FOUND: the backstop
+    required the FIRST-named ticker (SPY) and refused the correct edit. CLAIMED: a
+    change reading ANY symbol the member named passes; one reading none of them (the
+    P3R substitution) is still refused. DID (EXACT / REGRESSION)."""
+    before = op("/", CLOSE, sym("SPY"))
+    v = view(1, [out("value", before, type_="line",
+                     slots=[{"id": "value#1", "kind": "symbol", "value": "SPY"}])])
+    model([emits(env(1, [{"op": "set_slot", "slot": "value#1", "symbol": "QQQ"}]))])
+    r = conv.converse("Change the benchmark from SPY to QQQ.", user_id="u1", view=v,
+                      chart={"sym": "OPCH", "tf": "D"})
+    assert r["ok"] is True and r["disposition"] == "change", r
+    model([emits(env(1, [{"op": "set_output_tree", "output": "value", "tree": CLOSE}]))])
+    r = conv.converse("Change the benchmark from SPY to QQQ.", user_id="u1", view=v,
+                      chart={"sym": "OPCH", "tf": "D"})
+    assert r["ok"] is False and r["gate"] == "unsupported:other-symbol"

@@ -276,6 +276,20 @@ def _other_symbol(message: str, chart_sym: Optional[str]) -> Optional[str]:
     return None
 
 
+def named_tickers(message: Any, chart: Any = None) -> List[str]:
+    """⭐ PHASE 5 -- EVERY ticker-shaped word the member wrote (not product /
+    indicator vocabulary, not the chart's own symbol), in order. The substitution
+    backstop asks whether a change reads ANY of them: "change the benchmark from SPY
+    to QQQ" names both, and a change reading QQQ is the request, not a substitution
+    (found in the Phase 5 real-model acceptance, where the first-named SPY alone was
+    required and the correct QQQ change was refused)."""
+    if not isinstance(message, str) or not message.strip():
+        return []
+    chart = chart if isinstance(chart, Mapping) else {}
+    own = _norm_sym(chart.get("sym"))
+    return [t for t in _tickers(_unphrased(message)) if t != own]
+
+
 def other_symbol(message: Any, chart: Any = None) -> Optional[str]:
     """⭐ P3 -- the other-symbol DETECTOR alone, question or not (the server's
     model-substitution backstop: a question that names another ticker must never
