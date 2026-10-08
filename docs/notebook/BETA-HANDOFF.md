@@ -57,8 +57,10 @@ the section 1d order and in dependency groups, each group followed by an in-proc
 switch through the smoke account's sign-in payload and a passing app-wide click-through: the
 fingerprint, plan grading, entry context and chart plan at 00:30 CT; the visual playbook, setups
 board, find similar, My Playbook, earnings prep, transcript passages and passed setups at 00:42;
-note resurfacing and thesis chips at 00:50; review drafts last, on the evening of 2026-10-08
-(see the ledger for the exact time). The table below is kept as written: it still says what a
+note resurfacing and thesis chips at 00:50. **Review drafts** was set to 1 at 17:12 CT and back to 0 at
+17:30 CT the same evening, when production stopped answering (rule H15: roll back first). The same
+stall had happened twice earlier that day with the switch unset, so it is a precaution, not a
+finding; the ledger entry carries the detail. It stays at 0 until the stall is understood. The table below is kept as written: it still says what a
 member sees and what each switch depends on.
 
 | switch | what members get | what has to be true first |
@@ -133,7 +135,7 @@ section said those four would appear as soon as wave 14 deployed; that was true 
 | Transcript passages | `NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED` | armed (2026-10-08) |
 | Passed setups | `NOTEBOOK_PASSED_SETUPS_ENABLED` | armed (2026-10-08) |
 | A note resurfaces (a two-step explainer over the "What you wrote then" sheet; no Replay) | `AWARENESS_NOTE_RESURFACE_ENABLED` | armed (2026-10-08) |
-| Reviews that write themselves | `NOTEBOOK_REVIEW_DRAFTS_ENABLED` | dark |
+| Reviews that write themselves | `NOTEBOOK_REVIEW_DRAFTS_ENABLED` | set to 0 (2026-10-08 17:30 CT, after a production stall; see 1b) |
 
 "Ledger" is `docs/feature_flags.json`, which records intent and cannot see Railway. Check the
 Railway Variables before relying on a row.
