@@ -198,6 +198,34 @@ def library_aliases() -> dict:
     return out
 
 
+_DISPLAY_SYMBOLS: Optional[dict] = None
+
+
+def display_symbols() -> dict:
+    """`{canonical UCT symbol: member-facing ticker}` — `UCTA50` → `UCT:A50`.
+
+    ⭐ PRESENTATION ONLY, AND THE INVERSE OF `library_aliases()`. The owner's 2026-10-07
+    convention shows UCT's own breadth tickers in the same `NAMESPACE:CODE` shape as
+    `US:A50` / `NYSE:A50`. The CANONICAL identity does not move: `UCTA50` is what every
+    stored layout, watchlist, drawing, alert and formula holds, what `/api/bars` keys on
+    and what the client's breadth family map is keyed by. The display spelling is read
+    off the existing explicit alias table (which already RESOLVES `UCT:A50`), so there is
+    no second naming rule and a typed `UCT:A50` lands on the same series.
+    """
+    global _DISPLAY_SYMBOLS
+    if _DISPLAY_SYMBOLS is None:
+        _DISPLAY_SYMBOLS = {target.upper(): alias.upper()
+                            for alias, target in library_aliases().items()
+                            if target.upper() in SYMBOLS}
+    return _DISPLAY_SYMBOLS
+
+
+def display_symbol(sym: str) -> str:
+    """The member-facing ticker for a breadth symbol (itself when it has no UCT: form)."""
+    s = (sym or "").strip().upper()
+    return display_symbols().get(s, s)
+
+
 def resolve(sym: str, published_only: bool = True) -> Optional[dict]:
     """The registry row for `sym`, or None. THE membership authority.
 
@@ -478,16 +506,20 @@ def search(qq: str, limit: int = 20) -> list[dict]:
     exact, prefix, namesub = [], [], []
     for rec in list_breadth_symbols():
         sym, name = rec["symbol"], rec["name"]
-        if sym == qq:
+        # ⭐ The member-facing `UCT:A50` matches exactly like the canonical `UCTA50`.
+        shown = display_symbol(sym)
+        if qq in (sym, shown):
             exact.append((rec, True))
-        elif sym.startswith(qq):
+        elif sym.startswith(qq) or shown.startswith(qq):
             prefix.append((rec, True))
-        elif qq in sym or qq in name.upper():
+        elif qq in sym or qq in shown or qq in name.upper():
             namesub.append((rec, False))
     out = []
     for rec, symbol_hit in (exact + prefix + namesub)[:limit]:
         out.append({
             "ticker": rec["symbol"],
+            # ⭐ What the row SHOWS; `ticker` stays the canonical identity it submits.
+            "display_ticker": display_symbol(rec["symbol"]),
             "name": rec["name"],
             "breadth": True,
             "group_label": rec["group_label"],

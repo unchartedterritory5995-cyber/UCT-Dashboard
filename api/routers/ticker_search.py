@@ -339,7 +339,8 @@ def ticker_search(
             from api.services import breadth_symbols as _breadth_syms
             b_front, b_back = [], []
             for rec in _breadth_syms.search(qq, limit):
-                row = {"ticker": rec["ticker"], "name": rec["name"], "type": "breadth",
+                row = {"ticker": rec["ticker"], "display_ticker": rec.get("display_ticker"),
+                       "name": rec["name"], "type": "breadth",
                        "exchange": "UCT", "entity_id": None,
                        "breadth": True, "group_label": rec.get("group_label"),
                        "universe_label": rec.get("universe_label")}

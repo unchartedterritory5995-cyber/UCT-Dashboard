@@ -288,7 +288,13 @@ def _exchange_row(universe: str, kind: str) -> "Series":
     label = "NYSE" if universe == "nyse" else "Nasdaq"
     vendor = "$" + _EXCH_ALIAS[(universe, kind)][0]
     pop = _EXCH_POP % (label, label, vendor)
-    common = dict(id=f"{X}:{kind}", family=FAM_MCCLELLAN if kind != "AD" else FAM_BREADTH,
+    # ⭐ (owner, 2026-10-07) THE MEMBER-FACING TICKER IS THE CONVENTIONAL ONE — NYMO / NYSI / NYAD /
+    # NAMO / NASI / NAAD — the same Rule-4 split SENT:NAAIM → NAAIM and CBOE:VIX9D → VIX9D use. The
+    # canonical identity stays `NYSE:MCO` (it still resolves, so nothing stored moves); the display
+    # stays `NYSE · McClellan Oscillator`; and the methodology still says in words that this is UCT's
+    # point-in-time operating-equity census, not the vendor's all-issues composite.
+    common = dict(id=f"{X}:{kind}", symbol=_EXCH_ALIAS[(universe, kind)][0],
+                  family=FAM_MCCLELLAN if kind != "AD" else FAM_BREADTH,
                   source_type=SRC_BREADTH_DERIVED, status=ST_DORMANT, frequency=FREQ_DAILY,
                   universe=universe, aliases=_EXCH_ALIAS[(universe, kind)],
                   observation_semantics=_SAME_SESSION, knowledge_semantics=_KNOWN_AT_CLOSE,
@@ -483,9 +489,10 @@ _ROWS: list[Series] = [
     # discoverable: `published_rows()` excludes them and `resolve()` refuses them, so no flag, no
     # typo and no client cache can reach one before the cutover authorizes publication.
     #
-    # ⭐ CANONICAL IDENTITY IS THE UCT SYMBOL (`NYSE:MCO`). NYMO/NYSI/NAMO/NASI/NYAD/NAAD are SEARCH
-    # ALIASES ONLY (naming Rule 1's precondition fails: our census is point-in-time NYSE / Nasdaq
-    # operating equity, not the vendors' all-issues composites).
+    # ⭐ CANONICAL IDENTITY IS THE UCT ID (`NYSE:MCO`). Since 2026-10-07 the member-facing SYMBOL is
+    # the conventional ticker (NYMO/NYSI/NAMO/NASI/NYAD/NAAD) by owner decision; the DISPLAY name
+    # stays `NYSE · McClellan Oscillator` and the methodology keeps the census caveat (our population
+    # is point-in-time NYSE / Nasdaq operating equity, not the vendors' all-issues composites).
     *[_exchange_row(u, kind) for u in ("nyse", "nasdaq") for kind in ("MCO", "MCS", "AD")],
 
     Series(

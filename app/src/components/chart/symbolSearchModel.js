@@ -79,11 +79,118 @@ export const INDICES_PRESET = [
 ]
 
 
-// q matches a preset/breadth row by ticker OR name (case-insensitive substring).
+// q matches a preset/breadth row by ticker, the ticker it SHOWS (`UCT:A50`), an
+// explicit alias (`$NYMO`, `NYSE:MCO`) or its name (case-insensitive substring).
 export const matchQ = (r, q) => {
   if (!q) return true
   const qu = q.toUpperCase()
-  return String(r.ticker || '').includes(qu) || String(r.name || '').toUpperCase().includes(qu)
+  if (String(r.ticker || '').includes(qu) || String(r.name || '').toUpperCase().includes(qu)) return true
+  if (r.display_ticker && String(r.display_ticker).toUpperCase().includes(qu)) return true
+  return Array.isArray(r.aliases) && r.aliases.some((a) => String(a || '').toUpperCase() === qu)
+}
+
+/** The ticker a row SHOWS. ⭐ `ticker` stays the canonical identity the row submits
+ *  (`UCTA50` — what every saved chart, watchlist and layout holds); `display_ticker`
+ *  is the member-facing spelling (`UCT:A50`) when the server sent one. */
+export const shownTicker = (r) => (r && (r.display_ticker || r.ticker)) || ''
+
+
+// ─── THE BREADTH CATEGORY ────────────────────────────────────────────────────
+//
+// ⭐⭐ ONE LIST, TWO CATALOGUES, BUILT HERE ONCE for the desktop dropdown and the phone
+// sheet. `/api/breadth-symbols` carries the UCT pseudo-tickers and the published
+// US / NYSE / Nasdaq library (`% Above 50-Day MA`…); `/api/market-indicators` carries the
+// breadth-DERIVED series (McClellan Oscillator / Summation, A/D Line, Zweig, A/D ratios,
+// High-Low Index — NYMO, NASI, NYAD…). Both are breadth, and before 2026-10-07 the second
+// half was missing from this chip entirely and rendered as a generic "indicator" row with a
+// company-logo lookup in "All".
+//
+// ⛔ PRESENTATION ONLY. No identity is minted or rewritten here: every row submits the
+// symbol its own registry gave it.
+
+/** Universe prose (mirrors `market_indicators.naming.UNIVERSE_DISPLAY`). */
+const BREADTH_UNIVERSE_LABEL = { uct: 'UCT', us: 'US', nyse: 'NYSE', nasdaq: 'Nasdaq' }
+const BREADTH_UNIVERSE_ORDER = ['uct', 'us', 'nyse', 'nasdaq']
+
+/** Is a market-indicator catalogue / search row a BREADTH series? Breadth-derived (computed
+ *  from UCT's own advancing/declining/highs/lows), a single series, not a product.
+ *  ⛔ Surveys (NAAIM, AAII), Cboe volatility and COT are not breadth. */
+export function isBreadthIndicatorRow(r) {
+  if (!r || r.kind === 'product') return false
+  if (r.source_type) return r.source_type === 'breadth_derived' && r.catalogue !== 'breadth_library'
+  // A `/api/ticker-search` indicator row carries the family, not the source type.
+  return r.indicator === true && (r.family === 'mcclellan' || r.family === 'breadth')
+}
+
+/** Does this search row get the UCT mark + BREADTH badge? */
+export const isBreadthRow = (r) => !!r && (r.breadth === true || isBreadthIndicatorRow(r))
+
+/**
+ * The Breadth chip's full list, in catalogue order: UCT (its pseudo-tickers, by group),
+ * then for each published universe its breadth-derived series (McClellan, A/D…) followed
+ * by its library metrics.
+ *
+ * @param {object[]} symbols    `/api/breadth-symbols` → `symbols`
+ * @param {object}   displayMap `/api/breadth-symbols` → `display_symbols`
+ * @param {object[]} indicators `/api/market-indicators` → `rows` (any rows; filtered here)
+ */
+export function breadthChipRows(symbols, displayMap, indicators) {
+  const dm = displayMap && typeof displayMap === 'object' ? displayMap : {}
+  const byUni = new Map(BREADTH_UNIVERSE_ORDER.map((u) => [u, { ind: [], lib: [] }]))
+  const bucket = (u) => {
+    const k = String(u || 'uct').toLowerCase()
+    if (!byUni.has(k)) byUni.set(k, { ind: [], lib: [] })
+    return byUni.get(k)
+  }
+  const seen = new Set()
+  for (const s of Array.isArray(symbols) ? symbols : []) {
+    const ticker = String(s.symbol || '').toUpperCase()
+    if (!ticker || seen.has(ticker)) continue
+    seen.add(ticker)
+    const uni = s.universe ? String(s.universe).toLowerCase() : 'uct'
+    const name = s.name || s.label || ''
+    // A namespaced library row says WHICH population — `US · % of Stocks Above 50-Day MA` —
+    // the same `Universe · Metric` sentence the McClellan rows beside it carry. UCT rows keep
+    // their shipped names (their ticker already says UCT).
+    const ul = uni !== 'uct' ? (BREADTH_UNIVERSE_LABEL[uni] || s.universe_label || '') : ''
+    bucket(uni).lib.push({
+      ticker,
+      display_ticker: dm[ticker] || null,
+      name: ul && name ? `${ul} · ${name}` : name,
+      type: 'breadth', breadth: true, group_label: s.group_label || s.group,
+    })
+  }
+  for (const r of Array.isArray(indicators) ? indicators : []) {
+    if (!isBreadthIndicatorRow(r) || r.status === 'dormant') continue
+    const ticker = String(r.symbol || r.id || '').toUpperCase()
+    if (!ticker || seen.has(ticker)) continue
+    seen.add(ticker)
+    bucket(r.universe).ind.push({
+      ticker,
+      name: r.display || r.short || ticker,
+      type: 'breadth', breadth: true, indicator: true,
+      group_label: r.family_label || 'Breadth',
+      aliases: [r.id, ...(Array.isArray(r.aliases) ? r.aliases : [])].filter(Boolean),
+    })
+  }
+  const out = []
+  for (const { ind, lib } of byUni.values()) out.push(...ind, ...lib)
+  return out
+}
+
+/**
+ * The canonical ticker for what the member TYPED. `UCT:A50` (the member-facing spelling)
+ * submits `UCTA50`, so the chart opens on the identity its registries key on rather than
+ * on a spelling the client's breadth family map does not hold. Anything else is returned
+ * unchanged — this never invents an identity.
+ */
+export function canonicalTicker(typed, breadthRows) {
+  const t = String(typed || '').trim().toUpperCase()
+  if (!t) return t
+  for (const r of Array.isArray(breadthRows) ? breadthRows : []) {
+    if (r && r.display_ticker && String(r.display_ticker).toUpperCase() === t) return r.ticker
+  }
+  return t
 }
 
 
@@ -112,7 +219,7 @@ export function rowIdentity(r, { badgeStock = false } = {}) {
     const yr = r.delisted_date ? ` ${String(r.delisted_date).slice(0, 4)}` : ''
     return { exchange: null, badge: { text: `Delisted${yr}`, kind: 'delisted' } }
   }
-  if (r.breadth) return { exchange: null, badge: { text: 'BREADTH', kind: 'breadth' } }
+  if (isBreadthRow(r)) return { exchange: null, badge: { text: 'BREADTH', kind: 'breadth' } }
   // An economic series is not an instrument: no exchange, one label.
   if (r.economic) return { exchange: null, badge: { text: 'Economic', kind: 'economic' } }
   const exchange = r.exchange || null
