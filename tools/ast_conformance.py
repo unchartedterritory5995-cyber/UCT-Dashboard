@@ -105,7 +105,13 @@ if _uct_repo_root not in _uct_sys.path:
 # a sandboxed server's bars reads began failing (`SharedDataRootWrite`) right after
 # a user-formula alert was armed. As a script (`python tools/ast_conformance.py`)
 # and under pytest (where the repo-root conftest is already loaded) nothing changes.
-if __name__ == "__main__" or "pytest" in _uct_sys.modules or "conftest" in _uct_sys.modules:
+# ⛔⛔ 2026-10-08 03:37Z INCIDENT: the `"pytest" in sys.modules` clause is GONE. The live
+# web process now has `pytest` loaded after startup (a runtime import pulls it in), so
+# that clause fired in PRODUCTION on the first user-formula alert arm: conftest loaded,
+# every /data sqlite connect raised SharedDataRootWrite, auth and most routes 500'd.
+# Under pytest the repo-root conftest is ALREADY in sys.modules, so the `conftest`
+# clause alone covers tests; `pytest` being importable proves nothing about the process.
+if __name__ == "__main__" or "conftest" in _uct_sys.modules:
     import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import
 
 import sys

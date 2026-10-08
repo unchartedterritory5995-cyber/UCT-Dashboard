@@ -44,7 +44,30 @@ def test_importing_ast_conformance_as_a_library_does_not_load_conftest():
     assert got["moved"] == [], f"a server-side import moved env vars: {got['moved'][:10]}"
 
 
+def test_a_server_process_with_PYTEST_LOADED_still_does_not_load_conftest():
+    """⛔ 2026-10-08 03:37Z production incident: the live web process had `pytest` in
+    sys.modules after startup, and the old `"pytest" in sys.modules` clause loaded
+    conftest on the first user-formula alert arm -- every /data sqlite connect then
+    raised SharedDataRootWrite. RED on the old guard, green on the fix."""
+    got = _probe_with_pytest_loaded()
+    assert got["conftest"] is False
+    assert got["moved"] == [], f"a server-side import moved env vars: {got['moved'][:10]}"
+
+
+PROBE_PYTEST = PROBE.replace("before = dict(os.environ)", "import pytest  # what the live process had\nbefore = dict(os.environ)")
+
+
+def _probe_with_pytest_loaded():
+    env = {k: v for k, v in os.environ.items() if not k.startswith("PYTEST")}
+    out = subprocess.run([sys.executable, "-c", PROBE_PYTEST.format(root=str(ROOT))],
+                         cwd=str(ROOT), env=env, capture_output=True, text=True, timeout=120)
+    assert out.returncode == 0, out.stderr[-2000:]
+    return json.loads(out.stdout.strip().splitlines()[-1])
+
+
 def test_the_guard_still_loads_conftest_when_run_as_the_tool():
-    # As a script the census + tripwire still apply (the tool's own contract).
+    # As a script the census + tripwire still apply (the tool's own contract); under
+    # pytest the repo conftest is already loaded, which the `conftest` clause covers.
     src = (ROOT / "tools" / "ast_conformance.py").read_text(encoding="utf-8")
-    assert 'if __name__ == "__main__" or "pytest" in _uct_sys.modules' in src
+    assert 'if __name__ == "__main__" or "conftest" in _uct_sys.modules' in src
+    assert '"pytest" in _uct_sys.modules' not in src
