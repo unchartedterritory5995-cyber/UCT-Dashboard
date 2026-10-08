@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import json
 import os
+import logging
 import re
 import time
 from typing import Any, Callable
@@ -50,6 +51,7 @@ MAX_RESEARCH_CALLS = 1
 MAX_TOKENS = 2048
 HISTORY_TURNS = 12
 COST_SURFACE = "uct_agent"
+log = logging.getLogger(__name__)
 
 
 class TurnError(Exception):
@@ -97,6 +99,8 @@ def validate_manifest(caps: Any) -> list[dict]:
     seen: set[str] = set()
     if not isinstance(caps, list):
         return out
+    if len(caps) > MAX_CAPABILITIES:
+        log.warning("[uct-agent] manifest has %d capabilities; only the first %d reach the model", len(caps), MAX_CAPABILITIES)
     for c in caps[:MAX_CAPABILITIES]:
         if not isinstance(c, dict):
             continue
@@ -107,7 +111,10 @@ def validate_manifest(caps: Any) -> list[dict]:
         if not (isinstance(args, dict) and args.get("type") == "object" and _closed_schema(args)):
             continue
         if len(json.dumps(c)) > MAX_CAP_BYTES:
+            log.warning("[uct-agent] capability %s is over %d bytes and was left out", name, MAX_CAP_BYTES)
             continue
+        if len(str(c.get("hints") or "")) > MAX_HINTS or len(str(c.get("summary") or "")) > 400:
+            log.warning("[uct-agent] capability %s has its summary/hints cut", name)
         seen.add(name)
         out.append({
             "name": name,
@@ -263,8 +270,10 @@ _SYSTEM_HEAD = """You are UCT Agent, the general-purpose assistant built into UC
 
 YOU NEVER CHANGE ANYTHING YOURSELF. You return a plan; UCT validates it, executes it, and shows the member a receipt of exactly what changed. Never say in `reply` that something has been done, changed or applied. For apply, `reply` is empty or a few words ("On it."). For propose, `reply` is one sentence explaining the idea; the plan itself is shown from `ops`.
 
+MIXED REQUESTS. A message can ask a question AND ask for a change ("what is RSI, and switch the left chart to weekly"; "what's ADR, then find stocks with ADR above 5%"). Never drop either part: use apply or propose with the ops for the change, and answer the question in `reply` (concisely, and still never claiming the change is done).
+
 DISPOSITIONS
-- answer: informational reply; ops MUST be []. Use for questions, explanations and advice, including advice about what the member could change ("what would you change for swing trading?" is an answer or a propose, never an apply).
+- answer: informational reply; ops MUST be []. Use ONLY when nothing is asked to change (a question plus a change is a MIXED REQUEST: apply/propose). Use for questions, explanations and advice, including advice about what the member could change ("what would you change for swing trading?" is an answer or a propose, never an apply).
 - clarify: you need one thing first, usually WHICH target. ops []; fill `question` with short `choices` (use target labels). Never clarify a matter of taste or judgment ("cleaner", "nicer", "better for swing trading") — propose your best plan instead; the member can adjust or dismiss it.
 - apply: the member directly asked for specific changes that AVAILABLE ACTIONS can make. ops = exactly what they asked for, nothing extra.
 - propose: the request needs interpretation, taste or judgment ("make it look cleaner", "set this up for day trading"), or touches several targets. ops = your proposed changes; UCT asks before executing. Example: "make the right chart look cleaner" → propose (not clarify) concrete ops on the right chart, such as hiding its Volume and/or a calmer theme.
@@ -273,6 +282,8 @@ DISPOSITIONS
 TARGETING
 Every op has `target` = a `ref` from <workspace_context> (each action says which kind of target it acts on). If exactly one target of that kind exists, use it. If several exist and the member did not identify one (by name, symbol, or position such as left / top-right, or "all of them"), use clarify. Never guess. "All of them" means one op per target (and that is a propose).
 
+PLAN SIZE: at most 12 ops per request. If what they ask needs more, do not plan part of it: use disposition answer, say it is too many changes for one request and suggest splitting it (or use a bulk action below that covers it, such as widget.addCharts).
+
 Only the actions listed below exist. Do not invent actions or arguments. Indicator programming (custom formulas, studies, conditions) is handled by UCT's Indicators menu and Create Indicator; you may explain indicators but not change them unless an action below does so.
 
 AVAILABLE ACTIONS (ops[].action, with args exactly as the schema says)
@@ -280,11 +291,12 @@ AVAILABLE ACTIONS (ops[].action, with args exactly as the schema says)
 
 _SYSTEM_TAIL = """
 RESEARCH (`research`: null unless truly needed)
-Leave `research` null for almost every turn. Set it ONLY with disposition answer, and ONLY when a correct answer depends on CURRENT or RECENT facts you cannot know: today's or this week's news, why a stock is moving now, a recent earnings report or call, recent filings, guidance, a Fed speech, today's market action. Then put a focused search query in `research.query` and how recent it must be in `research.recency`, and write `reply` as a one-line placeholder; UCT will run the search and ask you again with the results.
-Never request research for workspace commands, proposals, clarifications, or evergreen knowledge (what an indicator measures, EMA vs SMA, how a pattern works, general trading education): answer those directly.
+Leave `research` null for almost every turn. Set it ONLY when a correct answer depends on CURRENT or RECENT facts you cannot know: today's or this week's news, why a stock is moving now, a recent earnings report or call, recent filings, guidance, a Fed speech, today's market action. Then put a focused search query in `research.query` and how recent it must be in `research.recency`, and write `reply` as a one-line placeholder; UCT will run the search and ask you again with the results. Usually the disposition is answer. If the member ALSO asked for a change (a MIXED REQUEST, such as "why is NVDA moving? also put it on the left chart"), use apply or propose with that change's ops NOW, planned from the member's words alone; the research answer comes back as the reply and the change runs as planned here.
+Never request research for workspace commands, proposals, clarifications, or evergreen knowledge (except the current-facts question of a MIXED request, below) (what an indicator measures, EMA vs SMA, how a pattern works, general trading education): answer those directly.
 When <research_results> are provided, answer from them, mention sources briefly in plain words, and set `research` to null.
 
 FOLLOW-UPS
+When the screener entry in <workspace_context> has a `lastScreen` and the member narrows, re-sorts or refers to its results ("now only above $20", "sort those by…", "exclude ETFs", "the first four", "those", "put the top 15 into…"), that last screen is what they mean: refine it (screener.run mode refine) or use {"from": "lastScreen", "top": N}. Do not ask which screen unless the conversation shows another result set that fits equally well.
 If <pending_proposal> is present and the member adjusts it ("leave Volume", "only the left one"), return a new propose with the adjusted ops; return apply only if they clearly approved the adjusted version. Approving a proposal as-is ("do it") never reaches you.
 
 STYLE
@@ -404,8 +416,15 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
     ops = env.get("ops") if isinstance(env.get("ops"), list) else []
     if disp not in MUTATING:
         ops = []                      # TALK never mutates, whatever the model emitted
-    ops = [o for o in ops[:MAX_OPS] if isinstance(o, dict)
-           and (cap_names is None or o.get("action") in cap_names)]
+    ops = [o for o in ops if isinstance(o, dict)]
+    # ⛔ NEVER A SILENT PARTIAL PLAN. Cutting the list (or quietly dropping an op whose action
+    # does not exist) and executing the rest would present part of the request as all of it
+    # (measured 2026-10-08: a 16-change request came back as an `apply` of its first 12).
+    if len(ops) > MAX_OPS:
+        raise TurnError(f"That is more than {MAX_OPS} changes in one request, so I didn't plan any of it. "
+                        "Split it into smaller requests.")
+    if cap_names is not None and any(o.get("action") not in cap_names for o in ops):
+        raise TurnError("UCT Agent planned an action that doesn't exist, so nothing was changed. Try rephrasing.")
     # A target may also be a TRANSACTION-LOCAL alias that an EARLIER op in this
     # same plan declares through its `as` argument (a widget created in this
     # request). Generic: any capability may declare one; the browser resolves it.
@@ -438,6 +457,14 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         "unsupported_category": (str(env.get("unsupported_category"))[:40]
                                  if disp == "unsupported" and env.get("unsupported_category") else None),
     }
+
+
+_QUESTION = re.compile(r"\?|\b(why|what|how|who|when|news|today|latest|happening|explain|tell me)\b", re.I)
+
+
+def _asks_question(message: str) -> bool:
+    """Does the member's own message ask something (so research may ride with a change)?"""
+    return bool(_QUESTION.search(message or ""))
 
 
 def _context_refs(context: dict) -> set[str]:
@@ -481,6 +508,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     usage = {"model": model(), "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0,
              "research_calls": 0, "model_calls": 0, "citations": []}
     cap_names = {c["name"] for c in caps}
+    pre_research = None
     for round_ in range(MAX_RESEARCH_CALLS + 1):
         resp = caller(
             model=model(), max_tokens=MAX_TOKENS,
@@ -502,9 +530,20 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
         except (TypeError, ValueError):
             raise TurnError("UCT Agent returned something unreadable. Try rephrasing.")
         req = env.get("research") if isinstance(env, dict) else None
-        wants = (env.get("disposition") == "answer" and isinstance(req, dict)
+        # Research rides with a CHANGE only when the member's own words ask a question (a mixed
+        # request); a plain command never triggers research, whatever the model asks for.
+        disp = env.get("disposition") if isinstance(env, dict) else None
+        wants = ((disp == "answer" or (disp in MUTATING and _asks_question(msg))) and isinstance(req, dict)
                  and str(req.get("query") or "").strip() and round_ < MAX_RESEARCH_CALLS)
         if wants:
+            # A MIXED request (question needing research + a change): the change was planned in
+            # THIS call, from the member's words alone, before any web text existed — it is
+            # kept as planned. Nothing the post-research call returns can add or alter ops.
+            if env.get("disposition") in MUTATING and env.get("ops"):
+                planned = env
+                if compact_ops(caps):
+                    planned = expand_compact_ops(env, caps)
+                pre_research = {"disposition": env["disposition"], "ops": list(planned.get("ops") or [])}
             usage["research_calls"] += 1
             r = _research(str(req["query"]), str(req.get("recency") or "any"))
             usage["citations"].extend(r["citations"])
@@ -514,6 +553,14 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                  + "\nAnswer the member's request from these results. Set research to null."},
             ]
             continue
+        if pre_research is not None and isinstance(env, dict):
+            # The change planned before the research, with the researched answer as its reply.
+            env = {**env, "disposition": pre_research["disposition"], "ops": pre_research["ops"],
+                   "question": None, "research": None}
+            envelope = sanitize_envelope(env, valid_refs, cap_names)
+            usage["latency_ms"] = int((time.monotonic() - started) * 1000)
+            usage["citations"] = list(dict.fromkeys(usage["citations"]))[:8]
+            return {"envelope": envelope, "usage": usage}
         if usage["research_calls"] and isinstance(env, dict) and (env.get("disposition") != "answer" or env.get("ops")):
             # ⛔ Text retrieved from the web is DATA: it may inform an answer, never
             # drive a change in the same turn. A turn that researched is an answer;
