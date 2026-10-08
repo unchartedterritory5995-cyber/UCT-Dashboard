@@ -83,8 +83,9 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   const landed = []
   const aliases = {}
   const born = {}                 // alias → what a creator set at birth (verified without mounting)
-  const fail = async (label, reason) => {
-    const restored = await compensate(host, landed)
+  // `dirty`: the failing step itself left something behind it could not take back.
+  const fail = async (label, reason, { dirty = false } = {}) => {
+    const restored = (await compensate(host, landed)) && !dirty
     return {
       ok: false, lines: [], undo: null, compensated: restored,
       failed: [{ label, reason: restored ? `${reason} — nothing was left changed` : `${reason} — and some changes could not be reversed` }],
@@ -95,7 +96,15 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   for (const p of real) {
     const kind = getTargetKind(p.kind)
     let res
-    try { res = await kind.commit(host, p.ref, p.patch) } catch (e) { return fail(p.snap.label, `failed (${e?.message || 'error'})`) }
+    try { res = await kind.commit(host, p.ref, p.patch) } catch (e) {
+      // A step that threw part-way says what it had already made (`e.created`) so it
+      // is taken back too, and whether it left a write it could not undo (`e.unreverted`)
+      // — the receipt never claims "nothing was left changed" when that is not so.
+      if (e?.created && Object.keys(e.created).length) {
+        landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: [], before: p.snap, after: kind.read(host, p.ref), patch: p.patch, partial: e.created })
+      }
+      return fail(p.snap.label, `failed (${e?.message || 'error'})`, { dirty: !!e?.unreverted })
+    }
     if (res && res.created) Object.assign(aliases, res.created)
     if (res && res.born) Object.assign(born, res.born)
     await nextFrame()
@@ -186,7 +195,16 @@ export async function undoEntry(host, entry) {
   for (const it of [...entry.items].reverse()) {
     const kind = getTargetKind(it.kind)
     const patch = kind.undoPatch(it)
-    await kind.commit(host, it.ref, patch)
+    try {
+      await kind.commit(host, it.ref, patch)
+    } catch (e) {
+      // Say exactly what was and was not restored — never reject silently.
+      const done = restores.map(r => r.it.label)
+      return {
+        ok: false, lines: [], partial: done.length > 0,
+        reason: `${it.label} could not be undone (${e?.message || 'error'}).${done.length ? ` Already restored: ${done.join(', ')}.` : ' Nothing was undone.'}`,
+      }
+    }
     restores.push({ it, kind, patch })
   }
   await nextFrame()

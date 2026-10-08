@@ -269,3 +269,60 @@ describe('rename, compound, compact-mode manifest', () => {
     await waitFor(() => expect(symsOf(state, 'l1')).toHaveLength(11))
   })
 })
+
+describe('failure honesty: a half-applied step is taken back, or said plainly', () => {
+  it('F1: add + rename on one list — the rename fails → the rows just added are removed; "nothing was left changed" is TRUE', async () => {
+    const { host, state } = lib()
+    state.server.failOn = (m, path, body) => m === 'PUT' && path === '/api/watchlists/s1' && body && body.name
+    const { p, env } = await plan(host, [
+      { action: 'watchlist.add', target: 's1', args: { symbols: ['AMD', 'AVGO'] } },
+      { action: 'watchlist.rename', target: 's1', args: { name: 'Swing Plus' } },
+    ])
+    expect(p.ok).toBe(true)
+    const res = await commitPlan(host, p, { env })
+    expect(res.ok).toBe(false)
+    expect(symsOf(state, 's1')).toEqual(['MSFT'])                         // the added rows were taken back
+    expect(res.failed[0].reason).toMatch(/nothing was left changed/)
+  })
+  it('F1: if the take-back itself fails, the receipt says some changes could not be reversed', async () => {
+    const { host, state } = lib()
+    state.server.failOn = (m, path, body) => (m === 'PUT' && path === '/api/watchlists/s1' && body && body.name) || (m === 'DELETE' && path.startsWith('/api/watchlists/s1/items/'))
+    const { p, env } = await plan(host, [
+      { action: 'watchlist.add', target: 's1', args: { symbols: ['AMD'] } },
+      { action: 'watchlist.rename', target: 's1', args: { name: 'Swing Plus' } },
+    ])
+    const res = await commitPlan(host, p, { env })
+    expect(res.ok).toBe(false)
+    expect(res.failed[0].reason).toMatch(/some changes could not be reversed/)
+    expect(res.failed[0].reason).not.toMatch(/nothing was left changed/)
+  })
+  it('F2: two new lists — the 2nd create fails → the 1st is taken back (no orphan list)', async () => {
+    const { host, state } = lib()
+    let creates = 0
+    state.server.failOn = (m, path) => m === 'POST' && path === '/api/watchlists' && ++creates === 2
+    const { p, env } = await plan(host, [
+      { action: 'watchlist.create', target: 'watchlists', args: { name: 'First New', as: null } },
+      { action: 'watchlist.create', target: 'watchlists', args: { name: 'Second New', as: null } },
+    ])
+    expect(p.ok).toBe(true)
+    const res = await commitPlan(host, p, { env })
+    expect(res.ok).toBe(false)
+    expect(state.server.lists.some(l => l.name === 'First New')).toBe(false)
+    expect(res.failed[0].reason).toMatch(/nothing was left changed/)
+  })
+  it('F5: an Undo that fails part-way never rejects silently — it says what was and was not restored', async () => {
+    const { host, state } = lib()
+    const { p, env } = await plan(host, [
+      { action: 'watchlist.add', target: 's1', args: { symbols: ['AMD'] } },
+      { action: 'watchlist.add', target: 'l1', args: { symbols: ['AVGO'] } },
+    ])
+    const res = await commitPlan(host, p, { env })
+    expect(res.ok).toBe(true)
+    // Undo reverses newest-first (Long Term, then Swing); Swing's removal fails.
+    state.server.failOn = (m, path) => m === 'DELETE' && path.startsWith('/api/watchlists/s1/items/')
+    const u = await undoEntry(host, res.undo)
+    expect(u.ok).toBe(false)
+    expect(u.reason).toMatch(/could not be undone/)
+    expect(u.reason).toMatch(/Already restored: /)
+  })
+})

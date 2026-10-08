@@ -119,16 +119,30 @@ export const watchlistKind = {
       if (order.length === now.length) await W.reorder(ref, order)
     }
     if (patch.add) await W.bulkAdd(ref, patch.add)
+    // A later step that fails takes back what bulkAdd just added (the rows that were
+    // not there before), so a half-applied patch never stays behind silently.
+    const takeBackAdds = async (e) => {
+      if (!patch.add) return e
+      try {
+        const had = new Set(curItems.map(i => i.id))
+        const now = (await W.fetchList(ref)).items || []
+        const wanted = new Set(patch.add.map(s => String(s).toUpperCase()))
+        for (const i of now) if (!had.has(String(i.id)) && wanted.has(String(i.sym).toUpperCase())) await W.removeItem(ref, String(i.id))
+      } catch { e.unreverted = true }
+      return e
+    }
     if (patch.remove) {
       const done = []
       try {
         for (const it of patch.remove) { await W.removeItem(ref, it.id); done.push(it) }
       } catch (e) {
-        for (const it of done) { try { await W.addItem(ref, it.sym, it.notes) } catch { /* reported below */ } }
-        throw e
+        for (const it of done) { try { await W.addItem(ref, it.sym, it.notes) } catch { e.unreverted = true } }
+        throw await takeBackAdds(e)
       }
     }
-    if (patch.rename) await W.rename(ref, patch.rename.to)
+    if (patch.rename) {
+      try { await W.rename(ref, patch.rename.to) } catch (e) { throw await takeBackAdds(e) }
+    }
     if (patch.undoRename) await W.rename(ref, patch.undoRename)
     await W.settle(ref)
     await nextFrame()
@@ -203,12 +217,21 @@ export const watchlistLibraryKind = {
     // Names are not unique server-side, so check the CURRENT library right before
     // creating: a list of that name is never duplicated or replaced.
     const taken = new Set((await W.fetchAll()).map(l => norm(l.name)))
-    const created = {}
+    // Every name is checked BEFORE the first create, so a clash never strands an
+    // earlier list of the same request.
     for (const c of patch.create) {
       if (taken.has(norm(c.name))) throw new Error(`you already have a watchlist named ${quote(c.name)}`)
-      const row = await W.create(c.name)
-      created[c.alias || `#${c.name}`] = String(row.id)
       taken.add(norm(c.name))
+    }
+    const created = {}
+    for (const c of patch.create) {
+      try {
+        const row = await W.create(c.name)
+        created[c.alias || `#${c.name}`] = String(row.id)
+      } catch (e) {
+        e.created = created                // the runtime takes these back
+        throw e
+      }
     }
     return { created }
   },
