@@ -208,11 +208,15 @@ def test_the_composed_schema_is_the_contract_with_the_concierge_node_defs(conv):
         elif k != "series":
             assert composed["$defs"][k] == v, k
     # series: the concierge's, minus every nightly scalar (decision E, this door only)
-    full = dict(advertised["series"])
-    mine = dict(composed["$defs"]["series"])
+    full = copy.deepcopy(advertised["series"])
+    mine = copy.deepcopy(composed["$defs"]["series"])
     full_enum = full["properties"]["name"].pop("enum")
-    mine_enum = mine["properties"]["name"].pop("enum")
-    assert mine == full
+    # ⭐ OVERNIGHT E -- the conversation also admits an INPUT-shaped name (checked
+    # against the declared inputs at the tree gate); the enum is the first branch.
+    branches = mine["properties"]["name"].pop("anyOf")
+    mine_enum = branches[0]["enum"]
+    assert branches[1] == {"type": "string", "pattern": conv.INPUT_KEY_PATTERN}
+    assert mine["properties"]["name"] == {} and {k: v for k, v in mine.items() if k != "properties"} ==         {k: v for k, v in full.items() if k != "properties"}
     from api.services import ast_table
     scalars = set(ast_table.TABLE[ast_table.SCALARS_SECTION])
     assert set(mine_enum) == set(full_enum) - scalars
@@ -314,7 +318,7 @@ def test_DECISION_E_the_converse_tool_advertises_NO_nightly_scalar(conv):
     scalars = set(ast_table.TABLE[ast_table.SCALARS_SECTION])
     assert scalars, "non-vacuity: the table declares scalars"
     tool = conv.anthropic_tool()
-    enum = set(tool["input_schema"]["$defs"]["series"]["properties"]["name"]["enum"])
+    enum = set(tool["input_schema"]["$defs"]["series"]["properties"]["name"]["anyOf"][0]["enum"])
     assert not (enum & scalars)
     assert {"close", "volume", "high"} <= enum
     prompt = conv.system_prompt()

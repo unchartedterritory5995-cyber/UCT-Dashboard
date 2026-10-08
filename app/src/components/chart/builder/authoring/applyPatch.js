@@ -37,7 +37,7 @@ import {
   SIGNAL_MARKER_DEFAULT,
 } from '../authoringIntent'
 import { printFormula } from '../../engine/ast/pine'
-import { assertCanonical, astHash } from '../../engine/ast/parse'
+import { assertCanonical, astHash, TABLE } from '../../engine/ast/parse'
 import { declaredInputs } from '../../engine/ast/lint'
 import { outputTypeOf, outputsOf, treeOutputType, OUTPUT_TYPES } from '../../engine/outputType'
 import { evaluability, LANES, STATUS } from '../../engine/evaluability'
@@ -161,6 +161,55 @@ function setTree(st, row, tree, i, kind) {
   st.changes.push({ op: i, kind, output: row.key, from, to: g.source })
   syncHelpers(st, row, before)
   if (tableBefore && tableBefore.cells.some((c) => c.output === row.key)) writeTable(st, tableBefore)
+}
+
+// ─── ⭐ OVERNIGHT E — member inputs (a number the member sets in settings) ──────────
+//
+// `def.inputs` and the settings Inspector that edits them per instance already exist
+// (`instanceControls.setInstanceInput`); a tree reads an input as a series named by its
+// key (`interpret` seeds it). The conversation could not DECLARE one — that is all this is.
+
+const RESERVED_INPUT_KEYS = new Set(['color', 'lineWidth'])
+
+function treeReadsName(tree, name) {
+  const stack = [tree]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'series' && n.name === name) return true
+    if (Array.isArray(n.args)) stack.push(...n.args)
+  }
+  return false
+}
+
+function declareInput(st, spec, i) {
+  const m = st.model
+  const key = spec.key
+  const names = new Set([...Object.keys(TABLE.functions || {}), ...Object.keys(TABLE.series || {}),
+    ...Object.keys(TABLE.scalars || {})])
+  if (RESERVED_INPUT_KEYS.has(key) || names.has(key)) {
+    throw err('input:name', `"${key}" is already a name in UCT's formula language; pick another name for the setting.`)
+  }
+  for (const f of ['default', 'min', 'max', 'step']) {
+    if (spec[f] !== undefined && !(typeof spec[f] === 'number' && Number.isFinite(spec[f]))) {
+      throw err('input:value', `The setting's ${f} must be a number.`)
+    }
+  }
+  if (spec.min !== undefined && spec.max !== undefined && spec.min > spec.max) throw err('input:range', "The setting's minimum is above its maximum.")
+  if ((spec.min !== undefined && spec.default < spec.min) || (spec.max !== undefined && spec.default > spec.max)) {
+    throw err('input:range', "The setting's default is outside its own range.")
+  }
+  const next = { key, type: 'float', label: spec.label.trim(), default: spec.default,
+    ...(spec.min !== undefined ? { min: spec.min } : {}), ...(spec.max !== undefined ? { max: spec.max } : {}),
+    ...(spec.step !== undefined ? { step: spec.step } : {}) }
+  const at = m.memberInputs.findIndex((x) => x.key === key)
+  if (at >= 0 && m.memberInputs[at].type !== 'float' && m.memberInputs[at].type !== 'int') {
+    throw err('input:kind', `"${key}" is an imported setting of another kind; it is not changed here.`)
+  }
+  const from = at >= 0 ? m.memberInputs[at] : null
+  if (at >= 0) m.memberInputs[at] = next
+  else m.memberInputs.push(next)
+  st.changes.push({ op: i, kind: from ? 'input-changed' : 'input-added', key, from, to: next })
 }
 
 // ─── ⭐ OVERNIGHT D — the chart table (tables.js) ───────────────────────────────
@@ -342,6 +391,8 @@ const OPS = {
       levels: null, paints: null, objects: null, paramManifest: null, memberInputs: [],
       carried: { compute: {}, meta: {} },
     }
+    // ⭐ OVERNIGHT E — the member settings its formulas read, declared BEFORE they are gated
+    for (const spec of op.inputs || []) declareInput(st, spec, i)
     const scope = scopeOf(st.model)
     op.outputs.forEach((o, j) => {
       Object.assign(st.model.rows[j], gateTree(o.tree, scope, keys[j]))
@@ -777,6 +828,22 @@ const OPS = {
     if (problem) throw err('table:invalid', problem)
     writeTable(st, spec)
     st.changes.push({ op: i, kind: was ? 'table-replaced' : 'table-added', position: spec.position, cells: spec.cells.length })
+  },
+
+  set_input(st, op, i) {
+    if (!st.model) throw err('definition:none', 'There is no definition yet.')
+    declareInput(st, op.input, i)
+  },
+
+  remove_input(st, op, i) {
+    const m = st.model
+    if (!m) throw err('definition:none', 'There is no definition yet.')
+    const at = m.memberInputs.findIndex((x) => x.key === op.key)
+    if (at < 0) throw err('input:none', `There is no setting "${op.key}".`)
+    const readers = m.rows.filter((r) => r.ast && treeReadsName(r.ast, op.key)).map((r) => r.key)
+    if (readers.length) throw err('input:referenced', `"${op.key}" is used by ${readers.map((k) => `"${k}"`).join(', ')}; change that first.`)
+    m.memberInputs.splice(at, 1)
+    st.changes.push({ op: i, kind: 'input-removed', key: op.key })
   },
 
   remove_table(st, op, i) {

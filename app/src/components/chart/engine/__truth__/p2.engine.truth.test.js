@@ -506,11 +506,12 @@ describe('P2 engine — the remaining ops and guards', () => {
   // ⭐ PHASE 5 moved it again: 22 → 24 (set_color_rule, set_calculation_timeframe —
   // additive; set_slot / set_fill / request_alert gained optional fields).
   // ⭐ OVERNIGHT D: 24 → 26 (set_table, remove_table — the existing chart-table renderer).
-  it('OP RAIL — the schema names exactly the 26 ops the engine implements', async () => {
+  // ⭐ OVERNIGHT E: 26 → 28 (set_input, remove_input — the existing member inputs).
+  it('OP RAIL — the schema names exactly the 28 ops the engine implements', async () => {
     const { OP_NAMES } = await import('../../builder/authoring/patchValidate')
     const { HANDLED_OPS } = await import('../../builder/authoring/applyPatch')
     expect([...OP_NAMES].sort()).toEqual([...HANDLED_OPS].sort())
-    expect(OP_NAMES).toHaveLength(26)
+    expect(OP_NAMES).toHaveLength(28)
   })
 
   it('REMOVE CLAUSE / PLACEMENT / REMOVE MARKER / REMOVE PAINT / CANCEL — each is an explicit, reversible op (EXACT)', () => {
