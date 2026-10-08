@@ -188,3 +188,36 @@ def test_intraday_tf_collapses_to_daily():
     with patch.object(breadth_monitor, "get_history", return_value=_fake_history([("2026-08-03", 40)])):
         out = bs.build_breadth_bars("UCTA50", "5", 10)
     assert out["tf"] == "D"
+
+
+def test_uct_display_tickers_are_the_namespaced_alias_and_identity_is_unchanged():
+    """⭐ (owner, 2026-10-07) UCT breadth SHOWS as `UCT:A50`; `UCTA50` stays canonical, and the
+    display spelling is the existing explicit alias, so it resolves to the same row."""
+    dm = bs.display_symbols()
+    assert set(dm) == set(bs.SYMBOLS), "every shipped UCT symbol has a UCT: display ticker"
+    for canon, shown in (("UCTA5", "UCT:A5"), ("UCTA50", "UCT:A50"), ("UCTA200", "UCT:A200"),
+                         ("UCTU4", "UCT:U4"), ("UCTD4", "UCT:D4"), ("UCTAAII", "UCT:AAII")):
+        assert dm[canon] == shown and bs.display_symbol(canon) == shown
+        assert bs.resolve(shown)["symbol"] == canon
+        assert bs.is_breadth_symbol(canon) and bs.is_breadth_symbol(shown)
+    assert len(set(dm.values())) == len(dm), "no two UCT symbols share a display ticker"
+    # The canonical projection is untouched: the rows still carry the legacy symbol only.
+    assert [r["symbol"] for r in bs.legacy_symbol_rows()][:3] == ["UCTA5", "UCTA10", "UCTA20"]
+    assert "display_symbol" not in bs.legacy_symbol_rows()[0]
+
+
+def test_search_finds_the_uct_display_ticker_and_submits_the_canonical_one():
+    hits = bs.search("UCT:A50")
+    assert hits[0]["ticker"] == "UCTA50" and hits[0]["display_ticker"] == "UCT:A50"
+    assert hits[0]["symbol_hit"] is True
+    pref = [h["ticker"] for h in bs.search("UCT:A") if h["symbol_hit"]]
+    assert {"UCTA5", "UCTA10", "UCTA50", "UCTA200"} <= set(pref)
+    # the legacy spelling still ranks first for itself
+    assert bs.search("UCTA50")[0]["ticker"] == "UCTA50"
+
+
+def test_breadth_symbols_endpoint_carries_display_map_beside_unchanged_symbols():
+    from api.routers.breadth_monitor import get_breadth_symbols
+    out = get_breadth_symbols(_access={})
+    assert out["display_symbols"]["UCTA50"] == "UCT:A50"
+    assert all("display_symbol" not in r for r in out["symbols"])
