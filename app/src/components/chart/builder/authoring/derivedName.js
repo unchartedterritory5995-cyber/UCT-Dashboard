@@ -32,7 +32,8 @@
 // ⛔ UNDO needs nothing here: the history snapshot holds the whole working
 // definition, name included, so undoing a maths edit restores the name it had.
 
-import { helperKeysOfRows } from './colorRules'
+import { helperKeysOfRows, sameTree } from './colorRules'
+import { tableSpecOf } from './tables'
 
 const OP_WORDS = Object.freeze({
   '>': '>', '<': '<', '>=': '≥', '<=': '≤', '==': '=', '!=': '≠',
@@ -124,9 +125,88 @@ export function nameOfTree(node, parentPrec = 0) {
 
 const clip = (s, max) => (s.length <= max ? s : `${s.slice(0, max - 1).trimEnd()}…`)
 
-/** The derived label of ONE output row (`{key, ast}`). */
-export function derivedRowName(row) {
+/** The formula-derived label of ONE output row (`{key, ast}`) — the P2 rule. */
+function formulaRowName(row) {
   return clip(row && row.ast ? nameOfTree(row.ast) : String((row && row.key) || ''), LABEL_MAX)
+}
+
+// ─── ⭐ STABILIZATION 3 — A CALCULATOR / TABLE INDICATOR IS NAMED BY ITS TABLE ───
+//
+// ⚰️ Measured on prod 2026-10-08: a position calculator was named "(ABS (EntryPrice −
+// StopPrice) > 0) ?: FLOOR (AccountSize × RiskPercent ÷ 100 ÷…" and its outputs the
+// same way — the formula IS the maths, but for a calculator it is not a name. Such an
+// indicator already carries a member-readable description of itself: its table's
+// TITLE (a header row of text alone) and each value's row LABEL. No model call.
+//
+// It applies to a CALCULATOR (an output reads a member setting) or a TABLE-ONLY
+// indicator (no visible line of its own) — an EMA that also shows a small table keeps
+// its maths name. A member's own name is untouched (it is custom, as always).
+
+const readsMemberInput = (model, row) => {
+  const keys = new Set(((model && model.memberInputs) || []).map((x) => x && x.key))
+  if (!keys.size || !row || !row.ast) return false
+  const stack = [row.ast]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'series' && keys.has(n.name)) return true
+    if (Array.isArray(n.args)) stack.push(...n.args)
+  }
+  return false
+}
+
+/** {title, labels, labelOf} from this model's OWN table, when the naming applies; else null. */
+function tableNames(model) {
+  if (!model || !model.objects || !Array.isArray(model.rows)) return null
+  const rows = model.rows.filter((r) => r && r.ast)
+  const calculator = rows.some((r) => readsMemberInput(model, r))
+  const tableOnly = rows.length > 0 && rows.every((r) => r.hidden === true)
+  if (!calculator && !tableOnly) return null
+  let spec = null
+  try {
+    spec = tableSpecOf(model.objects, (t) => {
+      const r = rows.find((x) => sameTree(x.ast, t))
+      return r ? r.key : null
+    })
+  } catch { spec = null }
+  if (!spec) return null
+  const byRow = new Map()
+  for (const c of spec.cells) {
+    if (!byRow.has(c.row)) byRow.set(c.row, [])
+    byRow.get(c.row).push(c)
+  }
+  let title = null
+  const labels = []
+  const labelOf = new Map()
+  ;[...byRow.entries()].sort((a, b) => a[0] - b[0]).forEach(([, cells], i) => {
+    const sorted = cells.slice().sort((a, b) => a.col - b.col)
+    const texts = sorted.filter((c) => typeof c.text === 'string' && c.text.trim())
+    const outs = sorted.filter((c) => c.output)
+    if (i === 0 && !outs.length && texts.length === 1) { title = texts[0].text.trim(); return }
+    if (texts.length && outs.length) {
+      const label = texts[0].text.trim()
+      labels.push(label)
+      for (const o of outs) if (!labelOf.has(o.output)) labelOf.set(o.output, label)
+    }
+  })
+  return { title, labels, labelOf }
+}
+
+/** "Calculator · Account size, Risk % +2" — a calculator with no table to name it. */
+function calculatorName(model) {
+  const rows = ((model && model.rows) || []).filter((r) => r && r.ast)
+  if (!rows.some((r) => readsMemberInput(model, r))) return null
+  const labels = ((model && model.memberInputs) || []).map((x) => (x && (x.label || x.key)) || '').filter(Boolean)
+  if (!labels.length) return null
+  return clip(`Calculator · ${labels.slice(0, 2).join(', ')}${labels.length > 2 ? ` +${labels.length - 2}` : ''}`, NAME_MAX)
+}
+
+/** The derived label of ONE output row: its table label when the table names the
+ *  indicator (`tableNames`), else its formula (the P2 rule). */
+export function derivedRowName(row, model = null) {
+  const t = model ? tableNames(model) : null
+  const label = t && row ? t.labelOf.get(row.key) : null
+  return label ? clip(label, LABEL_MAX) : formulaRowName(row)
 }
 
 /**
@@ -135,6 +215,16 @@ export function derivedRowName(row) {
  * @param {{rows: {key, ast, hidden}[], scanKey: string}} model
  */
 export function derivedDefName(model) {
+  const t = tableNames(model)
+  if (t && t.title) return clip(t.title, NAME_MAX)
+  if (t && t.labels.length) {
+    return clip(t.labels.slice(0, 2).join(' · ') + (t.labels.length > 2 ? ` +${t.labels.length - 2}` : ''), NAME_MAX)
+  }
+  return calculatorName(model) || formulaDefName(model)
+}
+
+/** The P2 formula-derived definition name (also what older saves stored). */
+function formulaDefName(model) {
   // ⭐ PHASE 5 — a colour rule's / cloud's hidden column is not part of the name
   // (found in the sandbox flow: "EMA 50 · EMA 50 > EMA 50[1]", "EMA 10 · EMA 30 +1").
   const helpers = helperKeysOfRows(model && model.rows)
@@ -171,10 +261,12 @@ export function namingSnapshot(model) {
   const rows = new Map(model.rows.map((r, i) => [r.key, {
     label: r.label || '',
     auto: i === 0
-      ? (r.label || '') === '' || (notPrimary(model, r) && r.label === derivedRowName(r))
-      : !!r.label && r.label === derivedRowName(r),
+      ? (r.label || '') === '' || r.label === derivedRowName(r, model)
+        || (notPrimary(model, r) && r.label === formulaRowName(r))
+      : !!r.label && (r.label === derivedRowName(r, model) || r.label === formulaRowName(r)),
   }]))
-  return { name: model.name, nameAuto: model.name === derivedDefName(model), rows }
+  // ⭐ An older save stored the FORMULA name; it is still automatic, so it follows.
+  return { name: model.name, nameAuto: model.name === derivedDefName(model) || model.name === formulaDefName(model), rows }
 }
 
 /**
@@ -203,12 +295,15 @@ export function applyDerivedNaming(model, before, explicit) {
     const prior = before ? before.rows.get(row.key) : null
     const isNew = !prior
     if (!isNew && !prior.auto) return                 // custom label: keep
-    const ownName = i === 0 && notPrimary(model, row) && (isNew || prior.label !== '')
+    // ⭐ …and a plot 1 whose TABLE names it (a calculator's "Shares") carries that
+    // label — the definition's name is the table's title, not this value's.
+    const tableLabelled = !!(tableNames(model) && tableNames(model).labelOf.has(row.key))
+    const ownName = i === 0 && (tableLabelled || (notPrimary(model, row) && (isNew || prior.label !== '')))
     if (i === 0 && !ownName) {
       // Plot 1's empty label means "follow the definition name" (model.js).
       if (row.label) row.label = ''
     } else {
-      const next = derivedRowName(row)
+      const next = derivedRowName(row, model)
       if (next !== row.label) row.label = next
     }
   })

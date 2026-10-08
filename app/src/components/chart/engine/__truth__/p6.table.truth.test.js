@@ -61,8 +61,9 @@ describe('OVERNIGHT D — set_table on the existing C3B table renderer', () => {
     expect(prog.ops[0]).toMatchObject({ k: 'create', family: 'table', props: { position: { value: 'top_right' }, columns: { value: 2 }, rows: { value: 2 } } })
     const lines = readback(r.definition, {}, GATE).lines
     expect(lines).toContain('Look: a table in the top right of the chart (a value with no answer yet shows as a dash)')
-    expect(lines).toContain('Look: table row 1: "ADR" | [latest SMA 20, 2 decimals]%')
-    expect(lines).toContain('Look: table row 2: "RVOL" | [latest Volume ÷ SMA 50 (Volume), 2 decimals]x')
+    expect(lines).toContain('Look: table row 1: "ADR" | [latest ADR, 2 decimals]%')
+    expect(lines).toContain('Name: ADR · RVOL') // STABILIZATION 3 — a table-only indicator is named by its table
+    expect(lines).toContain('Look: table row 2: "RVOL" | [latest RVOL, 2 decimals]x')
   })
 
   it('RENDERED through the real object runtime: the latest values, formatted, in the right cells (EXACT)', () => {

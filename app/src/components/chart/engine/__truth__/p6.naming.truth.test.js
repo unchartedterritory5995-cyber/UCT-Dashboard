@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest'
 import { parseFormula } from '../ast/parse'
 import { applyPatch, applyTurn, openAuthoringState } from '../../builder/authoring'
-import { memberNamePhrases } from '../../builder/authoring/derivedName'
+import { memberNamePhrases, derivedDefName } from '../../builder/authoring/derivedName'
 
 const P = (src) => { const r = parseFormula(src); if (!r.ok) throw new Error(src); return r.ast }
 const env = (rev, ops) => ({ contract: 'uct.authoring.patch/1', baseRevision: rev, ops, assumptions: [] })
@@ -86,5 +86,72 @@ describe('member names survive; automatic names follow the maths', () => {
     expect(r.definition.meta.name).toBe('EMA 20')
     const t = applyPatch(r.definition, to21, { gateCtx: GATE, revision: 1 })
     expect(t.definition.meta.name).toBe('EMA 21')
+  })
+
+  // ── STABILIZATION 3 — calculators and table-only indicators are named by their table ──
+  const PI = (src) => { const r = parseFormula(src, { inputs: ['accountSize', 'riskPercent', 'entryPrice', 'stopPrice'] }); if (!r.ok) throw new Error(src); return r.ast }
+  const INPUTS = [
+    { key: 'accountSize', label: 'Account size', default: 0, min: 0 },
+    { key: 'riskPercent', label: 'Risk %', default: 0, min: 0, max: 100 },
+    { key: 'entryPrice', label: 'Entry price', default: 0, min: 0 },
+    { key: 'stopPrice', label: 'Stop price', default: 0, min: 0 }]
+  // the measured prod turn's shape (case C): Shares visible + primary, the rest hidden
+  const CALC = [
+    { op: 'create', name: 'Position Size Calculator', placement: 'pane', primary: 'Shares', inputs: INPUTS, outputs: [
+      { key: 'Shares', label: 'Position size (shares)', tree: PI('floor(accountSize * riskPercent / 100 / abs(entryPrice - stopPrice))') },
+      { key: 'RiskAmount', label: 'Risk amount ($)', hidden: true, tree: PI('accountSize * riskPercent / 100') },
+      { key: 'RiskPerShare', label: 'Risk per share ($)', hidden: true, tree: PI('abs(entryPrice - stopPrice)') }] },
+    { op: 'set_table', position: 'top_right', cells: [
+      { row: 0, col: 0, text: 'Position Sizing', bold: true },
+      { row: 1, col: 0, text: 'Risk amount' }, { row: 1, col: 1, output: 'RiskAmount', format: 'decimal2', prefix: '$' },
+      { row: 2, col: 0, text: 'Risk per share' }, { row: 2, col: 1, output: 'RiskPerShare', format: 'decimal2', prefix: '$' },
+      { row: 3, col: 0, text: 'Shares' }, { row: 3, col: 1, output: 'Shares', format: 'integer' }] },
+  ]
+  const words = 'Build me a position-sizing calculator with account size, risk percentage, entry price and stop price.'
+  const plotLabel = (d, k) => d.plots.find((p) => p.key === k).label
+
+  it('a CALCULATOR is named by its table title; its values by their row labels (no model call)', () => {
+    const r = applyPatch(null, env(0, CALC), { gateCtx: GATE, memberWords: words })
+    expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+    expect(r.definition.meta.name).toBe('Position Sizing')
+    expect(plotLabel(r.definition, 'RiskAmount')).toBe('Risk amount')
+    expect(plotLabel(r.definition, 'RiskPerShare')).toBe('Risk per share')
+  })
+
+  it('…without a title, by its row labels; with no table at all, by its settings', () => {
+    const noTitle = CALC.map((o) => (o.op === 'set_table' ? { ...o, cells: o.cells.filter((c) => c.row !== 0) } : o))
+    expect(applyPatch(null, env(0, noTitle), { gateCtx: GATE }).definition.meta.name).toBe('Risk amount · Risk per share +1')
+    const bare = applyPatch(null, env(0, [CALC[0]]), { gateCtx: GATE })
+    expect(bare.definition.meta.name).toBe('Calculator · Account size, Risk % +2')
+    // removing the table later (case F) re-derives — it stays readable
+    const withTable = applyPatch(null, env(0, CALC), { gateCtx: GATE }).definition
+    const removed = applyPatch(withTable, env(1, [{ op: 'remove_table' }]), { gateCtx: GATE, revision: 1 })
+    expect(removed.definition.meta.name).toBe('Calculator · Account size, Risk % +2')
+  })
+
+  it('an EMA that also shows a small table keeps its maths name (table naming is for calculators / table-only)', () => {
+    const r = applyPatch(null, env(0, [
+      { op: 'create', name: 'x', placement: 'price', outputs: [{ key: 'ema20', tree: P('ema(close, 20)') }] },
+      { op: 'set_table', position: 'top_right', cells: [{ row: 0, col: 0, text: 'EMA' }, { row: 0, col: 1, output: 'ema20' }] }]), { gateCtx: GATE })
+    expect(r.definition.meta.name).toBe('EMA 20')
+  })
+
+  it("a member's own name still wins", () => {
+    const named = CALC.map((o) => (o.op === 'create' ? { ...o, name: 'My Sizer' } : o))
+    const r = applyPatch(null, env(0, named), { gateCtx: GATE, memberWords: 'a position calculator, call it My Sizer' })
+    expect(r.definition.meta.name).toBe('My Sizer')
+  })
+
+  it('an OLDER save stored the formula name — it is still automatic, so the next edit names it properly', () => {
+    const r = applyPatch(null, env(0, [CALC[0]]), { gateCtx: GATE }).definition
+    // what prod stored before this change: EXACTLY the formula-derived name (the old rule)
+    const formulaName = derivedDefName({ rows: CALC[0].outputs.map((o) => ({ key: o.key, ast: o.tree, hidden: o.hidden })), scanKey: 'Shares' })
+    const legacy = { ...r, meta: { ...r.meta, name: formulaName } }
+    const t = applyPatch(legacy, env(1, [CALC[1]]), { gateCtx: GATE, revision: 1 })
+    expect(t.ok, JSON.stringify(t.errors)).toBe(true)
+    expect(t.definition.meta.name).toBe('Position Sizing')
+    // …while a name the member typed (anything else) is kept
+    const custom = applyPatch({ ...r, meta: { ...r.meta, name: 'My Sizer' } }, env(1, [CALC[1]]), { gateCtx: GATE, revision: 1 })
+    expect(custom.definition.meta.name).toBe('My Sizer')
   })
 })
