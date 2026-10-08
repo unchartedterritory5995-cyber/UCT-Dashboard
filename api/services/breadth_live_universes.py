@@ -353,6 +353,38 @@ def _load_frame_from_pack(tickers: list, L_iso: str):
     return dates, closes, volumes
 
 
+#: How long the dividend-basis read may take before the frame is used unadjusted.
+DIVIDEND_BUDGET_SECONDS = 60
+
+
+def _dividend_basis_with_budget(tickers, dates, closes, today_ts):
+    """`(closes, state)` — dividend-adjusted when the store answers in time, else unadjusted.
+
+    ⛔ Measured on production 2026-10-08: the dividend range read sat for 11+ minutes on a cold
+    volume (one SELECT, nothing else touching the store). The live method must not hang on it.
+    Unadjusted is SAFE here: every value is ANCHORED to the canonical series at S, and the basis
+    offset only moves on ex-dividend dates, so it cancels in `method(X) − method(S)` — and S and
+    X always share one basis because both come from this one frame.
+    """
+    import concurrent.futures as cf
+    from api.services import breadth_live as bl
+    if not bl.dividend_basis_enabled():
+        return closes, "off"
+    ex = cf.ThreadPoolExecutor(max_workers=1, thread_name_prefix="blu-div")
+    fut = ex.submit(bl._apply_dividend_basis, tickers, dates, closes, today_ts)
+    try:
+        out = fut.result(timeout=DIVIDEND_BUDGET_SECONDS)
+        return out, "applied"
+    except cf.TimeoutError:
+        _log.warning("[breadth_live_universes] dividend basis exceeded %ss — frame unadjusted",
+                     DIVIDEND_BUDGET_SECONDS)
+        return closes, "timeout"
+    except Exception as e:
+        return closes, f"error: {type(e).__name__}"
+    finally:
+        ex.shutdown(wait=False)
+
+
 def _build_state(L: int) -> Optional[dict]:
     """The once-per-session heavy half: members, the union frame and its levels."""
     from api.services import breadth_live as bl
@@ -385,7 +417,7 @@ def _build_state(L: int) -> Optional[dict]:
     t_frame = time.time() - t1
     _stage("dividend_basis")
     t2 = time.time()
-    closes = bl._apply_dividend_basis(union, dates, closes, today_ts)
+    closes, div_state = _dividend_basis_with_budget(union, dates, closes, today_ts)
     t_div = time.time() - t2
     pos = {t: i for i, t in enumerate(union)}
     idx = {u: np.array([pos[t] for t in mem[u]], dtype=int) for u in UNIVERSES}
@@ -393,7 +425,8 @@ def _build_state(L: int) -> Optional[dict]:
     t3 = time.time()
     levels_today = bl.build_levels(union, closes, vols, L)
     timings = {"members_s": round(t_mem, 2), "frame_s": round(t_frame, 2),
-               "dividend_basis_s": round(t_div, 2), "levels_s": round(time.time() - t3, 2),
+               "dividend_basis_s": round(t_div, 2), "dividend_basis": div_state,
+               "levels_s": round(time.time() - t3, 2),
                "frame_source": source, "names": len(union), "sessions": len(dates),
                "priced_last": int((~np.isnan(closes[:, -1])).sum())}
     _log.info("[breadth_live_universes] state built: %s", timings)
