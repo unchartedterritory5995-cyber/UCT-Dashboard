@@ -50,6 +50,7 @@ import { calcTimeframeCapability } from '../../engine/calcTimeframeCapability'
 import { frameRelation } from '../../engine/instanceTimeframe'
 import CROSS from './crossContext.json'
 import { COLOR_HELPER_SUFFIX, FILL_HELPER_SUFFIX, risingTree, aboveTree, sameTree } from './colorRules'
+import { tableProgram, tableSpecOf, tableSpecProblem } from './tables'
 
 /** The node types a patch tree may use — the concierge's ADVERTISED union plus
  *  PHASE 5's three scope wrappers (`sym`, `tf`, `tf_live`; bounds in
@@ -153,10 +154,34 @@ function setTree(st, row, tree, i, kind) {
   }
   const from = row.source
   const before = row.ast
+  // ⭐ OVERNIGHT D — a table cell names this output; read the spec BEFORE the tree moves
+  const tableBefore = tableSpecOfModel(st.model)
   Object.assign(row, g)
   st.touched.add(row.key)
   st.changes.push({ op: i, kind, output: row.key, from, to: g.source })
   syncHelpers(st, row, before)
+  if (tableBefore && tableBefore.cells.some((c) => c.output === row.key)) writeTable(st, tableBefore)
+}
+
+// ─── ⭐ OVERNIGHT D — the chart table (tables.js) ───────────────────────────────
+
+/** The table spec the model's objects say, when the program is OURS; else null. */
+export function tableSpecOfModel(m) {
+  if (!m || !m.objects) return null
+  return tableSpecOf(m.objects, (t) => {
+    const r = m.rows.find((x) => x.ast && sameTree(x.ast, t))
+    return r ? r.key : null
+  })
+}
+
+function outputTypes(m) {
+  return new Map(m.rows.filter((r) => r.ast).map((r) => [r.key, treeOutputType(r.ast).type]))
+}
+
+function writeTable(st, spec) {
+  const m = st.model
+  const types = outputTypes(m)
+  m.objects = tableProgram(spec, (k) => m.rows.find((r) => r.key === k).ast, (k) => types.get(k))
 }
 
 // ─── ⭐ PHASE 5 — colour-rule / cloud helpers ─────────────────────────────────
@@ -351,6 +376,10 @@ const OPS = {
     const m = st.model
     if (m.rows.length === 1) throw err('output:last', 'A definition needs at least one output.')
     const col = `column:${row.key}`
+    const table = tableSpecOfModel(m)
+    if (table && table.cells.some((c) => c.output === row.key)) {
+      throw err('output:referenced', `"${row.key}" is shown in the chart table; change or remove that cell first.`, { output: row.key })
+    }
     if (helperOwner(m, row)) {
       throw err('output:helper', `"${row.key}" is the hidden column of a colour rule; change or remove that rule instead.`, { output: row.key })
     }
@@ -734,6 +763,28 @@ const OPS = {
     st.calcTouched = true
     st.changes.push({ op: i, kind: from === op.timeframe ? 'unchanged' : 'calc-timeframe-set',
       ...(from === op.timeframe ? { what: 'calculation timeframe' } : { from, to: op.timeframe }) })
+  },
+
+  set_table(st, op, i) {
+    const m = st.model
+    if (!m) throw err('definition:none', 'There is no definition yet.')
+    const was = tableSpecOfModel(m)
+    if (m.objects && !was) {
+      throw err('table:foreign', 'This indicator already draws imported chart objects; a table is not added over them here.')
+    }
+    const spec = { position: op.position || (was && was.position) || 'top_right', cells: op.cells.map((c) => ({ ...c })) }
+    const problem = tableSpecProblem(spec, outputTypes(m))
+    if (problem) throw err('table:invalid', problem)
+    writeTable(st, spec)
+    st.changes.push({ op: i, kind: was ? 'table-replaced' : 'table-added', position: spec.position, cells: spec.cells.length })
+  },
+
+  remove_table(st, op, i) {
+    const m = st.model
+    if (!m || !m.objects) throw err('table:none', 'This indicator draws no table.')
+    if (!tableSpecOfModel(m)) throw err('table:foreign', 'This indicator draws imported chart objects; they are not removed here.')
+    m.objects = null
+    st.changes.push({ op: i, kind: 'table-removed' })
   },
 
   cancel_request(st, op, i) {

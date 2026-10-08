@@ -78,7 +78,8 @@
         { "$ref": "#/$defs/op_cancel_request" },
         { "$ref": "#/$defs/op_set_levels" }, { "$ref": "#/$defs/op_set_fill" },
         { "$ref": "#/$defs/op_remove_fill" },
-        { "$ref": "#/$defs/op_set_color_rule" }, { "$ref": "#/$defs/op_set_calculation_timeframe" }
+        { "$ref": "#/$defs/op_set_color_rule" }, { "$ref": "#/$defs/op_set_calculation_timeframe" },
+        { "$ref": "#/$defs/op_set_table" }, { "$ref": "#/$defs/op_remove_table" }
       ]
     },
     "op_create": {
@@ -247,6 +248,36 @@
         "down": { "$ref": "#/$defs/colour" },
         "when": { "$ref": "#/$defs/outputKey" }
       }
+    },
+    "tableCell": {
+      "type": "object", "additionalProperties": false, "required": ["row", "col"],
+      "properties": {
+        "row": { "type": "integer", "minimum": 0, "maximum": 11 },
+        "col": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "output": { "$ref": "#/$defs/outputKey" },
+        "format": { "enum": ["auto", "integer", "decimal1", "decimal2", "decimal3"] },
+        "prefix": { "type": "string", "maxLength": 6 },
+        "suffix": { "type": "string", "maxLength": 6 },
+        "color": { "$ref": "#/$defs/colour" },
+        "background": { "$ref": "#/$defs/colour" },
+        "bold": { "type": "boolean" }
+      },
+      "oneOf": [ { "required": ["text"] }, { "required": ["output"] } ]
+    },
+    "op_set_table": {
+      "description": "OVERNIGHT D — a table drawn ON the chart at one of nine positions (the existing chart-table renderer). cells REPLACES the whole table: each cell is fixed text, or the LATEST value of an output of this indicator (a number output with an optional format / prefix / suffix; a yes/no output shows Yes or No). An unknown value shows as a dash. Use hidden outputs for values that should appear only in the table.",
+      "type": "object", "additionalProperties": false, "required": ["op", "cells"],
+      "properties": {
+        "op": { "const": "set_table" },
+        "position": { "enum": ["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"] },
+        "cells": { "type": "array", "minItems": 1, "maxItems": 48, "items": { "$ref": "#/$defs/tableCell" } }
+      }
+    },
+    "op_remove_table": {
+      "description": "OVERNIGHT D — remove this indicator's chart table (its outputs stay).",
+      "type": "object", "additionalProperties": false, "required": ["op"],
+      "properties": { "op": { "const": "remove_table" } }
     },
     "op_set_calculation_timeframe": {
       "description": "PHASE 5 — run the WHOLE indicator on another timeframe than the chart's (its instance's calculation timeframe), applied when it is saved to the chart; a HIGHER timeframe only. chart = the chart's own timeframe.",

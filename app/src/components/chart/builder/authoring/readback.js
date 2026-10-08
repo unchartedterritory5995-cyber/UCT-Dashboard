@@ -27,6 +27,7 @@ import { policyLabel, numericAlertWords } from '../../engine/triggerPolicy'
 import { symTickersOf } from '../../engine/otherSymbols'
 import { calcTimeframeLabel } from '../../engine/instanceTimeframe'
 import { helpersOfDefinition, plotColorRule, plotFillRule } from './colorRules'
+import { tableSpecOfDefinition, tableLines } from './tables'
 import { stampSemantics, semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from '../../engine/definitionSemantics'
 import { INTENTS, intentReadback, NO_PAINT } from '../authoringIntent'
 import { untruncatedLabel } from '../../engine/labelText'
@@ -148,6 +149,8 @@ export function presentationLines(def) {
     else out.push(`an imported ${paint.kind === 'barcolor' ? 'candle colouring' : 'background colouring'}${key ? ` reading ${nameOf(key)}` : ''} (kept as imported)`)
   }
   out.push(...vocabularyLines(def))
+  // ⭐ OVERNIGHT D — the chart table, cell by cell
+  out.push(...tableLines(tableSpecOfDefinition(def), nameOf))
   out.push(def.placement && def.placement.target === 'price' ? 'drawn on the price chart' : 'drawn in its own pane')
   return out
 }
