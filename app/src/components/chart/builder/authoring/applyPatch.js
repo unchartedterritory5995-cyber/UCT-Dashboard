@@ -22,7 +22,7 @@
 // ⛔ NOTHING HERE CALLS A MODEL. ⛔ NOTHING HERE WRITES `meta.semantics`.
 // ⛔ PROSE (`note`, `*.text`) NEVER REACHES THE DEFINITION.
 
-import { namingSnapshot, applyDerivedNaming } from './derivedName'
+import { namingSnapshot, applyDerivedNaming, memberNamePhrases, memberNamed } from './derivedName'
 import { validatePatchShape, opIndexOf, PATCH_LIMITS } from './patchValidate'
 import {
   modelOf, buildFromModel, fidelityPlan, graftCarried, orderLike, evaluateRowSource, AuthoringError, LEVELS_PLOT_KEY,
@@ -190,6 +190,9 @@ function declareInput(st, spec, i) {
   if (RESERVED_INPUT_KEYS.has(key) || names.has(key)) {
     throw err('input:name', `"${key}" is already a name in UCT's formula language; pick another name for the setting.`)
   }
+  // ⛔ A key that names an Object.prototype member (`constructor`, `toString`, …) is
+  // refused: every reader here is own-property safe, and this keeps it that way.
+  if (key in Object.prototype) throw err('input:name', `"${key}" is a reserved word; pick another name for the setting.`)
   for (const f of ['default', 'min', 'max', 'step']) {
     if (spec[f] !== undefined && !(typeof spec[f] === 'number' && Number.isFinite(spec[f]))) {
       throw err('input:value', `The setting's ${f} must be a number.`)
@@ -399,6 +402,9 @@ const OPS = {
       st.touched.add(keys[j])
     })
     st.created = true
+    // ⭐ a name / label the member gave in their own words is CUSTOM (derivedName.js)
+    if (memberNamed(st.memberNames, st.model.name)) st.renamedDefinition = true
+    op.outputs.forEach((o, j) => { if (memberNamed(st.memberNames, o.label)) st.renamedOutputs.add(keys[j]) })
     st.changes.push({ op: i, kind: 'created', outputs: keys, name: st.model.name })
   },
 
@@ -419,6 +425,7 @@ const OPS = {
     st.model.rows.push(row)
     Object.assign(row, gateTree(op.tree, scopeOf(st.model), op.key))
     st.touched.add(op.key)
+    if (memberNamed(st.memberNames, op.label)) st.renamedOutputs.add(op.key)
     st.changes.push({ op: i, kind: 'output-added', output: op.key, to: row.source })
   },
 
@@ -1035,7 +1042,7 @@ function runOps(input, ops, ctx) {
     model: null, ctx, changes: [], touched: new Set(), removed: new Set(), requested: new Set(),
     intent: ctx.intent ? { ...ctx.intent } : null, requests: normRequests(ctx.requests),
     engineAssumptions: [], replacedForeign: {}, created: false, intentTouched: false, fills: new Set(),
-    renamedDefinition: false, renamedOutputs: new Set(),
+    renamedDefinition: false, renamedOutputs: new Set(), memberNames: memberNamePhrases(ctx.memberWords),
     newPaints: new Set(), hiddenSet: new Set(), calcTouched: false,
   }
   let namingBefore = null

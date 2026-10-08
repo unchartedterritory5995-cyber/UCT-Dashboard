@@ -76,3 +76,25 @@ def test_the_prompt_names_tables_and_inputs_and_forbids_inventing_figures(conv):
     p = conv.system_prompt()
     assert "set_table" in p and "set_input" in p
     assert "NEVER invent the member's own figures" in p
+
+
+@pytest.mark.parametrize("key", ["constructor", "toString", "valueOf", "hasOwnProperty"])
+def test_an_input_may_not_be_named_after_an_Object_prototype_member(conv, key):
+    """ASKED: a setting keyed `constructor` (the key pattern admits it). DID: refused at
+    `input:name`, the gate the browser's `declareInput` uses for the same key."""
+    bad = [{"key": key, "label": "x", "default": 0}]
+    with pytest.raises(conv._Refused) as exc:
+        conv.check_envelope(_env([{"op": "create", "name": "Calc", "inputs": bad,
+                                   "outputs": [{"key": "v", "tree": S(key), "hidden": True}]}]), 0)
+    assert exc.value.gate == "input:name"
+
+
+def test_the_server_prototype_list_is_exactly_the_browser_s(conv):
+    import shutil
+    import subprocess
+    if shutil.which("node") is None:
+        pytest.skip("node not on PATH")
+    names = subprocess.run(
+        ["node", "-e", "process.stdout.write(Object.getOwnPropertyNames(Object.prototype).join(' '))"],
+        capture_output=True, text=True, timeout=30).stdout.split()
+    assert set(names) == set(conv.JS_PROTOTYPE_KEYS)

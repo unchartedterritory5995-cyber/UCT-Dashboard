@@ -90,6 +90,9 @@ describe('OVERNIGHT E — a position-sizing calculator from inputs + formulas + 
     expect(t.definition.inputs.find((x) => x.key === 'riskPct')).toMatchObject({ label: 'Risk per trade %', default: 2 })
     expect(applyPatch(r.definition, env(0, [{ op: 'remove_input', key: 'stop' }]), { gateCtx: GATE }).errors[0].code).toBe('input:referenced')
     expect(applyPatch(r.definition, env(0, [{ op: 'set_input', input: { key: 'close', label: 'x', default: 0 } }]), { gateCtx: GATE }).errors[0].code).toBe('input:name')
+    for (const key of ['constructor', 'toString', 'valueOf']) {
+      expect(applyPatch(r.definition, env(0, [{ op: 'set_input', input: { key, label: 'x', default: 0 } }]), { gateCtx: GATE }).errors[0].code).toBe('input:name')
+    }
     const saved = { ...t.definition, id: 'u_0123456789ab', version: 3 }
     expect(conversationEditability(saved).editable).toBe(true)
     const st = openAuthoringState(saved, { defId: saved.id, version: 3, lineage: 'auth_00000calcul' })

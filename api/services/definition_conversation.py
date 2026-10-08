@@ -118,6 +118,11 @@ CROSS_CONTEXT_PATH = PATCH_SCHEMA_PATH.parent / "crossContext.json"
 
 #: ⭐ OVERNIGHT E -- the key shape of a member input (patchSchema `memberInput.key`).
 INPUT_KEY_PATTERN = "^[a-z][A-Za-z0-9]{0,23}$"
+#: Keys the browser refuses as Object.prototype members (``applyPatch.declareInput``).
+JS_PROTOTYPE_KEYS = frozenset((
+    "constructor", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable",
+    "toLocaleString", "toString", "valueOf", "__defineGetter__", "__defineSetter__",
+    "__lookupGetter__", "__lookupSetter__", "__proto__"))
 
 #: The scope wrappers this door authors (Phase 5). ``ltf`` stays translated-only.
 SCOPE_NODES: Tuple[str, ...] = ("sym", "tf", "tf_live")
@@ -509,7 +514,9 @@ CONVERSE_SYSTEM_PROMPT = (
     "MEMBER sets (account size, risk %, entry, stop): declare it as an input (create `inputs`, "
     "or set_input) and read it in a tree as a series named by its key. NEVER invent the member's "
     "own figures -- default 0 and tell them to set it in the indicator's settings. Informational "
-    "only: nothing here places an order. Use only what `capabilities` lists.\n"
+    "only: nothing here places an order. When the member NAMES the indicator or an output "
+    "(\"call it My Trend\"), use exactly their words; to rename later, rename_definition / "
+    "rename_output. Use only what `capabilities` lists.\n"
     f"  * At most {MAX_OPS} ops per turn.\n\n"
     "TREES\n"
     "  A tree is the canonical node shape and nothing else:\n"
@@ -1024,7 +1031,8 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     # such as `price` included): the browser refuses it too (`applyPatch.declareInput`).
     from api.services import ast_table
     names = {n for sec in ast_table.TABLE.values() if isinstance(sec, Mapping) for n in sec}
-    clash = sorted(k for k in inputs if k in names or k in ("color", "lineWidth"))
+    clash = sorted(k for k in inputs
+                   if k in names or k in ("color", "lineWidth") or k in JS_PROTOTYPE_KEYS)
     if clash:
         raise _Refused("input:name", f"input key(s) {', '.join(clash)} shadow a formula name",
                        member=f"a setting may not be named {', '.join(clash)}")
