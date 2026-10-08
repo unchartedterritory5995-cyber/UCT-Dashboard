@@ -326,3 +326,23 @@ describe('failure honesty: a half-applied step is taken back, or said plainly', 
     expect(u.reason).toMatch(/Already restored: /)
   })
 })
+
+
+describe('context budget: explicit compaction, never a silent cut', () => {
+  it('many large lists: over budget the watchlist section keeps every list but fewer tickers per list, and says how many more', async () => {
+    const { CONTEXT_BUDGET_BYTES } = await import('./capabilities')
+    const many = Array.from({ length: 40 }, (_, i) => ({ id: `L${i}`, name: `List number ${i}`, symbols: Array.from({ length: 40 }, (_, k) => `TICKERNAME${i}X${k}`) }))
+    const { host } = lib(many, [])
+    const { context } = buildContext(host, CTX)
+    expect(JSON.stringify(context).length).toBeLessThanOrEqual(CONTEXT_BUDGET_BYTES)
+    expect(context.watchlists).toHaveLength(40)
+    expect(context.watchlists[0]).toMatchObject({ name: 'List number 0', count: 40, moreSymbols: 32 })
+    expect(context.watchlists[0].symbols).toHaveLength(8)
+  })
+  it('a normal library is sent in full (no compaction)', () => {
+    const { host } = lib()
+    const m = buildContext(host, CTX).context.watchlists.find(l => l.name === 'Momentum')
+    expect(m.symbols).toEqual(['NVDA', 'TSLA', 'META', 'AAPL'])
+    expect(m.moreSymbols).toBeUndefined()
+  })
+})

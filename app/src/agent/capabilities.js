@@ -99,7 +99,10 @@ export function registerTargetKind(kind) {
 //   host.epoch() -> string   which board the targets belong to; a plan proposed
 //        on one board is never applied to another, and undo never crosses it
 
-/** provider = { key, kind?, build(host, refFor) -> JSON-able context section } */
+/** provider = { key, kind?, build(host, refFor, { message }) -> JSON-able context section,
+ *               compact?(section) -> a smaller section that still says what was left out }
+ *  `message` is the member's request, so a provider may send its detail only when relevant
+ *  (it must still leave enough for the model to DISCOVER it is relevant). */
 export function registerContextProvider(p) {
   if (!p || !p.key || typeof p.build !== 'function') throw new Error('context provider needs key + build()')
   PROVIDERS.set(p.key, p)
@@ -172,10 +175,22 @@ export function buildContext(host, ctx = {}) {
   }
   const sections = { surface: ctx.surface || null }
   for (const p of PROVIDERS.values()) {
-    try { sections[p.key] = p.build(host, refFor) } catch { /* a broken provider drops out, never breaks the turn */ }
+    try { sections[p.key] = p.build(host, refFor, { message: ctx.message || '' }) } catch { /* a broken provider drops out, never breaks the turn */ }
+  }
+  // ⛔ AN EXPLICIT BUDGET, NEVER A SILENT CUT. Over it, providers that can compact themselves do
+  // so, one at a time in registration order, and the compacted section says what it left out
+  // (the server would otherwise refuse the whole turn as too large).
+  const size = () => JSON.stringify(sections).length
+  for (const p of PROVIDERS.values()) {
+    if (size() <= CONTEXT_BUDGET_BYTES) break
+    if (typeof p.compact !== 'function' || sections[p.key] === undefined) continue
+    try { sections[p.key] = p.compact(sections[p.key]) } catch { /* keep the full section */ }
   }
   return { context: sections, refMap }
 }
+
+/** The client's context budget, under the server's hard cap (MAX_CONTEXT_BYTES = 24000). */
+export const CONTEXT_BUDGET_BYTES = 20000
 
 /**
  * Shape-check args against the capability's own JSON schema (closed object,

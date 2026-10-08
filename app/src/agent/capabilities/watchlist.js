@@ -33,6 +33,7 @@ import { unknownSymbols } from '../agentClient'
 // measured 2026-10-08). Provenance does not depend on hiding them: a copied list
 // is bound back to the list deterministically (compose.bindCopiedLiterals).
 const SHOW_IN_CONTEXT = 40           // symbols per list the model is shown
+const COMPACT_SHOW = 8               // …per list when the context is over budget
 
 const MAX_PER_REQUEST = 50           // symbols one add/remove may carry
 const CONFIRM_OVER = 10              // a bigger batch is proposed first
@@ -270,6 +271,12 @@ export function registerWatchlistCapabilities() {
 
   registerContextProvider({
     key: 'watchlists',
+    // Over the context budget: fewer tickers per list, and the count of the rest is stated.
+    compact: (lists) => (lists || []).map(l => {
+      const syms = l.symbols || []
+      if (syms.length <= COMPACT_SHOW) return l
+      return { ...l, symbols: syms.slice(0, COMPACT_SHOW), moreSymbols: (l.count || syms.length) - COMPACT_SHOW }
+    }),
     build: (host, refFor) => {
       if (!host?.watchlists) return undefined
       return listsOf(host).slice(0, 40).map(l => ({

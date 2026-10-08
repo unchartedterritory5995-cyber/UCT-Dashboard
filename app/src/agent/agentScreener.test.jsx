@@ -49,12 +49,24 @@ const run = (args) => getCapability('screener.run').answer(null, { filters: [], 
 const scanCalls = () => calls.filter(c => c[1] === '/api/screener/scan')
 
 describe('Screener: the real engine, the real catalog', () => {
-  it('the field catalog reaches the model compactly (keys from /fields, enum lists left out)', async () => {
+  it('the field catalog reaches the model compactly (keys from /fields, enum lists left out) — in full when the request could be a screen', async () => {
     await loadMeta()
-    const { context, refMap } = buildContext({}, CTX)
+    const { context, refMap } = buildContext({}, { ...CTX, message: 'find stocks with ADR above 5%' })
     const s = context.screener[0]
     expect(refMap[s.ref]).toEqual({ kind: 'screener', ref: 'screener' })
     expect(s.fields).toBe('adr_pct:ADR %(%);price:Price($);chg_pct_1m:Change 1M(%);above_50sma:Above 50 SMA(yes/no)')
+    expect(s.fieldsDetail).toBeUndefined()
+  })
+  it('CONTEXT RELEVANCE: an unrelated request gets the field KEYS only (still discoverable), and says so', async () => {
+    await loadMeta()
+    const s = buildContext({}, { ...CTX, message: 'make the left chart weekly' }).context.screener[0]
+    expect(s.fields).toBe('adr_pct,price,chg_pct_1m,above_50sma')
+    expect(s.fieldsDetail).toMatch(/keys only/)
+    const { screenRelevant } = await import('./capabilities/screener')
+    for (const m of ['Find stocks with high ADR and open the top four in Charts', 'now only above $20', 'sort those by 1-month performance', 'exclude ETFs', 'what moved more than 10% today'])
+      expect(screenRelevant(m), m).toBe(true)
+    for (const m of ['make the left chart weekly', 'open my Swing layout', 'switch to bars', 'what is an EMA?'])
+      expect(screenRelevant(m), m).toBe(false)
   })
   it('ACCEPTANCE: "ADR above 5% and price above $10" → the Screener\'s own wire spec, the real count, the rows it returned', async () => {
     const a = await run({ filters: [{ field: 'adr_pct', op: 'gt', value: 5, max: null }, { field: 'price', op: 'gt', value: 10, max: null }] })
