@@ -187,17 +187,24 @@ def breadth_live_universes_diag(request: Request, force: int = 0):
     the method can be inspected in production before any member sees it."""
     _check_auth(request)
     from api.services import breadth_live_universes as blu
-    p = blu.refresh(force=bool(force)) if (force or not blu.serving()) else blu.payload(cached_only=False)
-    return {"serving": blu.serving(), **(p or {})}
+    # ⛔ Never compute on the request thread (a cold build is tens of seconds): `force=1` starts a
+    # background refresh; every call returns the job state and the last computed payload.
+    if force:
+        blu.start_job("refresh", blu.refresh, True)
+    return {"serving": blu.serving(), "job": {k: v for k, v in blu.job("refresh").items()
+                                              if k != "result"},
+            "payload": blu._payload.get("value"), "payload_at": blu._payload.get("at")}
 
 
 @router.get("/api/breadth-monitor/live-universes/reconcile")
-def breadth_live_universes_reconcile(request: Request, sessions: int = 10):
+def breadth_live_universes_reconcile(request: Request, sessions: int = 10, start: int = 0):
     """The proof: replay recent canonical sessions with the live method and grade every metric
     against canonical. PUSH_SECRET-gated, read-only."""
     _check_auth(request)
     from api.services import breadth_live_universes as blu
-    return blu.reconcile(sessions=max(2, min(int(sessions), 40)))
+    if start:
+        return blu.start_job("reconcile", blu.reconcile, max(2, min(int(sessions), 40)))
+    return blu.job("reconcile")
 
 
 @router.post("/api/breadth-monitor/history/pull-now")

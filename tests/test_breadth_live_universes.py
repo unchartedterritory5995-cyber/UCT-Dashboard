@@ -238,3 +238,18 @@ def test_indicator_points_continue_running_totals_from_the_served_level(monkeypa
     blu._ind_cache.clear()
     pts = blu.indicator_points("NASDAQ:ADR", "nasdaq", served)     # not cumulative: as computed
     assert pts == [{"t": "2026-10-07", "v": 510.0}, {"t": "2026-10-08", "v": 495.0}]
+
+
+def test_a_cache_only_reader_accepts_a_slightly_stale_live_payload(monkeypatch):
+    """The chart's developing candle must not vanish in the seconds between sampler ticks."""
+    import time as _t
+    monkeypatch.setattr(bl, "enabled", lambda: True)
+    with bl._live_lock:
+        bl._live_cache["payload"] = {"ok": True, "tag": "warm"}
+        bl._live_cache["at"] = _t.time() - 90          # past the 55 s TTL, inside the grace
+    assert bl.compute_live(cached_only=True).get("tag") == "warm"
+    with bl._live_lock:
+        bl._live_cache["at"] = _t.time() - 600          # genuinely stale
+    assert bl.compute_live(cached_only=True).get("ok") is False
+    with bl._live_lock:
+        bl._live_cache.clear()
