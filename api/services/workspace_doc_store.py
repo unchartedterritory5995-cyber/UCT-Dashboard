@@ -235,6 +235,19 @@ CREATE TABLE IF NOT EXISTS workspace_writebacks (
 CREATE INDEX IF NOT EXISTS idx_workspace_writebacks_user
   ON workspace_writebacks(user_id, board_id, version);
 
+-- REVISION SAFETY: a board key a REVISION-AWARE client has written. From then on an
+-- unversioned write of that key (a tab still running a bundle from before revisions) is
+-- refused: it cannot know whether it is overwriting newer work. Append-only: a row is
+-- inserted once (INSERT OR IGNORE) and never changed or removed.
+CREATE TABLE IF NOT EXISTS workspace_key_guard (
+  user_id       TEXT    NOT NULL,
+  board_id      TEXT    NOT NULL,
+  pref_key      TEXT    NOT NULL,
+  since_version INTEGER NOT NULL,
+  created_at    INTEGER NOT NULL,
+  PRIMARY KEY (user_id, board_id, pref_key)
+);
+
 CREATE TABLE IF NOT EXISTS workspace_doc_prune_log (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id        TEXT    NOT NULL,
@@ -475,7 +488,8 @@ def _live_prefs_of(h: Optional[dict]) -> dict:
 
 def _cas_append(user_id: str, board_id: str, *, base_version: Optional[int], doc: Optional[dict] = None,
                 patch: Optional[dict] = None, source: str, restored_from: Optional[int] = None,
-                audit: Optional[dict] = None, writeback_keys: Optional[list] = None) -> dict:
+                audit: Optional[dict] = None, writeback_keys: Optional[list] = None,
+                guard_keys: Optional[list] = None) -> dict:
     """The ONE write primitive: compare-and-set on the head version, then append.
 
     ``BEGIN IMMEDIATE`` takes the write lock before the head is read, so no second writer can
@@ -521,6 +535,8 @@ def _cas_append(user_id: str, board_id: str, *, base_version: Optional[int], doc
             failures = _record_failures(c, user_id, board_id, new_v, audit or {})
             if writeback_keys:
                 _record_writeback(c, user_id, board_id, new_v, writeback_keys, WRITEBACK_PENDING)
+            if guard_keys:
+                _guard(c, user_id, board_id, guard_keys, new_v)
             c.execute("COMMIT")
         except BaseException:
             if c.in_transaction:
@@ -595,7 +611,8 @@ def restore(user_id: str, board_id: str, target_version: int, *, base_version: i
         raise LookupError(f"version {target_version} does not exist or is a tombstone")
     doc = target["doc"]
     res = _cas_append(user_id, board_id, base_version=base_version, doc=doc, source="restore",
-                      restored_from=int(target_version), writeback_keys=sorted(prefs_from_doc(doc)))
+                      restored_from=int(target_version), writeback_keys=sorted(prefs_from_doc(doc)),
+                      guard_keys=sorted(prefs_from_doc(doc)))
     res["doc"] = doc
     res["restored_from"] = int(target_version)
     return res
@@ -657,7 +674,131 @@ def apply_patch(user_id: str, board_id: str, patch: dict, *, base_version: int,
     if (h is None or h["tombstone"]) and int(base_version) == head_v:
         base_version = ensure_snapshot(user_id, prefs_reader, board_id)["version"]
     return _cas_append(user_id, board_id, base_version=base_version, patch=dict(patch), source="write",
-                       audit=dict(patch), writeback_keys=sorted(patch))
+                       audit=dict(patch), writeback_keys=sorted(patch), guard_keys=sorted(patch))
+
+
+# ── REVISION SAFETY: one preference key, compare-and-set ─────────────────────
+#
+# A board key is ONE per-member preference written last-write-wins, and a tab never re-reads it
+# after it loads — so a tab (or device) holding an older copy could overwrite newer work by
+# simply saving. A revision-aware client sends, with every board-key write, the document version
+# at which IT last read or wrote that key (``base_version``). The write commits only if the key's
+# value is unchanged since that version; otherwise nothing is written (``VersionConflict``).
+#
+# ⭐ PER KEY, NOT PER DOCUMENT. The board document holds every Charts setting (theme, widget
+# settings, groups, the board itself). A whole-document check would make two unrelated edits —
+# a theme change in one tab, a widget move in another — refuse each other, and would make one
+# tab's own concurrent writes of DIFFERENT keys refuse each other. Per key, a stale copy of THE
+# SAME key is always refused and nothing else is.
+#
+# ⛔ ATOMIC: the head, the value at the base version and the append are read and written inside
+# ONE ``BEGIN IMMEDIATE`` transaction, so no second writer — another request, another process —
+# can land between the check and the write.
+
+def _guard(c: sqlite3.Connection, user_id: str, board_id: str, keys, version: int) -> None:
+    for key in sorted(set(keys)):
+        c.execute(
+            "INSERT OR IGNORE INTO workspace_key_guard (user_id, board_id, pref_key, since_version,"
+            " created_at) VALUES (?,?,?,?,?)",
+            (user_id, board_id, key, int(version), int(_clock())))
+
+
+def key_is_guarded(user_id: str, key: str) -> bool:
+    """True once a revision-aware client has written ``key`` for this member."""
+    board_id = board_for_key(key)
+    if board_id is None:
+        return False
+    with contextlib.closing(_connect()) as c:
+        return c.execute(
+            "SELECT 1 FROM workspace_key_guard WHERE user_id=? AND board_id=? AND pref_key=?",
+            (user_id, board_id, key)).fetchone() is not None
+
+
+def _prefs_at(c: sqlite3.Connection, user_id: str, board_id: str, version: int) -> Optional[dict]:
+    """The prefs a client saw when the document was at ``version``, or None when that is
+    unknowable (pruned, never existed, unreadable) — which the caller treats as a conflict, the
+    safe direction.
+
+    A client that read while there was NO live document (``version`` 0, or a tombstone) was
+    served ``user_preferences`` directly. What it saw is the MIGRATION copy of exactly that, and
+    only if that copy is the very next version (``version + 1``): if anything else landed first,
+    what the client saw is unknowable and the write is refused."""
+    r = None
+    if int(version) > 0:
+        r = c.execute("SELECT * FROM workspace_doc_versions WHERE user_id=? AND board_id=? AND version=?",
+                      (user_id, board_id, int(version))).fetchone()
+        if r is None:
+            return None
+    if int(version) == 0 or r["tombstone"]:
+        r = c.execute("SELECT * FROM workspace_doc_versions WHERE user_id=? AND board_id=? AND version=?",
+                      (user_id, board_id, int(version) + 1)).fetchone()
+        if r is None or r["source"] != "migration" or r["tombstone"]:
+            return None
+    try:
+        return prefs_from_doc(json.loads(r["doc_json"]))
+    except Exception:  # noqa: BLE001 -- an unreadable base is unknowable, so a conflict
+        return None
+
+
+def write_pref_checked(user_id: str, key: str, value: Optional[str], *, base_version: int,
+                       prefs_reader: Callable[[str], dict]) -> dict:
+    """Write one board key IF it is unchanged since ``base_version``; else ``VersionConflict``.
+
+    → ``{"appended", "version", "board"}``. The caller then writes ``user_preferences`` and
+    ``mark_writeback_done`` (the version and its ``pending`` write-back row are one transaction,
+    exactly like ``apply_patch``), so the document is the authority the instant this returns.
+
+    * Writing the value the key ALREADY holds succeeds without a new version: a retry whose first
+      attempt committed but whose response was lost, or a duplicate send, is not a conflict.
+    * A member with no live document yet: a client that named that empty state is rebased onto
+      the migration copy taken here (a copy of what it read is not a competing edit) — and only
+      if that copy is the version right after its base (``_prefs_at``)."""
+    board_id = board_for_key(key)
+    if board_id is None:
+        raise ValueError(f"{key!r} is not a board key")
+    validate_doc({"schema_version": SCHEMA_VERSION, "board": board_id, "prefs": {key: value}}, board_id)
+    base = int(base_version)
+    h = head(user_id, board_id)
+    if (h is None or h["tombstone"]) and base == (h["version"] if h else 0):
+        # The client saw the old store: take the migration copy of it now (``_prefs_at`` then
+        # compares against exactly that copy, and only if it is the version right after ``base``).
+        ensure_snapshot(user_id, prefs_reader, board_id)
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("BEGIN IMMEDIATE")
+        try:
+            hr = _head_row(c, user_id, board_id)
+            head_v = hr["version"] if hr else 0
+            cur_prefs = _live_prefs(hr)
+            cur = cur_prefs.get(key)
+            if hr is not None and not hr["tombstone"] and key in cur_prefs and cur == value:
+                _guard(c, user_id, board_id, [key], head_v)
+                c.execute("COMMIT")
+                return {"appended": False, "version": head_v, "board": board_id}
+            if base < 0 or base > head_v:
+                raise VersionConflict(base, head_v)
+            seen = _prefs_at(c, user_id, board_id, base)
+            if seen is None or seen.get(key) != cur:
+                raise VersionConflict(base, head_v)
+            doc = {"schema_version": SCHEMA_VERSION, "board": board_id, "prefs": {**cur_prefs, key: value}}
+            validate_doc(doc, board_id)
+            new_v = head_v + 1
+            _append(c, user_id, board_id, new_v, doc=doc, source="write")
+            _record_failures(c, user_id, board_id, new_v, {key: value})
+            _record_writeback(c, user_id, board_id, new_v, [key], WRITEBACK_PENDING)
+            _guard(c, user_id, board_id, [key], new_v)
+            c.execute("COMMIT")
+        except BaseException:
+            if c.in_transaction:
+                c.execute("ROLLBACK")
+            raise
+    # Retention, exactly as the mirrored path runs it (``finish_pref_write``): the history grows
+    # here now, so it is bounded here. Best-effort, never fails the member's write.
+    try:
+        prune_versions(user_id, board_id, int(_clock()))
+    except Exception as exc:  # noqa: BLE001
+        _HOOK_FAILURES["prune"] = _HOOK_FAILURES.get("prune", 0) + 1
+        logger.warning("[workspace_doc] prune failed for %s: %s", user_id, exc)
+    return {"appended": True, "version": new_v, "board": board_id}
 
 
 # ── READ-NEW: the board's keys, read from the document head ─────────────────

@@ -1492,12 +1492,21 @@ function PreferencesBackupCard() {
       // is a fast write and the total volume is tiny (~20-30 keys). If a key
       // fails the rest still apply.
       let ok = 0, fail = 0
+      // REVISION SAFETY: a confirmed restore REPLACES the workspace keys on purpose, so it names
+      // the revision it just read (the `v=` of `X-Workspace-Doc`). The server still refuses a key
+      // another window changes in the moment between that read and this write.
+      let base = null
+      try {
+        const head = await fetch('/api/auth/preferences', { cache: 'no-store' })
+        const m = /\bv=(\d+)/.exec(head.headers.get('X-Workspace-Doc') || '')
+        base = m ? Number(m[1]) : (/reason=absent/.test(head.headers.get('X-Workspace-Doc') || '') ? 0 : null)
+      } catch { base = null }
       for (const [key, value] of Object.entries(confirmData.prefs)) {
         try {
           const r = await fetch('/api/auth/preferences', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key, value: String(value ?? '') }),
+            body: JSON.stringify(base === null ? { key, value: String(value ?? '') } : { key, value: String(value ?? ''), base_version: base }),
           })
           if (r.ok) ok++
           else fail++
