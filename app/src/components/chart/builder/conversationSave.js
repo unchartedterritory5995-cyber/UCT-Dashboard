@@ -11,7 +11,9 @@
 //   →  installUserDefinitions (the STORE's id, version, rev and semantics)
 //   →  addInstance (create only)  →  the stored consumer requests:
 //      info value → infoValueDoor.requestInfoValue (against the INSTALLED instance)
-//      alert      → triggerPolicy.signalAlertRequest + createIndicatorAlert
+//      alert      → triggerPolicy.signalAlertRequest (a yes/no) or, PHASE 5,
+//                   numericAlertRequest (a number) + createIndicatorAlert
+//      calculation timeframe (PHASE 5) → instanceControls.setInstanceCalculationTimeframe
 //
 // Every request gets an outcome that says what happened — added, created, or
 // refused with the door's own reason. Nothing claims a value or an alert exists
@@ -22,9 +24,10 @@ import { draftDefId } from './BuilderSheet'
 import { saveUserDefinition } from '../../../hooks/useUserDefinitions'
 import { createIndicatorAlert } from '../../../hooks/useIndicatorAlerts'
 import * as engineRegistry from '../engine/nativeRegistry'
-import { addInstance } from '../engine/instanceControls'
+import { addInstance, setInstanceCalculationTimeframe } from '../engine/instanceControls'
+import { calcTimeframeLabel } from '../engine/instanceTimeframe'
 import { withStoredSemantics } from '../engine/definitionSemantics'
-import { signalAlertRequest, policyLabel } from '../engine/triggerPolicy'
+import { signalAlertRequest, policyLabel, numericAlertRequest, numericAlertWords } from '../engine/triggerPolicy'
 import { infoValueRefFor, requestInfoValue, addedInstanceId } from './infoValueDoor'
 
 /**
@@ -95,6 +98,21 @@ export function attachConversation({ storedDoc, created, requests, settings, reg
     instanceId = inst ? inst.instanceId : null
     outcomes.push({ kind: 'chart', ok: true, text: instanceId ? 'The chart redraws it with the new version.' : 'Saved. It is not on this chart.' })
   }
+  // ⭐ PHASE 5 — THE WHOLE INDICATOR ON A HIGHER TIMEFRAME: the instance's own
+  // calculation-timeframe control, written through its own writer (which refuses
+  // what the control would). Applied to the instance this save attached.
+  const calc = requests && typeof requests.calculationTimeframe === 'string' ? requests.calculationTimeframe : null
+  if (calc && instanceId) {
+    const next = setInstanceCalculationTimeframe(cs, instanceId, calc, registry)
+    const inst = ((next && next.indicatorInstances) || []).find((i) => i && i.instanceId === instanceId)
+    const ok = !!inst && inst.calculationTimeframe === calc
+    if (ok) cs = next
+    outcomes.push({ kind: 'calc_timeframe', ok,
+      text: ok ? `Calculated on the ${calcTimeframeLabel(calc)} timeframe.`
+        : `Not calculated on ${calcTimeframeLabel(calc)}: this indicator follows the chart's timeframe here.` })
+  } else if (calc) {
+    outcomes.push({ kind: 'calc_timeframe', ok: false, text: `Not calculated on ${calcTimeframeLabel(calc)}: it is not on this chart.` })
+  }
   for (const v of (requests && requests.infoValues) || []) {
     const req = requestInfoValue(cs, infoValueRefFor({ instanceId, plotKey: v.plotKey, format: v.format || 'auto' }), registry.getDefinition)
     if (req.added) cs = req.settings
@@ -111,15 +129,24 @@ export function attachConversation({ storedDoc, created, requests, settings, reg
  * existing create API. The server is the authority; its words are shown.
  * @returns {Promise<object[]>} outcomes
  */
-export async function armConversationAlerts({ storedDoc, requests, sym, tf, instanceId = null, create = createIndicatorAlert }) {
+export async function armConversationAlerts({ storedDoc, requests, sym, tf: chartTf, instanceId = null, create = createIndicatorAlert }) {
   const outcomes = []
+  // ⭐ PHASE 5 — an indicator calculated on a higher timeframe ALERTS on that
+  // timeframe's closed bars: the numbers the member watches are those, not the chart's.
+  const tf = requests && typeof requests.calculationTimeframe === 'string' && chartTf
+    ? requests.calculationTimeframe : chartTf
   for (const a of (requests && requests.alerts) || []) {
-    const what = `Alert when ${a.plotKey} ${String(policyLabel(a.triggerPolicy) || a.triggerPolicy).toLowerCase()}`
+    const numeric = typeof a.condition === 'string'
+    const what = numeric
+      ? `Alert when ${a.plotKey} ${numericAlertWords(a.condition, a.threshold)}`
+      : `Alert when ${a.plotKey} ${String(policyLabel(a.triggerPolicy) || a.triggerPolicy).toLowerCase()}`
     if (!sym || !tf) {
       outcomes.push({ kind: 'alert', plotKey: a.plotKey, ok: false, text: `${what}: not created — there is no chart symbol and timeframe to arm it on.` })
       continue
     }
-    const req = signalAlertRequest({ def: storedDoc, key: a.plotKey, policy: a.triggerPolicy, sym, tf, ctx: { tf, symbol: sym } })
+    const req = numeric
+      ? numericAlertRequest({ def: storedDoc, key: a.plotKey, condition: a.condition, threshold: a.threshold, sym, tf, ctx: { tf, symbol: sym } })
+      : signalAlertRequest({ def: storedDoc, key: a.plotKey, policy: a.triggerPolicy, sym, tf, ctx: { tf, symbol: sym } })
     if (!req.ok) {
       outcomes.push({ kind: 'alert', plotKey: a.plotKey, ok: false, text: `${what}: refused — ${req.gate.reason || req.gate.guard || 'not allowed here'}` })
       continue

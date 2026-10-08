@@ -95,6 +95,14 @@ export function signalAlertGate(def, key, ctx) {
   const alert = evaluability(def, key, LANES.ALERT, ctx)
   if (alert.status === STATUS.REFUSED) return alert
   const signal = evaluability(def, key, LANES.SIGNAL, ctx)
+  // ⭐ PHASE 5 — THE ALERT LANE SUPPLIES ANOTHER SYMBOL ITSELF. The signal lane's
+  // other-symbol refusal is about the CHART's supply (the secondary bars this
+  // browser has fetched, or not yet), which the server's alert never reads: once the
+  // alert lane admitted the plot, only the TRUTH typing is the signal lane's to decide.
+  if (signal.status === STATUS.REFUSED && String(signal.guard || '').startsWith('other-symbol:')) {
+    const t = outputTypeOf(def, key)
+    if (t && isTruthType(t.type)) return alert
+  }
   if (signal.status === STATUS.REFUSED) return signal
   return alert
 }
@@ -122,6 +130,53 @@ export function signalAlertRequest({ def, key, policy, sym, tf, ctx } = {}) {
       threshold,
       tf,
     },
+  }
+}
+
+// ─── ⭐ PHASE 5 — A NUMERIC ALERT ON A NUMBER OUTPUT ─────────────────────────
+//
+// The existing alert architecture's own conditions, on a SERIES output: `above` /
+// `below` (the closed bar's value is above / below the threshold — notifies once per
+// episode, as `is_true` does), `cross_above` / `cross_below` (it crossed the
+// threshold since the bar before). An UNKNOWN bar never fires and never re-arms
+// (the server's closed-bar cycle). The payload is the popover's non-signal shape.
+
+export const NUMERIC_CONDITIONS = Object.freeze(['above', 'below', 'cross_above', 'cross_below'])
+
+const NUMERIC_WORDS = Object.freeze({
+  above: 'is above', below: 'is below', cross_above: 'crosses above', cross_below: 'crosses below',
+})
+/** "crosses above 70" — the member's words for a numeric condition. */
+export function numericAlertWords(condition, threshold) {
+  return `${NUMERIC_WORDS[condition] || condition} ${threshold}`
+}
+
+/** The browser preflight for a NUMERIC alert: the alert lane must admit `key`, and
+ *  it must be a NUMBER output (a yes/no takes a trigger policy instead). */
+export function numericAlertGate(def, key, ctx) {
+  const alert = evaluability(def, key, LANES.ALERT, ctx)
+  if (alert.status === STATUS.REFUSED) return alert
+  const t = outputTypeOf(def, key)
+  if (!t || t.type !== 'series') {
+    return { ...alert, status: STATUS.REFUSED, guard: 'alert:not-number', final: true,
+      reason: t && isTruthType(t.type)
+        ? 'This output is a yes/no; alert on it becoming true or false instead of a number.'
+        : 'This output is not a number line, so it has no value to compare with.' }
+  }
+  return alert
+}
+
+/** The create payload for a numeric alert on output `key`, or the gate's refusal. */
+export function numericAlertRequest({ def, key, condition, threshold, sym, tf, ctx } = {}) {
+  const gate = numericAlertGate(def, key, ctx)
+  if (gate.status === STATUS.REFUSED) return { ok: false, gate }
+  if (!NUMERIC_CONDITIONS.includes(condition) || typeof threshold !== 'number' || !Number.isFinite(threshold)) {
+    return { ok: false, gate: { status: STATUS.REFUSED, guard: 'alert:numeric', reason: 'not a number condition' } }
+  }
+  return {
+    ok: true,
+    gate,
+    payload: { sym: String(sym || '').toUpperCase(), indicator: `${def.id}.${key}`, condition, threshold, tf },
   }
 }
 

@@ -28,6 +28,8 @@
 // ⛔ UNDO needs nothing here: the history snapshot holds the whole working
 // definition, name included, so undoing a maths edit restores the name it had.
 
+import { helperKeysOfRows } from './colorRules'
+
 const OP_WORDS = Object.freeze({
   '>': '>', '<': '<', '>=': '≥', '<=': '≤', '==': '=', '!=': '≠',
   '+': '+', '-': '−', '*': '×', '/': '÷', '&&': 'and', '||': 'or',
@@ -77,6 +79,17 @@ export function nameOfTree(node, parentPrec = 0) {
       const text = args.map((a) => nameOfTree(a, p)).join(` ${word} `)
       return p < parentPrec ? `(${text})` : text
     }
+    // ⭐ PHASE 5 — the scope wrappers name what they read: "SPY Close", "EMA 50 (W)",
+    // "High (W, forming)". A name must not hide another symbol or timeframe.
+    case 'sym': {
+      const child = Array.isArray(node.args) ? node.args[0] : null
+      return `${String(node.value || '?')} ${nameOfTree(child, 9)}`
+    }
+    case 'tf':
+    case 'tf_live': {
+      const child = Array.isArray(node.args) ? node.args[0] : null
+      return `${nameOfTree(child, 9)} (${String(node.value || '?')}${node.type === 'tf_live' ? ', forming' : ''})`
+    }
     default: return '?'
   }
 }
@@ -94,7 +107,10 @@ export function derivedRowName(row) {
  * @param {{rows: {key, ast, hidden}[], scanKey: string}} model
  */
 export function derivedDefName(model) {
-  const rows = (model && Array.isArray(model.rows) ? model.rows : []).filter((r) => r && r.ast)
+  // ⭐ PHASE 5 — a colour rule's / cloud's hidden column is not part of the name
+  // (found in the sandbox flow: "EMA 50 · EMA 50 > EMA 50[1]", "EMA 10 · EMA 30 +1").
+  const helpers = helperKeysOfRows(model && model.rows)
+  const rows = (model && Array.isArray(model.rows) ? model.rows : []).filter((r) => r && r.ast && !helpers.has(r.key))
   if (!rows.length) return ''
   const primary = rows.find((r) => r.key === model.scanKey) || rows[0]
   const rest = rows.filter((r) => r !== primary)
@@ -137,8 +153,10 @@ export function applyDerivedNaming(model, before, explicit) {
     }
   }
   // ── each output's label ──
+  const helpers = helperKeysOfRows(model.rows)
   model.rows.forEach((row, i) => {
     if (renamedOutputs.has(row.key)) return
+    if (helpers.has(row.key)) return               // ⭐ PHASE 5 — keeps "<owner> colour rule"
     const prior = before ? before.rows.get(row.key) : null
     const isNew = !prior
     if (!isNew && !prior.auto) return                 // custom label: keep

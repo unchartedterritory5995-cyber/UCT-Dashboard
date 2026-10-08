@@ -195,8 +195,14 @@ describe('P1 core — 8/9/10/11: one gate, P0\'s refusals, the chart agrees with
       expect(g.authority, c.name).toBe('server')
       if (g.status === STATUS.SUPPORTED) expect(g.final, c.name).toBe(false)
     }
+    // ⭐ PHASE 5 SUPERSEDES P1-10: the alert lane SUPPLIES another symbol now; an
+    // ambiguous spelling or more than two tickers is still withheld by name.
     const sym = ALERT_FIXTURE.cases.find((c) => c.name.startsWith('sym SPY ratio'))
-    expect(sym.expect).toEqual({ status: 'refused', gate: 'withheld', codes: ['other-symbol:unsupplied'] })
+    expect(sym.expect).toEqual({ status: 'supported', gate: null, codes: [] })
+    const vix = ALERT_FIXTURE.cases.find((c) => c.name.startsWith('sym VIX ambiguous'))
+    expect(vix.expect).toEqual({ status: 'refused', gate: 'withheld', codes: ['other-symbol:ambiguous'] })
+    const three = ALERT_FIXTURE.cases.find((c) => c.name.startsWith('sym three tickers'))
+    expect(three.expect).toEqual({ status: 'refused', gate: 'withheld', codes: ['other-symbol:fan-out'] })
   })
 
   it('11 a current-only scalar cannot masquerade as SERIES — ASKED sma(market_cap,5), market_cap[1], market_cap; CLAIMED history; DID typed scalar, refused on chart / info-value / signal', () => {

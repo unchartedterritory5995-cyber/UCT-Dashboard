@@ -92,14 +92,23 @@ describe('IndicatorAlertPopover — a yes/no output alerts by trigger policy, no
     expect(screen.queryByLabelText('Trigger policy')).toBeNull()
   })
 
-  it('the shared gate preflight blocks arming a yes/no that reads another symbol, with the gate\'s sentence', () => {
-    H.defs[C1] = astDef(C1, "close > sym('SPY', close)")
+  // ⭐ PHASE 5 SUPERSEDES this rule: the alert lane SUPPLIES another symbol now, so a
+  // yes/no reading SPY arms; one reading an AMBIGUOUS spelling (VIX) is still blocked.
+  it('the shared gate preflight blocks arming a yes/no that reads a symbol the alert lane cannot supply, with the gate\'s sentence', () => {
+    H.defs[C1] = astDef(C1, "close > sym('VIX', close)")
     H.catalog = { catalog: [userEntry(C1, 'condition')], isLoading: false, error: null, refusals: [] }
     render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
     const why = screen.getByTestId('alert-signal-refused')
     expect(why.getAttribute('data-guard')).toBe('alert:withheld')
-    expect(why.textContent).toMatch(/another symbol/)
+    expect(why.textContent).toMatch(/another\s+symbol it cannot load/)
     expect(screen.getByRole('button', { name: /add alert/i })).toBeDisabled()
+  })
+
+  it('⭐ PHASE 5 — a yes/no that reads SPY is NOT blocked: the alert lane loads SPY itself', () => {
+    H.defs[C1] = astDef(C1, "close > sym('SPY', close)")
+    H.catalog = { catalog: [userEntry(C1, 'condition')], isLoading: false, error: null, refusals: [] }
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    expect(screen.queryByTestId('alert-signal-refused')).toBeNull()
   })
 
   it('a stored policy alert reads as its policy, never as "@ 0.5"', () => {
