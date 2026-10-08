@@ -546,3 +546,40 @@ describe('D-8: all eight Timeline toolbar controls reach 24px height (NoteTimeli
     expect(lastDecl(old, '.zoomBtn', 'min-height')).toBeUndefined()
   })
 })
+
+// Finish program, lane KEYS3 round 3 (the final browser walk's finding F2, measured at 820 and
+// 390 px): three touch controls under the 44 px floor.
+//   * the template picker's "All" chip, 37 px wide. Fixed by the landing itself after the walk
+//     (380cb32522); pinned here so it stays.
+//   * the import wizard's destination select, 37 px tall.
+//   * a 20 x 20 checkbox in the import wizard. A checkbox keeps its box: its hit area is the
+//     <label> it sits in, so the two label rows that hold one are 44 px tall.
+describe('KEYS3 F2: touch floors on the template chip and in the import wizard', () => {
+  const tpl = rulesWithMedia(read(join(NB, 'TemplatePicker.module.css')))
+  const wiz = rulesWithMedia(read(join(NB, 'import', 'ImportWizard.module.css')))
+  const floor = (rules, selector, prop) => {
+    const hit = [...rules].reverse().find((r) => r.media === TOUCH
+      && r.selector.split(',').map((s) => s.trim()).includes(selector) && r.decls.has(prop))
+    return hit ? hit.decls.get(prop) : undefined
+  }
+  const is44 = (v) => /var\(--tap-min/.test(String(v)) || px(v) >= 44
+
+  it('the template picker\'s chips are 44 px wide and tall on the touch tier', () => {
+    expect(is44(floor(tpl, '.chip', 'min-width'))).toBe(true)
+    expect(is44(floor(tpl, '.chip', 'min-height'))).toBe(true)
+  })
+
+  it('the import wizard\'s destination select is 44 px tall on the touch tier', () => {
+    expect(is44(floor(wiz, '.destSelect', 'min-height'))).toBe(true)
+  })
+
+  it('both label rows that hold a checkbox are 44 px tall on the touch tier', () => {
+    expect(is44(floor(wiz, '.noteRow', 'min-height'))).toBe(true)
+    expect(is44(floor(wiz, '.excludeRow', 'min-height'))).toBe(true)
+  })
+
+  it('CONTROL: the helper reads no floor from a sheet that has none', () => {
+    const none = rulesWithMedia('.destSelect { padding: 8px 10px; } @media (max-width: 640px) { .destSelect { min-height: 44px; } }')
+    expect(floor(none, '.destSelect', 'min-height')).toBeUndefined()
+  })
+})
