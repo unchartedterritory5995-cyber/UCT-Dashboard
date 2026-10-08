@@ -23,6 +23,7 @@
 import { useState, useRef, useEffect, useLayoutEffect } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './ColorPicker.module.css'
+import { safeCssColour } from './engine/objectColour'
 
 /** The marker every portaled popup that is logically INSIDE a dismiss-on-outside
  *  surface must carry. Exported so the handler and the popup name the same
@@ -102,7 +103,7 @@ export default function ColorPicker({ value, onChange, label, disabled = false, 
         className={styles.swatch}
         // `disabled` is a real one: a swatch that opens a picker whose choice is
         // then ignored is worse than no swatch. `title` carries the reason.
-        style={{ background: value, ...(disabled ? { opacity: 0.4, cursor: 'not-allowed' } : null) }}
+        style={{ background: safeCssColour(value), ...(disabled ? { opacity: 0.4, cursor: 'not-allowed' } : null) }}
         disabled={disabled}
         onClick={() => { if (!disabled) setOpen(!open) }}
         title={title || value}

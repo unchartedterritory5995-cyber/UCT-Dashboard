@@ -310,6 +310,77 @@ def object_colour_errors(definition: Mapping[str, Any]) -> list:
     return out
 
 
+_NUM_CHANNELS = r"\s*\d{1,3}(?:\.\d+)?\s*,\s*\d{1,3}(?:\.\d+)?\s*,\s*\d{1,3}(?:\.\d+)?\s*"
+_HSL_CHANNELS = r"\s*\d{1,3}(?:\.\d+)?\s*,\s*\d{1,3}(?:\.\d+)?%\s*,\s*\d{1,3}(?:\.\d+)?%\s*"
+_ALPHA = r"(?:,\s*(?:0|1|0?\.\d+|1\.0+)\s*)?"
+
+#: ⛔ THE COLOUR GRAMMAR OF A DEFINITION'S PRESENTATION (plots, paints, colour settings) --
+#: byte-equal to ``objectColour.js::PRESENTATION_COLOUR`` (a test compares the sources).
+#: Everything UCT writes and every format measured in the repo: hex 3/4/6/8, numeric
+#: rgb/rgba/hsl/hsla, a plain colour word, ``token:<role>[@step]``. Nothing admits ``(``
+#: except the numeric functions, ``:`` except ``token:``, or ``;`` -- so ``url()``,
+#: ``var()`` and declaration smuggling cannot be stored. The 2026-10-08 inventory found
+#: these fields reaching inline CSS (legend chips/rows, settings swatches) unvalidated,
+#: reachable cross-member through a shared definition.
+PRESENTATION_COLOUR = re.compile(
+    r"^(?:#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})"
+    + rf"|rgba?\({_NUM_CHANNELS}{_ALPHA}\)|hsla?\({_HSL_CHANNELS}{_ALPHA}\)"
+    + r"|[a-z]{3,20}|token:[a-z][a-z0-9_.-]{0,40}(?:@[a-z0-9_.-]{1,20})?)$", re.IGNORECASE)
+
+
+def is_presentation_colour(value: Any) -> bool:
+    return (isinstance(value, str) and len(value) <= 64
+            and PRESENTATION_COLOUR.match(value) is not None)
+
+
+#: The colour-bearing fields of a plot and of a paint (strings, lists of strings, or a
+#: ``{from, to}`` gradient). ``plots[].color`` may be a ``"$<inputKey>"`` reference.
+_PLOT_COLOUR_FIELDS = ("color", "colorUp", "colorDown", "fillColor")
+_PAINT_COLOUR_FIELDS = ("color", "colorUp", "colorDown")
+
+
+def definition_colour_errors(definition: Mapping[str, Any]) -> list:
+    """Every persisted presentation colour that is not a colour, as
+    ``[{path, code, message, value}]``: colour-type input defaults, plot colours
+    (a ``$ref`` is not a colour and is skipped), up/down, fill, palettes and
+    gradients, on plots and on paints. Pure; never raises on a malformed document.
+    (Drawing-program colours are ``object_colour_errors``.)"""
+    out: list = []
+    if not isinstance(definition, Mapping):
+        return out
+
+    def check(path: str, value: Any) -> None:
+        if isinstance(value, str) and not is_presentation_colour(value):
+            out.append({"path": path, "code": "presentation-colour", "value": value,
+                        "message": f"{path}: {json.dumps(value)[:48]} is not a colour"})
+
+    def entry(base: str, item: Mapping, fields) -> None:
+        for f in fields:
+            v = item.get(f)
+            if f == "color" and isinstance(v, str) and v.startswith("$"):
+                continue
+            check(f"{base}.{f}", v)
+        pal = item.get("colorPalette")
+        if isinstance(pal, list):
+            for i, v in enumerate(pal):
+                check(f"{base}.colorPalette[{i}]", v)
+        grad = item.get("colorGradient")
+        if isinstance(grad, Mapping):
+            for f in ("from", "to"):
+                check(f"{base}.colorGradient.{f}", grad.get(f))
+
+    for i, inp in enumerate(definition.get("inputs") or []):
+        if isinstance(inp, Mapping) and inp.get("type") == "color":
+            check(f"inputs[{i}].default", inp.get("default"))
+    for i, plot in enumerate(definition.get("plots") or []):
+        if isinstance(plot, Mapping):
+            entry(f"plots[{i}]", plot, _PLOT_COLOUR_FIELDS)
+    for i, paint in enumerate(definition.get("paints") or []):
+        if isinstance(paint, Mapping):
+            entry(f"paints[{i}]", paint, _PAINT_COLOUR_FIELDS)
+    return out
+
+
 def presentation_errors(definition: Mapping[str, Any]) -> list:
     """Every presentation error `defSchema` would raise for these fields, as
     ``[{path, code, message, fingerprint}]`` (empty when the presentation is

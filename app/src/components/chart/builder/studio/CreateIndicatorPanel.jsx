@@ -28,6 +28,7 @@ import useIndicatorConversation, { typeWord } from './useIndicatorConversation'
 import { STUDIO_PREVIEW_DEF_ID, previewInstanceFor, previewInstanceLike, withCalcFrame } from './chartPreview'
 import { conversationEditability, CARRIED_NOTE } from '../authoring/memberWords'
 import styles from './CreateIndicatorPanel.module.css'
+import { safeCssColour } from '../../engine/objectColour'
 
 const EXAMPLES = Object.freeze(['Add a 20 EMA', 'RSI overbought signal', 'Volume above its 50-day average'])
 const PANEL_W = 360
@@ -465,7 +466,7 @@ export default function CreateIndicatorPanel({
             <span className={styles.sectionLabel}>Presentation</span>
             {look.plots.map((p) => (
               <div key={p.key} className={styles.detail}>
-                {p.color && <span className={styles.swatch} style={{ background: p.color }} />}
+                {safeCssColour(p.color) && <span className={styles.swatch} style={{ background: safeCssColour(p.color) }} />}
                 <span>{p.text}</span>
               </div>
             ))}

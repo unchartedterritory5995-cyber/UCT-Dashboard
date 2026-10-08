@@ -45,6 +45,7 @@
 // letter of the label to the last digit of the value, gaps included. Hover is
 // plain CSS `:hover` on that box; there is no hover state in React.
 import styles from './LegendRow.module.css'
+import { safeCssColour } from '../engine/objectColour'
 
 /**
  * @param {string}   rowId        stable identity (`ma:2`, `volume`, an instanceId)
@@ -109,7 +110,7 @@ export default function LegendRow({
    *  ⛔ ROWS WITH NO COLOUR STAY NEUTRAL, and that is the distinction the before
    *  picture draws: O/H/L/C and `Vol` are readings of the instrument, not of a
    *  plot somebody chose a colour for, so they keep the legend's own ink. */
-  color,
+  color: rawColor,
   // ⚰️ see above. It existed to ink the control strip
   // in the member's own legend colour ("make sure the buttons match the
   // brightness of the OHLC labels"); there is no control to ink. The prop stays in
@@ -194,6 +195,8 @@ export default function LegendRow({
      a coloured row has to defeat that, and `inherit` does it by taking the row's
      own colour — one source of truth per row, and nothing to keep in sync if the
      token changes. */
+  // ⛔ a colour reaches CSS only through `safeCssColour` (objectColour.js) — a stored or shared value may carry anything
+  const color = safeCssColour(rawColor)
   const ink = color ? { color } : undefined
   const valInk = color ? { color: 'inherit' } : undefined
 
