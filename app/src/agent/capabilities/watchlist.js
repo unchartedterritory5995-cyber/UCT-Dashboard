@@ -26,10 +26,10 @@
 // No revision exists server-side, so every write re-reads the list from the server
 // first and refuses if it moved since the plan was made.
 
-import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
+import { registerCapability, registerTargetKind, registerContextProvider, isRef, SYMBOLS } from '../capabilities'
 import { unknownSymbols } from '../agentClient'
 
-const MAX_PER_REQUEST = 25           // symbols one add/remove may carry
+const MAX_PER_REQUEST = 50           // symbols one add/remove may carry
 const CONFIRM_OVER = 10              // a bigger batch is proposed first
 const SHOW_IN_CONTEXT = 40           // symbols per list the model is shown
 const MAX_NAME = 80
@@ -87,7 +87,7 @@ export const watchlistKind = {
   list: (host) => { const all = listsOf(host); return all.map(l => snapOf(l, all)) },
   read: (host, ref) => { const all = listsOf(host); const l = all.find(x => x.id === ref); return l ? snapOf(l, all) : null },
   virtual: ({ alias, spec }) => ({ ref: alias, label: spec?.name || 'New watchlist', name: spec?.name || 'New watchlist', items: [], symbols: [], editable: true, why: null, shownIn: [], position: null, otherNames: [], virtual: true }),
-  stateOf: (snap) => ({ name: snap.name, symbols: snap.symbols, items: snap.items, otherNames: snap.otherNames || [], add: [], skipped: [], remove: [], absent: [], rename: null }),
+  stateOf: (snap) => ({ name: snap.name, symbols: snap.symbols, items: snap.items, otherNames: snap.otherNames || [], add: [], skipped: [], remove: [], absent: [], rename: null, addFrom: null }),
   patch(before, after) {
     const p = {}
     if (after.add.length) p.add = after.add
@@ -280,16 +280,35 @@ export function registerWatchlistCapabilities() {
     surfaces: ['charts'],
     target: 'watchlist', query: true,
     summary: 'Say which symbols are in one of the member\'s watchlists. UCT answers from the real list — use this (disposition apply) for "what\'s in <list>?".',
-    hints: 'target = the ref of that watchlist.',
-    args: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    hints: 'target = the ref of that watchlist. as: name this list\'s STOCKS (e.g. "list1") when a later op in the same request uses them '
+      + '(e.g. widget.addCharts symbols {from:"list1", top:N}); else null.',
+    args: { type: 'object', properties: { as: { type: ['string', 'null'] } }, required: ['as'], additionalProperties: false },
     fastWhole: true,
+    // ── PRODUCER: a saved list's tickers, in its saved order, read FRESH from the
+    // server at apply (bound to the list's stable id — never its name, never the
+    // cache). Reading never changes the list.
+    produces: SYMBOLS,
+    validateProduce(args, target, host) {
+      if (host && !watchlistKind.read(host, target)) return "I couldn't find that watchlist."
+      return null
+    },
+    describeProduce(args, target, host) {
+      const snap = host ? watchlistKind.read(host, target) : null
+      return `Use the stocks in ${quote(snap?.name || 'that watchlist')} (its saved order) — read when you apply`
+    },
+    async produce(args, host, target) {
+      const row = await host.watchlists.fetchList(target)
+      const symbols = [...new Set((row?.items || []).map(i => String(i?.sym || '').toUpperCase()).filter(Boolean))]
+      const name = row?.name || watchlistKind.read(host, target)?.name || 'that watchlist'
+      return { symbols, summary: symbols.length ? `Read ${quote(name)}: ${symbols.length} stock${symbols.length === 1 ? '' : 's'}` : `${quote(name)} is empty` }
+    },
     fast: ({ raw, host }) => {
       // The whole phrase reaches resolveList, which tries it as-is and without a
       // trailing "watchlist" — a list may itself be named "… Watchlist".
       const m = /^(?:what(?:'s| is) in|show(?: me)?|list(?: the symbols in)?|what(?:'s| is) on) (?:my |the )?(.+?)[?.!]?$/i.exec(String(raw).trim())
       if (!m || !host?.watchlists) return null
       const l = resolveList(host, m[1])
-      return l ? { __target: l.id } : null
+      return l ? { as: null, __target: l.id } : null
     },
     answer(snap) {
       if (!snap) return "I couldn't find that watchlist."
@@ -305,13 +324,22 @@ export function registerWatchlistCapabilities() {
     target: 'watchlist',
     fastWhole: true,
     summary: 'Add tickers to one of the member\'s saved watchlists (the list itself, not a widget). Symbols already in the list are skipped.',
-    hints: 'target = the ref of the watchlist (or the "as" name of a list created earlier in this request); symbols = the tickers, uppercase. '
+    hints: 'target = the ref of the watchlist (or the "as" name of a list created earlier in this request); symbols = the tickers, uppercase, '
+      + 'OR {from, top} to add a SCREEN\'s stocks: from = the "as" of a screener op earlier in this request (or "lastScreen" for the last screen run here), '
+      + 'top = how many of its results, in its order (null = all, at most 50). Never type tickers you have not been given. '
       + 'If they say "my watchlist" and it is not clear which list, clarify with the real list names. One op per list.',
     args: {
       type: 'object',
-      properties: { symbols: { type: 'array', items: { type: 'string' } } },
+      properties: {
+        symbols: { anyOf: [
+          { type: 'array', items: { type: 'string' } },
+          { type: 'object', properties: { from: { type: 'string' }, top: { type: ['integer', 'null'] } }, required: ['from', 'top'], additionalProperties: false },
+        ] },
+      },
       required: ['symbols'], additionalProperties: false,
     },
+    // A typed-output input (compose.js): a screen's ordered tickers may feed it.
+    inputs: { symbols: SYMBOLS },
     fast: ({ raw, host }) => {
       const m = /^(?:please )?(?:add|put|throw|stick) (.+?) (?:to|in|into|on|onto) (.+?)[.!]?$/i.exec(String(raw).trim())
       if (!m || !host?.watchlists) return null
@@ -319,14 +347,21 @@ export function registerWatchlistCapabilities() {
       const l = syms && resolveList(host, m[2])
       return l ? { symbols: syms, __target: l.id } : null
     },
+    // Model-typed tickers are looked up; a screen's results (`trusted` — they came
+    // from UCT's own Screener) and pending references are not.
     async prepare(ops) {
-      const syms = [...new Set(ops.flatMap(o => (o.args?.symbols || []).map(upper)).filter(Boolean))]
+      const syms = [...new Set(ops.filter(o => !o.trusted && Array.isArray(o.args?.symbols)).flatMap(o => o.args.symbols.map(upper)).filter(Boolean))]
       return syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
     },
     check(st, { symbols }, env) {
       const bad = editProblem(st, env)
       if (bad) return bad
-      const syms = (symbols || []).map(upper)
+      if (isRef(symbols)) {
+        if (symbols.top === null || symbols.top > MAX_PER_REQUEST) return `Say how many of its stocks to add (up to ${MAX_PER_REQUEST}).`
+        return null
+      }
+      if (!Array.isArray(symbols)) return '“symbols” has the wrong kind of value.'
+      const syms = symbols.map(upper)
       if (!syms.length) return 'Which tickers?'
       if (syms.length > MAX_PER_REQUEST) return `That's more than ${MAX_PER_REQUEST} tickers at once — split it up.`
       const odd = syms.find(s => !TICKER.test(s))
@@ -335,8 +370,10 @@ export function registerWatchlistCapabilities() {
       if (unknown.length) return `UCT has no symbol ${andList(unknown.map(s => `“${s}”`))} — nothing was added.`
       return null
     },
-    confirmIf: (st, { symbols }) => (symbols || []).length > CONFIRM_OVER,
+    confirmIf: (st, { symbols }) => isRef(symbols) || (symbols || []).length > CONFIRM_OVER,
     apply(st, { symbols }) {
+      // Before approval a reference is only an INTENT — its stocks don't exist yet.
+      if (isRef(symbols)) return { ...st, addFrom: symbols }
       const have = new Set([...st.symbols, ...st.add])
       const add = []; const skipped = [...st.skipped]
       for (const s of [...new Set((symbols || []).map(upper))]) (have.has(s) ? skipped : add).push(s)
@@ -345,9 +382,14 @@ export function registerWatchlistCapabilities() {
     },
     noop: (st, _a, { symbols }) => `${andList((symbols || []).map(upper))} ${(symbols || []).length === 1 ? 'is' : 'are'} already in ${quote(st.name)}`,
     describe(b, a) {
+      if (a.addFrom && !b.addFrom) return `Add the top ${a.addFrom.top} of its results to ${quote(a.name)}`
       if (!a.add.length) return null
-      const skip = a.skipped.length ? ` · ${andList(a.skipped)} ${a.skipped.length === 1 ? 'was' : 'were'} already there` : ''
-      return `Added ${andList(a.add)} to ${quote(a.name)}${skip}`
+      // A long add is counted, not listed — the watchlist itself is the record.
+      const what = a.add.length > 5 ? `${a.add.length} stocks` : andList(a.add)
+      const skip = !a.skipped.length ? ''
+        : a.skipped.length > 3 ? ` · ${a.skipped.length} were already there`
+          : ` · ${andList(a.skipped)} ${a.skipped.length === 1 ? 'was' : 'were'} already there`
+      return `Added ${what} to ${quote(a.name)}${skip}`
     },
   })
 
@@ -408,7 +450,8 @@ export function registerWatchlistCapabilities() {
     createsResource: true,
     summary: 'Create a NEW saved watchlist (a named list of tickers) — only when they ask to create or make a list. "Add a watchlist" with no list name means a Watchlist WIDGET on the board: that is widget.add, not this.',
     hints: 'target = the ref of the watchlistLibrary entry; name = exactly as given. To fill it in the same request set "as" to a short name (new1) '
-      + 'and target watchlist.add at that name; otherwise "as" is null. Never use this for a name already in the watchlists list.',
+      + 'and target watchlist.add at that name; otherwise "as" is null. Never use this for a name already in the watchlists list — '
+      + 'if they ask to put stocks in a list "called X" and X already exists, clarify (add to the existing X, or a new name); never silently append.',
     args: {
       type: 'object',
       properties: { name: { type: 'string' }, as: { type: ['string', 'null'] } },
@@ -421,7 +464,7 @@ export function registerWatchlistCapabilities() {
       if (n.length > MAX_NAME) return `Watchlist names can be at most ${MAX_NAME} characters.`
       if (as != null && !/^[A-Za-z][A-Za-z0-9_-]{0,23}$/.test(String(as))) return `“${as}” isn't a usable name for a new list.`
       const clash = st.names.find(x => norm(x) === norm(n)) || st.creates.find(c => norm(c.name) === norm(n))?.name
-      if (clash) return `You already have a watchlist named ${quote(clash)} — I won't make a second one. Pick another name.`
+      if (clash) return `You already have a watchlist named ${quote(clash)}, so I won't make a second one. Say “add them to ${clash}” to add to it, or give the new list another name.`
       return null
     },
     apply: (st, { name, as }) => ({ ...st, creates: [...st.creates, { name: String(name).trim(), alias: as ?? null }] }),

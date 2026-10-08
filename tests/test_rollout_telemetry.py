@@ -73,9 +73,11 @@ def test_an_unsupported_turn_records_its_DEMAND_CATEGORY_not_its_words(store, co
     assert SECRET not in raw_dump()
 
 
+# ⭐ PHASE 5: another symbol and a HIGHER timeframe are authorable now, so the
+# pre-flight's remaining refusals are an AMBIGUOUS spelling and a LOWER timeframe.
 @pytest.mark.parametrize("message,category", [
-    ("Plot SPY's RSI 14", "other_symbol"),
-    ("show the weekly RSI on this daily chart", "other_timeframe"),
+    ("Plot VIX's RSI 14", "other_symbol"),
+    ("show the 5 minute RSI on this daily chart", "other_timeframe"),
 ])
 def test_a_PREFLIGHT_refusal_is_its_own_class_and_names_its_category(store, conv, message, category):
     r = conv.converse(message, user_id="u1", view=empty_view(0), chart={"sym": "XRPN", "tf": "1D"})

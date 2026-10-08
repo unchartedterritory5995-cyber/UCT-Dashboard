@@ -1224,7 +1224,10 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
 
     params = _parse_params(alert)
     try:
-        value = fn(bars, params)
+        # ⭐ PHASE 5 -- a user plot that reads another symbol loads it at the
+        # alert's own timeframe (`alert_user_series._symbol_bars`).
+        value = (fn(bars, params, tf=alert.get("tf")) if getattr(fn, "reads_symbols", None)
+                 else fn(bars, params))
     except Exception:
         _logger.exception(
             "[alert-eval] compute failed for alert %s (%s/%s/%s)",
@@ -1613,7 +1616,8 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
 
     params = _parse_params(alert)
     try:
-        series = series_fn(bars, params)
+        series = (series_fn(bars, params, tf=alert.get("tf"))
+                  if getattr(series_fn, "reads_symbols", None) else series_fn(bars, params))
         if len(series) != len(bars):
             # The identical assertion `alert_series.series_for` makes, kept HERE
             # because resolving the function up front is what lets one call site

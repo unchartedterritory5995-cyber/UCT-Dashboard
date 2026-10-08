@@ -52,6 +52,34 @@ CLOSED_TABLE_PATH = ROOT / "app" / "src" / "components" / "chart" / "engine" / "
 
 GATE_SYMBOL = "unsupported:other-symbol"
 GATE_TIMEFRAME = "unsupported:other-timeframe"
+#: ⭐ PHASE 5 -- an other-symbol spelling that also names an index / commodity.
+GATE_SYMBOL_AMBIGUOUS = "unsupported:symbol-ambiguous"
+CROSS_CONTEXT_PATH = AUTHORING / "crossContext.json"
+
+#: ⭐ PHASE 5 -- the whole-instance calculation ladder, in minutes (D/W/M as
+#: trading-day multiples are ranked above every intraday code).
+_RANK = {"D": 10_000, "W": 50_000, "M": 210_000}
+
+
+@functools.lru_cache(maxsize=1)
+def cross_context() -> Dict[str, Any]:
+    return json.loads(CROSS_CONTEXT_PATH.read_text(encoding="utf-8"))
+
+
+def store_ticker(ticker: Any) -> str:
+    """``BRK.B`` -> ``BRK-B`` (``otherSymbols.js::storeTickerOf``); else upper."""
+    t = str(ticker or "").strip().lstrip("$").upper()
+    m = re.fullmatch(r"([A-Z]{1,5})\.([A-Z])", t)
+    return f"{m.group(1)}-{m.group(2)}" if m else t
+
+
+def _rank(code: str) -> int:
+    return _RANK[code] if code in _RANK else int(code[:-1])
+
+
+def _ladder() -> List[str]:
+    """The calculation codes in this module's spelling ('D'/'W'/'M'/'<n>m')."""
+    return [c if c in _RANK else f"{c}m" for c in cross_context()["calculationTimeframes"]]
 
 
 @functools.lru_cache(maxsize=1)
@@ -170,6 +198,11 @@ def norm_tf(tf: Any) -> Optional[str]:
     if not isinstance(tf, str):
         return None
     t = tf.strip()
+    # ⭐ PHASE 5 -- the app's own intraday codes are BARE minutes ('5', '60'): found in
+    # the sandbox flow, where a 5-minute chart read as "timeframe unknown" and a request
+    # for 1-minute bars reached the model instead of being refused.
+    if re.fullmatch(r"\d+", t):
+        return f"{int(t)}m"
     m = re.fullmatch(r"(\d+)\s*m", t)
     if m:
         return f"{int(m.group(1))}m"
@@ -289,15 +322,24 @@ def check(message: Any, chart: Any = None) -> Optional[Dict[str, Any]]:
     if is_question(message):
         return None
 
+    # ⭐ PHASE 5: another symbol is AUTHORABLE (``sym``) and goes to the model --
+    # unless its spelling also names an index / commodity, which nothing can settle.
     other = _other_symbol(message, chart_sym)
-    if other:
-        return {"gate": GATE_SYMBOL, "detail": other,
-                "reason": copy[GATE_SYMBOL].format(symbol=other)}
+    if other and other in set(cross_context()["ambiguousBare"]):
+        return {"gate": GATE_SYMBOL_AMBIGUOUS, "detail": other,
+                "reason": copy[GATE_SYMBOL_AMBIGUOUS].format(symbol=other)}
 
+    # ⭐ PHASE 5: a HIGHER timeframe is authorable (``tf`` inside a formula, or the
+    # whole indicator on a higher calculation timeframe). Refused: LOWER than the
+    # chart's, or a code the calculation ladder does not hold.
     if chart_tf:
         wanted = _wanted_timeframe(message)
         if wanted and wanted != chart_tf:
-            return {"gate": GATE_TIMEFRAME, "detail": wanted,
-                    "reason": copy[GATE_TIMEFRAME].format(wanted=tf_words(wanted),
-                                                          chart=tf_words(chart_tf))}
+            if _rank(wanted) < _rank(chart_tf):
+                return {"gate": GATE_TIMEFRAME, "detail": wanted,
+                        "reason": copy[GATE_TIMEFRAME].format(wanted=tf_words(wanted),
+                                                              chart=tf_words(chart_tf))}
+            if wanted not in _ladder():
+                return {"gate": GATE_TIMEFRAME, "detail": wanted,
+                        "reason": copy[GATE_TIMEFRAME + ":ladder"].format(wanted=tf_words(wanted))}
     return None

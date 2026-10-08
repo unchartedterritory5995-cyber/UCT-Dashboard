@@ -392,7 +392,13 @@ def build_bars(symbol: str, tf: str = "D", bars: int = 5000) -> dict:
     out = resample(daily_bars(row.id), tf)
     if bars and len(out) > bars:
         out = out[-int(bars):]
-    return {"ticker": row.symbol, "tf": tf, "bars": out}
+    # ⛔⛔ THE TICKER ECHOES THE REQUEST, exactly as the product branch above and
+    # `build_breadth_bars` do. StockChart DISCARDS a reply whose ticker differs from the
+    # symbol it asked for (its stale-response guards), so answering `row.symbol` made every
+    # spelling other than the member-facing symbol a blank chart: a typed alias (`$NYMO`,
+    # `SENT:NAAIM`) and — once the exchange rows' symbol became `NYMO` (2026-10-07) — every
+    # saved chart holding the canonical id `NYSE:MCO`. Same series, whichever key resolved it.
+    return {"ticker": (symbol or "").strip().upper(), "tf": tf, "bars": out}
 
 
 #: How long a computed availability snapshot stays servable.

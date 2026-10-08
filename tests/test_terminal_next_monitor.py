@@ -167,6 +167,23 @@ def test_the_railway_start_command_has_a_monitor_branch():
         assert other in sc, f"the monitor branch displaced {other}"
 
 
+def test_an_unset_MONITOR_JOB_runs_the_schedule_not_ticking():
+    """The start command defaulted MONITOR_JOB to `ticking`, so every cron
+    firing ran ticking and the 16:30 options log never ran (IV history stopped
+    at one session). Unset must reach the scheduled path, i.e. no `--once`."""
+    sc = json.loads((_REPO / "railway.json").read_text(encoding="utf-8"))["deploy"]["startCommand"]
+    assert "MONITOR_JOB:-ticking" not in sc
+    assert "exec python -m api.terminal_next_monitor_main;" in sc, "no scheduled (no --once) branch"
+    assert '--once "$MONITOR_JOB"' in sc
+
+
+def test_the_due_grace_cannot_make_one_slot_match_two_firings():
+    m = _load()
+    mins = sorted(int(x) for x in m.RAILWAY_CRON_UTC.split()[0].split(","))
+    gaps = [b - a for a, b in zip(mins, mins[1:])] + [60 - mins[-1] + mins[0]]
+    assert 0 < m.DUE_GRACE_MIN < min(gaps), (m.DUE_GRACE_MIN, gaps)
+
+
 def test_the_monitor_is_off_unless_its_flag_is_set(monkeypatch):
     m = _load()
     monkeypatch.delenv(m.FLAG, raising=False)
@@ -206,7 +223,9 @@ def _et(y, mo, d, h, mi):
     ((2026, 9, 14, 9, 12), ["ticking"]),
     ((2026, 9, 14, 16, 30), ["gate-check", "options-log", "options-screen"]),   # weekdays; screen AFTER log
     ((2026, 9, 19, 8, 0), ["weekly"]),         # Saturday
-    ((2026, 9, 14, 9, 13), []),                # one minute off
+    ((2026, 9, 14, 9, 11), []),                # one minute early
+    ((2026, 9, 14, 9, 13), ["ticking"]),       # a container that started late
+    ((2026, 9, 14, 9, 18), []),                # past the grace window
     ((2026, 9, 19, 9, 12), []),                # Saturday: ticking is weekdays only
     ((2026, 9, 20, 16, 30), ["gate-check"]),   # Sunday: gate-check is daily
     ((2026, 9, 20, 16, 20), ["cadence"]),      # TERM-015: the roll-up is daily too

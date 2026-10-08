@@ -4,7 +4,8 @@ import { createPortal } from 'react-dom'
 import CompanyLogo from '../CompanyLogo'
 import uctMark from '../intro/assets/compass-mark.png'
 import styles from './SymbolSearch.module.css'
-import { POPULAR_RESULTS, CHIPS, INDICES_PRESET, TYPE_LABEL, matchQ, rowIdentity } from './symbolSearchModel'
+import { POPULAR_RESULTS, CHIPS, INDICES_PRESET, TYPE_LABEL, matchQ, rowIdentity, shownTicker, isBreadthRow, breadthChipRows, canonicalTicker } from './symbolSearchModel'
+import useMarketIndicators from '../../hooks/useMarketIndicators'
 // Re-exported: `POPULAR_RESULTS` has existing importers that reach for it here.
 export { POPULAR_RESULTS }
 
@@ -39,7 +40,17 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   const [results, setResults] = useState(POPULAR_RESULTS)
   const [activeIdx, setActiveIdx] = useState(0)
   const [chip, setChip] = useState('all')
-  const [breadthAll, setBreadthAll] = useState([])
+  const [breadthPayload, setBreadthPayload] = useState(null)
+  // ⭐ The breadth-derived market indicators (NYMO, NASI, US:MCO, the A/D ratios…) belong in
+  // the Breadth chip too. Same once-per-session registry the chart itself reads.
+  // ⛔ `rows` is a fresh `[]` on every render until the registry lands — read it only once
+  // ready (then it is the cached array) or this memo, and the results effect keyed on it,
+  // would re-run on every render.
+  const marketIndicators = useMarketIndicators()
+  const miRows = marketIndicators.ready ? marketIndicators.rows : null
+  const breadthAll = useMemo(
+    () => breadthChipRows(breadthPayload?.symbols, breadthPayload?.display_symbols, miRows),
+    [breadthPayload, miRows])
   // ⭐ ECONOMIC SERIES — opt-in per surface (`economic`: a chart that can draw
   // one), loaded lazily, and present only once `/api/econ/catalog` answered 200
   // for this member (`econSearch.probeEconomic`). Until then — and forever on a
@@ -118,22 +129,17 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   // Fetch the full UCT breadth catalog once (on first open) so the Breadth chip has a
   // real list to preload + filter (works on any backend — independent of search).
   useEffect(() => {
-    if (!open || breadthAll.length) return undefined
+    if (!open || breadthPayload) return undefined
     let alive = true
     fetch('/api/breadth-symbols')
       .then(r => (r.ok ? r.json() : { symbols: [] }))
       .then(d => {
         if (!alive) return
-        const rows = (d.symbols || []).map(s => ({
-          ticker: String(s.symbol || '').toUpperCase(),
-          name: s.name || s.label || '',
-          type: 'breadth', breadth: true, group_label: s.group,
-        })).filter(r => r.ticker)
-        setBreadthAll(rows)
+        setBreadthPayload({ symbols: d.symbols || [], display_symbols: d.display_symbols || {} })
       })
       .catch(() => { /* leave empty */ })
     return () => { alive = false }
-  }, [open, breadthAll.length])
+  }, [open, breadthPayload])
 
   // Results. Indices + Breadth are OUR OWN closed universes → served entirely
   // client-side (empty-state preload + search both filter the curated/fetched list),
@@ -201,11 +207,12 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   }, [activeIdx])
 
   const submit = useCallback((ticker) => {
-    const clean = (ticker || '').trim().toUpperCase()
+    // ⭐ A typed member-facing `UCT:A50` opens the canonical `UCTA50`.
+    const clean = canonicalTicker(ticker, breadthAll)
     if (clean && clean !== sym) onSymbolChange(clean)
     setOpen(false)
     setQuery('')
-  }, [sym, onSymbolChange])
+  }, [sym, onSymbolChange, breadthAll])
 
   const handleInputKey = useCallback((e) => {
     if (e.key === 'ArrowDown') {
@@ -350,12 +357,12 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
                   ) : (
                     <>
                       <span className={styles.resultLogo}>
-                        {r.breadth
+                        {isBreadthRow(r)
                           ? <img src={uctMark} alt="" width={20} height={20} style={{ display: 'block', objectFit: 'contain' }} />
                           : <CompanyLogo sym={r.ticker} name={r.name || r.ticker} size={26} round />}
                       </span>
                       <span className={styles.resultMain}>
-                        <span className={styles.resultSym}>{highlighted(r.ticker, query, styles)}</span>
+                        <span className={styles.resultSym}>{highlighted(shownTicker(r), query, styles)}</span>
                         {r.name && <span className={styles.resultName}>{highlighted(r.name, query, styles)}</span>}
                       </span>
                       {/* ⭐ ONE AUTHORITY with the phone sheet — `rowIdentity`

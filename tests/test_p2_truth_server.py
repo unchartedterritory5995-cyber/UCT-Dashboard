@@ -200,7 +200,12 @@ def test_the_composed_schema_is_the_contract_with_the_concierge_node_defs(conv):
     Draft202012Validator.check_schema(composed)
     advertised = dc.tool_schema()["input_schema"]["$defs"]
     for k, v in advertised.items():
-        if k != "series":
+        if k == "node":
+            # ⭐ PHASE 5 -- the advertised union plus the three scope wrappers, this door only
+            assert composed["$defs"][k] == {"oneOf": v["oneOf"] + [
+                {"$ref": f"#/$defs/{kind}"} for kind in conv.SCOPE_NODES]}
+            assert all(composed["$defs"][kind] == spec for kind, spec in conv._scope_defs().items())
+        elif k != "series":
             assert composed["$defs"][k] == v, k
     # series: the concierge's, minus every nightly scalar (decision E, this door only)
     full = dict(advertised["series"])
@@ -364,10 +369,8 @@ def test_the_UCT_conventions_in_the_prompt_are_the_ones_the_files_declare(conv):
 # ═══ 23 / 24 / 25 — capabilities the model must not fabricate ═════════════
 
 @pytest.mark.parametrize("tree,named", [
-    (SYM_TREE, "SPY"),          # 23 another symbol
     (LTF_TREE, "lower timeframe"),   # 24 a lower timeframe
-    (TF_TREE, "higher timeframe"),   # 24b a higher timeframe
-], ids=["23-sym", "24-ltf", "24b-tf"])
+], ids=["24-ltf"])
 def test_23_24_other_symbol_or_timeframe_is_refused_BY_NAME_terminally(conv, model, http, tree, named):
     """ASKED: a blue dot when RS vs SPY makes a new high / a 5-minute read / a weekly
     read. CLAIMED: not available in conversational authoring -> refused by name,
@@ -382,6 +385,20 @@ def test_23_24_other_symbol_or_timeframe_is_refused_BY_NAME_terminally(conv, mod
     assert body["ok"] is False and body["gate"] == "unsupported:node"
     assert named in body["reason"]
     assert "envelope" not in body
+    assert len(client.calls) == 1
+
+
+@pytest.mark.parametrize("tree", [SYM_TREE, TF_TREE], ids=["23-sym", "24b-tf"])
+def test_23_24_PHASE5_another_symbol_or_a_weekly_read_is_AUTHORED(conv, model, http, tree):
+    """⭐ PHASE 5 SUPERSEDES 23 / 24b: "only when it beats SPY" with a `sym('SPY', ...)`
+    clause, and a weekly read, are changes this door authors now. DID: one call,
+    ok, the envelope handed on VERBATIM (the engine applies it) (EXACT)."""
+    v = view(2, [out("value", RSI_GT_70)])
+    client = model([emits(env(2, [{"op": "add_clause", "output": "value", "join": "and",
+                                   "tree": tree}]))])
+    body = http.post(ENDPOINT, json={"message": "only when it beats SPY on the weekly", "view": v}).json()
+    assert body["ok"] is True and body["disposition"] == "change", body
+    assert body["envelope"]["ops"][0]["tree"] == tree
     assert len(client.calls) == 1
 
 
@@ -542,12 +559,15 @@ def test_PROMPT_INJECTION_in_a_name_cannot_touch_the_system_prompt_or_the_tool(c
 
 def test_a_hostile_view_cannot_make_the_server_accept_a_sym_patch(conv, model):
     """ASKED: the injection above "works" and the model emits a sym tree. CLAIMED: the
-    post-call gate does not read the prompt; it refuses by name. DID: unsupported:node
-    (UNSUPPORTED)."""
+    post-call gate does not read the prompt; it refuses by name. DID: ⭐ PHASE 5 --
+    `sym` is authorable now, so the refusal is the no-substitution backstop's: the
+    change reads SPY, which the member's words never named and the indicator never
+    read -> unsupported:symbol-unasked, no envelope (UNSUPPORTED)."""
     model([emits(env(1, [{"op": "set_output_tree", "output": "value", "tree": SYM_TREE}]))])
     r = conv.converse("make it 80", user_id="u1",
                       view=view(1, [out("value", RSI_GT_70)], name=INJECTION))
-    assert r["ok"] is False and r["gate"] == "unsupported:node" and "envelope" not in r
+    assert r["ok"] is False and r["gate"] == "unsupported:symbol-unasked" and "envelope" not in r
+    assert "SPY" in r["reason"]
 
 
 def test_snippets_carry_language_only(conv, model):

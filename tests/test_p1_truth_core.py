@@ -60,13 +60,17 @@ def test_P1_8_10_browser_gate_and_server_alert_lane_agree(case):
 
 
 def test_P1_10_sym_unsupplied_alert_is_refused_not_starved():
-    """ASKED: alert on `close / sym('SPY', close)`.
-    CLAIMED: refused at arm (`withheld`, `other-symbol:unsupplied`).
-    DID: refused -- never admitted to answer "no number" forever. Class: REFUSAL."""
+    """⭐ PHASE 5 SUPERSEDES P1-10: the alert lane now SUPPLIES another symbol
+    (`alert_user_series._symbol_bars`), so `close / sym('SPY', close)` is ADMITTED
+    -- and a sym it still cannot supply (an ambiguous spelling) is refused by name,
+    never admitted to answer "no number" forever. Class: REFUSAL / SUPPLY."""
     case = next(c for c in ALERT_FIXTURE["cases"] if c["name"].startswith("sym SPY ratio"))
     got = server_alert_answer(case["definition"], case["plotKey"])
+    assert got["status"] == "supported"
+    case = next(c for c in ALERT_FIXTURE["cases"] if c["name"].startswith("sym VIX ambiguous"))
+    got = server_alert_answer(case["definition"], case["plotKey"])
     assert got["status"] == "refused" and got["gate"] == "withheld"
-    assert aus.UNSUPPLIED_OTHER_SYMBOL in got["message"]
+    assert aus.OTHER_SYMBOL_AMBIGUOUS in got["message"]
 
 
 def test_P1_8_fixture_is_not_vacuous():

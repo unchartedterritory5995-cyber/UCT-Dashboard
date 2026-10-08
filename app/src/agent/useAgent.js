@@ -20,6 +20,7 @@ import { fastParse, matchPosition } from './fastPath'
 import { planOps, prepareOps, collectTargets } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
+import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
 import { buildContext, manifestFor, getCapability, getTargetKind, runWarmups } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { agentTurn, agentRecord, agentConversation } from './agentClient'
@@ -97,11 +98,75 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const execute = useCallback(async (allOps, { path, mode: suggested, member, voice }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice }) => {
+    let allOps = opsIn
+    const refuse = (why) => {
+      const text = `I didn't change anything: ${why}`
+      push({ role: 'refusal', text })
+      record({ member, outcome: text, outcomeData: { kind: 'refused', actions: opsIn.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
+    }
+    // ── EXPANSION: a macro op with CONCRETE inputs (widget.addCharts with tickers)
+    // becomes the ordinary ops it stands for, before anything is planned. One whose
+    // input is still a reference expands at apply, once its symbols exist.
+    let expansion = null
+    {
+      const x = expandOps(allOps)
+      if (!x.ok) { refuse(`${x.reason}.`); return }
+      if (x.expanded) { allOps = x.ops; expansion = x }
+    }
+    // ── COMPOSITION: an op fed by another op's RESULT (compose.js). Never applied
+    // straight from a model turn — the result does not exist yet, so the member
+    // approves the query + selection rule; at APPLY the producers run fresh, the
+    // actual symbols replace the references, and the rest commits as usual.
+    const composing = refsOf(allOps).length > 0
+    let composed = null
+    if (composing) {
+      const bad = checkRefs(allOps, host)
+      if (bad) { refuse(bad); return }
+      if (suggested === 'approved') {
+        // The consumers are re-checked against the board AS IT IS NOW (capacity,
+        // the target list) BEFORE any producer runs — a full workspace never runs
+        // the screen it could not use.
+        {
+          const producersNow = consumedProducers(allOps)
+          const rest = allOps.filter(o => !producersNow.includes(o) && !getCapability(o?.action)?.query)
+          if (rest.length) {
+            const gate = planOps(collectTargets(host, kindsOf(rest)), rest, await prepareOps(rest), capCtx)
+            if (!gate.ok) {
+              const text = refusalText(gate.refusals)
+              push({ role: 'refusal', text })
+              record({ member, outcome: text, outcomeData: { kind: 'refused', actions: rest.map(o => o.action) }, telemetry: { path, refused: true, voice } })
+              return
+            }
+          }
+        }
+        const r = await resolveRefs(allOps, host)
+        if (!r.ok) {
+          const text = `I didn't change anything: ${r.reason}.`
+          push({ role: 'refusal', text })
+          record({ member, outcome: text, outcomeData: { kind: 'refused', actions: allOps.map(o => o.action) }, telemetry: { path, refused: true, voice } })
+          return
+        }
+        if (r.empty) {
+          const text = `${r.lines.join(' · ')}, so I didn't create or change anything.`
+          push({ role: 'outcome', text })
+          record({ member, outcome: text, outcomeData: { kind: 'noop', actions: allOps.map(o => o.action) }, telemetry: { path, disposition: 'apply', voice } })
+          return
+        }
+        // The references are concrete now: macros fed by them expand here.
+        const x = expandOps(r.ops)
+        if (!x.ok) { refuse(`${x.reason}.`); return }
+        allOps = x.ops
+        if (x.expanded) expansion = x
+        composed = { lines: r.lines }
+      }
+    }
+    const producers = composing && !composed ? consumedProducers(allOps) : []
     const targets = collectTargets(host, kindsOf(allOps))
     // QUERIES only read: answered from the target's own snapshot, never planned. A
-    // plan that also changes something answers its queries and plans the rest.
-    const queries = allOps.filter(o => getCapability(o?.action)?.query)
+    // plan that also changes something answers its queries and plans the rest. A
+    // producer waiting to feed another op is not answered — it runs at apply.
+    const queries = allOps.filter(o => getCapability(o?.action)?.query && !producers.includes(o))
     if (queries.length) {
       // An answer is a string, or { text, table, link } for structured results (rows
       // the feature returned — never written by the model). It may be async.
@@ -126,12 +191,27 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: text, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
       return
     }
-    const mode = suggested === 'approved' ? 'apply' : decideMode(suggested, plan)
+    if (composing && !composed) {
+      const pid = nid()
+      pendingRef.current = { kind: 'proposal', id: pid, ops: allOps, epoch: boardEpoch(host, allOps) }
+      const lines = [...pendingLines(allOps, host), ...plan.lines]
+      push({ id: pid, role: 'proposal', lines, status: 'pending' })
+      record({ member, outcome: `Proposed: ${lines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
+      return
+    }
+    // Every op came from expansions → the member reads ONE line per request
+    // ("Create 4 5-minute charts: SPY, QQQ, …"), not the per-chart steps.
+    const wholly = expansion && ops.every(o => o.fromExpand != null)
+    // An expansion is always proposed first (it creates several widgets at once).
+    const mode = suggested === 'approved' ? 'apply' : (expansion ? 'propose' : decideMode(suggested, plan))
     if (mode === 'propose') {
       const pid = nid()
-      pendingRef.current = { kind: 'proposal', id: pid, ops, epoch: boardEpoch(host, ops) }
-      push({ id: pid, role: 'proposal', lines: plan.lines.length ? plan.lines : plan.noops, status: 'pending' })
-      record({ member, outcome: `Proposed: ${plan.lines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
+      // The proposal keeps the UNEXPANDED request: Apply expands it again from scratch.
+      const keep = expansion ? opsIn.filter(o => !getCapability(o?.action)?.query) : ops
+      pendingRef.current = { kind: 'proposal', id: pid, ops: keep, epoch: boardEpoch(host, keep) }
+      const plines = wholly ? expansion.proposal : (plan.lines.length ? plan.lines : plan.noops)
+      push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
+      record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
     }
     if (!plan.changed) {
@@ -141,12 +221,18 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       return
     }
     const res = await commitPlan(host, plan, { env, ctx: capCtx })
+    if (res.ok && wholly) {
+      res.lines = expansion.lines
+      if (res.undo) res.undo.lines = expansion.lines
+    }
     if (res.undo) {
       undoRef.current = [...undoRef.current, res.undo].slice(-UNDO_MAX)
     }
     if (res.ok) {
-      push({ role: 'receipt', lines: res.lines, undoId: res.undo?.id || null, notes: plan.noops })
-      record({ member, outcome: res.lines.join(' · '), outcomeData: { kind: 'applied', actions, lines: res.lines }, telemetry: { path, disposition: 'apply', actions, voice } })
+      // A composed request says first what its producers actually returned.
+      const lines = composed ? [...composed.lines, ...res.lines] : res.lines
+      push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: wholly ? [] : plan.noops })
+      record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
     } else {
       const text = `Some of that didn't take effect: ${res.failed.map(f => `${f.label} ${f.reason}`).join('; ')}.`
       if (res.lines.length) push({ role: 'receipt', lines: res.lines, undoId: res.undo?.id || null })
@@ -319,7 +405,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // apply / propose: translate the context refs back to real target refs
       if (env.reply) push({ role: 'agent', text: env.reply, sources })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
-      const ops = env.ops.map(o => ({ ...o, target: refMap[o.target]?.ref || o.target }))
+      // A reference that names a context target (a saved list's ref) is bound to
+      // that target's own read-only producer before the refs are translated.
+      const ops = bindSourceRefs(env.ops, refMap).map(o => ({ ...o, target: refMap[o.target]?.ref || o.target }))
       await execute(ops, { path: 'model', mode: env.disposition, member: null, voice })
     } finally {
       setBusy(false)

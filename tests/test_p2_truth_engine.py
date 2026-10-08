@@ -21,6 +21,7 @@ import pytest
 from jsonschema import Draft202012Validator
 
 from api.services import definition_concierge as dc
+from api.services import definition_conversation as conv
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "app" / "src" / "components" / "chart" / "builder" / "authoring" / "patchSchema.json"
@@ -39,6 +40,10 @@ def composed_schema() -> dict:
     for key in advertised:
         assert key not in schema["$defs"] or key == "node", f"$defs collision on {key}"
     schema["$defs"].update(advertised)
+    # ⭐ PHASE 5 -- the three scope wrappers join the union (the server's own defs).
+    for kind, spec in conv._scope_defs().items():
+        schema["$defs"][kind] = spec
+        schema["$defs"]["node"]["oneOf"].append({"$ref": f"#/$defs/{kind}"})
     return schema
 
 
@@ -54,7 +59,9 @@ def test_placeholder_node_union_equals_the_concierge_advertised_union():
     placeholder = _schema()["$defs"]["node"]
     assert placeholder["x-uct-node-schema"] == "concierge.advertised"
     advertised = set(dc.tool_schema()["input_schema"]["$defs"]) - {"node"}
-    assert set(placeholder["properties"]["type"]["enum"]) == advertised == {"num", "series", "op", "call", "offset"}
+    assert advertised == {"num", "series", "op", "call", "offset"}
+    # ⭐ PHASE 5 -- plus the conversation's three scope wrappers (sym, tf, tf_live).
+    assert set(placeholder["properties"]["type"]["enum"]) == advertised | set(conv.SCOPE_NODES)
 
 
 @pytest.mark.parametrize("case", FIXTURE["valid"], ids=lambda c: c["name"])

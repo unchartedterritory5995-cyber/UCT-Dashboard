@@ -100,6 +100,9 @@ class Series:
 
     # naming
     symbol: Optional[str] = None              # what a member types; defaults to `id`
+    #: ⭐ the ticker a member READS when it differs from `symbol` (NYMO for NYSE:MCO). Shown, never
+    #: submitted — see `_exchange_row` for why the submitted symbol keeps its colon.
+    display_symbol: Optional[str] = None
     display: Optional[str] = None             # derived from universe+metric when absent
     short: Optional[str] = None
     metric_name: Optional[str] = None         # the metric half of Rule 2
@@ -219,6 +222,7 @@ class Series:
     def to_row(self) -> dict:
         return {
             "id": self.id, "symbol": self.symbol,
+            "display_symbol": self.display_symbol or self.symbol,
             "display": self.display, "short": self.short,
             "family": self.family, "family_label": self.family_label,
             "universe": self.universe,
@@ -288,7 +292,16 @@ def _exchange_row(universe: str, kind: str) -> "Series":
     label = "NYSE" if universe == "nyse" else "Nasdaq"
     vendor = "$" + _EXCH_ALIAS[(universe, kind)][0]
     pop = _EXCH_POP % (label, label, vendor)
-    common = dict(id=f"{X}:{kind}", family=FAM_MCCLELLAN if kind != "AD" else FAM_BREADTH,
+    # ⭐ (owner, 2026-10-07) THE TICKER A MEMBER READS IS THE CONVENTIONAL ONE — NYMO / NYSI / NYAD /
+    # NAMO / NASI / NAAD — carried as `display_symbol`. ⛔⛔ PRESENTATION ONLY; `symbol` STAYS THE
+    # COLON-BEARING ID. The Cloudflare edge forwards any bare-word `/api/bars/<T>` to the bars tier
+    # unless T is on its hand-deployed list, and `NASI` is a real DELISTED ticker there: making `NASI`
+    # the submitted symbol served a dead company's 2010-2013 bars under "Nasdaq · McClellan Summation
+    # Index" (measured on production 2026-10-07). The colon routes to web by rule, so every UI path
+    # submits `NASDAQ:MCS` and shows `NASI`. The methodology still says this is UCT's point-in-time
+    # operating-equity census, not the vendor's all-issues composite.
+    common = dict(id=f"{X}:{kind}", display_symbol=_EXCH_ALIAS[(universe, kind)][0],
+                  family=FAM_MCCLELLAN if kind != "AD" else FAM_BREADTH,
                   source_type=SRC_BREADTH_DERIVED, status=ST_DORMANT, frequency=FREQ_DAILY,
                   universe=universe, aliases=_EXCH_ALIAS[(universe, kind)],
                   observation_semantics=_SAME_SESSION, knowledge_semantics=_KNOWN_AT_CLOSE,
@@ -483,9 +496,11 @@ _ROWS: list[Series] = [
     # discoverable: `published_rows()` excludes them and `resolve()` refuses them, so no flag, no
     # typo and no client cache can reach one before the cutover authorizes publication.
     #
-    # ⭐ CANONICAL IDENTITY IS THE UCT SYMBOL (`NYSE:MCO`). NYMO/NYSI/NAMO/NASI/NYAD/NAAD are SEARCH
-    # ALIASES ONLY (naming Rule 1's precondition fails: our census is point-in-time NYSE / Nasdaq
-    # operating equity, not the vendors' all-issues composites).
+    # ⭐ CANONICAL IDENTITY AND SUBMITTED SYMBOL ARE THE UCT ID (`NYSE:MCO`). Since 2026-10-07 the
+    # ticker a member READS is the conventional one (NYMO/NYSI/NAMO/NASI/NYAD/NAAD, `display_symbol`,
+    # owner decision); the vendor names stay resolvable aliases. The DISPLAY name
+    # stays `NYSE · McClellan Oscillator` and the methodology keeps the census caveat (our population
+    # is point-in-time NYSE / Nasdaq operating equity, not the vendors' all-issues composites).
     *[_exchange_row(u, kind) for u in ("nyse", "nasdaq") for kind in ("MCO", "MCS", "AD")],
 
     Series(
