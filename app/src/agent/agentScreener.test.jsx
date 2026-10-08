@@ -45,7 +45,7 @@ beforeEach(() => {
 })
 afterEach(() => { vi.restoreAllMocks() })
 
-const run = (args) => getCapability('screener.run').answer(null, { filters: [], sort_field: null, sort_dir: null, mode: 'new', show: null, ...args })
+const run = (args) => getCapability('screener.run').answer(null, { filters: [], sort_field: null, sort_dir: null, mode: 'new', show: null, as: null, ...args })
 const scanCalls = () => calls.filter(c => c[1] === '/api/screener/scan')
 
 describe('Screener: the real engine, the real catalog', () => {
@@ -102,7 +102,7 @@ describe('Screener: the real engine, the real catalog', () => {
   })
   it('saved screens: listed, run by real id (fast path on an exact name), opened through the Screener\'s door', async () => {
     expect(await getCapability('screener.listSaved').answer()).toBe('Your screens: Momentum\nUCT starters: UCT 50')
-    expect(fastParse('run my Momentum screen').ops[0]).toEqual({ action: 'screener.runSaved', args: { screen: '7', show: null } })
+    expect(fastParse('run my Momentum screen').ops[0]).toEqual({ action: 'screener.runSaved', args: { screen: '7', show: null, as: null } })
     expect(fastParse('run mom')).toBeNull()                                             // never guessed
     const a = await getCapability('screener.runSaved').answer(null, { screen: '7', show: null })
     expect(scanCalls()[0][2].filters).toEqual([{ key: 'chg_pct_1m', op: 'gte', min: 20 }])

@@ -245,7 +245,11 @@ describe('rename, compound, compact-mode manifest', () => {
     const m = manifestFor(CTX)
     expect(m.length).toBeGreaterThan(10)
     const add = m.find(c => c.name === 'watchlist.add')
-    expect(add.args).toEqual({ type: 'object', properties: { symbols: { type: 'array', items: { type: 'string' } } }, required: ['symbols'], additionalProperties: false })
+    expect(add.args.properties.symbols.anyOf).toEqual([
+      { type: 'array', items: { type: 'string' } },
+      { type: 'object', properties: { from: { type: 'string' }, top: { type: ['integer', 'null'] } }, required: ['from', 'top'], additionalProperties: false },
+    ])
+    expect(add.args).toMatchObject({ type: 'object', required: ['symbols'], additionalProperties: false })
     expect(m.map(c => c.name)).toEqual(expect.arrayContaining(['watchlist.list', 'watchlist.show', 'watchlist.create', 'watchlist.remove', 'watchlist.rename']))
   })
   it('a saved-list proposal is NOT voided by a layout switch (it names the list, not the board)', async () => {

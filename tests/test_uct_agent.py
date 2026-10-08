@@ -482,3 +482,21 @@ def test_capability_hints_are_kept_whole_up_to_the_cap():
     long = dict(CAPS[0], name="example.long", hints="rule " * 180)          # ~900 chars
     out = turn.validate_manifest([long])
     assert out[0]["hints"] == long["hints"][:turn.MAX_HINTS] and len(out[0]["hints"]) > 400
+
+
+def test_a_typed_reference_arg_survives_the_manifest_and_the_compact_check():
+    """watchlist.add's `symbols` is a ticker list OR a {from, top} reference to an
+    earlier op's result (cross-domain composition). The validator must KEEP such a
+    capability (a dropped one would vanish silently) and accept both forms."""
+    add = {"name": "example.addSymbols", "domain": "example", "target": "example", "summary": "Add symbols.",
+           "hints": None, "risk": "local", "reversible": True,
+           "args": {"type": "object", "properties": {"symbols": {"anyOf": [
+               {"type": "array", "items": {"type": "string"}},
+               {"type": "object", "properties": {"from": {"type": "string"}, "top": {"type": ["integer", "null"]}},
+                "required": ["from", "top"], "additionalProperties": False}]}},
+               "required": ["symbols"], "additionalProperties": False}}
+    kept = turn.validate_manifest([add])
+    assert [c["name"] for c in kept] == ["example.addSymbols"]
+    assert turn.args_match(kept[0]["args"], {"symbols": ["NVDA"]})
+    assert turn.args_match(kept[0]["args"], {"symbols": {"from": "screen1", "top": 20}})
+    assert not turn.args_match(kept[0]["args"], {"symbols": ["NVDA"], "extra": 1})

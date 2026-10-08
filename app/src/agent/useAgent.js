@@ -20,6 +20,7 @@ import { fastParse, matchPosition } from './fastPath'
 import { planOps, prepareOps, collectTargets } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
+import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs } from './compose'
 import { buildContext, manifestFor, getCapability, getTargetKind, runWarmups } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { agentTurn, agentRecord, agentConversation } from './agentClient'
@@ -97,11 +98,46 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const execute = useCallback(async (allOps, { path, mode: suggested, member, voice }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice }) => {
+    let allOps = opsIn
+    // ── COMPOSITION: an op fed by another op's RESULT (compose.js). Never applied
+    // straight from a model turn — the result does not exist yet, so the member
+    // approves the query + selection rule; at APPLY the producers run fresh, the
+    // actual symbols replace the references, and the rest commits as usual.
+    const composing = refsOf(allOps).length > 0
+    let composed = null
+    if (composing) {
+      const bad = checkRefs(allOps)
+      if (bad) {
+        const text = `I didn't change anything: ${bad}`
+        push({ role: 'refusal', text })
+        record({ member, outcome: text, outcomeData: { kind: 'refused', actions: allOps.map(o => o.action) }, telemetry: { path, refused: true, voice } })
+        return
+      }
+      if (suggested === 'approved') {
+        const r = await resolveRefs(allOps, host)
+        if (!r.ok) {
+          const text = `I didn't change anything: ${r.reason}.`
+          push({ role: 'refusal', text })
+          record({ member, outcome: text, outcomeData: { kind: 'refused', actions: allOps.map(o => o.action) }, telemetry: { path, refused: true, voice } })
+          return
+        }
+        if (r.empty) {
+          const text = `${r.lines.join(' · ')}, so I didn't create or change anything.`
+          push({ role: 'outcome', text })
+          record({ member, outcome: text, outcomeData: { kind: 'noop', actions: allOps.map(o => o.action) }, telemetry: { path, disposition: 'apply', voice } })
+          return
+        }
+        allOps = r.ops
+        composed = { lines: r.lines }
+      }
+    }
+    const producers = composing && !composed ? consumedProducers(allOps) : []
     const targets = collectTargets(host, kindsOf(allOps))
     // QUERIES only read: answered from the target's own snapshot, never planned. A
-    // plan that also changes something answers its queries and plans the rest.
-    const queries = allOps.filter(o => getCapability(o?.action)?.query)
+    // plan that also changes something answers its queries and plans the rest. A
+    // producer waiting to feed another op is not answered — it runs at apply.
+    const queries = allOps.filter(o => getCapability(o?.action)?.query && !producers.includes(o))
     if (queries.length) {
       // An answer is a string, or { text, table, link } for structured results (rows
       // the feature returned — never written by the model). It may be async.
@@ -126,6 +162,14 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: text, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
       return
     }
+    if (composing && !composed) {
+      const pid = nid()
+      pendingRef.current = { kind: 'proposal', id: pid, ops: allOps, epoch: boardEpoch(host, allOps) }
+      const lines = [...pendingLines(allOps), ...plan.lines]
+      push({ id: pid, role: 'proposal', lines, status: 'pending' })
+      record({ member, outcome: `Proposed: ${lines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
+      return
+    }
     const mode = suggested === 'approved' ? 'apply' : decideMode(suggested, plan)
     if (mode === 'propose') {
       const pid = nid()
@@ -145,8 +189,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       undoRef.current = [...undoRef.current, res.undo].slice(-UNDO_MAX)
     }
     if (res.ok) {
-      push({ role: 'receipt', lines: res.lines, undoId: res.undo?.id || null, notes: plan.noops })
-      record({ member, outcome: res.lines.join(' · '), outcomeData: { kind: 'applied', actions, lines: res.lines }, telemetry: { path, disposition: 'apply', actions, voice } })
+      // A composed request says first what its producers actually returned.
+      const lines = composed ? [...composed.lines, ...res.lines] : res.lines
+      push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: plan.noops })
+      record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
     } else {
       const text = `Some of that didn't take effect: ${res.failed.map(f => `${f.label} ${f.reason}`).join('; ')}.`
       if (res.lines.length) push({ role: 'receipt', lines: res.lines, undoId: res.undo?.id || null })

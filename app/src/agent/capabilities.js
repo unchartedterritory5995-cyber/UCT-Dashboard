@@ -106,6 +106,32 @@ export function registerContextProvider(p) {
   return () => PROVIDERS.delete(p.key)
 }
 
+// ── TYPED OUTPUTS (cross-domain composition) ─────────────────────────────────
+// One registered capability's RESULT may feed another's ARGUMENT in the same
+// request, without a second model call and without the model ever seeing it.
+// Deliberately narrow — ONE data type today, no expressions, no paths:
+//   capability.produces = 'symbols'          a query whose result is an ORDERED
+//     + produce(args, host) -> { symbols,     ticker list (e.g. a screen); it takes
+//         count, summary }                    `as` to name that result in the plan
+//   capability.inputs = { <arg>: 'symbols' }  that arg may be a ticker list OR a
+//                                             reference { from, top }
+//   registerOutputSource({ ref, type, available(), summary(), resolve() })
+//                                             a standing result outside the plan
+//                                             (the last screen) a reference may name
+// The executor resolves references at APPLY (fresh), substitutes the actual
+// symbols, then re-plans and commits through the ordinary path.
+export const SYMBOLS = 'symbols'
+const SOURCES = new Map()
+export function registerOutputSource(src) { SOURCES.set(src.ref, src); return () => SOURCES.delete(src.ref) }
+export const getOutputSource = (ref) => SOURCES.get(ref) || null
+
+/** A reference value: exactly { from: string, top: integer|null } — nothing else. */
+export function isRef(v) {
+  return !!v && typeof v === 'object' && !Array.isArray(v)
+    && Object.keys(v).sort().join(',') === 'from,top' && typeof v.from === 'string'
+    && (v.top === null || Number.isInteger(v.top))
+}
+
 // A feature may WARM its data when the Agent opens (e.g. fetch a catalog it will
 // need for its context), so the first question doesn't pay for it. Never throws.
 const WARMUPS = new Set()
@@ -164,11 +190,14 @@ export function shapeError(name, args, ctx) {
   for (const k of sch.required) if (!(k in args)) return `Missing “${k}”.`
   for (const [k, p] of Object.entries(sch.properties)) {
     const v = args[k]
-    const types = Array.isArray(p.type) ? p.type : [p.type]
-    const ok = types.some(t => (t === 'null' ? v === null
+    // A typed-output input (capability.inputs) may hold a reference instead.
+    if (c.inputs?.[k] && isRef(v)) continue
+    const branches = p.anyOf || [p]
+    const ok = branches.some(b => (Array.isArray(b.type) ? b.type : [b.type]).some(t => (t === 'null' ? v === null
       : t === 'integer' ? Number.isInteger(v)
         : t === 'array' ? Array.isArray(v)
-          : typeof v === t))
+          : t === 'object' ? (!!v && typeof v === 'object' && !Array.isArray(v))
+            : typeof v === t)))
     if (!ok) return `“${k}” has the wrong kind of value.`
     if (p.enum && v !== null && !p.enum.includes(v)) return `“${v}” isn't an option for ${k}.`
   }
