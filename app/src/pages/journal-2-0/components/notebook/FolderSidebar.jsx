@@ -34,6 +34,7 @@ import { SkipLinkPortal } from '../../../../components/skipLinks'
 import ContextPopover from '../../../../components/mobile/ContextPopover'
 import useTreeRoving from '../../lib/useTreeRoving'
 import useToolbarRoving from '../../lib/useToolbarRoving'
+import useGridRoving from '../../lib/useGridRoving'
 
 // Debounce before the search query reaches the server (below) — short enough
 // to feel instant, long enough that fast typing doesn't fire a request per
@@ -454,7 +455,9 @@ function TagRenameableRow({
   const isRenaming = renameEnabled && renaming === path
   return (
     <>
-      <div className={styles.rowWrap} style={{ paddingLeft: depth * 14 }}>
+      {/* Lane KEYS3 round 3: a row of the one-stop tag list (see `tagsGrid` in FolderSidebar).
+          Type-ahead finds the tag by its path, not by the "#" its label starts with. */}
+      <div className={styles.rowWrap} style={{ paddingLeft: depth * 14 }} data-tag-row="" data-typeahead-label={path}>
         {disclosure || <span className={styles.disclosureSpacer} aria-hidden="true" />}
         <button
           type="button"
@@ -1352,6 +1355,12 @@ export default function FolderSidebar({
   // member can see and use. So: a hidden panel is shown first; then focus goes to the folder
   // tree's own Tab stop (the folder navigation itself), or, where no tree is on screen (search
   // mode), to the panel's heading, which carries the id.
+  // Lane KEYS3 round 3: the tags are ONE Tab stop. Every tag was two (its button and its
+  // Rename), so twenty tags were forty stops between the folder tree and the notes. Down and Up
+  // move tag to tag, Right and Left reach a tag's Rename and its disclosure arrow, Home and End
+  // go to the ends, and a typed letter moves to the next tag that starts with it (stopped at
+  // the list, so it does not reach the Journal's "g then letter" shortcuts).
+  const tagsGrid = useGridRoving({ rowSelector: '[data-tag-row]', typeahead: true })
   const sidebarSkipRef = useRef(null)
   const skipToSidebar = (e) => {
     e.preventDefault()
@@ -2002,6 +2011,7 @@ export default function FolderSidebar({
                   aria-label="Filter tags"
                 />
               )}
+              <div ref={tagsGrid.ref} onKeyDown={tagsGrid.onKeyDown} onFocus={tagsGrid.onFocus}>
               {filteredTagNodes ? (
                 // Filtering: every matching tag at any level, by its full
                 // path — sharing the ONE rename control with the flat and
@@ -2079,6 +2089,7 @@ export default function FolderSidebar({
                   ))}
                 </div>
               )}
+              </div>
               {filteredTagNodes && filteredTagNodes.length === 0 && (
                 <div className={styles.searchEmpty}>No tags match “{tagFilter.trim()}”.</div>
               )}

@@ -124,7 +124,12 @@ export default function useGridRoving({ rowSelector, enabled = true, typeahead =
       const letter = e.key.toLowerCase()
       const text = fresh ? letter : typed.current.text + letter
       typed.current = { text, at: now }
-      const label = (cells) => (cells[0].closest(rowSelector)?.textContent || '').trim().toLowerCase()
+      // a row may name what type-ahead matches (`data-typeahead-label`: a tag row reads
+      // "#gaps 3" and is found by "gaps"); otherwise it is the row's own text
+      const label = (cells) => {
+        const row = cells[0].closest(rowSelector)
+        return (row?.getAttribute('data-typeahead-label') || row?.textContent || '').trim().toLowerCase()
+      }
       // one letter steps to the NEXT row that starts with it; typing on narrows from this row
       const from = text.length === 1 ? r + 1 : r
       const order = [...rows.slice(from), ...rows.slice(0, from)]
