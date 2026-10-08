@@ -123,10 +123,13 @@ describe('Screener: the real engine, the real catalog', () => {
   })
   it('READ-ONLY: every Screener action is a query (nothing to undo); the manifest stays closed-schema', () => {
     const m = manifestFor(CTX)
-    const sc = m.filter(c => c.name.startsWith('screener.'))
+    // Running screens is read-only; SAVED-screen management (savedScreens.js) is the only write.
+    const sc = m.filter(c => c.name.startsWith('screener.') && getCapability(c.name).target === 'screener')
     expect(sc.map(c => c.name).sort()).toEqual(['screener.listSaved', 'screener.run', 'screener.runSaved', 'screener.state'])
     for (const c of sc) expect(getCapability(c.name).query).toBe(true)
-    expect(m.length).toBe(42)                    // + alert.* (3), stock.* (3), settings.* (4), app.open
+    expect(m.filter(c => getCapability(c.name).target === 'savedScreens').map(c => c.name).sort())
+      .toEqual(['screener.deleteSaved', 'screener.duplicateSaved', 'screener.renameSaved', 'screener.saveAs'])
+    expect(m.length).toBe(49)                    // Batch 3: + layout.create, watchlist.clear/.delete, 4 saved-screen actions
   })
   it('no Screener field is hard-coded in the Agent', () => {
     const src = screenerSource
