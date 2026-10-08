@@ -1,0 +1,665 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w14-land/app
+
+ ❯ src/hooks/pollingSites.rail.test.js (4 tests | 1 failed) 14180ms
+     ✓ the wrapper exempts itself by RESOLUTION, and there is exactly one of it  7159ms
+     × no NEW bare polling site, and no allow-listed one that has since moved 7013ms
+     ✓ the focus default is pinned: the wrapper and App.jsx AGREE (both off) 5ms
+     ✓ CONTROL — the scanner SEES a planted poll and IGNORES what is not one 2ms
+stderr | src/lib/persistence/persistenceManifest.test.js > the manifest is current > declares every key the code persists (fix: node tools/persistence_census.mjs --write)
+[persistence-census] 8 undeclared (fix: node tools/persistence_census.mjs --write):
+  undeclared persisted key 'calendar.orderBoostOff' (localStorage) at app/src/pages/calendar/depth/OrderExplain.jsx:18 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.agent.conversation' (localStorage) at app/src/agent/agentFlag.js:60 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.agent.open' (localStorage) at app/src/agent/agentFlag.js:60 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.feature.agent' (localStorage) at app/src/agent/agentFlag.js:24 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.feature.createIndicator' (localStorage) at app/src/components/chart/builder/studio/createIndicatorFlag.js:27 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.terminal.focusPanel' (localStorage) at app/src/pages/terminal/useTerminalLayout.js:44 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'terminal_command_history' (server-preference) at app/src/pages/terminal/commandHistory.js:112 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+  undeclared persisted key 'uct.terminal.revertLayout' (sessionStorage) at app/src/pages/terminal/TerminalShell.jsx:155 — declare it: node tools/persistence_census.mjs --write, then give it a surface, label and kind in app/src/lib/persistence/persistenceManifest.json
+
+stderr | src/lib/persistence/persistenceManifest.test.js > the manifest is current > records the files and scope the code actually uses
+[persistence-census] 1 drifted (fix: node tools/persistence_census.mjs --write):
+  'uct.terminal.history' (localStorage) moved: manifest says ["app/src/pages/terminal/CommandLine.jsx"], code says ["app/src/pages/terminal/commandHistory.js"] — node tools/persistence_census.mjs --write
+
+ ❯ src/lib/persistence/persistenceManifest.test.js (13 tests | 1 failed) 4018ms
+     ✓ scans the whole of app/src and parses every file 1ms
+     ✓ finds known keys in every store, including ones only reachable through imports and wrappers 1ms
+     × classifies every storage-shaped call and resolves every key 5ms
+     ✓ declares every key the code persists (fix: node tools/persistence_census.mjs --write) 1ms
+     ✓ lists nothing the code no longer persists 0ms
+     ✓ records the files and scope the code actually uses 0ms
+     ✓ names every entry for members (surface, label, kind) 0ms
+     ✓ derives scope from store for every entry — never typed 2ms
+     ✓ CONTROL: a new localStorage key in a shipped file is reported by name, with the fix  3863ms
+     ✓ does not count a key planted by a TEST file 142ms
+     ✓ does not count a storage call that exists only in a comment or a string 0ms
+     ✓ reports a declared key that nothing persists any more as stale, by name 1ms
+     ✓ a key moved from localStorage to the account preference flips from device-local to cross-device 0ms
+ ❯ src/components/screener/reachable.test.js (17 tests | 1 failed) 28229ms
+     ✓ ⛔ CONTROL — the register is really being read, blocks and all 2ms
+     ✓ ⛔⛔ every parked block declares an expiry, and every expiry names a block 1ms
+     × ⛔⛔ NO BLOCK IS PAST ITS EXPIRY — the check `objectPool` needed and did not have 16ms
+     ✓ ⛔ CONTROL — and the expiry check can actually FAIL 0ms
+     ✓ the walk itself is not vacuous 2ms
+     ✓ the Notebook a11y rail directory is test infrastructure, and nothing else is 0ms
+     ✓ and nothing committed is connected to nothing 3ms
+     ✓ the allow-list cannot outlive its files 1ms
+     ✓ and it cannot excuse something that is actually wired 0ms
+     ✓ ScanResults specifically — the surface this rail was built for — is reachable 0ms
+     ✓ UIcon is reachable — the control on the census that got this wrong 0ms
+     ✓ PLANTED CUT: remove the mount's import and ScanResults goes unreachable  7755ms
+     ✓ THE DYNAMIC EDGE IS LOAD-BEARING: static-only imports never reach the page  4077ms
+     ✓ THE WORKER EDGE IS LOAD-BEARING: `new Worker(new URL(…))` is followed  8593ms
+     ✓ THE SWEEP REPORTS A TRACKED ORPHAN, and exempts an UNTRACKED one  3898ms
+     ✓ THE ALLOW-LIST GUARDS BITE: a wired entry and a vanished one are each caught  3878ms
+     ✓ a specifier that is prose, not an import, is not an edge 1ms
+ ❯ src/components/chart/engine/__tests__/enumerationSites.test.js (41 tests | 1 failed) 4053ms
+     ✓ holds 17 live sites, and every one of them is still where it says it is 13ms
+     ✓ exempts NO row from the anchor check — the one fuse has fired 0ms
+     ✓ every B4 region is retired — 2 to C, 5 kept, and NO B4, B5 or phase key 0ms
+     ✓ every site names its own fate, so a permutation cannot pass 1ms
+     ✓ the closed-table manifest is on the ledger the moment it exists 0ms
+     ✓ the ledger names the file that will hold the closed table, and says why 0ms
+     ✓ ⭐⭐ the Python dispatch literal PHASE C TASK 10 retired is GONE, by identity 3ms
+     ✓ the two sites this task retired are GONE, not merely unlisted 1ms
+     ✓ ⭐ and the settings-row list B4 Task 6 retired is GONE too 1ms
+     ✓ ⭐ and the toolbar's fifteen indicator rows — and the three helpers that kept them honest — are GONE 1ms
+     ✓ ⭐ and the voice bus no longer hand-lists indicators 0ms
+     ✓ ⭐ and the alert dropdown's five-part twin of INDICATOR_FUNCS is GONE 1ms
+     ✓ ⭐ and the legend's three-part indicator enumeration is GONE — all of it 51ms
+     ✓ ⛔ the three regions RETIRED_BY_B5_TASK9 took are GONE, and the allow-list DESTROYS 7ms
+     ✓ ⛔ the four regions RETIRED_BY_B5_TASK8 took are GONE, not merely unlisted 29ms
+     ✓ ⛔ StockChart imports no compute function at all — the lane is the ENGINE lane 63ms
+     ✓ ⛔ …and every definition still resolves a compute — the exports are NOT dead 22ms
+     ✓ ⭐ and the share link no longer hand-lists the four pilots 5ms
+     ✓ ⭐ and the four keyboard regions B4 Task 4 retired are GONE too 7ms
+     × names every shipped module that hand-lists four or more indicators 1749ms
+     ✓ names every shipped Python module that hand-lists four or more indicators  1969ms
+     ✓ ⭐ the two Python address tables are the size the ledger says — 28 addresses, and NO `sar` alias 3ms
+     ✓ ⭐ the scan reads CODE, not prose — and still reads code 1ms
+     ✓ ⭐ the PYTHON scan reads CODE, not prose — and still reads code 1ms
+     ✓ ⛔ the two tables COVER the flip set — a missing row is a silent no-op 42ms
+     ✓ declares no series ref and creates no series for a flipped id 21ms
+     ✓ runs no second computation for a flipped id — the engine computes it once 3ms
+     ✓ ⛔ and the STRIPPER is load-bearing, not decorative — measured on ichimoku 1ms
+     ✓ keeps no Flip-A guard for a flipped id — the block should be GONE, not guarded 5ms
+     ✓ creates no migrated-but-un-flipped definition while the settings migration is open 3ms
+     ✓ ⭐ the repaint badge is a shared DEFAULT, and this record says so — the biconditional 6ms
+     ✓ ⭐ every test title the decision record cites verbatim is a title that exists 34ms
+     ✓ listIndicators() contains no migrated definition, by id or by settings path 1ms
+     ✓ and the engine-owned rows hand-write no field — they are derived 2ms
+     ✓ a price overlay reserves no vertical space — adjudication A6, at its new address 0ms
+     ✓ every settings section has an engine definition, or is a named exemption 0ms
+     ✓ every definition is REACHABLE from a v1 blob that names it 2ms
+     ✓ pins exactly which declared inputs the toolbar cannot reach 2ms
+     ✓ every declared input of every definition is reachable from the generated dialog 0ms
+     ✓ MACD's two colours have a control now — the gap B3 measured and could not close 0ms
+     ✓ and nothing was silently dropped: every migrated id's toolbar gap is named above 2ms
+ ❯ src/lib/context/symbolLinkChannels.test.js (8 tests | 1 failed) 1652ms
+     ✓ NON-VACUITY: the sweep sees a real population of sources 29ms
+     ✓ the param names are DERIVED from the authority, not typed here 1ms
+     ✓ POSITIVE CONTROL: the matcher can see a real hand-typed read  346ms
+     ✓ POSITIVE CONTROL: the authority itself routes through the constant, not a literal  306ms
+     × ⛔ no NEW surface reads a symbol/timeframe param by hand 325ms
+     ✓ ⭐ the baseline has not gone stale in the other direction  316ms
+     ✓ records WHICH spellings are in use, so the finding has a measurement  328ms
+     ✓ the ruling it cites is still where the packet says it is 0ms
+ ❯ src/utils/jsonFetcher.test.js (8 tests | 1 failed) 1370ms
+     × NO NEW SURFACE joins the list — and a healed one must leave it 1332ms
+     ✓ the four surfaces this task FIXED are not in the debt list 10ms
+     ✓ 🔴 THE CONTROL — the sweep really does fire on the shape it claims to catch 0ms
+     ✓ …and does NOT fire on a fetcher that checks, or on prose about one 0ms
+     ✓ the sweep actually READ the tree — a floor, so an empty walk cannot pass 23ms
+     ✓ returns the parsed body of a 2xx 1ms
+     ✓ 🔴 THROWS on a 402 and carries the status, rather than returning the error body 1ms
+     ✓ throws on 401/403/500 too — this is not a paywall special case 1ms
+ ❯ src/__tests__/entryExcludesChartEngine.test.js (8 tests | 2 failed) 438ms
+     ✓ ⭐ NON-VACUITY: the walk from index.html reaches the always-mounted shell 1ms
+     × ⛔ no module under components/chart/engine/ is on the entry's static closure 11ms
+     ✓ 🧪 CONTROL: the same walker DOES reach the engine along a chain that is still static 81ms
+     ✓ 🧪 CONTROL: a dynamic import() is not followed, although its target is eager-heavy 17ms
+     ✓ 🧪 CONTROL: the lazy settings door in widgetEmbedCore is dynamic, and its target is engine-heavy 72ms
+     × pages/journal-2-0/surfaces/NotebookSurface.jsx: no components/chart/engine/ module on its static closure 191ms
+     ✓ pages/journal-2-0/JournalLayout.jsx: no components/chart/engine/ module on its static closure 21ms
+     ✓ the Journal layout reaches the embed core only through the two lazy Log Trade dialogs 43ms
+ ✓ src/pages/charts/widgets/ScanObjectCard.test.jsx (5 tests) 1953ms
+     ✓ lands in the Formula field on the Conditions tab, and Save writes that exact tree  1839ms
+ ❯ src/__tests__/sourcesAreText.test.js (2 tests | 1 failed) 301ms
+     ✓ found sources to scan (an empty scan would pass vacuously) 3ms
+     × contains no NUL or other C0 control byte 297ms
+ ❯ src/components/chart/engine/__tests__/suiteCoverage.test.js (8 tests | 1 failed) 98ms
+     ✓ a named `test:engine` exists — it is what a person can be told to run 1ms
+     ✓ ⛔ every engine test file lies under the path that command runs 21ms
+     ✓ ⚠️ the config does not narrow `include` behind the back of the command 0ms
+     ✓ the directories on disk are the ones somebody acknowledged 15ms
+     ✓ ⛔ NON-VACUITY — the walker sees several directories, and sees THAT one 14ms
+     ✓ ⭐ POSITIVE CONTROL — the coverage predicate FAILS on an outside file 0ms
+     ✓ every test-bearing chart directory is reachable from some `test:*` script 19ms
+     × the chart test directories on disk are the ones somebody acknowledged 27ms
+ ❯ src/lib/swallowedFetch.census.test.js (5 tests | 1 failed) 10ms
+     ✓ the scan sees the population (a broken walk would pass everything) 1ms
+     × no file gains a site, and no new file adopts the idiom 8ms
+     ✓ a migrated site is taken off the baseline in the same change (it cannot be re-added silently) 0ms
+     ✓ the stated total is the sum of the per-file counts 0ms
+     ✓ counts code only: the idiom inside a comment is not a site, and spacing variants are 0ms
+stdout | src/components/provenance/panelAdoption.ratchet.test.js > ⭐⭐ the ratchet — adoption may not go backwards > prints the population, the frontier, and the labels
+
+════ PROVENANCE ADOPTION RATCHET ══════════════════════════════════════
+  the four primitives : Provenance.jsx · FreshnessBadge.jsx · CoverageLine.jsx · Cited.jsx
+  re-export aliases   : app/src/components/screener/CoverageLine.jsx
+  reachable modules   : 2041 tracked non-test under app/src
+  of those, with JSX  : 928
+
+  POPULATION (28) — every reachable module that adopts, derived:
+      app/src/components/calendar/CallRecapSection.jsx
+      app/src/components/chart/builder/EvidenceTab.jsx
+      app/src/components/research/fmpDepth/SourceLine.jsx
+      app/src/components/screener/ScanResults.jsx
+      app/src/components/tiles/CatalystTable.jsx
+      app/src/pages/Breadth.jsx
+      app/src/pages/ProvenanceDemo.jsx
+      app/src/pages/breadth/views/TheReadStrip.jsx
+      app/src/pages/charts/widgets/AiSearchWidget.jsx
+      app/src/pages/charts/widgets/DockFinancials.jsx
+      app/src/pages/charts/widgets/PeriodSortResults.jsx
+      app/src/pages/charts/widgets/ScannerResults.jsx
+      app/src/pages/charts/widgets/VolumeScanWidget.jsx
+      app/src/pages/cot/PositioningRail.jsx
+      app/src/pages/journal-2-0/components/notebook/ScreenerEmbed.jsx
+      app/src/pages/optionsAnalytics/StrategyScreensPanel.jsx
+      app/src/pages/research/ResearchComparePage.jsx
+      app/src/pages/research/components/ComparisonAskAi.jsx
+      app/src/pages/research/tabs/AnalystRatingsTab.jsx
+      app/src/pages/research/tabs/AskAiTab.jsx
+      app/src/pages/research/tabs/CatalystsTab.jsx
+      app/src/pages/research/tabs/DecisionRecordTab.jsx
+      app/src/pages/research/tabs/FlowTab.jsx
+      app/src/pages/research/tabs/NewsTab.jsx
+      app/src/pages/research/tabs/OwnershipTab.jsx
+      app/src/pages/screener/options/OptionsScreener.jsx
+      app/src/pages/screener/shell/ScannerShell.jsx
+      app/src/pages/terminal/TerminalShell.jsx
+
+  baseline records 28  ·  observed 28  ·  lost 0  ·  unbanked 0
+  baseline file : app/src/components/provenance/panelAdoption.baseline.json
+
+  ⭐ ADOPTING ONLY THROUGH A DERIVED ALIAS (2) — a naive import scan
+     would call each of these NOT-adopting and the shim a fifth implementation:
+      app/src/components/chart/builder/EvidenceTab.jsx
+      app/src/components/screener/ScanResults.jsx
+
+  adopters without JSX (0) — the gap between this population and the
+     census's JSX-filtered D-ALL adopting set, derived rather than assumed. Empty
+     means the two coincide today, which is why the census's number can be read
+     straight across:
+      (none)
+
+── THE FRONTIER — where the number can go up ───────────────────────────
+   ⭐ directories that already show provenance, adopting / with-JSX:
+         7 / 27    pages/research/tabs
+         5 / 55    pages/charts/widgets
+         2 / 61    pages
+         1 / 7     components/calendar
+         1 / 11    components/chart/builder
+         1 / 4     components/research/fmpDepth
+         1 / 4     components/screener
+         1 / 12    components/tiles
+         1 / 20    pages/breadth/views
+         1 / 1     pages/cot
+         1 / 116   pages/journal-2-0/components/notebook
+         1 / 10    pages/optionsAnalytics
+         1 / 9     pages/research
+         1 / 1     pages/research/components
+         1 / 1     pages/screener/options
+         1 / 17    pages/screener/shell
+         1 / 6     pages/terminal
+
+── THE LARGEST ZERO-ADOPTION DIRECTORIES ───────────────────────────────
+   ⛔ derived, printed, and asserted over by NOTHING. The top row is why the
+      population above is the adopter set and not `pages/**`: a rail scoped
+      there is a Notebook rail wearing a provenance label. No literal in this
+      file names it — it is absent from the population because it has no
+      adopters, so the day it gains one this rail protects that gain instead.
+        62  pages/journal-2-0/components
+        33  components/chart
+        28  components
+        22  floor2
+        17  components/voice
+        17  hub
+
+── PARTNER-OWNED, LABELLED NOT FILTERED ────────────────────────────────
+      app/src/pages/OptionsFlow.jsx   adopting=false   (Ravi — ack before any edit)
+
+═══════════════════════════════════════════════════════════════════════
+
+
+stdout | src/components/provenance/panelAdoption.ratchet.test.js > TERM-047 — CoverageLine on every result surface > prints the derived set, how each routes, and the exemptions by kind
+
+════ TERM-047 — CoverageLine ON EVERY RESULT SURFACE ═════════════════════
+  route-family stems : scan · screen   (A9 Screening & Discovery)
+  CoverageLine doors : app/src/components/provenance/CoverageLine.jsx, app/src/components/screener/CoverageLine.jsx
+  RESULT SURFACES (17), derived:
+      routes direct                app/src/components/chart/builder/EvidenceTab.jsx
+                                   /api/screener/backtest  /api/scans/definition-record
+      EXEMPT                       app/src/components/screener/MethodologyPanel.jsx
+                                   /api/screener/methodology
+      EXEMPT                       app/src/components/screener/RunNowButton.jsx
+                                   /api/scans/run  useScreenerMeta.js→/api/screener/meta
+      routes direct                app/src/components/screener/ScanResults.jsx
+                                   /api/scans/definition-results
+      EXEMPT                       app/src/components/screener/StructureProvenance.jsx
+                                   /api/screener/structures
+      VIOLATION                    app/src/components/settings/StandingAlertsPanel.jsx
+                                   /api/screener/spec-alerts  /api/screener/spec-alerts/
+      EXEMPT                       app/src/pages/charts/widgets/ListSubscription.jsx
+                                   /api/screener/saved-screens
+      routes direct                app/src/pages/charts/widgets/PeriodSortResults.jsx
+                                   /api/scans/period-change?start=  /api/scans/period-change-groups?start=
+      routes direct                app/src/pages/charts/widgets/ScannerResults.jsx
+                                   /api/scans/highest-volume-1y  /api/scans/highest-volume-ever  /api/scans/ipo-1y  /api/scans/top-gainers-30d  /api/scans/top-gainers-60d  /api/scans/top-gainers-90d
+      routes direct                app/src/pages/charts/widgets/VolumeScanWidget.jsx
+                                   /api/volume-scan/live?show_all=1&limit=300&min_rvol=
+      routes direct                app/src/pages/optionsAnalytics/StrategyScreensPanel.jsx
+                                   /api/options-screener/strategies  /api/options-screener/strategy/  /api/options-screener/more-strategies  /api/options-screener/more/  /api/options-screener/sizzle
+      EXEMPT                       app/src/pages/screener/ScreensManager.jsx
+                                   useSavedScreens.js→/api/screener/saved-screens  useSavedScreens.js→/api/screener/saved-screens/  useScreenAlerts.js→/api/screener/alerts  useScreenAlerts.js→/api/screener/alerts/
+      routes direct                app/src/pages/screener/options/OptionsScreener.jsx
+                                   /api/options-screener/screen  /api/options-screener/unusual-volume  /api/options-screener/iv-percentile
+      EXEMPT                       app/src/pages/screener/shell/PresetChips.jsx
+                                   useSavedScreens.js→/api/screener/saved-screens  useSavedScreens.js→/api/screener/saved-screens/
+      EXEMPT                       app/src/pages/screener/shell/ResultCards.jsx
+                                   useScreenSpec.js→/api/screener/saved-screens
+      EXEMPT                       app/src/pages/screener/shell/SaveScanButton.jsx
+                                   useSavedScreens.js→/api/screener/saved-screens  useSavedScreens.js→/api/screener/saved-screens/
+      routes direct                app/src/pages/screener/shell/ScannerShell.jsx
+                                   useScreenerMeta.js→/api/screener/meta  useScreenerScan.js→/api/screener/scan  useScreenerCount.js→/api/screener/count  useScreenSpec.js→/api/screener/saved-screens
+
+  routing 8  ·  exempt 8  ·  violations 1  ·  stale exemptions 0
+
+── EXEMPTIONS BY KIND — the follow-up list ─────────────────────────────
+   not-a-result-set: 6
+      app/src/components/screener/MethodologyPanel.jsx
+         not-a-result-set: renders the screener's methodology prose from /api/screener/methodology; nothing is evaluated, so there is nothing to count
+      app/src/components/screener/StructureProvenance.jsx
+         not-a-result-set: renders the structure-library catalogue from /api/screener/structures (criteria and their sources), not symbols a screen matched
+      app/src/pages/charts/widgets/ListSubscription.jsx
+         not-a-result-set: its /api/screener/saved-screens door lists the member's saved screen DEFINITIONS to pick a list source (COV-10); the subscribed members come from /api/charts/list-sources, not an A9 route
+      app/src/pages/screener/shell/PresetChips.jsx
+         not-a-result-set: one-click saved-screen presets via useSavedScreens; it applies a spec and lists no results
+      app/src/pages/screener/shell/ResultCards.jsx
+         not-a-result-set: reaches /api/screener/saved-screens only through useScreenSpec's savedScreen= door (build D, 2026-09-30), which loads a saved SPEC to apply, never a result set; the screener's results carry their own CoverageLine
+      app/src/pages/screener/shell/SaveScanButton.jsx
+         not-a-result-set: saves the current screen spec via useSavedScreens; it lists no results
+   no-counts: 0
+   delegates: 2
+      app/src/components/screener/RunNowButton.jsx
+         delegates: hands the finished run to its parent via onResult(toScanResultsPayload(run)); app/src/components/screener/ScanResults.jsx renders that run's four counts
+      app/src/pages/screener/ScreensManager.jsx
+         delegates: its own door lists saved screens and screen alerts; the chosen scan's answer is rendered by app/src/components/screener/ScanResults.jsx, which renders its four counts
+═══════════════════════════════════════════════════════════════════════
+
+
+ ❯ src/components/provenance/panelAdoption.ratchet.test.js (26 tests | 1 failed) 445ms
+     ✓ ⛔⛔ the transcribed census layer is byte-identical to panelAdoption.measure.test.js 2ms
+     ✓ ⛔ the transcribed resolver reaches through to components/screener/reachable.test.js 1ms
+     ✓ ⛔ the graph walk found a real graph and the population is non-empty 2ms
+     ✓ ⛔⛔ the detector can SEE a planted import, and can tell an absent one 2ms
+     ✓ ⛔ the file-reading predicate and the source predicate are the SAME predicate 112ms
+     ✓ ⛔ a RE-EXPORT SHIM resolves to the primitive it fronts, and the alias set is load-bearing 1ms
+     ✓ ⛔ a KNOWN adopter is in the population AND in the baseline, BY NAME 0ms
+     ✓ ⛔⛔ MUTATION, PERMANENT: strip a real adopter's imports and the ratchet names it 3ms
+     ✓ ⛔ the ratchet verdict can FAIL — table cases, with a discriminator 0ms
+     ✓ ⛔ a missing adopter is DIAGNOSED, not just named — and the branches differ 2ms
+     ✓ ⛔ the committed baseline is byte-exactly what the writer produces 1ms
+     ✓ ⭐⭐ every adopter the baseline records STILL ADOPTS — failing BY NAME 1ms
+     ✓ ⭐ the baseline is CURRENT — a new adopter is banked in the same commit 0ms
+     ✓ prints the population, the frontier, and the labels 274ms
+     ✓ the derivation is not vacuous: a known member BY NAME, and it discriminates 1ms
+     ✓ THE HOOK HOP IS LOAD-BEARING: the screener shell is a surface only through its hooks 12ms
+     ✓ the classifier: a route stem, a template head, a hook, and prose are told apart 1ms
+     ✓ every exemption has a KIND and a one-line reason, and the map is sorted 0ms
+     ✓ a `delegates:` exemption names its delegate, and the delegate RENDERS the line 10ms
+     × every result surface renders CoverageLine or is exempt with a reason — FAILING BY NAME 7ms
+     ✓ the exemption list can only SHRINK — an entry outliving its gap fails by name 0ms
+     ✓ PLANTED VIOLATION: a new result surface with no receipt is NAMED 1ms
+     ✓ MUTATION, PERMANENT: strip ScanResults' CoverageLine import and the rail names it 6ms
+     ✓ an IMPORT is not a RENDER, and a NAMED import is not the component 1ms
+     ✓ the verdict can FAIL both ways — table cases, with a discriminator 0ms
+     ✓ prints the derived set, how each routes, and the exemptions by kind 0ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/swallowedFetch.census.test.js > TERM-033: `.catch(() => null)` is a shrink-only census > no file gains a site, and no new file adopts the idiom
+AssertionError: use sectionFetcher (throws on failure) instead of swallowing it: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "components/admin/AlertOpsPanel.jsx: 0 -> 1",
++ ]
+
+ ❯ src/lib/swallowedFetch.census.test.js:54:85
+     52|       .filter(([f, n]) => n > (baseline.files[f] || 0))
+     53|       .map(([f, n]) => `${f}: ${baseline.files[f] || 0} -> ${n}`)
+     54|     expect(grew, 'use sectionFetcher (throws on failure) instead of sw…
+       |                                                                                     ^
+     55|   })
+     56| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/12]⎯
+
+ FAIL  src/hooks/pollingSites.rail.test.js > polling sites — the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved
+AssertionError: A bare `useSWR(..., { refreshInterval })` site appeared that the 2026-08-09
+census did not hold. That is a decision, not a lint nit:
+  • `useMobileSWR` HALVES the tick on a touch client — take it if a phone renders this;
+  • bare `useSWR` keeps the app-global `revalidateOnFocus: false` from App.jsx —
+    the wrapper agrees (off, since 2026-10-05), and adds
+    a visibilitychange listener and a 60s useMarketOpen timer per call site.
+Pick one, then add the row below with your reason. Do NOT add a row to silence this.: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "app/src/hooks/useTickerIpo.js: 1 (listed 0)",
++ ]
+
+ ❯ src/hooks/pollingSites.rail.test.js:489:19
+    487|       '    a visibilitychange listener and a 60s useMarketOpen timer p…
+    488|       'Pick one, then add the row below with your reason. Do NOT add a…
+    489|     ].join('\n')).toEqual([])
+       |                   ^
+    490| 
+    491|     const stale = Object.entries(BARE_POLL_SITES)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/12]⎯
+
+ FAIL  src/__tests__/entryExcludesChartEngine.test.js > ⛔ the entry chunk does not statically reach the chart engine > ⛔ no module under components/chart/engine/ is on the entry's static closure
+AssertionError: the entry chunk statically reaches the chart engine (3 modules):
+  components/chart/engine/legacyCotGroups.js via
+    → main.jsx
+    → App.jsx
+    → components/Layout.jsx
+    → hooks/usePreferences.js
+    → components/chart/instanceShape.js
+    → components/chart/engine/legacyCotGroups.js
+  components/chart/engine/groupBars.js via
+    → main.jsx
+    → App.jsx
+    → components/Layout.jsx
+    → hooks/usePreferences.js
+    → components/chart/instanceShape.js
+    → components/chart/engine/legacyCotGroups.js
+    → components/chart/engine/groupBars.js
+  components/chart/engine/cotFollow.js via
+    → main.jsx
+    → App.jsx
+    → components/Layout.jsx
+    → hooks/usePreferences.js
+    → components/chart/instanceShape.js
+    → components/chart/engine/legacyCotGroups.js
+    → components/chart/engine/cotFollow.js
+Make the edge nearest the always-mounted shell a dynamic import() — see components/journalCaptureLoader.js.: expected 3 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 3
+
+ ❯ src/__tests__/entryExcludesChartEngine.test.js:153:48
+    151|     expect(hits.length, `the entry chunk statically reaches the chart …
+    152|       + 'Make the edge nearest the always-mounted shell a dynamic impo…
+    153|       + 'components/journalCaptureLoader.js.').toBe(0)
+       |                                                ^
+    154|   })
+    155| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/12]⎯
+
+ FAIL  src/__tests__/entryExcludesChartEngine.test.js > ⛔ the Notebook and Journal routes do not statically reach the chart engine > pages/journal-2-0/surfaces/NotebookSurface.jsx: no components/chart/engine/ module on its static closure
+AssertionError: pages/journal-2-0/surfaces/NotebookSurface.jsx statically reaches the chart engine (3 modules):
+  components/chart/engine/legacyCotGroups.js via
+    → pages/journal-2-0/surfaces/NotebookSurface.jsx
+    → pages/journal-2-0/tabs/NotebookTab.jsx
+    → hooks/usePreferences.js
+    → components/chart/instanceShape.js
+    → components/chart/engine/legacyCotGroups.js
+  components/chart/engine/groupBars.js via
+    → pages/journal-2-0/surfaces/NotebookSurface.jsx
+    → pages/journal-2-0/tabs/NotebookTab.jsx
+    → hooks/usePreferences.js
+    → components/chart/instanceShape.js
+    → components/chart/engine/legacyCotGroups.js
+    → components/chart/engine/groupBars.js
+  components/chart/engine/cotFollow.js via
+    → pages/journal-2-0/surfaces/NotebookSurface.jsx
+    → pages/journal-2-0/tabs/NotebookTab.jsx
+    → hooks/usePreferences.js
+    → components/chart/instanceShape.js
+    → components/chart/engine/legacyCotGroups.js
+    → components/chart/engine/cotFollow.js
+: expected 3 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 3
+
+ ❯ src/__tests__/entryExcludesChartEngine.test.js:219:114
+    217|       const hits = engineHits(closure)
+    218|       const report = hits.slice(0, 3).map((h) => `  ${rel(h)} via\n   …
+    219|       expect(hits.length, `${start} statically reaches the chart engin…
+       |                                                                                                                  ^
+    220|     })
+    221|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/12]⎯
+
+ FAIL  src/__tests__/sourcesAreText.test.js > every JS/JSX source under app/src is TEXT > contains no NUL or other C0 control byte
+AssertionError: A control byte makes the file BINARY to git and to ripgrep: its diff reads "Binary files … differ" and a grep for any symbol in it finds nothing. Write the character as an escape (\u0000) instead — the runtime string is identical.
+  app/src/pages/terminal/L0Strip.test.jsx:105 — 0x08 at byte 5763
+  app/src/pages/terminal/L0Strip.test.jsx:105 — 0x08 at byte 5766: expected [ …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "app/src/pages/terminal/L0Strip.test.jsx:105 — 0x08 at byte 5763",
++   "app/src/pages/terminal/L0Strip.test.jsx:105 — 0x08 at byte 5766",
++ ]
+
+ ❯ src/__tests__/sourcesAreText.test.js:124:7
+    122|           offenders.join('\n  ')
+    123|         : '',
+    124|     ).toEqual([])
+       |       ^
+    125|   })
+    126| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/12]⎯
+
+ FAIL  src/utils/jsonFetcher.test.js > no shipped surface parses a response it never checked > NO NEW SURFACE joins the list — and a healed one must leave it
+AssertionError: these are listed in STILL_UNCHECKED but no longer carry the shape.
+Delete them from the list — a stale exemption is how a rail rots into
+somewhere the next offender can hide.
+
+pages/UCT20.jsx: expected [ 'pages/UCT20.jsx' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "pages/UCT20.jsx",
++ ]
+
+ ❯ src/utils/jsonFetcher.test.js:215:19
+    213|       'somewhere the next offender can hide.',
+    214|       '', ...healed,
+    215|     ].join('\n')).toEqual([])
+       |                   ^
+    216|   })
+    217| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/12]⎯
+
+ FAIL  src/components/provenance/panelAdoption.ratchet.test.js > TERM-047 — CoverageLine on every result surface > every result surface renders CoverageLine or is exempt with a reason — FAILING BY NAME
+AssertionError: RESULT SURFACES WITHOUT A COVERAGE RECEIPT. Each of these shows the answer to a screen (an A9 route) and renders no <CoverageLine> — so a screen that silently loses symbols reads as a quiet market. Render <CoverageLine coverage={…}/> from the BACKEND's four counts, or — if the backend returns none, or this is not a result set — add a one-line reason to coverage_line_exempt in app/src/components/provenance/panelAdoption.baseline.json (not-a-result-set: no-counts: delegates:).: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "app/src/components/settings/StandingAlertsPanel.jsx   doors: /api/screener/spec-alerts /api/screener/spec-alerts/",
++ ]
+
+ ❯ src/components/provenance/panelAdoption.ratchet.test.js:1409:8
+    1407|       + `or — if the backend returns none, or this is not a result set…
+    1408|       + `coverage_line_exempt in ${key(BASELINE_FILE)} (${EXEMPT_KINDS…
+    1409|       .toEqual([])
+       |        ^
+    1410|   }, 600000)
+    1411| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/12]⎯
+
+ FAIL  src/components/screener/reachable.test.js > 🔴 S4 — a parking note may not outlive its own expiry > ⛔⛔ NO BLOCK IS PAST ITS EXPIRY — the check `objectPool` needed and did not have
+AssertionError: these parking notes have outlived their own expiry. WIRE the modules, DELETE them, or renew the date deliberately — what you may not do is leave them, which is exactly how objectPool.js stayed unreachable for eight days past its date while the engine drew a year-stale chart.: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "WAVE 2 IN FLIGHT — THE RENDERER PRIMITIVES AND TWO INSTRUMENTS (expired 2026-10-06, still parking 5: app/src/components/chart/engine/textLayout.js, app/src/components/chart/engine/versionRender.js, app/src/components/chart/engine/lwcHazards.js, app/src/components/chart/engine/zorder.js, app/src/components/chart/builder/memberPane/seriesCompare.js)",
++ ]
+
+ ❯ src/components/screener/reachable.test.js:889:8
+    887|       + 'do is leave them, which is exactly how objectPool.js stayed u…
+    888|       + 'for eight days past its date while the engine drew a year-sta…
+    889|       .toEqual([])
+       |        ^
+    890|   })
+    891| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/12]⎯
+
+ FAIL  src/lib/context/symbolLinkChannels.test.js > S4 CP2 — the deep-link ruling has a derived rail behind it > ⛔ no NEW surface reads a symbol/timeframe param by hand
+AssertionError: NEW hand-typed deep-link read(s): testing/marketcap/marketCapHarness.jsx.
+chartDeepLink.js:13-17 rules that a URL param is a one-shot INSTRUCTION applied through an existing authority and then STRIPPED — never a second source of truth. Route through readChartsLink/chartsLinkPath, or add the file to HAND_TYPED_BASELINE with the reason it is a separate door.: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "testing/marketcap/marketCapHarness.jsx",
++ ]
+
+ ❯ src/lib/context/symbolLinkChannels.test.js:220:7
+    218|             'file to HAND_TYPED_BASELINE with the reason it is a separ…
+    219|         : '',
+    220|     ).toEqual([])
+       |       ^
+    221|   })
+    222| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/12]⎯
+
+ FAIL  src/lib/persistence/persistenceManifest.test.js > the persistence census sees the tree before anything is compared > classifies every storage-shaped call and resolves every key
+AssertionError: expected [ { …(4) }, { …(4) } ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "call": "removeItem",
++     "file": "app/src/agent/capabilities/watchlist.js",
++     "fn": "commit",
++     "line": 109,
++   },
++   {
++     "call": "removeItem",
++     "file": "app/src/agent/capabilities/watchlist.js",
++     "fn": "commit",
++     "line": 126,
++   },
++ ]
+
+ ❯ src/lib/persistence/persistenceManifest.test.js:67:79
+     65|     expect(REAL.unresolved).toEqual([])
+     66|     const notWeb = new Set(MANIFEST.notWebStorage)
+     67|     expect(REAL.unclassified.filter((u) => !notWeb.has(`${u.file}#${u.…
+       |                                                                               ^
+     68|   })
+     69| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/12]⎯
+
+ FAIL  src/components/chart/engine/__tests__/enumerationSites.test.js > the enumeration ledger — the count is a test, not a comment > names every shipped module that hand-lists four or more indicators
+AssertionError: the JS discovery scan sees a different set of files than it saw at the start of Phase C. If a module was added to or removed from the four-id set deliberately, move this literal and say which; if not, the scan itself changed.: expected [ …(11) ] to deeply equal [ …(10) ]
+
+- Expected
++ Received
+
+@@ -7,6 +7,7 @@
+    "app/src/components/chart/engine/instances.js",
+    "app/src/components/chart/engine/nativeRegistry.js",
+    "app/src/components/chart/engine/registrySizes.js",
+    "app/src/components/chart/keyboardShortcuts.js",
+    "app/src/pages/charts/mobile/MobileIndicatorSheet.jsx",
++   "app/src/pages/research/tabs/TechnicalTab.jsx",
+  ]
+
+ ❯ src/components/chart/engine/__tests__/enumerationSites.test.js:2158:7
+    2156|     // which `listDefinitions()` order cannot express — and it is ledg…
+    2157|     // See its LEDGER row for why naming IDS (and only ids) keeps it s…
+    2158|     ).toEqual([
+       |       ^
+    2159|       // ⭐ PHASE 4 — `builtinForks.js::SPECS`, the custom-copy formula…
+    2160|       'app/src/components/chart/builder/builtinForks.js',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/12]⎯
+
+ FAIL  src/components/chart/engine/__tests__/suiteCoverage.test.js > ⛔ a test directory under chart/ that NO named script runs > the chart test directories on disk are the ones somebody acknowledged
+AssertionError: the test directories under src/components/chart moved.
+  NEW (run it, confirm green, then acknowledge):
+    src/components/chart/builder/authoring
+: expected { …(2) } to deeply equal { added: [], gone: [] }
+
+- Expected
++ Received
+
+  {
+-   "added": [],
++   "added": [
++     "src/components/chart/builder/authoring",
++   ],
+    "gone": [],
+  }
+
+ ❯ src/components/chart/engine/__tests__/suiteCoverage.test.js:248:8
+    246|       + (added.length ? '  NEW (run it, confirm green, then acknowledg…
+    247|       + (gone.length ? '  GONE (delete from ACKNOWLEDGED_CHART):\n    …
+    248|       .toEqual({ added: [], gone: [] })
+       |        ^
+    249|   })
+    250| })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/12]⎯
+
+
+ Test Files  11 failed | 1 passed (12)
+      Tests  12 failed | 133 passed (145)
+   Start at  20:51:27
+   Duration  53.80s (transform 5.09s, setup 1.65s, import 29.87s, tests 56.75s, environment 5.38s)
+
