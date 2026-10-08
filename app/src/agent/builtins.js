@@ -10,6 +10,8 @@ import { registerAlertCapabilities } from './capabilities/alert'
 import { registerStockCapabilities } from './capabilities/stock'
 import { registerSettingsCapabilities } from './capabilities/settings'
 import { registerAppCapabilities } from './capabilities/app'
+import { registerNewsCapabilities } from './capabilities/news'
+import { registerDigestCapabilities } from './capabilities/digest'
 
 let done = false
 export function registerBuiltins() {
@@ -24,4 +26,6 @@ export function registerBuiltins() {
   registerStockCapabilities()
   registerSettingsCapabilities()
   registerAppCapabilities()
+  registerNewsCapabilities()
+  registerDigestCapabilities()
 }

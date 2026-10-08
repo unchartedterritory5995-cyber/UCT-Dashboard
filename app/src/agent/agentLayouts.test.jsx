@@ -246,3 +246,100 @@ describe('a stored proposal never runs on a different board', () => {
     expect(globalThis.fetch.mock.calls.some(([u]) => u === '/api/agent/turn')).toBe(false)
   })
 })
+
+describe('layout.delete — your own, never the open one, proposed, re-checked, no Undo', () => {
+  const del = (layout) => ({ action: 'layout.delete', target: 'layouts', args: { layout } })
+  it('a non-open own layout: proposed; Apply deletes exactly that id through the dock; no Undo', async () => {
+    const { host, state } = lib()
+    const p = plan(host, [del('13')])
+    expect(p.ok).toBe(true)
+    expect(decideMode('apply', p)).toBe('propose')
+    expect(p.lines).toEqual(['Deleted the layout “Momentum” (permanent)'])
+    const res = await commitPlan(host, p)
+    expect(res.ok).toBe(true)
+    expect(res.undo).toBeNull()
+    expect(state.layouts.calls).toEqual([['remove', 13]])
+    expect(state.layouts.entries.map(e => e.name)).not.toContain('Momentum')
+    expect(state.layouts.entries.map(e => e.name)).toEqual(expect.arrayContaining(['Momentum 2', 'Momentum Swing']))
+  })
+  it.each([
+    ['11', /is the layout open now — open another layout first/],
+    ['5', /is a prebuilt layout — only your own layouts can be deleted/],
+    ['uct-default', /is a built-in layout/],
+    ['999', /isn't in your layout list/],
+  ])('refused before any write: %s', (id, re) => {
+    const { host, state } = lib()
+    const p = plan(host, [del(id)])
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0].reason).toMatch(re)
+    expect(state.layouts.calls).toEqual([])
+  })
+  it('STALE: renamed elsewhere / already gone / now open → refused at Apply; a server refusal is reported', async () => {
+    const a = lib(); const pa = plan(a.host, [del('13')])
+    a.state.layouts.entries = a.state.layouts.entries.map(e => (e.id === 13 ? { ...e, name: 'Momentum (old)' } : e))
+    expect((await commitPlan(a.host, pa)).failed[0].reason).toMatch(/changed since I read it|changed while I was working/)
+    expect(a.state.layouts.calls).toEqual([])
+    const b = lib(); const pb = plan(b.host, [del('13')])
+    b.state.layouts.entries = b.state.layouts.entries.filter(e => e.id !== 13)
+    expect((await commitPlan(b.host, pb)).failed[0].reason).toMatch(/already gone|changed while I was working/)
+    expect(b.state.layouts.calls).toEqual([])
+    const c = lib(); const pc = plan(c.host, [del('13')])
+    c.state.layouts.activeId = 13
+    expect((await commitPlan(c.host, pc)).failed[0].reason).toMatch(/is open now|changed while I was working/)
+    expect(c.state.layouts.calls).toEqual([])
+    const d = lib(); const pd = plan(d.host, [del('13')])
+    d.state.layouts.failRemove = true
+    const rd = await commitPlan(d.host, pd)
+    expect(rd.ok).toBe(false)
+    expect(rd.failed[0].reason).toMatch(/Delete failed/)
+    expect(d.state.layouts.entries.some(e => e.id === 13)).toBe(true)
+  })
+})
+
+describe('layout.delete — a change only the SERVER knew is caught by the Apply-time re-read', () => {
+  it('renamed in another tab (seen only on refresh) → refused, nothing deleted', async () => {
+    const { host, state } = lib()
+    const p = plan(host, [{ action: 'layout.delete', target: 'layouts', args: { layout: '13' } }])
+    state.layouts.onRefresh = () => { state.layouts.entries = state.layouts.entries.map(e => (e.id === 13 ? { ...e, name: 'Momentum Keep' } : e)) }
+    const res = await commitPlan(host, p)
+    expect(res.ok).toBe(false)
+    expect(res.failed[0].reason).toMatch(/that layout changed since I read it/)
+    expect(state.layouts.calls).toEqual([])
+  })
+})
+
+describe('layout.duplicate — a create-only copy of the stored layout', () => {
+  const dup = (layout, name) => ({ action: 'layout.duplicate', target: 'layouts', args: { layout, name } })
+  it('default name "<name> copy"; a copy of a prebuilt becomes your own; never opened; proposed', async () => {
+    const { host, state } = lib()
+    const p = plan(host, [dup('12', null)])
+    expect(decideMode('apply', p)).toBe('propose')
+    expect(p.lines).toEqual(['Copied “Intraday Scan” to a new layout “Intraday Scan copy”'])
+    const res = await commitPlan(host, p)
+    expect(res.ok).toBe(true)
+    expect(state.layouts.calls).toEqual([['duplicate', 12, 'Intraday Scan copy']])
+    expect(state.layouts.activeId).toBe(11)
+    const p2 = plan(host, [dup('12', null)])
+    expect(p2.lines[0]).toMatch(/“Intraday Scan copy 2”/)
+  })
+  it('an existing name is refused at plan AND (made elsewhere meanwhile) at Apply — never overwritten', async () => {
+    expect(plan(lib().host, [dup('12', 'Momentum')]).refusals[0].reason).toMatch(/already have a layout named “Momentum” — I won't overwrite it/)
+    const { host, state } = lib()
+    const p = plan(host, [dup('12', 'Breakout Setup')])
+    state.layouts.entries = [...state.layouts.entries, { id: 77, name: 'Breakout Setup', scope: 'user' }]
+    const res = await commitPlan(host, p)
+    expect(res.ok).toBe(false)
+    expect(res.failed[0].reason).toMatch(/already have a layout named “Breakout Setup”|changed while I was working/)
+    expect(state.layouts.calls).toEqual([])
+  })
+})
+
+describe('layout.duplicate fast path', () => {
+  it('"make a copy of my Intraday Scan" → duplicate with the default name; a new name or an unknown layout goes to the model', () => {
+    const { host } = lib()
+    expect(fastOps(host, 'make a copy of my Intraday Scan')).toEqual([{ action: 'layout.duplicate', target: 'layouts', args: { layout: '12', name: null } }])
+    expect(fastOps(host, 'duplicate the Intraday Scan layout')).toEqual([{ action: 'layout.duplicate', target: 'layouts', args: { layout: '12', name: null } }])
+    expect(fastOps(host, 'copy Intraday Scan as Scan 2')).toBeNull()
+    expect(fastOps(host, 'make a copy of my Nonexistent')).toBeNull()
+  })
+})

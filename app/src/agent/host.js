@@ -159,6 +159,8 @@ export function buildLayoutSource(getLayouts) {
     rename: (id, name) => getLayouts()?.rename(id, name),
     saveAs: (name) => getLayouts()?.saveAs(name),
     refresh: () => getLayouts()?.refresh?.(),
+    remove: (id) => getLayouts()?.remove(id),
+    duplicate: (id, name) => getLayouts()?.duplicate(id, name),
   }
 }
 

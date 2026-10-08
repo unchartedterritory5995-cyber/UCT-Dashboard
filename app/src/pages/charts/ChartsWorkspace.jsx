@@ -2927,6 +2927,18 @@ export default function ChartsWorkspace() {
       rename: (id, name) => handleDockRename(id, name),
       saveAs: (name) => saveCurrentAs(name, 'user', { createOnly: true }),
       refresh: () => refreshLayouts(),
+      // The dock's own delete (DELETE by id; throws if the server refuses). The Agent never
+      // deletes the OPEN layout (the dock would first switch the board to UCT Default).
+      remove: (id) => deleteLayout(id),
+      // The dock's duplicate (a copy of the STORED layout), but create-only: a name that
+      // already exists is refused by the server instead of overwritten.
+      duplicate: (id, name) => {
+        const src = id === UCT_DEFAULT_ID
+          ? { layout: parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT }
+          : (globalLayouts.find(t => t.id === id) || myLayouts.find(t => t.id === id))
+        if (!src?.layout) return Promise.reject(new Error('that layout has no stored content to copy'))
+        return saveLayout({ name, layout: src.layout, groups: null, scope: 'user', createOnly: true })
+      },
     }
   }
   // UCT Agent's settings + navigation reach: the SAME preference writer the Settings page

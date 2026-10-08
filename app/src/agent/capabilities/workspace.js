@@ -33,6 +33,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider, isRef, SYMBOLS } from '../capabilities'
 import { WORKSPACE_MENU_TYPES, labelMap } from '../../widgets/registry'
 import { mark } from '../trace'
+import { afterRender } from '../frames'
 
 const LABEL = labelMap('menu')
 const label = (t) => LABEL[t] || t
@@ -67,10 +68,8 @@ function chartRoomProblem(st, snap, n) {
   return null
 }
 
-const nextFrame = () => new Promise(r => {
-  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => setTimeout(r, 0))
-  else setTimeout(r, 0)
-})
+// Wait for React to commit (never for a paint: a hidden tab never paints) — see agent/frames.js.
+const nextFrame = afterRender
 
 const createdIds = (item) => {
   const before = new Set(item.patch?.beforeIds || item.before?.widgets?.map(w => w.id) || [])
