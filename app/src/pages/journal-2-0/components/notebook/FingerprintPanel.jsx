@@ -45,6 +45,7 @@ import { getTemplate } from '../../lib/notebookTemplates'
 import { assembleTemplateContext } from '../../lib/templateContext'
 import { createNoteViaApi } from '../../lib/noteCreation'
 import { lazyLeaf } from '../../lib/lazyChunk'
+import { NOTEBOOK_DOORS, onNotebookDoor } from '../../lib/notebookDoors'
 import styles from './FingerprintPanel.module.css'
 
 // Through lazyChunk's leaf form (one in-place retry, never a page reload; wave 7 I-1).
@@ -156,6 +157,19 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
   const [planMsg, setPlanMsg] = useState(null)
   const [creating, setCreating] = useState(false)
   const [playbookOpen, setPlaybookOpen] = useState(false)
+  // Lane KEYS3 (Q22): the command palette's "Visual playbook" opens this chart's own sheet,
+  // exactly as the button below does. One panel answers: a chart with a setup tag is asked
+  // first (its sheet offers "Only this chart's setup"); an untagged one answers only when no
+  // tagged chart did. With the gate off nobody listens.
+  const hasTag = Boolean(ta?.setupTag)
+  useEffect(() => {
+    if (!vpOn) return undefined
+    return onNotebookDoor(NOTEBOOK_DOORS.VISUAL_PLAYBOOK, (d) => {
+      if (!hasTag && !d.anyChart) return false
+      setPlaybookOpen(true)
+      return true
+    })
+  }, [vpOn, hasTag])
   const [nonce, setNonce] = useState(0)
   const timer = useRef(null)
   const attempts = useRef(0)
@@ -407,7 +421,7 @@ export default function FingerprintPanel({ attrs, updateAttributes, editor, shar
         <PlaybookBoundary>
           <Suspense fallback={null}>
             <VisualPlaybook open={playbookOpen} onClose={() => setPlaybookOpen(false)}
-              initialSetup={ta?.setupTag || null} />
+              initialSetup={ta?.setupTag || null} landOnSetup />
           </Suspense>
         </PlaybookBoundary>
       )}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
+import { NOTEBOOK_DOORS, onNotebookDoor } from '../../lib/notebookDoors'
 import useFocusTrap from '../../../../components/mobile/useFocusTrap'
 import UIcon from '../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../hooks/useBreakpoint'
@@ -8,8 +9,8 @@ import {
   precisionWords,
   citedSources,
   resolveNoteCitation,
-  splitAnswer,
 } from '../../lib/askCitation'
+import { styledParts } from '../../lib/askEmphasis'
 import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
   from '../../lib/documentProvenance'
 import { buildAskInsertNode } from '../../lib/askInsert'
@@ -124,6 +125,7 @@ export default function AskPanel({
   const answeredAtRef = useRef(0)
   const inputRef = useRef(null)
   const toggleRef = useRef(null)
+  const answerRef = useRef(null)
   // Closing unmounts what held focus, so focus goes back to the toggle that opened the
   // panel: the host's `onClose` does it when there is one (the note editor's), else the
   // panel does (F4 / A2R-06).
@@ -165,6 +167,33 @@ export default function AskPanel({
     })
     return () => { cancelAnimationFrame(outer); cancelAnimationFrame(inner) }
   }, [open])
+
+  // Lane KEYS3 (Q9): the command palette's "Ask about this note". Only a NOTE's panel answers
+  // (the Notebook-wide Ask on Research Home is another question). It opens exactly as its own
+  // toggle opens it; the effect above then puts the cursor in the field.
+  useEffect(() => {
+    if (scope !== 'note' || autoOpen) return undefined
+    return onNotebookDoor(NOTEBOOK_DOORS.ASK, () => {
+      setOpen(true)
+      inputRef.current?.focus()             // already open: straight to the field
+      return true
+    })
+  }, [scope, autoOpen])
+
+  // Lane KEYS3 (Q9): the question field is disabled while the answer streams, and a browser
+  // drops focus from a disabled field to the page. When the answer ENDS and focus is still
+  // lost (on the page, or on the sheet itself), it goes to the answer: the next Tab is the
+  // answer's first control instead of the sheet's Close button. Never to the field (on a phone
+  // that would raise the keyboard over the answer), and never away from where a member went.
+  const wasAskingRef = useRef(false)
+  useEffect(() => {
+    const was = wasAskingRef.current
+    wasAskingRef.current = status === 'asking'
+    if (!was || status !== 'done' || !open) return
+    const at = document.activeElement
+    const lost = !at || at === document.body || (at.matches && at.matches('[role="dialog"]'))
+    if (lost) answerRef.current?.focus({ preventScroll: true })
+  }, [status, open])
 
   const ask = useCallback(async () => {
     const q = query.trim()
@@ -268,7 +297,9 @@ export default function AskPanel({
     if (message) setNavNotice(message)
   }, [getEditorDoc, onNavigate, supersedeNavigation])
 
-  const parts = useMemo(() => (answer ? splitAnswer(answer, sources) : []),
+  // Fin-ai K3: the model's `**bold**` / `*italic*` are read once (lib/askEmphasis.js) and
+  // rendered as elements around plain text below. Never as HTML, and the asterisks are not shown.
+  const parts = useMemo(() => (answer ? styledParts(answer, sources) : []),
                         [answer, sources])
   const cited = useMemo(() => citedSources(answer, sources), [answer, sources])
 
@@ -364,7 +395,7 @@ export default function AskPanel({
           )}
 
           {answer && (
-            <div className={styles.answer} data-testid="ask-answer"
+            <div className={styles.answer} data-testid="ask-answer" ref={answerRef} tabIndex={-1}
                  aria-live="polite" aria-busy={status === 'asking'}>
               {parts.map((p, i) => (p.source
                 ? (
@@ -379,7 +410,7 @@ export default function AskPanel({
                     {p.text}
                   </button>
                 )
-                : <span key={i}>{p.text}</span>))}
+                : <EmphasisText key={i} part={p} />))}
             </div>
           )}
 
@@ -486,6 +517,14 @@ export default function AskPanel({
  * body-scroll lock, drag-to-dismiss and safe-area padding that a hand-rolled
  * div silently lacked.
  */
+/** One run of answer text. Emphasis is an element around a text node, never markup. */
+function EmphasisText({ part }) {
+  let node = part.text
+  if (part.italic) node = <em>{node}</em>
+  if (part.bold) node = <strong>{node}</strong>
+  return <span>{node}</span>
+}
+
 function PanelShell({ isTouch, label, onClose, children }) {
   // ⛔⛔ F4 / A2R-06 (WCAG 2.4.3, 2.1.1): THE DESKTOP PANEL CONTAINS TAB AND CLOSES ON ESCAPE,
   // like every other sheet. Lane 10E-2's keyboard walk tabbed straight out of it into the

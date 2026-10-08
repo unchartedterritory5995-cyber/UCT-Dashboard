@@ -28,6 +28,11 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider, isRef, SYMBOLS } from '../capabilities'
 import { unknownSymbols } from '../agentClient'
+// Each list's tickers ARE shown to the model (removing "TSLA from Momentum" needs it:
+// without them the production model asked whether TSLA was in the list, 0/5 —
+// measured 2026-10-08). Provenance does not depend on hiding them: a copied list
+// is bound back to the list deterministically (compose.bindCopiedLiterals).
+const SHOW_IN_CONTEXT = 40           // symbols per list the model is shown
 
 const MAX_PER_REQUEST = 50           // symbols one add/remove may carry
 const CONFIRM_OVER = 10              // a bigger batch is proposed first
@@ -269,6 +274,8 @@ export function registerWatchlistCapabilities() {
       if (!host?.watchlists) return undefined
       return listsOf(host).slice(0, 40).map(l => ({
         ref: refFor('watchlist', l.id), name: l.name, count: l.items.length,
+        symbols: l.items.slice(0, SHOW_IN_CONTEXT).map(i => i.sym),
+        ...(l.items.length > SHOW_IN_CONTEXT ? { moreSymbols: l.items.length - SHOW_IN_CONTEXT } : {}),
         ...(l.shownIn.length ? { shownInWidget: l.shownIn } : {}),
         ...(l.editable ? {} : { readOnly: l.why }),
       }))

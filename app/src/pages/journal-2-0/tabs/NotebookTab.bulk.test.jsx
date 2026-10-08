@@ -286,6 +286,52 @@ describe('NotebookTab — selecting notes', () => {
     expect(within(toolbar()).getByText('3 selected')).toBeInTheDocument()
   })
 
+  // Lane KEYS round 4: the list header (sort, the view buttons, Import, Export, Today,
+  // Templates, New note) was thirteen Tab stops in front of the list. It is one toolbar stop.
+  it('the list header is ONE toolbar stop; Right and End move inside it', () => {
+    renderTab()
+    const bar = screen.getByRole('toolbar', { name: 'Notes list tools' })
+    const controls = [...bar.querySelectorAll('button, a[href], select')].filter((el) => !el.disabled)
+    expect(controls.length).toBeGreaterThan(5)             // NON-VACUITY: a real row of controls
+    expect(controls.filter((el) => el.tabIndex === 0)).toHaveLength(1)
+    const first = controls.find((el) => el.tabIndex === 0)
+    first.focus()
+    fireEvent.keyDown(first, { key: 'End' })
+    expect(document.activeElement).toBe(controls[controls.length - 1])
+    fireEvent.keyDown(document.activeElement, { key: 'ArrowLeft' })
+    expect(document.activeElement).toBe(controls[controls.length - 2])
+    expect(controls.filter((el) => el.tabIndex === 0)).toEqual([controls[controls.length - 2]])
+  })
+
+  // Lane KEYS round 5: every note was two Tab stops (its tick box and its card). The list is
+  // one stop now. Down and Up go note to note, Right and Left between a note's tick and card.
+  it('the notes list is ONE Tab stop; Down moves to the next note, Right to the note’s card', () => {
+    renderTab()
+    const ticks = ['First note', 'Second note', 'Third note'].map(box)
+    const cards = ticks.map((t) => t.closest('[data-note-row]').querySelector('[data-note-card-id]'))
+    const all = [...ticks, ...cards]
+    expect(all.filter((el) => el.getAttribute('tabindex') === '0')).toEqual([ticks[0]])
+    expect(all.filter((el) => el.getAttribute('tabindex') === '-1')).toHaveLength(5)
+    ticks[0].focus()
+    fireEvent.keyDown(ticks[0], { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(ticks[1])
+    fireEvent.keyDown(ticks[1], { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(cards[1])
+    fireEvent.keyDown(cards[1], { key: 'ArrowUp' })
+    expect(document.activeElement).toBe(cards[0])
+    expect(all.filter((el) => el.getAttribute('tabindex') === '0')).toEqual([cards[0]])
+  })
+
+  it('in the one-stop list Shift+Down on a tick still extends the selection (lane 13Q-5)', () => {
+    renderTab()
+    fireEvent.click(box('First note'))
+    box('First note').focus()
+    fireEvent.keyDown(box('First note'), { key: 'ArrowDown', shiftKey: true })
+    expect(box('Second note')).toBeChecked()
+    expect(document.activeElement).toBe(box('Second note'))
+    expect(box('Second note').getAttribute('tabindex')).toBe('0')
+  })
+
   it('Esc clears the selection', () => {
     renderTab()
     fireEvent.click(box('First note'))

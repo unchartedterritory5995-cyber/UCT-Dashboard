@@ -1,5 +1,13 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+// Lane KEYS3: the touch tier is switched per test (a sheet instead of the anchored menu).
+const touch = vi.hoisted(() => ({ on: false }))
+vi.mock('../../../hooks/useBreakpoint', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useIsTouch: () => touch.on,
+}))
+
 import CaptureMenu from './CaptureMenu'
 
 const sendMock = vi.fn(() => Promise.resolve('AMD sent to “Tuesday”'))
@@ -7,7 +15,7 @@ vi.mock('../lib/sendToJournal', () => ({
   sendCaptureToJournal: (...args) => sendMock(...args),
 }))
 
-beforeEach(() => { sendMock.mockClear() })
+beforeEach(() => { sendMock.mockClear(); touch.on = false })
 
 describe('CaptureMenu — Wave 1 (P1-1) destination + comment picker', () => {
   it('renders nothing when closed', () => {
@@ -105,4 +113,41 @@ describe('CaptureMenu — Wave 1 (P1-1) destination + comment picker', () => {
     expect(sendMock.mock.calls[1][2].comment).toBeUndefined()
   })
 
+})
+
+// Finish program, lane KEYS3 (Q6). On a phone-sized screen this menu is a sheet, and a sheet
+// takes focus for itself: the default destination was then behind Close and the comment box
+// (three Tab stops). When the sheet has taken focus, it goes on to the first destination. Not
+// to the comment box: on a phone that would raise the keyboard. The anchored (wide) menu is
+// unchanged: it still puts the cursor in the comment box.
+describe('CaptureMenu on the touch tier: focus lands on the first destination (lane KEYS3)', () => {
+  const frames = (n = 6) => act(() => new Promise((resolve) => {
+    const step = (k) => (k ? requestAnimationFrame(() => step(k - 1)) : resolve())
+    step(n)
+  }))
+
+  it('in the sheet, focus goes to "Current note"', async () => {
+    touch.on = true
+    render(<CaptureMenu open onClose={() => {}} anchor={{ x: 0, y: 0 }} widgetId="breadth" capture={{}} label="Breadth" />)
+    expect(document.querySelector('[data-sheet-panel]')).not.toBeNull()      // control: a sheet
+    await frames()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Current note' }))
+  })
+
+  it('a member who is already in the sheet (typing a comment) keeps their place', async () => {
+    touch.on = true
+    render(<CaptureMenu open onClose={() => {}} anchor={{ x: 0, y: 0 }} widgetId="breadth" capture={{}} label="Breadth" />)
+    const box = screen.getByLabelText('Capture comment')
+    box.focus()
+    await frames()
+    expect(document.activeElement).toBe(box)
+  })
+
+  it('CONTROL: the anchored menu on a wide screen never has its focus moved to a destination', async () => {
+    touch.on = false
+    render(<CaptureMenu open onClose={() => {}} anchor={{ x: 0, y: 0 }} widgetId="breadth" capture={{}} label="Breadth" />)
+    expect(document.querySelector('[data-sheet-panel]')).toBeNull()
+    await frames()
+    expect(document.activeElement).not.toBe(screen.getByRole('button', { name: 'Current note' }))
+  })
 })

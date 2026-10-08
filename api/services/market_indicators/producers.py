@@ -107,6 +107,42 @@ def load_pair(metric_a: str, metric_b: str, universe: str,
 EXCHANGE_UNIVERSES = ("nyse", "nasdaq")
 
 
+# ── The Summation Index's NATURAL level (2026-10-07) ────────────────────────
+#
+# ⭐⭐ A McClellan Summation Index is exactly  SUM(t) = C + 19·EMA5%(t) − 9·EMA10%(t)  for a
+# constant C fixed by wherever the running total was started (sum MO(t) = 19·ΔEMA5% − 9·ΔEMA10%).
+# With C = 0 the level means what traders read it as: a long-run average of ratio-adjusted net
+# advances ×10, so ZERO IS NEUTRAL and ±500 are the usual extremes. StockCharts' $NASI/$NYSI sit at
+# C ≈ 0 (solved from their published 2026-10-06/07 readings: −625.9 vs −625.44, −770.9 vs −772.10).
+#
+# ⛔ OURS DID NOT. The accepted series started the running total at 0 on its epoch, which bakes in a
+# permanent C — measured on production: NASDAQ +478.75, NYSE −202.74, US +388.95, constant to 1e-4
+# over the whole history. The shape and every daily change were right; the LEVEL (and therefore the
+# zero line and the reference lines) was shifted. This removes C — the same constant for every date,
+# so all history is corrected at once and every future value stays corrected.
+#
+# ⚠️ THE FROZEN EXCHANGE ARTIFACT IS NOT TOUCHED. Its stored running total is read as-is and shifted
+# here at serve time; the shift is re-measured from the SAME authority's advancing/declining on every
+# build (it is a constant, so measuring it at the latest common session is exact, and the EMA seed has
+# no influence after thousands of sessions).
+
+def natural_summation_shift(dates, summation, ema_fast, ema_slow) -> Optional[float]:
+    """The constant to ADD to a running-total summation so that C = 0. `ema_fast` is the 10% trend
+    (`ema19`), `ema_slow` the 5% trend (`ema39`), all aligned to `dates`. None if not measurable."""
+    for i in range(len(dates) - 1, -1, -1):
+        s, f, w = summation[i], ema_fast[i], ema_slow[i]
+        if s is None or f is None or w is None:
+            continue
+        if not (math.isfinite(s) and math.isfinite(f) and math.isfinite(w)):
+            continue
+        return (19.0 * float(w) - 9.0 * float(f)) - float(s)
+    return None
+
+
+def _shifted(values, shift: float):
+    return [None if v is None else float(v) + shift for v in values]
+
+
 def _exchange_series(sid: str, row) -> Optional["DerivedSeries"]:
     from api.services import breadth_exchange_authority as ea
     vals = ea.derived(sid)
@@ -114,11 +150,34 @@ def _exchange_series(sid: str, row) -> Optional["DerivedSeries"]:
         return None
     dates = sorted(vals)
     kind = sid.split(":", 1)[1]
-    return DerivedSeries(series_id=sid, dates=dates, values=[vals[d] for d in dates], universe=row.universe,
+    values = [vals[d] for d in dates]
+    base = None
+    if kind == "MCS":
+        # The frozen running total, re-levelled to its natural level (see the block above).
+        # ⛔ ONE AUTHORITY: the trends are measured from the exchange authority's OWN advancing /
+        # declining rows — never the general store — the same data its running total was built from.
+        ha = ea.universe_history("advancing", row.universe) or {}
+        hd = ea.universe_history("declining", row.universe) or {}
+        adates = sorted(set(ha) | set(hd))
+        if not adates:
+            return None
+        adv = [(ha.get(d) or {}).get("c") for d in adates]
+        dec = [(hd.get(d) or {}).get("c") for d in adates]
+        res = mc.compute(adates, adv, dec, method=mc.RATIO_ADJUSTED)
+        f = dict(zip(res.dates, res.ema19))
+        w = dict(zip(res.dates, res.ema39))
+        shift = natural_summation_shift(dates, values, [f.get(d) for d in dates], [w.get(d) for d in dates])
+        if shift is None:
+            # ⛔ No measurable level: refuse rather than serve the shifted-by-C series as if it were right.
+            _log.error("market indicators: %s natural level not measurable — not served", sid)
+            return None
+        values = _shifted(values, shift)
+        base = values[0]
+    return DerivedSeries(series_id=sid, dates=dates, values=values, universe=row.universe,
                          methodology_version=row.methodology_version,
                          detail={"authority": "breadth_exchange_authority", "token": ea.token()},
                          epoch=ea.MCO_FIRST[row.universe] if kind == "MCS" else None,
-                         base=0.0 if kind == "MCS" else None)
+                         base=base)
 
 # ── McClellan ────────────────────────────────────────────────────────────────
 
@@ -466,10 +525,16 @@ def _build_uncached(sid: str) -> Optional[DerivedSeries]:
                                      want_summation=anchor is None)
         if res is None or res.anchor is None:
             return None
-        return DerivedSeries(series_id=sid, dates=res.dates, values=res.summation,
+        # ⭐ The epoch still decides WHERE the series starts (after the burn-in); the level is the
+        # natural one (C = 0), not "0 on the epoch". See `natural_summation_shift`.
+        shift = natural_summation_shift(res.dates, res.summation, res.ema19, res.ema39)
+        if shift is None:
+            return None
+        values = _shifted(res.summation, shift)
+        return DerivedSeries(series_id=sid, dates=res.dates, values=values,
                              universe=uni, methodology_version=row.methodology_version,
                              detail={"oscillator": res.oscillator},
-                             epoch=res.anchor.at, base=res.anchor.value)
+                             epoch=res.anchor.at, base=float(res.anchor.value) + shift)
     if sid.endswith(":AD"):
         ds = ad_line_for_universe(uni)
         if ds:

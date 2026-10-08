@@ -41,14 +41,20 @@ describe('a folder row\'s actions are sibling buttons', () => {
     expect(row.textContent).toBe('Theses')
   })
 
-  it('each action is a real button, reachable by Tab, named for THIS folder', async () => {
+  // Lane KEYS round 4. This case pinned `tabIndex === 0`: the point of wave 8 was that a
+  // keyboard could REACH each action (they had been spans). The panel is a tree now and a tree
+  // is one Tab stop, so the buttons are out of the Tab order (-1) and the keyboard reaches the
+  // same actions through the row's menu, Shift+F10 (FolderSidebar.tree.test.jsx). They are
+  // still real, named buttons for the pointer, which is what the rest of this case holds.
+  it('each action is a real button, named for THIS folder, and out of the Tab order', async () => {
     renderSidebar()
     await folderRowButton('Theses')
     for (const name of ['Rename Theses', 'Add subfolder to Theses', 'Delete Theses']) {
       const btn = screen.getByRole('button', { name })
       expect(btn.tagName).toBe('BUTTON')
       expect(btn.getAttribute('type')).toBe('button')
-      expect(btn.tabIndex).toBe(0)
+      expect(btn.tabIndex).toBe(-1)
+      expect(btn.closest('[role="treeitem"]').getAttribute('aria-label')).toBe('Theses')
       // a sibling of the row button, inside the same row wrapper
       expect(btn.closest('button')).toBe(btn)
     }

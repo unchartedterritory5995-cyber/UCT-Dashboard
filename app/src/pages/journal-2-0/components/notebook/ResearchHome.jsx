@@ -6,6 +6,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import usePreferences from '../../../../hooks/usePreferences'
 import { useIsPaid } from '../../../../context/AuthContext'
 import useNotebookHome from '../../hooks/useNotebookHome'
+import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { openNotebookTour } from './onboarding/tourControl'
 import {
@@ -89,7 +90,14 @@ export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '' }) {
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
   const headingRef = useRef(null)
-  if (!reviewDraftsEnabled()) return null
+  // Finish program, lane AI-FE (K2): the drafts are asked for the member's SELECTED account,
+  // the same hook every Journal read uses (the Insights door already hands its id in). With
+  // no id the server has no account to look a Compass review up for, so the quote never
+  // showed. `null` ("All accounts") still sends no id. The hook is told not to fetch while
+  // the box is off, so a dark box still asks for nothing.
+  const on = reviewDraftsEnabled()
+  const { accountId } = useJ2SelectedAccount(on)
+  if (!on) return null
 
   const run = async (period, fn) => {
     if (busy) return
@@ -98,7 +106,9 @@ export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '' }) {
     try {
       // A failed fetch of the drafts chunk lands in the catch below, like a failed draft.
       const { note } = await fn(await loadReviewDrafts())
-      onOpenNote(note)
+      // Lane KEYS3 (Q18): a drafted review's findings are its collapsed blocks. The note opens
+      // with focus on the first of them, not at its top (18 to 24 Tab stops above it).
+      onOpenNote(note, null, { to: 'collapsed' })
     } catch (e) {
       // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
       setError(e?.memberMessage || `Could not draft the ${period} review — try again.`)
@@ -126,15 +136,15 @@ export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '' }) {
       </div>
       <div className={styles.rows} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '4px 0' }}>
         <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} data-tour="review-drafts-daily"
-          onClick={() => run('daily', (m) => m.draftDailyReview({ day: m.todayDayIso() }))}>
+          onClick={() => run('daily', (m) => m.draftDailyReview({ accountId, day: m.todayDayIso() }))}>
           <UIcon name="book" size={14} gold={false} /> {busy === 'daily' ? 'Drafting…' : "Today's recap"}
         </button>
         <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} data-tour="review-drafts-weekly"
-          onClick={() => run('weekly', (m) => m.draftWeeklyReview({ weekStart: m.mondayOfIso() }))}>
+          onClick={() => run('weekly', (m) => m.draftWeeklyReview({ accountId, weekStart: m.mondayOfIso() }))}>
           <UIcon name="book" size={14} gold={false} /> {busy === 'weekly' ? 'Drafting…' : "This week's review"}
         </button>
         <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} data-tour="review-drafts-monthly"
-          onClick={() => run('monthly', (m) => m.draftMonthlyReview({ month: m.thisMonthIso() }))}>
+          onClick={() => run('monthly', (m) => m.draftMonthlyReview({ accountId, month: m.thisMonthIso() }))}>
           <UIcon name="book" size={14} gold={false} /> {busy === 'monthly' ? 'Drafting…' : "This month's review"}
         </button>
       </div>
@@ -196,7 +206,9 @@ export default function ResearchHome({
   const [previewDoc, setPreviewDoc] = useState(null)
   const [capturedSource, setCapturedSource] = useState(null)
 
-  const openNote = (note) => (onOpenNote ? onOpenNote(note) : navigate(notePath(note.id)))
+  // Whatever a box passes after the note (a drafted review's `{ to: 'collapsed' }`) goes on to
+  // the tab unchanged; a box that passes only the note still calls with only the note.
+  const openNote = (note, ...rest) => (onOpenNote ? onOpenNote(note, ...rest) : navigate(notePath(note.id)))
 
   // ── Wave 8 lane 8C (C3): the sample notebook and the tour's door ──────────────────
   // Both appear only while `notebook_onboarding_enabled` is on; the sample button only

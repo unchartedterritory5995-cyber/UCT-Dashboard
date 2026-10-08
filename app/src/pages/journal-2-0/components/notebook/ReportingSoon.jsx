@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import useSWR from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
 import LoadFailed from '../LoadFailed'
@@ -7,6 +7,7 @@ import {
   SOON_URL, earningsPrepEnabled, fetchReportingSoon, createEarningsPrepNote, fmtShortDay,
   sourceLabel, timingLabel,
 } from '../../lib/earningsPrep'
+import { NOTEBOOK_PREP_HASH } from '../../lib/notebookDoors'
 import styles from './ReportingSoon.module.css'
 
 function whenText(item) {
@@ -33,6 +34,26 @@ export default function ReportingSoon({ onOpenNote }) {
   )
   const [busy, setBusy] = useState(null)
   const [message, setMessage] = useState('')
+
+  // Lane KEYS3 (Q15): the command palette's "Earnings prep" arrives with `#prep`. Once the
+  // list has loaded, focus goes to the first name's prep button (it sat behind "Ask Notebook"
+  // and the name's research link); in a week with no names, to this box's heading, where the
+  // reason is read. Once per arrival (`location.key`), a frame after the palette has closed.
+  const location = useLocation()
+  const sectionRef = useRef(null)
+  const answeredRef = useRef(null)
+  const loaded = Boolean(data) && !error
+  useEffect(() => {
+    if (!enabled || !loaded) return undefined
+    if (location.hash !== NOTEBOOK_PREP_HASH || answeredRef.current === location.key) return undefined
+    answeredRef.current = location.key
+    const raf = requestAnimationFrame(() => {
+      const root = sectionRef.current
+      const target = root?.querySelector('ul button') || root?.querySelector('h3')
+      target?.focus()
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [enabled, loaded, location.hash, location.key])
 
   if (!enabled) return null
 
@@ -62,9 +83,9 @@ export default function ReportingSoon({ onOpenNote }) {
     // On the list, the tour never opened for a member with no name reporting this week (the
     // common case, and every new member's): it waited on Home and closed with nothing shown.
     <section className={styles.section} aria-labelledby="reporting-soon-title" data-reporting-soon=""
-      data-tour="reporting-soon-list">
+      data-tour="reporting-soon-list" ref={sectionRef}>
       <div className={styles.header}>
-        <h3 id="reporting-soon-title" className={styles.title}>Reporting soon</h3>
+        <h3 id="reporting-soon-title" className={styles.title} tabIndex={-1}>Reporting soon</h3>
         <span className={styles.scope}>Your watchlist, flagged and open-position names, next {days} days</span>
       </div>
       {error && (

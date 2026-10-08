@@ -25,7 +25,10 @@
       "n": 0
     },
     "bestTrade": null,
-    "compassOmitted": null,
+    "compassOmitted": {
+      "reason": "no_review",
+      "sentence": "Compass has not written a review of this day, so none is quoted here."
+    },
     "compassText": null,
     "discipline": {
       "entry": {

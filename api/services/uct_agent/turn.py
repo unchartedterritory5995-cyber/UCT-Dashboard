@@ -179,6 +179,23 @@ def args_match(schema: dict, args: Any) -> bool:
     return all(_value_ok(props[k], args[k]) for k in props)
 
 
+def _fill_absent_nullables(schema: dict, args: dict) -> dict:
+    """An argument the model left OUT whose schema allows null is the same as null.
+    Measured 2026-10-08: "what's in Momentum?" sent watchlist.show with {} (its `as`
+    is nullable) and the whole turn failed as unreadable. Nothing else is filled in:
+    a missing non-nullable argument still fails."""
+    props = schema.get("properties") or {}
+    out = dict(args)
+    for k, spec in props.items():
+        if k in out:
+            continue
+        t = spec.get("type")
+        types = [t] if isinstance(t, str) else list(t or [])
+        if "null" in types:
+            out[k] = None
+    return out
+
+
 def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
     """COMPACT ops → {action, target, args}. Args that are not JSON, or that do not
     match the action's own schema, make the whole envelope unreadable (never guessed)."""
@@ -192,6 +209,8 @@ def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
             args = json.loads(o.get("args_json") or "{}")
         except (TypeError, ValueError):
             raise TurnError("UCT Agent returned something unreadable. Try rephrasing.")
+        if cap is not None and isinstance(args, dict):
+            args = _fill_absent_nullables(cap["args"], args)
         if cap is None or not args_match(cap["args"], args):
             raise TurnError("UCT Agent returned something unreadable. Try rephrasing.")
         out.append({"action": o.get("action"), "target": o.get("target"), "args": args})

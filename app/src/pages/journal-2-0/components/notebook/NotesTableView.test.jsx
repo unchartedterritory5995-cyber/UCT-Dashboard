@@ -413,3 +413,23 @@ describe('NotesTableView — keyboard open (F4, A2R-02)', () => {
     expect(onOpenNote).toHaveBeenCalledTimes(1)
   })
 })
+
+// Finish program, lane KEYS3: the table view of the notes list is ONE Tab stop, as the card
+// view already is (lib/useGridRoving.js). It asks the shared table for that with `oneTabStop`.
+describe('NotesTableView: the rows are one Tab stop (lane KEYS3)', () => {
+  it('only the first row is in the Tab order; Down moves to the next note and Enter opens it', async () => {
+    const user = userEvent.setup()
+    const { onOpenNote } = setup()
+    const first = screen.getByRole('row', { name: 'Open NVDA Thesis' })
+    const second = screen.getByRole('row', { name: 'Open AMD Watch' })
+    const body = first.closest('tbody')
+    expect([...body.querySelectorAll('[tabindex="0"]')]).toEqual([first])
+    expect(second.getAttribute('tabindex')).toBe('-1')
+    expect(within(first).getByRole('button', { name: /Active/ }).getAttribute('tabindex')).toBe('-1')
+    first.focus()
+    fireEvent.keyDown(first, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(second)
+    await user.keyboard('{Enter}')
+    expect(onOpenNote).toHaveBeenCalledWith(notes[1])
+  })
+})

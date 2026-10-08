@@ -95,9 +95,25 @@ export default function ContextPopover({
     if (!pos || focusedOnce.current) return undefined
     focusedOnce.current = true
     const restoreTo = document.activeElement
-    const el = menuRef.current
-    const first = el ? focusableWithin(el)[0] : null
-    ;(first || el)?.focus?.()
+    // ⛔ ASK AGAIN ON THE NEXT FRAME UNTIL FOCUS IS INSIDE (measured in a real browser,
+    // 2026-10-07). With "reduce motion" on, tokens.css gives every element a 0.01 ms
+    // transition on every property, so the change from hidden to visible is a transition and
+    // at the instant it starts the menu is STILL computed `hidden`. A browser silently refuses
+    // to focus a hidden element. One attempt, made right here, was refused and never
+    // repeated: the menu was on screen and every key went to the page behind it.
+    let raf = 0
+    let tries = 0
+    const takeFocus = () => {
+      const el = menuRef.current
+      if (!el) return
+      const first = focusableWithin(el)[0]
+      ;(first || el).focus?.()
+      if (!el.contains(document.activeElement) && tries < 12) {
+        tries += 1
+        raf = requestAnimationFrame(takeFocus)
+      }
+    }
+    takeFocus()
     // ⛔ NO `isConnected` CHECK, AND THAT IS MEASURED, NOT ASSUMED. The
     // trigger can genuinely be gone by now (a menu whose action deleted the row
     // it was opened from), and the obvious guard is to skip the restore for a
@@ -106,7 +122,7 @@ export default function ContextPopover({
     // test written for it could not fail, and a test that cannot fail reads as
     // coverage while providing none. Optional chaining is the whole guard: it
     // handles `restoreTo` being null, which IS distinguishable.
-    return () => { restoreTo?.focus?.() }
+    return () => { cancelAnimationFrame(raf); restoreTo?.focus?.() }
   }, [open, isTouch, pos])
 
   // Desktop: dismiss on outside click / Escape

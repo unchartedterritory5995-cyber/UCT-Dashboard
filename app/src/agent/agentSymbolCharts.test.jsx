@@ -297,7 +297,7 @@ describe('Watchlist → Charts and the last screen → Charts', () => {
     expect(screen.queryByTestId('agent-proposal')).toBeNull()
   })
 
-  it('PROVENANCE: the model is never the authority for a list — tickers copied from a NAMED list are bound back to it and read fresh at Apply; the list contents are not in the model context', async () => {
+  it('PROVENANCE: the model is never the authority for a list — tickers copied from a NAMED list are bound back to it and read fresh at Apply; even though the model could see the contents', async () => {
     const { state, say, syms } = await mount()
     let seenCtx = null
     // The model copies the first two of the named list as literal tickers.
@@ -305,7 +305,7 @@ describe('Watchlist → Charts and the last screen → Charts', () => {
     say('Open the first two stocks in my Agent Test Watchlist as charts.')
     const card = await nth('agent-proposal', 1)
     expect(seenCtx[0]).toEqual(expect.objectContaining({ name: 'Agent Test Watchlist', count: 3 }))
-    expect(seenCtx[0].symbols).toBeUndefined()                                    // list contents are not sent to the model
+    expect(seenCtx[0].symbols).toEqual(['T03', 'T01', 'T02'])                    // it SAW them — and is still not the authority
     expect(card).toContain('Use the stocks in “Agent Test Watchlist” (its saved order) — read when you apply')
     expect(card).not.toContain('T03')
     // Reordered AND renamed by hand before Apply: bound by id, read fresh.

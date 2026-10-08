@@ -34,7 +34,10 @@ export function toolbarControls(root) {
   return shown.length ? shown : all
 }
 
-export default function useToolbarRoving({ prefer, enabled = true } = {}) {
+export default function useToolbarRoving({ prefer, enabled = true, orientation = 'horizontal' } = {}) {
+  // 'vertical' is for a short list of rows that is one stop: Down and Up instead of Right and Left.
+  const NEXT = orientation === 'vertical' ? 'ArrowDown' : 'ArrowRight'
+  const PREV = orientation === 'vertical' ? 'ArrowUp' : 'ArrowLeft'
   const ref = useRef(null)
   const stopRef = useRef(null)
 
@@ -93,14 +96,14 @@ export default function useToolbarRoving({ prefer, enabled = true } = {}) {
 
   const onKeyDown = useCallback((e) => {
     if (!enabled) return
-    if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(e.key)) return
+    if (![NEXT, PREV, 'Home', 'End'].includes(e.key)) return
     if (e.ctrlKey || e.metaKey || e.altKey) return
     const items = toolbarControls(ref.current)
     const i = items.indexOf(e.target)
     if (i === -1) return                       // not on one of this row's own controls
     let next = i
-    if (e.key === 'ArrowRight') next = (i + 1) % items.length
-    else if (e.key === 'ArrowLeft') next = (i - 1 + items.length) % items.length
+    if (e.key === NEXT) next = (i + 1) % items.length
+    else if (e.key === PREV) next = (i - 1 + items.length) % items.length
     else if (e.key === 'Home') next = 0
     else next = items.length - 1
     e.preventDefault()                         // also stops Left/Right changing a <select>
@@ -108,7 +111,7 @@ export default function useToolbarRoving({ prefer, enabled = true } = {}) {
     stopRef.current = items[next]
     apply()
     items[next].focus()
-  }, [apply, enabled])
+  }, [apply, enabled, NEXT, PREV])
 
   const onFocus = useCallback((e) => {
     if (!enabled) return

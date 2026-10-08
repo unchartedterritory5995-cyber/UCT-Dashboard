@@ -728,6 +728,10 @@ function stripTrailingEmptyParagraph(doc) {
   return { ...doc, content: doc.content.slice(0, -1) }
 }
 
+/** Lane KEYS3 (Q18): how many animation frames a just-opened review is watched for its first
+ *  collapsed block before focus falls back to the note's landmark (about 2.5 s). */
+const COLLAPSED_FOCUS_FRAMES = 150
+
 export default function NoteEditorPage({
   noteId, onBack, showBack = true, onTitleChange = null, noteMenu = null,
   // Wave 8 (8A, A4; final-review fix I-1): where an explicit open from the
@@ -993,16 +997,45 @@ export default function NoteEditorPage({
   // resolves. `openFocusDoneRef` is the ONE claim both effects honour, so
   // whichever of the two branches applies still fires exactly once.
   const titleInputRef = useRef(null)
+  const tickerInputRef = useRef(null)
   const landmarkRef = useRef(null)
   const openFocusDoneRef = useRef(false)
   const askRowRef = useRef(null)
   useEffect(() => {
-    if (!openFocus || openFocus === 'body' || openFocusDoneRef.current) return
-    const target = openFocus === 'title' ? titleInputRef.current : landmarkRef.current
+    if (!openFocus || openFocus === 'body' || openFocus === 'collapsed' || openFocusDoneRef.current) return
+    // Lane KEYS3 (Q2): 'ticker' is a fresh note from a template that asks for one. A note
+    // with no Ticker field on screen falls back to the title, as before.
+    const target = openFocus === 'ticker' ? (tickerInputRef.current || titleInputRef.current)
+      : openFocus === 'title' ? titleInputRef.current : landmarkRef.current
     if (!target) return
     openFocusDoneRef.current = true
     target.focus({ preventScroll: true })
     onOpenFocused?.()
+  }, [openFocus, isLoading, note, onOpenFocused])
+  // Lane KEYS3 (Q18): 'collapsed' is a review the Notebook just drafted. Its findings are
+  // collapsed blocks, and the first of them sat 18 to 24 Tab stops below the top of the note
+  // (the header, the title area, two charts). Focus goes to that block's arrow, so Enter opens
+  // it. The body is built a moment after the note loads, so it is looked for across frames;
+  // a note with no collapsed block gets the landmark, as any existing note does.
+  useEffect(() => {
+    if (openFocus !== 'collapsed' || openFocusDoneRef.current) return undefined
+    let raf = 0
+    let frames = 0
+    const done = (el, opts) => {
+      openFocusDoneRef.current = true
+      el?.focus(opts)
+      onOpenFocused?.()
+    }
+    const look = () => {
+      const arrow = pageRef.current?.querySelector(
+        '.ProseMirror [data-type="toggle"][data-open="false"] button.uctToggleChevron')
+      if (arrow) { done(arrow); return }
+      frames += 1
+      if (frames > COLLAPSED_FOCUS_FRAMES) { done(landmarkRef.current, { preventScroll: true }); return }
+      raf = requestAnimationFrame(look)
+    }
+    raf = requestAnimationFrame(look)
+    return () => cancelAnimationFrame(raf)
   }, [openFocus, isLoading, note, onOpenFocused])
   /** Ask's panel lives in AskPanel; its toggle is the button that opened it.
    *  Closing the panel unmounts what held focus, so focus goes back there.
@@ -4103,6 +4136,7 @@ export default function NoteEditorPage({
             ))}
           </select>
           <input
+            ref={tickerInputRef}
             className={styles.headerInput}
             placeholder="Ticker"
             aria-label="Ticker"

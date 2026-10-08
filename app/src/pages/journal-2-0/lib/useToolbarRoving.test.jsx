@@ -11,8 +11,8 @@ import useToolbarRoving from './useToolbarRoving'
 
 afterEach(cleanup)
 
-function Row({ enabled = true, hideFirst = false }) {
-  const r = useToolbarRoving({ enabled })
+function Row({ enabled = true, hideFirst = false, orientation }) {
+  const r = useToolbarRoving({ enabled, orientation })
   return (
     <div role="toolbar" aria-label="t" ref={r.ref} onKeyDown={r.onKeyDown} onFocus={r.onFocus}>
       <button type="button" data-hidden={hideFirst ? '' : undefined}>one</button>
@@ -50,6 +50,20 @@ describe('useToolbarRoving', () => {
     render(<Row />)
     expect(stops()).toEqual(['one'])
   }))
+
+  it('vertical (a list of rows): Down and Up move, Left and Right are left alone', () => {
+    render(<Row orientation="vertical" />)
+    const [one, two] = buttons()
+    one.focus()
+    fireEvent.keyDown(one, { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(one)
+    fireEvent.keyDown(one, { key: 'ArrowDown' })
+    expect(document.activeElement).toBe(two)
+    fireEvent.keyDown(two, { key: 'ArrowUp' })
+    expect(document.activeElement).toBe(one)
+    fireEvent.keyDown(one, { key: 'End' })
+    expect(document.activeElement.textContent).toBe('three')
+  })
 
   it('switched off, every control is an ordinary Tab stop again and the arrows do nothing', () => {
     const view = render(<Row />)

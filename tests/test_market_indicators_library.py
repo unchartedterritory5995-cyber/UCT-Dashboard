@@ -508,7 +508,8 @@ def test_the_us_summation_level_is_defined_in_the_registry_not_discovered():
     row = reg.get("US:MCS")
     assert row.summation_epoch == "2008-06-24"
     assert row.summation_base == 0.0
-    assert row.summation_anchor_source == "declared"
+    # ⭐ (owner, 2026-10-07) the epoch fixes where the series starts; the LEVEL is natural (C = 0).
+    assert row.summation_anchor_source == "natural"
     assert row.summation_base == mc.RATIO_ADJUSTED.summation_base, (
         "the base must be the VARIANT's neutral level, not an arbitrary number")
 
@@ -563,12 +564,61 @@ def test_the_oscillator_is_served_from_the_first_session_but_the_summation_is_no
     assert reg.get("US:MCS").summation_epoch is not None
 
 
-def test_the_exchange_summations_are_declared_never_vendor_anchored():
-    """⛔ Owner ruling 2026-10-03: the UCT exchange summations use a DECLARED epoch at base 0.
-    Our census differs from the vendors', so anchoring to $NYSI/$NASI would fake comparability."""
+def test_the_exchange_summations_are_natural_level_never_vendor_anchored():
+    """⛔ Owner ruling 2026-10-03 (still in force): never anchor to $NYSI/$NASI's VALUES — our census
+    differs. ⭐ Owner decision 2026-10-07: the level is the NATURAL one (C = 0, computed from OUR OWN
+    trends), replacing "0 on the epoch", which baked in a permanent offset."""
     for sym in ("NYSI", "NASI"):
         row = reg.resolve(sym, include_dormant=True)
-        assert row.summation_anchor_source == "declared" and row.summation_base == 0.0
+        assert row.summation_anchor_source == "natural"
+        assert not row.summation_anchor_source.startswith("reference:")
+        assert "NATURAL level" in row.methodology and "zero is neutral" in row.methodology
+
+
+def _synthetic_breadth(n=600):
+    import math as _m
+    dates = [f"{2000 + i // 250}-{1 + (i % 250) // 21:02d}-{1 + i % 21:02d}" for i in range(n)]
+    adv = [1500 + 700 * _m.sin(i / 11.0) + 300 * _m.sin(i / 3.1) for i in range(n)]
+    dec = [1500 - 650 * _m.sin(i / 13.0) + 250 * _m.cos(i / 2.7) for i in range(n)]
+    return dates, adv, dec
+
+
+def test_the_summation_identity_holds_so_the_offset_is_one_constant():
+    """⭐⭐ THE FACT THE FIX RESTS ON: a running total of the oscillator differs from
+    19·EMA5% − 9·EMA10% by ONE constant for every session. That is why removing it corrects
+    all of history at once and stays correct going forward."""
+    dates, adv, dec = _synthetic_breadth()
+    res = mc.compute(dates, adv, dec, method=mc.RATIO_ADJUSTED,
+                     anchor=mc.Anchor(at=dates[150], value=0.0, source="declared"))
+    cs = [s - (19 * w - 9 * f) for s, f, w in zip(res.summation, res.ema19, res.ema39) if s is not None]
+    assert len(cs) > 400 and max(cs) - min(cs) < 1e-6
+    assert abs(cs[0]) > 1.0, "a zero-at-epoch start really does bake in an offset"
+
+
+def test_the_us_summation_is_served_at_its_natural_level(monkeypatch):
+    """US:MCS = 19·EMA5% − 9·EMA10% on every session (C = 0); the oscillator is unchanged and the
+    series still starts at the pinned epoch."""
+    dates, adv, dec = _synthetic_breadth()
+    row = reg.get("US:MCS")
+    dates[200] = row.summation_epoch
+    dates = sorted(dates)
+    monkeypatch.setattr(producers, "load_pair", lambda *a, **k: (dates, adv, dec))
+    producers.invalidate()
+    try:
+        ds = producers.build("US:MCS")
+        res = mc.compute(dates, adv, dec, method=mc.RATIO_ADJUSTED)
+        nat = {d: 19 * w - 9 * f for d, f, w in zip(res.dates, res.ema19, res.ema39)}
+        served = [(d, v) for d, v in zip(ds.dates, ds.values) if v is not None]
+        assert served and served[0][0] == row.summation_epoch
+        assert max(abs(v - nat[d]) for d, v in served) < 1e-6
+    finally:
+        producers.invalidate()
+
+
+def test_natural_shift_refuses_when_nothing_is_measurable():
+    assert producers.natural_summation_shift(["a"], [None], [1.0], [1.0]) is None
+    assert producers.natural_summation_shift(["a", "b"], [5.0, None], [2.0, 9.0], [3.0, 9.0]) == \
+        (19 * 3.0 - 9 * 2.0) - 5.0
 
 
 # ══════════════════════════════════════════════════════════════════════════

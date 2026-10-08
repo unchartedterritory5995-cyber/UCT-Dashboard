@@ -175,3 +175,36 @@ describe('the research workspace door', () => {
     expect(calls.filter((c) => c.startsWith('POST'))).toEqual(['POST /api/j2/earnings-prep/EPNV/draft', 'POST /api/j2/notes'])
   })
 })
+
+// Finish program, lane KEYS3 (Q15): earnings prep on a keyboard was 7 keys against a budget of
+// 5 (which is also its floor): 2 Tabs to "Skip to notes list", Enter, then "Ask Notebook" and
+// the name's research link before its prep button. The command palette's "Earnings prep"
+// arrives on Research Home with "#prep", and this box puts focus on the first name's prep
+// button.
+describe('ReportingSoon: the "#prep" door lands on the first prep button (lane KEYS3)', () => {
+  beforeEach(() => { __resetNotebookFlags(); latchNotebookFlags({ notebook_earnings_prep_enabled: true }) })
+  afterEach(() => { __resetNotebookFlags() })
+
+  it('with the door, focus goes to the first name\'s button once the list has loaded', async () => {
+    stub([[/\/api\/j2\/earnings-prep\/soon$/, SOON]])
+    render(<Providers route="/journal/notebook#prep"><ReportingSoon onOpenNote={() => {}} /></Providers>)
+    const first = await screen.findByRole('button', { name: 'Open the EPAM prep note' })
+    await waitFor(() => expect(document.activeElement).toBe(first))
+  })
+
+  it('CONTROL: without the door nothing takes focus', async () => {
+    stub([[/\/api\/j2\/earnings-prep\/soon$/, SOON]])
+    render(<Providers><ReportingSoon onOpenNote={() => {}} /></Providers>)
+    await screen.findByRole('button', { name: 'Open the EPAM prep note' })
+    await new Promise((r) => setTimeout(r, 40))
+    expect(document.activeElement).toBe(document.body)
+  })
+
+  it('a week with no names: focus goes to the box\'s heading, where the reason is read', async () => {
+    stub([[/\/api\/j2\/earnings-prep\/soon$/, contractBody('earnings-prep.soon.empty')]])
+    render(<Providers route="/journal/notebook#prep"><ReportingSoon onOpenNote={() => {}} /></Providers>)
+    const heading = await screen.findByRole('heading', { name: 'Reporting soon' })
+    await waitFor(() => expect(document.activeElement).toBe(heading))
+    expect(heading.tabIndex).toBe(-1)
+  })
+})

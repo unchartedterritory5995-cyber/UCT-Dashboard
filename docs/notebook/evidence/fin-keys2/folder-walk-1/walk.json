@@ -1,0 +1,209 @@
+{
+ "tool": "tools/notebook_fin_keys_folder_walk.py",
+ "tree": "c6dfdec05ac10ee8296c8d34220623c1683276c1",
+ "started": "2026-10-07T20:05:51+00:00",
+ "steps": [
+  {
+   "mode": "mouse",
+   "step": "expand a folder",
+   "ok": true,
+   "detail": {
+    "expanded": "true",
+    "child_showing": true
+   }
+  },
+  {
+   "mode": "mouse",
+   "step": "select a folder",
+   "ok": false,
+   "detail": "TimeoutError: Timeout 10000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**folder=c04a00d5b52b4fb59152ba790053ea68*\" until 'load'\n============================================================"
+  },
+  {
+   "mode": "mouse",
+   "step": "the panel is still reachable after a selection",
+   "ok": true,
+   "detail": {
+    "panel": "showing"
+   }
+  },
+  {
+   "mode": "mouse",
+   "step": "rename a folder",
+   "ok": true,
+   "detail": {
+    "server_has": true
+   }
+  },
+  {
+   "mode": "mouse",
+   "step": "add a subfolder",
+   "ok": true,
+   "detail": {
+    "server_has": true
+   }
+  },
+  {
+   "mode": "mouse",
+   "step": "the Publish action",
+   "ok": true,
+   "detail": {
+    "door": "not offered on this build (its switch is off)"
+   }
+  },
+  {
+   "mode": "mouse",
+   "step": "delete a folder",
+   "ok": true,
+   "detail": {
+    "server_has": false
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "expand a folder",
+   "ok": true,
+   "detail": {
+    "expanded": "true",
+    "child_showing": true
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "select a folder",
+   "ok": false,
+   "detail": "TimeoutError: Timeout 10000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**folder=bdc90917bc5e41639293d19578e02fd7*\" until 'load'\n============================================================"
+  },
+  {
+   "mode": "taps",
+   "step": "the panel is still reachable after a selection",
+   "ok": true,
+   "detail": {
+    "panel": "showing"
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "rename a folder",
+   "ok": true,
+   "detail": {
+    "server_has": true
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "add a subfolder",
+   "ok": true,
+   "detail": {
+    "server_has": true
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "the Publish action",
+   "ok": true,
+   "detail": {
+    "door": "not offered on this build (its switch is off)"
+   }
+  },
+  {
+   "mode": "taps",
+   "step": "delete a folder",
+   "ok": true,
+   "detail": {
+    "server_has": false
+   }
+  },
+  {
+   "mode": "keys",
+   "step": "the tree is one Tab stop",
+   "ok": true,
+   "detail": {
+    "rows_in_tab_order": 1,
+    "controls_in_tab_order": 0,
+    "rows": 12
+   }
+  },
+  {
+   "mode": "keys",
+   "step": "one Tab leaves the tree",
+   "ok": true,
+   "detail": {
+    "on": "treeitem:All notes, 9",
+    "one_tab_later": "BUTTON:+ New folder"
+   }
+  },
+  {
+   "mode": "keys",
+   "step": "Home, End, typing a name, Right into a folder, Left back out",
+   "ok": true,
+   "detail": {
+    "trail": [
+     "treeitem:All notes, 9",
+     "treeitem:Walk taps A",
+     "treeitem:All notes, 9",
+     "treeitem:Walk keys A",
+     "treeitem:Walk keys child",
+     "treeitem:Walk keys A"
+    ]
+   }
+  },
+  {
+   "mode": "keys",
+   "step": "Enter selects the folder",
+   "ok": false,
+   "detail": "TimeoutError: Timeout 10000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**folder=31ecd103ba5544049a0ef4cefdcddf7d*\" until 'load'\n============================================================"
+  },
+  {
+   "mode": "keys",
+   "step": "Shift+F10 opens the folder's menu; Rename from it works",
+   "ok": false,
+   "detail": "TimeoutError: Locator.wait_for: Timeout 10000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"textbox\", name=\"Rename folder Walk keys A\") to be visible\n"
+  }
+ ],
+ "status": "COMPLETE",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-keys2\\folder-walk-1\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 15:05:59",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 15:06:38",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-07 15:08:31",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 15:09:18",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-keys2\\folder-walk-1\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-keys\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T15-05-54.md"
+ },
+ "failure": null,
+ "finished": "2026-10-07T20:09:48+00:00"
+}

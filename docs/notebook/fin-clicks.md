@@ -11,6 +11,10 @@ Branch `feat/notebook-fin-nav`. Budgets: `docs/notebook/WAVE-13-PLAN.md` section
 | `44aa449a16` | raw evidence, onboarding flows O1 to O6; Q21 keyboard reach of Plan |
 | (this commit) | raw evidence for the Q20 and Q21 re-run, this record |
 
+> **Follow-up branch `feat/notebook-fin-keys2`: section 14, latest reading in 14.8.** The folder
+> panel is a tree and one Tab stop, and the notes list is one Tab stop. Q2 on a keyboard is 25
+> and Q11 is 33.
+>
 > **Latest reading: section 13** (round 3). The "Loading..." stall of section 12.6 was the
 > click tool, not the page. Keyboard is 10 of 23 inside budget; mouse and touch are 18 of 23.
 >
@@ -744,3 +748,661 @@ attempted. Q16 is in a file this lane does not own.
 
 Still true from 12.6: one red case in `components/screener/reachable.test.js`, a chart-engine
 parking note that expired on 2026-10-06. Not from this lane.
+
+## 14. Lane KEYS round 4 (follow-up branch): the folder panel as a tree
+
+Branch `feat/notebook-fin-keys2`, cut from `f4a444f15b`. It lands in its own pull request after
+the main landing. Sections 1 to 13 are kept as written.
+
+### 14.1 Verdict
+
+* **The folder panel is a tree and one Tab stop.** Q2 on a keyboard went from 82 / 61 to
+  25 / 25, and Q11 from 103 / 80 to 41 / 43. Both are still over budget (6 and 27).
+* **The list header is one toolbar stop**, and Favorites and Recents are one stop each.
+* **Nothing the pointer could do in the panel is lost.** Walked in a real browser by mouse at
+  1280 px and by touch at 390 px: 14 of 14 steps. The keyboard walk: 5 of 5.
+* **The browser walk found four defects that no test had seen**, one of them in shared code
+  and older than this lane (14.4). All four are fixed with a test that was red first.
+* **Not built: the notes list as one stop, and the "one remaining change" for Q21, Q22, Q18,
+  Q12, Q20, Q6, Q9, Q15 and Q19.** Item 3 of the brief is not done. See 14.6.
+* Keyboard inside budget: still 10 of 23. Mouse 18, touch 18.
+
+### 14.2 What was built
+
+| commit | what |
+|---|---|
+| `d422ba06eb` | `lib/useTreeRoving.js`: the keyboard model of a tree, with a test for every key |
+| `2e033275b2` | `FolderSidebar.jsx` is a tree: `tree`, `treeitem`, `group`; the row menu |
+| `abeea1db92` | the notes list header is one toolbar stop |
+| `13f0a593dc` | Favorites and Recents are one stop each (Down and Up) |
+| `bb33312bf4` | an anchored menu takes focus even with "reduce motion" on (`ContextPopover.jsx`) |
+| `41df2bfc58` | three defects of the folder menu key, found in the browser |
+| `cd940bcfff`, `a06409b7b1` | tool: a row of a tree is reached as a member reaches it; the folder walk |
+
+The tree, as a member meets it:
+
+* The standing rows (All notes, Unfiled, Archived, Trash), every folder, and the notes inside
+  an open folder are rows of one tree. Each row has a name, a level, and says whether it is
+  open and whether it is selected.
+* One row is the Tab stop: the last one that had focus, else the selected one, else the first.
+* Down and Up move between the rows showing. Home and End go to the ends. Right opens a closed
+  folder, then moves to its first child. Left closes an open folder, else moves to the parent.
+* Enter or Space selects the folder (or opens the note). A letter moves to the next row whose
+  name starts with it; typing on extends the search.
+* Shift+F10, or the context-menu key, opens the folder's actions as a menu: Rename, Add
+  subfolder, Delete, and the extra action the row carries (Publish). They call the same
+  handlers as the row's icon buttons. Focus returns to the folder's row afterwards.
+* For the pointer nothing changed: the same named buttons, the hover reveal, double-click to
+  rename. The buttons are out of the Tab order (`tabindex="-1"`) and still clickable.
+* "+ New folder" is outside the tree and is its own Tab stop.
+
+Read before the structure was changed, as asked: every `FolderSidebar*` test, the a11y
+directory, the onboarding directory (tour anchors and reachability), `src/hub/` (the hub
+cursor's `data-note-card-id` rows are unchanged) and the write-path rails. No new write door:
+the menu calls handlers that already existed.
+
+**Two existing tests pinned a Tab stop per row action**
+(`FolderSidebar.folderActions.test.jsx`, `NotebookTab.publishFolder.test.jsx`). Their reason,
+read first: in wave 8 the actions had been spans a keyboard could not reach at all. That
+purpose is kept and the pin is restated: the actions are real named buttons, out of the Tab
+order, and the keyboard reaches them through the row's menu, with focus back on the row.
+
+**There is no drag and drop in the folder panel.** The brief asked to confirm "drag a note onto
+a folder" still works. Neither `FolderSidebar.jsx` nor `NoteCard.jsx` nor `NotebookTab.jsx` has
+a drag or drop handler; notes are moved with the bulk bar's Move control. Nothing to keep.
+
+### 14.3 The final table
+
+Evidence: `docs/notebook/evidence/fin-keys2/cd940bcfff/q/` (all 23, 92 rows, integrity CLEAN),
+and `.../c6dfdec05a/q9/` for Q9. The full run was taken before the four fixes of 14.4. Those
+change the folder menu and the menu's focus, which no flow uses, so the run was not repeated.
+
+| flow | mouse (budget) | touch (budget) | keys 1280 / 390 | keys budget | verdict |
+|---|---|---|---|---|---|
+| Q1 | 2 (2) | 2 (2) | 2 / 2 | 3 | pass |
+| Q2 | 5 (4) over | 5 (4) over | **25 / 25** (was 82 / 61) | 6 | over |
+| Q3 | 2 (2) | 1 (3) | 2 / 2 | 4 | pass |
+| Q4 | 2 (3) | 2 (3) | 3 / 3 | 5 | pass |
+| Q5 | 1 (1) | 1 (1) | 1 / 1 | 2 | pass |
+| Q6 | 5 (3) over | 5 (3) over | 23 / 19 | 10 | over |
+| Q7 | 1 (3) | 1 (3) | 5 / 5 | 10 | pass |
+| Q8 | 1 (3) | 1 (3) | 3 / 3 | 8 | pass |
+| Q9 | 3 (3) | 3 (3) | 18 / 24 | 9 | over |
+| Q10 | 1 (2) | 1 (3) | 4 / 4 | 4 | pass |
+| Q11 | 9 (8) over | 12 (10) over | **41 / 43** (was 103 / 80) | 27 | over |
+| Q12 | 3 (3) | 3 (3) | 20 / 19 | 12 | over |
+| Q13 | 3 (2) over | 3 (2) over | 4 / 4 | 4 | pass |
+| Q14 | 3 (3) | 3 (3) | 6 / 6 | 6 | pass |
+| Q15 | 1 (2) | 1 (2) | 7 / 7 | 5 | over |
+| Q16 | 2 (2) | 2 (2) | 46 / 45 | 8 | over |
+| Q17 | 2 (2) | 2 (2) | 7 / 7 | 7 | pass |
+| Q18 | 2 (3) | 2 (3) | 27 / 27 | 9 | over |
+| Q19 | 3 (3) | 3 (4) | 12 / 12 | 9 | over |
+| Q20 | 13 (6) over | 13 (8) over | 25 / 25 | 22 | over |
+| Q21 | 2 (2) | 2 (2) | 15 / 15 | 4 | over |
+| Q22 | 2 (2) | 2 (3) | 21 / 21 | 4 | over |
+| Q23 | 2 (3) | 2 (3) | 14 / 14 | 9 | over |
+
+Q9 with a mouse and by touch read 4 in the full run and 3 in the re-run. The page did not
+change. The Ask panel puts focus in its field two frames after it opens, on purpose, and the
+tool looked at once and charged a click. It now waits up to 0.6 seconds for a field the page
+focuses itself.
+
+Where Q2 and Q11 stand now:
+
+* Q2, 25 keys: 3 Tabs to the folder skip link and Enter, 7 Tabs to the tree (the panel's own controls, and Favorites and Recents as one stop each) and
+  Enter on All notes, 4 Tabs to the header toolbar, 2 arrows to Templates, Enter, Enter to pick, 4
+  Shift+Tabs to the Ticker field, Tab. What is left is the route itself: the flow starts on
+  Research Home, which has no template door (12.4).
+* Q11, 41 keys: the same 12 to reach and press All notes, 7 Tabs to the first tick, then 2 Tabs and a
+  Space for each of the other four notes, then the bulk bar. The eight Tabs between the ticks
+  are the list: every note is two stops (its tick box and its card).
+
+### 14.4 Four defects the browser walk found
+
+`tools/notebook_fin_keys_folder_walk.py` walks the panel in a real browser. Its first runs
+failed on the keyboard menu, and each failure was a real defect. None showed in jsdom.
+
+1. **An anchored menu never took focus when "reduce motion" was on.** This is in shared code
+   (`components/mobile/ContextPopover.jsx`) and is older than this lane. `styles/tokens.css`
+   gives every element a 0.01 ms transition on every property when reduce motion is on. So
+   the menu's change from hidden to visible is a transition, and at the instant it starts the
+   menu is still computed hidden. A browser silently refuses to focus a hidden element. The
+   component asked once, at that instant. The trace from the browser: one call,
+   `focus() on menuitem:Rename ... vis=hidden`, and no focus event at all. The menu was on
+   screen and every key went to the page behind it. It affected every anchored ContextPopover
+   menu for a member with reduce motion on. It now asks again each frame until focus is inside.
+2. The menu key also raises the browser's own context menu. It is held back right after the
+   key; a right-click still gets the browser's menu.
+3. A second open for the same folder replaced the open menu's anchor, and the menu gave focus
+   back to the row. A second open for the same folder now changes nothing.
+4. Rename (and Add subfolder) from the menu closed at once with nothing renamed. The menu
+   hands focus back to the row as it closes; the field had just taken focus, lost it, and it
+   saves on blur. The field now opens a frame after the menu has let go.
+
+The lesson for this repo is the first one: jsdom focuses a hidden element and has no
+transitions, so a test that only asks "is focus in the menu" cannot see it.
+`ContextPopover.focusWhenVisible.test.jsx` makes jsdom refuse the way the browser does.
+
+### 14.5 The walk, and the tests
+
+The folder walk, last run (`docs/notebook/evidence/fin-keys2/folder-walk-final2/`), 19 steps,
+0 failed, integrity CLEAN:
+
+| input | steps, all ok |
+|---|---|
+| mouse, 1280 px | expand a folder; select a folder; the panel is still there; rename; add a subfolder; the Publish action opens its confirmation; delete (with its confirmation) |
+| touch, 390 px | the same seven |
+| keyboard, 1280 px | the tree is one Tab stop and no control inside it is; one Tab leaves the tree; Home, End, typing a name, Right into a folder, Left back out; Enter selects; Shift+F10 opens the menu and Rename from it renames the folder on the server |
+
+The earlier runs of the walk are committed too (`folder-walk-1` to `-6`, `-final`), the
+failing ones included.
+
+| tests (from `app/`, `--maxWorkers=2`) | totals |
+|---|---|
+| every `FolderSidebar*` and `NotebookTab*` test, every ContextPopover user, the a11y directory, the onboarding directory, `src/hub/`, `src/pages/command/`, the two hooks' tests, `styles/tapFloor.test.js`, `styles/tokens.reachable.test.js`, layout tests | 236 files passed; 2987 tests passed, 1 skipped |
+| `python -m pytest tests/test_notebook_w13q_clicks.py -q` | 65 passed |
+| `python tools/check_repo_hygiene.py` | exit 0 |
+| first-open bytes | 2,213,947 B of 2,260,793 B, PASS |
+
+### 14.6 Asked for and not done
+
+* **The notes list as one Tab stop** (item 2, second half). Each note is still two stops. This
+  is what is left in Q11. The list has selection keys from lane 13Q-5 (Shift+Arrow,
+  Ctrl+Alt+B) and tests that pin them; they were not read, so nothing was changed.
+* **Item 3, all of it:** the one remaining change for Q21, Q22, Q18, Q12, Q20, Q6, Q9, Q15
+  and Q19. Their counts are the same as in section 13, and the causes are in 13.4.
+* **Q16** lives in `Settings.jsx`. Proposal only, as asked: the Voice Insights Inbox is at the
+  end of the Compass and Voice section, 33 stops in. A skip link "Skip to your notices" on the
+  Settings page, or the inbox first in its section, would bring Q16 from 46 to about 8.
+* The full 23-flow run was not repeated after the four fixes of 14.4.
+
+### 14.7 For a screen reader user to check by hand
+
+No screen reader was run. Everything below is asserted by markup and by tests of the rendered
+names and roles, not by listening.
+
+1. On entering the folder panel: is it announced as a tree named "Folders", with the row's
+   name, its level, "collapsed" or "expanded", and "selected" on the open folder?
+2. The standing rows carry their count in the name ("All notes, 56"). Is that read well, or
+   is the number read as part of the name in a confusing way?
+3. A folder row holds real buttons (expand, the folder's own button, Rename, Add subfolder,
+   Delete). They are out of the Tab order. Does the reader's browse mode still list them
+   inside the tree item, and is that noise or useful?
+4. Shift+F10 on a folder: is the menu announced with the folder's name, and do the arrow keys
+   read each item? After choosing Rename, is the rename field announced, and after Enter does
+   focus return to the folder row with its new name?
+5. With reduce motion ON in the operating system: open any anchored menu (a folder's menu, a
+   chart's block menu on a wide screen). Focus should be in the menu at once (14.4, defect 1).
+6. Type-ahead: letters typed on a row move focus by name. Does the reader's own single-letter
+   navigation take the keys first in browse mode? In focus mode it should not.
+7. The notes inside an open folder are rows of the tree at the next level. Is a long folder
+   of notes tiring to arrow through, and is Left to the parent discoverable?
+8. The focus mark on a folder row is a gold ring on the row and a gold bar down the left of
+   the folder and its contents. Is it visible enough in all three themes at 200 percent zoom?
+
+### 14.8 Round 5: the notes list, the merge, and the final table
+
+This subsection is the latest reading. Where it differs from 14.1 to 14.6, it is the one to use.
+
+**Verdict.** The notes list (card view) is one Tab stop. The branch now holds the landing
+(`origin/feat/notebook-w14-land` at `5e5d6c0b0c`, merged with no conflicts). All 23 flows and
+the browser walk were run again on the merged build. Item 2 of the brief (one more change for
+each of nine flows) and the table view of the list are **not built**.
+
+**What each existing thing pins, read before the list was changed:**
+
+| what | what it pins | why | kept |
+|---|---|---|---|
+| lane 13Q-5, `docs/notebook/wave13-13q5.md` and `NotebookTab.bulk.test.jsx` | Shift+Down and Shift+Up on a note's tick box extend the selection to the next note and carry focus; a bare Down does NOT select | a file manager's convention; the bare key must stay free for browsing | yes. The new hook takes no key with Shift, and a bare Down only moves focus |
+| the same lane | Ctrl+Alt+B jumps to the bulk bar | the bar sits above a long list | yes. The hook takes no Ctrl, Cmd or Alt chord |
+| the same lane, about the TEMPLATE gallery | "no tabIndex is ever set on a card" (`TemplatePicker.gallery.test.jsx`) | every template card must be in the Tab order | untouched: that is the template picker, not the notes list |
+| `NoteCard.jsx` | the tick box and the card are SIBLINGS, never one inside the other | a button inside a button is invalid | yes. The row is their shared wrapper, marked `data-note-row` |
+| the hub cursor (`hub/sections/notebookSection.js`) | finds notes by `data-note-card-id`, anywhere in the document | the joystick's list cursor | yes. The attribute is where it was |
+| tours | none anchors on a list row (the tour files were searched) | | nothing to keep |
+| the table view, through the shared `components/mobile/ResponsiveTable.jsx` | the ROW itself is a Tab stop that opens its note on Enter (wave 10, finding A2R-02) | a clickable row had no keyboard door | **not changed**: see "not built" below |
+
+**Built:**
+
+| commit | what |
+|---|---|
+| `5b7acbc514` | `lib/useGridRoving.js` (one Tab stop for a list of rows, a test for every key), and the notes list (card view) uses it |
+| `f380cf2481` | tool: a one-stop list is walked as a member walks it; the walk covers the list |
+| `44a4c2541d` | merge of the landing branch |
+
+In the list: Down and Up go note to note and stay on the same control (tick to tick, card to
+card). Right and Left move between a note's own controls: its tick, its card, and Unarchive or
+Restore where a row has one. Home and End go to the first and last note. Space still ticks.
+Enter still opens. A note row has no hidden actions, so it has no Shift+F10 menu: everything a
+row offers is a control in the row, and the bulk actions are behind Ctrl+Alt+B.
+
+**The final table.** Evidence: `docs/notebook/evidence/fin-keys2/44a4c2541d/q/` (all 23 on the
+merged build, integrity CLEAN) and `.../952682293f/q18/` for Q18.
+
+| flow | mouse (budget) | touch (budget) | keys 1280 / 390 | keys budget | verdict |
+|---|---|---|---|---|---|
+| Q1 | 2 (2) | 2 (2) | 2 / 2 | 3 | pass |
+| Q2 | 5 (4) over | 5 (4) over | 25 / 25 | 6 | over |
+| Q3 | 2 (2) | 1 (3) | 2 / 2 | 4 | pass |
+| Q4 | 2 (3) | 2 (3) | 3 / 3 | 5 | pass |
+| Q5 | 1 (1) | 1 (1) | 1 / 1 | 2 | pass |
+| Q6 | 5 (3) over | 5 (3) over | 22 / 19 | 10 | over |
+| Q7 | 1 (3) | 1 (3) | 5 / 5 | 10 | pass |
+| Q8 | 1 (3) | 1 (3) | 3 / 3 | 8 | pass |
+| Q9 | 3 (3) | 3 (3) | 18 / 24 | 9 | over |
+| Q10 | 1 (2) | 1 (3) | 4 / 4 | 4 | pass |
+| Q11 | 9 (8) over | 12 (10) over | **33 / 35** (was 41 / 43) | 27 | over |
+| Q12 | 3 (3) | 3 (3) | 20 / 19 | 12 | over |
+| Q13 | 3 (2) over | 3 (2) over | 4 / 4 | 4 | pass |
+| Q14 | 3 (3) | 3 (3) | 6 / 6 | 6 | pass |
+| Q15 | 1 (2) | 1 (2) | 7 / 7 | 5 | over |
+| Q16 | 2 (2) | 2 (2) | 46 / 45 | 8 | over |
+| Q17 | 2 (2) | 2 (2) | 7 / 7 | 7 | pass |
+| Q18 | 2 (3) | 2 (3) | 27 / 33 | 9 | over |
+| Q19 | 3 (3) | 3 (4) | 12 / 12 | 9 | over |
+| Q20 | 13 (6) over | 13 (8) over | 25 / 25 | 22 | over |
+| Q21 | 2 (2) | 2 (2) | 15 / 15 | 4 | over |
+| Q22 | 2 (2) | 2 (3) | 21 / 21 | 4 | over |
+| Q23 | 2 (3) | 2 (3) | 14 / 14 | 9 | over |
+
+Mouse 18 of 23, touch 18 of 23, keyboard 10 of 23.
+
+Q18 read INCONCLUSIVE in three of four rows of the full run. The landing drafts this week's
+review once per week, and a second press opens the same note; the flow expected a new note each
+time. The tool now trashes the earlier run's review in setup. The row above is from the re-run.
+
+**The browser walk on the merged build** (`.../44a4c2541d/walk/`): 26 steps, 0 failed,
+integrity CLEAN. By mouse at 1280 px and by touch at 390 px, ten steps each: the seven folder
+steps of 14.5, then All notes shows the list, two ticks are counted by the bulk bar and
+unticked, and a note's card opens the note. By keyboard, six steps: the five of 14.5, then the
+list is one Tab stop, Down moves tick to tick, Right moves to the card, Space then Shift+Down
+reads "2 selected", and one Tab leaves the list.
+
+**Tests on the merged tree** (from `app/`, `--maxWorkers=2`): every `FolderSidebar*` and
+`NotebookTab*` test, every ContextPopover user, the a11y directory, the onboarding directory,
+`src/hub/`, `src/pages/command/`, the three hooks' tests and `styles/tapFloor.test.js`:
+238 files passed; 3026 tests passed, 1 skipped. `python -m pytest
+tests/test_notebook_w13q_clicks.py -q`: 65 passed. Hygiene exit 0. First-open bytes:
+2,226,125 B of 2,260,793 B, PASS (57 files; the landing's own changes are in that number).
+
+**Asked for in round 5 and not built:**
+
+* **The table view of the list.** Its rows come from the shared `ResponsiveTable.jsx`, where
+  the row itself is the Tab stop (the A2R-02 pin above). Making it one stop means changing
+  that shared component or wrapping it, and neither was done. The card view is the default
+  and the one every flow uses.
+* **Item 2, all nine flows.** Nothing was built for Q21, Q22, Q18, Q12, Q20, Q6, Q9, Q15 or
+  Q19 in this round. What their keys are spent on:
+
+| flow | now | budget | the keys | the one change it needs |
+|---|---|---|---|---|
+| Q21 | 15 | 4 | 1 Tab to Plan, Enter, 12 Tabs to the stop's Arm button, Enter | each level row is four stops and the stop is the third row. A row's controls as one stop needs a way out of its price box, which keeps its arrow keys. A direct "arm the stop" control in the plan's summary is the shorter road; it is a new control |
+| Q22 | 21 | 4 | 9 Tabs to Visual playbook, Enter, 10 Tabs to "only this setup", Enter | the door is the last control under the chart, and in the sheet four filters and four fields come first. The sheet could open with focus on the "only this setup" button when it was opened from a chart |
+| Q18 | 27 / 33 | 9 | 4 Tabs to the skip link, 2 to the button, about 18 to the leak's arrow | the drafted note opens with focus at its top. Focus the first collapsed block of a review that was just drafted |
+| Q12 | 20 / 19 | 12 | 6 Shift+Tabs to More, 8 Tabs to Export, 3 Down | More note actions is a group of plain buttons. As a menu with arrow keys, Export is one End away |
+| Q20 | 25 | 22 | 15 Tabs between the plan's fields | after "Add level" focus follows the new row (lane A11Y's choice). Returning it to the price box would save 5 |
+| Q6 | 22 / 19 | 10 | 11 Tabs to the sixth trade, 5 to Save to Notebook | each trade row is two stops. The Trades table as a one-stop list (this round's hook) would cut the 11 to about 6 |
+| Q9 | 18 / 24 | 9 | 8 Tabs to the skip link, 4 to Insert | the note's skip links are four; and Insert is the fourth stop of the answer |
+| Q15 | 7 | 5 | 2 Tabs to the skip link, 3 to the prep button | two stops come before the button |
+| Q19 | 12 | 9 | 5 Tabs to the turn, 2 to Save | the sheet opens on Close, then quarter and search come first |
+
+**For a screen reader user to check by hand, in addition to the eight items of 14.7:**
+
+9. The notes list is announced as a group named "Notes". Each note is still a checkbox and a
+   button. Is it clear that Down and Up move between notes, and that the card is one Right
+   away from the tick? Nothing in the markup says so; a hint in the shortcuts sheet may be needed.
+10. After Shift+Down extends the selection, is the newly ticked note announced as checked,
+    and does the bulk bar's count ("2 selected") get read?
+
+## 15. Lane KEYS3: the remaining changes are built
+
+Same branch, `feat/notebook-fin-keys2`. Sections 1 to 14 are kept as written. Three rounds
+analysed the flows still over budget and built nothing for them. This round built them.
+
+### 15.1 Verdict
+
+* **Keyboard: 22 of 23 inside budget at both widths.** It was 10. The one left is Q16, which
+  lives in `Settings.jsx` and was not this lane's to change (15.5).
+* **Mouse: 19 of 23. Touch: 19 of 23.** Both were 18. Q2 now passes with a pointer too: a
+  template that asks for a ticker opens with the cursor in Ticker, which saves the click into
+  the field. Still over: Q6, Q11, Q13, Q20 (unchanged, see 12.4).
+* **The table view of the notes list is one Tab stop**, through an opt-in prop on the shared
+  `ResponsiveTable` that only the Notebook passes.
+* Evidence: `docs/notebook/evidence/fin-keys3/451d38318a/q/` (all 23, 92 rows, integrity
+  CLEAN) and `.../2a0a489bf6/q6-q13-q14/` (12 rows, CLEAN) for Q6 after its last change.
+
+### 15.2 Before and after (keyboard)
+
+"Before" is section 14.8. "After" is the two runs above.
+
+| flow | before 1280 / 390 | after 1280 / 390 | budget | verdict | commit | the change |
+|---|---|---|---|---|---|---|
+| Q2 | 25 / 25 | **4 / 4** | 6 | pass | `902a64893b` | palette "New note from a template"; a ticker template opens in Ticker |
+| Q6 | 22 / 19 | **10 / 9** | 10 | pass | `451d38318a`, `2a0a489bf6` | Trades list one stop with type-ahead; trade page landing; capture sheet landing |
+| Q9 | 18 / 24 | **7 / 7** | 9 | pass | `8bdcdff8f0` | palette "Ask about this note"; focus goes to the answer when it ends |
+| Q11 | 33 / 35 | **18 / 18** | 27 | pass | `046467d709` | palette "All notes" lands on the list's heading |
+| Q12 | 20 / 19 | **6 / 6** | 12 | pass | `302989766e` | palette "Export this note" opens More and the Export menu |
+| Q15 | 7 / 7 | **3 / 3** | 5 | pass | `5404425139` | palette "Earnings prep" lands on the first prep button |
+| Q18 | 27 / 33 | **9 / 9** | 9 | pass | `7e9cf187f6` | a drafted review opens on its first collapsed block |
+| Q19 | 12 / 12 | **8 / 8** | 9 | pass | `1be0ecf949` | the transcript's turns are one stop and focus lands on them |
+| Q20 | 25 / 25 | **21 / 21** | 22 | pass | `07b5376283` | Enter in the role select adds the level; the alert cell is one stop |
+| Q21 | 15 / 15 | **4 / 4** | 4 | pass | `359c8370c4` | Ctrl+Alt+S in an open plan goes to the stop's alert |
+| Q22 | 21 / 21 | **3 / 3** | 4 | pass | `e3a3ebd265` | palette "Visual playbook"; the sheet lands on "Only this chart's setup" |
+| Q23 | 14 / 14 | **5 / 5** | 9 | pass | `4a7702b62b` | palette "Active setups" |
+| Q16 | 46 / 45 | 46 / 45 | 8 | over | none | `Settings.jsx`, proposal only (15.5) |
+
+The other ten keyboard flows were inside budget and still are: Q1 2, Q3 2, Q4 3, Q5 1, Q7 5,
+Q8 3, Q10 4, Q13 4, Q14 6, Q17 7.
+
+Three flows sit exactly on their budget: Q6 at 1280 px (10), Q18 (9) and Q21 (4). One more
+stop on any of those paths puts it over.
+
+### 15.3 The full table
+
+| flow | mouse (budget) | touch (budget) | keys 1280 / 390 | keys budget | keys verdict |
+|---|---|---|---|---|---|
+| Q1 | 2 (2) | 2 (2) | 2 / 2 | 3 | pass |
+| Q2 | **4 (4)** was 5 | **4 (4)** was 5 | 4 / 4 | 6 | pass |
+| Q3 | 2 (2) | 1 (3) | 2 / 2 | 4 | pass |
+| Q4 | 2 (3) | 2 (3) | 3 / 3 | 5 | pass |
+| Q5 | 1 (1) | 1 (1) | 1 / 1 | 2 | pass |
+| Q6 | 5 (3) over | 5 (3) over | 10 / 9 | 10 | pass |
+| Q7 | 1 (3) | 1 (3) | 5 / 5 | 10 | pass |
+| Q8 | 1 (3) | 1 (3) | 3 / 3 | 8 | pass |
+| Q9 | 3 (3) | 3 (3) | 7 / 7 | 9 | pass |
+| Q10 | 1 (2) | 1 (3) | 4 / 4 | 4 | pass |
+| Q11 | 9 (8) over | 12 (10) over | 18 / 18 | 27 | pass |
+| Q12 | 3 (3) | 3 (3) | 6 / 6 | 12 | pass |
+| Q13 | 3 (2) over | 3 (2) over | 4 / 4 | 4 | pass |
+| Q14 | 3 (3) | 3 (3) | 6 / 6 | 6 | pass |
+| Q15 | 1 (2) | 1 (2) | 3 / 3 | 5 | pass |
+| Q16 | 2 (2) | 2 (2) | 46 / 45 | 8 | over |
+| Q17 | 2 (2) | 2 (2) | 7 / 7 | 7 | pass |
+| Q18 | 2 (3) | 2 (3) | 9 / 9 | 9 | pass |
+| Q19 | 3 (3) | 3 (4) | 8 / 8 | 9 | pass |
+| Q20 | 13 (6) over | 13 (8) over | 21 / 21 | 22 | pass |
+| Q21 | 2 (2) | 2 (2) | 4 / 4 | 4 | pass |
+| Q22 | 2 (2) | 2 (3) | 3 / 3 | 4 | pass |
+| Q23 | 2 (3) | 2 (3) | 5 / 5 | 9 | pass |
+
+### 15.4 How it was built
+
+**The command palette carries seven new Notebook commands.** A member with the caret in a note is
+far from the note's own controls in both directions: the header is above the body and the
+chart tools are below it. Ctrl+K is one chord from anywhere, and Q1 and Q4 already used it.
+The commands are in `components/CommandPalette.jsx`, the file lane KEYS round 1 edited for
+"Search Notebook". That file is shared, and it is not on this lane's list of files it may not
+touch. Each command is held to three rules, and each rule has a test
+(`CommandPalette.notebookDoors.test.jsx`, 22 cases):
+
+* It needs six typed characters and must be the start of one of its own phrases. A command
+  row leads the palette, and a ticker is five letters at most, so a command can never sit
+  above a ticker and take its Enter. "expo" stays a ticker; "export" is the command.
+* It is offered only where it can work. Three need an open note. Three are behind a feature
+  switch (the visual playbook, the setups board, earnings prep) and are not offered with the
+  switch off or not yet answered.
+* It does what the surface's own control does. Three ask for a door
+  (`lib/notebookDoors.js`: one event, the first listener claims it) that the surface itself
+  answers: the chart's panel, the note's Export controls, the note's Ask panel. Three are a
+  route with a hash the Notebook reads. One is a plain route. The palette imports none of
+  those surfaces.
+
+| command | what it does | flow |
+|---|---|---|
+| Visual playbook | opens the chart's own sheet (a tagged chart answers first) | Q22 |
+| Export this note | opens More and the Export menu, focus on the first format | Q12 |
+| Ask about this note | opens the note's Ask panel, cursor in the field | Q9 |
+| New note from a template | the notes list with `#templates`: the New note sheet opens | Q2 |
+| All notes | the notes list with `#notes`: focus on the list's heading | Q11 |
+| Earnings prep: reporting soon | Research Home with `#prep`: focus on the first prep button | Q15 |
+| Active setups | the board's own route | Q23 |
+
+**One registered shortcut.** Ctrl+Alt+S (Cmd+Option+S on a Mac) in an open trade plan moves
+focus to the stop's alert button. It is declared in `pages/command/shortcutRegistry.js` as
+`notebook.planStopAlert` and bound through `registerShortcuts`. No raw key listener was added;
+the key listener census and the conflict rail are green. A note can have several plans open
+and the registry allows one live registration per id, so the plans share one registration
+(`lib/planStopShortcut.js`). The plan names the key in a line of its own.
+
+**Landings.** Each takes focus only while focus is still on the sheet itself or outside it. A
+member who has already moved keeps their place, and each has a test for that.
+
+* The visual playbook sheet, opened from a chart: "Only this chart's setup".
+* A review the Notebook just drafted: the arrow of its first collapsed block.
+* The transcript sheet: the first turn's Quote button. Not the find box, which would raise a
+  phone's keyboard.
+* The Ask panel, when the answer ends and focus was lost with the disabled field: the answer.
+* The trade page: the trade's own heading (`data-route-landing`).
+* The capture menu as a phone sheet: the first destination.
+* A note from a template that asks for a ticker, with none known: the Ticker field. "Asks for
+  a ticker" is derived from the template's own title function, not a second list.
+
+**One-stop groups**, all with the existing hooks: the Trades list (table and phone cards), the
+transcript's turns, a plan level's alert controls, and the notes list's table view.
+
+### 15.5 What was not changed, and why
+
+* **Q16** (46 / 45, budget 8). The notice is in the Compass and Voice section of
+  `Settings.jsx`, 33 stops in. That file is shared chrome. The proposal stands from 14.6: a
+  "Skip to your notices" link in the Settings page's skip-link slot, or the Voice Insights
+  Inbox first in its section. Either brings Q16 to about 8.
+* **Q20, the last key.** The floor is 20 and the count is 21. The key left is the way back to
+  the add form through the new level's row. Returning focus to the add form after a level is
+  added would remove it, and that reverses a rule lane FIN-A11Y pinned with a test. It is the
+  owner's call.
+* **The sidebar's tags** are still two Tab stops each. They are no longer on any flow's path.
+* **The pointer misses** (Q6, Q11, Q13, Q20) are unchanged. Each needs a new control or a
+  product choice (12.4).
+
+### 15.6 Findings
+
+* **FIXED in round 2 (15.9).** As first written:
+  **IMPORTANT, read from the code, not run in a browser.** The folder tree's type-ahead (round
+  4, `lib/useTreeRoving.js` line 141) takes every letter, and the Journal binds "g then
+  letter" shortcuts on the document (`JournalLayout.jsx` lines 186 to 194, nine of them).
+  A member on a folder row who types a folder name that starts with "g" and then one of
+  o, p, j, a, n, y, t, k or c ("Gaps", "Goals") would also be sent to another page.
+  The Trades list's type-ahead built this round leaves a first "g" alone for this reason.
+  Suggested fix: the same rule in the tree.
+* **Not from this lane: two red cases on the merged tree.**
+  `lib/offline/baseline.test.js` names seven lines in `WhyPrompt.jsx` and
+  `useEntryContext.js` (a `??` over a baseline). `components/screener/reachable.test.js` has
+  the expired parking note first reported in 12.6. Neither file was touched here.
+* The tool's walk of a one-stop list now uses Home or End when the row is the first or last,
+  as its tree and toolbar walks already did. No count in this run depends on it.
+
+### 15.7 Runs, gates, tests
+
+| run | port | rows | integrity |
+|---|---|---|---|
+| probe, 11 changed flows, keyboard only (scratch, not committed) | 8720 | 22, all PASS | CLEAN |
+| all 23, build of `451d38318a` | 8721 | 92: 80 PASS, 12 OVER | CLEAN |
+| Q6, Q13, Q14, build of `2a0a489bf6` | 8722 | 12: 8 PASS, 4 OVER | CLEAN |
+
+Ports 8720 to 8724 were free before each run and after the last. Three builds. First-open
+bytes after the last: 2,232,339 B across 59 chunks against a budget of 2,260,793 B, PASS
+(headroom 28,454 B; this lane added 6,214 B).
+
+| tests (from `app/`, `--maxWorkers=2`) | totals |
+|---|---|
+| the a11y directory, the onboarding directory, `src/hub/`, `src/pages/command/`, `styles/tapFloor.test.js`, every ResponsiveTable and NotebookTab test, the three roving hooks, and the tests of every file this lane touched | 264 files passed; 3182 tests passed, 1 skipped |
+| a wider set (all of `lib/`, `components/mobile/`, `components/trade/`, every `NoteEditorPage*` test, `reachable.test.js`) | 324 of 326 files; 4987 of 4989 tests. The 2 failures are the two in 15.6 |
+| `python -m pytest tests/test_notebook_w13q_clicks.py -q` | 65 passed |
+| `python tools/check_repo_hygiene.py` | exit 0 |
+
+### 15.8 For a screen reader user to check by hand, in addition to 14.7 and 14.8
+
+No screen reader was run.
+
+11. Ctrl+K, "ask this note": is the Ask panel announced, and when the answer ends, is it read
+    once (focus moves to it and it is also a polite live region)?
+12. A drafted review opens with focus on a collapsed block's arrow. Is it clear which block
+    it belongs to? The arrow's name is "Expand toggle".
+13. In an open trade plan, is the line "Ctrl+Alt+S goes to the stop's alert" read, and does
+    the key announce the button it lands on?
+14. On the Trades list, do Down, Up and a typed letter read the trade's symbol? In browse mode
+    a reader may take the letters first.
+15. In the transcript sheet, focus lands on "Quote from turn 1". Is it clear that Down moves
+    to the next turn?
+
+### 15.9 Round 2: the type-ahead conflict fixed, the landing merged, the tight flows re-measured
+
+**The conflict in 15.6 was real, and it is fixed** (`e8e1e738d8`).
+
+* Reproduced first, under the real Journal layout and the real shortcut library
+  (`JournalLayout.test.jsx`): on a folder row, typing "ga" moved to a folder called Gaps and
+  the address went to `/journal/calendar`. Three cases were red.
+* The rule followed is the one a text field already follows: the shortcut library ignores keys
+  typed in a form field, because that field owns them. A letter or digit typed on a tree row,
+  or on a row of a list that asks for type-ahead, is the widget's key. The widget stops it, so
+  it does not reach the shortcuts bound on the document. Every such key is stopped, matched or
+  not: a "g" that matched nothing is not left armed as half a shortcut. One definition of such
+  a key (`isTypeaheadKey` in `lib/useTreeRoving.js`) serves both hooks. Keys with Ctrl, Cmd or
+  Alt pass through, and so does punctuation ("?" still opens the shortcut sheet).
+* No letter is special. Round 1 of this lane had the Trades list leave a first "g" alone. That
+  is removed: on the Trades list "g" is a letter.
+* The three lists, each tested under the real layout:
+
+| list | takes letters | typing "ga" on a row | "g then j" from a row |
+|---|---|---|---|
+| folder tree | yes | moves to Gaps, no navigation | not a shortcut there (the letters are the tree's) |
+| Trades list | yes | moves to the GAP trade, no navigation | not a shortcut there |
+| notes list | no (it never asked for type-ahead) | nothing moves | still goes to Closed trades |
+
+  From the page body "g then j" still goes to Closed trades.
+* **In the browser** (`tools/notebook_fin_keys3_typeahead_probe.py`, evidence
+  `docs/notebook/evidence/fin-keys3/04f0dd940c/typeahead-probe-2/`), at 1280 px and 390 px:
+  on a folder row, g then a: the address stayed `/journal/notebook?view=all` and focus was on
+  the row "Gaps". g then o a moment later: same address, focus on "Goals". Then, from the
+  page body, g then j: the address became `/journal/trades?seg=closed`.
+  **Its integrity record is INCOMPLETE, not CLEAN**: the three checkpoints taken (before boot,
+  15 seconds and 120 seconds after) are CLEAN, and there is no shutdown checkpoint, because
+  the sandbox did not exit by itself within 300 seconds and was stopped. Both runs of the
+  probe ended that way; the two flow runs of this round and of round 1 ended CLEAN. The first
+  probe run is kept too (`typeahead-probe/`): its 390 px row is INCONCLUSIVE from a setup
+  mistake in the probe, since fixed.
+
+**The landing is merged in** (`51c6966189`, `origin/feat/notebook-w14-land` at `af0b7ffeea`,
+17 commits, no conflicts).
+
+* `journalGrids.seedParity.test.jsx` went red, as expected, and was re-recorded once, by cause
+  (`04f0dd940c`). The exact difference, checked by undoing it and comparing byte for byte: the
+  trades table's `<tbody>` gains `data-grid-typeahead=""` and each of its five `<tr>` gains
+  `data-trade-row=""`. Nothing else in the two full-HTML snapshots moved. The other 31
+  changed lines are hashes of that HTML.
+* Tests on the merged tree (from `app/`, `--maxWorkers=2`): the a11y directory, the onboarding
+  directory, `src/hub/`, `src/pages/command/`, `styles/tapFloor.test.js`,
+  `lib/offline/baseline.test.js`, the seed parity test, every ResponsiveTable, NotebookTab,
+  FolderSidebar and CommandPalette test, the Journal layout tests, the roving hooks, and the
+  nine files of the landing gate's "Run 1" list: **247 of 249 files passed; 3147 of 3150 tests
+  passed, 1 skipped.** (The seed parity snapshot had been re-recorded before this run.)
+* The 3 failures are master's own, each named in the landing's classification, "Run 2", with
+  the same message: `entryExcludesChartEngine.test.js` (2 rows: `hooks/usePreferences.js`
+  imports `components/chart/instanceShape.js`) and `pollingSites.rail.test.js`
+  (`hooks/useTickerIpo.js`). None of the seven files the landing fixed is red here:
+  `baseline.test.js`, `rawErrorSurface.test.js`, `swallowedFetch.census.test.js`,
+  `TerminalShell.test.jsx` and `terminalReachableContrast.test.js` all pass.
+* Build exit 0. First-open bytes 2,232,394 B of 2,260,793 B, PASS.
+  `python -m pytest tests/test_notebook_w13q_clicks.py -q`: 65 passed.
+
+**Re-measured on the merged build** (`.../04f0dd940c/q/`, 28 rows, integrity CLEAN): the flows
+whose paths changed since the full run (the Trades list: Q6 and Q13; the folder tree, which
+the pointer paths of Q1, Q2 and Q11 cross) and the three that sit on their budget.
+
+| flow | mouse (budget) | touch (budget) | keys 1280 / 390 | keys budget | same as 15.3 |
+|---|---|---|---|---|---|
+| Q1 | 2 (2) | 2 (2) | 2 / 2 | 3 | yes |
+| Q2 | 4 (4) | 4 (4) | 4 / 4 | 6 | yes |
+| Q6 | 5 (3) over | 5 (3) over | 10 / 9 | 10 | yes |
+| Q11 | 9 (8) over | 12 (10) over | 18 / 18 | 27 | yes |
+| Q13 | 3 (2) over | 3 (2) over | 4 / 4 | 4 | yes |
+| Q18 | 2 (3) | 2 (3) | 9 / 9 | 9 | yes |
+| Q21 | 2 (2) | 2 (2) | 4 / 4 | 4 | yes |
+
+The counts of 15.1 stand: keyboard 22 of 23, mouse 19, touch 19.
+
+## 16. Lane KEYS3 round 3: the final walk's leftovers
+
+Same branch. The final browser walk (`docs/notebook/fin-walk.md` on
+`origin/feat/notebook-fin-walk`) left two findings, and this lane's own list left two keyboard
+items. Three are built here; one is left for the owner on purpose (16.4).
+
+### 16.1 F1: "Skip to folder navigation" now always lands (`d6548c328f`)
+
+* **What was wrong.** The link's address was `#notebook-folder-nav` and nothing in the page had
+  that id. Its handler put focus on a hidden heading above the panel's own header buttons. With
+  the folders panel hidden, that heading was off screen.
+* **Now.** The link lands on the folder tree's own Tab stop. With the panel hidden it shows the
+  panel first, then lands. With the panel in search mode (no tree on screen) it lands on the
+  panel's heading, which carries the id.
+* **On master.** Not broken there: master has no such link. It arrived with the landing (wave
+  13, lane 13Q-3), so this was a defect of the landing, not a regression.
+* **Test first.** `a11y/skipLinksLand.test.jsx`: the real Notebook tab and the real folder panel,
+  each of the Notebook's skip links pressed, `document.activeElement` read. Four cases were red.
+  "Skip to main content" belongs to the app shell and has its own rail there.
+
+### 16.2 F2: the touch controls under 44 px (`14f9c5c470`)
+
+| control | walk measured | now, 820 and 390 px | how |
+|---|---|---|---|
+| template picker, "All" chip | 37 x 44 | 44 x 44 | already fixed by the landing after the walk's tree (`380cb32522`); pinned here |
+| import wizard, destination select | 37 px tall | 44 px tall | `min-height` at 1024 px and below |
+| import wizard, a 20 x 20 checkbox | 20 x 20 | the box stays 20 px; its label row is 44 px tall | the hit area is the label. The note rows already had it; the "leave out" rows now do |
+
+The a11y target-floor rail (`a11y/targetFloors.test.js`) pins each: two cases were red first,
+one control proves the helper reads no floor from a sheet that has none.
+
+### 16.3 The sidebar's tags are one Tab stop (`5f38d12aa2`)
+
+Every tag was two stops (its button and its Rename). The tag rows now use the notes list's hook:
+Down and Up move tag to tag, Right and Left reach a tag's Rename and its disclosure arrow, Home
+and End go to the ends, and a typed letter moves to the next tag that starts with it. The letter
+is stopped at the list, the rule of 15.9. The rename form, the tag filter box and "Show all
+tags" stay ordinary stops. Four cases were red first (`FolderSidebar.tags.test.jsx`).
+
+### 16.4 Left for the owner: where focus goes after "Add level" (Q20's last key)
+
+Not changed. Both behaviours, so the choice can be made on its merits:
+
+* **Today (lane FIN-A11Y's rule, pinned by a test).** After a level is added, focus goes to
+  the new level's own price field. A member can step it at once with the arrow keys, and a
+  screen reader lands on the thing that was just made. To add the next level, the member
+  Tabs through the new row (its role, its alert) back to the add form: 3 Tabs.
+  Q20 costs 21 keys.
+* **The other way.** After a level is added, focus goes back to the add form's price field. A
+  member typing a whole plan (entry, stop, target) never leaves the form: 1 Tab per level
+  instead of 3. Q20 would cost about 17. The new level is announced by the status line
+  ("Added a level at 150.00, marked Entry") but focus is not on it, so adjusting it means
+  going back up to its row.
+
+The first favours adjusting one level; the second favours entering several. Q20 is inside its
+budget either way (22).
+
+### 16.5 In the browser, at 1280, 820 and 390 px
+
+`tools/notebook_fin_keys3_leftovers_probe.py`, evidence
+`docs/notebook/evidence/fin-keys3/4f4c491d3b/leftovers-probe/`, integrity CLEAN, port 8720 free
+before and after. The sandbox exited by itself this time.
+
+| check | 1280 | 820 (touch) | 390 (touch) |
+|---|---|---|---|
+| F1, panel shown: Tab 3 times to the link, Enter | focus on the tree row "All notes", on screen | same | same |
+| F1, panel hidden first | panel shown again, focus on "All notes", on screen | same | same |
+| the id `notebook-folder-nav` is in the page | yes | yes | yes |
+| F2, "All" chip | 37 x 24 (no touch floor at this width, by design) | 44 x 44 | 44 x 44 |
+| F2, destination select height | 35 | 44 | 44 |
+
+**Not measured in the browser:** the wizard's own checkbox rows. The probe's label reading
+picked up the notes list's tick labels behind the wizard (44 x 44 on touch), not the wizard's
+rows; a one-file import shows no "leave out" rows. Those rows are held by the CSS rail only.
+
+### 16.6 Gates and tests
+
+* Build exit 0. First-open bytes 2,232,589 B across 58 chunks against 2,260,793 B, PASS.
+* From `app/`, `--maxWorkers=2`: the a11y directory, the onboarding directory,
+  `styles/tapFloor.test.js`, every FolderSidebar and NotebookTab test, the import wizard's
+  tests, plus `src/hub/`, `src/pages/command/`, the Journal layout, the Trades table and the
+  two roving hooks: **230 files passed; 2887 tests passed, 1 skipped.**
+* The counts of 15.1 stand: keyboard 22 of 23, mouse 19, touch 19. No flow's path was changed
+  in this round except that the folder skip link, which no measured flow uses any more, now
+  lands on the tree.

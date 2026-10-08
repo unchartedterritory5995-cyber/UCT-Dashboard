@@ -702,3 +702,18 @@
   font-size: 12px;
   line-height: 1.4;
 }
+
+/* Lane KEYS round 4: the folder tree is ONE Tab stop and the focused thing is the ROW
+   (role="treeitem"), not a button inside it. A folder's treeitem also holds its children, so
+   the ring is drawn on its own line only, and its actions show as they do on hover. */
+/* A folder's treeitem holds its children too, so a ring round it would wrap the whole open
+   folder. Its focus mark is a gold bar down its left edge (the folder and what is in it), and
+   the ring itself is drawn on the folder's own line by the rule below. */
+.folderItem[role='treeitem']:focus-visible { outline: none; box-shadow: inset 2px 0 0 var(--ut-gold); }
+.rowWrap[role='treeitem']:focus-visible,
+.folderItem[role='treeitem']:focus-visible > .folderRow {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
+  border-radius: 6px;
+}
+.folderItem[role='treeitem']:focus-visible > .folderRow .actions { opacity: 1; }

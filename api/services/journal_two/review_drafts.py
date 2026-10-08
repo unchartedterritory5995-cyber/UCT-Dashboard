@@ -57,7 +57,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from api.services.journal_two import coach, coach_data_assembler, entry_context, leak_finder, notes
+from api.services.journal_two import accounts, coach, coach_data_assembler, entry_context, leak_finder, notes
 from api.services.journal_two import playbook_stats, sample_size, verdict_scorecard
 from api.services.journal_two.coach_scope import resolve_account_scope
 from api.services.journal_two.filters import _DAY, FilterSpec  # noqa: PLC2701 -- the ONE trading-day spine
@@ -433,6 +433,64 @@ def _compass_excerpt(body: str | None, *, kind: str, created_at: Any) -> dict[st
     return {"text": text, "kind": kind, "createdAt": created_at}
 
 
+# ⛔ THE QUOTE AND ITS ABSENCE ARE NEVER BOTH NULL (fin walk K2). A draft either carries the
+# Compass quote or says, with a stable reason and a sentence, why it does not. The client
+# renders the sentence; `reason` is the key it may branch on.
+COMPASS_OMITTED_REASONS = ("no_review", "windows_differ", "several_accounts", "no_monthly_review")
+
+_NO_REVIEW_SENTENCE = {
+    "daily": "Compass has not written a review of this day, so none is quoted here.",
+    "weekly": "Compass has not written a review of this week, so none is quoted here.",
+}
+_SEVERAL_ACCOUNTS_SENTENCE = (
+    "You have several accounts and none is chosen. Compass reviews one account at a time, "
+    "so no review is quoted here. Choose an account to see its review.")
+_NO_MONTHLY_SENTENCE = "Compass writes daily and weekly reviews, not monthly ones, so none is quoted here."
+
+
+def _omitted(reason: str, sentence: str) -> dict[str, Any]:
+    return {"reason": reason, "sentence": sentence}
+
+
+def _compass_accounts(conn: sqlite3.Connection, user_id: str, account_id: str) -> tuple[list[str], bool]:
+    """(the account ids to look for a Compass review under, in order; whether the member has
+    several accounts and chose none).
+
+    Compass files a review under ONE account id. A draft asked for with an account looks
+    there and nowhere else. A draft asked for with none (every account) looks first under the
+    all-accounts id, where a review written in the all-accounts view lives, and then, for a
+    member with exactly one account, under that account: its trades ARE every trade. With
+    several accounts no single review describes the draft, so none is guessed."""
+    if account_id not in (None, UNIFIED_ACCOUNT_ID):
+        return [account_id], False
+    try:
+        own = [a["id"] for a in accounts.list_accounts(user_id, conn) if a.get("id")]
+    except sqlite3.Error:   # the quote is optional; the draft is not
+        own = []
+    if len(own) == 1:
+        return [UNIFIED_ACCOUNT_ID, own[0]], False
+    return [UNIFIED_ACCOUNT_ID], len(own) > 1
+
+
+def _compass_for_draft(
+    conn: sqlite3.Connection, user_id: str, account_id: str, period: str, rows: list[sqlite3.Row],
+    *, day_iso: str | None = None, week_start: str | None = None,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """(the quote, or None) and (why there is none, or None). Exactly one of the two is None."""
+    candidates, several = _compass_accounts(conn, user_id, account_id)
+    for candidate in candidates:
+        text = _compass_text(conn, user_id, candidate, period, day_iso=day_iso, week_start=week_start)
+        if text is None:
+            continue
+        # Compared against the trades COMPASS counted for the account the review is filed
+        # under, so a one-account member's review is checked against that account's window.
+        return _same_period_or_omit(conn, user_id, candidate, period, rows, text,
+                                    day_iso=day_iso, week_start=week_start)
+    if several:
+        return None, _omitted("several_accounts", _SEVERAL_ACCOUNTS_SENTENCE)
+    return None, _omitted("no_review", _NO_REVIEW_SENTENCE[period])
+
+
 def _same_period_or_omit(
     conn: sqlite3.Connection, user_id: str, account_id: str, period: str, rows: list[sqlite3.Row],
     compass: dict[str, Any] | None, *, day_iso: str | None = None, week_start: str | None = None,
@@ -465,6 +523,7 @@ def _same_period_or_omit(
     draft_only, compass_only = len(draft_ids - compass_ids), len(compass_ids - draft_ids)
     n = draft_only + compass_only
     return None, {
+        "reason": "windows_differ",
         "draftOnly": draft_only, "compassOnly": compass_only,
         "compassWindow": theirs, "draftWindow": ours,
         "sentence": (f"Compass reviewed {what} {theirs}. This note covers {ours}. "
@@ -550,9 +609,7 @@ def build_daily_draft(conn: sqlite3.Connection, user_id: str, account_id: str, d
     rows = _fetch_day_trades(conn, user_id, account_id, day_iso)
     enriched = _enrich_trades(conn, user_id, rows)
     aggregates = _aggregate_rows(rows)
-    compass, omitted = _same_period_or_omit(
-        conn, user_id, account_id, "daily", rows,
-        _compass_text(conn, user_id, account_id, "daily", day_iso=day_iso), day_iso=day_iso)
+    compass, omitted = _compass_for_draft(conn, user_id, account_id, "daily", rows, day_iso=day_iso)
     return _assemble(
         conn, user_id, account_id, "daily", enriched, aggregates,
         range_={"start": day_iso, "end": day_iso}, compass=compass, compass_omitted=omitted,
@@ -563,9 +620,7 @@ def build_weekly_draft(conn: sqlite3.Connection, user_id: str, account_id: str, 
     first, last = _week_days(week_start)
     rows = _fetch_days_trades(conn, user_id, account_id, first, last)   # ONE fetch: list and numbers
     enriched = _enrich_trades(conn, user_id, rows)
-    compass, omitted = _same_period_or_omit(
-        conn, user_id, account_id, "weekly", rows,
-        _compass_text(conn, user_id, account_id, "weekly", week_start=week_start), week_start=week_start)
+    compass, omitted = _compass_for_draft(conn, user_id, account_id, "weekly", rows, week_start=week_start)
     return _assemble(
         conn, user_id, account_id, "weekly", enriched, _aggregate_rows(rows),
         range_={"start": first, "end": last}, compass=compass, compass_omitted=omitted,
@@ -579,4 +634,5 @@ def build_monthly_draft(conn: sqlite3.Connection, user_id: str, account_id: str,
     return _assemble(
         conn, user_id, account_id, "monthly", enriched, _aggregate_rows(rows),
         range_={"start": first, "end": last}, compass=None,
+        compass_omitted=_omitted("no_monthly_review", _NO_MONTHLY_SENTENCE),
     )

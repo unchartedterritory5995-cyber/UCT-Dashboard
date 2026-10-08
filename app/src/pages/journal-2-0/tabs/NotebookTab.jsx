@@ -17,7 +17,7 @@ import NoteConnectorsTrustStrip from '../components/connectors/NoteConnectorsTru
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import { SkipLinkPortal } from '../../../components/skipLinks'
-import { getTemplate } from '../lib/notebookTemplates'
+import { getTemplate, templateWantsTicker } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
 import { createNoteViaApi } from '../lib/noteCreation'
 import { ensureTemplatePropertyDefs, rememberTemplateReveal } from '../lib/templatePropertyDefs'
@@ -47,9 +47,12 @@ import usePreferences from '../../../hooks/usePreferences'
 import { useNoteSelection } from '../lib/noteSelection'
 import { isBulkActionsShortcut } from '../lib/bulkActionsShortcut'
 import { registerShortcuts } from '../../command/shortcutRegistry'
+import useToolbarRoving from '../lib/useToolbarRoving'
+import useGridRoving from '../lib/useGridRoving'
 import { useIsDesktop } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
+import { NOTEBOOK_LIST_HASH, NOTEBOOK_TEMPLATES_HASH } from '../lib/notebookDoors'
 import {
   checkUnsentWork, describeBatch, describeExport, describeUnchecked, describeUnsentRename, exportSelectedNotes,
   joinUndo, runNoteBatch, undoFor,
@@ -254,12 +257,21 @@ export default function NotebookTab() {
   const voiceOn = voiceNotesEnabled(auth?.isPaid)
   const [voiceNote, setVoiceNote] = useState(null) // { source }
   const [publishFolder, setPublishFolder] = useState(null) // { id, name, opener, open }
+  const listToolbar = useToolbarRoving()
+  const notesGrid = useGridRoving({ rowSelector: '[data-note-row]' })
   const extraFolderActions = useMemo(() => (publishOn ? [{
     id: 'publish',
     label: PUBLISH_FOLDER_ACTION,
     icon: 'globe',
+    // Where focus goes back to when the sheet closes: the row's Publish button for a member
+    // who pressed it, the folder's own row for one who chose Publish from the row's keyboard
+    // menu (lane KEYS round 4: the menu is gone by then, and the row is where they were).
     onSelect: (folder) => setPublishFolder({
-      id: folder.id, name: folder.name, opener: folderActionButton(PUBLISH_FOLDER_ACTION, folder), open: true,
+      id: folder.id, name: folder.name, open: true,
+      opener: (document.activeElement?.closest?.('[role="menu"]')
+        && [...document.querySelectorAll('[data-tree-folder]')]
+          .find((el) => el.getAttribute('data-tree-folder') === String(folder.id)))
+        || folderActionButton(PUBLISH_FOLDER_ACTION, folder),
     }),
   }] : NO_FOLDER_ACTIONS), [publishOn])
   // Closing keeps the folder (and its button) until the sheet has handed focus back.
@@ -442,6 +454,24 @@ export default function NotebookTab() {
     if (location.hash !== NOTEBOOK_SEARCH_HASH) return
     setSidebarOpen(true)
     setSearchRequest((n) => n + 1)
+  }, [location.hash, location.key])
+
+  // Lane KEYS3 (Q2): the command palette's "New note from a template" arrives on the notes
+  // list with `#templates` (lib/notebookDoors.js). The New note sheet opens, exactly as the
+  // Templates button opens it. Keyed on `location.key`, so choosing the command twice works twice.
+  useEffect(() => {
+    if (location.hash !== NOTEBOOK_TEMPLATES_HASH) return
+    setPickerOpen(true)
+  }, [location.hash, location.key])
+
+  // Lane KEYS3 (Q11): the command palette's "All notes" arrives with `#notes`. Keyboard focus
+  // goes to the list's own heading (what "Skip to notes list" does), so the header toolbar and
+  // the list are the next two Tab stops. A frame later: the palette hands focus back to
+  // wherever it was opened from as it closes, and the member asked to be HERE.
+  useEffect(() => {
+    if (location.hash !== NOTEBOOK_LIST_HASH) return undefined
+    const raf = requestAnimationFrame(() => paneHeadingRef.current?.focus())
+    return () => cancelAnimationFrame(raf)
   }, [location.hash, location.key])
 
   // Divider drag. The live width is written straight to a CSS variable on the
@@ -748,7 +778,11 @@ export default function NotebookTab() {
   // title. A template or a typed title still lands in the title (I-1 unchanged
   // there); only the bare "+ New note" / palette "New Note" / Ctrl+K path is
   // `blank`. See `createNote`'s own `blank` computation.
-  const openNote = (note, target = null, { task = null, fresh = false, blank = false } = {}) => {
+  // Lane KEYS3 (Q2): `to` names another first field for a fresh note ('ticker': a template
+  // that asks for a ticker, made with none known). Blank still wins; absent means the title.
+  // Lane KEYS3 (Q18): for a note that already exists, `to: 'collapsed'` asks for its first
+  // collapsed block (a review the Notebook just drafted). Anything else is the landmark.
+  const openNote = (note, target = null, { task = null, fresh = false, blank = false, to = null } = {}) => {
     // ⛔⛔ Wave 6 item 7: the note on the right is not opened a second time on
     // the left — refused, and the side pane (which has it) takes focus.
     if (sideId && note?.id === sideId) { refuseSecondPane('side'); return }
@@ -773,7 +807,10 @@ export default function NotebookTab() {
     // THAT open, not this one.
     paneFocusPlanRef.current = null
     const inside = Boolean(target) || (Number.isInteger(task) && task >= 0)
-    setOpenFocus(inside ? null : { id: note.id, to: fresh ? (blank ? 'body' : 'title') : 'landmark' })
+    setOpenFocus(inside ? null : {
+      id: note.id,
+      to: fresh ? (blank ? 'body' : (to || 'title')) : (to === 'collapsed' ? 'collapsed' : 'landmark'),
+    })
     setSearchParams((prev) => {
       const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
@@ -1544,7 +1581,7 @@ export default function NotebookTab() {
   // than a second creation flow -- this wrapper only adds NotebookTab's OWN
   // UI concerns (app-focus ticker fallback, current-folder scoping, tree/
   // refresh bookkeeping) on top of it.
-  const createNote = async ({ title = '', bodyJson, tags, ticker, properties, revealPropertyIds } = {}) => {
+  const createNote = async ({ title = '', bodyJson, tags, ticker, properties, revealPropertyIds, focusFirst = null } = {}) => {
     setCreating(true)
     setPickerOpen(false)
     try {
@@ -1607,7 +1644,7 @@ export default function NotebookTab() {
       // from the server's response: every note's stored bodyJson is a real doc,
       // even an empty one, so reading `created.bodyJson` could not tell blank
       // from templated).
-      openNote(created, null, { fresh: true, blank: !title && !bodyJson })
+      openNote(created, null, { fresh: true, blank: !title && !bodyJson, to: focusFirst })
     } catch (e) {
       console.error('[notebook] create note failed', e)
       setActionError("Couldn't create that note. Nothing was saved.")
@@ -1667,6 +1704,9 @@ export default function NotebookTab() {
       ticker: ctx.ticker,
       properties: tpl.properties,
       revealPropertyIds,
+      // Lane KEYS3 (Q2): the template's title would have named the ticker and none is
+      // known, so naming it is the member's next act: the note opens in its Ticker field.
+      focusFirst: !ctx.ticker && templateWantsTicker(tpl) ? 'ticker' : null,
     })
   }
 
@@ -1954,6 +1994,7 @@ export default function NotebookTab() {
             onOpenNote={openNote}
             activeNoteId={noteId}
             onToggleSidebar={toggleSidebar}
+            sidebarOpen={sidebarOpen}
             searchRequest={searchRequest}
             savedViews={savedViews}
             activeViewId={activeView?.id ?? null}
@@ -2168,7 +2209,10 @@ export default function NotebookTab() {
           />
         ) : (
           <>
-        <div className={styles.toolbar}>
+        {/* Lane KEYS round 4: ONE Tab stop for the list's header row (the toolbar pattern:
+            Left and Right inside it, Home and End to its ends). Tabindex only. */}
+        <div className={styles.toolbar} role="toolbar" aria-label="Notes list tools"
+          ref={listToolbar.ref} onKeyDown={listToolbar.onKeyDown} onFocus={listToolbar.onFocus}>
           {isArchiveView && <span className={styles.trashLabel}>Archived</span>}
           {isTrashView ? (
             // Trash view sort is fixed (most recently deleted first) — the
@@ -2596,7 +2640,10 @@ export default function NotebookTab() {
                 } : null}
               />
             ) : (
-              <div className={styles.grid} onKeyDown={handleSelectionGridKeyDown}>
+              // Lane KEYS round 5: the list is ONE Tab stop. Down and Up go note to note,
+              // Right and Left between a note's own controls. Shift+Arrow stays 13Q-5's.
+              <div className={styles.grid} role="group" aria-label="Notes" ref={notesGrid.ref} onFocus={notesGrid.onFocus}
+                onKeyDown={(e) => { handleSelectionGridKeyDown(e); notesGrid.onKeyDown(e) }}>
                 {notes.map((n) => (
                   <NoteCard
                     key={n.id}

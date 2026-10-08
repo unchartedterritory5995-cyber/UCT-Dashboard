@@ -8,6 +8,7 @@ import {
   templatesByFamily,
   templatePreview,
   templateStructure,
+  templateWantsTicker,
 } from './notebookTemplates'
 import { WALKTHROUGH_TITLE, isWalkthroughNode, table, toggle } from './templateBlocks'
 import { NOTEBOOK_TYPE_SCHEMA } from './notebookSchema'
@@ -486,5 +487,28 @@ describe('13C-2 -- the earnings-prep template reads the one shared scaffold', ()
   it('CONTROL -- a template that forked its own scaffold would fail the identity check above', () => {
     const forked = () => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a different body' }] }] })
     expect(forked()).not.toEqual(buildPrepDoc(FULL_DRAFT))
+  })
+})
+
+// Lane KEYS3 (Q2): which templates ask for a ticker. DERIVED from the template's own title
+// function (does the title change when a ticker is known?), never a second list beside it.
+describe('templateWantsTicker (lane KEYS3)', () => {
+  it('a template whose title names the ticker wants one; one that does not, does not', () => {
+    expect(templateWantsTicker(getTemplate('thesis'))).toBe(true)
+    expect(templateWantsTicker(getTemplate('earnings-prep'))).toBe(true)
+    expect(templateWantsTicker(getTemplate('weekly-review'))).toBe(false)
+    expect(templateWantsTicker(getTemplate('daily-prep'))).toBe(false)
+  })
+
+  it('nothing, or something that is not a template, wants none (and never throws)', () => {
+    expect(templateWantsTicker(null)).toBe(false)
+    expect(templateWantsTicker({})).toBe(false)
+    expect(templateWantsTicker({ defaultTitle: () => { throw new Error('x') } })).toBe(false)
+  })
+
+  it('it agrees with the catalog: every template it names really titles itself by ticker', () => {
+    const wanting = TEMPLATES.filter(templateWantsTicker)
+    expect(wanting.length).toBeGreaterThan(5)                 // non-vacuity: the catalog has many
+    for (const t of wanting) expect(t.defaultTitle({ ticker: 'ZZZZ' })).toContain('ZZZZ')
   })
 })

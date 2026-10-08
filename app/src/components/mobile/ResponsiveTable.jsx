@@ -1,4 +1,5 @@
 import { useIsPhone } from '../../hooks/useBreakpoint'
+import useGridRoving from '../../pages/journal-2-0/lib/useGridRoving'
 import styles from './ResponsiveTable.module.css'
 
 /* ResponsiveTable — one config, two renderings.
@@ -46,8 +47,17 @@ export default function ResponsiveTable({
   // The table's accessible name (WCAG 1.3.1): what the grid lists ("Notes"). Rendered as
   // `aria-label` on the table element; a caller that omits it keeps an unnamed table.
   label,
+  // Lane KEYS3: OPT-IN. With `oneTabStop` the rows are ONE Tab stop: Down and Up go row to
+  // row, Right and Left reach the controls inside a row, Home and End the ends (the same
+  // hook, and so the same keys, as the Notebook's card list). Default false: every caller
+  // that omits it keeps one Tab stop per clickable row, exactly as before, and nothing below
+  // is attached (no ref, no handler, no attribute).
+  oneTabStop = false,
 }) {
   const isPhone = useIsPhone()
+  const roving = useGridRoving({ rowSelector: '[data-rt-row]', enabled: oneTabStop })
+  const rovingBody = oneTabStop ? { ref: roving.ref, onKeyDown: roving.onKeyDown, onFocus: roving.onFocus } : {}
+  const rovingRow = oneTabStop ? { 'data-rt-row': '' } : {}
 
   const keyOf = (row, i) =>
     rowKey ? rowKey(row, i) : (row.id ?? row.key ?? i)
@@ -111,10 +121,11 @@ export default function ResponsiveTable({
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody {...rovingBody}>
           {rows.map((row, i) => (
             <tr
               key={keyOf(row, i)}
+              {...rovingRow}
               onClick={onRowClick ? () => onRowClick(row, i) : undefined}
               className={onRowClick ? styles.clickable : ''}
               {...activationProps(row, i)}
@@ -153,10 +164,11 @@ export default function ResponsiveTable({
   }
 
   return (
-    <div className={`${styles.cards} ${className}`}>
+    <div className={`${styles.cards} ${className}`} {...rovingBody}>
       {rows.map((row, i) => (
         <div
           key={keyOf(row, i)}
+          {...rovingRow}
           className={`${styles.card} ${onRowClick ? styles.clickable : ''}`}
           onClick={onRowClick ? () => onRowClick(row, i) : undefined}
           {...activationProps(row, i, { card: true })}
