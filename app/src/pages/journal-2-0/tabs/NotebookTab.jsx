@@ -1994,6 +1994,7 @@ export default function NotebookTab() {
             onOpenNote={openNote}
             activeNoteId={noteId}
             onToggleSidebar={toggleSidebar}
+            sidebarOpen={sidebarOpen}
             searchRequest={searchRequest}
             savedViews={savedViews}
             activeViewId={activeView?.id ?? null}

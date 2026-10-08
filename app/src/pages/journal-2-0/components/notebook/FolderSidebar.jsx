@@ -852,6 +852,9 @@ export default function FolderSidebar({
   onOpenNote = () => {},
   activeNoteId = null,
   onToggleSidebar = () => {},
+  // Lane KEYS3 round 3: whether the panel is on screen. "Skip to folder navigation" shows a
+  // hidden panel before it lands. Defaults to shown, which is what a caller that omits it has.
+  sidebarOpen = true,
   // Wave E: populated-conditional, same convention as Favorites/Recents
   // above -- renders nothing at zero saved views (checkpoint §20).
   savedViews = [],
@@ -1343,10 +1346,24 @@ export default function FolderSidebar({
   // reach them; a keyboard member had to tab through the shared app nav AND the Journal's own
   // tab bar to arrive at this panel's own controls. Visually hidden until it takes focus, same
   // H14-safe recipe as every other skip link in this feature.
+  // Lane KEYS3 round 3 (walk finding F1): the link went nowhere. Nothing carried the id its
+  // address names, it put focus on a hidden heading above the panel's own header buttons, and
+  // with the panel HIDDEN that heading was off screen. A skip link must land on something the
+  // member can see and use. So: a hidden panel is shown first; then focus goes to the folder
+  // tree's own Tab stop (the folder navigation itself), or, where no tree is on screen (search
+  // mode), to the panel's heading, which carries the id.
   const sidebarSkipRef = useRef(null)
   const skipToSidebar = (e) => {
     e.preventDefault()
-    sidebarSkipRef.current?.focus()
+    if (!sidebarOpen) onToggleSidebar()
+    const land = () => {
+      const tree = asideRef.current?.querySelector('[role="tree"]')
+      const stop = tree?.querySelector('[role="treeitem"][tabindex="0"]') || tree?.querySelector('[role="treeitem"]')
+      ;(stop || sidebarSkipRef.current)?.focus()
+    }
+    // a frame later when the panel has to open first: its slide starts on the next paint
+    if (sidebarOpen) land()
+    else requestAnimationFrame(land)
   }
   const onDeleteRequest = (id, name) => setDeleteTarget({
     id, name, after: neighbourKeys(keysInOrder(asideRef.current, 'data-folder-row'), String(id)),
@@ -1380,7 +1397,7 @@ export default function FolderSidebar({
           Skip to folder navigation
         </a>
       </SkipLinkPortal>
-      <h2 ref={sidebarSkipRef} tabIndex={-1} className="sr-only">Folder navigation</h2>
+      <h2 ref={sidebarSkipRef} id="notebook-folder-nav" tabIndex={-1} className="sr-only">Folder navigation</h2>
       {/* Header toolbar: collapse + mode switch (Folders / Search). */}
       <div className={styles.sbHeader}>
         <button
