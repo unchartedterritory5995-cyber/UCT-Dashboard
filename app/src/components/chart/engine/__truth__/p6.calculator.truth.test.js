@@ -16,6 +16,8 @@ import { applyPatch, applyTurn, openAuthoringState } from '../../builder/authori
 import { readback } from '../../builder/authoring/readback'
 import { validatePatchShape } from '../../builder/authoring/patchValidate'
 import { conversationEditability } from '../../builder/authoring/memberWords'
+import { attachConversation, changedInputDefaults } from '../../builder/conversationSave'
+import * as registry from '../nativeRegistry'
 
 const P = (src, inputs = []) => { const r = parseFormula(src, { inputs }); if (!r.ok) throw new Error(`${src}: ${JSON.stringify(r)}`); return r.ast }
 const C = 'uct.authoring.patch/1'
@@ -100,5 +102,28 @@ describe('OVERNIGHT E — a position-sizing calculator from inputs + formulas + 
     expect(u.result.status, JSON.stringify(u.result.errors)).toBe('applied')
     expect(u.state.working.inputs.find((x) => x.key === 'riskPct').default).toBe(2)
     expect(u.state.working.objects.ops[0].props.position.value).toBe('bottom_right')
+  })
+
+  it('⚰️ PROD 2026-10-08 — "Change my risk percentage from 1% to 0.5%": the setting keeps its range, and THIS chart takes 0.5 → $500 / 250 shares (EXACT)', () => {
+    const ID = 'u_0a1b2c3d4e5f'
+    const base = { ...r.definition, id: ID, version: 1 }
+    // what the real model sent: key, label, default — no range
+    const t = applyPatch(base, env(0, [{ op: 'set_input', input: { key: 'riskPct', label: 'Risk %', default: 0.5 } }]), { gateCtx: GATE })
+    expect(t.status, JSON.stringify(t.errors)).toBe('applied')
+    expect(t.definition.inputs.find((x) => x.key === 'riskPct')).toMatchObject({ default: 0.5, min: 0, max: 100, step: 0.25 })
+    const stored = { ...t.definition, id: ID, version: 2 }
+    expect(changedInputDefaults(base, stored).map(([k]) => k)).toEqual(['riskPct'])
+    // this chart holds the member's own values (1%), installed as version 1
+    registry.installUserDefinitions([base])
+    const mine = { account: 100000, riskPct: 1, entry: 50, stop: 48 }
+    const settings = { indicatorInstances: [{ instanceId: `inst:${ID}:1`, defId: ID, inputs: { ...mine } }] }
+    const out = attachConversation({ storedDoc: stored, created: false, requests: { alerts: [], infoValues: [] }, settings, registry, base })
+    const inst = out.settings.indicatorInstances.find((i) => i.instanceId === `inst:${ID}:1`)
+    expect(inst.inputs).toMatchObject({ account: 100000, riskPct: 0.5, entry: 50, stop: 48 })
+    expect(out.outcomes.find((o) => o.kind === 'input_value')).toMatchObject({ ok: true, key: 'riskPct' })
+    expect(table(stored, inst.inputs)).toEqual(['$500.00', '$2.00', '250', '$12500.00', '4.00%'])
+    // a create never rewrites values; an unchanged default writes nothing
+    expect(changedInputDefaults(base, base)).toEqual([])
+    registry.uninstallUserDefinition(ID)
   })
 })

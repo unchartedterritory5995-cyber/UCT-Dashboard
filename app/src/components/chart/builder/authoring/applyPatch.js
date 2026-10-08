@@ -185,6 +185,14 @@ function treeReadsName(tree, name) {
 function declareInput(st, spec, i) {
   const m = st.model
   const key = spec.key
+  // ⭐ A CHANGE TO AN EXISTING SETTING KEEPS WHAT IT DOES NOT NAME. ⚰️ Measured on prod
+  // 2026-10-08: "change my risk from 1% to 0.5%" sent {key, label, default} and the
+  // setting lost its 0–100 range and 0.1 step.
+  const prior = m.memberInputs.find((x) => x.key === key)
+  if (prior && (prior.type === 'float' || prior.type === 'int')) {
+    spec = { ...spec }
+    for (const f of ['min', 'max', 'step']) if (spec[f] === undefined && prior[f] !== undefined) spec[f] = prior[f]
+  }
   const names = new Set([...Object.keys(TABLE.functions || {}), ...Object.keys(TABLE.series || {}),
     ...Object.keys(TABLE.scalars || {})])
   if (RESERVED_INPUT_KEYS.has(key) || names.has(key)) {

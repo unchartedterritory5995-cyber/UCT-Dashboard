@@ -24,11 +24,12 @@ import { draftDefId } from './BuilderSheet'
 import { saveUserDefinition } from '../../../hooks/useUserDefinitions'
 import { createIndicatorAlert } from '../../../hooks/useIndicatorAlerts'
 import * as engineRegistry from '../engine/nativeRegistry'
-import { addInstance, setInstanceCalculationTimeframe } from '../engine/instanceControls'
+import { addInstance, setInstanceCalculationTimeframe, setInstanceInput } from '../engine/instanceControls'
 import { calcTimeframeLabel } from '../engine/instanceTimeframe'
 import { withStoredSemantics } from '../engine/definitionSemantics'
 import { signalAlertRequest, policyLabel, numericAlertRequest, numericAlertWords } from '../engine/triggerPolicy'
 import { infoValueRefFor, requestInfoValue, addedInstanceId } from './infoValueDoor'
+import { chromeInputKeys } from './builderInputs'
 
 /**
  * Validate and store. One call to `saveUserDefinition` at most.
@@ -65,13 +66,33 @@ export async function storeConversation(state, { previewAcked = false, draftId =
   return { ok: true, created: !prep.defId, row, storedDoc, doc: prep.doc, requests: prep.requests }
 }
 
+/** Member number inputs (float / int, not the plots' chrome) whose DEFAULT differs
+ *  between the opened definition and the stored one → [key, storedInput][]. */
+export function changedInputDefaults(base, stored) {
+  const nums = (d) => new Map(((d && d.inputs) || [])
+    .filter((x) => x && (x.type === 'float' || x.type === 'int') && typeof x.key === 'string')
+    .map((x) => [x.key, x]))
+  const before = nums(base)
+  const chrome = new Set(((stored && stored.plots) || []).flatMap((p, i) => {
+    const k = chromeInputKeys(p, i)
+    return [k.color, k.width]
+  }))
+  const out = []
+  for (const [key, x] of nums(stored)) {
+    if (chrome.has(key)) continue
+    const was = before.get(key)
+    if (was && Number.isFinite(x.default) && x.default !== was.default) out.push([key, x])
+  }
+  return out
+}
+
 /**
  * Install the stored document, add it to the chart on a create (the Builder's
  * own behaviour), and fulfil the info-value requests against the INSTALLED
  * instance. Pure over `settings` (returns the next settings; the caller writes).
  * @returns {{settings, instanceId: string|null, installed: boolean, outcomes: object[]}}
  */
-export function attachConversation({ storedDoc, created, requests, settings, registry = engineRegistry }) {
+export function attachConversation({ storedDoc, created, requests, settings, registry = engineRegistry, base = null }) {
   const outcomes = []
   const { installed, errors } = registry.installUserDefinitions([storedDoc])
   if (errors.length || installed.length !== 1) {
@@ -97,6 +118,24 @@ export function attachConversation({ storedDoc, created, requests, settings, reg
     const inst = (settings.indicatorInstances || []).find((i) => i && i.defId === id)
     instanceId = inst ? inst.instanceId : null
     outcomes.push({ kind: 'chart', ok: true, text: instanceId ? 'The chart redraws it with the new version.' : 'Saved. It is not on this chart.' })
+  }
+  // ⭐ A SETTING THE CONVERSATION CHANGED IS THE MEMBER'S OWN VALUE ON THIS CHART.
+  // ⚰️ Measured on prod 2026-10-08 (real model): "Change my risk percentage from 1%
+  // to 0.5%" set the definition's DEFAULT to 0.5, while the 1 the member typed lives
+  // on this chart's instance — so nothing they could see changed. A member input
+  // whose default this edit moved is written to the instance on THIS chart through
+  // its own writer (`setInstanceInput`, which refuses what the settings dialog would).
+  // Other charts keep their own values.
+  if (!created && instanceId && base) {
+    for (const [key, to] of changedInputDefaults(base, storedDoc)) {
+      const next = setInstanceInput(cs, instanceId, key, to.default, registry)
+      const inst = ((next && next.indicatorInstances) || []).find((i) => i && i.instanceId === instanceId)
+      const ok = !!inst && inst.inputs && inst.inputs[key] === to.default
+      if (ok) cs = next
+      outcomes.push({ kind: 'input_value', key, ok,
+        text: ok ? `${to.label || key} on this chart: ${to.default}.`
+          : `${to.label || key}: the new default is ${to.default}, but this chart's value was not changed.` })
+    }
   }
   // ⭐ PHASE 5 — THE WHOLE INDICATOR ON A HIGHER TIMEFRAME: the instance's own
   // calculation-timeframe control, written through its own writer (which refuses
