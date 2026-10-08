@@ -7,6 +7,9 @@ import { registerLayoutCapabilities } from './capabilities/layout'
 import { registerWatchlistCapabilities } from './capabilities/watchlist'
 import { registerScreenerCapabilities } from './capabilities/screener'
 import { registerAlertCapabilities } from './capabilities/alert'
+import { registerStockCapabilities } from './capabilities/stock'
+import { registerSettingsCapabilities } from './capabilities/settings'
+import { registerAppCapabilities } from './capabilities/app'
 
 let done = false
 export function registerBuiltins() {
@@ -18,4 +21,7 @@ export function registerBuiltins() {
   registerWatchlistCapabilities()
   registerScreenerCapabilities()
   registerAlertCapabilities()
+  registerStockCapabilities()
+  registerSettingsCapabilities()
+  registerAppCapabilities()
 }

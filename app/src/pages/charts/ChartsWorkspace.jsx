@@ -15,6 +15,8 @@ import { WorkspaceContext } from './WorkspaceContext'
 import useSWR, { useSWRConfig } from 'swr'
 import { useAgentFlag, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
 import { buildWorkspaceHost } from '../../agent/host'
+import { useInRouterContext } from 'react-router-dom'
+import AgentNavBridge from '../../agent/AgentNavBridge'
 const AgentPanel = lazy(() => import('../../agent/AgentPanel'))
 // TERM-079 — the board's typed context channels (list-ref, symbol-set, range, …).
 // A SEPARATE, never-changing context beside WorkspaceContext: its value is one store
@@ -2927,6 +2929,12 @@ export default function ChartsWorkspace() {
       refresh: () => refreshLayouts(),
     }
   }
+  // UCT Agent's settings + navigation reach: the SAME preference writer the Settings page
+  // uses (resolves true only once the server accepted it) and the router's navigate().
+  const agentPrefsRef = useRef(null)
+  agentPrefsRef.current = { prefs, setPref }
+  const agentNavRef = useRef(null)
+  const inRouter = useInRouterContext()
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
     getWidgets: () => agentWidgetsRef.current,
@@ -2945,6 +2953,8 @@ export default function ChartsWorkspace() {
       getLists: () => agentWatchlistsRef.current.lists,
       revalidate: () => agentWatchlistsRef.current.revalidate(),
     },
+    prefs: { read: () => agentPrefsRef.current.prefs, write: (k, v) => agentPrefsRef.current.setPref(k, v) },
+    navigate: (to) => agentNavRef.current?.(to),
   }), [])
 
   if (isMobile) {
@@ -3476,6 +3486,7 @@ export default function ChartsWorkspace() {
             <AgentPanel host={agentHost} gridMode={gridMode} onClose={() => setAgentOpen(false)} />
           </Suspense>
         )}
+        {agentAllowed && agentOpen && inRouter && <AgentNavBridge navRef={agentNavRef} />}
         </div>
 
         {/* Pop-outs live OUTSIDE <main> but INSIDE the provider: each renders

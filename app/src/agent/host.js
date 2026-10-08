@@ -290,7 +290,7 @@ async function readServerBoard() {
   return { sig: boardSig(layout.widgets), epoch: active && active.id != null ? `${active.scope || 'user'}:${active.id}` : (p.charts_active_template === undefined ? null : 'unsaved') }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps, layouts, watchlists, readServer = readServerBoard }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, readServer = readServerBoard }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -311,5 +311,10 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widg
     // server has accepted — or refused — this tab's current board. → { ok, conflict, reason }
     ...(widgetOps?.persist ? { persist: () => widgetOps.persist() } : {}),
     otherWidgets: () => (getWidgets() || []).filter(w => w.type !== 'chart').map(w => widgetLabel(w.type)),
+    // The member's own preferences, through the Settings page's writer: read() → the
+    // current values; write(key, value) → true only once the server accepted it.
+    ...(prefs ? { prefs } : {}),
+    // The router's navigate() (an allow-listed path from capabilities/app.js only).
+    ...(navigate ? { navigate } : {}),
   }
 }
