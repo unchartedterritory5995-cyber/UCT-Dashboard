@@ -186,6 +186,9 @@ def test_the_citation_still_points_at_the_matched_word(doc):
 def test_the_three_value_passage_function_is_unchanged_for_its_callers():
     doc = _doc(*PLAN)
     assert ar._best_note_passage(doc, '"entry"') == ar._note_passage(doc, '"entry"')[:3]
+    # on a long note it locates the same citation; only the text sent to a model differs
+    long_doc = _long_doc()
+    assert ar._best_note_passage(long_doc, '"entry"')[1:] == ar._note_passage(long_doc, '"entry"')[1:3]
 
 
 def test_inserted_ask_answers_are_still_never_part_of_a_whole_note():
@@ -237,3 +240,124 @@ def test_the_excerpt_window_is_moved_inward_to_whole_words():
     assert start <= idx and end >= idx + 5                      # the match is always inside
     assert idx - start <= 90 and end - (idx + 5) <= 150         # moved inward, never outward
     assert text[start:end].split()[0] == "abcdefghij" and text[start:end].split()[-1] == "klmnopqrst"
+
+
+# ── keyed re-walk, section 8.2: a question that spans one LONG note ─────────────────────────
+#
+# Measured on dda0515427, 5 of 5: "What have I written about PLTR: the entry, the stop, the
+# risks, and my final rule for the trade?" over a 1,878-character note was answered "I couldn't
+# find that in your Notebook." with no citation. The model was never asked. The one passage
+# taken from the note was a window around the FIRST query word found in it, which was the
+# ticker in the first sentence. That passage held none of the question's own words, so the
+# server marked the note "context about the security, not an answer" and refused by itself.
+
+from tests.test_ask_retrieval import corpus  # noqa: E402,F401  (the full retrieval schema)
+
+PLTR_PARAS = [
+    "PLTR is the name I keep coming back to in software, so this note collects everything in one place.",
+    "The commercial segment grew 54 percent in the United States last quarter, and the customer count reached 593.",
+    "Management raised full year revenue guidance to 2.75 billion and said the bootcamp motion shortens sales cycles to weeks.",
+    "On the chart the stock built a nine week cup with a handle, and the handle low sits at 24.10.",
+    "My planned entry is 26.35 through the handle high, with a stop at 24.85, which keeps the risk under six percent.",
+    "I will size it at half of a normal position because the valuation leaves little room for a miss.",
+    "The first target is 31, where the measured move from the cup completes, and I would trim a third there.",
+    "The risk I worry about most is government budget timing, since the Army contract renewal slips into the next fiscal year.",
+    "A second risk is stock based compensation, which still runs near 20 percent of revenue and dilutes holders every quarter.",
+    "If the breakout fails back under 25.40 on volume I will exit the whole position the same day rather than wait for the stop.",
+    "The lesson from the last attempt was that I bought the first pop and gave back the gain within three sessions.",
+    "Earnings are five weeks out, so the breakout has room to work before the next report resets the story.",
+    "Relative strength versus the software group made a new high this week while the group itself went sideways.",
+    "I checked the weekly chart as well, and the nine week base sits on top of a prior base, which is the structure I trust most.",
+    "Volume in the handle dried up to the lowest level of the whole base, which tells me sellers are finished for now.",
+    "If the market itself rolls over I will skip the trade entirely, because breakouts fail in corrections no matter how clean the chart.",
+    "The final rule for this trade: no adds until the stock closes above 28 for two days in a row.",
+]
+Q_PLTR = "What have I written about PLTR: the entry, the stop, the risks, and my final rule for the trade?"
+PLTR_FACTS = ("26.35", "24.85", "government budget timing", "stock based compensation",
+              "no adds until the stock closes above 28 for two days in a row")
+
+
+def _add_note(c, nid, title, ticker, paras):
+    from api.services.journal_two.notes import extract_plain_text
+    doc = _doc(*paras)
+    plain = extract_plain_text(doc)
+    c.execute("INSERT INTO j2_notes VALUES (?,?,?,?,?,?,'{}',NULL,'2026-10-07')",
+              (nid, U, title, ticker, json.dumps(doc), plain))
+    c.execute("INSERT INTO j2_notes_fts VALUES (?,?,?,?)", (nid, U, title, plain))
+    c.commit()
+
+
+def _pltr(result):
+    return next((e for e in result["evidence"] if e["source_id"] == "n_pltr"), None)
+
+
+def test_the_walks_long_note_is_the_walks_size():
+    assert len(" ".join(PLTR_PARAS)) > ar.NOTE_WHOLE_MAX_CHARS      # a long note, by the base budget
+
+
+def test_a_question_spanning_one_long_note_is_answered_from_it(corpus):
+    _add_note(corpus, "n_pltr", "PLTR deep dive", "PLTR", PLTR_PARAS)
+    r = ar.retrieve(U, Q_PLTR, conn=corpus)
+    item = _pltr(r)
+    assert item is not None, "the note was not retrieved at all"
+    assert r["no_answer"] is False, (
+        f"the server refused without asking the model; the passage was {len(item['text'])} "
+        f"characters: {item['text'][:160]!r}")
+    assert item["relevance"] == ev.QUERY_MATCH
+    for fact in PLTR_FACTS:                          # the start, the middle and the end
+        assert fact in item["text"], fact
+    # the only note that matched is sent whole, so nothing about it is "an excerpt"
+    assert not item.get("truncated")
+    assert ap.WHOLE_MARK in ap.render_source(1, item)
+    assert item["citation_validity"] == ev.CITE_EXACT and item["location"]["fingerprint"]
+
+
+def test_what_reaches_the_model_for_that_question_holds_every_fact(corpus):
+    _add_note(corpus, "n_pltr", "PLTR deep dive", "PLTR", PLTR_PARAS)
+    r = ar.retrieve(U, Q_PLTR, conn=corpus)
+    prompt = ap.build_messages(Q_PLTR, r["evidence"], coverage=r["coverage"])["messages"][-1]["content"]
+    for fact in PLTR_FACTS:
+        assert fact in prompt, fact
+
+
+def test_a_note_too_long_to_send_whole_gets_a_passage_for_each_part_of_the_question():
+    """Past any budget the note is still an excerpt. It must then carry a passage for every
+    word of the question the note holds, not only the first one found, and it must match a
+    plural in the question to the singular the member wrote ("risks", "risk")."""
+    filler = "Nothing in this paragraph bears on the question and it only adds length to the note. " * 6
+    paras = [PLTR_PARAS[0], filler, PLTR_PARAS[4], filler, PLTR_PARAS[7], PLTR_PARAS[8], filler, filler, PLTR_PARAS[16]]
+    doc = _doc(*paras)
+    snippet, loc, validity, partial = ar._note_passage(doc, ar.ask_match_expr(Q_PLTR), whole_max=1500)
+    assert partial is True and len(snippet) <= 1500
+    for fact in ("26.35", "24.85", "government budget timing", "above 28 for two days"):
+        assert fact in snippet, fact
+    assert "stock based compensation" in snippet          # the SECOND risk: a second place for one word
+    assert ar.EXCERPT_GAP in snippet                      # the gaps between passages are shown
+    assert snippet.count("Nothing in this paragraph") < 24, "the excerpt is the whole note again"
+    assert validity == ev.CITE_EXACT and loc
+
+
+def test_the_whole_note_budget_grows_when_few_notes_match_and_never_past_the_packet():
+    assert ar.whole_note_budget(1) == ar.NOTE_WHOLE_SOLO_MAX_CHARS <= rk.MAX_CHARS
+    assert ar.whole_note_budget(2) == rk.MAX_CHARS // 2
+    assert ar.whole_note_budget(5) == ar.NOTE_WHOLE_MAX_CHARS == ar.whole_note_budget(50)
+    for n in range(1, 12):
+        assert ar.NOTE_WHOLE_MAX_CHARS <= ar.whole_note_budget(n) <= ar.NOTE_WHOLE_SOLO_MAX_CHARS
+        assert ar.whole_note_budget(n) >= ar.whole_note_budget(n + 1)       # more notes, never more each
+
+
+def test_the_prompt_tells_the_model_never_to_show_its_own_labels():
+    """Seen once in the keyed re-walk: "the SEARCHED line indicates 1 attached document could
+    not be searched". That is the prompt's own label, shown to the member."""
+    p = ap.system_prompt()
+    assert "never name or quote" in p and "The word SEARCHED" in p
+    assert "one attached document could not be searched" in p
+
+
+def test_a_part_the_note_truly_lacks_is_not_supplied_by_retrieval(corpus):
+    """No invented facts starts here: the dividend is in no note, so no passage carries one."""
+    _add_note(corpus, "n_pltr", "PLTR deep dive", "PLTR", PLTR_PARAS)
+    r = ar.retrieve(U, "What is the PLTR dividend yield and who is the chief financial officer?", conn=corpus)
+    item = _pltr(r)
+    assert item is None or item["relevance"] != ev.QUERY_MATCH
+    assert r["no_answer"] is True
