@@ -33,6 +33,8 @@
 import { registerCapability, registerTargetKind, registerContextProvider, isRef, SYMBOLS } from '../capabilities'
 import { WORKSPACE_MENU_TYPES, labelMap } from '../../widgets/registry'
 import { mark } from '../trace'
+import { afterRender } from '../frames'
+import { CHART_TIMEFRAMES, CHART_TYPE_IDS } from './chart'
 
 const LABEL = labelMap('menu')
 const label = (t) => LABEL[t] || t
@@ -42,15 +44,16 @@ const CONFIGURABLE_KIND = { chart: 'chart' }
 
 // widget.addCharts: at most this many charts from one request.
 export const MAX_CHARTS_PER_REQUEST = 12
-const TF_ENUM = ['1', '5', '15', '30', '60', 'D', 'W', 'M']
+// The product's lists, through chart.js (one import path; never a second copy).
+const TF_ENUM = CHART_TIMEFRAMES
 const TF_ADJ = { 1: '1-minute', 5: '5-minute', 15: '15-minute', 30: '30-minute', 60: '1-hour', D: 'daily', W: 'weekly', M: 'monthly' }
-const TYPE_ENUM = ['candles', 'hollow', 'bars', 'hlc', 'line', 'area']
+const TYPE_ENUM = CHART_TYPE_IDS
 const TYPE_WORD = { candles: 'candles', hollow: 'hollow candles', bars: 'bars', hlc: 'HLC bars', line: 'line', area: 'area' }
 const TICKER = /^[A-Z0-9.$:^_\-/]{1,24}$/
 const andList = (xs) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
 const chartsPhrase = (n, tf, type) => {
-  const adj = tf ? `${TF_ADJ[tf]} ` : ''
-  return `${n === 1 ? `a ${adj}chart` : `${n} ${adj}charts`}${type ? ` (${TYPE_WORD[type]})` : ''}`
+  const adj = tf ? `${TF_ADJ[tf] || tf} ` : ''
+  return `${n === 1 ? `a ${adj}chart` : `${n} ${adj}charts`}${type ? ` (${TYPE_WORD[type] || type})` : ''}`
 }
 // Room for `n` more charts beside what this plan already creates? → sentence | null
 function chartRoomProblem(st, snap, n) {
@@ -67,10 +70,8 @@ function chartRoomProblem(st, snap, n) {
   return null
 }
 
-const nextFrame = () => new Promise(r => {
-  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => setTimeout(r, 0))
-  else setTimeout(r, 0)
-})
+// Wait for React to commit (never for a paint: a hidden tab never paints) — see agent/frames.js.
+const nextFrame = afterRender
 
 const createdIds = (item) => {
   const before = new Set(item.patch?.beforeIds || item.before?.widgets?.map(w => w.id) || [])

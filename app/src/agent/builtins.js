@@ -6,6 +6,14 @@ import { registerWorkspaceCapabilities } from './capabilities/workspace'
 import { registerLayoutCapabilities } from './capabilities/layout'
 import { registerWatchlistCapabilities } from './capabilities/watchlist'
 import { registerScreenerCapabilities } from './capabilities/screener'
+import { registerAlertCapabilities } from './capabilities/alert'
+import { registerStockCapabilities } from './capabilities/stock'
+import { registerSettingsCapabilities } from './capabilities/settings'
+import { registerAppCapabilities } from './capabilities/app'
+import { registerNewsCapabilities } from './capabilities/news'
+import { registerDigestCapabilities } from './capabilities/digest'
+import { registerSavedScreenCapabilities } from './capabilities/savedScreens'
+import { registerAboutCapabilities } from './capabilities/about'
 
 let done = false
 export function registerBuiltins() {
@@ -16,4 +24,12 @@ export function registerBuiltins() {
   registerLayoutCapabilities()
   registerWatchlistCapabilities()
   registerScreenerCapabilities()
+  registerAlertCapabilities()
+  registerStockCapabilities()
+  registerSettingsCapabilities()
+  registerAppCapabilities()
+  registerNewsCapabilities()
+  registerDigestCapabilities()
+  registerSavedScreenCapabilities()
+  registerAboutCapabilities()
 }

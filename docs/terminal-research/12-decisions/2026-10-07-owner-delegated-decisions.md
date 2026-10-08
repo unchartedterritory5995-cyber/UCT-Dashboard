@@ -183,6 +183,27 @@ action** (§8 number, or "—").
 - **C6** One NVDA pass on Windows and one VoiceOver pass on an iPhone, at 390 px and 820 px, over
   CAL, DES, GP and the command line. Use BrowserStack Live with the smoke-login link.
 
+## 8b. Owner answers, 2026-10-08
+
+- **C1** Bullflow, Unusual Whales and TheFly are not paid. Polygon/Massive stays: it is the
+  live data feed. Nothing to cancel.
+- **C2** Not started. The owner was given a plain explanation and a ready-to-send message for
+  Ravi; sending it is optional. Phase A needs at least 5 trading days **and** at least 10 logged
+  occasions ("whichever is later" in the pre-registration).
+- **C3** Yes, and enforced in code, not only stated (this supersedes P-3's "not enforced"). Terms
+  section 3 now says one subscription is one person, with at most two devices signed in.
+  `api/services/session_guard.py`: a 2-device limit (the least recently used session is signed
+  out) and a sharing alarm (5+ logins from 3+ networks in 24 hours signs out every other device
+  and posts to the ops Discord). Kill switches: `SESSION_DEVICE_LIMIT=0`,
+  `SESSION_SHARING_GUARD_ENABLED=0`. The owner chose 2 devices and automatic sign-out.
+- **C4** The key is probably not held. Nothing set.
+- **B1** Decided under delegation: the 2026-10-14 09:00 to 11:00 ET window stands, recorded here
+  instead of posted. The owner was not asked to post in `#deploys`.
+- **B3** No new channel. Ops alerts keep going to the existing admin Discord channel through the
+  `DISCORD_WEBHOOK_URL` fallback, which already works.
+- **C6** Decided under delegation: deferred until the owner has device time. The automated
+  accessibility checks keep running on every change.
+
 ## 9. Reversal
 
 Every decision above is a default, and the owner can overturn any of them with one sentence. The one

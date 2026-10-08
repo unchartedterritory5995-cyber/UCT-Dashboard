@@ -646,10 +646,41 @@ def _live_map() -> dict:
             if not payload.get("anchored") or payload.get("degraded"):
                 return {}
             m = payload.get("metrics")
-            return m if isinstance(m, dict) else {}
+            if not isinstance(m, dict):
+                return {}
+            return _with_derived_live_fields(m, payload.get("as_of"))
     except Exception:
         pass
     return {}
+
+
+_derived_live_cache: dict = {}
+
+
+def _with_derived_live_fields(metrics: dict, as_of) -> dict:
+    """`metrics` + the fields a STORED row derives (5/10-day up/down ratios, % at 52-week
+    highs/lows) — the same `derive_live_row` the Monitor's live row goes through.
+
+    ⭐ (2026-10-08) Without these, UCTR5 / UCTR10 / UCTPH / UCTPL had no developing candle at all:
+    their values only exist in the derived row, and this map handed the chart the raw metrics.
+    Computed once per live payload. ⛔ `adv_decline_cum` is deliberately NOT taken from the
+    derived row (it continues the collector's level, which is not the served A/D line's) —
+    `_append_today_candle` continues the served line by today's net advances instead."""
+    key = (as_of, id(metrics))      # one entry per cached live payload object
+    hit = _derived_live_cache.get("v")
+    if hit and hit[0] == key:
+        return hit[1]
+    out = dict(metrics)
+    try:
+        from api.services import breadth_monitor as bm
+        row = bm.derive_live_row(dict(metrics), bm.get_history(11))
+        for k in ("ratio_5day", "ratio_10day", "hi_ratio", "lo_ratio"):
+            if row.get(k) is not None:
+                out[k] = row[k]
+    except Exception:
+        pass
+    _derived_live_cache["v"] = (key, out)
+    return out
 
 
 def _finite(v) -> Optional[float]:
@@ -907,7 +938,14 @@ def _append_today_candle(daily: list[dict], metric: str) -> list[dict]:
     today = _et_today()
     if not (today and daily and daily[-1]["t"] < today):
         return daily
-    live_val = _finite(_live_map().get(metric))
+    live = _live_map()
+    if metric == "adv_decline_cum":
+        # The cumulative line continues from ITS OWN last sealed level by today's net
+        # advances (a cumulative's live value is the served level + today's change).
+        net = _finite(live.get("adv_decline"))
+        live_val = None if net is None else daily[-1]["c"] + net
+    else:
+        live_val = _finite(live.get(metric))
     if live_val is None:
         return daily
     o = daily[-1]["c"]
@@ -1026,11 +1064,21 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
     # Serve-time: append the live developing candle (cheap, cache-only) then resample.
     # ⚠️ THE LIVE CANDLE IS UCT'S ALONE. `breadth_live` measures the collector's
     # universe; appending its value to a US or NASDAQ series would paint one
-    # universe's intraday number on another's chart. A PIT universe therefore ends
-    # at its last sealed day, which is honest — it has no live feed.
+    # universe's intraday number on another's chart.
+    # ⭐ (2026-10-08) A PIT universe gets ITS OWN live feed: `breadth_live_universes`
+    # measures US / NYSE / Nasdaq over their own members, anchored to their own
+    # canonical series, and appends the provisional completed sessions the canonical
+    # producer has not finalised yet plus today's developing bar. BREADTH_LIVE_UNIVERSES=0
+    # turns it off, and then a PIT universe ends at its last sealed day.
     body = daily or []
     if universe == DEFAULT_UNIVERSE:
         body = _append_today_candle(body, metric)
+    else:
+        try:
+            from api.services import breadth_live_universes as _blu
+            body = _blu.append_library_bars(body, universe, metric)
+        except Exception:
+            pass
     series = _resample(body, tf)
 
     try:

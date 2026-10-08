@@ -124,9 +124,14 @@ def create_session(user_id: str, user_agent: str = None, ip_address: str = None)
              (user_agent or None), (ip_address or None)),
         )
         conn.commit()
-        return token
     finally:
         conn.close()
+    # One person per subscription (owner ruling 2026-10-08): the device limit and
+    # the login-sharing alarm. Runs after the commit and never raises, so it can
+    # never cost a member their sign-in.
+    from api.services import session_guard
+    session_guard.after_session_created(user_id, token)
+    return token
 
 
 def validate_session(token: str) -> dict | None:

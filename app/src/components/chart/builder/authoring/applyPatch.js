@@ -22,7 +22,7 @@
 // ⛔ NOTHING HERE CALLS A MODEL. ⛔ NOTHING HERE WRITES `meta.semantics`.
 // ⛔ PROSE (`note`, `*.text`) NEVER REACHES THE DEFINITION.
 
-import { namingSnapshot, applyDerivedNaming } from './derivedName'
+import { namingSnapshot, applyDerivedNaming, memberNamePhrases, memberNamed, memberCueNames, NAME_MAX } from './derivedName'
 import { validatePatchShape, opIndexOf, PATCH_LIMITS } from './patchValidate'
 import {
   modelOf, buildFromModel, fidelityPlan, graftCarried, orderLike, evaluateRowSource, AuthoringError, LEVELS_PLOT_KEY,
@@ -37,7 +37,7 @@ import {
   SIGNAL_MARKER_DEFAULT,
 } from '../authoringIntent'
 import { printFormula } from '../../engine/ast/pine'
-import { assertCanonical, astHash } from '../../engine/ast/parse'
+import { assertCanonical, astHash, TABLE } from '../../engine/ast/parse'
 import { declaredInputs } from '../../engine/ast/lint'
 import { outputTypeOf, outputsOf, treeOutputType, OUTPUT_TYPES } from '../../engine/outputType'
 import { evaluability, LANES, STATUS } from '../../engine/evaluability'
@@ -50,6 +50,7 @@ import { calcTimeframeCapability } from '../../engine/calcTimeframeCapability'
 import { frameRelation } from '../../engine/instanceTimeframe'
 import CROSS from './crossContext.json'
 import { COLOR_HELPER_SUFFIX, FILL_HELPER_SUFFIX, risingTree, aboveTree, sameTree } from './colorRules'
+import { tableProgram, tableSpecOf, tableSpecProblem } from './tables'
 
 /** The node types a patch tree may use — the concierge's ADVERTISED union plus
  *  PHASE 5's three scope wrappers (`sym`, `tf`, `tf_live`; bounds in
@@ -153,10 +154,94 @@ function setTree(st, row, tree, i, kind) {
   }
   const from = row.source
   const before = row.ast
+  // ⭐ OVERNIGHT D — a table cell names this output; read the spec BEFORE the tree moves
+  const tableBefore = tableSpecOfModel(st.model)
   Object.assign(row, g)
   st.touched.add(row.key)
   st.changes.push({ op: i, kind, output: row.key, from, to: g.source })
   syncHelpers(st, row, before)
+  if (tableBefore && tableBefore.cells.some((c) => c.output === row.key)) writeTable(st, tableBefore)
+}
+
+// ─── ⭐ OVERNIGHT E — member inputs (a number the member sets in settings) ──────────
+//
+// `def.inputs` and the settings Inspector that edits them per instance already exist
+// (`instanceControls.setInstanceInput`); a tree reads an input as a series named by its
+// key (`interpret` seeds it). The conversation could not DECLARE one — that is all this is.
+
+const RESERVED_INPUT_KEYS = new Set(['color', 'lineWidth'])
+
+function treeReadsName(tree, name) {
+  const stack = [tree]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'series' && n.name === name) return true
+    if (Array.isArray(n.args)) stack.push(...n.args)
+  }
+  return false
+}
+
+function declareInput(st, spec, i) {
+  const m = st.model
+  const key = spec.key
+  // ⭐ A CHANGE TO AN EXISTING SETTING KEEPS WHAT IT DOES NOT NAME. ⚰️ Measured on prod
+  // 2026-10-08: "change my risk from 1% to 0.5%" sent {key, label, default} and the
+  // setting lost its 0–100 range and 0.1 step.
+  const prior = m.memberInputs.find((x) => x.key === key)
+  if (prior && (prior.type === 'float' || prior.type === 'int')) {
+    spec = { ...spec }
+    for (const f of ['min', 'max', 'step']) if (spec[f] === undefined && prior[f] !== undefined) spec[f] = prior[f]
+  }
+  const names = new Set([...Object.keys(TABLE.functions || {}), ...Object.keys(TABLE.series || {}),
+    ...Object.keys(TABLE.scalars || {})])
+  if (RESERVED_INPUT_KEYS.has(key) || names.has(key)) {
+    throw err('input:name', `"${key}" is already a name in UCT's formula language; pick another name for the setting.`)
+  }
+  // ⛔ A key that names an Object.prototype member (`constructor`, `toString`, …) is
+  // refused: every reader here is own-property safe, and this keeps it that way.
+  if (key in Object.prototype) throw err('input:name', `"${key}" is a reserved word; pick another name for the setting.`)
+  for (const f of ['default', 'min', 'max', 'step']) {
+    if (spec[f] !== undefined && !(typeof spec[f] === 'number' && Number.isFinite(spec[f]))) {
+      throw err('input:value', `The setting's ${f} must be a number.`)
+    }
+  }
+  if (spec.min !== undefined && spec.max !== undefined && spec.min > spec.max) throw err('input:range', "The setting's minimum is above its maximum.")
+  if ((spec.min !== undefined && spec.default < spec.min) || (spec.max !== undefined && spec.default > spec.max)) {
+    throw err('input:range', "The setting's default is outside its own range.")
+  }
+  const next = { key, type: 'float', label: spec.label.trim(), default: spec.default,
+    ...(spec.min !== undefined ? { min: spec.min } : {}), ...(spec.max !== undefined ? { max: spec.max } : {}),
+    ...(spec.step !== undefined ? { step: spec.step } : {}) }
+  const at = m.memberInputs.findIndex((x) => x.key === key)
+  if (at >= 0 && m.memberInputs[at].type !== 'float' && m.memberInputs[at].type !== 'int') {
+    throw err('input:kind', `"${key}" is an imported setting of another kind; it is not changed here.`)
+  }
+  const from = at >= 0 ? m.memberInputs[at] : null
+  if (at >= 0) m.memberInputs[at] = next
+  else m.memberInputs.push(next)
+  st.changes.push({ op: i, kind: from ? 'input-changed' : 'input-added', key, from, to: next })
+}
+
+// ─── ⭐ OVERNIGHT D — the chart table (tables.js) ───────────────────────────────
+
+/** The table spec the model's objects say, when the program is OURS; else null. */
+export function tableSpecOfModel(m) {
+  if (!m || !m.objects) return null
+  return tableSpecOf(m.objects, (t) => {
+    const r = m.rows.find((x) => x.ast && sameTree(x.ast, t))
+    return r ? r.key : null
+  })
+}
+
+function outputTypes(m) {
+  return new Map(m.rows.filter((r) => r.ast).map((r) => [r.key, treeOutputType(r.ast).type]))
+}
+
+function writeTable(st, spec) {
+  const m = st.model
+  const types = outputTypes(m)
+  m.objects = tableProgram(spec, (k) => m.rows.find((r) => r.key === k).ast, (k) => types.get(k))
 }
 
 // ─── ⭐ PHASE 5 — colour-rule / cloud helpers ─────────────────────────────────
@@ -317,12 +402,29 @@ const OPS = {
       levels: null, paints: null, objects: null, paramManifest: null, memberInputs: [],
       carried: { compute: {}, meta: {} },
     }
+    // ⭐ OVERNIGHT E — the member settings its formulas read, declared BEFORE they are gated
+    for (const spec of op.inputs || []) declareInput(st, spec, i)
     const scope = scopeOf(st.model)
     op.outputs.forEach((o, j) => {
       Object.assign(st.model.rows[j], gateTree(o.tree, scope, keys[j]))
       st.touched.add(keys[j])
     })
     st.created = true
+    // ⭐ a name / label the member gave in their own words is CUSTOM (derivedName.js)
+    if (memberNamed(st.memberNames, st.model.name)) st.renamedDefinition = true
+    // ⭐ …AND IT IS THE NAME EVEN WHEN THE MODEL PUT ANOTHER ON THE CREATE. ⚰️ Measured
+    // on prod 2026-10-08: "Add an EMA 21 and call it Swing Line" came back as
+    // `create {name: "EMA 21"}`. Exactly ONE cue-named phrase that is not an output's
+    // label names the indicator.
+    else {
+      const labels = new Set(op.outputs.map((o) => String(o.label || '').trim().toLowerCase()).filter(Boolean))
+      const given = memberCueNames(st.ctx.memberWords).filter((t) => !labels.has(t.toLowerCase()))
+      if (given.length === 1) {
+        st.model.name = given[0].length > NAME_MAX ? given[0].slice(0, NAME_MAX) : given[0]
+        st.renamedDefinition = true
+      }
+    }
+    op.outputs.forEach((o, j) => { if (memberNamed(st.memberNames, o.label)) st.renamedOutputs.add(keys[j]) })
     st.changes.push({ op: i, kind: 'created', outputs: keys, name: st.model.name })
   },
 
@@ -343,6 +445,7 @@ const OPS = {
     st.model.rows.push(row)
     Object.assign(row, gateTree(op.tree, scopeOf(st.model), op.key))
     st.touched.add(op.key)
+    if (memberNamed(st.memberNames, op.label)) st.renamedOutputs.add(op.key)
     st.changes.push({ op: i, kind: 'output-added', output: op.key, to: row.source })
   },
 
@@ -351,6 +454,10 @@ const OPS = {
     const m = st.model
     if (m.rows.length === 1) throw err('output:last', 'A definition needs at least one output.')
     const col = `column:${row.key}`
+    const table = tableSpecOfModel(m)
+    if (table && table.cells.some((c) => c.output === row.key)) {
+      throw err('output:referenced', `"${row.key}" is shown in the chart table; change or remove that cell first.`, { output: row.key })
+    }
     if (helperOwner(m, row)) {
       throw err('output:helper', `"${row.key}" is the hidden column of a colour rule; change or remove that rule instead.`, { output: row.key })
     }
@@ -736,6 +843,44 @@ const OPS = {
       ...(from === op.timeframe ? { what: 'calculation timeframe' } : { from, to: op.timeframe }) })
   },
 
+  set_table(st, op, i) {
+    const m = st.model
+    if (!m) throw err('definition:none', 'There is no definition yet.')
+    const was = tableSpecOfModel(m)
+    if (m.objects && !was) {
+      throw err('table:foreign', 'This indicator already draws imported chart objects; a table is not added over them here.')
+    }
+    const spec = { position: op.position || (was && was.position) || 'top_right', cells: op.cells.map((c) => ({ ...c })) }
+    const problem = tableSpecProblem(spec, outputTypes(m))
+    if (problem) throw err('table:invalid', problem)
+    writeTable(st, spec)
+    st.changes.push({ op: i, kind: was ? 'table-replaced' : 'table-added', position: spec.position, cells: spec.cells.length })
+  },
+
+  set_input(st, op, i) {
+    if (!st.model) throw err('definition:none', 'There is no definition yet.')
+    declareInput(st, op.input, i)
+  },
+
+  remove_input(st, op, i) {
+    const m = st.model
+    if (!m) throw err('definition:none', 'There is no definition yet.')
+    const at = m.memberInputs.findIndex((x) => x.key === op.key)
+    if (at < 0) throw err('input:none', `There is no setting "${op.key}".`)
+    const readers = m.rows.filter((r) => r.ast && treeReadsName(r.ast, op.key)).map((r) => r.key)
+    if (readers.length) throw err('input:referenced', `"${op.key}" is used by ${readers.map((k) => `"${k}"`).join(', ')}; change that first.`)
+    m.memberInputs.splice(at, 1)
+    st.changes.push({ op: i, kind: 'input-removed', key: op.key })
+  },
+
+  remove_table(st, op, i) {
+    const m = st.model
+    if (!m || !m.objects) throw err('table:none', 'This indicator draws no table.')
+    if (!tableSpecOfModel(m)) throw err('table:foreign', 'This indicator draws imported chart objects; they are not removed here.')
+    m.objects = null
+    st.changes.push({ op: i, kind: 'table-removed' })
+  },
+
   cancel_request(st, op, i) {
     const list = op.kind === 'alert' ? 'alerts' : 'infoValues'
     const kept = st.requests[list].filter((r) => r.plotKey !== op.output)
@@ -917,7 +1062,7 @@ function runOps(input, ops, ctx) {
     model: null, ctx, changes: [], touched: new Set(), removed: new Set(), requested: new Set(),
     intent: ctx.intent ? { ...ctx.intent } : null, requests: normRequests(ctx.requests),
     engineAssumptions: [], replacedForeign: {}, created: false, intentTouched: false, fills: new Set(),
-    renamedDefinition: false, renamedOutputs: new Set(),
+    renamedDefinition: false, renamedOutputs: new Set(), memberNames: memberNamePhrases(ctx.memberWords),
     newPaints: new Set(), hiddenSet: new Set(), calcTouched: false,
   }
   let namingBefore = null

@@ -59,7 +59,7 @@ describe('capability registry', () => {
     const m = manifestFor(CTX)
     expect(m.length).toBeGreaterThanOrEqual(8)
     for (const c of m) {
-      expect(Object.keys(c).sort()).toEqual(['args', 'domain', 'hints', 'name', 'reversible', 'risk', 'summary', 'target'])
+      expect(Object.keys(c).sort()).toEqual(['args', 'domain', 'hints', 'name', 'query', 'reversible', 'risk', 'summary', 'target', 'undo'])
       expect(c.args.additionalProperties).toBe(false)
       expect([...c.args.required].sort()).toEqual(Object.keys(c.args.properties).sort())
     }

@@ -2675,6 +2675,9 @@ def portal(user: dict = Depends(get_current_user)):
 class SetPreferenceRequest(BaseModel):
     key: str
     value: str
+    # REVISION SAFETY: the workspace-document version at which this client last read or wrote
+    # `key` (a board key only; ignored for every other key). See `write_pref_checked`.
+    base_version: Optional[int] = None
 
 
 # ── Preference key allow-list + per-key schema (B6) ───────────────────────────
@@ -2718,8 +2721,8 @@ _PREF_OPAQUE = "opaque"
 #: Only `joystick_hub` — the key this charter owns — carries a real schema.
 _PREFERENCE_KEYS = {
     "aisearch_settings": _PREF_OPAQUE,
-    "alert_sound": _PREF_OPAQUE,
-    "alert_sound_type": _PREF_OPAQUE,
+    "alert_sound": "alert_sound",
+    "alert_sound_type": "alert_sound_type",
     "alerts_widget_settings": _PREF_OPAQUE,
     "breadth_charts_state": _PREF_OPAQUE,
     "breadth_drill_board": _PREF_OPAQUE,
@@ -2741,7 +2744,7 @@ _PREFERENCE_KEYS = {
     "charts_vol_pane_pct": _PREF_OPAQUE,
     "charts_workspace_groups": _PREF_OPAQUE,
     "charts_workspace_layout": _PREF_OPAQUE,
-    "default_chart_tf": _PREF_OPAQUE,
+    "default_chart_tf": "default_chart_tf",
     "fundamentals_settings": _PREF_OPAQUE,
     "j2_calendar_pnl_basis": _PREF_OPAQUE,
     "j2_custom_dashboard": _PREF_OPAQUE,
@@ -2810,7 +2813,7 @@ _PREFERENCE_KEYS = {
     # commandHistory.js`). Written only through `setPrefMerged` (read-modify-write, since this
     # endpoint replaces the whole value). Not a board key: it is not versioned with the board.
     "terminal_command_history": _PREF_OPAQUE,
-    "theme": _PREF_OPAQUE,
+    "theme": "theme",
     # A12 CP2 (2026-09-25): the Watchlists surface's chosen performance columns, a
     # JSON array of its PERF_COLS keys (`Watchlists.jsx` WATCHLIST_PERF_COLS_KEY).
     # ⚰️ Shipped client-side first (9a8c7163c) WITHOUT this row: every write 400'd
@@ -2922,6 +2925,44 @@ def _validate_joystick_hub(raw: str) -> None:
             )
 
 
+# ── CLOSED-VALUE SETTINGS ─────────────────────────────────────────────────────────
+# Four plain settings with a fixed set of values — the ones Settings offers AND the ones UCT
+# Agent can change for a member (2026-10-08). Their values were checked only in the browser;
+# the server now refuses anything else, so no client (or a crafted request) can store a value
+# the app cannot render. Every list is the client's own, and
+# `tests/test_preference_value_validation.py` re-derives each one from `app/src/**` and fails
+# if the client grows a value this side lacks.
+#   • "" is always accepted: it is the client's "cleared / back to default" write.
+#   • Only NEW writes are checked; a value already stored is never touched or re-validated.
+#   • LEGACY values that Settings once offered are still accepted (an old preferences backup
+#     restores them; Layout.jsx renders them as the default theme).
+_APP_THEME_BASE = ("dark", "oled", "light")
+#: `app/src/styles/appThemes.js` APP_THEMES ids, stored as "uct:<id>".
+_APP_THEME_CATALOG = ("slate", "graphite", "carbon", "navy", "forest", "espresso", "plum", "nord",
+                      "gunmetal", "bordeaux", "storm", "umber", "paper", "cream", "coolgray",
+                      "softblue", "sand", "mint")
+#: Settings' picker until 2026-08-23 (1a5cb38a02 removed them).
+_APP_THEME_LEGACY = ("midnight", "dim", "system")
+#: The chart's own timeframe codes (Settings offers 5 / 30 / 60 / D / W of them).
+_CHART_TF_CODES = ("1", "5", "15", "30", "60", "D", "W", "M")
+#: `app/src/utils/alertSound.js` ALERT_SOUNDS keys.
+_ALERT_SOUNDS = ("chime", "bell", "ding", "double_tap", "triple_pop", "radar", "urgent", "soft",
+                 "pulse", "major")
+_CLOSED_VALUES = {
+    "theme": frozenset(_APP_THEME_BASE + tuple(f"uct:{t}" for t in _APP_THEME_CATALOG) + _APP_THEME_LEGACY),
+    "default_chart_tf": frozenset(_CHART_TF_CODES),
+    "alert_sound": frozenset(("on", "off")),
+    "alert_sound_type": frozenset(_ALERT_SOUNDS),
+}
+
+
+def _validate_closed_value(key: str, value) -> None:
+    if value == "" or value is None:
+        return
+    if not isinstance(value, str) or value not in _CLOSED_VALUES[key]:
+        raise HTTPException(status_code=400, detail=f"'{str(value)[:40]}' is not a valid value for {key}.")
+
+
 def _validate_preference(key: str, value: str) -> None:
     """Allow-list the key, then run that key's schema. Raises 400, or returns."""
     schema = _PREFERENCE_KEYS.get(key)
@@ -2932,6 +2973,8 @@ def _validate_preference(key: str, value: str) -> None:
         )
     if schema == "joystick_hub":
         _validate_joystick_hub(value)
+    elif schema in _CLOSED_VALUES:
+        _validate_closed_value(key, value)
 
 
 def enforce_board_bound(user_id, key: str, value) -> None:
@@ -2973,6 +3016,31 @@ _WORKSPACE_DOC_HEADERS = {
 def upsert_preference(req: SetPreferenceRequest, user: dict = Depends(get_current_user)):
     _validate_preference(req.key, req.value)
     enforce_board_bound(user["id"], req.key, req.value)
+    # ⛔ REVISION SAFETY (Charts board keys, while the document store is armed). A stale copy of a
+    # board key — an older tab, another device — must never overwrite newer work:
+    #   * a write naming its base version commits only if the key is unchanged since then
+    #     (compare-and-set in ONE transaction); otherwise 409 and NOTHING is written;
+    #   * a write with NO base version (a tab still running a bundle from before revisions) is
+    #     refused once a revision-aware client has written that key, since it cannot know what it
+    #     would overwrite. Until then it keeps the old behaviour, so such tabs keep saving against
+    #     each other exactly as before and never against newer, versioned work.
+    if workspace_doc_store.is_enabled() and workspace_doc_store.board_for_key(req.key) == workspace_doc_store.BOARD_CHARTS:
+        if req.base_version is not None:
+            try:
+                res = workspace_doc_store.write_pref_checked(
+                    user["id"], req.key, req.value, base_version=req.base_version, prefs_reader=get_user_preferences)
+            except workspace_doc_store.VersionConflict as exc:
+                raise HTTPException(status_code=409, detail={
+                    "code": "workspace_conflict", "key": req.key, "head_version": exc.head_version,
+                    "message": "Your workspace was changed in another window or device. This change was not saved."})
+            if res["appended"]:
+                set_user_preference(user["id"], req.key, req.value)
+                workspace_doc_store.mark_writeback_done(user["id"], res["board"], [res["version"]])
+            return {"ok": True, "version": res["version"]}
+        if workspace_doc_store.key_is_guarded(user["id"], req.key):
+            raise HTTPException(status_code=409, detail={
+                "code": "workspace_revision_required", "key": req.key,
+                "message": "This page is out of date. Reload it to keep saving your workspace."})
     # TERM-021 WRITE-BOTH / READ-OLD. ⛔ Order is the whole point: the document is snapshotted
     # BEFORE this write, so the value it replaces (a corrupt blob about to be overwritten by a
     # default board, STATE-2) survives as the version before it. Both calls return without any

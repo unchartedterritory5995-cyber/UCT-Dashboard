@@ -1441,6 +1441,13 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
         definition = materialize(definition)
     except ValueError:
         pass
+    # ⭐ A LEGACY ROW STORED WITHOUT A PRESENTATION VERSION IS SERVED WITH ITS ROW'S, so
+    # every browser can draw it (`defSchema` requires one; `save` now does too). Read-side
+    # only -- nothing stored is rewritten, so this is not a migration.
+    if isinstance(definition, dict):
+        dv = definition.get("version")
+        if isinstance(dv, bool) or not isinstance(dv, int) or dv < 1:
+            definition["version"] = row["version"]
     return {
         "user_id": row["user_id"],
         "def_id": row["def_id"],
@@ -1632,6 +1639,17 @@ def save(user_id: Any, def_id: str, definition: dict,
             f"definition.id is {definition.get('id')!r} but it is being stored at "
             f"{def_id!r} — an address that disagrees with the document it names "
             "makes `defId.plotKey` resolve to two different things")
+    # ⭐ THE PRESENTATION VERSION IS REQUIRED, AS THE BROWSER REQUIRES IT. ⚰️ Measured on
+    # prod 2026-10-08: a definition POSTed without `version` was stored, and every
+    # browser then refused it ("version: required integer >= 1") -- saved, listed,
+    # never drawable. Every UCT client sends it (`defSchema.validateDefinition` runs
+    # before save); a legacy row stored without one is served WITH its row version
+    # (`_row_to_dict`), so nothing already stored becomes unreadable.
+    ver = definition.get("version")
+    if isinstance(ver, bool) or not isinstance(ver, int) or ver < 1:
+        raise ValueError(
+            f"definition.version: required integer >= 1 (the presentation version), "
+            f"got {ver!r} — a document without one is refused by every browser that loads it")
 
     compute = definition.get("compute")
     # ⭐⭐ RT1 — A RUNTIME-LANE DOCUMENT HAS ITS OWN DOOR (`runtime_definitions`),
@@ -1723,6 +1741,24 @@ def save(user_id: Any, def_id: str, definition: dict,
     from api.services import presentation_schema
     presentation_found = (presentation_schema.presentation_errors(definition)
                           if not _copy_of_stored else [])
+    # ⛔ A DRAWING PROGRAM'S COLOURS ARE COLOURS -- on EVERY save, a copy of a stored
+    # row included (share install, fork are how an unsafe program reaches a second
+    # member). No legacy carve-out: no UCT writer ever produced anything else.
+    # ⛔ …AND A PRESENTATION COLOUR IS A COLOUR (plots, paints, colour settings). Measured
+    # here, ENFORCED in phase 1 against the stored predecessor: a save may not
+    # INTRODUCE one; an entry the stored row already carried unchanged is recorded,
+    # not enforced (no migration). A COPY (share install, fork) has no predecessor of
+    # its own, so every unsafe colour in it is refused -- that is the cross-member path.
+    colour_found = presentation_schema.definition_colour_errors(definition)
+    unsafe_colours = presentation_schema.object_colour_errors(definition)
+    if unsafe_colours:
+        raise SaveRefused(
+            "presentation",
+            "a drawing colour that is not a colour: "
+            + "; ".join(e["message"] for e in unsafe_colours[:3])
+            + ". Nothing was saved.",
+            guard="presentation:object-colour",
+            errors=[{k: e[k] for k in ("path", "code", "message")} for e in unsafe_colours[:20]])
 
     # ⛔ THE BLOB IS `stored`, NEVER `definition`. `definition` is the
     # materialised working copy from here up; persisting it would write the
@@ -1780,6 +1816,24 @@ def save(user_id: Any, def_id: str, definition: dict,
         # stored predecessor (see `decide_semantics`). "The maths moved" is the
         # SAME two identities `rev_bumped` asks below, asked once here.
         prev_doc = json.loads(prev["definition"]) if prev is not None else None
+        if colour_found:
+            kept_c = set() if _copy_of_stored or prev_doc is None else {
+                (e["path"], e["value"])
+                for e in presentation_schema.definition_colour_errors(prev_doc)}
+            refused_c = [e for e in colour_found if (e["path"], e["value"]) not in kept_c]
+            if len(refused_c) < len(colour_found):
+                _log.warning(
+                    "[user-definitions] %s keeps stored colours today's rule refuses "
+                    "(unchanged, not enforced): %s", def_id,
+                    "; ".join(e["path"] for e in colour_found if e not in refused_c))
+            if refused_c:
+                raise SaveRefused(
+                    "presentation",
+                    "a colour that is not a colour: "
+                    + "; ".join(e["message"] for e in refused_c[:3])
+                    + ". Nothing was saved.",
+                    guard="presentation:colour",
+                    errors=[{k: e[k] for k in ("path", "code", "message")} for e in refused_c[:20]])
         if presentation_found:
             refused_p, kept_p = presentation_schema.new_presentation_errors(
                 definition, prev_doc)

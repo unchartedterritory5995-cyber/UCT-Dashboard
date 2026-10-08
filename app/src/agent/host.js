@@ -159,6 +159,9 @@ export function buildLayoutSource(getLayouts) {
     rename: (id, name) => getLayouts()?.rename(id, name),
     saveAs: (name) => getLayouts()?.saveAs(name),
     refresh: () => getLayouts()?.refresh?.(),
+    remove: (id) => getLayouts()?.remove(id),
+    create: (name) => getLayouts()?.create(name),
+    duplicate: (id, name) => getLayouts()?.duplicate(id, name),
   }
 }
 
@@ -176,6 +179,7 @@ export function buildLayoutSource(getLayouts) {
  */
 export function buildWatchlistSource({ getLists, getWidgets, revalidate, request = (u, o) => fetch(u, { credentials: 'include', ...o }) }) {
   const fresh = new Map()       // id → { row, at }
+  const gone = new Set()        // ids this tab deleted (until the SWR refetch drops them)
   let swrAt = 0
   let lastRows = null
   const slimItems = (row) => (row?.items || []).filter(i => i && i.sym).map(i => ({ id: String(i.id), sym: String(i.sym).toUpperCase(), notes: i.notes || '' }))
@@ -185,6 +189,7 @@ export function buildWatchlistSource({ getLists, getWidgets, revalidate, request
     if (r !== lastRows) { lastRows = r; swrAt = Date.now() }
     const byId = new Map(r.filter(x => x && x.id && !x.is_flagged_list && !x.is_prebuilt).map(x => [String(x.id), x]))
     for (const [id, f] of fresh) if (f.at >= swrAt) byId.set(id, f.row)
+    for (const id of gone) byId.delete(id)
     return [...byId.values()]
   }
   function shownIn(id, widgets) {
@@ -228,6 +233,13 @@ export function buildWatchlistSource({ getLists, getWidgets, revalidate, request
       return row
     },
     rename: async (id, name) => json(await request(`/api/watchlists/${enc(id)}`, send('PUT', { name })), 'Renaming'),
+    /** Delete a whole list (the Watchlists page's DELETE; owner-only server-side, hard). */
+    async deleteList(id) {
+      await json(await request(`/api/watchlists/${enc(id)}`, { method: 'DELETE' }), 'Deleting the watchlist')
+      fresh.delete(String(id))
+      gone.add(String(id))
+      revalidate?.()
+    },
     /** Only to take back a list THIS transaction just created (compensation). */
     async deleteCreated(id) {
       await json(await request(`/api/watchlists/${enc(id)}`, { method: 'DELETE' }), 'Removing the new list')
@@ -290,7 +302,7 @@ async function readServerBoard() {
   return { sig: boardSig(layout.widgets), epoch: active && active.id != null ? `${active.scope || 'user'}:${active.id}` : (p.charts_active_template === undefined ? null : 'unsaved') }
 }
 
-export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps, layouts, watchlists, readServer = readServerBoard }) {
+export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, readServer = readServerBoard }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
     const a = layoutSource.snapshot().active
@@ -307,6 +319,14 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widg
       epoch,
     } : {}),
     ...(widgetOps && epoch ? { boardInSync: buildBoardSync({ readServer, localLayout: () => widgetOps.layout(), localEpoch: epoch }) } : {}),
+    // The board's persistence acknowledgment (ChartsWorkspace `persist`): resolves once the
+    // server has accepted — or refused — this tab's current board. → { ok, conflict, reason }
+    ...(widgetOps?.persist ? { persist: () => widgetOps.persist() } : {}),
     otherWidgets: () => (getWidgets() || []).filter(w => w.type !== 'chart').map(w => widgetLabel(w.type)),
+    // The member's own preferences, through the Settings page's writer: read() → the
+    // current values; write(key, value) → true only once the server accepted it.
+    ...(prefs ? { prefs } : {}),
+    // The router's navigate() (an allow-listed path from capabilities/app.js only).
+    ...(navigate ? { navigate } : {}),
   }
 }

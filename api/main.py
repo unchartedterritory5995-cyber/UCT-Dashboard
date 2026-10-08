@@ -6348,6 +6348,15 @@ async def lifespan(app: FastAPI):
                 except Exception as _e:
                     logging.getLogger(__name__).debug(
                         "[breadth-live] sample tick skipped: %s", _e)
+                # ⭐ US / NYSE / Nasdaq live breadth rides the same clock: a cheap stale-check
+                # that kicks ONE background refresh (reusing the snapshot just fetched above).
+                try:
+                    from api.services import breadth_live_universes as _blu
+                    if _blu.serving():
+                        _blu.payload(cached_only=True)
+                except Exception as _e:
+                    logging.getLogger(__name__).debug(
+                        "[breadth-live-universes] tick skipped: %s", _e)
 
             _scheduler.add_job(
                 _breadth_live_sample,
@@ -6384,6 +6393,33 @@ async def lifespan(app: FastAPI):
         except Exception:
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth OHLC intraday aggregation")
+
+        # CBOE Put/Call fill: the 4:15 collector writes null (CBOE publishes in the evening) and
+        # nothing filled it afterwards, so UCTPC stopped on 2026-08-10. Fill missing sessions from
+        # CBOE's per-date endpoint each evening and morning, and once shortly after boot.
+        try:
+            def _breadth_putcall_fill():
+                try:
+                    from api.services import breadth_putcall_backfill
+                    breadth_putcall_backfill.fill()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[putcall-backfill] failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_putcall_fill,
+                trigger=CronTrigger(day_of_week="mon-sat", hour="7,19,22", minute=5, timezone=_ET),
+                id="breadth_putcall_fill", max_instances=1,
+                coalesce=True, misfire_grace_time=3600, replace_existing=True)
+            from datetime import datetime as _dt, timedelta as _td
+            _scheduler.add_job(
+                _breadth_putcall_fill, trigger="date",
+                run_date=_dt.now(_ET) + _td(minutes=3),
+                id="breadth_putcall_fill_boot", replace_existing=True)
+            logging.getLogger(__name__).info(
+                "[startup] breadth put/call fill scheduled (07:05/19:05/22:05 ET + boot)")
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "[startup] failed to schedule breadth put/call fill")
 
         # Deep breadth HISTORY backfill — restart-resilient. Every 12 min this sweeps the next
         # chunk BELOW current coverage until it reaches the floor set via

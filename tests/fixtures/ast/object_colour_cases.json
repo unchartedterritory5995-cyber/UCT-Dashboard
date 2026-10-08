@@ -1,0 +1,102 @@
+{
+  "about": "One colour grammar for drawing-object programs, three doors: the server save (presentation_schema.object_colour_errors), the browser bind (objectProgram.assertColorNode) and the table renderer's CSS (objectTableDom via objectColour.isCssColour). Both lanes answer every case.",
+  "literal": {
+    "accept": [
+      "#2962FF",
+      "#2962ff",
+      "#2962FF80",
+      "#fff",
+      "#ffff",
+      "#00000000",
+      "rgb(41,98,255)",
+      "rgba(41, 98, 255, 0.20)",
+      "rgba(0,0,0,1)",
+      "chart.fg_color",
+      "chart.bg_color",
+      "chart.fg_color@80"
+    ],
+    "reject": [
+      "url(https://evil.example/x)",
+      "#fff url(https://evil.example/x)",
+      "red",
+      "transparent",
+      "#zzzzzz",
+      "#12345",
+      "expression(alert(1))",
+      "rgb(1,2,3);background:url(x)",
+      "var(--x)",
+      "chart.fg_color@80;x",
+      "",
+      " #ffffff",
+      "#ffffff ",
+      "rgba(1,2,3,0.5) url(x)",
+      "javascript:alert(1)"
+    ]
+  },
+  "css": {
+    "accept": [
+      "#2962FF",
+      "#2962FF80",
+      "rgba(41,98,255,0.20)",
+      "transparent"
+    ],
+    "reject": [
+      "chart.fg_color",
+      "url(https://evil.example/x)",
+      "red",
+      "inherit",
+      "#fff;color:red"
+    ]
+  },
+  "presentation": {
+    "accept": [
+      "#c9a84c",
+      "#C9A84C",
+      "#fff",
+      "#ffff",
+      "#2962FF80",
+      "rgb(41,98,255)",
+      "rgba(123,104,238,0.4)",
+      "rgba(41, 98, 255, .2)",
+      "hsl(210, 50%, 40%)",
+      "hsla(210,50%,40%,0.5)",
+      "red",
+      "transparent",
+      "currentColor",
+      "token:info",
+      "token:up@2"
+    ],
+    "reject": [
+      "url(https://evil.example/x)",
+      "var(--x)",
+      "red;background:url(x)",
+      "#fff url(x)",
+      "rgb(1,2,3) url(x)",
+      "expression(alert(1))",
+      "javascript:alert(1)",
+      "token:",
+      "token:x;y",
+      "",
+      "  ",
+      " #fff",
+      "image-set(\"x\")",
+      "rgb(1,2)",
+      "#12345"
+    ]
+  },
+  "safeCss": {
+    "accept": [
+      "#c9a84c",
+      "rgba(41, 98, 255, .2)",
+      "hsl(210, 50%, 40%)",
+      "red",
+      "transparent"
+    ],
+    "reject": [
+      "token:info",
+      "url(x)",
+      "var(--x)",
+      "red;x:y"
+    ]
+  }
+}

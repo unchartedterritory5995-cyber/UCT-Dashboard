@@ -1537,6 +1537,8 @@ def apply_anchor(metrics: dict, basis: Optional[dict]) -> dict:
 _live_lock = threading.Lock()
 _live_cache: dict = {}
 _LIVE_TTL_SECONDS = 55
+#: How old a payload a `cached_only` reader (chart serves) still accepts — see compute_live.
+CACHED_ONLY_GRACE_SECONDS = 180
 
 
 def _market_open() -> bool:
@@ -1627,7 +1629,14 @@ def compute_live(force: bool = False, cached_only: bool = False) -> dict:
     now = _time.time()
     with _live_lock:
         hit = _live_cache.get("payload")
-        if hit and not force and now - _live_cache.get("at", 0) < _LIVE_TTL_SECONDS:
+        age = now - _live_cache.get("at", 0)
+        if hit and not force and age < _LIVE_TTL_SECONDS:
+            return hit
+        # ⭐ (2026-10-08) A cache-only reader takes a payload up to CACHED_ONLY_GRACE old. The
+        # per-minute sampler refreshes a 55 s TTL, so a strict TTL left a few seconds every minute
+        # (plus each sampler's own compute) in which a chart serve found nothing and drew NO
+        # developing candle — measured: today's bar present or absent depending on the second.
+        if cached_only and hit and age < CACHED_ONLY_GRACE_SECONDS:
             return hit
     if cached_only:
         return {"ok": False, "reason": "no warm live cache (cached_only)"}

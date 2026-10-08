@@ -26,6 +26,7 @@ import { OP_NAMES, PATCH_LIMITS, PATCH_CONTRACT } from './patchValidate'
 import { NUMERIC_CONDITIONS } from '../../engine/triggerPolicy'
 import { helpersOfDefinition, plotColorRule, plotFillRule, COLOR_RULES } from './colorRules'
 import CROSS from './crossContext.json'
+import { tableSpecOfDefinition, TABLE_POSITIONS, TABLE_FORMATS } from './tables'
 
 export const VIEW_CONTRACT = 'uct.authoring.view/1'
 export const VIEW_MAX_CHARS = 24000
@@ -114,6 +115,9 @@ const CAPABILITIES = Object.freeze({
   scopeTimeframes: CROSS.tfCodes,
   calculationTimeframes: CROSS.calculationTimeframes,
   maxOtherSymbols: CROSS.maxOtherSymbols,
+  // ⭐ OVERNIGHT D — set_table / remove_table.
+  tablePositions: TABLE_POSITIONS,
+  tableFormats: Object.keys(TABLE_FORMATS),
   infoValueFormats: INFO_VALUE_FORMATS,
   maxOutputs: PATCH_LIMITS.maxOutputs,
   maxOpsPerPatch: PATCH_LIMITS.maxOps,
@@ -169,6 +173,8 @@ export function compactView(def, state = {}, gateCtx = {}) {
       kind: def.compute && def.compute.kind,
       placement: def.placement && def.placement.target === 'price' ? 'price' : 'pane',
       ...levelsView(def),
+      // ⭐ OVERNIGHT D — the chart table, as the spec set_table takes (or "imported").
+      ...(def.objects ? { table: (() => { const t = tableSpecOfDefinition(def); return t === 'imported' ? { imported: true } : t })() } : {}),
       primary,
       outputs: shown.map((o) => outputView(def, o, scope, gateCtx, chartOf.get(o.key), primary, helpers)),
       ...(all.length > shown.length ? { omittedOutputs: all.length - shown.length } : {}),

@@ -29,6 +29,34 @@ from typing import Optional
 
 from api.services.market_indicators import mcclellan as mc
 
+import contextvars
+
+#: ⭐ (2026-10-08) LIVE / PROVISIONAL INPUT ROWS. `{universe: {metric: {date: value}}}` set by
+#: `build_with_overlay` for the duration of one derivation: the two store readers below append
+#: these dates AFTER the canonical ones, so every derived series (McClellan, A/D, ratios, HLI,
+#: Zweig) extends through the provisional and live sessions with the SAME formulas — no second
+#: implementation. ⛔ Never set on the cached path (`build`): the cache holds canonical only.
+_INPUT_OVERLAY: contextvars.ContextVar = contextvars.ContextVar("mi_input_overlay", default=None)
+
+
+def _overlay(universe: str, metric: str) -> dict:
+    ov = _INPUT_OVERLAY.get()
+    if not ov:
+        return {}
+    return ((ov.get(universe) or {}).get(metric)) or {}
+
+
+def _with_overlay(rows: dict, universe: str, metric: str) -> dict:
+    extra = _overlay(universe, metric)
+    if not extra:
+        return rows
+    last = max(rows) if rows else ""
+    out = dict(rows)
+    for d, v in extra.items():
+        if d > last:
+            out[d] = {"c": v}
+    return out
+
 _log = logging.getLogger("market_indicators.producers")
 
 #: Zweig's smoother. His rule is a 10-day EMA of the advance ratio.
@@ -77,7 +105,8 @@ def load_metric_closes(metric: str, universe: str,
     not cosmetic — an EMA fed in the wrong order is silently, plausibly wrong.
     """
     from api.services import breadth_daily_ohlc as store
-    rows = store.history(metric, limit=limit, universe=universe) or {}
+    rows = _with_overlay(store.history(metric, limit=limit, universe=universe) or {},
+                         universe, metric)
     dates = sorted(rows.keys())
     return dates, [rows[d].get("c") for d in dates]
 
@@ -93,8 +122,10 @@ def load_pair(metric_a: str, metric_b: str, universe: str,
     hole is.
     """
     from api.services import breadth_daily_ohlc as store
-    a = store.history(metric_a, limit=limit, universe=universe) or {}
-    b = store.history(metric_b, limit=limit, universe=universe) or {}
+    a = _with_overlay(store.history(metric_a, limit=limit, universe=universe) or {},
+                      universe, metric_a)
+    b = _with_overlay(store.history(metric_b, limit=limit, universe=universe) or {},
+                      universe, metric_b)
     dates = sorted(set(a) | set(b))
     return (dates,
             [(a.get(d) or {}).get("c") for d in dates],
@@ -466,6 +497,44 @@ def invalidate(key: Optional[str] = None) -> None:
             _cache.clear()
         else:
             _cache.pop(key, None)
+
+
+def build_with_overlay(series_id: str, overlay: dict) -> Optional["DerivedSeries"]:
+    """The series computed over canonical inputs + `overlay` rows (see `_INPUT_OVERLAY`).
+
+    UNCACHED, and callers keep only the dates after the canonical series' last date. The
+    exchange universes' AD / MCO / MCS are otherwise read verbatim from the authority, which
+    cannot extend them, so under an overlay they run the SAME engine the US series use over the
+    authority's own advancing/declining (`load_pair` reads the authority for nyse/nasdaq) — the
+    recomputation reproduces the authority's values (verified 2026-10-07, max |Δ| 0.000000), so
+    the extension continues the served line.
+    """
+    from api.services.market_indicators import registry as reg
+    row = reg.get(series_id)
+    if row is None or row.universe is None:
+        return None
+    token = _INPUT_OVERLAY.set(overlay or None)
+    try:
+        kind = series_id.split(":", 1)[1] if ":" in series_id else series_id
+        if row.universe in EXCHANGE_UNIVERSES and kind in ("MCO", "MCS", "AD"):
+            if kind == "AD":
+                ds = ad_line_for_universe(row.universe)
+                if ds:
+                    ds.series_id = series_id
+                return ds
+            res = mcclellan_for_universe(row.universe)
+            if res is None:
+                return None
+            if kind == "MCO":
+                vals = res.oscillator
+            else:
+                vals = [None if (f is None or w is None) else 19.0 * w - 9.0 * f
+                        for f, w in zip(res.ema19, res.ema39)]
+            return DerivedSeries(series_id=series_id, dates=res.dates, values=vals,
+                                 universe=row.universe, methodology_version=row.methodology_version)
+        return _build_uncached(series_id)
+    finally:
+        _INPUT_OVERLAY.reset(token)
 
 
 def build(series_id: str):

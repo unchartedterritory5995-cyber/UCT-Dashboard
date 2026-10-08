@@ -22,7 +22,8 @@
 // list-valued fields (sector, exchange, …) need their options and are not offered.
 //
 // ⛔ Not here: operating the Screener PAGE's own filters (it only exists inside
-// /screener), saving screens, My Scans (Indicator formulas), logic groups.
+// /screener), My Scans (Indicator formulas), logic groups. Saving / renaming / copying /
+// deleting SAVED screens is capabilities/savedScreens.js (the same routes the Screener's menu uses).
 
 import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup, registerOutputSource, SYMBOLS } from '../capabilities'
 import { encodeSpec } from '../../pages/screener/shell/specUrl'
@@ -62,8 +63,8 @@ export function loadMeta() {
   }
   return cache.metaP
 }
-async function loadSaved() {
-  if (cache.saved && Date.now() - cache.savedAt < SAVED_TTL_MS) return cache.saved
+export async function loadSaved({ force = false } = {}) {
+  if (!force && cache.saved && Date.now() - cache.savedAt < SAVED_TTL_MS) return cache.saved
   const b = await json(await req('/api/screener/saved-screens'), 'Reading your screens')
   cache.saved = {
     saved: (b.saved || []).map(s => ({ id: String(s.id), name: s.name, spec: s.spec, kind: 'yours' })),
@@ -73,6 +74,9 @@ async function loadSaved() {
   return cache.saved
 }
 const post = (path, body) => req(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+/** The saved-screens list as last read (sync), and the last screen run here (its wire spec). */
+export const savedScreensNow = () => cache.saved
+export const lastScreenNow = () => cache.last
 
 // ── catalog helpers ──
 const fieldOf = (key) => cache.meta?.fields.find(f => f.key === key) || null
@@ -219,6 +223,11 @@ const FILTER_ITEM = {
   required: ['field', 'op', 'value', 'max'], additionalProperties: false,
 }
 
+// Could this request involve screening? Deliberately BROAD (a false positive costs ~3 KB; a
+// false negative still leaves every field key visible).
+const SCREEN_WORDS = /\b(stocks?|screens?|screener|scan\w*|find|filter\w*|sort\w*|tickers?|names|compan\w+|results?|matches|those|them|top\s+\d+|above|below|over|under|between|at least|more than|less than|greater|higher|lower|adr|atr|rsi|volume|price|market cap|cap|growth|margin|eps|revenue|p\/?e|dividend|beta|float|earnings|perf\w*|gainers?|losers?|up|down|etfs?|sector|industry|leaders?|momentum|high|low)\b|%|\$/i
+export const screenRelevant = (message) => SCREEN_WORDS.test(String(message || ''))
+
 let registered = false
 export function registerScreenerCapabilities() {
   if (registered) return
@@ -228,12 +237,19 @@ export function registerScreenerCapabilities() {
 
   registerContextProvider({
     key: 'screener',
-    build: (_host, refFor) => {
+    build: (_host, refFor, { message = '' } = {}) => {
       const last = cache.last
+      // CONTEXT RELEVANCE: the full catalog (key:Label(unit), ~5 KB) only when the request could
+      // be about screening; otherwise its KEYS (~2 KB) — the model can still see every field it
+      // could screen on and discover a screen is wanted, it just gets no labels/units.
+      const full = !!last || screenRelevant(message)
       return [{
         ref: refFor('screener', 'screener'), label: 'Screener',
-        // The live catalog, compactly: key:Label(unit). Use ONLY these keys.
-        fields: cache.meta ? cache.meta.fields.map(f => `${f.key}:${f.label}${f.unit ? `(${f.unit})` : f.type === 'bool' ? '(yes/no)' : ''}`).join(';') : 'loading',
+        // The live catalog. Use ONLY these keys.
+        fields: !cache.meta ? 'loading' : full
+          ? cache.meta.fields.map(f => `${f.key}:${f.label}${f.unit ? `(${f.unit})` : f.type === 'bool' ? '(yes/no)' : ''}`).join(';')
+          : cache.meta.fields.map(f => f.key).join(','),
+        ...(full ? {} : { fieldsDetail: 'keys only (labels and units omitted for this request)' }),
         ...(last ? { lastScreen: { ref: 'lastScreen', filters: (last.spec.filters || []).map(describeFilter), sort: last.spec.sort ? `${last.spec.sort.key} ${last.spec.sort.dir}` : null, matches: last.total, name: last.name } } : {}),
         ...(cache.saved ? { savedScreens: [...cache.saved.saved, ...cache.saved.starters].slice(0, 40).map(s => ({ id: s.id, name: s.name, kind: s.kind })) } : {}),
       }]

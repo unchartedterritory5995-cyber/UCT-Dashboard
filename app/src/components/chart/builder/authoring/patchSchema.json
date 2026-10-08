@@ -78,7 +78,9 @@
         { "$ref": "#/$defs/op_cancel_request" },
         { "$ref": "#/$defs/op_set_levels" }, { "$ref": "#/$defs/op_set_fill" },
         { "$ref": "#/$defs/op_remove_fill" },
-        { "$ref": "#/$defs/op_set_color_rule" }, { "$ref": "#/$defs/op_set_calculation_timeframe" }
+        { "$ref": "#/$defs/op_set_color_rule" }, { "$ref": "#/$defs/op_set_calculation_timeframe" },
+        { "$ref": "#/$defs/op_set_table" }, { "$ref": "#/$defs/op_remove_table" },
+        { "$ref": "#/$defs/op_set_input" }, { "$ref": "#/$defs/op_remove_input" }
       ]
     },
     "op_create": {
@@ -88,7 +90,20 @@
         "name": { "$ref": "#/$defs/name" },
         "outputs": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/createOutput" } },
         "placement": { "enum": ["pane", "price"] },
-        "primary": { "$ref": "#/$defs/outputKey" }
+        "primary": { "$ref": "#/$defs/outputKey" },
+        "inputs": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/memberInput" } }
+      }
+    },
+    "memberInput": {
+      "description": "OVERNIGHT E — a number the MEMBER sets in the indicator's settings (account size, risk %, entry, stop). A tree reads it as a series named by its key. Never invent a member's own figure: default 0 and say they set it.",
+      "type": "object", "additionalProperties": false, "required": ["key", "label", "default"],
+      "properties": {
+        "key": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]{0,23}$" },
+        "label": { "$ref": "#/$defs/label" },
+        "default": { "type": "number" },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "step": { "type": "number", "minimum": 0 }
       }
     },
     "op_rename_definition": {
@@ -247,6 +262,46 @@
         "down": { "$ref": "#/$defs/colour" },
         "when": { "$ref": "#/$defs/outputKey" }
       }
+    },
+    "tableCell": {
+      "type": "object", "additionalProperties": false, "required": ["row", "col"],
+      "properties": {
+        "row": { "type": "integer", "minimum": 0, "maximum": 11 },
+        "col": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 40 },
+        "output": { "$ref": "#/$defs/outputKey" },
+        "format": { "enum": ["auto", "integer", "decimal1", "decimal2", "decimal3"] },
+        "prefix": { "type": "string", "maxLength": 6 },
+        "suffix": { "type": "string", "maxLength": 6 },
+        "color": { "$ref": "#/$defs/colour" },
+        "background": { "$ref": "#/$defs/colour" },
+        "bold": { "type": "boolean" }
+      },
+      "oneOf": [ { "required": ["text"] }, { "required": ["output"] } ]
+    },
+    "op_set_table": {
+      "description": "OVERNIGHT D — a table drawn ON the chart at one of nine positions (the existing chart-table renderer). cells REPLACES the whole table: each cell is fixed text, or the LATEST value of an output of this indicator (a number output with an optional format / prefix / suffix; a yes/no output shows Yes or No). An unknown value shows as a dash. Use hidden outputs for values that should appear only in the table.",
+      "type": "object", "additionalProperties": false, "required": ["op", "cells"],
+      "properties": {
+        "op": { "const": "set_table" },
+        "position": { "enum": ["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"] },
+        "cells": { "type": "array", "minItems": 1, "maxItems": 48, "items": { "$ref": "#/$defs/tableCell" } }
+      }
+    },
+    "op_set_input": {
+      "description": "OVERNIGHT E — add a member-settable number input, or change an existing one's label / default / range.",
+      "type": "object", "additionalProperties": false, "required": ["op", "input"],
+      "properties": { "op": { "const": "set_input" }, "input": { "$ref": "#/$defs/memberInput" } }
+    },
+    "op_remove_input": {
+      "description": "OVERNIGHT E — remove a member input no formula reads any more.",
+      "type": "object", "additionalProperties": false, "required": ["op", "key"],
+      "properties": { "op": { "const": "remove_input" }, "key": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]{0,23}$" } }
+    },
+    "op_remove_table": {
+      "description": "OVERNIGHT D — remove this indicator's chart table (its outputs stay).",
+      "type": "object", "additionalProperties": false, "required": ["op"],
+      "properties": { "op": { "const": "remove_table" } }
     },
     "op_set_calculation_timeframe": {
       "description": "PHASE 5 — run the WHOLE indicator on another timeframe than the chart's (its instance's calculation timeframe), applied when it is saved to the chart; a HIGHER timeframe only. chart = the chart's own timeframe.",
