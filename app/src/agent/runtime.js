@@ -18,6 +18,7 @@
 
 import { getTargetKind } from './capabilities'
 import { planOps, summarize } from './executor'
+import { mark } from './trace'
 
 const nextFrame = () => new Promise(r => {
   if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => setTimeout(r, 0))
@@ -114,7 +115,9 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
     const kind = getTargetKind(p.kind)
     const realRef = aliases[p.ref]
     if (!realRef) return fail(p.snap.label, 'was not created')
+    mark(`target:wait`, p.ref)
     const snap = await waitForTarget(kind, host, realRef)
+    mark(`target:ready`, p.ref)
     if (!snap) return fail(p.snap.label, 'never became available')
     const ops = p.items.map(i => ({ ...i.op, target: realRef }))
     const re = planOps(new Map([[realRef, { kind: p.kind, snap }]]), ops, env, ctx)
@@ -123,6 +126,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
     if (rp.patch) {
       try { await kind.commit(host, realRef, rp.patch) } catch (e) { return fail(p.snap.label, `failed (${e?.message || 'error'})`) }
       await nextFrame()
+      mark(`target:committed`, p.ref)
       if (!kind.landed(kind.read(host, realRef), rp.patch)) return fail(p.snap.label, 'did not take effect')
     }
     // The target did not exist before this request, so its receipt is what was

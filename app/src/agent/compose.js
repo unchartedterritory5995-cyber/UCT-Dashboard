@@ -21,6 +21,7 @@
 // call, and nothing is written if a producer fails or a reference comes back empty.
 
 import { getCapability, getOutputSource, isRef, allCapabilityNames } from './capabilities'
+import { mark } from './trace'
 
 const MAX_TOP = 100
 
@@ -140,7 +141,9 @@ export async function resolveRefs(ops, host) {
     const cap = getCapability(p.action)
     let res
     // The producer's own TARGET (e.g. which saved watchlist) travels with it.
+    mark(`produce:${p.action}`)
     try { res = await cap.produce(p.args, host, p.target) } catch (e) { return { ok: false, reason: e?.message || 'that source could not be read' } }
+    mark(`produced:${p.action}`, (res?.symbols || []).length)
     outputs.set(String(p.args.as), res)
     lines.push(res.summary)
   }
@@ -148,7 +151,9 @@ export async function resolveRefs(ops, host) {
     if (outputs.has(r.ref.from)) continue
     const src = getOutputSource(r.ref.from)
     let res
+    mark(`resolve:${r.ref.from}`)
     try { res = await src.resolve(host) } catch (e) { return { ok: false, reason: e?.message || 'that result is not available' } }
+    mark(`resolved:${r.ref.from}`, (res?.symbols || []).length)
     outputs.set(r.ref.from, res)
     lines.push(res.summary)
   }

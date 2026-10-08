@@ -32,6 +32,7 @@
 
 import { registerCapability, registerTargetKind, registerContextProvider, isRef, SYMBOLS } from '../capabilities'
 import { WORKSPACE_MENU_TYPES, labelMap } from '../../widgets/registry'
+import { mark } from '../trace'
 
 const LABEL = labelMap('menu')
 const label = (t) => LABEL[t] || t
@@ -106,11 +107,12 @@ export const workspaceKind = {
         await nextFrame()
         fresh = host.widgets.snapshot().widgets.find(w => !known.has(w.id) && w.type === c.type) || null
       }
+      mark('widget:added', i)
       if (!fresh) { host.widgets.cancelPending?.(); break }
       // A new chart that gets its OWN symbol must not share the link group the
       // product assigns by default — that would retarget the member's existing
       // linked widgets. Unlink it the way the member would (the color dot → N).
-      if (c.flags?.unlink) { host.widgets.color(fresh.id, 'N'); await nextFrame() }
+      if (c.flags?.unlink) { host.widgets.color(fresh.id, 'N'); await nextFrame(); mark('widget:unlinked', i) }
       created[c.alias || `#${i}`] = fresh.id
     }
     return { created }

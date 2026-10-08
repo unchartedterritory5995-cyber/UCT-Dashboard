@@ -21,6 +21,7 @@ import { planOps, prepareOps, collectTargets } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
 import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
+import { traceStart, mark, traceEnd } from './trace'
 import { buildContext, manifestFor, getCapability, getTargetKind, runWarmups } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { agentTurn, agentRecord, agentConversation } from './agentClient'
@@ -98,7 +99,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice }) => {
+  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice }) => {
     let allOps = opsIn
     const refuse = (why) => {
       const text = `I didn't change anything: ${why}`
@@ -140,7 +141,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
             }
           }
         }
+        mark('gate:capacity')
         const r = await resolveRefs(allOps, host)
+        mark('sources:resolved')
         if (!r.ok) {
           const text = `I didn't change anything: ${r.reason}.`
           push({ role: 'refusal', text })
@@ -155,6 +158,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         }
         // The references are concrete now: macros fed by them expand here.
         const x = expandOps(r.ops)
+        mark('expanded')
         if (!x.ok) { refuse(`${x.reason}.`); return }
         allOps = x.ops
         if (x.expanded) expansion = x
@@ -183,7 +187,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     const ops = allOps.filter(o => !getCapability(o?.action)?.query)
     if (!ops.length) return
     const env = await prepareOps(ops)
+    mark('prepared')
     const plan = planOps(targets, ops, env, capCtx)
+    mark('planned')
     const actions = ops.map(o => o.action)
     if (!plan.ok) {
       const text = refusalText(plan.refusals)
@@ -220,7 +226,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: text, outcomeData: { kind: 'noop', actions }, telemetry: { path, disposition: 'apply', actions, voice } })
       return
     }
+    mark('commit:start')
     const res = await commitPlan(host, plan, { env, ctx: capCtx })
+    mark('commit:end')
     if (res.ok && wholly) {
       res.lines = expansion.lines
       if (res.undo) res.undo.lines = expansion.lines
@@ -240,6 +248,14 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: [res.lines.join(' · '), text].filter(Boolean).join(' · '), outcomeData: { kind: 'failed', actions }, telemetry: { path, refused: true, actions, voice } })
     }
   }, [host, push, record, capCtx])
+
+  // Every execution is traced (agent/trace.js): phase timestamps, memory only.
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice }) => {
+    traceStart(`${path}:${suggested || 'apply'}`)
+    try {
+      return await executeInner(opsIn, { path, mode: suggested, member, voice })
+    } finally { traceEnd('done') }
+  }, [executeInner])
 
   const doUndo = useCallback(async (undoId, { member, voice } = {}) => {
     const stack = undoRef.current
