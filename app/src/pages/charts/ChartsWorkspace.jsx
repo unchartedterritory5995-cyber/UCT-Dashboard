@@ -3,7 +3,8 @@ import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import usePreferences, { parsePref, refreshPreferences } from '../../hooks/usePreferences'
-import { onWorkspaceConflict } from '../../lib/workspaceConflict'
+import { onWorkspaceConflict, hasWorkspaceConflict } from '../../lib/workspaceConflict'
+import { whenWritesSettle } from '../../hooks/usePreferences'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
@@ -2878,6 +2879,24 @@ export default function ChartsWorkspace() {
     // `init` (optional): { tf, symbol } a new chart is BORN with (unlinked, on that
     // ticker and timeframe) instead of being created on a default and then changed.
     add: (t, place, init) => handleAddWidget(t, init?.tf ? { tf: init.tf } : undefined, { place, unlinkedSymbol: init?.symbol || null }),
+    // PERSISTENCE ACK for the Agent's receipt: write the board and the link-group tickers NOW
+    // (instead of after their debounce) through the SAME writer the autosave uses, and answer
+    // only once the server has. `{ ok, conflict, reason }` — `ok` means the server accepted
+    // this tab's current board; anything else means it is on screen but NOT saved. The
+    // autosave's own guards apply: an unreadable stored board or a board commit in flight is
+    // never written over, and is reported as not confirmed rather than bypassed.
+    persist: async () => {
+      if (storedLayoutUnreadableRef.current || boardCommitInFlightRef.current) return { ok: false, conflict: false, reason: 'not-saved' }
+      if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+      if (groupsSaveTimerRef.current) { clearTimeout(groupsSaveTimerRef.current); groupsSaveTimerRef.current = null }
+      const [board, groups] = await Promise.all([
+        setPref('charts_workspace_layout', serializeLayout(layoutRef.current)),
+        setPref('charts_workspace_groups', JSON.stringify(agentGroupSymsRef.current)),
+      ])
+      await whenWritesSettle(['charts_active_template', 'chart_settings'])
+      const conflict = hasWorkspaceConflict(['charts_workspace_layout', 'charts_workspace_groups', 'charts_active_template', 'chart_settings'])
+      return { ok: board !== false && groups !== false && !conflict, conflict, reason: conflict ? 'conflict' : (board === false || groups === false ? 'not-saved' : null) }
+    },
     remove: handleRemoveWidget, color: handleColorChange, cancelPending: cancelPendingAdd,
   }
   // Named layouts, read EXACTLY as the Layout Dock reads them (dockEntries + the
@@ -2919,6 +2938,7 @@ export default function ChartsWorkspace() {
       color: (id, c) => agentWidgetOpsRef.current.color(id, c),
       cancelPending: () => agentWidgetOpsRef.current.cancelPending(),
       groupSyms: () => agentGroupSymsRef.current,
+      persist: () => agentWidgetOpsRef.current.persist(),
     },
     layouts: () => agentLayoutsRef.current,
     watchlists: {
