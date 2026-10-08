@@ -1139,6 +1139,9 @@ function ChartToolbar({
   // (null = a new indicator). Held in state (a stable identity: the builder's
   // `editRow` contract), resolved from the member's own definitions by id.
   const [createEditRow, setCreateEditRow] = useState(null)
+  // ⭐ OVERNIGHT H — a request handed over by UCT Agent (agentContract.js), PREFILLED
+  // in the composer; the member sends, previews and saves it themselves.
+  const [createSeed, setCreateSeed] = useState('')
   const [builderEditRow, setBuilderEditRow] = useState(null)
   const { rows: userDefinitionRows } = useUserDefinitions()
   const userRowsRef = useRef(userDefinitionRows)
@@ -1250,6 +1253,7 @@ function ChartToolbar({
       setLibraryOpen(false)
       setBuilderOpen(false)
       setCreateEditRow(row)
+      setCreateSeed(opts && typeof opts.prompt === 'string' ? opts.prompt.slice(0, 1000) : '')
       setCreateOpen(true)
       return true
     },
@@ -1804,6 +1808,7 @@ function ChartToolbar({
                  definition, it is a new conversation (and a new preview). */
               key={createEditRow ? `edit:${createEditRow.def_id}` : 'create'}
               editRow={createEditRow}
+              initialPrompt={createSeed}
               onEditFormula={createEditRow ? () => { const r = createEditRow; setCreateOpen(false); setCreateEditRow(null); setBuilderEditRow(r); setBuilderMode(null); setBuilderEverOpened(true); setBuilderOpen(true) } : null}
               onClose={() => { setCreateOpen(false); setCreateEditRow(null) }}
               settings={cs}
