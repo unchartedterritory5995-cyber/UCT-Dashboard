@@ -165,8 +165,13 @@ export function breadthChipRows(symbols, displayMap, indicators) {
     const ticker = String(r.symbol || r.id || '').toUpperCase()
     if (!ticker || seen.has(ticker)) continue
     seen.add(ticker)
+    // ⛔ `ticker` (submitted) keeps the colon-bearing id — the edge routes bare words to the bars
+    // tier, where `NASI` is a delisted stock — and `display_ticker` is what the member reads.
+    const shown = r.display_symbol && String(r.display_symbol).toUpperCase() !== ticker
+      ? String(r.display_symbol).toUpperCase() : null
     bucket(r.universe).ind.push({
       ticker,
+      display_ticker: shown,
       name: r.display || r.short || ticker,
       type: 'breadth', breadth: true, indicator: true,
       group_label: r.family_label || 'Breadth',
@@ -179,8 +184,8 @@ export function breadthChipRows(symbols, displayMap, indicators) {
 }
 
 /**
- * The canonical ticker for what the member TYPED. `UCT:A50` (the member-facing spelling)
- * submits `UCTA50`, so the chart opens on the identity its registries key on rather than
+ * The canonical ticker for what the member TYPED. `UCT:A50` / `NASI` (member-facing
+ * spellings) submit `UCTA50` / `NASDAQ:MCS`, so the chart opens on the identity its registries key on rather than
  * on a spelling the client's breadth family map does not hold. Anything else is returned
  * unchanged — this never invents an identity.
  */
@@ -189,6 +194,11 @@ export function canonicalTicker(typed, breadthRows) {
   if (!t) return t
   for (const r of Array.isArray(breadthRows) ? breadthRows : []) {
     if (r && r.display_ticker && String(r.display_ticker).toUpperCase() === t) return r.ticker
+  }
+  // ⭐ A vendor spelling (`NASI`, `$NASI`) of a breadth series submits its canonical id too.
+  for (const r of Array.isArray(breadthRows) ? breadthRows : []) {
+    if (r && r.indicator && Array.isArray(r.aliases)
+      && r.aliases.some((a) => String(a || '').toUpperCase() === t)) return r.ticker
   }
   return t
 }

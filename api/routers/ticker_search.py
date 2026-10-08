@@ -365,7 +365,10 @@ def ticker_search(
             from api.services.market_indicators import discovery as _mi_disc
             m_front, m_back = [], []
             for rec in _mi_disc.search(qq, limit=limit, include_breadth=False):
-                row = {"ticker": rec["symbol"], "name": rec["display"],
+                row = {"ticker": rec["symbol"],
+                       # ⭐ What the row SHOWS (NYMO); `ticker` (NYSE:MCO) is what it submits.
+                       "display_ticker": rec.get("display_symbol") or rec["symbol"],
+                       "name": rec["display"],
                        "type": "indicator", "exchange": "UCT", "entity_id": None,
                        "indicator": True, "group_label": rec["family_label"],
                        # ⭐ (2026-10-07) what the client needs to file a SERIES row as the

@@ -13,10 +13,10 @@ const SYMBOLS = [
   { symbol: 'NASDAQ:A50', name: '% of Stocks Above 50-Day MA', group: 'ma', group_label: 'MA Breadth', universe: 'nasdaq', universe_label: 'NASDAQ' },
 ]
 const DISPLAY = { UCTA50: 'UCT:A50', UCTU4: 'UCT:U4' }
-const mi = (id, symbol, universe, display, extra = {}) => ({
-  id, symbol, universe, display, family: 'mcclellan', family_label: 'McClellan',
+const mi = (id, shown, universe, display, extra = {}) => ({
+  id, symbol: id, display_symbol: shown, universe, display, family: 'mcclellan', family_label: 'McClellan',
   source_type: 'breadth_derived', catalogue: 'market_indicators', status: 'published',
-  aliases: [symbol, '$' + symbol], ...extra,
+  aliases: [shown, '$' + shown], ...extra,
 })
 const INDICATORS = [
   mi('US:MCO', 'US:MCO', 'us', 'US · McClellan Oscillator', { aliases: [] }),
@@ -37,11 +37,17 @@ const INDICATORS = [
 describe('breadthChipRows', () => {
   const rows = breadthChipRows(SYMBOLS, DISPLAY, INDICATORS)
   const tickers = rows.map((r) => r.ticker)
+  const shown = rows.map(shownTicker)
+  const byShown = (t) => rows.find((r) => shownTicker(r) === t)
 
-  it('lists all six exchange series under their conventional tickers, with exchange names', () => {
-    for (const t of ['NASI', 'NAMO', 'NAAD', 'NYSI', 'NYMO', 'NYAD']) expect(tickers).toContain(t)
-    expect(rows.find((r) => r.ticker === 'NYMO').name).toBe('NYSE · McClellan Oscillator')
-    expect(rows.find((r) => r.ticker === 'NASI').name).toBe('Nasdaq · McClellan Summation Index')
+  it('SHOWS all six exchange series by their conventional tickers, SUBMITS the colon id', () => {
+    for (const t of ['NASI', 'NAMO', 'NAAD', 'NYSI', 'NYMO', 'NYAD']) expect(shown).toContain(t)
+    expect(byShown('NYMO').name).toBe('NYSE · McClellan Oscillator')
+    expect(byShown('NYMO').ticker).toBe('NYSE:MCO')
+    // ⛔ the edge routes bare words to the bars tier, where NASI is a delisted stock
+    expect(byShown('NASI').ticker).toBe('NASDAQ:MCS')
+    expect(byShown('NASI').name).toBe('Nasdaq · McClellan Summation Index')
+    for (const r of rows.filter((x) => x.indicator)) expect(r.ticker).toContain(':')
   })
 
   it('every row is a breadth row (UCT mark + BREADTH badge)', () => {
@@ -58,7 +64,7 @@ describe('breadthChipRows', () => {
   })
 
   it('orders UCT first, then per universe its derived series before its library metrics', () => {
-    expect(tickers).toEqual(['UCTA50', 'UCTU4', 'US:MCO', 'US:A50', 'NYMO', 'NYSI', 'NYAD', 'NYSE:A50',
+    expect(shown).toEqual(['UCT:A50', 'UCT:U4', 'US:MCO', 'US:A50', 'NYMO', 'NYSI', 'NYAD', 'NYSE:A50',
       'NAMO', 'NASI', 'NAAD', 'NASDAQ:A50'])
   })
 
@@ -66,7 +72,8 @@ describe('breadthChipRows', () => {
     const a50 = rows.find((r) => r.ticker === 'UCTA50')
     expect(shownTicker(a50)).toBe('UCT:A50')
     expect(shownTicker(rows.find((r) => r.ticker === 'UCTU4'))).toBe('UCT:U4')
-    expect(shownTicker(rows.find((r) => r.ticker === 'NYMO'))).toBe('NYMO')
+    expect(shownTicker(rows.find((r) => r.ticker === 'NYSE:MCO'))).toBe('NYMO')
+    expect(shownTicker(rows.find((r) => r.ticker === 'US:MCO'))).toBe('US:MCO')
     expect(rows.find((r) => r.ticker === 'US:A50').name).toBe('US · % of Stocks Above 50-Day MA')
     expect(rows.find((r) => r.ticker === 'NASDAQ:A50').name).toBe('Nasdaq · % of Stocks Above 50-Day MA')
     expect(a50.name).toBe('% of Stocks Above 50-Day MA')
@@ -76,9 +83,10 @@ describe('breadthChipRows', () => {
     const f = (q) => rows.filter((r) => matchQ(r, q)).map((r) => r.ticker)
     expect(f('UCT:A50')).toEqual(['UCTA50'])
     expect(f('UCTA50')).toEqual(['UCTA50'])
-    expect(f('NYSE:MCO')).toEqual(['NYMO'])
-    expect(f('$NASI')).toEqual(['NASI'])
-    expect(f('McClellan')).toEqual(['US:MCO', 'NYMO', 'NYSI', 'NAMO', 'NASI'])
+    expect(f('NYMO')).toEqual(['NYSE:MCO'])
+    expect(f('NYSE:MCO')).toEqual(['NYSE:MCO'])
+    expect(f('$NASI')).toEqual(['NASDAQ:MCS'])
+    expect(f('McClellan')).toEqual(['US:MCO', 'NYSE:MCO', 'NYSE:MCS', 'NASDAQ:MCO', 'NASDAQ:MCS'])
   })
 
   it('degrades to the breadth-symbols list alone before the indicator registry lands', () => {
@@ -92,7 +100,10 @@ describe('canonicalTicker / isBreadthIndicatorRow', () => {
   it('a typed UCT:A50 submits UCTA50; anything else passes through untouched', () => {
     expect(canonicalTicker('uct:a50', rows)).toBe('UCTA50')
     expect(canonicalTicker('UCTA50', rows)).toBe('UCTA50')
-    expect(canonicalTicker('NYMO', rows)).toBe('NYMO')
+    expect(canonicalTicker('NYMO', rows)).toBe('NYSE:MCO')
+    expect(canonicalTicker('nasi', rows)).toBe('NASDAQ:MCS')
+    expect(canonicalTicker('$NASI', rows)).toBe('NASDAQ:MCS')
+    expect(canonicalTicker('NASDAQ:MCS', rows)).toBe('NASDAQ:MCS')
     expect(canonicalTicker('AAPL', rows)).toBe('AAPL')
     expect(canonicalTicker('UCT:A50', [])).toBe('UCT:A50')
   })

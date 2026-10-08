@@ -202,10 +202,11 @@ function ChartPane({
   const _miDisplay = miRec ? String(miRec.display || sym) : ''
   const _miPrefix = miRec && miRec.universe_label ? `${miRec.universe_label} · ` : ''
   // ⭐ THE TICKER A MEMBER READS (2026-10-07): `UCT:A50` for the canonical `UCTA50`, and the
-  // conventional `NYMO` for a chart saved on the canonical id `NYSE:MCO`. Presentation only —
+  // conventional `NYMO` for the canonical id `NYSE:MCO` (registry `display_symbol`). Presentation only —
   // `sym` (what the chart is keyed, fetched and persisted by) is unchanged.
   const breadthLikeSym = isBreadth ? (breadthRec.display_symbol || sym)
-    : (isIndicatorSeries && miRec.symbol ? String(miRec.symbol) : sym)
+    : (isIndicatorSeries && (miRec.display_symbol || miRec.symbol)
+      ? String(miRec.display_symbol || miRec.symbol) : sym)
   const breadthLikeName = isBreadth ? breadthRec.name
     : (_miPrefix && _miDisplay.startsWith(_miPrefix) ? _miDisplay.slice(_miPrefix.length) : _miDisplay)
   const { isEtf } = useEtfSymbols()

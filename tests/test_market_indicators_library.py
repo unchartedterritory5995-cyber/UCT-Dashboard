@@ -120,16 +120,18 @@ def test_the_dormant_rows_name_their_gate_and_their_evidence_backed_starts():
 
 
 def test_canonical_identity_is_the_uct_id_and_the_member_ticker_is_the_conventional_one():
-    """⭐ (owner, 2026-10-07) The member-facing SYMBOL is NYMO/NYSI/NYAD/NAMO/NASI/NAAD; the
-    canonical id (`NYSE:MCO`…) is unchanged and EVERY older spelling still resolves to the same
-    row — so a chart, layout or formula saved on `NYSE:MCO` keeps working. The display stays
-    `Universe · Metric` and the methodology keeps the census caveat."""
+    """⭐ (owner, 2026-10-07) The ticker a member READS is NYMO/NYSI/NYAD/NAMO/NASI/NAAD
+    (`display_symbol`); the canonical id AND submitted symbol stay `NYSE:MCO`… ⛔ the colon is
+    load-bearing: the edge forwards bare words to the bars tier, where `NASI` is a delisted stock.
+    EVERY spelling still resolves to the same row. The display stays `Universe · Metric` and the
+    methodology keeps the census caveat."""
     for ticker, canon in (("NYMO", "NYSE:MCO"), ("NYSI", "NYSE:MCS"), ("NYAD", "NYSE:AD"),
                           ("NAMO", "NASDAQ:MCO"), ("NASI", "NASDAQ:MCS"), ("NAAD", "NASDAQ:AD")):
         for spelling in (ticker, "$" + ticker, canon, canon.lower()):
             row = reg.resolve(spelling, include_dormant=True)
             assert row is not None and row.id == canon, spelling
-            assert row.symbol == ticker, spelling
+            assert row.symbol == canon and ":" in row.symbol, spelling
+            assert row.display_symbol == ticker and row.to_row()["display_symbol"] == ticker, spelling
         assert row.display.startswith(("NYSE · ", "Nasdaq · ")) and ticker not in row.display
         assert "NOT the vendor" in row.methodology
     # ⛔ One row per series: no second identity was minted for the ticker.
@@ -421,7 +423,7 @@ def test_dormant_series_are_invisible_to_discovery():
     from api.services.market_indicators import discovery as disc
     for q in ("NYMO", "NASI", "NYSI", "NAMO"):
         assert disc.search(q, limit=10) == [], f"{q} must not be discoverable"
-    assert any(r["id"] == "NASDAQ:MCS" and r["symbol"] == "NASI"
+    assert any(r["id"] == "NASDAQ:MCS" and r["display_symbol"] == "NASI"
                for r in disc.search("NASI", limit=10, include_dormant=True))
 
 
