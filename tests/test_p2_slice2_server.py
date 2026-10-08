@@ -118,29 +118,32 @@ def test_PREFLIGHT_other_symbol_ZERO_calls_ZERO_cost_through_the_endpoint(conv, 
     the model. DID: 200 ok:false, member-safe reason, attempts 0, cost 0, the model
     never called, the member's spend ledger unchanged (REFUSAL, EXACT)."""
     from api.services import definition_concierge as dc
+    # ⭐ PHASE 5: another symbol is AUTHORABLE now; the symbol refusal the pre-flight
+    # keeps is an AMBIGUOUS spelling ("use VIX").
     client = model([])                                   # an unarmed call would FAIL
     before = dc.spend_for("u1", dc._market_date())
-    r = http.post(ENDPOINT, json={"message": "compare AAPL with SPY", "view": ema_view(1),
+    r = http.post(ENDPOINT, json={"message": "use VIX", "view": ema_view(1),
                                   "chart": {"sym": "XRPN", "tf": "D"}})
     body = r.json()
     assert r.status_code == 200 and body["ok"] is False, body
-    assert body["gate"] == "unsupported:other-symbol" and body["disposition"] == "unsupported"
+    assert body["gate"] == "unsupported:symbol-ambiguous" and body["disposition"] == "unsupported"
     assert body["preflight"] is True and body["attempts"] == 0 and body["cost_usd"] == 0
     assert body["tokens"] == {"input": 0, "output": 0}
     assert client.calls == []
     assert dc.spend_for("u1", dc._market_date()) == before
     # member-safe: no AST node names, no gate codes, no ids in the sentence
-    assert "AAPL" in body["reason"] and "chart's own" in body["reason"]
+    assert "VIX" in body["reason"] and "index or commodity" in body["reason"]
     for leak in ("sym", "node", "unsupported:", "tree", "{"):
         assert leak not in body["reason"].replace("symbol", "")
 
 
 def test_PREFLIGHT_other_timeframe_ZERO_calls(conv, model, http):
     client = model([])
-    body = http.post(ENDPOINT, json={"message": "use weekly RSI while chart is daily",
+    # ⭐ PHASE 5: a HIGHER timeframe is authorable; a LOWER one is still refused.
+    body = http.post(ENDPOINT, json={"message": "on the 5 minute timeframe",
                                      "view": ema_view(1), "chart": {"sym": "AAPL", "tf": "D"}}).json()
     assert body["gate"] == "unsupported:other-timeframe" and body["attempts"] == 0
-    assert "weekly" in body["reason"] and "daily" in body["reason"] and client.calls == []
+    assert "5-minute" in body["reason"] and "daily" in body["reason"] and client.calls == []
 
 
 def test_PREFLIGHT_does_not_touch_an_AMBIGUOUS_request(conv, model, http):
@@ -162,9 +165,9 @@ def test_PREFLIGHT_without_a_chart_never_guesses_a_lone_ticker(conv, model, http
 def test_the_router_bounds_the_chart_field(conv, model, http):
     """Only {sym, tf} strings ride along, each cut to 24 characters."""
     model([])
-    body = http.post(ENDPOINT, json={"message": "use SPY", "view": ema_view(1),
+    body = http.post(ENDPOINT, json={"message": "use VIX", "view": ema_view(1),
                                      "chart": {"sym": "AAPL", "tf": "D", "secret": {"x": 1}}}).json()
-    assert body["gate"] == "unsupported:other-symbol"
+    assert body["gate"] == "unsupported:symbol-ambiguous"
 
 
 def test_the_SHARED_case_table(conv):
@@ -178,10 +181,11 @@ def test_the_SHARED_case_table(conv):
 
 
 def test_the_backend_gates_REMAIN_behind_the_preflight(conv, model, http):
-    """ASKED: a request the preflight cannot see, answered with a sym tree. CLAIMED:
-    the post-call gate still refuses it (the backend stays authoritative)."""
-    from tests.test_p2_truth_server import SYM_TREE
-    client = model([emits(env(1, [{"op": "set_output_tree", "output": "value", "tree": SYM_TREE}],
+    """ASKED: a request the preflight cannot see, answered with a lower-timeframe
+    tree (⭐ PHASE 5: `sym` is authorable now; `ltf` is not). CLAIMED: the post-call
+    gate still refuses it (the backend stays authoritative)."""
+    from tests.test_p2_truth_server import LTF_TREE
+    client = model([emits(env(1, [{"op": "set_output_tree", "output": "value", "tree": LTF_TREE}],
                               disposition="change", reply="x"))])
     body = http.post(ENDPOINT, json={"message": "make it relative strength", "view": ema_view(1),
                                      "chart": {"sym": "AAPL", "tf": "D"}}).json()

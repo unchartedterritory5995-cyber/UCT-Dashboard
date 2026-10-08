@@ -133,18 +133,22 @@ describe('FLOW A — questions do not mutate; a change does, and says so', () =>
 })
 
 describe('FLOW D — the pre-flight: zero model calls for an explicit other symbol / timeframe', () => {
-  it('"Compare AAPL with SPY" on an XRPN chart: answered in the browser, the client is never called (P3: the question form now reaches the model)', async () => {
+  // ⭐ PHASE 5: another symbol is AUTHORABLE, so "Compare AAPL with SPY" reaches the
+  // model; an AMBIGUOUS spelling is what the browser still answers with zero calls.
+  it('"use VIX" on an XRPN chart: answered in the browser, the client is never called; "Compare AAPL with SPY" reaches the model (PHASE 5)', async () => {
     const { spy } = mount({ sym: 'XRPN' })
     await say('Add a 20 EMA')
     const calls = spy.mock.calls.length
     const tree = previewTree(); const rev = panel().dataset.revision
-    await say('Compare AAPL with SPY')
+    await say('use VIX')
     expect(spy.mock.calls.length).toBe(calls)                // ⛔ ZERO calls
     expect(lastUct().dataset.kind).toBe('unsupported')
-    expect(lastUct().textContent).toMatch(/AAPL, another symbol/)
+    expect(lastUct().textContent).toMatch(/VIX/)
     expect(lastUct().textContent).not.toMatch(/unsupported:|node/)
     expect(previewTree()).toBe(tree)
     expect(panel().dataset.revision).toBe(rev)
+    await say('Compare AAPL with SPY')
+    expect(spy.mock.calls.length).toBe(calls + 1)
   })
   it('"on the 5 minute timeframe" on a daily chart: zero calls', async () => {
     const { spy } = mount()

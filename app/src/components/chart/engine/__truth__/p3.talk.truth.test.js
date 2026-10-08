@@ -66,15 +66,23 @@ describe('other symbol — questions pass, possessive / adjacent authoring is ca
       expect(otherSymbolNamed(m, AAPL)).toBeNull()
     }
   })
+  // ⭐ PHASE 5 SUPERSEDES the P3 refusal: another symbol is AUTHORABLE (`sym`), so
+  // these reach the model — the DETECTOR still names the ticker (the server's
+  // no-substitution backstop refuses a change that does not read it).
   it.each([
     ["Only when SPY's RSI is above 50", 'SPY'],
     ['SPY RSI above 50', 'SPY'],
     ["use QQQ's close", 'QQQ'],
-  ])('%s → refused in the browser, naming %s (REFUSAL, zero calls)', (m, t) => {
-    const r = preflight(m, AAPL)
-    expect(r.gate).toBe(GATE_SYMBOL)
-    expect(r.detail).toBe(t)
-    expect(r.reason).toMatch(new RegExp(`${t}, another symbol`))
+  ])('%s → reaches the model; the detector names %s (PHASE 5)', (m, t) => {
+    expect(preflight(m, AAPL)).toBeNull()
+    expect(otherSymbolNamed(m, AAPL)).toBe(t)
+  })
+  it('an ambiguous spelling (VIX) is still answered in the browser by name (REFUSAL, zero calls)', () => {
+    const r = preflight('use VIX', AAPL)
+    expect(r.gate).toBe('unsupported:symbol-ambiguous')
+    expect(r.detail).toBe('VIX')
+    expect(r.reason).toMatch(/VIX/)
+    expect(r.reason).not.toMatch(/sym|node|unsupported:/)
   })
   it('a QUESTION naming another symbol is NOT intercepted, but the detector still sees it (the server backstop)', () => {
     expect(isQuestion('What does RSI on SPY look like?')).toBe(true)

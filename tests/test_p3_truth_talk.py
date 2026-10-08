@@ -27,7 +27,7 @@ import logging
 import pytest
 
 from tests.test_p2_truth_server import (  # noqa: F401  (pytest fixtures by import)
-    ENDPOINT, CLOSE, RSI_GT_70, _block, call, conv, emits, env, http, model, num, out, view,
+    ENDPOINT, CLOSE, RSI_GT_70, _block, call, conv, emits, env, http, model, num, op, out, view,
 )
 
 CHART = {"sym": "AAPL", "tf": "D"}
@@ -159,15 +159,25 @@ def test_CAN_SLIM_is_never_ticker_CAN(message):
 ])
 def test_POSSESSIVE_and_ADJACENT_other_symbol_authoring_is_caught_ZERO_calls(
         conv, model, http, message, ticker):
-    """ASKED: authoring that reads another symbol possessively / adjacently. BEFORE:
-    none of these was intercepted; the real model substituted the chart's own symbol
-    and disclosed it in prose. CLAIMED: refused pre-model. DID: zero calls (REFUSAL)."""
-    client = model([])
+    """ASKED: authoring that reads another symbol possessively / adjacently. BEFORE
+    (P3R): the real model substituted the chart's own symbol and disclosed it in
+    prose. ⭐ PHASE 5: another symbol is AUTHORABLE, so these reach the model -- and
+    the SUBSTITUTION is still refused: a change that does not read {ticker} is the
+    backstop's `unsupported:other-symbol` naming it; a change that reads it through
+    `sym` is handed on (REFUSAL / EXACT)."""
+    own = op(">", call("rsi", CLOSE, num(14)), num(50))
+    client = model([emits(env(1, [{"op": "set_output_tree", "output": "value", "tree": own}]))])
     body = http.post(ENDPOINT, json={"message": message, "view": ema_view(1),
                                      "chart": CHART}).json()
     assert body["ok"] is False and body["gate"] == "unsupported:other-symbol", body
-    assert body["preflight"] is True and body["attempts"] == 0
-    assert ticker in body["reason"] and client.calls == []
+    assert body["backstop"] is True and len(client.calls) == 1
+    assert ticker in body["reason"]
+    theirs = op(">", {"type": "sym", "value": ticker, "args": [call("rsi", CLOSE, num(14))]}, num(50))
+    client = model([emits(env(1, [{"op": "set_output_tree", "output": "value", "tree": theirs}]))])
+    body = http.post(ENDPOINT, json={"message": message, "view": ema_view(1),
+                                     "chart": CHART}).json()
+    assert body["ok"] is True and body["disposition"] == "change", body
+    assert len(client.calls) == 1
 
 
 @pytest.mark.parametrize("message", [

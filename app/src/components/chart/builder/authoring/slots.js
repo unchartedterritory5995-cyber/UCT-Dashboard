@@ -6,8 +6,9 @@
 // (`plotKey`). Inside a tree, this module derives two deterministic lists from
 // the canonical tree itself:
 //   • PARAMETER SLOTS — the editable leaves: every `num` literal (a window, a
-//     threshold, a constant), every offset's bar count, and every leaf that
-//     reads a bar field (`close` …). Id `<plotKey>#<path>`.
+//     threshold, a constant), every offset's bar count, every leaf that reads a
+//     bar field (`close` …), and (PHASE 5) the ticker of every `sym` and the
+//     period of every `tf` / `tf_live`. Id `<plotKey>#<path>`.
 //   • CLAUSES — the operands of a top-level `&&` / `||` chain.
 //
 // ⛔ RE-DERIVED EVERY TURN, NEVER STORED. Ids are valid only against the
@@ -119,6 +120,22 @@ export function slotsOfTree(output, tree) {
       out.push(Object.freeze({
         id: slotIdOf(output, [...segs, 'n']), output, path: pathToString([...segs, 'n']), kind: 'number',
         role: 'bars-ago', window: true, value: node.value, label: 'bars ago',
+      }))
+    }
+    // ⭐ PHASE 5 — THE SCOPE WRAPPERS' OWN FIELD IS A SLOT: the symbol a `sym` reads
+    // ("SPY → QQQ") and the period a `tf` / `tf_live` reads ("weekly → monthly"),
+    // addressed at the wrapper node itself (its child is the next path segment).
+    if (node.type === 'sym' && typeof node.value === 'string') {
+      out.push(Object.freeze({
+        id: slotIdOf(output, segs), output, path: pathToString(segs), kind: 'symbol',
+        role: 'symbol', value: node.value, label: 'symbol read',
+      }))
+    }
+    if ((node.type === 'tf' || node.type === 'tf_live') && typeof node.value === 'string') {
+      out.push(Object.freeze({
+        id: slotIdOf(output, segs), output, path: pathToString(segs), kind: 'timeframe',
+        role: node.type === 'tf_live' ? 'forming period' : 'closed period', value: node.value,
+        label: node.type === 'tf_live' ? 'timeframe (forming period)' : 'timeframe',
       }))
     }
     if (Array.isArray(node.args)) {

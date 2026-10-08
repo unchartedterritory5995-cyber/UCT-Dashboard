@@ -1,5 +1,5 @@
 {
-  "_": "P1 shared fixture: the browser gate (evaluability.js, lane \"alert\") vs the server authority (alert_user_series._gate_lane + plot_admissions). Written by a generator from evaluability.js; tests/test_p1_truth_core.py drives the server over every case, p1.core.truth.test.js the browser. P2 (owner policy 7): `scalar` is PER OUTPUT -- 'multi plain + scalar :: a' and 'multi scalar + plain :: b' were deliberately moved from refused/scalar to supported (the scalar plot itself stays refused).",
+  "_": "P1 shared fixture: the browser gate (evaluability.js, lane \"alert\") vs the server authority (alert_user_series._gate_lane + plot_admissions). Written by a generator from evaluability.js; tests/test_p1_truth_core.py drives the server over every case, p1.core.truth.test.js the browser. P2 (owner policy 7): `scalar` is PER OUTPUT -- 'multi plain + scalar :: a' and 'multi scalar + plain :: b' were deliberately moved from refused/scalar to supported (the scalar plot itself stays refused). PHASE 5: the alert lane SUPPLIES another symbol (alert_user_series._symbol_bars): a servable, unambiguous `sym` (at most 2 tickers) is supported; an ambiguous spelling is other-symbol:ambiguous and more than two is other-symbol:fan-out (withheld, per plot).",
   "cases": [
     {
       "name": "plain close > 100 :: value",
@@ -191,11 +191,9 @@
       },
       "plotKey": "value",
       "expect": {
-        "status": "refused",
-        "gate": "withheld",
-        "codes": [
-          "other-symbol:unsupplied"
-        ]
+        "status": "supported",
+        "gate": null,
+        "codes": []
       }
     },
     {
@@ -294,7 +292,6 @@
         "status": "refused",
         "gate": "withheld",
         "codes": [
-          "other-symbol:unsupplied",
           "lower-tf:unsupplied"
         ]
       }
@@ -342,11 +339,9 @@
       },
       "plotKey": "value",
       "expect": {
-        "status": "refused",
-        "gate": "withheld",
-        "codes": [
-          "other-symbol:unsupplied"
-        ]
+        "status": "supported",
+        "gate": null,
+        "codes": []
       }
     },
     {
@@ -554,11 +549,9 @@
       },
       "plotKey": "b",
       "expect": {
-        "status": "refused",
-        "gate": "withheld",
-        "codes": [
-          "other-symbol:unsupplied"
-        ]
+        "status": "supported",
+        "gate": null,
+        "codes": []
       }
     },
     {
@@ -628,7 +621,11 @@
         }
       },
       "plotKey": "a",
-      "expect": {"status": "supported", "gate": null, "codes": []}
+      "expect": {
+        "status": "supported",
+        "gate": null,
+        "codes": []
+      }
     },
     {
       "name": "multi plain + scalar :: b",
@@ -827,7 +824,11 @@
         }
       },
       "plotKey": "b",
-      "expect": {"status": "supported", "gate": null, "codes": []}
+      "expect": {
+        "status": "supported",
+        "gate": null,
+        "codes": []
+      }
     },
     {
       "name": "v2 claim, plot c has no tree :: a",
@@ -989,6 +990,173 @@
       "expect": {
         "status": "refused",
         "gate": "lane",
+        "codes": []
+      }
+    },
+    {
+      "name": "sym VIX ambiguous :: value",
+      "definition": {
+        "id": "u_0000000000a1",
+        "name": "u_0000000000a1",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_0000000000a1",
+          "source": "close / sym('VIX', close)",
+          "ast": {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "sym",
+                "value": "VIX",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "plotKey": "value",
+      "expect": {
+        "status": "refused",
+        "gate": "withheld",
+        "codes": [
+          "other-symbol:ambiguous"
+        ]
+      }
+    },
+    {
+      "name": "sym three tickers fan-out :: value",
+      "definition": {
+        "id": "u_0000000000a2",
+        "name": "u_0000000000a2",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_0000000000a2",
+          "source": "sym('SPY', close) + sym('QQQ', close) + sym('IWM', close)",
+          "ast": {
+            "type": "op",
+            "name": "+",
+            "args": [
+              {
+                "type": "op",
+                "name": "+",
+                "args": [
+                  {
+                    "type": "sym",
+                    "value": "SPY",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "sym",
+                    "value": "QQQ",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "sym",
+                "value": "IWM",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "plotKey": "value",
+      "expect": {
+        "status": "refused",
+        "gate": "withheld",
+        "codes": [
+          "other-symbol:fan-out"
+        ]
+      }
+    },
+    {
+      "name": "sym two tickers :: value",
+      "definition": {
+        "id": "u_0000000000a3",
+        "name": "u_0000000000a3",
+        "version": 1,
+        "plots": [
+          {
+            "key": "value",
+            "style": "line"
+          }
+        ],
+        "compute": {
+          "kind": "ast",
+          "fn": "u_0000000000a3",
+          "source": "sym('SPY', close) > sym('QQQ', close)",
+          "ast": {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "sym",
+                "value": "SPY",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              },
+              {
+                "type": "sym",
+                "value": "QQQ",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "plotKey": "value",
+      "expect": {
+        "status": "supported",
+        "gate": null,
         "codes": []
       }
     }

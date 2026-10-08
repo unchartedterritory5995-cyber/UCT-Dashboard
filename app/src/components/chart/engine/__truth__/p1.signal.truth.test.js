@@ -116,14 +116,18 @@ describe('P1 signal — 18 / 10: arming needs the shared gate to approve THIS si
       condition: 'cross_above', threshold: 0.5, tf: 'D' })
   })
 
-  it('10 ASKED becomes_true on `close > sym("SPY", close)` EVEN WITH SPY supplied to the chart; CLAIMED refused by the alert lane (`withheld`, other-symbol:unsupplied) — the policy does not widen P0 sym supply-or-refuse; DID refused — REFUSAL', () => {
+  it('10 ⭐ PHASE 5 SUPERSEDES P1-10: becomes_true on `close > sym("SPY", close)` ARMS — with SPY in hand on the chart or not (the alert lane loads SPY itself); `sym("VIX", …)` is refused withheld by name — SUPPLY / REFUSAL', () => {
     const def = one("close > sym('SPY', close)")
     const spy = seqBars([400, 401, 402])
-    const ctx = { tf: 'D', secondary: { SPY: { status: 'ok', bars: spy } } }
-    const g = signalAlertGate(def, 'value', ctx)
+    for (const ctx of [{ tf: 'D', secondary: { SPY: { status: 'ok', bars: spy } } }, { tf: 'D' }]) {
+      const g = signalAlertGate(def, 'value', ctx)
+      expect(g).toMatchObject({ status: STATUS.SUPPORTED, authority: 'server', final: false })
+      expect(signalAlertRequest({ def, key: 'value', policy: 'becomes_true', sym: 'x', tf: 'D', ctx }).ok).toBe(true)
+    }
+    const vix = one("close > sym('VIX', close)")
+    const g = signalAlertGate(vix, 'value', { tf: 'D' })
     expect(g).toMatchObject({ status: STATUS.REFUSED, gate: 'withheld', final: true })
-    expect(g.codes).toContain('other-symbol:unsupplied')
-    expect(signalAlertRequest({ def, key: 'value', policy: 'becomes_true', sym: 'x', tf: 'D', ctx }).ok).toBe(false)
+    expect(g.codes).toContain('other-symbol:ambiguous')
   })
 
   it('18 ltf and current-only scalar conditions are refused through policy arming (P0 ltf / scalar rules) — REFUSAL', () => {

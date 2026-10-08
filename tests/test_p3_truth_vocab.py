@@ -46,7 +46,9 @@ def test_the_contract_is_unchanged_and_the_new_ops_are_additive():
     assert raw["properties"]["contract"]["const"] == "uct.authoring.patch/1"
     names = [raw["$defs"][b["$ref"].split("/")[-1]]["properties"]["op"]["const"]
              for b in raw["$defs"]["patchOp"]["oneOf"]]
-    assert len(names) == 22 and all(op in names for op in NEW_OPS)
+    # ⭐ PHASE 5 moved this deliberately: 22 -> 24 (set_color_rule,
+    # set_calculation_timeframe), contract still uct.authoring.patch/1.
+    assert len(names) == 24 and all(op in names for op in NEW_OPS)
     style = raw["$defs"]["op_set_style"]
     assert style["properties"]["lineStyle"]["enum"] == ["solid", "dashed", "dotted", "largeDashed"]
     assert "lineStyle" not in style["required"]

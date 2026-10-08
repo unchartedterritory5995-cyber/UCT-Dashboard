@@ -640,6 +640,250 @@
     ],
     "disposition": "change"
    }
+  },
+  {
+   "name": "P5 sym tree",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_output_tree",
+      "output": "value",
+      "tree": {
+       "type": "op",
+       "name": ">",
+       "args": [
+        {
+         "type": "series",
+         "name": "close"
+        },
+        {
+         "type": "sym",
+         "value": "SPY",
+         "args": [
+          {
+           "type": "call",
+           "name": "ema",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 50
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 tf weekly tree",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_output_tree",
+      "output": "value",
+      "tree": {
+       "type": "tf",
+       "value": "W",
+       "args": [
+        {
+         "type": "call",
+         "name": "rsi",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 14
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 tf_live monthly tree",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_output_tree",
+      "output": "value",
+      "tree": {
+       "type": "tf_live",
+       "value": "M",
+       "args": [
+        {
+         "type": "series",
+         "name": "close"
+        }
+       ]
+      }
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 set_slot symbol",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_slot",
+      "slot": "value#1",
+      "symbol": "QQQ"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 set_slot class-share symbol",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_slot",
+      "slot": "value#1",
+      "symbol": "BRK.B"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 set_slot timeframe",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_slot",
+      "slot": "value#root",
+      "timeframe": "M"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 set_color_rule sign",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_color_rule",
+      "output": "value",
+      "rule": "sign",
+      "up": "#089981",
+      "down": "#F23645"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 set_color_rule condition",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_color_rule",
+      "output": "value",
+      "rule": "condition",
+      "when": "up",
+      "up": "#089981",
+      "down": "#F23645"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 set_color_rule none",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_color_rule",
+      "output": "value",
+      "rule": "none"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 set_fill cloud",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_fill",
+      "output": "fast",
+      "with": "slow",
+      "colorAbove": "#089981",
+      "colorBelow": "#F23645"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 request_alert numeric",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "request_alert",
+      "output": "value",
+      "condition": "cross_above",
+      "threshold": 70
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 set_calculation_timeframe",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_calculation_timeframe",
+      "timeframe": "D"
+     }
+    ],
+    "disposition": "change"
+   }
   }
  ],
  "invalid": [
@@ -909,8 +1153,8 @@
       "op": "set_output_tree",
       "output": "value",
       "tree": {
-       "type": "sym",
-       "value": "SPY",
+       "type": "ltf",
+       "value": "60",
        "args": [
         {
          "type": "series",
@@ -1083,6 +1327,157 @@
     "disposition": "change"
    },
    "code": "schema:pattern"
+  },
+  {
+   "name": "P5 sym lowercase ticker",
+   "code": "schema:pattern",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_slot",
+      "slot": "value#1",
+      "symbol": "spy"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 set_slot timeframe daily",
+   "code": "schema:enum",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_slot",
+      "slot": "value#root",
+      "timeframe": "D"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 set_slot symbol and value",
+   "code": "schema:one-of",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_slot",
+      "slot": "value#1",
+      "symbol": "SPY",
+      "value": 3
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 request_alert policy and condition",
+   "code": "schema:one-of",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "request_alert",
+      "output": "value",
+      "triggerPolicy": "is_true",
+      "condition": "above",
+      "threshold": 1
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 request_alert condition without threshold",
+   "code": "schema:one-of",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "request_alert",
+      "output": "value",
+      "condition": "above"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 request_alert unknown condition",
+   "code": "schema:enum",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "request_alert",
+      "output": "value",
+      "condition": "crosses",
+      "threshold": 1
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 set_color_rule unknown rule",
+   "code": "schema:enum",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_color_rule",
+      "output": "value",
+      "rule": "gradient",
+      "up": "#089981",
+      "down": "#F23645"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 set_calculation_timeframe 1 minute",
+   "code": "schema:enum",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_calculation_timeframe",
+      "timeframe": "1"
+     }
+    ],
+    "disposition": "change"
+   }
+  },
+  {
+   "name": "P5 set_fill cloud bad colour",
+   "code": "schema:pattern",
+   "patch": {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "set_fill",
+      "output": "fast",
+      "with": "slow",
+      "colorAbove": "green",
+      "colorBelow": "#F23645"
+     }
+    ],
+    "disposition": "change"
+   }
   }
  ]
 }

@@ -24,7 +24,7 @@
 // ⛔ Not here: operating the Screener PAGE's own filters (it only exists inside
 // /screener), saving screens, My Scans (Indicator formulas), logic groups.
 
-import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup } from '../capabilities'
+import { registerCapability, registerTargetKind, registerContextProvider, registerWarmup, registerOutputSource, SYMBOLS } from '../capabilities'
 import { encodeSpec } from '../../pages/screener/shell/specUrl'
 
 const META_TTL_MS = 6 * 3600 * 1000      // the registry changes only on deploy
@@ -154,6 +154,43 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null 
   }
 }
 
+/** The model's screen args → the Screener's wire spec (with "refine" building on the last screen). */
+function buildSpec({ filters, sort_field: sortField, sort_dir: sortDir, mode }) {
+  if ((filters || []).length > MAX_FILTERS) return { error: `that's more than ${MAX_FILTERS} conditions at once` }
+  const w = toWireFilters(filters)
+  if (w.error) return { error: w.error }
+  let wire = w.filters
+  let sort = cache.last && mode === 'refine' ? cache.last.spec.sort : null
+  if (mode === 'refine' && cache.last) {
+    const mine = new Set(wire.map(f => f.key))
+    wire = [...(cache.last.spec.filters || []).filter(f => !mine.has(f.key)), ...wire]
+  }
+  if (sortField) {
+    if (!fieldOf(sortField)) return { error: `the Screener has no field “${sortField}” to sort by` }
+    sort = { key: sortField, dir: sortDir === 'asc' ? 'asc' : 'desc' }
+  }
+  if (!wire.length && !sort) return { error: 'which conditions? For example: ADR above 5% and price above $10' }
+  return { spec: { filters: wire, sort: sort || null } }
+}
+
+const PRODUCE_MAX = 100
+const specWords = (spec) => (spec.filters || []).map(describeFilter).join(' · ') || 'no filters'
+
+/** A screen's RESULT as a typed symbol set: the tickers in the engine's own order. */
+async function produceSymbols(spec, { name = null, savedId = null } = {}) {
+  const res = await json(await post('/api/screener/scan', {
+    filters: spec.filters || [], sort: spec.sort || DEFAULT_SORT, ...(spec.rank ? { rank: spec.rank } : {}),
+    ...(spec.logic ? { logic: spec.logic } : {}), columns: ['ticker'], page: 1, page_size: PRODUCE_MAX,
+  }), 'Running the screen')
+  const symbols = (res.rows || []).map(r => r.ticker).filter(Boolean)
+  cache.last = { spec, name, savedId, total: res.total, asOf: res.snapshot_date || null, live: res.snapshot?.live?.state || null, symbols, ms: 0 }
+  const what = name ? `${name} (${specWords(spec)})` : specWords(spec)
+  return {
+    symbols, count: Number(res.total) || 0,
+    summary: res.total ? `Screened ${what}: ${Number(res.total).toLocaleString()} match${res.total === 1 ? '' : 'es'}` : `No stocks matched ${what}`,
+  }
+}
+
 // ── the target: the Screener engine as this member can use it ──
 function snap() {
   return { ref: 'screener', label: 'Screener', ready: !!cache.meta, last: cache.last }
@@ -197,12 +234,19 @@ export function registerScreenerCapabilities() {
         ref: refFor('screener', 'screener'), label: 'Screener',
         // The live catalog, compactly: key:Label(unit). Use ONLY these keys.
         fields: cache.meta ? cache.meta.fields.map(f => `${f.key}:${f.label}${f.unit ? `(${f.unit})` : f.type === 'bool' ? '(yes/no)' : ''}`).join(';') : 'loading',
-        ...(last ? { lastScreen: { filters: (last.spec.filters || []).map(describeFilter), sort: last.spec.sort ? `${last.spec.sort.key} ${last.spec.sort.dir}` : null, matches: last.total, name: last.name } } : {}),
+        ...(last ? { lastScreen: { ref: 'lastScreen', filters: (last.spec.filters || []).map(describeFilter), sort: last.spec.sort ? `${last.spec.sort.key} ${last.spec.sort.dir}` : null, matches: last.total, name: last.name } } : {}),
         ...(cache.saved ? { savedScreens: [...cache.saved.saved, ...cache.saved.starters].slice(0, 40).map(s => ({ id: s.id, name: s.name, kind: s.kind })) } : {}),
       }]
     },
   })
   registerWarmup(() => loadSaved().catch(() => {}))
+  // "Put the top 10 in Momentum" after a screen: the LAST screen, re-run fresh at apply.
+  registerOutputSource({
+    ref: 'lastScreen', type: SYMBOLS,
+    available: () => !!cache.last,
+    summary: () => `Use your last screen (${specWords(cache.last.spec)}) — run fresh when you apply`,
+    resolve: () => produceSymbols(cache.last.spec, { name: cache.last.name, savedId: cache.last.savedId }),
+  })
 
   // ── screener.run ──
   registerCapability({
@@ -212,33 +256,40 @@ export function registerScreenerCapabilities() {
     hints: 'target = the ref of the screener entry. filters: each {field: a key from the screener `fields` list (never invent one), op: gt|gte|lt|lte|eq|between, value: number, max: number for between else null}. '
       + 'Percent fields take plain numbers (5 means 5%). Yes/no fields: op eq, value 1 or 0. "above"=gt, "at least"=gte. sort_field: a field key or null; sort_dir: asc|desc|null. '
       + 'mode: "refine" when they add to / narrow / change the LAST screen ("also", "and price above…"), else "new". show: rows to show (null = 10, max 25). '
-      + 'If they ask for a measure that is not in `fields`, say the Screener doesn\'t have it — never substitute another field.',
+      + 'If they ask for a measure that is not in `fields`, say the Screener doesn\'t have it — never substitute another field. '
+      + 'as: name this screen\'s RESULT (e.g. "screen1") when a later op in the same request uses its stocks (watchlist.add symbols {from:"screen1", top:N}); else null.',
     args: {
       type: 'object',
       properties: {
         filters: { type: 'array', items: FILTER_ITEM },
         sort_field: { type: ['string', 'null'] }, sort_dir: { type: ['string', 'null'], enum: ['asc', 'desc', null] },
-        mode: { type: 'string', enum: ['new', 'refine'] }, show: { type: ['integer', 'null'] },
+        mode: { type: 'string', enum: ['new', 'refine'] }, show: { type: ['integer', 'null'] }, as: { type: ['string', 'null'] },
       },
-      required: ['filters', 'sort_field', 'sort_dir', 'mode', 'show'], additionalProperties: false,
+      required: ['filters', 'sort_field', 'sort_dir', 'mode', 'show', 'as'], additionalProperties: false,
     },
-    async answer(_snap, { filters, sort_field: sortField, sort_dir: sortDir, mode, show }) {
+    // As a PRODUCER (compose.js): the screen's tickers, in the engine's own order.
+    produces: SYMBOLS,
+    // Checked before a proposal (catalog permitting; the engine re-checks at apply).
+    validateProduce(args) {
+      if (!cache.meta) return null
+      const b = buildSpec(args)
+      return b.error ? `the screen can't run: ${b.error}` : null
+    },
+    describeProduce(args) {
+      const b = buildSpec(args)
+      return b.error ? 'Run the screen' : `Screen for ${specWords(b.spec)}${b.spec.sort ? `, sorted by ${fieldOf(b.spec.sort.key)?.label || b.spec.sort.key}` : ''} — run fresh when you apply`
+    },
+    async produce(args) {
       await loadMeta()
-      if ((filters || []).length > MAX_FILTERS) return `That's more than ${MAX_FILTERS} conditions at once — I didn't run it.`
-      const w = toWireFilters(filters)
-      if (w.error) return `I didn't run it: ${w.error}.`
-      let wire = w.filters
-      let sort = cache.last && mode === 'refine' ? cache.last.spec.sort : null
-      if (mode === 'refine' && cache.last) {
-        const mine = new Set(wire.map(f => f.key))
-        wire = [...(cache.last.spec.filters || []).filter(f => !mine.has(f.key)), ...wire]
-      }
-      if (sortField) {
-        if (!fieldOf(sortField)) return `I didn't run it: the Screener has no field “${sortField}” to sort by.`
-        sort = { key: sortField, dir: sortDir === 'asc' ? 'asc' : 'desc' }
-      }
-      if (!wire.length && !sort) return 'Which conditions? For example: ADR above 5% and price above $10.'
-      return runSpec({ filters: wire, sort: sort || null }, { show: show || SHOW_DEFAULT })
+      const b = buildSpec(args)
+      if (b.error) throw new Error(b.error)
+      return produceSymbols(b.spec)
+    },
+    async answer(_snap, args) {
+      await loadMeta()
+      const b = buildSpec(args)
+      if (b.error) return `I didn't run it: ${b.error}.`
+      return runSpec(b.spec, { show: args.show || SHOW_DEFAULT })
     },
   })
 
@@ -247,14 +298,27 @@ export function registerScreenerCapabilities() {
     name: 'screener.runSaved',
     target: 'screener', query: true, surfaces: ['charts'],
     summary: 'Run one of the member\'s saved screens (or a UCT starter screen) and show the real matches.',
-    hints: 'target = the ref of the screener entry; screen = the id of an entry in savedScreens (never invent one; clarify with the real names if unsure). show: rows (null = 10).',
-    args: { type: 'object', properties: { screen: { type: 'string' }, show: { type: ['integer', 'null'] } }, required: ['screen', 'show'], additionalProperties: false },
+    hints: 'target = the ref of the screener entry; screen = the id of an entry in savedScreens (never invent one; clarify with the real names if unsure). show: rows (null = 10). '
+      + 'as: name its RESULT when a later op in the same request uses its stocks; else null.',
+    args: { type: 'object', properties: { screen: { type: 'string' }, show: { type: ['integer', 'null'] }, as: { type: ['string', 'null'] }, }, required: ['screen', 'show', 'as'], additionalProperties: false },
+    produces: SYMBOLS,
+    describeProduce({ screen }) {
+      const s = cache.saved && [...cache.saved.saved, ...cache.saved.starters].find(x => x.id === String(screen))
+      return `Run your screen ${s ? `“${s.name}”` : String(screen)} — fresh when you apply`
+    },
+    async produce({ screen }) {
+      await loadMeta()
+      const lib = await loadSaved()
+      const s = [...lib.saved, ...lib.starters].find(x => x.id === String(screen))
+      if (!s) throw new Error("that saved screen isn't there any more")
+      return produceSymbols({ filters: s.spec?.filters || [], sort: s.spec?.sort || null, rank: s.spec?.rank || null, logic: s.spec?.logic || null }, { name: s.name, savedId: s.kind === 'yours' ? s.id : null })
+    },
     fast: ({ raw }) => {
       const m = /^(?:run|open|show(?: me)?|load) (?:my |the )?(.+?)(?: screen| scan)?[.!]?$/i.exec(String(raw).trim())
       if (!m || !cache.saved) return null
       const all = [...cache.saved.saved, ...cache.saved.starters]
       const hits = all.filter(s => norm(s.name) === norm(m[1]) || norm(s.name) === norm(`${m[1]} screen`))
-      return hits.length === 1 ? { screen: hits[0].id, show: null } : null
+      return hits.length === 1 ? { screen: hits[0].id, show: null, as: null } : null
     },
     async answer(_snap, { screen, show }) {
       await loadMeta()

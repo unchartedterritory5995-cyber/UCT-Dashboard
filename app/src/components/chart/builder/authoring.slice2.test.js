@@ -18,13 +18,16 @@ describe('pre-flight — the SAME verdicts the server gives (shared case table)'
     expect(got ? got.gate : null).toBe(gate)
   })
   it('the refusal copy is member-safe: the ticker, never a node name or a code', () => {
-    const r = preflight('compare AAPL with SPY', { sym: 'XRPN', tf: 'D' })  // P3: an imperative (a question now reaches the model)
-    expect(r.gate).toBe(GATE_SYMBOL)
-    expect(r.reason).toMatch(/AAPL/)
+    // ⭐ PHASE 5: another symbol reaches the model now; an AMBIGUOUS spelling is the
+    // symbol refusal left in the browser, and a LOWER timeframe the timeframe one.
+    expect(preflight('compare AAPL with SPY', { sym: 'XRPN', tf: 'D' })).toBeNull()
+    const r = preflight('use VIX', { sym: 'AAPL', tf: 'D' })
+    expect(r.gate).toBe('unsupported:symbol-ambiguous')
+    expect(r.reason).toMatch(/VIX/)
     expect(r.reason).not.toMatch(/unsupported:|\bsym\b|node|\{/)
     const t = preflight('on the 5 minute timeframe', { sym: 'AAPL', tf: 'D' })
     expect(t.gate).toBe(GATE_TIMEFRAME)
-    expect(t.reason).toBe("This asks for the 5-minute timeframe. Conversational authoring draws on the chart's own bars only, so it can't read 5-minute bars while this chart is daily.")
+    expect(t.reason).toBe("This asks for the 5-minute timeframe, which is finer than this daily chart. An indicator can read the chart's own bars or a higher timeframe, never finer bars than the chart's.")
   })
   it('the request body carries the chart for the server pre-flight (sym + tf only)', () => {
     const body = converseBody({ message: 'x', state: newAuthoringState(), gateCtx: { symbol: 'AAPL', tf: 'D' } })

@@ -486,10 +486,12 @@ describe('P2 engine — fidelity, view and the shared patch fixture', () => {
   })
 
   it('every tree an op accepts is canonical and round-trips (astHash equal) — the gate is the Builder\'s own', () => {
+    // ⭐ PHASE 5: `sym` is authorable now; `ltf` is still not (nested: past the
+    // schema's root check, caught by the engine gate).
     const r = applyPatch(null, { contract: C, baseRevision: 0, ops: [{ op: 'create', name: 'x',
       outputs: [{ tree: { type: 'op', name: '>', args: [{ type: 'series', name: 'close' },
-        { type: 'sym', value: 'SPY', args: [{ type: 'series', name: 'close' }] }] } }] }] })
-    expect(r.errors[0].code).toBe('tree:unsupported-node') // nested: past the schema's root check, caught by the engine gate
+        { type: 'ltf', value: '60', args: [{ type: 'series', name: 'close' }] }] } }] }] })
+    expect(r.errors[0].code).toBe('tree:unsupported-node')
     const t = P('close > highest(high, 20)[1]')
     const ok = applyPatch(null, { contract: C, baseRevision: 0, ops: [{ op: 'create', name: 'x', outputs: [{ tree: t }] }] }, { defId: DEF_ID })
     expect(astHash(ok.definition.compute.ast)).toBe(astHash(t))
@@ -501,11 +503,13 @@ describe('P2 engine — fidelity, view and the shared patch fixture', () => {
 describe('P2 engine — the remaining ops and guards', () => {
   // ⭐ P3 vocab moved this rail deliberately: 19 → 22 (set_levels, set_fill,
   // remove_fill — additive, contract still uct.authoring.patch/1).
-  it('OP RAIL — the schema names exactly the 22 ops the engine implements', async () => {
+  // ⭐ PHASE 5 moved it again: 22 → 24 (set_color_rule, set_calculation_timeframe —
+  // additive; set_slot / set_fill / request_alert gained optional fields).
+  it('OP RAIL — the schema names exactly the 24 ops the engine implements', async () => {
     const { OP_NAMES } = await import('../../builder/authoring/patchValidate')
     const { HANDLED_OPS } = await import('../../builder/authoring/applyPatch')
     expect([...OP_NAMES].sort()).toEqual([...HANDLED_OPS].sort())
-    expect(OP_NAMES).toHaveLength(22)
+    expect(OP_NAMES).toHaveLength(24)
   })
 
   it('REMOVE CLAUSE / PLACEMENT / REMOVE MARKER / REMOVE PAINT / CANCEL — each is an explicit, reversible op (EXACT)', () => {

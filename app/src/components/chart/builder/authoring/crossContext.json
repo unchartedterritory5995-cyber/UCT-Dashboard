@@ -1,0 +1,10 @@
+{
+  "description": "PHASE 5 - the bounds of CROSS-CONTEXT authoring, read by BOTH api/services/definition_conversation.py + alert_user_series.py (authoritative) and authoring/applyPatch.js (the browser gate). One file so the two languages cannot disagree about which symbol spellings and timeframes an authored tree may name. sym: a store-servable ticker (1-5 letters, optional class-share '.X'), never a spelling that also names an index/commodity elsewhere (engine/otherSymbols.js BARE_AMBIGUOUS reads this list), at most maxOtherSymbols distinct tickers per definition. tf (last CLOSED period) and tf_live (the FORMING period, repaints) name W or M only. calculationTimeframes: the whole-instance calculation timeframes an authored request may route to (instanceControls CALC_TIMEFRAMES); a lower timeframe than the chart's is never offered.",
+  "tickerPattern": "^[A-Z]{1,5}(\\.[A-Z])?$",
+  "maxOtherSymbols": 2,
+  "ambiguousBare": ["ADVN", "DECN", "UVOL", "DVOL", "TICK", "TRIN", "ADD", "VIX", "VXN", "VVIX",
+    "GOLD", "SILVER", "DXY", "USOIL", "UKOIL", "NDX", "SPX", "RUT", "DJI"],
+  "tfCodes": ["W", "M"],
+  "tfLiveCodes": ["W", "M"],
+  "calculationTimeframes": ["5", "15", "30", "60", "D", "W", "M"]
+}

@@ -119,12 +119,23 @@ def test_the_dormant_rows_name_their_gate_and_their_evidence_backed_starts():
     assert nymo.history_start == "2009-06-11" and namo.history_start == "2008-01-02"
 
 
-def test_canonical_identity_is_the_uct_symbol_and_vendor_names_are_aliases():
-    for alias, canon in (("NYMO", "NYSE:MCO"), ("$NYSI", "NYSE:MCS"), ("NYAD", "NYSE:AD"),
-                         ("$NAMO", "NASDAQ:MCO"), ("NASI", "NASDAQ:MCS"), ("$NAAD", "NASDAQ:AD")):
-        row = reg.resolve(alias, include_dormant=True)
-        assert row.id == canon and row.symbol == canon, alias
+def test_canonical_identity_is_the_uct_id_and_the_member_ticker_is_the_conventional_one():
+    """⭐ (owner, 2026-10-07) The ticker a member READS is NYMO/NYSI/NYAD/NAMO/NASI/NAAD
+    (`display_symbol`); the canonical id AND submitted symbol stay `NYSE:MCO`… ⛔ the colon is
+    load-bearing: the edge forwards bare words to the bars tier, where `NASI` is a delisted stock.
+    EVERY spelling still resolves to the same row. The display stays `Universe · Metric` and the
+    methodology keeps the census caveat."""
+    for ticker, canon in (("NYMO", "NYSE:MCO"), ("NYSI", "NYSE:MCS"), ("NYAD", "NYSE:AD"),
+                          ("NAMO", "NASDAQ:MCO"), ("NASI", "NASDAQ:MCS"), ("NAAD", "NASDAQ:AD")):
+        for spelling in (ticker, "$" + ticker, canon, canon.lower()):
+            row = reg.resolve(spelling, include_dormant=True)
+            assert row is not None and row.id == canon, spelling
+            assert row.symbol == canon and ":" in row.symbol, spelling
+            assert row.display_symbol == ticker and row.to_row()["display_symbol"] == ticker, spelling
+        assert row.display.startswith(("NYSE · ", "Nasdaq · ")) and ticker not in row.display
         assert "NOT the vendor" in row.methodology
+    # ⛔ One row per series: no second identity was minted for the ticker.
+    assert len({s.id for s in reg.all_rows()}) == len(reg.all_rows())
 
 
 def test_vix_is_dormant_because_something_else_already_serves_it():
@@ -412,7 +423,7 @@ def test_dormant_series_are_invisible_to_discovery():
     from api.services.market_indicators import discovery as disc
     for q in ("NYMO", "NASI", "NYSI", "NAMO"):
         assert disc.search(q, limit=10) == [], f"{q} must not be discoverable"
-    assert any(r["symbol"] == "NASDAQ:MCS"
+    assert any(r["id"] == "NASDAQ:MCS" and r["display_symbol"] == "NASI"
                for r in disc.search("NASI", limit=10, include_dormant=True))
 
 
@@ -690,3 +701,18 @@ def test_disabling_the_cboe_refresh_does_not_disable_the_availability_warm():
     # the warm must sit OUTSIDE the cboe flag's block — i.e. after it, not nested under
     assert w > c
     assert "MARKET_INDICATORS_BOOT_JOBS" in src
+
+
+def test_bars_echo_the_requested_spelling_so_saved_ids_and_aliases_both_chart(monkeypatch):
+    """⛔⛔ StockChart discards a reply whose ticker differs from the symbol it asked for. With
+    `symbol=NYMO`, answering `row.symbol` would blank every chart saved on `NYSE:MCO` (and it
+    already blanked a typed alias). Every spelling gets the SAME series under its OWN ticker."""
+    pts = [{"t": "2026-10-05", "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 0}]
+    monkeypatch.setattr(mseries, "daily_bars", lambda sid: list(pts) if sid == "US:MCO" else [])
+    for spelling in ("US:MCO", "us:mco"):
+        out = mseries.build_bars(spelling)
+        assert out["ticker"] == spelling.upper() and out["bars"] == pts
+    monkeypatch.setattr(mseries, "daily_bars", lambda sid: list(pts) if sid == "SENT:NAAIM" else [])
+    for spelling in ("NAAIM", "SENT:NAAIM"):
+        out = mseries.build_bars(spelling)
+        assert out["ticker"] == spelling and out["bars"] == pts

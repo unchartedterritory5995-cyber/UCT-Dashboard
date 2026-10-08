@@ -21,7 +21,13 @@ function _load() {
     .then(r => (r.ok ? r.json() : { symbols: [], groups: [] }))
     .then(data => {
       const map = new Map()
-      for (const rec of data.symbols || []) map.set(String(rec.symbol).toUpperCase(), rec)
+      // ⭐ `display_symbol` (2026-10-07): the member-facing `UCT:A50` for a canonical `UCTA50`.
+      // Presentation only — the map stays keyed by the canonical symbol.
+      const dm = (data.display_symbols && typeof data.display_symbols === 'object') ? data.display_symbols : {}
+      for (const rec of data.symbols || []) {
+        const key = String(rec.symbol).toUpperCase()
+        map.set(key, dm[key] ? { ...rec, display_symbol: dm[key] } : rec)
+      }
       // ⭐ THE LIBRARY RIDES THE SAME FETCH. `library` is the richer projection
       // (`breadth_symbols.library_catalog`) served beside `symbols` on the one
       // endpoint this module already calls once per session, so metric-first
