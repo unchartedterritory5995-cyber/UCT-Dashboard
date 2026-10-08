@@ -1,0 +1,50 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/chart-plan/size",
+    "note": "A free member is refused: chart plans take a paid plan (security review I-7).",
+    "path": "/api/j2/chart-plan/size",
+    "requestBody": {
+      "annotations": [
+        {
+          "id": "d-CPNV-entry",
+          "points": [
+            {
+              "price": 101.5,
+              "time": 1758000000
+            }
+          ],
+          "role": "entry",
+          "type": "horizontal"
+        },
+        {
+          "id": "d-CPNV-stop",
+          "points": [
+            {
+              "price": 97.25,
+              "time": 1758000000
+            }
+          ],
+          "role": "stop",
+          "type": "horizontal"
+        },
+        {
+          "id": "d-CPNV-target",
+          "points": [
+            {
+              "price": 112.0,
+              "time": 1758000000
+            }
+          ],
+          "role": "target",
+          "type": "horizontal"
+        }
+      ],
+      "symbol": "CPNV"
+    },
+    "status": 402
+  },
+  "body": {
+    "detail": "Chart plans require a paid plan"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "_contract": {
+    "case": "success",
+    "endpoint": "GET /api/j2/similar-names/templates",
+    "note": "The member's tagged charts the nightly job matched.",
+    "path": "/api/j2/similar-names/templates",
+    "status": 200
+  },
+  "body": {
+    "count": 1,
+    "maxTemplates": 25,
+    "templates": [
+      {
+        "asOf": "2026-09-28",
+        "embedKey": "e-SBNV",
+        "frozen": true,
+        "matchCount": 10,
+        "matchesAsOf": "2026-10-02",
+        "noteId": "fb251b57c22e461b8291aac48f4db344",
+        "noteTitle": "SBNV breakout",
+        "setupTag": "Breakout",
+        "symbol": "SBNV"
+      }
+    ]
+  }
+}

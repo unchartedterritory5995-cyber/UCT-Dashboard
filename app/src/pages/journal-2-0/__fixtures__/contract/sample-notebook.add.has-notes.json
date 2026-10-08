@@ -1,0 +1,12 @@
+{
+  "_contract": {
+    "case": "error",
+    "endpoint": "POST /api/j2/onboarding/sample-notebook",
+    "note": "The member already has notes (here: the sample itself).",
+    "path": "/api/j2/onboarding/sample-notebook",
+    "status": 409
+  },
+  "body": {
+    "detail": "You already have notes, so we didn't add the sample. You can import notes instead."
+  }
+}

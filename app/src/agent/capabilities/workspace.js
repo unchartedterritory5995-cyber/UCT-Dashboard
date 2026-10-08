@@ -220,7 +220,8 @@ export function registerWorkspaceCapabilities() {
     available: (ctx) => ctx.surface === 'charts',
     summary: 'Add one NEW chart per symbol of an ordered list (tickers, a screen\'s results, or a saved watchlist), placed together in empty space. Existing widgets are never changed.',
     hints: 'target = the ref of the workspace entry. symbols = the tickers, uppercase, OR {from, top} to chart a source\'s stocks in its order: '
-      + 'from = the "as" of a screener.run / screener.runSaved / watchlist.show op earlier in this request (or "lastScreen" for the last screen run here); '
+      + 'from = the ref of a saved watchlist (its stocks, read fresh in its saved order when they apply), the "as" of a screener.run / screener.runSaved op in this request, '
+      + 'or "lastScreen" for the last screen run here; '
       + `top = how many charts (required, at most ${MAX_CHARTS_PER_REQUEST}). timeframe: 1|5|15|30|60 minutes, D, W, M, or null to keep the default. `
       + 'chart_type: candles|hollow|bars|hlc|line|area or null. exact: true only if they insist on exactly that many (else fewer results just make fewer charts). '
       + 'Use this — not widget.add + chart.setSymbol — whenever the charts\' symbols come from a screen or watchlist. Never type tickers you have not been given.',

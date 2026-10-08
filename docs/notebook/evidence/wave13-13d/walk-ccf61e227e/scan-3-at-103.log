@@ -1,0 +1,21 @@
+  Model keys   : BLANKED ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring -> null backend (opt in: --allow-model-keys or HUB_SANDBOX_ALLOW_MODEL_KEYS=1)
+
+--- stderr ---
+Traceback (most recent call last):
+  File "<string>", line 13, in <module>
+    from api.routers.live_prices import cache, _px_key
+  File "C:\Users\Patrick\uct-worktrees\notebook-w13d\api\routers\live_prices.py", line 27, in <module>
+    from api.services.massive import _get_client, _detect_session, _ext_price_for, to_polygon_symbol
+  File "C:\Users\Patrick\uct-worktrees\notebook-w13d\api\services\massive.py", line 16, in <module>
+  File "C:\Users\Patrick\uct-worktrees\notebook-w13d\api\services\yf_util.py", line 105, in <module>
+    _POOL = _cf.ThreadPoolExecutor(max_workers=_MAX_WORKERS, thread_name_prefix="yf-util")
+            ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\concurrent\futures\__init__.py", line 58, in __getattr__
+    from .thread import ThreadPoolExecutor
+  File "<frozen importlib._bootstrap>", line 1371, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1342, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 938, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 758, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 854, in get_code
+  File "<frozen importlib._bootstrap_external>", line 953, in get_data
+MemoryError

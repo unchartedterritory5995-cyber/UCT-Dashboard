@@ -47,6 +47,9 @@ vi.mock('../../../../components/StockChart', () => ({
   default: ({ sym, tf }) => <div data-testid="chart">{sym}:{tf}</div>,
 }))
 vi.mock('../TradeReviewCard', () => ({ default: () => <div data-testid="review" /> }))
+// Wave 13 lane 13A: the plan-grade card is its own lazy chunk with its own rails
+// (PlanGradeCard.test.jsx); stubbed here so its graph is never loaded by this page's tests.
+vi.mock('./PlanGradeCard', () => ({ default: () => <div data-testid="plan-grade-stub" /> }))
 // The canonical SymbolSearch component has its own dedicated coverage
 // elsewhere; stub it here exactly as TickerPopup.test.jsx does so the Compare
 // action can be exercised without its real dropdown/fetch machinery. The

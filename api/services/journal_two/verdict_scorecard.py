@@ -89,6 +89,14 @@ def _verdict_from_context(raw: Any) -> tuple[str | None, str | None]:
     return vid, label
 
 
+#: Wave 13 lane 13F: the leak finder needs to know WHICH trades belong to the
+#: SKIP-overridden bucket (a membership test) without recomputing this module's
+#: own win-rate/netPnl aggregates — so the one parse is exported under a public
+#: name rather than copied. Same function; `_verdict_from_context` is kept as the
+#: internal call site above reads.
+verdict_label_from_context = _verdict_from_context
+
+
 def _bucket_stats(rows: list[sqlite3.Row]) -> dict[str, Any]:
     """Public per-bucket metrics from a bucket's closed-trade rows."""
     n = len(rows)

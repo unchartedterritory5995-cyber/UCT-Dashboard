@@ -1,0 +1,903 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "flags",
+   "step": "auth payload: every c2 switch reads ON",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:59:13+00:00",
+   "email": "q1c2m3326602@local.dev",
+   "off": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "chart plan",
+   "step": "insert a chart into a note with /chart",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:59:25+00:00",
+   "embed": "563a0b86-c00b-457a-b26f-5d939d8af461",
+   "params": {
+    "symbol": "AMD",
+    "tf": "D",
+    "to": 1791345556,
+    "settings": {
+     "chartType": "candles",
+     "invertScale": false,
+     "candles": {
+      "upColor": "#2faf68",
+      "downColor": "#df4646",
+      "upBorder": "#2faf68",
+      "downBorder": "#df4646",
+      "upWick": "#2faf68",
+      "downWick": "#df4646",
+      "oneColor": "#2faf68",
+      "thinBars": true
+     },
+     "candleColorMode": "netchange",
+     "background": "#17181a",
+     "bgMode": "solid",
+     "bgGradient": {
+      "top": "#16233b",
+      "bottom": "#17181a"
+     },
+     "textColor": "#706b5e",
+     "textSize": 11,
+     "grid": {
+      "color": "rgba(46,49,39,0.25)",
+      "visible": true
+     },
+     "crosshair": {
+      "enabled": true,
+      "color": "#706b5e",
+      "style": 1,
+      "width": 1,
+      "magnet": false
+     },
+     "header": {
+      "titleMode": "company",
+      "showChange": true,
+      "timeframes": [
+       "1",
+       "5",
+       "15",
+       "30",
+       "60",
+       "D",
+       "W",
+       "M"
+      ],
+      "customTimeframes": [],
+      "showMarketCap": true,
+      "showNextEarnings": true,
+      "showUctRating": true,
+      "showLegend": true,
+      "legendLayout": "vertical",
+      "colors": {}
+     },
+     "overlays": [
+      {
+       "enabled": true,
+       "type": "EMA",
+       "period": 9,
+       "color": "#4ade80",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:0"
+      },
+      {
+       "enabled": true,
+       "type": "EMA",
+       "period": 20,
+       "color": "#f472b6",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:1"
+      },
+      {
+       "enabled": true,
+       "type": "SMA",
+       "period": 50,
+       "color": "#60a5fa",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:2"
+      },
+      {
+       "enabled": true,
+       "type": "SMA",
+       "period": 200,
+       "color": "#fb923c",
+       "lineWidth": 1,
+       "lineStyle": "solid",
+       "offset": 0,
+       "plotStyle": "line",
+       "onTop": false,
+       "removed": true,
+       "adopted": "ovl:3"
+      }
+     ],
+     "volume": {
+      "visible": true,
+      "upColor": "#2faf68",
+      "downColor": "#df4646",
+      "hvcEnabled": true,
+      "separatePane": false,
+      "paneHeightPct": 22,
+      "labelVisible": true,
+      "labelColor": "#9b9684",
+      "maPeriod": 0,
+      "maColor": "rgba(168,162,144,0.55)",
+      "maLineWidth": 1,
+      "maLineStyle": "solid",
+      "barStyle": "columns",
+      "plotStyle": "histogram"
+     },
+     "watermark": {
+      "visible": true,
+      "opacity": 0.07,
+      "color": "#a8a290",
+      "sizeScale": 1.25,
+      "weight": 500,
+      "lines": {
+       "ticker": true,
+       "company": true,
+       "sector": true,
+       "industry": true,
+       "theme": true
+      },
+      "x": 0.5,
+      "y": 0.5
+     },
+     "drawingDefaults": {
+      "color": "#c9a84c",
+      "width": 1,
+      "style": "solid",
+      "fontSize": 13
+     },
+     "indicators": {
+      "volumeProfile": {
+       "enabled": false,
+       "bins": 24,
+       "color": "rgba(120,160,100,0.25)",
+       "pocColor": "rgba(200,160,40,0.65)"
+      }
+     },
+     "swingLabels": {
+      "enabled": false,
+      "sensitivity": "medium",
+      "color": "#d4d0c4",
+      "tintByType": false,
+      "upColor": "#4ade80",
+      "downColor": "#f87171",
+      "bgEnabled": true,
+      "bg": null
+     },
+     "heikinAshi": false,
+     "logScale": false,
+     "percentScale": false,
+     "comparisonSymbols": [],
+     "compareHideBase": false,
+     "markers": {
+      "earnings": false,
+      "splits": false,
+      "dividends": false,
+      "news": false,
+      "ipo": true,
+      "earningsBeat": "#2faf68",
+      "earningsMiss": "#df4646",
+      "ipoColor": "#dcbb5e"
+     },
+     "prevDayLevels": {
+      "high": {
+       "enabled": true,
+       "color": "#3cb868",
+       "style": "dashed",
+       "width": 1
+      },
+      "low": {
+       "enabled": true,
+       "color": "#e74c3c",
+       "style": "dashed",
+       "width": 1
+      },
+      "close": {
+       "enabled": true,
+       "color": "#9aa0a6",
+       "style": "dotted",
+       "width": 1
+      }
+     },
+     "countdown": false,
+     "showPatterns": false,
+     "showPriceLabels": true,
+     "showMaLabels": false,
+     "darkPool": {
+      "enabled": false,
+      "barColor": "#c9a84ccc",
+      "labelColor": "#c9a84c"
+     },
+     "signature": {
+      "darkPoolLevels": false,
+      "gexWalls": false,
+      "flowSignals": false
+     },
+     "settingsVersion": 2,
+     "indicatorInstances": [
+      {
+       "instanceId": "ovl:0",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 9,
+        "maType": "ema",
+        "color": "#4ade80"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:1",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 20,
+        "maType": "ema",
+        "color": "#f472b6"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:2",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 50,
+        "maType": "sma",
+        "color": "#60a5fa"
+       },
+       "hidden": false
+      },
+      {
+       "instanceId": "ovl:3",
+       "defId": "movingAverage",
+       "inputs": {
+        "source": "close",
+        "period": 200,
+        "maType": "sma",
+        "color": "#fb923c"
+       },
+       "hidden": false
+      }
+     ],
+     "paneOrder": [],
+     "paneSizes": {},
+     "paneSeriesOrder": {},
+     "hideDrawings": false,
+     "extendedHoursShading": true,
+     "sessionView": "regular",
+     "volumeOverlayIndicators": [],
+     "theme": "dark",
+     "positionCalc": {
+      "accountSize": 50000,
+      "riskPct": 1
+     },
+     "preset": "classic"
+    }
+   },
+   "snapshot_archived": true,
+   "bars_error": 0,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 404,
+     "method": "POST",
+     "url": "/api/j2/notebook-fingerprint/blocks/e7c83c4560074e6d9dd69fe10fd3ea30/563a0b86-c00b-457a-b26f-5d939d8af461/freeze",
+     "benign": false
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"63169174-c5e\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-07T03:22:07.943579+00:00\",\"updated_at\":\"2026-10-07T03:59:15.006175+00:00\",\"items\":[],\"owner_name\":\"q1c2m\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"85031a10-31bc-4575-82e6-c80c0cc98c68\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-07T03:59:15.047Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":308}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/bars/warm",
+     "status": 200,
+     "request": "{\"ticker\":\"AMD\",\"tf\":\"D\",\"to\":1791345556}",
+     "response": "{\"ok\":true,\"kicked\":false}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notebook-fingerprint/blocks/e7c83c4560074e6d9dd69fe10fd3ea30/563a0b86-c00b-457a-b26f-5d939d8af461/freeze",
+     "status": 404,
+     "request": "",
+     "response": "(response still in flight when the step ended: body not read)"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":true,\"type\":\"SMA\",\"period\":50,\"color\":\"#60a5fa\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:2\"},{\"enabl",
+     "response": "{\"note\":{\"id\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"AMD plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":tru"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notebook-fingerprint/blocks/e7c83c4560074e6d9dd69fe10fd3ea30/563a0b86-c00b-457a-b26f-5d939d8af461/freeze",
+     "status": 200,
+     "request": "",
+     "response": "{\"block\":{\"noteId\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"noteTitle\":\"AMD plan\",\"embedKey\":\"563a0b86-c00b-457a-b26f-5d939d8af461\",\"embedId\":\"563a0b86-c00b-457a-b26f-5d939d8af461\",\"position\":0,\"symbol\":\"AMD\",\"timeframe\":\"D\",\"asOf\":\"2026-10-06\",\"setupTag\":null,\"mode\":\"snapshot\",\"fingerprint\":{\"v\":1,\"symbol\":\"AMD\",\"requested_as_of\":\"2026-10-06\",\"as_of\":\"2026-10-06\",\"mode\":\"bars\",\"fields\":{\"adr_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma10\":{\"value\":4.2,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma20\":{\"value\":11.7,\"source\":\"bars\",\"missing\":null},\"pct_vs_sma50\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"pct_vs_sma200\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"ma_stack\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"ema_stack_intact\":{\"value\":true,\"source\":\"bars\",\"missing\":null},\"rs_rank\":{\"value\":null,\"source\":\"screener_row\",\"missing\":\"rank_is_nightly_only\"},\"rs_line_trend\":{\"value\":\"up\",\"source\":\"bars\",\"missing\":null},\"base_length_bars\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"base_depth_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"no_flat_base\"},\"pullback_depth_pct\":{\"value\":1.38,\"source\":\"bars\",\"missing\":null},\"vol_nweek_low\":{\"value\":0,\"source\":\"bars\",\"missing\":null},\"close_cv_pct\":{\"value\":2.1,\"source\":\"bars\",\"missing\":null},\"pole_pct\":{\"value\":null,\"source\":\"bars\",\"missing\":\"series_contradicts_itself\"},\"patterns\":{\"value\":[],\"source\":\"pattern_v"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":true,\"type\":\"SMA\",\"period\":50,\"color\":\"#60a5fa\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:2\"},{\"enabl",
+     "response": "{\"note\":{\"id\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"AMD plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":tru"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30/images",
+     "status": 200,
+     "request": "",
+     "response": "{\"url\":\"/api/j2/notes/attachments/f127fc04-090c-4bd4-a50b-677ceee4fb35/e7c83c4560074e6d9dd69fe10fd3ea30/inline/d8c66d8c2940129a45e16b9ee66ab9a8.png\",\"width\":776,\"height\":427}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":true,\"type\":\"SMA\",\"period\":50,\"color\":\"#60a5fa\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:2\"},{\"enabl",
+     "response": "{\"note\":{\"id\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"AMD plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":tru"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-chart-plan-insert-a-chart-into-a-note-with-chart.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "chart plan",
+   "step": "draw entry, stop and target on the chart and mark their roles",
+   "verdict": "PASS",
+   "at": "2026-10-07T03:59:34+00:00",
+   "lines_placed": 3,
+   "stored": true,
+   "roles_stored": true,
+   "prices": {
+    "target": 514.736678805526,
+    "entry": 340.85658137305506,
+    "stop": 166.97648394058416
+   },
+   "target_over_entry_over_stop": true,
+   "draw_raw": [
+    {
+     "attempt": 1,
+     "stored_count": 1,
+     "reached_in_10s": true,
+     "class": "_frame_farkn_5 _full_farkn_41  _annotating_farkn_81  "
+    },
+    {
+     "attempt": 2,
+     "stored_count": 2,
+     "reached_in_10s": true,
+     "class": "_frame_farkn_5 _full_farkn_41  _annotating_farkn_81  "
+    },
+    {
+     "attempt": 3,
+     "stored_count": 3,
+     "reached_in_10s": true,
+     "class": "_frame_farkn_5 _full_farkn_41  _annotating_farkn_81  "
+    }
+   ],
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":true,\"type\":\"SMA\",\"period\":50,\"color\":\"#60a5fa\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:2\"},{\"enabl",
+     "response": "{\"note\":{\"id\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"AMD plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":tru"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":true,\"type\":\"SMA\",\"period\":50,\"color\":\"#60a5fa\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:2\"},{\"enabl",
+     "response": "{\"note\":{\"id\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"AMD plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":tru"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":true,\"type\":\"SMA\",\"period\":50,\"color\":\"#60a5fa\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:2\"},{\"enabl",
+     "response": "{\"note\":{\"id\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"AMD plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":tru"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/bars/warm",
+     "status": 200,
+     "request": "{\"ticker\":\"AMD\",\"tf\":\"D\",\"to\":1791345556}",
+     "response": "{\"ok\":true,\"kicked\":false}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":true,\"type\":\"SMA\",\"period\":50,\"color\":\"#60a5fa\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:2\"},{\"enabl",
+     "response": "{\"note\":{\"id\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"AMD plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":tru"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/chart-plan/size",
+     "status": 200,
+     "request": "{\"annotations\":[{\"type\":\"horizontal\",\"points\":[{\"time\":\"2026-07-15\",\"price\":514.736678805526,\"pane\":\"price\"}],\"color\":\"#c9a84c\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"pane\":\"price\",\"showPriceLabel\":true,\"id\":\"f745ac94-b221-4d07-ada5-ff05881870ba\",\"role\":\"target\"},{\"type\":\"horizontal\",\"points\":[{\"time\":\"2026-07-15\",\"price\":340.85658137305506,\"pane\":\"price\"}],\"color\":\"#c9a84c\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"pane\":\"price\",\"showPriceLabel\":true,\"id\":\"d0f2b4de-069f-4590-a663-31bd889157e8\"},{\"type\":\"horizontal\",\"points\":[{\"time\":\"2026-07-15\",\"price\":166.97648394058416,\"pane\":\"price\"}],\"color\":\"#c9a84c\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"pane\":\"price\",\"showPriceLabel\":true,\"id\":\"756dea76-c1fb-4494-b14b-13cdd78a03c7\"}],\"symbol\":\"AMD\"}",
+     "response": "{\"plan\":{\"roles\":{\"entry\":{\"state\":\"absent\",\"value\":null,\"shape\":null,\"values\":[]},\"stop\":{\"state\":\"absent\",\"value\":null,\"shape\":null,\"values\":[]},\"target\":{\"state\":\"ok\",\"value\":514.736679,\"shape\":\"chart\",\"values\":[]},\"shares\":{\"state\":\"absent\",\"value\":null,\"shape\":null,\"values\":[]}},\"setup\":null,\"entry\":null,\"stop\":null,\"target\":514.736679,\"shares\":null,\"side\":null},\"account\":{\"accountId\":\"d5f0618b-208e-4470-a063-cb885341e0db\",\"accountSize\":100000.0,\"riskPct\":null},\"compass\":{\"ok\":false,\"reason\":\"Compass sizes longs only\"}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/chart-plan/size",
+     "status": 200,
+     "request": "{\"annotations\":[{\"type\":\"horizontal\",\"points\":[{\"time\":\"2026-07-15\",\"price\":514.736678805526,\"pane\":\"price\"}],\"color\":\"#c9a84c\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"pane\":\"price\",\"showPriceLabel\":true,\"id\":\"f745ac94-b221-4d07-ada5-ff05881870ba\",\"role\":\"target\"},{\"type\":\"horizontal\",\"points\":[{\"time\":\"2026-07-15\",\"price\":340.85658137305506,\"pane\":\"price\"}],\"color\":\"#c9a84c\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"pane\":\"price\",\"showPriceLabel\":true,\"id\":\"d0f2b4de-069f-4590-a663-31bd889157e8\",\"role\":\"entry\"},{\"type\":\"horizontal\",\"points\":[{\"time\":\"2026-07-15\",\"price\":166.97648394058416,\"pane\":\"price\"}],\"color\":\"#c9a84c\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"pane\":\"price\",\"showPriceLabel\":true,\"id\":\"756dea76-c1fb-4494-b14b-13cdd78a03c7\"}],\"symbol\":\"AMD\"}",
+     "response": "{\"plan\":{\"roles\":{\"entry\":{\"state\":\"ok\",\"value\":340.856581,\"shape\":\"chart\",\"values\":[]},\"stop\":{\"state\":\"absent\",\"value\":null,\"shape\":null,\"values\":[]},\"target\":{\"state\":\"ok\",\"value\":514.736679,\"shape\":\"chart\",\"values\":[]},\"shares\":{\"state\":\"absent\",\"value\":null,\"shape\":null,\"values\":[]}},\"setup\":null,\"entry\":340.856581,\"stop\":null,\"target\":514.736679,\"shares\":null,\"side\":null},\"account\":{\"accountId\":\"d5f0618b-208e-4470-a063-cb885341e0db\",\"accountSize\":100000.0,\"riskPct\":null},\"compass\":{\"ok\":false,\"reason\":\"Compass sizes longs only\"}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/chart-plan/size",
+     "status": 200,
+     "request": "{\"annotations\":[{\"type\":\"horizontal\",\"points\":[{\"time\":\"2026-07-15\",\"price\":514.736678805526,\"pane\":\"price\"}],\"color\":\"#c9a84c\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"pane\":\"price\",\"showPriceLabel\":true,\"id\":\"f745ac94-b221-4d07-ada5-ff05881870ba\",\"role\":\"target\"},{\"type\":\"horizontal\",\"points\":[{\"time\":\"2026-07-15\",\"price\":340.85658137305506,\"pane\":\"price\"}],\"color\":\"#c9a84c\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"pane\":\"price\",\"showPriceLabel\":true,\"id\":\"d0f2b4de-069f-4590-a663-31bd889157e8\",\"role\":\"entry\"},{\"type\":\"horizontal\",\"points\":[{\"time\":\"2026-07-15\",\"price\":166.97648394058416,\"pane\":\"price\"}],\"color\":\"#c9a84c\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"pane\":\"price\",\"showPriceLabel\":true,\"id\":\"756dea76-c1fb-4494-b14b-13cdd78a03c7\",\"role\":\"stop\"}],\"symbol\":\"AMD\"}",
+     "response": "{\"plan\":{\"roles\":{\"entry\":{\"state\":\"ok\",\"value\":340.856581,\"shape\":\"chart\",\"values\":[]},\"stop\":{\"state\":\"ok\",\"value\":166.976484,\"shape\":\"chart\",\"values\":[]},\"target\":{\"state\":\"ok\",\"value\":514.736679,\"shape\":\"chart\",\"values\":[]},\"shares\":{\"state\":\"absent\",\"value\":null,\"shape\":null,\"values\":[]}},\"setup\":null,\"entry\":340.856581,\"stop\":166.976484,\"target\":514.736679,\"shares\":null,\"side\":\"long\"},\"account\":{\"accountId\":\"d5f0618b-208e-4470-a063-cb885341e0db\",\"accountSize\":100000.0,\"riskPct\":null},\"compass\":{\"ok\":false,\"reason\":\"No account size or max risk per trade is set\"}}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":true,\"type\":\"SMA\",\"period\":50,\"color\":\"#60a5fa\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:2\"},{\"enabl",
+     "response": "{\"note\":{\"id\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"AMD plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":tru"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-chart-plan-draw-entry-stop-and-target-on-the-chart-and-mark-their-roles.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "chart plan",
+   "step": "sizing: R:R, risk per share and shares, with the sizing label",
+   "verdict": "FAIL",
+   "at": "2026-10-07T04:00:04+00:00",
+   "values": {
+    "rr": "1.00R",
+    "rps": "$173.88",
+    "acct": "—",
+    "shares": "—"
+   },
+   "label": null,
+   "panel_text": "TRADE PLAN\n514.74\nNone\nEntry\nStop\nTarget\nArm alert at this level\n340.86\nNone\nEntry\nStop\nTarget\nArm alert at this level\n166.98\nNone\nEntry\nStop\nTarget\nArm alert at this level\nR:R\n1.00R\nRisk / share\n$173.88\nAccount risk\n—\nPosition size\n—\n\nNo max risk per trade is set — set it in Journal Settings, Accounts.",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30/images",
+     "status": 200,
+     "request": "",
+     "response": "{\"url\":\"/api/j2/notes/attachments/f127fc04-090c-4bd4-a50b-677ceee4fb35/e7c83c4560074e6d9dd69fe10fd3ea30/inline/3f5e923e7a9a4240086891d259698f4c.png\",\"width\":776,\"height\":427}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/e7c83c4560074e6d9dd69fe10fd3ea30",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":true,\"type\":\"SMA\",\"period\":50,\"color\":\"#60a5fa\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:2\"},{\"enabl",
+     "response": "{\"note\":{\"id\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"userId\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"accountId\":null,\"folderId\":null,\"title\":\"AMD plan\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"T\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"AMD\",\"tf\":\"D\",\"to\":1791345556,\"settings\":{\"chartType\":\"candles\",\"invertScale\":false,\"candles\":{\"upColor\":\"#2faf68\",\"downColor\":\"#df4646\",\"upBorder\":\"#2faf68\",\"downBorder\":\"#df4646\",\"upWick\":\"#2faf68\",\"downWick\":\"#df4646\",\"oneColor\":\"#2faf68\",\"thinBars\":true},\"candleColorMode\":\"netchange\",\"background\":\"#17181a\",\"bgMode\":\"solid\",\"bgGradient\":{\"top\":\"#16233b\",\"bottom\":\"#17181a\"},\"textColor\":\"#706b5e\",\"textSize\":11,\"grid\":{\"color\":\"rgba(46,49,39,0.25)\",\"visible\":true},\"crosshair\":{\"enabled\":true,\"color\":\"#706b5e\",\"style\":1,\"width\":1,\"magnet\":false},\"header\":{\"titleMode\":\"company\",\"showChange\":true,\"timeframes\":[\"1\",\"5\",\"15\",\"30\",\"60\",\"D\",\"W\",\"M\"],\"customTimeframes\":[],\"showMarketCap\":true,\"showNextEarnings\":true,\"showUctRating\":true,\"showLegend\":true,\"legendLayout\":\"vertical\",\"colors\":{}},\"overlays\":[{\"enabled\":true,\"type\":\"EMA\",\"period\":9,\"color\":\"#4ade80\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:0\"},{\"enabled\":true,\"type\":\"EMA\",\"period\":20,\"color\":\"#f472b6\",\"lineWidth\":1,\"lineStyle\":\"solid\",\"offset\":0,\"plotStyle\":\"line\",\"onTop\":false,\"removed\":true,\"adopted\":\"ovl:1\"},{\"enabled\":tru"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "c2-1280-chart-plan-sizing-R-R-risk-per-share-and-shares-with-the-sizing-label.png"
+  },
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "feature": "chart plan",
+   "step": "arm an alert at the stop: listed in the member's alerts",
+   "verdict": "PASS",
+   "at": "2026-10-07T04:00:05+00:00",
+   "armed_in_panel": true,
+   "alert": {
+    "sym": "AMD",
+    "direction": "below",
+    "target_price": 166.97648394058416,
+    "drawing_id": "nb:563a0b86-c00b-457a-b26f-5d939d8af461:756dea76-c1fb-4494-b14b-13cdd78a03c7"
+   },
+   "reach_error": null,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=e7c83c4560074e6d9dd69fe10fd3ea30",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/j2/chart-plan/alerts",
+     "status": 200,
+     "request": "{\"noteId\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"embedId\":\"563a0b86-c00b-457a-b26f-5d939d8af461\",\"drawingId\":\"nb:563a0b86-c00b-457a-b26f-5d939d8af461:756dea76-c1fb-4494-b14b-13cdd78a03c7\",\"direction\":\"below\",\"alert_type\":\"line\",\"target_price\":166.97648394058416}",
+     "response": "{\"alert\":{\"id\":\"b81353c2-706\",\"user_id\":\"f127fc04-090c-4bd4-a50b-677ceee4fb35\",\"sym\":\"AMD\",\"target_price\":166.97648394058416,\"direction\":\"below\",\"is_active\":1,\"created_at\":\"2026-10-07T04:00:05.157691+00:00\",\"alert_type\":\"line\",\"anchor_t1\":null,\"anchor_p1\":null,\"anchor_t2\":null,\"anchor_p2\":null,\"drawing_id\":\"nb:563a0b86-c00b-457a-b26f-5d939d8af461:756dea76-c1fb-4494-b14b-13cdd78a03c7\"},\"noteId\":\"e7c83c4560074e6d9dd69fe10fd3ea30\",\"embedId\":\"563a0b86-c00b-457a-b26f-5d939d8af461\",\"symbol\":\"AMD\"}"
+    }
+   ],
+   "screenshot": "c2-1280-chart-plan-arm-an-alert-at-the-stop-listed-in-the-member-s-alerts.png"
+  }
+ ],
+ "configs": {
+  "c2": {
+   "base": "http://127.0.0.1:8132",
+   "data_dir": "C:\\data-fin-walk-dev\\c2",
+   "flags_on": [
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+   ],
+   "not_run": null,
+   "failure": null,
+   "port_free_after": null,
+   "driver_imported_api": []
+  }
+ },
+ "config": "c2",
+ "tree": "e8cbd3019c44e201e6ec2e7bdf753a9b36c94738",
+ "started": "2026-10-07T03:59:11+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "COMPLETE",
+ "flag_sets": {
+  "prod_armed": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "c1": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ]
+ },
+ "api_writes": [
+  {
+   "config": "c2",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"AMD plan\", \"ticker\": \"AMD\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"The plan:\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"e7c83c4560074e6d9dd69fe10fd3ea30\", \"userId\": \"f127fc04-090c-4bd4-a50b-677ceee4fb35\", \"accountId\": null, \"folderId\": null, \"title\": \"AMD plan\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"The plan:\"}]}]}, \"bodyPlain\": \"The plan:\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": \"AMD\", \"tags\": [], \"createdAt\": \"2026-10-07T03:59:13.711800+00:00\", \"updatedAt\": \"2026-10-07T03:59:13.711800+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  }
+ ],
+ "finished": "2026-10-07T04:00:05+00:00"
+}

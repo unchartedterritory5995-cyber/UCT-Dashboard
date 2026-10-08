@@ -239,6 +239,39 @@ describe('Watchlist → Charts and the last screen → Charts', () => {
     expect(state.server.lists[0].items.map(i => i.sym)).toEqual(['T02', 'T01', 'T03'])
   })
 
+  it("the production model's measured shapes (2026-10-07): from = the LIST's own ref, or the consumer listed BEFORE its producer — both read the list fresh", async () => {
+    const { state, say, syms } = await mount()
+    envelopes.push(b => env('apply', [CHARTS(b, { from: LIST(b, 'Agent Test Watchlist'), top: 3 })]))
+    say('Open my Agent Test Watchlist as charts.')
+    expect(await nth('agent-proposal', 1)).toContain('Use the stocks in “Agent Test Watchlist” (its saved order) — read when you apply')
+    state.manual('m1', (wl) => { wl.items = [...wl.items].reverse() })
+    say('do it')
+    expect(await nth('agent-receipt', 1)).toContain('Created 3 charts: T02, T01 and T03')
+    expect(syms()).toEqual(['T02', 'T01', 'T03'])
+    say('undo')
+    await saysSoon(/Undid: Created 3 charts/)
+    envelopes.push(b => env('apply', [
+      CHARTS(b, { from: 'list1', top: 3 }),
+      { action: 'watchlist.show', target: LIST(b, 'Agent Test Watchlist'), args: { as: 'list1' } },
+    ]))
+    say('Chart everything in Agent Test Watchlist.')
+    await nth('agent-proposal', 2)
+    say('do it')
+    expect(await nth('agent-receipt', 3)).toContain('Created 3 charts: T02, T01 and T03')
+  })
+
+  it('a reference to a producer that is not in the plan, or to a target that produces nothing, is refused — nothing runs', async () => {
+    const { say, newCharts } = await mount()
+    envelopes.push(b => env('apply', [CHARTS(b, { from: 'list1', top: 3 })]))
+    say('Chart my list.')
+    await saysSoon(/“list1” isn't a result I can use here/)
+    envelopes.push(b => env('apply', [CHARTS(b, { from: b.context.charts[0].ref, top: 3 })]))
+    say('Chart that chart.')
+    await saysSoon(/isn't a result I can use here[\s\S]*isn't a result I can use here/)
+    expect(newCharts()).toHaveLength(0)
+    expect(screen.queryByTestId('agent-proposal')).toBeNull()
+  })
+
   it('a list deleted before Apply → refused; an empty list → nothing created', async () => {
     const { state, say, newCharts } = await mount({ lists: [...LISTS, { id: 'e1', name: 'Empty One', symbols: [] }] })
     envelopes.push(b => env('propose', [{ action: 'watchlist.show', target: LIST(b, 'Empty One'), args: { as: 'list1' } }, CHARTS(b, { from: 'list1', top: 4 })]))

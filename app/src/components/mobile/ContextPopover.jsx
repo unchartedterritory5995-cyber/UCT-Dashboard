@@ -126,13 +126,18 @@ export default function ContextPopover({
 
   if (!open) return null
 
-  const renderItems = () =>
+  // `asMenu` is the DESKTOP anchored branch, which is `role="menu"`: a menu must hold menu
+  // items (axe: aria-required-children, critical), so its rows are `role="menuitem"` and its
+  // separators `role="separator"`. The touch branch is a Sheet (a dialog), where the rows stay
+  // plain buttons.
+  const renderItems = (asMenu = false) =>
     items?.map((it, i) =>
       it.separator ? (
-        <div key={`sep${i}`} className={styles.separator} />
+        <div key={`sep${i}`} className={styles.separator} role={asMenu ? 'separator' : undefined} />
       ) : (
         <button
           key={it.key ?? it.label ?? i}
+          role={asMenu ? 'menuitem' : undefined}
           className={`${styles.item} ${it.danger ? styles.danger : ''}`}
           disabled={it.disabled}
           onClick={(e) => { it.onClick?.(e); if (!it.keepOpen) onClose?.() }}
@@ -154,6 +159,25 @@ export default function ContextPopover({
     )
   }
 
+  // Desktop: the keys a menu needs. Arrow keys, Home and End move between the menu's own
+  // items (enabled ones, wrapping). Only when focus is ON an item, so custom children with
+  // their own fields (a textarea, a select) keep their keys. Escape is handled above.
+  const ITEM = '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"]'
+  const onMenuKeyDown = (e) => {
+    const MOVES = { ArrowDown: 1, ArrowUp: -1, Home: 'first', End: 'last' }
+    const move = MOVES[e.key]
+    if (move == null) return
+    const here = e.target?.closest?.(ITEM)
+    if (!here || !menuRef.current?.contains(here)) return
+    const rows = [...menuRef.current.querySelectorAll(ITEM)]
+      .filter((el) => !el.disabled && el.getAttribute('aria-disabled') !== 'true')
+    if (!rows.length) return
+    const at = rows.indexOf(here)
+    const next = move === 'first' ? 0 : move === 'last' ? rows.length - 1 : (at + move + rows.length) % rows.length
+    e.preventDefault()
+    rows[next].focus()
+  }
+
   // Desktop → anchored floating menu
   return createPortal(
     <div
@@ -165,11 +189,16 @@ export default function ContextPopover({
         width,
         visibility: pos ? 'visible' : 'hidden',
       }}
-      role="menu"
+      // The role follows the content. An action list is a menu of menu items. Custom
+      // children (a form, a picker) are not menu items, so that form is a named dialog.
+      role={children != null ? 'dialog' : 'menu'}
+      // Both need a name. The title when it is plain text.
+      aria-label={typeof title === 'string' && title ? title : (children != null ? 'Options' : 'Actions')}
       tabIndex={-1}
+      onKeyDown={onMenuKeyDown}
     >
       {title != null && <div className={styles.menuTitle}>{title}</div>}
-      {children ?? <>{header}{renderItems()}</>}
+      {children ?? <>{header}{renderItems(true)}</>}
     </div>,
     document.body,
   )

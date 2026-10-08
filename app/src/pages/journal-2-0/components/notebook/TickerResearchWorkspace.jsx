@@ -5,12 +5,14 @@ import useTickerResearch from '../../hooks/useTickerResearch'
 import LoadFailed from '../LoadFailed'
 import { createNoteViaApi, createNoteFromTemplateViaApi } from '../../lib/noteCreation'
 import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvasCreate'
+import { createEarningsPrepNote, earningsPrepEnabled } from '../../lib/earningsPrep'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { openSpanningCitation } from '../../lib/openCitation'
 import { SOURCE_WEB } from '../../lib/searchResultLabel'
 import AskPanel from './AskPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
+import { SaveTranscriptButton } from './TranscriptDoors'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './TickerResearchWorkspace.module.css'
 
@@ -137,6 +139,27 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
     }
   }
 
+  // Wave 13 lane 13C: "Earnings prep" -- a prep note on this ticker, drafted from what UCT
+  // holds (report date, implied move, the last four reactions, the stored recap, the member's
+  // own notes and trades). Dark behind its gate (latched); off, the button does not render.
+  // ⛔ The note exists only because this button was pressed (decision R5).
+  const prepOn = earningsPrepEnabled()
+  const handlePrep = async () => {
+    setCreating(true)
+    setActionError('')
+    try {
+      const note = await createEarningsPrepNote({ symbol })
+      openNote(note)
+    } catch (e) {
+      console.error('[research] create earnings prep failed', e)
+      setActionError(e?.status === 429 && e.message
+        ? e.message
+        : "Couldn't draft that earnings prep note. Nothing was saved — try again.")
+    } finally {
+      setCreating(false)
+    }
+  }
+
   // Wave 10 F7 (Part A, 5d): a failed read used to leave the loading skeleton up for good.
   if (error && !summary) {
     return <LoadFailed what={`your research on ${symbol}`} error={error} onRetry={refresh} />
@@ -199,6 +222,15 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
               <UIcon name="board" size={13} gold={false} /> Plan this trade
             </button>
           )}
+          {prepOn && (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={handlePrep} disabled={creating}>
+              <UIcon name="calendar" size={13} gold={false} /> Earnings prep
+            </button>
+          )}
+          {/* Wave 13 lane 13G-1: save a call-transcript passage into one of these notes as a
+              cited excerpt. Renders nothing while notebook_transcript_capture_enabled is off. */}
+          <SaveTranscriptButton symbol={identity.symbol} notes={[...activeTheses, ...notes]}
+            onSaved={refresh} onOpenNote={openNote} disabled={creating} />
         </div>
       </div>
 

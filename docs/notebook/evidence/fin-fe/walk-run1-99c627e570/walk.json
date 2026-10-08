@@ -1,0 +1,188 @@
+{
+ "tool": "tools/notebook_fin_fe_walk.py",
+ "base": "http://127.0.0.1:8133",
+ "expect_defects": false,
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\fin-fe\\walk-99c627e570\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-06 22:55:17",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-06 22:56:35",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-06 22:58:28",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-06 22:59:47",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "docs\\notebook\\evidence\\fin-fe\\walk-99c627e570\\integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-fe\\docs\\plans\\joystick\\sandbox-runs\\2026-10-06T22-55-08.md"
+ },
+ "failure": null,
+ "not_run": null,
+ "rows": [
+  {
+   "id": "W0_admin_paid_flags_on",
+   "verdict": "FAIL",
+   "detail": "/api/auth/me {'role': None, 'paid_equiv': True, 'notebook_chart_plan_enabled': True, 'notebook_ta_fingerprint_enabled': True, 'comp_status': 200}"
+  },
+  {
+   "id": "A1_note_chart_live_and_alert_sync_running",
+   "verdict": "PASS",
+   "detail": "chart canvas mounted; GET /api/watchlist-alerts seen=True; Charts line in the drawing store=True"
+  },
+  {
+   "id": "A2_alert_list_was_reread_after_it_changed",
+   "verdict": "FAIL",
+   "detail": "GET /api/watchlist-alerts count before=1, re-read seen=False (the page's own poll; without this the row below would prove nothing)"
+  },
+  {
+   "id": "A3_no_alert_DELETE_sent",
+   "verdict": "PASS",
+   "detail": "no DELETE to /api/watchlist-alerts"
+  },
+  {
+   "id": "A4_charts_alert_still_exists",
+   "verdict": "PASS",
+   "detail": "active alerts bound to charts-line-1: 1 (of 2 active)"
+  },
+  {
+   "id": "B1_fingerprint_panel_was_on_screen",
+   "verdict": "FAIL",
+   "detail": "panel text: 'TECHNICAL FINGERPRINT\\nNo fingerprint is frozen for this chart yet.\\nFreeze the fingerprint\\nSetup\\nNo setup tag\\nFlat Base Breakout\\nBull Flag\\nIP'"
+  },
+  {
+   "id": "B2_zero_writes_to_the_note",
+   "verdict": "FAIL",
+   "detail": "writes: [('POST', '/api/j2/notes/a750cf907ecb4dccb5c787fc1782823b/opened', 200)]"
+  },
+  {
+   "id": "B3_no_fingerprint_freeze_request",
+   "verdict": "PASS",
+   "detail": "no freeze request"
+  },
+  {
+   "id": "B4_note_not_redated_or_changed",
+   "verdict": "PASS",
+   "detail": "updatedAt before='2026-10-07T03:56:11.555140+00:00' after='2026-10-07T03:56:11.555140+00:00'; chart block identical=True"
+  },
+  {
+   "id": "C1_keyboard_selects_deletes_and_restores_a_chart_block",
+   "verdict": "PASS",
+   "detail": "arrow selects={'selected': True, 'arrow_right_presses': 1}; after Backspace=0; after undo=1"
+  },
+  {
+   "id": "W9_driver_never_imported_api",
+   "verdict": "PASS",
+   "detail": "no api.* module in the driver's sys.modules"
+  },
+  {
+   "id": "W10_port_free_after_shutdown",
+   "verdict": "PASS",
+   "detail": "port 8133 has a listener after stop: False"
+  }
+ ],
+ "raw": {
+  "me": {
+   "role": null,
+   "paid_equiv": true,
+   "notebook_chart_plan_enabled": true,
+   "notebook_ta_fingerprint_enabled": true,
+   "comp_status": 200
+  },
+  "bound_alert_create": {
+   "status": 200,
+   "body": "{\"id\":\"a564ffb6-f5f\",\"user_id\":\"59ffec9a-d6bf-4bf2-b47c-131e085e8441\",\"sym\":\"AMD\",\"target_price\":91.5,\"direction\":\"above\",\"is_active\":1,\"created_at\":\"2026-10-07T03:56:11.681210+00:00\",\"alert_type\":\"line\",\"anchor_t1\":null,\"anchor_p1\":null,\"anchor_t2\":null,\"anchor_p2\":null,\"drawing_id\":\"charts-line-1\"}"
+  },
+  "A_charts_drawing_in_store": "{\"AMD\": [{\"id\": \"charts-line-1\", \"type\": \"horizontal\", \"points\": [{\"time\": 1750000000, \"price\": 91.5}]}]}",
+  "second_alert_create": {
+   "status": 200
+  },
+  "B_all_non_GET_requests": [
+   "POST /api/j2/notes/a750cf907ecb4dccb5c787fc1782823b/opened -> 200",
+   "POST /api/j2/telemetry -> 200"
+  ],
+  "B_fingerprint_panel_text": "TECHNICAL FINGERPRINT\nNo fingerprint is frozen for this chart yet.\nFreeze the fingerprint\nSetup\nNo setup tag\nFlat Base Breakout\nBull Flag\nIPO Base\nLaunchpad\nCup & Handle\nHigh Tight Flag (Powerplay)\nVCP\n4B Setup (Stan Weinstein)\nEpisodic Pivot\nPower Earnings Gap\nNews/Earnings Gapper\nHigh Volume Edge\nGap Support\nKicker Candle\nHVC\n20 EMA Pullback\nEMA Crossback\nWedge Pop\nWedge Drop\nClassic Flag/Pullback\n2B Reversal\nU&R (Undercut & Rally)\nSlingshot\nOops Reversal\nRemount\nFailed H&S / Rounded Top\nParabolic Long\nParabolic Short\nWick Play\nNews Failure\nRed to Green\nORB (Opening Range Break)\n30-Minute Pivot\nGo Signal\nOpening Range Breakdown\nRed to Green (Intraday)\nGreen to Red\nMean Reversion L/S",
+  "C_observations": {
+   "click_on_chart_body_selects_block": false,
+   "geometry": {
+    "host": [
+     414,
+     602.28125,
+     778,
+     576.328125
+    ],
+    "body": [
+     415,
+     603.28125,
+     776,
+     427
+    ],
+    "caption": [
+     415,
+     1030.28125,
+     776,
+     32.546875
+    ]
+   },
+   "mouse_click_outside_body": [
+    {
+     "where": "caption",
+     "selected": true
+    },
+    {
+     "where": "frame_top_edge",
+     "selected": false
+    },
+    {
+     "where": "frame_left_edge",
+     "selected": false
+    }
+   ],
+   "keyboard_arrow_selects_block": {
+    "selected": true,
+    "arrow_right_presses": 1
+   },
+   "after_backspace_block_count": 0,
+   "after_undo_block_count": 1,
+   "after_cut_block_count": 0,
+   "after_paste_block_count": 1,
+   "order_after_cut_paste": [
+    "before the chart",
+    "after the chart",
+    "CHART",
+    ""
+   ],
+   "remove_button_present": 1
+  },
+  "bars_fixture_served": 24,
+  "page_errors": []
+ }
+}

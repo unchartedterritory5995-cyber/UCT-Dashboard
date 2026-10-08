@@ -67,6 +67,10 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import useBulkQuotes from '../hooks/useBulkQuotes'
 import useThemeIndexQuotes, { themeIndexLabel, themeIndexKey } from '../hooks/useThemeIndexQuotes'
 import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
+// Wave 13 lane 13G-2 (ruling P2) -- held for the charts-workspace owner's announcement
+// before this lands anywhere but this branch; see docs/notebook/wave13-13g2.md.
+import useThesisChips from './journal-2-0/hooks/useThesisChips'
+import ThesisChip from './journal-2-0/components/notebook/ThesisChip'
 import useWatchlistIntelligence from '../hooks/useWatchlistIntelligence'
 import useWatchlistMeta from '../hooks/useWatchlistMeta'
 import useWatchlistThemes from '../hooks/useWatchlistThemes'
@@ -394,6 +398,7 @@ const WatchRow = React.memo(function WatchRow({
   coName = null, sector = null, industry = null, theme = null,
   perf5d = null, perf30d = null, perf60d = null, perf90d = null, periodchg = null,
   weight = null, atr = null, a50 = null,
+  thesisChip = null,  // wave 13 lane 13G-2 (ruling P2) -- null while the flag/mount is held
   notable = false, intelStatus = null, intelFacts = null,
   isOwner, wlId,
   onSelect, onToggleFlag, onIntent, onCtx, onAttention,
@@ -442,6 +447,16 @@ const WatchRow = React.memo(function WatchRow({
         <span key="sym" className={styles.symCell} style={isMember ? { paddingLeft: 20 } : undefined} {...(wlId ? rowMenuBind : {})}>
           {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round brandMark={brandMark} /></span>}
           <span className={styles.rowSym} title={displayName ? sym : undefined}>{displayName || sym}</span>
+          {/* Wave 13 lane 13G-2 (ruling P2) -- the one mount line; thesisChip is null
+              whenever the flag is off (the default) or no note names this symbol. The
+              row itself is a clickable div (activateRow); stopPropagation matches the
+              flag star button's own convention two cells over, so opening the chip's
+              preview never also selects the row. */}
+          {thesisChip && (
+            <span onClick={(e) => e.stopPropagation()}>
+              <ThesisChip chip={thesisChip} currentPrice={price} />
+            </span>
+          )}
           {/* Phone-only mini price path (Deepvue-style scanning). Reads ONLY the
               local bars store — never the network — and renders/fetches nothing
               on desktop. See components/mobile/RowSpark.jsx. */}
@@ -1540,6 +1555,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return out
   }, [activeTab, expandedLists, flagged, tags, TAG_COLORS, myLists, communityResolvable])
 
+  // Wave 13 lane 13G-2 (ruling P2, held for the charts-workspace owner's announcement):
+  // one batch read for every visible row, mirroring PositionsTable/HoldingsList. Flag off
+  // (the default) -> useThesisChips makes no request and `thesisChips` is {}, so WatchRow's
+  // one added line below renders nothing.
+  const { chips: thesisChips } = useThesisChips(visibleSymsFlat)
+
   // Keyboard nav: arrow up/down moves through every expanded list.
   const handleKeyDown = useCallback((e) => {
     // Don't hijack arrows while user is typing in an input/textarea/contenteditable
@@ -2489,6 +2510,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         weight={metaData[sym]?.weight ?? null}
         atr={metaData[sym]?.atr ?? null}
         a50={metaData[sym]?.a50 ?? null}
+        thesisChip={thesisChips[sym] || null}
         flagged={isFlagged(sym)}
         selected={selectedSym === sym}
         orderedKeys={orderedKeys}

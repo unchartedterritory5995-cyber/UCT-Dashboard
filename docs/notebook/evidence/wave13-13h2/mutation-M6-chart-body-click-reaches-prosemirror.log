@@ -1,0 +1,61 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/uct-worktrees/notebook-w13h2/app[39m
+
+ [31m❯[39m src/pages/journal-2-0/lib/widgetEmbedNode.test.js [2m([22m[2m9 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 18[2mms[22m[39m
+[31m     [31m×[31m stops a mousedown that lands on the chart body — the fix itself[39m[32m 11[2mms[22m[39m
+[31m     [31m×[31m stops a mousedown on an SVG drawing handle inside the body (the exact evidence shape)[39m[32m 2[2mms[22m[39m
+     [32m✓[39m does NOT stop a mousedown outside the body — unrelated chrome keeps the default click-to-select[32m 1[2mms[22m[39m
+     [32m✓[39m still stops BUTTON/SELECT/TEXTAREA/INPUT clicks regardless of body membership (unchanged default)[32m 1[2mms[22m[39m
+     [32m✓[39m still stops a contentEditable target (unchanged default)[32m 0[2mms[22m[39m
+     [32m✓[39m leaves the drag/drop/clipboard family alone — unchanged default (false = let ProseMirror handle it)[32m 0[2mms[22m[39m
+     [32m✓[39m an input element dragging itself still defers to the drag/drop family, not the input passthrough[32m 0[2mms[22m[39m
+     [32m✓[39m stops anything else bubbling from inside the embed that is not one of the above (matches the vendor default fallthrough)[32m 0[2mms[22m[39m
+     [32m✓[39m a mouseup is never consulted by this predicate for the fix to work — stopping mousedown is sufficient[32m 0[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m7 passed[39m[22m[90m (9)[39m
+[2m   Start at [22m 23:06:01
+[2m   Duration [22m 3.81s[2m (transform 959ms, setup 458ms, import 989ms, tests 18ms, environment 1.77s)[22m
+
+
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/widgetEmbedNode.test.js[2m > [22mwidgetEmbedStopEvent — the 13H-2 draw-mode focus-steal fix[2m > [22mstops a mousedown that lands on the chart body — the fix itself
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/widgetEmbedNode.test.js:[2m32:79[22m[39m
+    [90m 30| [39m  it('stops a mousedown that lands on the chart body — the fix itself'…
+    [90m 31| [39m    const t = target({ tag: 'CANVAS', matches: ['[data-widget-embed-bo…
+    [90m 32| [39m    expect(widgetEmbedStopEvent({ event: { type: 'mousedown', target: …
+    [90m   | [39m                                                                              [31m^[39m
+    [90m 33| [39m  })
+    [90m 34| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/widgetEmbedNode.test.js[2m > [22mwidgetEmbedStopEvent — the 13H-2 draw-mode focus-steal fix[2m > [22mstops a mousedown on an SVG drawing handle inside the body (the exact evidence shape)
+[31m[1mAssertionError[22m: expected false to be true // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/widgetEmbedNode.test.js:[2m39:79[22m[39m
+    [90m 37| [39m    // `circle.[object SVGAnimatedString][]` — an SVG <circle>, not a …
+    [90m 38| [39m    const t = target({ tag: 'circle', matches: ['[data-widget-embed-bo…
+    [90m 39| [39m    expect(widgetEmbedStopEvent({ event: { type: 'mousedown', target: …
+    [90m   | [39m                                                                              [31m^[39m
+    [90m 40| [39m  })
+    [90m 41| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+

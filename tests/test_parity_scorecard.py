@@ -54,15 +54,23 @@ LEDGER = REPO / 'docs' / 'notebook' / 'competitive-gap-ledger.md'
 PLAN = REPO / 'docs' / 'notebook' / 'NOTEBOOK-10-OF-10-PLAN.md'
 RESEARCH = REPO / 'docs' / 'notebook' / 'competitive-research-ledger.md'
 
-_spec = importlib.util.spec_from_file_location('gap_ledger_summary_for_scorecard', REPO / 'tools' / 'gap_ledger_summary.py')
-gls = importlib.util.module_from_spec(_spec)
-sys.modules[_spec.name] = gls
-_spec.loader.exec_module(gls)
+def _load_tool(name: str, filename: str):
+    """A tool loaded by path under a private name. A dataclass needs its module registered while
+    the module body runs, so the name is bound for exactly that long and then removed: an
+    import-time bind left in `sys.modules` is global state no test can undo, and which copy wins
+    then depends on collection order (tests/test_shared_state_landmines.py)."""
+    spec = importlib.util.spec_from_file_location(name, REPO / 'tools' / filename)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        sys.modules.pop(name, None)
+    return mod
 
-_pspec = importlib.util.spec_from_file_location('parity_scorecard_tool', REPO / 'tools' / 'parity_scorecard.py')
-psc = importlib.util.module_from_spec(_pspec)
-sys.modules[_pspec.name] = psc
-_pspec.loader.exec_module(psc)
+
+gls = _load_tool('gap_ledger_summary_for_scorecard', 'gap_ledger_summary.py')
+psc = _load_tool('parity_scorecard_tool', 'parity_scorecard.py')
 
 VERDICT = re.compile(r'^(AHEAD|PARITY|BEHIND|N/A|NOT-VERIFIED|OUT-OF-SCOPE \(D\d+\)|BLOCKED \((owner|external)\))$')
 KINDS = re.compile(r'^(CODE|TEST|WALK|MEASURE|RECORD|RULING) ')
@@ -543,7 +551,12 @@ def test_clause_15b_and_g003_read_as_the_round_2_rulings_say():
     row = next(l for l in text.split('\n') if l.startswith('| Notebook telemetry for every core action |'))
     assert _cells(row)[1] == 'MET' and 'AskPanel.telemetry.test.jsx' in row, row
     g003 = next(c for c in _a_rows() if c[0] == 'G-003')
-    assert g003[3:6] == ['NOT-VERIFIED'] * 3, g003[3:6]
+    # Round 2 held G-003 NOT-VERIFIED against every competitor because the UCT side stood on a code reading
+    # alone; its own lever was "a committed walk of an account deletion on UCT". Wave 12 lane 12D committed
+    # that walk (tree 1ad04a0383) and lane 12C phase 2 folded it in, so Notion and Evernote read PARITY on
+    # their quotes; Obsidian has no fetched page that states it and stays NOT-VERIFIED.
+    assert g003[3:6] == ['PARITY', 'PARITY', 'NOT-VERIFIED'], g003[3:6]
+    assert 'G-003.D5_data_gone_tombstone_kept PASS' in ' '.join(g003), 'the walk that moved it is cited'
 
 
 # ── F3 fix round 3 (R12-I1, M1): the merge-aware tie, rebuilt from objects only ──────────────────
@@ -769,7 +782,14 @@ def test_every_backticked_evidence_path_in_the_cells_is_extracted():
     # L13 (2026-09-30): the G-062 row now cites lane G62's walk report (run 3). 55 + 1 = 56.
     # Quiet re-score QR (2026-10-02): the 14d cell now cites the quiet per-call curve's log, its box
     # record and its reading (curve-d22-q2.log, curve-d22-q2-box.txt, README-quiet.md). 56 + 3 = 59.
-    assert len(paths) == 59, (len(paths), paths)
+    # Wave 12, lane 12C phase 2 (2026-10-02): G-003/G-045/G-121 cite 12D's sandbox walk report and G-026 cites
+    # 12B's template walk 5. 59 + 2 = 61.
+    # Wave 15, lane W15-SC (2026-10-04): G-041 and G-153 now cite lane W15-UCT's browser-pass report
+    # (one new path, cited by both rows). 61 + 1 = 62.
+    assert len(paths) == 62, (len(paths), paths)
+    for p in ('docs/notebook/evidence/w12d/sandbox-1ad04a0383/walk.json',
+              'docs/notebook/evidence/wave12-12b/walk-5.json'):
+        assert p in paths, p
     for p in ('docs/notebook/proof/evernote-evidence-2026-09-26.jsonl',
               'docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T14-58-03.md',
               'docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T15-30-24.md',

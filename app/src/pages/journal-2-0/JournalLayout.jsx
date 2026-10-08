@@ -26,6 +26,8 @@ import { Suspense, useCallback, useEffect, useState } from 'react'
 import { NavLink, Navigate, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useHotkeys } from 'react-hotkeys-hook'
 import UIcon from '../../components/ui/UIcon'
+import useRovingTabIndex from '../../hooks/useRovingTabIndex'
+import RouteFocusTarget from './lib/routeFocus'
 import { useIsPaid } from '../../context/AuthContext'
 import useJ2Settings from './hooks/useJ2Settings'
 import useBrokerSync from './hooks/useBrokerSync'
@@ -35,10 +37,8 @@ import { isCompactHeaderRoute } from './lib/compactHeaderRoute'
 import { NOTEBOOK_PATH } from './lib/journalRoutes'
 import J2PriceProvider from './J2PriceProvider'
 import { runJ2LocalStorageMigrations } from './lib/localStorageMigrate'
-import PortfolioSettingsModal from './components/PortfolioSettingsModal'
 import AccountSelector from './components/accounts/AccountSelector'
-import NewAccountModal from './components/accounts/NewAccountModal'
-import GenerateReportModal from './components/GenerateReportModal'
+import lazyChunk from './lib/lazyChunk'
 import ShortcutCheatSheet from './components/ShortcutCheatSheet'
 import LogTradeButton from './LogTradeButton'
 import JournalMobileNav from './JournalMobileNav'
@@ -46,11 +46,22 @@ import JournalLogFab from './JournalLogFab'
 import TrialBanner from './components/TrialBanner'
 import styles from './JournalLayout.module.css'
 
+// Wave 14 perf lane (docs/notebook/wave14-perf.md): the header's three on-demand dialogs load
+// when first opened, not with the shell. Each is mounted only while its flag below is true, so
+// nothing about when or how it shows changes -- only that its code is fetched on that first
+// open instead of before the Journal (and so the Notebook) can render. ~34 kB of minified JS
+// off `bytes.notebook_first_open`, most of it PortfolioSettingsModal.
+const PortfolioSettingsModal = lazyChunk(() => import('./components/PortfolioSettingsModal'))
+const NewAccountModal = lazyChunk(() => import('./components/accounts/NewAccountModal'))
+const GenerateReportModal = lazyChunk(() => import('./components/GenerateReportModal'))
+
 // The 6 primary surfaces. Compass is `paidOnly` — shown always (never hidden;
 // Free tier sees a designed teaser, per spec §61), disabled + lock glyph when
 // the user isn't paid. Community + Accounts are reachable routes but NOT
 // primary nav items (they live in the header/overflow — A5 refines them).
-const PRIMARY_NAV = [
+// Exported so JournalLayout.rovingNav.test.jsx can walk it without retyping
+// the list a second time (mirrors NavBar.jsx's NAV_ITEMS export).
+export const PRIMARY_NAV = [
   { to: '/journal', label: 'Today', icon: 'sun', end: true },
   { to: '/journal/trades', label: 'Trades', icon: 'equity' },
   { to: '/journal/calendar', label: 'Calendar', icon: 'calendar' },
@@ -119,6 +130,18 @@ export default function JournalLayout() {
 
   const openSettings = useCallback(() => setShowSettings(true), [])
   const closeSettings = useCallback(() => setShowSettings(false), [])
+
+  // Wave 13 (13Q-4): the 6-item primary nav (Today/Trades/Calendar/Notebook/
+  // Insights/Compass) becomes ONE Tab stop, with Arrow keys (Left/Right — a
+  // horizontal tab row) + Home/End moving focus among the items. The 13Q
+  // click-budget instrument found that reaching anything past this bar (and
+  // past NavBar's own, separately-fixed, left rail) cost a full forward Tab
+  // walk through every item one at a time — docs/notebook/wave13-13q2.md §4.
+  // No role, label, route or visible order changes: `renderItem`'s existing
+  // <NavLink>/<button disabled> elements only gain tabIndex/data-roving-item/
+  // onFocus from `itemProps`.
+  const { containerProps: primaryNavRovingProps, itemProps: primaryNavItemProps } =
+    useRovingTabIndex({ orientation: 'horizontal' })
 
   // One-shot, flag-gated localStorage migration (Task A6). No-op for P4 (surfaces
   // regroup the SAME components, so every pref key still resolves) — the real
@@ -191,7 +214,11 @@ export default function JournalLayout() {
     >
       <div className={styles.header}>
         <h1 className={styles.heading}><UIcon name="journal" size={18} style={{ verticalAlign: '-3px', marginRight: 8 }} />Trade Journal</h1>
-        <nav className={`${styles.nav} ${styles.navDesktop}`} aria-label="Journal sections">
+        <nav
+          className={`${styles.nav} ${styles.navDesktop}`}
+          aria-label="Journal sections"
+          {...primaryNavRovingProps}
+        >
           {PRIMARY_NAV.map((item) => {
             const locked = item.paidOnly && !isPaid
             if (locked) {
@@ -203,6 +230,7 @@ export default function JournalLayout() {
                   className={`${styles.navItem} ${styles.navItemLocked}`}
                   data-locked="true"
                   title="Compass — upgrade to unlock AI coaching"
+                  {...primaryNavItemProps(item.to, { disabled: true })}
                 >
                   <UIcon name={item.icon} size={16} />
                   {item.label}
@@ -220,6 +248,7 @@ export default function JournalLayout() {
                 className={({ isActive }) =>
                   `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
                 }
+                {...primaryNavItemProps(item.to)}
               >
                 <UIcon name={item.icon} size={16} />
                 {item.label}
@@ -361,6 +390,9 @@ export default function JournalLayout() {
           via the same pool; surfaces MAY read prices via useJ2Prices(). */}
       <J2PriceProvider>
         <div className={styles.content}>
+          {/* Finish program, lane KEYS: where focus lands after an in-app navigation between
+              Journal pages (lib/routeFocus.jsx). Directly before the page, after the header. */}
+          <RouteFocusTarget />
           <Suspense fallback={<div className={styles.surfaceFallback}>Loading…</div>}>
             <Outlet context={{ settings }} />
           </Suspense>
@@ -368,21 +400,27 @@ export default function JournalLayout() {
       </J2PriceProvider>
 
       {showSettings && settings && (
-        <PortfolioSettingsModal
-          settings={settings}
-          onSave={save}
-          onClose={closeSettings}
-          accountName={accountName}
-          isAllAccounts={isAllAccounts}
-        />
+        <Suspense fallback={null}>
+          <PortfolioSettingsModal
+            settings={settings}
+            onSave={save}
+            onClose={closeSettings}
+            accountName={accountName}
+            isAllAccounts={isAllAccounts}
+          />
+        </Suspense>
       )}
 
       {showNewAccount && (
-        <NewAccountModal onClose={() => setShowNewAccount(false)} />
+        <Suspense fallback={null}>
+          <NewAccountModal onClose={() => setShowNewAccount(false)} />
+        </Suspense>
       )}
 
       {showReport && (
-        <GenerateReportModal onClose={() => setShowReport(false)} />
+        <Suspense fallback={null}>
+          <GenerateReportModal onClose={() => setShowReport(false)} />
+        </Suspense>
       )}
 
       <ShortcutCheatSheet open={showShortcuts} onClose={() => setShowShortcuts(false)} />

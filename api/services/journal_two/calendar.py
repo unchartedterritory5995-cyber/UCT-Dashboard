@@ -1071,6 +1071,9 @@ _ALLOWED_IMAGE_MIMES = {
     "image/png", "image/jpeg", "image/gif", "image/webp",
 }
 _MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB
+# The one sentence for an image over the cap (see trade_attachments for why the
+# router's while-read cap and this check share it).
+IMAGE_TOO_BIG_SENTENCE = "Image must be < 5 MB"
 
 
 async def save_attachment(
@@ -1090,7 +1093,7 @@ async def save_attachment(
 
     raw = await upload.read()
     if len(raw) > _MAX_IMAGE_BYTES:
-        raise DayNotesValidationError("Image must be < 5 MB")
+        raise DayNotesValidationError(IMAGE_TOO_BIG_SENTENCE)
     if len(raw) == 0:
         raise DayNotesValidationError("Empty file")
 

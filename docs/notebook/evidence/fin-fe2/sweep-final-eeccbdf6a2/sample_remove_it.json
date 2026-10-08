@@ -1,0 +1,21 @@
+{
+ "hit": {
+  "box": [
+   57,
+   400,
+   73,
+   44
+  ],
+  "cx": 93.375,
+  "cy": 421.625,
+  "top_is_button": true,
+  "top_tag": "BUTTON._sampleStripAction_yzfs1_421"
+ },
+ "voice_button_while_open": 0,
+ "voice_buttons_on_page": 1,
+ "message": "The sample notes are in Trash. You can restore them from there.",
+ "status_after": {
+  "activeIds": 0,
+  "ids": 10
+ }
+}

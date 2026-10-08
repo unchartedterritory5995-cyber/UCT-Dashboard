@@ -237,6 +237,6 @@ describe('the dataflow seam stays narrow', () => {
     expect(refsOf(add({ from: 'screen1.rows', top: 5 }))).toHaveLength(1)
     expect(checkRefs(add({ from: 'screen1.rows', top: 5 }))).toMatch(/isn't a result I can use/)
     expect(checkRefs(add({ from: 'screen9', top: 5 }))).toMatch(/isn't a result I can use/)
-    expect(checkRefs([{ action: 'watchlist.add', target: MOM, args: { symbols: { from: 'screen1', top: 5 } } }, { ...SCREEN() }])).toMatch(/isn't a result I can use/)   // must come EARLIER
+    expect(checkRefs([{ action: 'watchlist.add', target: MOM, args: { symbols: { from: 'screen1', top: 5 } } }, { ...SCREEN() }])).toBeNull()   // order-free: producers always run first at apply (prod model lists the consumer first)
   })
 })

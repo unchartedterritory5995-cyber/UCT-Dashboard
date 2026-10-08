@@ -83,3 +83,18 @@ export function isFirstRunStageHeld() {
 export function useFirstRunStageHeld() {
   return useSyncExternalStore(subscribe, isFirstRunStageHeld, () => false)
 }
+
+/**
+ * How many claims are open (wave 14, lane W14-C2). A claimant that must also YIELD to
+ * the others -- the Notebook's "new tour" offer holds the stage while it shows, so the
+ * Compass card waits behind it, but it must step aside the moment a tour opens -- cannot
+ * use `useFirstRunStageHeld`, which answers true for its own claim. It subtracts its own
+ * (0 or 1) from this count instead: `count - mine > 0` is "held by someone else".
+ */
+export function getFirstRunStageHolderCount() {
+  return holders.size
+}
+
+export function useFirstRunStageHolderCount() {
+  return useSyncExternalStore(subscribe, getFirstRunStageHolderCount, () => 0)
+}

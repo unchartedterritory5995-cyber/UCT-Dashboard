@@ -39,7 +39,46 @@ NOTEBOOK_KEYS = [
     "notebook_formulas_enabled",
     # Wave 11 lane 11D: the trade-plan canvas — an enablement gate.
     "notebook_trade_canvas_enabled",
+    # Wave 12 lane 12A: the community template gallery — an enablement gate.
+    "notebook_template_gallery_enabled",
+    # Wave 13 lane 13I-1: the technical fingerprint + chart-block index — an enablement gate.
+    "notebook_ta_fingerprint_enabled",
+    # Wave 13 lane 13C: earnings prep (Reporting soon) — an enablement gate.
+    "notebook_earnings_prep_enabled",
+    # Wave 13 lane 13H-1: the chart plan (sizing + alerts at drawn levels) — an enablement gate.
+    "notebook_chart_plan_enabled",
+    # Wave 13 lane 13A: plan vs execution grading — an enablement gate.
+    "notebook_plan_grading_enabled",
+    # Wave 13 lane 13E-1: the market context frozen at the fill — an enablement gate.
+    "notebook_entry_context_enabled",
+    # Wave 13 lane 13G-1: research capture -- two enablement gates.
+    "notebook_transcript_capture_enabled",
+    "notebook_passed_setups_enabled",
+    # Wave 13 lane 13G-2: thesis chips on Positions/Holdings/Watchlist rows — an enablement gate.
+    "notebook_thesis_chips_enabled",
+    # Wave 13 lane 13I-2: the visual playbook, tag suggestion and before/after — an enablement gate.
+    "notebook_visual_playbook_enabled",
+    # Wave 13 lane 13D: resurfacing (Awareness R7-R9 + the note door's sheet) — an enablement gate.
+    "awareness_note_resurface_enabled",
+    # Wave 13 lane 13J: the active setups board, and find more like this — enablement gates.
+    "notebook_setups_board_enabled",
+    "notebook_find_similar_enabled",
+    # Wave 13 lane 13B: My Playbook — an enablement gate.
+    "notebook_playbook_enabled",
+    # Wave 13 lane 13F: reviews that write themselves, with the leak finder — an enablement gate.
+    "notebook_review_drafts_enabled",
+    # Wave 14 lane W14-D: the get started checklist on Research Home — an enablement gate.
+    "notebook_getting_started_enabled",
+    # Wave 14 lane W14-C1: three capabilities whose gate was server-only, put on the payload so
+    # their walkthroughs can open. Image/docx and meaning search are enablement gates; task
+    # reminders is a KILL SWITCH (see KILL_SWITCH_KEYS).
+    "notebook_image_docx_documents_enabled",
+    "notebook_task_reminders_enabled",
+    "notebook_semantic_search_enabled",
 ]
+
+#: Keys whose capability ships ON: unset means ON. Every other key is an enablement gate.
+KILL_SWITCH_KEYS = {"notebook_offline_default_on", "notebook_task_reminders_enabled"}
 
 
 def _payload(**env):
@@ -81,9 +120,11 @@ def test_the_kill_switch_defaults_ON_and_the_enablement_gates_default_OFF():
     # switch must be indistinguishable from "not killed"; an unset enablement
     # gate must never expose a surface nobody decided to release.
     p = _payload(**{k: None for k in auth_router.NOTEBOOK_FLAGS})
-    assert p["notebook_offline_default_on"] is True, "a forgotten variable must not kill a shipped wave"
-    for k in NOTEBOOK_KEYS[1:]:
-        assert p[k] is False, f"{k} is an enablement gate — unset means not turned on yet"
+    for k in KILL_SWITCH_KEYS:
+        assert p[k] is True, f"{k}: a forgotten variable must not kill a shipped capability"
+    for k in NOTEBOOK_KEYS:
+        if k not in KILL_SWITCH_KEYS:
+            assert p[k] is False, f"{k} is an enablement gate — unset means not turned on yet"
 
 
 @pytest.mark.parametrize("raw,expected", [
@@ -131,3 +172,49 @@ def test_the_notebook_keys_do_not_collide_with_the_flags_already_on_the_payload(
     p = _payload()
     for existing in ("hub_preview_enabled", "research_technical_tab_enabled", "s7_filing_watch_enabled"):
         assert existing in p, f"{existing} must survive — K adds keys, it does not replace any"
+
+
+# ── Wave 14 lane W14-C1: the three keys mirror each capability's OWN server read ──────────────
+# The payload row is display-only (it lets a walkthrough open); the capability itself still
+# reads its own variable through its own function. If the two parses ever disagreed, a tour
+# would open over a capability that is off, or stay dark over one that is on. So the payload
+# key is compared with the capability's own function on EVERY spelling, unset included.
+
+_SPELLINGS = [None, "", "1", "0", "true", "false", "TRUE", " yes ", "no", "on", "off", "ture", "flase", "2"]
+
+
+def _own_reads():
+    from api.services.journal_two import document_extraction, note_semantic, note_tasks
+    return {
+        "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": document_extraction.image_docx_documents_enabled,
+        "NOTEBOOK_TASK_REMINDERS_ENABLED": note_tasks.reminders_enabled,
+        "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": note_semantic.semantic_enabled,
+    }
+
+
+@pytest.mark.parametrize("env_name", sorted([
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED", "NOTEBOOK_TASK_REMINDERS_ENABLED", "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+]))
+@pytest.mark.parametrize("raw", _SPELLINGS)
+def test_W14_C1_the_payload_key_agrees_with_the_capabilitys_own_read(env_name, raw):
+    own = _own_reads()[env_name]
+    old = os.environ.get(env_name)
+    try:
+        if raw is None:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = raw
+        expected = own()
+    finally:
+        if old is None:
+            os.environ.pop(env_name, None)
+        else:
+            os.environ[env_name] = old
+    got = _payload(**{env_name: raw})[auth_router._notebook_flag_key(env_name)]
+    assert got is expected, (
+        f"{env_name}={raw!r}: the payload says {got}, the capability's own read says {expected}")
+
+
+def test_W14_C1_task_reminders_reads_ON_when_unset_because_it_is_on_in_production():
+    assert _payload(NOTEBOOK_TASK_REMINDERS_ENABLED=None)["notebook_task_reminders_enabled"] is True
+    assert _payload(NOTEBOOK_TASK_REMINDERS_ENABLED="0")["notebook_task_reminders_enabled"] is False

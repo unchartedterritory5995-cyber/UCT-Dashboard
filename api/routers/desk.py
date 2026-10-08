@@ -27,7 +27,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
@@ -39,11 +39,13 @@ from api.middleware.auth_middleware import (
     require_admin,
 )
 from api.services import desk_store
+from api.services import request_body_cap as body_cap
 
 router = APIRouter(prefix="/api/desk", tags=["desk"])
 
 TEAM_PHOTO_DIR = Path(os.environ.get("DESK_PHOTO_DIR", "/data/team_photos"))
 MAX_PHOTO_SIZE = 4 * 1024 * 1024  # 4 MB
+PHOTO_TOO_BIG_SENTENCE = "Image must be under 4 MB"
 ALLOWED_PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}
 _TRANSPARENT_PIXEL = (
     b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
@@ -398,16 +400,26 @@ def remove_member(member_id: int, _admin: dict = Depends(require_admin)):
     return {"ok": True}
 
 
+# ⛔ WAVE 14 (cap 2): the upload is taken through `request_body_cap`, never
+# `File(...)`. FastAPI parses a `File(...)` parameter IN FULL before any
+# dependency runs -- before the session check -- so a chunked or lying upload was
+# spooled whole before its size was measured. The dependency caps the body WHILE
+# it is read and is declared AFTER the auth dependency, so an anonymous caller
+# reads nothing.
+_TEAM_PHOTO_UPLOAD = body_cap.capped_upload(
+    "file", lambda: MAX_PHOTO_SIZE, lambda: PHOTO_TOO_BIG_SENTENCE)
+
+
 @router.post("/team/{member_id}/photo")
-async def upload_member_photo(member_id: int, file: UploadFile = File(...),
-                              _admin: dict = Depends(require_admin)):
+async def upload_member_photo(member_id: int, _admin: dict = Depends(require_admin),
+                              file: UploadFile = Depends(_TEAM_PHOTO_UPLOAD)):
     if not desk_store.get_member(member_id):
         raise HTTPException(404, "Member not found")
     if file.content_type not in ALLOWED_PHOTO_TYPES:
         raise HTTPException(400, "Only JPEG, PNG, and WebP images are allowed")
     data = await file.read()
     if len(data) > MAX_PHOTO_SIZE:
-        raise HTTPException(400, "Image must be under 4 MB")
+        raise HTTPException(400, PHOTO_TOO_BIG_SENTENCE)
     from PIL import Image
     import io
     img = Image.open(io.BytesIO(data)).convert("RGB")

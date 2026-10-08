@@ -477,7 +477,11 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   scopes `notebook-share-{public,images,mint}` and `notebook-publish-{public,images,mint}`
   (the rates are the constants at the top of `api/routers/notebook_shares.py` and
   `notebook_publish.py`; public reads key on the client IP, mints on the member — a second
-  process doubles every one) · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
+  process doubles every one), and since wave 12 (lane 12A, dark) the two community-gallery
+  scopes `notebook-gallery-publish` (10/hour) and `notebook-gallery-report` (30/hour), keyed
+  on the member (constants at the top of `api/routers/notebook_template_gallery.py`; each
+  also has a DURABLE daily cap in `daily_usage_counters`, so a second process doubles only
+  the hourly half) · `notebook_export._SINGLE_NOTE_SLOTS` (wave 8: the one-note
   export door's `SINGLE_NOTE_CONCURRENCY` = 2 build slots, one more answers 429 — a second
   process doubles how many Word/web-page builds run at once) · `note_ask._inflight` (the
   concurrent Ask / writing-help stream slots, `NOTE_ASK_MAX_CONCURRENT`) ·
@@ -488,7 +492,13 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   the vendor for 60 s — per process, so a second pod keeps calling a failing vendor for
   its own 60 s, and a restart clears the pause) · the two document permit pools
   `document_extraction._EXTRACTION_POOL` and `document_ocr._OCR_POOL` (wave 7 lane G: a
-  second process doubles how many extractions and OCR runs the box does at once).
+  second process doubles how many extractions and OCR runs the box does at once) · since
+  the wave 12-15 landing `entry_context._capture_executor` + `_capture_pending` (the
+  manual-add capture queue: 2 threads, 40 queued in total, 3 per member),
+  `entry_context._VENDOR_SLOTS` (2 report-date vendor reads in flight) and
+  `entry_context._vendor_cache` (one answer per symbol per capture day), and
+  `passed_setups._refresh_seen` (one refresh on view per member per 15 minutes). A second
+  web process doubles each bound.
   ⚰️ `note_ask._writing_help_by_user` was listed here until the wave-7 whole-branch fix; ruling
   D-H5b moved writing help's 60/day, Ask's per-member count, the shared LLM dollar cap and
   the meaning search's daily embed count into ONE durable table, so none of them doubles or

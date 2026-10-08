@@ -20,7 +20,7 @@ import { fastParse, matchPosition } from './fastPath'
 import { planOps, prepareOps, collectTargets } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
-import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps } from './compose'
+import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
 import { buildContext, manifestFor, getCapability, getTargetKind, runWarmups } from './capabilities'
 import { registerBuiltins } from './builtins'
 import { agentTurn, agentRecord, agentConversation } from './agentClient'
@@ -405,7 +405,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // apply / propose: translate the context refs back to real target refs
       if (env.reply) push({ role: 'agent', text: env.reply, sources })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
-      const ops = env.ops.map(o => ({ ...o, target: refMap[o.target]?.ref || o.target }))
+      // A reference that names a context target (a saved list's ref) is bound to
+      // that target's own read-only producer before the refs are translated.
+      const ops = bindSourceRefs(env.ops, refMap).map(o => ({ ...o, target: refMap[o.target]?.ref || o.target }))
       await execute(ops, { path: 'model', mode: env.disposition, member: null, voice })
     } finally {
       setBusy(false)

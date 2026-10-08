@@ -487,7 +487,9 @@ describe('FIX: the channel-link popover survives a layout mutation (re-keyed by 
 
     // The still-open menu's "New group" picks a channel for panel id 'd' — the panel the
     // member actually opened the menu on — never whatever panel the STALE index 2 now names.
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: /New group/ })) })
+    // (A row of the shared ContextPopover menu is a `menuitem` since the Notebook keyboard lane's
+    // dfe97c9152: a `menu` must hold menu items, not plain buttons. Same row, same click.)
+    await act(async () => { fireEvent.click(screen.getByRole('menuitem', { name: /New group/ })) })
 
     const layout = JSON.parse(store.prefs.terminal_layout)
     const relinked = layout.panels.find((p) => p.id === 'd')

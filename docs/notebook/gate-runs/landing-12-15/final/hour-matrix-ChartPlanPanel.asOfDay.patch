@@ -1,0 +1,77 @@
+From 77a22bf7ee3a2ab3eb0ab5722f9dcf25b3ffd281 Mon Sep 17 00:00:00 2001
+From: Claude Fable 5 <noreply@anthropic.com>
+Date: Wed, 7 Oct 2026 20:50:27 -0500
+Subject: [PATCH] test(notebook chart plan): the replay's answer for an evening
+ plan is proven at every hour
+
+The replay test failed once, in the third gate run, in a shard that ran
+between 8 and 9 pm Eastern, and passed alone. The question was whether
+the hour mattered. It does not. A matrix now opens the same replay with
+the clock faked (Date only) to 14 instants: 10:00, 16:30, 20:30, 21:00,
+23:30 and 00:30 Eastern, 9 pm on the day before, of and after both 2026
+daylight-saving changes, the evening the plan was written, and the next
+session. 14 of 14 report the stop hit. The product reads the clock in
+this file only for a new line's id and as a fallback when a block has no
+capture time; neither is on the replay path. The original failure was a
+findByText timeout under load, in the same shard and minute as the
+Desk's ArticlesSection test. Test only.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01K92dqEv36HkHT1XFdJNUr4
+---
+ .../notebook/ChartPlanPanel.asOfDay.test.jsx  | 39 ++++++++++++++++++-
+ 1 file changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/app/src/pages/journal-2-0/components/notebook/ChartPlanPanel.asOfDay.test.jsx b/app/src/pages/journal-2-0/components/notebook/ChartPlanPanel.asOfDay.test.jsx
+index a181b9ccc3..d77ac151da 100644
+--- a/app/src/pages/journal-2-0/components/notebook/ChartPlanPanel.asOfDay.test.jsx
++++ b/app/src/pages/journal-2-0/components/notebook/ChartPlanPanel.asOfDay.test.jsx
+@@ -136,7 +136,44 @@ describe('through the replay itself', () => {
+       return ok([])
+     })
+   })
+-  afterEach(() => { global.fetch = realFetch })
++  afterEach(() => { global.fetch = realFetch; vi.useRealTimers() })
++
++  // The answer for an evening plan must not depend on WHEN the member opens the replay. The
++  // note and the bars are fixed in March 2026; only "now" moves. Each instant is the wall
++  // clock, faked for Date alone (timers stay real, so findBy still polls): the hours of an
++  // Eastern day around the 9 pm the test is about, and a day either side of both 2026
++  // daylight-saving changes. (Landing, 2026-10-07: this test failed once in a full-suite
++  // run between 8 and 9 pm Eastern and passed alone; the matrix is what says whether the
++  // hour had anything to do with it.)
++  const NOWS = [
++    ['10:00 Eastern', '2026-10-07T14:00:00Z'],
++    ['16:30 Eastern', '2026-10-07T20:30:00Z'],
++    ['20:30 Eastern', '2026-10-08T00:30:00Z'],
++    ['21:00 Eastern', '2026-10-08T01:00:00Z'],
++    ['23:30 Eastern', '2026-10-08T03:30:00Z'],
++    ['00:30 Eastern', '2026-10-08T04:30:00Z'],
++    ['the day before the spring change, 9 pm', '2026-03-08T02:00:00Z'],
++    ['the day of the spring change, 9 pm', '2026-03-09T01:00:00Z'],
++    ['the day after the spring change, 9 pm', '2026-03-10T01:00:00Z'],
++    ['the day before the autumn change, 9 pm', '2026-11-01T01:00:00Z'],
++    ['the day of the autumn change, 9 pm', '2026-11-02T02:00:00Z'],
++    ['the day after the autumn change, 9 pm', '2026-11-03T02:00:00Z'],
++    ['the evening the plan was written', '2026-03-13T01:30:00Z'],
++    ['the next session, mid-morning', '2026-03-13T15:00:00Z'],
++  ]
++  it.each(NOWS)('opened at %s: the stop hit on the first session after the plan is reported', async (_label, now) => {
++    vi.useFakeTimers({ toFake: ['Date'] })
++    vi.setSystemTime(new Date(now))
++    render(
++      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
++        <ChartPlanPanel attrs={attrsAt('2026-03-13T01:00:00Z')} noteId="n1" open={false} replayOpen
++          onCloseReplay={vi.fn()} updateAttributes={vi.fn()} />
++      </SWRConfig>,
++    )
++    expect(await screen.findByText('At the note — step forward')).toBeInTheDocument()
++    fireEvent.click(screen.getByRole('button', { name: 'Step forward one bar' }))
++    expect(await screen.findByText('1 bar after the note · stop hit')).toBeInTheDocument()
++  })
+ 
+   it('a stop hit on the first session after a 9 pm Eastern plan IS reported', async () => {
+     render(
+-- 
+2.53.0.windows.1
+

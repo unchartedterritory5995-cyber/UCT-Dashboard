@@ -1,0 +1,77 @@
+lane 13B mutation proof at HEAD dd1f99bf46656b50f62b5465587f8792795d1607
+CONTROL before (unmutated) rc=0 failed=0
+vitest: Test Files  3 passed (3)
+vitest: Tests  17 passed (17)
+pytest: 36 passed in 24.29s
+N1 no stat without its n: the n chip is dropped from every stat: KILLED (rc=1, failed tests=1); restored sha 10c66ce5ca392f11 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 8 passed (9)
+      × no stat without its n 121ms
+      FAIL  src/pages/journal-2-0/components/insights/MyPlaybook.test.jsx > My Playbook (wave 13, lane 13B) > no stat without its n
+R1 R3 boundary (Python): 'too few to judge' ends at 9, not 10: KILLED (rc=1, failed tests=4); restored sha f8718ffbfc0f7b6f == captured: True; == committed blob (LF-normalised): True
+    pytest: 4 failed, 15 passed in 7.22s
+      FAILED tests/test_notebook_sample_size.py::test_the_r3_bands_sit_on_their_boundaries[9-too_few-too few to judge]
+      FAILED tests/test_notebook_sample_size.py::test_the_constants_are_the_ruling
+      FAILED tests/test_notebook_sample_size.py::test_the_python_and_js_implementations_agree_exactly
+      FAILED tests/test_notebook_sample_size.py::test_the_parity_rail_can_fail - as...
+R2 R3 boundary (JS): 'normal' starts at 24, not 25 -- the parity rail sees it: KILLED (rc=1, failed tests=2); restored sha cb980e0491196ed6 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 3 passed (4)
+      × the bands sit on their boundaries: 9, 10, 24, 25 15ms
+      FAIL  src/pages/journal-2-0/lib/sampleSize.test.js > sampleSize (R3) > the bands sit on their boundaries: 9, 10, 24, 25
+    pytest: 1 failed, 18 passed in 50.57s
+      FAILED tests/test_notebook_sample_size.py::test_the_python_and_js_implementations_agree_exactly
+R3 range: the Wilson z at 90% (1.645), not 95%: KILLED (rc=1, failed tests=8); restored sha f8718ffbfc0f7b6f == captured: True; == committed blob (LF-normalised): True
+    pytest: 8 failed, 28 passed in 32.67s
+      FAILED tests/test_notebook_sample_size.py::test_the_constants_are_the_ruling
+      FAILED tests/test_notebook_sample_size.py::test_wilson_matches_the_oracle[7-12-0.32-0.807]
+      FAILED tests/test_notebook_sample_size.py::test_wilson_matches_the_oracle[10-20-0.299-0.701]
+      FAILED tests/test_notebook_sample_size.py::test_wilson_matches_the_oracle[0-10-0.0-0.278]
+      FAILED tests/test_notebook_sample_size.py::test_wilson_matches_the_oracle[10-10-0.722-1.0]
+      FAILED tests/test_notebook_sample_size.py::test_wilson_matches_the_oracle[3-24-0.043-0.31]
+R4 reveal: a too-few stat is shown plainly, not behind 'too few to judge': KILLED (rc=1, failed tests=2); restored sha 10c66ce5ca392f11 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  2 failed | 7 passed (9)
+      × words each card by its sample (R3) 384ms
+      × every number opens the trades it was computed from, exactly n of them 512ms
+      FAIL  src/pages/journal-2-0/components/insights/MyPlaybook.test.jsx > My Playbook (wave 13, lane 13B) > words each card by its sample (R3)
+      FAIL  src/pages/journal-2-0/components/insights/MyPlaybook.test.jsx > My Playbook (wave 13, lane 13B) > every number opens the trades it was computed from, exactly n of them
+P1 payload: the drill's P&L is recomputed on the client (x1.01): KILLED (rc=1, failed tests=1); restored sha 10c66ce5ca392f11 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 8 passed (9)
+      × every displayed number is found in the authority’s payload 1056ms
+      FAIL  src/pages/journal-2-0/components/insights/MyPlaybook.test.jsx > My Playbook (wave 13, lane 13B) > every displayed number is found in the authority’s payload
+D1 drill: the trades list drops its first row (no longer the same rows as the count): KILLED (rc=1, failed tests=2); restored sha e6fa7a4059ae9c49 == captured: True; == committed blob (LF-normalised): True
+    pytest: 2 failed, 15 passed in 34.95s
+      FAILED tests/test_notebook_playbook.py::test_every_number_opens_its_trades - ...
+      FAILED tests/test_notebook_playbook.py::test_notes_by_setup_lists_the_notes_behind_each_setup
+M1 mirror: broker trades are filtered out of the per-setup cards: KILLED (rc=1, failed tests=1); restored sha e6fa7a4059ae9c49 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 16 passed in 23.73s
+      FAILED tests/test_notebook_playbook.py::test_broker_trades_are_mirrored_never_filtered
+A1 as-of-entry: a note edited after entry with no earlier version is read anyway: KILLED (rc=1, failed tests=1); restored sha 7b4c1efc1b972380 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 16 passed in 16.41s
+      FAILED tests/test_notebook_playbook.py::test_an_edited_note_with_no_earlier_version_is_not_read
+A2 before: a note written AFTER entry counts as a before-note: KILLED (rc=1, failed tests=1); restored sha 7b4c1efc1b972380 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 16 passed in 22.99s
+      FAILED tests/test_notebook_playbook.py::test_a_notes_own_created_at_gates_it_even_when_updated_at_predates_entry
+Q1 minimums: one mention is enough to be a finding: KILLED (rc=1, failed tests=1); restored sha 7b4c1efc1b972380 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 16 passed in 25.26s
+      FAILED tests/test_notebook_playbook.py::test_patterns_carry_both_counts_and_both_n
+C1 citations: a finding cites only its losses: KILLED (rc=1, failed tests=2); restored sha 7b4c1efc1b972380 == captured: True; == committed blob (LF-normalised): True
+    pytest: 2 failed, 15 passed in 20.81s
+      FAILED tests/test_notebook_playbook.py::test_patterns_carry_both_counts_and_both_n
+      FAILED tests/test_notebook_playbook.py::test_every_finding_cites_notes_that_really_said_it_before_entry
+S1 frozen snapshot: a live widget slips into the note: KILLED (rc=1, failed tests=1); restored sha 05f98768c158ae71 == captured: True; == committed blob (LF-normalised): True
+    vitest: Test Files  1 failed (1)
+    vitest: Tests  1 failed | 3 passed (4)
+      × is built of static node types only 21ms
+      FAIL  src/pages/journal-2-0/lib/playbookSnapshot.test.js > the playbook snapshot note (13B) > is built of static node types only
+G1 gate: the route gate's default flipped ON: KILLED (rc=1, failed tests=1); restored sha e067e64e07e082e3 == captured: True; == committed blob (LF-normalised): True
+    pytest: 1 failed, 16 passed in 17.85s
+      FAILED tests/test_notebook_playbook.py::test_404_while_the_flag_is_off_before_any_session
+CONTROL after restore rc=0 failed=0
+vitest: Test Files  3 passed (3)
+vitest: Tests  17 passed (17)
+pytest: 36 passed in 26.24s
+git status over api/ and app/src after the run: clean
+VERDICT: PASS - every mutation killed, every restore verified against the committed blob

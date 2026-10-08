@@ -1,0 +1,129 @@
+/* Wave 13 lane 13B — My Playbook. Tokens as the discipline record uses them. */
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+  box-sizing: border-box;
+  color: var(--text, #e8e6e1);
+}
+.back { color: var(--accent, #dcbb5e); font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; }
+.back:hover { text-decoration: underline; }
+.head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 8px 0 14px; }
+.title { margin: 0; font-size: 20px; font-weight: 600; }
+.sub { margin: 6px 0 0; font-size: 13px; color: var(--text-muted, #8a8a8a); max-width: 70ch; line-height: 1.5; }
+.muted { color: var(--text-muted, #8a8a8a); font-size: 13px; }
+.caption { margin: 4px 0 10px; font-size: 13px; color: var(--text-muted, #8a8a8a); }
+
+.primaryBtn {
+  border: 1px solid var(--accent, #dcbb5e);
+  background: transparent;
+  color: var(--accent, #dcbb5e);
+  border-radius: var(--radius-md, 8px);
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.primaryBtn:disabled { opacity: 0.6; cursor: default; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+.card {
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface, #101013);
+  padding: 14px 16px;
+  min-width: 0;
+}
+.cardHead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px; }
+.setupName { margin: 0; font-size: 16px; font-weight: 600; overflow-wrap: anywhere; }
+
+.stats { display: grid; grid-template-columns: 1fr; gap: 2px; margin-top: 10px; }
+.stat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+  padding: 4px 0;
+  border-top: 1px solid var(--border, #2a2a2e);
+  font-size: 13px;
+}
+.statLabel { color: var(--text-muted, #8a8a8a); }
+.statValue { text-align: right; font-variant-numeric: tabular-nums; }
+.valueBtn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text, #e8e6e1);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.valueBtn:hover { color: var(--accent, #dcbb5e); }
+.thin, .range { color: var(--text-muted, #8a8a8a); }
+.n { color: var(--text-muted, #8a8a8a); font-size: 12px; margin-left: 4px; }
+.reveal { display: inline-block; }
+.summary { cursor: pointer; color: var(--text-muted, #8a8a8a); }
+.reveal[open] .valueBtn { margin-left: 6px; }
+
+.drill { margin-top: 10px; border-top: 1px solid var(--border, #2a2a2e); padding-top: 8px; overflow-x: auto; }
+.drillHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.drillTitle { margin: 0; font-size: 13px; font-weight: 600; }
+.table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+.table th, .table td { text-align: left; padding: 4px 6px 4px 0; border-top: 1px solid var(--border, #2a2a2e); font-variant-numeric: tabular-nums; }
+.table thead th { border-top: 0; color: var(--text-muted, #8a8a8a); font-weight: 600; }
+
+.notes { margin-top: 10px; }
+.subTitle { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
+.noteList { margin: 0; padding-left: 18px; font-size: 13px; }
+/* Links sit inside muted sentences, and gold against the muted ink is about 1.1:1: colour
+   alone does not tell them apart, so they are underlined at rest (review R4, M-10). */
+.link { color: var(--accent, #dcbb5e); text-decoration: underline; text-underline-offset: 2px; }
+.link:hover { text-decoration-thickness: 2px; }
+.linkBtn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent, #dcbb5e);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.statusLine { margin: 0 0 8px; }
+.statusLine:empty { margin: 0; }
+.drillTitle:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; border-radius: var(--radius-sm, 4px); }
+
+.patterns {
+  margin-top: 16px;
+  border: 1px solid var(--border, #2a2a2e);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface, #101013);
+  padding: 14px 16px;
+}
+.sectionTitle { margin: 0; font-size: 15px; font-weight: 600; }
+.findings { list-style: none; margin: 0; padding: 0; }
+.finding { padding: 8px 0; border-top: 1px solid var(--border, #2a2a2e); }
+.findingText { margin: 0 0 4px; font-size: 13px; }
+.leanLoss, .leanWin { color: var(--text-muted, #8a8a8a); }
+.citations { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+
+/* Touch (phone AND tablet, <= 1024): every control meets the 44 px floor. */
+@media (max-width: 1024px) {
+  .back, .primaryBtn, .valueBtn, .linkBtn, .link {
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+  }
+  /* The disclosure keeps display: list-item so its marker stays; min-height applies to it as is. */
+  .summary { min-height: var(--tap-min, 44px); line-height: var(--tap-min, 44px); }
+  .valueBtn, .linkBtn { min-width: var(--tap-min, 44px); justify-content: center; }
+  .grid { grid-template-columns: 1fr; }
+}

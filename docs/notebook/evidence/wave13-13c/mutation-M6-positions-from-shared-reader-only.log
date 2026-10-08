@@ -1,0 +1,59 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+_______ test_an_open_position_is_listed_through_the_journals_own_reader _______
+
+client = <starlette.testclient.TestClient object at 0x0000025D1099C050>
+app = <fastapi.applications.FastAPI object at 0x0000025D1099D010>
+gate_on = None
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000025D109802B0>
+
+    def test_an_open_position_is_listed_through_the_journals_own_reader(client, app, gate_on, monkeypatch):
+        """The walk's first run found it: the shared interest reader answers NO positions (it reads
+        columns j2_positions does not have). The open position must still be listed, from the journal's
+        own reader, while a closed one is not -- with the shared reader returning nothing at all."""
+        _today(monkeypatch)
+        _sets(monkeypatch, {A: {"positions": set(), "watchlist": set(), "flagged": set()}})
+        _window(monkeypatch, {"NVDA": "2026-10-05", "AMD": "2026-10-06"})
+        _position(A, "NVDA")
+        _position(A, "AMD", closed=True)
+        _position(B, "AMD")                                                          # another member's
+        as_user(app, A)
+        items = client.get("/api/j2/earnings-prep/soon").json()["items"]
+>       assert [(i["symbol"], i["sources"]) for i in items] == [("NVDA", ["positions"])]
+E       AssertionError: assert [] == [('NVDA', ['positions'])]
+E         
+E         Right contains one more item: ('NVDA', ['positions'])
+E         Use -v to get more diff
+
+tests\test_notebook_earnings_prep.py:340: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\tmptfxoy_oe.db
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 1357 warnings
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 31 warnings
+
+tests/test_notebook_earnings_prep.py::test_an_open_position_is_listed_through_the_journals_own_reader
+    return asyncio.get_event_loop_policy()
+
+tests/test_notebook_earnings_prep.py::test_an_open_position_is_listed_through_the_journals_own_reader
+tests/test_notebook_earnings_prep.py::test_an_open_position_is_listed_through_the_journals_own_reader
+tests/test_notebook_earnings_prep.py::test_an_open_position_is_listed_through_the_journals_own_reader
+tests/test_notebook_earnings_prep.py::test_an_open_position_is_listed_through_the_journals_own_reader
+
+tests/test_notebook_earnings_prep.py: 10 warnings
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_earnings_prep.py::test_an_open_position_is_listed_through_the_journals_own_reader
+1 failed, 30 deselected, 1403 warnings in 3.59s
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"

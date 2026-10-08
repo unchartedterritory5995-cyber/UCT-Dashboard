@@ -1,0 +1,6 @@
+PASS    [c2 1280] flags: auth payload: every c2 switch reads ON {"email": "q1c2m3326602@local.dev"} 
+PASS    [c2 1280] template gallery: browse: the gallery opens from the template picker {"opened": true} 
+PASS    [c2 1280] template gallery: insert: use a UCT pick and make a note from it {"pick": "Weekly Review", "added_to_your_templates": true, "note": "27e4dbcc05cc42c0a09466ff7a2df8ab", "note_body_chars": 1875, "reach_error": null} 
+PASS    [c2 1280] template gallery: publish for review: submitted, pending, not listed yet {"template_api": 200, "sent": true, "reach_error": null} 
+PASS    [c2 1280] template gallery: the admin review queue holds the submission {"queue_status": 200} 
+PASS    [c2 1280] formulas: a formula property (R-multiple from four numbers) computes on the note {"formula": "({Exit} - {Entry}) / ({Entry} - {Stop})", "row_text": "R-multiple 2Edit"} 

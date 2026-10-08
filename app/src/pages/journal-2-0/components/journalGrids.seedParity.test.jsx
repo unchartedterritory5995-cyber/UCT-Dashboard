@@ -14,6 +14,15 @@
 // hand-rolled implementations, then the migration landed WITHOUT `-u`. A diff to
 // that snapshot is a member-visible change and is never "updated through".
 //
+// RE-RECORDED ONCE, BY CAUSE, 2026-10-07 (the wave 12-15 landing's final gate). The three
+// TradesTable entries changed in exactly one place, read off the snapshot diff tag by tag:
+//     <tbody>  ->  <tbody tabindex="-1" data-route-landing="" aria-label="Trades">
+// That is the keyboard lane's focus landing (commit 50bb59c15a, lib/routeFocus.jsx): after
+// a move to Trades, focus lands on the rows so the next Tab is the first trade. It is a
+// deliberate member-visible change. Nothing else differs: the two full-HTML entries carry
+// that one tag, and the 31 per-click digests moved because they hash the whole table. The
+// PositionsTable entries and the empty state are untouched.
+//
 // What it pins, per grid, from ONE fixture built to hit every branch the
 // comparator has (null, '', ties that reach the tiebreak, text vs numeric, the
 // option row, the unstopped row, the unpriced row):

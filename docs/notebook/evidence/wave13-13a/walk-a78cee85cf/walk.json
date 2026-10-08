@@ -1,0 +1,180 @@
+{
+ "wave": 13,
+ "lane": "13A",
+ "checks": {
+  "P0_gate_and_identity": {
+   "verdict": "PASS",
+   "payload_flag": true
+  },
+  "P1_make_a_plan_note_by_keyboard": {
+   "verdict": "PASS",
+   "note": "a495acc38b0b4efe9a869cd3d0a27a45",
+   "saved_at": "2026-10-03T01:43:50.694493+00:00",
+   "ticker": "NVDA",
+   "screenshot": "p1-plan-note-1200.jpg",
+   "how": "note created empty over the member's API, plan typed in the editor"
+  },
+  "P2_log_a_matching_trade": {
+   "verdict": "PASS",
+   "status": 200,
+   "trade": "4d8daf7a-5fb8-4cfe-b359-d52f5692bd8b",
+   "entry": "2026-10-02 21:44 ET",
+   "plan_saved_at": "2026-10-03T01:43:50.694493+00:00",
+   "how": "logged over the member's API (the trade is the input; the walk is about the grade)"
+  },
+  "P3_see_the_grade_1200": {
+   "verdict": "PASS",
+   "card": {
+    "text": "Plan vs execution Plan note · written before entry · NVDA plan r204337 · 1R = 4.00 Entry Kept Planned 100.00 · filled 100.40 (+0.10R) Stop Honoured Stop 96.00 · exit 110.00 · line 95.00 Size Kept Planned 100 · entered 100 (0.0%) Target — Target 120.00 · the best price reached is computed overnight. Frozen when it was first matched. Editing the plan does not change this grade. Write review note Re-link",
+    "checks": {
+     "entry": "Entry Kept Planned 100.00 · filled 100.40 (+0.10R)",
+     "stop": "Stop Honoured Stop 96.00 · exit 110.00 · line 95.00",
+     "size": "Size Kept Planned 100 · entered 100 (0.0%)",
+     "target": "Target — Target 120.00 · the best price reached is computed overnight."
+    }
+   },
+   "status": "planned",
+   "plan": {
+    "entry": 100.0,
+    "stop": 96.0,
+    "target": 120.0,
+    "shares": 100.0,
+    "matchTier": "window",
+    "matchedAt": "2026-10-03T01:44:02.061713+00:00"
+   },
+   "checks": {
+    "entry": "kept",
+    "stop": "kept",
+    "size": "kept",
+    "target": "unknown"
+   },
+   "screenshot": "p3-grade-1200.jpg"
+  },
+  "P4_edit_the_plan_afterwards_grade_unchanged": {
+   "verdict": "PASS",
+   "note_now_says_130": true,
+   "api_entry_after": 100.0,
+   "matched_at_before": "2026-10-03T01:44:02.061713+00:00",
+   "matched_at_after": "2026-10-03T01:44:02.061713+00:00",
+   "card_identical": true,
+   "screenshots": [
+    "p4-plan-edited.jpg",
+    "p4-grade-after-edit.jpg"
+   ]
+  },
+  "P5_unplanned_trade_flagged": {
+   "verdict": "PASS",
+   "trade": "36994423-4e81-4b40-b211-33f407128261",
+   "chips": 1,
+   "amd_rows": 1,
+   "nvda_rows": 1,
+   "nvda_chip": 0,
+   "screenshots": [
+    "p5-unplanned-trade-page.jpg",
+    "p5-trade-journal-chip-1200.jpg"
+   ]
+  },
+  "P6_discipline_record_1200": {
+   "verdict": "PASS",
+   "text": "Discipline record Last 20 Last 60 2 closed trades: 1 planned, 1 unplanned. Plan checks over the last 20 closed trades Check How often Trades with a plan too few to judge Entry kept too few to judge Stop honoured too few to judge Size kept too few to judge Target hit no graded trades Followed the whole plan too few to judge",
+   "screenshot": "p6-discipline-1200.jpg"
+  },
+  "P7_keyboard_relink": {
+   "verdict": "PASS",
+   "tabs_to_reach": 53,
+   "aria_expanded": "true",
+   "screenshot": "p7-keyboard-relink.jpg"
+  },
+  "P8_phone_390": {
+   "verdict": "FAIL",
+   "probe": {
+    "scrollW": 390,
+    "clientW": 390,
+    "small": [
+     {
+      "text": "NVDA plan r204337",
+      "h": 16
+     }
+    ]
+   },
+   "chips_on_phone": 1,
+   "screenshots": [
+    "p8-grade-390.jpg",
+    "p8-trade-journal-chip-390.jpg"
+   ]
+  },
+  "P9_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "requests": [
+  "GET /api/j2/plan-grades/trades/4d8daf7a-5fb8-4cfe-b359-d52f5692bd8b",
+  "GET /api/j2/plan-grades/trades/4d8daf7a-5fb8-4cfe-b359-d52f5692bd8b",
+  "GET /api/j2/plan-grades/trades/36994423-4e81-4b40-b211-33f407128261",
+  "GET /api/j2/plan-grades/status?ids=36994423-4e81-4b40-b211-33f407128261,4d8daf7a-5fb8-4cfe-b359-d52f5692bd8b",
+  "GET /api/j2/plan-grades/discipline?accountId=57436827-ccfa-4a8f-a702-2dfb091ad44c",
+  "GET /api/j2/plan-grades/trades/4d8daf7a-5fb8-4cfe-b359-d52f5692bd8b"
+ ],
+ "tip": "a78cee85cf",
+ "base": "http://127.0.0.1:8601",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13a-data2",
+ "instrument": "tools\\notebook_w13a_plan_grade_walk.py",
+ "gate_source": "the sandbox's auth payload (row P0 payload_flag)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8601 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w13a\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T20-42-36.md (identity b41585308340..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13a-data2)"
+ },
+ "run": "r204337",
+ "accounts": {
+  "member": "w13a-member-r204337@local.dev",
+  "admin": "hubtest@local.dev"
+ },
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\evidence\\wave13-13a\\walk-a78cee85cf\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13a\\walk-a78cee85cf\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 20:42:43",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 20:43:37",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-02 20:45:30",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-02 20:45:42",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

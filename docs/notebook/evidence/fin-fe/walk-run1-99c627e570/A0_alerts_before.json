@@ -1,0 +1,18 @@
+[
+ {
+  "id": "a564ffb6-f5f",
+  "user_id": "59ffec9a-d6bf-4bf2-b47c-131e085e8441",
+  "sym": "AMD",
+  "target_price": 91.5,
+  "direction": "above",
+  "is_active": 1,
+  "triggered_at": null,
+  "created_at": "2026-10-07T03:56:11.681210+00:00",
+  "alert_type": "line",
+  "anchor_t1": null,
+  "anchor_p1": null,
+  "anchor_t2": null,
+  "anchor_p2": null,
+  "drawing_id": "charts-line-1"
+ }
+]

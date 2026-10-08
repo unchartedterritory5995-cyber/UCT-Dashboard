@@ -1,0 +1,19 @@
+PASS    [c2 1280] flags: auth payload: every c2 switch reads ON {"email": "q1c2m3326602@local.dev"} 
+PASS    [c2 1280] first run: welcome, capability preview, sample promotion and Get started list {"welcome": true, "base_tour_autostarted": true, "preview": true, "promotion": true} 
+PASS    [c2 820] first run: welcome, capability preview, sample promotion and Get started list {"welcome": true, "base_tour_autostarted": true, "preview": true, "promotion": true} 
+PASS    [c2 390] first run: welcome, capability preview, sample promotion and Get started list {"welcome": true, "base_tour_autostarted": true, "preview": true, "promotion": true} 
+INFO    [c2 1280] sample notebook: the click lands on the sample's welcome note {"landed": "/journal/notebook?note=b379888bd2b34402b99bc72aaefb3196"} 
+PASS    [c2 1280] sample notebook: Add a sample notebook: practice notes plus one example per feature {"strip": true, "notes": 10, "recorded_ids": 10} 
+INFO    [c2 1280] get started: the list after adding the sample {} 
+PASS    [c2 1280] get started: opening a sample note ticks 'Open the sample notebook' {} 
+PASS    [c2 1280] get started: writing a note ticks 'Write your first note' {"note": "f26de5b674214006af6dfac7bbc2d6b5", "was_already_done": false} 
+FAIL    [c2 1280] get started: starting a note from a template ticks its step {"template_note": null, "template_key": null, "reach_error": "Locator.wait_for: Timeout 20000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-templ"} 
+PASS    [c2 1280] get started: ticks survive a reload {} 
+PASS    [c2 1280] get started: Hide removes the list and it stays hidden after a reload {"hidden_at_once": true, "hidden_after_reload": true, "pref": "{\"v\":1,\"done\":[\"sample\",\"note\"],\"state\":\"dismissed\",\"at\":\"2026-10-07T03:24:53.037Z\"}"} 
+PASS    [c2 1280] offer: the one-time tour offer appears on Home, without taking focus {"title": "New in your Notebook: Writing help", "took_focus": false} 
+PASS    [c2 1280] offer: Not now hides it; no second offer in the same session after a reload {"hidden": true, "offers_after_reload": 0, "notebook_tours": "{\"writing-help\":{\"v\":1,\"state\":\"dismissed\",\"step\":null}}"} 
+PASS    [c2 1280] help: Walkthroughs lists the base tour and every replayable feature tour {} 
+PASS    [c2 1280] help: What's new lists the tours not taken yet {"count": 19} 
+VERDICT c2: 16 steps, 1 FAIL
+  [1280] get started: starting a note from a template ticks its step
+raw log written: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\61625d99-f8db-4269-a728-231c08d3da11\scratchpad\fin\walk\dev\c2\walk.json

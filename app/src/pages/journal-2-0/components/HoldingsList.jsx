@@ -11,9 +11,12 @@ import CompanyLogo from '../../../components/CompanyLogo'
 import Sparkline from '../../../components/Sparkline'
 import UIcon from '../../../components/ui/UIcon'
 import useHoldingsSparklines from '../hooks/useHoldingsSparklines'
+import useThesisChips from '../hooks/useThesisChips'
 import OptionsBoard from './OptionsBoard'
 import { buildEquityRows, sortRows, SORT_OPTIONS } from '../lib/holdingsRows'
 import { money, percent } from '../../../lib/journal-2-0'
+import { thesisChipsEnabled } from '../lib/thesisChips'
+import ThesisChip from './notebook/ThesisChip'
 import styles from './HoldingsList.module.css'
 
 const SORT_STORAGE_KEY = 'uct.j2.holdings.sort'
@@ -72,6 +75,9 @@ export default function HoldingsList({ positions = [], optionStrategies = [], pr
   )
   const symbols = useMemo(() => positions.map((p) => p.symbol), [positions])
   const { closes } = useHoldingsSparklines(symbols)
+  // Wave 13 lane 13G-2: one batch read for every holding's thesis chip.
+  const { chips: thesisChips } = useThesisChips(symbols)
+  const thesisOn = thesisChipsEnabled()
 
   const hasOptions = (optionStrategies || []).length > 0
   if (!equityRows.length && !hasOptions) {
@@ -131,7 +137,12 @@ export default function HoldingsList({ positions = [], optionStrategies = [], pr
           </div>
           <ul className={styles.rows}>
             {equityRows.map((row) => (
-              <EquityRow key={row.key} row={row} spark={closes[row.sparkKey]} />
+              <EquityRow
+                key={row.key}
+                row={row}
+                spark={closes[row.sparkKey]}
+                thesisChip={thesisOn ? thesisChips[row.symbol] : null}
+              />
             ))}
           </ul>
         </section>
@@ -160,25 +171,24 @@ function useTickFlash(price) {
   return flash
 }
 
-function EquityRow({ row, spark }) {
+function EquityRow({ row, spark, thesisChip }) {
   const flash = useTickFlash(row.price)
   const pillTone = row.changePct == null
     ? styles.pillFlat
     : row.changePct >= 0 ? styles.pillUp : styles.pillDown
   const flashCls = flash === 'up' ? styles.flashUp : flash === 'down' ? styles.flashDown : ''
-  return (
-    <li>
-      <Link
-        className={`${styles.row} ${styles.rowLink}`}
-        to={`/journal-2-0/position/${encodeURIComponent(row.symbol)}`}
-        aria-label={`${row.symbol} position detail`}
-        /* Joystick hub carrier (§3.4). Carries this row's key so the hub can paint
-           `data-hub-cursor` on it and read the RENDERED order; nothing else. */
-        data-hub-pos={row.key}
-      >
+  const to = `/journal-2-0/position/${encodeURIComponent(row.symbol)}`
+  const label = `${row.symbol} position detail`
+  const cells = (
+    <>
         <CompanyLogo sym={row.symbol} size={28} tile />
         <div className={styles.ident}>
           <span className={styles.sym} data-testid="holding-sym">{row.symbol}</span>
+          {thesisChip && (
+            <span className={styles.chipSlot}>
+              <ThesisChip chip={thesisChip} currentPrice={row.price} />
+            </span>
+          )}
           <span className={styles.shares}>
             {row.side === 'Short' ? `Short ${row.shares}` : `${row.shares} shares`}
           </span>
@@ -196,6 +206,42 @@ function EquityRow({ row, spark }) {
               : percent(row.changePct, { dp: 2, signed: true, isRatio: false })}
           </span>
         </div>
+    </>
+  )
+  // ⛔ Lane FIN-A11Y (review R4, I-3): a thesis chip is a <button> (and its preview holds
+  // an <a>), and interactive content inside a link is invalid -- VoiceOver reads the row
+  // link as ONE element and the chip cannot be reached. So a row WITH a chip is a plain
+  // container: the link covers the row as a SIBLING of the content (a "stretched link")
+  // and the chip sits above it. A click anywhere else on the row still lands on the
+  // link, so the row's click behaviour is unchanged.
+  // A row with NO chip keeps the original link-wraps-the-row markup (flags-off parity).
+  if (thesisChip) {
+    return (
+      <li>
+        <div className={`${styles.row} ${styles.rowShell}`}>
+          <Link
+            className={`${styles.rowLink} ${styles.rowCover}`}
+            to={to}
+            aria-label={label}
+            /* Joystick hub carrier (§3.4): stays on the link (see below). */
+            data-hub-pos={row.key}
+          />
+          {cells}
+        </div>
+      </li>
+    )
+  }
+  return (
+    <li>
+      <Link
+        className={`${styles.row} ${styles.rowLink}`}
+        to={to}
+        aria-label={label}
+        /* Joystick hub carrier (§3.4). Carries this row's key so the hub can paint
+           `data-hub-cursor` on it and read the RENDERED order; nothing else. */
+        data-hub-pos={row.key}
+      >
+        {cells}
       </Link>
     </li>
   )

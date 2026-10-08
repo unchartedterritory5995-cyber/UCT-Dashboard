@@ -1,0 +1,760 @@
+{
+ "wave": 13,
+ "lane": "13X",
+ "checks": {
+  "W0_every_flag_on_at_once": {
+   "verdict": "PASS",
+   "flags": {
+    "NOTEBOOK_PLAN_GRADING_ENABLED": true,
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED": true,
+    "NOTEBOOK_EARNINGS_PREP_ENABLED": true,
+    "NOTEBOOK_CHART_PLAN_ENABLED": true,
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED": true,
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": true,
+    "NOTEBOOK_PLAYBOOK_ENABLED": true,
+    "NOTEBOOK_THESIS_CHIPS_ENABLED": true,
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": true,
+    "NOTEBOOK_PASSED_SETUPS_ENABLED": true,
+    "NOTEBOOK_SETUPS_BOARD_ENABLED": true,
+    "NOTEBOOK_FIND_SIMILAR_ENABLED": true,
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED": true,
+    "AWARENESS_NOTE_RESURFACE_ENABLED": true,
+    "NOTEBOOK_TRADE_CANVAS_ENABLED": true,
+    "NOTEBOOK_AI_ACTIONS_ENABLED": true,
+    "NOTEBOOK_FORMULAS_ENABLED": true
+   }
+  },
+  "SEED_the_coherent_story": {
+   "verdict": "PASS",
+   "watchlist": "5cfbcd0c-bb9",
+   "item": 200,
+   "note": "7fd949dbac604f8cb5591dc5b492f33c",
+   "v1_version": "754647601ecf4cc697bf95a5c0761a27",
+   "zqva_note": "85013466043c4386a477c0227f2f69e2",
+   "position": "ea9cab88-2923-4bf2-a892-f788b79d852c",
+   "how": "watchlist/notes/position seeded through the member's own API"
+  },
+  "SEED_post_boot_jobs": {
+   "verdict": "PASS",
+   "nightly": {
+    "ran": true,
+    "asOf": "2026-10-03",
+    "universe": 1,
+    "universeTruncated": false,
+    "members": 1,
+    "templates": 2,
+    "rows": 2,
+    "thin": 0,
+    "deferred": 0,
+    "errors": 0,
+    "patternReads": 1,
+    "seconds": 0.008
+   },
+   "passed_setups": {
+    "added": 1,
+    "scored": 1
+   },
+   "first_scan_fired": 0,
+   "cross_scan_fired": 1,
+   "deliver_calls": 0,
+   "resurface_version": {
+    "note_id": "7fd949dbac604f8cb5591dc5b492f33c",
+    "level_id": "stop@170.0",
+    "role": "stop",
+    "price": 170.0,
+    "version_id": "754647601ecf4cc697bf95a5c0761a27",
+    "last_side": "below"
+   },
+   "expected_version": "754647601ecf4cc697bf95a5c0761a27"
+  },
+  "W1_research_home_1200": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "exception: TimeoutError: Locator.wait_for: Timeout 60000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"heading\", name=\"Continue working\").first to be visible\n",
+   "traceback": "le len(out) < n:\n                ^^^^^^^\n  File \"C:\\Users\\Patrick\\uct-worktrees\\notebook-w13x\\tools\\notebook_w13x_walk.py\", line 587, in w1\n    patched = add_role_annotations(body, entry=entry_price, stop=stop_price, target=target_price)\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\sync_api\\_generated.py\", line 18074, in wait_for\n    self._sync(self._impl_obj.wait_for(timeout=timeout, state=state))\n    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 60000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"heading\", name=\"Continue working\").first to be visible\n\n"
+  },
+  "W2_thesis_note_1200": {
+   "verdict": "FAIL",
+   "fingerprint_text": "TECHNICAL FINGERPRINT\nNVDA · as of 2026-10-03 · nightly row · frozen\nRS rank 92\nADR % 5.0%\nBase depth 12.0%\nPrior run (pole) 60.0%\nMA stack full-bull\nShow all fields and sources\nSetup\nNo setup tag\nFlat Base Breakout\nBull Flag\nIPO Base\nLaunchpad\nCup & Handle\nHigh Tight Flag (Powerplay)\nVCP\n4B Setup (",
+   "chart_plan_panel_values": {
+    "rr": null,
+    "rps": null,
+    "acct": null,
+    "shares": null
+   },
+   "chart_plan_panel_error": null,
+   "screenshot": "W2-note-1200.png"
+  },
+  "W3_resurfacing_door_on_the_note": {
+   "verdict": "PASS",
+   "sheet_text": "What you wrote then\n×\nBack to the note as it is now",
+   "screenshot": "W3-resurface-1200.png"
+  },
+  "W4_position_page_entry_context_1200": {
+   "verdict": "PASS",
+   "card_text": "Market context at the fill\nRegime\nAmber\nas of 2026-01-02\nExposure\n72 / 150\nas of 2026-01-02\n% above the 50-day\n61.0%\nas of 2026-01-02\nRS rank\nNot available\nDays to earnings\n46 days\nas of 2026-10-03\nUCT scans\nNot available\nWhy did you take it?\nSave",
+   "thesis_chip_present": false,
+   "screenshot": "W4-position-1200.png"
+  },
+  "W5_close_and_trade_page_1200": {
+   "verdict": "FAIL",
+   "trade": "ef945cef-429f-4e5b-b8f2-362a89161110",
+   "grade_status": "planned",
+   "grade_checks": {
+    "entry": "kept",
+    "stop": "kept",
+    "size": "none",
+    "target": "hit"
+   },
+   "grade_text": "Plan vs execution\n\nReading your plan…",
+   "before_after_present": true,
+   "screenshot": "W5-trade-1200.png"
+  },
+  "W6_insights_1200": {
+   "verdict": "PASS",
+   "sections_present": {
+    "playbook": true,
+    "reviews": true,
+    "discipline": true
+   }
+  },
+  "W7_setups_board_1200": {
+   "verdict": "PASS",
+   "cards": [
+    "ZQVA"
+   ],
+   "nvda_excluded": true,
+   "crwd_matched": true,
+   "match_text": "1\nCRWD\n80 match\n\nEMA stack intact · RS line up · tightness 1.5% vs 1.5% · VCP\n\nEvery field compared",
+   "screenshot": "W7-board-1200.png"
+  },
+  "W8_earnings_prep_1200": {
+   "verdict": "PASS",
+   "screenshot": "W8-prep-1200.png"
+  },
+  "W9_transcript_capture_door_1200": {
+   "verdict": "PASS",
+   "door_opened": true,
+   "screenshot": "W9-transcript-1200.png",
+   "note": "mount-level check only; the quote-trim-save round trip is 13G-1's own proof"
+  },
+  "W10_passed_setups_1200": {
+   "verdict": "PASS",
+   "passed_setups_seed": {
+    "added": 1,
+    "scored": 1
+   },
+   "amd_row_present": true,
+   "screenshot": "W10-passed-1200.png"
+  },
+  "W11_phone_390": {
+   "verdict": "FAIL",
+   "overflow_ok": {
+    "home": true,
+    "note": true,
+    "trade": true,
+    "insights": true,
+    "board": true
+   },
+   "small_controls": {
+    "note": [
+     {
+      "text": "Folder",
+      "h": 37
+     },
+     {
+      "text": "Ticker",
+      "h": 36
+     },
+     {
+      "text": "Note title",
+      "h": 34
+     },
+     {
+      "text": "Subtitle",
+      "h": 43
+     },
+     {
+      "text": "Arithmetic price scale",
+      "h": 11
+     },
+     {
+      "text": "Logarithmic price scale",
+      "h": 11
+     },
+     {
+      "text": "Percentage price scale",
+      "h": 11
+     }
+    ],
+    "trade": [
+     {
+      "text": "← Trade Journal",
+      "h": 21
+     },
+     {
+      "text": "Previous trade",
+      "h": 32
+     },
+     {
+      "text": "Next trade",
+      "h": 32
+     },
+     {
+      "text": "Save to Notebook",
+      "h": 42
+     },
+     {
+      "text": "Save image",
+      "h": 42
+     },
+     {
+      "text": "Copy image",
+      "h": 42
+     },
+     {
+      "text": "Research",
+      "h": 28
+     },
+     {
+      "text": "5m",
+      "h": 40
+     },
+     {
+      "text": "30m",
+      "h": 40
+     },
+     {
+      "text": "1h",
+      "h": 40
+     },
+     {
+      "text": "1D",
+      "h": 40
+     },
+     {
+      "text": "1W",
+      "h": 40
+     },
+     {
+      "text": "Arithmetic price scale",
+      "h": 11
+     },
+     {
+      "text": "Logarithmic price scale",
+      "h": 11
+     },
+     {
+      "text": "Percentage price scale",
+      "h": 11
+     }
+    ],
+    "insights": [
+     {
+      "text": "Playbook",
+      "h": 40
+     },
+     {
+      "text": "Exit Quality",
+      "h": 40
+     },
+     {
+      "text": "Edge",
+      "h": 40
+     },
+     {
+      "text": "Psychology",
+      "h": 40
+     },
+     {
+      "text": "Regime",
+      "h": 40
+     },
+     {
+      "text": "Coach",
+      "h": 40
+     },
+     {
+      "text": "Discipline",
+      "h": 40
+     },
+     {
+      "text": "Reviews",
+      "h": 40
+     },
+     {
+      "text": "Add metric card",
+      "h": 33
+     },
+     {
+      "text": "Consistency period",
+      "h": 25
+     },
+     {
+      "text": "Move Consistency up",
+      "h": 25
+     },
+     {
+      "text": "Move Consistency down",
+      "h": 25
+     },
+     {
+      "text": "Remove Consistency",
+      "h": 25
+     },
+     {
+      "text": "Payoff & Kelly period",
+      "h": 25
+     },
+     {
+      "text": "Move Payoff & Kelly up",
+      "h": 25
+     }
+    ],
+    "board": [
+     {
+      "text": "Arithmetic price scale",
+      "h": 11
+     },
+     {
+      "text": "Logarithmic price scale",
+      "h": 11
+     },
+     {
+      "text": "Percentage price scale",
+      "h": 11
+     }
+    ]
+   },
+   "board_find_button_h": 44,
+   "probes": {
+    "home": {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": []
+    },
+    "note": {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": [
+      {
+       "text": "Folder",
+       "h": 37
+      },
+      {
+       "text": "Ticker",
+       "h": 36
+      },
+      {
+       "text": "Note title",
+       "h": 34
+      },
+      {
+       "text": "Subtitle",
+       "h": 43
+      },
+      {
+       "text": "Arithmetic price scale",
+       "h": 11
+      },
+      {
+       "text": "Logarithmic price scale",
+       "h": 11
+      },
+      {
+       "text": "Percentage price scale",
+       "h": 11
+      }
+     ]
+    },
+    "trade": {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": [
+      {
+       "text": "← Trade Journal",
+       "h": 21
+      },
+      {
+       "text": "Previous trade",
+       "h": 32
+      },
+      {
+       "text": "Next trade",
+       "h": 32
+      },
+      {
+       "text": "Save to Notebook",
+       "h": 42
+      },
+      {
+       "text": "Save image",
+       "h": 42
+      },
+      {
+       "text": "Copy image",
+       "h": 42
+      },
+      {
+       "text": "Research",
+       "h": 28
+      },
+      {
+       "text": "5m",
+       "h": 40
+      },
+      {
+       "text": "30m",
+       "h": 40
+      },
+      {
+       "text": "1h",
+       "h": 40
+      },
+      {
+       "text": "1D",
+       "h": 40
+      },
+      {
+       "text": "1W",
+       "h": 40
+      },
+      {
+       "text": "Arithmetic price scale",
+       "h": 11
+      },
+      {
+       "text": "Logarithmic price scale",
+       "h": 11
+      },
+      {
+       "text": "Percentage price scale",
+       "h": 11
+      }
+     ]
+    },
+    "insights": {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": [
+      {
+       "text": "Playbook",
+       "h": 40
+      },
+      {
+       "text": "Exit Quality",
+       "h": 40
+      },
+      {
+       "text": "Edge",
+       "h": 40
+      },
+      {
+       "text": "Psychology",
+       "h": 40
+      },
+      {
+       "text": "Regime",
+       "h": 40
+      },
+      {
+       "text": "Coach",
+       "h": 40
+      },
+      {
+       "text": "Discipline",
+       "h": 40
+      },
+      {
+       "text": "Reviews",
+       "h": 40
+      },
+      {
+       "text": "Add metric card",
+       "h": 33
+      },
+      {
+       "text": "Consistency period",
+       "h": 25
+      },
+      {
+       "text": "Move Consistency up",
+       "h": 25
+      },
+      {
+       "text": "Move Consistency down",
+       "h": 25
+      },
+      {
+       "text": "Remove Consistency",
+       "h": 25
+      },
+      {
+       "text": "Payoff & Kelly period",
+       "h": 25
+      },
+      {
+       "text": "Move Payoff & Kelly up",
+       "h": 25
+      }
+     ]
+    },
+    "board": {
+     "scrollW": 390,
+     "clientW": 390,
+     "small": [
+      {
+       "text": "Arithmetic price scale",
+       "h": 11
+      },
+      {
+       "text": "Logarithmic price scale",
+       "h": 11
+      },
+      {
+       "text": "Percentage price scale",
+       "h": 11
+      }
+     ]
+    }
+   }
+  },
+  "W12_no_unforced_errors": {
+   "verdict": "FAIL",
+   "page_errors": [],
+   "console_errors": [
+    "W1-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W3-resurface: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W5-trade: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W6-playbook: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W6-reviews: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W6-discipline: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W5-trade: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "failed_requests_4xx_5xx": [
+    "W1-home: 503 POST :8695/api/j2/broker/sync?background=1",
+    "W2-note: 503 POST :8695/api/j2/broker/sync?background=1",
+    "W2-note: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+    "W2-note: 503 GET :8695/api/bars/NVDA?tf=5&bars=1152&warm=1",
+    "W3-resurface: 503 POST :8695/api/j2/broker/sync?background=1",
+    "W2-note: 503 GET :8695/api/bars/NVDA?tf=60&bars=1138&warm=1",
+    "W2-note: 503 GET :8695/api/bars/NVDA?tf=30&bars=1120&warm=1",
+    "W2-note: 503 GET :8695/api/bars/NVDA?tf=15&bars=1152&warm=1",
+    "W2-note: 503 GET :8695/api/bars/NVDA?tf=W&bars=600&warm=1",
+    "W2-note: 503 GET :8695/api/bars/NVDA?tf=M&bars=600&warm=1",
+    "W2-note: 503 GET :8695/api/bars/NVDA?tf=1&bars=960&warm=1",
+    "W2-note: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+    "W5-trade: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+    "W6-playbook: 503 POST :8695/api/j2/broker/sync?background=1",
+    "W6-reviews: 503 POST :8695/api/j2/broker/sync?background=1",
+    "W6-discipline: 503 POST :8695/api/j2/broker/sync?background=1",
+    "W2-note: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+    "W5-trade: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+    "W7-board: 503 POST :8695/api/j2/broker/sync?background=1",
+    "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+    "W7-board: 503 GET :8695/api/stream/bars?bars=ZQVA:1",
+    "W8-prep: 503 POST :8695/api/j2/broker/sync?background=1",
+    "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+    "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+    "W9-transcript: 503 POST :8695/api/j2/broker/sync?background=1",
+    "W7-board: 503 GET :8695/api/stream/bars?bars=ZQVA:1",
+    "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+    "W10-home: 503 POST :8695/api/j2/broker/sync?background=1",
+    "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+    "W5-trade: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+    "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+    "W11-home: 503 POST :8695/api/j2/broker/sync?background=1",
+    "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+    "W11-home: 503 POST :8695/api/j2/broker/sync?background=1",
+    "W11-home: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+    "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+    "W7-board: 503 GET :8695/api/stream/bars?bars=ZQVA:1",
+    "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+    "W11-home: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+    "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA"
+   ],
+   "note": "failed_requests is RECORDED, not auto-failing: every flag rides ON for this walk, so a 4xx/5xx here is read by hand against what each surface is expected to answer"
+  },
+  "W13_driver_never_imported_api": {
+   "verdict": "PASS",
+   "imported": null
+  }
+ },
+ "errors": [],
+ "console_errors": [
+  "W1-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W3-resurface: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W5-trade: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W6-playbook: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W6-reviews: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W6-discipline: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W5-trade: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W8-prep: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W9-transcript: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W10-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W5-trade: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W2-note: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W11-home: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "W7-board: Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+ ],
+ "failed_requests": [
+  "W1-home: 503 POST :8695/api/j2/broker/sync?background=1",
+  "W2-note: 503 POST :8695/api/j2/broker/sync?background=1",
+  "W2-note: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+  "W2-note: 503 GET :8695/api/bars/NVDA?tf=5&bars=1152&warm=1",
+  "W3-resurface: 503 POST :8695/api/j2/broker/sync?background=1",
+  "W2-note: 503 GET :8695/api/bars/NVDA?tf=60&bars=1138&warm=1",
+  "W2-note: 503 GET :8695/api/bars/NVDA?tf=30&bars=1120&warm=1",
+  "W2-note: 503 GET :8695/api/bars/NVDA?tf=15&bars=1152&warm=1",
+  "W2-note: 503 GET :8695/api/bars/NVDA?tf=W&bars=600&warm=1",
+  "W2-note: 503 GET :8695/api/bars/NVDA?tf=M&bars=600&warm=1",
+  "W2-note: 503 GET :8695/api/bars/NVDA?tf=1&bars=960&warm=1",
+  "W2-note: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+  "W5-trade: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+  "W6-playbook: 503 POST :8695/api/j2/broker/sync?background=1",
+  "W6-reviews: 503 POST :8695/api/j2/broker/sync?background=1",
+  "W6-discipline: 503 POST :8695/api/j2/broker/sync?background=1",
+  "W2-note: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+  "W5-trade: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+  "W7-board: 503 POST :8695/api/j2/broker/sync?background=1",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W7-board: 503 GET :8695/api/stream/bars?bars=ZQVA:1",
+  "W8-prep: 503 POST :8695/api/j2/broker/sync?background=1",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W9-transcript: 503 POST :8695/api/j2/broker/sync?background=1",
+  "W7-board: 503 GET :8695/api/stream/bars?bars=ZQVA:1",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W10-home: 503 POST :8695/api/j2/broker/sync?background=1",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W5-trade: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W11-home: 503 POST :8695/api/j2/broker/sync?background=1",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W11-home: 503 POST :8695/api/j2/broker/sync?background=1",
+  "W11-home: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W7-board: 503 GET :8695/api/stream/bars?bars=ZQVA:1",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W11-home: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W2-note: 503 GET :8695/api/stream/bars?bars=NVDA:1",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W11-home: 503 POST :8695/api/j2/broker/sync?background=1",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W11-home: 503 POST :8695/api/j2/broker/sync?background=1",
+  "W11-home: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W11-home: 503 GET :8695/api/stream/bars?bars=ZQVA:1",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA",
+  "W7-board: 503 GET :8695/api/live-prices?tickers=ZQVA"
+ ],
+ "requests": [],
+ "tip": "run1",
+ "base": "http://127.0.0.1:8695",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\w13x-walk-data",
+ "instrument": "tools\\notebook_w13x_walk.py",
+ "gate_source": "the sandbox's auth payload (row W0)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8695 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w13x\\docs\\plans\\joystick\\sandbox-runs\\2026-10-03T09-47-32.md (identity 9d9e0beb2a5c..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\w13x-walk-data)"
+ },
+ "accounts": {
+  "member": "w13x@local.dev",
+  "admin": "hubtest@local.dev"
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\wave13-13x\\walk-run1\\integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13x\\walk-run1\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-03 09:47:45",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-03 09:49:58",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-03 09:51:59",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-03 09:52:53",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null,
+ "failure": null
+}

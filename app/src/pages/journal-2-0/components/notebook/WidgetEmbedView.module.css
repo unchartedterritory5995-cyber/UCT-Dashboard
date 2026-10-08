@@ -136,7 +136,12 @@
   top: 6px;
   left: 8px;
   z-index: 5; /* above the corner resize handles (z 4) */
-  display: none;
+  /* Always laid out, so its controls are Tab stops. At rest it is only invisible and lets
+     clicks through to the chart; `display: none` took it out of the Tab order, and because it
+     sits before the chart body, forward Tab passed it while it was hidden (fin-clicks.md). */
+  display: inline-flex;
+  opacity: 0;
+  pointer-events: none;
   align-items: center;
   gap: 4px;
   flex-wrap: wrap;
@@ -145,15 +150,20 @@
 .frame:hover .toolbar,
 .frame:focus-within .toolbar,
 .selected .toolbar,
-.annotating .toolbar { display: inline-flex; }
+.annotating .toolbar { display: inline-flex; opacity: 1; pointer-events: auto; }
+/* A walkthrough pointing at this chart, or at a control in it (the engine marks its target
+   `data-tour-active`), shows the toolbar: a tour cannot hover, so on a computer the chart
+   tours' Draw, Plan and Replay steps had no box and were skipped (W14-Q2, measured: Chart
+   plan basics showed 1 of 6 steps at 1200 px, 6 of 6 on a phone). */
+.frame[data-tour-active] .toolbar,
+.frame:has([data-tour-active]) .toolbar { display: inline-flex; opacity: 1; pointer-events: auto; }
 /* Touch has no hover: the toolbar is always visible and its controls meet the
    44px tap floor (canonical --tap-min; panel finding — Freeze/Draw/Remove were
    unreachable on phones). Desktop keeps the compact hover-reveal. */
 @media (hover: none) {
-  .toolbar { display: inline-flex; }
+  .toolbar { display: inline-flex; opacity: 1; pointer-events: auto; }
   .toolBtn, .toolSelect {
     min-height: var(--tap-min, 44px);
-    min-width: 34px;
     padding: 8px 12px;
   }
 }
@@ -271,3 +281,35 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
   pointer-events: none;
 }
 
+/* The "Block actions" button (EmbedBlockActions.jsx): move or remove this block without
+   selecting it. Hidden on a desktop, where hover, the grip and the keyboard do the same.
+   At 1024 px and below (the touch tier) the toolbar is always shown, so the button is
+   always there, and it is a full tap target. Kept LAST so it wins over .toolBtn. */
+.blockActions { display: none; }
+@media (max-width: 1024px) {
+  .toolbar { display: inline-flex; opacity: 1; pointer-events: auto; }
+  /* Tall enough was not enough: Hide toolbar, Chart settings and Remove were 34 px wide, Half 39,
+     Sync 43 (measured at 820 and 390). Both floors, for every control in the toolbar. It wraps
+     inside the block (flex-wrap, max-width above), so a wider button adds a row, never a scroll. */
+  .toolBtn, .toolSelect {
+    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .blockActions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--tap-min, 44px);
+    min-height: var(--tap-min, 44px);
+    padding: 0 10px;
+    border: 1px solid var(--border, #2a2f37);
+    border-radius: 6px;
+    background: var(--bg-elevated, #14171c);
+    color: var(--text-bright, #e8eaed);
+    font: 600 18px/1 var(--font-ui, system-ui, sans-serif);
+    cursor: pointer;
+  }
+}

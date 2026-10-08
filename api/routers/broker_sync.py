@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import hmac
+import json
 import os
 from typing import Any
 
@@ -26,6 +27,7 @@ from api.middleware.auth_middleware import (
     PAID_PLANS,
 )
 from api.services import crypto_box
+from api.services import request_body_cap as body_cap
 from api.services.journal_two.broker import service as broker_service
 from api.services.journal_two.broker import snaptrade_client as snap
 from api.services.journal_two.broker import connections as broker_conns
@@ -34,6 +36,28 @@ router = APIRouter(prefix="/api/j2/broker", tags=["broker-sync"])
 
 # Paid-plan gate (admins pass via require_plan → get_user_plan returns role-aware).
 _paid = require_plan(list(PAID_PLANS))
+
+# ⛔ FIN (2026-10-06): no route here declares a JSON body parameter. FastAPI reads a
+# declared body BEFORE it solves any dependency -- before the gate or the session,
+# and with no size limit. Each door takes its body through `_json(...)`: a
+# dependency that runs the session check first and caps the body WHILE it is read.
+# Rail: tests/test_notebook_body_census.py.
+# These bodies are a handful of ids and short strings. The webhook is SnapTrade's
+# event envelope, read the same way before its signature is checked.
+JSON_BODY_MAX_BYTES = 64 * 1024
+WEBHOOK_MAX_BYTES = 1024 * 1024
+JSON_TOO_LARGE_SENTENCE = "Request too large"
+
+
+# ⛔ ON THESE ROUTES THE PLAN GATE PARAMETER COMES BEFORE THE BODY PARAMETER.
+# FastAPI solves a route's dependencies in the order its parameters are written,
+# so `user: dict = Depends(_paid)` first means a member without a plan is refused
+# (403) before the body is read or validated. `after` is the SESSION, not `_paid`,
+# on purpose: the plan gate stays in ONE place per route, so removing it still
+# opens the route in the eyes of tests/test_exposed_routes_gated.py.
+def _json(annotation, *, after=get_current_user):
+    return body_cap.capped_json(annotation, lambda: JSON_BODY_MAX_BYTES,
+                                lambda: JSON_TOO_LARGE_SENTENCE, after=after)
 
 
 class ConnectBody(BaseModel):
@@ -105,7 +129,7 @@ def trust(user: dict = Depends(get_current_user)) -> dict[str, Any]:
 
 
 @router.post("/connect")
-async def connect(body: ConnectBody, user: dict = Depends(_paid)) -> dict[str, Any]:
+async def connect(user: dict = Depends(_paid), body: ConnectBody = Depends(_json(ConnectBody))) -> dict[str, Any]:
     """Register the SnapTrade identity (first time) + return the
     Connection-Portal URL. Requires explicit consent."""
     _guard_configured()
@@ -224,8 +248,8 @@ async def sync_now(
 @router.put("/accounts/{broker_account_id}")
 def update_account(
     broker_account_id: str,
-    patch: AccountPatch,
     user: dict = Depends(_paid),
+    patch: AccountPatch = Depends(_json(AccountPatch)),
 ) -> dict[str, Any]:
     """Enable/disable sync for a connected account."""
     if patch.syncEnabled is None:
@@ -622,7 +646,7 @@ def list_dup_flags(user: dict = Depends(get_current_user)) -> dict[str, Any]:
 
 @router.post("/dup-flags/{flag_id}")
 def resolve_dup_flag(
-    flag_id: str, body: DupResolveBody, user: dict = Depends(_paid)
+    flag_id: str, user: dict = Depends(_paid), body: DupResolveBody = Depends(_json(DupResolveBody))
 ) -> dict[str, Any]:
     """Resolve a duplicate flag: 'merge' (keep broker trade, fold in manual
     notes, drop the manual row) or 'dismiss' (keep both)."""
@@ -634,7 +658,7 @@ def resolve_dup_flag(
 
 
 @router.delete("/connections")
-async def disconnect(body: DisconnectBody, user: dict = Depends(_paid)) -> dict[str, Any]:
+async def disconnect(user: dict = Depends(_paid), body: DisconnectBody = Depends(_json(DisconnectBody))) -> dict[str, Any]:
     """Disconnect: revoke at SnapTrade + purge credentials. Optionally also
     delete broker-imported trade data."""
     return await broker_service.disconnect(user["id"], purge_trades=body.purgeTrades)
@@ -712,8 +736,11 @@ async def webhook(request: Request) -> dict[str, Any]:
     legacy_secret = os.getenv("SNAPTRADE_WEBHOOK_SECRET")
     if not consumer_key and not legacy_secret:
         raise HTTPException(status_code=503, detail="Webhooks not configured.")
+    # Capped WHILE it is read: this was `await request.json()`, which buffers
+    # whatever an unauthenticated caller sends before the signature is looked at.
+    raw = await body_cap.read_capped_body(request, WEBHOOK_MAX_BYTES, JSON_TOO_LARGE_SENTENCE)
     try:
-        body = await request.json()
+        body = json.loads(raw)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON.")
     accepted, _mode = webhook_security.verify(

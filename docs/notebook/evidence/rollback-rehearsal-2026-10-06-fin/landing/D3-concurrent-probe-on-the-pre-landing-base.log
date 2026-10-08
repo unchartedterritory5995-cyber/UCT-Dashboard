@@ -1,0 +1,18 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+[notebook-migration] migrated=0 skipped=0 errored=0
+[activity] Failed to log j2:notebook_note_created for u-probe: no such table: activity_log
+CONCURRENT-PROBE round 0 {"appends_fired": 24, "appends_acknowledged": 24, "appends_landed": 24, "appends_LOST": [], "appends_DUPLICATED": [], "appends_stored_but_not_acknowledged": [], "editors_fired": 8, "editors_acknowledged": 0, "editors_refused_409": 8, "acknowledged_editor_words_LOST": [], "errors": []}
+[activity] Failed to log j2:notebook_note_created for u-probe: no such table: activity_log
+CONCURRENT-PROBE round 1 {"appends_fired": 24, "appends_acknowledged": 24, "appends_landed": 24, "appends_LOST": [], "appends_DUPLICATED": [], "appends_stored_but_not_acknowledged": [], "editors_fired": 8, "editors_acknowledged": 1, "editors_refused_409": 7, "acknowledged_editor_words_LOST": [], "errors": []}
+[activity] Failed to log j2:notebook_note_created for u-probe: no such table: activity_log
+CONCURRENT-PROBE round 2 {"appends_fired": 24, "appends_acknowledged": 24, "appends_landed": 24, "appends_LOST": [], "appends_DUPLICATED": [], "appends_stored_but_not_acknowledged": [], "editors_fired": 8, "editors_acknowledged": 0, "editors_refused_409": 8, "acknowledged_editor_words_LOST": [], "errors": []}
+[activity] Failed to log j2:notebook_note_created for u-probe: no such table: activity_log
+CONCURRENT-PROBE round 3 {"appends_fired": 24, "appends_acknowledged": 24, "appends_landed": 24, "appends_LOST": [], "appends_DUPLICATED": [], "appends_stored_but_not_acknowledged": [], "editors_fired": 8, "editors_acknowledged": 0, "editors_refused_409": 8, "acknowledged_editor_words_LOST": [], "errors": []}
+[activity] Failed to log j2:notebook_note_created for u-probe: no such table: activity_log
+CONCURRENT-PROBE round 4 {"appends_fired": 24, "appends_acknowledged": 24, "appends_landed": 24, "appends_LOST": [], "appends_DUPLICATED": [], "appends_stored_but_not_acknowledged": [], "editors_fired": 8, "editors_acknowledged": 0, "editors_refused_409": 8, "acknowledged_editor_words_LOST": [], "errors": []}
+CONCURRENT-PROBE TOTAL {"appends_fired": 120, "appends_acknowledged": 120, "appends_landed": 120, "editors_fired": 40, "editors_acknowledged": 1, "editors_refused_409": 39}
+.
+1 passed in 21.47s

@@ -18,6 +18,9 @@ import { registerShortcuts } from '../pages/command/shortcutRegistry'
 import useTerminalNext, { TERMINAL_PATH } from '../pages/terminal/terminalGate'
 import { terminalCommandRow } from '../pages/terminal/paletteGrammar'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../pages/journal-2-0/lib/notebookTelemetry'
+import { notebookFlag } from '../pages/journal-2-0/lib/offline/notebookFlags'
+import { checklistEnabled } from '../pages/journal-2-0/components/notebook/onboarding/gettingStartedPref'
+import { NOTEBOOK_SEARCH_HASH } from '../pages/journal-2-0/lib/notebookSearchDoor'
 import styles from './CommandPalette.module.css'
 
 const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
@@ -42,8 +45,10 @@ const NOTEBOOK_COMMANDS = [
   // rather than a second, redundant command pointing at the identical route.
   { id: 'nb-open', kind: 'command', label: 'Open Notebook', icon: 'library',
     to: '/journal/notebook', keywords: ['notebook', 'note', 'research', 'open', 'home'] },
+  // Lane KEYS: this used to open the Notebook and stop, search panel closed. The hash is the
+  // Notebook's own door to its search panel (lib/notebookSearchDoor.js).
   { id: 'nb-search', kind: 'command', label: 'Search Notebook', icon: 'search',
-    to: '/journal/notebook', keywords: ['notebook', 'search', 'find', 'note'] },
+    to: `/journal/notebook${NOTEBOOK_SEARCH_HASH}`, keywords: ['notebook', 'search', 'find', 'note'] },
   { id: 'nb-trash', kind: 'command', label: 'Open Trash', icon: 'trash',
     to: '/journal/notebook?folder=__trash__', keywords: ['trash', 'deleted', 'notebook', 'note'] },
   // ⛔ ONE capture command (Wave L §12), not a forest by subtype -- no
@@ -53,12 +58,25 @@ const NOTEBOOK_COMMANDS = [
   { id: 'nb-capture', kind: 'command', label: 'Quick Capture', icon: 'plus',
     action: 'capture',
     keywords: ['capture', 'save', 'clip', 'link', 'article', 'passage', 'quote', 'notebook'] },
+  // Wave 14, lane W14-keys: Help's Walkthroughs from anywhere, for a keyboard member
+  // (docs/notebook/wave14-keys.md). Lands on the Walkthroughs heading, whose next Tab stop is
+  // Replay. Two guards beyond the shape above:
+  //   * `when` -- the wave-14 switch, the same check that renders the section on Help;
+  //   * `match` -- only a word that names it. A command row LEADS the palette
+  //     (orderPaletteRows), so the label/keyword `.includes()` rule would let "ro", "th" or
+  //     "to" put this row above a ticker and take its Enter.
+  { id: 'nb-walkthroughs', kind: 'command', label: 'Help: Walkthroughs', icon: 'sparkle',
+    to: '/support#walkthroughs', keywords: [],
+    match: (q) => q.length >= 5 && ('walkthroughs'.startsWith(q) || q.startsWith('walkthrough')),
+    when: () => checklistEnabled(notebookFlag) },
 ]
 // Natural-terminology matching (§14): a 2-character floor avoids a bare
 // letter matching half the keyword list, and `.includes()` (not an exact
 // match) lets a partial word like "note" or "thesis" surface the right
 // command without requiring the user to type the full label.
 function commandMatches(cmd, q) {
+  if (typeof cmd.when === 'function' && !cmd.when()) return false
+  if (typeof cmd.match === 'function') return cmd.match(q)
   if (q.length < 2) return false
   if (cmd.label.toLowerCase().includes(q)) return true
   return cmd.keywords.some((k) => k.includes(q))

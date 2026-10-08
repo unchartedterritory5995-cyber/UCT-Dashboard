@@ -2,16 +2,21 @@ import { Component, Suspense, useCallback, useEffect, useRef, useState } from 'r
 import { NodeViewWrapper } from '@tiptap/react'
 import {
   resolveEmbedRender, embedAutoCaption, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY,
-  retimeChartParams, embedRenderHeight, makeCrosshairBus,
+  retimeChartParams, embedRenderHeight, makeCrosshairBus, chartPlanEnabled,
+  EMBED_MAX_H,
 } from '../../lib/widgetEmbedCore'
 import { widgetMeta } from '../../../../widgets/registry'
 import { chartsLinkPath } from '../../../../lib/chartDeepLink'
 import { peekDrawings } from '../../../../components/chart/drawingsStore'
+import { useCoarsePointer } from '../../../../components/chart/coarsePointer'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
 import { RENDER_UNAVAILABLE, showsUnavailableFrame } from '../../../../lib/captureSafety'
 import UIcon from '../../../../components/ui/UIcon'
+import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import styles from './WidgetEmbedView.module.css'
 import { lazyLeaf } from '../../lib/lazyChunk'
+import useToolbarRoving from '../../lib/useToolbarRoving'
+import { notebookFlag } from '../../lib/offline/notebookFlags'
 
 // Free-resize bounds (px). MAX_W is generous so a resize can reach the full
 // note-column width on wide screens; `.sized { max-width: 100% }` keeps it
@@ -19,7 +24,7 @@ import { lazyLeaf } from '../../lib/lazyChunk'
 const EMBED_MIN_W = 260
 const EMBED_MAX_W = 3200
 const EMBED_MIN_H = 160
-const EMBED_MAX_H = 1400
+// EMBED_MAX_H lives in widgetEmbedCore.js (shared with the resize handles).
 
 // How long a live embed gets to settle (bars fetched, chart painted) before
 // the self-archive rasterizes it. A late capture is fine — a blank one isn't.
@@ -58,6 +63,18 @@ const EMBED_COMPONENTS = {
   cot: lazyLeaf(() => import('./CotEmbed')),
   modelbook: lazyLeaf(() => import('./ModelBookEmbed')),
 }
+
+// Wave 13 lane 13I-2: the technical fingerprint under a chart block (dark behind
+// notebook_ta_fingerprint_enabled). Lazy, so a note with the gate off loads none of it.
+const FingerprintPanel = lazyLeaf(() => import('./FingerprintPanel'))
+// Wave 13 lane 13H-2: the chart plan panel (roles on drawn levels, R:R + size, alerts at a
+// level) and "what happened next" bar replay. Lazy, like every live embed, and only mounted
+// while 13H-1's gate (`notebook_chart_plan_enabled`) is on -- so the Notebook's first-open
+// bytes do not move and a gate-off tab never loads it.
+const ChartPlanPanel = lazyLeaf(() => import('./ChartPlanPanel'))
+// The touch tier's "Block actions" button (finish program, lane FE). Loaded only at 1024 px and
+// below, where it is shown, so it adds nothing to the Notebook's first-open bytes.
+const EmbedBlockActions = lazyLeaf(() => import('./EmbedBlockActions'))
 
 // The never-a-broken-embed rule, enforced at the React layer too: any render
 // error inside a live embed drops the block to its archived image (or the
@@ -140,7 +157,7 @@ function PlaceholderChip({ attrs, reason, shareView = false }) {
   )
 }
 
-export default function WidgetEmbedView({ node, selected, editor, updateAttributes, deleteNode }) {
+export default function WidgetEmbedView({ node, selected, editor, updateAttributes, deleteNode, getPos }) {
   const attrs = node.attrs || {}
   const decision = resolveEmbedRender(attrs)
   const half = attrs.layout?.width === 'half'
@@ -157,9 +174,14 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   attrsRef.current = attrs
   const archivedOnceRef = useRef(false)
   const [toolbarMsg, setToolbarMsg] = useState(null)
+  // The stop starts on Plan when the plan door is there: the plan is the row's main door.
+  const toolbarRoving = useToolbarRoving({ prefer: '[data-tour="chart-plan-open"]' })
   // Toolbar collapse toggle (per the charts "Hide toolbar" affordance).
   const [toolbarOpen, setToolbarOpen] = useState(true)
   const [resizing, setResizing] = useState(false)
+  // 13H-2: the plan panel and the replay modal (view state; their writes are explicit actions).
+  const [planOpen, setPlanOpen] = useState(false)
+  const [replayOpen, setReplayOpen] = useState(false)
 
   // Public share page (SharedNotePage stamps shareView before the editor
   // view exists): every embed renders its ARCHIVED IMAGE — a public reader
@@ -540,6 +562,24 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [annotate, editor])
 
+  // ⚰️ Wave 13 lane 13H-3 had a Draw-mode toolbar-clearance MEASUREMENT here
+  // (`drawClearance` + a `useLayoutEffect` reading the floating ChartToolbar's
+  // bottom edge) feeding `widgetEmbedCore.annotateEffectiveHeight`. **13H-4
+  // removed both**: the complete fix is StockChart's own MobileDrawBar swap
+  // (passed below via `mobileDrawBar`), which replaces the floating desktop
+  // toolbar with a fixed-height, bottom-docked, single-row strip on a coarse
+  // pointer — there is nothing left to measure or grow the embed around. See
+  // widgetEmbedCore.js's `EMBED_MAX_H` comment and wave13-13h4.md §3-4.
+  //
+  // `isCoarsePointer` stays: it is what decides whether THIS note's chart embed
+  // asks StockChart for MobileDrawBar at all (same read the 13H-3 effect used).
+  const isCoarsePointer = useCoarsePointer()
+  const touchTier = useIsTouch()      // 1024 px and below
+
+  // 13H-2: the chart-plan doors, gate-checked at render (the latch never moves mid-tab).
+  const planDoors = attrs.widgetId === 'chart' && decision.kind === 'live' && !shareView
+    && editor?.isEditable !== false && !frozen && chartPlanEnabled()
+
   let body = archived
   if (decision.kind === 'live' && !shareView) {
     const Live = EMBED_COMPONENTS[attrs.widgetId]
@@ -558,6 +598,12 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
             crosshairBus={crosshairBus}
             peekToNow={canPeek && peek}
             onStoreSettings={onEmbedSettings}
+            // 13H-4: the complete fix for the touch Draw-mode bug 13H-3 worked
+            // around by growing the embed — give StockChart's annotationsEditable
+            // branch the same MobileDrawBar swap showDrawingTools already has, on
+            // a coarse pointer (`isCoarsePointer`, above). Only chart embeds in
+            // Draw mode ask for it; every other widget type ignores an unused prop.
+            mobileDrawBar={annotate && isCoarsePointer}
           />
         </Suspense>
       </EmbedErrorBoundary>
@@ -567,12 +613,17 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   return (
     <NodeViewWrapper
       ref={wrapRef}
+      data-tour="chart-embed"
       className={`${styles.frame} ${sizedWidth ? styles.sized : (half ? styles.half : styles.full)} ${selected ? styles.selected : ''} ${annotate ? styles.annotating : ''} ${resizing ? styles.resizing : ''} ${frozen ? styles.frozen : ''}`}
       style={sizedWidth ? { width: sizedWidth } : undefined}
       data-widget-embed-view={attrs.widgetId || 'unknown'}
     >
       {editor?.isEditable !== false && !frozen && (
-        <div className={styles.toolbar} contentEditable={false}>
+        // ONE Tab stop for the whole row (the toolbar pattern): Left and Right move inside
+        // it, Home and End jump to its ends. Tabindex only; hover and touch are untouched.
+        <div className={styles.toolbar} contentEditable={false}
+          role="toolbar" aria-label="Chart tools"
+          ref={toolbarRoving.ref} onKeyDown={toolbarRoving.onKeyDown} onFocus={toolbarRoving.onFocus}>
           {toolbarMsg && <span className={styles.toolbarMsg}>{toolbarMsg}</span>}
           {/* Collapse toggle — hide/show the rest of the toolbar (the charts
               "Hide toolbar" affordance). Absent in draw mode (Done is the only
@@ -587,6 +638,15 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
             >
               {toolbarOpen ? '‹' : '›'}
             </button>
+          )}
+          {/* Touch tier only (the stylesheet hides it above 1024 px): move or remove this block
+              without selecting it first. A live chart cannot be selected by touch at all. */}
+          {!annotate && touchTier && (
+            <EmbedErrorBoundary fallback={null}>
+              <Suspense fallback={null}>
+                <EmbedBlockActions editor={editor} getPos={getPos} deleteNode={deleteNode} className={styles.blockActions} />
+              </Suspense>
+            </EmbedErrorBoundary>
           )}
           {(annotate || toolbarOpen) && (<>
           {/* TF switch — chart embeds, live render path only (the archive of
@@ -604,6 +664,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
               onChange={(e) => switchTf(e.target.value)}
               title="Switch timeframe (re-anchors around the same moment)"
               aria-label="Embed timeframe"
+              data-tour="chart-embed-timeframe"
             >
               {[['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'], ['60', '1h'],
                 ['D', 'D'], ['W', 'W'], ['M', 'M']].map(([code, label]) => (
@@ -630,6 +691,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
               type="button"
               className={`${styles.toolBtn} ${annotate ? styles.toolBtnActive : ''}`}
               onClick={toggleAnnotate}
+              data-tour="chart-plan-draw"
               title={annotate ? 'Exit drawing mode' : 'Draw on this snapshot (lines, text — saved with the embed)'}
             >
               {annotate ? 'Done' : 'Draw'}
@@ -664,6 +726,30 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
                 : 'What happened next — show this window through today (view-only, nothing saved)'}
             >
               Aftermath
+            </button>
+          )}
+          {/* 13H-2: the drawn plan (roles, R:R + size, alerts) and "what happened next". */}
+          {!annotate && planDoors && (
+            <button
+              type="button"
+              className={`${styles.toolBtn} ${planOpen ? styles.toolBtnActive : ''}`}
+              onClick={() => setPlanOpen((o) => !o)}
+              data-tour="chart-plan-open"
+              aria-expanded={planOpen}
+              title="Trade plan — mark drawn lines as entry, stop or target; size it; arm alerts"
+            >
+              Plan
+            </button>
+          )}
+          {!annotate && planDoors && (
+            <button
+              type="button"
+              className={styles.toolBtn}
+              onClick={() => setReplayOpen(true)}
+              data-tour="chart-plan-replay"
+              title="What happened next — replay bar by bar from this note's date"
+            >
+              Replay
             </button>
           )}
           {/* Re-capture only where a NEW capture can actually happen — for
@@ -712,11 +798,40 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       {/* Explicit pixel height + inline-size containment: every workspace
           widget root is height:100% and several use @container queries — a
           content-sized notebook parent collapses them to zero without this. */}
-      <div ref={bodyRef} className={styles.body} style={decision.kind === 'live' && !shareView ? { height } : undefined}>
+      {/* data-widget-embed-body: the ONE marker widgetEmbedNode.jsx's stopEvent
+          reads to tell ProseMirror "this click is mine" (see that file's
+          comment for the full mechanism — the 13H-2 draw-mode focus-steal
+          fix). Its VALUE is "draw" exactly while Draw mode is on: only then does
+          stopEvent keep the click from the editor; otherwise a click on the body
+          selects the block. Keep this attribute on whatever element wraps the live
+          chart/drawing surface; moving the ref without moving the marker
+          reopens the bug silently. */}
+      <div ref={bodyRef} data-widget-embed-body={annotate ? 'draw' : ''} className={styles.body} style={decision.kind === 'live' && !shareView ? { height } : undefined}>
         {body}
       </div>
+      {planDoors && inView && (
+        <EmbedErrorBoundary fallback={null}>
+          <Suspense fallback={null}>
+            <ChartPlanPanel
+              attrs={attrs}
+              noteId={editor?.storage?.uctJournalWidgets?.noteId || null}
+              updateAttributes={updateAttributes}
+              open={planOpen}
+              replayOpen={replayOpen}
+              onCloseReplay={() => setReplayOpen(false)}
+            />
+          </Suspense>
+        </EmbedErrorBoundary>
+      )}
       {(attrs.mode === 'live') && !frozen && <span className={styles.liveBadge} title="Updates in real time — Snapshot freezes it">LIVE</span>}
       {attrs.caption ? <div className={styles.caption}>{attrs.caption}</div> : null}
+      {attrs.widgetId === 'chart' && !shareView && notebookFlag('notebook_ta_fingerprint_enabled') === true && (
+        <EmbedErrorBoundary fallback={null}>
+          <Suspense fallback={null}>
+            <FingerprintPanel attrs={attrs} updateAttributes={updateAttributes} editor={editor} />
+          </Suspense>
+        </EmbedErrorBoundary>
+      )}
       {/* Bottom-right resize handle (editable + not drawing) — works on live
           charts and frozen images alike. */}
       {editor?.isEditable !== false && !annotate && (

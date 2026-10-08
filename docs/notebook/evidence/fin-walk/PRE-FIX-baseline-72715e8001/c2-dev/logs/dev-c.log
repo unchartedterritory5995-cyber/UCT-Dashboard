@@ -1,0 +1,15 @@
+PASS    [c2 1280] flags: auth payload: every c2 switch reads ON {"email": "q1c2m3326602@local.dev"} 
+   .. chartplan: note open
+   .. chartplan: slash chosen
+   .. chartplan: frame visible
+   .. chartplan: stored=True archived=True
+PASS    [c2 1280] chart plan: insert a chart into a note with /chart {"embed": "563a0b86-c00b-457a-b26f-5d939d8af461", "snapshot_archived": true, "bars_error": 0} http=404 /api/j2/notebook-fingerprint/blocks/e7c83c4560074e
+   .. chartplan: chart step recorded; drawing
+   .. chartplan: placed=3
+PASS    [c2 1280] chart plan: draw entry, stop and target on the chart and mark their roles {"lines_placed": 3, "stored": true, "roles_stored": true, "target_over_entry_over_stop": true} 
+FAIL    [c2 1280] chart plan: sizing: R:R, risk per share and shares, with the sizing label {"label": null, "panel_text": "TRADE PLAN\n514.74\nNone\nEntry\nStop\nTarget\nArm alert at this level\n340.86\nNone\nEntry\nStop\nTa"} 
+PASS    [c2 1280] chart plan: arm an alert at the stop: listed in the member's alerts {"armed_in_panel": true, "reach_error": null} 
+VERDICT c2: 5 steps, 1 FAIL
+  [1280] chart plan: sizing: R:R, risk per share and shares, with the sizing label
+raw log written: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\61625d99-f8db-4269-a728-231c08d3da11\scratchpad\fin\walk\dev\c2\walk.json
+EXIT 1

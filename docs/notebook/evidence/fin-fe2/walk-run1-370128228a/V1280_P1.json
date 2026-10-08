@@ -1,0 +1,27 @@
+{
+ "orb_before": [],
+ "note_delete": {
+  "confirm_label": "Delete",
+  "hit": {
+   "box": [
+    793,
+    505,
+    84,
+    34
+   ],
+   "cx": 834.8203125,
+   "cy": 521.796875,
+   "top_is_button": true,
+   "top_tag": "BUTTON._dangerBtn_wu5n8_211"
+  },
+  "orb_while_open": [],
+  "body_overflow": "hidden"
+ },
+ "after_delete": {
+  "status": 404,
+  "keys": [],
+  "deletedAt": null,
+  "dialog_left": 1,
+  "still_in_notes_list": false
+ }
+}
