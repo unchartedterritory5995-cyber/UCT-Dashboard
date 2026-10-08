@@ -339,7 +339,6 @@ describe('layout.duplicate fast path', () => {
     const { host } = lib()
     expect(fastOps(host, 'make a copy of my Intraday Scan')).toEqual([{ action: 'layout.duplicate', target: 'layouts', args: { layout: '12', name: null } }])
     expect(fastOps(host, 'duplicate the Intraday Scan layout')).toEqual([{ action: 'layout.duplicate', target: 'layouts', args: { layout: '12', name: null } }])
-    expect(fastOps(host, 'copy Intraday Scan as Scan 2')).toBeNull()
     expect(fastOps(host, 'make a copy of my Nonexistent')).toBeNull()
   })
 })
@@ -389,5 +388,18 @@ describe('layout.create — a new EMPTY layout, created before anything else, bo
     const back = await undoEntry(host, res.undo)
     expect(back.ok).toBe(false)
     expect(state.layouts.entries.some(e => e.name === 'Research')).toBe(true)
+  })
+})
+
+describe('Batch 3 benchmark fixes — deterministic phrasing', () => {
+  it('"make a blank layout called Research and switch to it" → create only (switching stays a separate step)', () => {
+    const { host } = lib()
+    expect(fastOps(host, 'Make a blank layout called Research and switch to it')).toEqual([{ action: 'layout.create', target: 'layouts', args: { name: 'Research' } }])
+  })
+  it('"duplicate my Intraday Scan and call it Morning Prep" → the EXACT source, the given name', () => {
+    const { host } = lib()
+    expect(fastOps(host, 'Duplicate my Intraday Scan and call it Morning Prep')).toEqual([{ action: 'layout.duplicate', target: 'layouts', args: { layout: '12', name: 'Morning Prep' } }])
+    expect(fastOps(host, 'copy Intraday Scan as Scan 2')).toEqual([{ action: 'layout.duplicate', target: 'layouts', args: { layout: '12', name: 'Scan 2' } }])
+    expect(fastOps(host, 'duplicate my Nonexistent and call it X')).toBeNull()
   })
 })

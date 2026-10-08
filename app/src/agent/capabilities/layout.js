@@ -380,8 +380,12 @@ export function registerLayoutCapabilities() {
     hints: 'target = the ref of the layouts entry; name = the exact name the member gave. To save the board AS IT IS NOW, use layout.saveAs instead. '
       + 'If they also want to switch to it, create it now and say in the reply that they can then say "open <name>" (switching is a separate step).',
     args: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'], additionalProperties: false },
+    fastWhole: true,                // the whole sentence first (it may contain "and")
+    // "…and switch to it" is accepted and NOT acted on here: creating comes first, alone, and
+    // the receipt says how to open it (measured 2026-10-08: the production model planned
+    // create + open together, which a creating plan refuses).
     fast: ({ raw }) => {
-      const m = /^(?:please )?(?:create|make|start)(?: me)? (?:a )?(?:new )?(?:blank |empty |fresh |clean )+(?:new )?layout (?:called |named )?(.+?)[.!]?$/i.exec(String(raw).trim())
+      const m = /^(?:please )?(?:create|make|start)(?: me)? (?:a )?(?:new )?(?:blank |empty |fresh |clean )+(?:new )?layout (?:called |named )?(.+?)(?:,? and (?:then )?(?:switch|go|move|change)(?: over)? to it|,? and open it)?[.!]?$/i.exec(String(raw).trim())
       if (!m) return null
       const name = m[1].replace(/^[“"'‘]|[”"'’]$/g, '').trim()
       return name ? { name } : null
@@ -437,12 +441,21 @@ export function registerLayoutCapabilities() {
     // "make a copy of my Swing Layout" / "duplicate Earnings Watch": an EXACT layout name, no
     // new name → the default "<name> copy" (shown in the proposal). Measured 2026-10-08: the
     // production model asked for a name here 2 of 3 times.
+    fastWhole: true,                // the whole sentence first (it may contain "and")
+    // …and "duplicate my Trading Layout and call it Morning Prep": the source is resolved by its
+    // EXACT name (measured 2026-10-08: the production model picked "Main Trading" for it).
     fast: ({ raw, host }) => {
-      const m = /^(?:please )?(?:make a copy of|copy|duplicate)(?: my| the)? (.+?)[.!]?$/i.exec(String(raw).trim())
-      if (!m || !host?.layouts || / as | to | called | named /i.test(m[1])) return null
+      const t = String(raw).trim()
+      const named = /^(?:please )?(?:make a copy of|copy|duplicate)(?: my| the)? (.+?)(?:,? and (?:call|name) it| as| named| called) (.+?)[.!]?$/i.exec(t)
+      const bare = named ? null : /^(?:please )?(?:make a copy of|copy|duplicate)(?: my| the)? (.+?)[.!]?$/i.exec(t)
+      const m = named || bare
+      if (!m || !host?.layouts) return null
+      if (!named && / as | to | called | named /i.test(m[1])) return null
       const entries = host.layouts.snapshot().entries
       const hit = resolveName(entries, m[1]) || resolveName(entries, m[1].replace(/ layout$/i, ''))
-      return hit ? { layout: String(hit.id), name: null } : null
+      if (!hit) return null
+      const name = named ? m[2].replace(/^[“"'‘]|[”"'’]$/g, '').trim() : null
+      return { layout: String(hit.id), name: name || null }
     },
     check(st, { layout, name }) {
       const busy = oneAtATime(st)

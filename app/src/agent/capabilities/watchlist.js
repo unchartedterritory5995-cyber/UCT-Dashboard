@@ -550,7 +550,8 @@ export function registerWatchlistCapabilities() {
     risk: 'confirm', reversible: false,
     createsResource: true,
     summary: 'Create a NEW saved watchlist (a named list of tickers) — only when they ask to create or make a list. "Add a watchlist" with no list name means a Watchlist WIDGET on the board: that is widget.add, not this.',
-    hints: 'target = the ref of the watchlistLibrary entry; name = exactly as given. To fill it in the same request set "as" to a short name (new1) '
+    hints: 'target = the ref of the watchlistLibrary entry; name = exactly as given. To COPY a list ("duplicate my X watchlist"), create "<X> copy" '
+      + '(or the name they give — do not ask for one) and add {from: the ref of X, top: null} to it. To fill it in the same request set "as" to a short name (new1) '
       + 'and target watchlist.add at that name; otherwise "as" is null. Never use this for a name already in the watchlists list — '
       + 'if they ask to put stocks in a list "called X" and X already exists, clarify (add to the existing X, or a new name); never silently append.',
     args: {
