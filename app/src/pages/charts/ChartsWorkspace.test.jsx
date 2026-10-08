@@ -1003,7 +1003,9 @@ function dockButton(name) {
 // the board cancelled the pending write instead of completing it. Every path
 // that replaces the board must flush first — timing must not decide whether an
 // edit survives.
-test('switching away flushes the pending auto-save into the layout you are leaving', () => {
+// REVISION SAFETY: the layout row is written only once the BOARD write was accepted, so the flush
+// lands a microtask after the click (still into the layout being left) — wait for it.
+test('switching away flushes the pending auto-save into the layout you are leaving', async () => {
   const board = { widgets: [{ i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10 }], cols: 24 }
   mockPrefs = {
     charts_workspace_layout: JSON.stringify(board),
@@ -1028,6 +1030,7 @@ test('switching away flushes the pending auto-save into the layout you are leavi
 
   // Flushed into the layout we LEFT — by name, since upsert is keyed on it —
   // and carrying the widget that was on screen.
+  await act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve() })   // fake timers: flush microtasks
   expect(mockLayouts.saveLayout).toHaveBeenCalledWith(
     expect.objectContaining({ name: 'Main Trading' }),
   )
@@ -1122,7 +1125,7 @@ test('auto-save refuses to shrink a layout the user did not shrink', () => {
 })
 
 // The guard must not block ordinary work: a board that GAINED a widget saves.
-test('auto-save still persists a board that grew', () => {
+test('auto-save still persists a board that grew', async () => {
   const stored = { widgets: [{ i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10 }], cols: 24 }
   const grown = { widgets: [stored.widgets[0], { i: 'w2', id: 'w2', type: 'calendar', x: 12, y: 0, w: 12, h: 10 }], cols: 24 }
   mockPrefs = {
@@ -1141,6 +1144,7 @@ test('auto-save still persists a board that grew', () => {
   }
   renderWS()
   act(() => { dockButton('Breadth').click() })
+  await act(async () => { for (let i = 0; i < 5; i++) await Promise.resolve() })   // fake timers: flush microtasks
   expect(mockLayouts.saveLayout).toHaveBeenCalledWith(expect.objectContaining({ name: 'Calendar' }))
   const saved = mockLayouts.saveLayout.mock.calls.at(-1)[0]
   expect(saved.layout.widgets.map(w => w.id).sort()).toEqual(['w1', 'w2'])

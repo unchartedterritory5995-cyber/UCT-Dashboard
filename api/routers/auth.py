@@ -2675,6 +2675,9 @@ def portal(user: dict = Depends(get_current_user)):
 class SetPreferenceRequest(BaseModel):
     key: str
     value: str
+    # REVISION SAFETY: the workspace-document version at which this client last read or wrote
+    # `key` (a board key only; ignored for every other key). See `write_pref_checked`.
+    base_version: Optional[int] = None
 
 
 # ── Preference key allow-list + per-key schema (B6) ───────────────────────────
@@ -2973,6 +2976,31 @@ _WORKSPACE_DOC_HEADERS = {
 def upsert_preference(req: SetPreferenceRequest, user: dict = Depends(get_current_user)):
     _validate_preference(req.key, req.value)
     enforce_board_bound(user["id"], req.key, req.value)
+    # ⛔ REVISION SAFETY (Charts board keys, while the document store is armed). A stale copy of a
+    # board key — an older tab, another device — must never overwrite newer work:
+    #   * a write naming its base version commits only if the key is unchanged since then
+    #     (compare-and-set in ONE transaction); otherwise 409 and NOTHING is written;
+    #   * a write with NO base version (a tab still running a bundle from before revisions) is
+    #     refused once a revision-aware client has written that key, since it cannot know what it
+    #     would overwrite. Until then it keeps the old behaviour, so such tabs keep saving against
+    #     each other exactly as before and never against newer, versioned work.
+    if workspace_doc_store.is_enabled() and workspace_doc_store.board_for_key(req.key) == workspace_doc_store.BOARD_CHARTS:
+        if req.base_version is not None:
+            try:
+                res = workspace_doc_store.write_pref_checked(
+                    user["id"], req.key, req.value, base_version=req.base_version, prefs_reader=get_user_preferences)
+            except workspace_doc_store.VersionConflict as exc:
+                raise HTTPException(status_code=409, detail={
+                    "code": "workspace_conflict", "key": req.key, "head_version": exc.head_version,
+                    "message": "Your workspace was changed in another window or device. This change was not saved."})
+            if res["appended"]:
+                set_user_preference(user["id"], req.key, req.value)
+                workspace_doc_store.mark_writeback_done(user["id"], res["board"], [res["version"]])
+            return {"ok": True, "version": res["version"]}
+        if workspace_doc_store.key_is_guarded(user["id"], req.key):
+            raise HTTPException(status_code=409, detail={
+                "code": "workspace_revision_required", "key": req.key,
+                "message": "This page is out of date. Reload it to keep saving your workspace."})
     # TERM-021 WRITE-BOTH / READ-OLD. ⛔ Order is the whole point: the document is snapshotted
     # BEFORE this write, so the value it replaces (a corrupt blob about to be overwritten by a
     # default board, STATE-2) survives as the version before it. Both calls return without any
