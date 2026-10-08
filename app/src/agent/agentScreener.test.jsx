@@ -126,7 +126,7 @@ describe('Screener: the real engine, the real catalog', () => {
     const sc = m.filter(c => c.name.startsWith('screener.'))
     expect(sc.map(c => c.name).sort()).toEqual(['screener.listSaved', 'screener.run', 'screener.runSaved', 'screener.state'])
     for (const c of sc) expect(getCapability(c.name).query).toBe(true)
-    expect(m.length).toBe(37)                    // + alert.* (3), stock.* (3), settings.* (4), app.open
+    expect(m.length).toBe(39)                    // + alert.* (3), stock.* (3), settings.* (4), app.open
   })
   it('no Screener field is hard-coded in the Agent', () => {
     const src = screenerSource

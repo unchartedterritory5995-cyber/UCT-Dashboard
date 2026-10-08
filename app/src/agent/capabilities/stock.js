@@ -160,7 +160,7 @@ export function registerStockCapabilities() {
   if (registered) return
   registered = true
   registerTargetKind(marketKind)
-  registerContextProvider({ key: 'stockData', build: (host, refFor) => [{ ref: refFor('market', 'market'), label: 'UCT stock data (profile, fundamentals, earnings, comparisons)' }] })
+  registerContextProvider({ key: 'stockData', build: (host, refFor) => [{ ref: refFor('market', 'market'), label: 'UCT stock data (profile, fundamentals, earnings, comparisons, stored news, catalysts)' }] })
 
   const one = { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'], additionalProperties: false }
   registerCapability({
