@@ -1,0 +1,1146 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "1280",
+   "feature": "flags",
+   "step": "auth payload: every keyed switch reads ON",
+   "verdict": "PASS",
+   "at": "2026-10-08T05:47:49+00:00",
+   "email": "q1kai8469401@local.dev",
+   "off": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "1280",
+   "feature": "sandbox",
+   "step": "boot output: model keys opted in, kill-list applied",
+   "verdict": "INFO",
+   "at": "2026-10-08T05:47:50+00:00",
+   "boot_lines": [
+    "Model keys   : OPT-IN -- passed through unchanged (ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring untouched); paid model calls are POSSI",
+    "Kill-list    : 38 scheduler / outbound flags",
+    "2026-10-08 00:47:10,209 WARNING api.services.email_service: [email] RESEND_API_KEY not set � emails disabled",
+    "2026-10-08 00:47:17,266 WARNING api.services.journal_two.document_ocr_tesseract: [doc-ocr] J2_OCR_ENABLED=1 but no usable tesseract binary was found � OCR stays unavailable",
+    "[startup] j2-ocr: flag=1 binary=absent version=none active=False max_concurrency=1",
+    "2026-10-08 00:47:17,269 WARNING api.main: [startup] J2_OCR_ENABLED is set but OCR could not be armed"
+   ],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "1280",
+   "feature": "K2 review draft",
+   "step": "one account, a Compass weekly review: the one-click weekly draft shows the quote, and it is an exact substring of the review",
+   "verdict": "PASS",
+   "at": "2026-10-08T05:48:35+00:00",
+   "generate_status": 200,
+   "week_start": "2026-10-05",
+   "kind": "weekly",
+   "note": "59d6d83ebfc44a1cb9bc61dfd56d8c1c",
+   "headings": [
+    "Week of Oct 5",
+    "The numbers",
+    "Discipline record",
+    "Setup changes",
+    "Links",
+    "Plans used this period",
+    "Prior reviews",
+    "Resurfaced this period",
+    "Best and worst trade",
+    "TECHNICAL FINGERPRINT",
+    "TECHNICAL FINGERPRINT",
+    "Leaks",
+    "",
+    "",
+    "Checked, and not worse than your average this period",
+    "",
+    "What Compass said"
+   ],
+   "compass_block_label": "Answer from Ask Notebook to: What Compass said about this week",
+   "compass_block_text": "From Ask Notebook\n · Oct 8, 2026\n\n# Week of 2026-10-05 — Compass's Review\n\nThe headline this week isn't the -$200 — it's that there's almost nothing to coach from. Four trades, no setup labels, no process scores, no emotion or mistake tags. The journal is open but the trader isn't writing in it yet. That's the pattern worth naming in week one.\n\n## Performance\n\n- Net P&L: -$200.00 (-0.02%)\n\n- Trades: 4 closed (2 wins / 2 losses / 0 BE)\n\n- Win rate:…",
+   "after_the_heading": "What Compass said\nFrom Ask Notebook\n · Oct 8, 2026\n\n# Week of 2026-10-05 — Compass's Review\n\nThe headline this week isn't the -$200 — it's that there's almost nothing to coach from. Four trades, no setup labels, no process scores, no emotion or mistake tags. The journal is open but the trader isn't writing in it yet. That's the pattern worth naming in week one.\n\n## Performance\n\n- Net P&L: -$200.00 (-0.02%)\n\n- Trades:",
+   "the_page_asked": [
+    "j2/review-drafts/weekly?weekStart=2026-10-05&accountId=f3b1b2d4-772a-47ee-ac49-1e25da490166"
+   ],
+   "server_quote": "# Week of 2026-10-05 — Compass's Review\n\nThe headline this week isn't the -$200 — it's that there's almost nothing to coach from. Four trades, no setup labels, no process scores, no emotion or mistake tags. The journal is open but the trader isn't writing in it yet. That's the pattern worth naming in week one.\n\n## Performance\n- Net P&L: -$200.00 (-0.02%)\n- Trades: 4 closed (2 wins / 2 losses / 0 BE)\n- Win rate:…",
+   "server_omitted": null,
+   "quote_is_exact_substring_of_stored_review": true,
+   "quote_paragraphs_seen_in_the_note": 2,
+   "accounts": 1,
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=59d6d83ebfc44a1cb9bc61dfd56d8c1c",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"6a62b259-a4d\",\"user_id\":\"40e1058c-d778-4227-ab8e-7e859ed6ef09\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-08T05:48:26.450068+00:00\",\"updated_at\":\"2026-10-08T05:48:26.918540+00:00\",\"items\":[],\"owner_name\":\"q1k2a\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"b552a184-c86e-4dd1-af64-479b226d3639\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-08T05:48:26.724Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_getting_started\",\"value\":\"{\\\"v\\\":1,\\\"done\\\":[\\\"note\\\"]}\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes",
+     "status": 200,
+     "request": "{\"title\":\"Weekly Review — wk of Oct 5\",\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Week of Oct 5\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"4\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2 / 2 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"50%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"-0.50R\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"ty",
+     "response": "{\"note\":{\"id\":\"59d6d83ebfc44a1cb9bc61dfd56d8c1c\",\"userId\":\"40e1058c-d778-4227-ab8e-7e859ed6ef09\",\"accountId\":null,\"folderId\":null,\"title\":\"Weekly Review — wk of Oct 5\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Week of Oct 5\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"4\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2 / 2 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"50%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\","
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/59d6d83ebfc44a1cb9bc61dfd56d8c1c/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":243}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "keyedai-1280-K2-review-draft-one-account-a-Compass-weekly-review-the-one-click-weekly-draft-shows-th-cc744c1a.png"
+  },
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "390",
+   "feature": "K2 review draft",
+   "step": "the drafted weekly note on a phone shows the Compass quote block",
+   "verdict": "PASS",
+   "at": "2026-10-08T05:48:49+00:00",
+   "block_label": "Answer from Ask Notebook to: What Compass said about this week",
+   "block_text": "From Ask Notebook\n · Oct 8, 2026\n\n# Week of 2026-10-05 — Compass's Review\n\nThe headline this week isn't the -$200 — it's that there's almost nothing to coach from. Four trades, no setup labels, no process scores, no emotion or mistake tags. The journal is open but the trader isn't writing in it yet.",
+   "overflow": {
+    "vw": 390,
+    "doc": 390,
+    "body": 390,
+    "main": [
+     390,
+     390
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": {
+    "tapMin": 44,
+    "scoped": false,
+    "scope_matched": 1,
+    "controls": 87,
+    "inline_links": 0,
+    "under": 5,
+    "sample": [
+     {
+      "label": "Folder",
+      "tag": "SELECT",
+      "w": 92,
+      "h": 37,
+      "host": "ask-row"
+     },
+     {
+      "label": "Ticker",
+      "tag": "INPUT",
+      "w": 84,
+      "h": 36,
+      "host": "ask-row"
+     },
+     {
+      "label": "Note title",
+      "tag": "INPUT",
+      "w": 270,
+      "h": 34,
+      "host": null
+     },
+     {
+      "label": "Subtitle",
+      "tag": "INPUT",
+      "w": 270,
+      "h": 43,
+      "host": null
+     },
+     {
+      "label": "?",
+      "tag": "BUTTON",
+      "w": 40,
+      "h": 40,
+      "host": null
+     }
+    ]
+   },
+   "error_boundary": false,
+   "url": "/journal/notebook?note=59d6d83ebfc44a1cb9bc61dfd56d8c1c",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"6a62b259-a4d\",\"user_id\":\"40e1058c-d778-4227-ab8e-7e859ed6ef09\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-08T05:48:26.450068+00:00\",\"updated_at\":\"2026-10-08T05:48:47.687072+00:00\",\"items\":[],\"owner_name\":\"q1k2a\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/59d6d83ebfc44a1cb9bc61dfd56d8c1c/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":428}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "keyedai-390-K2-review-draft-the-drafted-weekly-note-on-a-phone-shows-the-Compass-quote-block.png"
+  },
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "1280",
+   "feature": "K2 review draft",
+   "step": "no Compass review: the weekly draft says so in a plain sentence",
+   "verdict": "PASS",
+   "at": "2026-10-08T05:49:00+00:00",
+   "kind": "weekly",
+   "note": "87642f3b63734394b498cc28f923f8b9",
+   "headings": [
+    "Week of Oct 5",
+    "The numbers",
+    "Discipline record",
+    "Setup changes",
+    "Links",
+    "Plans used this period",
+    "Prior reviews",
+    "Resurfaced this period",
+    "Best and worst trade",
+    "TECHNICAL FINGERPRINT",
+    "TECHNICAL FINGERPRINT",
+    "Leaks",
+    "",
+    "",
+    "Checked, and not worse than your average this period",
+    "",
+    "What Compass said"
+   ],
+   "compass_block_label": null,
+   "compass_block_text": null,
+   "after_the_heading": "What Compass said\n\nCompass has not written a review of this week, so none is quoted here.",
+   "the_page_asked": [
+    "j2/review-drafts/weekly?weekStart=2026-10-05&accountId=e6aee75f-1549-4831-862c-c5ca9819d8f5"
+   ],
+   "expected_sentence": "Compass has not written a review of this week, so none is quoted here.",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=87642f3b63734394b498cc28f923f8b9",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"38423809-4d5\",\"user_id\":\"58b9f56e-52ee-457b-b45f-7f05788182f8\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-08T05:48:51.279152+00:00\",\"updated_at\":\"2026-10-08T05:48:51.718745+00:00\",\"items\":[],\"owner_name\":\"q1k2b\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"ba8ea991-f77b-4460-a71a-0e39c2d4b545\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-08T05:48:51.541Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_getting_started\",\"value\":\"{\\\"v\\\":1,\\\"done\\\":[\\\"note\\\"]}\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes",
+     "status": 200,
+     "request": "{\"title\":\"Weekly Review — wk of Oct 5\",\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Week of Oct 5\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"4\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2 / 2 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"50%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"-0.50R\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"ty",
+     "response": "{\"note\":{\"id\":\"87642f3b63734394b498cc28f923f8b9\",\"userId\":\"58b9f56e-52ee-457b-b45f-7f05788182f8\",\"accountId\":null,\"folderId\":null,\"title\":\"Weekly Review — wk of Oct 5\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Week of Oct 5\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"4\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2 / 2 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"50%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\","
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/87642f3b63734394b498cc28f923f8b9/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":244}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "keyedai-1280-K2-review-draft-no-Compass-review-the-weekly-draft-says-so-in-a-plain-sentence.png"
+  },
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "1280",
+   "feature": "K2 review draft",
+   "step": "monthly draft: no \"What Compass said\" heading at all",
+   "verdict": "PASS",
+   "at": "2026-10-08T05:49:13+00:00",
+   "kind": "monthly",
+   "note": "12c58a8a3eab4e7eabc48c73e971beff",
+   "headings": [
+    "Monthly Review — October 2026",
+    "The numbers",
+    "Discipline record",
+    "Setup changes",
+    "Links",
+    "Plans used this period",
+    "Prior reviews",
+    "Resurfaced this period",
+    "Best and worst trade",
+    "TECHNICAL FINGERPRINT",
+    "TECHNICAL FINGERPRINT",
+    "Leaks",
+    "",
+    "",
+    "Checked, and not worse than your average this period",
+    ""
+   ],
+   "compass_block_label": null,
+   "compass_block_text": null,
+   "after_the_heading": null,
+   "the_page_asked": [
+    "j2/review-drafts/monthly?month=2026-10&accountId=e6aee75f-1549-4831-862c-c5ca9819d8f5"
+   ],
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=12c58a8a3eab4e7eabc48c73e971beff",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"38423809-4d5\",\"user_id\":\"58b9f56e-52ee-457b-b45f-7f05788182f8\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-08T05:48:51.279152+00:00\",\"updated_at\":\"2026-10-08T05:49:01.123388+00:00\",\"items\":[],\"owner_name\":\"q1k2b\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes",
+     "status": 200,
+     "request": "{\"title\":\"Monthly Review — October 2026\",\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Monthly Review — October 2026\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"4\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2 / 2 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"50%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"-0.50R\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragrap",
+     "response": "{\"note\":{\"id\":\"12c58a8a3eab4e7eabc48c73e971beff\",\"userId\":\"58b9f56e-52ee-457b-b45f-7f05788182f8\",\"accountId\":null,\"folderId\":null,\"title\":\"Monthly Review — October 2026\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Monthly Review — October 2026\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"4\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2 / 2 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"50%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\"}]}]},{\"type\":\"tableCell\",\"content\":[{\""
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/12c58a8a3eab4e7eabc48c73e971beff/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":148}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "keyedai-1280-K2-review-draft-monthly-draft-no-What-Compass-said-heading-at-all.png"
+  },
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "1280",
+   "feature": "K2 review draft",
+   "step": "two accounts, none chosen: the draft says to choose an account",
+   "verdict": "PASS",
+   "at": "2026-10-08T05:49:31+00:00",
+   "kind": "weekly",
+   "note": "1378e5cee648450d82cc2e470925ab7b",
+   "headings": [
+    "Week of Oct 5",
+    "The numbers",
+    "Discipline record",
+    "Setup changes",
+    "Links",
+    "Plans used this period",
+    "Prior reviews",
+    "Resurfaced this period",
+    "Best and worst trade",
+    "TECHNICAL FINGERPRINT",
+    "TECHNICAL FINGERPRINT",
+    "Leaks",
+    "",
+    "",
+    "Checked, and not worse than your average this period",
+    "",
+    "What Compass said"
+   ],
+   "compass_block_label": null,
+   "compass_block_text": null,
+   "after_the_heading": "What Compass said\n\nYou have several accounts and none is chosen. Compass reviews one account at a time, so no review is quoted here. Choose an account to see its review.",
+   "the_page_asked": [
+    "j2/review-drafts/weekly?weekStart=2026-10-05"
+   ],
+   "accounts": 2,
+   "stored_choice_before": "0ef9489e-6675-4673-bcb3-d7f4a18876f4",
+   "choice_for_this_step": "_all_ (All accounts)",
+   "setup": [
+    [
+     "Second account",
+     200
+    ],
+    200,
+    200,
+    200,
+    200
+   ],
+   "expected_sentence_start": "You have several accounts and none is chosen.",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=1378e5cee648450d82cc2e470925ab7b",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"3a8eff2d-680b-4d0d-a9d9-8a5513bb0e2d\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-08T05:49:16.005Z\"}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/preferences",
+     "status": 200,
+     "request": "{\"key\":\"notebook_getting_started\",\"value\":\"{\\\"v\\\":1,\\\"done\\\":[\\\"note\\\"]}\"}",
+     "response": "(response body unavailable: Error)"
+    },
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"1dd1891f-899\",\"user_id\":\"70ab49f2-12f1-4034-96d5-2b036aaca636\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-08T05:49:15.738052+00:00\",\"updated_at\":\"2026-10-08T05:49:18.561474+00:00\",\"items\":[],\"owner_name\":\"q1k2c\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes",
+     "status": 200,
+     "request": "{\"title\":\"Weekly Review — wk of Oct 5\",\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Week of Oct 5\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"4\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2 / 2 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"50%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"-0.50R\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"ty",
+     "response": "{\"note\":{\"id\":\"1378e5cee648450d82cc2e470925ab7b\",\"userId\":\"70ab49f2-12f1-4034-96d5-2b036aaca636\",\"accountId\":null,\"folderId\":null,\"title\":\"Weekly Review — wk of Oct 5\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"Week of Oct 5\"}]},{\"type\":\"heading\",\"attrs\":{\"level\":2},\"content\":[{\"type\":\"text\",\"text\":\"The numbers\"}]},{\"type\":\"table\",\"content\":[{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\"}]},{\"type\":\"tableHeader\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Value\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Trades taken\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"4\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Wins / losses / breakeven\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"2 / 2 / 0\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Win rate\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"50%\"}]}]}]},{\"type\":\"tableRow\",\"content\":[{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Average R\"}]}]},{\"type\":\"tableCell\",\"content\":[{\"type\":\"paragraph\","
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/1378e5cee648450d82cc2e470925ab7b/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":201}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "keyedai-1280-K2-review-draft-two-accounts-none-chosen-the-draft-says-to-choose-an-account.png"
+  },
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "1280",
+   "feature": "K5 briefing",
+   "step": "the spoken script ends on a whole sentence in every section, and the weekly focus is not cut mid-word",
+   "verdict": "PASS",
+   "at": "2026-10-08T05:49:33+00:00",
+   "status": 200,
+   "script": "Good morning. Here's your briefing. Regime: CURRENT MARKET REGIME: Bull correction (42% confidence). 61% above 50MA (decent) You have no open positions. This week's focus: - Before entering any trade next week, assign it a setup label from your playbook — even if the label is \"unsure.\" The discipline of naming the setup before the trade forces a question: does this fit something I have an edge in? Four unlabeled trades produce zero learnable data. Tap me when you're ready to dig in.",
+   "pieces_not_ending_on_a_sentence": [],
+   "sections_not_ending_on_a_sentence": {},
+   "weekly_focus": "- Before entering any trade next week, assign it a setup label from your playbook — even if the label is \"unsure.\" The discipline of naming the setup before the trade forces a question: does this fit something I have an edge in? Four unlabeled trades produce zero learnable data.",
+   "weekly_focus_spoken_whole_or_cut_at_a_sentence": true,
+   "section_names": [
+    "catalysts",
+    "date",
+    "interventions_summary",
+    "news",
+    "positions_summary",
+    "regime",
+    "weekly_focus"
+   ],
+   "cached": false,
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  }
+ ],
+ "configs": {
+  "keyedai": {
+   "base": "http://127.0.0.1:8132",
+   "data_dir": "C:\\data-fin-walk-ai3\\keyedai",
+   "flags_on": [
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_OCR_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_ATTACHMENTS_ON",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_VOICE_NOTES_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED"
+   ],
+   "sandbox_identity": {
+    "ok": true,
+    "sentence": "http://127.0.0.1:8132 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-walk\\docs\\plans\\joystick\\sandbox-runs\\2026-10-08T00-47-01.md (identity d1b386dabb26..., data dir C:\\data-fin-walk-ai3\\keyedai)"
+   },
+   "stop": "graceful to the shutdown checkpoint, then forced exit",
+   "integrity": {
+    "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-walk\\docs\\notebook\\evidence\\fin-walk\\keyed-ai-dda0515427\\rerun\\keyedai\\integrity-keyedai.md",
+    "required": [
+     "pre-boot (baseline)",
+     "post-boot (+15s)",
+     "post-prewarm (+120s)",
+     "shutdown"
+    ],
+    "checkpoints": [
+     {
+      "label": "pre-boot (baseline)",
+      "at": "2026-10-08 00:47:08",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-boot (+15s)",
+      "at": "2026-10-08 00:47:47",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-prewarm (+120s)",
+      "at": "2026-10-08 00:49:40",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "shutdown",
+      "at": "2026-10-08 00:49:51",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+   },
+   "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-walk\\docs\\notebook\\evidence\\fin-walk\\keyed-ai-dda0515427\\rerun\\keyedai\\integrity-keyedai.md",
+   "not_run": null,
+   "failure": null,
+   "port_free_after": true,
+   "driver_imported_api": []
+  }
+ },
+ "config": "keyedai",
+ "tip": "dda0515427",
+ "tool_tree": "e9385e048c7b982d598d96308492d9bb18483617",
+ "started": "2026-10-08T05:46:56+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "COMPLETE",
+ "flag_sets": {
+  "prod_armed": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "c1": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "keyed": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "keyedai": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ]
+ },
+ "api_writes": [
+  {
+   "config": "keyedai",
+   "method": "POST",
+   "url": "/api/j2/accounts/<id>/coach/weekly-reviews/generate",
+   "status": 200,
+   "request": "{\"weekStart\": \"2026-10-05\"}",
+   "response": "{\"id\":\"7207716f-058e-4fd8-b03d-4c7f607c00fb\",\"body\":\"# Week of 2026-10-05 — Compass's Review\\n\\nThe headline this week isn't the -$200 — it's that there's almost nothing to coach from. Four trades, no setup labels, no process scores, no emotion or mistake tags. The journal is open but the trader isn't writing in it yet. That's the pattern worth naming in week one.\\n\\n## Performance\\n- Net P&L: -$200.00 (-0.02%)\\n- Trades: 4 closed (2 wins / 2 losses / 0 BE)\\n- Win rate: 50.0% · Avg R: -0.50 · Profit factor: 0.71\\n- vs last week: First active week on record; no prior baseline to compare against.\\n\\n## Process\\n- Process score avg: — (no scores recorded)\\n- A+ setups taken: 0\\n- Risk-cap breaches: 0 (overrides used: 0)\\n- Discipline lockouts hit: 0\\n- No setup labels were attached to any of the four trades. Without them, there's no way to tell whether the two losses came from a structural edge problem or from two trades that were never part of a defined playbook.\\n\\n## Setups\\n- All four trades were logged without a setup tag.\\n- No setup-level comparison is possible this week. The data is too thin and too unlabeled to call anything a strength or a weakness. That changes the moment trades get tagged.\\n\\n## Psychology\\n- Process tagging was thin this week — limits what I can read. No emotion or mistake tags were applied to any trade. The two NVDA losses (−5.00R and −2.00R) are the most obvious candidates for a tag, but without one, the question of whether those exits were disciplined stops or something else stays open.\\n\\n## Risk\\n- Max daily drawdown: not separable by day from the data provided\\n- Max concurrent open positions: not recorded\\n- Days at daily-loss limit: 0 · Days cooling-off triggered: 0\\n- The two NVDA trades are worth a second look on sizing: a −5.00R loss is large relative to any standard risk framework. If that number reflects actual risk-per-trade rather than a wide stop on a small position, it warrants attention before next week.\\n\\n## This week's focus\\n- Before entering any trade next week, assign it a setup label from your playbook — even if the label is \\\"unsure.\\\" The discipline of naming the setup before the trade forces a question: does this fit something I have an edge in? Four unlabeled trades produce zero learnable data.\\n- Go back to the two NVDA trades this week and add at least one mistake tag and one emotion tag to each. Not for accountability — for pattern detection. Right now those two losses are invisible to the journal. Six months from now you'll want to know what was happening when you took back-to-back losses in the same name on the same day.\",\"summary\":\"The headline this week isn't the -$200 — it's that there's almost nothing to coach from. Four trades, no setup labels, no process scores, no emotion or mistake tags. The journal is open but the trader isn't writing in it yet. That's the pattern worth naming in week one.\",\"metadata\":{\"week_start\":\"2026-10-05\",\"key_observations\":[],\"this_weeks_focus\":\"- Before entering any trade next week, assign it a setup label from your playbook — even if the label is \\\"unsure.\\\" The discipline of naming the setup before the trade forces a question: does this fit something I have an edge in? Four unlabeled trades produce zero learnable data.\\n- Go back to the two NVDA trades this week and add at least one mistake tag and one emotion tag to each. Not for accountability — for pattern detection. Right now those two losses are invisible to the journal. Six months from now you'll want to know what was happening when you took back-to-back losses in the same name on the same day.\"},\"feedback\":null,\"created_at\":\"2026-10-08T05:48:11.393735+00:00\"}",
+   "trades": [
+    200,
+    200,
+    200,
+    200
+   ]
+  },
+  {
+   "config": "keyedai",
+   "method": "POST",
+   "url": "/api/voice/session_token",
+   "status": 200,
+   "request": "{\"context\": \"global\"}",
+   "response": "(redacted: holds a short-lived vendor secret) session_id=1"
+  },
+  {
+   "config": "keyedai",
+   "method": "POST",
+   "url": "/api/voice/exec",
+   "status": 200,
+   "request": "{\"session_id\": 1, \"tool\": \"play_my_morning_briefing\", \"args\": {}}",
+   "response": "{\"ok\": true, \"tool\": \"play_my_morning_briefing\", \"result\": {\"date\": \"2026-10-08\", \"script\": \"Good morning. Here's your briefing. Regime: CURRENT MARKET REGIME: Bull correction (42% confidence). 61% above 50MA (decent) You have no open positions. This week's focus: - Before entering any trade next week, assign it a setup label from your playbook \\u2014 even if the label is \\\"unsure.\\\" The discipline of naming the setup before the trade forces a question: does this fit something I have an edge in? Four unlabeled trades produce zero learnable data. Tap me when you're ready to dig in.\", \"sections\": {\"date\": \"2026-10-08\", \"regime\": \"CURRENT MARKET REGIME: Bull correction (42% confidence). 61% above 50MA (decent)\", \"news\": \"\", \"catalysts\": [], \"positions_summary\": \"You have no open positions.\", \"interventions_summary\": \"\", \"weekly_focus\": \"- Before entering any trade next week, assign it a setup label from your playbook \\u2014 even if the label is \\\"unsure.\\\" The discipline of naming the setup before the trade forces a question: does this fit something I have an edge in? Four unlabeled trades produce zero learnable data.\"}, \"generated_at\": \"2026-10-08T01:49:33.707998-04:00\", \"cached\": false}}"
+  }
+ ],
+ "finished": "2026-10-08T05:50:22+00:00"
+}

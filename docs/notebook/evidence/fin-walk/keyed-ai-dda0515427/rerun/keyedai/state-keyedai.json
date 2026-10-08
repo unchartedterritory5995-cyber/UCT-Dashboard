@@ -1,0 +1,43 @@
+{
+ "report_day": "2026-10-13",
+ "data_dir": "C:\\data-fin-walk-ai3\\keyedai",
+ "ai_email": "q1kai8469401@local.dev",
+ "note_a": "f882f2c4f54b4b5db7f3d26950723296",
+ "note_b": "a56fdc3fedc64237a42407a41087ea0b",
+ "note_long": "096bb9dc039543d8b318695cc23b44e9",
+ "k2_review_email": "q1k2a8470187@local.dev",
+ "k2a_note": "30d1ac85558f4a9dbcb4bae113640548",
+ "k2_review_week": "2026-10-05",
+ "k2_review_gen": 200,
+ "k2_review_note": "59d6d83ebfc44a1cb9bc61dfd56d8c1c",
+ "k2_review_account": "f3b1b2d4-772a-47ee-ac49-1e25da490166",
+ "k2_none_email": "q1k2b8529843@local.dev",
+ "k2b_note": "530c7cd3b2c641f6b269261c4feba3db",
+ "k2_none_seeded": [
+  200,
+  200,
+  200,
+  200
+ ],
+ "k2_two_email": "q1k2c8553996@local.dev",
+ "k2c_note": "7f55fe1924a04d428bd8337fcbd6c40c",
+ "k2_two_trades": [
+  200,
+  200,
+  200,
+  200
+ ],
+ "k2_two_made": true,
+ "k2_two_seeded": [
+  [
+   "Second account",
+   200
+  ],
+  200,
+  200,
+  200,
+  200
+ ],
+ "_k5_ctx": true,
+ "tip": "dda0515427"
+}
