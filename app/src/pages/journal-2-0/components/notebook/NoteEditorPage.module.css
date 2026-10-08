@@ -574,15 +574,6 @@
 /* Touch tier is <=1024px, never 640px (canonical breakpoint, breakpoints.css). */
 @media (max-width: 1024px) {
   .proseEditor :global(.uctToggleChevron) { width: var(--tap-min, 44px); height: var(--tap-min, 44px); }
-  /* Fin-ai K7: a toggle's title line (a voice note's "Full transcript") was 29 px tall beside
-     its 44 px fold button. The line is as tall as the button now, and its first line of text
-     sits level with the chevron. It is still text to type in; the button is still the only
-     control that folds. Padding, not flex: the summary is the editor's own text container. */
-  .proseEditor :global(.uctToggleDetails) > summary {
-    box-sizing: border-box;
-    min-height: var(--tap-min, 44px);
-    padding-top: 7px;
-  }
 }
 .proseEditor :global(.uctToggleDetails) { flex: 1 1 auto; min-width: 0; }
 .proseEditor :global(.uctToggleDetails) > summary {

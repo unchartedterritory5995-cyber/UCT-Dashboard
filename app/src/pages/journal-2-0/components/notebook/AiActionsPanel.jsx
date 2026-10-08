@@ -123,23 +123,6 @@ export function AiActionsPanel({ blockedNoteIds = null, onOpenNote, defaultOpen 
     if (e.key === 'Escape') setOpen(false)
   }
 
-  // Fin-ai K4: a plan with NO changes is not a review. It used to read "Review 0 proposed
-  // changes" over "Uncheck anything you don't want" and an "Apply 0 changes" button. Now it
-  // is a plain message: the model's own explanation (or the product's sentence when it gave
-  // none), whatever the plan skipped, and the way back to the request, which is kept.
-  const emptyPlan = Boolean(changeSet) && (changeSet.changes || []).length === 0
-  const skippedList = changeSet?.skipped?.length > 0 ? (
-    <details className={styles.skipped}>
-      <summary>Skipped ({changeSet.skippedCount || changeSet.skipped.length}) — not changed</summary>
-      <ul aria-label="Skipped changes">
-        {changeSet.skipped.map((s, i) => (
-          // eslint-disable-next-line react/no-array-index-key
-          <li key={i}>{s.noteTitle ? <strong>{s.noteTitle}: </strong> : null}{s.reason}</li>
-        ))}
-      </ul>
-    </details>
-  ) : null
-
   const appliedCount = applyResults.filter((r) => r.status === 'applied').length
   const notApplied = applyResults.filter((r) => r.status !== 'applied')
   const undoLeft = (undoBody?.results || []).filter((r) => r.status !== 'undone')
@@ -191,22 +174,7 @@ export function AiActionsPanel({ blockedNoteIds = null, onOpenNote, defaultOpen 
 
           {error && <p role="alert" className={styles.error}>{error}</p>}
 
-          {phase === 'review' && changeSet && emptyPlan && (
-            <div className={styles.review}>
-              <h3 ref={headingRef} tabIndex={-1} className={styles.heading}>Nothing to change</h3>
-              <p className={styles.asked}>You asked: “{changeSet.request}”</p>
-              <p role="status" className={styles.summary}>
-                {changeSet.summary || 'Notebook found nothing to change for that request.'}
-              </p>
-              <p className={styles.hint}>Nothing was written.</p>
-              {skippedList}
-              <div className={styles.row}>
-                <button type="button" className="btn btn-primary" onClick={reset}>Change the request</button>
-              </div>
-            </div>
-          )}
-
-          {(phase === 'review' || phase === 'applying') && changeSet && !emptyPlan && (
+          {(phase === 'review' || phase === 'applying') && changeSet && (
             <div className={styles.review}>
               <h3 ref={headingRef} tabIndex={-1} className={styles.heading}>
                 Review {changeSet.changes.length} proposed {changeSet.changes.length === 1 ? 'change' : 'changes'}
@@ -220,6 +188,7 @@ export function AiActionsPanel({ blockedNoteIds = null, onOpenNote, defaultOpen 
                   {changeSet.capped.dropped === 1 ? ' was' : ' were'} not included.
                 </p>
               )}
+              {groups.length === 0 && <p className={styles.status}>Notebook found nothing to change for that request.</p>}
               {groups.map((g) => (
                 <fieldset key={g.key} className={styles.group} disabled={phase === 'applying'}>
                   <legend className={styles.legend}>
@@ -254,7 +223,17 @@ export function AiActionsPanel({ blockedNoteIds = null, onOpenNote, defaultOpen 
                   </ul>
                 </fieldset>
               ))}
-              {skippedList}
+              {changeSet.skipped?.length > 0 && (
+                <details className={styles.skipped}>
+                  <summary>Skipped ({changeSet.skippedCount || changeSet.skipped.length}) — not changed</summary>
+                  <ul aria-label="Skipped changes">
+                    {changeSet.skipped.map((s, i) => (
+                      // eslint-disable-next-line react/no-array-index-key
+                      <li key={i}>{s.noteTitle ? <strong>{s.noteTitle}: </strong> : null}{s.reason}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
               {phase === 'applying' ? (
                 <div className={styles.progressRow}>
                   <progress max={progress.total || 1} value={progress.done} aria-label="Applying changes" />

@@ -35,10 +35,7 @@
       "symbol": "RDWN",
       "tradeRef": "id:rd-win"
     },
-    "compassOmitted": {
-      "reason": "no_monthly_review",
-      "sentence": "Compass writes daily and weekly reviews, not monthly ones, so none is quoted here."
-    },
+    "compassOmitted": null,
     "compassText": null,
     "discipline": {
       "entry": {

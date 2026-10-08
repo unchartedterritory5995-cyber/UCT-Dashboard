@@ -388,21 +388,6 @@ def build_context(user_id: str, request: str) -> dict[str, Any]:
         conn.close()
 
 
-# ⛔ fin walk K4, measured on a live model: asked to tag two notes "security", the planner
-# proposed nothing and said the tag "doesn't exist in the workspace's allowed tag list". There
-# is no such list. The server accepts any valid tag (`plan_changes`, the ADD_TAG branch runs
-# `notes._validate_tags` and nothing else). The workspace fence shows the member's EXISTING
-# tags, and the options rule below named no type, so the model read it as covering tags.
-TAG_RULE = (
-    "TAGS: a tag does not have to exist yet. The `tags` list in the workspace fence is only "
-    "the tags the member already uses, shown so you can match their spelling; it is not a "
-    "list of allowed tags. When the member asks for a tag that is not in it, propose "
-    "`add_tag` with that tag exactly as they wrote it: the tag is created when the change is "
-    "applied. Never refuse or drop a change because a tag is new.")
-OPTIONS_RULE = (
-    "A property of type `select` or `multi_select` takes only one of its listed options. "
-    "That limit applies only to properties, never to tags.")
-
 _SYSTEM = (
     "You are Notebook's change planner inside a UCT member's private trading notebook. "
     "The member types ONE request; you PROPOSE a list of changes. You never act: the "
@@ -426,12 +411,11 @@ _SYSTEM = (
     "touch trades or accounts. If the request asks for any of that, propose nothing for that "
     "part and say so in `summary`.\n\n"
     "RULES: target only notes listed in the notes fence, by their `key`. Use a property's exact "
-    f"name from the workspace fence. {OPTIONS_RULE} A folder that "
+    "name from the workspace fence and, for a choice, one of its listed options. A folder that "
     "does not exist yet needs \"create_folder\": true. A fact is frozen at the moment the member "
     "applies it; never write a number yourself. Never invent facts about a ticker or the market. "
     "Leave a note out when the request does not clearly apply to it. At most "
     f"{MAX_CHANGES} changes.\n\n"
-    f"{TAG_RULE}\n\n"
     "OUTPUT: exactly one JSON object and nothing else -- no prose, no code fence:\n"
     '{"summary": "<one sentence>", "changes": [ ...operations... ]}'
 )

@@ -24,10 +24,7 @@
       "n": 0
     },
     "bestTrade": null,
-    "compassOmitted": {
-      "reason": "no_review",
-      "sentence": "Compass has not written a review of this week, so none is quoted here."
-    },
+    "compassOmitted": null,
     "compassText": null,
     "discipline": {
       "entry": {

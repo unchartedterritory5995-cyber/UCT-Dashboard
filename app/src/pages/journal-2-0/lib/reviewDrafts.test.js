@@ -64,12 +64,7 @@ const DISCIPLINE = {
 const WEEKLY = () => contractBody('review-drafts.weekly')
 const MONTHLY = () => contractBody('review-drafts.monthly')
 const DAILY = () => contractBody('review-drafts.daily')
-// `compassOmitted: null` goes with it: the server sends a quote OR a reason it has none, never
-// both (tests/test_review_drafts.py, "never both null"), and the recorded answer carries the reason.
-const WITH_COMPASS = {
-  compassText: { text: 'You traded your plan well this week.', kind: 'weekly_review', createdAt: '2026-10-02T00:00:00Z' },
-  compassOmitted: null,
-}
+const WITH_COMPASS = { compassText: { text: 'You traded your plan well this week.', kind: 'weekly_review', createdAt: '2026-10-02T00:00:00Z' } }
 
 function fixturePayload(overrides = {}) {
   return { ...WEEKLY(), ...overrides }
@@ -191,49 +186,6 @@ describe('buildDraftBlocks — structure', () => {
     expect(WEEKLY().compassText).toBeNull()
     const without = buildDraftBlocks(WEEKLY())
     expect(without.some((b) => b.type === 'askInsert')).toBe(false)
-  })
-
-  // fin walk K2 and the owner's ruling on it. The server always says why there is no quote.
-  // Three of its reasons are news to the member and are shown. The fourth is not: Compass
-  // writes no monthly review as a product, so a monthly draft says nothing about it.
-  const compassHeadings = (blocks) => blocks.filter(
-    (b) => b.type === 'heading' && flattenText(b).join('') === 'What Compass said')
-
-  it('the recorded weekly and daily drafts say, in the server\'s words, that Compass wrote no review', () => {
-    for (const draft of [WEEKLY(), DAILY()]) {
-      expect(draft.compassOmitted.reason).toBe('no_review')
-      const blocks = buildDraftBlocks(draft)
-      expect(compassHeadings(blocks)).toHaveLength(1)
-      expect(blocks.map((b) => flattenText(b).join('')).join('\n')).toContain(draft.compassOmitted.sentence)
-    }
-  })
-
-  it('the recorded MONTHLY draft has no Compass heading and no sentence about one', () => {
-    const draft = MONTHLY()
-    expect(draft.compassOmitted.reason).toBe('no_monthly_review')
-    const blocks = buildDraftBlocks(draft)
-    expect(compassHeadings(blocks)).toHaveLength(0)
-    expect(blocks.map((b) => flattenText(b).join('')).join('\n')).not.toContain(draft.compassOmitted.sentence)
-  })
-
-  it.each([
-    ['no_review', true],
-    ['windows_differ', true],
-    ['several_accounts', true],
-    ['no_monthly_review', false],
-  ])('reason %s: the sentence is shown = %s', (reason, shown) => {
-    const sentence = `A sentence for ${reason}.`
-    const blocks = buildDraftBlocks(fixturePayload({ compassText: null, compassOmitted: { reason, sentence } }))
-    const text = blocks.map((b) => flattenText(b).join('')).join('\n')
-    expect(compassHeadings(blocks)).toHaveLength(shown ? 1 : 0)
-    expect(text.includes(sentence)).toBe(shown)
-  })
-
-  it('a reason this client has never heard of still shows its sentence', () => {
-    // A newer server may add a reason. Saying it beats dropping it without a word.
-    const blocks = buildDraftBlocks(fixturePayload({
-      compassText: null, compassOmitted: { reason: 'something_new', sentence: 'A new reason.' } }))
-    expect(compassHeadings(blocks)).toHaveLength(1)
   })
 })
 

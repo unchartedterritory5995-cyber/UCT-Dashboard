@@ -573,15 +573,11 @@ def test_the_daily_compass_quote_is_left_out_when_a_date_only_trade_makes_the_da
     assert payload["compassText"]["text"].startswith("A quiet day") and payload["compassOmitted"] is None
 
 
-def test_with_no_compass_review_the_draft_says_there_is_none_and_never_blames_the_windows(conn, client, monkeypatch):
-    """Restated for fin walk K2. With no review there is no window to compare, so the reason
-    is "no review", never "the windows differ". It used to be two nulls: no quote, no word."""
+def test_with_no_compass_review_there_is_nothing_to_omit(conn, client, monkeypatch):
     _compass(monkeypatch)
     _evening(conn, "2026-10-02", "2026-10-03", symbol="AAPL", entry_price=200.0, exit_price=195.0)
     payload = client.get("/api/j2/review-drafts/weekly", params={"weekStart": "2026-09-28", "accountId": ACCOUNT}).json()
-    assert payload["compassText"] is None
-    assert payload["compassOmitted"]["reason"] == "no_review"
-    assert "draftOnly" not in payload["compassOmitted"]
+    assert payload["compassText"] is None and payload["compassOmitted"] is None
 
 
 # ── fin walk P7: a draft SAYS the discipline part is unavailable, and why ───────────────────
@@ -607,137 +603,3 @@ def test_with_plan_grading_on_nothing_is_said_to_be_left_out(conn, client, monke
     for payload in _three_drafts(client):
         assert payload["discipline"] is not None
         assert payload["disciplineOmitted"] is None
-
-
-# ── fin walk K2: the quote is found without an account id, and its absence is always said ────
-#
-# The page asked for the weekly draft with NO account id. The server looked for a Compass
-# review under the all-accounts id only, found none, and answered `compassText: null` and
-# `compassOmitted: null`: no quote and no word why. The same request with the member's one
-# account returned the quote.
-
-def _compass_by_account(monkeypatch, weekly: dict):
-    """A Compass store that answers per account, as the real one does: {account id: week}."""
-    from api.services.journal_two import coach
-    monkeypatch.setattr(coach, "list_weekly_reviews", lambda user_id, account_id, **k: (
-        [{"metadata": {"week_start": weekly[account_id]}, "body": f"Review for {account_id}. Stops held.",
-          "created_at": "x"}] if account_id in weekly else []))
-    monkeypatch.setattr(coach, "list_eod_recaps", lambda **k: [])
-
-
-def _second_account(conn, account_id="acc-rd-2"):
-    conn.execute(
-        "INSERT INTO j2_accounts (id, user_id, name, color, starting_balance, account_size, created_at, updated_at)"
-        " VALUES (?,?,?,?,?,?,?,?)",
-        (account_id, U, "Second", "#000", 5000.0, 5000.0, "2026-02-01T00:00:00+00:00", "2026-02-01T00:00:00+00:00"))
-    conn.commit()
-    return account_id
-
-
-def _week_trade(conn, **kw):
-    add_trade(conn, symbol="NVDA", entry_date="2026-09-29T13:30:00+00:00",
-              exit_date="2026-09-29T19:00:00+00:00", entry_price=100.0, exit_price=101.0, **kw)
-
-
-WEEK = {"weekStart": "2026-09-28"}
-
-
-def test_with_one_account_and_no_account_id_the_quote_is_that_accounts_review(conn, client, monkeypatch):
-    _compass_by_account(monkeypatch, {ACCOUNT: "2026-09-28"})
-    _week_trade(conn)
-    payload = client.get("/api/j2/review-drafts/weekly", params=WEEK).json()
-    assert payload["compassText"]["text"].startswith(f"Review for {ACCOUNT}")
-    assert payload["compassOmitted"] is None
-    # and it is the same answer the explicit request gives
-    explicit = client.get("/api/j2/review-drafts/weekly", params={**WEEK, "accountId": ACCOUNT}).json()
-    assert explicit["compassText"] == payload["compassText"]
-
-
-def test_a_review_written_for_all_accounts_is_still_found_first(conn, client, monkeypatch):
-    from api.services.journal_two.unified_coach import UNIFIED_ACCOUNT_ID
-    _second_account(conn)
-    _compass_by_account(monkeypatch, {UNIFIED_ACCOUNT_ID: "2026-09-28", ACCOUNT: "2026-09-28"})
-    _week_trade(conn)
-    payload = client.get("/api/j2/review-drafts/weekly", params=WEEK).json()
-    assert payload["compassText"]["text"].startswith(f"Review for {UNIFIED_ACCOUNT_ID}")
-
-
-def test_with_several_accounts_and_none_chosen_no_review_is_guessed_and_the_draft_says_why(conn, client, monkeypatch):
-    second = _second_account(conn)
-    _compass_by_account(monkeypatch, {ACCOUNT: "2026-09-28", second: "2026-09-28"})
-    _week_trade(conn)
-    payload = client.get("/api/j2/review-drafts/weekly", params=WEEK).json()
-    assert payload["compassText"] is None, "one account's review was quoted for a draft of every account"
-    assert payload["compassOmitted"] == {
-        "reason": "several_accounts",
-        "sentence": "You have several accounts and none is chosen. Compass reviews one account at a time, "
-                    "so no review is quoted here. Choose an account to see its review.",
-    }
-    # choosing one brings its own review back
-    chosen = client.get("/api/j2/review-drafts/weekly", params={**WEEK, "accountId": second}).json()
-    assert chosen["compassText"]["text"].startswith(f"Review for {second}")
-    assert chosen["compassOmitted"] is None
-
-
-def test_with_no_review_for_the_period_the_draft_says_so(conn, client, monkeypatch):
-    _compass_by_account(monkeypatch, {})
-    _week_trade(conn)
-    for params in (WEEK, {**WEEK, "accountId": ACCOUNT}):
-        payload = client.get("/api/j2/review-drafts/weekly", params=params).json()
-        assert payload["compassText"] is None
-        assert payload["compassOmitted"] == {
-            "reason": "no_review",
-            "sentence": "Compass has not written a review of this week, so none is quoted here.",
-        }
-    daily = client.get("/api/j2/review-drafts/daily", params={"day": "2026-09-29"}).json()
-    assert daily["compassOmitted"] == {
-        "reason": "no_review",
-        "sentence": "Compass has not written a review of this day, so none is quoted here.",
-    }
-
-
-def test_a_member_with_no_account_at_all_gets_a_reason_too(conn, client, monkeypatch):
-    conn.execute("DELETE FROM j2_accounts WHERE user_id = ?", (U,))
-    conn.commit()
-    _compass_by_account(monkeypatch, {})
-    payload = client.get("/api/j2/review-drafts/weekly", params=WEEK).json()
-    assert payload["compassText"] is None and payload["compassOmitted"]["reason"] == "no_review"
-
-
-def test_the_monthly_draft_says_compass_writes_no_monthly_review(conn, client, monkeypatch):
-    _compass_by_account(monkeypatch, {ACCOUNT: "2026-09-28"})
-    payload = client.get("/api/j2/review-drafts/monthly", params={"month": "2026-09"}).json()
-    assert payload["compassText"] is None
-    assert payload["compassOmitted"] == {
-        "reason": "no_monthly_review",
-        "sentence": "Compass writes daily and weekly reviews, not monthly ones, so none is quoted here.",
-    }
-
-
-def test_a_window_mismatch_carries_its_reason(conn, client, monkeypatch):
-    _compass(monkeypatch, week="2026-09-28")
-    _week_trade(conn)
-    _evening(conn, "2026-10-02", "2026-10-03", symbol="AAPL", entry_price=200.0, exit_price=195.0)
-    payload = client.get("/api/j2/review-drafts/weekly", params={**WEEK, "accountId": ACCOUNT}).json()
-    assert payload["compassOmitted"]["reason"] == "windows_differ"
-    assert payload["compassOmitted"]["sentence"]
-
-
-def test_the_quote_and_its_absence_are_never_both_null(conn, client, monkeypatch):
-    """The rail. Every draft, with and without an account id, with and without a review."""
-    _week_trade(conn)
-    for store in ({}, {ACCOUNT: "2026-09-28"}):
-        _compass_by_account(monkeypatch, store)
-        for account in (None, ACCOUNT):
-            extra = {"accountId": account} if account else {}
-            for path, params in (("daily", {"day": "2026-09-29"}), ("weekly", WEEK), ("monthly", {"month": "2026-09"})):
-                payload = client.get(f"/api/j2/review-drafts/{path}", params={**params, **extra}).json()
-                quote, omitted = payload["compassText"], payload["compassOmitted"]
-                assert (quote is None) != (omitted is None), (path, account, store, quote, omitted)
-                if omitted is not None:
-                    assert omitted["reason"] in review_drafts_reasons() and omitted["sentence"].strip()
-
-
-def review_drafts_reasons():
-    from api.services.journal_two import review_drafts
-    return set(review_drafts.COMPASS_OMITTED_REASONS)

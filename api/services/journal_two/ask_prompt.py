@@ -121,10 +121,7 @@ _GROUNDING = (
     "invent a fact, price, date, or figure that is not in a source. A refusal "
     "grounded in the corpus is a correct answer; a confident guess is not.\n\n"
     "COVERAGE HONESTY: if the SEARCHED line reports documents that could not "
-    "be searched, do not imply you read everything the member has. Say it in plain words "
-    "(for example: 'one attached document could not be searched'). The word SEARCHED, the "
-    "source markers and every other label in this message are ours: never name or quote "
-    "them to the member.\n\n"
+    "be searched, do not imply you read everything the member has.\n\n"
     "HISTORICAL CLAIMS: a note records what the member believed when they "
     "wrote it. Do not silently correct it against anything you know happened "
     "since, and do not append current data the sources do not contain.\n\n"
@@ -155,63 +152,6 @@ _AUTHORSHIP = (
     "into one sequence.\n\n"
 )
 
-#: The two marks `render_source` puts on a source, and the rule about them below. ONE pair of
-#: strings: the instruction names the same words the data carries, so they cannot drift.
-EXCERPT_MARK = "extent: an excerpt -- part of a longer source; the rest exists and was not sent"
-WHOLE_MARK = "extent: the whole note"
-
-# ⛔ fin walk K1, measured on a live model: handed a 240-character window of a whole note, the
-# model told the member "the note cuts off" and "both appear truncated". The window's edge is
-# OURS, not theirs. Short notes are now sent whole (`ask_retrieval.NOTE_WHOLE_MAX_CHARS`); this
-# is the rule for the ones that are not.
-_EXCERPTS = (
-    "EXCERPTS: some sources are only part of what the member wrote.\n"
-    f"A source marked `{EXCERPT_MARK}` shows a passage from a longer note or document. The "
-    "rest of it exists and is complete; it simply was not sent to you. Where the passage "
-    "stops is where OUR selection stops, not where the member stopped writing.\n"
-    f"A source marked `{WHOLE_MARK}` is the entire note. Nothing is missing from it.\n"
-    "Never tell the member that their note or document is cut off, truncated, incomplete, "
-    "unfinished or missing its ending, and never say that it stops or ends abruptly. That "
-    "would be a false statement about their own writing.\n"
-    "When an excerpt does not cover something the question asks, say you are working from "
-    "part of the note and that the rest of it may say more. Do not guess what the rest "
-    "says.\n\n"
-)
-
-# ⛔ fin walk K6. The desk's shared SCOPE paragraph tells a model to refuse anything not about
-# markets with "I'm the UCT research desk ...". That is right for the public research desk and
-# wrong here: asked about the member's own Word file, the model answered correctly, cited it,
-# and then added that the content "appears unrelated to markets or trading". This prompt takes
-# the desk's real safety boundary by name (`desk_safety_text`) and states its own scope.
-_NOTEBOOK_SCOPE = (
-    "SCOPE: this is the member's own notebook, and everything in it is theirs to ask about. "
-    "A note or an attached file on any subject is in scope: a meeting memo, a recipe, a "
-    "reading list, a trade plan. Answer what the sources say.\n"
-    "Never remark that a source or a question is unrelated to markets or trading, never "
-    "describe yourself as a research desk, and never decline or add a caveat because the "
-    "subject is not financial.\n"
-    "This widens what you may answer ABOUT, not what you may answer FROM: the grounding rule "
-    "below still holds, so you do not write essays, code or general-purpose content out of "
-    "your own knowledge.\n\n"
-)
-
-_SAFETY_KEEP = "ILLEGAL / MANIPULATION"
-
-
-@functools.lru_cache(maxsize=1)
-def desk_safety_text() -> str:
-    """The desk's hard refusal (market manipulation, trading on inside information), taken
-    from the desk's ONE copy by its heading. Never retyped here: a second copy would drift.
-    Raises if the heading is gone, so a rewording of the desk text cannot silently drop the
-    boundary from this prompt."""
-    from api.routers.ai_search import _SAFETY_BLOCKS  # shared desk safety text
-    kept = [p for p in _SAFETY_BLOCKS.split("\n\n") if p.startswith(_SAFETY_KEEP)]
-    if len(kept) != 1:
-        raise RuntimeError("the desk safety text no longer has exactly one "
-                           f"{_SAFETY_KEEP!r} paragraph; ask_prompt cannot select it")
-    return kept[0] + "\n\n"
-
-
 _CITATION = (
     "CITATIONS: cite a source by its number in square brackets -- [1], [3] -- "
     "immediately after the claim it supports. Only the numbers actually listed "
@@ -232,8 +172,9 @@ def system_prompt() -> str:
     reach this string. Adding an argument here is the change that would
     reopen the hole, which is why the rails assert the signature itself.
     """
-    return (_CONTRACT_HEAD + _NOTEBOOK_SCOPE + desk_safety_text() + _BOUNDARY
-            + _CAPABILITY + _GROUNDING + _EXCERPTS + _AUTHORSHIP + _CITATION)
+    from api.routers.ai_search import _SAFETY_BLOCKS  # shared desk safety text
+    return (_CONTRACT_HEAD + _SAFETY_BLOCKS + "\n\n" + _BOUNDARY
+            + _CAPABILITY + _GROUNDING + _AUTHORSHIP + _CITATION)
 
 
 # ── The data layer ───────────────────────────────────────────────────────────
@@ -272,12 +213,6 @@ def render_source(n: int, item: dict[str, Any]) -> str:
              f"type: {neutralize(item.get('source_type'))}",
              f"label: {neutralize(item.get('label'))}",
              f"citation: {neutralize(item.get('citation_validity'))}"]
-    # How much of the source this is (fin walk K1). Ours to say, in fixed words, in the
-    # header: never inside the member's text, and never as a remark about a "cut".
-    if item.get("truncated"):
-        lines.append(EXCERPT_MARK)
-    elif item.get("source_type") == ev.NOTE:
-        lines.append(WHOLE_MARK)
     if item.get("stance"):
         lines.append(f"attached to a thesis as: {neutralize(item['stance'])}")
     payload = item.get("payload") or {}
@@ -289,6 +224,9 @@ def render_source(n: int, item: dict[str, Any]) -> str:
     if text:
         lines.append("---")
         lines.append(text)
+    if item.get("truncated"):
+        lines.append("(this passage was shortened to fit; do not treat the cut "
+                     "as the end of the member's writing)")
     lines.append(f"<<{SENTINEL} {n} END>>")
     return "\n".join(lines)
 

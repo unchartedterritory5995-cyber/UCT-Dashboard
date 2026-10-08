@@ -6,7 +6,6 @@ import UIcon from '../../../../components/ui/UIcon'
 import usePreferences from '../../../../hooks/usePreferences'
 import { useIsPaid } from '../../../../context/AuthContext'
 import useNotebookHome from '../../hooks/useNotebookHome'
-import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { openNotebookTour } from './onboarding/tourControl'
 import {
@@ -90,14 +89,7 @@ export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '' }) {
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
   const headingRef = useRef(null)
-  // Finish program, lane AI-FE (K2): the drafts are asked for the member's SELECTED account,
-  // the same hook every Journal read uses (the Insights door already hands its id in). With
-  // no id the server has no account to look a Compass review up for, so the quote never
-  // showed. `null` ("All accounts") still sends no id. The hook is told not to fetch while
-  // the box is off, so a dark box still asks for nothing.
-  const on = reviewDraftsEnabled()
-  const { accountId } = useJ2SelectedAccount(on)
-  if (!on) return null
+  if (!reviewDraftsEnabled()) return null
 
   const run = async (period, fn) => {
     if (busy) return
@@ -136,15 +128,15 @@ export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '' }) {
       </div>
       <div className={styles.rows} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '4px 0' }}>
         <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} data-tour="review-drafts-daily"
-          onClick={() => run('daily', (m) => m.draftDailyReview({ accountId, day: m.todayDayIso() }))}>
+          onClick={() => run('daily', (m) => m.draftDailyReview({ day: m.todayDayIso() }))}>
           <UIcon name="book" size={14} gold={false} /> {busy === 'daily' ? 'Drafting…' : "Today's recap"}
         </button>
         <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} data-tour="review-drafts-weekly"
-          onClick={() => run('weekly', (m) => m.draftWeeklyReview({ accountId, weekStart: m.mondayOfIso() }))}>
+          onClick={() => run('weekly', (m) => m.draftWeeklyReview({ weekStart: m.mondayOfIso() }))}>
           <UIcon name="book" size={14} gold={false} /> {busy === 'weekly' ? 'Drafting…' : "This week's review"}
         </button>
         <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} data-tour="review-drafts-monthly"
-          onClick={() => run('monthly', (m) => m.draftMonthlyReview({ accountId, month: m.thisMonthIso() }))}>
+          onClick={() => run('monthly', (m) => m.draftMonthlyReview({ month: m.thisMonthIso() }))}>
           <UIcon name="book" size={14} gold={false} /> {busy === 'monthly' ? 'Drafting…' : "This month's review"}
         </button>
       </div>

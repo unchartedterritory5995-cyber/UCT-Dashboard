@@ -35,10 +35,7 @@
       "symbol": "RDWN",
       "tradeRef": "id:rd-win"
     },
-    "compassOmitted": {
-      "reason": "no_review",
-      "sentence": "Compass has not written a review of this day, so none is quoted here."
-    },
+    "compassOmitted": null,
     "compassText": null,
     "discipline": {
       "entry": {

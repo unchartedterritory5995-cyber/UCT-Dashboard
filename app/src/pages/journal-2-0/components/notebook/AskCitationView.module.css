@@ -67,9 +67,6 @@
   .wrap .chip {
     position: relative;
     min-height: 0;
-    /* Fin-ai K7: the panel's chip is now 44 px WIDE as well; a chip in a line of prose
-       keeps its own width (the 30.3 px the geometry above is worked out from). */
-    min-width: 0;
     line-height: inherit;
     padding-top: 1px;
     padding-bottom: 1px;
