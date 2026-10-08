@@ -176,7 +176,7 @@ def test_library_bars_append_only_after_the_canonical_end(monkeypatch):
 
 
 def test_nothing_is_served_while_the_flag_is_off(monkeypatch):
-    monkeypatch.delenv("BREADTH_LIVE_UNIVERSES", raising=False)
+    monkeypatch.setenv("BREADTH_LIVE_UNIVERSES", "0")
     assert blu.serving() is False
     assert blu.rows_for("us") == []
     body = [{"t": "2026-10-06", "o": 1, "h": 1, "l": 1, "c": 1.0, "v": 0}]
@@ -307,3 +307,10 @@ def test_a_slow_dividend_store_never_hangs_the_build(monkeypatch):
     monkeypatch.setattr(bl, "_apply_dividend_basis", lambda *a, **k: a[2] * 2)
     out, st = blu._dividend_basis_with_budget(["A", "B"], [1, 2, 3], c, 3)
     assert st == "applied" and out[0, 0] == 2
+
+
+
+def test_serving_is_on_by_default(monkeypatch):
+    monkeypatch.delenv("BREADTH_LIVE_UNIVERSES", raising=False)
+    monkeypatch.setattr(bl, "enabled", lambda: True)
+    assert blu.serving() is True
