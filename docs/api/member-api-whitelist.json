@@ -32,6 +32,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/agent/conversations",
+      "rate_limit_family": "ai",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/agent/conversations/{conversation_id}",
+      "rate_limit_family": "ai",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/ai-search/briefings",
       "rate_limit_family": "ai",
       "tier": "paid"
@@ -99,6 +111,18 @@
     {
       "method": "GET",
       "path": "/api/alerts/taxonomy/fires",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/taxonomy/fires/{fire_id}/read-state",
+      "rate_limit_family": "member-workspace",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/alerts/taxonomy/rating-change",
       "rate_limit_family": "member-workspace",
       "tier": "member"
     },
@@ -1082,6 +1106,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/flow/tape-span",
+      "rate_limit_family": "options-flow",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
       "path": "/api/flow/ticker-product/{symbol}",
       "rate_limit_family": "options-flow",
       "tier": "member"
@@ -1089,6 +1119,12 @@
     {
       "method": "GET",
       "path": "/api/flow/ticker/{symbol}",
+      "rate_limit_family": "options-flow",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/flow/ticker/{symbol}/day-counts",
       "rate_limit_family": "options-flow",
       "tier": "member"
     },
@@ -3020,6 +3056,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/screener/fields",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/screener/grammar",
       "rate_limit_family": "screener",
       "tier": "paid"
@@ -3653,9 +3695,6 @@
     "/api/exports/options/{sym}/chain",
     "/api/exports/quota",
     "/api/exports/watchlists/{wl_id}",
-    "/api/marketcap/pit-status",
-    "/api/marketcap/pit/{ticker}",
-    "/api/marketcap/pit/{ticker}/latest",
     "/api/options-screener/iv-percentile",
     "/api/options-screener/more-strategies",
     "/api/options-screener/more/{name}",

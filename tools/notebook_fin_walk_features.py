@@ -761,8 +761,9 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             err = str(e)[:300]
         matches = pg.locator("[data-match]").count()
         if tag == "before the first overnight run":
-            verdict = "PASS" if text and not matches else "FAIL"
-            name = "find similar before the first overnight run: an honest 'nothing yet', not an error"
+            never = bool(re.search(r"never|not matched|aren.t matched|example", text or "", re.I)) and "matched tonight" not in (text or "")
+            verdict = "PASS" if text and not matches and (sym != "MSFT" or never) else "FAIL"
+            name = "find similar on an Example card: says an example is never matched, and promises nothing"
         else:
             verdict = "PASS" if matches and "CRWD" in (text or "") else "FAIL"
             name = "find similar after the overnight run: the matching name is listed"
@@ -823,7 +824,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                    "PASS" if want in ntext else "FAIL", seeded_entry=e_, seeded_exit=t_, expected=want, percents_in_note=pcts[:20],
                    trade_lines=[ln.strip()[:160] for ln in ntext.splitlines() if "%" in ln and ("AMD" in ln or "trade" in ln.lower())][:6])
         S["prep_note"] = made
-    run("earnings", earnings)
+    # run AFTER the trade is closed (steps execute in source order): see below, after "grading"
 
     # ── transcript passage capture ──────────────────────────────────────────────────────
     def transcript():
@@ -947,6 +948,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 pg.wait_for_timeout(500)
         except Exception as e:  # noqa: BLE001
             err = str(e)[:300]
+        S["explainer_in_feature_step"] = C.vis(pg, "[data-tour-explainer]", 15000) if opened else False
+        if S["explainer_in_feature_step"]:
+            C.step(pg, inst, "tour: note-resurfaces", "the explainer shows in the sheet the first time a notice is opened (member had not seen it)", "PASS",
+                   explainer_text=pg.locator("[data-tour-explainer]").first.inner_text()[:300], scope=["[data-tour-explainer]"])
+        else:
+            C.step(pg, inst, "tour: note-resurfaces", "the explainer shows in the sheet the first time a notice is opened (member had not seen it)", "FAIL",
+                   notebook_tours=w.prefs_of(ctx, base).get("notebook_tours"), sheet_open=opened)
         ok = (opened and "version that first named the level" in (text or "") and "mainframe cycle is the story." in (text or "")
               and "Added a target after the print" not in (text or ""))
         C.step(pg, inst, "note resurfacing", "the notice opens the note at 'What you wrote then': the version that first named the stop",
@@ -1005,6 +1013,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         C.step(pg, inst, "plan grading", "a trade with no plan is labelled Unplanned in the trades table and on its page",
                "PASS" if chip and badge else "FAIL", chip_in_table=chip, badge_on_page=badge)
     run("grading", grading)
+    run("earnings", earnings)   # the prep note is a frozen snapshot: built only after the AMD trade is closed
 
     def discipline():
         C.goto(pg, base, "/journal/insights?ins=discipline")
@@ -1098,6 +1107,15 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                             ("dictation", "voice dictation and voice notes")):
             C.step(None, inst, feat_, what, "NOT_RUN", reason="NO KEY", shot=False)
     run("nokey", nokey)
+
+    def passed_show_all():
+        home()
+        C.vis(pg, "[data-passed-setups]", 20000)
+        rows_ = pg.locator("[data-passed-symbol]").count()
+        show = pg.get_by_role("button", name=re.compile(r"^Show all", re.I)).count()
+        C.step(pg, inst, "passed setups", "five rows and a Show all control once there are more than five", "NOT_RUN" if rows_ <= 5 and not show else ("PASS" if rows_ == 5 and show else "FAIL"),
+               rows=rows_, show_all=show, reason="the member has five or fewer passed names in this walk" if rows_ <= 5 and not show else None)
+    run("reviews", passed_show_all)
 
     # ── layout pass at 820 and 390 over the same member's pages ─────────────────────────
     def pages_for_layout():
@@ -1241,8 +1259,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         except Exception as e:  # noqa: BLE001
             sub.append({"check": "driver", "verdict": "FAIL", "error": str(e)[:300]})
         fails = [s["check"] for s in sub if s["verdict"] == "FAIL"]
-        C.step(p2, i2, "tour: note-resurfaces", "the explainer in the 'What you wrote then' sheet", "PASS" if sub and not fails else "FAIL",
-               failed_checks=fails, sub_checks=list(sub))
+        seen_before = bool(S.get("explainer_in_feature_step"))
+        C.step(p2, i2, "tour: note-resurfaces", "the explainer in the sheet on a later open (shown once per member: it was seen in the resurfacing step)" if seen_before
+               else "the explainer in the 'What you wrote then' sheet", "INFO" if seen_before else ("PASS" if sub and not fails else "FAIL"),
+               failed_checks=fails, sub_checks=list(sub), already_seen=seen_before)
         c2.close()
     run("tours1280", lambda: tours("1280"))
     run("tours820", lambda: tours("820"))
@@ -1282,6 +1302,14 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
     # ── remove the sample in one click; nothing of it remains ───────────────────────────
     def remove():
         before = M.get(base + "/api/j2/onboarding/sample-notebook").json()
+        def folders_now():
+            r = M.get(base + "/api/j2/note-folders")
+            j = r.json() if r.status == 200 else {}
+            return [(f.get("id"), f.get("name"), f.get("parentId") or f.get("parent_id")) for f in ((j.get("folders") if isinstance(j, dict) else j) or [])]
+        f_before = folders_now()
+        fs_, fb_ = C.api(ctx, inst, "POST", base, "/api/j2/note-folders", {"name": "Sample notebook"})
+        own_folder = ((fb_ or {}).get("folder") or fb_ or {}).get("id") if isinstance(fb_, dict) else None
+        S["own_same_name_folder"] = own_folder
         home()
         strip = pg.get_by_text("You're looking at the sample notebook")
         there = C.vis_loc(strip, 30000)
@@ -1356,6 +1384,12 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             found_by_search = f"(search box not reached: {str(e)[:100]})"
         folders = M.get(base + "/api/j2/note-folders")
         folder_names = [f.get("name") for f in ((folders.json().get("folders") if isinstance(folders.json(), dict) else folders.json()) or [])] if folders.status == 200 else f"HTTP {folders.status}"
+        f_after = folders_now()
+        sample_made = {f[0] for f in f_before}
+        left = [f for f in f_after if f[0] in sample_made and f[1] in ("Sample notebook", "Capability examples")]
+        C.step(None, inst, "remove sample", "no folder the sample created is left; the member's own folder with the same name survives",
+               "PASS" if not left and own_folder and any(f[0] == own_folder for f in f_after) else "FAIL", folders_before=f_before,
+               own_folder_create_status=fs_, own_folder=own_folder, folders_after=f_after, sample_folders_left=left, shot=False)
         C.step(pg, inst, "remove sample", "the notes list, its search, the visual playbook and passed setups hold nothing of the sample",
                "PASS" if not in_list and not found_by_search and not vp_left and "GOOGL" not in passed_txt else "FAIL",
                titles_in_list=in_list, found_by_search=found_by_search, visual_playbook_ids_left=vp_left,

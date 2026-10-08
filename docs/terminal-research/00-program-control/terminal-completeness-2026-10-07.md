@@ -31,7 +31,7 @@ rows) · **h** phone (works as the single visible panel).
 |---|---|---|---|---|---|---|---|---|---|
 | CAL | Calendar | pass | pass | pass | pass | fixed (loading label) | pass | pass (URL-owning) | pass |
 | MYST | door /calendar/mystocks | pass | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
-| ERN | Calendar (earnings modal) | pass | pass | pass | blocked(EarningsResearchModal.module.css debt — tf7-themedebt) | pass | pass | pass | pass |
+| ERN | Calendar (earnings modal) | pass | pass | pass | fixed (tf9-theme: owner ruling 2026-10-07 — the modal follows the theme; island removed, 0 literals, AA in 21 themes) | pass | pass | pass | pass |
 | DES | OverviewPanel → OverviewTab | pass | fixed (fn8-retry: loading state; a vendor failure carries `status` → error + Retry, a genuine empty says so) | pass | pass | pass | fixed (fn8: two-place P/E, beta, 52w; % yield) | pass | pass |
 | GP | ChartPanel → StockChart | pass | fixed (adapter test) | blocked(chart lane owns the as-of) | pass | pass | pass | pass | pass |
 | CN | NewsTab | pass | fixed (402 = paid gate, not "Couldn't load") | pass | pass | pass | pass | pass | pass |
@@ -39,12 +39,12 @@ rows) · **h** phone (works as the single visible panel).
 | MOVE | MovePanel | pass | fixed (PanelState error + Retry) | pass | pass | pass | pass | pass (onRows) | pass |
 | WIIM | MovePanel | pass | fixed (as MOVE) | pass | pass | pass | pass | pass (onRows) | pass |
 | TECH | TechnicalTab | pass | pass | pass | pass | pass | pass | pass | pass |
-| FA | FinancialsDeep | pass | pass | pass | pass | pass | owner (unknown currency prints "$") | pass | pass |
-| EE | ConsensusEstimates | pass | fixed (fn8-retry: the fallback reason is worded per case) | pass | pass | pass | owner (unknown currency prints "$") | pass | pass |
+| FA | FinancialsDeep | pass | pass | pass | pass | pass | fixed (tf9-theme: unknown currency → no symbol + "Currency not reported.") | pass | pass |
+| EE | ConsensusEstimates | pass | fixed (fn8-retry: the fallback reason is worded per case) | pass | pass | pass | fixed (tf9-theme: unknown currency → no symbol + "Currency not reported.") | pass | pass |
 | EEH | EstimateHistoryTab | pass | pass | pass | pass | pass | pass | pass | pass |
-| ANR | AnalystRatingsTab | pass | fixed (402 = paid gate) | pass | pass | pass | owner (price target always "$") | pass | pass |
+| ANR | AnalystRatingsTab | pass | fixed (402 = paid gate) | pass | pass | pass | fixed (tf9-theme: targets are USD on the US listing — "$" kept, card titled "Price target (USD)") | pass | pass |
 | RTG | RatingsTab | pass | fixed (402 = paid gate) | pass | pass | pass | pass | pass | pass |
-| OWN | OwnershipTab | pass | fixed (402 = paid gate) | pass | pass | pass | owner (Yahoo holder value always "$") | pass | pass |
+| OWN | OwnershipTab | pass | fixed (402 = paid gate) | pass | pass | pass | fixed (tf9-theme: holder values are USD (13F / Form 4) — "$" kept, columns say "(USD)") | pass | pass |
 | PPL | PeopleTab | pass | pass | pass | pass | pass | fixed (hand-made money formatter) | pass | pass |
 | TRAN | CallsTab | pass | fixed (fn8-retry: the recap error is the first block, PanelState + Retry) | pass | pass | pass | pass | pass | pass |
 | MB (sec) | ModelBookTab | pass | pass | pass | pass | pass | pass | pass | pass |
@@ -118,9 +118,9 @@ A row can be both `fixed` and `open` (one gap closed, another left), so b and f 
 | a parse + HELP (all 73 codes, doors included) | 73 | — | — | — | — |
 | b panel tests / loading · error+retry · empty | 21 | 36 | — | — | 0 (14 closed by `terminal/fn8-retry`) |
 | c provenance (2 of the passes are reasoned exemptions: HELP, RSCH) | 56 | — | 1 (GP) | — | — |
-| d theme | 55 | — | 2 (ERN, BRD → tf7-themedebt) | — | — |
+| d theme | 55 | 1 (ERN, tf9-theme) | 1 (BRD → tf7-themedebt) | — | — |
 | e a11y | 56 | 1 (CAL) | — | — | — |
-| f numbers / currency | 36 | 15 (BRKE, PPL; fn8: VOL, POS, OHIS, OBT, STRS, FREC, U20, BRD, RISK, ERX, ATTN, SEAS, DES) | 1 (RSCH) | 4 (FA, EE, ANR, OWN — awaiting the owner) | — |
+| f numbers / currency | 36 | 19 (BRKE, PPL; fn8: VOL, POS, OHIS, OBT, STRS, FREC, U20, BRD, RISK, ERX, ATTN, SEAS, DES; tf9: FA, EE, ANR, OWN) | 1 (RSCH) | — (FA, EE, ANR, OWN decided 2026-10-07) | — |
 | g linking | 49 | 8 (fn8: REL, CORR, U20, FREC, CATH, RISK, OSCR, WIRE) | — | — | — |
 | h phone | 56 | 1 (BRD) | — | — | — |
 
@@ -155,16 +155,32 @@ A row can be both `fixed` and `open` (one gap closed, another left), so b and f 
 **Blocked**
 - GP provenance: the bars' as-of lives in StockChart / `components/chart/**` (another lane; existing EXEMPT).
 - RSCH `fmtFactValue` hand-made `$`: `journal-2-0/**` is off-limits to this lane.
-- ERN / BRD colour debt: `EarningsResearchModal.module.css`, `breadth/heatmapMetrics.js`,
-  `breadth/views/TreemapView.jsx` — tf7-themedebt's ledger.
+- BRD colour debt: `breadth/heatmapMetrics.js`, `breadth/views/TreemapView.jsx` — tf7-themedebt's
+  ledger. (ERN's `EarningsResearchModal.module.css` debt is CLEARED on `terminal/fn9-theme`: the
+  owner ruled 2026-10-07 that the modal follows the theme.)
 
-**Owner decisions** — awaiting the owner; deliberately left as they are (re-checked unchanged on
-`terminal/fn8-fmtrows`, 2026-10-07).
+**Owner decisions** — ➜ **DECIDED 2026-10-07 under the owner's delegation**
+(`12-decisions/2026-10-07-owner-delegated-decisions.md` I-7, I-8): FA/EE with an unknown currency
+print no symbol plus "Currency not reported" (built by tf9-theme). ANR targets and OWN values stay
+`$` (USD). The text below is the before-state.
 - FA / EE: `depthFormat.fmtMoney` prints "$" when the payload carries no currency (deliberate:
   "USD or unknown renders $ exactly as before"); EstimateHistory chose the opposite ("never a guessed
   $"). One rule should win.
 - ANR price target and OWN Yahoo holder value always "$" (no currency on those payloads); low risk
   for US listings, unlabelled for foreign ones.
+**Owner decisions** — DECIDED 2026-10-07 (under the owner's full delegation), built on
+`terminal/fn9-theme`.
+- FA / EE: EstimateHistory's rule wins — an UNKNOWN reporting currency prints no symbol and the
+  panel says "Currency not reported." Known USD stays "$"; known foreign keeps its ISO code. The
+  presentation helpers take an opt-in `{ unknown: 'none' }` (default unchanged for every other
+  surface); FA = depthFormat / StatementTables / StatementPanels / the yfinance FinancialsTab
+  fallback, EE = ConsensusEstimates (FMP, Yahoo fallback, revisions). Rail:
+  `components/research/fmpDepth/UnknownCurrency.test.jsx`.
+- ANR price targets and OWN holder values ARE US dollars (US listing, 13F / Form 4): "$" stays, and
+  the labels say USD ("Price target (USD)", "Value (USD)", "Total invested (USD)").
+- Not covered: the legacy /research `EstimatesTab` (reached only with `RESEARCH_FMP_DEPTH_ENABLED`
+  off; the terminal's EE is ConsensusEstimates). Its route never reads the currency, so the rule
+  there needs the route to state it first.
 
 **Open follow-ups (not done here)**
 - ~~The b-column (error / retry) gaps~~ — **closed 2026-10-07 on `terminal/fn8-retry`**, each with a
@@ -230,7 +246,11 @@ places (the range grouped) and the dividend yield prints two places. The census 
 (magnitude-suffix only) did not move: none of these files carried a K/M/B/T suffix by hand.
 
 **Owner decisions — unchanged, awaiting the owner:** FA/EE "$" on an unknown currency, ANR price
-targets and OWN Yahoo holder values in "$" were deliberately not touched.
+targets and OWN Yahoo holder values in "$" were deliberately not touched. ➜ Decided 2026-10-07:
+`12-decisions/2026-10-07-owner-delegated-decisions.md` I-7, I-8.
+**Owner decisions — unchanged on this branch; DECIDED 2026-10-07 and built on `terminal/fn9-theme`**
+(see "Owner decisions" above): FA/EE print no symbol on an unknown currency; ANR price targets and
+OWN holder values keep "$" with USD labels.
 
 ## Overlaps with concurrent lanes
 

@@ -679,17 +679,26 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
         mw = 0.35 if mw < 0.35 else (2.5 if mw > 2.5 else mw)
         return _eff(m) * mw
 
+    # TERM-047: each name in scope (the tracked universe, or the member's own
+    # list) lands in exactly one bucket; one checked and not lit was ANSWERED.
+    from api.services.coverage_receipt import Tally
+    tally = Tally()
     with _lock:
         asof = _state["asof"]
         session_date = _state["date"]
         ticks = _state["ticks"]
         rows = []   # (sym, m, lit)
+        if wanted is not None:
+            for sym in sorted(wanted - set(_state["syms"])):
+                tally.cannot(sym, "not in the live volume stream")
         for sym, st in _state["syms"].items():
             if wanted is not None and sym not in wanted:
                 continue
             m = st.get("m")
             if not m:
+                tally.cannot(sym, "no surge measurement yet this session")
                 continue
+            tally.answer()
             # A user's own list is shown as-is; the top-N default keeps the tradable floor.
             if wanted is None and not _tradable_floor(m["price"], st.get("prev_vol"), mnp, mxp, mnl):
                 continue
@@ -753,6 +762,7 @@ def get_live(limit: int = 100, min_price: float = None, max_price: float = None,
                     "min_rvol": mnr, "min_move": mnm, "min_dollar": mnd,
                     "min_burst": mnb},
         "rows": out,
+        "coverage": tally.receipt(),
     }
 
 

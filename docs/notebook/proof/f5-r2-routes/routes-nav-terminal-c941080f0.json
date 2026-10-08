@@ -1,0 +1,3604 @@
+{
+ "tip": "c941080f0",
+ "instrument": "f5_route_scroll_measure.py",
+ "viewport": "1200x800",
+ "scrollbars": "shown",
+ "routes": [
+  "/terminal",
+  "/charts",
+  "/morning-wire",
+  "/dashboard",
+  "/ai-search",
+  "/uct-20",
+  "/breadth",
+  "/screener",
+  "/options-flow",
+  "/flow-scoreboard",
+  "/live-massive",
+  "/catalysts/history",
+  "/model-book",
+  "/formulas/reference",
+  "/desk",
+  "/journal",
+  "/portfolio-heat",
+  "/community",
+  "/support",
+  "/settings"
+ ],
+ "rows": [
+  {
+   "route": "/terminal",
+   "pending": {
+    "first": {
+     "path": "/terminal",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 878,
+      "clientHeight": 800,
+      "range": 78
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_shell_1rb5k_9",
+      "position": "static",
+      "top": 78,
+      "bottom": 878,
+      "height": 800,
+      "left": 60,
+      "right": 1195
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/terminal",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 878,
+      "clientHeight": 800,
+      "range": 78
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_shell_1rb5k_9",
+      "position": "static",
+      "top": 78,
+      "bottom": 878,
+      "height": 800,
+      "left": 60,
+      "right": 1195
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "terminal-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/terminal",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_shell_1rb5k_9",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/terminal",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_shell_1rb5k_9",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "terminal-seen.png"
+   },
+   "class": {
+    "verdict": "LOCKED",
+    "why": "scroll",
+    "pending_range": [
+     78,
+     78
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 78,
+    "stable": true,
+    "pending_root_bottom": [
+     878,
+     878
+    ],
+    "seen_root_bottom": [
+     800,
+     800
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/charts",
+   "pending": {
+    "first": {
+     "path": "/charts",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_workspace_167sq_151",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/charts",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_workspace_167sq_151",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "charts-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/charts",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_workspace_167sq_151",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/charts",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_workspace_167sq_151",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "charts-seen.png"
+   },
+   "class": {
+    "verdict": "INCONCLUSIVE",
+    "why": "the card is not displayed with it pending",
+    "pending_range": [
+     0,
+     0
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 0,
+    "stable": true,
+    "pending_root_bottom": [
+     800,
+     800
+    ],
+    "seen_root_bottom": [
+     800,
+     800
+    ],
+    "vh": 800,
+    "card_displayed": false,
+    "card_height": null,
+    "got_it_hit": null,
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/morning-wire",
+   "pending": {
+    "first": {
+     "path": "/morning-wire",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1307,
+      "clientHeight": 800,
+      "range": 507
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_container_1t6wo_1",
+      "position": "relative",
+      "top": 78,
+      "bottom": 1307,
+      "height": 1229,
+      "left": 60,
+      "right": 1195
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/morning-wire",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1307,
+      "clientHeight": 800,
+      "range": 507
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_container_1t6wo_1",
+      "position": "relative",
+      "top": 78,
+      "bottom": 1307,
+      "height": 1229,
+      "left": 60,
+      "right": 1195
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "morning-wire-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/morning-wire",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1229,
+      "clientHeight": 800,
+      "range": 429
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_container_1t6wo_1",
+      "position": "relative",
+      "top": 0,
+      "bottom": 1229,
+      "height": 1229,
+      "left": 60,
+      "right": 1195
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/morning-wire",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1229,
+      "clientHeight": 800,
+      "range": 429
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_container_1t6wo_1",
+      "position": "relative",
+      "top": 0,
+      "bottom": 1229,
+      "height": 1229,
+      "left": 60,
+      "right": 1195
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "morning-wire-seen.png"
+   },
+   "class": {
+    "verdict": "ordinary",
+    "why": null,
+    "pending_range": [
+     507,
+     507
+    ],
+    "seen_range": [
+     429,
+     429
+    ],
+    "growth": 78,
+    "stable": true,
+    "pending_root_bottom": [
+     1307,
+     1307
+    ],
+    "seen_root_bottom": [
+     1229,
+     1229
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/dashboard",
+   "pending": {
+    "first": {
+     "path": "/dashboard",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_17gq6_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/dashboard",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_17gq6_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "dashboard-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/dashboard",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_17gq6_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/dashboard",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_17gq6_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "dashboard-seen.png"
+   },
+   "class": {
+    "verdict": "INCONCLUSIVE",
+    "why": "the card is not displayed with it pending",
+    "pending_range": [
+     0,
+     0
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 0,
+    "stable": true,
+    "pending_root_bottom": [
+     800,
+     800
+    ],
+    "seen_root_bottom": [
+     800,
+     800
+    ],
+    "vh": 800,
+    "card_displayed": false,
+    "card_height": null,
+    "got_it_hit": null,
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/ai-search",
+   "pending": {
+    "first": {
+     "path": "/ai-search",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1j532_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 270,
+      "right": 990
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/ai-search",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1j532_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 270,
+      "right": 990
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "ai-search-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/ai-search",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1j532_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 270,
+      "right": 990
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/ai-search",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1j532_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 270,
+      "right": 990
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "ai-search-seen.png"
+   },
+   "class": {
+    "verdict": "INCONCLUSIVE",
+    "why": "the card is not displayed with it pending",
+    "pending_range": [
+     0,
+     0
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 0,
+    "stable": true,
+    "pending_root_bottom": [
+     800,
+     800
+    ],
+    "seen_root_bottom": [
+     800,
+     800
+    ],
+    "vh": 800,
+    "card_displayed": false,
+    "card_height": null,
+    "got_it_hit": null,
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/uct-20",
+   "pending": {
+    "first": {
+     "path": "/uct-20",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1152
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_container_1t6wo_1",
+      "position": "relative",
+      "top": 78,
+      "bottom": 756,
+      "height": 678,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/uct-20",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1152
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_container_1t6wo_1",
+      "position": "relative",
+      "top": 78,
+      "bottom": 756,
+      "height": 678,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "uct-20-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/uct-20",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_container_1t6wo_1",
+      "position": "relative",
+      "top": 0,
+      "bottom": 678,
+      "height": 678,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/uct-20",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_container_1t6wo_1",
+      "position": "relative",
+      "top": 0,
+      "bottom": 678,
+      "height": 678,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "uct-20-seen.png"
+   },
+   "class": {
+    "verdict": "ordinary",
+    "why": null,
+    "pending_range": [
+     0,
+     0
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 0,
+    "stable": true,
+    "pending_root_bottom": [
+     756,
+     756
+    ],
+    "seen_root_bottom": [
+     678,
+     678
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/breadth",
+   "pending": {
+    "first": {
+     "path": "/breadth",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1ckcz_5",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/breadth",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1ckcz_5",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "breadth-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/breadth",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1ckcz_5",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/breadth",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1ckcz_5",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "breadth-seen.png"
+   },
+   "class": {
+    "verdict": "INCONCLUSIVE",
+    "why": "the card is not displayed with it pending",
+    "pending_range": [
+     0,
+     0
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 0,
+    "stable": true,
+    "pending_root_bottom": [
+     800,
+     800
+    ],
+    "seen_root_bottom": [
+     800,
+     800
+    ],
+    "vh": 800,
+    "card_displayed": false,
+    "card_height": null,
+    "got_it_hit": null,
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/screener",
+   "pending": {
+    "first": {
+     "path": "/screener",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_containerFull_55bvp_53",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/screener",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_containerFull_55bvp_53",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "screener-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/screener",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_containerFull_55bvp_53",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/screener",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_containerFull_55bvp_53",
+      "position": "static",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "screener-seen.png"
+   },
+   "class": {
+    "verdict": "INCONCLUSIVE",
+    "why": "the card is not displayed with it pending",
+    "pending_range": [
+     0,
+     0
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 0,
+    "stable": true,
+    "pending_root_bottom": [
+     800,
+     800
+    ],
+    "seen_root_bottom": [
+     800,
+     800
+    ],
+    "vh": 800,
+    "card_displayed": false,
+    "card_height": null,
+    "got_it_hit": null,
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/options-flow",
+   "pending": {
+    "first": {
+     "path": "/options-flow",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1022,
+      "clientHeight": 800,
+      "range": 222
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "of-mroot",
+      "position": "static",
+      "top": 78,
+      "bottom": 1022,
+      "height": 944,
+      "left": 60,
+      "right": 1195
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/options-flow",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 2932,
+      "clientHeight": 785,
+      "range": 2147
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "of-mroot",
+      "position": "static",
+      "top": 78,
+      "bottom": 2932,
+      "height": 2854,
+      "left": 60,
+      "right": 1195
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "options-flow-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/options-flow",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 2854,
+      "clientHeight": 785,
+      "range": 2069
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "of-mroot",
+      "position": "static",
+      "top": 0,
+      "bottom": 2854,
+      "height": 2854,
+      "left": 60,
+      "right": 1195
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/options-flow",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 2854,
+      "clientHeight": 785,
+      "range": 2069
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "of-mroot",
+      "position": "static",
+      "top": 0,
+      "bottom": 2854,
+      "height": 2854,
+      "left": 60,
+      "right": 1195
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "options-flow-seen.png"
+   },
+   "class": {
+    "verdict": "ordinary",
+    "why": null,
+    "pending_range": [
+     222,
+     2147
+    ],
+    "seen_range": [
+     2069,
+     2069
+    ],
+    "growth": 78,
+    "stable": false,
+    "pending_root_bottom": [
+     1022,
+     2932
+    ],
+    "seen_root_bottom": [
+     2854,
+     2854
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/flow-scoreboard",
+   "pending": {
+    "first": {
+     "path": "/flow-scoreboard",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1152
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_116gd_7",
+      "position": "static",
+      "top": 78,
+      "bottom": 646,
+      "height": 568,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/flow-scoreboard",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1152
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_116gd_7",
+      "position": "static",
+      "top": 78,
+      "bottom": 646,
+      "height": 568,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "flow-scoreboard-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/flow-scoreboard",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_116gd_7",
+      "position": "static",
+      "top": 0,
+      "bottom": 568,
+      "height": 568,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/flow-scoreboard",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_116gd_7",
+      "position": "static",
+      "top": 0,
+      "bottom": 568,
+      "height": 568,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "flow-scoreboard-seen.png"
+   },
+   "class": {
+    "verdict": "ordinary",
+    "why": null,
+    "pending_range": [
+     0,
+     0
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 0,
+    "stable": true,
+    "pending_root_bottom": [
+     646,
+     646
+    ],
+    "seen_root_bottom": [
+     568,
+     568
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/live-massive",
+   "pending": {
+    "first": {
+     "path": "/live-massive?date=6%2F24%2F2026",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 6181,
+      "clientHeight": 785,
+      "range": 5396
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "lfm-mroot",
+      "position": "static",
+      "top": 78,
+      "bottom": 6181,
+      "height": 6103,
+      "left": 60,
+      "right": 1195
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/live-massive?date=6%2F24%2F2026",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 6181,
+      "clientHeight": 785,
+      "range": 5396
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "lfm-mroot",
+      "position": "static",
+      "top": 78,
+      "bottom": 6181,
+      "height": 6103,
+      "left": 60,
+      "right": 1195
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "live-massive-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/live-massive?date=6%2F24%2F2026",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 6103,
+      "clientHeight": 785,
+      "range": 5318
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "lfm-mroot",
+      "position": "static",
+      "top": 0,
+      "bottom": 6103,
+      "height": 6103,
+      "left": 60,
+      "right": 1195
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/live-massive?date=6%2F24%2F2026",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 6103,
+      "clientHeight": 785,
+      "range": 5318
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "lfm-mroot",
+      "position": "static",
+      "top": 0,
+      "bottom": 6103,
+      "height": 6103,
+      "left": 60,
+      "right": 1195
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "live-massive-seen.png"
+   },
+   "class": {
+    "verdict": "ordinary",
+    "why": null,
+    "pending_range": [
+     5396,
+     5396
+    ],
+    "seen_range": [
+     5318,
+     5318
+    ],
+    "growth": 78,
+    "stable": true,
+    "pending_root_bottom": [
+     6181,
+     6181
+    ],
+    "seen_root_bottom": [
+     6103,
+     6103
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/catalysts/history",
+   "pending": {
+    "first": {
+     "path": "/catalysts/history",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1152
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1by02_1",
+      "position": "static",
+      "top": 78,
+      "bottom": 450,
+      "height": 372,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/catalysts/history",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1152
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1by02_1",
+      "position": "static",
+      "top": 78,
+      "bottom": 450,
+      "height": 372,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "catalysts_history-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/catalysts/history",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1by02_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 372,
+      "height": 372,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/catalysts/history",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1by02_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 372,
+      "height": 372,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "catalysts_history-seen.png"
+   },
+   "class": {
+    "verdict": "ordinary",
+    "why": null,
+    "pending_range": [
+     0,
+     0
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 0,
+    "stable": true,
+    "pending_root_bottom": [
+     450,
+     450
+    ],
+    "seen_root_bottom": [
+     372,
+     372
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/model-book",
+   "pending": {
+    "first": {
+     "path": "/model-book",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_hub_16l62_55",
+      "position": "relative",
+      "top": 0,
+      "bottom": 772,
+      "height": 772,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/model-book",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_hub_16l62_55",
+      "position": "relative",
+      "top": 0,
+      "bottom": 772,
+      "height": 772,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "model-book-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/model-book",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_hub_16l62_55",
+      "position": "relative",
+      "top": 0,
+      "bottom": 772,
+      "height": 772,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/model-book",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_hub_16l62_55",
+      "position": "relative",
+      "top": 0,
+      "bottom": 772,
+      "height": 772,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "model-book-seen.png"
+   },
+   "class": {
+    "verdict": "INCONCLUSIVE",
+    "why": "the card is not displayed with it pending",
+    "pending_range": [
+     0,
+     0
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 0,
+    "stable": true,
+    "pending_root_bottom": [
+     772,
+     772
+    ],
+    "seen_root_bottom": [
+     772,
+     772
+    ],
+    "vh": 800,
+    "card_displayed": false,
+    "card_height": null,
+    "got_it_hit": null,
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/formulas/reference",
+   "pending": {
+    "first": {
+     "path": "/formulas/reference",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 21180,
+      "clientHeight": 800,
+      "range": 20380
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_4bsm5_11",
+      "position": "static",
+      "top": 78,
+      "bottom": 21180,
+      "height": 21102,
+      "left": 78,
+      "right": 1178
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/formulas/reference",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 21180,
+      "clientHeight": 800,
+      "range": 20380
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_4bsm5_11",
+      "position": "static",
+      "top": 78,
+      "bottom": 21180,
+      "height": 21102,
+      "left": 78,
+      "right": 1178
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "formulas_reference-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/formulas/reference",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 21102,
+      "clientHeight": 800,
+      "range": 20302
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_4bsm5_11",
+      "position": "static",
+      "top": 0,
+      "bottom": 21102,
+      "height": 21102,
+      "left": 78,
+      "right": 1178
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/formulas/reference",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 21102,
+      "clientHeight": 800,
+      "range": 20302
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_4bsm5_11",
+      "position": "static",
+      "top": 0,
+      "bottom": 21102,
+      "height": 21102,
+      "left": 78,
+      "right": 1178
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "formulas_reference-seen.png"
+   },
+   "class": {
+    "verdict": "ordinary",
+    "why": null,
+    "pending_range": [
+     20380,
+     20380
+    ],
+    "seen_range": [
+     20302,
+     20302
+    ],
+    "growth": 78,
+    "stable": true,
+    "pending_root_bottom": [
+     21180,
+     21180
+    ],
+    "seen_root_bottom": [
+     21102,
+     21102
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/desk",
+   "pending": {
+    "first": {
+     "path": "/desk?section=videos",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 4666,
+      "clientHeight": 800,
+      "range": 3866
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_hub_1xb2p_1",
+      "position": "static",
+      "top": 78,
+      "bottom": 4666,
+      "height": 4588,
+      "left": 60,
+      "right": 1195
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/desk?section=videos",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 4666,
+      "clientHeight": 800,
+      "range": 3866
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_hub_1xb2p_1",
+      "position": "static",
+      "top": 78,
+      "bottom": 4666,
+      "height": 4588,
+      "left": 60,
+      "right": 1195
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "desk-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/desk?section=videos",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 4588,
+      "clientHeight": 800,
+      "range": 3788
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_hub_1xb2p_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 4588,
+      "height": 4588,
+      "left": 60,
+      "right": 1195
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/desk?section=videos",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 4588,
+      "clientHeight": 800,
+      "range": 3788
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_hub_1xb2p_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 4588,
+      "height": 4588,
+      "left": 60,
+      "right": 1195
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "desk-seen.png"
+   },
+   "class": {
+    "verdict": "ordinary",
+    "why": null,
+    "pending_range": [
+     3866,
+     3866
+    ],
+    "seen_range": [
+     3788,
+     3788
+    ],
+    "growth": 78,
+    "stable": true,
+    "pending_root_bottom": [
+     4666,
+     4666
+    ],
+    "seen_root_bottom": [
+     4588,
+     4588
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/journal",
+   "pending": {
+    "first": {
+     "path": "/journal",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1152
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_root_z41fg_11",
+      "position": "static",
+      "top": 78,
+      "bottom": 691,
+      "height": 613,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/journal",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1152
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_root_z41fg_11",
+      "position": "static",
+      "top": 78,
+      "bottom": 691,
+      "height": 613,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "journal-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/journal",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_root_z41fg_11",
+      "position": "static",
+      "top": 0,
+      "bottom": 613,
+      "height": 613,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/journal",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_root_z41fg_11",
+      "position": "static",
+      "top": 0,
+      "bottom": 613,
+      "height": 613,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "journal-seen.png"
+   },
+   "class": {
+    "verdict": "ordinary",
+    "why": null,
+    "pending_range": [
+     0,
+     0
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 0,
+    "stable": true,
+    "pending_root_bottom": [
+     691,
+     691
+    ],
+    "seen_root_bottom": [
+     613,
+     613
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/portfolio-heat",
+   "pending": {
+    "first": {
+     "path": "/portfolio-heat",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1152
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1ly13_1",
+      "position": "static",
+      "top": 78,
+      "bottom": 451,
+      "height": 373,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/portfolio-heat",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1152
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1ly13_1",
+      "position": "static",
+      "top": 78,
+      "bottom": 451,
+      "height": 373,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "portfolio-heat-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/portfolio-heat",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1ly13_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 373,
+      "height": 373,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/portfolio-heat",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_1ly13_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 373,
+      "height": 373,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "portfolio-heat-seen.png"
+   },
+   "class": {
+    "verdict": "ordinary",
+    "why": null,
+    "pending_range": [
+     0,
+     0
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 0,
+    "stable": true,
+    "pending_root_bottom": [
+     451,
+     451
+    ],
+    "seen_root_bottom": [
+     373,
+     373
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/community",
+   "pending": {
+    "first": {
+     "path": "/community",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "floorx embedded",
+      "position": "relative",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/community",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "floorx embedded",
+      "position": "relative",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "community-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/community",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "floorx embedded",
+      "position": "relative",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/community",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 800,
+      "clientHeight": 800,
+      "range": 0
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "floorx embedded",
+      "position": "relative",
+      "top": 0,
+      "bottom": 800,
+      "height": 800,
+      "left": 60,
+      "right": 1200
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "community-seen.png"
+   },
+   "class": {
+    "verdict": "INCONCLUSIVE",
+    "why": "the card is not displayed with it pending",
+    "pending_range": [
+     0,
+     0
+    ],
+    "seen_range": [
+     0,
+     0
+    ],
+    "growth": 0,
+    "stable": true,
+    "pending_root_bottom": [
+     800,
+     800
+    ],
+    "seen_root_bottom": [
+     800,
+     800
+    ],
+    "vh": 800,
+    "card_displayed": false,
+    "card_height": null,
+    "got_it_hit": null,
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/support",
+   "pending": {
+    "first": {
+     "path": "/support",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1703,
+      "clientHeight": 800,
+      "range": 903
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_7lcni_1",
+      "position": "static",
+      "top": 78,
+      "bottom": 1703,
+      "height": 1625,
+      "left": 60,
+      "right": 860
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/support",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1703,
+      "clientHeight": 800,
+      "range": 903
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_7lcni_1",
+      "position": "static",
+      "top": 78,
+      "bottom": 1703,
+      "height": 1625,
+      "left": 60,
+      "right": 860
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "support-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/support",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1625,
+      "clientHeight": 800,
+      "range": 825
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_7lcni_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 1625,
+      "height": 1625,
+      "left": 60,
+      "right": 860
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/support",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1625,
+      "clientHeight": 800,
+      "range": 825
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_7lcni_1",
+      "position": "static",
+      "top": 0,
+      "bottom": 1625,
+      "height": 1625,
+      "left": 60,
+      "right": 860
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "support-seen.png"
+   },
+   "class": {
+    "verdict": "ordinary",
+    "why": null,
+    "pending_range": [
+     903,
+     903
+    ],
+    "seen_range": [
+     825,
+     825
+    ],
+    "growth": 78,
+    "stable": true,
+    "pending_root_bottom": [
+     1703,
+     1703
+    ],
+    "seen_root_bottom": [
+     1625,
+     1625
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  },
+  {
+   "route": "/settings",
+   "pending": {
+    "first": {
+     "path": "/settings",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1447,
+      "clientHeight": 800,
+      "range": 647
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_8rpym_15",
+      "position": "static",
+      "top": 78,
+      "bottom": 1447,
+      "height": 1369,
+      "left": 60,
+      "right": 1120
+     },
+     "key": null
+    },
+    "second": {
+     "path": "/settings",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1447,
+      "clientHeight": 800,
+      "range": 647
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 66
+     },
+     "card_present": true,
+     "card_displayed": true,
+     "card_box": {
+      "top": 12,
+      "bottom": 78,
+      "height": 66,
+      "left": 80,
+      "right": 1147
+     },
+     "got_it_hit": {
+      "in_viewport": true,
+      "inside_card": true
+     },
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_8rpym_15",
+      "position": "static",
+      "top": 78,
+      "bottom": 1447,
+      "height": 1369,
+      "left": 60,
+      "right": 1120
+     },
+     "key": null
+    },
+    "page_errors": [],
+    "screenshot": "settings-pending.png"
+   },
+   "seen": {
+    "first": {
+     "path": "/settings",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1369,
+      "clientHeight": 800,
+      "range": 569
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_8rpym_15",
+      "position": "static",
+      "top": 0,
+      "bottom": 1369,
+      "height": 1369,
+      "left": 60,
+      "right": 1120
+     },
+     "key": "1"
+    },
+    "second": {
+     "path": "/settings",
+     "vh": 800,
+     "vw": 1200,
+     "main": {
+      "scrollHeight": 1369,
+      "clientHeight": 800,
+      "range": 569
+     },
+     "doc_range": 0,
+     "slot": {
+      "display": "block",
+      "height": 0
+     },
+     "card_present": false,
+     "card_displayed": false,
+     "card_box": null,
+     "got_it_hit": null,
+     "cluster_displayed": true,
+     "root": {
+      "tag": "DIV",
+      "cls": "_page_8rpym_15",
+      "position": "static",
+      "top": 0,
+      "bottom": 1369,
+      "height": 1369,
+      "left": 60,
+      "right": 1120
+     },
+     "key": "1"
+    },
+    "page_errors": [],
+    "screenshot": "settings-seen.png"
+   },
+   "class": {
+    "verdict": "ordinary",
+    "why": null,
+    "pending_range": [
+     647,
+     647
+    ],
+    "seen_range": [
+     569,
+     569
+    ],
+    "growth": 78,
+    "stable": true,
+    "pending_root_bottom": [
+     1447,
+     1447
+    ],
+    "seen_root_bottom": [
+     1369,
+     1369
+    ],
+    "vh": 800,
+    "card_displayed": true,
+    "card_height": 66,
+    "got_it_hit": {
+     "in_viewport": true,
+     "inside_card": true
+    },
+    "seen_card_displayed": false
+   }
+  }
+ ],
+ "control": {
+  "charts_classified_locked": false,
+  "settings_classified_ordinary": true
+ },
+ "locked": [
+  "/terminal"
+ ],
+ "sandbox_identity": "http://127.0.0.1:8231 proved it is the sandbox that writes C:\\Users\\pgosz\\uct-worktrees\\tf10-nav\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T18-21-51.md (identity ff0a75b0146d..., data dir C:\\data-navmeasure)",
+ "inconclusive": [
+  "/charts",
+  "/dashboard",
+  "/ai-search",
+  "/breadth",
+  "/screener",
+  "/model-book",
+  "/community"
+ ],
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 0 db files hashed; log: C:\\Users\\pgosz\\uct-worktrees\\tf10-nav\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T18-21-51.md",
+ "integrity": {
+  "path": "C:\\Users\\pgosz\\uct-worktrees\\tf10-nav\\docs\\plans\\joystick\\sandbox-runs\\2026-10-07T18-21-51.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-07 18:21:51",
+    "root": "C:\\data",
+    "db_files": 0,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-07 18:23:46",
+    "root": "C:\\data",
+    "db_files": 0,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-07 18:25:31",
+    "root": "C:\\data",
+    "db_files": 0,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-07 18:28:42",
+    "root": "C:\\data",
+    "db_files": 0,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null
+}

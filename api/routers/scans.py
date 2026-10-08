@@ -40,6 +40,11 @@ from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_u
 
 router = APIRouter()
 
+# TERM-047: services compute a coverage receipt; it is published only when
+# COVERAGE_RECEIPTS_SCANS_ENABLED is on (dark: byte-identical responses).
+from api.services import coverage_receipt as _cov  # noqa: E402
+
+
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
     if not is_paid_user(user):
@@ -52,7 +57,7 @@ def highest_volume_1y(_user: dict = Depends(require_paid)):
     """Stocks trading their highest volume in ~1 year (today's volume > trailing
     252-session max). Live all day; recomputed at most ~once/min server-side."""
     from api.services import scan_volume
-    return JSONResponse(content=scan_volume.get_highest_volume_1y())
+    return JSONResponse(content=_cov.publish(scan_volume.get_highest_volume_1y()))
 
 
 @router.get("/api/scans/highest-volume-1y/status")
@@ -67,7 +72,7 @@ def highest_volume_ever(_user: dict = Depends(require_paid)):
     """Stocks trading their highest volume EVER (today's volume > all-time / since-
     inception max daily volume). Live all day; recomputed at most ~once/min."""
     from api.services import scan_volume
-    return JSONResponse(content=scan_volume.get_highest_volume_ever())
+    return JSONResponse(content=_cov.publish(scan_volume.get_highest_volume_ever()))
 
 
 @router.get("/api/scans/highest-volume-ever/status")
@@ -82,7 +87,7 @@ def ipo_1y(_user: dict = Depends(require_paid)):
     """Stocks that first traded within the last year (IPO'd in the trailing 365 days).
     The only filter is that date window; live price/change attached per name."""
     from api.services import scan_ipo
-    return JSONResponse(content=scan_ipo.get_ipo_last_1y())
+    return JSONResponse(content=_cov.publish(scan_ipo.get_ipo_last_1y()))
 
 
 @router.get("/api/scans/ipo-1y/status")
@@ -96,7 +101,7 @@ def ipo_1y_status(_user: dict = Depends(require_paid)):
 def top_gainers_30d(_user: dict = Depends(require_paid)):
     """Top 5% of non-ETF stocks by 30-trading-day % change. Live all day."""
     from api.services import scan_gainers
-    return JSONResponse(content=scan_gainers.get_top_gainers_30d())
+    return JSONResponse(content=_cov.publish(scan_gainers.get_top_gainers_30d()))
 
 
 @router.get("/api/scans/top-gainers-30d/status")
@@ -109,7 +114,7 @@ def top_gainers_30d_status(_user: dict = Depends(require_paid)):
 def top_gainers_60d(_user: dict = Depends(require_paid)):
     """Top 5% of non-ETF stocks by 60-trading-day % change. Live all day."""
     from api.services import scan_gainers
-    return JSONResponse(content=scan_gainers.get_top_gainers_60d())
+    return JSONResponse(content=_cov.publish(scan_gainers.get_top_gainers_60d()))
 
 
 @router.get("/api/scans/top-gainers-60d/status")
@@ -122,7 +127,7 @@ def top_gainers_60d_status(_user: dict = Depends(require_paid)):
 def top_gainers_90d(_user: dict = Depends(require_paid)):
     """Top 5% of non-ETF stocks by 90-trading-day % change. Live all day."""
     from api.services import scan_gainers
-    return JSONResponse(content=scan_gainers.get_top_gainers_90d())
+    return JSONResponse(content=_cov.publish(scan_gainers.get_top_gainers_90d()))
 
 
 @router.get("/api/scans/top-gainers-90d/status")
@@ -136,7 +141,7 @@ def period_change(start: int, end: int, _user: dict = Depends(require_paid)):
     """Every US common stock ranked by % change over [start, end] (YYYYMMDD ints) — powers
     the Custom-Period Sort tool. Whole-market via two grouped-daily calls; sorted gainers-first."""
     from api.services import scan_period
-    return JSONResponse(content=scan_period.get_period_change(int(start), int(end)))
+    return JSONResponse(content=_cov.publish(scan_period.get_period_change(int(start), int(end))))
 
 
 @router.get("/api/scans/period-change-groups")
@@ -144,7 +149,7 @@ def period_change_groups(start: int, end: int, group: str, _user: dict = Depends
     """Themes / sectors / industries ranked by equal-weight mean % change over [start, end].
     `group` ∈ {theme, sector, industry}; each result carries its member symbols for drill-down."""
     from api.services import scan_period
-    return JSONResponse(content=scan_period.get_period_change_groups(int(start), int(end), group))
+    return JSONResponse(content=_cov.publish(scan_period.get_period_change_groups(int(start), int(end), group)))
 
 
 @router.get("/api/scans/period-change-debug")

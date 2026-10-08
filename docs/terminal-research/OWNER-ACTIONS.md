@@ -13,6 +13,11 @@ role: the owner's own action list. Every open item an agent cannot close, why, a
 > - **The 2026-10-02 rulings are recorded** in `00-program-control/OWNER_DECISIONS.md` (D-005..D-014).
 > - **The current list of what only you can do** is the **owner-blocked** section of `COMPLETION-LEDGER.md`. Read that, not the table below.
 > - **Item 2 (OI-04)** is still open: one sentence on whether Bullflow, UW, Polygon-direct and TheFly are still paid. **Item 3** is unchanged.
+> - ➜ **2026-10-07: every remaining terminal DECISION was made under your delegation.** See
+>   `12-decisions/2026-10-07-owner-delegated-decisions.md`. Its §8 is now the list of what only you
+>   can DO: Railway variables, a window post, a Cloudflare read, the `#uct-ops` channel, the
+>   OI-04 billing check, approving the checklist copy, Ravi's Phase A and one screen-reader pass.
+>   Each is written as an exact command or sentence.
 
 ✅✅ **THREE THINGS. None urgent.** (Price was the fourth — ✅ **you closed it 2026-09-26**; see the closed list.)
 

@@ -735,7 +735,11 @@ def c1_viewport(browser, admin, base: str, vp: str, fs: dict) -> None:
         if how:
             pg.wait_for_timeout(600)
             if C_vis(pg.get_by_text("Delete this note?"), 5000):
-                pg.get_by_role("button", name="Delete", exact=True).filter(visible=True).last.click()
+                cbtn = pg.get_by_role("button", name="Delete", exact=True).filter(visible=True).last
+                STATE[f"c1_confirm_top_{vp}"] = cbtn.evaluate(""" (b) => { const r = b.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+                    return { on_top: !!e && (e === b || b.contains(e)), w: Math.round(r.width), h: Math.round(r.height),
+                             covered_by: e && !(e === b || b.contains(e)) ? (e.tagName + '.' + String(e.className && e.className.baseVal !== undefined ? e.className.baseVal : e.className).slice(0, 40)) : null } } """)
+                cbtn.click(timeout=8000)
             for _ in range(30):
                 if not any(n.get("id") == nid for n in notes_list(ctx, base)):
                     deleted = True
@@ -743,7 +747,7 @@ def c1_viewport(browser, admin, base: str, vp: str, fs: dict) -> None:
                 pg.wait_for_timeout(400)
         buttons = None if how else pg.evaluate("() => [...document.querySelectorAll('button')].filter(b => b.getBoundingClientRect().width > 0).map(b => (b.getAttribute('aria-label') || b.innerText || b.title || '').trim().slice(0, 30)).filter(Boolean).slice(0, 80)")
         step(pg, inst, "note CRUD", "delete it: gone from the notes list", "PASS" if deleted else "FAIL", door=how,
-             visible_buttons=buttons, menu_items=menu_items)
+             visible_buttons=buttons, menu_items=menu_items, confirm_button=STATE.get(f"c1_confirm_top_{vp}"))
     crud()
 
     @G("editor menus")

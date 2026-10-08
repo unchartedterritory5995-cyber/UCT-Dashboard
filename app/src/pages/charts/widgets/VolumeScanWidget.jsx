@@ -24,6 +24,7 @@ import { useWorkspace } from '../WorkspaceContext'
 import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
+import CoverageLine from '../../../components/provenance/CoverageLine'
 import CompanyLogo from '../../../components/CompanyLogo'
 import NhnlSettingsPanel from './NhnlSettingsPanel'
 import { mergeNhnlSettings, nhnlDefaultsForTheme, nhnlWidgetStyleVars } from './nhnlSettings'
@@ -326,6 +327,8 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
             )}
           </div>
           {activeList && <AddTickerBar list={activeList} helpers={listHelpers} />}
+          {/* TERM-047: the backend's four-count receipt (dark: absent -> renders nothing). */}
+          <CoverageLine coverage={data?.coverage ?? null} density="widget" />
         </>
       )}
 

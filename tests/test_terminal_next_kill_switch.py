@@ -625,6 +625,14 @@ ACKNOWLEDGED_FRONTEND_GATES = {
     "app/src/pages/terminal/TerminalShell.deleteOpenBoard.test.jsx":
         "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/terminal/phoneSwitcher.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    # 2026-10-06/07 terminal shell tests (daily-use, MOST, panel count, reorder, BOARD,
+    # embedded list rows): each renders the shell through the same faked cohort.
+    "app/src/pages/terminal/TerminalShell.dailyUse.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.embeddedRows.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.movers.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.panelCount.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.reorder.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.scanBoard.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/breadth/drill/BreadthDrillModal.withdrawal.test.jsx":
         "TEST: fakes `cohorts_withdrawn` to drive the drill withdrawal block",
 }

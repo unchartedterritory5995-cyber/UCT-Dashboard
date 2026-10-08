@@ -253,6 +253,10 @@ def run_document_arrival_sweep() -> dict[str, Any]:
 
     fired = sum(1 for r in results if r["outcome"] == "fired")
     errored = [r for r in results if r["outcome"] == "error"]
+    # AC-7: one receipt per run -- evaluated / fired / could-not-evaluate.
+    from api.services.alert_taxonomy import ops_monitor as _ops
+    _ops.record_sweep(TYPE_ID, evaluated=len(active) - len(errored), fired=fired,
+                      could_not_evaluate=len(errored))
     return {
         "checked": len(active),
         "distinct_fetches": len(fetch_cache),

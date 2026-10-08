@@ -44,6 +44,8 @@ const HISTORY_A = { ...HISTORY_Q, period: 'annual', periods: ['2023', '2024', '2
 
 const CONSENSUS = {
   state: 'ok', source: 'FMP /stable/analyst-estimates', fetched_at: 1759500000,
+  // NVDA reports in USD and FMP says so; an unstated currency renders no "$" (UnknownCurrency.test.jsx).
+  currency: 'USD',
   annual: ['2026', '2027', '2028', '2029'].map((y, i) => ({
     period_end: `${y}-01-31`, label: `FY${y}`,
     eps: { avg: 4 + i, low: 3.5 + i, high: 4.5 + i, n: 40 - i * 5 },
@@ -88,9 +90,11 @@ function mount(node, auth = {}) {
 
 describe('depthFormat — every number through the presentation primitives', () => {
   it('money spans T / B / M and keeps a missing value a dash', () => {
-    expect(fmtMoney(3.12e12)).toBe('$3.12T')
-    expect(fmtMoney(9.493e10)).toBe('$94.93B')
-    expect(fmtMoney(4.88e7)).toBe('$48.8M')
+    // A STATED USD reads "$"; an unstated currency is bare (owner decision 2026-10-07).
+    expect(fmtMoney(3.12e12, 'USD')).toBe('$3.12T')
+    expect(fmtMoney(9.493e10, 'USD')).toBe('$94.93B')
+    expect(fmtMoney(4.88e7, 'USD')).toBe('$48.8M')
+    expect(fmtMoney(4.88e7)).toBe('48.8M')
     expect(fmtMoney(null)).toBe('—')
     expect(fmtTimes(1.4286)).toBe('1.43×')
     expect(fmtTimes(null)).toBe('—')

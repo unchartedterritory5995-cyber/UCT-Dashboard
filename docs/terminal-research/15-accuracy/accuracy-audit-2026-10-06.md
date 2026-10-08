@@ -42,7 +42,8 @@ read; no credentials were used.
 
 > **All six were resolved on 2026-10-06 (branch `terminal/fn5-acc2`), plus the foreign-filer
 > "$" gap — see "Follow-ups fixed" directly below this list.** The list is kept as it was
-> written so the before-state stays readable.
+> written so the before-state stays readable. Re-checked 2026-10-07 in the owner-delegated sweep
+> (`12-decisions/2026-10-07-owner-delegated-decisions.md` §7): nothing here is open.
 
 1. **Two realized-vol definitions.** VOL/IVH `hv()` uses the SAMPLE std (n−1) of log returns; ERX `realized_vol()` uses the POPULATION std (n). Both match their own reference exactly, but the same 20-day vol differs by √(20/19) ≈ 2.6 % between two panels a member can open side by side.
 2. **`formatCompact` picks the tier before rounding** (documented in source as deliberate): 999,999 → "1000K", 999,950,000 → "1000.0M" on the terminal ladder.

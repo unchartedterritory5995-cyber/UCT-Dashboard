@@ -3581,6 +3581,10 @@ async def lifespan(app: FastAPI):
         from api.services.alert_taxonomy import indicator_condition as _at_indicator_cond
         _at_db.init_db()
         _at_doc_arrival.register()
+        # FT-034 rating-change is NOT registered here: registration in the boot
+        # path is CP3's act and its per-type ruling (TERM-025) is unsigned. Its
+        # create route registers the type on demand, and only while
+        # ALERT_RATING_CHANGE_ENABLED is armed (the owner's act).
         # GATE-S7-PRICE-LEVEL CP3 (owner approval line 2, 2026-09-12).
         # Registration here; the DARK comparison sweep is wired further down
         # under ALERT_TAXONOMY_PRICE_LEVEL_DARK_ENABLED.
@@ -3680,6 +3684,36 @@ async def lifespan(app: FastAPI):
             _rollout.S7_DARK, _rollout.LEGACY_S7_ROLE, _seeded)
     except Exception as e:
         logging.getLogger(__name__).exception(f"rollout seed failed: {e}")
+
+    # ⭐ UCT TERMINAL GRADUATION (owner decision 2026-10-05, re-confirmed 2026-10-07):
+    # every EXISTING member joins the Terminal-Next cohort ONCE per volume. New
+    # signups are enrolled at signup; this is the one-shot for everyone before.
+    # On a daemon thread so it can never hold up a boot; the marker in DATA_DIR is
+    # written only after the write succeeds (same shape as `.logo_hires_v1`). The
+    # writer is `rollout.seed_cohort_all_members` -- the one `tools/rollout_cohort.py
+    # seed-all` uses -- reached through `rollout_gate`, the one place that names
+    # the cohort. A single INSERT ... SELECT, so it is bounded by one statement.
+    try:
+        import threading as _tn_th
+
+        def _terminal_next_seed():
+            _log = logging.getLogger(__name__)
+            try:
+                from api.services import rollout_gate as _rg
+                _added = _rg.seed_existing_members_into_terminal_next()
+                if _added is None:
+                    _log.info("[startup] terminal seed: already ran (marker present)")
+                else:
+                    _log.info("[startup] terminal seed: enrolled existing members "
+                              "(%d new tag rows)", _added)
+            except Exception:
+                _log.exception("[startup] terminal seed failed; no marker written, "
+                               "the next boot retries")
+
+        _tn_th.Thread(target=_terminal_next_seed, name="terminal-next-seed",
+                      daemon=True).start()
+    except Exception:
+        logging.getLogger(__name__).exception("[startup] could not schedule the terminal seed")
 
     # ⛔ The buzz schema is created HERE, unconditionally — not by the poller.
     # It used to be created only inside _buzz_poll, AFTER its
@@ -7536,6 +7570,45 @@ async def lifespan(app: FastAPI):
             _alert_lifecycle_expire_job,
             trigger=CronTrigger(minute="*", timezone=_ET),
             id="alert_lifecycle_expire",
+            max_instances=1, replace_existing=True,
+        )
+
+        # FT-035 remind -- one reminder per unread fire, after the member's own
+        # delay. `remind_due()` reads ALERT_REMIND_ENABLED per run (off: no-op).
+        def _alert_remind_job():
+            try:
+                from api.services.alert_taxonomy import remind as _rm
+                r = _rm.remind_due()
+                if r.get("sent") or r.get("errors"):
+                    print(f"[alert_remind] {r}")
+            except Exception as e:
+                print(f"[alert_remind] failed: {type(e).__name__}: {e}")
+
+        _scheduler.add_job(
+            _alert_remind_job,
+            trigger=CronTrigger(minute="*/5", timezone=_ET),
+            id="alert_remind",
+            max_instances=1, replace_existing=True,
+        )
+
+        # FT-034 rating-change -- the sweep reads ALERT_RATING_CHANGE_ENABLED
+        # per run (off: no-op). Registered unconditionally, like spec alerts.
+        def _alert_rating_change_job():
+            try:
+                from api.services.alert_taxonomy import rating_change as _rc
+                r = _rc.run_sweep()
+                if r.get("enabled"):
+                    print(f"[rating_change] checked={r['checked']} fired={r['fired']}"
+                          f" errors={len(r['errors'])}")
+            except Exception as e:
+                print(f"[rating_change] sweep failed: {type(e).__name__}: {e}")
+
+        from api.services.alert_taxonomy import rating_change as _at_rating_change
+        _scheduler.add_job(
+            _alert_rating_change_job,
+            trigger=CronTrigger(day_of_week="mon-fri", hour="7-19",
+                                minute=f"*/{_at_rating_change.SWEEP_EVERY_MINUTES}", timezone=_ET),
+            id="alert_rating_change_sweep",
             max_instances=1, replace_existing=True,
         )
 

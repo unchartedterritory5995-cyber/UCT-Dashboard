@@ -78,23 +78,65 @@ function cssFilesUnder(dir) {
  * Both are excluded by construction: neither claims the marker, and the second is additionally
  * scoped by `data-theme`.
  */
-function islands(files) {
+function islandsInCss(file, css) {
   const found = []
-  for (const file of files) {
-    for (const [sel, body] of blocks(stripComments(readFileSync(file, 'utf8')))) {
-      const declared = declaredTokens(body)
-      if (!declared.has('--theme-island')) continue
-      found.push({ file: path.relative(SRC, file).replace(/\\/g, '/'), sel, declared })
-    }
+  for (const [sel, body] of blocks(stripComments(css))) {
+    const declared = declaredTokens(body)
+    if (!declared.has('--theme-island')) continue
+    found.push({ file: path.relative(SRC, file).split(path.sep).join('/'), sel, declared, body })
   }
   return found
 }
 
+function islands(files) {
+  return files.flatMap((file) => islandsInCss(file, readFileSync(file, 'utf8')))
+}
+
 const missingFrom = (island, required) => [...required].filter((t) => !island.declared.has(t)).sort()
+const norm = (v) => v.replace(/\s+/g, '').toLowerCase()
+
+/** `${file} (${sel}) is missing: …` for every island that does not pin the whole required set. */
+function pinningOffenders(found, required) {
+  return found
+    .map((i) => ({ i, missing: missingFrom(i, required) }))
+    .filter(({ missing }) => missing.length)
+    .map(({ i, missing }) => `${i.file} (${i.sel}) is missing: ${missing.join(', ')}`)
+}
+
+/** Island declarations of a required token whose value is not the one :root gives it. */
+function driftOffenders(found, required, rootValues) {
+  const drifted = []
+  for (const island of found) {
+    for (const [, name, raw] of island.body.matchAll(/(--[\w-]+)\s*:([^;]+);/g)) {
+      if (!required.has(name) || !(name in rootValues)) continue
+      if (norm(raw) !== norm(rootValues[name])) {
+        drifted.push(`${island.file} (${island.sel}) ${name}: island ${norm(raw)} vs :root ${norm(rootValues[name])}`)
+      }
+    }
+  }
+  return drifted
+}
 
 const TOKENS_CSS = readFileSync(TOKENS, 'utf8')
 const REQUIRED = requiredTokens(TOKENS_CSS)
-const FOUND = islands(cssFilesUnder(SRC))
+const ROOT_VALUES = Object.fromEntries(
+  [...blocks(stripComments(TOKENS_CSS)).find(([sel]) => sel === ':root')[1].matchAll(/(--[\w-]+)\s*:([^;]+);/g)]
+    .map((m) => [m[1], m[2].trim()]),
+)
+const CSS_FILES = cssFilesUnder(SRC)
+const FOUND = islands(CSS_FILES)
+
+/**
+ * A COMPLETE island, built from tokens.css every run. There are no real islands today (the
+ * earnings research modal was the last, and now follows the theme — owner ruling 2026-10-07),
+ * so every check below over FOUND passes over an empty set. The fixture is what keeps those
+ * checks honest: each one is also run against an island that exists, and must be able to fail.
+ */
+const FIXTURE_FILE = path.join(SRC, 'styles', '__island_fixture__.css')
+const fixtureCss = (overrides = {}, omit = []) => `.fixture {\n  --theme-island: fixture;\n${
+  [...REQUIRED].filter((t) => !omit.includes(t))
+    .map((t) => `  ${t}: ${overrides[t] ?? ROOT_VALUES[t]};`).join('\n')}\n}\n`
+const FIXTURE = islandsInCss(FIXTURE_FILE, fixtureCss())
 
 describe('theme islands stay complete as tokens.css grows', () => {
   it('CONTROL: the required set is real, so nothing below can pass vacuously', () => {
@@ -103,34 +145,46 @@ describe('theme islands stay complete as tokens.css grows', () => {
     expect(REQUIRED.size, 'derived no themed tokens from tokens.css — the parse broke').toBeGreaterThan(20)
   })
 
-  it('CONTROL: at least one island was discovered, so the scan is not silently empty', () => {
-    // Same failure in the other direction: a marker rename or a broken walk finds zero islands
-    // and this file reports success while checking nothing.
-    expect(FOUND.length, 'no block declares `--theme-island` — the discovery scan found nothing').toBeGreaterThan(0)
+  it('CONTROL: the discovery scan is live — a declared island is found, so "zero islands" means zero', () => {
+    // "Found nothing" is today's expected answer — and it is also exactly what a broken walk or a
+    // renamed marker would answer. The same discovery code, fed a stylesheet that DOES declare the
+    // marker, must find it; and the real walk must have read the repo's stylesheets.
+    expect(FIXTURE.map((i) => i.sel), 'the discovery scan cannot see a declared island').toEqual(['.fixture'])
+    expect(CSS_FILES.length, 'the stylesheet walk found almost nothing — it broke').toBeGreaterThan(100)
+  })
+
+  it('there is no theme island today: the research modal follows the member\'s theme', () => {
+    // Owner ruling 2026-10-07. A new island is allowed — it must then pass every check below — but
+    // the modal must never become one again (EarningsResearchModal.followsTheme.test.js).
+    expect(FOUND.map((i) => i.file)).not.toContain('components/research/EarningsResearchModal.module.css')
   })
 
   it('⛔ every island pins EVERY theme-variant token that has a :root default', () => {
-    const offenders = FOUND
-      .map((i) => ({ i, missing: missingFrom(i, REQUIRED) }))
-      .filter(({ missing }) => missing.length)
-      .map(({ i, missing }) => `${i.file} (${i.sel}) is missing: ${missing.join(', ')}`)
     expect(
-      offenders,
+      pinningOffenders(FOUND, REQUIRED),
       'a themed token was added to tokens.css and these islands were not updated. Add each '
       + 'token to the island at the value :root gives it — do NOT delete the marker.',
     ).toEqual([])
   })
 
-  it('⛔ MUTATION PROOF: a newly themed token is reported missing from a real island', () => {
-    // Adding a throwaway token with a :root default and a theme variant must make every existing
-    // island incomplete. If this passes silently, the rail cannot see new tokens at all — which
-    // is precisely the state the repo was in when #100 shipped.
+  it('CONTROL: the pinning check passes a complete island and names a missing token', () => {
+    expect(pinningOffenders(FIXTURE, REQUIRED)).toEqual([])
+    const dropped = '--text'
+    expect(REQUIRED.has(dropped)).toBe(true)
+    const partial = islandsInCss(FIXTURE_FILE, fixtureCss({}, [dropped]))
+    expect(pinningOffenders(partial, REQUIRED).join('\n')).toMatch(/is missing: --text$/)
+  })
+
+  it('⛔ MUTATION PROOF: a newly themed token is reported missing from every island', () => {
+    // Adding a throwaway token with a :root default and a theme variant must make every island
+    // incomplete — the real ones and the fixture. If this passes silently, the rail cannot see
+    // new tokens at all, which is precisely the state the repo was in when #100 shipped.
     const mutated = `${TOKENS_CSS}\n:root { --zz-throwaway-island-probe: #000; }\n`
       + `[data-theme="light"] { --zz-throwaway-island-probe: #fff; }\n`
     const mutatedRequired = requiredTokens(mutated)
 
     expect(mutatedRequired.has('--zz-throwaway-island-probe'), 'the probe token was not derived as required').toBe(true)
-    for (const island of FOUND) {
+    for (const island of [...FOUND, ...FIXTURE]) {
       expect(
         missingFrom(island, mutatedRequired),
         `${island.file} did not report the probe token as missing`,
@@ -141,25 +195,13 @@ describe('theme islands stay complete as tokens.css grows', () => {
   it('an island pins each token to the value :root actually gives it — no drift', () => {
     // Completeness is not enough: an island holding a stale VALUE renders the wrong colour while
     // passing every coverage check above.
-    const rootBlock = blocks(stripComments(TOKENS_CSS)).find(([sel]) => sel === ':root')
-    const rootValues = Object.fromEntries(
-      [...rootBlock[1].matchAll(/(--[\w-]+)\s*:([^;]+);/g)].map((m) => [m[1], m[2].replace(/\s+/g, '').toLowerCase()]),
-    )
-    const drifted = []
-    for (const file of new Set(FOUND.map((i) => i.file))) {
-      const css = stripComments(readFileSync(path.join(SRC, file), 'utf8'))
-      for (const [sel, body] of blocks(css)) {
-        if (!declaredTokens(body).has('--theme-island')) continue
-        for (const m of body.matchAll(/(--[\w-]+)\s*:([^;]+);/g)) {
-          const [, name, raw] = m
-          if (!REQUIRED.has(name)) continue
-          const value = raw.replace(/\s+/g, '').toLowerCase()
-          if (rootValues[name] && value !== rootValues[name]) {
-            drifted.push(`${file} (${sel}) ${name}: island ${value} vs :root ${rootValues[name]}`)
-          }
-        }
-      }
-    }
+    const drifted = driftOffenders(FOUND, REQUIRED, ROOT_VALUES)
     expect(drifted, `island values that no longer match :root:\n${drifted.join('\n')}`).toEqual([])
+  })
+
+  it('CONTROL: the drift check passes a faithful island and names a stale value', () => {
+    expect(driftOffenders(FIXTURE, REQUIRED, ROOT_VALUES)).toEqual([])
+    const stale = islandsInCss(FIXTURE_FILE, fixtureCss({ '--text': '#123456' }))
+    expect(driftOffenders(stale, REQUIRED, ROOT_VALUES).join('\n')).toMatch(/--text: island #123456 vs :root/)
   })
 })

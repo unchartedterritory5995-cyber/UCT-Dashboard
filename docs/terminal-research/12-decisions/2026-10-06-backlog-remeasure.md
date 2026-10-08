@@ -68,7 +68,8 @@ lane tests. Landing it requires deleting a stale duplicate `PINE_RUNTIME_SAVE_EN
 from `docs/feature_flags.json`; this session's permission rules refused that edit.
 
 **Decided.** Leave it for the owner (or an agent the owner permits to edit the flag ledger).
-Exact steps: `backlog-status-2026-10-06.md` §5 item 1.
+Exact steps: `backlog-status-2026-10-06.md` §5 item 1. ➜ 2026-10-07: the integrator assigned
+`lane/s2-finish` to another lane to finish (`2026-10-07-owner-delegated-decisions.md` I-12).
 
 ## D6. Lanes outside the backlog's themes are handed off, not built here
 

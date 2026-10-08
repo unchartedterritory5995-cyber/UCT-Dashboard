@@ -281,6 +281,11 @@ const BARE_POLL_SITES = {
   'app/src/components/admin/ChatModerationPanel.jsx': 1,
   'app/src/components/admin/CompassHealthPanel.jsx': 1,
   'app/src/components/admin/ThemeEngineHealthPanel.jsx': 1,
+  //   • AlertOpsPanel (TERMINAL-NEXT lane S, Alerts PRD AC-7) KEPT BARE for the
+  //     same reason as the three panels above: admin-only, a 60 s tick against a
+  //     DARK route that 404s to null; the wrapper's focus revalidate and
+  //     `useMarketOpen` timer would be pure cost on a page a phone never renders.
+  'app/src/components/admin/AlertOpsPanel.jsx': 1,
   'app/src/pages/OpenFlow.jsx': 1,
   'app/src/components/mobile/MoreSheet.jsx': 2,
   'app/src/components/tiles/CompassTodayTile.jsx': 1,

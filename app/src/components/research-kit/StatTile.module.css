@@ -27,8 +27,10 @@
   color: var(--text-muted);
 }
 
+/* The ramp's two ends read through the text inks, which clear AA on every theme
+   (--score-elite / --score-poor as text measured 3.43–4.44:1 on catalog surfaces). */
 .toneElite {
-  color: var(--score-elite);
+  color: var(--success-ink);
 }
 .toneStrong {
   color: var(--score-strong);
@@ -40,7 +42,7 @@
   color: var(--score-weak);
 }
 .tonePoor {
-  color: var(--score-poor);
+  color: var(--danger-ink);
 }
 
 /* PHONE */
