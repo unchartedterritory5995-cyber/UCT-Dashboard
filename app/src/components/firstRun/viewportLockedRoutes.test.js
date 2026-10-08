@@ -18,7 +18,9 @@ import { VIEWPORT_LOCKED_ROUTES, isViewportLockedRoute } from './viewportLockedR
 import { NAV_ITEMS } from '../NavBar'
 
 const MEASUREMENT_FILE =join(process.cwd(), '..', 'docs', 'notebook', 'proof', 'f5-r2-routes',
-  'routes-before-a0c32d2e2.json')
+  // 2026-10-07: composite — the pre-fix run for every route plus the /terminal row measured on
+  // c941080f0 (the file's `provenance` says why and how to replace it).
+  'routes-composite-a0c32d2e2+terminal-c941080f0.json')
 const m = JSON.parse(readFileSync(MEASUREMENT_FILE, 'utf8'))
 
 describe('viewport-locked routes are the measured ones (viewportLockedRoutes.js)', () => {
