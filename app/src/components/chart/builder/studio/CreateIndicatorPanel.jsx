@@ -65,7 +65,7 @@ function lookOf(def) {
   })
   // Paints keep the engine's own sentence (`presentationLines`), minus the plot
   // and placement lines rendered above.
-  const paints = [...presentationLines(def).filter((l) => /^(candles painted|background shaded|an imported)/.test(l)),
+  const paints = [...presentationLines(def).filter((l) => /^(candles painted|background shaded|an imported|a table in|table row|a chart table)/.test(l)),
     // ⭐ P3 — line styles, bands and levels, in the engine's own words.
     ...vocabularyLines(def)]
   const placement = def.placement && def.placement.target === 'price' ? 'On the price chart' : 'In its own pane'
