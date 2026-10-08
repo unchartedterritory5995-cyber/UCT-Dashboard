@@ -37,8 +37,8 @@ population at S differs from the canonical count by more than `MAX_POPULATION_DR
 numbers would carry a headcount difference rather than a price-basis offset, so that
 universe publishes nothing (`degraded`), never a wrong value.
 
-Kill switch / rollout: `BREADTH_LIVE_UNIVERSES` ("1" serves; anything else computes for the
-reconcile proof only). `breadth_live.enabled()` (BREADTH_LIVE_ENABLED) also gates it.
+Kill switch: `BREADTH_LIVE_UNIVERSES=0` withholds every appended row (default ON since 2026-10-08,
+after the production reconcile). `breadth_live.enabled()` (BREADTH_LIVE_ENABLED) also gates it.
 """
 from __future__ import annotations
 
@@ -78,7 +78,9 @@ _NEVER_PUBLISH = ("mcclellan_osc", "new_ath", "_measured", "_zero_prev_close",
 def serving() -> bool:
     """Will the chart paths append live/provisional bars for these universes?"""
     from api.services import breadth_live as bl
-    return os.environ.get("BREADTH_LIVE_UNIVERSES", "0").strip() == "1" and bl.enabled()
+    # ⭐ ON by default since 2026-10-08 (production reconcile over 8 sessions: % above MAs within
+    # 0.9 pt worst case, counts within a few names). `BREADTH_LIVE_UNIVERSES=0` withholds it.
+    return os.environ.get("BREADTH_LIVE_UNIVERSES", "1").strip() != "0" and bl.enabled()
 
 
 # ── membership ───────────────────────────────────────────────────────────────

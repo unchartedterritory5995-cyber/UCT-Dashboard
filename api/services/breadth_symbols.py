@@ -1068,8 +1068,8 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
     # ⭐ (2026-10-08) A PIT universe gets ITS OWN live feed: `breadth_live_universes`
     # measures US / NYSE / Nasdaq over their own members, anchored to their own
     # canonical series, and appends the provisional completed sessions the canonical
-    # producer has not finalised yet plus today's developing bar. Off unless
-    # BREADTH_LIVE_UNIVERSES=1; off, a PIT universe ends at its last sealed day.
+    # producer has not finalised yet plus today's developing bar. BREADTH_LIVE_UNIVERSES=0
+    # turns it off, and then a PIT universe ends at its last sealed day.
     body = daily or []
     if universe == DEFAULT_UNIVERSE:
         body = _append_today_candle(body, metric)
