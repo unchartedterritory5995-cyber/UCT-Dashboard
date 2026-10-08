@@ -20,7 +20,7 @@
 // the references, and the plan is re-planned and committed like any other — no model
 // call, and nothing is written if a producer fails or a reference comes back empty.
 
-import { getCapability, getOutputSource, isRef } from './capabilities'
+import { getCapability, getOutputSource, isRef, allCapabilityNames } from './capabilities'
 
 const MAX_TOP = 100
 
@@ -43,9 +43,50 @@ export function consumedProducers(ops) {
   return (ops || []).filter(op => getCapability(op?.action)?.produces && op.args?.as && wanted.has(String(op.args.as)))
 }
 
+/**
+ * A reference may name a context TARGET instead of a producer's alias — e.g.
+ * {from: "<a saved watchlist's ref>"}: the production model does this (measured
+ * 2026-10-07). It is bound here to that target kind's own READ-ONLY producer
+ * (watchlist.show for a list), so the source is read fresh at apply exactly as if
+ * the model had written the producer itself. Nothing else is accepted: the target
+ * must be one the context listed (refMap), and its kind must register a query
+ * capability that produces the input's type. → ops (producers first)
+ */
+export function bindSourceRefs(ops, refMap) {
+  const aliases = new Set((ops || []).filter(o => getCapability(o?.action)?.produces && o.args?.as).map(o => String(o.args.as)))
+  const added = new Map()
+  const out = []
+  for (const op of ops || []) {
+    const cap = getCapability(op?.action)
+    let args = op.args
+    for (const [arg, type] of Object.entries(cap?.inputs || {})) {
+      const v = args?.[arg]
+      if (!isRef(v) || aliases.has(v.from)) continue
+      const t = refMap?.[v.from]
+      if (!t) continue
+      const prod = allCapabilityNames().map(getCapability).find(c => c.target === t.kind && c.produces === type && c.query)
+      if (!prod) continue
+      const alias = `src_${v.from}`
+      if (!added.has(alias)) {
+        const blank = Object.fromEntries(Object.keys(prod.args?.properties || {}).map(k => [k, null]))
+        added.set(alias, { action: prod.name, target: t.ref, args: { ...blank, as: alias } })
+      }
+      args = { ...args, [arg]: { from: alias, top: v.top } }
+    }
+    out.push(args === op.args ? op : { ...op, args })
+  }
+  return [...added.values(), ...out]
+}
+
 /** A sentence if any reference is malformed or points at nothing it may use. */
 export function checkRefs(ops, host = null) {
-  const seen = new Map()                                // alias → produced type, in plan order
+  // Producers count wherever they sit in the plan (they always run before any
+  // consumer at apply) — the model sometimes lists the consumer first.
+  const seen = new Map()                                // alias → produced type
+  for (const op of ops || []) {
+    const cap = getCapability(op?.action)
+    if (cap?.produces && op.args?.as) seen.set(String(op.args.as), cap.produces)
+  }
   for (const op of ops || []) {
     const cap = getCapability(op?.action)
     for (const [arg, type] of Object.entries(cap?.inputs || {})) {
@@ -59,7 +100,6 @@ export function checkRefs(ops, host = null) {
       if (inPlan != null && inPlan !== type) return `“${v.from}” doesn't produce ${type}.`
       if (v.top !== null && (v.top < 1 || v.top > MAX_TOP)) return `“top” must be between 1 and ${MAX_TOP}.`
     }
-    if (cap?.produces && op.args?.as) seen.set(String(op.args.as), cap.produces)
   }
   // A producer's own arguments are checked BEFORE anything is proposed (a screen
   // with an unknown field never reaches a proposal, let alone a write).
