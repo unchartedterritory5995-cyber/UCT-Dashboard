@@ -91,11 +91,15 @@ export function resolveActiveTab(widget) {
 }
 
 // Add a new EXTRA tab and make it active. `color` defaults to the base color so a
-// new tab starts on the same symbol you're already viewing.
-export function addWidgetTab(widget, { type, color = 'A' } = {}) {
+// new tab starts on the same symbol you're already viewing. `opts` is the tab's own
+// settings: a widget MOVED into tabs (float → "Move into another widget's tabs") or a
+// Period Sort "add as tab" carries its configuration here. ⛔ It used to be dropped
+// (`opts: {}` always), so a moved watchlist lost its list and a Period Sort tab fell back
+// to its default range — widgetTabs.test.js pins both callers' shapes.
+export function addWidgetTab(widget, { type, color = 'A', opts = {} } = {}) {
   const w = widget && typeof widget === 'object' ? widget : {}
   const { tabs } = sanitizeWidgetTabs(widget)
-  const tab = { id: _newTabId(), type, color, opts: {} }
+  const tab = { id: _newTabId(), type, color, opts: opts && typeof opts === 'object' && !Array.isArray(opts) ? { ...opts } : {} }
   const next = [...tabs, tab]
   return { ...w, wtabs: next, activeWtab: next.length } // active = the new last tab
 }

@@ -62,6 +62,7 @@ import vhStyles from './VersionHistory.module.css'
 import { recordBoardWrites, replayBoardWrites, applyColumnsSteps, boardDocumentPatch, commitBoardDocument, planColumnsFold } from './boardDocument'
 import { isWorkspaceDocArmed } from '../../lib/workspaceDoc'
 import { addWidgetTab } from './widgetTabs'
+import { createEmptyNamedLayout } from './dockCreate'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
 import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
 import useTracingsSync from '../../components/chart/useTracingsSync'
@@ -2276,7 +2277,12 @@ export default function ChartsWorkspace() {
   // fresh board from scratch. Clears the color groups too. Persisted like any edit,
   // so a returning user stays on the blank board until they add a widget or open a
   // saved layout. (Named/saved layouts are untouched — only the working board is.)
-  const handleNewLayout = useCallback(() => {
+  // `opts.activeTemplate` (the Dock's ＋ New layout): the just-created layout row becomes the
+  // open one IN THE SAME board commit — a separate setPref afterwards could land before the
+  // (async, armed) document write and be overwritten by its 'null'. Called bare (or as an
+  // onClick with a MouseEvent) it opens nothing, as before.
+  const handleNewLayout = useCallback((opts) => {
+    const activeTemplate = opts && typeof opts === 'object' && opts.activeTemplate ? opts.activeTemplate : null
     flushNamedSaveRef.current?.()
     suppressAutoSave()
     const blank = { widgets: [], cols: GRID_COLS }
@@ -2298,8 +2304,8 @@ export default function ChartsWorkspace() {
         setPref('breadth_widget_settings', JSON.stringify(breadthDefaultsForTheme(themeRef.current)))
         setPref('charts_theme', 'default')
         setWatchlistColumns(null)  // mirrors WL_COLS_LS in Watchlists.jsx
-        // Blank board is not a named template.
-        setPref('charts_active_template', 'null')
+        // Blank board is not a named template — unless the Dock just created one for it.
+        setPref('charts_active_template', activeTemplate ? JSON.stringify(activeTemplate) : 'null')
       },
     })
   }, [commitBoard, suppressAutoSave])
@@ -2801,18 +2807,14 @@ export default function ChartsWorkspace() {
     if (tpl) applyTemplate(tpl)
   }, [gridMode, mc, applyUctDefault, applyTemplate, globalLayouts, myLayouts])
 
-  // ＋ — blank the board, then save it under the typed name, so the layout
-  // exists and is the active one the moment you press Enter. You build it from
-  // there and save again through Layouts ▾ (the dot lands in Phase 2).
+  // ＋ — create the empty layout under the typed name (CREATE-ONLY: an existing name is
+  // refused, never replaced — dockCreate.js), THEN blank the board and make it active.
+  // You build it from there and save again through Layouts ▾.
   const handleDockCreate = useCallback(async (name) => {
-    handleNewLayout()
-    try {
-      const saved = await saveLayout({ name, layout: { widgets: [], cols: GRID_COLS }, groups: null, scope: 'user' })
-      if (saved?.id != null) {
-        setPref('charts_active_template', JSON.stringify({ id: saved.id, name: saved.name || name, scope: saved.scope || 'user' }))
-      }
-    } catch { /* surfaced by SWR revalidate */ }
-  }, [handleNewLayout, saveLayout, setPref])
+    const res = await createEmptyNamedLayout(name, { saveLayout, cols: GRID_COLS })
+    if (!res.ok) { showWorkspaceNotice(res.reason); return }
+    handleNewLayout({ activeTemplate: { id: res.saved.id, name: res.saved.name || name, scope: res.saved.scope || 'user' } })
+  }, [handleNewLayout, saveLayout, showWorkspaceNotice])
 
   // The workspace's feedback host. It sits outside every menu and panel so a
   // message survives the control that produced it.

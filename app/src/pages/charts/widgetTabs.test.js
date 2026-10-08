@@ -109,3 +109,24 @@ describe('widgetTabs — per-active-tab color/opts routing', () => {
     expect(reopt.wtabs[0].opts).toEqual({ filter: 'up' })
   })
 })
+
+// ⛔ GATE B (2026-10-08 audit): addWidgetTab dropped `opts`, so both callers that MOVE a
+// configured widget into tabs lost its configuration.
+describe('widgetTabs — a widget moved into tabs keeps its settings', () => {
+  it('float → "Move into another widget\'s tabs": the source widget\'s opts survive (and survive a re-sanitize)', () => {
+    const src = { type: 'watchlist', color: 'B', opts: { watchKey: 'user:42', watchName: 'Semis', settings: { rowHeight: 'compact' } } }
+    const next = addWidgetTab(base, { type: src.type, color: src.color, opts: src.opts })
+    expect(next.wtabs[0]).toMatchObject({ type: 'watchlist', color: 'B', opts: src.opts })
+    expect(resolveActiveTab(next).opts).toEqual(src.opts)
+    expect(sanitizeWidgetTabs(next).tabs[0].opts).toEqual(src.opts)
+    expect(next.wtabs[0].opts).not.toBe(src.opts)       // a copy, never the source object
+  })
+  it('Period Sort "add as tab": start / end / group survive', () => {
+    const next = addWidgetTab(base, { type: 'periodsort', color: 'N', opts: { start: '2026-08-05', end: '2026-09-30', group: 'semis' } })
+    expect(resolveActiveTab(next).opts).toEqual({ start: '2026-08-05', end: '2026-09-30', group: 'semis' })
+  })
+  it('the "+" tab menu (no opts) still starts a blank tab', () => {
+    expect(addWidgetTab(base, { type: 'news' }).wtabs[0].opts).toEqual({})
+    expect(addWidgetTab(base, { type: 'news', opts: null }).wtabs[0].opts).toEqual({})
+  })
+})
