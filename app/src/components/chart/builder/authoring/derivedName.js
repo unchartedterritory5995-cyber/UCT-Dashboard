@@ -63,6 +63,31 @@ export function memberNamePhrases(words) {
   return out
 }
 
+/** The names the member gave after an explicit naming CUE ("call it Swing Line",
+ *  "named My Trend") — original casing, trimmed. ⛔ Quoted text alone is NOT here: a
+ *  quoted phrase may be table text ("show "BUY""), not a name. */
+export function memberCueNames(words) {
+  if (typeof words !== 'string' || !words) return []
+  const out = []
+  NAMING_CUE.lastIndex = 0
+  let m
+  while ((m = NAMING_CUE.exec(words))) {
+    // "call it Swing Line and colour it red" names "Swing Line": the name ends at the
+    // first joining word that starts another instruction.
+    const text = String(m[1]).replace(/[\s ]+/g, ' ').trim()
+      .split(/\s+(?:and|then|with|that|which|so|but|in|on|at|for|to|using|plus|also)\s+/i)[0].trim()
+    if (text && !out.some((x) => norm(x) === norm(text))) out.push(text)
+  }
+  return out
+}
+
+/** Is `text` a naming clause the member wrote ("call it Swing Line")? */
+export function isNamingClause(text) {
+  if (typeof text !== 'string' || !text) return false
+  NAMING_CUE.lastIndex = 0
+  return NAMING_CUE.test(text)
+}
+
 /** Did the member explicitly give `name` (a create name or label) in their words? */
 export function memberNamed(phrases, name) {
   return typeof name === 'string' && !!name.trim() && phrases.has(norm(name))

@@ -8,7 +8,8 @@
 import { describe, it, expect } from 'vitest'
 import { parseFormula } from '../ast/parse'
 import { applyPatch, applyTurn, openAuthoringState } from '../../builder/authoring'
-import { memberNamePhrases, derivedDefName } from '../../builder/authoring/derivedName'
+import { memberNamePhrases, derivedDefName, memberCueNames } from '../../builder/authoring/derivedName'
+import { distinctNotUnderstood } from '../../builder/authoring/converseClient'
 
 const P = (src) => { const r = parseFormula(src); if (!r.ok) throw new Error(src); return r.ast }
 const env = (rev, ops) => ({ contract: 'uct.authoring.patch/1', baseRevision: rev, ops, assumptions: [] })
@@ -153,5 +154,29 @@ describe('member names survive; automatic names follow the maths', () => {
     // …while a name the member typed (anything else) is kept
     const custom = applyPatch({ ...r, meta: { ...r.meta, name: 'My Sizer' } }, env(1, [CALC[1]]), { gateCtx: GATE, revision: 1 })
     expect(custom.definition.meta.name).toBe('My Sizer')
+  })
+
+  // ── ⚰️ PROD 2026-10-08 (stabilization acceptance): the model ignored the member's name ──
+  const ema21 = env(0, [{ op: 'create', name: 'EMA 21', placement: 'price', primary: 'ema21',
+    outputs: [{ key: 'ema21', label: 'EMA 21', tree: P('ema(close, 21)') }] }])
+
+  it('"Add an EMA 21 and call it Swing Line" names it Swing Line even when the model sent "EMA 21"; it survives an edit', () => {
+    const r = applyPatch(null, ema21, { gateCtx: GATE, memberWords: 'Add an EMA 21 and call it Swing Line.' })
+    expect(r.definition.meta.name).toBe('Swing Line')
+    const t = applyPatch(r.definition, env(1, [{ op: 'set_output_tree', output: 'ema21', tree: P('ema(close, 50)') }]), { gateCtx: GATE, revision: 1 })
+    expect(t.definition.meta.name).toBe('Swing Line')
+  })
+
+  it('the name stops at the next instruction; quoted text and output labels are not names', () => {
+    expect(memberCueNames('call it Swing Line and colour it red')).toEqual(['Swing Line'])
+    expect(applyPatch(null, ema21, { gateCtx: GATE, memberWords: 'Add EMA 21, show "BUY" above it' }).definition.meta.name).toBe('EMA 21')
+    const labelled = env(0, [{ op: 'create', name: 'x', outputs: [{ key: 'fast', tree: P('ema(close, 20)') },
+      { key: 'slow', label: 'Slow line', tree: P('ema(close, 50)') }] }])
+    expect(applyPatch(null, labelled, { gateCtx: GATE, memberWords: 'EMA 20 and an EMA 50 labelled Slow line' }).definition.meta.name).toBe('EMA 20 · EMA 50')
+  })
+
+  it("a naming clause is never listed as 'I didn't understand'", () => {
+    const res = { ok: true, notUnderstood: [{ clause: 'call it Swing Line.', reason: 'not a supported concept' }, { clause: 'wobble', reason: 'unknown' }] }
+    expect(distinctNotUnderstood(res).map((n) => n.clause)).toEqual(['wobble'])
   })
 })

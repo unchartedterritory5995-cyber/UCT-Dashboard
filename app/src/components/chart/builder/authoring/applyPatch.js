@@ -22,7 +22,7 @@
 // ⛔ NOTHING HERE CALLS A MODEL. ⛔ NOTHING HERE WRITES `meta.semantics`.
 // ⛔ PROSE (`note`, `*.text`) NEVER REACHES THE DEFINITION.
 
-import { namingSnapshot, applyDerivedNaming, memberNamePhrases, memberNamed } from './derivedName'
+import { namingSnapshot, applyDerivedNaming, memberNamePhrases, memberNamed, memberCueNames, NAME_MAX } from './derivedName'
 import { validatePatchShape, opIndexOf, PATCH_LIMITS } from './patchValidate'
 import {
   modelOf, buildFromModel, fidelityPlan, graftCarried, orderLike, evaluateRowSource, AuthoringError, LEVELS_PLOT_KEY,
@@ -412,6 +412,18 @@ const OPS = {
     st.created = true
     // ⭐ a name / label the member gave in their own words is CUSTOM (derivedName.js)
     if (memberNamed(st.memberNames, st.model.name)) st.renamedDefinition = true
+    // ⭐ …AND IT IS THE NAME EVEN WHEN THE MODEL PUT ANOTHER ON THE CREATE. ⚰️ Measured
+    // on prod 2026-10-08: "Add an EMA 21 and call it Swing Line" came back as
+    // `create {name: "EMA 21"}`. Exactly ONE cue-named phrase that is not an output's
+    // label names the indicator.
+    else {
+      const labels = new Set(op.outputs.map((o) => String(o.label || '').trim().toLowerCase()).filter(Boolean))
+      const given = memberCueNames(st.ctx.memberWords).filter((t) => !labels.has(t.toLowerCase()))
+      if (given.length === 1) {
+        st.model.name = given[0].length > NAME_MAX ? given[0].slice(0, NAME_MAX) : given[0]
+        st.renamedDefinition = true
+      }
+    }
     op.outputs.forEach((o, j) => { if (memberNamed(st.memberNames, o.label)) st.renamedOutputs.add(keys[j]) })
     st.changes.push({ op: i, kind: 'created', outputs: keys, name: st.model.name })
   },
