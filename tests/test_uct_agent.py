@@ -454,8 +454,10 @@ def test_compact_args_are_parsed_and_checked_against_the_capabilitys_own_schema(
     assert out["envelope"]["ops"] == [{"action": "example.set2", "target": "c1", "args": {"level": "high", "note": None}}]
 
 
+# (An OMITTED nullable key now reads as null -- see the test at the end of this file;
+# a missing REQUIRED value, a wrong value, a wrong type or an extra key still fails.)
 @pytest.mark.parametrize("args_json", [
-    "not json", json.dumps({"level": "max", "note": None}), json.dumps({"level": "high"}),
+    "not json", json.dumps({"level": "max", "note": None}), json.dumps({"note": None}),
     json.dumps({"level": "high", "note": None, "extra": 1}), json.dumps({"level": 3, "note": None}),
 ])
 def test_compact_args_that_do_not_match_are_unreadable_never_guessed(args_json):
@@ -512,3 +514,13 @@ def test_a_typed_reference_arg_survives_the_manifest_and_the_compact_check():
     assert turn.args_match(kept[0]["args"], {"symbols": ["NVDA"]})
     assert turn.args_match(kept[0]["args"], {"symbols": {"from": "screen1", "top": 20}})
     assert not turn.args_match(kept[0]["args"], {"symbols": ["NVDA"], "extra": 1})
+
+
+def test_compact_op_missing_a_NULLABLE_arg_is_read_as_null_but_missing_a_required_value_still_fails():
+    """Measured on the production model (2026-10-08): watchlist.show sent with {} failed the whole turn."""
+    caps = [{"name": "watchlist.show", "args": {"type": "object", "properties": {"as": {"type": ["string", "null"]}}, "required": ["as"], "additionalProperties": False}},
+            {"name": "chart.setType", "args": {"type": "object", "properties": {"type": {"type": "string"}}, "required": ["type"], "additionalProperties": False}}]
+    ok = turn.expand_compact_ops({"ops": [{"action": "watchlist.show", "target": "w2", "args_json": "{}"}]}, caps)
+    assert ok["ops"] == [{"action": "watchlist.show", "target": "w2", "args": {"as": None}}]
+    with pytest.raises(turn.TurnError):
+        turn.expand_compact_ops({"ops": [{"action": "chart.setType", "target": "c1", "args_json": "{}"}]}, caps)
