@@ -1,0 +1,82 @@
+{
+  "verdict": "INVALID",
+  "counts": {
+    "new": 8,
+    "fixed": 11,
+    "unchanged": 190,
+    "missing": 2,
+    "baseline": 203,
+    "current": 198,
+    "current_ran": 41838,
+    "new_flaky": 0,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 2
+  },
+  "arithmetic": "baseline 203 = unchanged 190 + fixed 11 + missing 2  |  current 198 = unchanged 190 + new 8 + new-but-flaky 0",
+  "invalid_because": [
+    "current: shards_success 19 of 20"
+  ],
+  "baseline_run_id": "37703530663",
+  "current_run_id": "37817550315",
+  "baseline_sha": "18676e3eceb6cbeb2ec71550478f7782d29db45c",
+  "current_sha": "1d505f29e95014c46cbb7cf85622b184c02e449a",
+  "commit_range": "18676e3eceb6cbeb2ec71550478f7782d29db45c..1d505f29e95014c46cbb7cf85622b184c02e449a",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_names_a_later_commit_that_merged_clean_on_the_landings_files",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_refuses_what_is_not_a_landing_there",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_reverts_a_pending_landing_and_keeps_the_keep_list",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_says_when_the_landing_has_not_merged_the_base",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_stops_on_a_product_conflict_and_never_uses_a_recorded_rule",
+    "pytest|tests.test_notebook_rollback_chain|test_the_landing_keep_list_applies_at_its_own_chain_step_and_at_no_other",
+    "pytest|tests.test_notebook_rollback_chain|test_under_wave_11_the_chain_differs_from_what_R1h_rehearsed_only_where_it_must",
+    "pytest|tests.test_scan_evaluator_off_request_path|test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes"
+  ],
+  "missing": [
+    "pytest|tests.test_notebook_bench_uct|test_every_selector_the_runner_uses_is_in_the_product[app/src/components/CommandPalette.jsx-e.key.toLowerCase() === 'k']",
+    "pytest|tests.test_notebook_trade_canvas|test_the_ledger_declares_the_gate_dark_with_a_reason"
+  ],
+  "fixed": [
+    "pytest|tests.test_earnings_window_single_walk|test_both_consumers_agree_across_the_window",
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_notebook_bridges_pin_the_root|test_every_notebook_tool_that_imports_api_applies_the_census_first",
+    "pytest|tests.test_notebook_route_security_census|test_every_notebook_route_on_the_real_app_is_classified_and_agrees",
+    "pytest|tests.test_notebook_switch_rehearsal|test_every_notebook_gate_is_rehearsed_or_carries_a_reason",
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_document_excerpt]",
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_financial_fact]",
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_widget_embed]",
+    "pytest|tests.test_term018_every_guard_can_fire|test_the_pytest_collection_probe_can_answer_NO",
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [
+    "pytest|tests.test_notebook_bench_uct|test_every_selector_the_runner_uses_is_in_the_product[app/src/components/CommandPalette.jsx-e.key.toLowerCase() === 'k']",
+    "pytest|tests.test_notebook_trade_canvas|test_the_ledger_declares_the_gate_dark_with_a_reason"
+  ],
+  "missing_buckets": {
+    "pytest|tests.test_notebook_bench_uct|test_every_selector_the_runner_uses_is_in_the_product[app/src/components/CommandPalette.jsx-e.key.toLowerCase() === 'k']": [
+      "DE-COLLECTED",
+      "tests/test_notebook_bench_uct.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_trade_canvas|test_the_ledger_declares_the_gate_dark_with_a_reason": [
+      "DE-COLLECTED",
+      "tests/test_notebook_trade_canvas.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ]
+  },
+  "attribution": {}
+}
