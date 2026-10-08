@@ -22,10 +22,10 @@
 // C3A's markers: the container, the two coordinate functions and the frame
 // scheduler. A host that cannot provide them gets no drawings and no error —
 // the columns, the legend and the scan are untouched.
-import { paintObjects, layoutTables } from './objectCanvas'
+import { paintObjects, layoutTables, TABLE_MARGIN as TABLE_MARGIN_EDGE } from './objectCanvas'
 import { renderTables, fitFactor, applyFit, TABLES_FIT } from './objectTableDom'
 import { setPaneScaled } from './paneFitNotice'
-import { registerTableLayer, restackTables } from './objectTableStack'
+import { registerTableLayer, restackTables, TABLE_STACK_GAP } from './objectTableStack'
 
 const noop = () => {}
 
@@ -117,6 +117,19 @@ export function createObjectLayer(host) {
   let paneKey = ''
   let lastPane = null
   const unregisterTables = registerTableLayer(container, { root: tableRoot, paneKey: () => paneKey })
+  /** The tallest corner stack of THIS layer's own tables, in px (0 = none / unmeasurable). */
+  const ownStackHeight = () => {
+    if (typeof tableRoot.querySelectorAll !== 'function') return 0
+    const byPos = new Map()
+    for (const el of tableRoot.querySelectorAll('[data-uct-object-table]')) {
+      let hgt = 0
+      try { const r = el.getBoundingClientRect ? el.getBoundingClientRect() : null; hgt = (r && r.height) || 0 } catch { hgt = 0 }
+      hgt = hgt || Number(el.offsetHeight) || 0
+      const pos = (el.getAttribute && el.getAttribute('data-uct-table-position')) || 'top_right'
+      byPos.set(pos, (byPos.get(pos) || 0) + hgt + (byPos.has(pos) ? TABLE_STACK_GAP : 0))
+    }
+    return Math.max(0, ...byPos.values())
+  }
 
   let state = null
   let dead = false
@@ -162,8 +175,15 @@ export function createObjectLayer(host) {
     // instance draws in (`map.pane`: top / height in the container's px); the
     // table layer is inset to it — the toolbar inset still applies at the top.
     // No pane reported → the whole container, exactly as before.
-    const pane = map.pane && Number.isFinite(map.pane.top) && Number.isFinite(map.pane.height) && map.pane.height > 0
-      ? map.pane : null
+    // ⚰️ …BUT ONLY A PANE THE TABLES FIT IN (measured on prod 2026-10-08, the first
+    // deploy of this rule): a calculator's own pane is a ~25px strip and its 143px
+    // table was confined to it — drawn below the chart and clipped away. A pane too
+    // short for this layer's tallest corner stack falls back to the PRICE pane
+    // (`map.mainPane`), then to the whole container, exactly as before.
+    const okRect = (r) => !!r && Number.isFinite(r.top) && Number.isFinite(r.height) && r.height > 0
+    const need = ownStackHeight()
+    const fits = (r) => okRect(r) && (need === 0 || need + 2 * TABLE_MARGIN_EDGE <= r.height)
+    const pane = fits(map.pane) ? map.pane : fits(map.mainPane) ? map.mainPane : null
     const paneTop = pane ? Math.max(Math.round(pane.top), Math.round(Number(ins.top) || 0)) : null
     const paneBottom = pane ? Math.max(0, Math.round(h - (pane.top + pane.height))) : null
     const nextPane = pane ? `${paneTop}:${paneBottom}` : ''

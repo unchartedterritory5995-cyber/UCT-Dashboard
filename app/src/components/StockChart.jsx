@@ -12975,19 +12975,24 @@ export default function StockChart({
             // (`objectLayer.js`). Read off the renderer: the pane of one of the
             // instance's own series (a visible one first), else the candles' pane.
             // ⛔ Unreadable → no `pane`, and the table layer keeps the whole container.
+            // …and the PRICE pane, the layer's fallback when its own pane is too short
+            // for its tables (a calculator's one-line pane).
             let pane = null
+            let mainPane = null
             try {
+              const rectOf = (lwPane) => {
+                const pel = lwPane?.getHTMLElement?.()
+                if (!pel || !el || !pel.getBoundingClientRect || !el.getBoundingClientRect) return null
+                const pr = pel.getBoundingClientRect()
+                const cr = el.getBoundingClientRect()
+                return pr.height > 0 ? { top: pr.top - cr.top, height: pr.height } : null
+              }
               const mine = (engineRef.current?.binder?.bindings?.() || [])
                 .filter((b) => b && b.instanceId === (inst && inst.instanceId) && b.series)
               const shown = mine.find((b) => b.series.options?.()?.visible !== false) || mine[0]
-              const lwPane = shown?.series?.getPane?.() || series.getPane?.()
-              const pel = lwPane?.getHTMLElement?.()
-              if (pel && el && pel.getBoundingClientRect && el.getBoundingClientRect) {
-                const pr = pel.getBoundingClientRect()
-                const cr = el.getBoundingClientRect()
-                if (pr.height > 0) pane = { top: pr.top - cr.top, height: pr.height }
-              }
-            } catch { pane = null }
+              mainPane = rectOf(series.getPane?.())
+              pane = rectOf(shown?.series?.getPane?.()) || mainPane
+            } catch { pane = null; mainPane = null }
             return {
               timeToX: (t) => ts.timeToCoordinate(adjustTime(t)),
               priceToY: (p) => series.priceToCoordinate(p),
@@ -12995,6 +13000,7 @@ export default function StockChart({
               height: el ? el.clientHeight : 0,
               rightInset,
               pane,
+              mainPane,
             }
           },
         }),

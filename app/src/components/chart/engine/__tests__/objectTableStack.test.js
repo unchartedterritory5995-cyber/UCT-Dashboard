@@ -23,12 +23,12 @@ const measure = (root) => {
 const cells = (text) => [{ col: 0, row: 0, text, text_color: '#fff', text_size: 'normal' }]
 const state = (...tables) => ({ lines: [], labels: [], boxes: [], fills: [], tables })
 
-function mount(container, id, pane = null) {
+function mount(container, id, pane = null, mainPane = null) {
   const frames = []
   const layer = createObjectLayer({
     instanceId: id, container, doc: document, insets: { top: 30 },
     raf: (cb) => { frames.push(cb); return frames.length }, cancel: () => {},
-    mapping: () => ({ width: 800, height: 600, rightInset: 60, timeToX: () => 0, priceToY: () => 0, pane }),
+    mapping: () => ({ width: 800, height: 600, rightInset: 60, timeToX: () => 0, priceToY: () => 0, pane, mainPane }),
   })
   return { layer, flush: () => frames.splice(0).forEach((f) => f()) }
 }
@@ -130,5 +130,33 @@ describe('a table stays in its indicator\'s pane', () => {
     const root = container.querySelector('[data-uct-table-layer]')
     expect(root.style.top).toBe('30px')
     expect(root.style.bottom).toBe('0px')
+  })
+
+  it('⚰️ PROD 2026-10-08: a pane too SHORT for the tables falls back to the price pane (never clipped below the chart)', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    // a calculator: its own pane is a 25px strip at the bottom, its table is 143px tall
+    const calc = mount(container, 'c', { top: 560, height: 25 }, { top: 0, height: 400 })
+    calc.layer.set(state({ id: 1, position: 'top_left', cells: cells('b') }), 's1')
+    const root = container.querySelector('[data-uct-table-layer]')
+    root.querySelectorAll('[data-uct-object-table]').forEach((el) => {
+      el.getBoundingClientRect = () => ({ height: 143, width: 150, top: 0, left: 0 })
+    })
+    calc.flush()
+    expect(root.style.top).toBe('30px')      // the price pane (toolbar inset), not 560px
+    expect(root.style.bottom).toBe('200px')  // 600 − (0 + 400)
+  })
+
+  it('a table that FITS its own pane stays in it', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const calc = mount(container, 'c', { top: 400, height: 180 }, { top: 0, height: 380 })
+    calc.layer.set(state({ id: 1, position: 'top_left', cells: cells('b') }), 's1')
+    const root = container.querySelector('[data-uct-table-layer]')
+    root.querySelectorAll('[data-uct-object-table]').forEach((el) => {
+      el.getBoundingClientRect = () => ({ height: 143, width: 150, top: 0, left: 0 })
+    })
+    calc.flush()
+    expect(root.style.top).toBe('400px')
   })
 })
