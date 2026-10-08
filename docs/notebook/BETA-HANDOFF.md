@@ -45,16 +45,23 @@ All are read per request; unset means off. Turn on one change at a time, then ch
 |---|---|---|
 | `NOTEBOOK_TRADE_CANVAS_ENABLED=1` | trade-plan canvas | ARMED on web, 2026-10-03 |
 | `NOTEBOOK_AI_ACTIONS_ENABLED=1` | "Ask Notebook to do something" (plan, approve each change, undo) | ARMED on web, 2026-10-03 |
-| `NOTEBOOK_FORMULAS_ENABLED=1` | formula and rollup properties, the position-tracker template's formulas | ready: the quiet 50k reading passed, every operation finishes well under the 100 ms budget (`docs/notebook/formulas-and-rollups.md`, Scale section, run 3) |
-| `NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1` | community template gallery (admin approves before listing) | after this wave's PR merges |
+| `NOTEBOOK_FORMULAS_ENABLED=1` | formula and rollup properties, the position-tracker template's formulas | ARMED on web, 2026-10-07 22:31 CT (the quiet 50k reading had passed: `docs/notebook/formulas-and-rollups.md`, Scale section, run 3) |
+| `NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1` | community template gallery (admin approves before listing) | ARMED on web, 2026-10-08 00:30 CT |
 | `NOTEBOOK_VOICE_NOTES_ENABLED=1` | voice and meeting notes | HOLD: needs the OpenAI zero-retention letter (row 8a, the owner's). The upload-size gap is closed (wave 14: the body is capped while it is read; `docs/notebook/wave14-upload-cap.md`) |
 
-## 1b. Wave 13 switches (built, all still dark)
+## 1b. Wave 13 switches (ARMED on web 2026-10-08, in the section 1d order)
 
 Wave 13 built fourteen new member-facing pieces, each behind its own switch, each off by default.
-None of them are turned on yet. The table says what a member sees once a switch is flipped, and
-what has to be true first. The proposed order to flip them in is in section 1d, and it is a
-proposal, not a decision: ruling P6 says the order is the owner's call.
+**All fourteen were turned on in production on 2026-10-08** (owner standing go of 2026-10-03), in
+the section 1d order and in dependency groups, each group followed by an in-process read of the
+switch through the smoke account's sign-in payload and a passing app-wide click-through: the
+fingerprint, plan grading, entry context and chart plan at 00:30 CT; the visual playbook, setups
+board, find similar, My Playbook, earnings prep, transcript passages and passed setups at 00:42;
+note resurfacing and thesis chips at 00:50. **Review drafts** was set to 1 at 17:12 CT and back to 0 at
+17:30 CT the same evening, when production stopped answering (rule H15: roll back first). The same
+stall had happened twice earlier that day with the switch unset, so it is a precaution, not a
+finding; the ledger entry carries the detail. It stays at 0 until the stall is understood. The table below is kept as written: it still says what a
+member sees and what each switch depends on.
 
 | switch | what members get | what has to be true first |
 |---|---|---|
@@ -78,7 +85,7 @@ proposal, not a decision: ruling P6 says the order is the owner's call.
 Moved to section 1d, which merges these fourteen switches with the waves 11, 12 and 14
 switches into one proposed order (they are steps 3 to 16 there, unchanged).
 
-## 1c. Wave 14 switches (built, still dark)
+## 1c. Wave 14 switches (ARMED on web 2026-10-08 06:42 CT)
 
 Wave 14 is the Notebook's onboarding: a better first-run welcome, a "Get started" checklist, a
 short tour for each feature, and one worked example per feature in the sample notebook. It adds
@@ -114,21 +121,21 @@ section said those four would appear as soon as wave 14 deployed; that was true 
 | Add an image or Word document | `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` | armed |
 | Publish and share a note | `NOTEBOOK_PUBLISH_ENABLED` | armed |
 | Task reminders | `NOTEBOOK_TASK_REMINDERS_ENABLED` | armed |
-| Template gallery | `NOTEBOOK_TEMPLATE_GALLERY_ENABLED` | dark |
-| Formulas and rollups | `NOTEBOOK_FORMULAS_ENABLED` | dark |
+| Template gallery | `NOTEBOOK_TEMPLATE_GALLERY_ENABLED` | armed (2026-10-08) |
+| Formulas and rollups | `NOTEBOOK_FORMULAS_ENABLED` | armed (2026-10-07) |
 | Search by meaning | `NOTEBOOK_SEMANTIC_SEARCH_ENABLED` | dark (HOLD, vendor letter) |
-| The technical fingerprint | `NOTEBOOK_TA_FINGERPRINT_ENABLED` | dark |
-| Plan versus execution grading | `NOTEBOOK_PLAN_GRADING_ENABLED` | dark |
-| Entry context card | `NOTEBOOK_ENTRY_CONTEXT_ENABLED` | dark |
-| Chart plan basics; Chart plan replay and context | `NOTEBOOK_CHART_PLAN_ENABLED` | dark |
-| Visual playbook (also needs `NOTEBOOK_TA_FINGERPRINT_ENABLED`: it opens from the fingerprint panel) | `NOTEBOOK_VISUAL_PLAYBOOK_ENABLED` | dark |
-| Active setups and find more like this | `NOTEBOOK_SETUPS_BOARD_ENABLED` | dark |
-| My Playbook | `NOTEBOOK_PLAYBOOK_ENABLED` | dark |
-| Reporting soon and earnings prep | `NOTEBOOK_EARNINGS_PREP_ENABLED` | dark |
-| Transcript passages | `NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED` | dark |
-| Passed setups | `NOTEBOOK_PASSED_SETUPS_ENABLED` | dark |
-| A note resurfaces (a two-step explainer over the "What you wrote then" sheet; no Replay) | `AWARENESS_NOTE_RESURFACE_ENABLED` | dark |
-| Reviews that write themselves | `NOTEBOOK_REVIEW_DRAFTS_ENABLED` | dark |
+| The technical fingerprint | `NOTEBOOK_TA_FINGERPRINT_ENABLED` | armed (2026-10-08) |
+| Plan versus execution grading | `NOTEBOOK_PLAN_GRADING_ENABLED` | armed (2026-10-08) |
+| Entry context card | `NOTEBOOK_ENTRY_CONTEXT_ENABLED` | armed (2026-10-08) |
+| Chart plan basics; Chart plan replay and context | `NOTEBOOK_CHART_PLAN_ENABLED` | armed (2026-10-08) |
+| Visual playbook (also needs `NOTEBOOK_TA_FINGERPRINT_ENABLED`: it opens from the fingerprint panel) | `NOTEBOOK_VISUAL_PLAYBOOK_ENABLED` | armed (2026-10-08) |
+| Active setups and find more like this | `NOTEBOOK_SETUPS_BOARD_ENABLED` | armed (2026-10-08) |
+| My Playbook | `NOTEBOOK_PLAYBOOK_ENABLED` | armed (2026-10-08) |
+| Reporting soon and earnings prep | `NOTEBOOK_EARNINGS_PREP_ENABLED` | armed (2026-10-08) |
+| Transcript passages | `NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED` | armed (2026-10-08) |
+| Passed setups | `NOTEBOOK_PASSED_SETUPS_ENABLED` | armed (2026-10-08) |
+| A note resurfaces (a two-step explainer over the "What you wrote then" sheet; no Replay) | `AWARENESS_NOTE_RESURFACE_ENABLED` | armed (2026-10-08) |
+| Reviews that write themselves | `NOTEBOOK_REVIEW_DRAFTS_ENABLED` | set to 0 (2026-10-08 17:30 CT, after a production stall; see 1b) |
 
 "Ledger" is `docs/feature_flags.json`, which records intent and cannot see Railway. Check the
 Railway Variables before relying on a row.
@@ -172,6 +179,13 @@ Walkthroughs; **Replay** opens it at step one on the screen it explains. A
 tour for a feature that is still off is never listed.
 
 ## 1d. Proposed overall arming order (every dark Notebook switch from waves 11-14)
+
+**Done, 2026-10-07 to 2026-10-08: all seventeen steps below were armed on web in this order**
+(the owner's standing go of 2026-10-03), one group at a time, each group verified in-process and
+by the app-wide click-through. The two firm rules on steps 15 and 16 were both satisfied: the
+thesis-chips and review-drafts fixes named there are in the release (#281, squashed on master as
+`2265f4ac3b`), and plan grading and note resurfacing were on before either dependent switch. The
+list is kept as the record of the order and its reasoning. Held switches are unchanged below.
 
 This is a suggestion, not a decision: ruling P6 leaves the order, and the timing, to the owner.
 It replaces the wave-13-only 14-step list that used to sit under 1b; those fourteen steps are

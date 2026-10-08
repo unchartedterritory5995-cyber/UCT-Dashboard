@@ -1,0 +1,555 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "1280",
+   "feature": "flags",
+   "step": "auth payload: every keyed switch reads ON",
+   "verdict": "PASS",
+   "at": "2026-10-08T05:52:49+00:00",
+   "email": "q1kai8769269@local.dev",
+   "off": [],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "1280",
+   "feature": "sandbox",
+   "step": "boot output: model keys opted in, kill-list applied",
+   "verdict": "INFO",
+   "at": "2026-10-08T05:52:49+00:00",
+   "boot_lines": [
+    "Model keys   : OPT-IN -- passed through unchanged (ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring untouched); paid model calls are POSSI",
+    "Kill-list    : 38 scheduler / outbound flags",
+    "2026-10-08 00:52:13,672 WARNING api.services.email_service: [email] RESEND_API_KEY not set � emails disabled",
+    "[startup] j2-ocr: flag=1 binary=C:\\Program Files\\Tesseract-OCR\\tesseract.exe version=tesseract_v5.4.0.20240606 active=True max_concurrency=1"
+   ],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "1280",
+   "feature": "OCR",
+   "step": "the app's own OCR engine in this sandbox",
+   "verdict": "INFO",
+   "at": "2026-10-08T05:52:50+00:00",
+   "TESSERACT_BINARY_set": true,
+   "tesseract_on_PATH": null,
+   "boot_lines_about_ocr": [
+    "[startup] j2-ocr: flag=1 binary=C:\\Program Files\\Tesseract-OCR\\tesseract.exe version=tesseract_v5.4.0.20240606 active=True max_concurrency=1"
+   ],
+   "engine_active": true,
+   "how_the_app_finds_it": "document_ocr_tesseract.binary_path: TESSERACT_BINARY, then PATH, then /usr/bin and /usr/local/bin",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "1280",
+   "feature": "OCR",
+   "step": "an image with text becomes a document whose text was read off the picture",
+   "verdict": "PASS",
+   "at": "2026-10-08T05:52:57+00:00",
+   "upload_status": 200,
+   "document": {
+    "id": "48d29a9acd9a4f81acf941685bed22eb",
+    "name": "Image",
+    "sourceKind": "attachment",
+    "status": "ready",
+    "pageCount": 1
+   },
+   "page_text_door": "{\"documentId\":\"48d29a9acd9a4f81acf941685bed22eb\",\"pageNumber\":1,\"name\":\"Image\",\"textOrigin\":\"ocr\",\"text\":\"ACME FASTENERS\\r\\nINVOICE 4471\\r\\nTOTAL DUE 912 DOLLARS\",\"available\":true}",
+   "seconds": 6.9,
+   "words_on_the_image": [
+    "ACME FASTENERS",
+    "INVOICE 4471",
+    "TOTAL DUE 912 DOLLARS"
+   ],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "1280",
+   "feature": "OCR",
+   "step": "Ask over the image: the answer has the words on the picture and cites the file (run 1)",
+   "verdict": "PASS",
+   "at": "2026-10-08T05:53:00+00:00",
+   "question": "What is the total due on the invoice, and what is the invoice number?",
+   "status": 200,
+   "answer": "The invoice shows a total due of **912 dollars** and an invoice number of **4471** [1].",
+   "cited": [
+    1
+   ],
+   "sources": [
+    {
+     "label": "Image · p.1",
+     "citation": "page_only",
+     "textSource": null,
+     "scanned": null,
+     "ocr": null
+    }
+   ],
+   "off_topic_remark": [],
+   "not_on_the_image": {
+    "numbers": [],
+    "proper_nouns": [],
+    "sentence_openers_not_in_corpus": []
+   },
+   "INVENTED": null,
+   "door": "our server's ask door, as the member",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "1280",
+   "feature": "OCR",
+   "step": "Ask over the image: the answer has the words on the picture and cites the file (run 2)",
+   "verdict": "PASS",
+   "at": "2026-10-08T05:53:04+00:00",
+   "question": "What is the total due on the invoice, and what is the invoice number?",
+   "status": 200,
+   "answer": "The invoice (ACME FASTENERS, Invoice 4471) shows a total due of 912 dollars, and the invoice number is 4471 [1].",
+   "cited": [
+    1
+   ],
+   "sources": [
+    {
+     "label": "Image · p.1",
+     "citation": "page_only",
+     "textSource": null,
+     "scanned": null,
+     "ocr": null
+    }
+   ],
+   "off_topic_remark": [],
+   "not_on_the_image": {
+    "numbers": [],
+    "proper_nouns": [],
+    "sentence_openers_not_in_corpus": []
+   },
+   "INVENTED": null,
+   "door": "our server's ask door, as the member",
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "dda0515427",
+   "config": "keyedai",
+   "viewport": "1280",
+   "feature": "OCR",
+   "step": "the note with the image, as rendered",
+   "verdict": "INFO",
+   "at": "2026-10-08T05:53:07+00:00",
+   "page_text": "Meet Compass\n\nTap the compass button  to talk to your trading coach — markets, setups, and your journal, all by voice.\n\nGot it\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n▾\nNotebook\nFolder navigation\nRECENTS\nInvoice photo\nAdd thesis starter views\nAll notes\n4\nUnfiled\n4\nArchived\n0\nTrash\n0\n+ New folder\nInvoice photo\nEditor toolbar\nAsk\nFind\nShare\nUnfiled\nWriting help\nOutline\nDefault\nSans Serif\nSerif\nMonospace\nArial\nHelvetica\nVerdana\nTahoma\nTrebuchet MS\nCalibri\nCentury Gothic\nGeorgia\nTimes New Roman\nGaramond\nPalatino\nCambria\nBaskerville\nCourier New\n",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=1f279b86f78e4d52bf90d3edf80631a8",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"c7c1579b-ca5\",\"user_id\":\"28d222fc-1853-45a2-a0c7-b484f504839a\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-08T05:53:04.703523+00:00\",\"updated_at\":\"2026-10-08T05:53:05.330497+00:00\",\"items\":[],\"owner_name\":\"q1kai\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"4ffe5251-0ae2-4637-a8e6-87b17e421e84\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-08T05:53:05.251Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/1f279b86f78e4d52bf90d3edf80631a8/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":335}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "keyedai-1280-OCR-the-note-with-the-image-as-rendered.png"
+  }
+ ],
+ "configs": {
+  "keyedai": {
+   "base": "http://127.0.0.1:8132",
+   "data_dir": "C:\\data-fin-walk-ai4\\keyedai",
+   "flags_on": [
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_OCR_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_ATTACHMENTS_ON",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_VOICE_NOTES_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED"
+   ],
+   "sandbox_identity": {
+    "ok": true,
+    "sentence": "http://127.0.0.1:8132 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-walk\\docs\\plans\\joystick\\sandbox-runs\\2026-10-08T00-52-05.md (identity fb72e8e224bb..., data dir C:\\data-fin-walk-ai4\\keyedai)"
+   },
+   "stop": "graceful to the shutdown checkpoint, then forced exit",
+   "integrity": {
+    "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-walk\\docs\\notebook\\evidence\\fin-walk\\keyed-ai-dda0515427\\ocr\\keyedai\\integrity-keyedai.md",
+    "required": [
+     "pre-boot (baseline)",
+     "post-boot (+15s)",
+     "post-prewarm (+120s)",
+     "shutdown"
+    ],
+    "checkpoints": [
+     {
+      "label": "pre-boot (baseline)",
+      "at": "2026-10-08 00:52:11",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-boot (+15s)",
+      "at": "2026-10-08 00:52:46",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-prewarm (+120s)",
+      "at": "2026-10-08 00:54:38",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "shutdown",
+      "at": "2026-10-08 00:54:46",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+   },
+   "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-fin-walk\\docs\\notebook\\evidence\\fin-walk\\keyed-ai-dda0515427\\ocr\\keyedai\\integrity-keyedai.md",
+   "not_run": null,
+   "failure": null,
+   "port_free_after": true,
+   "driver_imported_api": []
+  }
+ },
+ "config": "keyedai",
+ "tip": "dda0515427",
+ "tool_tree": "62324003956c2ca5f7d4390cf0b51e5262b0643d",
+ "started": "2026-10-08T05:52:01+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "COMPLETE",
+ "flag_sets": {
+  "prod_armed": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "c1": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "keyed": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "keyedai": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ]
+ },
+ "api_writes": [
+  {
+   "config": "keyedai",
+   "method": "POST",
+   "url": "/api/j2/ask/stream",
+   "status": 200,
+   "request": "{\"scope\": \"document\", \"target\": \"48d29a9acd9a4f81acf941685bed22eb\", \"query\": \"What is the total due on the invoice, and what is the invoice number?\", \"history\": []}",
+   "response": "data: {\"type\": \"sources\", \"scope\": \"document\", \"scopeLabel\": \"This document (Image)\", \"sources\": [{\"n\": 1, \"type\": \"document_page\", \"label\": \"Image \\u00b7 p.1\", \"citation\": \"page_only\", \"snippet\": \"ACME FASTENERS\\r\\nINVOICE 4471\\r\\nTOTAL DUE 912 DOLLARS\", \"navigation\": {\"kind\": \"document\", \"document_id\": \"48d29a9acd9a4f81acf941685bed22eb\", \"page_number\": 1, \"note_id\": \"1f279b86f78e4d52bf90d3edf80631a8\", \"source_kind\": \"attachment\"}, \"location\": {\"document_id\": \"48d29a9acd9a4f81acf941685bed22eb\", \"page_number\": 1}, \"stance\": null, \"payload\": {}, \"textOrigin\": \"ocr\", \"truncated\": false}], \"coverageNotice\": null, \"independentSources\": 1, \"noAnswer\": false}\n\ndata: {\"type\": \"delta\", \"text\": \"The inv\"}\n\ndata: {\"type\": \"delta\", \"text\": \"oice shows a total due of\"}\n\ndata: {\"type\": \"delta\", \"text\": \" **912\"}\n\ndata: {\"type\": \"delta\", \"text\": \" dollars** and an\"}\n\ndata: {\"type\": \"delta\", \"text\": \" invoice number of **4471\"}\n\ndata: {\"type\": \"delta\", \"text\": \"** [1].\"}\n\ndata: {\"type\": \"final\", \"answer\": \"The invoice shows a total due of **912 dollars** and an invoice number of **4471** [1].\", \"cited\": [1], \"invalidCitations\": []}\n\n"
+  },
+  {
+   "config": "keyedai",
+   "method": "POST",
+   "url": "/api/j2/ask/stream",
+   "status": 200,
+   "request": "{\"scope\": \"document\", \"target\": \"48d29a9acd9a4f81acf941685bed22eb\", \"query\": \"What is the total due on the invoice, and what is the invoice number?\", \"history\": []}",
+   "response": "data: {\"type\": \"sources\", \"scope\": \"document\", \"scopeLabel\": \"This document (Image)\", \"sources\": [{\"n\": 1, \"type\": \"document_page\", \"label\": \"Image \\u00b7 p.1\", \"citation\": \"page_only\", \"snippet\": \"ACME FASTENERS\\r\\nINVOICE 4471\\r\\nTOTAL DUE 912 DOLLARS\", \"navigation\": {\"kind\": \"document\", \"document_id\": \"48d29a9acd9a4f81acf941685bed22eb\", \"page_number\": 1, \"note_id\": \"1f279b86f78e4d52bf90d3edf80631a8\", \"source_kind\": \"attachment\"}, \"location\": {\"document_id\": \"48d29a9acd9a4f81acf941685bed22eb\", \"page_number\": 1}, \"stance\": null, \"payload\": {}, \"textOrigin\": \"ocr\", \"truncated\": false}], \"coverageNotice\": null, \"independentSources\": 1, \"noAnswer\": false}\n\ndata: {\"type\": \"delta\", \"text\": \"The inv\"}\n\ndata: {\"type\": \"delta\", \"text\": \"oice (\"}\n\ndata: {\"type\": \"delta\", \"text\": \"ACME FASTENER\"}\n\ndata: {\"type\": \"delta\", \"text\": \"S, Invoice 4\"}\n\ndata: {\"type\": \"delta\", \"text\": \"471) shows a total due of\"}\n\ndata: {\"type\": \"delta\", \"text\": \" \"}\n\ndata: {\"type\": \"delta\", \"text\": \"912 dollars,\"}\n\ndata: {\"type\": \"delta\", \"text\": \" and the invoice number is \"}\n\ndata: {\"type\": \"delta\", \"text\": \"4471 [1].\"}\n\ndata: {\"type\": \"final\", \"answer\": \"The invoice (ACME FASTENERS, Invoice 4471) shows a total due of 912 dollars, and the invoice number is 4471 [1].\", \"cited\": [1], \"invalidCitations\": []}\n\n"
+  }
+ ],
+ "finished": "2026-10-08T05:55:17+00:00"
+}
