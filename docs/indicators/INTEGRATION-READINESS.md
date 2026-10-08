@@ -130,3 +130,37 @@ is wanted later it is ~80 lines over gaps 1–2 above, and it never saved on the
   (b) an `objectRuntime` hook that resolves a `fund:` reference to a record, and (c) a
   sequential Q/Q EPS-growth metric if CAN SLIM's "current quarter" is wanted (unverified that
   one exists). None of it requires making `fund:` formula-eligible.
+
+## Trust boundaries after stabilization (2026-10-08)
+
+**Closed — drawing-program colours.** A stored definition's `objects` program (chart
+tables, labels, lines, boxes) may carry only colour literals of one grammar: `#RGB[A]`,
+`#RRGGBB[AA]`, numeric `rgb()/rgba()`, and the chart-theme references
+`chart.fg_color` / `chart.bg_color[@NN]`. Enforced at three doors:
+1. **server save** — `presentation_schema.object_colour_errors`, called by
+   `user_definitions.save` on EVERY save, including copies of a stored row (share install,
+   fork), which otherwise skip presentation validation; refusal is
+   `SaveRefused(presentation, guard=presentation:object-colour)`;
+2. **browser load** — `objectProgram.assertColorNode` (reached by `defSchema` validation
+   and the object runtime);
+3. **CSS sink** — `objectTableDom` writes only `objectColour.isCssColour` values (and
+   numeric widths) into style, so even a row stored before the rule draws nothing unsafe.
+
+One fixture (`tests/fixtures/ast/object_colour_cases.json`) holds both lanes to the same
+answers, and a test holds the two regexes byte-equal.
+
+**Remaining, pre-existing, documented (not changed here):**
+- **Colour-type settings and plot colours** (`inputs[].default` of type `color`, plot /
+  paint colour fields) are checked only as non-empty strings in both lanes
+  (`defSchema.js` `case 'color'`; `presentation_schema` `_is_str`). They reach legend and
+  settings swatch styles. Same class as the gap closed above (a CSS fetch on render, no
+  script) and reachable through a shared definition. Remediation: apply the same grammar
+  plus `token:<role>` references at save; deferred because these fields have many legacy
+  writers (Builder, Pine imports, templates) and need a corpus check first.
+- **Chart settings blobs** (`chart_settings`, `charts_workspace_layout`,
+  `breadth_drill_board`) are opaque preference values: the server validates neither
+  `indicatorInstances`, nor that a `defId` belongs to the member, nor instance input
+  values. They are the member's own preferences; a SHARED chart layout carries them to a
+  recipient, where `instanceControls` / `normalizeInstances` are the only checks.
+  Severity low (own data; shared layouts are explicit); remediation is a server-side
+  instance shape check on the layout-share path.
