@@ -634,3 +634,74 @@ def test_box_load_excludes_a_named_process_TREE_in_both_directions():
     assert {p["pid"] for p in everything["processes"]} == {20, 30, 40, 99}, (
         "the control did not see the tree at all, so the exclusion above proved nothing")
     assert everything["excluded_tree"] is None
+
+
+# ── The background reading: what the marker set cannot see (perf-runs/ty8, run A4) ──────────
+
+def _a4_box():
+    """The 2026-10-02 A4 shape: no marked process, a 6.9 GB model server, browsers, CPU busy."""
+    return {"free_kb": 4 * 1024 * 1024, "total_kb": 32 * 1024 * 1024, "cpu_pct": 38, "procs": [
+        {"ProcessId": 601, "ParentProcessId": 1, "Name": "llama-server.exe", "mb": 6900, "cl": "llama-server -m x"},
+        {"ProcessId": 602, "ParentProcessId": 1, "Name": "chrome.exe", "mb": 1500, "cl": "chrome --type=renderer"},
+        {"ProcessId": 603, "ParentProcessId": 1, "Name": "chrome.exe", "mb": 1200, "cl": "chrome --type=renderer"},
+        {"ProcessId": 604, "ParentProcessId": 1, "Name": "claude.exe", "mb": 2300, "cl": "claude"},
+    ]}
+
+
+def _light_box():
+    return {"free_kb": 20 * 1024 * 1024, "total_kb": 32 * 1024 * 1024, "cpu_pct": 3, "procs": [
+        {"ProcessId": 701, "ParentProcessId": 1, "Name": "chrome.exe", "mb": 300, "cl": "chrome --type=renderer"},
+    ]}
+
+
+def test_a_quiet_by_markers_box_can_still_be_LOADED_in_the_background():
+    """⚰ perf-runs/ty8 run A4: `load: QUIET — 0 marked processes` at both ends of a run whose
+    every row was 1.5-2x slower than the same build an hour earlier. The marker word was true
+    and the box was not quiet. Both facts are now carried, and the holders are named."""
+    load = S.box_load(snapshot=_a4_box)
+    assert load["state"] == S.LOAD_QUIET, "the marker claim is unchanged: nothing marked ran"
+    bg = load["background"]
+    assert bg["state"] == S.BACKGROUND_LOADED
+    assert bg["cpu_pct"] == 38
+    assert [r["name"] for r in bg["heavy"]] == ["llama-server.exe", "chrome.exe", "claude.exe"]
+    assert bg["heavy"][1]["count"] == 2, "two renderer processes fold into one named row"
+    assert bg["heavy_gb"] > S.BACKGROUND_HEAVY_LOADED_GB
+    text = S.describe_load(load)
+    assert "QUIET" in text and "background: LOADED" in text and "llama-server.exe" in text
+
+
+def test_CONTROL_a_light_box_is_LIGHT_and_an_unmeasured_cpu_is_UNKNOWN_never_LIGHT():
+    """⛔ UNKNOWN IS NOT LIGHT. The same box with `cpu_pct` missing (an older snapshot, or a
+    fixture that never asked) must not read as quiet — a reading nobody took is not a quiet one."""
+    light = S.box_load(snapshot=_light_box)["background"]
+    assert light["state"] == S.BACKGROUND_LIGHT and light["heavy"] == [], light
+    nocpu = {k: v for k, v in _light_box().items() if k != "cpu_pct"}
+    assert S.box_load(snapshot=lambda: nocpu)["background"]["state"] == S.BACKGROUND_UNKNOWN
+    # ⭐ a heavy holder is a positive finding with or without a CPU figure
+    memonly = {**nocpu, "procs": [{"ProcessId": 801, "ParentProcessId": 1, "Name": "llama-server.exe",
+                                   "mb": 9000, "cl": "llama-server"}]}
+    assert S.box_load(snapshot=lambda: memonly)["background"]["state"] == S.BACKGROUND_LOADED
+
+
+def test_the_background_census_never_double_counts_a_marker_or_our_own_tree():
+    """A vitest worker above 1 GB is a MARKER (already in `processes`), never a heavy holder too;
+    and the caller's own tree is excluded from the census the same way it is from the markers."""
+    snap = {**_light_box(), "procs": [
+        {"ProcessId": 901, "ParentProcessId": 1, "Name": "node.exe", "mb": 1100, "cl": "node vitest.mjs run"},
+        {"ProcessId": 902, "ParentProcessId": 1, "Name": "python.exe", "mb": 2500, "cl": "python tools/notebook_perf_harness.py"},
+        {"ProcessId": 903, "ParentProcessId": 902, "Name": "chrome.exe", "mb": 1800, "cl": "chrome --headless"},
+    ]}
+    load = S.box_load(exclude_tree=902, snapshot=lambda: snap)
+    assert {p["pid"] for p in load["processes"]} == {901}
+    assert load["background"]["heavy"] == [], load["background"]
+    # ⭐ CONTROL: without the exclusion the harness and its browser ARE the heavy holders
+    control = S.box_load(snapshot=lambda: snap)["background"]
+    assert {r["name"] for r in control["heavy"]} == {"python.exe", "chrome.exe"}
+
+
+def test_an_unreadable_probe_carries_no_background_reading():
+    """The failure shape this file keeps paying for, one field over: a probe that could not look
+    must not carry a LIGHT background any more than it may carry `total: 0`."""
+    assert S.box_load(snapshot=_raises_snapshot)["background"] is None
+    assert S.load_not_probed("drill")["background"] is None
+    assert "NOT MEASURED" in S.describe_background(None)

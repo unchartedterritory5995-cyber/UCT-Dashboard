@@ -1002,3 +1002,34 @@ editor code, and read 19.56 ms at 1,000 paragraphs and 17.12 ms at 2,000. Nothin
 the gap; unmarked background load is a hypothesis (`perf-runs/ty8/README.md`, "Reading"). The
 clause is cited as MET only once another quiet hour agrees with one side. The line in
 `perf-budgets.json` is unchanged.
+
+### Quiet re-read with the background marker, 2026-10-09 (clause 4d)
+
+**4d, typing: MET, read on a box whose background the marker can now see.** The 2026-10-02 tie
+was left open because two readings taken "QUIET at both ends" by the same lock tool disagreed, and
+`perf-runs/ty8/README.md` ("Tie-break run A4") named the condition for a re-read: the quiet marker
+must see the load that moved A4. It could not: `tools/gate_box_sampler.py`'s `load:` line counts
+MARKED processes (a gate, a vitest worker, a pytest run) and nothing else, so a 6.9 GB model
+server, forty browser renderers and a busy CPU all read as "0 marked processes".
+
+The instrument now carries a second fact from the same snapshot, `background:` (the function
+`background_load`): whole-box CPU and every unmarked process at or above 1 GB, named and summed.
+LIGHT needs a measured CPU figure under 25% and under 8 GB of heavy holders; LOADED is either
+threshold crossed; a snapshot that never measured CPU is UNKNOWN, never LIGHT. The A4-shaped box
+(cpu 38%, llama-server 6.9 GB, chrome x2, claude 2.3 GB) reads QUIET by markers AND LOADED in the
+background, both kept; the controls are in `--self-check` and `tests/test_gate_box_sampler.py`,
+and disabling the LOADED branch reds two rails and three self-check lines.
+
+The reading: `perf-runs/ty9-quiet-marker/q1.*`, tree `fffb6dba3a` plus the sampler change,
+01:35-01:37 CT, `--boot --busy --sizes 1,1000,2000 --opens 20 --chars 60`, sandbox integrity
+CLEAN at every checkpoint, lock FREE, load QUIET and **background LIGHT at both ends** (cpu 18%
+before, 0% after; the only process at or above 1 GB was the OS's own memory compression, 1.1 GB).
+`typing_busy_per_char` p95 at 1 / 1,000 / 2,000 paragraphs: **6.85 / 6.77 / 9.73 ms**. Note open
+p95 31.2 / 72.3 / 76.2 ms. VERDICT PASS.
+
+Why this settles what A4 could not: the one explanation the TY8 record offered for L15 q1's 17.12
+ms (unmarked background load) is now a measured quantity, and this run measured it at the light
+end. A future reading that disagrees will carry its own `background:` line, so the two can be told
+apart instead of tied. The line in `perf-budgets.json` is unchanged. The L15 q1 run keeps its
+status as recorded: taken before the background half existed, its background is UNKNOWN, which the
+instrument now says out loud rather than calling quiet.
