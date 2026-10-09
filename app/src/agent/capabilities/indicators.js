@@ -117,7 +117,7 @@ export function registerIndicatorCapabilities() {
     name: 'indicator.list',
     query: true,
     available: (ctx) => ctx.surface === 'charts',
-    summary: 'List the indicators on ONE chart (as its legend names them): built-in or custom, shown or hidden, on the price chart or in its own pane. Read-only — answers "what indicators are on my chart", "is RSI on", "which are hidden".',
+    summary: 'List the indicators on ONE chart (as its legend names them): built-in or custom, shown or hidden, on the price chart or in its own pane. UCT answers from the chart\'s real state — use this (disposition apply) whenever they ask what indicators are on a chart, whether one is on, or which are hidden, instead of answering yourself.',
     hints: 'target = the indicators entry for the chart the member means (with several charts and no chart named, ask which). filter: hidden | shown | null (all).',
     args: { type: 'object', properties: { filter: { type: ['string', 'null'], enum: ['hidden', 'shown', null] } }, required: ['filter'], additionalProperties: false },
     fast: ({ core }) => {
