@@ -6,7 +6,6 @@ import { memberText } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import { usePendingReask } from '../depth/depthFetch'
 import PendingGaveUp from '../depth/PendingGaveUp'
-import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
 
 // COV-05 (roadmap RM-L19) — who runs this company: officers and key executives,
 // the proxy's compensation table, and the role each insider declares on Form 4.
@@ -167,7 +166,6 @@ export default function PeopleTab({ sym }) {
     ? { source: peopleSources.join(' · '), age: { asOfDate: data.executives?.as_of || data.compensation?.as_of || null } }
     : null)
 
-  if (isSwitchedOff(error)) return <SwitchedOff what="People data" className={styles.note} testId="people-off" />
   if (error) {
     return <div className={styles.note} data-testid="people-unavailable">
       People data is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button>

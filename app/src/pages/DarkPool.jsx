@@ -510,7 +510,7 @@ function NotableActivityPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoadi
       if(typeof va==="string") return sortDir==="asc"?va.localeCompare(vb):vb.localeCompare(va);
       return sortDir==="asc"?va-vb:vb-va;
     }).slice(0,15);
-  },[universe,sortKey,sortDir,mktcapData]);
+  },[universe,sortKey,sortDir]);
 
   function toggleSort(key){
     if(sortKey===key) setSortDir(d=>d==="desc"?"asc":"desc");
@@ -641,7 +641,7 @@ function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading
       return sortDir==="asc"?va-vb:vb-va;
     });
     return items.slice(0,15);
-  },[universe,sortKey,sortDir,mktcapData]);
+  },[universe,sortKey,sortDir]);
 
   const maxBigN = Math.max(1, ...filtered.map(x=>x.bigPrintN||0));
 
@@ -2086,12 +2086,11 @@ function OptionsPane({mktcapData = {}}){
 // ── Signals + Search tab ─────────────────────────────────────────────────────
 // ── Search Modal ──────────────────────────────────────────────────────────────
 // ── Search Results Table — shows ticker row + top 5 prints expanded ───────────
-export function SearchResultsTable({items, mktcapData = {}, initialExpanded = null}){
-  // Track which ticker (if any) is expanded to show the dark-pool chart. A `?ticker=` link opens
-  // with that name's chart already showing. The hook runs BEFORE the empty-list return: a hook
-  // after an early return changes the hook count between renders and React throws.
-  const [expandedTicker, setExpandedTicker] = useState(initialExpanded);
+function SearchResultsTable({items, mktcapData = {}, initialExpanded = null}){
   if(!items||items.length===0) return null;
+  // Track which ticker (if any) is expanded to show the dark-pool chart. A `?ticker=` link opens
+  // with that name's chart already showing.
+  const [expandedTicker, setExpandedTicker] = useState(initialExpanded);
   return (
     <div style={{overflowX:"auto"}}>
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
@@ -3585,9 +3584,8 @@ export default function DarkPool({embedded}){
 // Wrapper to handle jump-to-category
 function CategoryPaneWrapper({jump,onJumpDone,mktcapData}){
   const [active,setActive]=useState(jump||D.categories[0].name);
-  // If a new jump arrives, switch to it. An effect, not a memo: clearing the jump updates the
-  // parent, which React refuses during this component's render.
-  useEffect(()=>{ if(jump){ setActive(jump); onJumpDone(); } },[jump,onJumpDone]);
+  // If a new jump arrives, switch to it
+  useMemo(()=>{ if(jump){ setActive(jump); onJumpDone(); } },[jump]);
   const cat=D.categories.find(c=>c.name===active)||D.categories[0];
   const color=CAT_COLORS[active]||C.tx;
   return (

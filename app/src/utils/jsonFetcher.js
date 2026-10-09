@@ -33,12 +33,6 @@ export default async function jsonFetcher(url, init) {
   if (!r.ok) {
     const err = new Error(`${url} answered ${r.status}`)
     err.status = r.status
-    // A 503 may be a "warming" answer (`{"error":"warming"}`, `{"status":"warming"}`): the server
-    // has STARTED building the answer and asks to be polled again. The body is the only thing
-    // that tells it from an outage, so it rides along on the error (best effort, never throws).
-    if (r.status === 503 && typeof r.json === 'function') {
-      try { err.body = await r.json() } catch { /* not JSON: an outage page, not a warming answer */ }
-    }
     throw err
   }
   return r.json()

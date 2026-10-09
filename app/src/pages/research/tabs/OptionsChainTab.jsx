@@ -22,7 +22,6 @@ import Select from '../../../components/ui/Select'
 import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import { QuietPanelFreshness, usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import { num } from '../../optionsAnalytics/optionsFormat'
-import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
 
 // BRK-01 increment 1 (roadmap §3.3) — the option chain: calls | strike | puts, with the full
 // greek set, off the licensed Massive chain (api/routers/options_chain.py). DARK behind
@@ -125,7 +124,6 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
   const drillProbe = useDarkSection(probe ? `/api/research/options/${encodeURIComponent(s)}/contract/${encodeURIComponent(probe)}` : null)
   const drillable = Array.isArray(drillProbe.data?.bars)
 
-  if (isSwitchedOff(chain.error)) return <SwitchedOff what="The option chain" className={styles.note} testId="chain-off" />
   if (chain.error) {
     return <div className={styles.note} data-testid="chain-unavailable">
       The option chain is unavailable right now. That does not mean no options trade on {s}.{' '}<button type="button" className={rp.basisBtn} onClick={() => { chain.mutate(); exps.mutate() }}>Retry</button>

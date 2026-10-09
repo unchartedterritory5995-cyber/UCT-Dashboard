@@ -25,7 +25,7 @@ import {
   PanelCommand, PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness,
 } from '../../../components/terminal'
 import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
-import { canRetry, stampedRead, failureText } from './marketRead'
+import { stampedRead, failureText } from './marketRead'
 import { checkLevels, parseNum } from './sizeMath'
 import {
   RISK_URL, TEMPLATES_URL, MAX_HEAT_PCT, analogRows, analogsUrl, bookChecks, checklistChecks, checklistUrl,
@@ -77,13 +77,11 @@ function Verdict({ ok }) {
 
 /** One section: its title, then loading / error with Retry / its own content. */
 function Section({ id, title, read, what, children }) {
-  // Two CHK panels can be open at once, so the heading id is per instance.
-  const titleId = `${useId()}-${id}-title`
   let body
   if (read.loading) {
     body = <PanelSkeleton label={`Loading ${what.toLowerCase()}`} rows={2} testId={`terminal-chk-${id}-loading`} />
   } else if (read.error) {
-    const paid = !canRetry(read.error)
+    const paid = read.error?.status === 402
     body = (
       <PanelState compact kind={paid ? 'locked' : 'error'} role={paid ? 'status' : undefined}
         testId={`terminal-chk-${id}-error`} title={failureText(read.error, what)}
@@ -93,8 +91,8 @@ function Section({ id, title, read, what, children }) {
     body = children
   }
   return (
-    <section className={styles.section} aria-labelledby={titleId} data-testid={`terminal-chk-${id}`}>
-      <h3 className={styles.sectionTitle} id={titleId}>{title}</h3>
+    <section className={styles.section} aria-labelledby={`chk-${id}-title`} data-testid={`terminal-chk-${id}`}>
+      <h3 className={styles.sectionTitle} id={`chk-${id}-title`}>{title}</h3>
       {body}
     </section>
   )
@@ -232,9 +230,6 @@ export default function CheckPanel({ sym }) {
 
   const blankLevels = entry.trim() === '' || stop.trim() === ''
   const levels = useMemo(() => checkLevels({ entry, stop, side }), [entry, stop, side])
-  // The levels sentence names the entry and the stop together, so both fields point at it.
-  const levelsErrorId = `${ids}-levels-error`
-  const describedBy = (hintId = null) => [hintId, !blankLevels && !levels.ok ? levelsErrorId : null].filter(Boolean).join(' ') || undefined
   const settled = useSettled(levels.ok ? `${levels.entry}|${levels.stop}` : null)
   const [settledEntry, settledStop] = settled ? settled.split('|').map(Number) : [null, null]
 
@@ -287,8 +282,8 @@ export default function CheckPanel({ sym }) {
       </p>
       <div className={styles.links} data-testid="terminal-chk-links">
         <span className={shared.muted}>Also for {s}:</span>
-        <PanelCommand cmd={`${s} GRADE`} label={`Compass grade (GRADE) for ${s}`}>Compass grade (GRADE)</PanelCommand>
-        <PanelCommand cmd={`${s} SIZE`} label={`Position size (SIZE) for ${s}`}>Position size (SIZE)</PanelCommand>
+        <PanelCommand cmd={`${s} GRADE`} label={`Open the Compass grade for ${s}`}>Compass grade (GRADE)</PanelCommand>
+        <PanelCommand cmd={`${s} SIZE`} label={`Open the position size calculator for ${s}`}>Position size (SIZE)</PanelCommand>
       </div>
 
       <Section id="setup" title="Your plan" read={templates} what="The setup list">
@@ -311,19 +306,17 @@ export default function CheckPanel({ sym }) {
               <div className={form.field}>
                 <label className={form.label} htmlFor={`${ids}-entry`}>Entry price ($)</label>
                 <Input id={`${ids}-entry`} className={form.input} inputMode="decimal" autoComplete="off" value={entry}
-                  aria-describedby={describedBy(prefilled && !entryTouched ? `${ids}-entry-hint` : null)}
                   onChange={(e) => { setEntry(e.target.value); setEntryTouched(true) }} data-testid="terminal-chk-entry" />
-                {prefilled && !entryTouched ? <span className={form.hint} id={`${ids}-entry-hint`}>Live price for {s}</span> : null}
+                {prefilled && !entryTouched ? <span className={form.hint}>Live price for {s}</span> : null}
               </div>
               <div className={form.field}>
                 <label className={form.label} htmlFor={`${ids}-stop`}>Stop price ($)</label>
                 <Input id={`${ids}-stop`} className={form.input} inputMode="decimal" autoComplete="off" value={stop}
-                  aria-describedby={describedBy()}
                   onChange={(e) => setStop(e.target.value)} data-testid="terminal-chk-stop" />
               </div>
             </form>
             {!blankLevels && !levels.ok ? (
-              <p className={shared.note} role="alert" id={levelsErrorId} data-testid="terminal-chk-levels-error">{levels.error}</p>
+              <p className={shared.note} role="alert" data-testid="terminal-chk-levels-error">{levels.error}</p>
             ) : null}
           </>
         )}

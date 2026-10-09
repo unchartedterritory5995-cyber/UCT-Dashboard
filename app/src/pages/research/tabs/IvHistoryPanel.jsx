@@ -60,7 +60,7 @@ function ImpliedVsRealized({ sym }) {
               {p.report_date}: implied {p.implied_move_pct == null ? '—' : `±${num(p.implied_move_pct, 2)}%`}
               {' '}(close {p.pre_print_session}), realized {p.realized_move_pct == null ? '—' : `${num(p.realized_move_pct, 2)}%`}
               {p.ratio != null ? ` · ${num(p.ratio, 2)}× implied` : ''}
-              {p.note ? <span className={styles.muted}> ({p.note})</span> : null}
+              {p.note ? <span className={styles.muted}> — {p.note}</span> : null}
             </li>
           ))}
         </ul>

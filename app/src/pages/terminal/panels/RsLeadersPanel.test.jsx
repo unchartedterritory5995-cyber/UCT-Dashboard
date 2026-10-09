@@ -63,30 +63,11 @@ describe('RSL panel', () => {
     expect(symsInTable()).toEqual(['NVDA', 'AMD', 'XYZ'])
   })
 
-  it('a 503 while warming says the server is preparing it, not empty and not an error', async () => {
-    jsonFetcher.mockRejectedValue(Object.assign(new Error('warming'), {
-      status: 503, body: { status: 'warming', error: 'RS rankings are being computed; retry shortly' },
-    }))
+  it('a 503 while warming says it is being computed, not empty', async () => {
+    jsonFetcher.mockRejectedValue(Object.assign(new Error('warming'), { status: 503 }))
     renderPanel()
-    const warm = await screen.findByTestId('terminal-rsl-warming')
-    expect(warm.textContent).toContain('Loading, the server is preparing this.')
-    expect(warm.getAttribute('data-kind')).toBe('empty')
+    expect((await screen.findByTestId('terminal-rsl-warming')).textContent).toContain('being computed')
     expect(screen.queryByTestId('terminal-rsl-empty')).toBeNull()
-    expect(screen.queryByTestId('terminal-rsl-error')).toBeNull()
-  })
-
-  it('a bare 503 (no warming body) is an outage with Retry; a 404 is "not switched on" without Retry', async () => {
-    jsonFetcher.mockRejectedValueOnce(Object.assign(new Error('down'), { status: 503, body: { error: 'RS ranking unavailable: x' } }))
-    renderPanel()
-    expect((await screen.findByTestId('terminal-rsl-error')).getAttribute('data-kind')).toBe('error')
-    expect(screen.getByRole('button', { name: 'Retry' })).toBeTruthy()
-    cleanup()
-    jsonFetcher.mockRejectedValueOnce(Object.assign(new Error('off'), { status: 404 }))
-    renderPanel()
-    const off = await screen.findByTestId('terminal-rsl-error')
-    expect(off.textContent).toContain('not switched on')
-    expect(off.getAttribute('data-kind')).toBe('locked')
-    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
   })
 
   it('a failed read is an error with Retry; a 402 says paid plan', async () => {
