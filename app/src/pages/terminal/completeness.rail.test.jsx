@@ -128,6 +128,7 @@ const NO_READ_KINDS = ['no-read:', 'gap:']
 const ARG_SAMPLE = {
   timeframe: 'W', calendarDay: 'TODAY', code: 'GP', symbol: 'AMD', lookback: '3M', cadence: 'D',
   moversLens: 'UP', contribWindow: '1W', themeName: 'SEMICONDUCTORS', alertPrice: '950', watchlistPick: '2', mine: 'MINE',
+  etDate: '2026-01-02',
 }
 
 afterEach(cleanup)
