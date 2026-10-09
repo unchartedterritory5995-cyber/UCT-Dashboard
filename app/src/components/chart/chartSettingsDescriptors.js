@@ -48,7 +48,8 @@ export const PDL_LINES = [['high', 'Prev-day high'], ['low', 'Prev-day low'], ['
 export const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
 export const PDL_WIDTHS = [1, 2, 3, 4]
 // Watermark size scale (× the base per-role font, shown as %) and font weights.
-// The crosshair's line options, exactly what the colour panel offers (ColorPanel imports these).
+// The crosshair's line options, exactly what the colour panel offers (a test keeps them equal to
+// ColorPanel's own literals, which the drawing layer pins — ColorPanel does not import these).
 // Style values are the chart library's LineStyle numbers; the labels are what members say.
 export const CROSSHAIR_WIDTHS = [1, 2, 3, 4]
 export const CROSSHAIR_STYLES = [[0, 'solid'], [2, 'dashed'], [1, 'dotted']]

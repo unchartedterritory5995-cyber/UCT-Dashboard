@@ -1,4 +1,3 @@
-import { CROSSHAIR_WIDTHS, CROSSHAIR_STYLES } from './chartSettingsDescriptors'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import styles from './ColorPanel.module.css'
 
@@ -265,7 +264,7 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
         <>
           <div className={styles.opLabel}>Thickness</div>
           <div className={styles.lineOpts}>
-            {CROSSHAIR_WIDTHS.map((w) => (
+            {[1, 2, 3, 4].map((w) => (
               <button key={w} type="button"
                 className={`${styles.lineOpt} ${line.width === w ? styles.lineOptOn : ''}`}
                 onClick={() => line.onWidth?.(w)} aria-label={`Thickness ${w}`}>
@@ -275,7 +274,7 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
           </div>
           <div className={styles.opLabel}>Line style</div>
           <div className={styles.lineOpts}>
-            {CROSSHAIR_STYLES.map(([s, name]) => (
+            {[[0, 'solid'], [2, 'dashed'], [1, 'dotted']].map(([s, name]) => (
               <button key={s} type="button"
                 className={`${styles.lineOpt} ${line.style === s ? styles.lineOptOn : ''}`}
                 onClick={() => line.onStyle?.(s)} aria-label={name}>

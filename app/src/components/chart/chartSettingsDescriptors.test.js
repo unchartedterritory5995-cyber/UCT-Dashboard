@@ -126,3 +126,15 @@ describe('overnight follow-up: crosshair line options, swing / earnings colours'
   })
 })
 
+
+describe('the crosshair option lists match the colour panel the dialog shows (no import into ColorPanel — the drawing layer pins its literals)', () => {
+  it('ColorPanel offers exactly CROSSHAIR_WIDTHS and CROSSHAIR_STYLES', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    // vitest runs from app/ (this file's environment is jsdom, so import.meta.url is not a file: URL)
+    const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/chart/ColorPanel.jsx'), 'utf8')
+    const { CROSSHAIR_WIDTHS, CROSSHAIR_STYLES } = await import('./chartSettingsDescriptors')
+    expect(src).toContain(`{[${CROSSHAIR_WIDTHS.join(', ')}].map((w) =>`)
+    expect(src).toContain(`[${CROSSHAIR_STYLES.map(([v, n]) => `[${v}, '${n}']`).join(', ')}]`)
+  })
+})
