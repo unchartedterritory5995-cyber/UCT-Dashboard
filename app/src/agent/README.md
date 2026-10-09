@@ -85,7 +85,15 @@ no change.
 - `available(ctx)` must reflect what this member may do manually; server routes
   behind each writer remain the authority.
 - Indicators are owned by Indicator Intelligence; this registry has no
-  `indicator.*` or pane capabilities until that project exposes them.
+  `indicator.*` or pane capabilities until that project exposes them. The plan of
+  record is `docs/indicators/AGENT-INTEGRATION-HANDOFF.md` (M1 read + hand-off,
+  M2 add/remove through `instanceControls`), waiting on their step 1
+  (`instancesOf`, `instanceFingerprint`); see `docs/agent/PRODUCT-HANDOFFS.md` §9.
+- Drawings go through the product's drawing store only (`drawingsStore` writers,
+  by symbol + id); Undo is by id, never the store's shared undo; receipts wait for
+  the server's `tracings_doc`. Anchored tools wait on PRODUCT-HANDOFFS §11.
+- Unattended sessions follow `docs/agent/UNATTENDED-DEVELOPMENT.md` (no remote
+  mutations; verify remote state before reporting).
 
 ## Decisions recorded
 
@@ -94,12 +102,10 @@ no change.
   and waits for the member; the Agent refuses and points to Widgets ▾ rather than
   moving widgets the member did not mention. Undo closes exactly the added widget
   through `handleRemoveWidget` (the manual ✕ path).
-- **`widget.remove` is not shipped.** Its undo would have to re-insert the exact
-  widget (id, geometry, opts); the product has no canonical writer for that —
-  re-adding mints a new id and re-places it. Smallest future fix: a workspace
-  "restore widget" operation (insert a given widget object verbatim, through
-  setLayout + scheduleSave, honouring the board bound) that the manual product can
-  also use (e.g. an "undo close" toast), then register remove with it.
+- **`widget.remove` shipped in Batch 5** through the board kind's one writer
+  (`applyBoard`), whose Undo re-inserts the exact widget object (id, geometry,
+  link colour, opts) — the "restore widget" operation this note used to ask for.
+  (Until Batch 5 it was not shipped because no such writer existed.)
 - **`chart.setScale`** relies on StockChart clearing its local A/L/% override
   when the STORED scale changes (railed in `mobileScaleAndVolume.test.jsx`), and
   refuses non-percent while Compare overlays force percent.

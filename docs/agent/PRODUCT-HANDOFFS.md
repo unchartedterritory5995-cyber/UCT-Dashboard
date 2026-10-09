@@ -64,38 +64,69 @@ Evidence labels:
 
 ---
 
-# Overnight 2026-10-08/09 additions
+# 2026-10-09 additions (overnight work, production recovery, integration release)
 
-## 8. ⛔ LIVE DEFECT — small routed Agent requests are rejected by the model API [V, measured on production]
+## 8. ✅ FIXED — small routed Agent requests were rejected by the model API [V, measured on production]
 
-- **Where:** `api/services/uct_agent/turn.py` `envelope_schema`. A request with ≤ 10 actions (`STRICT_OP_VARIANTS_MAX`) embeds each action's args schema. Nullable enums (`{"type": ["string","null"], "enum": [...]}` — `screener.run.sort_dir`, `alert.list.status`, `settings.setAlertSound.sound`, `app.open.section`) are refused: *"output_config.format.schema: Invalid schema: Enum value 'asc' does not match declared type"* (Railway web logs, request ids `req_011CfqsmnamjSB2Ba7SNqi7d`, `req_011CfqsozrkW6U7mtMqA4vGY`).
-- **Impact:** since Batch 5 routing (`e4c3466e38`), every screener-only, alerts-only and settings/app-only Agent turn fails with "UCT Agent is unavailable right now (BadRequestError)". Admin-only (the Agent is dark). Found by the Batch 6 real-model benchmark: 5 of 57 routed cases.
-- **Fix (Agent-owned, NOT deployed):** local commit `b554a9f376` on `fix/uct-agent-nullable-enum` (also carried by `feat/uct-agent-overnight-1009`): `model_safe_schema()` rewrites each such node as `anyOf` of single-type enums with the same values; the model's answer is still validated against the capability's own args. Rail: `test_no_routed_request_sends_an_enum_under_a_union_type`.
-- **Owner action:** release the fix (guard → gate → promote), then re-run the routed benchmark half to confirm the 5 cases.
+- **What:** a request of ≤ 10 actions embeds each action's args schema. The model API refused two things: (a) `{"type": ["string","null"], "enum": [...]}` (*"Enum value 'asc' does not match declared type"*) — every screener-only, alerts-only and settings/app-only turn failed since Batch 5 routing; (b) once (a) was fixed, the 9-action screener group's grammar: *"The compiled grammar is too large"* (`screener.run`'s array of condition objects).
+- **Fixes (Agent-owned, LIVE):** `b554a9f376` (`turn.model_safe_schema` → `anyOf` of single-type enums; live since 2026-10-08 22:54 EDT, see the note below) and `e3e48854df` (a schema refusal of a turn's FIRST call is retried ONCE in the compact op shape, whose args are still checked by `args_match`; live 2026-10-09 07:58 EDT, Railway `8efffe58`).
+- **Verified on production:** the 5 benchmark cases that crashed now return 200 (scorer 3/5 — #13 asks for the copy's name, #17 answers from context); 9/9 smoke requests (screener, alerts, settings, navigation, multi-intent) return correct plans; server logs show the screener group taking the one compact retry.
+- **Note (process):** `b554a9f376` was pushed by an unattended push loop in the seconds before it was stopped, contrary to an overnight no-push instruction, and the overnight report wrongly said nothing was pushed. See `docs/agent/UNATTENDED-DEVELOPMENT.md`.
 
-## 9. Indicator writes by UCT Agent need the Indicator project to register the Agent [V]
+## 9. Indicator integration — aligned with the Indicator team's plan [V]
 
-- **Where:** `app/src/components/chart/engine/__tests__/controlDoorCensus.test.js` "door EIGHT" declares the exact files allowed to call `addInstance` / `removeInstance` / `setInstanceInput` / `setInstanceHidden` (compared by equality); `app/src/agent/README.md` (and `docs/indicators/INTEGRATION-READINESS.md`): *"this registry has no `indicator.*` or pane capabilities until that project exposes them."*
-- **Agent:** Batch 7 implements NOTHING that touches indicators (a read-only prototype was written, then reverted the same night because the README agreement covers reads too). The design below is ready.
-- **What the Agent would use (all existing, all Indicator-owned):**
-  - read "what is on this chart": `indicatorRegistry.listAllIndicators(cs, nativeRegistry)` filtered by `readEnabled` — exactly the Chart Settings ▸ Indicators tab;
-  - search the library: `BUILT_IN_ROWS` + `catalogRows` + `userCatalogRows` (minus `hiddenLibraryIds`, through `libraryRowFor`) filtered by `IndicatorLibraryDialog.matches`, "on this chart" = `isRowOn` — exactly the Library dialog (a `libraryRows(settings, registry)` export would remove the 3-line composition the Agent would otherwise repeat);
-  - writes: `addInstance`, `setInstanceInput`, `setInstanceAppearance`, `setInstanceDisplayTarget`, `setInstanceHidden`, `removeInstance` inside the Agent's existing chart commit (one settings write, read-back, Undo = previous blob — the same path `chart.setSetting` uses).
-- **Asks of the Indicator project:** (a) say yes/no to `indicator.*` capabilities in the Agent registry (read-only first); (b) add `app/src/agent/capabilities/indicators.js` to the door-EIGHT ledger with its reason, or name the seam the Agent should call instead; (c) decide pane ordering ownership (`paneSeriesOrder` / `paneOrder`); (d) a headless authoring seam for Create Indicator (INTEGRATION-READINESS gaps 1–2) — until then the Agent can at most open the Create Indicator panel for the member.
-- **Disclosure:** Batch 6 (`7a8106dbf1`, released in `d3ca02f124`) added ONE entry to `controlDoorCensus.test.js` `BULK_BLOB_SITES` (the census's own instruction for a new whole-blob site): the Agent's template / restore-defaults look writes, which carry every indicator-owned key over unchanged (`keepOwned`). Please review that entry.
+The Indicator team's `docs/indicators/AGENT-INTEGRATION-HANDOFF.md` (2026-10-09) is the plan of record; this section is the Agent side of it. **Nothing indicator-related is implemented in the Agent** (a read-only prototype written overnight was reverted because `app/src/agent/README.md` says the registry has no `indicator.*` capabilities until the Indicator project exposes them).
+
+**Agreed architecture (theirs, restated):** the Agent owns conversation, routing, approvals and orchestration; Indicator Intelligence owns formula semantics, validation, authoring and definitions. The Agent never saves a definition, never calls `/converse`, and writes instances only through `engine/instanceControls`.
+
+| Need | Interface | Status | Owner action |
+|---|---|---|---|
+| Read definitions (names, categories, where they draw) | `indicatorCatalog.catalogRows` / `userCatalogRows` / `labelFor`; Library search `IndicatorLibraryDialog.matches` + `isRowOn` | EXISTS — but existence is not permission; not used by the Agent | confirm the Agent may read these (or name the seam) |
+| Read installed instances on a chart | `instancesOf(cs, registry)` → `{instanceId, defId, name, hidden, placement}`, never the `u_studio-preview` instance | **NEW — Indicators step 1** | Indicators |
+| Staleness of indicator state | `instanceFingerprint(cs)` (an Agent indicator kind fingerprints ONLY `indicatorInstances`, so an unrelated theme change never makes an indicator Undo refuse) | **NEW — Indicators step 1** | Indicators |
+| Add / remove an indicator | `addInstance` / `removeInstance` | EXISTS — STABLE, but door-EIGHT in `controlDoorCensus.test.js` lists the exact callers | Indicators registers the Agent's file in the door-EIGHT ledger (M2) |
+| Parameters, style, visibility | `setInstanceInput`, `setInstanceAppearance`, `setInstancePlotStyle`, `setInstanceHidden` | EXISTS — same ledger | as above (after M2) |
+| Pane placement | `setInstanceDisplayTarget` | EXISTS — same ledger | as above |
+| Pane ORDER | `paneOrder` / `paneSeriesOrder` (owned keys) | no writer contract | Indicators decides whether/how order is Agent-writable |
+| Saved state + Undo | chart commit + read-back; Undo = instance-level patch over the narrowed fingerprint | Agent plumbing ready | Agent, after step 1 |
+| Hand-off to Create Indicator | `openCreateIndicator({defId?, seed?})` on the `chartApiById` entry; `available()` mirrors `createIndicatorAccess && canModifyWithIntelligence`; seed PREFILLS, never sends | `openCreateIndicator` exists on the toolbar handle only; seed and host path missing | Indicators: seed + `listDrafts()`; Agent: host binding + gated `indicator.openCreate` |
+| Save refusals in receipts | `saveUserDefinition` passing through the structured 422 refusal | missing (dropped today) | Indicators |
+
+**Order (theirs):** Indicators step 1 (`instancesOf`, `instanceFingerprint`, 422 passthrough) → Agent M1 (`indicators` routing group + `indicator.list`, golden update) → host opener + gated `indicator.openCreate` → seed prefill → M2 add/remove. Their acceptance list (list == `indicatorInstances` through the registry, never the preview instance; openCreate absent without access; add/remove byte-identical to the Library dialog; Undo exact, refuses after a member edit, not after an unrelated theme change) is adopted as the Agent's acceptance.
+
+**Needs the Indicator team's review:**
+1. ⚠ **The Batch 6 entry the Agent added to `controlDoorCensus.test.js` `BULK_BLOB_SITES`** (commit `7a8106dbf1`, live since `d3ca02f124`): `app/src/agent/capabilities/chart.js` — `chart.applyTemplate` / `chart.resetDefaults` write a whole look blob (a clone of the live `CHART_DEFAULTS`), always proposed first, and `keepOwned()` carries every indicator-owned top-level key (`OWNED_TOP_KEYS`) over unchanged. The census told the author to add the entry with its reason; it is an edit to an Indicator-owned test file and should be confirmed (or replaced by a seam you prefer).
+2. Two chart write paths (StockChart `handleUpdateChartSettings` vs ChartWidget `onOptsChange`) — the Agent uses the ChartWidget path.
+3. Main Trading has no code guard in `app/src/agent` (protection is operational: `boardInSync`, per-key CAS, the owner's rule) — noted by your handoff; agreed it stays a risk until a product-level guard exists.
 
 ## 10. Chart tabs cannot be reordered in UCT [V]
 
 - **Where:** `pages/charts/chartTabs.js` has add / close / select / rename / patch reducers and no move; `ChartTabStrip.jsx` has no drag. The Agent cannot reorder tabs because the product cannot.
 - **Owner:** Charts workspace — a `moveChartTab(opts, tabId, toIndex)` reducer (keeping `activeChartTab` on the same tab) would let the Agent and a drag share one writer.
 
-## 11. Anchored drawings need the drawing layer's point and time rules exported [V]
+## 11. Drawings — what the Agent uses, and what anchored tools need [V]
 
-- **What the Agent does now (overnight Batch 8, narrow):** horizontal levels only — the price-axis menu's own shape (`{type:'horizontal', points:[{price}]}`, the member's drawing defaults), plus restyle / remove ONE drawing by id and list, all through `drawingsStore` (`addDrawing` / `updateDrawing` / `removeDrawing` / `peekDrawings`). Undo is by id, never `drawingsStore.undo` (that history is shared with the member's own edits). Verified on the real page: the line renders, syncs to `tracings_doc`, Undo removes exactly it.
-- **What blocks trendlines, rectangles, Fibonacci, text (Batch 8b):**
-  1. `POINT_COUNT` is module-private in `ChartDrawingOverlay.jsx` — please export it (or a `pointCountFor(type)`).
-  2. There is no `validateDrawing(type, points)`; the store accepts any object. An exported validator would let every non-overlay writer (`NewsWidget` today, the Agent tomorrow) refuse a malformed drawing instead of storing it.
-  3. `point.time` is the chart's DISPLAY time (D/W/M: ET `YYYY-MM-DD`; intraday: epoch seconds floored to the bar + ET offset) and a drawing does not record its timeframe. A drawing-owned `toStoredTime(tf, utcMs)` (over `barTime.computeBarTime`) — and a rule for what a daily-anchored drawing means on an intraday chart — is needed before the Agent places time anchors.
-  4. "The last swing high / the recent consolidation" need a deterministic detector the product already trusts (e.g. the swing-label engine) exposed as a read; until then the Agent asks for explicit dates and prices.
-- **Not offered on purpose:** "clear all drawings" — `clearAll(sym)` wipes every chart on the symbol and, through `useBoundDrawingAlerts`, the alerts bound to those lines.
+**Shipped to the Agent (horizontal levels only):** `drawing.addLevel` (the price-axis menu's own shape: `{type:'horizontal', points:[{price}], color: drawingDefaults.color || UCT_DRAW_GOLD, lineWidth: drawingDefaults.width || 1}`), `drawing.style` and `drawing.remove` (ONE drawing by id), `drawing.list`. Undo by id, never the store's shared `undo()`. Staleness includes the active Drawing Board. Removal refused for a locked drawing, one with an alert attached (the server's alert list, read fresh), or when that list can't be read. Receipts wait for the SERVER's `tracings_doc` to hold the change; otherwise "not synced yet — keep this tab open", no Undo.
+
+| Interface | Status |
+|---|---|
+| `drawingsStore.addDrawing / updateDrawing / removeDrawing / peekDrawings` (by symbol + id) | **available** (precedent: `NewsWidget` writes the store directly) |
+| `drawingsStore.getActiveTracingId`, `exportTracings` | **available** |
+| `drawingObjects.objectTypeName / objectSummary`, `drawingStyle.LINE_DASH`, `drawingColors.UCT_DRAW_GOLD`, `drawingSettingsSchema.SCHEMA` | **available** |
+| Bound-alert check (`drawing_id` on `/api/watchlist-alerts`) | **available** (the Agent reads it fresh before a removal) |
+| `POINT_COUNT` (module-private in `ChartDrawingOverlay.jsx`) | **needs an export** — `pointCountFor(type)` |
+| `validateDrawing(type, points)` (none exists; the store accepts any object) | **needs new product work** — ideally used by the overlay too, so there is one validator |
+| Real time → stored point time (D/W/M: ET `YYYY-MM-DD`; intraday: bar-floored epoch + ET offset; a drawing records no timeframe) | **needs new product work** — a drawing-owned `toStoredTime(tf, utcMs)` over `barTime.computeBarTime`, and a rule for a daily-anchored drawing on an intraday chart |
+| Pane ownership for non-price panes (`pane`, `paneRelY` on points) | **needs a product rule** — which pane ids are valid targets, and how a drawing moves when panes reorder |
+| A sync acknowledgement (`useTracingsSync` pushes 1.5 s after a change; its flush is internal; nothing flushes on tab close) | **needs new product work** — an exported `flushTracings()` returning the server's verdict, and a `pagehide` flush; until then the Agent confirms by reading the server's copy |
+| Deterministic anchors ("the last swing high", "the recent consolidation") | **needs new product work** — expose the swing-label engine's swings as a read |
+| `clearAll(sym)` | **stays blocked** — wipes every chart on the symbol and the alerts bound to its lines |
+| Trendline / ray / rectangle / Fibonacci / text | **stay blocked** until point counts, the validator and stored-time conversion exist (Batch 8b) |
+
 - **Owner:** Charts drawing layer.
+
+## 12. Widget link colours are not validated by the server [V]
+
+- **Where:** `CHARTS_EXTRA_GROUPS_ENABLED` (on in production since 2026-10-09) reaches the browser on the auth payload only; `charts_workspace_layout` saves are not checked for colours, for manual edits or Agent ones. With the flag off, a stored E–H reads as "not linked" (`colorGroups.effectiveGroup`), so the exposure is low.
+- **Agent:** `widget.setLink` / `chart.linkTab` refuse E–H whenever the board snapshot says the flag is off (the colour dot's own rule).
+- **Owner:** Charts workspace — optional server-side colour allow-list on board saves.

@@ -132,13 +132,21 @@ The **full** catalog is no longer a valid request once it passes 60 (70 after Ba
 
 A request of ≤ `STRICT_OP_VARIANTS_MAX` (10) actions embeds each action's own args schema in the structured-output format; a bigger one sends args as a JSON string (`compact_ops`). Routing made small requests common, which exposed a model-API rule: an `enum` under a UNION `type` (`["string","null"]`) is refused (400). `turn.model_safe_schema()` rewrites such nodes as `anyOf` of single-type enums (same values) in the schema the MODEL sees; validation of the answer still uses the capability's own args. Rail: `test_no_routed_request_sends_an_enum_under_a_union_type` (every routed group). Capability authors may keep writing `type: [T, 'null'] + enum`.
 
+### 4a″. When the model API refuses an embedded schema (production fix 2026-10-09)
+
+Beyond the enum rule above, the API refuses an embedded schema whose strict grammar compiles too large (measured: the 9-action screener group, `screener.run`'s condition objects). No static size or nesting rule separates it reliably (the lists group is also nested and compiles), so `run_turn` retries the FIRST call of a turn ONCE in the compact op shape when the refusal names the schema (*compiled grammar is too large* / *invalid schema*). Compact args are still checked against each capability's own schema (`args_match`); nothing else is retried; one turn, one charge; `usage.schema_fallback` marks it (`e3e48854df`).
+
+### 4c. Drawings: what a receipt may claim
+
+A drawing write lands in the product's drawing store at once, but reaches the member's account only through the tracings sync (a 1.5 s debounced push of `exportTracings()` into `tracings_doc`; no flush on tab close). The receipt and its Undo therefore wait for `host.drawings.confirm(symbol)` — the SERVER's copy of the active Drawing Board's drawings for that symbol equal to the local ones; otherwise the receipt says "not synced yet — keep this tab open" and offers no Undo (the same rule as an unconfirmed board save).
+
 ### 4b. Daily cap (Batch 6 Gate A)
 
 `UCT_AGENT_DAILY_CAP` (300) counts `/api/agent/turn` requests per user per **America/New_York** day (`daily_counters`, key scope/subject/day). Refused requests are not counted; a failed model call gives its charge back; a research turn is one charge for its two model calls; a reroute is a second charge. The Batch 5 evening 429 was the cap genuinely reached during the benchmark; the apparent "00:02 ET" reading was a Git Bash clock without tzdata printing UTC. Pinned by `tests/test_uct_agent_daily_cap.py`. No cap or counter was changed.
 
 **Original design notes (Batch 4):**
 
-The flat manifest is **51 / 60** after Batch 4. `agentContracts.test.js` fails above the **routing threshold of 55**. That forces this design to be activated instead of the server cap being raised. The owner rejected raising the cap.
+*(Historical — Batch 4. Superseded by §4a: the catalog may register 200, one request carries ≤ 60.)* The flat manifest was **51 / 60** after Batch 4. `agentContracts.test.js` fails above the **routing threshold of 55**. That forces this design to be activated instead of the server cap being raised. The owner rejected raising the cap.
 
 **Design (activation deferred until it can be proven safe):**
 
