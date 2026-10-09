@@ -226,8 +226,11 @@ def breadth_nhnl_intraday(request: Request, start: int = 0, rebuild: int = 0,
         except Exception:
             v = {}
         cmp_ = {}
-        for u in nhi.UNIVERSES:
+        for u in nhi.UNIVERSES + nhi.ALL_KEYS:
             r = ((v.get("rows") or {}).get(u) or {}).get(date)
+            if ":" in u:
+                cmp_[u] = {"intraday": r}
+                continue
             stored = {}
             try:
                 from api.services import breadth_daily_ohlc as bdo
