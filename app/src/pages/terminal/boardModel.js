@@ -692,6 +692,28 @@ export function deleteBoard(library, id) {
   return { ...library, boards: library.boards.filter((b) => b.id !== id), presets }
 }
 
+/** The ticker presets that open board `id` (what `deleteBoard` drops with it). */
+export function presetsOfBoard(library, id) {
+  return Object.fromEntries(Object.entries(library.presets || {}).filter(([, v]) => v === id))
+}
+
+/** Put a just-deleted board back (the Undo on a delete): at its old place in the list, with the
+ *  presets that opened it. Into the CURRENT library, so anything changed since the delete stays.
+ *  `{ library, ok, reason? }` — refused when a board with that id or name is back already, or
+ *  the library is full. A preset re-pointed at another board since the delete is left alone. */
+export function restoreBoard(library, board, presets = {}, index = null) {
+  if (!board || typeof board.id !== 'string') return { library, ok: false, reason: 'missing' }
+  if (library.boards.some((b) => b.id === board.id || sameBoardName(b.name, board.name))) {
+    return { library, ok: false, reason: 'exists' }
+  }
+  if (library.boards.length >= MAX_BOARDS) return { library, ok: false, reason: 'full' }
+  const restored = { ...board, slug: uniqueSlug(board.slug || slugify(board.name), library.boards, board.id) }
+  const at = Number.isInteger(index) ? Math.max(0, Math.min(index, library.boards.length)) : library.boards.length
+  const boards = [...library.boards.slice(0, at), restored, ...library.boards.slice(at)]
+  const back = Object.fromEntries(Object.entries(presets).filter(([k]) => !(k in library.presets)))
+  return { library: { ...library, boards, presets: { ...library.presets, ...back } }, ok: true }
+}
+
 /** A board by `B:` slug, by bare slug, or by id. */
 export function findBoard(library, ref) {
   const m = String(ref || '').trim().match(BOARD_ADDRESS_RE)

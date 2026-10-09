@@ -49,7 +49,7 @@ import useTerminalLayout from './useTerminalLayout'
 import useCommandHistory from './commandHistory'
 import {
   BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
-  closePanel, decodePopout, decodeShare, deleteBoard, duplicatePanel, encodeShare, findBoard, isCompatChannel,
+  closePanel, decodePopout, decodeShare, deleteBoard, duplicatePanel, encodeShare, findBoard, isCompatChannel, presetsOfBoard, restoreBoard,
   isLinkable, markOpened, movePanel, nextLinkChannel, reorderPanel, openBoard, panelBeside, panelChannel, panelSym, popoutHref, presetFor,
   recentSecurities, saveBoard, setCount as countTo,
   setDensity, setKeepCalendar, setPanelChannel, setPopout, setPreset, shareHref, toggleFavorite, undoClose,
@@ -1292,6 +1292,19 @@ export default function TerminalShell() {
     else if (a.id === 'undo-calendar') onUndoCalendar(a)
     else if (a.id === 'revert') revertLayout()
     else if (a.id === 'save-shared') onSaveBoard(a.name)
+    else if (a.id === 'undo-delete' && a.board) {
+      const res = restoreBoard(libraryRef.current, a.board, a.presets, a.index)
+      if (!res.ok) {
+        setNotice({ kind: 'error', text: res.reason === 'full'
+          ? `${a.board.name} could not come back: you have the most saved boards allowed.`
+          : `${a.board.name} could not come back: a board with that name is already saved.` })
+      } else if (!saveLibrary(res.library)) {
+        setNotice({ kind: 'error', text: 'Your saved boards could not be read, so the board was not restored.' })
+      } else {
+        if (a.wasCurrent) setCurrentBoard(a.board.name)
+        setNotice({ kind: 'info', text: `Restored your board ${a.board.name} (B:${a.board.slug}).` })
+      }
+    }
     else if (a.id === 'save-scan') {
       // Saved: keep the page buttons and the way back on the notice that says so.
       const said = onSaveBoard(a.name)
@@ -1843,8 +1856,15 @@ export default function TerminalShell() {
           onSave={onSaveBoard}
           onOpen={(b) => { setSheet(null); openNamed(b) }}
           onDelete={(b) => {
-            saveLibrary(deleteBoard(library, b.id))
-            if (b.name === currentBoard) setCurrentBoard(null)
+            // One click deleted a saved board for good (lane C audit 2026-10-08). The delete
+            // stays one click, and the notice (shown at the top of this sheet) carries an Undo.
+            const index = library.boards.findIndex((x) => x.id === b.id)
+            const presets = presetsOfBoard(library, b.id)
+            if (!saveLibrary(deleteBoard(library, b.id))) return
+            const wasCurrent = b.name === currentBoard
+            if (wasCurrent) setCurrentBoard(null)
+            setNotice({ kind: 'info', text: `Deleted your board ${b.name}.`,
+              actions: [{ label: 'Undo', id: 'undo-delete', board: b, presets, index, wasCurrent }] })
           }}
           onPreset={(sym, id) => saveLibrary(setPreset(library, sym === '*' ? '*' : sym, id))}
           onKeepCalendar={(on) => saveLibrary(setKeepCalendar(library, on))}
