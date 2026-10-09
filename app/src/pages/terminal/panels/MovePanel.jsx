@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from 'react'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import HighlightThesis, { isFailedSynthesis } from '../../../utils/highlightThesis'
 import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
+import { formatDateTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import styles from '../TerminalShell.module.css'
 
 /** Pure: the key the server diffs on, so a row can say NEW without a second rule. */
@@ -70,7 +71,7 @@ export default function MovePanel({ sym, onRun, onRows }) {
         ? <PanelState kind="locked" role="status" title="MOVE isn't switched on yet." testId="terminal-move-error" />
         : <PanelState kind="error" title={`Could not load why ${sym} is moving just now.`} testId="terminal-move-error"
             action={<button type="button" onClick={() => setAttempt((n) => n + 1)}>Retry</button>}>
-            Run {sym} MOVE again, or retry here.
+            Press Retry to read it again.
           </PanelState>
     )
   }
@@ -81,7 +82,8 @@ export default function MovePanel({ sym, onRun, onRows }) {
   const cats = Array.isArray(d.catalysts) ? d.catalysts : []
   const since = d.since_last_visit || {}
   const fresh = new Set(since.new || [])
-  const lastSeen = since.last_visit_at ? new Date(since.last_visit_at * 1000).toLocaleString() : null
+  // ET, like every time the terminal prints (it was the browser's own zone, unlabelled).
+  const lastSeen = formatDateTimeEt(Number(since.last_visit_at) || NaN)
   return (
     <div className={styles.help} data-testid="terminal-move">
       <p className={styles.helpSyntax} data-testid="terminal-move-since">

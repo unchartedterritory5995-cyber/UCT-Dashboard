@@ -29,6 +29,8 @@ describe('MovePanel', () => {
     expect(items.map((li) => li.dataset.new)).toEqual(['false', 'true'])
     expect(within(screen.getByTestId('terminal-move-catalysts')).getByRole('listitem').dataset.new).toBe('true')
     expect(screen.getByTestId('terminal-move-since').textContent).toContain('2 new since your last visit')
+    // the last-visit time is Eastern and says so, whatever zone the browser is in (lane C audit)
+    expect(screen.getByTestId('terminal-move-since').textContent).toContain('(9/21/2026, 10:13:20 AM ET)')
     expect(jsonFetcher).toHaveBeenCalledWith('/api/terminal/move/NVDA')
     expect(onRows).toHaveBeenCalledWith(moveRows('NVDA'))
   })
@@ -56,7 +58,10 @@ describe('MovePanel', () => {
     unmount()
     jsonFetcher.mockRejectedValueOnce(Object.assign(new Error('x'), { status: 500 }))
     render(<MovePanel sym="AMD" />)
-    expect((await screen.findByTestId('terminal-move-error')).textContent).toContain('AMD MOVE again')
+    // re-running AMD MOVE keeps the same panel and reads nothing; only the Retry button re-reads
+    const err = await screen.findByTestId('terminal-move-error')
+    expect(err.textContent).toContain('Press Retry')
+    expect(err.textContent).not.toContain('MOVE again')
   })
 
   it('a failed read is an error with a Retry that reads again (2026-10-07: copy only before)', async () => {
