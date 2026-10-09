@@ -110,3 +110,20 @@ describe('TWT in the registry', () => {
     expect((await PANEL_IMPORTERS.Twt()).default).toBe(TwtPanel)
   })
 })
+
+describe('TWT locked states (wave 9)', () => {
+  it('a 402 says paid plan and a 404 says not switched on, neither with Retry', async () => {
+    serve({ [tweetsUrl('NVDA')]: 402 })
+    renderPanel()
+    const paid = await screen.findByTestId('terminal-twt-error')
+    expect(paid.textContent).toContain('paid plan')
+    expect(paid.getAttribute('data-kind')).toBe('locked')
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+    cleanup()
+    serve({ [tweetsUrl('NVDA')]: 404 })
+    renderPanel()
+    const off = await screen.findByTestId('terminal-twt-error')
+    expect(off.textContent).toContain('not switched on')
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+  })
+})

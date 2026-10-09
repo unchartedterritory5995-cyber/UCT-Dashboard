@@ -26,7 +26,7 @@ import { CHROME_INK, SEMANTIC_INK, useThemeInk, withAlpha } from '../../../lib/t
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 import Select from '../../../components/ui/Select'
 import { useHasCoarsePointer } from '../../../hooks/useBreakpoint'
-import { failureText, useMarketRead } from './marketRead'
+import { canRetry, failureText, useMarketRead } from './marketRead'
 import { SCAT_DEFAULT, SCAT_INDEXES, scatCommand } from '../scatterArgs'
 import styles from './marketPanels.module.css'
 
@@ -234,7 +234,7 @@ export default function ScatterPanel({ universe = null, yKey: yProp = null, xKey
 
   if (metrics.loading) return <PanelSkeleton label="Loading the scatter axes" testId="terminal-scat-loading" />
   if (metrics.error && !metrics.body) {
-    const locked = metrics.error?.status === 402
+    const locked = !canRetry(metrics.error)
     return (
       <PanelState kind={locked ? 'locked' : 'error'} title={failureText(metrics.error, 'The scatter axes')} testId="terminal-scat-error"
         action={locked ? null : <button type="button" className={styles.chip} onClick={metrics.retry}>Retry</button>}>
@@ -259,7 +259,7 @@ export default function ScatterPanel({ universe = null, yKey: yProp = null, xKey
   let body
   if (read.loading) body = <PanelSkeleton label="Loading the universe" testId="terminal-scat-data-loading" />
   else if (read.error && !read.body) {
-    const locked = read.error?.status === 402
+    const locked = !canRetry(read.error)
     body = (
       <PanelState kind={locked ? 'locked' : 'error'} title={failureText(read.error, 'This universe')} testId="terminal-scat-data-error"
         action={locked ? null : <button type="button" className={styles.chip} onClick={read.retry}>Retry</button>}>

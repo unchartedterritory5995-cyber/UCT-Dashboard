@@ -105,6 +105,30 @@ describe('THMS panel', () => {
     expect(await screen.findByTestId('terminal-thms-computing')).toBeTruthy()
   })
 
+  it('a computing payload says the server is preparing it and re-asks on its own (wave 9)', async () => {
+    jsonFetcher.mockResolvedValueOnce({ themes: [], status: 'computing' })
+    jsonFetcher.mockResolvedValue(PAYLOAD)
+    renderPanel()
+    expect((await screen.findByTestId('terminal-thms-computing')).textContent).toContain('Loading, the server is preparing this.')
+    expect(await screen.findByTestId('terminal-thms-leaders', {}, { timeout: 8000 })).toBeTruthy()
+  }, 12_000)
+
+  it('an empty list that is NOT computing is not called "being computed" (wave 9)', async () => {
+    jsonFetcher.mockResolvedValue({ themes: [] })
+    renderPanel()
+    const none = await screen.findByTestId('terminal-thms-none')
+    expect(none.textContent).toContain('no themes to show')
+    expect(screen.queryByTestId('terminal-thms-computing')).toBeNull()
+  })
+
+  it('a switched-off route reads "not switched on" with no Retry (wave 9)', async () => {
+    jsonFetcher.mockRejectedValueOnce(Object.assign(new Error('off'), { status: 404 }))
+    renderPanel()
+    const off = await screen.findByTestId('terminal-thms-error')
+    expect(off.textContent).toContain('not switched on')
+    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+  })
+
   it('pure helpers: published figure first, owner mean second, null when nothing is priced', () => {
     const [semis, gold, quiet] = PAYLOAD.themes
     expect(themeReturn(semis, '1d')).toBe(2.5)

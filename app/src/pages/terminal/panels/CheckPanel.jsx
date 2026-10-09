@@ -25,7 +25,7 @@ import {
   PanelCommand, PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness,
 } from '../../../components/terminal'
 import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
-import { stampedRead, failureText } from './marketRead'
+import { canRetry, stampedRead, failureText } from './marketRead'
 import { checkLevels, parseNum } from './sizeMath'
 import {
   RISK_URL, TEMPLATES_URL, MAX_HEAT_PCT, analogRows, analogsUrl, bookChecks, checklistChecks, checklistUrl,
@@ -83,7 +83,7 @@ function Section({ id, title, read, what, children }) {
   if (read.loading) {
     body = <PanelSkeleton label={`Loading ${what.toLowerCase()}`} rows={2} testId={`terminal-chk-${id}-loading`} />
   } else if (read.error) {
-    const paid = read.error?.status === 402
+    const paid = !canRetry(read.error)
     body = (
       <PanelState compact kind={paid ? 'locked' : 'error'} role={paid ? 'status' : undefined}
         testId={`terminal-chk-${id}-error`} title={failureText(read.error, what)}

@@ -16,7 +16,7 @@ import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { readEconomicSeries } from '../../../components/chart/engine/economicSeries'
 import { observationReadout, shortDate } from '../../../components/chart/economic/econUi'
-import { failureText, useMarketRead } from './marketRead'
+import { canRetry, failureText, useMarketRead } from './marketRead'
 import styles from './marketPanels.module.css'
 
 export const SENTIMENT_URL = '/api/breadth-monitor?days=90'
@@ -137,7 +137,7 @@ function SentimentTable({ read }) {
   const rows = useMemo(() => sentimentRows(read.body), [read.body])
   if (read.loading) return <PanelSkeleton label="Loading sentiment" testId="terminal-sent-loading" />
   if (read.error && !read.body) {
-    const locked = read.error?.status === 402
+    const locked = !canRetry(read.error)
     return (
       <PanelState kind={locked ? 'locked' : 'error'} title={failureText(read.error, 'Sentiment')} testId="terminal-sent-error"
         action={locked ? null : <button type="button" className={styles.chip} onClick={read.retry}>Retry</button>}>

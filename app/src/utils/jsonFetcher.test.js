@@ -280,3 +280,28 @@ describe('jsonFetcher', () => {
     }
   })
 })
+
+describe('jsonFetcher keeps a 503 body, so a "warming" answer can be told from an outage (wave 9)', () => {
+  afterEach(() => { vi.restoreAllMocks() })
+
+  it('a 503 carries its parsed body on err.body', async () => {
+    global.fetch = vi.fn(async () => ({ ok: false, status: 503, json: async () => ({ bars: [], error: 'warming' }) }))
+    await expect(jsonFetcher('/api/bars/NEWCO')).rejects.toMatchObject({ status: 503, body: { error: 'warming' } })
+  })
+
+  it('a 503 whose body is not JSON still throws the status, with no body', async () => {
+    global.fetch = vi.fn(async () => ({ ok: false, status: 503, json: async () => { throw new SyntaxError('html') } }))
+    const err = await jsonFetcher('/api/x').catch((e) => e)
+    expect(err.status).toBe(503)
+    expect(err.body).toBeUndefined()
+  })
+
+  it('other statuses never read the body (a 402 body is not data)', async () => {
+    const json = vi.fn(async () => ({ detail: 'paid' }))
+    global.fetch = vi.fn(async () => ({ ok: false, status: 402, json }))
+    const err = await jsonFetcher('/api/x').catch((e) => e)
+    expect(err.status).toBe(402)
+    expect(err.body).toBeUndefined()
+    expect(json).not.toHaveBeenCalled()
+  })
+})
