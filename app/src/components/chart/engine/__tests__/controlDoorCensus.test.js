@@ -690,6 +690,13 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'add it; the result is never written. The instance rides StockChart\'s csView read ' +
        'view, every writer keeps using cs, and stripPreview removes it at the persist ' +
        'writer. It names u_studio-preview, which the server can never mint'],
+      ['app/src/components/chart/builder/studio/editPreview.js',
+       '⭐ NEW AT BATCH 1 — an EDIT\'s preview shows the setting value Save will write. ' +
+       'setInstanceInput is called on a THROWAWAY blob holding only the preview instance ' +
+       '(u_studio-preview:edit), applying exactly the rule conversationSave applies at Save ' +
+       '(changedInputDefaults + setInstanceInput), so preview and Save cannot disagree. Only ' +
+       'the resulting `inputs` are copied onto the ephemeral preview instance; the blob is ' +
+       'never written and the member\'s stored instance is never addressed'],
       ['app/src/components/chart/builder/editor/PreviewPane.jsx',
        '⭐ NEW AT W1a TASK 7 — the builder\'s LIVE PREVIEW of a draft nobody has ' +
        'saved. It is the ScanResults shape one step further: addInstance is again the only door ' +
