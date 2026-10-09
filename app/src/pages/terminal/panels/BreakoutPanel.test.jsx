@@ -6,7 +6,7 @@
 //   * a failed read is an error with Retry, never "nothing today"; a 402 is locked;
 //   * the registry: `BRKO` resolves to this panel, market-only, and is not a ticker in the universe.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, within, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -55,6 +55,33 @@ describe('BRKO model', () => {
     expect(setupLabel(',some_new_thing,')).toBe('Some new thing')
     expect(setupLabel(null, 'Cup')).toBe('Cup')
     expect(setupLabel('', null)).toBe('Pattern')
+  })
+
+  it('drops bearish ids and puts bullish before neutral when the pattern catalog is known', () => {
+    const catalog = {
+      rsi_bearish_divergence: { name: 'RSI Bearish Divergence', direction: 'bearish' },
+      td_sequential_sell: { name: 'TD Sequential Sell', direction: 'bearish' },
+      inside_bar_breakout: { name: 'Inside Bar Breakout', direction: 'neutral' },
+      holy_grail: { name: 'Holy Grail', direction: 'bullish' },
+    }
+    // the live ASST / CEVA rows that showed a bearish word in a bullish list
+    expect(setupLabel(',rsi_bearish_divergence,inside_bar_breakout,', null, catalog)).toBe('Inside Bar Breakout')
+    expect(setupLabel(',td_sequential_sell,inside_bar_breakout,holy_grail,', null, catalog)).toBe('Holy Grail, Inside Bar Breakout')
+    // every id bearish: the base shape (or "Pattern") stands in, never a bearish word
+    expect(setupLabel(',td_sequential_sell,', 'Cup', catalog)).toBe('Cup')
+    // no catalog (failed or loading): nothing is dropped
+    expect(setupLabel(',td_sequential_sell,')).toBe('Td sequential sell')
+  })
+
+  it('reads the catalog in the panel and keeps a bearish id out of the setup column', async () => {
+    jsonFetcher.mockImplementation((url) => Promise.resolve(String(url).includes('/api/patterns/catalog')
+      ? { patterns: { td_sequential_sell: { name: 'TD Sequential Sell', direction: 'bearish' },
+          bull_flag: { name: 'Bull Flag', direction: 'bullish' } } }
+      : { ...SCAN, rows: [{ ...SCAN.rows[0], pattern_engine_ids: ',td_sequential_sell,bull_flag,' }] }))
+    renderPanel()
+    const row = await screen.findByTestId('terminal-brko-row-AMD')
+    await waitFor(() => expect(within(row).queryByText(/sequential/i)).toBeNull())
+    expect(within(row).getByText('Bull flag')).toBeTruthy()
   })
 
   it('derives the pivot from price and distance, and orders closest first', () => {

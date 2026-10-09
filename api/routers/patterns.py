@@ -676,6 +676,23 @@ _PATTERN_METADATA = {
 # admin/Gate-5, feedback) is unchanged.
 
 
+@router.get("/catalog")
+def get_pattern_catalog(_user: dict = Depends(require_paid)):
+    """Name and direction (bullish / bearish / neutral) for every pattern id.
+
+    Read-only view of `_PATTERN_METADATA`, the one place a pattern's direction is
+    written down. The screener's `pattern_engine_ids` column lists every active
+    detection for a symbol whatever its direction, so a bullish list (the
+    terminal's BRKO) uses this to keep a bearish id out of its setup words.
+    Declared BEFORE `/{sym}` or that route would answer for "catalog".
+    """
+    return {"patterns": {
+        pid: {"name": meta.get("name") or pid.replace("_", " ").title(),
+              "direction": (meta.get("direction") or "neutral").lower()}
+        for pid, meta in _PATTERN_METADATA.items()
+    }}
+
+
 @router.get("/{sym}")
 def get_detections(
     sym: str,

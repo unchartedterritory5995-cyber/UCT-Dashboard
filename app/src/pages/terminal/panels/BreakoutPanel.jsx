@@ -61,6 +61,8 @@ export const BRKO_SPEC = Object.freeze({
 
 const POLL_MS = 30 * 60 * 1000
 const swrKey = [BRKO_URL, 'terminal-brko']
+export const CATALOG_URL = '/api/patterns/catalog'
+const CATALOG_KEY = [CATALOG_URL, 'terminal-brko-catalog']
 const fetchScan = ([url]) => jsonFetcher(url, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
@@ -87,18 +89,25 @@ const PATTERN_NAMES = {
 }
 const LEAD = ['vcp', 'flat_base', 'high_tight_flag', 'cup_handle_uct', 'cup_handle']
 
-/** Pure: the setup words for one row: VCP and flat base lead, then the engine's own order. */
-export function setupLabel(ids, baseRender = null) {
+/** Pure: the setup words for one row: VCP and flat base lead, then bullish, then neutral ids.
+ *  `catalog` is GET /api/patterns/catalog's `patterns` map ({id: {name, direction}}): the screener's
+ *  id list carries EVERY active detection, bearish ones included, and a bearish word in a bullish
+ *  breakout list misleads. Without a catalog (it failed or has not loaded) nothing is dropped. */
+export function setupLabel(ids, baseRender = null, catalog = null) {
+  const dirOf = (t) => catalog?.[t]?.direction || null
   const tokens = String(ids || '').split(',').map((t) => t.trim()).filter(Boolean)
-  const ordered = [...LEAD.filter((t) => tokens.includes(t)), ...tokens.filter((t) => !LEAD.includes(t))]
-  const words = [...new Set(ordered.map((t) => PATTERN_NAMES[t]
+    .filter((t) => dirOf(t) !== 'bearish')
+  const rank = (t) => (LEAD.includes(t) ? 0 : dirOf(t) === 'bullish' ? 1 : dirOf(t) === 'neutral' ? 2 : 1)
+  const ordered = [...LEAD.filter((t) => tokens.includes(t)),
+    ...tokens.filter((t) => !LEAD.includes(t)).map((t, i) => [t, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([t]) => t)]
+  const words = [...new Set(ordered.map((t) => PATTERN_NAMES[t] || catalog?.[t]?.name
     || `${t.charAt(0).toUpperCase()}${t.slice(1).replace(/_/g, ' ')}`))]
   if (words.length) return words.slice(0, 2).join(', ')
   return baseRender ? String(baseRender) : 'Pattern'
 }
 
 /** Pure: the scan's answer as panel rows, plus its snapshot date and match count. */
-export function breakoutRows(body) {
+export function breakoutRows(body, catalog = null) {
   const raw = Array.isArray(body?.rows) ? body.rows : []
   const rows = raw
     .filter((r) => r && r.ticker && num(r.pattern_entry_dist_pct) != null)
@@ -108,7 +117,7 @@ export function breakoutRows(body) {
       return {
         sym: String(r.ticker).trim().toUpperCase(),
         company: r.company ? String(r.company) : '',
-        setup: setupLabel(r.pattern_engine_ids, r.base_render),
+        setup: setupLabel(r.pattern_engine_ids, r.base_render, catalog),
         dist,
         near: Math.abs(dist),
         pivot: price != null && price > 0 ? price * (1 + dist / 100) : null,
@@ -158,7 +167,9 @@ const byOrder = (a, b) => a.order - b.order
 export default function BreakoutPanel() {
   const inPanel = useInTerminalPanel()
   const r = useSWR(swrKey, fetchScan, { refreshInterval: POLL_MS, keepPreviousData: true, revalidateOnFocus: false })
-  const board = useMemo(() => breakoutRows(r.data?.body), [r.data])
+  // The pattern catalog only names and directs ids; a failed read leaves the words unfiltered.
+  const cat = useSWR(CATALOG_KEY, ([url]) => jsonFetcher(url), { revalidateOnFocus: false, dedupingInterval: 3600000 })
+  const board = useMemo(() => breakoutRows(r.data?.body, cat.data?.patterns || null), [r.data, cat.data])
   const [sort, setSort] = useState({ key: 'order', dir: 'asc' })
   const rows = useMemo(() => sortRows(board.rows, sort, { valueOf, isNumeric, tiebreak: byOrder }), [board.rows, sort])
   usePanelFreshness(r.data ? panelAsOf('UCT screener snapshot (nightly build)', board.asOf) : null)
