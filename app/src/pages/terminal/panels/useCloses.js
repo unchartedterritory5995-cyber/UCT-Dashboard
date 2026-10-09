@@ -87,10 +87,24 @@ export default function useCloses(syms, tf = 'D') {
   const [state, setState] = useState({ key: null })
   // A background refresh: NOT part of `key`, so the settled read stays on screen while it runs.
   const [tick, setTick] = useState(0)
+  // A hidden tab does not re-read (lane w9-10, the useMobileSWR rule): a refresh that comes due
+  // while hidden is owed, and paid once when the tab is shown again, not every 15 min overnight.
   useEffect(() => {
     if (!list.length) return undefined
-    const id = setInterval(() => setTick((n) => n + 1), CLOSES_TTL_MS)
-    return () => clearInterval(id)
+    const hidden = () => typeof document !== 'undefined' && document.hidden
+    let owed = false
+    const id = setInterval(() => {
+      if (hidden()) { owed = true; return }
+      setTick((n) => n + 1)
+    }, CLOSES_TTL_MS)
+    const onVisible = () => {
+      if (!hidden() && owed) { owed = false; setTick((n) => n + 1) }
+    }
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(id)
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [list.length])
   // Wave 9 lane 9: a name the bar store answers 503 {"error":"warming"} for is being fetched in the
   // background RIGHT NOW. It is re-asked every WARM_POLL_MS (phase 'warming', "the server is

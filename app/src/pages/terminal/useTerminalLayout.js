@@ -33,8 +33,11 @@ import {
   readLayout, readLibrary, serializeLayout,
 } from './boardModel'
 
-export const TERMINAL_LAYOUT_PREF = 'terminal_layout'
-export const TERMINAL_BOARDS_PREF = 'terminal_boards'
+import { TERMINAL_BOARDS_PREF, TERMINAL_LAYOUT_PREF } from './boardPrefs'
+
+// The two preference keys live in `boardPrefs.js` (App.jsx's /calendar wrapper reads one of them
+// without loading this hook); re-exported so existing importers keep one spelling.
+export { TERMINAL_BOARDS_PREF, TERMINAL_LAYOUT_PREF }
 /** The viewer's focused panel (by stable id) — a per-device convenience, never a version. */
 export const FOCUS_STORAGE_KEY = 'uct.terminal.focusPanel'
 /** Layout writes coalesce for this long. Mutable so a test can make writes immediate (0). */
