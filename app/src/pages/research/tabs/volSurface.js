@@ -8,26 +8,41 @@
 // ⛔ Every plotted point carries its quote time into the tooltip.
 import { CHART_INK, GRID_BASE, TOOLTIP_BASE, axisBase } from '../../../components/research-kit/charts/echartsCore'
 import { fractionPct } from '../researchFormat'
-import { formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import { formatDateTimeEt, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { num } from '../../optionsAnalytics/optionsFormat'
 
 export const pct = (v) => fractionPct(v, 1)
 
-/** "2026-10-01T15:30:00+00:00" → "15:30:00 UTC" (date kept when it is not the served day). */
-export function quoteClock(t, servedDay) {
-  if (!t) return '—'
-  const [d, rest] = String(t).split('T')
-  const clock = (rest || '').slice(0, 8)
-  return servedDay && d !== servedDay ? `${d} ${clock} UTC` : `${clock} UTC`
+const secondsOf = (t) => { const ms = Date.parse(t); return Number.isFinite(ms) ? ms / 1000 : NaN }
+
+/** An instant as a full ET date-time ("10/1/2026, 11:30:09 AM ET"), or null. The chain's and the
+ *  surface's "as of": the server stamps UTC, a member reads the market's clock (audit 2026-10-08,
+ *  it printed "2026-10-01 15:30:09 UTC" beside panels that all read ET). */
+export function etStamp(t) { return t ? formatDateTimeEt(secondsOf(t)) : null }
+
+/** The ET calendar day of an instant ("10/1/2026"): the key `quoteClock` compares a quote's day on. */
+export function etDay(t) {
+  const s = etStamp(t)
+  return s ? s.split(',')[0] : null
 }
 
-/** The span of quote times across points, as text: "15:29:58–15:30:04 UTC". */
+/** "2026-10-01T15:30:00+00:00" → "11:30:00 AM ET" (its ET date kept when it is not the served day;
+ *  `servedDay` is `etDay(served_at)`). */
+export function quoteClock(t, servedDay) {
+  if (!t) return '—'
+  const clock = formatTimeEt(t, { seconds: true, zoneSuffix: 'ET' })
+  if (!clock) return '—'
+  const d = etDay(t)
+  return servedDay && d !== servedDay ? `${d} ${clock}` : clock
+}
+
+/** The span of quote times across points, as text: "11:29:58 AM–11:30:04 AM ET". */
 export function quoteSpan(points, servedDay) {
   const ts = (points || []).map((p) => p.t).filter(Boolean).sort()
   if (!ts.length) return null
   const a = quoteClock(ts[0], servedDay)
   const b = quoteClock(ts[ts.length - 1], servedDay)
-  return a === b ? a : `${a.replace(' UTC', '')}–${b}`
+  return a === b ? a : `${a.replace(/ ET$/, '')}–${b}`
 }
 
 const pointTip = (servedDay) => (p) => {

@@ -5,6 +5,7 @@ import rp from '../ResearchPage.module.css'
 import styles from './OptionsChainTab.module.css'
 import PayoffPanel from './PayoffPanel'
 import VolSurfacePanel from './VolSurfacePanel'
+import { etStamp } from './volSurface'
 import IvHistoryPanel from './IvHistoryPanel'
 import BacktestPanel from './BacktestPanel'
 import PositioningPanel from '../../optionsAnalytics/PositioningPanel'
@@ -87,7 +88,7 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
   // TERM-019: the terminal panel header names the chain's source and the instant the server read it.
   const served = chain.data && !chain.data.paywalled && !chain.error ? chain.data.served_at || null : null
   usePanelFreshness(chain.data && !chain.data.paywalled && !chain.error
-    ? { source: 'Massive (OPRA quotes)', observedAt: served, age: { asOfDate: served ? served.replace('T', ' ').replace('+00:00', ' UTC') : null } }
+    ? { source: 'Massive (OPRA quotes)', observedAt: served, age: { asOfDate: etStamp(served) } }
     : null)
 
   const greeks = useDarkSection(s ? `/api/research/options/${encodeURIComponent(s)}/chain-greeks` : null)
@@ -246,7 +247,7 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
         Live chain from Massive (OPRA quotes) · IV and greeks are vendor-computed by Massive, per share
         (Θ per calendar day, vega per 1 vol point) · OI is the OCC prior-close figure · shaded cells are in the money
         · refreshed every {d.cache_seconds || 60}s
-        {d.served_at ? ` · as of ${d.served_at.replace('T', ' ').replace('+00:00', ' UTC')}` : ''}
+        {etStamp(d.served_at) ? ` · as of ${etStamp(d.served_at)}` : ''}
       </p>
     </section>
   )

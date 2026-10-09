@@ -15,7 +15,7 @@ vi.mock('echarts-for-react/lib/core', () => ({
 
 import VolSurfacePanel from './VolSurfacePanel'
 import OptionsChainTab from './OptionsChainTab'
-import { buildSmileOption, buildTermOption, quoteSpan } from './volSurface'
+import { buildSmileOption, buildTermOption, etDay, etStamp, quoteClock, quoteSpan } from './volSurface'
 
 const T1 = '2026-10-01T15:30:00+00:00'
 const T2 = '2026-10-01T15:30:07+00:00'
@@ -106,12 +106,12 @@ describe('VolSurfacePanel', () => {
   it('every point carries its quote time, on the surface and in the chart data', async () => {
     wrap(<VolSurfacePanel sym="spy" expiration="2026-10-23" />)
     await screen.findByTestId('vol-surface')
-    expect(screen.getByTestId('smile-quoted').textContent).toBe('Quoted 15:30:00–15:30:07 UTC')
+    expect(screen.getByTestId('smile-quoted').textContent).toBe('Quoted 11:30:00 AM–11:30:07 AM ET')
     expect(charts.smile.series[0].data.every(([, , t]) => t === T1)).toBe(true)
     const term = screen.getByTestId('term-points').textContent
-    expect(term).toContain('2026-10-09 (8d) · ATM 765.00 · 15.0% call and put averaged · quoted 15:30:00 UTC')
-    expect(term).toContain('2026-10-23 (22d) · ATM 765.00 · 16.0% call only · quoted 15:30:07 UTC')
-    expect(screen.getByTestId('vol-grid').querySelector('td[title="quoted 15:30:07 UTC"]').textContent).toBe('17.0%')
+    expect(term).toContain('2026-10-09 (8d) · ATM 765.00 · 15.0% call and put averaged · quoted 11:30:00 AM ET')
+    expect(term).toContain('2026-10-23 (22d) · ATM 765.00 · 16.0% call only · quoted 11:30:07 AM ET')
+    expect(screen.getByTestId('vol-grid').querySelector('td[title="quoted 11:30:07 AM ET"]').textContent).toBe('17.0%')
   })
 
   it('an expiration without an ATM read is named, not drawn', async () => {
@@ -126,6 +126,13 @@ describe('VolSurfacePanel', () => {
     wrap(<VolSurfacePanel sym="spy" expiration="2026-10-23" />)
     expect((await screen.findByTestId('vol-coverage')).textContent)
       .toMatch(/^3 of 32 listed expirations sampled; not fetched: 2027-01-15 \(not fetched within the time budget\)/)
+  })
+
+  it('states its as-of on the market clock (ET), never UTC (audit 2026-10-08)', async () => {
+    wrap(<VolSurfacePanel sym="spy" expiration="2026-10-23" />)
+    const text = (await screen.findByTestId('vol-coverage')).textContent
+    expect(text).toContain('as of 10/1/2026, 11:30:09 AM ET')
+    expect(text).not.toContain('UTC')
   })
 
   it('a failed request is unavailable, not an empty surface', async () => {
@@ -161,12 +168,21 @@ describe('volSurface option builders', () => {
   })
 
   it('the tooltip states the quote time', () => {
-    const opt = buildSmileOption(SURFACE.smile, 764.2, '2026-10-01')
+    const opt = buildSmileOption(SURFACE.smile, 764.2, '10/1/2026')
     const tip = opt.tooltip.formatter({ seriesName: 'Call', data: [760, 15.0, T2] })
-    expect(tip).toBe('Call 760.00: 15.0%<br/>quoted 15:30:07 UTC')
+    expect(tip).toBe('Call 760.00: 15.0%<br/>quoted 11:30:07 AM ET')
   })
 
   it('a quote from another day keeps its date', () => {
-    expect(quoteSpan([{ t: '2026-09-30T19:59:59+00:00' }], '2026-10-01')).toBe('2026-09-30 19:59:59 UTC')
+    expect(quoteSpan([{ t: '2026-09-30T19:59:59+00:00' }], '10/1/2026')).toBe('9/30/2026 3:59:59 PM ET')
+  })
+
+  it('the served day is the ET day: an evening quote past UTC midnight is still the same session', () => {
+    // 9 PM ET on Oct 1 is 01:00 UTC on Oct 2; read in UTC it carried a spurious date.
+    const served = etDay('2026-10-02T01:05:00+00:00')
+    expect(served).toBe('10/1/2026')
+    expect(quoteClock('2026-10-02T01:00:00+00:00', served)).toBe('9:00:00 PM ET')
+    expect(etStamp(null)).toBeNull()
+    expect(quoteClock('not a time', served)).toBe('—')
   })
 })

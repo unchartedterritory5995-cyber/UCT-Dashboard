@@ -52,6 +52,13 @@ describe('OptionsChainTab', () => {
     expect(screen.getByTestId('chain-source').textContent).toMatch(/Live chain from Massive \(OPRA quotes\)/)
   })
 
+  it('the as-of is on the market clock (ET), not UTC: 02:40 UTC on 9/30 is 10:40 PM on 9/29 (audit 2026-10-08)', async () => {
+    renderTab()
+    const src = (await screen.findByTestId('chain-source')).textContent
+    expect(src).toContain('as of 9/29/2026, 10:40:00 PM ET')
+    expect(src).not.toContain('UTC')
+  })
+
   it('the source line says vendor-computed, never exchange-derived, and labels the units', async () => {
     renderTab()
     const src = (await screen.findByTestId('chain-source')).textContent
