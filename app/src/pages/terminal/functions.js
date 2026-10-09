@@ -45,6 +45,9 @@ export const FUNCTIONS = [
   { code: 'ERN', label: 'Earnings detail (calendar modal)', group: 'Calendar',
     // The calendar's own earnings modal, opened through its own deep-link contract
     // (`?earnings=SYM`) — the C1–C11 rows of the coexistence parity matrix.
+    // `marketAs`: with no ticker, ERN IS that code. `ERN` alone and `ERN TODAY` / `ERN NEXT`
+    // (any argument CAL declares) open the calendar; `ERN NVDA` is still one company.
+    marketAs: 'CAL',
     ticker: { panel: 'Calendar', params: { earnings: true } } },
 
   // ── a security (each embeds the `/research/:sym` tab component as-is) ──

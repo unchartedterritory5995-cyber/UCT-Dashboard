@@ -66,7 +66,10 @@ export function normalizeInput(input) {
 function isDeclaredArg(code, tok) {
   const fn = BY_CODE[String(code || '').toUpperCase()]
   if (!fn) return false
-  const specs = [...(fn.ticker?.args || []), ...(fn.market?.args || [])]
+  // A code that reads as another with no ticker (ERN's `marketAs: 'CAL'`) takes that code's
+  // market arguments too, so `ERN TODAY` is CAL's day, not the ticker TODAY.
+  const via = fn.marketAs ? BY_CODE[fn.marketAs]?.market?.args || [] : []
+  const specs = [...(fn.ticker?.args || []), ...(fn.market?.args || []), ...via]
   // A REST spec (IMOV's theme name) takes almost any word, so it never decides alone that a
   // token is an argument rather than a ticker: `phraseArgs` below does that.
   return specs.some((s) => s.kind !== 'code' && !s.rest && ARG_KINDS[s.kind]?.parse(tok) != null)
@@ -208,7 +211,9 @@ export default function parseCommand(input, opts = {}) {
     // Wave 4 (lane A): `ERN` with no ticker is the earnings CALENDAR (CAL). Without this it fell
     // back to the focused panel's security, so on the first-visit board `ERN` opened SPY's
     // earnings window. `NVDA ERN` is unchanged. `from` lets the echo say why it reads as CAL.
-    if (r.code === 'ERN' && r.sym == null) return { ...r, code: 'CAL', from: 'ERN' }
+    // Data-driven (wave 6): any code with `marketAs` (functions.js) reads as that code here.
+    const marketAs = BY_CODE[r.code]?.marketAs
+    if (marketAs && r.sym == null) return { ...r, code: marketAs, from: r.code }
     // V5: a bare code that is ALSO a ticker is annotated, so the echo says so before Enter.
     if (!forced && FIRST === r.code && r.sym == null && isTickerCollision(r.code)) return { ...r, collision: r.code }
     return r

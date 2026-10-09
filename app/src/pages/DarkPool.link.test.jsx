@@ -1,7 +1,7 @@
 // `/dark-pool?ticker=NVDA` — the terminal's `NVDA DP` (wave 4, lane A). The page opens its own
 // ticker search on the linked name; without a ticker it opens as it always did.
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 
 vi.mock('../components/TickerPopup', () => ({ default: ({ sym, children }) => <span>{children || sym}</span> }))
 vi.mock('../components/chart/pane/ChartPane', () => ({ default: () => <div data-testid="chart-pane" /> }))
@@ -44,6 +44,26 @@ describe('/dark-pool?ticker=', () => {
     const input = await screen.findByLabelText('Search ticker')
     expect(input.value).toBe('NVDA')
     expect(screen.getByText('1 result for "NVDA"')).toBeTruthy()
+  })
+
+  // Wave 6 (lane A): a linked name with no prints said "No tickers found.", which read as if
+  // the ticker did not exist. A typed search with no match keeps the old line.
+  it('a linked ticker with no prints says so by name', async () => {
+    window.history.replaceState({}, '', '/dark-pool?ticker=ZZZZ')
+    mockFetch()
+    render(<DarkPool />)
+    expect(await screen.findByText('No dark pool prints for ZZZZ in this window.')).toBeTruthy()
+    expect(screen.queryByText('No tickers found.')).toBeNull()
+  })
+
+  it('a typed search with no match keeps "No tickers found."', async () => {
+    window.history.replaceState({}, '', '/dark-pool?ticker=ZZZZ')
+    mockFetch()
+    render(<DarkPool />)
+    const input = await screen.findByLabelText('Search ticker')
+    fireEvent.change(input, { target: { value: 'QQQQ' } })
+    expect(screen.getByText('No tickers found.')).toBeTruthy()
+    expect(screen.queryByText(/No dark pool prints/)).toBeNull()
   })
 
   it('without a ticker the page opens with no search over it', async () => {
