@@ -253,6 +253,10 @@ export const FUNCTIONS = [
   // economic series /api/econ publishes (dark until ECON_ENABLED; the panel says so).
   { code: 'SENT', label: 'Sentiment and macro (AAII, NAAIM, put/call, Fear & Greed, economy)', group: 'Market',
     market: { panel: 'Sentiment' } },
+  // SCAT: a universe on two metrics (RS rank vs % off the 52-week high by default), over the /charts
+  // Market Map's own /api/scatter reads. A dot opens DES beside the panel.
+  { code: 'SCAT', label: 'Scatter a universe (RS rank vs % off 52-week high)', group: 'Market',
+    market: { panel: 'Scatter' } },
   // ── end wave 8, lane E ──
 
   // ── the shell itself ──

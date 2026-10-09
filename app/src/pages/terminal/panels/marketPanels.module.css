@@ -260,6 +260,13 @@
   stroke-width: 1.5;
 }
 
+/* SCAT: the plot fills the panel, with a floor so a short panel still reads. */
+.scatStage {
+  flex: 1;
+  min-height: 16rem;
+  height: 22rem;
+}
+
 /* PHONE: the less-used columns fold away so a 390px panel keeps sym, last and % change. */
 @media (max-width: 640px) {
   .phoneHide {
