@@ -145,6 +145,14 @@ def exception(evt: str, **fields) -> dict:
     return payload
 
 
+def scrubbed_traceback() -> str:
+    """The exception being handled, as a SCRUBBED traceback string, for a module that logs
+    under its own logger and so cannot use `exception()`. Same C-13 reason: never
+    `log.exception`, whose traceback can carry a live interaction-token URL."""
+    import traceback
+    return scrub_text("".join(traceback.format_exc()))
+
+
 # ── SLOs from the jobs table ────────────────────────────────────────────────
 
 def pct(values, p: float):

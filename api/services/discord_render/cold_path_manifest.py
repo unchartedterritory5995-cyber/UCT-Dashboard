@@ -71,7 +71,8 @@ def load_manifest(path: "pathlib.Path | str | None" = None) -> "dict | None":
                    "(hand-registered resources are unaffected)", p)
         return None
     except Exception:                                          # noqa: BLE001
-        logger.exception("[cold-path-manifest] manifest at %s could not be parsed", p)
+        from api.services.discord_render.observe import scrubbed_traceback
+        logger.error("[cold-path-manifest] manifest at %s could not be parsed\n%s", p, scrubbed_traceback())
         return None
 
 
