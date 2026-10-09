@@ -1,0 +1,287 @@
+{
+ "base": "https://uctintelligence.com",
+ "started": "2026-10-09T21:01:37Z",
+ "steps": [
+  {
+   "name": "login_1280",
+   "status": 200,
+   "me": 200,
+   "synthetic": true,
+   "t": 1.4
+  },
+  {
+   "name": "login_390",
+   "status": 200,
+   "me": 200,
+   "synthetic": true,
+   "t": 2.8
+  },
+  {
+   "name": "inventory_before",
+   "active": 0,
+   "trash": 70,
+   "t": 3.2
+  },
+  {
+   "name": "note_created",
+   "title": "Smoke verify 1009: Bedtime rule",
+   "status": 200,
+   "id_present": true,
+   "t": 3.5
+  },
+  {
+   "name": "note_created",
+   "title": "Smoke verify 1009: Copper inventories",
+   "status": 200,
+   "id_present": true,
+   "t": 3.9
+  },
+  {
+   "name": "note_created",
+   "title": "Smoke verify 1009: Position sizing table",
+   "status": 200,
+   "id_present": true,
+   "t": 4.2
+  },
+  {
+   "name": "note_created",
+   "title": "Smoke verify 1009: PLTR deep dive",
+   "status": 200,
+   "id_present": true,
+   "t": 4.5
+  },
+  {
+   "name": "asked_long-ask-1280",
+   "t": 10.5
+  },
+  {
+   "name": "long_note_ask_1280",
+   "intro_gone": true,
+   "alert": "",
+   "sources": 1,
+   "found": {
+    "entry": true,
+    "stop": true,
+    "risk_budget": true,
+    "risk_sbc": true,
+    "rule": true
+   },
+   "refusal": false,
+   "citation_opened_note": true,
+   "pass": true,
+   "t": 17.4
+  },
+  {
+   "name": "asked_long-ask-390",
+   "t": 22.0
+  },
+  {
+   "name": "long_note_ask_390",
+   "intro_gone": true,
+   "alert": "",
+   "sources": 1,
+   "found": {
+    "entry": true,
+    "stop": true,
+    "risk_budget": true,
+    "risk_sbc": true,
+    "rule": true
+   },
+   "refusal": false,
+   "citation_opened_note": true,
+   "pass": true,
+   "t": 27.7
+  },
+  {
+   "name": "voice_note",
+   "status_door": {
+    "status": 200,
+    "body": "{\"limits\":{\"maxSeconds\":3600,\"maxBytes\":94371840,\"chunkSeconds\":300,\"extensions\":[\".m4a\",\".mp3\",\".wav\",\".webm\",\".ogg\",\".mp4\",\".aac\"],\"jobTtlSeconds\":7200},\"cap\":{\"usedSeconds\":0,\"capSeconds\":3600,\"remainingSeconds\":3600,\"unlimited\":true},\"summariesLeft\":20}"
+   },
+   "audio_doors": [
+    "Voice note",
+    "Upload recording",
+    "From a Desk session"
+   ],
+   "transcribe_s": 5.7,
+   "note_id_present": true,
+   "transcript_in_saved_note": true,
+   "summary_label": "AI-written summary by Compass: Uploaded recording (_tmp_voicenote.wav)",
+   "tickers": [
+    "NVDA",
+    "TSLA"
+   ],
+   "phone_upload_door_box": {
+    "x": 140.78125,
+    "y": 969.1875,
+    "width": 158.625,
+    "height": 44
+   },
+   "phone_error": "TimeoutError: Locator.bounding_box: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"dialog\", name=\"Voice note\").get_by_role(\"button\", name=\"Transcribe\")\n",
+   "pass": false,
+   "t": 75.2
+  },
+  {
+   "name": "meaning_search",
+   "indexed": true,
+   "last_poll": {
+    "status": 200,
+    "rows": [
+     {
+      "title": "Smoke verify 1009: Bedtime rule",
+      "matchKind": "meaning"
+     }
+    ],
+    "age_s": 314
+   },
+   "indexed_after_s": 314,
+   "plain_search_titles": [],
+   "reason": null,
+   "1280": {
+    "labelled": true
+   },
+   "390": {
+    "labelled": true
+   },
+   "pass": true,
+   "t": 325.0
+  },
+  {
+   "name": "cleanup",
+   "removed": 5,
+   "created": 5,
+   "inventory_after": {
+    "active": 0,
+    "trash": 75
+   },
+   "t": 328.4
+  }
+ ],
+ "legs": {
+  "meaning_words_shared": [],
+  "long_note_ask": {
+   "1280": {
+    "intro_gone": true,
+    "answer": "Here's what your PLTR note contains [1]:\n\nEntry: Planned entry at 26.35, buying through the handle high of the cup-with-handle base (handle low sits at 24.10) [1].\n\nStop: Stop at 24.85, which keeps risk under six percent [1]. You also noted an additional discretionary exit rule: if the breakout fails back under 25.40 on volume, you'll exit the whole position that same day rather than wait for the stop [1].\n\nPosition sizing: Half of a normal position, because the valuation leaves little room for a miss [1].\n\nTargets: First target of 31, where the measured move from the cup completes, with a plan to trim a third of the position there [1].\n\nRisks noted:\n- Government budget timing \u2014 the Army contract renewal slips into the next fiscal year [1].\n- Stock-based compensation, which still runs near 20 percent of revenue and dilutes holders every quarter [1].\n- Broader market risk \u2014 if the market rolls over, you'll skip the trade entirely, since \"breakouts fail in corrections no matter how clean the chart\" [1].\n\nFinal rule for the trade: \"No adds until the stock closes above 28 for two days in a row\" [1].\n\nOther context in the same note: commercial segment growth of 54% in the U.S., customer count of 593, raised full-year revenue guidance to 2.75 billion, a nine-week cup-with-handle on the chart sitting atop a prior base, drying-up volume in the handle, relative strength making a new high versus the software group, earnings five weeks out, and a lesson from a prior attempt that you bou",
+    "alert": "",
+    "sources": 1,
+    "found": {
+     "entry": true,
+     "stop": true,
+     "risk_budget": true,
+     "risk_sbc": true,
+     "rule": true
+    },
+    "refusal": false,
+    "citation_opened_note": true,
+    "pass": true
+   },
+   "390": {
+    "intro_gone": true,
+    "answer": "Here's what your notebook contains on the PLTR trade [1]:\n\nEntry: Planned entry at 26.35 through the handle high, based on a nine-week cup with handle pattern (handle low at 24.10) [1].\n\nStop: 24.85, which keeps risk under six percent [1]. You also noted a separate invalidation rule: if the breakout fails back under 25.40 on volume, you'll exit the whole position that same day rather than wait for the stop [1].\n\nRisks:\n- Government budget timing \u2014 the Army contract renewal slips into the next fiscal year [1].\n- Stock-based compensation, still running near 20 percent of revenue, diluting holders every quarter [1].\n- Valuation risk generally \u2014 you noted the valuation \"leaves little room for a miss,\" which is why you're sizing the position at half of normal [1].\n- Market risk \u2014 if the broader market rolls over, you'll skip the trade entirely, since \"breakouts fail in corrections no matter how clean the chart\" [1].\n\nFinal rule for the trade: No adds until the stock closes above 28 for two days in a row [1].\n\nAdditional context you recorded: first target is 31 (the measured move from the cup), where you'd trim a third [1]; earnings are five weeks out; and the lesson from a prior attempt was buying the first pop and giving back the gain within three sessions [1].",
+    "alert": "",
+    "sources": 1,
+    "found": {
+     "entry": true,
+     "stop": true,
+     "risk_budget": true,
+     "risk_sbc": true,
+     "rule": true
+    },
+    "refusal": false,
+    "citation_opened_note": true,
+    "pass": true
+   }
+  },
+  "voice_note": {
+   "status_door": {
+    "status": 200,
+    "body": "{\"limits\":{\"maxSeconds\":3600,\"maxBytes\":94371840,\"chunkSeconds\":300,\"extensions\":[\".m4a\",\".mp3\",\".wav\",\".webm\",\".ogg\",\".mp4\",\".aac\"],\"jobTtlSeconds\":7200},\"cap\":{\"usedSeconds\":0,\"capSeconds\":3600,\"remainingSeconds\":3600,\"unlimited\":true},\"summariesLeft\":20}"
+   },
+   "audio_doors": [
+    "Voice note",
+    "Upload recording",
+    "From a Desk session"
+   ],
+   "transcribe_s": 5.7,
+   "preview": "Title\n\nUploaded recording (_tmp_voicenote.wav) \u00b7 Oct 9, 2026\n\nSummary\n\nAI-written \u00b7 Compass \u00b7 Voice note summary \u00b7 claude-sonnet-5\n\nNVIDIA held its 10-week line, prompting the speaker to add a small position. Tesla failed at resistance, so the speaker is staying out of it. The speaker plans to review their stops tomorrow.\n\nTickers\n$NVDA\n$TSLA\nAction items\nReview stops tomorrow\nTranscript\nFull transcript \u00b7 31 words\n\nNothing is saved until you choose Save. The audio is deleted from the server once it is transcribed.",
+   "note_id_present": true,
+   "note_text": "Uploaded recording (_tmp_voicenote.wav) \u00b7 Oct 9, 2026 \u00b7 13 sec\n\nSummary\nCompass \u00b7 Voice note summary \u00b7 claude-sonnet-5 \u00b7 16:02\n\nNVIDIA held its 10-week line, prompting the speaker to add a small position. Tesla failed at resistance, so the speaker is staying out of it. The speaker plans to review their stops tomorrow.\n\nTickers\n\n$NVDA  \u00b7  $TSLA\n\nAction items\n\nReview stops tomorrow\n\nTranscript\nFull transcript \u00b7 31 words\n\n\n",
+   "transcript_in_saved_note": true,
+   "summary_label": "AI-written summary by Compass: Uploaded recording (_tmp_voicenote.wav)",
+   "tickers": [
+    "NVDA",
+    "TSLA"
+   ],
+   "phone_upload_door_box": {
+    "x": 140.78125,
+    "y": 969.1875,
+    "width": 158.625,
+    "height": 44
+   },
+   "phone_error": "TimeoutError: Locator.bounding_box: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"dialog\", name=\"Voice note\").get_by_role(\"button\", name=\"Transcribe\")\n",
+   "pass": false
+  },
+  "meaning_search": {
+   "query": "rest and fatigue hurting judgement",
+   "last_poll": {
+    "status": 200,
+    "rows": [
+     {
+      "title": "Smoke verify 1009: Bedtime rule",
+      "matchKind": "meaning"
+     }
+    ],
+    "age_s": 314
+   },
+   "indexed_after_s": 314,
+   "plain_search_titles": [],
+   "reason": null,
+   "1280": {
+    "labelled": true
+   },
+   "390": {
+    "labelled": true
+   },
+   "pass": true
+  }
+ },
+ "inventory_before": {
+  "active": 0,
+  "trash": 70
+ },
+ "page_errors": {
+  "1280": [],
+  "390": []
+ },
+ "cleanup": {
+  "41ceb383": {
+   "delete": 200,
+   "get_after": 404
+  },
+  "938d0602": {
+   "delete": 200,
+   "get_after": 404
+  },
+  "506b23fd": {
+   "delete": 200,
+   "get_after": 404
+  },
+  "675e069b": {
+   "delete": 200,
+   "get_after": 404
+  },
+  "2b90aa9c": {
+   "delete": 200,
+   "get_after": 404
+  }
+ },
+ "inventory_after": {
+  "active": 0,
+  "trash": 75
+ },
+ "verdict": {
+  "code": 1,
+  "why": "FAILED: voice_note"
+ }
+}
