@@ -217,6 +217,8 @@ export const FUNCTIONS = [
   // Market-only, no arguments unless named. A ticker in a row opens its DES beside the list.
   { code: 'NEWS', label: 'Market news tape (every headline)', group: 'Market',
     market: { panel: 'MarketNews' } },
+  { code: 'REGM', label: 'Market regime and exposure call', group: 'Market',
+    market: { panel: 'Regime' } },
 
   // ── the shell itself ──
   { code: 'HELP', label: 'Function list & syntax', group: 'Shell',
