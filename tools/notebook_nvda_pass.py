@@ -179,6 +179,11 @@ class Foreground:
             fg = user32.GetForegroundWindow()
             fg_tid, my_tid = (window_tid(fg) if fg else 0), kernel32.GetCurrentThreadId()
             attached = bool(fg_tid and fg_tid != my_tid and user32.AttachThreadInput(my_tid, fg_tid, True))
+            if not fg:
+                # No foreground window at all (idle desktop, display asleep): there is no thread to
+                # attach to, and Windows only lets the LAST INPUT's process take the foreground. One
+                # Alt tap makes that process ours; with no foreground window the tap reaches nothing.
+                _key(VK["alt"]); time.sleep(0.03); _key(VK["alt"], up=True); time.sleep(0.1)
             try:
                 user32.ShowWindow(hwnd, 9)                # SW_RESTORE
                 user32.SetForegroundWindow(hwnd)
@@ -241,11 +246,21 @@ def type_text(s: str) -> None:
 
 # ── NVDA's log as the ear ────────────────────────────────────────────────────────────────────
 def parse_speech(text: str) -> list[str]:
+    """NVDA logs a speech sequence as a Python list repr. A string is written with single quotes --
+    UNLESS it contains an apostrophe, when Python writes it with double quotes:
+        Speaking [LangChangeCommand ('en_US'), 'row 1', "I couldn't find that in this note."]
+    ⚰️ The first version of this parser read single-quoted strings only, so every utterance with an
+    apostrophe was invisible to the grader: "I couldn't find that in this note." was graded as never
+    spoken across seven runs (2026-10-09, row 19 of the pass) and a product defect was written up,
+    fixed and deployed before the blind spot was found. Both quote styles are read now."""
     out = []
     for line in text.splitlines():
         if "Speaking" in line:
-            parts = re.findall(r"'((?:[^'\\]|\\.)*)'", line.split("Speaking", 1)[1])
-            parts = [p for p in parts if p and p != "en_US"]
+            parts = []
+            for m in re.finditer(r"'((?:[^'\\]|\\.)*)'|\"((?:[^\"\\]|\\.)*)\"", line.split("Speaking", 1)[1]):
+                p = m.group(1) if m.group(1) is not None else m.group(2)
+                if p and p != "en_US":
+                    parts.append(p)
             if parts:
                 out.append(" ".join(parts))
     return out
@@ -467,7 +482,13 @@ def main(argv=None) -> int:
             lv = page.get_by_role("button", name="List view", exact=True)
             if lv.count() and lv.first.get_attribute("aria-pressed") != "true":
                 lv.first.click(); time.sleep(1.5)
-            GUARD.ensure(); time.sleep(2.5)                 # NVDA announces the window once, before row 1
+            try:
+                GUARD.ensure(); time.sleep(2.5)             # NVDA announces the window once, before row 1
+            except ForegroundLost as e:
+                # No window could be made the foreground at all (a locked session reads as foreground
+                # '' pid 0). Nothing was sent; the run is INCONCLUSIVE, not a traceback.
+                rec["aborted"] = f"setup: {e}"; write()
+                raise RunAborted(str(e))
 
             def focus_role(role, name, exact=True, nth=0):
                 page.get_by_role(role, name=name, exact=exact).nth(nth).focus()

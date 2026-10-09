@@ -1,0 +1,398 @@
+{
+ "started": "2026-10-09T03:49:36",
+ "nvda_version": "2026.2",
+ "base": "https://uctintelligence.com",
+ "nonce": "9eb60862305b",
+ "rows": [
+  {
+   "n": 1,
+   "keys": "Tab",
+   "expected": [
+    "Skip to notes list",
+    "link"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 2,
+   "keys": "Enter",
+   "expected": [
+    "All notes",
+    "heading"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 3,
+   "keys": "focus Hide folders panel, Tab",
+   "expected": [
+    "Hide folders panel",
+    "button",
+    "Panel view",
+    "tab"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 4,
+   "keys": "focus the All notes row",
+   "expected": [
+    "All notes",
+    "button"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 5,
+   "keys": "on All notes: Insert+Space (focus mode), Down until SR folder, Right (expand)",
+   "expected": [
+    "SR folder",
+    "collapsed",
+    "expanded"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 6,
+   "keys": "Enter on the SR folder row, then Shift+F10 (its menu), Escape",
+   "expected": [
+    "SR folder",
+    "Rename",
+    "Add subfolder",
+    "Delete"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 7,
+   "keys": "focus the tag row",
+   "expected": [
+    "srpass",
+    "button"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 8,
+   "keys": "focus the Saved Views disclosure; focus SR view",
+   "expected": [
+    "Saved Views",
+    "button",
+    "SR view"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 9,
+   "keys": "Enter on All notes (clears the view); focus Sort notes; Right (List view); Right (Table view); Space",
+   "expected": [
+    "Sort notes",
+    "combo box",
+    "List view",
+    "pressed",
+    "Table view"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 10,
+   "keys": "Back to List; focus the SR pass card; Enter",
+   "expected": [
+    "SR pass",
+    "heading"
+   ],
+   "result": "PASS",
+   "notes": "UCT-NVDA-9eb60862305b - Google Chrome for Testing window / UCT-NVDA-9eb60862305b document / main landmark / Notes list tools tool bar / View grouping / UCT-NVDA-9eb60862305b - Google Chrome for Testing window / UCT-NVDA-9eb60862305b document / main landmark / Notes list tools tool bar / View groupin",
+   "heard": [
+    "UCT-NVDA-9eb60862305b - Google Chrome for Testing window",
+    "UCT-NVDA-9eb60862305b document",
+    "main landmark",
+    "Notes list tools tool bar",
+    "View grouping",
+    "UCT-NVDA-9eb60862305b - Google Chrome for Testing window",
+    "UCT-NVDA-9eb60862305b document",
+    "main landmark",
+    "Notes list tools tool bar",
+    "View grouping",
+    "List view toggle button pressed",
+    "Notes grouping SR pass now#srpass button",
+    "SR pass heading level 2"
+   ],
+   "dom": null
+  },
+  {
+   "n": 11,
+   "keys": "Tab x28 (then Tab until the body)",
+   "expected": [
+    "Subtitle",
+    "Editor toolbar",
+    "Note body"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 12,
+   "keys": "Insert+Space (browse mode), H, T, Down, Right",
+   "expected": [
+    "Setup",
+    "heading",
+    "table",
+    "Sym"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": "12b",
+   "keys": "Insert+Space (focus mode); Tab, Tab, Alt+F10, Escape",
+   "expected": [
+    "Table",
+    "tool bar"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 13,
+   "keys": "end of body, Enter, /, Down",
+   "expected": [
+    "Insert block"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 14,
+   "keys": "Escape",
+   "expected": [
+    "Note body"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 15,
+   "keys": "[ [ (real keys), type SR, Down, Enter",
+   "expected": [
+    "Link to a note",
+    "SR target"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 16,
+   "keys": "Ctrl+F, type stop",
+   "expected": [
+    "Find in note"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 17,
+   "keys": "Ctrl+H, Tab x7 (to the replace field), Escape",
+   "expected": [
+    "Replace with",
+    "Note body"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 18,
+   "keys": "focus Ask, Enter",
+   "expected": [
+    "Ask a question about this note",
+    "Your question"
+   ],
+   "result": "PASS",
+   "notes": "Ask a question about this note button collapsed / expanded / Ask This note dialog / Ask This note dialog / Your question about This note edit What did I say about\u2026 blank",
+   "heard": [
+    "Ask a question about this note button collapsed",
+    "expanded",
+    "Ask This note dialog",
+    "Ask This note dialog",
+    "Your question about This note edit What did I say about\u2026 blank"
+   ],
+   "dom": null
+  },
+  {
+   "n": 19,
+   "keys": "type a question the note cannot answer, Enter, wait",
+   "expected": [
+    "find",
+    "note"
+   ],
+   "result": "FAIL",
+   "notes": "(the sentence is read from a live region; its exact words are the service's) missing ['find']; heard: W / h / a / t / space / i / s / space / t / h / e / space / d / i / v / i / d / e / n / d / question / button expanded Ask a question about this note",
+   "heard": [
+    "W",
+    "h",
+    "a",
+    "t",
+    "space",
+    "i",
+    "s",
+    "space",
+    "t",
+    "h",
+    "e",
+    "space",
+    "d",
+    "i",
+    "v",
+    "i",
+    "d",
+    "e",
+    "n",
+    "d",
+    "question",
+    "button expanded Ask a question about this note"
+   ],
+   "dom": "DOM: answer present, aria-live=None, aria-busy='false', text=\"I couldn't find that in this note.\""
+  },
+  {
+   "n": 20,
+   "keys": "focus Close Ask, Enter",
+   "expected": [
+    "Ask a question about this note",
+    "button"
+   ],
+   "result": "PASS",
+   "notes": "Close Ask button / button collapsed Ask a question about this note / Ask a question about this note button collapsed",
+   "heard": [
+    "Close Ask button",
+    "button collapsed Ask a question about this note",
+    "Ask a question about this note button collapsed"
+   ],
+   "dom": null
+  },
+  {
+   "n": 21,
+   "keys": "list; Graph view; Show as list, Space",
+   "expected": [
+    "Graph view",
+    "Show as list",
+    "pressed"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 22,
+   "keys": "Space; focus the canvas; Home; Right",
+   "expected": [
+    "Note graph",
+    "notes",
+    "link"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 23,
+   "keys": "List; Save view, Enter, Escape",
+   "expected": [
+    "Save view",
+    "dialog",
+    "Name"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 24,
+   "keys": "open the note; More note actions, Enter; Delete, Enter; confirm Delete",
+   "expected": [
+    "Delete this note",
+    "dialog"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 25,
+   "keys": "no notes: open the Notebook home; focus its heading",
+   "expected": [
+    "Welcome to your Notebook",
+    "heading"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 26,
+   "keys": "Share, Enter, Tab, Escape",
+   "expected": [
+    "Share this note",
+    "Share link address"
+   ],
+   "result": "NOT RUN",
+   "notes": "left to the owner: the step mints a public share link for a note on the smoke account",
+   "heard": []
+  },
+  {
+   "n": 27,
+   "keys": "? (Shift+/ as a real key) anywhere in the Journal",
+   "expected": [
+    "Keyboard Shortcuts",
+    "dialog"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  }
+ ],
+ "made": {
+  "notes": [
+   "dea09f42539e4e9095c5848446683213",
+   "eb97884890a84d85bfea824267edbb04"
+  ],
+  "folders": [
+   "3e82d1c119784041b1af89cb34d4c815",
+   "d793f12d50044c61862b68b01cb5ca40"
+  ],
+  "views": [
+   "bb13ab56b29a4272b80727df146d3698"
+  ]
+ },
+ "aborted": null,
+ "stray_notes_trashed": [],
+ "left_active_notes": 0,
+ "left_sr_folders": 0,
+ "left_sr_views": 0,
+ "finished": "2026-10-09T03:50:09"
+}
