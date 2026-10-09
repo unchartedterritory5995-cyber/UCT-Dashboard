@@ -534,7 +534,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // others named. If the model needs a group it wasn't given it plans NOTHING and says so
       // (need_groups); we ask ONCE more with those groups. Nothing has executed in between.
       const full = manifestFor(capCtx)
-      const routeOpts = { enabled: routingEnabled(), pendingActions: p?.kind === 'proposal' ? p.ops.map(o => o.action) : [], recentActions: lastActionsRef.current, limit: MANIFEST_CONTRACT.limits.maxCapabilities }
+      // limit = the server's per-request maximum; budget = what one routed request may carry.
+      const routeOpts = { enabled: routingEnabled(), pendingActions: p?.kind === 'proposal' ? p.ops.map(o => o.action) : [], recentActions: lastActionsRef.current, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
       let routed = routeManifest(full, text, routeOpts)
       mark('route', routed.routing ? `${routed.manifest.length}/${full.length}` : 'full')
       const ask = (r, extra = {}) => agentTurn({
@@ -545,7 +546,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const need = res.ok ? (res.data.envelope?.need_groups || []).filter(g => !routed.routing?.selected?.includes(g)) : []
       if (res.ok && routed.routing && need.length) {
         if (res.data.conversationId !== conversationRef.current) setConversationId(res.data.conversationId)
-        routed = routeManifest(full, text, routeOpts, [...routed.routing.selected, ...need])
+        // The groups the model needs come first; whatever no longer fits the budget is dropped
+        // from THIS request (named, not sent). If a needed group itself cannot fit, stop honestly.
+        routed = routeManifest(full, text, routeOpts, need)
+        if (!need.every(g => routed.routing?.selected?.includes(g) || !routed.routing)) {
+          push({ role: 'agent', text: 'That touches too many parts of UCT for one request. Try asking for one part at a time.' })
+          return
+        }
         mark('reroute', need.join(','))
         res = await ask(routed, { conversationId: res.data.conversationId, reroute: true })
         if (res.ok && (res.data.envelope?.need_groups || []).length) {

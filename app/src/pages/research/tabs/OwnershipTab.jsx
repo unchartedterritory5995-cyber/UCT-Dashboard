@@ -71,7 +71,22 @@ function fmtChgInt(v) {
   return `${v > 0 ? '+' : ''}${formatNumber(Math.round(v))}`
 }
 function chgClass(v) { return v > 0 ? styles.up : v < 0 ? styles.down : '' }
+// A change carries its own sign, so green/red is never the only signal (audit 2026-10-08: a
+// rise read "1.2M" in green and a fall "-1.2M" in red; a colour-blind member saw no direction
+// on the rise, and the dollar change dropped the + the other change chips carry).
+export function signed(v, fmt) {
+  if (v == null || !Number.isFinite(Number(v))) return null
+  const t = fmt(Number(v))
+  return Number(v) > 0 ? `+${t}` : t
+}
 // tq-panels: the transaction side printed as the raw lowercase enum ("buy" / "sell").
+/** Audit 2026-10-08 (OWN P2, point 22): every non-buy type (an option exercise, a gift) was styled
+ *  red as if it were a sale. Only a buy is green and only a sale is red; anything else is plain. */
+export function sideClass(type) {
+  const t = String(type || '').trim().toLowerCase()
+  return t === 'buy' ? styles.up : t === 'sell' ? styles.down : ''
+}
+
 export function sideLabel(type) {
   const s = String(type || '').trim()
   if (!s) return '—'
@@ -125,7 +140,7 @@ function EdgarInsiderSection({ src, rows, sym, onRetry, reaskExhausted }) {
             <div key={`${t.accession}-${t.date}-${i}`} className={styles.insrow}>
               <span className={styles.rcdate}>{t.date}</span>
               <span className={styles.rcfirm}>{t.name}{t.title ? ` · ${t.title}` : ''}</span>
-              <span className={t.type === 'buy' ? styles.up : styles.down}>{sideLabel(t.type)}</span>
+              <span className={sideClass(t.type)}>{sideLabel(t.type)}</span>
               <span>{fmtShares(t.shares)}</span>
               <span className={styles.muted}>{fmtMoney(t.amount)}</span>
               {t.url
@@ -273,7 +288,8 @@ export default function OwnershipTab({ sym }) {
 
       {tf && (
         <section className={styles.card}>
-          <div className={styles.ct}>Form 13F · institutional activity <span className={styles.muted}>· {tf.quarter}</span></div>
+          {/* Wave 3 (OWN P2 #12): a missing quarter printed a dangling "· " and "…holders, undefined". */}
+          <div className={styles.ct}>Form 13F · institutional activity{tf.quarter ? <span className={styles.muted}> · {tf.quarter}</span> : null}</div>
           <div className={`${styles.statRow} ${styles.statRowGap}`}>
             {/* NOT the same measure as the "% of shares outstanding" figure in
                 the card above, and the two disagree hard: on 2026-08-06 AAPL
@@ -296,7 +312,7 @@ export default function OwnershipTab({ sym }) {
             </div>
             <div>
               <div className={styles.muted}>Total invested (USD)</div>
-              <div>{fmtMoney(tfs.total_invested)} {fmtChgInt(tfs.total_invested_change) && <span className={`${chgClass(tfs.total_invested_change)} ${styles.statChg}`}>{fmtMoney(tfs.total_invested_change)}</span>}</div>
+              <div>{fmtMoney(tfs.total_invested)} {signed(tfs.total_invested_change, fmtMoney) && <span className={`${chgClass(tfs.total_invested_change)} ${styles.statChg}`}>{signed(tfs.total_invested_change, fmtMoney)}</span>}</div>
             </div>
           </div>
           {/* Position flow this quarter */}
@@ -309,18 +325,19 @@ export default function OwnershipTab({ sym }) {
 
           {!!tf.holders?.length && (
             <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
-              <table className={styles.fgrid} aria-label={`Form 13F top holders, ${tf.quarter}`}>
+              <table className={styles.fgrid} aria-label={tf.quarter ? `Form 13F top holders, ${tf.quarter}` : 'Form 13F top holders'}>
                 <thead><tr><th scope="col">Top holder</th><th scope="col">Shares</th><th scope="col">Δ Shares</th><th scope="col">% Own</th><th scope="col">Value (USD)</th></tr></thead>
                 <tbody>
                   {tf.holders.map((h, i) => (
                     <tr key={`${h.name}-${i}`}>
                       <td className={`${styles.fperiod} ${styles.holderName}`}>
                         {h.name}
-                        {h.is_new && <span className={`${styles.up} ${styles.holderBadge}`} data-holder-badge="new">NEW</span>}
-                        {h.is_sold_out && <span className={`${styles.down} ${styles.holderBadge}`} data-holder-badge="sold">SOLD</span>}
+                        {/* !! -- a vendor 0/1 flag would otherwise render a stray "0" beside the name */}
+                        {!!h.is_new && <span className={`${styles.up} ${styles.holderBadge}`} data-holder-badge="new">NEW</span>}
+                        {!!h.is_sold_out && <span className={`${styles.down} ${styles.holderBadge}`} data-holder-badge="sold">SOLD</span>}
                       </td>
                       <td>{fmtShares(h.shares)}</td>
-                      <td className={chgClass(h.change_shares)}>{h.change_shares != null ? fmtShares(h.change_shares) : '—'}</td>
+                      <td className={chgClass(h.change_shares)}>{signed(h.change_shares, fmtShares) ?? '—'}</td>
                       <td>{formatPercent(h.ownership, { decimals: 1 })}</td>
                       <td>{fmtMoney(h.market_value)}</td>
                     </tr>
@@ -349,7 +366,7 @@ export default function OwnershipTab({ sym }) {
               <div key={`${t.date}-${t.name}-${i}`} className={styles.insrow}>
                 <span className={styles.rcdate}>{t.date}</span>
                 <span className={styles.rcfirm}>{t.name}{t.title ? ` · ${t.title}` : ''}</span>
-                <span className={t.type === 'buy' ? styles.up : styles.down}>{sideLabel(t.type)}</span>
+                <span className={sideClass(t.type)}>{sideLabel(t.type)}</span>
                 <span>{fmtShares(t.shares)}</span>
                 <span className={styles.muted}>{fmtMoney(t.amount)}</span>
               </div>

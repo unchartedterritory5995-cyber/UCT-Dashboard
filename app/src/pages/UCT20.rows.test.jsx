@@ -51,3 +51,17 @@ describe('U20 rows', () => {
     expect(api.publish).toHaveBeenLastCalledWith(null)
   })
 })
+
+describe('U20 tickers load the linked panels (wave 3 #3)', () => {
+  it('clicking a ticker runs `$SYM` through the panel', async () => {
+    vi.stubGlobal('fetch', route({ '/api/leadership': [200, { stocks: STOCKS, status: 'ok', last_updated: '2026-10-07' }] }))
+    const api = { run: vi.fn(), publishRows: vi.fn(), publish: vi.fn(), openBoard: vi.fn(), codes: [], pageSize: 4 }
+    renderWithProviders(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+        <PanelListContext.Provider value={api}><UCT20 /></PanelListContext.Provider>
+      </SWRConfig>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: 'Load AMD' }))
+    expect(api.run).toHaveBeenCalledWith('$AMD')
+  })
+})

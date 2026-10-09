@@ -18,8 +18,10 @@ import { timeAgo } from '../utils/timeAgo'
 import useQuoteOfTheDay from '../hooks/useQuoteOfTheDay'
 import SaveQuoteButton from '../components/quote/SaveQuoteButton'
 import UIcon, { uiconSvgString } from '../components/ui/UIcon'
-import { useInTerminalPanel } from '../components/terminal'
-import PageHeader from '../components/PageHeader'
+import { panelAsOf, useInTerminalPanel, usePanelFreshness } from '../components/terminal'
+// SurfaceHeader, not PageHeader: inside a UCT Terminal panel (WIRE) the panel header already
+// names the page, and the full-bleed PageHeader bar was a second title (lane C audit 2026-10-08).
+import SurfaceHeader from './SurfaceHeader'
 import { useAuth } from '../context/AuthContext'
 import { injectSetupControls, setupAnchor, missedSymFrom, loggedMisses } from './setupFeedback'
 import styles from './MorningWire.module.css'
@@ -163,6 +165,18 @@ export function settleLoadingPlaceholders(html) {
     `<p class="rd-loading rd-missing" data-testid="wire-section-missing">${WIRE_SECTION_MISSING}</p>`)
 }
 
+/** Wave 2 (audit 2026-10-08): the WIRE panel header names the wire's OWN date, so a stale wire
+ *  (Monday morning, Friday's wire) never reads as today's. The date is the one the engine stamped,
+ *  shown as given (a calendar date is never parsed into a time it never had). Null until a wire
+ *  with a date has landed: no header claims an age for nothing. */
+export const WIRE_SOURCE = 'UCT Morning Wire'
+export function wireProvenance(rundown) {
+  const date = typeof rundown?.date === 'string' ? rundown.date.trim() : ''
+  if (!date || !rundown?.html) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return panelAsOf(WIRE_SOURCE, date, { dataClass: 'end_of_day' })
+  return { source: WIRE_SOURCE, age: { dataClass: 'end_of_day', asOfDate: date } }
+}
+
 export default function MorningWire() {
   // In a UCT Terminal panel the panel header names WIRE; the masthead title steps aside.
   const inPanel = useInTerminalPanel()
@@ -171,6 +185,7 @@ export default function MorningWire() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const { data: rundown, error: rundownError, mutate: retryRundown } = useSWR('/api/rundown', rundownFetcher, { refreshInterval: 300000 })
+  usePanelFreshness(rundownError ? null : wireProvenance(rundown))
 
   // Morning Wire is MANUAL-only: no auto-read on page open. (The hands-free
   // hook is intentionally NOT invoked here — decoupled from proactive_speak so
@@ -362,7 +377,7 @@ export default function MorningWire() {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
     <div className={styles.pageWrap}>
-    <PageHeader icon="wire" title="Morning Wire" />
+    <SurfaceHeader icon="wire" title="Morning Wire" />
     <div className={styles.page}>
 
       {/* ── Masthead band: one carded strip — clock · dateline+quote ·

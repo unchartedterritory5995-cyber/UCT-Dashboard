@@ -224,6 +224,15 @@ describe('lane T2 — the shell wires the board model', () => {
     expect(JSON.parse(store.prefs.terminal_layout).density).toBe('dense')
   })
 
+  it('audit 2026-10-08: the density buttons say their density in words, not "Aa / Ab / ab"', () => {
+    renderAt('/terminal')
+    const group = screen.getByRole('group', { name: 'Density' })
+    const words = within(group).getAllByRole('button').map((b) => b.textContent)
+    expect(words).toEqual(['Comfortable', 'Compact', 'Dense'])
+    // Label-in-name: each accessible name contains the word a sighted member sees.
+    expect(within(group).getByRole('button', { name: 'Compact density' })).toBeTruthy()
+  })
+
   it('keep-the-classic-calendar: an ADMITTED member who chose it stays on /calendar', () => {
     store.prefs = { terminal_boards: JSON.stringify(setKeepCalendar(emptyLibrary(), true)) }
     renderAt('/calendar')

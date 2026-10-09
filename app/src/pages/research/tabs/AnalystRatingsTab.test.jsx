@@ -65,6 +65,8 @@ describe('AnalystRatingsTab', () => {
     expect(within(ptSection).getByText('$250')).toBeInTheDocument() // consensus mid
     // livePrice 200, ptMid 250 -> +25.0%
     expect(within(ptSection).getByText('+25.0%')).toBeInTheDocument()
+    // audit wave 2: the live price is the last trade, and the label says so (not "current price")
+    expect(within(ptSection).getByText('vs last trade')).toBeInTheDocument()
 
     expect(screen.getByText('Recent analyst actions')).toBeInTheDocument()
     expect(screen.getByText('Evercore ISI')).toBeInTheDocument()
@@ -183,5 +185,16 @@ describe('AnalystRatingsTab -- a fund', () => {
     expect(screen.getByTestId('analyst-ratings-na').textContent)
       .toBe('Not applicable to funds — SPY is a fund; funds carry no sell-side analyst ratings or price targets.')
     expect(screen.queryByTestId('analyst-ratings-empty')).toBeNull()
+  })
+})
+
+// Audit 2026-10-08 (lane A): the colour-only rating bar has a text equivalent.
+describe('AnalystRatingsTab consensus bar', () => {
+  it('is an image with the whole split in words', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useAnalystRatings', () => ({ default: () => ({ data: fullData, isLoading: false }) }))
+    const { default: FreshTab } = await import('./AnalystRatingsTab')
+    render(<FreshTab sym="AAPL" />)
+    expect(screen.getByRole('img', { name: 'Rating split: 1 Strong Buy, 69 Buy, 34 Hold, 7 Sell, 0 Strong Sell' })).toBeInTheDocument()
   })
 })

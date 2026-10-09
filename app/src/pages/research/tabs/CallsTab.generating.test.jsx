@@ -20,6 +20,8 @@ describe('a recap being written', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200, json: async () => body })))
     render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><CallsTab sym="nvda" /></SWRConfig>)
     expect((await screen.findByTestId('call-recap-empty')).textContent).toMatch(/Writing the recap now/)
+    // wave 3 (TRAN P2 #22): the same state block as the error, not a bare note
+    expect(screen.getByTestId('call-recap-empty').getAttribute('data-kind')).toBe('empty')
     body = { recap: { headline: 'Beat and raise' }, recap_status: 'ok' }
     await act(async () => { await vi.advanceTimersByTimeAsync(PENDING_REASK_MS + 50) })
     expect(await screen.findByText('recap:Beat and raise')).toBeInTheDocument()

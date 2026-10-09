@@ -23,6 +23,13 @@ import { LINK_GROUPS, GROUP_DOT } from './useTerminalLayout'
 import { TERMINAL_NEXT_COHORT } from './terminalGate'
 
 const SRC = path.join(process.cwd(), 'src')
+
+/** Research › Depth panels FOLDED into another code's panel (no code of their own): the Depth key
+ *  → the src-relative module that shows it. BRKE was folded into EE on 2026-10-08 (owner
+ *  decision); EE's adapter reads the same switch. */
+const FOLDED_DEPTH = Object.freeze({
+  broker_estimates_enabled: 'pages/terminal/panels/EstimatesPanel.jsx',
+})
 const REPO = path.resolve(process.cwd(), '..')
 const Parser = acorn.Parser.extend(jsx())
 const parse = (file) => Parser.parse(fs.readFileSync(file, 'utf8'), { ecmaVersion: 'latest', sourceType: 'module' })
@@ -228,8 +235,9 @@ describe('every registry function resolves to a real surface', () => {
   it('a /settings door names a section Settings.jsx honours', () => {
     const sections = settingsSections()
     expect(sections.has('account')).toBe(true)   // non-vacuity
+    // EXP was the only /settings door and left the terminal on 2026-10-08 (owner decision); the
+    // check stays so the next one is held to it.
     const doors = variants.filter((x) => x.v.door?.startsWith('/settings?'))
-    expect(doors.length).toBeGreaterThan(0)
     for (const { code, v } of doors) {
       const s = new URLSearchParams(v.door.split('?')[1]).get('section')
       expect(sections.has(s), `${code} ?section=${s}`).toBe(true)
@@ -268,6 +276,7 @@ describe('every registry function resolves to a real surface', () => {
       '/open-flow', '/traders', '/provenance-demo',             // unlisted / demo pages
       '/journal-2-0/report',                                    // a journal detail page
       '/journal-2-0/playbook',                                  // a journal detail page (13B, reached from Insights > Playbook)
+      '/post-market', '/setup-library',                         // PMKT / SETL removed from the terminal 2026-10-08 (owner decision); pages kept
     ])
     const doors = new Set(variants.flatMap((x) => [x.v.door, x.v.surface, x.v.full])
       .filter(Boolean).map((d) => doorRoute(d, appRoutes())))
@@ -317,9 +326,14 @@ describe('every registry function resolves to a real surface', () => {
     }
     // The whole-tab code (DPTH, `researchDepth.*`) opens the tab, not a panel.
     expect(depth.filter((x) => !depthPanelOf(x.v)).map((x) => x.code)).toEqual(['DPTH'])
-    // …and every panel DepthTab anchors is reachable from a code (a new panel without one is red).
+    // …and every panel DepthTab anchors is reachable from a code (a new panel without one is red),
+    // or is FOLDED into another code's panel, which must still read that panel's own flag.
     const reached = new Set(perPanel.map((x) => depthPanelOf(x.v)))
-    expect([...anchored].filter((k) => !reached.has(k)).sort()).toEqual([])
+    for (const [key, file] of Object.entries(FOLDED_DEPTH)) {
+      expect(anchored.has(key), key).toBe(true)
+      expect(fs.readFileSync(path.join(SRC, file), 'utf8'), file).toContain(`researchDepth.${key}`)
+    }
+    expect([...anchored].filter((k) => !reached.has(k) && !FOLDED_DEPTH[k]).sort()).toEqual([])
     // A non-depth section never grows a `panel` param.
     expect(depthPanelOf({ section: 'options', flag: 'researchDepth.ftd_dataset_enabled' })).toBe(null)
     expect(researchHref('nvda', 'news')).toBe('/research/NVDA?section=news')
@@ -345,7 +359,7 @@ describe('every registry function resolves to a real surface', () => {
     expect(sections.filter((s) => !reached.has(s)).sort()).toEqual([])
     // …and every Depth surface key the server publishes gates its OWN code.
     const depthFlags = new Set(variants.map((x) => x.v.flag).filter((f) => f?.startsWith('researchDepth.')))
-    expect(RESEARCH_DEPTH_KEYS.filter((k) => !depthFlags.has(`researchDepth.${k}`))).toEqual([])
+    expect(RESEARCH_DEPTH_KEYS.filter((k) => !depthFlags.has(`researchDepth.${k}`) && !FOLDED_DEPTH[k])).toEqual([])
   })
 
   it('V6a: every declared argument kind exists, and every timeframe is one StockChart labels', () => {

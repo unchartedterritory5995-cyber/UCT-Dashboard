@@ -76,7 +76,7 @@ export default function ModelBookTab({ sym }) {
 
       {!appearances.length && (
         <div className={styles.fnote} data-testid="modelbook-appearances-empty">
-          Not yet in the Model Book.
+          Not yet in the Model Book, the firm&apos;s curated library of the year&apos;s best-performing stocks.
         </div>
       )}
     </div>

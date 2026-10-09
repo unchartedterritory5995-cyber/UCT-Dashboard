@@ -110,6 +110,10 @@ _SESSION_CLOSES_TTL = 3600
 _SESSION_CLOSES_LOCK = threading.Lock()
 _session_closes_at = 0.0
 _session_closes_val: tuple[dict, dict] = ({}, {})
+# Wave 4: the ET calendar date of `_session_closes_val[0]` (the last completed session the
+# grouped walk found), so a closed-market row can say WHEN its close happened. Kept beside
+# the tuple, not inside it, so every `last, prior = _session_closes()` reader is unchanged.
+_session_closes_day = None
 _GROUPED_LOOKBACK_DAYS = 10   # enough to clear a long holiday weekend
 _GROUPED_TIMEOUT_S = 20.0     # multi-MB whole-market response, off the request path
 
@@ -147,13 +151,15 @@ def _grouped_closes(client, day) -> dict:
     return out
 
 
-def _build_session_closes() -> tuple[dict, dict]:
-    """(closes of the last completed session, closes of the one before it)."""
+def _build_session_closes_dated() -> tuple[dict, dict, object]:
+    """(closes of the last completed session, closes of the one before it, the ET date of
+    the first map or None)."""
     try:
         client = _get_client()
     except Exception:
-        return ({}, {})
+        return ({}, {}, None)
     maps: list[dict] = []
+    days: list = []
     day = datetime.now(ZoneInfo("America/New_York")).date()
     for _ in range(_GROUPED_LOOKBACK_DAYS):
         if len(maps) >= 2:
@@ -161,8 +167,29 @@ def _build_session_closes() -> tuple[dict, dict]:
         m = _grouped_closes(client, day)
         if m:
             maps.append(m)
+            days.append(day)
         day -= timedelta(days=1)
-    return (maps[0] if maps else {}, maps[1] if len(maps) > 1 else {})
+    return (maps[0] if maps else {}, maps[1] if len(maps) > 1 else {},
+            days[0] if days else None)
+
+
+def _build_session_closes() -> tuple[dict, dict]:
+    """(closes of the last completed session, closes of the one before it)."""
+    last, prior, _day = _build_session_closes_dated()
+    return (last, prior)
+
+
+def _session_close_epoch(day) -> int | None:
+    """Epoch seconds of `day`'s regular-session close (16:00 ET, 13:00 on a half-day) from
+    the one session authority (api/services/session_calendar.py); None when unknown."""
+    if day is None:
+        return None
+    try:
+        from api.services import session_calendar
+        ct = session_calendar.close_time(day)
+    except Exception:
+        return None
+    return int(ct.timestamp()) if ct is not None else None
 
 
 def _warm_session_closes_async() -> None:
@@ -178,11 +205,12 @@ def _warm_session_closes_async() -> None:
         return  # a build is already in flight
 
     def _build():
-        global _session_closes_at, _session_closes_val
+        global _session_closes_at, _session_closes_val, _session_closes_day
         try:
-            built = _build_session_closes()
-            if built[0]:
-                _session_closes_val = built
+            last, prior, day = _build_session_closes_dated()
+            if last:
+                _session_closes_val = (last, prior)
+                _session_closes_day = day
                 _session_closes_at = time.monotonic()
         except Exception:
             pass
@@ -333,9 +361,14 @@ def _last_session_row(ticker: str, t: dict, last_map: dict, prior_map: dict) -> 
     # aligned to the session being displayed, so the % can't silently become a
     # multi-session move mislabelled as a one-day change.
     prior = None
+    close_at = None
     settled = last_map.get(ticker)
     if settled and abs(settled - close) / close < 0.001:
         prior = prior_map.get(ticker)
+        # Wave 4: the same agreement proves WHICH session this close is -- the one the
+        # grouped walk dated -- so the row can say "at the 4:00 PM ET close" (a half-day's
+        # 1:00 PM). A disagreeing or still-warming map leaves it None.
+        close_at = _session_close_epoch(_session_closes_day)
 
     if prior and prior > 0:
         chg_abs = close - prior
@@ -365,6 +398,10 @@ def _last_session_row(ticker: str, t: dict, last_map: dict, prior_map: dict) -> 
         # timestamp is supplied, which was already the case for every
         # closed-market fact before Seam 8.
         "observed_at": None,
+        # Wave 4 (additive): epoch seconds of the regular-session close this row's price
+        # IS, when proven (see above); None otherwise. A separate field so `observed_at`
+        # keeps its Seam 8 meaning (a vendor observation, never a derived time).
+        "session_close_at": close_at,
         # This row already REPRESENTS the last completed session (its change is that
         # session's move), so there's no separate pre-market split — the header uses
         # `change`/`change_pct` here. Kept for response-shape consistency.

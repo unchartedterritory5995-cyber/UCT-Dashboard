@@ -39,8 +39,10 @@ def _isolated(monkeypatch):
         # states its own pool, so each starts with an empty cache.
         catalysts_router._explain_cache.clear()
         catalysts_router._explain_inflight.clear()
+        catalysts_router._pool_cache.clear()      # perf wave 2: the shared per-date pool
         yield
         catalysts_router._explain_cache.clear()
+        catalysts_router._pool_cache.clear()
 
 
 @pytest.fixture
@@ -239,6 +241,10 @@ def test_the_window_expires(client, monkeypatch):
     key = ("AAA", MD)
     ts, res = catalysts_router._explain_cache[key]
     catalysts_router._explain_cache[key] = (ts - catalysts_router.EXPLAIN_TTL_SECONDS - 1, res)
+    # perf wave 2: the source pull is shared per market date; age IT past its stale window too,
+    # or the expired answer is (correctly) recomputed from the still-fresh shared pool.
+    at, pool = catalysts_router._pool_cache[MD]
+    catalysts_router._pool_cache[MD] = (at - catalysts_router.POOL_STALE_MAX_SECONDS - 1, pool)
     _get(client, "AAA")
     assert len(calls) == 2
 

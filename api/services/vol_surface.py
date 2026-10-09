@@ -120,12 +120,13 @@ def _atm(calls: dict, puts: dict, spot: float) -> dict:
                 "reason": "no strike with a two-sided quote and a vendor IV"}
     k = strikes[0]
     c, p = cmap.get(k), pmap.get(k)
+    # Wave 3 (OVS P2 #20): the basis is printed to members as-is, so it is a plain phrase.
     if c and p:
-        iv, basis, t = (c["iv"] + p["iv"]) / 2, "call and put averaged", max(c["t"], p["t"])
+        iv, basis, t = (c["iv"] + p["iv"]) / 2, "average of the call and put IV at that strike", max(c["t"], p["t"])
     elif c:
-        iv, basis, t = c["iv"], "call only", c["t"]
+        iv, basis, t = c["iv"], "call IV only (no usable put quote at that strike)", c["t"]
     else:
-        iv, basis, t = p["iv"], "put only", p["t"]
+        iv, basis, t = p["iv"], "put IV only (no usable call quote at that strike)", p["t"]
     return {"atm_strike": k, "atm_iv": iv, "atm_basis": basis, "t": t, "reason": None}
 
 
@@ -178,7 +179,9 @@ def build_grid(exps: list[dict], spot: float | None) -> dict:
             cells.append({"iv": hit["iv"], "t": hit["t"]} if hit else None)
         rows.append({"strike": k, "cells": cells})
     return {"expirations": [e["expiration"] for e in cols], "rows": rows,
-            "side_rule": "out-of-the-money side: puts below spot, calls at or above"}
+            # Read by the panel as "Each cell is the <side_rule>; ..." -- plain words, no shorthand.
+            "side_rule": ("implied volatility of the out-of-the-money option at that strike: the put "
+                          "below the stock price, the call at or above it")}
 
 
 def build_surface(sym: str, chains: list[dict], selected: str | None, listed_count: int,

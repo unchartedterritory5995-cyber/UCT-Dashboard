@@ -464,7 +464,18 @@ def get_fundamentals_endpoint(ticker: str = Depends(ticker_path)):
     sym = (ticker or "").upper().strip()
     if not sym:
         return {}
+    payload = _fundamentals_payload(sym)
+    # Wave-2 audit 2026-10-08: "empty" (every provider answered with nothing) for a symbol
+    # that is not a ticker also carries the additive `not_found` marker
+    # (api/services/symbol_presence.py). Added at answer time, never cached into the payload.
+    from api.services.symbol_presence import mark_if_empty
+    return mark_if_empty(payload, sym,
+                         isinstance(payload, dict) and payload.get("status") == "empty")
 
+
+def _fundamentals_payload(sym: str):
+    """The compact fundamentals payload for an already-canonical `sym` (the serve order is
+    the endpoint docstring's)."""
     ck = f"api_fund::{sym}"
     hit = cache.get(ck)
     if hit is not None:

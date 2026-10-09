@@ -1,0 +1,58 @@
+/* The one-line security headline under a one-stock panel's title. App tokens only; tabular
+ * numbers so the price does not jitter as it ticks; wraps on a phone rather than clipping. */
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-sm);
+  padding: 2px var(--space-sm);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+
+.sym {
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.num {
+  white-space: nowrap;
+}
+
+.up {
+  color: var(--success-ink);
+}
+
+.down {
+  color: var(--danger-ink);
+}
+
+.flat {
+  color: var(--text-muted);
+}
+
+.part {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.clause {
+  color: var(--text-muted);
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+/* Not trading: the whole line goes grey so a stale price never reads as live. */
+.closed .num,
+.closed .up,
+.closed .down {
+  color: var(--text-muted);
+}

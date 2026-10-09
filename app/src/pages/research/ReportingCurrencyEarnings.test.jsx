@@ -115,14 +115,15 @@ describe('Estimates by contributor -- reporting currency', () => {
     expect(screen.getByTestId('broker-currency').textContent).toContain('Figures in TWD')
   })
 
-  it('USD: bare numbers exactly as before, no note', async () => {
+  // Audit wave 2 (BRKE P2 13/22): USD figures carry "$" exactly as EE shows the same consensus
+  // ("$18.50", "$1.10T"); this test used to pin the bare form, which disagreed with EE.
+  it('USD: "$" as on EE, never the code, no note', async () => {
     body = { ...broker('USD'), ticker: 'NVDA' }
     renderBroker('nvda')
     const row = await screen.findByTestId('broker-row')
-    expect(row.textContent).toContain('18.50')
-    expect(row.textContent).toContain('1.10T')
+    expect(row.textContent).toContain('$18.50')
+    expect(row.textContent).toContain('$1.10T')
     expect(row.textContent).not.toContain('USD')
-    expect(row.textContent).not.toContain('$')
     expect(screen.queryByTestId('broker-currency')).toBeNull()
   })
 })

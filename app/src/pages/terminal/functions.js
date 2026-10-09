@@ -57,16 +57,18 @@ export const FUNCTIONS = [
   { code: 'CATS', label: 'Catalyst history', group: 'Security',
     ticker: { panel: 'Catalysts', section: 'catalysts' } },
   // V15 (lane T3): "why is it moving" over the EXISTING watchlist-intelligence + catalyst
-  // services, plus what is new since this member's last MOVE visit. WIIM is its alias code.
+  // services, plus what is new since this member's last MOVE visit. WIIM is an ALIAS of it
+  // (CODE_ALIASES, owner decision 2026-10-08): one function, one panel, one name.
   // Dark at the server (TERMINAL_GRAMMAR_ENABLED): unset, the panel says it is not enabled.
   { code: 'MOVE', label: 'Why is it moving (+ since last visit)', group: 'Security',
-    ticker: { panel: 'Move' } },
-  { code: 'WIIM', label: 'Why is it moving (same as MOVE)', group: 'Security',
     ticker: { panel: 'Move' } },
   { code: 'TECH', label: 'Technical read', group: 'Security',
     ticker: { panel: 'Technical', section: 'technical', flag: 'researchTechnicalTabEnabled' } },
   { code: 'FA', label: 'Financials', group: 'Security',
     ticker: { panel: 'Financials', section: 'financials' } },
+  // EE also carries what BRKE (broker estimates) had that EE did not: the firms acting on the
+  // stock, shown only when that read is switched on and holds real rows (owner decision
+  // 2026-10-08: BRKE is folded into EE and kept as an alias, CODE_ALIASES).
   { code: 'EE', label: 'Earnings estimates', group: 'Security',
     ticker: { panel: 'Estimates', section: 'estimates' } },
   { code: 'EEH', label: 'Estimate history (revisions)', group: 'Security',
@@ -124,14 +126,13 @@ export const FUNCTIONS = [
     ticker: { panel: 'Ftd', section: 'depth', flag: `${DEPTH}.ftd_dataset_enabled` } },
   { code: 'ATTN', label: 'Room attention (mentions)', group: 'Research depth',
     ticker: { panel: 'MentionSeries', section: 'depth', flag: `${DEPTH}.mention_series_enabled` } },
-  { code: 'BRKE', label: 'Broker estimates', group: 'Research depth',
-    ticker: { panel: 'BrokerEstimates', section: 'depth', flag: `${DEPTH}.broker_estimates_enabled` } },
 
   // ── options ──
   { code: 'OMON', label: 'Option chain', group: 'Options',
     ticker: { panel: 'OptionsChain', section: 'options', flag: 'optionsChainEnabled' } },
   { code: 'OVS', label: 'Volatility surface', group: 'Options',
-    ticker: { panel: 'OptionsChain', props: { volSurface: true }, section: 'options',
+    // `focus`: the surface leads and the chain folds beneath it (audit 2026-10-08, OVS P1).
+    ticker: { panel: 'OptionsChain', props: { volSurface: true, focus: 'surface' }, section: 'options',
               flag: 'optionsVolSurfaceEnabled' } },
   // `offNotice`: these six open a dark surface ON ITS OWN, and every route behind them answers 404
   // until its own switch is set. Embedded under the chain or on Options Flow, a 404 renders nothing;
@@ -155,7 +156,9 @@ export const FUNCTIONS = [
     // initial tab) — without it "Full page" always landed on the Stocks tab.
     market: { panel: 'OptionsScreener', full: '/screener?tab=options', flag: 'optionsScreenerEnabled' } },
   { code: 'FLOW', label: 'Options flow', group: 'Options',
-    ticker: { panel: 'Flow', section: 'flow', flag: 'researchFlowTabEnabled' },
+    // No shell flag (audit 2026-10-08, FLOW P1): the `Flow` panel is FlowGate -- the flow tab while
+    // researchFlowTabEnabled is on; with it off it says so and offers the page doors.
+    ticker: { panel: 'Flow', section: 'flow' },
     market: { door: '/options-flow', leavesTerminal: true, why: 'partner-owned page; its view routing lives in App.jsx\'s OptionsFlowRoute, which no panel can import' } },
   { code: 'GEX', label: 'Gamma exposure', group: 'Options',
     // GEX lives INSIDE the Options Flow page (its `gex` data mode), so it is a door — one
@@ -170,7 +173,11 @@ export const FUNCTIONS = [
   { code: 'LIVE', label: 'Live flow tape', group: 'Options',
     market: { door: '/live-massive', leavesTerminal: true, why: 'a socket-fed tape page that owns a live stream connection per mount' } },
 
-  { code: 'DP', label: 'Dark pool prints', group: 'Options', market: { door: '/dark-pool', leavesTerminal: true } },
+  // `NVDA DP` opens the page on that ticker: DarkPool.jsx reads `?ticker=` and opens its own
+  // ticker search on the name (wave 4, lane A: the ticker used to be refused as market-wide).
+  { code: 'DP', label: 'Dark pool prints', group: 'Options',
+    ticker: { door: '/dark-pool?ticker={sym}', leavesTerminal: true },
+    market: { door: '/dark-pool', leavesTerminal: true } },
   // `embedded` is the page's OWN prop (it already honours it inside the Options Flow page): the
   // panel header names the function, so the page drops its outer page chrome.
   { code: 'FREC', label: 'Flow record (scoreboard)', group: 'Options',
@@ -188,9 +195,10 @@ export const FUNCTIONS = [
     market: { door: '/dashboard', leavesTerminal: true, why: 'the dashboard is itself a bento of tiles and hosts the hub tile; a board inside a panel is a second shell' } },
   { code: 'CHRT', label: 'Charts workspace', group: 'Market',
     market: { door: '/charts', leavesTerminal: true, why: 'the /charts board is the panel host itself (the panel set refuses it as board-host)' } },
-  { code: 'PMKT', label: 'Post-market', group: 'Market', market: { door: '/post-market', leavesTerminal: true } },
-  { code: 'CATH', label: 'Catalysts history', group: 'Market', market: { surface: '/catalysts/history' } },
-  { code: 'SETL', label: 'Setup library', group: 'Market', market: { door: '/setup-library', leavesTerminal: true } },
+  // `CATH 2026-10-01` / `CATH 10/01` opens that session's list (args.js `etDate`, Eastern time);
+  // a CATS row opens it for the row's date (wave 4, lane A). Bare `CATH` opens the latest session.
+  { code: 'CATH', label: 'Catalysts history', group: 'Market',
+    market: { surface: '/catalysts/history', args: [{ kind: 'etDate', prop: 'date' }] } },
   { code: 'FORM', label: 'Formula reference', group: 'Market',
     market: { door: '/formulas/reference', leavesTerminal: true, why: 'App.jsx loads it with a bare lazy() and no lazyPage importer to share' } },
   { code: 'DESK', label: 'The Desk', group: 'Market',
@@ -201,8 +209,6 @@ export const FUNCTIONS = [
   { code: 'RISK', label: 'Portfolio risk', group: 'Market', market: { surface: '/portfolio-heat' } },
   { code: 'COMM', label: 'Community', group: 'Market',
     market: { door: '/community', leavesTerminal: true, why: 'threads are routed (/community/:threadId); a panel cannot hold the thread URL' } },
-  { code: 'EXP', label: 'Exports (your data, preferences backup)', group: 'Market',
-    market: { door: '/settings?section=legal', leavesTerminal: true } },
 
   // ── the shell itself ──
   { code: 'HELP', label: 'Function list & syntax', group: 'Shell',
@@ -238,6 +244,25 @@ export const FUNCTIONS = [
   { code: 'IMOV', label: 'Theme movers (which names drive a UCT theme)', group: 'Market',
     ticker: { panel: 'Imov', args: [{ kind: 'contribWindow', prop: 'win' }, IMOV_THEME_ARG] },
     market: { panel: 'Imov', args: [{ kind: 'contribWindow', prop: 'win' }, IMOV_THEME_ARG] } },
+
+  // ── my names (lane 9, top-10 #4 and #5) ──
+  // ALRT: `NVDA ALRT 950` SETS a price alert through the existing /api/watchlist-alerts (the shell
+  // does it from a typed command, never a panel mount: alertCommand.js); `NVDA ALRT` lists that
+  // ticker's alerts and `ALRT` all of them, each with Delete.
+  { code: 'ALRT', label: 'Price alerts (set one: NVDA ALRT 950)', group: 'Market',
+    ticker: { panel: 'Alerts', args: [{ kind: 'alertPrice', prop: 'price' }] },
+    market: { panel: 'Alerts', args: [{ kind: 'alertPrice', prop: 'price' }] } },
+  // MON: the member's watchlists as one live table (Bloomberg's MON). `W` alone opens it too
+  // (parseCommand: W is Wayfair's ticker, so `$W` still means the stock). `MON 2` / `MON W:id` /
+  // `MON FLAGGED` pick a list. Market-only: a row CLICK loads the name into the linked group.
+  { code: 'MON', label: 'Watchlist monitor (my lists, live; also W)', group: 'Market',
+    market: { panel: 'Watchlist', args: [{ kind: 'watchlistPick', prop: 'list' }] } },
+  // ── Compass grade (wave 3, lane 11, owner decision 2026-10-08): the buy / hold / skip verdict
+  // Compass gives, read-only, via `/api/terminal/grade/:sym` over api/services/grade_ticker.py.
+  // No shell flag: the server decides. While BRAIN_TOOLS_ENABLED (or the Brain Pack) is off the
+  // route answers `available: false` and the panel says "Grade not available yet" (never a verdict).
+  { code: 'GRADE', label: 'Compass grade (buy / hold / skip verdict)', group: 'Security',
+    ticker: { panel: 'Grade' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -245,11 +270,29 @@ export const FUNCTIONS = [
  *  never carry two names for one function. Lookups by the typed spelling still resolve (BY_CODE
  *  carries the alias), so nothing that checks a token against the registry can miss it.
  *  Kept outside FUNCTIONS on purpose: an alias is not a second function, so the registry rails,
- *  HELP's numbered list and the ranking see one entry. (WIIM predates this and stays a code of its
- *  own: it has always titled its panel WIIM.) */
+ *  HELP's numbered list and the ranking see one entry. A saved board or share link that still
+ *  names an alias opens its code (boardModel `normalizePanel`). */
 export const CODE_ALIASES = Object.freeze({
   MOVERS: 'MOST',   // the word members type for the movers list (fn2-movers)
+  WIIM: 'MOVE',     // merged into MOVE (owner decision 2026-10-08)
+  BRKE: 'EE',       // folded into EE (owner decision 2026-10-08)
 })
+
+/** Codes REMOVED from the terminal (owner decision 2026-10-08), each with the plain note a member
+ *  gets instead of "unknown function": typed, from a saved board, or from a share link. The pages
+ *  behind them still exist; only the terminal code is gone. Not functions, not suggested, not in
+ *  HELP's list. `$EXP` still loads the ticker EXP. */
+export const RETIRED = Object.freeze({
+  EXP: 'EXP (exports) was removed from the terminal. Your exports are in Settings, under Legal. For the ticker, type $EXP.',
+  PMKT: 'PMKT (post-market) was removed from the terminal. The Post-market page is still in the app at /post-market.',
+  SETL: 'SETL (setup library) was removed from the terminal. The Setup library page is still in the app at /setup-library.',
+})
+
+/** The note for a removed code, or null. */
+export function retiredNote(token) {
+  const t = String(token || '').toUpperCase()
+  return Object.prototype.hasOwnProperty.call(RETIRED, t) ? RETIRED[t] : null
+}
 
 /** `n` comparator-ticker argument slots (`with0` … `with{n-1}`), for the comparison codes. */
 function symbolArgs(n) {
@@ -363,4 +406,17 @@ export function editDistance(a, b) {
     }
   }
   return dp[a.length][b.length]
+}
+
+// ── wave 3 lane 13 (product #6 "Mine"): APPENDED, never edited above, so it merges beside the
+// lanes that own the entries. `MINE` (args.js `mine`) filters a panel to the member's own names —
+// the calendar's My Stocks set (hooks/useMyTickers.js). Each panel's "Mine" chip writes the word
+// back into its command, so a reload, `?cmd=` and history keep the filter.
+//   CAL MINE        this week's earnings for your names only (Calendar's `mine` prop)
+//   MOST [UP] MINE  movers that are yours           FREC MINE   the honest tape, your names
+//   NVDA CN MINE    news across all your names       NVDA FEED MINE  new filings by your names
+const MINE_ARG = Object.freeze({ kind: 'mine', prop: 'mine' })
+for (const [code, side] of [['CAL', 'market'], ['MOST', 'market'], ['FREC', 'market'], ['CN', 'ticker'], ['FEED', 'ticker']]) {
+  const v = BY_CODE[code]?.[side]
+  if (v && !(v.args || []).some((a) => a.kind === 'mine')) v.args = [...(v.args || []), MINE_ARG]
 }

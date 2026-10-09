@@ -55,7 +55,8 @@ describe('RRG', () => {
   it('names a symbol it could not read instead of dropping it silently', async () => {
     serve({ SPY: bench, XLK: shaped((i) => 0.0004 * i) })
     render(<RrgPanel with0="XLK" with1="NOPE" />)
-    expect((await screen.findByTestId('terminal-rrg-failed')).textContent).toBe('Could not read NOPE just now; it is not on the graph.')
+    // NOPE answers 404 (no bars held): a mistyped ticker, said as such — never "just now"
+    expect((await screen.findByTestId('terminal-rrg-failed')).textContent).toContain('No price history for NOPE: check the ticker. It is not on the graph.')
     expect(screen.queryByTestId('terminal-rrg-row-NOPE')).toBeNull()
   })
 
@@ -66,11 +67,25 @@ describe('RRG', () => {
     expect(screen.queryByTestId('terminal-rrg-table')).toBeNull()
   })
 
+  it('Retry re-reads a benchmark that failed (re-running RRG keeps the panel and read nothing)', async () => {
+    let down = true
+    const ok = fakeBarsFetch({ SPY: bench, XLK: shaped((i) => 0.0004 * i), XLU: shaped(() => 0) })
+    fetchSpy = vi.fn((url) => (down && /\/api\/bars\/SPY/.test(String(url))
+      ? Promise.resolve({ ok: false, status: 503, json: async () => ({}) })
+      : ok(url)))
+    globalThis.fetch = fetchSpy
+    render(<RrgPanel with0="XLK" with1="XLU" />)
+    await screen.findByTestId('terminal-rrg-error')
+    down = false
+    fireEvent.click(screen.getByTestId('terminal-rrg-retry'))
+    expect(await screen.findByTestId('terminal-rrg-table')).toBeTruthy()
+  })
+
   it('the benchmark read but every name failing is an ERROR naming them, never "not enough history"', async () => {
     serve({ SPY: bench })
     render(<RrgPanel with0="NOPE" with1="NADA" />)
     const err = await screen.findByTestId('terminal-rrg-error')
-    expect(err.textContent).toContain('Could not read NOPE, NADA just now.')
+    expect(err.textContent).toContain('No price history for NOPE, NADA: check the tickers.')
     expect(err.getAttribute('data-kind')).toBe('error')
     expect(screen.queryByTestId('terminal-rrg-empty')).toBeNull()
   })
@@ -146,7 +161,25 @@ describe('REL', () => {
   it('an unreadable comparator is an error that names it, never an empty chart', async () => {
     serve({ NVDA: series(dates, () => 0.002) })
     render(<RelPanel sym="NVDA" with0="ZZZZ" />)
-    expect((await screen.findByTestId('terminal-rel-error')).textContent).toContain('Could not read ZZZZ just now.')
+    expect((await screen.findByTestId('terminal-rel-error')).textContent).toContain('No price history for ZZZZ: check the ticker.')
+  })
+
+  it('a TRANSIENT failure says "just now", and Retry re-reads it (re-running the command could not)', async () => {
+    const good = { NVDA: series(dates, () => 0.002), AMD: series(dates, () => 0.001) }
+    let down = true
+    const ok = fakeBarsFetch(good)
+    fetchSpy = vi.fn((url) => (down && /\/api\/bars\/AMD/.test(String(url))
+      ? Promise.resolve({ ok: false, status: 503, json: async () => ({ detail: 'busy' }) })
+      : ok(url)))
+    globalThis.fetch = fetchSpy
+    render(<RelPanel sym="NVDA" with0="AMD" />)
+    const err = await screen.findByTestId('terminal-rel-error')
+    expect(err.textContent).toContain('Could not read AMD just now.')
+    expect(err.textContent).not.toContain('check the ticker')
+    down = false
+    fireEvent.click(screen.getByTestId('terminal-rel-retry'))
+    expect(await screen.findByTestId('terminal-rel-table')).toBeTruthy()
+    expect(screen.queryByTestId('terminal-rel-error')).toBeNull()
   })
 
   it('too little SHARED history (nothing failed) is an empty answer, not an error to retry', async () => {
@@ -170,9 +203,10 @@ describe('CORR', () => {
     })
     render(<CorrPanel sym="AAA" with0="BBB" with1="CCC" with2="NEWB" />)
     expect((await screen.findByTestId('terminal-corr-verdict')).textContent).toBe('AAA and BBB move almost as one (r = 1.00).')
-    expect(screen.getByTestId('terminal-corr-least').textContent).toMatch(/^Least related: (AAA|BBB) and CCC \(r = -1\.00\)\.$/)
+    // r = -1 is the most OPPOSITE pair, not the least related one (audit 2026-10-08)
+    expect(screen.getByTestId('terminal-corr-least').textContent).toMatch(/^Most opposite: (AAA|BBB) and CCC \(r = -1\.00\)\.$/)
     expect(screen.getByTestId('corr-AAA-BBB').textContent).toBe('1.00')
-    expect(screen.getByTestId('corr-AAA-AAA').textContent).toBe('1')
+    expect(screen.getByTestId('corr-AAA-AAA').textContent).toBe('1.00')   // audit wave 2: same decimals as every cell
     expect(screen.getByTestId('corr-AAA-NEWB').textContent).toBe('n/a')
     expect(screen.getByTestId('corr-AAA-NEWB').getAttribute('title')).toBe('7 common sessions: too few')
     // 3M default window: every daily-closes request, one per name
@@ -194,7 +228,8 @@ describe('CORR', () => {
   it('control: with nothing readable it is an error, not an empty matrix', async () => {
     serve({})
     render(<CorrPanel sym="AAA" with0="BBB" />)
-    expect((await screen.findByTestId('terminal-corr-error')).textContent).toContain('Could not read AAA, BBB just now.')
+    // neither name is served: a 404, so the panel says "check the tickers", never "just now" (audit wave 2)
+    expect((await screen.findByTestId('terminal-corr-error')).textContent).toContain('No price history for AAA, BBB: check the tickers.')
   })
 })
 
@@ -225,5 +260,24 @@ describe('the fetch layer', () => {
     render(<RelPanel sym="AAA" with0="BBB" />)
     await waitFor(() => expect(screen.getByTestId('terminal-rel-lede')).toBeTruthy())
     expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+})
+
+// Audit 2026-10-08 (lane A): a strong NEGATIVE correlation is a strong relationship.
+describe('CORR wording for negative correlation', () => {
+  it('a strongest pair at r = -0.95 reads as moving opposite, never "independently"', async () => {
+    const { corrVerdict } = await import('./CorrPanel')
+    const v = corrVerdict({ most: { a: 'SPY', b: 'SH', r: -0.95 } })
+    expect(v).toBe('SPY and SH move almost exactly opposite (r = -0.95).')
+  })
+  it('"Least related" is the pair closest to zero, not the most negative one', async () => {
+    const { corrSecondLine } = await import('./CorrPanel')
+    const cell = (r) => ({ r, n: 63 })
+    const read = {
+      syms: ['A', 'B', 'C'],
+      most: { a: 'A', b: 'B', r: 0.9 },
+      matrix: [[cell(1), cell(0.9), cell(-0.2)], [cell(0.9), cell(1), cell(0.05)], [cell(-0.2), cell(0.05), cell(1)]],
+    }
+    expect(corrSecondLine(read)).toBe('Least related: B and C (r = 0.05).')
   })
 })

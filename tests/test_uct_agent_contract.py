@@ -16,6 +16,21 @@ GOLDEN = json.loads((ROOT / "app/src/agent/contract/manifest.golden.json").read_
 CAPS = GOLDEN["capabilities"]
 BY = {c["name"]: c for c in CAPS}
 
+# Since Batch 6 the CATALOG may exceed one request: the browser routes it (app/src/agent/routing.js)
+# into per-request manifests of whole action GROUPS. The server is checked the same way — every
+# group (with the always-on agent group) is validated, schema-built and prompted on its own.
+_GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layout": "workspace",
+             "watchlist": "lists", "screener": "screener", "alert": "alerts", "stock": "data",
+             "news": "data", "settings": "settings", "app": "settings", "agent": "agent"}
+
+
+def _requests():
+    groups = {}
+    for c in CAPS:
+        groups.setdefault(_GROUP_OF[c["name"].split(".")[0]], []).append(c)
+    agent = groups.pop("agent", [])
+    return [(g, cs + agent) for g, cs in groups.items()]
+
 
 def test_server_limits_equal_the_shared_contract():
     L = CONTRACT["limits"]
@@ -28,9 +43,17 @@ def test_server_limits_equal_the_shared_contract():
     assert GOLDEN["manifestVersion"] == CONTRACT["manifestVersion"]
 
 
+def test_every_capability_belongs_to_a_routing_group_and_each_request_fits():
+    assert all(c["name"].split(".")[0] in _GROUP_OF for c in CAPS)
+    for g, req in _requests():
+        assert len(req) <= CONTRACT["catalog"]["maxGroupSize"] + 1, g
+        assert len(req) <= turn.MAX_CAPABILITIES, g
+
+
 def test_the_real_manifest_survives_validation_intact():
-    kept = turn.validate_manifest(CAPS)
-    assert [c["name"] for c in kept] == [c["name"] for c in CAPS], "an entry was dropped by the server"
+    kept = [c for _, req in _requests() for c in turn.validate_manifest(req) if c["name"] != "agent.capabilities"]
+    kept += turn.validate_manifest([BY["agent.capabilities"]])
+    assert sorted(c["name"] for c in kept) == sorted(c["name"] for c in CAPS), "an entry was dropped by the server"
     for c in kept:
         src = BY[c["name"]]
         assert c["summary"] == src["summary"], f"{c['name']}: summary cut"
@@ -39,12 +62,15 @@ def test_the_real_manifest_survives_validation_intact():
 
 
 def test_schema_and_prompt_build_from_the_real_manifest():
-    kept = turn.validate_manifest(CAPS)
-    schema = turn.envelope_schema(kept)
-    assert schema["type"] == "object"
-    prompt = turn.system_prompt(kept)
-    for c in kept:
-        assert f"- {c['name']}(" in prompt
+    prompt = ""
+    for _, req in _requests():
+        kept = turn.validate_manifest(req)
+        schema = turn.envelope_schema(kept)
+        assert schema["type"] == "object"
+        p = turn.system_prompt(kept)
+        for c in kept:
+            assert f"- {c['name']}(" in p
+        prompt += p
     # The model is told the truth about Undo.
     digest = next(line for line in prompt.splitlines() if line.startswith("- settings.setWatchlistDigest("))
     assert "no Undo" in digest
@@ -57,7 +83,7 @@ def test_schema_and_prompt_build_from_the_real_manifest():
 def test_every_compact_op_example_round_trips_through_args_match():
     """Each capability's own schema accepts a value built from its own enums (compact mode is
     always on with this many capabilities, so args_match is the server's only arg check)."""
-    for c in turn.validate_manifest(CAPS):
+    for c in [c for _, req in _requests() for c in turn.validate_manifest(req)]:
         props = c["args"]["properties"]
         sample = {}
         for k, p in props.items():
@@ -96,3 +122,51 @@ def test_manifest_version_skew_is_served_and_logged(caplog):
     out = turn.run_turn(message="hi", context={}, history=[], capabilities=CAPS[:3], caller=caller, manifest_version=99)
     assert out["envelope"]["disposition"] == "answer"
     assert any("manifest version" in r.message for r in caplog.records)
+
+
+def test_over_the_per_request_limit_is_refused_whole_never_trimmed():
+    """Batch 6, Gate C: MAX_CAPABILITIES is per REQUEST; a request over it is a client bug and is
+    refused (the charge is given back by the route), never cut to "the first 60"."""
+    import pytest
+    too_many = [dict(CAPS[0], name=f"chart.fake{i}") for i in range(turn.MAX_CAPABILITIES + 1)]
+    with pytest.raises(turn.TurnError, match="too many actions"):
+        turn.validate_manifest(too_many)
+    exactly = [dict(CAPS[0], name=f"chart.fake{i}") for i in range(turn.MAX_CAPABILITIES)]
+    assert len(turn.validate_manifest(exactly)) == turn.MAX_CAPABILITIES
+
+
+def test_catalog_contract_distinguishes_catalog_from_request():
+    cat = CONTRACT["catalog"]
+    assert cat["maxRegistered"] > CONTRACT["limits"]["maxCapabilities"]
+    assert cat["maxGroupSize"] < CONTRACT["routingThreshold"] <= CONTRACT["limits"]["maxCapabilities"]
+
+
+def _union_enum_nodes(node, path="", out=None):
+    out = [] if out is None else out
+    if isinstance(node, dict):
+        if isinstance(node.get("type"), list) and "enum" in node:
+            out.append(path)
+        for k, v in node.items():
+            _union_enum_nodes(v, f"{path}/{k}", out)
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            _union_enum_nodes(v, f"{path}[{i}]", out)
+    return out
+
+
+def test_no_routed_request_sends_an_enum_under_a_union_type():
+    # PRODUCTION DEFECT 2026-10-08 (found by the Batch 6 real-model benchmark): small routed
+    # requests embed each action's args, and the model API refuses
+    # {"type": ["string", "null"], "enum": [...]} with a 400 — every screener-only and
+    # settings-only request failed. Each per-group schema must be free of that shape.
+    for g, req in _requests():
+        kept = turn.validate_manifest(req)
+        assert _union_enum_nodes(turn.envelope_schema(kept)) == [], g
+
+
+def test_model_safe_schema_keeps_the_same_values():
+    s = turn.model_safe_schema({"type": ["string", "null"], "enum": ["asc", "desc", None]})
+    assert s == {"anyOf": [{"type": "string", "enum": ["asc", "desc"]}, {"type": "null"}]}
+    s = turn.model_safe_schema({"type": ["string", "null"], "enum": ["asc", "desc"]})
+    assert s == {"anyOf": [{"type": "string", "enum": ["asc", "desc"]}]}
+    assert turn.model_safe_schema({"type": "string", "enum": ["a"]}) == {"type": "string", "enum": ["a"]}

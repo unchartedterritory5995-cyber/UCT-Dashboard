@@ -2086,10 +2086,11 @@ function OptionsPane({mktcapData = {}}){
 // ── Signals + Search tab ─────────────────────────────────────────────────────
 // ── Search Modal ──────────────────────────────────────────────────────────────
 // ── Search Results Table — shows ticker row + top 5 prints expanded ───────────
-function SearchResultsTable({items, mktcapData = {}}){
+function SearchResultsTable({items, mktcapData = {}, initialExpanded = null}){
   if(!items||items.length===0) return null;
-  // Track which ticker (if any) is expanded to show the dark-pool chart
-  const [expandedTicker, setExpandedTicker] = useState(null);
+  // Track which ticker (if any) is expanded to show the dark-pool chart. A `?ticker=` link opens
+  // with that name's chart already showing.
+  const [expandedTicker, setExpandedTicker] = useState(initialExpanded);
   return (
     <div style={{overflowX:"auto"}}>
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
@@ -2177,8 +2178,16 @@ function SearchResultsTable({items, mktcapData = {}}){
   );
 }
 
-function SearchModal({onClose, mktcapData = {}}){
-  const [query,setQuery]=useState("");
+/** The ticker a `/dark-pool?ticker=SYM` link names (the terminal's `NVDA DP`), or "". */
+export function linkTickerFrom(search){
+  try {
+    const t = String(new URLSearchParams(search || "").get("ticker") || "").trim().toUpperCase().replace(/^\$/, "");
+    return /^[A-Z][A-Z0-9]{0,5}(?:[.-][A-Z]{1,2})?$/.test(t) ? t : "";
+  } catch { return ""; }
+}
+
+function SearchModal({onClose, mktcapData = {}, initialQuery = ""}){
+  const [query,setQuery]=useState(initialQuery);
   const allItems = (()=>{
     const map={};
     for(const cat of D.categories) for(const it of cat.items) map[it.t]=it;
@@ -2271,7 +2280,7 @@ function SearchModal({onClose, mktcapData = {}}){
             {results.length} result{results.length!==1?"s":""} for "{query.toUpperCase()}"
           </div>
         )}
-        {results.length>0 && <SearchResultsTable items={results} mktcapData={mktcapData}/>}
+        {results.length>0 && <SearchResultsTable items={results} mktcapData={mktcapData} initialExpanded={initialQuery && query===initialQuery && results.some(it=>it.t===initialQuery) ? initialQuery : null}/>}
         {query.length>0 && results.length===0 && (
           <div style={{color:C.tx3,fontSize:13}}>No tickers found.</div>
         )}
@@ -3149,7 +3158,9 @@ export default function DarkPool({embedded}){
 
   const [tab,setTab]=useState("overview");
   const [catJump,setCatJump]=useState(null);
-  const [showSearch,setShowSearch]=useState(false);
+  // `/dark-pool?ticker=NVDA` (the terminal's `NVDA DP`) opens the ticker search on that name, once.
+  const [searchSeed,setSearchSeed]=useState(()=>embedded?"":linkTickerFrom(typeof window!=="undefined"?window.location.search:""));
+  const [showSearch,setShowSearch]=useState(()=>!!searchSeed);
   const [globalCat,setGlobalCat]=useState("All");
   const [mktcapData,setMktcapData]=useState({}); // {AAPL: 2940000000000, ...}
   const [mktcapLoading,setMktcapLoading]=useState(false);
@@ -3565,7 +3576,7 @@ export default function DarkPool({embedded}){
         {tab==="records"  && <RecordsPane mktcapData={mktcapData} fetchMktCap={fetchMktCap}/>}
       </div>
 
-      {showSearch && <SearchModal onClose={()=>setShowSearch(false)} mktcapData={mktcapData}/>}
+      {showSearch && <SearchModal initialQuery={searchSeed} onClose={()=>{ setShowSearch(false); setSearchSeed(""); }} mktcapData={mktcapData}/>}
     </div>
   );
 }

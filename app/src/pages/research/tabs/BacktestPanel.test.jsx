@@ -68,6 +68,32 @@ describe('BacktestPanel', () => {
     expect(rows[0].textContent).toContain('held to expiry')
   })
 
+  it('while running it says what it is doing and never prints the vendor request budget', async () => {
+    const base = global.fetch
+    global.fetch = vi.fn((url, init) => {
+      if (String(url).includes('/backtest/j1')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(
+          { job: 'j1', state: 'running', budget_text: 'At most 400 vendor requests per run.' }) })
+      }
+      return base(url, init)
+    })
+    wrap(<BacktestPanel sym="SPY" />)
+    fireEvent.click(screen.getByTestId('backtest-simulate'))
+    const line = await screen.findByTestId('backtest-running')
+    expect(line.textContent).toMatch(/^Simulating SPY over the past year of monthly expirations…$/)
+    expect(line.textContent).not.toMatch(/vendor/i)
+    // the 2 s poll's progress line is announced to a screen reader
+    expect(line.getAttribute('role')).toBe('status')
+  })
+
+  it('a trade row with no legs renders a dash instead of crashing the panel', async () => {
+    result = { ...FX.full, trades: [{ ...FX.full.trades[0], legs: undefined }] }
+    wrap(<BacktestPanel sym="SPY" />)
+    await simulate()
+    const row = screen.getByTestId('backtest-trades').querySelector('tbody tr')
+    expect(row.textContent).toContain('—')
+  })
+
   it('COUNTS the excluded expirations with their reasons, never drops them', async () => {
     wrap(<BacktestPanel sym="SPY" />)
     await simulate()
@@ -84,15 +110,20 @@ describe('BacktestPanel', () => {
     expect(screen.getByTestId('backtest-small-sample').textContent)
       .toBe('Only 4 trades could be simulated; a sample under 6 is too small to summarise.')
     expect(screen.queryByTestId('backtest-summary')).toBeNull()
-    expect(screen.getByTestId('backtest-not-run').textContent).toMatch(/not run — .*vendor request budget ran out/)
-    expect(screen.getByTestId('backtest-budget').textContent).toBe('Used 10 of at most 10 vendor requests for this run.')
+    // Audit 2026-10-08: the reason reads as member copy; no vendor request count is shown.
+    expect(screen.getByTestId('backtest-not-run').textContent).toMatch(/not run — .*the run reached its data limit/)
+    expect(screen.queryByTestId('backtest-budget')).toBeNull()
+    expect(screen.getByTestId('backtest-result').textContent).not.toMatch(/vendor/i)
   })
 
-  it('labels the IV as computed, never as the vendor\'s', async () => {
+  it('labels the IV as computed, never as a data feed\'s, and names no vendor', async () => {
     wrap(<BacktestPanel sym="SPY" />)
     await simulate()
     expect(screen.getByText('IV (computed)')).toBeTruthy()
-    expect(screen.getByTestId('backtest-iv-source').textContent).toMatch(/COMPUTED here, not the vendor's/)
+    const src = screen.getByTestId('backtest-iv-source').textContent
+    expect(src).toMatch(/COMPUTED here, not a data feed's/)
+    expect(src).not.toMatch(/vendor|Massive/)
+    expect(src).toMatch(/Historical IV is not available from our data provider\./)
     expect(screen.getByTestId('backtest-trades').querySelector('tbody tr').textContent).toContain('20.0%')
   })
 
@@ -123,6 +154,9 @@ describe('BacktestPanel', () => {
   })
 })
 
+// Audit 2026-10-08: the chain folds its sub-panels into groups that mount on first open.
+const openGroup = async (id) => { const g = await screen.findByTestId(id); g.open = true; fireEvent(g, new Event('toggle')) }
+
 describe('OptionsChainTab with the backtester switched on', () => {
   it('renders the panel only when switched on', async () => {
     wrap(<OptionsChainTab sym="spy" />)
@@ -130,6 +164,7 @@ describe('OptionsChainTab with the backtester switched on', () => {
     expect(screen.queryByTestId('backtest')).toBeNull()
     cleanup()
     wrap(<OptionsChainTab sym="spy" backtest />)
+    await openGroup('chain-group-history')
     await screen.findByTestId('backtest')
   })
 
@@ -137,6 +172,7 @@ describe('OptionsChainTab with the backtester switched on', () => {
   // still passes unchanged. With it on there is exactly ONE button, and it is a simulation.
   it('its only button is Simulate -- no trade, order, send or broker action', async () => {
     wrap(<OptionsChainTab sym="spy" backtest />)
+    await openGroup('chain-group-history')
     await screen.findByTestId('backtest')
     const buttons = screen.getAllByRole('button')
     expect(buttons.map((b) => b.textContent.trim())).toEqual(['Simulate'])

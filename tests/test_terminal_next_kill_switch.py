@@ -327,8 +327,12 @@ T3_GRAMMAR_ROUTES = [
     ("GET", "/api/terminal/aliases"),
     ("GET", "/api/terminal/commands/stats"),
     ("GET", "/api/terminal/compare-target"),
+    ("GET", "/api/terminal/grade/{sym}"),
     ("GET", "/api/terminal/move/{sym}"),
     ("POST", "/api/terminal/commands/event"),
+    # wave 3 lane 13 (product #7): the throttled "new since your last visit" record for CN / FEED /
+    # CF / CATS -- same router, same three gates, acknowledged here deliberately.
+    ("POST", "/api/terminal/seen/{code}"),
     ("PUT", "/api/terminal/aliases/{name}"),
 ]
 
@@ -633,6 +637,12 @@ ACKNOWLEDGED_FRONTEND_GATES = {
     "app/src/pages/terminal/TerminalShell.panelCount.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/terminal/TerminalShell.reorder.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/terminal/TerminalShell.scanBoard.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    # 2026-10-08/09 audit waves 2-3: first visit, MINE/ALRT/MON, and the trimmed list.
+    "app/src/pages/terminal/TerminalShell.firstVisit.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.myNames.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.trim.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.headlineRun.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.wave4.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/breadth/drill/BreadthDrillModal.withdrawal.test.jsx":
         "TEST: fakes `cohorts_withdrawn` to drive the drill withdrawal block",
 }

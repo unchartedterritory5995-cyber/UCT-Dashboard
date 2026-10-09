@@ -1,0 +1,61 @@
+/* "No data for XYZ — check the ticker" + the names the server suggests. App tokens only. */
+.inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-sm);
+  min-width: 0;
+}
+
+.message {
+  color: var(--text);
+}
+
+.suggest {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 4px;
+  color: var(--text-muted);
+}
+
+.label {
+  margin-right: 2px;
+}
+
+.item {
+  white-space: nowrap;
+}
+
+.plain {
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.link {
+  font: inherit;
+  font-weight: 600;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-bright);
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+.link:hover,
+.link:focus-visible {
+  color: var(--accent);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (max-width: 1024px) {
+  .link {
+    min-height: var(--tap-min);
+  }
+}

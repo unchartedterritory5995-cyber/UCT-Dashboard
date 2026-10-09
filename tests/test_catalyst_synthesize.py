@@ -371,3 +371,65 @@ def test_malformed_synthesis_logs_raw_output(s, monkeypatch, caplog):
             result = synthesize.synthesize_ticker(c, "2026-10-05")
     assert result["thesis_status"] == "malformed"
     assert "Rationale: not json at all" in caplog.text
+
+
+# ── 2026-10-08: a reply that PARSES but is not a usable write-up ───────────
+# The 10-05 fix covered unparseable replies. A reply that parses to the wrong
+# shape still reached the store: a JSON list crashed synthesize_ticker (the
+# row was skipped with no fallback tried), a non-string thesis was stored as-is
+# (the panels call .split on it), and a double-encoded / fenced thesis was shown
+# to members as raw JSON text. Each must go to the fallback model, and never be
+# stored as the thesis.
+
+def _fallback_rescues(primary_reply, s_fixture_monkeypatch):
+    monkeypatch = s_fixture_monkeypatch
+    monkeypatch.setattr(synthesize, "OPUS_MODEL", "claude-opus-5")
+    monkeypatch.setattr(synthesize, "HAIKU_FALLBACK", "claude-haiku-4-5")
+    c = _candidate(tweets=[{"id": "1", "text": "x", "author_handle": "h", "url": "u"}])
+    good = json.dumps({"thesis": "**AMD** rose on a data-center deal (News).",
+                       "tag": "News", "grade": "A", "source_urls": ["https://x"]})
+
+    def side_effect(model, prompt, system):
+        if model == "claude-opus-5":
+            return (_mock_opus_response(primary_reply), 900, 300)
+        return (_mock_opus_response(good), 900, 120)
+
+    with patch("api.services.catalyst.synthesize._call_anthropic", side_effect=side_effect):
+        return synthesize.synthesize_ticker(c, "2026-10-08")
+
+
+@pytest.mark.parametrize("reply", [
+    '[{"thesis": "AMD rose.", "tag": "News"}]',                     # a list, not an object
+    '{"thesis": {"text": "AMD rose."}, "tag": "News"}',             # non-string thesis
+    '{"thesis": ["AMD rose."], "tag": "News"}',
+    '{"thesis": "   ", "tag": "News"}',                              # blank
+    '{"thesis": "{\\"thesis\\": \\"**AMD** rose 4% after", "tag": "News"}',  # double-encoded, truncated
+    '{"thesis": "```json\n{\\"thesis\\": \\"AMD\\"}\n```", "tag": "News"}',  # fenced JSON as prose
+])
+def test_wrong_shaped_reply_is_never_stored_and_falls_back(s, monkeypatch, reply):
+    result = _fallback_rescues(reply, monkeypatch)
+    assert result["thesis_status"] == "ok"
+    assert result["thesis_model"] == "claude-haiku-4-5"
+    assert result["thesis_text"] == "**AMD** rose on a data-center deal (News)."
+
+
+def test_wrong_shaped_reply_from_both_models_is_malformed_with_no_thesis(s):
+    c = _candidate(tweets=[{"id": "1", "text": "x", "author_handle": "h", "url": "u"}])
+    with patch("api.services.catalyst.synthesize._call_anthropic",
+               return_value=(_mock_opus_response('[{"thesis": "x"}]'), 10, 5)):
+        result = synthesize.synthesize_ticker(c, "2026-10-08")
+    assert result["thesis_status"] == "malformed"
+    assert result["thesis_text"] is None
+
+
+def test_written_thesis_fields_are_coerced_to_display_types(s):
+    c = _candidate(tweets=[{"id": "1", "text": "x", "author_handle": "h", "url": "u"}])
+    payload = {"thesis": "  AMD rose.  ", "tag": "News", "grade": "a",
+               "catalyst_type": ["Contract"], "source_urls": "https://one"}
+    with patch("api.services.catalyst.synthesize._call_anthropic",
+               return_value=(_mock_opus_response(json.dumps(payload)), 10, 5)):
+        result = synthesize.synthesize_ticker(c, "2026-10-08")
+    assert result["thesis_text"] == "AMD rose."
+    assert result["grade"] == "A"
+    assert result["catalyst_type"] is None          # not a string -> unknown, never "['Contract']"
+    assert json.loads(result["thesis_sources"]) == ["https://one"]

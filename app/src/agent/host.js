@@ -57,6 +57,7 @@ export function buildChartSource({ chartApiById, getWidgets }) {
           ref: e.ref, label: `${name} (${e.r.symbol})`, position: pos || null,
           symbol: e.r.symbol, tf: e.r.tf, cs: e.r.cs, stored: e.r.stored,
           linkedCount, group: e.r.groupKey,
+          view: e.api.agent.view?.() || null,
         },
       }
     })
@@ -67,6 +68,13 @@ export function buildChartSource({ chartApiById, getWidgets }) {
     commit: (ref, patch) => {
       const e = entries().find(x => x.ref === ref)
       return e ? e.api.agent.commit(patch) : false
+    },
+    // The Time Navigator's jump on this chart (a view; see ChartWidget's adapter).
+    goTo: (ref, ms) => {
+      const e = entries().find(x => x.ref === ref)
+      if (!e?.api.agent.goToDate) return false
+      e.api.agent.goToDate(ms)
+      return true
     },
   }
 }
@@ -127,6 +135,7 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
         grid: widgetOps.grid?.() || null,
         minOf: (w) => widgetOps.minOf?.(w) || { minW: 2, minH: 3 },
         repack: (widgets, id, rect) => widgetOps.repack?.(widgets, id, rect) || null,
+        resize: (widgets, id, rect, handle) => widgetOps.resize?.(widgets, id, rect, handle) || null,
         themeAll: (widgets, themeId) => widgetOps.themeAll?.(widgets, themeId) || null,
       }
     },

@@ -44,6 +44,7 @@ import TodaysBrief from './calendar/TodaysBrief'
 import WeekView from './calendar/WeekView'
 import MonthView from './calendar/MonthView'
 import DayDetailDrawer from './calendar/DayDetailDrawer'
+import MineNotice from './calendar/MineNotice'
 import styles from './calendar/Calendar.module.css'
 
 // ── Helpers ported verbatim from the original Calendar.jsx ──────────────────
@@ -51,6 +52,24 @@ import styles from './calendar/Calendar.module.css'
 
 // D-10: one stable empty registry, so turning the boost off does not re-tier every render.
 const NO_BUCKETS = Object.freeze([])
+
+// Audit wave 2 (ERN P2 #3): the next-report lookup (`ERN SYM` for a name outside the loaded
+// week) had no deadline, so a hung request left the modal unopened until the next SWR
+// revalidation happened to re-run the resolver (~2 min). Past this it opens unresolved.
+export const NEXT_REPORT_TIMEOUT_MS = 8000
+/** fetch that REJECTS at `ms` even if the network ignores the abort signal. */
+export function fetchWithDeadline(url, ms = NEXT_REPORT_TIMEOUT_MS) {
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null
+  let timer
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      try { ctl?.abort() } catch { /* already settled */ }
+      reject(Object.assign(new Error('next-report lookup timed out'), { timeout: true }))
+    }, ms)
+  })
+  const req = fetch(url, ctl ? { signal: ctl.signal } : undefined)
+  return Promise.race([req, deadline]).finally(() => clearTimeout(timer))
+}
 
 function fmtWeekRange(start, end) {
   const s = new Date(start + 'T00:00:00')
@@ -96,7 +115,9 @@ function currentMonthCursor() {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-export default function Calendar() {
+// `mine` (terminal `CAL MINE`, wave 3 lane 13): this week scoped to the member's own names, for this
+// panel only -- the saved audience filter is never written. Outside the terminal it is never set.
+export default function Calendar({ mine = false } = {}) {
   // ── URL time state: /calendar?week=YYYY-MM-DD&d=YYYY-MM-DD (deep-linkable) ──
   const [searchParams, setSearchParams] = useSearchParams()
   const rawWeek = searchParams.get('week')
@@ -218,7 +239,7 @@ export default function Calendar() {
   // Merged over the saved filters right before the views consume them; a
   // fresh object per render matches how `filters` itself already behaves.
   const [quickQ, setQuickQ] = useState('')
-  const effFilters = { ...filters, q: quickQ }
+  const effFilters = { ...filters, q: quickQ, ...(mine ? { audience: 'mine' } : {}) }
 
   // Event type filter — persisted as array (Set not JSON-serializable). KEY
   // BUMPED to _v2: macro used to be a locked always-on chip, so every legacy
@@ -438,7 +459,7 @@ export default function Calendar() {
       return
     }
     resolveRef.current = want
-    fetch(`/api/calendar/next-report?sym=${encodeURIComponent(want)}`)
+    fetchWithDeadline(`/api/calendar/next-report?sym=${encodeURIComponent(want)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         // Stale-response guard (Task 14): this ask may have been superseded
@@ -852,7 +873,7 @@ export default function Calendar() {
     return (
       <div className={styles.page}>
         {headerEl}
-        <div className={styles.error}>
+        <div className={styles.error} role="alert">
           Couldn&apos;t load that week.{' '}
           <button className="btn btn-secondary btn-sm" onClick={() => mutate()}>Retry</button>
         </div>
@@ -882,6 +903,9 @@ export default function Calendar() {
       {headerEl}
 
       <div className={styles.body}>
+        {mine && (
+          <MineNotice view={view} shown={weekCounts.total} sources={mySources} loading={mySets === undefined} />
+        )}
         {indexEventsOn && view !== 'wire' && (
           <IndexEventsBand weekStart={data.week_start} weekEnd={data.week_end} />
         )}

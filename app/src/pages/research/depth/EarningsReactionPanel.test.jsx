@@ -33,6 +33,13 @@ const renderTab = (flags = { earnings_reaction_panel_enabled: true }) => render(
 )
 
 describe('EarningsReactionPanel', () => {
+  it('explains Run-in, Gap, Reaction and Drift in one line (audit wave 2)', async () => {
+    renderTab()
+    const help = await screen.findByTestId('earnings-reaction-help')
+    expect(help.textContent).toMatch(/Run-in: the 5 sessions before the report/)
+    expect(help.textContent).toMatch(/Drift: the 5 sessions after the report day/)
+  })
+
   it('is not rendered when its flag is off', () => {
     renderTab({ filing_search_enabled: true })
     expect(screen.queryByTestId('earnings-reaction-panel')).not.toBeInTheDocument()

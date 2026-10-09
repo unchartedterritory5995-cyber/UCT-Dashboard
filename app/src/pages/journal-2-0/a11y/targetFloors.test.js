@@ -578,6 +578,15 @@ describe('KEYS3 F2: touch floors on the template chip and in the import wizard',
     expect(is44(floor(wiz, '.excludeRow', 'min-height'))).toBe(true)
   })
 
+  // Finish program, the walk's last F2 row: a group's "All" button measured 38 x 44 -- the
+  // height floor was there and the WIDTH was the label's. Both bulk buttons get both floors.
+  it('the import wizard\'s bulk buttons ("All"/"None", "Select all"/"Select none") are 44 px wide and tall', () => {
+    for (const sel of ['.groupBulkBtn', '.bulkBtn']) {
+      expect(is44(floor(wiz, sel, 'min-width')), `${sel} min-width`).toBe(true)
+      expect(is44(floor(wiz, sel, 'min-height')), `${sel} min-height`).toBe(true)
+    }
+  })
+
   it('CONTROL: the helper reads no floor from a sheet that has none', () => {
     const none = rulesWithMedia('.destSelect { padding: 8px 10px; } @media (max-width: 640px) { .destSelect { min-height: 44px; } }')
     expect(floor(none, '.destSelect', 'min-height')).toBeUndefined()

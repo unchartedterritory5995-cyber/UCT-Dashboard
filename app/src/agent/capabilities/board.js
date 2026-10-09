@@ -25,6 +25,8 @@ import { BASE_GROUPS, NOT_LINKED } from '../../pages/charts/colorGroups'
 import { PRESET_SCANS } from '../../pages/charts/widgets/ScannerPicker'
 import { CHART_THEMES, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
 import { positionWord } from '../host'
+import { addChartTab, closeChartTab, setActiveChartTab, renameChartTab, patchChartTab, chartTabList, sanitizeChartTabs } from '../../pages/charts/chartTabs'
+import { CHART_TIMEFRAMES } from './chart'
 
 const LABEL = labelMap('menu')
 const label = (t) => LABEL[t] || t
@@ -43,7 +45,7 @@ function snapOf(host) {
   // The member's own watchlists (id → name) for widget.showList — the same rows the watchlist
   // capabilities read; prebuilt, flagged and linked-copy lists are not offered there either.
   const lists = new Map((host?.watchlists?.snapshot?.() || []).map(l => [String(l.id), l.name]))
-  return { ref: 'board', label: 'Board', raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, themeAll: s.themeAll, lists }
+  return { ref: 'board', label: 'Board', raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, lists }
 }
 const nameOf = (w, all) => {
   const pos = positionWord(w, all)
@@ -122,6 +124,36 @@ export const boardKind = {
   },
 }
 
+
+// widget.resize: the dragged-edge rectangle → the product's resolveResize (neighbours shrink).
+// The board's own resolver (the drag handles' resolveResize) shrinks each neighbour on its own
+// and then clamps the resized widget to the tightest one — so a step a neighbour can only partly
+// give leaves a gap beside the others. Ask for the LARGEST step the board grants in full: `by`,
+// then `by-1`, … — the first whose result grows the widget by exactly that much (no gap, ever).
+function resizeOf(st, env, t, edge, by) {
+  for (let step = by; step >= 1; step--) {
+    const next = resizeStep(st, env, t, edge, step)
+    if (!next) continue
+    const a = next.find(w => w.id === t.id)
+    const grew = edge === 'left' || edge === 'right' ? a.w - t.w : a.h - t.h
+    if (grew === step) return next
+  }
+  return by >= 1 ? null : resizeStep(st, env, t, edge, by)
+}
+function resizeStep(st, env, t, edge, by) {
+  const r = { x: t.x, y: t.y, w: t.w, h: t.h }
+  const handle = { left: 'w', right: 'e', top: 'n', bottom: 's' }[edge]
+  if (edge === 'right') r.w += by
+  else if (edge === 'left') { r.x -= by; r.w += by }
+  else if (edge === 'bottom') r.h += by
+  else if (edge === 'top') { r.y -= by; r.h += by }
+  const g = env.target.grid
+  r.x = Math.max(0, r.x); r.y = Math.max(0, r.y)
+  r.w = Math.min(r.w, g.cols - r.x); r.h = Math.min(r.h, g.rows - r.y)
+  const { minW, minH } = env.target.minOf(t)
+  if (r.w < minW || r.h < minH) return null
+  return env.target.resize(st.board, t.id, r, handle)
+}
 // ── shared checks ──
 function widgetOf(st, id) { return st.board.find(w => w.id === String(id)) || null }
 function problemSentence(st, env, board) {
@@ -137,6 +169,24 @@ function problemSentence(st, env, board) {
   return `That would overlap the ${nm} with another widget.`
 }
 const notOnBoard = (id) => `There's no widget “${id}” on this board — use an id from the board entry.`
+
+// ── chart tabs (the ChartTabStrip's own reducers, pages/charts/chartTabs.js) ──
+// A tab is addressed as "main" (the widget's own chart), its 1-based position among the extra
+// tabs ("1", "2"…), or its label. Its link colour is the tab's colour group (main = the widget's).
+function tabsOf(w) {
+  const { tabs, active } = sanitizeChartTabs(w.opts)
+  return chartTabList(w.opts).map((t, i) => ({
+    key: i === 0 ? 'main' : String(i), id: t.id, label: t.label, active: i === active,
+    color: i === 0 ? (w.color || 'A') : (tabs[i - 1]?.color || 'A'),
+  }))
+}
+function findTab(w, tab) {
+  const all = tabsOf(w)
+  const q = String(tab ?? '').trim().toLowerCase()
+  return all.find(t => t.key === q) || (q === 'main tab' || q === 'first' ? all[0] : null)
+    || (all.filter(t => t.label.toLowerCase() === q).length === 1 ? all.find(t => t.label.toLowerCase() === q) : null)
+}
+const MAX_CHART_TABS = 8
 
 let registered = false
 export function registerBoardCapabilities() {
@@ -158,6 +208,7 @@ export function registerBoardCapabilities() {
           ...(w.type === 'watchlist' ? { shows: w.opts?.watchName || (w.opts?.source ? 'a list chosen by UCT' : null) } : {}),
           ...(w.type === 'scanner' ? { shows: w.opts?.scanName || null } : {}),
           ...(Array.isArray(w.wtabs) && w.wtabs.length ? { tabs: w.wtabs.length + 1 } : {}),
+          ...(w.type === 'chart' && sanitizeChartTabs(w.opts).tabs.length ? { chartTabs: tabsOf(w).map(t => ({ tab: t.key, label: t.label, ...(t.active ? { active: true } : {}), link: t.color })) } : {}),
         })),
       }]
     },
@@ -363,4 +414,165 @@ export function registerBoardCapabilities() {
       return `Applied the ${CHART_THEME_BY_ID[theme]?.name || theme} chart theme to ${n > 1 ? `all ${n} charts` : n === 1 ? 'the chart' : 'this layout'}`
     },
   })
-}
+
+  // ── widget.resize: the custom resize handles' own resolveResize ──
+  registerCapability({
+    ...common,
+    name: 'widget.resize',
+    summary: 'Resize ONE widget by moving one of its edges, exactly like dragging that edge: the widget the edge moves into shrinks (never below its minimum); nothing leaves the board.',
+    hints: 'target = the ref of the board entry; widget = its id; edge = left | right | top | bottom; by = cells to move the edge OUTWARD (positive = bigger, negative = smaller). '
+      + '"Make my watchlist narrower and give the chart more space" = resize the CHART toward the watchlist (the watchlist shrinks), or the watchlist inward then widget.arrange fill on the chart.',
+    args: { type: 'object', properties: {
+      widget: widgetArg, edge: { type: 'string', enum: ['left', 'right', 'top', 'bottom'] }, by: { type: 'integer' },
+    }, required: ['widget', 'edge', 'by'], additionalProperties: false },
+    check(st, { widget, edge, by }, env) {
+      const t = widgetOf(st, widget)
+      if (!t) return notOnBoard(widget)
+      if (!Number.isInteger(by) || by === 0 || Math.abs(by) > 24) return 'Say how many cells to move the edge (1–24, negative to shrink).'
+      if (!env?.target?.resize) return 'The board is not available.'
+      const next = resizeOf(st, env, t, edge, by)
+      if (!next) return 'The board could not resize that.'
+      return problemSentence(st, env, next)
+    },
+    apply(st, { widget, edge, by }, env) {
+      const t = widgetOf(st, widget)
+      const next = resizeOf(st, env, t, edge, by)
+      return !next || next.every((w, i) => GEOM.every(k => w[k] === st.board[i]?.[k])) ? st : { ...st, board: next }
+    },
+    describe(b, a, { widget, by }) {
+      const t0 = b.board.find(w => w.id === String(widget)), t1 = a.board.find(w => w.id === String(widget))
+      if (!t0 || !t1 || GEOM.every(k => t0[k] === t1[k])) return null
+      const others = changedIds(b.board, a.board).filter(id => id !== t1.id).length
+      const grew = Math.abs((t1.w - t0.w) || (t1.h - t0.h))
+      const short = by > grew ? ` — ${grew} of the ${by} asked; a neighbour is at its minimum size` : ''
+      return `Resized the ${nameOf(t0, b.board)} to ${t1.w}×${t1.h} cells${others ? ` (${others} neighbour${others === 1 ? '' : 's'} gave up the space)` : ''}${short}`
+    },
+    noop: () => "It can't grow that way — its neighbour is already at its minimum size, or it is at the board's edge",
+  })
+
+  // ── chart tabs ──
+  const chartWidget = (st, widget) => {
+    const t = widgetOf(st, widget)
+    if (!t) return { why: notOnBoard(widget) }
+    if (t.type !== 'chart') return { why: `The ${label(t.type)} isn't a chart widget.` }
+    return { t }
+  }
+  const setOpts = (st, t, opts) => (same(opts, t.opts) ? st : { ...st, board: st.board.map(w => (w.id === t.id ? { ...w, opts } : w)) })
+  const tabArg = { type: 'string' }
+  const tabHint = 'tab = "main" (the widget\'s own chart), the extra tab\'s position "1", "2"… or its label, from the board entry\'s chartTabs.'
+
+  registerCapability({
+    ...common,
+    name: 'chart.addTab',
+    summary: 'Add a new chart TAB to a chart widget (the tab strip\'s "+"), on the same link colour as the tab showing now, and switch to it.',
+    hints: `target = the ref of the board entry; widget = the chart widget's id; timeframe = ${CHART_TIMEFRAMES.join('|')} or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab).`,
+    args: { type: 'object', properties: { widget: widgetArg, timeframe: { type: ['string', 'null'], enum: [...CHART_TIMEFRAMES, null] }, name: { type: ['string', 'null'] } }, required: ['widget', 'timeframe', 'name'], additionalProperties: false },
+    check(st, { widget }) {
+      const { t, why } = chartWidget(st, widget)
+      if (why) return why
+      return sanitizeChartTabs(t.opts).tabs.length >= MAX_CHART_TABS ? `That chart already has ${MAX_CHART_TABS} extra tabs.` : null
+    },
+    apply(st, { widget, timeframe, name }) {
+      const { t } = chartWidget(st, widget)
+      const activeColor = tabsOf(t).find(x => x.active)?.color || t.color || 'A'
+      let opts = addChartTab(t.opts || {}, { color: activeColor, tf: timeframe || 'D' })
+      if (name) { const { tabs } = sanitizeChartTabs(opts); opts = renameChartTab(opts, tabs[tabs.length - 1].id, name) }
+      return setOpts(st, t, opts)
+    },
+    describe(b, a, { widget }) {
+      const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
+      if (!o || !n || same(o.opts, n.opts)) return null
+      const tabs = tabsOf(n)
+      return `Added a chart tab “${tabs[tabs.length - 1].label}” to the ${nameOf(o, b.board)} and switched to it`
+    },
+  })
+  registerCapability({
+    ...common,
+    name: 'chart.selectTab',
+    summary: 'Switch a chart widget to one of its tabs (clicking the tab).',
+    hints: `target = the ref of the board entry; widget = the chart widget's id; ${tabHint}`,
+    args: { type: 'object', properties: { widget: widgetArg, tab: tabArg }, required: ['widget', 'tab'], additionalProperties: false },
+    check(st, { widget, tab }) {
+      const { t, why } = chartWidget(st, widget)
+      if (why) return why
+      return findTab(t, tab) ? null : `That chart has no tab “${tab}”.`
+    },
+    apply(st, { widget, tab }) {
+      const { t } = chartWidget(st, widget)
+      return setOpts(st, t, setActiveChartTab(t.opts || {}, tabsOf(t).indexOf(tabsOf(t).find(x => x.key === findTab(t, tab).key))))
+    },
+    describe(b, a, { widget, tab }) {
+      const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
+      return o && n && !same(o.opts, n.opts) ? `Switched the ${nameOf(o, b.board)} to its “${findTab(n, tab)?.label || tab}” tab` : null
+    },
+    noop: () => 'That tab is already showing',
+  })
+  registerCapability({
+    ...common,
+    name: 'chart.closeTab',
+    summary: 'Close one EXTRA tab of a chart widget (its settings go with it; Undo brings it back exactly). The main tab cannot be closed.',
+    hints: `target = the ref of the board entry; widget = the chart widget's id; ${tabHint}`,
+    args: { type: 'object', properties: { widget: widgetArg, tab: tabArg }, required: ['widget', 'tab'], additionalProperties: false },
+    check(st, { widget, tab }) {
+      const { t, why } = chartWidget(st, widget)
+      if (why) return why
+      const x = findTab(t, tab)
+      if (!x) return `That chart has no tab “${tab}”.`
+      return x.key === 'main' ? "The chart's main tab can't be closed — remove the widget instead." : null
+    },
+    apply(st, { widget, tab }) {
+      const { t } = chartWidget(st, widget)
+      return setOpts(st, t, closeChartTab(t.opts || {}, findTab(t, tab).id))
+    },
+    describe(b, a, { widget, tab }) {
+      const o = b.board.find(w => w.id === String(widget))
+      return o ? `Closed the “${findTab(o, tab)?.label || tab}” tab of the ${nameOf(o, b.board)}` : null
+    },
+  })
+  registerCapability({
+    ...common,
+    name: 'chart.renameTab',
+    summary: 'Rename a chart widget\'s tab (double-click on the tab).',
+    hints: `target = the ref of the board entry; widget = the chart widget's id; ${tabHint} name = the new label (24 characters at most).`,
+    args: { type: 'object', properties: { widget: widgetArg, tab: tabArg, name: { type: 'string' } }, required: ['widget', 'tab', 'name'], additionalProperties: false },
+    check(st, { widget, tab, name }) {
+      const { t, why } = chartWidget(st, widget)
+      if (why) return why
+      if (!findTab(t, tab)) return `That chart has no tab “${tab}”.`
+      return String(name || '').trim() ? null : 'What should the tab be called?'
+    },
+    apply(st, { widget, tab, name }) {
+      const { t } = chartWidget(st, widget)
+      return setOpts(st, t, renameChartTab(t.opts || {}, findTab(t, tab).id, name))
+    },
+    describe(b, a, { widget, name }) {
+      const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
+      return o && n && !same(o.opts, n.opts) ? `Renamed the tab to “${String(name).trim().slice(0, 24)}”` : null
+    },
+    noop: () => 'It already has that name',
+  })
+  registerCapability({
+    ...common,
+    name: 'chart.linkTab',
+    summary: 'Set the link colour of one chart TAB (the tab\'s colour dot): tabs and widgets with the same colour follow the same symbol.',
+    hints: `target = the ref of the board entry; widget = the chart widget's id; ${tabHint} color = ${BASE_GROUPS.map(c => `${c} (${LINK_NAME[c]})`).join(', ')} — a tab is always linked to a colour. "Two tabs with linked symbols" = give both the same colour.`,
+    args: { type: 'object', properties: { widget: widgetArg, tab: tabArg, color: { type: 'string', enum: [...BASE_GROUPS] } }, required: ['widget', 'tab', 'color'], additionalProperties: false },
+    check(st, { widget, tab, color }) {
+      const { t, why } = chartWidget(st, widget)
+      if (why) return why
+      if (!findTab(t, tab)) return `That chart has no tab “${tab}”.`
+      return BASE_GROUPS.includes(color) ? null : `Tab colours are ${BASE_GROUPS.join(', ')}.`
+    },
+    apply(st, { widget, tab, color }) {
+      const { t } = chartWidget(st, widget)
+      const x = findTab(t, tab)
+      if (x.key === 'main') return t.color === color ? st : { ...st, board: st.board.map(w => (w.id === t.id ? { ...w, color } : w)) }
+      return setOpts(st, t, patchChartTab(t.opts || {}, x.id, { color }))
+    },
+    describe(b, a, { widget, tab, color }) {
+      const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
+      if (!o || !n || (same(o.opts, n.opts) && o.color === n.color)) return null
+      return `Linked the “${findTab(n, tab)?.label || tab}” tab to the ${LINK_NAME[color]} group (${color})`
+    },
+    noop: () => 'That tab already has that link colour',
+  })}

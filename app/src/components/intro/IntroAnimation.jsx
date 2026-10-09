@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { prefersReducedMotion, hasSeenIntroThisSession, markIntroSeenThisSession } from './introStorage'
+import { prefersReducedMotion, hasSeenIntroToday, markIntroSeenToday } from './introStorage'
 import useFocusTrap from '../mobile/useFocusTrap'
 import compassMark from './assets/compass-mark.png'
 import parchmentMark from './assets/parchment-mark.png'
@@ -26,18 +26,19 @@ export default function IntroAnimation() {
     setPhase('done')
   }, [])
 
-  // Plays once per browser session: the first full page load shows the cinematic;
-  // refreshes / returns within the same session skip straight to the app (no
-  // repeated ~9s gate). Internal route changes don't remount App, so it never
-  // replays during in-app navigation.
+  // Plays once per day per browser (Eastern Time date, owner decision 2026-10-08):
+  // the first page load of the day shows the cinematic; every later load that day,
+  // in any tab, skips straight to the app. Internal route changes don't remount
+  // App, so it never replays during in-app navigation. Reduced motion keeps its
+  // own short version on the same daily gate.
   useEffect(() => {
     if (phase !== 'idle') return
     if (loading) return
-    if (hasSeenIntroThisSession()) {
+    if (hasSeenIntroToday()) {
       setPhase('done')
       return
     }
-    markIntroSeenThisSession()
+    markIntroSeenToday()
     setPhase('playing')
   }, [phase, loading])
 

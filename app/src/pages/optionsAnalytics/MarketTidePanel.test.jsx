@@ -94,6 +94,17 @@ describe('MarketTidePanel (FT-056)', () => {
     await waitFor(() => expect(calls.some((u) => u.endsWith('scope=etfs'))).toBe(true))
   })
 
+  it('audit 2026-10-08: the chart carries a premium y-axis and an ET time axis', async () => {
+    vi.stubGlobal('fetch', vi.fn((u) => { calls.push(u); return respond(200, PAYLOAD) }))
+    mount()
+    await screen.findByTestId('market-tide-chart')
+    const yLabels = [...screen.getByTestId('market-tide-y-axis').querySelectorAll('text')].map((t) => t.textContent)
+    expect(yLabels).toEqual(['+$78K', '$0'])
+    const xLabels = [...screen.getByTestId('market-tide-x-axis').querySelectorAll('text')].map((t) => t.textContent)
+    expect(xLabels).toEqual(['09:30 ET', '09:31 ET', '12:05 ET'])
+    expect(screen.getByTestId('market-tide-chart').getAttribute('aria-label')).toContain('09:30 to 12:05 ET, from $0 to +$78K')
+  })
+
   it('money() signs and scales; tidePaths needs two minutes', () => {
     expect(money(40000)).toBe('+$40K')
     expect(money(-1_250_000)).toBe('-$1.3M')

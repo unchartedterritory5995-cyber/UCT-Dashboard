@@ -26,6 +26,7 @@
 
 import { CROSSHAIR_MODES, crosshairModeOf } from './crosshairMode'
 import { LEGEND_MODES, legendModeOf } from './legendMode'
+import { CHART_DEFAULTS } from './chartDefaults'
 
 export const CHART_SETTINGS_DESCRIPTOR_VERSION = 1
 
@@ -44,8 +45,20 @@ export const TEXT_SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40]
 export const SWING_SENS = [['low', 'Low'], ['medium', 'Med'], ['high', 'High']]
 export const EVENT_MARKERS = [['earnings', 'Earnings'], ['splits', 'Splits'], ['dividends', 'Dividends'], ['news', 'News'], ['desk', 'Desk mentions']]
 export const PDL_LINES = [['high', 'Prev-day high'], ['low', 'Prev-day low'], ['close', 'Prev-day close']]
+export const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
+export const PDL_WIDTHS = [1, 2, 3, 4]
+// Watermark size scale (× the base per-role font, shown as %) and font weights.
+export const WM_SIZES = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4]
+export const WM_WEIGHTS = [[300, 'Thin'], [400, 'Light'], [500, 'Regular'], [600, 'Medium'], [700, 'Bold'], [800, 'Heavy']]
+// The watermark's lines; the 3rd element marks a default-OFF line (logo).
+export const WM_LINES = [['logo', 'Logo', true], ['ticker', 'Ticker'], ['interval', 'Interval'], ['company', 'Company'], ['sector', 'Sector'], ['industry', 'Industry'], ['theme', 'Theme']]
 
 const BAR_TYPES = ['bars', 'hlc']
+// UI prerequisites that are another SETTING (the dialog only shows the control while it holds).
+const WHEN_WATERMARK = { setting: 'watermark.visible', value: true, why: 'Turn the watermark on first — its details only apply while it is shown.' }
+const WHEN_SWING = { setting: 'swingLabels.enabled', value: true, why: 'Turn swing labels on first — their options only apply while they are shown.' }
+const WHEN_CROSSHAIR = { setting: 'crosshair.mode', not: 'off', why: 'The crosshair is off — turn it on first to change its color.' }
+const whenPdl = (k) => ({ setting: `prevDayLevels.${k}.enabled`, value: true, why: `Turn the ${k} prev-day line on first — its style only applies while it is shown.` })
 const vals = (xs) => xs.map(x => (Array.isArray(x) ? x[0] : (x && typeof x === 'object' ? x.val : x)))
 
 // ── eligible: typed, validated, writable by the Agent ──
@@ -69,7 +82,22 @@ const ELIGIBLE = [
     requires: { chartType: BAR_TYPES, why: 'Bar thickness only applies to Bars and HLC charts — the Price Style tab shows it only for those types.' } }),
   E('countdown', 'markers', 'Bar-close countdown', 'bool', { ui: 'Chart Settings → Markers → Countdown (intraday)', words: ['countdown', 'bar countdown'] }),
   E('swingLabels.enabled', 'markers', 'Swing labels', 'bool', { ui: 'Chart Settings → Markers → Swing labels', words: ['swing labels'] }),
-  E('swingLabels.sensitivity', 'markers', 'Swing label sensitivity', 'enum', { options: vals(SWING_SENS), ui: 'Chart Settings → Markers → Swing labels' }),
+  E('swingLabels.sensitivity', 'markers', 'Swing label sensitivity', 'enum', { options: vals(SWING_SENS), ui: 'Chart Settings → Markers → Swing labels', requires: WHEN_SWING }),
+  // ── Batch 6: promoted from `known` (every one a plain field set in the dialog) ──
+  E('swingLabels.tintByType', 'markers', 'Swing labels tinted by high/low', 'bool', { ui: 'Chart Settings → Markers → Swing labels', requires: WHEN_SWING }),
+  E('swingLabels.bgEnabled', 'markers', 'Swing label background', 'bool', { ui: 'Chart Settings → Markers → Swing labels', requires: WHEN_SWING, default: true }),
+  E('grid.color', 'canvas', 'Grid color', 'color', { ui: 'Chart Settings → Canvas → Grid' }),
+  E('crosshair.color', 'canvas', 'Crosshair color', 'color', { ui: 'Chart Settings → Canvas → Crosshair', requires: WHEN_CROSSHAIR }),
+  E('textColor', 'canvas', 'Scale text color', 'color', { ui: 'Chart Settings → Canvas → Scale text' }),
+  E('watermark.sizeScale', 'watermark', 'Watermark size', 'enum', { options: WM_SIZES, ui: 'Chart Settings → Canvas → Watermark', requires: WHEN_WATERMARK }),
+  E('watermark.weight', 'watermark', 'Watermark weight', 'enum', { options: vals(WM_WEIGHTS), ui: 'Chart Settings → Canvas → Watermark', requires: WHEN_WATERMARK }),
+  ...WM_LINES.map(([k, label, defOff]) => E(`watermark.lines.${k}`, 'watermark', `Watermark ${label.toLowerCase()} line`, 'bool',
+    { ui: 'Chart Settings → Canvas → Watermark', requires: WHEN_WATERMARK, default: !defOff })),
+  ...PDL_LINES.flatMap(([k, label]) => [
+    E(`prevDayLevels.${k}.style`, 'markers', `${label} line style`, 'enum', { options: vals(LINE_STYLES), ui: 'Chart Settings → Markers → Prev-day levels', requires: whenPdl(k) }),
+    E(`prevDayLevels.${k}.width`, 'markers', `${label} line width`, 'enum', { options: PDL_WIDTHS, ui: 'Chart Settings → Markers → Prev-day levels', requires: whenPdl(k) }),
+    E(`prevDayLevels.${k}.color`, 'markers', `${label} line color`, 'color', { ui: 'Chart Settings → Markers → Prev-day levels', requires: whenPdl(k) }),
+  ]),
   ...EVENT_MARKERS.map(([k, label]) => E(`markers.${k}`, 'markers', `${label} markers`, 'bool',
     { ui: 'Chart Settings → Markers → Events', words: [`${label.toLowerCase()} markers`, `${label.toLowerCase()} marker`] })),
   ...PDL_LINES.map(([k, label]) => E(`prevDayLevels.${k}.enabled`, 'markers', `${label} line`, 'bool',
@@ -99,10 +127,7 @@ const OWNED = [
 const K = (id, section, label, ui) => ({ id, section, label, agent: 'known', ui })
 const KNOWN = [
   K('bgGradient.*', 'canvas', 'Gradient background colors', 'Chart Settings → Canvas → Background'),
-  K('textColor', 'canvas', 'Scale text color', 'Chart Settings → Canvas'),
-  K('grid.color', 'canvas', 'Grid color', 'Chart Settings → Canvas → Grid'),
   K('crosshair.enabled', 'canvas', 'Crosshair (legacy on/off)', 'Chart Settings → Canvas → Crosshair'),
-  K('crosshair.color', 'canvas', 'Crosshair color', 'Chart Settings → Canvas → Crosshair'),
   K('crosshair.style', 'canvas', 'Crosshair line style', 'Chart Settings → Canvas → Crosshair'),
   K('crosshair.width', 'canvas', 'Crosshair line width', 'Chart Settings → Canvas → Crosshair'),
   K('crosshair.magnet', 'canvas', 'Crosshair magnet', 'Chart Settings → Canvas → Crosshair'),
@@ -128,24 +153,19 @@ const KNOWN = [
   K('volume.plotStyle', 'volume', 'Volume plot style', 'Chart Settings → Indicators → Volume'),
   K('watermark.opacity', 'watermark', 'Watermark opacity', 'Chart Settings → Canvas → Watermark'),
   K('watermark.color', 'watermark', 'Watermark color', 'Chart Settings → Canvas → Watermark'),
-  K('watermark.sizeScale', 'watermark', 'Watermark size', 'Chart Settings → Canvas → Watermark'),
-  K('watermark.weight', 'watermark', 'Watermark weight', 'Chart Settings → Canvas → Watermark'),
   K('watermark.lines.*', 'watermark', 'Watermark lines (ticker/company/sector…)', 'Chart Settings → Canvas → Watermark'),
   K('watermark.x', 'watermark', 'Watermark position', 'right-click → Move watermark'),
   K('watermark.y', 'watermark', 'Watermark position', 'right-click → Move watermark'),
   K('drawingDefaults.*', 'drawings', 'Default drawing style', 'drawing → Save as default'),
   K('hideDrawings', 'drawings', 'Hide all drawings', 'not on /charts (other chart surfaces)'),
   K('swingLabels.color', 'markers', 'Swing label color', 'Chart Settings → Markers'),
-  K('swingLabels.tintByType', 'markers', 'Swing labels tinted by type', 'Chart Settings → Markers'),
   K('swingLabels.upColor', 'markers', 'Swing high color', 'Chart Settings → Markers'),
   K('swingLabels.downColor', 'markers', 'Swing low color', 'Chart Settings → Markers'),
-  K('swingLabels.bgEnabled', 'markers', 'Swing label background', 'Chart Settings → Markers'),
   K('swingLabels.bg', 'markers', 'Swing label background color', 'Chart Settings → Markers'),
   K('markers.ipo', 'markers', 'IPO marker', 'Chart Settings → Markers'),
   K('markers.earningsBeat', 'markers', 'Earnings beat color', 'Chart Settings → Markers'),
   K('markers.earningsMiss', 'markers', 'Earnings miss color', 'Chart Settings → Markers'),
   K('markers.ipoColor', 'markers', 'IPO marker color', 'Chart Settings → Markers'),
-  ...PDL_LINES.flatMap(([k, label]) => ['color', 'style', 'width'].map(f => K(`prevDayLevels.${k}.${f}`, 'markers', `${label} line ${f}`, 'Chart Settings → Markers → Prev-day levels'))),
   K('darkPool.*', 'markers', 'Dark-pool levels (paid)', 'Chart Settings → Markers → Dark pool'),
   K('heikinAshi', 'priceStyle', 'Heikin Ashi', 'not on /charts (other chart surfaces)'),
   K('theme', 'canvas', 'Light/dark palette (Shift+T)', 'Shift+T on the chart'),
@@ -163,6 +183,10 @@ const INTERNAL = [
 export const CHART_SETTING_DESCRIPTORS = [...ELIGIBLE, ...SPECIALIZED, ...OWNED, ...KNOWN, ...INTERNAL]
 
 export const ELIGIBLE_SETTINGS = ELIGIBLE
+// The top-level keys other projects own (Indicator Intelligence: instances, panes, overlays).
+// A whole-look write by UCT Agent (template, restore defaults) carries these over from the
+// chart UNCHANGED — the Agent never adds, removes or resets an indicator.
+export const OWNED_TOP_KEYS = [...new Set(OWNED.map(d => d.id.split('.')[0]))]
 export const settingDescriptor = (id) => CHART_SETTING_DESCRIPTORS.find(d => d.id === id) || null
 
 /** The descriptor that classifies a settings PATH (exact id first, then the nearest `x.*`). */
@@ -187,7 +211,21 @@ export function settingValue(settings, d) {
   if (d.id === 'header.legendMode') return legendModeOf(settings)
   const v = getPath(settings, d.id)
   if (v !== undefined) return v
+  // A missing key reads as the dialog shows it: the descriptor's `default` (e.g. a watermark
+  // line that is ON unless turned off), else the CHART_DEFAULTS value, else off.
+  if (d.default !== undefined) return d.default
+  const dv = getPath(CHART_DEFAULTS, d.id)
+  if (dv !== undefined) return dv
   return d.type === 'bool' ? false : undefined
+}
+
+const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i
+/** "#abc" / "abc" / "#aabbcc" → "#aabbcc"; anything else → null. */
+export function normalizeHex(raw) {
+  const m = HEX.exec(String(raw || '').trim())
+  if (!m) return null
+  const h = m[1].length === 3 ? m[1].split('').map(c => c + c).join('') : m[1]
+  return `#${h.toLowerCase()}`
 }
 
 /**
@@ -213,6 +251,11 @@ export function coerceSettingValue(d, raw) {
     }
     return { ok: false, why: `${d.label} can be ${d.options.join(', ')}` }
   }
+  if (d.type === 'color') {
+    // The dialog's colour picker writes a hex colour into the same key.
+    const hex = normalizeHex(raw)
+    return hex ? { ok: true, value: hex } : { ok: false, why: `${d.label} needs a hex color such as #2962ff` }
+  }
   return { ok: false, why: `${d.label} has no supported type` }
 }
 
@@ -220,6 +263,12 @@ export function coerceSettingValue(d, raw) {
 export function settingUnavailable(d, settings) {
   const r = d?.requires
   if (r?.chartType && !r.chartType.includes(settings?.chartType || 'candles')) return r.why
+  if (r?.setting) {
+    const dep = settingDescriptor(r.setting)
+    const cur = dep ? settingValue(settings, dep) : getPath(settings, r.setting)
+    if ('value' in r && cur !== r.value) return r.why
+    if ('not' in r && cur === r.not) return r.why
+  }
   return null
 }
 

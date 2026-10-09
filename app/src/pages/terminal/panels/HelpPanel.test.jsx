@@ -4,13 +4,34 @@
 // with no `flag` property is always available and carries no marker at all.
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import HelpPanel from './HelpPanel'
+import HelpPanel, { scopeLabel } from './HelpPanel'
 import { BY_CODE, flagOn } from '../functions'
 
 // TECH ('researchTechnicalTabEnabled') and FTD ('researchDepth.ftd_dataset_enabled') are both
 // real registry entries with a `ticker.flag` -- used here as the enabled/disabled pair rather
 // than inventing fixture codes, so the test exercises the real registry's real shapes (a plain
 // key and a dotted Depth key). HELP (market, no flag) stands in for the unflagged case.
+
+describe('HELP says which codes leave the terminal (audit 2026-10-08)', () => {
+  it('a door that leaves the terminal is marked; an embedded panel is not', () => {
+    expect(scopeLabel(BY_CODE.JRNL)).toBe('market (opens a page)')
+    expect(scopeLabel(BY_CODE.GEX)).toBe('security (opens a page) · market (opens a page)')
+    expect(scopeLabel(BY_CODE.MB)).toBe('security · market (opens a page)')
+    expect(scopeLabel(BY_CODE.FA)).toBe('security')
+    expect(scopeLabel(BY_CODE.MOST)).toBe('market')
+  })
+
+  it('lane C doors (DESK, NB, RES) are marked; panel codes (U20, REL, HELP) are not', () => {
+    for (const code of ['DESK', 'NB', 'RES']) expect(scopeLabel(BY_CODE[code])).toContain('opens a page')
+    for (const code of ['U20', 'REL', 'HELP']) expect(scopeLabel(BY_CODE[code])).not.toContain('opens a page')
+  })
+
+  it('the list a member reads carries the marker', () => {
+    render(<HelpPanel auth={{}} />)
+    expect(screen.getByText('Journal').closest('button').textContent).toContain('opens a page')
+    expect(screen.getByText('Financials').closest('button').textContent).not.toContain('opens a page')
+  })
+})
 
 describe('HelpPanel per-member flag markers', () => {
   it('a code with a disabled flag shows the disabled marker', () => {

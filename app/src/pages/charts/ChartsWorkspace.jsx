@@ -677,7 +677,7 @@ function clampActiveToNeighbors(widgets, activeId, handle) {
 // to yield the space along the resize axis, stop the active at any neighbour that
 // hit its min, and clamp to the viewport. `active` is {i,x,y,w,h}; `handle` gives
 // the resize direction.
-function resolveResize(widgets, active, handle) {
+export function resolveResize(widgets, active, handle) {
   const withActive = widgets.map(w =>
     (w.id === active.i ? { ...w, x: active.x, y: active.y, w: active.w, h: active.h } : w))
   const A = withActive.find(w => w.id === active.i)
@@ -2906,6 +2906,9 @@ export default function ChartsWorkspace() {
     // A DROP, computed (pure): the moved widget lands at `rect` and every other widget
     // re-tiles around it — exactly handleDragStop's repackAroundMoved.
     repack: (widgets, id, rect) => repackAroundMoved(widgets, id, rect),
+    // A RESIZE, computed (pure): the custom resize handles' own resolveResize — the edge moves,
+    // the neighbour it moves into shrinks (never below its minimum), everything stays on the grid.
+    resize: (widgets, id, rect, handle) => resolveResize(widgets, { i: id, ...rect }, handle),
     // The "all charts" theme result (pure) — applyThemeToAllCharts' own computation.
     themeAll: (widgets, themeId) => {
       const t = CHART_THEME_BY_ID[themeId]
@@ -2996,6 +2999,7 @@ export default function ChartsWorkspace() {
       grid: () => agentWidgetOpsRef.current.grid(),
       minOf: (w) => agentWidgetOpsRef.current.minOf(w),
       repack: (ws, id, rect) => agentWidgetOpsRef.current.repack(ws, id, rect),
+      resize: (ws, id, rect, handle) => agentWidgetOpsRef.current.resize(ws, id, rect, handle),
       themeAll: (ws, themeId) => agentWidgetOpsRef.current.themeAll(ws, themeId),
       applyBoard: (p) => agentWidgetOpsRef.current.applyBoard(p),
     },

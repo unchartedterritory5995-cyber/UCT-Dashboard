@@ -438,11 +438,17 @@ def research_compare_explain(sym: str = Depends(sym_path), comparator: str = Dep
 
 
 @router.post("/api/research/snapshot-batch")
-def research_snapshot_batch(tickers: list[str] = Body(..., embed=True)):
+def research_snapshot_batch(tickers: list[str] = Body(..., embed=True),
+                           session: bool = Body(False, embed=True)):
     """Compact snapshot (market cap / next earnings / UCT rating) for a BATCH of
     tickers — powers the Watchlist's optional Market Cap / Next Earnings / UCT Rating
     columns. Bounded parallel over get_snapshot (each internally cached), capped at 100.
     Only the three fields the columns need, to keep the payload small.
+
+    Wave 5: ``session: true`` (the terminal headline) adds ``next_earnings_session`` —
+    'bmo' / 'amc' / None — read from the earnings calendar data ALREADY cached for that
+    date (``calendar.cached_report_session``: no build, no provider call). Callers that do
+    not ask (the Watchlist) get the payload unchanged.
     """
     syms = list(dict.fromkeys(
         (t or "").upper().strip() for t in (tickers or []) if t and t.strip()
@@ -495,6 +501,19 @@ def research_snapshot_batch(tickers: list[str] = Body(..., embed=True)):
         ftd = {}
     for sym in out:
         out[sym]["ipo_date"] = ftd.get(sym)
+
+    if session:
+        try:
+            from api.routers.calendar import cached_report_session
+        except Exception:
+            cached_report_session = None
+        for sym, val in out.items():
+            ne = val.get("next_earnings")
+            try:
+                val["next_earnings_session"] = (
+                    cached_report_session(sym, ne) if (cached_report_session and ne) else None)
+            except Exception:
+                val["next_earnings_session"] = None
     return out
 
 
@@ -502,7 +521,18 @@ def research_snapshot_batch(tickers: list[str] = Body(..., embed=True)):
 def research_snapshot(sym: str = Depends(sym_path)):
     """Consolidated ratings + key fundamentals for the glanceable snapshot card."""
     try:
-        return get_snapshot(sym)
+        snap = get_snapshot(sym)
+        # Wave-2 audit: a snapshot with no identity and no numbers, for a symbol that is not a
+        # ticker, carries the additive `not_found` marker (api/services/symbol_presence.py).
+        # The provider-failure branch below never does.
+        from api.services.symbol_presence import mark_if_empty
+        # (`name` falls back to the symbol itself when no provider named the company.)
+        empty = (isinstance(snap, dict)
+                 and snap.get("name") in (None, "", sym)
+                 and not snap.get("sector")
+                 and snap.get("composite") is None
+                 and not any(v is not None for v in (snap.get("metrics") or {}).values()))
+        return mark_if_empty(snap, sym, empty)
     except Exception as exc:
         _logger.warning("research snapshot failed for %s: %s", sym, exc)
         return {"sym": (sym or "").upper(), "name": None, "sector": None, "industry": None,

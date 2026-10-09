@@ -89,7 +89,7 @@ def test_term_structure_needs_two_expirations_with_an_atm_read():
                            None, 2, [], TODAY)
     assert two["term"]["drawable"] is True
     p = two["term"]["points"][0]
-    assert p["atm_strike"] == 100 and p["atm_basis"] == "call and put averaged"
+    assert p["atm_strike"] == 100 and p["atm_basis"] == "average of the call and put IV at that strike"
     assert abs(p["atm_iv"] - 0.31) < 1e-9 and p["dte"] == 15
 
 
@@ -219,3 +219,12 @@ def test_quote_time_is_read_from_the_snapshot_in_nanoseconds():
     assert row["quote_time"] == "2026-10-03T04:00:00+00:00"
     assert row["quote_timeframe"] == "REAL-TIME"
     assert po._normalize_contract({"last_quote": {}})["quote_time"] is None
+
+
+def test_the_basis_and_side_rule_are_plain_words_wave3():
+    """Wave 3 (OVS P2 #20): the panel prints atm_basis and side_rule verbatim."""
+    two = vs.build_surface("SPY", [_chain("2026-10-16"), _chain("2026-11-20")], None, 2, [], TODAY)
+    rule = two["grid"]["side_rule"]
+    assert "spot" not in rule and "the put below the stock price" in rule
+    one_side = vs.build_expiration(_chain("2026-10-16", puts=[]), TODAY)
+    assert one_side["atm_basis"] == "call IV only (no usable put quote at that strike)"

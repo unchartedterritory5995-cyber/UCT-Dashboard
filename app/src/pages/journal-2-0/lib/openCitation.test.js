@@ -13,6 +13,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   openDocumentPage, resolveDocumentPage, DOCUMENT_GONE, SOURCE_NOWHERE,
+  citedPassage, passageNavigationState, passageFromNavigationState, openSpanningCitation,
 } from './openCitation'
 
 const PDF_ROW = {
@@ -147,5 +148,82 @@ describe('openDocumentPage — the note already open is never "opened"', () => {
     expect(await openDocumentPage(nav('dz', 3, 'n1'), { openDocument: vi.fn(), openNote, hereNoteId: 'n9' }))
       .toBeNull()
     expect(openNote).toHaveBeenCalledWith({ id: 'n1' })
+  })
+})
+
+// ⛔⛔ Fin walk 8.3 — a NOTE citation from a spanning scope carries its passage to
+// the note it opens, and ONLY to that note. The guards here are the ones the
+// end-to-end rail (NotebookTab.citationLanding.test.jsx) cannot drive through the
+// UI: a state addressed to another note, and a source that names no passage.
+const NOTE_SOURCE = {
+  n: 1, type: 'note', label: 'CRWD plan', citation: 'exact',
+  snippet: 'CRWD breakout plan. Planned entry 412.50 on a close above the base high.',
+  navigation: { kind: 'note', note_id: 'n1' },
+  location: { from: 29, to: 34, fingerprint: 'f:1', snippet_start: 28, snippet_end: 33, text: 'entry' },
+}
+
+describe('citedPassage — what a note citation hands the note it opens', () => {
+  it('a located note citation names its note, its range and the text AT the range (not the snippet)', () => {
+    expect(citedPassage(NOTE_SOURCE)).toEqual({ noteId: 'n1', location: NOTE_SOURCE.location, text: 'entry' })
+  })
+
+  it('a packet without the range\'s own text (an older server, "This note") verifies on its snippet', () => {
+    const { text: _dropped, ...loc } = NOTE_SOURCE.location
+    expect(citedPassage({ ...NOTE_SOURCE, location: loc }).text).toBe(NOTE_SOURCE.snippet)
+  })
+
+  it('a note-level source (no range) names no passage -- the note opens as before', () => {
+    expect(citedPassage({ ...NOTE_SOURCE, citation: 'note_only', location: {} })).toBeNull()
+    expect(citedPassage({ ...NOTE_SOURCE, location: null })).toBeNull()
+  })
+
+  it('a range with nothing to verify it names no passage; an atom needs no text', () => {
+    expect(citedPassage({ ...NOTE_SOURCE, snippet: '', location: { from: 1, to: 6 } })).toBeNull()
+    const atom = { from: 1, to: 2, atom: { type: 'documentExcerpt', id: 'ex1' } }
+    expect(citedPassage({ ...NOTE_SOURCE, snippet: '', location: atom })).toEqual({ noteId: 'n1', location: atom, text: '' })
+  })
+
+  it('a citation that is not a note names no passage, whatever its location says', () => {
+    expect(citedPassage({ ...NOTE_SOURCE, navigation: { kind: 'excerpt', excerpt_id: 'ex1' } })).toBeNull()
+    expect(citedPassage({ ...NOTE_SOURCE, navigation: { kind: 'note' } })).toBeNull()
+  })
+})
+
+describe('passageFromNavigationState — addressed to ONE note', () => {
+  const passage = citedPassage(NOTE_SOURCE)
+  const state = passageNavigationState(passage)
+
+  it('answers for the note the passage names', () => {
+    expect(passageFromNavigationState(state, 'n1')).toBe(passage)
+  })
+
+  it('⛔ answers NOTHING for any other note -- a state that outlives its entry cannot scroll an unrelated open', () => {
+    expect(passageFromNavigationState(state, 'n2')).toBeNull()
+    expect(passageFromNavigationState(state, null)).toBeNull()
+  })
+
+  it('a bare entry (no state, or some other state) carries no passage', () => {
+    expect(passageFromNavigationState(null, 'n1')).toBeNull()
+    expect(passageFromNavigationState(undefined, 'n1')).toBeNull()
+    expect(passageFromNavigationState({ somethingElse: 1 }, 'n1')).toBeNull()
+  })
+})
+
+describe('openSpanningCitation — a note citation opens its note WITH the passage', () => {
+  it('hands the host\'s openNote the passage in NotebookTab\'s own third argument', () => {
+    const openNote = vi.fn()
+    expect(openSpanningCitation(NOTE_SOURCE, { openNote })).toBeNull()
+    expect(openNote).toHaveBeenCalledWith({ id: 'n1' }, null, { passage: citedPassage(NOTE_SOURCE) })
+  })
+
+  it('CONTROL: a note-level citation opens the note exactly as before -- no passage, no third argument', () => {
+    const openNote = vi.fn()
+    expect(openSpanningCitation({ ...NOTE_SOURCE, citation: 'note_only', location: {} }, { openNote })).toBeNull()
+    expect(openNote).toHaveBeenCalledWith({ id: 'n1' })
+    expect(openNote.mock.calls[0]).toHaveLength(1)
+  })
+
+  it('with no host door, it says so', () => {
+    expect(openSpanningCitation(NOTE_SOURCE, {})).toBe(SOURCE_NOWHERE)
   })
 })

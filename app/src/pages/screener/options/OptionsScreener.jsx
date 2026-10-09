@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import CoverageLine from '../../../components/provenance/CoverageLine'
 import { OffLine } from '../../optionsAnalytics/OffNotice'
 import FailedRead from '../../optionsAnalytics/FailedRead'
-import { BoardFromList, useInTerminalPanel, usePanelSymbolRows } from '../../../components/terminal'
+import { BoardFromList, PanelSymbol, useInTerminalPanel, usePanelSymbolRows } from '../../../components/terminal'
 import styles from './OptionsScreener.module.css'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import Input from '../../../components/ui/Input'
@@ -34,6 +34,26 @@ const FIELDS = [
   ['oi_min', 'OI min', 'number'], ['volume_min', 'Volume min', 'number'],
   ['iv_min', 'IV % min', 'number'], ['iv_max', 'IV % max', 'number'],
 ]
+
+// Audit 2026-10-08 (OSCR, point 20): a member reads "AAA Nov 20 '26 $90 Put", not the OCC code
+// "AAA261120P00090000". Built from the row's own fields; the raw code stays as the title. A row
+// missing any field falls back to the code, never to a half-built label.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+export const typeLabel = (t) => {
+  const s = String(t || '').toLowerCase()
+  return s === 'call' ? 'Call' : s === 'put' ? 'Put' : (t || '—')
+}
+export function contractLabel(r) {
+  const raw = String(r?.contract || '').replace(/^O:/, '')
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(r?.expiration || ''))
+  const strike = Number(r?.strike)
+  const type = String(r?.type || '').toLowerCase()
+  if (!r?.underlying || !m || !Number.isFinite(strike) || !['call', 'put'].includes(type)) return raw || '—'
+  const mon = MONTHS[Number(m[2]) - 1]
+  if (!mon) return raw || '—'
+  const k = Number.isInteger(strike) ? String(strike) : strike.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+  return `${r.underlying} ${mon} ${Number(m[3])} '${m[1].slice(2)} $${k} ${typeLabel(type)}`
+}
 
 // A fraction rendered as a percent through the shared formatter (em dash when absent).
 const pct = (v, d = 1) => formatPercent(v == null ? NaN : Number(v) * 100, { decimals: d })
@@ -100,6 +120,11 @@ function Screen() {
         <button type="submit" className={styles.apply}>Apply filters</button>
         <span className={styles.muted}>{preset ? 'Filters refine the preset.' : ''}</span>
       </form>
+      {/* Audit 2026-10-08 (OSCR, point 20): the filter labels are trader shorthand. */}
+      <p className={styles.muted} data-testid="opts-filter-key">
+        DTE: days to expiry. OTM %: how far the strike is from the stock price. |Δ|: delta without its
+        sign (about 0.50 at the money). Spread %: ask minus bid as a share of the midpoint. OI: open interest.
+      </p>
       {error?.status === 422 && <p className={styles.note} data-testid="opts-bad">A filter value could not be read.</p>}
       {error && error.status !== 422 && <ReadFailed error={error} what="option screener" retry={mutate} />}
       {data?.paywalled && <p className={styles.note}>The option screener requires a paid plan.</p>}
@@ -114,19 +139,22 @@ function Screen() {
           {!data.rows?.length ? (
             <p className={styles.note} data-testid="opts-none">No contract in the {data.session} snapshot passed these filters.</p>
           ) : (
+          // Audit 2026-10-08 (OSCR, point 24): on a phone the five columns the contract label
+          // already spells out (session, underlying, type, strike, expiry) drop out, and the
+          // contract column stays pinned while the numbers scroll. The session is in the line above.
           <div className={styles.scroll}>
-            <table className={styles.grid} aria-label="Option screener results">
+            <table className={`${styles.grid} ${styles.screenGrid}`} aria-label="Option screener results">
               <thead><tr>
-                <th scope="col">Session</th><th scope="col">Contract</th><th scope="col">Und</th><th scope="col">Type</th><th scope="col">Strike</th><th scope="col">Exp</th><th scope="col">DTE</th>
+                <th scope="col" className={styles.narrowHide}>Session</th><th scope="col" className={styles.pin}>Contract</th><th scope="col" className={styles.narrowHide}>Und</th><th scope="col" className={styles.narrowHide}>Type</th><th scope="col" className={styles.narrowHide}>Strike</th><th scope="col" className={styles.narrowHide}>Exp</th><th scope="col">DTE</th>
                 <th scope="col">OTM %</th><th scope="col">Δ</th><th scope="col">IV</th><th scope="col">Bid</th><th scope="col">Ask</th><th scope="col">Spread %</th><th scope="col">OI</th><th scope="col">Vol</th>
               </tr></thead>
               <tbody>
                 {data.rows.map((r) => (
                   <tr key={r.contract}>
-                    <td className={styles.session}>{r.session} EOD</td>
-                    <td className={styles.left}>{r.contract.replace(/^O:/, '')}</td>
-                    <td className={styles.left}>{r.underlying}</td><td>{r.type}</td><td>{num(r.strike)}</td>
-                    <td>{r.expiration}</td><td>{r.dte}</td><td>{num(r.otm_pct, 1)}</td><td>{num(r.delta, 3)}</td>
+                    <td className={`${styles.session} ${styles.narrowHide}`}>{r.session} EOD</td>
+                    <th scope="row" className={`${styles.left} ${styles.pin}`} title={String(r.contract || '').replace(/^O:/, '')} data-testid="opts-contract">{contractLabel(r)}</th>
+                    <td className={`${styles.left} ${styles.narrowHide}`}><PanelSymbol sym={r.underlying} /></td><td className={styles.narrowHide}>{typeLabel(r.type)}</td><td className={styles.narrowHide}>{num(r.strike)}</td>
+                    <td className={styles.narrowHide}>{r.expiration}</td><td>{r.dte}</td><td>{num(r.otm_pct, 1)}</td><td>{num(r.delta, 3)}</td>
                     <td>{pct(r.iv)}</td><td>{num(r.bid)}</td><td>{num(r.ask)}</td><td>{num(r.spread_pct, 1)}</td>
                     <td>{int(r.open_interest)}</td><td>{int(r.volume)}</td>
                   </tr>
@@ -164,6 +192,12 @@ function Volume() {
         {data.volume_rule}{data.fallback_note ? ` ${data.fallback_note}` : ''}
       </p>
       <BoardFromList syms={volSyms} label="OSCR unusual volume" testId="oscr-vol-board" />
+      {/* Audit 2026-10-08 (OSCR, point 7): nothing to rank used to draw a header-only table. */}
+      {!rows.length ? (
+        <p className={styles.note} data-testid="opts-vol-empty">
+          No underlying has option volume in the {data.session} snapshot, so there is nothing to rank yet.
+        </p>
+      ) : (
       <div className={styles.scroll}>
         <table className={styles.grid} aria-label="Option volume ranking">
           <thead><tr><th scope="col">Session</th><th scope="col">Underlying</th><th scope="col">Volume</th><th scope="col">Calls</th><th scope="col">Puts</th><th scope="col">Own average</th><th scope="col">Ratio</th></tr></thead>
@@ -171,7 +205,7 @@ function Volume() {
             {rows.map((r) => (
               <tr key={r.underlying}>
                 <td className={styles.session}>{r.session} EOD</td>
-                <td className={styles.left}>{r.underlying}</td><td>{int(r.volume)}</td>
+                <td className={styles.left}><PanelSymbol sym={r.underlying} /></td><td>{int(r.volume)}</td>
                 <td>{int(r.call_volume)}</td><td>{int(r.put_volume)}</td>
                 <td>{r.average == null ? '—' : int(r.average)}</td>
                 <td data-testid="opts-vol-ratio">{r.ratio != null ? `${num(r.ratio, 2)}× over ${r.n_sessions} sessions` : r.note}</td>
@@ -180,6 +214,7 @@ function Volume() {
           </tbody>
         </table>
       </div>
+      )}
       <CoverageLine coverage={data.coverage} />
       {data.missing_sessions?.length > 0 && <p className={styles.muted}>Not logged: {data.missing_sessions.join(', ')}.</p>}
       <p className={styles.muted}>{data.method} Source: {data.source}.</p>
@@ -210,7 +245,7 @@ function Iv() {
               {data.ranked.map((r) => (
                 <tr key={r.underlying}>
                   <td className={styles.session}>{r.session} EOD</td>
-                  <td className={styles.left}>{r.underlying}</td><td>{pct(r.atm_iv)}</td>
+                  <td className={styles.left}><PanelSymbol sym={r.underlying} /></td><td>{pct(r.atm_iv)}</td>
                   <td>{num(r.iv_percentile, 0)}</td><td>{r.bucket}</td><td>{r.n_sessions}</td>
                 </tr>
               ))}
@@ -226,20 +261,39 @@ function Iv() {
 
 export default function OptionsScreener() {
   const [view, setView] = useState('screen')
+  const tabRefs = useRef({})
+  const uid = useId()
   // In a UCT Terminal panel the shell already insets the body; drop the page padding.
   const inset = !!useInTerminalPanel()?.inset
+  // Audit 2026-10-08 (OSCR, points 18/26): role=tab promises the ARIA tabs contract. Only the
+  // selected tab is in the Tab order; Left/Right (wrapping), Home and End move between views and
+  // focus follows; the view below is the tabpanel each tab controls.
+  const onTabKey = (e) => {
+    const i = VIEWS.findIndex(([k]) => k === view)
+    const to = { ArrowRight: (i + 1) % VIEWS.length, ArrowLeft: (i - 1 + VIEWS.length) % VIEWS.length,
+      Home: 0, End: VIEWS.length - 1 }[e.key]
+    if (to === undefined) return
+    e.preventDefault()
+    const k = VIEWS[to][0]
+    setView(k)
+    tabRefs.current[k]?.focus()
+  }
   return (
     <section className={inset ? `${styles.wrap} ${styles.wrapInPanel}` : styles.wrap} data-testid="options-screener">
-      <div className={styles.tabs} role="tablist" aria-label="Option screener views">
+      <div className={styles.tabs} role="tablist" aria-label="Option screener views" onKeyDown={onTabKey}>
         {VIEWS.map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={k === view}
+            id={`${uid}-tab-${k}`} aria-controls={`${uid}-panel`} tabIndex={k === view ? 0 : -1}
+            ref={(el) => { tabRefs.current[k] = el }}
             className={k === view ? styles.tabOn : styles.tab} onClick={() => setView(k)}>{label}</button>
         ))}
       </div>
       <p className={styles.muted}>From our own options log: the close-of-session snapshot of every listed contract, recorded once a trading day. Not a live chain.</p>
-      {view === 'screen' && <Screen />}
-      {view === 'volume' && <Volume />}
-      {view === 'iv' && <Iv />}
+      <div role="tabpanel" id={`${uid}-panel`} aria-labelledby={`${uid}-tab-${view}`}>
+        {view === 'screen' && <Screen />}
+        {view === 'volume' && <Volume />}
+        {view === 'iv' && <Iv />}
+      </div>
     </section>
   )
 }

@@ -2,8 +2,9 @@ import { useMemo } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import EChart from '../../../components/research-kit/charts/echartsCore'
-import { buildSmileOption, buildTermOption, heatOf, pct, quoteClock, quoteSpan } from './volSurface'
+import { buildSmileOption, buildTermOption, etDay, etStamp, heatOf, pct, quoteClock, quoteSpan } from './volSurface'
 import styles from './OptionsChainTab.module.css'
+import rp from '../ResearchPage.module.css'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { num } from '../../optionsAnalytics/optionsFormat'
 
@@ -33,9 +34,9 @@ function SideNote({ side, testId }) {
 export default function VolSurfacePanel({ sym, expiration }) {
   const s = (sym || '').toUpperCase().trim()
   const url = s ? `/api/research/options/${encodeURIComponent(s)}/surface?expiration=${expiration || ''}` : null
-  const { data: d, error } = useSWR(url, sectionFetcher, { refreshInterval: 60_000, revalidateOnFocus: false })
+  const { data: d, error, mutate } = useSWR(url, sectionFetcher, { refreshInterval: 60_000, revalidateOnFocus: false })
 
-  const servedDay = d?.served_at ? d.served_at.slice(0, 10) : null
+  const servedDay = d?.served_at ? etDay(d.served_at) : null
   const smile = d?.smile
   const smileOpt = useMemo(() => (smile ? buildSmileOption(smile, Number(d?.spot), servedDay) : null),
     [smile, d?.spot, servedDay])
@@ -48,7 +49,9 @@ export default function VolSurfacePanel({ sym, expiration }) {
 
   if (error) {
     return <div className={styles.note} data-testid="vol-unavailable">
-      The implied-vol surface is unavailable right now. That does not mean {s} has no options.
+      The implied-vol surface is unavailable right now. That does not mean {s} has no options.{' '}
+      {/* Audit 2026-10-08 (OVS P2 point 8): a failed read had no way to ask again. */}
+      <button type="button" className={rp.basisBtn} onClick={() => mutate()}>Retry</button>
     </div>
   }
   if (!d) return <div className={styles.note}>Loading the implied-vol surface…</div>
@@ -136,7 +139,7 @@ export default function VolSurfacePanel({ sym, expiration }) {
         {d.expirations_sampled} of {d.expirations_listed} listed expirations sampled
         {d.missing?.length ? `; not fetched: ${d.missing.map((m) => `${m.expiration} (${memberText(m.reason)})`).join('; ')}` : ''}
         {' '}· refreshed every {d.cache_seconds || 60}s
-        {d.served_at ? ` · as of ${d.served_at.replace('T', ' ').replace('+00:00', ' UTC')}` : ''}
+        {etStamp(d.served_at) ? ` · as of ${etStamp(d.served_at)}` : ''}
       </p>
     </section>
   )

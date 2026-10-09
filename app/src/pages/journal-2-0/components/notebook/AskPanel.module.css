@@ -41,6 +41,12 @@
   flex-direction: column;
   gap: 8px;
 }
+/* Hung from the toggle's LEFT edge when hanging from the right would cross the clipping
+   ancestor's left edge (PanelShell measures; see choosePanelAnchor in AskPanel.jsx). */
+.panelStart {
+  left: 0;
+  right: auto;
+}
 
 .panelHeader {
   display: flex;

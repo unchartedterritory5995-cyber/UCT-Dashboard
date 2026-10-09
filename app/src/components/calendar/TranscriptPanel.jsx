@@ -19,6 +19,7 @@
 // when it grows a search bar of its own.
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import useTranscript from '../../hooks/useTranscript'
+import { isTranscriptPending } from '../../hooks/transcriptRetry'
 import useTranscriptQuarters from '../../hooks/useTranscriptQuarters'
 import UIcon from '../ui/UIcon'
 import { escapeLiteral, findMatches, segmentsWithMatches, stepIndex } from './transcriptSearch'
@@ -260,7 +261,16 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
 
           {/* A FAILED request is not a null (TERM-033): useTranscript's
               fetcher throws, so it lands here and never on the line above. */}
-          {!isLoading && transcriptError && !transcript && (
+          {/* Wave 4: a 503 + Retry-After is the server still fetching the transcript within
+              its bounded wait (it keeps going and caches); useTranscript re-asks after the
+              header's delay. That is pending, never "the request failed". */}
+          {!isLoading && isTranscriptPending(transcriptError) && !transcript && (
+            <p className={styles.transcriptLoading} role="status" data-testid="transcript-pending">
+              Still fetching the transcript — retrying…
+            </p>
+          )}
+
+          {!isLoading && transcriptError && !isTranscriptPending(transcriptError) && !transcript && (
             <p className={styles.transcriptUnavailable} data-testid="transcript-failed">
               Could not load the transcript — the request failed.
             </p>

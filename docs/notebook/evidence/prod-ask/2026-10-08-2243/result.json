@@ -1,0 +1,96 @@
+{
+ "base": "https://uctintelligence.com",
+ "steps": [
+  {
+   "name": "login",
+   "status": 200,
+   "t": 6.7
+  },
+  {
+   "name": "me",
+   "status": 200,
+   "synthetic_domain": true,
+   "t": 6.9
+  },
+  {
+   "name": "note_created",
+   "status": 200,
+   "id_present": true,
+   "t": 9.0
+  },
+  {
+   "name": "home",
+   "state": "full",
+   "ask_doors": 1,
+   "t": 14.0
+  },
+  {
+   "name": "asked_answer",
+   "t": 19.9
+  },
+  {
+   "name": "answer",
+   "chars": 197,
+   "sources": 1,
+   "numbers": true,
+   "alert": "",
+   "page_errors": 0,
+   "t": 25.4
+  },
+  {
+   "name": "citation_opens_note",
+   "opened": true,
+   "t": 25.4
+  },
+  {
+   "name": "asked_note-answer",
+   "t": 26.4
+  },
+  {
+   "name": "note_answer",
+   "chars": 65,
+   "has_stop": true,
+   "alert": "",
+   "t": 28.3
+  },
+  {
+   "name": "writing_help_asked",
+   "t": 29.2
+  },
+  {
+   "name": "writing_help",
+   "draft_chars": 185,
+   "alert": "",
+   "t": 30.8
+  },
+  {
+   "name": "discard",
+   "note_unchanged": true,
+   "t": 32.4
+  },
+  {
+   "name": "note_removed",
+   "delete_status": 200,
+   "get_after": 404,
+   "t": 35.3
+  }
+ ],
+ "home_state": "full",
+ "answer_excerpt": "For your ZZZT plan: planned entry is 41.20 on a close above the 10-day high, with a stop at 39.80, placed under the last swing low. Your rule for the trade is no adds until two closes above 43 [1].",
+ "sources": 1,
+ "alert": "",
+ "cited_opened": true,
+ "note_answer_excerpt": "Your stop for ZZZT is 39.80, placed under the last swing low [1].",
+ "note_alert": "",
+ "draft_excerpt": "ZZZT plan: looking to enter at 41.20 once price closes above the 10-day high. Stop set at 39.80, below the last swing low. No adding to the position until there are two closes above 43.",
+ "help_alert": "",
+ "note_unchanged": true,
+ "verdict": {
+  "code": 0,
+  "why": "door present (full home); whole-Notebook answer with both numbers, 1 source(s), citation opened the note; Ask inside the note carried the stop; writing help drafted and Discard left the note unchanged; note removed"
+ },
+ "note_removed": {
+  "delete": 200,
+  "get_after": 404
+ }
+}

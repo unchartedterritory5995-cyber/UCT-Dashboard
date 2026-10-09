@@ -10,6 +10,8 @@ import path from 'node:path'
 import { AuthContext } from '../../context/AuthContext'
 
 const store = vi.hoisted(() => ({ prefs: {}, listeners: new Set(), writes: [] }))
+// A stub given the security FLAKY throws while `flaky.on` is true (the crash-retry rail).
+const flaky = vi.hoisted(() => ({ on: false }))
 
 vi.mock('../../hooks/usePreferences', () => {
   const parsePref = (raw, fallback) => {
@@ -51,6 +53,7 @@ vi.mock('./panels', async (importOriginal) => {
       if (!stubs.has(name)) {
         stubs.set(name, function Stub({ sym, volSurface, tf, focusCode }) {
           if (sym === 'BOOM') throw new Error(`stub ${name} blew up`)
+          if (sym === 'FLAKY' && flaky.on) throw new Error(`stub ${name} blew up once`)
           return (
             <div data-testid={`stub-${name}`}>
               {name}:{sym || '-'}{volSurface ? ':vol' : ''}{tf ? `:tf=${tf}` : ''}{focusCode ? `:focus=${focusCode}` : ''}
@@ -66,6 +69,12 @@ vi.mock('./panels', async (importOriginal) => {
 import TerminalShell from './TerminalShell'
 import { saveTiming } from './useTerminalLayout'
 import { CalendarRoute, TerminalRoute } from './TerminalRoutes'
+import { defaultLayout, serializeLayout } from './boardModel'
+
+// These rails drive a RETURNING member's one-panel board. A brand-new member (no saved board)
+// opens on the two-panel first-visit board instead; that has its own file
+// (TerminalShell.firstVisit.test.jsx).
+const SAVED_ONE_PANEL = serializeLayout(defaultLayout())
 
 function setViewport(width) {
   window.matchMedia = (query) => {
@@ -109,7 +118,7 @@ async function type(text) {
 beforeEach(() => {
   saveTiming.debounceMs = 0   // layout writes land at once here; the debounce has its own rail
   try { window.sessionStorage.clear() } catch { /* */ }   // the per-tab "Back to my layout" memory
-  store.prefs = {}
+  store.prefs = { terminal_layout: SAVED_ONE_PANEL }
   store.writes = []
   setViewport(1400)
   try { window.localStorage.clear() } catch { /* */ }
@@ -295,6 +304,31 @@ describe('V22: a panel that throws takes down ONLY itself', () => {
       expect(screen.getByTestId('terminal-panel-1')).toHaveTextContent('Overview:MSFT')
       expect(screen.getByTestId('terminal-shell')).toBeTruthy()
     } finally {
+      quiet.mockRestore()
+    }
+  })
+})
+
+describe('a crashed panel can be retried (audit lane C, 2026-10-08)', () => {
+  it('"Try again" remounts the panel body; re-running the same command alone never could', async () => {
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    flaky.on = true
+    try {
+      store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 1, focus: 0, panels: [
+        { code: 'FA', group: 'N', sym: 'FLAKY' }, { code: 'DES', group: 'N' },
+        { code: 'GP', group: 'A' }, { code: 'GP', group: 'A' },
+      ] }) }
+      renderAt('/terminal')
+      const panel = screen.getByTestId('terminal-panel-0')
+      await within(panel).findByTestId('terminal-panel-crashed')
+      // the cause is gone, but nothing remounts the boundary on its own
+      flaky.on = false
+      expect(within(panel).queryByText(/run FA again/)).toBeNull()
+      fireEvent.click(within(panel).getByTestId('terminal-panel-retry'))
+      expect(await within(panel).findByTestId('stub-Financials')).toHaveTextContent('Financials:FLAKY')
+      expect(within(panel).queryByTestId('terminal-panel-crashed')).toBeNull()
+    } finally {
+      flaky.on = false
       quiet.mockRestore()
     }
   })
@@ -561,6 +595,22 @@ describe('PHONE (<=640): one panel, the command line pinned first, functions in 
     const help = await screen.findByTestId('terminal-help')
     await act(async () => { fireEvent.click(within(help).getByRole('button', { name: /^DASH/ })) })
     expect(screen.getByTestId('where').textContent).toBe('/dashboard')
+  })
+})
+
+describe('wave 4 lane D: a panel header dot draws its group through the theme token, the stored hex unchanged', () => {
+  it('a linked panel paints var(--link-group-*) (ring + letter); the saved board still holds the hex', async () => {
+    store.prefs = { terminal_layout: JSON.stringify({ v: 2, count: 2, focus: 0, closed: [],
+      channels: [{ id: 'E', name: 'Group E', color: '#facc15', sym: 'EEE', history: [] }],
+      panels: [{ id: 'b', code: 'GP', channel: 'A', sym: 'AAA' }, { id: 'c', code: 'DES', channel: 'E', sym: 'EEE' }] }) }
+    renderAt('/terminal')
+    const a = screen.getByTestId('terminal-group-0')
+    const e = screen.getByTestId('terminal-group-1')
+    expect(a.style.getPropertyValue('--dot')).toBe('var(--link-group-a)')
+    expect(a.style.getPropertyValue('--dot-ink')).toBe('var(--link-group-a)')
+    expect(e.style.getPropertyValue('--dot')).toBe('var(--link-group-4)')
+    expect(e.style.getPropertyValue('--dot-ink')).toBe('var(--link-group-4)')
+    expect(JSON.parse(store.prefs.terminal_layout).channels.find((c) => c.id === 'E').color).toBe('#facc15')
   })
 })
 

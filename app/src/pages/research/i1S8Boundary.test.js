@@ -249,6 +249,9 @@ export function boundaryFindings(file, src = read(file)) {
   for (const [local, resolved] of bindings) {
     if (!namesAConcept(local)) continue
     if (inS8(resolved)) continue
+    // A HOOK renders nothing. `usePanelFreshness` hands an as-of time to the terminal panel
+    // header (audit wave 2); it is not a second freshness renderer. Only components count here.
+    if (/^use[A-Z]/.test(local)) continue
     add(0, `import:${local}`,
       `imports '${local}' from ${resolved ? key(resolved) : 'a package'}, not from `
       + 'components/provenance/')

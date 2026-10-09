@@ -29,7 +29,8 @@ export const PANEL_IMPORTERS = {
   // FA / EE on FMP (gap audit 3 + 4): the depth views, which fall back to the
   // yfinance tabs — labelled — only where FMP holds nothing.
   Financials: () => import('../../components/research/fmpDepth/FinancialsDeep'),
-  Estimates: () => import('../../components/research/fmpDepth/ConsensusEstimates'),
+  // EE: the consensus above plus BRKE's firms-acting list (folded in 2026-10-08), via an adapter.
+  Estimates: () => import('./panels/EstimatesPanel'),
   EstimateHistory: () => import('../research/tabs/EstimateHistoryTab'),
   AnalystRatings: () => import('../research/tabs/AnalystRatingsTab'),
   Ratings: () => import('../research/tabs/RatingsTab'),
@@ -51,7 +52,6 @@ export const PANEL_IMPORTERS = {
   EarningsReaction: () => import('../research/depth/EarningsReactionPanel'),
   Ftd: () => import('../research/depth/FtdPanel'),
   MentionSeries: () => import('../research/depth/MentionSeriesPanel'),
-  BrokerEstimates: () => import('../research/depth/BrokerEstimatesPanel'),
   OptionsChain: () => import('../research/tabs/OptionsChainTab'),
   IvHistory: () => import('../research/tabs/IvHistoryPanel'),
   Backtest: () => import('../research/tabs/BacktestPanel'),
@@ -61,7 +61,8 @@ export const PANEL_IMPORTERS = {
   OptionsScreener: () => import('../screener/options/OptionsScreener'),
   MarketTide: () => import('../optionsAnalytics/MarketTidePanel'),
   StrategyScreens: () => import('../optionsAnalytics/StrategyScreensPanel'),
-  Flow: () => import('../research/tabs/FlowTab'),
+  // FlowGate: the flow tab, or (switch off) the page doors -- audit 2026-10-08, FLOW P1.
+  Flow: () => import('../research/tabs/FlowGate'),
   Help: () => import('./panels/HelpPanel'),
   Move: () => import('./panels/MovePanel'),
   // comparison analytics (feature-gaps-2026-10-06) — terminal-native panels, no page behind them
@@ -74,6 +75,11 @@ export const PANEL_IMPORTERS = {
   // theme contribution (feature-gaps-2026-10-06 #4) — terminal-native; reads the Theme Tracker's
   // own cached /api/theme-performance payload
   Imov: () => import('./panels/ImovPanel'),
+  // my names (lane 9) — terminal-native; read the routes the watchlist page and the alert bell use
+  Alerts: () => import('./panels/AlertsPanel'),
+  Watchlist: () => import('./panels/WatchlistPanel'),
+  // GRADE (wave 3, lane 11) — Compass's buy / hold / skip verdict, read-only over grade_ticker
+  Grade: () => import('./panels/GradePanel'),
 }
 
 /** The panel name a registry variant renders: its `panel`, or the panel-set id of its
@@ -109,7 +115,7 @@ export const FLUSH_PANELS = new Set(['Chart', 'Calendar'])
 /** Terminal-native panels whose rows are COMMANDS: the shell hands them `onRun` (click a row)
  *  and `onRows` (type its number + Enter) beside their props. Embedded page/tab components get
  *  neither — they are never forked to accept them. */
-export const COMMAND_PANELS = new Set(['Move', 'Rrg', 'Movers', 'Imov'])
+export const COMMAND_PANELS = new Set(['Move', 'Rrg', 'Movers', 'Imov', 'Alerts', 'Watchlist'])
 
 /** List panels whose numbered rows OPEN another function (RRG's `SYM GP`) rather than load a
  *  name: typing the row number opens it BESIDE the list, exactly as clicking the row does, so

@@ -14,7 +14,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   fetchSearchProduct, searchProductUrl, SEARCH_DECLINE,
-  SEARCH_PRODUCT_SCHEMA, SEARCH_PRODUCT_DEADLINE_MS,
+  SEARCH_PRODUCT_SCHEMA, SEARCH_PRODUCT_DEADLINE_MS, recentWindowLabel,
 } from './flowSearchFetch'
 
 /** A product shaped like the server's: exactly the two keys Search consumes. */
@@ -213,5 +213,46 @@ describe('the request carries nothing user-specific', () => {
       fetchImpl: async (url) => { seen = url; return res() },
     })
     expect(seen).toBe('/api/flow/ticker-product/AMD?source=stocks&warm_only=1')
+  })
+})
+
+
+// Wave 5: a head ticker's RECENT WINDOW (X-Flow-Window: recent) is a different answer from the
+// full history, so it is only ever used by a caller that asked to label it.
+describe('recent window (head tickers over the derivation budget)', () => {
+  const windowed = () => res(
+    { window_dates: ['10/2/2026', '10/5/2026'], sessions_total: 180, basis_complete: false },
+    { 'X-Flow-Window': 'recent', 'X-Flow-Basis-As-Of': '1791300000' },
+  )
+
+  it('asks for it only when the caller opts in', () => {
+    expect(searchProductUrl('NVDA', 'stocks')).not.toContain('recent=1')
+    expect(searchProductUrl('NVDA', 'stocks', { recent: true })).toContain('&recent=1')
+  })
+
+  it('REFUSES a windowed product the caller did not ask to label', async () => {
+    const out = await fetchSearchProduct('AMD', 'stocks', { fetchImpl: fetchOf(windowed()) })
+    expect(out).toEqual({ ok: false, reason: SEARCH_DECLINE.WINDOWED })
+  })
+
+  it('hands an opted-in caller the product plus what the window covers', async () => {
+    let asked = ''
+    const out = await fetchSearchProduct('AMD', 'stocks', {
+      acceptRecent: true,
+      fetchImpl: async (u) => { asked = u; return windowed() },
+    })
+    expect(asked).toContain('&recent=1')
+    expect(out.ok).toBe(true)
+    expect(out.product.all_directional).toHaveLength(2)
+    expect(out.window).toEqual({ kind: 'recent', sessions: 2, sessionsTotal: 180, first: '10/2/2026', last: '10/5/2026', asOf: 1791300000 })
+    expect(recentWindowLabel(out.window)).toBe(
+      'Showing the most recent 2 of 180 sessions (10/2/2026 – 10/5/2026). The full history for this ticker is too large to work out here, so older prints are not counted.')
+  })
+
+  it('CONTROL: a full product carries no window, opted in or not', async () => {
+    const out = await fetchSearchProduct('AMD', 'stocks', { acceptRecent: true, fetchImpl: fetchOf(res()) })
+    expect(out.ok).toBe(true)
+    expect(out.window).toBeUndefined()
+    expect(recentWindowLabel(null)).toBe('')
   })
 })

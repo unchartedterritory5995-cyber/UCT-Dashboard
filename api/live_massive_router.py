@@ -42,6 +42,7 @@ from fastapi import APIRouter, Query, Request, HTTPException, Depends
 # this works on the flow-worker, where web's auth.db isn't present). Same gate
 # already used by darkpool_router / dealer_positioning_router / flow_gap_autofill.
 from api.flow_admin_auth import require_flow_admin, require_flow_user
+from api.sqlite_one_step import fetch_rows_one_step
 from datetime import date, datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 import sqlite3
@@ -4151,8 +4152,13 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                     if only_ticker:
                         params.append(only_ticker.strip().upper())
                     params.append(per_day)
-            cur = conn.execute(" UNION ALL ".join(subqueries), params)
-            rows = cur.fetchall()
+            if only_ticker:
+                # L1 (2026-10-08): one GIL round-trip, not one per row. See api/sqlite_one_step.py:
+                # beside the OPRA consumer thread each row's re-acquire waits ~5 ms, which is how a
+                # 5-day NVDA read outlived the 90 s gateway in market hours.
+                rows = fetch_rows_one_step(conn, " UNION ALL ".join(subqueries), params)
+            else:
+                rows = conn.execute(" UNION ALL ".join(subqueries), params).fetchall()
             if per_day > 0:
                 _n = {}
                 for r in rows:
@@ -4187,7 +4193,9 @@ def _build_by_contract(today: str, stock_etf: str, min_hits: int,
                     if only_ticker:
                         _lq += " AND Symbol=?"
                         _lp.append(only_ticker.strip().upper())
-                    _lrows = _lconn.execute(_lq, _lp).fetchall()
+                        _lrows = fetch_rows_one_step(_lconn, _lq, _lp)   # L1: see above
+                    else:
+                        _lrows = _lconn.execute(_lq, _lp).fetchall()
                     _ask_prem_led.update(_build_session_ask_premium_ledger(_lrows, presume_sweep_ask=_presume))
                     _ask_vol_led.update(_build_session_ask_volume_ledger(_lrows, presume_sweep_ask=_presume))
         finally:
@@ -4759,12 +4767,12 @@ def _contract_has_sweep_map(sym: str, dates) -> dict:
         # indexes around; this function was written later and fell into the same trap. With the
         # steer the planner takes `idx_flow_created_symbol (CreatedDate=?)`, or `idx_flow_date` on
         # a database without the extra index — either way the day's rows, not the symbol's history.
-        for r in conn.execute(
+        for r in fetch_rows_one_step(conn,                          # L1: one GIL round-trip
             "SELECT CallPut, Strike, ExpirationDate, "
             "MAX(CASE WHEN UPPER(Type) LIKE '%SWEEP%' OR UPPER(Type) LIKE '%ISO%' "
             "         THEN 1 ELSE 0 END) "
             "FROM flow WHERE +Symbol=? AND CreatedDate IN (" + ph + ") "
-            "GROUP BY CallPut, Strike, ExpirationDate", [sym] + dates):
+            "GROUP BY CallPut, Strike, ExpirationDate", [sym] + dates, as_tuples=True):
             try:
                 sk = float(r[1])
             except (TypeError, ValueError):

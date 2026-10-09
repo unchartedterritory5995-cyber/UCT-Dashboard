@@ -36,6 +36,7 @@ describe('a 402 is the paid gate, never "couldn’t load"', () => {
   it('TRAN', () => {
     wrap(<CallsTab sym="NVDA" />)
     expect(screen.getByTestId('call-recap-paywalled').textContent).toBe('The earnings call recap requires a paid plan.')
+    expect(screen.getByTestId('call-recap-paywalled').getAttribute('data-kind')).toBe('locked')   // wave 3: PanelState
     expect(screen.queryByText(/Couldn't load/)).toBeNull()
   })
 

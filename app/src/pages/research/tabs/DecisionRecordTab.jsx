@@ -2,6 +2,7 @@ import useDecisionRecord from '../hooks/useDecisionRecord'
 import Provenance from '../../../components/provenance/Provenance'
 import { PROVIDER_ERROR } from '../../../components/provenance/availabilityContract'
 import styles from '../ResearchPage.module.css'
+import ResearchLoading from '../ResearchLoading'
 import { stageText, dropReasonText } from './decisionRecordCopy'
 
 // TERM-088 (item 15 ACC-02) -- "the decision record gets a member surface".
@@ -27,8 +28,30 @@ import { stageText, dropReasonText } from './decisionRecordCopy'
 
 const SOURCE_NAME = 'UCT Morning Wire decision record'
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+// Audit wave 2 (DR P1 #9): a row's date belongs IN the row, not only in the popover.
+// `issue_id` is the session date (YYYY-MM-DD) on the engine's record; an older record
+// with a numeric id falls back to the issue's own `sent_at` date. Read as text so no
+// timezone shift can move the day.
+function issueDateText(r) {
+  for (const v of [r && r.issue_id, r && r.sent_at]) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v ?? ''))
+    if (m) return `${MONTHS[Number(m[2]) - 1]} ${Number(m[3])}, ${m[1]}`
+  }
+  return null
+}
+
+function issueLabel(r) {
+  const date = issueDateText(r)
+  const id = String(r && r.issue_id != null ? r.issue_id : '')
+  if (date && /^\d{4}-\d{2}-\d{2}/.test(id)) return `${date} issue`
+  if (date) return `Issue ${id} · ${date}`
+  return id ? `Issue ${id} (date not recorded)` : 'Issue date not recorded'
+}
+
 function sourceLine(source, extra) {
-  const pack = source && source.pack_installed_at ? ` · Brain Pack installed ${source.pack_installed_at}` : ''
+  const pack = source && source.pack_installed_at ? ` · record updated ${source.pack_installed_at}` : ''
   // the engine's table names are internal detail, not member copy
   return `${SOURCE_NAME}${extra ? ` · ${extra}` : ''}${pack}`
 }
@@ -100,7 +123,7 @@ export default function DecisionRecordTab({ sym }) {
 
   if (isLoading) {
     return (
-      <div className={styles.fnote} data-testid="decision-record-loading">Loading the decision record…</div>
+      <div data-testid="decision-record-loading"><ResearchLoading label="Loading the decision record" /></div>
     )
   }
 
@@ -150,7 +173,7 @@ export default function DecisionRecordTab({ sym }) {
   return (
     <div className={styles.finWrap}>
       <section className={styles.card}>
-        <div className={styles.ct}>What the Morning Wire looked at, and where {ticker} died</div>
+        <div className={styles.ct}>What the Morning Wire looked at, and where {ticker} was dropped</div>
         {counts && (
           <p className={styles.fnote} data-testid="decision-record-counts">
             Considered in{' '}
@@ -180,8 +203,8 @@ export default function DecisionRecordTab({ sym }) {
                       density="ondemand"
                     />
                   </span>
-                  <span className={styles.muted}>Issue {r.issue_id}</span>
-                  {r.is_exploration ? <span className={styles.muted}>exploration pick</span> : null}
+                  <span className={styles.muted} data-testid="decision-record-issue">{issueLabel(r)}</span>
+                  {r.is_exploration ? <span className={styles.muted}>exploratory pick (a near-miss the desk looked at anyway)</span> : null}
                 </div>
                 {dropReasonText(r.drop_reason) ? <p className={styles.rowNote} data-testid="decision-record-reason">{dropReasonText(r.drop_reason)}</p> : null}
               </div>

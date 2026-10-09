@@ -69,3 +69,17 @@ describe('OSCR rows', () => {
     expect(api.publish).toHaveBeenLastCalledWith(null)
   })
 })
+
+describe('OSCR underlyings load the linked panels (wave 3 #3)', () => {
+  it('clicking an underlying in the screen runs `$UND` through the panel', async () => {
+    const api = { run: vi.fn(), publishRows: vi.fn(), publish: vi.fn(), openBoard: vi.fn(), codes: [], pageSize: 4 }
+    render(
+      <MemoryRouter><SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <PanelListContext.Provider value={api}><OptionsScreener /></PanelListContext.Provider>
+      </SWRConfig></MemoryRouter>,
+    )
+    await screen.findByRole('table', { name: 'Option screener results' })
+    fireEvent.click(screen.getByRole('button', { name: 'Load BBB' }))
+    expect(api.run).toHaveBeenCalledWith('$BBB')
+  })
+})

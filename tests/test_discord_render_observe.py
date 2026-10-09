@@ -147,6 +147,24 @@ def test_no_module_in_the_v2_package_calls_log_exception():
     assert not {k: v for k, v in offenders.items() if v}
 
 
+
+def test_a_failed_cold_preload_logs_a_SCRUBBED_traceback_not_the_token(caplog, monkeypatch, tmp_path):
+    """The cold-path modules log under their own loggers; their failure lines must carry the
+    traceback (so the first failure is visible) with the interaction-token URL redacted."""
+    from api.services.discord_render import cold_path_instrument as ci
+    from api.services.discord_render import cold_start_guard as g
+    monkeypatch.setenv(ci.RECORD_PATH_ENV, str(tmp_path / "calls.jsonl"))
+    token = "aW50ZXJhY3Rpb24tdG9rZW4"
+
+    def boom():
+        raise RuntimeError(f"PATCH https://discord.com/api/webhooks/1474900505917653142/{token}/messages/@original")
+    caplog.set_level(logging.ERROR)
+    with pytest.raises(RuntimeError):
+        g._run_one("boom", boom)
+    assert "preload of 'boom' failed" in caplog.text and "Traceback" in caplog.text
+    assert token not in caplog.text
+    assert all(r.exc_info is None for r in caplog.records), "an exc_info record re-renders the raw traceback"
+
 def test_percentile_is_nearest_rank():
     assert observe.pct([2000, 3000], 50) == 2000
     assert observe.pct([10, 20, 30], 99) == 30

@@ -78,3 +78,30 @@ describe('MentionSeriesPanel — a failed read', () => {
     expect((await screen.findByTestId('mentions-state')).textContent).toMatch(/not available right now/)
   })
 })
+
+// Audit 2026-10-08 (lane A): with no earlier measured day the summary says so in words.
+describe('MentionSeriesPanel with no earlier window', () => {
+  it('never reads "the 0 before: — a day"', async () => {
+    renderTab()
+    const t = (await screen.findByTestId('mentions-summary')).textContent
+    expect(t).not.toMatch(/the 0 before/)
+    expect(t).toContain('Last 2 measured days: 1.5 mentions a day (15% of the room); no earlier measured day to compare with yet.')
+  })
+})
+
+describe('MentionSeriesPanel in a terminal panel (wave 3 #3)', () => {
+  it('a day with mentions opens the name\'s news (CN) beside the panel; a zero or silent day does not', async () => {
+    const { PanelListContext } = await import('../../../components/terminal')
+    const { default: MentionSeriesPanel } = await import('./MentionSeriesPanel')
+    const api = { open: vi.fn() }
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <PanelListContext.Provider value={api}><MentionSeriesPanel sym="aapl" /></PanelListContext.Provider>
+      </SWRConfig>,
+    )
+    const day = await screen.findByRole('button', { name: /AAPL company news for the 2026-09-22 spike/ })
+    fireEvent.click(day)
+    expect(api.open).toHaveBeenCalledWith('AAPL CN')
+    expect(screen.getAllByRole('button', { name: /company news/ })).toHaveLength(1)
+  })
+})

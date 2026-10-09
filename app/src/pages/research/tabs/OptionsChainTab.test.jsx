@@ -52,6 +52,13 @@ describe('OptionsChainTab', () => {
     expect(screen.getByTestId('chain-source').textContent).toMatch(/Live chain from Massive \(OPRA quotes\)/)
   })
 
+  it('the as-of is on the market clock (ET), not UTC: 02:40 UTC on 9/30 is 10:40 PM on 9/29 (audit 2026-10-08)', async () => {
+    renderTab()
+    const src = (await screen.findByTestId('chain-source')).textContent
+    expect(src).toContain('as of 9/29/2026, 10:40:00 PM ET')
+    expect(src).not.toContain('UTC')
+  })
+
   it('the source line says vendor-computed, never exchange-derived, and labels the units', async () => {
     renderTab()
     const src = (await screen.findByTestId('chain-source')).textContent
@@ -72,9 +79,20 @@ describe('OptionsChainTab', () => {
     expect(atm.textContent).toContain('0.07×')        // call V/OI 88 / 1231
     // 760 < spot 764.2: the call is in the money, the put is not
     const cells = [...atm.querySelectorAll('td')]
-    const strikeAt = cells.findIndex((c) => c.textContent === '760.00')
+    const strikeAt = cells.findIndex((c) => /strike/.test(c.className))
     expect(cells[0].className).toMatch(/itm/)
     expect(cells[strikeAt + 1].className).not.toMatch(/itm/)
+    // Wave 3 (OMON P2 #27): the shading is not the only signal. The strike cell carries an ITM tag
+    // on the call side (before the number) and says it for a screen reader.
+    const tag = screen.getByTestId('itm-tag-call-760')
+    expect(tag.textContent).toBe('ITM')
+    expect(cells[strikeAt].firstChild).toBe(tag)
+    expect(cells[strikeAt].textContent).toContain('calls in the money')
+    expect(screen.queryByTestId('itm-tag-put-760')).toBeNull()
+    // 770 > 764.2: the put side is ITM, tagged after the strike
+    const put = screen.getByTestId('itm-tag-put-770')
+    expect(put.parentElement.lastChild.textContent).toMatch(/puts in the money/)
+    expect(screen.getByTestId('chain-source').textContent).toMatch(/ITM beside the strike/)
     const opts = [...screen.getByLabelText('Expiration').querySelectorAll('option')].map((o) => o.textContent)
     expect(opts[0]).toMatch(/^2026-10-23 \(-?\d+d\)$/)
     // ATM straddle mid = 21.25 + 17.15 = 38.40; / 764.2 = 5.0%
@@ -165,13 +183,16 @@ describe('OptionsChainTab on a phone', () => {
     expect(heads[0]).toBe('Strike')
     expect(heads.filter((h) => h === 'Strike')).toHaveLength(1)
     let atm = screen.getByTestId('atm-row')
-    expect(atm.firstChild.textContent).toBe('760.00')
+    expect(atm.firstChild.firstChild.textContent).toBe('760.00')
+    // the 760 call is in the money and calls are shown: the tag follows the strike
+    expect(screen.getByTestId('itm-tag-call-760').textContent).toBe('ITM')
     expect(atm.textContent).toContain('0.584')        // call delta shown
     expect(atm.textContent).not.toContain('-0.417')   // put delta hidden
     fireEvent.click(screen.getByRole('button', { name: 'Puts' }))
     atm = screen.getByTestId('atm-row')
     expect(atm.textContent).toContain('-0.417')
     expect(atm.textContent).not.toContain('0.584')
+    expect(screen.queryByTestId('itm-tag-call-760')).toBeNull()   // the shown (put) side is not ITM
     expect(screen.getByRole('button', { name: 'Puts' }).getAttribute('aria-pressed')).toBe('true')
   })
 })

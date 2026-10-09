@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { TICKER_RE } from '../../components/provenance/AbsenceReceipt'
 import UIcon from '../../components/ui/UIcon'
 import { BY_CODE } from './functions'
-import { FAVORITES_MAX, boardAddress, encodeShare, PRESET_ANY_TICKER, recentBoards, shareHref } from './boardModel'
+import { FAVORITES_MAX, boardAddress, encodeShare, groupStyle, PRESET_ANY_TICKER, recentBoards, shareHref } from './boardModel'
 import TerminalVersions from './TerminalVersions'
 import styles from './TerminalShell.module.css'
 import Input from '../../components/ui/Input'
@@ -192,7 +192,7 @@ export function RecentsMenu({ layout, library, libraryWritable = true, functionR
         <ul className={styles.menuList} data-testid="terminal-recent-entities">
           {channels.map((c) => (
             <li key={c.id} className={styles.menuInline}>
-              <span className={styles.groupDotStatic} style={{ '--dot': c.color }} role="img" aria-label={c.name}>{c.id}</span>
+              <span className={styles.groupDotStatic} style={groupStyle(c.color)} role="img" aria-label={c.name}>{c.id}</span>
               {c.history.map((s) => (
                 <button key={s} type="button" className={styles.chip} onClick={() => onRun(s, c.id)}>{s}</button>
               ))}

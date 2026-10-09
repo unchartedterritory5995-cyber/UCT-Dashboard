@@ -7,7 +7,7 @@ import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-li
 import { SWRConfig } from 'swr'
 import PeopleTab from './PeopleTab'
 import EstimateHistoryTab from './EstimateHistoryTab'
-import FilingsFeedTab, { emptyText } from './FilingsFeedTab'
+import FilingsFeedTab, { emptyText, partialText } from './FilingsFeedTab'
 
 let routes
 let status
@@ -58,6 +58,10 @@ describe('PeopleTab (COV-05)', () => {
     routes['/api/research/people/AAPL'] = PEOPLE
     wrap(<PeopleTab sym="aapl" />)
     expect((await screen.findByTestId('people-execs-source')).textContent).toContain('Source: FMP, read 2026-10-02') // vendor named, endpoint path is not member copy
+    // wave 3 (PPL): the column header says what it is, not which vendor
+    const heads = within(screen.getByTestId('people-execs')).getAllByRole('columnheader').map((h) => h.textContent)
+    expect(heads).toContain('Reported pay')
+    expect(heads.join(' ')).not.toMatch(/FMP/)
     const perica = screen.getByTestId('exec-Adrian Perica')
     const missing = within(perica).getAllByTestId('people-missing')
     expect(missing).toHaveLength(2) // since + pay
@@ -159,6 +163,13 @@ describe('FilingsFeedTab (COV-09)', () => {
     expect(link.getAttribute('href')).toBe(ROW_8K.url)
     expect(screen.getByTestId('filing-0001140361-26-033120').textContent).toContain('5.02 Departure')
     expect(screen.getByTestId('feed-source').textContent).toContain('SEC EDGAR submissions')
+    // Wave 3 (FEED P2 #20): the row's source in plain words; the column is "Details", not "8-K items"
+    expect(screen.getByTestId('filing-0001140361-26-033120').textContent).toContain('SEC company filing list')
+    expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toContain('Details')
+    expect(screen.queryByRole('columnheader', { name: '8-K items' })).toBeNull()
+    // Wave 3 (FEED P2 #24): the chip rows are named groups
+    expect(screen.getByRole('group', { name: 'Whose filings' })).toBeTruthy()
+    expect(screen.getByRole('group', { name: 'Form type' })).toBeTruthy()
   })
 
   it('pending is said in words, never an empty list', async () => {
@@ -202,9 +213,33 @@ describe('FilingsFeedTab (COV-09)', () => {
       .toBe("None: SEC's recent-filings list for this company holds no 8-K filing.")
   })
 
+  it('a stale/partial note is sentences, never a lowercase run-on with a doubled stop (audit 2026-10-08)', async () => {
+    routes['/api/research/filings-feed/AAPL'] = { state: 'stale', ticker: 'AAPL', source: 'SEC EDGAR submissions', rows: [ROW_8K],
+      reason: 'the last successful poll was 12 minutes ago', partial: 'these forms could not be read on the last poll: 4.' }
+    wrap(<FilingsFeedTab sym="AAPL" />)
+    expect((await screen.findByTestId('feed-partial')).textContent)
+      .toBe('The last successful poll was 12 minutes ago. These forms could not be read on the last poll: 4.')
+    expect(partialText({})).toBe('')
+    expect(partialText({ partial: 'x' })).toBe('X.')
+  })
+
   it('a failed request is unavailable, not "nothing filed"', async () => {
     status = 503
     wrap(<FilingsFeedTab sym="AAPL" />)
     expect((await screen.findByTestId('feed-unavailable')).textContent).toMatch(/not a finding about AAPL/)
+  })
+})
+
+describe('FilingsFeedTab market view in a terminal panel (wave 3 #3)', () => {
+  it('a market-wide filer\'s ticker loads the linked panels', async () => {
+    const { PanelListContext } = await import('../../../components/terminal')
+    routes['/api/research/filings-feed/AAPL'] = { state: 'ok', ticker: 'AAPL', source: 'SEC EDGAR submissions', rows: [ROW_8K] }
+    routes['/api/research/filings-feed'] = { state: 'ok', source: 'SEC EDGAR latest-filings feed', poll_minutes: 5, rows: [{ ...ROW_8K, ticker: 'MSFT' }], forms: {} }
+    const api = { run: vi.fn() }
+    wrap(<PanelListContext.Provider value={api}><FilingsFeedTab sym="AAPL" /></PanelListContext.Provider>)
+    await screen.findByTestId('feed')
+    fireEvent.click(screen.getByRole('button', { name: 'All market' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Load MSFT' }))
+    expect(api.run).toHaveBeenCalledWith('$MSFT')
   })
 })

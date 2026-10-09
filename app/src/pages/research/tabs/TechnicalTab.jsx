@@ -28,15 +28,19 @@ import styles from '../ResearchPage.module.css'
 // catalog or light theme recolours it like every other accent.
 const keyLevelInk = () => themeInk('--ut-gold', CHART_INK.gold)
 
-// Acronyms the fallback title-casing would mangle ("Macd", "Vsa", "Avwap").
-const ACRONYMS = { macd: 'MACD', vsa: 'VSA', avwap: 'AVWAP', vwap: 'VWAP', rsi: 'RSI', sma: 'SMA', ema: 'EMA', atr: 'ATR', htf: 'HTF', ep: 'EP' }
+// Acronyms the fallback title-casing would mangle ("Macd", "Vsa", "Avwap"). These are
+// WORDS of a setup id ("macd_bullish_cross"), not indicator ids, so they are held as the
+// upper-case acronym itself: keyed by the lower-case spelling, the table read as a hand-list
+// of indicator ids to chart/engine/__tests__/enumerationSites.test.js, and no new indicator
+// ever has to be added here.
+const ACRONYMS = new Set(['MACD', 'VSA', 'AVWAP', 'VWAP', 'RSI', 'SMA', 'EMA', 'ATR', 'HTF', 'EP'])
 
 /** The server's `setup_name` (the pattern engine's own name) when it sent one; otherwise the id,
  *  title-cased with acronyms kept (quality pass 2026-10-05: "Macd Bullish Cross"). */
 export function setupLabel(setup, name = null) {
   if (name) return name
   return (setup || '').split('_').filter(Boolean)
-    .map((w) => ACRONYMS[w.toLowerCase()] || (w[0].toUpperCase() + w.slice(1))).join(' ')
+    .map((w) => (ACRONYMS.has(w.toUpperCase()) ? w.toUpperCase() : (w[0].toUpperCase() + w.slice(1)))).join(' ')
 }
 
 // Whole ET calendar days since `asof_date` (a market date). It used to round
@@ -51,14 +55,23 @@ export function daysAgo(dateStr, now = Date.now()) {
 function VerdictCard({ v, selected, onSelect }) {
   const age = daysAgo(v.asof_date)
   const ageLabel = age == null ? '' : age <= 0 ? 'today' : age === 1 ? '1 day ago' : `${age} days ago`
+  // Wave 3 (TECH P2 #26): the whole card was a <button> wrapping <div>s and a <ul> (invalid
+  // content model), so a screen reader read the entire card as one long button name. The card is
+  // a plain box now; its title is the button (named by the setup, still a pressed toggle), and a
+  // stretched hit area keeps the whole card clickable for a mouse.
   return (
-    <button
-      type="button"
-      onClick={onSelect}
+    <div
       data-testid="technical-verdict-card"
       className={`${styles.card} ${styles.verdictCard} ${selected ? styles.verdictOn : ''}`}
     >
-      <div className={styles.ct}>{setupLabel(v.setup, v.setup_name)}</div>
+      <button
+        type="button"
+        onClick={onSelect}
+        // the selected card drives the chart below; say which one is chosen in more than colour
+        aria-pressed={!!selected}
+        className={`${styles.ct} ${styles.verdictPick}`}
+        data-testid="technical-verdict-pick"
+      >{setupLabel(v.setup, v.setup_name)}</button>
       <div className={styles.verdictLine}>
         Confirmed as of {v.asof_date || ABSENT}{ageLabel && ` (${ageLabel})`}
         {typeof v.vision_confidence === 'number' && ` · ${Math.round(v.vision_confidence)}% confidence`}
@@ -75,7 +88,7 @@ function VerdictCard({ v, selected, onSelect }) {
           ))}
         </ul>
       )}
-    </button>
+    </div>
   )
 }
 

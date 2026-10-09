@@ -49,7 +49,7 @@ describe('CatalystsTab', () => {
     const { default: FreshTab } = await import('./CatalystsTab')
     render(<FreshTab sym="NVDA" />)
     expect(screen.getByText('Loading catalyst history…')).toBeInTheDocument()
-    expect(screen.queryByText('No catalysts recorded for this ticker yet.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/No catalysts recorded for/)).not.toBeInTheDocument()
   })
 
   it('shows the honest empty-state note for a ticker the engine has never flagged -- never a blank card', async () => {
@@ -57,7 +57,7 @@ describe('CatalystsTab', () => {
     vi.doMock('../hooks/useCatalystHistory', () => ({ default: () => ({ data: { ticker: 'ZZZZ', entries: [] }, isLoading: false }) }))
     const { default: FreshTab } = await import('./CatalystsTab')
     render(<FreshTab sym="ZZZZ" />)
-    expect(screen.getByText('No catalysts recorded for this ticker yet.')).toBeInTheDocument()
+    expect(screen.getByText(/No catalysts recorded for/)).toBeInTheDocument()
     expect(screen.queryByText('Catalyst history')).not.toBeInTheDocument()
   })
 
@@ -88,12 +88,12 @@ describe('CatalystsTab -- failed read vs genuine empty state', () => {
   it('renders the error state on a failed read, not "No catalysts recorded for this ticker yet."', async () => {
     await renderWith({ data: null, isLoading: false, error: true, mutate: () => {} })
     expect(screen.getByTestId('catalysts-error')).toHaveTextContent("Couldn't load catalyst history")
-    expect(screen.queryByText('No catalysts recorded for this ticker yet.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/No catalysts recorded for/)).not.toBeInTheDocument()
   })
 
   it('still renders the genuine empty state when the read succeeded with no entries', async () => {
     await renderWith({ data: { entries: [] }, isLoading: false, error: false, mutate: () => {} })
-    expect(screen.getByText('No catalysts recorded for this ticker yet.')).toBeInTheDocument()
+    expect(screen.getByText(/No catalysts recorded for/)).toBeInTheDocument()
     expect(screen.queryByTestId('catalysts-error')).not.toBeInTheDocument()
   })
 

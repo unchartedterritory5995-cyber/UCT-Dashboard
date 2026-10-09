@@ -21,9 +21,11 @@ import { AuthContext } from '../../../context/AuthContext'
 import { FETCH_FAILED, sectionFetcher } from '../sections/sectionFetch'
 import { WARMING_UP, useWarming } from '../../../utils/warmRetry'
 import SourceLine from './SourceLine'
+import { EarningsTradeCardForSym } from '../EarningsTradeCard'
 import { UNKNOWN_CCY, fmtCount, fmtEps, fmtGrowth, fmtMoney } from './depthFormat'
 import { formatNumber, isForeignCurrency, reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
 import styles from './FmpDepth.module.css'
+import { PanelSkeleton, useInTerminalPanel } from '../../terminal'
 
 export const estimatesKey = (sym) => `/api/research/estimates/${sym}?consensus=1`
 
@@ -160,6 +162,7 @@ export default function ConsensusEstimates({ sym }) {
   // The first read after a deploy can hit a cold pod; sectionFetcher asks again once, and the
   // panel says so instead of flashing "Could not load this section" (2026-10-06).
   const warming = useWarming(s ? estimatesKey(s) : null)
+  const inPanel = useInTerminalPanel()
 
   if (!s) return null
   if (error) {
@@ -170,7 +173,9 @@ export default function ConsensusEstimates({ sym }) {
       <div className={styles.wrap} data-testid="ee-deep">
         {warming
           ? <p className={styles.note} data-testid="ee-warming">{WARMING_UP}</p>
-          : <p className={styles.note}>Loading estimates…</p>}
+          : inPanel
+            ? <PanelSkeleton label="Loading estimates" testId="ee-loading" />
+            : <p className={styles.note} data-testid="ee-loading">Loading estimates…</p>}
       </div>
     )
   }
@@ -201,6 +206,7 @@ export default function ConsensusEstimates({ sym }) {
 
   return (
     <div className={styles.wrap} data-testid="ee-deep" data-source={fmpOk ? 'fmp' : 'yfinance'}>
+      <EarningsTradeCardForSym sym={s} />
       {fmpOk ? (
         <section className={styles.card} data-testid="ee-consensus">
           <div className={styles.head}>

@@ -285,9 +285,28 @@ The automated production walk was blocked by the agent permission system, so the
 NOT-VERIFIED until a person uses them on the live site:
 
 - G-050 Ask the current note
+  ✅ **Walked on the LIVE site 2026-10-08 22:43 CT by `tools/notebook_prod_ask_check.py`** as the
+  smoke account, on a note the run created and removed: "What is my stop for ZZZT?" answered with
+  the stop from the note. Evidence `docs/notebook/evidence/prod-ask/2026-10-08-2243/` (the time is
+  the result file's write time; an earlier attempt at 22:42 CT was INCONCLUSIVE, the home skeleton
+  stayed up 45 s on a slow pod, and the retry passed). A person's own run is still welcome; it is
+  no longer the only evidence.
 - G-051 Ask the whole Notebook
+  ✅ Same run: the whole-Notebook question answered with both numbers from the note, one citation,
+  and the citation opened the note (`answer.png`, `cited-note.png`).
 - G-165 writing help: summarize, rewrite, continue, translate, property autofill
+  ✅ 22:43 CT run, **Summarize**: a 185-character draft in 1.6 s, Discard left the note byte-identical
+  on the server (`writing-help.png`). ✅ **23:14 CT run, the rest**
+  (`docs/notebook/evidence/prod-ask/2026-10-08-2314-full/`): Summarize 190 chars, Rewrite shorter 114,
+  Continue writing 464, Translate (Spanish) 215, each discarded and the note byte-identical after each;
+  Suggest values answered "Compass found nothing in this note to fill in" and Close applied nothing.
+  Only the "found nothing" branch of autofill is walked; a note with fillable properties is not.
 - G-166 Ask over an attached Word file or image
+  ✅ **Word file walked on the LIVE site 2026-10-08 23:14 CT** (same evidence folder, `docx-answer.png`): a
+  964-byte .docx uploaded through the note's attachments door reached `status=ready` in 2.4 s, and
+  "What is the budget code?" inside the note answered `QX-7731` with the document cited as source 2
+  (page 1). An image is not walked on the live site (the OCR engine is in the web image and
+  `J2_OCR_ENABLED=1`; see `RESUME-2026-10-08.md` section 5).
 - G-162 dictation
 - G-153 a task reminder at 07:00 or 09:00 ET
   ⚰️ Corrected 2026-10-06: this row WAS walked by automation, on a sandbox, in wave 15.

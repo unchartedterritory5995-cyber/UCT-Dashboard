@@ -45,11 +45,18 @@
   text-align: left;
   position: sticky;
   left: 0;
-  background: var(--bg-surface);
+  background: var(--sticky-ground, var(--bg-surface));
   z-index: 1;
 }
+/* Wave 3 (FA P2 #23, shared with EE): inside a card the frozen labels sit on the card's own ground
+   (--bg-elevated), not --bg-surface, and an even row's label carries the same 2% stripe as its row,
+   layered over that opaque ground so scrolled cells still cannot show through. */
+.card { --sticky-ground: var(--bg-elevated); }
 /* Striped on the ROW, so the sticky first cell keeps its opaque background. */
 .table tbody tr:nth-child(even) { background-color: color-mix(in srgb, var(--text-heading) 2%, transparent); }
+.table tbody tr:nth-child(even) > :first-child {
+  background-image: linear-gradient(color-mix(in srgb, var(--text-heading) 2%, transparent), color-mix(in srgb, var(--text-heading) 2%, transparent));
+}
 .table .rowHead { font-weight: 400; color: inherit; font-size: inherit; border-bottom: 0; }
 .total td, .table .total .rowHead { font-weight: 600; }
 .muted { color: var(--text-muted); }

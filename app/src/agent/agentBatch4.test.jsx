@@ -185,7 +185,7 @@ describe('capability questions — deterministic, truthful, never future-as-pres
   it('Batch 5: "Can you resize my chart widgets?" is now something the Agent DOES — a polite command, not a question', () => {
     expect(fastDiscovery('Can you resize my chart widgets?')).toBe(null)
     expect(answerFor('arrange').status).toBe('partial')
-    expect(answerFor('arrange').text).toMatch(/^Partly\. .*move or resize/)
+    expect(answerFor('arrange').text).toMatch(/^Partly\. .*move one.*resize one/)
   })
   it('"Can you create a custom indicator?" → known (Create Indicator exists), planned hand-off', () => {
     const a = answer('Can you create a custom indicator?')

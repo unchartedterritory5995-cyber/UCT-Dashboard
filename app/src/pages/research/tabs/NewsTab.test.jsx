@@ -165,4 +165,12 @@ describe('whenLabel', () => {
     // A small skew still reads "just now".
     expect(whenLabel('2026-08-09 20:02:00', Date.parse('2026-08-10T00:00:00Z'))).toBe('just now')
   })
+
+  // Audit 2026-10-08 (lane A)
+  it("an older story from an earlier year names its year, a story from this year does not", async () => {
+    const { whenLabel } = await import('./NewsTab')
+    const now = Date.parse('2026-10-08T16:00:00Z')
+    expect(whenLabel('2024-08-09 12:00:00', now)).toBe('Aug 9, 2024')
+    expect(whenLabel('2026-08-09 12:00:00', now)).toBe('Aug 9')
+  })
 })

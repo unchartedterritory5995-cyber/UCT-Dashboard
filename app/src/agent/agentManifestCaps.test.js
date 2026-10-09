@@ -13,7 +13,8 @@ const SERVER = { MAX_CAPABILITIES: L.maxCapabilities, MAX_CAP_BYTES: L.maxCapByt
 describe('the manifest fits the server caps — nothing is cut on the way to the model', () => {
   registerBuiltins()
   const m = manifestFor({ surface: 'charts' })
-  it('count', () => { expect(m.length).toBeLessThanOrEqual(SERVER.MAX_CAPABILITIES) })
+  // The catalog may exceed one request since Batch 6 (routing sends ≤ the per-request limit).
+  it('count', () => { expect(m.length).toBeLessThanOrEqual(MANIFEST_CONTRACT.catalog.maxRegistered) })
   it.each(m.map(c => [c.name, c]))('%s', (_name, c) => {
     expect(JSON.stringify(c).length).toBeLessThanOrEqual(SERVER.MAX_CAP_BYTES)
     expect(String(c.summary || '').length).toBeLessThanOrEqual(SERVER.MAX_SUMMARY)
