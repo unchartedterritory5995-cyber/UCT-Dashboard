@@ -15,7 +15,7 @@
 import { useEffect, useMemo } from 'react'
 import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
-import useCloses, { closesProvenance, failedText } from './useCloses'
+import useCloses, { closesProvenance, failedText, formingThrough } from './useCloses'
 import { RRG_METHOD, collectSymbols, rrgPath, withArgsKey } from './relativeMath'
 import styles from './comparePanels.module.css'
 
@@ -221,7 +221,8 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
         <p className={styles.note} role="status">RRG plots at most {RRG_MAX} names; not shown: {universe.dropped.join(', ')}.</p>
       )}
       <p className={styles.muted} data-testid="terminal-rrg-method">
-        Closes through {asOf}{cadence === 'W' ? ' (the newest week is still forming until Friday\'s close)' : ''}.
+        Closes through {asOf}{cadence === 'W' ? ' (the newest week is still forming until Friday\'s close)'
+          : formingThrough(state) === asOf ? ' (today\'s bar is still forming: intraday, not a close)' : ''}.
         UCT&apos;s approximation, not JdK&apos;s proprietary formula: RS = 100 × price ÷ {RRG_BENCHMARK};
         RS-Ratio = 100 × RS ÷ its {RRG_METHOD.ratioLen}-{unit} average; RS-Momentum = 100 × RS-Ratio ÷ its{' '}
         {RRG_METHOD.momLen}-{unit} average. Tails show the last {RRG_METHOD.tail} {unit}s. Click a row, or type its number, to open its chart beside this graph.
