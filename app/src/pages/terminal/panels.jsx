@@ -46,6 +46,11 @@ export const PANEL_IMPORTERS = {
   FilingChanges: () => import('../research/tabs/FilingChangesTab'),
   MyResearch: () => import('./panels/MyResearchPanel'),
   AskAi: () => import('../research/tabs/AskAiTab'),
+  // wave 7 lane D: stock-lens panels (terminal-native)
+  Peer: () => import('./panels/PeerPanel'),
+  Etf: () => import('./panels/EtfPanel'),
+  Twt: () => import('./panels/TwtPanel'),
+  Size: () => import('./panels/SizePanel'),
   Depth: () => import('./panels/DepthPanel'),
   Events: () => import('../research/depth/EventsPanel'),
   FilingSearch: () => import('../research/depth/FilingSearchPanel'),
@@ -75,6 +80,12 @@ export const PANEL_IMPORTERS = {
   // theme contribution (feature-gaps-2026-10-06 #4) — terminal-native; reads the Theme Tracker's
   // own cached /api/theme-performance payload
   Imov: () => import('./panels/ImovPanel'),
+  // market lists (wave 7, lane C) — terminal-native; read routes the dashboard tiles already serve
+  MarketNews: () => import('./panels/NewsPanel'),
+  Regime: () => import('./panels/RegimePanel'),
+  InsiderBuys: () => import('./panels/InsiderPanel'),
+  RsLeaders: () => import('./panels/RsLeadersPanel'),
+  ThemeBoard: () => import('./panels/ThemeBoardPanel'),
   // my names (lane 9) — terminal-native; read the routes the watchlist page and the alert bell use
   Alerts: () => import('./panels/AlertsPanel'),
   Watchlist: () => import('./panels/WatchlistPanel'),
