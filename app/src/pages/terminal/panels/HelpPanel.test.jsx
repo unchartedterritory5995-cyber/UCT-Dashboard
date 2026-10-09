@@ -12,6 +12,18 @@ import { BY_CODE, flagOn } from '../functions'
 // than inventing fixture codes, so the test exercises the real registry's real shapes (a plain
 // key and a dotted Depth key). HELP (market, no flag) stands in for the unflagged case.
 
+describe('HelpPanel says which codes leave the terminal', () => {
+  it('a door (PMKT, SETL, RES) says it opens a page; a panel code (U20, REL) does not', () => {
+    render(<HelpPanel auth={{}} />)
+    for (const code of ['PMKT', 'SETL', 'RES']) {
+      expect(screen.getByTestId(`terminal-help-leaves-${code}`)).toHaveTextContent('opens a page')
+    }
+    for (const code of ['U20', 'REL', 'HELP']) {
+      expect(screen.queryByTestId(`terminal-help-leaves-${code}`)).toBeNull()
+    }
+  })
+})
+
 describe('HelpPanel per-member flag markers', () => {
   it('a code with a disabled flag shows the disabled marker', () => {
     render(<HelpPanel auth={{}} />)

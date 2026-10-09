@@ -51,6 +51,14 @@ function flagFor(f) {
   return f.market?.flag || f.ticker?.flag || null
 }
 
+/** Whether running a code from HELP (bare, or on the focused panel's security) LEAVES the
+ *  terminal for a page — the same market-first variant choice as `flagFor`. The rail said so
+ *  only in a hover title (lane C audit 2026-10-08: PMKT, SETL and RES left the shell with no
+ *  word in HELP, which is where a new member looks). */
+export function leavesFor(f) {
+  return !!(f.market || f.ticker)?.leavesTerminal
+}
+
 /** The keyboard sheet: every terminal binding (from the registry's own declarations) and the
  *  command line's keys. HELP prints it; Alt+/ shows the same element over the board. */
 export function KeysTable() {
@@ -165,6 +173,7 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
                       </span>
                       <span className={styles.helpScope}>
                         {[f.ticker && 'security', f.market && 'market'].filter(Boolean).join(' · ')}
+                        {leavesFor(f) && <span data-testid={`terminal-help-leaves-${f.code}`}>{' · '}opens a page</span>}
                         {enabled != null && (
                           <span
                             className={enabled ? styles.helpFlagOn : styles.helpFlagOff}
