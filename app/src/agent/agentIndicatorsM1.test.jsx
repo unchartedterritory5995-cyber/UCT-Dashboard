@@ -163,7 +163,7 @@ describe('M1 indicator.openCreate — the Indicators opener, never /converse', (
     const h = host([LEFT(csWith([RSI, MINE]))])
     const res = await (await run(h, [open('L', null, CUSTOM)])).commit()
     expect(h.calls).toEqual([['L', { defId: CUSTOM }]])
-    expect(res.lines[0]).toMatch(/^Opened Modify on .+ in Create Indicator on Left chart \(NVDA\)\./)
+    expect(res.lines[0]).toMatch(/^Modify on .+ is open in Create Indicator on Left chart \(NVDA\)\. Nothing was created or saved/)
     for (const bad of ['u_ffffffffffff', 'rsi']) {          // not on the chart / a built-in
       const { p } = await run(h, [open('L', null, bad)])
       expect(p.ok, bad).toBe(false)
@@ -230,6 +230,30 @@ describe('M1 indicator.openCreate — the Indicators opener, never /converse', (
     const h = host([LEFT(csWith([RSI, MACD_HIDDEN], { volume: true }))])
     expect(list(h, 'L').text).toBe('2 indicators on Left chart (NVDA) (plus the Volume pane).')
     expect(list(host([LEFT(csWith([], { volume: true }))]), 'L').text).toBe('Only the Volume pane is on Left chart (NVDA) — no indicators.')
+  })
+  it('receipt matrix: every opener outcome has its own sentence, none claims more than the opener said', () => {
+    const o = (x) => ({ ok: true, prefilled: false, draft: false, editing: false, ...x })
+    const C = { chart: 'Left chart (NVDA)' }
+    const M = { ...C, defId: CUSTOM, name: 'LINREG 50' }
+    const rows = [
+      [o({ prefilled: true }), { ...C, seed: 's' }, /^Opened Create Indicator on Left chart \(NVDA\) with your request in the box — press Send/],
+      [o({}), { ...C, seed: 's' }, /^Create Indicator was already open on Left chart \(NVDA\), so I didn’t type over/],
+      [o({}), C, /^Create Indicator is open on Left chart \(NVDA\)\. Nothing/],
+      [o({ draft: true }), { ...C, seed: 's' }, /^Opened Create Indicator on Left chart \(NVDA\) — your earlier draft is open instead, so your new request was not added\./],
+      [o({ draft: true }), C, /^Opened Create Indicator on Left chart \(NVDA\) — your earlier draft is open instead\. Nothing/],
+      [o({ editing: true, prefilled: true }), { ...M, seed: 's' }, /^Opened Modify on LINREG 50 in Create Indicator on Left chart \(NVDA\), with your request in the box/],
+      [o({ editing: true }), { ...M, seed: 's' }, /^Modify on LINREG 50 is open in Create Indicator on Left chart \(NVDA\), and it was already open, so I didn’t type over/],
+      [o({ editing: true }), M, /^Modify on LINREG 50 is open in Create Indicator on Left chart \(NVDA\)\. Nothing/],
+      [o({ editing: true, draft: true }), M, /^Opened Modify on LINREG 50 in Create Indicator on Left chart \(NVDA\) — your earlier draft is open instead\. Nothing/],
+    ]
+    for (const [res, open, re] of rows) {
+      const line = openedLine(res, open)
+      expect(line, JSON.stringify(res)).toMatch(re)
+      expect(line.endsWith('Nothing was created or saved — review it there, and close the panel to cancel.')).toBe(true)
+      // apart from the fixed "Nothing was created or saved" tail and "was not added", no outcome word
+      const claims = line.replace(' Nothing was created or saved — review it there, and close the panel to cancel.', '').replace('was not added', '')
+      expect(claims, line).not.toMatch(/\b(saved|created|added|previewed|built|validated)\b/)
+    }
   })
   it('already open on the same target: the receipt says nothing was typed over (never "in the box")', () => {
     expect(openedLine({ ok: true, prefilled: false, draft: false, editing: false }, { seed: 'x', chart: 'Left chart (NVDA)' }))

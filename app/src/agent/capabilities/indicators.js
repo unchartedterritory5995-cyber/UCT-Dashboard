@@ -80,12 +80,17 @@ export function openedLine(res, open) {
     const what = res.editing || open?.defId ? `Modify on ${open?.name || 'that indicator'} in Create Indicator` : 'Create Indicator'
     return `Opened ${what}${where} — your earlier draft is open instead${open?.seed ? ', so your new request was not added' : ''}.${tail}`
   }
+  // Without a placed request the opener's answer is the same for "just opened" and "was already
+  // open" (prefilled:false either way), so these receipts say only what is true in both cases.
   if (res.editing) {
-    return `Opened Modify on ${open?.name || 'that indicator'} in Create Indicator${where}${res.prefilled ? ', with your request in the box — press Send when you’re ready.' : '.'}${tail}`
+    const modify = `Modify on ${open?.name || 'that indicator'}`
+    if (res.prefilled) return `Opened ${modify} in Create Indicator${where}, with your request in the box — press Send when you’re ready.${tail}`
+    if (open?.seed) return `${modify} is open in Create Indicator${where}, and it was already open, so I didn’t type over what’s in the box.${tail}`
+    return `${modify} is open in Create Indicator${where}.${tail}`
   }
   if (res.prefilled) return `Opened Create Indicator${where} with your request in the box — press Send when you’re ready.${tail}`
   if (open?.seed) return `Create Indicator was already open${where}, so I didn’t type over what’s in the box.${tail}`
-  return `Opened Create Indicator${where}.${tail}`
+  return `Create Indicator is open${where}.${tail}`
 }
 
 const PLACE = { price: 'price chart', pane: 'own pane' }
