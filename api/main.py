@@ -3983,9 +3983,14 @@ async def lifespan(app: FastAPI):
         # registers in the scheduler block instead
         # (tests/test_lifespan_scheduler_binds_before_use.py).
         _start_calendar_enrichment_warm_background()
+        # Perf wave 2: keep the current-week calendar slot inside its serve-stale bound all day,
+        # every day (api/routers/calendar.py::WEEKLY_REWARM_INTERVAL_S).
+        from api.routers.calendar import start_weekly_rewarm as _start_weekly_rewarm
+        _start_weekly_rewarm()
         logging.getLogger(__name__).info(
             "[startup] dashboard warm scheduled (~20s after boot); "
-            "calendar-enrichment re-warm every 240s (under the 300s TTL)")
+            "calendar-enrichment re-warm every 240s (under the 300s TTL); "
+            "calendar week re-warm every 20 min (under the 30-min stale bound)")
     except Exception:
         readiness.mark_done("dashboard")
         logging.getLogger(__name__).exception("[startup] failed to schedule dashboard warm")
