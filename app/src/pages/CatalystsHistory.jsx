@@ -13,7 +13,7 @@ import { formatET } from '../utils/timeAgo'
 import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
 import Input from '../components/ui/Input'
-import { BoardFromList, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../components/terminal'
+import { BoardFromList, PanelSkeleton, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../components/terminal'
 import { formatPercent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
 import styles from './CatalystsHistory.module.css'
 import { CATALYST_TAGS, keyedBy } from '../lib/taxonomy/a8Taxonomy'
@@ -140,7 +140,10 @@ export default function CatalystsHistory() {
       <div className={styles.tile}>
         <div className={styles.tileHeader}>
           <span className={styles.tileTitle}><UIcon name="patterns" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Top Catalysts · {date || 'pick a date'}</span>
-          <span className={styles.tileMeta}>{rows.length} {rows.length === 1 ? 'row' : 'rows'}</span>
+          {/* Audit wave 2: no "0 rows" while the day is still loading or could not be read. */}
+          {date && !isLoading && !(error && !data) && (
+            <span className={styles.tileMeta} data-testid="cath-count">{rows.length} {rows.length === 1 ? 'row' : 'rows'}</span>
+          )}
           <BoardFromList syms={daySyms} label={`CATH ${date}`} testId="cath-board" />
         </div>
 
@@ -150,14 +153,16 @@ export default function CatalystsHistory() {
           <div className={styles.empty} data-testid="cath-error">
             Catalysts for {date} could not be read right now. That is a gap in what we could read,
             not a finding that the day was quiet.{' '}
-            <button type="button" onClick={() => mutate()}>Retry</button>
+            <button type="button" className={styles.quickBtn} onClick={() => mutate()}>Retry</button>
           </div>
         ) : isLoading ? (
-          <div className={styles.empty}>Loading catalysts for {date}…</div>
+          inPanel
+            ? <PanelSkeleton label={`Loading catalysts for ${date}`} testId="cath-loading" />
+            : <div className={styles.empty} data-testid="cath-loading">Loading catalysts for {date}…</div>
         ) : rows.length === 0 ? (
           <div className={styles.empty}>
-            No catalysts recorded for this date. The engine started persisting on 2026-05-25;
-            earlier dates won't have data. Weekends + holidays may also be empty.
+            No catalysts recorded for this date. Catalyst history begins on May 25, 2026, so
+            earlier dates have none; weekends and market holidays have none either.
           </div>
         ) : (
           <div className={styles.tableWrap}>
@@ -167,7 +172,7 @@ export default function CatalystsHistory() {
                   <th scope="col" className={styles.colSym}>Sym</th>
                   <th scope="col" className={styles.colPrice}>Price</th>
                   <th scope="col" className={styles.colGap}>% Change</th>
-                  <th scope="col" className={styles.colVol}>Vol×</th>
+                  <th scope="col" className={styles.colVol}><abbr title="Volume that day as a multiple of its average daily volume">Rel. vol</abbr></th>
                   <th scope="col" className={styles.colTag}>Tag</th>
                   <th scope="col" className={styles.colThesis}>Catalyst</th>
                   <th scope="col" className={styles.colWhen}>Catalyst Time</th>
@@ -198,7 +203,7 @@ export default function CatalystsHistory() {
                           : <HighlightThesis text={r.thesis_text} />}
                         {sources.length > 0 && (
                           <span className={styles.sourceCount} title={`${sources.length} cited sources`}>
-                            · {sources.length} src
+                            · {sources.length} {sources.length === 1 ? 'source' : 'sources'}
                           </span>
                         )}
                       </td>
