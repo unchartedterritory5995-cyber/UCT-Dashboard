@@ -30,6 +30,11 @@ carries the counts left behind. Row 26 (Share) is NOT RUN on purpose: it would m
 
 ⛔ NVDA must already be running with `-m --log-level=12 --log-file=<path>`; pass that path as
 --nvda-log. The box's foreground is taken by the test browser for the run's length (~8 min).
+⛔ QUIT NVDA IN TEARDOWN, FROM POWERSHELL: `& 'C:/Program Files/NVDA/nvda.exe' -q`. A Git Bash call
+on that path answers "Permission denied" and `Stop-Process` from a bash-spawned PowerShell was
+"Access is denied" (2026-10-09 r15), so NVDA kept narrating the owner's desktop until another
+session killed it. Prefer starting it with `--config-path` at a config whose synth is `silence`:
+the level-12 log still records every `Speaking [...]` line and nothing is read aloud.
 
 R-RAW: the per-row record (every spoken line per row) is written to --out before the summary is
 printed, and the NVDA speech lines of the run window are saved beside it (lines carrying an `@`
@@ -559,6 +564,9 @@ def main(argv=None) -> int:
                 note="(script says Tab to the view switcher; the tool bar is arrow-driven; NVDA enters focus mode by itself on the combo box)")
 
             def _open_sr():
+                # Under --only the rows before this one may not have run, so the list can still be
+                # filtered to a folder (row 6 opens the SR folder). Clear it first: All notes, Enter.
+                focus_role("button", re.compile(r"^All notes"), exact=False); time.sleep(1); press("enter"); time.sleep(1.5)
                 focus_role("button", "List view"); press("space"); time.sleep(1.5)
                 card = page.get_by_role("button", name=re.compile(r"^SR pass"), exact=False)
                 if not card.count():
