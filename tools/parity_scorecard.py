@@ -4191,8 +4191,17 @@ def build(pages_dir=None):
          '50k gate stays the verdict on absolute p95s (the clause below)', None),
         ('note open p95 < 300 ms (1,000 paragraphs)', 'MET',
          [measure(PB, 399, '74.6 ms', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60')], '', None),
-        ('typing < 16 ms/char up to the size cap', 'NOT MET',
-         [measure(PB, '401-402', '17.6 ms', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60'),
+        ('typing < 16 ms/char up to the size cap', 'MET',
+         [measure('docs/notebook/perf-runs/ty9-quiet-marker/q1.json', 565, '"p95_ms": 9.73',
+                  'python tools/notebook_perf_harness.py --boot --busy --sizes 1,1000,2000 --opens 20 --chars 60'),
+          measure('docs/notebook/perf-runs/ty9-quiet-marker/q1.json', 557, '"p95_ms": 6.77',
+                  'python tools/notebook_perf_harness.py --boot --busy --sizes 1,1000,2000 --opens 20 --chars 60'),
+          record('docs/notebook/perf-runs/ty9-quiet-marker/q1.run.log', 4, 'background: LIGHT'),
+          record('docs/notebook/perf-runs/ty9-quiet-marker/q1.run.log', 25, 'background: LIGHT'),
+          code('tools/gate_box_sampler.py', 382, 'def background_load(snap: dict'),
+          record(PB, 1008, '4d, typing: MET, read on a box whose background the marker can now see'),
+          record(PB, 1027, '6.85 / 6.77 / 9.73 ms'),
+          measure(PB, '401-402', '17.6 ms', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60'),
           record(PB, 644, 'Clause 4d is not closed'), QUIET_SLOT, L('G-035', 'OPEN, DELIBERATELY'),
           code('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx', 407,
                'export function toolbarStateReducer(prev, editor)'),
@@ -4207,6 +4216,16 @@ def build(pages_dir=None):
           measure('docs/notebook/perf-runs/ty8/ab/A4.json', 565, '"p95_ms": 15.67', TY8_A4_CMD),
           record(TY8R, 209, '7.7 / 14.42 / 15.67 ms'),
           record(TY8R, 217, 'A4 does not cleanly break')],
+         'TY9 re-read (2026-10-09): MET. The TY8 record left 4d open until the quiet marker could SEE the load that '
+         'moved run A4; `tools/gate_box_sampler.py` now reads whole-box CPU and every unmarked process at or above '
+         '1 GB in the same snapshot as its marker count (`background_load`: LIGHT / LOADED / UNKNOWN, never LIGHT '
+         'without a CPU figure; the A4-shaped box reads QUIET by markers and LOADED in the background; controls in '
+         '--self-check and tests/test_gate_box_sampler.py, mutation-proved). Run q1 (perf-runs/ty9-quiet-marker, '
+         '01:35-01:37 CT, sandbox integrity CLEAN) was lock FREE, load QUIET and background LIGHT at BOTH ends '
+         '(cpu 18% then 0%, nothing at or above 1 GB but the OS memory-compression process) and read typing busy '
+         'p95 6.85 / 6.77 / 9.73 ms at 1 / 1,000 / 2,000 paragraphs -- under the line at every size, on the first '
+         'reading whose background is a measured quantity. The 16 ms line is unchanged; L15 q1 keeps its recorded '
+         'status with a background of UNKNOWN. Before this re-score the cell read: '
          'wave 12, 12C phase 2 (2026-10-02): the tie-break run A4 (#265, build A, lock FREE and load QUIET at both ends) '
          'read 15.67 ms at 2,000 paragraphs -- under the line by 0.33 ms -- but every A4 row is 1.5-2x slower than A3 on '
          'the same build while the lock tool marked the box QUIET, so it sits within run-to-run drift of the line and does '
@@ -4231,7 +4250,8 @@ def build(pages_dir=None):
          'walk the WHOLE document on every keystroke now short-circuit via `stepsIntroduceNodeType` once a note '
          'has never held the node type each one cares about. Built and test-green (928 passed per the lane\'s own '
          'run), NOT measured: no quiet-box A/B has read what either lever does to the 16 ms/char number. This does '
-         'not move the verdict -- the owed quiet-slot reading stays owed', QUIET),
+         'not move the verdict -- the owed quiet-slot reading stays owed. (TY9, 2026-10-09: the owed reading '
+         'landed with the background marker LIGHT at both ends, so the clause is MET and leaves the quiet list.)', None),
         ('search p95 < 100 ms at 50k notes', 'MET',
          [measure(PB, '299-303', 'ops still above 100 ms p95 at 50k',
                   'python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds docs/notebook/perf-budgets.json --budget search'),
