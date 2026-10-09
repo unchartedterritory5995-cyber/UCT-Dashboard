@@ -67,8 +67,8 @@ RING = 252
 #: First session fetched: one year of warm-up before the canonical history's first session
 #: (2008-01-02), so 2008 is measured over a complete window.
 START = "2006-12-01"
-#: Request pacing (seconds between grouped calls) — ~40/min of the shared 300/min budget.
-PACE_SECONDS = float(os.environ.get("BREADTH_NHNL_PACE", "1.5"))
+#: Request pacing (seconds between grouped calls) — at most ~75/min of the shared 300/min budget.
+PACE_SECONDS = float(os.environ.get("BREADTH_NHNL_PACE", "0.8"))
 #: A session is processed only once its daily bar has settled.
 SETTLE_MINUTES_AFTER_CLOSE = 120
 
