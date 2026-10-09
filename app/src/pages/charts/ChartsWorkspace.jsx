@@ -3002,6 +3002,8 @@ export default function ChartsWorkspace() {
       resize: (ws, id, rect, handle) => agentWidgetOpsRef.current.resize(ws, id, rect, handle),
       themeAll: (ws, themeId) => agentWidgetOpsRef.current.themeAll(ws, themeId),
       applyBoard: (p) => agentWidgetOpsRef.current.applyBoard(p),
+      // link groups E-H are offered only while CHARTS_EXTRA_GROUPS_ENABLED is on (the colour dot's own rule)
+      extraGroups: () => extraGroupsOnRef.current === true,
     },
     layouts: () => agentLayoutsRef.current,
     watchlists: {

@@ -21,7 +21,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import { labelMap } from '../../widgets/registry'
 import { boardProblems, fillGaps, tileWidgets, ARRANGE_PATTERNS } from '../../pages/charts/placement/arrange'
-import { BASE_GROUPS, NOT_LINKED } from '../../pages/charts/colorGroups'
+import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups } from '../../pages/charts/colorGroups'
 import { PRESET_SCANS } from '../../pages/charts/widgets/ScannerPicker'
 import { CHART_THEMES, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
 import { positionWord } from '../host'
@@ -30,8 +30,12 @@ import { CHART_TIMEFRAMES } from './chart'
 
 const LABEL = labelMap('menu')
 const label = (t) => LABEL[t] || t
-const LINKS = [...BASE_GROUPS, NOT_LINKED]
-const LINK_NAME = { A: 'gold', B: 'blue', C: 'green', D: 'purple', N: 'not linked' }
+// E-H exist only while the extra-groups flag is on (the colour dot's own rule, colorGroups.linkGroups):
+// always in the schema, refused by the check while the board says the flag is off.
+const LINKS = [...BASE_GROUPS, ...EXTRA_GROUPS, NOT_LINKED]
+const LINK_NAME = { A: 'gold', B: 'blue', C: 'green', D: 'purple', E: 'red', F: 'teal', G: 'orange', H: 'pink', N: 'not linked' }
+const extraOff = (env, color) => (isExtraGroup(color) && env?.target?.extraGroups !== true
+  ? `Link colours E–H aren't switched on in UCT for your account — use ${linkGroups(false).join(', ')}.` : null)
 const SCAN_KEYS = PRESET_SCANS.map(s => s.key)
 const GEOM = ['x', 'y', 'w', 'h']
 const FIELDS = ['x', 'y', 'w', 'h', 'color', 'opts', 'wtabs', 'activeWtab']
@@ -45,7 +49,7 @@ function snapOf(host) {
   // The member's own watchlists (id → name) for widget.showList — the same rows the watchlist
   // capabilities read; prebuilt, flagged and linked-copy lists are not offered there either.
   const lists = new Map((host?.watchlists?.snapshot?.() || []).map(l => [String(l.id), l.name]))
-  return { ref: 'board', label: 'Board', raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, lists }
+  return { ref: 'board', label: 'Board', raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists }
 }
 const nameOf = (w, all) => {
   const pos = positionWord(w, all)
@@ -202,6 +206,7 @@ export function registerBoardCapabilities() {
         ref: refFor('board', 'board'),
         label: 'Board (arrange, remove, link and configure the widgets on it)',
         grid: s.grid,
+        ...(s.extraGroups ? { extraLinkColors: true } : {}),
         widgets: s.raw.map(w => ({
           id: w.id, type: w.type, label: label(w.type), position: positionWord(w, s.raw) || null,
           x: w.x, y: w.y, w: w.w, h: w.h, link: w.color || null,
@@ -320,12 +325,13 @@ export function registerBoardCapabilities() {
     ...common,
     name: 'widget.setLink',
     summary: 'Set a widget\'s link colour: widgets with the same colour follow the same symbol; N = not linked.',
-    hints: `target = the ref of the board entry; widget = its id; color = ${LINKS.map(c => `${c} (${LINK_NAME[c]})`).join(', ')}. "Link these two charts" = give both the same colour (use one already on one of them).`,
+    hints: `target = the ref of the board entry; widget = its id; color = ${LINKS.map(c => `${c} (${LINK_NAME[c]})`).join(', ')} — E–H only when the board entry says extraLinkColors: true. "Link these two charts" = give both the same colour (use one already on one of them).`,
     args: { type: 'object', properties: { widget: widgetArg, color: { type: 'string', enum: LINKS } }, required: ['widget', 'color'], additionalProperties: false },
-    check(st, { widget, color }) {
+    check(st, { widget, color }, env) {
       const t = widgetOf(st, widget)
       if (!t) return notOnBoard(widget)
       if (!LINKS.includes(color)) return `Link colours are ${LINKS.join(', ')}.`
+      if (extraOff(env, color)) return extraOff(env, color)
       if (Array.isArray(t.wtabs) && t.wtabs.length) return `The ${label(t.type)} has tabs — set the link colour on its tab with the colour dot.`
       return null
     },
@@ -555,13 +561,14 @@ export function registerBoardCapabilities() {
     ...common,
     name: 'chart.linkTab',
     summary: 'Set the link colour of one chart TAB (the tab\'s colour dot): tabs and widgets with the same colour follow the same symbol.',
-    hints: `target = the ref of the board entry; widget = the chart widget's id; ${tabHint} color = ${BASE_GROUPS.map(c => `${c} (${LINK_NAME[c]})`).join(', ')} — a tab is always linked to a colour. "Two tabs with linked symbols" = give both the same colour.`,
-    args: { type: 'object', properties: { widget: widgetArg, tab: tabArg, color: { type: 'string', enum: [...BASE_GROUPS] } }, required: ['widget', 'tab', 'color'], additionalProperties: false },
-    check(st, { widget, tab, color }) {
+    hints: `target = the ref of the board entry; widget = the chart widget's id; ${tabHint} color = ${[...BASE_GROUPS, ...EXTRA_GROUPS].map(c => `${c} (${LINK_NAME[c]})`).join(', ')} (E–H only when the board entry says extraLinkColors: true) — a tab is always linked to a colour. "Two tabs with linked symbols" = give both the same colour.`,
+    args: { type: 'object', properties: { widget: widgetArg, tab: tabArg, color: { type: 'string', enum: [...BASE_GROUPS, ...EXTRA_GROUPS] } }, required: ['widget', 'tab', 'color'], additionalProperties: false },
+    check(st, { widget, tab, color }, env) {
       const { t, why } = chartWidget(st, widget)
       if (why) return why
       if (!findTab(t, tab)) return `That chart has no tab “${tab}”.`
-      return BASE_GROUPS.includes(color) ? null : `Tab colours are ${BASE_GROUPS.join(', ')}.`
+      if (![...BASE_GROUPS, ...EXTRA_GROUPS].includes(color)) return `Tab colours are ${linkGroups(true).join(', ')}.`
+      return extraOff(env, color)
     },
     apply(st, { widget, tab, color }) {
       const { t } = chartWidget(st, widget)

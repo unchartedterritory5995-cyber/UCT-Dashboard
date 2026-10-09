@@ -1913,7 +1913,7 @@
    "domain": "widget",
    "target": "board",
    "summary": "Set a widget's link colour: widgets with the same colour follow the same symbol; N = not linked.",
-   "hints": "target = the ref of the board entry; widget = its id; color = A (gold), B (blue), C (green), D (purple), N (not linked). \"Link these two charts\" = give both the same colour (use one already on one of them).",
+   "hints": "target = the ref of the board entry; widget = its id; color = A (gold), B (blue), C (green), D (purple), E (red), F (teal), G (orange), H (pink), N (not linked) — E–H only when the board entry says extraLinkColors: true. \"Link these two charts\" = give both the same colour (use one already on one of them).",
    "args": {
     "type": "object",
     "properties": {
@@ -1927,6 +1927,10 @@
        "B",
        "C",
        "D",
+       "E",
+       "F",
+       "G",
+       "H",
        "N"
       ]
      }
@@ -2259,7 +2263,7 @@
    "domain": "chart",
    "target": "board",
    "summary": "Set the link colour of one chart TAB (the tab's colour dot): tabs and widgets with the same colour follow the same symbol.",
-   "hints": "target = the ref of the board entry; widget = the chart widget's id; tab = \"main\" (the widget's own chart), the extra tab's position \"1\", \"2\"… or its label, from the board entry's chartTabs. color = A (gold), B (blue), C (green), D (purple) — a tab is always linked to a colour. \"Two tabs with linked symbols\" = give both the same colour.",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; tab = \"main\" (the widget's own chart), the extra tab's position \"1\", \"2\"… or its label, from the board entry's chartTabs. color = A (gold), B (blue), C (green), D (purple), E (red), F (teal), G (orange), H (pink) (E–H only when the board entry says extraLinkColors: true) — a tab is always linked to a colour. \"Two tabs with linked symbols\" = give both the same colour.",
    "args": {
     "type": "object",
     "properties": {
@@ -2275,7 +2279,11 @@
        "A",
        "B",
        "C",
-       "D"
+       "D",
+       "E",
+       "F",
+       "G",
+       "H"
       ]
      }
     },

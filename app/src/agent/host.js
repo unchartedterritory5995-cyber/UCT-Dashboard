@@ -137,6 +137,7 @@ export function buildWidgetSource({ widgetOps, getWidgets }) {
         repack: (widgets, id, rect) => widgetOps.repack?.(widgets, id, rect) || null,
         resize: (widgets, id, rect, handle) => widgetOps.resize?.(widgets, id, rect, handle) || null,
         themeAll: (widgets, themeId) => widgetOps.themeAll?.(widgets, themeId) || null,
+        extraGroups: widgetOps.extraGroups?.() === true,
       }
     },
     applyBoard: (p) => widgetOps.applyBoard(p),

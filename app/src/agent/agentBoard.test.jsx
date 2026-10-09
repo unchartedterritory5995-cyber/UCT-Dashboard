@@ -23,7 +23,7 @@ const CTX = { surface: 'charts' }
 const COLS = 24, ROWS = 20
 const minOf = (w) => ({ minW: WIDGET_REGISTRY[w?.type]?.defaults?.minW || 2, minH: WIDGET_REGISTRY[w?.type]?.defaults?.minH || 3 })
 
-function boardHost(widgets, { lists = [] } = {}) {
+function boardHost(widgets, { lists = [], extraGroups = false } = {}) {
   const state = { widgets: widgets.map(w => ({ color: 'A', opts: {}, ...w })), layoutTheme: undefined, writes: 0 }
   const widgetOps = {
     layout: () => state,
@@ -39,6 +39,7 @@ function boardHost(widgets, { lists = [] } = {}) {
       if ('layoutTheme' in p) state.layoutTheme = p.layoutTheme ?? undefined
     },
     groupSyms: () => ({}),
+    extraGroups: () => extraGroups,
   }
   return {
     state,
@@ -139,7 +140,19 @@ describe('widget.setLink / showList / showScan — exactly what the widget\'s ow
     expect(p.lines).toEqual(['Linked the Chart (right) to the gold group (A)'])
     await commitPlan(host, p, { env })
     expect(host.state.widgets.find(w => w.id === 'b').color).toBe('A')
-    expect(shapeError('widget.setLink', { widget: 'b', color: 'E' }, CTX)).toMatch(/isn't an option/)   // E–H not offered
+  })
+  it('link colours E–H follow CHARTS_EXTRA_GROUPS_ENABLED exactly as the colour dot does: refused while off, written while on', async () => {
+    const two = [{ id: 'a', type: 'chart', x: 0, y: 0, w: 12, h: 20, color: 'A' }, { id: 'b', type: 'chart', x: 12, y: 0, w: 12, h: 20, color: 'N' }]
+    const off = boardHost(two)
+    expect((await plan(off, [op('widget.setLink', { widget: 'b', color: 'E' })])).p.refusals[0].reason).toMatch(/E–H aren't switched on.*A, B, C, D/)
+    expect(off.state.writes).toBe(0)
+    const on = boardHost(two, { extraGroups: true })
+    const { p, env } = await plan(on, [op('widget.setLink', { widget: 'b', color: 'H' })])
+
+    expect(p.lines).toEqual(['Linked the Chart (right) to the pink group (H)'])
+    await commitPlan(on, p, { env })
+    expect(on.state.widgets.find(w => w.id === 'b').color).toBe('H')
+    expect(shapeError('widget.setLink', { widget: 'b', color: 'Z' }, CTX)).toMatch(/isn't an option/)
   })
   it('a Watchlist widget shows one of your lists: the picker\'s exact opts (watchKey user:<id>, watchName, watchTab mine)', async () => {
     const host = boardHost([{ id: 'wl', type: 'watchlist', x: 0, y: 0, w: 6, h: 20, opts: { settings: { rowH: 'compact' } } }], { lists: [{ id: '7', name: 'Semiconductors' }] })
