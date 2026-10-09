@@ -173,6 +173,11 @@ def portfolio_heat(user_id, account_id=None, account_size=None, *,
                "dist_to_stop_pct": round(abs(entry - stop) / entry * 100, 2) if entry else None,
                "r_multiple": None,
                "risk_pct": round(risk / account * 100, 2) if account else None,
+               # Wave 2 (audit 2026-10-08): the stop itself and the dollars at risk to it, so
+               # the RISK table can print the price instead of a bare "set". None on a
+               # placeholder: there is no real stop to name.
+               "stop_price": None if is_placeholder else round(stop, 2),
+               "risk_dollars": None if is_placeholder else round(risk, 2),
                "placeholder_stop": is_placeholder}
         per_position.append(rec)
         if is_placeholder:

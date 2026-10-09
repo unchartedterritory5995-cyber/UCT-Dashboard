@@ -64,3 +64,20 @@ describe('RISK percents: byte-identical to the old `${v}%` on every value the se
     expect(pctAsSent(1234.5)).toBe('1234.5%')
   })
 })
+
+describe('Wave 2 (audit 2026-10-08): the Stop column names the price; the empty state says where positions come from', () => {
+  it('prints the stop price and dollars at risk, not a bare "set"', async () => {
+    const { stopText } = await import('./PortfolioHeat')
+    expect(stopText({ stop_price: 95.5, risk_dollars: 1245 })).toBe('$95.50 · $1,245 at risk')
+    expect(stopText({ stop_price: 95.5 })).toBe('$95.50')
+    expect(stopText({})).toBe('set')
+    state = { data: { ...HEAT, per_position: [{ ...HEAT.per_position[0], stop_price: 120.25, risk_dollars: 300 }] }, error: undefined }
+    mount()
+    expect(document.body.textContent).toContain('$120.25 · $300 at risk')
+  })
+  it('an empty book points at Journal 2.0', () => {
+    state = { data: { ...HEAT, per_position: [] }, error: undefined }
+    mount()
+    expect(screen.getByTestId('risk-empty').textContent).toContain('Journal 2.0')
+  })
+})
