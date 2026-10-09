@@ -75,6 +75,8 @@ export const PANEL_IMPORTERS = {
   // theme contribution (feature-gaps-2026-10-06 #4) — terminal-native; reads the Theme Tracker's
   // own cached /api/theme-performance payload
   Imov: () => import('./panels/ImovPanel'),
+  // GRADE (wave 3, lane 11) — Compass's buy / hold / skip verdict, read-only over grade_ticker
+  Grade: () => import('./panels/GradePanel'),
 }
 
 /** The panel name a registry variant renders: its `panel`, or the panel-set id of its

@@ -241,6 +241,13 @@ export const FUNCTIONS = [
   { code: 'IMOV', label: 'Theme movers (which names drive a UCT theme)', group: 'Market',
     ticker: { panel: 'Imov', args: [{ kind: 'contribWindow', prop: 'win' }, IMOV_THEME_ARG] },
     market: { panel: 'Imov', args: [{ kind: 'contribWindow', prop: 'win' }, IMOV_THEME_ARG] } },
+
+  // ── Compass grade (wave 3, lane 11, owner decision 2026-10-08): the buy / hold / skip verdict
+  // Compass gives, read-only, via `/api/terminal/grade/:sym` over api/services/grade_ticker.py.
+  // No shell flag: the server decides. While BRAIN_TOOLS_ENABLED (or the Brain Pack) is off the
+  // route answers `available: false` and the panel says "Grade not available yet" (never a verdict).
+  { code: 'GRADE', label: 'Compass grade (buy / hold / skip verdict)', group: 'Security',
+    ticker: { panel: 'Grade' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
