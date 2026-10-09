@@ -126,16 +126,17 @@ function planFor(st, req) {
 }
 export function _resetProposedPlans() { proposed.clear() }
 
+// ⛔ §14.9 limit 3 — success needs an AUTHORITATIVE read-back. A host with no persist path has
+// no ACK, and the rendered settings are not what was saved: neither may ever confirm a change.
 async function persistAndReadBack(host, chartRef) {
-  if (typeof host?.persist === 'function') {
-    let r
-    try { r = await host.persist() } catch { r = { ok: false, reason: 'not-saved' } }
-    if (!r || !r.ok) return { ok: false, reason: (r && r.reason) || 'not-saved' }
-  }
+  if (typeof host?.persist !== 'function') return { ok: false, reason: 'not-saved' }
+  let r
+  try { r = await host.persist() } catch { r = { ok: false, reason: 'not-saved' } }
+  if (!r || !r.ok) return { ok: false, reason: (r && r.reason) || 'not-saved' }
   await afterRender()
   const c = host.charts.read(chartRef)
-  // the board's stored copy as the chart reads it (falls back to the rendered settings)
-  return { ok: true, readBack: c ? (c.stored ?? c.cs) : null }
+  // the board's STORED copy only — null (→ confirm says 'unconfirmed') if there is none
+  return { ok: true, readBack: c && c.stored != null ? c.stored : null }
 }
 
 const fail = (msg, { unreverted = false } = {}) => Object.assign(new Error(msg), unreverted ? { unreverted: true } : {})

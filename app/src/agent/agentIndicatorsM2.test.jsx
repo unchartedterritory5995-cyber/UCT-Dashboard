@@ -309,6 +309,28 @@ describe('M2 persistence — "done" only on a confirmed read-back', () => {
   })
 })
 
+describe('M2 persistence — Indicators review (§14.9 limit 3)', () => {
+  it('a host with NO persist path → never a success receipt, no Undo (not-saved)', async () => {
+    const h = host([L()])
+    delete h.persist
+    const p = await plan(h, [op('indicator.hide', 'L', { instance: 'inst:rsi:1' })])
+    const res = await commitPlan(h, p, { env: {}, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(res.undo).toBe(null)
+    expect(res.failed[0].reason).toMatch(/save was not confirmed \(not-saved\), so it is not done/)
+  })
+  it('stored copy missing after the commit (only rendered settings) → unconfirmed, never a fallback to the rendered state', async () => {
+    const h = host([L()])
+    const p = await plan(h, [op('indicator.hide', 'L', { instance: 'inst:rsi:1' })])
+    const read = h.charts.read
+    h.persist = async () => { h.charts.read = (ref) => { const r = read(ref); return r && { ...r, stored: null } }; return { ok: true } }
+    const res = await commitPlan(h, p, { env: {}, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(res.undo).toBe(null)
+    expect(res.failed[0].reason).toMatch(/could not read the saved chart back, so I am not reporting it as done/)
+  })
+})
+
 // ── Undo tokens ──────────────────────────────────────────────────────────────────────
 describe('M2 Undo tokens — opaque, session-scoped, chart-bound', () => {
   it('the token is held exactly as returned and never persisted', async () => {
