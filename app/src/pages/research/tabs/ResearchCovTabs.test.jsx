@@ -159,6 +159,13 @@ describe('FilingsFeedTab (COV-09)', () => {
     expect(link.getAttribute('href')).toBe(ROW_8K.url)
     expect(screen.getByTestId('filing-0001140361-26-033120').textContent).toContain('5.02 Departure')
     expect(screen.getByTestId('feed-source').textContent).toContain('SEC EDGAR submissions')
+    // Wave 3 (FEED P2 #20): the row's source in plain words; the column is "Details", not "8-K items"
+    expect(screen.getByTestId('filing-0001140361-26-033120').textContent).toContain('SEC company filing list')
+    expect(screen.getAllByRole('columnheader').map((h) => h.textContent)).toContain('Details')
+    expect(screen.queryByRole('columnheader', { name: '8-K items' })).toBeNull()
+    // Wave 3 (FEED P2 #24): the chip rows are named groups
+    expect(screen.getByRole('group', { name: 'Whose filings' })).toBeTruthy()
+    expect(screen.getByRole('group', { name: 'Form type' })).toBeTruthy()
   })
 
   it('pending is said in words, never an empty list', async () => {

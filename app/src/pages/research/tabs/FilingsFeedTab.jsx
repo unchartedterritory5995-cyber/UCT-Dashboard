@@ -41,6 +41,14 @@ export function emptyText(data, form, label) {
   return `Unavailable${why}.${src}`
 }
 
+// Wave 3 (FEED P2 #20): the per-row source was the server's own name, raw. A row comes from one
+// of two SEC reads; say which in plain words, and pass anything else through memberText.
+const ROW_SOURCE = {
+  'SEC EDGAR submissions': "SEC company filing list",
+  'SEC EDGAR latest-filings feed': 'SEC live filings feed',
+}
+export const rowSource = (src) => ROW_SOURCE[src] || memberText(src)
+
 function Row({ r, showCompany }) {
   return (
     <tr data-testid={`filing-${r.accession}`}>
@@ -56,7 +64,7 @@ function Row({ r, showCompany }) {
       </td>
       <td>{when(r)}</td>
       <td><a className={styles.link} href={r.url} target="_blank" rel="noopener noreferrer">{r.accession}</a></td>
-      <td className={styles.muted}>{r.source}</td>
+      <td className={styles.muted}>{rowSource(r.source)}</td>
     </tr>
   )
 }
@@ -99,7 +107,7 @@ export default function FilingsFeedTab({ sym }) {
           <table className={styles.grid} data-testid="feed" aria-label={`Filings feed: ${label}`}>
             <thead><tr>
               <th scope="col">Form</th>{scope === 'market' && <th scope="col">Company</th>}
-              <th scope="col">8-K items</th><th scope="col">Accepted (ET)</th><th scope="col">Accession</th><th scope="col">Source</th>
+              <th scope="col">Details</th><th scope="col">Accepted (ET)</th><th scope="col">Accession</th><th scope="col">Source</th>
             </tr></thead>
             <tbody>{data.rows.map((r) => <Row key={r.accession} r={r} showCompany={scope === 'market'} />)}</tbody>
           </table>
@@ -115,13 +123,14 @@ export default function FilingsFeedTab({ sym }) {
 
   return (
     <section className={styles.section} data-testid="filings-feed">
-      <div className={styles.toggle}>
+      {/* Wave 3 (FEED P2 #24): two unlabelled rows of toggle chips; each is a named group now. */}
+      <div className={styles.toggle} role="group" aria-label="Whose filings">
         {[['ticker', s || 'Ticker'], ['market', 'All market']].map(([k, l]) => (
           <button key={k} type="button" className={`${styles.toggleBtn} ${scope === k ? styles.toggleOn : ''}`}
             aria-pressed={scope === k} onClick={() => setScope(k)}>{l}</button>
         ))}
       </div>
-      <div className={styles.toggle}>
+      <div className={styles.toggle} role="group" aria-label="Form type">
         {FORMS.map((f) => (
           <button key={f} type="button" className={`${styles.toggleBtn} ${form === f ? styles.toggleOn : ''}`}
             aria-pressed={form === f} onClick={() => setForm(f)}>{f === '4' ? 'Form 4' : f}</button>
