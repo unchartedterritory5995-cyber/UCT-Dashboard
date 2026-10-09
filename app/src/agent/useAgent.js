@@ -19,6 +19,8 @@ import { protectionRefusal, undoProtectionRefusal } from './protectedLayouts'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import { useCreateIndicatorAccess } from '../components/chart/builder/studio/createIndicatorFlag'
+import { useUserDefinitions } from '../hooks/useUserDefinitions'
+import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { fastParse, matchPosition } from './fastPath'
 import { planOps, prepareOps, collectTargets, undoNotesFor } from './executor'
 import { decideMode } from './policy'
@@ -109,6 +111,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   // the chart's opener re-checks it, and /converse enforces it server-side.
   const createIndicator = useCreateIndicatorAccess(useContext(AuthContext))
   const capCtx = useMemo(() => ({ surface, createIndicator }), [surface, createIndicator])
+  // INDICATORS M2 — the member's OWN saved definition ids (server rows), read fresh by the
+  // Indicators permission check at plan, apply and Undo.
+  const { rows: ownedDefinitionRows } = useUserDefinitions()
+  const ownedRowsRef = useRef(ownedDefinitionRows)
+  ownedRowsRef.current = ownedDefinitionRows
+  useEffect(() => { setOwnedDefinitionSource(() => (ownedRowsRef.current || []).map(r => r && r.def_id).filter(Boolean)) }, [])
   const [items, setItems] = useState([])
   const [busy, setBusy] = useState(false)
   // ⛔ ONE thing at a time: a send, an Apply, an Undo or a choice. A ref (not the
@@ -573,7 +581,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // Capability ROUTING (agent/routing.js): only the action groups this message needs, the
       // others named. If the model needs a group it wasn't given it plans NOTHING and says so
       // (need_groups); we ask ONCE more with those groups. Nothing has executed in between.
-      const full = manifestFor(capCtx)
+      // M2 indicator writes are offered only when some chart on this board can manage indicators.
+      const manageIndicators = (() => { try { return host?.charts?.list().some(c => host.charts.canManageIndicators?.(c.ref) === true) } catch { return false } })()
+      const full = manifestFor({ ...capCtx, manageIndicators })
       // limit = the server's per-request maximum; budget = what one routed request may carry.
       const routeOpts = { enabled: routingEnabled(), pendingActions: p?.kind === 'proposal' ? p.ops.map(o => o.action) : [], recentActions: lastActionsRef.current, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
       let routed = routeManifest(full, text, routeOpts)

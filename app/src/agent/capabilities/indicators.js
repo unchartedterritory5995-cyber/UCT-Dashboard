@@ -109,8 +109,10 @@ export function registerIndicatorCapabilities() {
       return list.length ? list.map(s => ({
         ref: refFor('indicators', s.ref), chart: s.label, position: s.position, symbol: s.symbol,
         createIndicator: s.canCreate,
+        // M2: the ref for indicator.add / remove / show / hide on this chart
+        ...(host?.charts?.canManageIndicators ? { manage: refFor('indicatorEdits', `ixe:${s.chartRef}`), canManage: host.charts.canManageIndicators(s.chartRef) === true } : {}),
         indicators: s.indicators.map(i => ({
-          name: i.name, ...(i.kind === 'custom' ? { defId: i.defId, custom: true } : {}),
+          name: i.name, ...(i.setting ? {} : { id: i.instanceId }), ...(i.kind === 'custom' ? { defId: i.defId, custom: true } : {}),
           ...(i.hidden ? { hidden: true } : {}), placement: i.placement, ...(i.setting ? { setting: true } : {}),
         })),
       })) : undefined

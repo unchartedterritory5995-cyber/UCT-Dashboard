@@ -2601,6 +2601,98 @@
    "query": false
   },
   {
+   "name": "indicator.add",
+   "domain": "indicator",
+   "target": "indicatorEdits",
+   "summary": "Add ONE indicator to ONE chart — exactly what the Indicator Library's Add to Chart does. Built-in indicators or the member's own saved ones; Undo removes it again.",
+   "hints": "target = the chart's `manage` ref from the indicators context. defId = an id from indicatorCatalog (never invented, never a name). Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "defId": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "defId"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "indicator.remove",
+   "domain": "indicator",
+   "target": "indicatorEdits",
+   "summary": "Remove ONE indicator (its whole group, e.g. all COT panes) from ONE chart — the settings ✕ / legend Delete. Always shown as a proposal first, listing anything it would disconnect. Undo restores it exactly (same identity, reconnected inputs).",
+   "hints": "target = the chart's `manage` ref. instance = the indicator's `id` from that chart's list (exact; a name only if it is unique). Volume is not an indicator (use volume.setState).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "instance"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "indicator.show",
+   "domain": "indicator",
+   "target": "indicatorEdits",
+   "summary": "Show ONE indicator (its whole group) on ONE chart — the settings / legend eye. Undo puts it back.",
+   "hints": "target = the chart's `manage` ref. instance = the indicator's `id` from that chart's list (exact; a name only if it is unique). Volume is not an indicator (use volume.setState).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "instance"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "indicator.hide",
+   "domain": "indicator",
+   "target": "indicatorEdits",
+   "summary": "Hide ONE indicator (its whole group) on ONE chart — the settings / legend eye. Undo puts it back.",
+   "hints": "target = the chart's `manage` ref. instance = the indicator's `id` from that chart's list (exact; a name only if it is unique). Volume is not an indicator (use volume.setState).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "instance": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "instance"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
    "name": "agent.capabilities",
    "domain": "agent",
    "target": "about",

@@ -59,7 +59,7 @@ const openWord = (open) => (open.pending ? 'Your layouts are still loading, so I
   : null)
 
 // Kinds whose writes land on the open board or show on its charts.
-const ON_THE_BOARD = new Set(['chart', 'board', 'workspace', 'drawing'])
+const ON_THE_BOARD = new Set(['chart', 'board', 'workspace', 'drawing', 'indicatorEdits'])
 const NAMES_A_LAYOUT = new Set(['layout.rename', 'layout.delete'])
 
 /**
