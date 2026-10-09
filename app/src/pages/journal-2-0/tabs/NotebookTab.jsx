@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useNavigationType, useSearchParams } from 're
 import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
 import { applyTargetToParams } from '../lib/searchNavigation'
+import { passageNavigationState } from '../lib/openCitation'
 import useJ2SavedViews from '../hooks/useJ2SavedViews'
 import useJ2PropertyDefs from '../hooks/useJ2PropertyDefs'
 import NoteCard from '../components/notebook/NoteCard'
@@ -782,7 +783,15 @@ export default function NotebookTab() {
   // that asks for a ticker, made with none known). Blank still wins; absent means the title.
   // Lane KEYS3 (Q18): for a note that already exists, `to: 'collapsed'` asks for its first
   // collapsed block (a review the Notebook just drafted). Anything else is the landmark.
-  const openNote = (note, target = null, { task = null, fresh = false, blank = false, to = null } = {}) => {
+  // Fin walk 8.3: `passage` is the passage an Ask citation from a scope that spans notes
+  // named (lib/openCitation.js `citedPassage`). It rides the history entry's STATE beside
+  // the `?note=` param -- the needle is prose, not an id, and a URL carrying a paragraph is
+  // one nobody can read or share -- and the editor lands on it once it holds the note
+  // (NoteEditorPage, `passageFromNavigationState`). Like `task`, it is an open that aims
+  // INSIDE the note, so focus goes to the passage, never to the landmark first.
+  const openNote = (note, target = null, {
+    task = null, fresh = false, blank = false, to = null, passage = null,
+  } = {}) => {
     // ⛔⛔ Wave 6 item 7: the note on the right is not opened a second time on
     // the left — refused, and the side pane (which has it) takes focus.
     if (sideId && note?.id === sideId) { refuseSecondPane('side'); return }
@@ -806,11 +815,17 @@ export default function NotebookTab() {
     // open, so the pane never emptied and the plan was never spent) belongs to
     // THAT open, not this one.
     paneFocusPlanRef.current = null
-    const inside = Boolean(target) || (Number.isInteger(task) && task >= 0)
+    const inside = Boolean(target) || (Number.isInteger(task) && task >= 0) || Boolean(passage)
     setOpenFocus(inside ? null : {
       id: note.id,
       to: fresh ? (blank ? 'body' : (to || 'title')) : (to === 'collapsed' ? 'collapsed' : 'landmark'),
     })
+    // ⛔ `state` only WITH a passage: an open that names none must push an entry exactly as
+    // it always has (no state), so nothing downstream can mistake "no passage" for "a passage
+    // for nobody".
+    const navigateOptions = passage
+      ? { replace: false, state: passageNavigationState({ ...passage, noteId: note.id }) }
+      : { replace: false }
     setSearchParams((prev) => {
       const next = applyTargetToParams(prev, target)
       next.set('note', note.id)
@@ -825,7 +840,7 @@ export default function NotebookTab() {
       // same "leaving X clears Y" discipline as every other selection below.
       next.delete('view')
       return next
-    }, { replace: false })
+    }, navigateOptions)
   }
   const closeNote = (opts) => {
     // Wave 8 (8A): the editor closes itself after a delete with

@@ -2,7 +2,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import {
   Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState,
 } from 'react'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
 import {
   buildExtensions, uploadInlineImage, uploadNoteAttachment,
@@ -17,7 +17,8 @@ import CapturedSourceSheet from './CapturedSourceSheet'
 import { targetFromParams, applyTargetToParams, citationTarget,
          reviewTargetFromParams } from '../../lib/searchNavigation'
 import { openExcerptCitation, openDocumentCitation, openDocumentPage, SOURCE_NOWHERE,
-         PASSAGE_GONE, PASSAGE_NOT_PINPOINTED, NOTE_LEVEL_SOURCE } from '../../lib/openCitation'
+         PASSAGE_GONE, PASSAGE_NOT_PINPOINTED, NOTE_LEVEL_SOURCE,
+         passageFromNavigationState } from '../../lib/openCitation'
 import { SOURCE_WEB } from '../../lib/searchResultLabel'
 import useNoteDocuments from '../../hooks/useNoteDocuments'
 import DocumentTextStatus from './DocumentTextStatus'
@@ -62,7 +63,7 @@ import NoteExportControls from './NoteExportControls'
 import NoteMoreMenu from './NoteMoreMenu'
 import moreStyles from './NoteMoreMenu.module.css'
 import AskPanel, { PRECISE_CITATION } from './AskPanel'
-import { PRECISE_STATES, isBlockAtomRange } from '../../lib/askCitation'
+import { PRECISE_STATES, resolveNoteCitation, selectResolvedPassage } from '../../lib/askCitation'
 import { appendAskInsert } from '../../lib/askInsert'
 import { VOICE_NOTE_EVENT, VOICE_NOTE_LOCKED_SENTENCE, appendVoiceNote, voiceNotesEnabled } from '../../lib/voiceNote'
 import usePendingAskInsert from '../../hooks/usePendingAskInsert'
@@ -2207,14 +2208,9 @@ export default function NoteEditorPage({
     if (!resolved || !PRECISE_STATES.has(resolved.state)) {
       return PRECISE_CITATION.has(source?.citation) ? PASSAGE_NOT_PINPOINTED : NOTE_LEVEL_SOURCE
     }
-    // A passage that is exactly one block atom (a chip, an excerpt, a chart)
-    // is selected as that NODE: a TextSelection cannot sit around a block
-    // leaf -- ProseMirror warns and the member sees nothing selected.
-    const chain = ed.chain().focus()
-    const selected = isBlockAtomRange(ed.state.doc, resolved.from, resolved.to)
-      ? chain.setNodeSelection(resolved.from)
-      : chain.setTextSelection({ from: resolved.from, to: resolved.to })
-    selected.scrollIntoView().run()
+    // The ONE landing (askCitation.js) -- the same one a citation that arrives
+    // WITH this note from "My Notebook" takes below (`routedPassage`).
+    selectResolvedPassage(ed, resolved)
     return null
   }, [setSearchParams, noteId, handleOpenExcerptSource, noteDocuments, openNoteDocument])
 
@@ -2829,6 +2825,64 @@ export default function NoteEditorPage({
     const at = TextSelection.near(editor.state.doc.resolve(pos + 1)).from
     editor.chain().focus().setTextSelection(at).scrollIntoView().run()
   }, [editor, note, noteId, taskIndex])
+
+  // ⛔⛔ A CITATION FROM THE WHOLE NOTEBOOK LANDS ON ITS PASSAGE (fin walk 8.3).
+  // "My Notebook" cited a note, the member clicked, and this page opened at the
+  // top: the spanning host could only say `openNote({ id })`, and nothing
+  // carried the passage the server had located across the page change. It now
+  // rides the history entry's state (lib/openCitation.js, NotebookTab.openNote)
+  // and lands here -- through the SAME landing the in-note Ask uses
+  // (`selectResolvedPassage`, also `jumpToCitation`'s), never a second one.
+  //
+  // ⛔ VERIFIED, NEVER TRUSTED. `resolveNoteCitation` re-reads the text at the
+  // range in the live doc (the note may have changed since the answer) and
+  // re-finds it when it moved; a passage it cannot pinpoint lands nowhere and
+  // the note stays open at the top with nothing said -- the panel that could
+  // say it is on the page the member left, and that open is exactly what this
+  // door did before. ⛔ FOR THIS NOTE ONLY: `passageFromNavigationState` answers
+  // for the id the passage names, so a state that outlives its entry cannot
+  // scroll an unrelated note. ⛔ READ ON FIRST SIGHT INTO A REF: a later
+  // `replace` navigation (a param this page or the tab clears) drops the
+  // entry's state, and that must not drop the landing. ⛔ ONCE PER MOUNT, like
+  // `?task=` above -- the editor is keyed by note, so a Back that remounts it
+  // lands again, exactly as a task link does.
+  // ⛔ AND IT WAITS FOR THE VIEW'S DOM TO ATTACH, as the body-focus effect
+  // below learned to (measured 135-807 ms after this effect's first run): a
+  // selection set before then is kept, but `scrollIntoView` against a detached
+  // node scrolls nothing, and the member would land at the top of a long note
+  // with its highlight below the fold -- the defect this closes, wearing a
+  // smaller hat. Bounded, so an editor that never attaches claims nothing.
+  const routeLocation = useLocation()
+  const routedPassage = passageFromNavigationState(routeLocation.state, noteId)
+  const routedPassageRef = useRef(null)
+  if (routedPassage) routedPassageRef.current = routedPassage
+  const landedPassageRef = useRef(false)
+  useEffect(() => {
+    const passage = routedPassageRef.current
+    if (!passage || landedPassageRef.current) return undefined
+    if (!editor || editor.isDestroyed || !note || note.id !== noteId) return undefined
+    let cancelled = false
+    let rafId = null
+    let frames = 0
+    const FRAME_CAP = 180   // ~3 s at 60 fps, the body-focus effect's own ceiling
+    const tryLand = () => {
+      if (cancelled || !editor || editor.isDestroyed) return
+      const dom = editor.view && editor.view.dom
+      if (!dom || !dom.isConnected) {
+        frames += 1
+        if (frames < FRAME_CAP) rafId = requestAnimationFrame(tryLand)
+        return
+      }
+      landedPassageRef.current = true
+      const resolved = resolveNoteCitation(editor.state.doc, passage.location, passage.text)
+      if (PRECISE_STATES.has(resolved.state)) selectResolvedPassage(editor, resolved)
+    }
+    tryLand()
+    return () => {
+      cancelled = true
+      if (rafId != null) cancelAnimationFrame(rafId)
+    }
+  }, [editor, note, noteId])
 
   // ⛔ The arming half of `hydratedRef` — see its declaration for the defect.
   // Declared AFTER `useEditor` on purpose: effects run in the order their hooks

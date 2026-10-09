@@ -14,7 +14,7 @@ import {
   describeSampleHold,
 } from './onboarding/sampleNotebook'
 import { precheckNoteBatch } from '../../lib/noteBatch'
-import { openSpanningCitation } from '../../lib/openCitation'
+import { openSpanningCitation, passageNavigationState } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
 import { earningsPrepEnabled } from '../../lib/earningsPrepShared'
 import { passedSetupsEnabled } from '../../lib/researchCapture'
@@ -208,7 +208,14 @@ export default function ResearchHome({
 
   // Whatever a box passes after the note (a drafted review's `{ to: 'collapsed' }`) goes on to
   // the tab unchanged; a box that passes only the note still calls with only the note.
-  const openNote = (note, ...rest) => (onOpenNote ? onOpenNote(note, ...rest) : navigate(notePath(note.id)))
+  // Without a tab, a cited passage (fin walk 8.3; `openNote(note, null, { passage })` from
+  // lib/openCitation.js) still rides the entry's state, the way NotebookTab carries it, so the
+  // editor can land on it; every other open navigates exactly as before.
+  const openNote = (note, ...rest) => {
+    if (onOpenNote) return onOpenNote(note, ...rest)
+    const passage = rest[1]?.passage
+    return navigate(notePath(note.id), passage ? { state: passageNavigationState({ ...passage, noteId: note.id }) } : undefined)
+  }
 
   // ── Wave 8 lane 8C (C3): the sample notebook and the tour's door ──────────────────
   // Both appear only while `notebook_onboarding_enabled` is on; the sample button only
