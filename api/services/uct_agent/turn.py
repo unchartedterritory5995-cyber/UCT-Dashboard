@@ -286,13 +286,52 @@ def expand_compact_ops(env: dict, capabilities: list[dict]) -> dict:
     return {**env, "ops": out}
 
 
+def model_safe_schema(node):
+    """The model API's structured-output validator refuses an `enum` under a UNION `type`
+    ({"type": ["string", "null"], "enum": ["asc", "desc", null]} → 400 "Enum value 'asc' does
+    not match declared type"). Rewrite each such node as the same set of values in a form it
+    accepts: anyOf of one single-type enum per type. Only the schema the MODEL sees changes —
+    the model's answer is still validated against the capability's own args (args_match)."""
+    if isinstance(node, list):
+        return [model_safe_schema(v) for v in node]
+    if not isinstance(node, dict):
+        return node
+    out = {k: model_safe_schema(v) for k, v in node.items()}
+    types = out.get("type")
+    if isinstance(types, list) and "enum" in out:
+        rest = {k: v for k, v in out.items() if k not in ("type", "enum")}
+        branches = []
+        for t in types:
+            vals = [v for v in out["enum"] if _is_json_type(v, t)]
+            if t == "null":
+                if None in out["enum"]:
+                    branches.append({"type": "null"})
+            elif vals:
+                branches.append({"type": t, "enum": vals})
+        return {**rest, "anyOf": branches}
+    return out
+
+
+def _is_json_type(v, t: str) -> bool:
+    if t == "null":
+        return v is None
+    if t == "boolean":
+        return isinstance(v, bool)
+    if t == "integer":
+        return isinstance(v, int) and not isinstance(v, bool)
+    if t == "number":
+        return isinstance(v, (int, float)) and not isinstance(v, bool)
+    py = _JSON_TYPES.get(t)
+    return py is not None and isinstance(v, py)
+
+
 def envelope_schema(capabilities: list[dict], unselected: list[dict] | None = None) -> dict:
     op_variants = [{
         "type": "object",
         "properties": {
             "action": {"type": "string", "const": a["name"]},
             "target": {"type": "string"},
-            "args": a["args"],
+            "args": model_safe_schema(a["args"]),
         },
         "required": ["action", "target", "args"],
         "additionalProperties": False,

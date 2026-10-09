@@ -139,3 +139,34 @@ def test_catalog_contract_distinguishes_catalog_from_request():
     cat = CONTRACT["catalog"]
     assert cat["maxRegistered"] > CONTRACT["limits"]["maxCapabilities"]
     assert cat["maxGroupSize"] < CONTRACT["routingThreshold"] <= CONTRACT["limits"]["maxCapabilities"]
+
+
+def _union_enum_nodes(node, path="", out=None):
+    out = [] if out is None else out
+    if isinstance(node, dict):
+        if isinstance(node.get("type"), list) and "enum" in node:
+            out.append(path)
+        for k, v in node.items():
+            _union_enum_nodes(v, f"{path}/{k}", out)
+    elif isinstance(node, list):
+        for i, v in enumerate(node):
+            _union_enum_nodes(v, f"{path}[{i}]", out)
+    return out
+
+
+def test_no_routed_request_sends_an_enum_under_a_union_type():
+    # PRODUCTION DEFECT 2026-10-08 (found by the Batch 6 real-model benchmark): small routed
+    # requests embed each action's args, and the model API refuses
+    # {"type": ["string", "null"], "enum": [...]} with a 400 — every screener-only and
+    # settings-only request failed. Each per-group schema must be free of that shape.
+    for g, req in _requests():
+        kept = turn.validate_manifest(req)
+        assert _union_enum_nodes(turn.envelope_schema(kept)) == [], g
+
+
+def test_model_safe_schema_keeps_the_same_values():
+    s = turn.model_safe_schema({"type": ["string", "null"], "enum": ["asc", "desc", None]})
+    assert s == {"anyOf": [{"type": "string", "enum": ["asc", "desc"]}, {"type": "null"}]}
+    s = turn.model_safe_schema({"type": ["string", "null"], "enum": ["asc", "desc"]})
+    assert s == {"anyOf": [{"type": "string", "enum": ["asc", "desc"]}]}
+    assert turn.model_safe_schema({"type": "string", "enum": ["a"]}) == {"type": "string", "enum": ["a"]}
