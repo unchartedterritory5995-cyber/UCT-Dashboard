@@ -14,6 +14,15 @@ import styles from './TerminalShell.module.css'
 
 export const ORIENTATION_PREF = 'terminal_orientation_seen'
 
+/** The newer codes the card points a first-time member at, each run as typed (railed in
+ *  FirstRunCard.test.jsx to parse to a registered code). Keep it to four. */
+export const FIRST_RUN_NEW = Object.freeze([
+  { cmd: 'BRKO', what: 'breakout setups' },
+  { cmd: 'NVDA CHK', what: 'checks a trade' },
+  { cmd: 'NVDA SIZE', what: 'sizes it' },
+  { cmd: 'REGM', what: 'the market call' },
+])
+
 export default function FirstRunCard({ onTry }) {
   const { prefs, setPref, loading } = usePreferences()
   // Eligibility is decided ONCE, when preferences have loaded: a member with no saved board.
@@ -32,11 +41,12 @@ export default function FirstRunCard({ onTry }) {
   )
   return (
     <section className={styles.firstRun} aria-labelledby="terminal-firstrun-title" data-testid="terminal-firstrun">
-      <h2 id="terminal-firstrun-title" className={styles.firstRunTitle}>New to the terminal? Three things to know</h2>
+      <h2 id="terminal-firstrun-title" className={styles.firstRunTitle}>New to the terminal? Start here</h2>
       <ul className={styles.firstRunList}>
         <li>Type a ticker, then a function, and press Enter: {tryIt('NVDA GP')} opens a chart, {tryIt('NVDA DES')} the company.</li>
         <li>{tryIt('HELP')} lists every function in plain words. The list on the left does too.</li>
-        <li>Panels of the same colour follow each other: change the ticker in one and the rest of its group changes with it.</li>
+        <li>Panels of the same colour follow each other: change the ticker in one, or click a name in a list, and the rest of its group changes with it.</li>
+        <li data-testid="terminal-firstrun-new">New: {FIRST_RUN_NEW.map((n, i) => <span key={n.cmd}>{i ? ' · ' : ''}{tryIt(n.cmd)} {n.what}</span>)}.</li>
       </ul>
       <button type="button" className={styles.chip} onClick={dismiss} data-testid="terminal-firstrun-dismiss">Got it, hide this</button>
     </section>

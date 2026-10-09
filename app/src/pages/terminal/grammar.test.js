@@ -135,8 +135,8 @@ describe('V6b / V16 / V18 rules', () => {
 
 describe('V6c: the published ranking', () => {
   it('RANKING_ORDER is the order the ranker applies', () => {
-    expect(RANKING_ORDER.map((r) => r.key)).toEqual(['alias', 'verb', 'symbol', 'prefix', 'fuzzy', 'frecency', 'popular'])
-    expect(CLASS).toEqual({ alias: 0, verb: 1, symbol: 2, prefix: 3, fuzzy: 4 })
+    expect(RANKING_ORDER.map((r) => r.key)).toEqual(['alias', 'verb', 'symbol', 'prefix', 'fuzzy', 'word', 'frecency', 'popular'])
+    expect(CLASS).toEqual({ alias: 0, verb: 1, symbol: 2, prefix: 3, fuzzy: 4, word: 5 })
   })
   it('an exact alias beats an exact code beats an exact ticker beats a prefix', () => {
     const out = rankCandidates('GP', {

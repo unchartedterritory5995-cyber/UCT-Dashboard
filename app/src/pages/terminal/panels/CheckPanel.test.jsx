@@ -22,7 +22,7 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 import CheckPanel, { chkKey } from './CheckPanel'
 import {
   RISK_URL, TEMPLATES_URL, analogRows, analogsUrl, bookChecks, checklistChecks, checklistUrl, phaseOf,
-  perfUrl, riskEngineMissing, setupOptions,
+  perfUrl, riskEngineMissing, setupOptions, tickerAnalogsUrl, tickerAnalogView, journalTradesUrl, journalRows,
 } from './checkModel'
 import { checkLevels, computeSize } from './sizeMath'
 import { BY_CODE, variantFor } from '../functions'
@@ -50,6 +50,14 @@ const ANALOGS = { analogs: [
   { symbol: 'smci', date_flagged: '2024-01-18', setup_type: 'VCP', status: 'CLOSED', entry_price: 300, pct_change: 42.5, days_held: 21 },
   { symbol: 'ANF', date_flagged: '2023-11-02', setup_type: 'VCP', status: 'STOPPED', entry_price: 70, pct_change: -6.2, days_held: 4 },
 ], count: 2 }
+const MINE = { analogs: [
+  { symbol: 'NVDA', date_flagged: '2024-05-22', setup_type: 'VCP', status: 'CLOSED', entry_price: 950, pct_change: 18.4, days_held: 9 },
+], count: 1, symbol: 'NVDA', scanned: 37, complete: true }
+const JOURNAL = { trades: [
+  { id: 't1', symbol: 'NVDA', side: 'Long', entryDate: '2026-08-03T00:00:00Z', exitDate: '2026-08-10T00:00:00Z', setup: 'VCP', pnlPercent: 0.081, rMultiple: 2.4 },
+  { id: 't2', symbol: 'NVDAX', side: 'Long', entryDate: '2026-07-01', exitDate: '2026-07-02', setup: 'VCP', pnlPercent: 0.5, rMultiple: 9 },
+  { id: 't3', symbol: 'NVDA', side: 'Short', entryDate: '2026-05-04', exitDate: '2026-05-06', setup: '', pnlPercent: -0.032, rMultiple: -1 },
+], total: 3, limit: 50, offset: 0 }
 
 /** Serve each URL; `over` replaces a body by a URL prefix (an Error is thrown). */
 function serve(over = {}) {
@@ -61,7 +69,9 @@ function serve(over = {}) {
     if (url === RISK_URL) return RISK
     if (url.startsWith('/api/pre-trade-checklist')) return CHECKLIST
     if (url.startsWith('/api/setup-performance/')) return { setup_type: 'VCP', regime: 'x', data: PERF }
+    if (url.startsWith('/api/analogs') && url.includes('&symbol=')) return MINE
     if (url.startsWith('/api/analogs')) return ANALOGS
+    if (url.startsWith('/api/j2/trades')) return JOURNAL
     throw Object.assign(new Error(`unserved ${url}`), { status: 500 })
   })
 }
@@ -191,6 +201,91 @@ describe('CHK panel', () => {
   })
 })
 
+describe('CHK this ticker', () => {
+  const MINE_URL = tickerAnalogsUrl('VCP', 'Pullback', 'NVDA')
+
+  it('shows this ticker\'s past trades of the setup and the member\'s own journal above the setup-wide list', async () => {
+    serve()
+    renderPanel()
+    await plan()
+    const mine = await screen.findByTestId('terminal-chk-mine-table', {}, { timeout: 2000 })
+    expect(mine.textContent).toContain('NVDA')
+    expect(mine.textContent).toContain('+18.4%')
+    expect(mine.textContent).not.toContain('SMCI')
+    expect(asked('/api/analogs')).toContain(MINE_URL)
+    expect(asked('/api/j2/trades')).toContain(journalTradesUrl('NVDA'))
+
+    const journal = await screen.findByTestId('terminal-chk-journal-table')
+    const rows = within(journal).getAllByRole('row').slice(1)
+    expect(rows).toHaveLength(2)   // the NVDAX prefix neighbour is not this ticker
+    expect(rows[0].textContent).toMatch(/2026-08-03.*Long.*VCP \(this setup\).*\+8\.1%.*\+2\.4R/)
+    expect(rows[1].textContent).toMatch(/2026-05-04.*Short.*Not tagged.*-3\.2%.*-1\.0R/)
+
+    const wide = await screen.findByTestId('terminal-chk-analogs-table')
+    const order = [screen.getByTestId('terminal-chk-mine'), screen.getByTestId('terminal-chk-journal'), screen.getByTestId('terminal-chk-analogs')]
+    expect(order[0].compareDocumentPosition(order[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(order[1].compareDocumentPosition(order[2]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(wide.textContent).toContain('SMCI')
+  })
+
+  it('says none on record when the whole record holds none, and an empty journal in words', async () => {
+    serve({
+      [MINE_URL]: { analogs: [], count: 0, symbol: 'NVDA', scanned: 37, complete: true },
+      '/api/j2/trades': { trades: [], total: 0, limit: 50, offset: 0 },
+    })
+    renderPanel()
+    expect((await screen.findByTestId('terminal-chk-journal-empty')).textContent).toBe('No closed trades in NVDA in your journal.')
+    await plan()
+    expect((await screen.findByTestId('terminal-chk-mine-empty', {}, { timeout: 2000 })).textContent)
+      .toBe('None on record for NVDA in a Pullback market.')
+    expect(screen.queryByTestId('terminal-chk-mine-table')).toBeNull()
+  })
+
+  it('a window that was not the whole record says how much was read, never "none on record"', async () => {
+    serve({ [MINE_URL]: { analogs: [], count: 0, symbol: 'NVDA', scanned: 500, complete: false } })
+    renderPanel()
+    await plan()
+    const empty = await screen.findByTestId('terminal-chk-mine-empty', {}, { timeout: 2000 })
+    expect(empty.textContent).toContain('None for NVDA in the latest 500 VCP trades on record.')
+    expect(empty.textContent).not.toContain('None on record')
+  })
+
+  it('a server that ignored the ticker filter is never shown as this ticker\'s trades', async () => {
+    serve({ [MINE_URL]: ANALOGS })
+    renderPanel()
+    await plan()
+    expect((await screen.findByTestId('terminal-chk-mine-unsupported', {}, { timeout: 2000 })).textContent)
+      .toContain('cannot pick out one ticker')
+    expect(screen.queryByTestId('terminal-chk-mine-table')).toBeNull()
+  })
+
+  it('each read fails on its own with Retry; the setup-wide list still renders', async () => {
+    serve({ [MINE_URL]: err(503), '/api/j2/trades': err(503) })
+    renderPanel()
+    const jErr = await screen.findByTestId('terminal-chk-journal-error')
+    expect(jErr.textContent).toContain('Your journal could not be read just now.')
+    await plan()
+    const mErr = await screen.findByTestId('terminal-chk-mine-error', {}, { timeout: 2000 })
+    expect(mErr.textContent).toContain('could not be read just now')
+    expect(await screen.findByTestId('terminal-chk-analogs-table')).toBeTruthy()
+    serve()
+    fireEvent.click(within(screen.getByTestId('terminal-chk-mine')).getByRole('button', { name: 'Retry' }))
+    fireEvent.click(within(screen.getByTestId('terminal-chk-journal')).getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByTestId('terminal-chk-mine-table')).toBeTruthy()
+    expect(await screen.findByTestId('terminal-chk-journal-table')).toBeTruthy()
+  })
+
+  it('the engine not loaded is said in words for this ticker too, never "none on record"', async () => {
+    // What the route answers when the engine is not importable: nothing read, not complete.
+    serve({ [MINE_URL]: { analogs: [], count: 0, symbol: 'NVDA', scanned: 0, complete: false } })
+    renderPanel()
+    await plan()
+    const off = await screen.findByTestId('terminal-chk-mine-off', {}, { timeout: 2000 })
+    expect(off.textContent).toContain('Not switched on')
+    expect(screen.queryByTestId('terminal-chk-mine-empty')).toBeNull()
+  })
+})
+
 describe('checkModel', () => {
   it('setup options de-duplicate and sort by family', () => {
     expect(setupOptions(TEMPLATES).map((o) => o.value)).toEqual(['VCP', 'Episodic Pivot'])
@@ -224,6 +319,35 @@ describe('checkModel', () => {
     expect(riskEngineMissing({ heat: {}, limits: {} })).toBe(true)
     expect(riskEngineMissing(RISK)).toBe(false)
     expect(analogRows(ANALOGS, 1).map((a) => a.sym)).toEqual(['SMCI'])
+  })
+
+  it('this-ticker urls carry the ticker, upper-cased, and need every part', () => {
+    expect(tickerAnalogsUrl('Red to Green', 'Pullback', 'nvda')).toBe('/api/analogs?setup_type=Red%20to%20Green&regime=Pullback&limit=5&symbol=NVDA')
+    expect(tickerAnalogsUrl('VCP', 'Pullback', '')).toBeNull()
+    expect(tickerAnalogsUrl('VCP', null, 'NVDA')).toBeNull()
+    expect(journalTradesUrl('brk.b')).toBe('/api/j2/trades?symbol=BRK.B&limit=50')
+    expect(journalTradesUrl('')).toBeNull()
+  })
+
+  it('the this-ticker view keeps exact rows and tells none, partial, unread and unsupported apart', () => {
+    const row = (symbol) => ({ symbol, date_flagged: '2024-01-01', pct_change: 1 })
+    expect(tickerAnalogView({ analogs: [row('NVDA'), row('NVDAX')], symbol: 'NVDA', scanned: 9, complete: true }, 'nvda'))
+      .toMatchObject({ state: 'rows', rows: [{ sym: 'NVDA' }] })
+    expect(tickerAnalogView({ analogs: [], symbol: 'NVDA', scanned: 9, complete: true }, 'NVDA')).toEqual({ state: 'none' })
+    expect(tickerAnalogView({ analogs: [], symbol: 'NVDA', scanned: 500, complete: false }, 'NVDA')).toEqual({ state: 'partial', scanned: 500 })
+    expect(tickerAnalogView({ analogs: [], symbol: 'NVDA', scanned: 0, complete: false }, 'NVDA')).toEqual({ state: 'unread' })
+    expect(tickerAnalogView({ analogs: [row('NVDA')], count: 1 }, 'NVDA')).toEqual({ state: 'unsupported' })
+    expect(tickerAnalogView(undefined, 'NVDA')).toBeNull()
+  })
+
+  it('journal rows are this ticker exactly, newest first, P&L in percent', () => {
+    const rows = journalRows(JOURNAL, 'nvda')
+    expect(rows.map((r) => r.side)).toEqual(['Long', 'Short'])
+    expect(rows[0]).toMatchObject({ entryDate: '2026-08-03', exitDate: '2026-08-10', setup: 'VCP', r: 2.4 })
+    expect(rows[0].pnlPct).toBeCloseTo(8.1)
+    expect(rows[1]).toMatchObject({ setup: null, r: -1 })
+    expect(journalRows({ trades: [] }, 'NVDA')).toEqual([])
+    expect(journalRows(null, 'NVDA')).toEqual([])
   })
 
   it('SWR keys are CHK\'s own, never the bare URL', () => {

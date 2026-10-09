@@ -7,6 +7,8 @@
 //   Win rate   GET /api/setup-performance/{setup}, for all markets and for today's phase.
 //   Analogs    GET /api/analogs, the latest past trades of that setup in today's phase.
 //   Risk       GET /api/risk-summary, the member's open book against today's phase limits.
+//   This ticker GET /api/analogs with `symbol`, the setup's past trades in this ticker only, and
+//              GET /api/j2/trades?symbol=, the member's own closed journal trades in it (read only).
 //
 // Every section loads and fails on its own: one failed read never blanks the panel, a failed read
 // is an error with Retry (never an empty section), a 402 says paid plan. The engine's own "not
@@ -27,7 +29,8 @@ import { stampedRead, failureText } from './marketRead'
 import { checkLevels, parseNum } from './sizeMath'
 import {
   RISK_URL, TEMPLATES_URL, MAX_HEAT_PCT, analogRows, analogsUrl, bookChecks, checklistChecks, checklistUrl,
-  engineMissing, num, perfUrl, phaseOf, riskEngineMissing, setupOptions,
+  engineMissing, journalRows, journalTradesUrl, num, perfUrl, phaseOf, riskEngineMissing, setupOptions,
+  tickerAnalogView, tickerAnalogsUrl,
 } from './checkModel'
 import shared from './myNamesPanel.module.css'
 import form from './sizePanel.module.css'
@@ -141,6 +144,60 @@ function PerfTable({ rows }) {
   )
 }
 
+/** Past trades of a setup: symbol, when, entry, outcome, days, status. */
+function AnalogTable({ rows, label, testId }) {
+  return (
+    <div className={shared.tableBox}>
+      <table className={shared.table} aria-label={label} data-testid={testId}>
+        <thead>
+          <tr><th scope="col">Symbol</th><th scope="col">Flagged</th><th scope="col" className={shared.phoneHide}>Entry</th>
+            <th scope="col">Outcome</th><th scope="col" className={shared.phoneHide}>Days</th><th scope="col">Status</th></tr>
+        </thead>
+        <tbody>
+          {rows.map((a) => (
+            <tr key={a.key}>
+              <td>{a.sym ? <PanelSymbol sym={a.sym} className={shared.sym} /> : 'n/a'}</td>
+              <td>{a.date || 'n/a'}</td>
+              <td className={shared.phoneHide}>{price(a.entry)}</td>
+              <td className={a.outcome > 0 ? shared.up : a.outcome < 0 ? shared.down : undefined}>
+                {a.outcome === null ? 'Not resolved' : signedPct(a.outcome)}
+              </td>
+              <td className={shared.phoneHide}>{a.days === null ? 'n/a' : formatNumber(a.days, { decimals: 0 })}</td>
+              <td>{a.status || 'n/a'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/** The member's own closed trades in this ticker. */
+function JournalTable({ rows, setup }) {
+  return (
+    <div className={shared.tableBox}>
+      <table className={shared.table} aria-label="Your closed trades in this ticker" data-testid="terminal-chk-journal-table">
+        <thead>
+          <tr><th scope="col">Entered</th><th scope="col" className={shared.phoneHide}>Exited</th><th scope="col">Side</th>
+            <th scope="col">Setup</th><th scope="col">P&amp;L</th><th scope="col" className={shared.phoneHide}>R</th></tr>
+        </thead>
+        <tbody>
+          {rows.map((t) => (
+            <tr key={t.key}>
+              <td>{t.entryDate || 'n/a'}</td>
+              <td className={shared.phoneHide}>{t.exitDate || 'n/a'}</td>
+              <td>{t.side || 'n/a'}</td>
+              <td>{t.setup ? (t.setup === setup ? `${t.setup} (this setup)` : t.setup) : 'Not tagged'}</td>
+              <td className={t.pnlPct > 0 ? shared.up : t.pnlPct < 0 ? shared.down : undefined}>{signedPct(t.pnlPct)}</td>
+              <td className={shared.phoneHide}>{t.r === null ? 'n/a' : `${t.r > 0 ? '+' : ''}${formatNumber(t.r, { decimals: 1 })}R`}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 /** One win-rate row from a setup-performance read (or the words for why there is none). */
 function perfRow(key, label, read) {
   if (!read.asked) return { key, label, data: null, note: 'Needs today\'s market phase.' }
@@ -187,12 +244,14 @@ export default function CheckPanel({ sym }) {
   const perfAll = useChkRead(s && setup ? perfUrl(setup, 'ALL') : null)
   const perfPhase = useChkRead(s && setup && phase ? perfUrl(setup, phase) : null)
   const analogs = useChkRead(s && setup && phase ? analogsUrl(setup, phase) : null)
+  const mine = useChkRead(s && setup && phase ? tickerAnalogsUrl(setup, phase, s) : null)
+  const journal = useChkRead(s ? journalTradesUrl(s) : null)
 
   const options = useMemo(() => setupOptions(templates.body), [templates.body])
 
   // As of: the oldest read that has landed, so the panel never claims to be fresher than its parts.
-  const stamps = [templates, risk, checklist, perfAll, perfPhase, analogs].map((r) => r.receivedAt).filter(Boolean).sort()
-  usePanelFreshness(stamps.length ? { source: 'UCT intelligence engine (setups, analogs, risk)', observedAt: stamps[0] } : null)
+  const stamps = [templates, risk, checklist, perfAll, perfPhase, analogs, mine, journal].map((r) => r.receivedAt).filter(Boolean).sort()
+  usePanelFreshness(stamps.length ? { source: 'UCT intelligence engine (setups, analogs, risk) and your journal', observedAt: stamps[0] } : null)
 
   if (!s) {
     return (
@@ -210,6 +269,8 @@ export default function CheckPanel({ sym }) {
   const ruleRows = [['Entry trigger', rules.entry_trigger], ['Stop method', rules.stop_method], ['Invalidation', rules.invalidation]]
     .filter(([, v]) => typeof v === 'string' && v.trim())
   const analogList = analogRows(analogs.body)
+  const mineView = engineMissing(mine.body) ? null : tickerAnalogView(mine.body, s)
+  const journalList = journalRows(journal.body, s)
   const heat = risk.body?.heat || {}
   const unheated = num(risk.body?.open_position_count) !== null && num(heat.position_count) !== null
     ? num(risk.body.open_position_count) - num(heat.position_count) : 0
@@ -299,6 +360,39 @@ export default function CheckPanel({ sym }) {
         )}
       </Section>
 
+      <Section id="mine" title="This ticker's past trades of this setup" read={mine} what="This ticker's past trades">
+        {!setup ? <Waiting id="mine">Pick a setup to see past trades of it in {s}.</Waiting>
+          : !phase ? <Waiting id="mine">Past trades are matched by today&apos;s market phase, which has not loaded.</Waiting>
+          : engineMissing(mine.body) ? <EngineOff id="mine" reason={engineMissing(mine.body)} />
+          : !mineView ? null
+          : mineView.state === 'unread' ? <EngineOff id="mine" reason="The setup history is not loaded on this server" />
+          : mineView.state === 'unsupported' ? (
+            <p className={shared.muted} data-testid="terminal-chk-mine-unsupported">This server cannot pick out one ticker&apos;s past trades yet.</p>
+          ) : mineView.state === 'none' ? (
+            <p className={shared.muted} data-testid="terminal-chk-mine-empty">None on record for {s} in a {phase} market.</p>
+          ) : mineView.state === 'partial' ? (
+            <p className={shared.muted} data-testid="terminal-chk-mine-empty">
+              None for {s} in the latest {formatNumber(mineView.scanned, { decimals: 0 })} {setup} trades on record. Older ones were not read.
+            </p>
+          ) : (
+            <>
+              <p className={shared.muted}>{s}&apos;s {setup} trades in a {phase} market, and how they went.</p>
+              <AnalogTable rows={mineView.rows} label={`Past trades of this setup in ${s}`} testId="terminal-chk-mine-table" />
+            </>
+          )}
+      </Section>
+
+      <Section id="journal" title="Your journal in this ticker" read={journal} what="Your journal">
+        {journalList.length === 0 ? (
+          <p className={shared.muted} data-testid="terminal-chk-journal-empty">No closed trades in {s} in your journal.</p>
+        ) : (
+          <>
+            <p className={shared.muted}>Your latest {journalList.length} closed {journalList.length === 1 ? 'trade' : 'trades'} in {s}.</p>
+            <JournalTable rows={journalList} setup={setup} />
+          </>
+        )}
+      </Section>
+
       <Section id="analogs" title="Past trades like this" read={analogs} what="The past trades">
         {!setup ? <Waiting id="analogs">Pick a setup to see past trades of it.</Waiting>
           : !phase ? <Waiting id="analogs">Past trades are matched by today&apos;s market phase, which has not loaded.</Waiting>
@@ -307,28 +401,7 @@ export default function CheckPanel({ sym }) {
           ) : (
             <>
               <p className={shared.muted}>The latest {analogList.length} {setup} trades in a {phase} market, and how they went.</p>
-              <div className={shared.tableBox}>
-                <table className={shared.table} aria-label="Past trades of this setup" data-testid="terminal-chk-analogs-table">
-                  <thead>
-                    <tr><th scope="col">Symbol</th><th scope="col">Flagged</th><th scope="col" className={shared.phoneHide}>Entry</th>
-                      <th scope="col">Outcome</th><th scope="col" className={shared.phoneHide}>Days</th><th scope="col">Status</th></tr>
-                  </thead>
-                  <tbody>
-                    {analogList.map((a) => (
-                      <tr key={a.key}>
-                        <td>{a.sym ? <PanelSymbol sym={a.sym} className={shared.sym} /> : 'n/a'}</td>
-                        <td>{a.date || 'n/a'}</td>
-                        <td className={shared.phoneHide}>{price(a.entry)}</td>
-                        <td className={a.outcome > 0 ? shared.up : a.outcome < 0 ? shared.down : undefined}>
-                          {a.outcome === null ? 'Not resolved' : signedPct(a.outcome)}
-                        </td>
-                        <td className={shared.phoneHide}>{a.days === null ? 'n/a' : formatNumber(a.days, { decimals: 0 })}</td>
-                        <td>{a.status || 'n/a'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <AnalogTable rows={analogList} label="Past trades of this setup" testId="terminal-chk-analogs-table" />
             </>
           )}
       </Section>

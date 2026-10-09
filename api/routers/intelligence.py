@@ -227,21 +227,51 @@ def get_leader_persistence(
 
 # ── Historical Analogs ───────────────────────────────────────────────────────
 
+#: How many of a setup's latest analogs the route reads when it is asked for one ticker's.
+#: The engine's `get_historical_analogs(setup_type, regime, sector, limit)` has NO symbol
+#: filter, and the two-repo contract forbids adding one there, so the route reads this many
+#: (newest first) and keeps the ticker's own rows. `complete` says whether that read was
+#: every analog on record (fewer came back than were asked for) or only the newest window.
+ANALOG_SYMBOL_SCAN = 500
+
+
 @router.get("/api/analogs")
 def get_analogs(
     setup_type: str = Query(...),
     regime: str = "ALL",
     sector: str = "",
     limit: int = 5,
+    symbol: str = "",
     _user: dict = Depends(require_paid),
 ):
-    """Get historical analogs for a setup type in a regime."""
+    """Get historical analogs for a setup type in a regime.
+
+    `symbol` (optional) keeps only that ticker's past trades of the setup. The answer then
+    also carries `symbol`, `scanned` (how many of the setup's analogs were read) and
+    `complete` (True when that was all of them, so an empty list means none on record)."""
+    sym = symbol_shape(symbol) if (symbol or "").strip() else ""
     uct = _get_api()
     if not uct:
-        return {"analogs": [], "count": 0}
+        out = {"analogs": [], "count": 0}
+        if sym:
+            out.update({"symbol": sym, "scanned": 0, "complete": False})
+        return out
 
-    analogs = uct.get_historical_analogs(setup_type, regime, sector, limit)
-    return {"analogs": analogs, "count": len(analogs)}
+    if not sym:
+        analogs = uct.get_historical_analogs(setup_type, regime, sector, limit)
+        return {"analogs": analogs, "count": len(analogs)}
+
+    window = uct.get_historical_analogs(setup_type, regime, sector, ANALOG_SYMBOL_SCAN) or []
+    keep = max(0, min(int(limit), 50))
+    mine = [a for a in window
+            if str((a or {}).get("symbol") or "").strip().upper() == sym][:keep]
+    return {
+        "analogs": mine,
+        "count": len(mine),
+        "symbol": sym,
+        "scanned": len(window),
+        "complete": len(window) < ANALOG_SYMBOL_SCAN,
+    }
 
 
 # ── Risk Dashboard ───────────────────────────────────────────────────────────

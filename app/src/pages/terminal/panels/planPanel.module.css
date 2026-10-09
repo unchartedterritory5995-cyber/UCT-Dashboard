@@ -8,6 +8,7 @@
   font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
   line-height: var(--lh-normal);
+  overflow-wrap: anywhere;
 }
 
 .actions {

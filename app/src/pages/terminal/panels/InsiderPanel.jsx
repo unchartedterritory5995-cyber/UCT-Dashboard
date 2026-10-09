@@ -116,7 +116,7 @@ export default function InsiderPanel() {
                   <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                   <PanelSymbol sym={r.sym} className={styles.sym} />
                 </td>
-                <td>{r.name}</td>
+                <td className={styles.wrapCell}>{r.name}</td>
                 <td className={styles.phoneHide}>{r.role}</td>
                 <td>{formatCompactTerminal(r.amount, { money: true })}</td>
                 <td className={styles.phoneHide}>{formatNumber(r.shares, { decimals: 0 })}</td>

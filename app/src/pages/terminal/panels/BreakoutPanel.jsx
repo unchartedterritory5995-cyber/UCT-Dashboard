@@ -249,7 +249,7 @@ export default function BreakoutPanel() {
               <tr key={x.sym} data-testid={`terminal-brko-row-${x.sym}`}>
                 <td className={styles.rowNum}>{x.order + 1}</td>
                 <td><PanelSymbol sym={x.sym} className={styles.sym} /></td>
-                <td>{x.setup}</td>
+                <td className={styles.wrapCell}>{x.setup}</td>
                 <td>{pivotText(x.dist)}</td>
                 <td className={styles.phoneHide}>{formatCurrency(x.pivot, { absent: 'n/a' })}</td>
                 <td>{formatNumber(x.rs, { decimals: 0, absent: 'n/a' })}</td>

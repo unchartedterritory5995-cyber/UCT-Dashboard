@@ -34,6 +34,7 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-xs) var(--space-sm);
+  overflow-wrap: anywhere;
 }
 
 .verdict {

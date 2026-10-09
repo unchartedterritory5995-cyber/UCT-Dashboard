@@ -3,10 +3,11 @@
 //
 // Order of classes (grammar.js RANKING_ORDER, which HELP prints):
 //   0 exact alias · 1 exact function code · 2 exact ticker · 3 prefix · 4 close spelling
+//   · 5 a plain word for what a function does (functions.js `keywords` and label words)
 // and inside a class: personal frecency (descending), then a widely traded ticker (the app's
 // popular list, in its order), then alphabetical. Frecency never
 // lifts a row across a class boundary — an exact match always outranks a habit.
-import { FUNCTIONS, editDistance } from './functions'
+import { FUNCTIONS, editDistance, BY_CODE, CODE_ALIASES, codesForWords } from './functions'
 import { RANKING_ORDER } from './grammar'
 import { POPULAR_RESULTS } from '../../components/chart/symbolSearchModel'
 
@@ -76,6 +77,19 @@ export function rankCandidates(token, {
   }
   for (const [name, expansion] of Object.entries(aliases)) add('alias', name, `→ ${expansion}`, 'alias')
   if (codes) for (const f of FUNCTIONS) add('function', f.code, f.label, 'verb')
+  // A registry alias typed in full (`MOVERS`, `WIIM`) is its code, exactly: offer the code.
+  if (codes && Object.prototype.hasOwnProperty.call(CODE_ALIASES, t)) {
+    const code = CODE_ALIASES[t]
+    rows.push({ kind: 'function', value: code, label: BY_CODE[code].label, rank: 'verb', _c: CLASS.verb, _f: frecency(stats[code], nowSec), _p: NOT_POPULAR })
+  }
+  // A plain word ("breakout", "insider") names the function that does it, after every spelling
+  // match, so a real ticker or code is never pushed down by a word. The row's value is the CODE,
+  // so accepting it writes `BRKO`, never the word.
+  if (codes && t.length >= 3) {
+    for (const code of codesForWords(t)) {
+      rows.push({ kind: 'function', value: code, label: BY_CODE[code].label, rank: 'word', _c: CLASS.word, _f: frecency(stats[code], nowSec), _p: NOT_POPULAR })
+    }
+  }
   for (const r of tickers) {
     const v = String(r.value || '').toUpperCase()
     if (!v) continue
