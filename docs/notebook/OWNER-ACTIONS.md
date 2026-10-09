@@ -65,7 +65,8 @@ words in chat; the scheduled-task readings were taken on this machine on 2026-10
   enough real members are using the Notebook.
 - **Row 1 (the two zero-retention letters): CLOSED by owner ruling 2026-10-09 -- not sent.** The
   owner chose the vendors' published terms over written ZDR (`VENDOR-TERMS-2026-09-23.md` §2).
-  Meaning search and voice notes arm on those terms, after `Privacy.jsx` says so. The drafts in
+  Meaning search and voice notes arm on those terms, after `Privacy.jsx` says so: **both armed on
+  web 2026-10-09 19:36Z**, once the Privacy page (#307) was confirmed live. The drafts in
   §2 are kept for the record only.
 - **Row 7's caveat is closed.** The screener now asks the weekly question (question 6 in
   `docs/notebook/user-study/screener.md` §2), and the kit says how to read the answers
