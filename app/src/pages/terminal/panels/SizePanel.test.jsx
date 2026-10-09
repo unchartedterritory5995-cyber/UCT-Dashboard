@@ -5,28 +5,45 @@
 //   * a failed price read leaves the entry for the member to type and says so;
 //   * account and risk % are kept in localStorage only (no server preference), and a throwing
 //     storage never breaks the panel;
-//   * the registry: `SIZE` and `NVDA SIZE` both open this panel.
+//   * the registry: `SIZE` and `NVDA SIZE` both open this panel;
+//   * the ADR stop (wave 9): one ADR below the entry from 20 completed daily bars, offered with a
+//     button and NEVER applied on its own; no ticker, no read; no_data / 404 / warming say so.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, act, waitFor } from '@testing-library/react'
 
 const live = vi.hoisted(() => ({ prices: {}, error: null, asked: [] }))
 vi.mock('../../../hooks/useLivePrices', () => ({
   default: (tickers) => { live.asked.push(tickers); return { prices: live.prices, isLoading: false, error: live.error } },
 }))
 
-import SizePanel, { SIZE_STORE_KEY, loadSizePrefs } from './SizePanel'
-import { computeSize, parseNum } from './sizeMath'
+import SizePanel, { SIZE_STORE_KEY, adrUrl, formingDate, loadSizePrefs } from './SizePanel'
+import { ADR_BARS, adrFromBars, adrStop, computeSize, parseNum } from './sizeMath'
 import { BY_CODE, variantFor } from '../functions'
 import { PANEL_IMPORTERS } from '../panels'
 import parseCommand from '../parseCommand'
+
+// The ADR read: a `fetch` stand-in answering the bars URL with `bars.answer` (a body and a status).
+const bars = vi.hoisted(() => ({ answer: null, urls: [] }))
+const barsFetch = (url) => {
+  bars.urls.push(String(url))
+  const a = typeof bars.answer === 'function' ? bars.answer() : bars.answer
+  return Promise.resolve({ ok: a.status >= 200 && a.status < 300, status: a.status, json: async () => a.body })
+}
+/** n daily bars whose high/low range is `pct` percent, dated in 2026 before today (never forming). */
+const rangeBars = (n, pct = 5) => Array.from({ length: n }, (_, i) => ({
+  t: `2026-0${1 + Math.floor(i / 28)}-${String((i % 28) + 1).padStart(2, '0')}`, o: 100, h: 100 * (1 + pct / 100), l: 100, c: 101, v: 1000,
+}))
 
 beforeEach(() => {
   live.prices = {}
   live.error = null
   live.asked = []
+  bars.answer = { status: 200, body: { bars: [], no_data: true } }
+  bars.urls = []
+  vi.stubGlobal('fetch', vi.fn(barsFetch))
   window.localStorage.clear()
 })
-afterEach(() => { cleanup(); vi.restoreAllMocks() })
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 const type = (key, value) => fireEvent.change(screen.getByTestId(`terminal-size-${key}`), { target: { value } })
 
@@ -74,6 +91,124 @@ describe('sizeMath', () => {
   it('a short target that would go to zero or below is not offered', () => {
     const r = computeSize({ account: 1e5, riskPct: 1, entry: 10, stop: 14, side: 'short' })
     expect(r.targets.map((t) => t.price)).toEqual([6, 2, null])
+  })
+})
+
+describe('sizeMath: the ADR', () => {
+  it('ADR% is the mean of high/low - 1 over the last 20 bars', () => {
+    expect(adrFromBars({ bars: rangeBars(25, 5) }).adrPct).toBeCloseTo(5, 9)
+    const mixed = { bars: [...rangeBars(10, 9), ...rangeBars(10, 2), ...rangeBars(10, 4)] }
+    expect(adrFromBars(mixed)).toMatchObject({ n: ADR_BARS })
+    expect(adrFromBars(mixed).adrPct).toBeCloseTo(3, 9)              // the oldest 10 (9%) are past the window
+  })
+
+  it('fewer than 20 usable bars is no ADR; junk rows are skipped, never counted at zero', () => {
+    expect(adrFromBars({ bars: rangeBars(19) })).toBeNull()
+    expect(adrFromBars({ bars: [] })).toBeNull()
+    expect(adrFromBars(null)).toBeNull()
+    const junk = [...rangeBars(19), { t: '2026-03-01', h: null, l: 1 }, { t: '2026-03-02', h: 1, l: 0 }, { t: '2026-03-03', h: 1, l: 2 }]
+    expect(adrFromBars({ bars: junk })).toBeNull()
+  })
+
+  it('a still-forming bar is left out', () => {
+    const rows = [...rangeBars(20, 5), { t: '2026-03-01', o: 100, h: 150, l: 100, c: 120 }]
+    const date = (b) => b.t
+    expect(adrFromBars({ bars: rows }, { forming: '2026-03-01', barDate: date }).adrPct).toBeCloseTo(5, 9)
+    expect(adrFromBars({ bars: rows }, { barDate: date }).adrPct).toBeGreaterThan(5)
+  })
+
+  it('the stop sits one ADR below a long entry and above a short one, to the cent', () => {
+    expect(adrStop({ entry: '100', adrPct: 4.2, side: 'long' })).toBe(95.8)
+    expect(adrStop({ entry: '$1,000', adrPct: 3.333, side: 'short' })).toBe(1033.33)
+    expect(adrStop({ entry: '', adrPct: 4 })).toBeNull()
+    expect(adrStop({ entry: '100', adrPct: 0 })).toBeNull()
+    expect(adrStop({ entry: '100', adrPct: Number.NaN })).toBeNull()
+  })
+
+  it('a daily bar is forming only before the 4:00 PM ET close', () => {
+    expect(formingDate(new Date('2026-10-09T15:00:00Z'))).toBe('2026-10-09')   // 11:00 ET
+    expect(formingDate(new Date('2026-10-09T20:30:00Z'))).toBeNull()           // 16:30 ET
+  })
+})
+
+describe('SizePanel: the ADR stop', () => {
+  const phase = () => screen.getByTestId('terminal-size-adr').dataset.phase
+
+  it('reads 30 daily bars, offers one ADR below the entry, and only the button applies it', async () => {
+    live.prices = { NVDA: { price: 200, change_pct: 1 } }
+    bars.answer = { status: 200, body: { ticker: 'NVDA', tf: 'D', bars: rangeBars(30, 4) } }
+    render(<SizePanel sym="NVDA" />)
+    const text = await screen.findByTestId('terminal-size-adr-text')
+    expect(text.textContent).toBe('Suggested stop: $192.00 (1 ADR below entry, ADR 4.0%)')
+    expect(bars.urls).toEqual([adrUrl('NVDA')])
+    expect(adrUrl('NVDA')).toBe('/api/bars/NVDA?tf=D&bars=30')
+    expect(screen.getByTestId('terminal-size-stop').value).toBe('')          // never auto-applied
+    fireEvent.click(screen.getByTestId('terminal-size-adr-apply'))
+    expect(screen.getByTestId('terminal-size-stop').value).toBe('192.00')
+  })
+
+  it('a short reads one ADR above the entry', async () => {
+    bars.answer = { status: 200, body: { bars: rangeBars(30, 5) } }
+    render(<SizePanel sym="NVDA" />)
+    type('entry', '100')
+    fireEvent.click(screen.getByTestId('terminal-size-side-short'))
+    expect((await screen.findByTestId('terminal-size-adr-text')).textContent).toBe('Suggested stop: $105.00 (1 ADR above entry, ADR 5.0%)')
+  })
+
+  it('without an entry it gives the ADR and asks for an entry, with no button', async () => {
+    bars.answer = { status: 200, body: { bars: rangeBars(30, 3) } }
+    render(<SizePanel sym="NVDA" />)
+    await waitFor(() => expect(phase()).toBe('ready'))
+    expect(screen.getByTestId('terminal-size-adr').textContent).toBe('ADR 3.0%. Enter an entry to see a stop one ADR away.')
+    expect(screen.queryByTestId('terminal-size-adr-apply')).toBeNull()
+  })
+
+  it('no ticker: no bars read and no suggestion', () => {
+    render(<SizePanel sym={null} />)
+    expect(screen.queryByTestId('terminal-size-adr')).toBeNull()
+    expect(bars.urls).toEqual([])
+  })
+
+  it('a no_data answer says there is no ADR stop and offers nothing to apply', async () => {
+    bars.answer = { status: 200, body: { ticker: 'ZZZZ', tf: 'D', bars: [], no_data: true, reason: 'symbol_not_carried' } }
+    render(<SizePanel sym="ZZZZ" />)
+    await waitFor(() => expect(phase()).toBe('none'))
+    expect(screen.getByTestId('terminal-size-adr').textContent).toBe('No ADR stop: not enough daily history for ZZZZ.')
+    expect(screen.queryByTestId('terminal-size-adr-apply')).toBeNull()
+  })
+
+  it('too few bars and a 404 are both no ADR, not an error', async () => {
+    bars.answer = { status: 200, body: { bars: rangeBars(12) } }
+    render(<SizePanel sym="NEWCO" />)
+    await waitFor(() => expect(phase()).toBe('none'))
+    cleanup()
+    bars.answer = { status: 404, body: { detail: 'no data' } }
+    render(<SizePanel sym="NOPE" />)
+    await waitFor(() => expect(phase()).toBe('none'))
+  })
+
+  it('a warming answer says so, and Retry reads again', async () => {
+    let calls = 0
+    bars.answer = () => (++calls === 1
+      ? { status: 503, body: { ticker: 'NVDA', bars: [], warming: true } }
+      : { status: 200, body: { bars: rangeBars(30, 4) } })
+    render(<SizePanel sym="NVDA" />)
+    await waitFor(() => expect(phase()).toBe('warming'))
+    expect(screen.getByTestId('terminal-size-adr').textContent).toContain('Daily history for NVDA is still loading.')
+    fireEvent.click(screen.getByTestId('terminal-size-adr-retry'))
+    await waitFor(() => expect(phase()).toBe('ready'))
+    expect(bars.urls.length).toBe(2)
+  })
+
+  it('a 200 warming body and a failed read are told apart', async () => {
+    bars.answer = { status: 200, body: { bars: [], warming: true } }
+    render(<SizePanel sym="NVDA" />)
+    await waitFor(() => expect(phase()).toBe('warming'))
+    cleanup()
+    bars.answer = { status: 500, body: {} }
+    render(<SizePanel sym="NVDA" />)
+    await waitFor(() => expect(phase()).toBe('error'))
+    expect(screen.getByTestId('terminal-size-adr').textContent).toContain('Could not read the ADR for NVDA just now.')
   })
 })
 

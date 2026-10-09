@@ -50,7 +50,7 @@ export const perContract = (v) => (v == null || Number.isNaN(Number(v)) ? '—' 
 export function capNote(d) {
   if (!d || d.candidate_cap == null || d.candidates_read == null) return null
   if (Number(d.candidates_read) < Number(d.candidate_cap)) return null
-  return `Capped at ${count(d.candidate_cap)} contracts by open interest — higher-yield low-OI contracts may be missing.`
+  return `Capped at ${count(d.candidate_cap)} contracts by open interest, so higher-yield contracts with little open interest may be missing.`
 }
 
 function Row({ kind, r }) {

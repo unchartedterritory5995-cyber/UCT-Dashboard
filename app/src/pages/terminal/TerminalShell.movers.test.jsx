@@ -199,8 +199,25 @@ describe('a movers row loads the name into the linked panels', () => {
     expect(screen.getByTestId('stub-Chart')).toHaveTextContent('Chart:TSLA')
   })
 
-  it('CONTROL: typing the same name as a command (plain Enter) still turns the focused panel into DES', async () => {
+  // W9-4: a plain Enter on a market list now loads a visible security panel (GP here) instead of
+  // turning the list into DES; it still moves focus there, which a row click never does.
+  it('CONTROL: typing the same name as a command (plain Enter) loads the chart and moves focus to it', async () => {
     seedBoard()
+    renderShell()
+    await screen.findByTestId('stub-Movers')
+    const input = screen.getByTestId('terminal-command')
+    fireEvent.change(input, { target: { value: 'TSLA' } })
+    await act(async () => { fireEvent.keyDown(input, { key: 'Enter' }) })
+    expect(code(0)).toBe('MOST')
+    expect(code(1)).toBe('GP')
+    expect(screen.getByTestId('stub-Chart')).toHaveTextContent('Chart:TSLA')
+    expect(screen.getByTestId('terminal-panel-1').dataset.focused).toBe('true')
+  })
+
+  it('CONTROL: with no security panel on the board, plain Enter still turns the list into DES', async () => {
+    seedBoard()
+    const lay = JSON.parse(store.prefs.terminal_layout)
+    store.prefs.terminal_layout = JSON.stringify({ ...lay, count: 1, panels: lay.panels.slice(0, 1) })
     renderShell()
     await screen.findByTestId('stub-Movers')
     const input = screen.getByTestId('terminal-command')

@@ -8,6 +8,7 @@ import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import { formatCurrency, formatDateTimeEt, formatNumber, formatPercent, formatPercentAsSent, isForeignCurrency, normalizeCurrencyCode } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
 import EarningsTradeCard from '../../../components/research/EarningsTradeCard'
+import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
 
 // FT-005 — per-ticker earnings reaction, 8 quarters: the 5-session run-in, the
 // opening gap, the reacting session's close-to-close move and the 5-session
@@ -59,7 +60,8 @@ export default function EarningsReactionPanel({ sym }) {
     : null)
 
   let body
-  if (error) body = <div className={styles.error} data-testid="earnings-reaction-unavailable">The earnings reaction is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
+  if (isSwitchedOff(error)) body = <SwitchedOff what="The earnings reaction" className={styles.note} testId="earnings-reaction-off" />
+  else if (error) body = <div className={styles.error} data-testid="earnings-reaction-unavailable">The earnings reaction is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading the earnings reaction" />
   else if (data.paywalled) body = <div className={styles.note}>The earnings reaction requires a paid plan.</div>
   else if (data.badRequest) body = <DepthBadRequest sentence={memberSentence(data.badRequest)} />
