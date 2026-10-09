@@ -209,13 +209,15 @@ def breadth_live_universes_reconcile(request: Request, sessions: int = 10, start
 
 @router.get("/api/breadth-monitor/nhnl-intraday")
 def breadth_nhnl_intraday(request: Request, start: int = 0, rebuild: int = 0,
-                          max_sessions: int = 0, date: str = ""):
+                          max_sessions: int = 0, date: str = "", population: int = 0):
     """Intraday-basis new highs/lows series (`breadth_nhnl_intraday`): status, or `start=1` to
     extend it in a background job (`rebuild=1` sweeps from scratch). `date=YYYY-MM-DD` adds the
     series' values for that session beside the stored (closing-basis) counts. PUSH_SECRET-gated."""
     _check_auth(request)
     from api.services import breadth_nhnl_intraday as nhi
     out = {"status": nhi.status()}
+    if population:
+        out["population"] = nhi.diagnose_population()
     if start:
         out["job"] = nhi.start_sweep(rebuild=bool(rebuild), max_sessions=max_sessions or None)
     if date:
@@ -230,7 +232,7 @@ def breadth_nhnl_intraday(request: Request, start: int = 0, rebuild: int = 0,
             try:
                 from api.services import breadth_daily_ohlc as bdo
                 for m in ("new_52w_highs", "new_52w_lows", "pct_above_50sma", "pct_above_200sma"):
-                    row = (bdo._history_stored(m, limit=40, universe=u) or {}).get(date)
+                    row = (bdo._history_stored(m, limit=6000, universe=u) or {}).get(date)
                     stored[m] = row and row.get("c")
             except Exception as e:
                 stored = {"error": str(e)[:120]}

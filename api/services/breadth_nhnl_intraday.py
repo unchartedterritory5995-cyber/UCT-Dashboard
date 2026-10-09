@@ -667,3 +667,50 @@ def status() -> dict:
             "universes": {u: len(r) for u, r in ((v or {}).get("rows") or {}).items()},
             "ring_through": ring.dates[-1] if ring and ring.dates else None,
             "ring_tickers": len(ring.tickers) if ring else None, "job": job()}
+
+
+# ── population diagnostic ───────────────────────────────────────────────────
+
+def diagnose_population(min_history: int = 1) -> dict:
+    """For the ring's newest session: intraday AND closing new highs/lows per listing venue and
+    security type — the evidence for which population a published diary (WSJ / Dow Jones,
+    StockCharts) counts. Two window rules: `complete` (all 251 prior sessions present, our rule)
+    and `listed` (at least `min_history` prior sessions — "high since listing" for young issues)."""
+    from collections import defaultdict
+    from api.services import breadth_pit_frame as bpf
+    ring = _ring_for_live()
+    if ring is None or ring.n < RING:
+        return {"ok": False, "reason": "ring not full"}
+    D = ring.dates[-1]
+    s = (ring.n - 1) % RING
+    prior = [c for c in range(RING) if c != s]
+    nt = len(ring.tickers)
+    H, L, C = ring.H[:nt], ring.L[:nt], ring.C[:nt]
+    h, lo, c = H[:, s], L[:, s], C[:, s]
+    ph, pl, pc = H[:, prior], L[:, prior], C[:, prior]
+    with np.errstate(invalid="ignore"), _quiet():
+        n_prior = (~np.isnan(ph)).sum(axis=1)
+        mxh, mnl = np.nanmax(ph, axis=1), np.nanmin(pl, axis=1)
+        mxc, mnc = np.nanmax(pc, axis=1), np.nanmin(pc, axis=1)
+        traded = ~np.isnan(h) & ~np.isnan(lo)
+        complete = traded & (n_prior == RING - 1)
+        listed = traded & (n_prior >= min_history)
+        nh_i, nl_i = h > mxh, lo < mnl
+        nh_c, nl_c = c >= mxc, c <= mnc
+    ref = {canon(k): v for k, v in bpf.reference_map().items()}
+    agg = defaultdict(lambda: defaultdict(int))
+    for i, t in enumerate(ring.tickers):
+        if not traded[i]:
+            continue
+        rec = bpf.resolve(ref.get(t), D) or {}
+        key = "%s|%s" % ((rec.get("primary_exchange") or "?").upper(), rec.get("type") or "?")
+        a = agg[key]
+        a["traded"] += 1
+        for rule, m in (("complete", complete[i]), ("listed", listed[i])):
+            if m:
+                a[rule + "_n"] += 1
+                a[rule + "_nh_intraday"] += int(bool(nh_i[i]))
+                a[rule + "_nl_intraday"] += int(bool(nl_i[i]))
+                a[rule + "_nh_close"] += int(bool(nh_c[i]))
+                a[rule + "_nl_close"] += int(bool(nl_c[i]))
+    return {"ok": True, "session": D, "by_venue_type": {k: dict(v) for k, v in sorted(agg.items())}}

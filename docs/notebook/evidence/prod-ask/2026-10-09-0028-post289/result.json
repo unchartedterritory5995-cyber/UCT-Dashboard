@@ -1,0 +1,335 @@
+{
+ "base": "https://uctintelligence.com",
+ "steps": [
+  {
+   "name": "login",
+   "status": 200,
+   "t": 2.6
+  },
+  {
+   "name": "me",
+   "status": 200,
+   "synthetic_domain": true,
+   "t": 2.6
+  },
+  {
+   "name": "inventory_before",
+   "active": 2,
+   "trash": 23,
+   "t": 2.8
+  },
+  {
+   "name": "note_created",
+   "status": 200,
+   "id_present": true,
+   "t": 3.0
+  },
+  {
+   "name": "intro_home",
+   "seen": true,
+   "skipped": false,
+   "gone": true,
+   "t": 6.3
+  },
+  {
+   "name": "home",
+   "state": "full",
+   "ask_doors": 1,
+   "t": 6.3
+  },
+  {
+   "name": "asked_answer",
+   "t": 6.5
+  },
+  {
+   "name": "answer",
+   "chars": 171,
+   "sources": 1,
+   "numbers": true,
+   "alert": "",
+   "page_errors": 0,
+   "t": 8.9
+  },
+  {
+   "name": "citation_opens_note",
+   "opened": true,
+   "t": 8.9
+  },
+  {
+   "name": "asked_note-answer",
+   "t": 9.3
+  },
+  {
+   "name": "note_answer",
+   "chars": 197,
+   "has_stop": true,
+   "alert": "",
+   "t": 11.0
+  },
+  {
+   "name": "writing_help_asked_summarize",
+   "choice": "Summarize",
+   "t": 11.8
+  },
+  {
+   "name": "writing_help",
+   "choice": "Summarize",
+   "draft_chars": 8,
+   "alert": "",
+   "note_unchanged": true,
+   "t": 14.6
+  },
+  {
+   "name": "writing_help_asked_rewrite-shorter",
+   "choice": "Rewrite shorter",
+   "t": 15.1
+  },
+  {
+   "name": "writing_help",
+   "choice": "Rewrite shorter",
+   "draft_chars": 7,
+   "alert": "",
+   "note_unchanged": true,
+   "t": 17.9
+  },
+  {
+   "name": "writing_help_asked_continue-writing",
+   "choice": "Continue writing",
+   "t": 18.4
+  },
+  {
+   "name": "writing_help",
+   "choice": "Continue writing",
+   "draft_chars": 380,
+   "alert": "",
+   "note_unchanged": true,
+   "t": 22.7
+  },
+  {
+   "name": "writing_help_asked_translate",
+   "choice": "Translate",
+   "t": 23.2
+  },
+  {
+   "name": "writing_help",
+   "choice": "Translate",
+   "draft_chars": 11,
+   "alert": "",
+   "note_unchanged": true,
+   "t": 26.1
+  },
+  {
+   "name": "autofill_asked",
+   "t": 26.2
+  },
+  {
+   "name": "autofill",
+   "door": true,
+   "state": "nothing",
+   "count": 0,
+   "alert": "",
+   "note_unchanged": true,
+   "t": 29.3
+  },
+  {
+   "name": "docx_uploaded",
+   "status": 200,
+   "bytes": 964,
+   "writer": "zipfile",
+   "url_ends_docx": true,
+   "t": 29.4
+  },
+  {
+   "name": "docx_document",
+   "gate": true,
+   "status": "ready",
+   "kind": "docx",
+   "pages_with_text": 1,
+   "timed_out": false,
+   "t": 29.5
+  },
+  {
+   "name": "asked_docx-answer",
+   "t": 29.6
+  },
+  {
+   "name": "docx_answer",
+   "chars": 107,
+   "has_code": true,
+   "sources": 1,
+   "alert": "",
+   "t": 32.2
+  },
+  {
+   "name": "touch_login",
+   "status": 200,
+   "synthetic_domain": true,
+   "t": 33.7
+  },
+  {
+   "name": "intro_touch_home",
+   "seen": true,
+   "skipped": false,
+   "gone": true,
+   "t": 36.9
+  },
+  {
+   "name": "touch_toggle",
+   "toggle": {
+    "x": 278.984375,
+    "y": 2437.453125,
+    "w": 67.015625,
+    "h": 44
+   },
+   "innerWidth": 390,
+   "innerHeight": 852,
+   "dpr": 3,
+   "coarse": true,
+   "t": 36.9
+  },
+  {
+   "name": "asked_touch-answer",
+   "t": 37.4
+  },
+  {
+   "name": "touch_chips",
+   "n": 2,
+   "inline": 1,
+   "source": 1,
+   "min_w": 44,
+   "min_h": 44,
+   "overlaps": 0,
+   "alert": "",
+   "sources": 1,
+   "t": 39.4
+  },
+  {
+   "name": "note_removed",
+   "delete_status": 200,
+   "get_after": 404,
+   "documents_after": 404,
+   "t": 39.9
+  },
+  {
+   "name": "inventory_after",
+   "active": 2,
+   "trash": 24,
+   "t": 40.2
+  }
+ ],
+ "inventory_before": {
+  "active": 2,
+  "trash": 23
+ },
+ "home_state": "full",
+ "answer_excerpt": "For ZZZT, your plan [1]:\n\n- Planned entry: 41.20, on a close above the 10-day high\n- Stop: 39.80, placed under the last swing low\n- Rule: no adds until two closes above 43",
+ "sources": 1,
+ "alert": "",
+ "cited_opened": true,
+ "note_answer_excerpt": "Your stop for ZZZT is 39.80, placed under the last swing low [1]. The plan also called for entry at 41.20 on a close above the 10-day high [1], with a rule of no adds until two closes above 43 [2].",
+ "note_alert": "",
+ "draft_excerpt": "Planned.",
+ "help_alert": "",
+ "note_unchanged": true,
+ "drafts": {
+  "Rewrite shorter": {
+   "draft": "Planned",
+   "alert": "",
+   "note_unchanged": true,
+   "draft_chars": 7
+  },
+  "Continue writing": {
+   "draft": "I planned the trade out before the open, mapped the levels I wanted to see, and wrote down the invalidation point so I wouldn't have to think under pressure once price started moving.\n\nSticking to that plan is the part I still need to work on. It's easy to write the rules down the night before and a",
+   "alert": "",
+   "note_unchanged": true,
+   "draft_chars": 380
+  },
+  "Translate": {
+   "draft": "Planificado",
+   "alert": "",
+   "note_unchanged": true,
+   "draft_chars": 11
+  }
+ },
+ "autofill": {
+  "door": true,
+  "reason": "",
+  "state": "nothing",
+  "count": 0,
+  "alert": "",
+  "note_unchanged": true,
+  "suggestions": []
+ },
+ "docx": {
+  "gate": true,
+  "status": "ready",
+  "timed_out": false,
+  "alert": "",
+  "answer": "The budget code is QX-7731, mentioned alongside a note that the vendor meeting is on the third Tuesday [2].",
+  "sources": 1,
+  "writer": "zipfile",
+  "bytes": 964,
+  "upload_status": 200,
+  "attachment_url_suffix": "64ee800.docx",
+  "kind": "docx",
+  "pages_with_text": 1,
+  "has_code": true,
+  "source_labels": [
+   "Open source 2: smoke-check-vendor-memo.docx \u00b7 p.1"
+  ]
+ },
+ "touch": {
+  "toggle": {
+   "x": 278.984375,
+   "y": 2437.453125,
+   "w": 67.015625,
+   "h": 44
+  },
+  "alert": "",
+  "arrived": true,
+  "chips": [
+   {
+    "kind": "source",
+    "label": "Open source 1: Smoke check: ZZZT plan (automated, removed by the run)",
+    "x": 19,
+    "y": 725,
+    "w": 352,
+    "h": 44
+   },
+   {
+    "kind": "inline",
+    "label": "Source 1: Smoke check: ZZZT plan (automated, removed by the run)",
+    "x": 116.765625,
+    "y": 642.203125,
+    "w": 44,
+    "h": 44
+   }
+  ],
+  "overlaps": [],
+  "viewport": {
+   "innerWidth": 390,
+   "innerHeight": 852,
+   "dpr": 3,
+   "coarse": true
+  },
+  "answer_excerpt": "Your ZZZT plan: planned entry at 41.20, on a close above the 10-day high. Your stop is 39.80, placed under the last swing low. The rule you set for the trade is no adds until two closes above 43 [1].",
+  "sources": 1,
+  "inline_chips": 1,
+  "source_chips": 1,
+  "min_w": 44,
+  "min_h": 44
+ },
+ "verdict": {
+  "code": 0,
+  "why": "door present (full home); whole-Notebook answer with both numbers, 1 source(s), citation opened the note; Ask inside the note carried the stop; writing help drafted x4 and every Discard left the note unchanged; Suggest values nothing and applied nothing; the Word file reached 'ready' and Ask carried the budget code with 1 source(s); touch toggle 67x44, 2 chips all >= 44 with no overlap; note removed"
+ },
+ "note_removed": {
+  "delete": 200,
+  "get_after": 404,
+  "documents_after": 404
+ },
+ "inventory_after": {
+  "active": 2,
+  "trash": 24
+ }
+}
