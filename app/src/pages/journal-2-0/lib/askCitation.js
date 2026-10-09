@@ -233,6 +233,48 @@ export function isBlockAtomRange(doc, from, to) {
 }
 
 /**
+ * Land an editor on a resolved passage: select it and scroll it into view.
+ *
+ * ⛔ ONE LANDING FOR EVERY DOOR INTO A PASSAGE. The Ask panel inside a note
+ * (`jumpToCitation`) and a citation that arrives WITH the note from a scope
+ * that spans notes (NoteEditorPage's routed landing, fin walk 8.3) both end
+ * here. Two openers for one destination disagreed within a day the last time
+ * two hosts each kept their own (lib/openCitation.js's header), and a landing
+ * is the same shape: a second copy would select a block atom as text in one
+ * door and as a node in the other.
+ *
+ * A passage that is exactly one block atom (a chip, an excerpt, a chart) is
+ * selected as that NODE: a TextSelection cannot sit around a block leaf --
+ * ProseMirror warns and the member sees nothing selected.
+ */
+export function selectResolvedPassage(editor, resolved) {
+  const chain = editor.chain().focus()
+  const selected = isBlockAtomRange(editor.state.doc, resolved.from, resolved.to)
+    ? chain.setNodeSelection(resolved.from)
+    : chain.setTextSelection({ from: resolved.from, to: resolved.to })
+  selected.scrollIntoView().run()
+}
+
+/**
+ * The text a note citation is verified against: what the cited RANGE reads,
+ * never merely what the model was shown.
+ *
+ * In "This note" every block is its own source, so the snippet IS the text at
+ * [from, to] (capped; `text_length` says when, see isTruncatedSnippet). A scope
+ * that spans notes sends the MODEL's text -- the whole note when it fits, else
+ * passages around each matched word (fin walk K1) -- while its `location` is
+ * the one matched word's range. Verifying that range against that snippet can
+ * never succeed, so the server puts the range's own text beside the range
+ * (ask_retrieval._note_passage, `location.text`), and it wins here. A packet
+ * without it (every "This note" packet, and every packet issued before it
+ * existed) is matched on its snippet exactly as before.
+ */
+export function citedPassageText(source) {
+  const own = source?.location?.text
+  return typeof own === 'string' && own.trim() ? own : (source?.snippet || '')
+}
+
+/**
  * Is [from, to) exactly ONE atom — block OR inline? The question the TEXT path
  * of resolveNoteCitation asks before claiming a passage, mirroring the server
  * (note_citation_text.py::resolve_note_citation refuses any `_atom_span_at`,

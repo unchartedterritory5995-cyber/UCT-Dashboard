@@ -183,6 +183,26 @@ def test_the_citation_still_points_at_the_matched_word(doc):
     assert "entry" in snippet.lower()
 
 
+@pytest.mark.parametrize("doc", [_doc(*PLAN), _long_doc()], ids=["whole", "excerpt"])
+def test_the_citation_carries_the_text_at_its_own_range(doc):
+    """Fin walk 8.3: from the whole Notebook a citation opened the note, not the passage.
+
+    The browser lands on a passage only after re-reading the text at the cited range in the
+    live note (askCitation.js::resolveNoteCitation). In this scope the snippet is the whole
+    note or passages around several words, never the one matched word the range addresses,
+    so the location must carry the range's own text -- exactly that text, nothing wider."""
+    snippet, loc, validity, _partial = ar._note_passage(doc, '"entry"')
+    assert validity == ev.CITE_EXACT
+    flat = nct.flatten(doc)
+    assert loc["text"] == flat["text"][loc["snippet_start"]:loc["snippet_end"]] == "entry"
+    assert loc["text"] != snippet      # the snippet is NOT what is at the range (K1 kept them apart)
+    # It reaches the browser untouched: the projection passes `location` through whole.
+    from api.services.journal_two.ask_service import public_source
+    item = ev.from_note({"id": "n1", "user_id": U, "title": "CRWD plan"}, snippet=snippet,
+                        location=loc, citation_validity=validity)
+    assert public_source(1, item)["location"]["text"] == "entry"
+
+
 def test_the_three_value_passage_function_is_unchanged_for_its_callers():
     doc = _doc(*PLAN)
     assert ar._best_note_passage(doc, '"entry"') == ar._note_passage(doc, '"entry"')[:3]
