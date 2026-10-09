@@ -43,8 +43,10 @@ export default function CallsTab({ sym }) {
           CallRecapSection) flat-merges them -- same as CallSection does. */}
       {recap && <CallRecapSection recap={recapData} audio={audioData} hideSentimentBadge />}
       {/* the recap's other states sit where the recap would, above the transcript */}
+      {/* Wave 3 (TRAN P2 #22): the error used the shared state block while paywalled and empty
+          were bare notes. All three are PanelState now, each with its own kind. */}
       {!isLoading && paywalled && (
-        <div className={styles.fnote} data-testid="call-recap-paywalled">The earnings call recap requires a paid plan.</div>
+        <PanelState kind="locked" compact testId="call-recap-paywalled" title="The earnings call recap requires a paid plan." />
       )}
       {!isLoading && !recap && !error && !paywalled && (() => {
         // Same shared copy as CallSection. This surface said "No earnings call
@@ -52,9 +54,7 @@ export default function CallsTab({ sym }) {
         // which is the common one — the request path never synthesises inline.
         const { title, hint } = recapEmptyState(recapData?.recap_status)
         return (
-          <div className={styles.fnote} data-testid="call-recap-empty">
-            <strong>{title}</strong> {hint}
-          </div>
+          <PanelState kind="empty" compact testId="call-recap-empty" title={title}>{hint}</PanelState>
         )
       })()}
       <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The recap" />
