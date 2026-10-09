@@ -1,0 +1,424 @@
+{
+ "started": "2026-10-09T11:23:19",
+ "nvda_version": "2026.2",
+ "base": "https://uctintelligence.com",
+ "nonce": "0aa00ffc966d",
+ "rows": [
+  {
+   "n": 1,
+   "keys": "Tab",
+   "expected": [
+    "Skip to notes list",
+    "link"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 2,
+   "keys": "Enter",
+   "expected": [
+    "All notes",
+    "heading"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 3,
+   "keys": "focus Hide folders panel, Tab",
+   "expected": [
+    "Hide folders panel",
+    "button",
+    "Panel view",
+    "tab"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 4,
+   "keys": "focus the All notes row",
+   "expected": [
+    "All notes"
+   ],
+   "result": "PASS",
+   "notes": "(F3: the button hands focus to its treeitem; NVDA names the row, not a button) UCT-NVDA-0aa00ffc966d - Google Chrome for Testing window / UCT-NVDA-0aa00ffc966d document / main landmark / complementary landmark / Folders tree view / UCT-NVDA-0aa00ffc966d - Google Chrome for Testing window / UCT-NVDA-0aa00ffc966d document / main landmark / complementary landmark / Folders tree v",
+   "heard": [
+    "UCT-NVDA-0aa00ffc966d - Google Chrome for Testing window",
+    "UCT-NVDA-0aa00ffc966d document",
+    "main landmark",
+    "complementary landmark",
+    "Folders tree view",
+    "UCT-NVDA-0aa00ffc966d - Google Chrome for Testing window",
+    "UCT-NVDA-0aa00ffc966d document",
+    "main landmark",
+    "complementary landmark",
+    "Folders tree view",
+    "level 1 All notes, 2 1 of 5"
+   ],
+   "dom": "DOM: after focusing the All notes button, activeElement role is 'treeitem'"
+  },
+  {
+   "n": 5,
+   "keys": "on All notes: Down until SR folder, Right (expand) -- no Insert+Space",
+   "expected": [
+    "SR folder",
+    "collapsed",
+    "expanded"
+   ],
+   "result": "PASS",
+   "notes": "(F3 re-check: the arrows must work with no mode toggle; a focused treeitem puts NVDA in focus mode by itself) Unfiled, 2 2 of 5 level 1 / Archived, 0 3 of 5 level 1 / Trash, 63 4 of 5 level 1 / SR folder collapsed 5 of 5 level 1 / expanded",
+   "heard": [
+    "Unfiled, 2 2 of 5 level 1",
+    "Archived, 0 3 of 5 level 1",
+    "Trash, 63 4 of 5 level 1",
+    "SR folder collapsed 5 of 5 level 1",
+    "expanded"
+   ],
+   "dom": "DOM: focus role before arrows 'treeitem'; after Down/Right 'treeitem'"
+  },
+  {
+   "n": 6,
+   "keys": "Enter on the SR folder row, then Shift+F10 (its menu), Escape",
+   "expected": [
+    "SR folder",
+    "Rename",
+    "Add subfolder",
+    "Delete"
+   ],
+   "result": "PASS",
+   "notes": "(script says Tab along the row to Rename/Add subfolder/Delete; those are tabIndex -1 and reached by Shift+F10) selected / Rename 1 of 4 / Add subfolder 2 of 4 / Delete 3 of 4 / main landmark / complementary landmark / Folders tree view / SR folder expanded 5 of 5 level 1",
+   "heard": [
+    "selected",
+    "Rename 1 of 4",
+    "Add subfolder 2 of 4",
+    "Delete 3 of 4",
+    "main landmark",
+    "complementary landmark",
+    "Folders tree view",
+    "SR folder expanded 5 of 5 level 1"
+   ],
+   "dom": null
+  },
+  {
+   "n": 7,
+   "keys": "focus the tag row",
+   "expected": [
+    "srpass",
+    "button"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 8,
+   "keys": "focus the Saved Views disclosure; focus SR view",
+   "expected": [
+    "Saved Views",
+    "button",
+    "SR view"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 9,
+   "keys": "Enter on All notes (clears the view); focus Sort notes; Right (List view); Right (Table view); Space",
+   "expected": [
+    "Sort notes",
+    "combo box",
+    "List view",
+    "pressed",
+    "Table view"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 10,
+   "keys": "Back to List; focus the SR pass card; Enter",
+   "expected": [
+    "SR pass",
+    "heading"
+   ],
+   "result": "FAIL",
+   "notes": "driver error: TimeoutError: Locator.focus: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_text(\"SR pass\", exact=True).first\n",
+   "heard": [
+    "Notes list tools tool bar",
+    "View grouping",
+    "List view toggle button pressed"
+   ]
+  },
+  {
+   "n": 11,
+   "keys": "Tab until the body (count measured)",
+   "expected": [
+    "Subtitle",
+    "Editor toolbar",
+    "Table",
+    "Note body"
+   ],
+   "result": "FAIL",
+   "notes": "(F2 re-check: the Table tool bar must be heard ONCE and cost one Tab; the count is in the DOM note) missing ['Subtitle', 'Editor toolbar', 'Table', 'Note body']; heard: Search templates edit has auto complete Up and Down choose a template. Enter opens it. Search templates\u2026 blank / Blank noteAn empty page \u2014 structure it your way. button / Filter templates by category grouping All toggle button pressed / Daily & weekly rituals toggle button not pressed / Thesis & res",
+   "heard": [
+    "Search templates edit has auto complete Up and Down choose a template. Enter opens it. Search templates\u2026 blank",
+    "Blank noteAn empty page \u2014 structure it your way. button",
+    "Filter templates by category grouping All toggle button pressed",
+    "Daily & weekly rituals toggle button not pressed",
+    "Thesis & research toggle button not pressed",
+    "Around a trade toggle button not pressed",
+    "Mindset toggle button not pressed",
+    "Your templates toggle button not pressed",
+    "Browse the community gallery button",
+    "Blank noteAn empty page \u2014 structure it your way. button",
+    "DAILY & WEEKLY RITUALS grouping Daily Game Plan button BEFORE THE OPEN Regime, levels, scenarios, and your risk budget for the day.",
+    "Preview Daily Game Plan button",
+    "Post-Market Debrief button AFTER THE CLOSE Grade the day against the morning plan in five minutes.",
+    "Preview Post-Market Debrief button",
+    "Weekly Plan button SUNDAY OR MONDAY PREMARKET Context, focus, A+ setups, and the risk plan for the week.",
+    "Preview Weekly Plan button",
+    "Weekly Review button THE WEEKEND LOOK-BACK Patterns, leaks, and the ONE commitment for next week.",
+    "Preview Weekly Review button",
+    "Monthly Review button THE FIRST WEEKEND AFTER THE MONTH CLOSES Zoom out from week-to-week \u2014 what actually moved the account this month.",
+    "Preview Monthly Review button",
+    "Quarterly Review button END OF QUARTER The long view \u2014 equity curve, edge by setup, and whether the plan still fits.",
+    "Preview Quarterly Review button",
+    "THESIS & RESEARCH grouping Long/Short Thesis button STARTING A NEW INVESTMENT THESIS Bull case, bear case, catalysts, risks, and what would prove you wrong.",
+    "Preview Long/Short Thesis button",
+    "Sector / Theme Research button DIGGING INTO A SECTOR OR THEME Why the theme is moving, the names that lead it, and how to trade it.",
+    "Preview Sector / Theme Research button",
+    "Sector Note button YOUR WEEKLY OR BIWEEKLY CHECK ON A GROUP Where a group stands, which names lead it, and where the money is moving.",
+    "Preview Sector Note button",
+    "Watchlist Thesis button ADDING A NAME TO THE WATCHLIST Why it earned a spot on the list, and the trigger that promotes it to a trade.",
+    "Preview Watchlist Thesis button",
+    "Catalyst Tracker button A KNOWN EVENT IS COMING FOR A NAME YOU FOLLOW The date, the expectation, and what a beat or miss does to the chart.",
+    "Preview Catalyst Tracker button",
+    "Earnings Prep button THE DAYS BEFORE A COMPANY REPORTS The expectations, the reaction history, and what to listen for, before the report.",
+    "Preview Earnings Prep button",
+    "IPO / New Issue Notes button A NEW LISTING HITS THE TAPE The business, the float, and whether it belongs on a fresh-issue watchlist.",
+    "Preview IPO / New Issue Notes button",
+    "Meeting / Webinar Notes button DURING OR RIGHT AFTER A CALL, WEBINAR, OR EARNINGS PRESENTATION Capture it while it is fresh \u2014 the claims, the tone, and the one thing that mattered.",
+    "Preview Meeting / Webinar Notes button",
+    "AROUND A TRADE grouping Trade Post-Mortem button AFTER A TRADE CLOSES Setup, execution, and the lesson \u2014 while it\u2019s fresh.",
+    "Preview Trade Post-Mortem button",
+    "Swing Position Log button WHILE A POSITION IS OPEN A dated block per day the position is alive \u2014 thesis, stop, action."
+   ],
+   "dom": "DOM: 40 Tabs from the heading to the body (was 29 before F2); focus ended on 'Swing Position Log'"
+  },
+  {
+   "n": 12,
+   "keys": "Insert+Space (browse mode), H, T, Down, Right",
+   "expected": [
+    "Setup",
+    "heading",
+    "table",
+    "Sym"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": "12b",
+   "keys": "Insert+Space (focus mode); Tab, Tab, Alt+F10, Escape",
+   "expected": [
+    "Table",
+    "tool bar"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 13,
+   "keys": "end of body, Enter, /, Down",
+   "expected": [
+    "Insert block"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 14,
+   "keys": "Escape",
+   "expected": [
+    "Note body"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 15,
+   "keys": "[ [ (real keys), type SR, Down, Enter",
+   "expected": [
+    "Link to a note",
+    "SR target"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 16,
+   "keys": "Ctrl+F, type stop",
+   "expected": [
+    "Find in note"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 17,
+   "keys": "Ctrl+H, Tab x7 (to the replace field), Escape",
+   "expected": [
+    "Replace with",
+    "Note body"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 18,
+   "keys": "focus Ask, Enter",
+   "expected": [
+    "Ask a question about this note",
+    "Your question"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 19,
+   "keys": "type a question the note cannot answer, Enter, wait",
+   "expected": [
+    "find",
+    "note"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 20,
+   "keys": "focus Close Ask, Enter",
+   "expected": [
+    "Ask a question about this note",
+    "button"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 21,
+   "keys": "list; Graph view; Show as list, Space",
+   "expected": [
+    "Graph view",
+    "Show as list",
+    "pressed"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 22,
+   "keys": "Space; focus the canvas; Home; Right",
+   "expected": [
+    "Note graph",
+    "notes",
+    "link"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 23,
+   "keys": "List; Save view, Enter, Escape",
+   "expected": [
+    "Save view",
+    "dialog",
+    "Name"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 24,
+   "keys": "open the note; More note actions, Enter; Delete, Enter; confirm Delete",
+   "expected": [
+    "Delete this note",
+    "dialog"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 25,
+   "keys": "no notes: open the Notebook home; focus its heading",
+   "expected": [
+    "Welcome to your Notebook",
+    "heading"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 26,
+   "keys": "Share, Enter, Tab, Escape",
+   "expected": [
+    "Share this note",
+    "Share link address"
+   ],
+   "result": "NOT RUN",
+   "notes": "left to the owner: the step mints a public share link for a note on the smoke account",
+   "heard": []
+  },
+  {
+   "n": 27,
+   "keys": "? (Shift+/ as a real key) anywhere in the Journal",
+   "expected": [
+    "Keyboard Shortcuts",
+    "dialog"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  }
+ ],
+ "made": {
+  "notes": [
+   "057b9ee7c931451cbf090bed5f8a2017",
+   "84b950361a4e4124867d6438b94e7914"
+  ],
+  "folders": [
+   "e4a6eee87f384c10ae3289b8c376bbbb",
+   "c1bae3337c644d31abd23f3ce549354b"
+  ],
+  "views": [
+   "4c29603cb15e4f63a967859c3638dff0"
+  ]
+ },
+ "aborted": null,
+ "stray_notes_trashed": [],
+ "left_active_notes": 0,
+ "left_sr_folders": 0,
+ "left_sr_views": 0,
+ "finished": "2026-10-09T11:24:58"
+}
