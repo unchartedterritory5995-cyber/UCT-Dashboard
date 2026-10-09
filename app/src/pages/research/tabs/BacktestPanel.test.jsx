@@ -123,6 +123,9 @@ describe('BacktestPanel', () => {
   })
 })
 
+// Audit 2026-10-08: the chain folds its sub-panels into groups that mount on first open.
+const openGroup = async (id) => { const g = await screen.findByTestId(id); g.open = true; fireEvent(g, new Event('toggle')) }
+
 describe('OptionsChainTab with the backtester switched on', () => {
   it('renders the panel only when switched on', async () => {
     wrap(<OptionsChainTab sym="spy" />)
@@ -130,6 +133,7 @@ describe('OptionsChainTab with the backtester switched on', () => {
     expect(screen.queryByTestId('backtest')).toBeNull()
     cleanup()
     wrap(<OptionsChainTab sym="spy" backtest />)
+    await openGroup('chain-group-history')
     await screen.findByTestId('backtest')
   })
 
@@ -137,6 +141,7 @@ describe('OptionsChainTab with the backtester switched on', () => {
   // still passes unchanged. With it on there is exactly ONE button, and it is a simulation.
   it('its only button is Simulate -- no trade, order, send or broker action', async () => {
     wrap(<OptionsChainTab sym="spy" backtest />)
+    await openGroup('chain-group-history')
     await screen.findByTestId('backtest')
     const buttons = screen.getAllByRole('button')
     expect(buttons.map((b) => b.textContent.trim())).toEqual(['Simulate'])

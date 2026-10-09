@@ -72,6 +72,18 @@ export function atmStrike(rows, spot) {
   return best
 }
 
+/** A folded group whose children mount (and so fire their reads) only once it is first opened. */
+export function LazyGroup({ title, testId, children }) {
+  const [opened, setOpened] = useState(false)
+  return (
+    <details className={`${styles.colKey} ${styles.group}`} data-testid={testId}
+      onToggle={(e) => { if (e.currentTarget.open) setOpened(true) }}>
+      <summary>{title}</summary>
+      {opened && children}
+    </details>
+  )
+}
+
 // `volSurface`: BRK-01 increment 3's switch (options_vol_surface_enabled), passed by ResearchPage.
 // `backtest`: BRK-01 increment 4's switch (options_backtest_enabled), passed by ResearchPage. Its
 // one button is "Simulate" -- a historical simulation, never an order.
@@ -246,22 +258,33 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
       {drill && <ContractDrill key={drill.contract} sym={s} contract={drill} spot={Number(d.spot)} onClose={() => setDrill(null)} />}
       {drill && <StancePanel key={`stance-${drill.contract}`} sym={s} contract={drill} />}
       <PayoffPanel rows={rows} spot={Number(d.spot)} sym={s} expiration={d.expiration || ''} atmIv={atmIv} />
-      <StrategyFinder sym={s} rows={rows} spot={Number(d.spot)} expiration={d.expiration || ''} atmIv={atmIv} />
-      <SpreadBookPanel />
-      <EdgePanel sym={s} expiration={d.expiration || ''} />
-      <PositionBuilder sym={s} rows={rows} spot={Number(d.spot)} />
-      <ProbabilityPanel sym={s} expiration={d.expiration || ''} />
-      {volSurface && <VolSurfacePanel sym={s} expiration={d.expiration || ''} />}
-      <VolSkewPanels sym={s} />
-      {/* TERM-019: these are panels of their own elsewhere; inside the chain they stay quiet so the
-          terminal header names the chain's source, not whichever embedded panel reported last. */}
-      <QuietPanelFreshness>
-        <IvHistoryPanel sym={s} />
-        {backtest && <BacktestPanel sym={s} />}
-        <OptionsHistoryPanel sym={s} />
-        <VolStatsPanel sym={s} />
-        <PositioningPanel sym={s} />
-      </QuietPanelFreshness>
+      {/* Audit 2026-10-08 (OMON P2, points 1/17): a dozen sub-panels stacked under the chain and
+          each fired its own read on open. They sit in three folded groups now; a group mounts (and
+          reads) only once a member opens it, and stays mounted after. Nothing was removed. */}
+      <LazyGroup title="Strategy tools: finder, spreads, edge, builder, probability" testId="chain-group-strategy">
+        <StrategyFinder sym={s} rows={rows} spot={Number(d.spot)} expiration={d.expiration || ''} atmIv={atmIv} />
+        <SpreadBookPanel />
+        <EdgePanel sym={s} expiration={d.expiration || ''} />
+        <PositionBuilder sym={s} rows={rows} spot={Number(d.spot)} />
+        <ProbabilityPanel sym={s} expiration={d.expiration || ''} />
+      </LazyGroup>
+      <LazyGroup title={`Volatility: ${volSurface ? 'surface, ' : ''}skew, IV history, vol stats`} testId="chain-group-vol">
+        {volSurface && <VolSurfacePanel sym={s} expiration={d.expiration || ''} />}
+        <VolSkewPanels sym={s} />
+        {/* TERM-019: these are panels of their own elsewhere; inside the chain they stay quiet so the
+            terminal header names the chain's source, not whichever embedded panel reported last. */}
+        <QuietPanelFreshness>
+          <IvHistoryPanel sym={s} />
+          <VolStatsPanel sym={s} />
+        </QuietPanelFreshness>
+      </LazyGroup>
+      <LazyGroup title={`History & positioning: ${backtest ? 'backtest, ' : ''}past straddles and moves, positioning`} testId="chain-group-history">
+        <QuietPanelFreshness>
+          {backtest && <BacktestPanel sym={s} />}
+          <OptionsHistoryPanel sym={s} />
+          <PositioningPanel sym={s} />
+        </QuietPanelFreshness>
+      </LazyGroup>
       <p className={styles.muted} data-testid="chain-source">
         Live chain from Massive (OPRA quotes) · IV and greeks are vendor-computed by Massive, per share
         (Θ per calendar day, vega per 1 vol point) · OI is the OCC prior-close figure · shaded cells are in the money
