@@ -75,6 +75,9 @@ export const PANEL_IMPORTERS = {
   // theme contribution (feature-gaps-2026-10-06 #4) — terminal-native; reads the Theme Tracker's
   // own cached /api/theme-performance payload
   Imov: () => import('./panels/ImovPanel'),
+  // my names (lane 9) — terminal-native; read the routes the watchlist page and the alert bell use
+  Alerts: () => import('./panels/AlertsPanel'),
+  Watchlist: () => import('./panels/WatchlistPanel'),
 }
 
 /** The panel name a registry variant renders: its `panel`, or the panel-set id of its
@@ -110,7 +113,7 @@ export const FLUSH_PANELS = new Set(['Chart', 'Calendar'])
 /** Terminal-native panels whose rows are COMMANDS: the shell hands them `onRun` (click a row)
  *  and `onRows` (type its number + Enter) beside their props. Embedded page/tab components get
  *  neither — they are never forked to accept them. */
-export const COMMAND_PANELS = new Set(['Move', 'Rrg', 'Movers', 'Imov'])
+export const COMMAND_PANELS = new Set(['Move', 'Rrg', 'Movers', 'Imov', 'Alerts', 'Watchlist'])
 
 /** List panels whose numbered rows OPEN another function (RRG's `SYM GP`) rather than load a
  *  name: typing the row number opens it BESIDE the list, exactly as clicking the row does, so

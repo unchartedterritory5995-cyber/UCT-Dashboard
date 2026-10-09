@@ -148,6 +148,15 @@ export default function parseCommand(input, opts = {}) {
   // so no alias can take it; `$BOARD` would still mean a ticker.
   if (!forced && FIRST === 'BOARD') return parseBoard(tokens.slice(1))
 
+  // `W` (also `W 2`, `W FLAGGED`) opens MON, the watchlist monitor (lane 9). W is also Wayfair's
+  // ticker, so this is V5's collision rule: the code wins, `$W` (or `W DES`) means the stock, and
+  // the echo says so before Enter. `W GP` and every other `W <code>` are untouched.
+  if (!forced && FIRST === 'W' && (tokens.length === 1
+    || (tokens.length === 2 && ARG_KINDS.watchlistPick.parse(tokens[1]) != null))) {
+    return { ok: true, type: 'function', code: 'MON', sym: null,
+      args: tokens.slice(1).map((t) => ARG_KINDS.watchlistPick.parse(t)), collision: 'W' }
+  }
+
   const aliases = opts.aliases || {}
   if (!forced && Object.prototype.hasOwnProperty.call(aliases, FIRST)) {
     const expanded = [aliases[FIRST], ...tokens.slice(1)].join(' ')

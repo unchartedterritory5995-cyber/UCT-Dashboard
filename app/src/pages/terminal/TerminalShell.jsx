@@ -44,6 +44,7 @@ import HelpPanel, { KeysTable } from './panels/HelpPanel'
 import parseCommand, { normalizeInput } from './parseCommand'
 import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, researchHref, variantFor } from './functions'
 import { applyArgs, argsEcho } from './args'
+import { planAlert, setAlert } from './alertCommand'
 import { COMMAND_PANELS, FLUSH_PANELS, ROWS_OPEN_BESIDE, panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
 import useTerminalLayout from './useTerminalLayout'
 import useCommandHistory from './commandHistory'
@@ -755,6 +756,25 @@ export default function TerminalShell() {
       const listName = resolvePanel(lay.panels[focusIdx], symsRef.current, auth).name
       if (!fromUrl && ROWS_OPEN_BESIDE.has(listName)) return run(target, { next: true, from: focusIdx })
       return run(target, { fromUrl })
+    }
+    // ALRT with a price SETS an alert (lane 9, alertCommand.js): ONCE, from a typed command, then
+    // `SYM ALRT` (the list) opens, so no panel ever keeps a command that creates on reload.
+    if (cmd.type === 'function' && cmd.code === 'ALRT' && cmd.args?.length) {
+      if (fromUrl) {
+        setNotice({ kind: 'error', text: 'Price alerts are set from the command line, not from a link. Type the command to set one.' })
+        return null
+      }
+      const plan = planAlert(cmd)
+      if (!plan.ok) { setNotice({ kind: 'error', text: plan.error }); return null }
+      const opened = run(`${cmd.channel ? `@${cmd.channel} ` : ''}${plan.sym} ALRT`, { slot, next: beside, from })
+      setNotice({ kind: 'info', text: `Setting an alert for ${plan.sym}…` })
+      // The answer is ALWAYS said, even if the member typed on: an alert that was (or was not)
+      // set is a fact about their account, not a stale read of the screen.
+      setAlert(plan)
+        .then((r) => setNotice({ kind: 'info', text: r.text }))
+        .catch((err) => setNotice({ kind: 'error',
+          text: err?.memberText || `The alert for ${plan.sym} could not be saved. Nothing was set; try again.` }))
+      return opened
     }
     countCommand(cmd)
     if (cmd.type === 'ask') {

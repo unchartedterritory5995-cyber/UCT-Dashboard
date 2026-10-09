@@ -241,6 +241,19 @@ export const FUNCTIONS = [
   { code: 'IMOV', label: 'Theme movers (which names drive a UCT theme)', group: 'Market',
     ticker: { panel: 'Imov', args: [{ kind: 'contribWindow', prop: 'win' }, IMOV_THEME_ARG] },
     market: { panel: 'Imov', args: [{ kind: 'contribWindow', prop: 'win' }, IMOV_THEME_ARG] } },
+
+  // ── my names (lane 9, top-10 #4 and #5) ──
+  // ALRT: `NVDA ALRT 950` SETS a price alert through the existing /api/watchlist-alerts (the shell
+  // does it from a typed command, never a panel mount: alertCommand.js); `NVDA ALRT` lists that
+  // ticker's alerts and `ALRT` all of them, each with Delete.
+  { code: 'ALRT', label: 'Price alerts (set one: NVDA ALRT 950)', group: 'Market',
+    ticker: { panel: 'Alerts', args: [{ kind: 'alertPrice', prop: 'price' }] },
+    market: { panel: 'Alerts', args: [{ kind: 'alertPrice', prop: 'price' }] } },
+  // MON: the member's watchlists as one live table (Bloomberg's MON). `W` alone opens it too
+  // (parseCommand: W is Wayfair's ticker, so `$W` still means the stock). `MON 2` / `MON W:id` /
+  // `MON FLAGGED` pick a list. Market-only: a row CLICK loads the name into the linked group.
+  { code: 'MON', label: 'Watchlist monitor (my lists, live; also W)', group: 'Market',
+    market: { panel: 'Watchlist', args: [{ kind: 'watchlistPick', prop: 'list' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code

@@ -12,6 +12,7 @@
 import { todayIso } from '../calendar/earningsModalRow'
 import { currentWeekMonday, mondayOf } from '../calendar/weekAnchor'
 import { canonicalCode, isCode } from './functions'
+import { parseAlertPrice } from './alertModel'
 
 /** The chart's timeframe codes (StockChart `tf`), with the spellings a member types. */
 export const TIMEFRAMES = {
@@ -139,6 +140,30 @@ export const ARG_KINDS = {
       return t.toUpperCase()
     },
     describe: (v) => `theme "${v}"`,
+  },
+  // ── my names (lane 9: ALRT and MON) ──
+  /** ALRT's price: `950`, `$950`, `>950` (above) or `<950` (below). The SHELL sets the alert from
+   *  a typed command (alertCommand.js); the panel only lists. Same parser, one spelling. */
+  alertPrice: {
+    takes: 'a price (NVDA ALRT 950, or >950 / <950 to say above or below)',
+    parse: (tok) => {
+      const p = parseAlertPrice(tok)
+      return p ? `${p.direction === 'above' ? '>' : p.direction === 'below' ? '<' : ''}${p.price}` : null
+    },
+    describe: (v) => `price ${v}`,
+  },
+  /** MON's list: its number in the panel's own list order (`MON 2`), a watchlist address
+   *  (`MON W:ab12`) or FLAGGED. The panel resolves it against the lists it reads. */
+  watchlistPick: {
+    takes: 'a list number (MON 2), W:id or FLAGGED',
+    parse: (tok) => {
+      const t = String(tok ?? '').trim()
+      if (/^\d{1,2}$/.test(t) && Number(t) >= 1) return String(Number(t))
+      if (/^W:[A-Za-z0-9_-]{1,40}$/i.test(t)) return `W:${t.slice(2)}`
+      if (/^FLAG(GED|S)?$/i.test(t)) return 'FLAGGED'
+      return null
+    },
+    describe: (v) => (v === 'FLAGGED' ? 'your flagged list' : v.startsWith('W:') ? `watchlist ${v}` : `list ${v}`),
   },
 }
 
