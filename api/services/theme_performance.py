@@ -787,6 +787,20 @@ def get_theme_performance() -> dict:
     return build_theme_performance()[0]
 
 
+def _copy_for_overlay(base: dict) -> dict:
+    """Copy the payload, each theme and each holding row (one level deep: the nested
+    returns/ref_prices dicts are only ever replaced, never written into, downstream).
+    Cheaper than a deepcopy of the ~1 MB base."""
+    themes = base.get("themes")
+    if not isinstance(themes, list):
+        return dict(base)
+    return {**base, "themes": [
+        {**t, "holdings": [dict(h) for h in (t.get("holdings") or [])]}
+        if isinstance(t, dict) else t
+        for t in themes
+    ]}
+
+
 def _overlay_and_memoize(base: dict) -> tuple[dict, bool]:
     """Overlay live 1d, enrich, memoize — and say whether the overlay is COMPLETE.
 
@@ -800,11 +814,15 @@ def _overlay_and_memoize(base: dict) -> tuple[dict, bool]:
     prior = getattr(_live_legs, "failed", None)
     failed: set = set()
     _live_legs.failed = failed
+    # The overlay can hand back the base itself (empty live map) or reuse base holding
+    # rows, and the enrich/strip/stamp steps below write into what they get. Work on a
+    # copy of the containers they touch so the cached base is never changed.
+    work = _copy_for_overlay(base)
     try:
-        overlaid = _apply_live_returns(base)
+        overlaid = _apply_live_returns(work)
     finally:
         _live_legs.failed = prior
-    complete = overlaid is not base and not failed
+    complete = overlaid is not work and not failed
     out = _strip_delisted(_enrich_with_taxonomy(overlaid))
     out["live_as_of"] = datetime.now(timezone.utc).isoformat()  # when live prices were applied
     set_by_completeness(_OVERLAID_KEY, out, complete=complete,
