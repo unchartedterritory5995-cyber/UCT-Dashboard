@@ -33,6 +33,18 @@ describe('FREC rows', () => {
     expect(screen.getByRole('img', { name: 'Not OI-confirmed' })).toBeInTheDocument()
   })
 
+  it('the headline measures are explained beside them, and the loading line is announced (wave 3)', async () => {
+    let answer
+    vi.stubGlobal('fetch', vi.fn(() => new Promise((r) => { answer = r })))
+    mount()
+    expect((await screen.findByTestId('scoreboard-loading')).getAttribute('role')).toBe('status')
+    answer({ ok: true, status: 200, json: async () => ({ picks_tracked: 1, overall: {}, by_grade: [], recent_winners: [], recent_picks: [pick('NVDA', 150)] }) })
+    const key = await screen.findByTestId('frec-key')
+    expect(key.textContent).toMatch(/Hit \+25%: the option’s best daily close after the flag was at least 25% above its entry price/)
+    expect(key.textContent).toMatch(/OI-confirmed: open interest later rose more than 10% above its first snapshot/)
+    expect(screen.getByRole('table', { name: 'Recent picks' }).className).toMatch(/tapeTable/)
+  })
+
   it('one `$SYM` row per tape row (repeats kept), the names de-duplicated as the list', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200, json: async () => ({
       picks_tracked: 3, overall: {}, by_grade: [], recent_winners: [],
