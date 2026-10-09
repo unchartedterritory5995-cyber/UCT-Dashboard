@@ -10,9 +10,19 @@
 //     ticker share ONE request (SWR dedupes by key), never one fetch per panel.
 // Honest states: "loading quote", "no quote for XYZ" (an unknown ticker, never a crash), and
 // "at last close" / "pre-market" / "after hours" whenever the regular session is not trading.
+//
+// Wave 4:
+//   * a DEFINITE miss says the server's own words — "No data for ZZQXV — check the ticker" plus
+//     its suggestions (the wave-2 `not_found` marker, drawn by the shared TickerNotFound). It is
+//     asked of `/api/research/snapshot/{sym}` (the same SWR key the snapshot card uses) ONLY once
+//     the batch has answered with no company and the pool has no price, so a real ticker never
+//     pays for it. The frame mounts this line outside the panel's run context, so suggestions are
+//     clickable when the caller passes `onRun`, plain names otherwise.
 import useSWR from 'swr'
 import useLivePrices from '../../hooks/useLivePrices'
 import useMarketOpen from '../../hooks/useMarketOpen'
+import useFundamentalSnapshot from '../../hooks/useFundamentalSnapshot'
+import TickerNotFound, { notFoundOf } from './TickerNotFound'
 import styles from './SecurityHeadline.module.css'
 
 export const HEADLINE_SNAPSHOT_URL = '/api/research/snapshot-batch'
@@ -101,7 +111,7 @@ export function sessionClause(row, market) {
   return 'at last close'
 }
 
-export default function SecurityHeadline({ sym }) {
+export default function SecurityHeadline({ sym, onRun = null }) {
   const name = String(sym || '').trim().toUpperCase()
   const { prices } = useLivePrices(name ? [name] : [])
   const market = useMarketOpen()
@@ -109,19 +119,24 @@ export default function SecurityHeadline({ sym }) {
     dedupingInterval: 5 * 60 * 1000,
     revalidateOnFocus: false,
   })
-  if (!name) return null
-  const row = prices[name] || null
+  const row = name ? prices[name] || null : null
   const meta = snap && typeof snap === 'object' ? snap[name] || null : null
   const price = fmtPrice(row?.price)
+  // Ask the presence authority only for a name the batch could not identify and the pool
+  // cannot price — never for a healthy ticker.
+  const unknown = !!name && !price && !!snap && !(meta && meta.name)
+  const { data: presence } = useFundamentalSnapshot(name, unknown)
+  if (!name) return null
 
   if (!price) {
     // No quote yet. Unknown once the snapshot answered without a company for it; otherwise
     // still loading (the live pool polls every 2s, so a real ticker fills in shortly).
-    const unknown = !!snap && !(meta && meta.name)
-    const state = unknown ? 'unknown' : snapErr ? 'unavailable' : 'loading'
+    const notFound = unknown ? notFoundOf(presence, name) : null
+    const state = notFound ? 'not-found' : unknown ? 'unknown' : snapErr ? 'unavailable' : 'loading'
     return (
       <div className={`${styles.strip} ${styles.muted}`} role="status" aria-live="polite"
         data-testid="security-headline" data-state={state}>
+        {state === 'not-found' && <TickerNotFound sym={name} payload={presence} onRun={onRun} variant="inline" />}
         {state === 'unknown' && <>No quote found for <b className={styles.sym}>{name}</b></>}
         {state === 'unavailable' && <>Quote for <b className={styles.sym}>{name}</b> is unavailable right now</>}
         {state === 'loading' && `Loading ${name} quote…`}

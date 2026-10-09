@@ -5,7 +5,7 @@
 import useResearchOverview from '../../research/hooks/useResearchOverview'
 import useLatestReport from '../../research/hooks/useLatestReport'
 import OverviewTab from '../../research/tabs/OverviewTab'
-import { usePanelFreshness, panelAsOf } from '../../../components/terminal'
+import { usePanelFreshness, panelAsOf, TickerNotFound, notFoundOf } from '../../../components/terminal'
 
 // TERM-019: the overview's numbers come from two vendors (the stats from Yahoo Finance through
 // /api/fundamentals, the analyst block from Finnhub with an FMP fallback through
@@ -16,7 +16,12 @@ const OVERVIEW_SOURCE = 'Yahoo Finance (stats) · Finnhub, FMP fallback (analyst
 export default function OverviewPanel({ sym }) {
   const data = useResearchOverview(sym, { header: false })
   const report = useLatestReport(sym)
-  usePanelFreshness(data.stats && !data.error ? panelAsOf(OVERVIEW_SOURCE, data.stats.as_of) : null)
+  // Wave 4: a symbol the server says is not a ticker (the wave-2 `not_found` marker on
+  // /api/fundamentals) gets the shared "No data for XYZ — check the ticker" + suggestions, not
+  // an overview of empty cards that reads like a real company with nothing on file.
+  const notFound = notFoundOf(data.stats, data.sym)
+  usePanelFreshness(data.stats && !data.error && !notFound ? panelAsOf(OVERVIEW_SOURCE, data.stats.as_of) : null)
+  if (notFound) return <TickerNotFound sym={data.sym} payload={data.stats} testId="des-not-found" />
   // error + mutate: a failed read renders "couldn't load" with a Retry, never
   // "will appear here once available" -- the same props ResearchPage passes.
   return (
