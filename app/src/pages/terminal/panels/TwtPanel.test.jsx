@@ -55,7 +55,7 @@ describe('TwtPanel', () => {
     expect(items[0].textContent).toContain('@DeItaone')
     expect(items[0].textContent).toContain('ET')
     expect(items[0].textContent).toContain('1,200 likes, 30 reposts')
-    expect(within(items[0]).getByRole('link', { name: 'Open on X' }).getAttribute('href')).toBe('https://x.com/DeItaone/status/2')
+    expect(within(items[0]).getByRole('link', { name: /^Open on X: post by @DeItaone/ }).getAttribute('href')).toBe('https://x.com/DeItaone/status/2')
     expect(screen.getByTestId('terminal-twt-count').textContent).toContain('2 posts mentioning $NVDA in the last 7 days')
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/tweets/ticker/NVDA?hours=168', undefined)
   })

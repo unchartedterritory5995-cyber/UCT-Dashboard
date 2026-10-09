@@ -18,7 +18,7 @@
 // list cannot be written into a command: it is kept for the open panel, and the panel says so.
 import { useCallback, useMemo, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
-import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelRerun, usePanelRun } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelRerun, usePanelRun } from '../../../components/terminal'
 import {
   formatCompact, formatCurrency, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -84,6 +84,59 @@ export function universeOptions(body, current) {
   return groups
 }
 
+/** How many names the chart's text summary names at each end of the Y axis. */
+export const SUMMARY_N = 3
+
+const byYDesc = (a, b) => b.y - a.y || (a.sym < b.sym ? -1 : 1)
+
+/** Pure: the plot's text alternative. The count, both axes, the day's split in words, and the
+ *  names at the top and bottom of the Y axis, so a screen reader hears what a glance shows. */
+export function scatterSummary(points, xMeta, yMeta, n = SUMMARY_N) {
+  if (!points.length) return ''
+  const named = (list) => list.map((p) => `${p.sym} ${fmtMetric(p.y, yMeta.unit)}`).join(', ')
+  const byY = [...points].sort(byYDesc)
+  const top = byY.slice(0, n)
+  const bottom = byY.length > n ? byY.slice(-Math.min(n, byY.length - n)).reverse() : []
+  const up = points.filter((p) => p.dir === 'up').length
+  return [
+    `Scatter of ${points.length} name${points.length === 1 ? '' : 's'}, ${yMeta.label} against ${xMeta.label}.`,
+    `${up} up today, ${points.length - up} down.`,
+    `Highest ${yMeta.label}: ${named(top)}.`,
+    bottom.length ? `Lowest: ${named(bottom)}.` : '',
+    'Show as table lists every name.',
+  ].filter(Boolean).join(' ')
+}
+
+/** The table view of the plot: every name, highest Y first, the day's move in words. Each symbol
+ *  is a button, so a keyboard reaches every name a mouse reaches as a dot. */
+function ScatterTable({ points, xMeta, yMeta }) {
+  const rows = useMemo(() => [...points].sort(byYDesc), [points])
+  return (
+    <div className={styles.tableBox} data-testid="terminal-scat-table">
+      <table className={styles.table} aria-label={`${rows.length} names, ${yMeta.label} against ${xMeta.label}, highest first`}>
+        <thead>
+          <tr>
+            <th scope="col">Symbol</th>
+            <th scope="col">{yMeta.label}</th>
+            <th scope="col">{xMeta.label}</th>
+            <th scope="col">Today</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((p) => (
+            <tr key={p.sym} data-testid={`terminal-scat-row-${p.sym}`}>
+              <td><PanelSymbol sym={p.sym} className={styles.sym} /></td>
+              <td>{fmtMetric(p.y, yMeta.unit)}</td>
+              <td>{fmtMetric(p.x, xMeta.unit)}</td>
+              <td className={p.dir === 'down' ? styles.down : styles.up}>{p.dir === 'down' ? 'Down' : 'Up'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 function makeOption({ points, xMeta, yMeta, ink, coarse }) {
   const axisText = { color: ink.muted, fontSize: 10, fontFamily: CHART_FONT_FAMILY }
   const grid = withAlpha(ink.text, 0.08)
@@ -104,7 +157,7 @@ function makeOption({ points, xMeta, yMeta, ink, coarse }) {
       backgroundColor: withAlpha(ink.elevated, 0.96),
       borderColor: withAlpha(ink.text, 0.12),
       textStyle: { color: ink.bright, fontSize: 11, fontFamily: CHART_FONT_FAMILY },
-      formatter: (p) => `<b>${p.value[2]}</b><br/>${yMeta.label}: ${fmtMetric(p.value[1], yMeta.unit)}<br/>${xMeta.label}: ${fmtMetric(p.value[0], xMeta.unit)}<br/>Click to load it`,
+      formatter: (p) => `<b>${p.value[2]}</b><br/>${yMeta.label}: ${fmtMetric(p.value[1], yMeta.unit)}<br/>${xMeta.label}: ${fmtMetric(p.value[0], xMeta.unit)}<br/>${p.value[3] === 'down' ? 'Down' : 'Up'} today<br/>Click to load it`,
     },
     xAxis: axis(xMeta),
     yAxis: { ...axis(yMeta), nameGap: 38 },
@@ -116,7 +169,7 @@ function makeOption({ points, xMeta, yMeta, ink, coarse }) {
     ],
     series: [{
       type: 'scatter', symbolSize: 7, cursor: 'pointer',
-      data: points.map((p) => ({ name: p.sym, value: [p.x, p.y, p.sym], itemStyle: { color: p.dir === 'down' ? ink.down : ink.up, opacity: 0.85 } })),
+      data: points.map((p) => ({ name: p.sym, value: [p.x, p.y, p.sym, p.dir], itemStyle: { color: p.dir === 'down' ? ink.down : ink.up, opacity: 0.85 } })),
       emphasis: { scale: 1.5, label: { show: true, formatter: (p) => p.value[2], position: 'right', color: ink.bright, fontSize: 10 } },
     }],
   }
@@ -136,6 +189,8 @@ export default function ScatterPanel({ universe = null, yKey: yProp = null, xKey
   const rerun = usePanelRerun()
   const [view, setView] = useState(() => initialView({ universe, yKey: yProp, xKey: xProp }))
   const { pick, yKey, xKey } = view
+  // The plot's text alternative: every name as a table row a keyboard and a screen reader reach.
+  const [asTable, setAsTable] = useState(false)
   const metrics = useMarketRead(METRICS_URL)
   const universes = useMarketRead(UNIVERSES_URL)
   const read = useMarketRead(dataUrl(pick.source, pick.value), { refreshInterval: POLL_MS })
@@ -149,6 +204,7 @@ export default function ScatterPanel({ universe = null, yKey: yProp = null, xKey
   const groups = useMemo(() => universeOptions(universes.body, pick), [universes.body, pick])
   const { points, missing } = useMemo(() => scatterPoints(read.body, xKey, yKey), [read.body, xKey, yKey])
   const option = useMemo(() => makeOption({ points, xMeta, yMeta, ink, coarse }), [points, xMeta, yMeta, ink, coarse])
+  const summary = useMemo(() => scatterSummary(points, xMeta, yMeta), [points, xMeta, yMeta])
   const onPoint = useCallback((p) => {
     const sym = p?.value?.[2] || p?.name
     if (sym && run) run(`$${String(sym).toUpperCase()}`)
@@ -216,9 +272,11 @@ export default function ScatterPanel({ universe = null, yKey: yProp = null, xKey
         {missing ? `${missing} name${missing === 1 ? '' : 's'} lack a value on one of the two axes.` : 'This universe has no names yet.'}
       </PanelState>
     )
+  } else if (asTable) {
+    body = <ScatterTable points={points} xMeta={xMeta} yMeta={yMeta} />
   } else {
     body = (
-      <div className={styles.scatStage} data-testid="terminal-scat-chart">
+      <div className={styles.scatStage} data-testid="terminal-scat-chart" role="img" aria-label={summary}>
         <ReactECharts option={option} notMerge style={{ height: '100%', width: '100%' }} onEvents={{ click: onPoint }} />
       </div>
     )
@@ -237,8 +295,10 @@ export default function ScatterPanel({ universe = null, yKey: yProp = null, xKey
             ))}
           </Select>
         </label>
-        {axisSelect('Y', yKey, setYKey, 'terminal-scat-y')}
-        {axisSelect('X', xKey, setXKey, 'terminal-scat-x')}
+        {axisSelect('Y axis', yKey, setYKey, 'terminal-scat-y')}
+        {axisSelect('X axis', xKey, setXKey, 'terminal-scat-x')}
+        <button type="button" className={styles.chip} aria-pressed={asTable} onClick={() => setAsTable((v) => !v)}
+          data-testid="terminal-scat-as-table">Show as table</button>
       </div>
       {read.error && read.body ? <p className={styles.note} role="status">{failureText(read.error, 'This universe')} Showing the last read.</p> : null}
       {unsaved ? (
@@ -250,7 +310,8 @@ export default function ScatterPanel({ universe = null, yKey: yProp = null, xKey
       <p className={styles.muted} data-testid="terminal-scat-method">
         {points.length ? `${points.length} name${points.length === 1 ? '' : 's'} plotted. ` : ''}
         {points.length && missing ? `${missing} left out for a missing value. ` : ''}
-        Green closed up today, red down. Click a dot to load it into the linked panels; scroll or pinch to zoom.
+        Green closed up today, red down; the table says Up or Down. Click a dot or a table symbol to load it
+        into the linked panels; scroll or pinch to zoom.
         {read.receivedAt ? ` Read at ${formatTimeEt(read.receivedAt, { zoneSuffix: 'ET', absent: '' })}.` : ''}
       </p>
     </div>

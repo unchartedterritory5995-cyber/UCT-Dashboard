@@ -118,13 +118,17 @@ export default function SizePanel({ sym }) {
   const blank = [account, entry, stop].some((v) => String(v).trim() === '')
   const suggested = adr.phase === 'ready' ? adrStop({ entry, adrPct: adr.adr.adrPct, side }) : null
   const adrText = adr.phase === 'ready' ? formatNumber(adr.adr.adrPct, { decimals: 1 }) : null
+  // The refusal sentence can be about any of the four numbers, so every field points at it.
+  const errorId = `${ids}-error`
+  const showError = !blank && !result.ok
 
   const field = (key, label, value, set, hint = null, onEdit = null) => (
     <div className={styles.field}>
       <label className={styles.label} htmlFor={`${ids}-${key}`}>{label}</label>
       <Input id={`${ids}-${key}`} className={styles.input} type="text" inputMode="decimal" autoComplete="off"
+        aria-describedby={[hint ? `${ids}-${key}-hint` : null, showError ? errorId : null].filter(Boolean).join(' ') || undefined}
         value={value} onChange={(e) => { set(e.target.value); onEdit?.() }} data-testid={`terminal-size-${key}`} />
-      {hint ? <span className={styles.hint}>{hint}</span> : null}
+      {hint ? <span className={styles.hint} id={`${ids}-${key}-hint`}>{hint}</span> : null}
     </div>
   )
 
@@ -182,7 +186,7 @@ export default function SizePanel({ sym }) {
       {blank ? (
         <p className={shared.muted} data-testid="terminal-size-prompt">Fill in the account, entry and stop to size the trade.</p>
       ) : !result.ok ? (
-        <p className={shared.note} role="alert" data-testid="terminal-size-error">{result.error}</p>
+        <p className={shared.note} role="alert" id={errorId} data-testid="terminal-size-error">{result.error}</p>
       ) : (
         <div data-testid="terminal-size-result">
           <div className={shared.head}>

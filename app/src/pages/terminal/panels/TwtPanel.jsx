@@ -103,7 +103,8 @@ export default function TwtPanel({ sym }) {
                 {formatNumber(Number(t.like_count) || 0, { decimals: 0 })} likes, {formatNumber(Number(t.retweet_count) || 0, { decimals: 0 })} reposts
               </span>
               {t.url ? (
-                <a className={styles.linkBtn} href={t.url} target="_blank" rel="noopener noreferrer">Open on X</a>
+                <a className={styles.linkBtn} href={t.url} target="_blank" rel="noopener noreferrer"
+                  aria-label={`Open on X: post by @${t.author_handle}, opens in a new tab`}>Open on X</a>
               ) : null}
             </div>
           </li>
