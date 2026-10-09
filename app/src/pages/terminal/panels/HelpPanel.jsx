@@ -191,44 +191,50 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
         )
       })}
       {/* Audit 2026-10-08 (HELP P2): the reference material (rules, ranking, keys, addresses) used
-          to come BEFORE the function list, which is what a new member opens HELP for. It follows it. */}
+          to come BEFORE the function list, which is what a new member opens HELP for. It follows it.
+          Wave 5: and it is folded under a closed "Advanced" disclosure (a native <details>, so the
+          summary is a focusable control that Enter/Space toggles), leaving "Start here" and the
+          function list as what a new member sees. */}
       {!focus && (
-        <section data-testid="terminal-help-rules">
-          <h3 className={styles.helpGroup}>Rules</h3>
-          {[COLLISION_RULE, CHANNEL_RULE, COMPARE_RULE, ASK_RULE, ALIAS_RULE, ROW_RULE, BOARD_RULE].map((r) => (
-            <p key={r} className={styles.helpRule}>{r}</p>
-          ))}
-          {/* BOARD's entry names the codes the list panels' "Board of" menu offers — the SAME list
-              the menu reads (scanBoard.boardableCodes), never a copy, and only once flags are known. */}
-          {flagsKnown && (
-            <p className={styles.helpRule} data-testid="terminal-help-board-codes">
-              The &ldquo;Board of&rdquo; menu on a list (MOST, the screener, RRG) offers:{' '}
-              {boardableCodes(auth).map((c, i) => (
-                <span key={c.code}>{i ? ', ' : ''}<kbd>{c.code}</kbd> {c.label.toLowerCase()}</span>
-              ))}. Any other per-security code works when typed (<kbd>BOARD OWN</kbd>).
-            </p>
-          )}
-          <p className={styles.helpRule}>Codes that are also tickers: {TICKER_COLLISIONS.join(', ')}.</p>
-          <h3 className={styles.helpGroup}>Suggestion order</h3>
-          <ol className={styles.helpRule} data-testid="terminal-help-ranking">
-            {RANKING_ORDER.map((r) => <li key={r.key}>{r.label}</li>)}
-          </ol>
-          <button type="button" data-panel-row className={`${styles.helpRow} ${styles.helpRowPlain}`} onClick={() => onResetRanking?.()}
-            disabled={!onResetRanking || !hasStats} data-testid="terminal-reset-ranking">
-            <span>Reset my ranking</span>
-            <span className={styles.helpScope}>{hasStats ? 'forget my command counts' : 'nothing learned yet'}</span>
-          </button>
-          <h3 className={styles.helpGroup}>Keys</h3>
-          <KeysTable />
-          <h3 className={styles.helpGroup}>Addresses</h3>
-          <table className={styles.helpTable} data-testid="terminal-help-addresses" aria-label="Address prefixes">
-            <tbody>
-              {ADDRESS_PREFIXES.map((a) => (
-                <tr key={a.prefix}><td><kbd>{a.prefix}:id</kbd></td><td>{a.label}</td></tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+        <details className={styles.helpAdvanced} data-testid="terminal-help-advanced">
+          <summary className={styles.helpGroup} data-testid="terminal-help-advanced-toggle">Advanced: rules, keys and addresses</summary>
+          <section data-testid="terminal-help-rules">
+            <h3 className={styles.helpGroup}>Rules</h3>
+            {[COLLISION_RULE, CHANNEL_RULE, COMPARE_RULE, ASK_RULE, ALIAS_RULE, ROW_RULE, BOARD_RULE].map((r) => (
+              <p key={r} className={styles.helpRule}>{r}</p>
+            ))}
+            {/* BOARD's entry names the codes the list panels' "Board of" menu offers — the SAME list
+                the menu reads (scanBoard.boardableCodes), never a copy, and only once flags are known. */}
+            {flagsKnown && (
+              <p className={styles.helpRule} data-testid="terminal-help-board-codes">
+                The &ldquo;Board of&rdquo; menu on a list (MOST, the screener, RRG) offers:{' '}
+                {boardableCodes(auth).map((c, i) => (
+                  <span key={c.code}>{i ? ', ' : ''}<kbd>{c.code}</kbd> {c.label.toLowerCase()}</span>
+                ))}. Any other per-security code works when typed (<kbd>BOARD OWN</kbd>).
+              </p>
+            )}
+            <p className={styles.helpRule}>Codes that are also tickers: {TICKER_COLLISIONS.join(', ')}.</p>
+            <h3 className={styles.helpGroup}>Suggestion order</h3>
+            <ol className={styles.helpRule} data-testid="terminal-help-ranking">
+              {RANKING_ORDER.map((r) => <li key={r.key}>{r.label}</li>)}
+            </ol>
+            <button type="button" data-panel-row className={`${styles.helpRow} ${styles.helpRowPlain}`} onClick={() => onResetRanking?.()}
+              disabled={!onResetRanking || !hasStats} data-testid="terminal-reset-ranking">
+              <span>Reset my ranking</span>
+              <span className={styles.helpScope}>{hasStats ? 'forget my command counts' : 'nothing learned yet'}</span>
+            </button>
+            <h3 className={styles.helpGroup}>Keys</h3>
+            <KeysTable />
+            <h3 className={styles.helpGroup}>Addresses</h3>
+            <table className={styles.helpTable} data-testid="terminal-help-addresses" aria-label="Address prefixes">
+              <tbody>
+                {ADDRESS_PREFIXES.map((a) => (
+                  <tr key={a.prefix}><td><kbd>{a.prefix}:id</kbd></td><td>{a.label}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        </details>
       )}
       {!focus && Object.keys(ABSENT).length > 0 && (
         <section>

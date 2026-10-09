@@ -810,6 +810,16 @@
   text-transform: uppercase;
 }
 
+/* Wave 5: HELP's reference material sits under a closed "Advanced" disclosure. */
+.helpAdvanced > summary {
+  cursor: pointer;
+}
+
+.helpAdvanced > summary:hover,
+.helpAdvanced > summary:focus-visible {
+  color: var(--text);
+}
+
 .helpList {
   margin: 0;
   padding: 0;
@@ -978,6 +988,13 @@
   .menuInputSm,
   .menuCheck {
     min-height: var(--tap-min);
+  }
+
+  /* HELP's "Advanced" disclosure (wave 5): its summary is the control a finger opens. It stays
+     display: list-item so the open/closed marker is kept. */
+  .helpAdvanced > summary {
+    min-height: var(--tap-min);
+    line-height: var(--tap-min);
   }
 
   .panelAct,
