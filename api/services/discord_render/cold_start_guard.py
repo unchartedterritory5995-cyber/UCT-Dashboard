@@ -114,7 +114,8 @@ def _run_one(name: str, loader: Callable[[], object]) -> object:
         # a_confident_finding` one module over: the future re-raises this to every awaiter, so
         # the caller sees it too; this line is so the FIRST failure is visible in the log even
         # if nothing ever awaits this particular resource.
-        logger.exception("[cold-start-guard] preload of %r failed", name)
+        from api.services.discord_render.observe import scrubbed_traceback
+        logger.error("[cold-start-guard] preload of %r failed\n%s", name, scrubbed_traceback())
         raise
 
 

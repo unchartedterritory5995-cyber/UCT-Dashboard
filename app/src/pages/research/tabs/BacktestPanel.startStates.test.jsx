@@ -44,7 +44,7 @@ beforeEach(() => {
     return json(404, {})
   })
 })
-afterEach(() => { cleanup(); vi.restoreAllMocks() })
+afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks() })
 
 const wrap = (ui) => render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{ui}</SWRConfig>)
 
@@ -60,12 +60,18 @@ describe('BacktestPanel start', () => {
 
   it('a busy 429 says it will ask again, and does -- the run starts with no click', async () => {
     busyAnswers = 1
+    // Fake clock (still ticking in real time, so findBy* polls): the 10s re-ask is advanced
+    // instead of waited out. On real time this one test took ~10s of its 15s findBy budget
+    // and was the first to time out when the PC was under load.
+    vi.useFakeTimers({ shouldAdvanceTime: true })
     wrap(<BacktestPanel sym="SPY" />)
     fireEvent.click(screen.getByTestId('backtest-simulate'))
     expect((await screen.findByTestId('backtest-busy')).textContent)
       .toBe('The backtester is busy right now. This asks again by itself every 10 seconds.')
     expect(screen.queryByText(/Try again in a minute/)).toBeNull()
-    expect(await screen.findByTestId('backtest-result', {}, { timeout: 15000 })).toBeTruthy()
+    expect(posts).toBe(1)
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(await screen.findByTestId('backtest-result', {}, { timeout: 5000 })).toBeTruthy()
     expect(posts).toBe(2)
     expect(screen.queryByTestId('backtest-busy')).toBeNull()
   }, 30000)
