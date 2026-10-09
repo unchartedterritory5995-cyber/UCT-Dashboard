@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 2462,
+  "passed": 2442,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 17,
+  "wall_s": 290.83,
+  "failed_files": [
+    "tests/test_auth_surface_reads.py",
+    "tests/test_bars_ordinal_census.py",
+    "tests/test_breadth_industries.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 2442 passed, 17 skipped, 1 xfailed, 7522 warnings in 290.83s (0:04:50)",
+  "ok": true
+}
