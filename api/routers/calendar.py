@@ -2058,15 +2058,34 @@ def _weekly_payload_is_good(payload: dict | None) -> bool:
     return any(d.get("bmo") or d.get("amc") or d.get("tbd") for d in days)
 
 
+# Wave 4 (lane C): the full-impact econ used to be fetched on the request path every time
+# its 300 s TTL lapsed -- and the widget polls every 300 s, so nearly every poll paid the
+# FMP round trip. A lapsed TTL is now served from the last good payload (<= this bound)
+# and refreshed behind the caller, the same pattern as the weekly payload above. The
+# re-warm loop keeps the widget's week inside the bound.
+_ECON_FULL_STALE_MAX_AGE = _WEEKLY_STALE_MAX_AGE
+_ECON_FULL_STALE = ServeStale("calendar_econ_full", max_age_seconds=_ECON_FULL_STALE_MAX_AGE,
+                              max_keys=16)
+
+
 def _full_econ_cached(week_start: str, week_end: str) -> dict:
     """Full-impact econ for the week (ALL impacts + ACTUAL prints), for the widget's
-    star filter. FMP is primary — it carries actuals + all impacts and covers any week;
+    star filter. Fresh TTL cache, else the last good payload (refreshed in the
+    background), else a synchronous single-flight build."""
+    ck = f"econ_full::{week_start}"
+    return _ECON_FULL_STALE.serve(
+        week_start,
+        fresh=lambda: cache.get(ck) or None,
+        build=lambda: _build_full_econ(week_start, week_end),
+        good=bool,
+    ) or {}
+
+
+def _build_full_econ(week_start: str, week_end: str) -> dict:
+    """FMP is primary — it carries actuals + all impacts and covers any week;
     ForexFactory include_low is a no-actuals fallback. EMPTY results are NOT cached, so a
     transient provider hiccup can't 'stick' the widget on the curated set for 10 min."""
     ck = f"econ_full::{week_start}"
-    cached = cache.get(ck)
-    if cached:
-        return cached
     data = {}
     try:
         from api.services import econ_calendar_fmp
@@ -2197,6 +2216,22 @@ def rewarm_current_week_once() -> None:
     )
 
 
+def rewarm_widget_week_once(today: date | None = None) -> None:
+    """Warm what the Calendar WIDGET asks for: `?week=<Monday of the last session
+    day>&full_impact=1` (CalendarWidget.jsx, `mondayOf(lastSessionDay(today))`).
+
+    On a weekday that Monday is the current week, so only the full-impact econ needs
+    warming. On a Saturday or Sunday the calendar's anchor rolls FORWARD to next week
+    while the widget keeps showing the week just finished -- a range-week key the
+    current-week warm never touches -- so the first weekend visitor built it cold."""
+    today = today or _today_et()
+    widget_monday = _monday_of(today)
+    if widget_monday != _current_week_monday(today):
+        _get_or_build_range_week(widget_monday)
+    days = _week_dates_for(widget_monday)
+    _full_econ_cached(days[0].isoformat(), days[-1].isoformat())
+
+
 def start_weekly_rewarm(delay_seconds: float = 120, interval_s: float | None = None) -> threading.Thread:
     """Daemon loop calling `rewarm_current_week_once` every `interval_s`. Never raises."""
     every = float(interval_s or WEEKLY_REWARM_INTERVAL_S)
@@ -2208,6 +2243,10 @@ def start_weekly_rewarm(delay_seconds: float = 120, interval_s: float | None = N
                 rewarm_current_week_once()
             except Exception:
                 logging.getLogger(__name__).exception("[calendar-weekly-rewarm] failed")
+            try:
+                rewarm_widget_week_once()
+            except Exception:
+                logging.getLogger(__name__).exception("[calendar-widget-rewarm] failed")
             time.sleep(every)
 
     t = threading.Thread(target=_loop, daemon=True, name="calendar-weekly-rewarm")
