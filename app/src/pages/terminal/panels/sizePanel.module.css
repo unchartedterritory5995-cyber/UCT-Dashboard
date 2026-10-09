@@ -62,6 +62,14 @@
   color: var(--text-bright);
 }
 
+/* PHONE: one field per row (SIZE, PLAN and CHK share this form), so no label squeezes beside
+   another at 390px. */
+@media (max-width: 640px) {
+  .form {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* TOUCH TIER (phone + tablet): a typed field is a finger target too. */
 @media (max-width: 1024px) {
   .input {

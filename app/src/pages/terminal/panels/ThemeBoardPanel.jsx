@@ -65,7 +65,7 @@ function BoardTable({ title, rows, period, testId }) {
         <caption className={styles.caption}>{title}</caption>
         <thead>
           <tr>
-            <th scope="col">Theme</th>
+            <th scope="col" className={styles.wrapCell}>Theme</th>
             <th scope="col" title="The theme's reference ETF" className={styles.phoneHide}>ETF</th>
             <th scope="col" className={styles.phoneHide}>Names</th>
             <th scope="col">{period}</th>
@@ -74,7 +74,7 @@ function BoardTable({ title, rows, period, testId }) {
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.key} data-testid={`terminal-thms-row-${r.key}`}>
-              <td>
+              <td className={styles.wrapCell}>
                 <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                 <PanelCommand cmd={imovCommand({ theme: r.theme, win: imovWin })} label={`Open IMOV for ${r.name}`}>{r.name}</PanelCommand>
               </td>

@@ -123,7 +123,7 @@ export default function EtfPanel({ sym }) {
                     <td>{r.dir}</td>
                     <td>{factorText(r.factor)}</td>
                     <td className={styles.phoneHide}>{formatCompactTerminal(Number.isFinite(Number(r.vol)) && r.vol !== null ? Number(r.vol) : NaN, { money: true, absent: 'n/a' })}</td>
-                    <td className={styles.phoneHide}>{r.name || 'n/a'}</td>
+                    <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{r.name || 'n/a'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -159,7 +159,7 @@ export default function EtfPanel({ sym }) {
                   <tr key={h.sym} data-testid={`terminal-etf-holding-${h.sym}`}>
                     <td><span className={styles.rowNum} aria-hidden="true">{fam.length + i + 1}</span><PanelSymbol sym={h.sym} className={styles.sym} /></td>
                     <td>{weightText(h.weight)}</td>
-                    <td className={styles.phoneHide}>{h.name || 'n/a'}</td>
+                    <td className={`${styles.phoneHide} ${styles.wrapCell}`}>{h.name || 'n/a'}</td>
                     <td className={styles.phoneHide}>{h.sector || 'n/a'}</td>
                   </tr>
                 ))}

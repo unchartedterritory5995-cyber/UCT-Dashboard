@@ -18,6 +18,7 @@ import {
 import { CHROME_INK, SEMANTIC_INK, useThemeInk, withAlpha } from '../../../lib/theme'
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 import Select from '../../../components/ui/Select'
+import { useHasCoarsePointer } from '../../../hooks/useBreakpoint'
 import { failureText, useMarketRead } from './marketRead'
 import styles from './marketPanels.module.css'
 
@@ -75,7 +76,7 @@ export function universeOptions(body, current) {
   return groups
 }
 
-function makeOption({ points, xMeta, yMeta, ink }) {
+function makeOption({ points, xMeta, yMeta, ink, coarse }) {
   const axisText = { color: ink.muted, fontSize: 10, fontFamily: CHART_FONT_FAMILY }
   const grid = withAlpha(ink.text, 0.08)
   const axis = (meta) => ({
@@ -89,6 +90,9 @@ function makeOption({ points, xMeta, yMeta, ink }) {
     grid: { left: 52, right: 18, top: 14, bottom: 44 },
     tooltip: {
       trigger: 'item',
+      // A tap shows the tooltip as a hover does, and it stays inside the chart on a 390px phone.
+      triggerOn: 'mousemove|click',
+      confine: true,
       backgroundColor: withAlpha(ink.elevated, 0.96),
       borderColor: withAlpha(ink.text, 0.12),
       textStyle: { color: ink.bright, fontSize: 11, fontFamily: CHART_FONT_FAMILY },
@@ -96,7 +100,12 @@ function makeOption({ points, xMeta, yMeta, ink }) {
     },
     xAxis: axis(xMeta),
     yAxis: { ...axis(yMeta), nameGap: 38 },
-    dataZoom: [{ type: 'inside', xAxisIndex: 0, filterMode: 'none' }, { type: 'inside', yAxisIndex: 0, filterMode: 'none' }],
+    // On a touch screen a one-finger drag scrolls the page, not the plot (pinch still zooms), so a
+    // tall chart never traps the swipe that should move past it.
+    dataZoom: [
+      { type: 'inside', xAxisIndex: 0, filterMode: 'none', moveOnMouseMove: !coarse },
+      { type: 'inside', yAxisIndex: 0, filterMode: 'none', moveOnMouseMove: !coarse },
+    ],
     series: [{
       type: 'scatter', symbolSize: 7, cursor: 'pointer',
       data: points.map((p) => ({ name: p.sym, value: [p.x, p.y, p.sym], itemStyle: { color: p.dir === 'down' ? ink.down : ink.up, opacity: 0.85 } })),
@@ -116,6 +125,7 @@ export default function ScatterPanel() {
   const universes = useMarketRead(UNIVERSES_URL)
   const read = useMarketRead(dataUrl(pick.source, pick.value), { refreshInterval: POLL_MS })
   const ink = useThemeInk(INK)
+  const coarse = useHasCoarsePointer()
 
   const catalog = useMemo(() => (Array.isArray(metrics.body?.metrics) ? metrics.body.metrics : []).filter((m) => m && m.key), [metrics.body])
   const metaOf = useCallback((k) => catalog.find((m) => m.key === k) || { key: k, label: k, unit: 'num' }, [catalog])
@@ -123,7 +133,7 @@ export default function ScatterPanel() {
   const yMeta = metaOf(yKey)
   const groups = useMemo(() => universeOptions(universes.body, pick), [universes.body, pick])
   const { points, missing } = useMemo(() => scatterPoints(read.body, xKey, yKey), [read.body, xKey, yKey])
-  const option = useMemo(() => makeOption({ points, xMeta, yMeta, ink }), [points, xMeta, yMeta, ink])
+  const option = useMemo(() => makeOption({ points, xMeta, yMeta, ink, coarse }), [points, xMeta, yMeta, ink, coarse])
   const onPoint = useCallback((p) => {
     const sym = p?.value?.[2] || p?.name
     if (sym && run) run(`$${String(sym).toUpperCase()}`)
@@ -206,7 +216,7 @@ export default function ScatterPanel() {
       <p className={styles.muted} data-testid="terminal-scat-method">
         {points.length ? `${points.length} name${points.length === 1 ? '' : 's'} plotted. ` : ''}
         {points.length && missing ? `${missing} left out for a missing value. ` : ''}
-        Green closed up today, red down. Click a dot to load it into the linked panels; scroll to zoom.
+        Green closed up today, red down. Click a dot to load it into the linked panels; scroll or pinch to zoom.
         {read.receivedAt ? ` Read at ${formatTimeEt(read.receivedAt, { zoneSuffix: 'ET', absent: '' })}.` : ''}
       </p>
     </div>

@@ -111,6 +111,16 @@
   font-size: var(--text-xs);
 }
 
+/* A long name (an insider, a theme, a setup) wraps inside its own cell instead of widening the table: the other
+   cells stay on one line, and the floor keeps a word from breaking one letter per line. */
+.table td.wrapCell,
+.table th.wrapCell {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 8rem;
+  text-align: left;
+}
+
 .sortBtn,
 .rowBtn,
 .linkBtn {
@@ -176,6 +186,7 @@
 
 .newsHeadline {
   color: var(--text-bright);
+  overflow-wrap: anywhere;
   line-height: var(--lh-normal);
   text-decoration: none;
 }
@@ -193,6 +204,7 @@
   gap: var(--space-xs) var(--space-sm);
   color: var(--text-muted);
   font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
 }
 
 /* REGM: the call, then its fields. */
@@ -220,10 +232,13 @@
 
 .fields dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .reasons {
   margin: 0;
+  overflow-wrap: anywhere;
   padding-left: 1.2em;
   line-height: var(--lh-normal);
 }
@@ -271,6 +286,16 @@
 @media (max-width: 640px) {
   .phoneHide {
     display: none;
+  }
+
+  /* A phone gives the scatter a shorter stage, so the axes and the method line fit one screen. */
+  .scatStage {
+    height: 18rem;
+  }
+
+  .table td.wrapCell,
+  .table th.wrapCell {
+    min-width: 6rem;
   }
 }
 
