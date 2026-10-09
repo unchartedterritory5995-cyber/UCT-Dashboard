@@ -6,6 +6,7 @@ import PendingGaveUp from './PendingGaveUp'
 import HighlightThesis from '../../../utils/highlightThesis'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
+import PanelCommand from '../../../components/terminal/PanelCommand'
 
 // FT-064 — EVTS: this ticker's events staged against the nearest earnings print
 // (T-n / T / T+n in weekdays). DARK behind EVENTS_TIMELINE_ENABLED.
@@ -15,6 +16,13 @@ import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 // ⛔ The offset unit is printed: weekdays, holidays not removed.
 
 const KIND = { earnings: 'Earnings', uct_catalyst: 'UCT catalyst', filing: 'Filing', room_spike: 'Room' }
+// Wave 3 (#3): inside a terminal panel each event's kind opens the function that holds its
+// detail, beside this panel. Outside the terminal the label stays plain text.
+const OPENS = {
+  uct_catalyst: { code: 'CATS', what: 'catalyst history' },
+  filing: { code: 'CF', what: 'SEC filings' },
+  room_spike: { code: 'ATTN', what: 'room attention' },
+}
 
 export default function EventsPanel({ sym }) {
   const chrome = useDepthChrome()
@@ -70,7 +78,11 @@ export default function EventsPanel({ sym }) {
                         {e.stage ? `${e.stage} ${e.print_label}` : '—'}
                       </td>
                       <td className={styles.text}>
-                        <strong>{KIND[e.kind] || e.kind}</strong> <HighlightThesis text={e.title} />{e.detail ? <> — <HighlightThesis text={e.detail} /></> : ''}
+                        <strong>
+                          {OPENS[e.kind]
+                            ? <PanelCommand cmd={`${s} ${OPENS[e.kind].code}`} label={`Open ${s} ${OPENS[e.kind].what}`}>{KIND[e.kind] || e.kind}</PanelCommand>
+                            : (KIND[e.kind] || e.kind)}
+                        </strong> <HighlightThesis text={e.title} />{e.detail ? <> — <HighlightThesis text={e.detail} /></> : ''}
                         {e.url ? <> · <a href={e.url} target="_blank" rel="noopener noreferrer">document</a></> : null}
                       </td>
                       <td className={styles.text}>{memberText(e.source)}</td>

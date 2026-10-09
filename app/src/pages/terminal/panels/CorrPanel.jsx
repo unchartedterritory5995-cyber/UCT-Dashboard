@@ -11,7 +11,7 @@
 // Pearson on daily simple returns, each pair over the sessions BOTH traded. A pair with fewer
 // than MIN_CORR_SESSIONS common returns shows "n/a", never a number.
 import { useEffect, useMemo, useState } from 'react'
-import { BoardFromList, PanelSkeleton, PanelState, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { BoardFromList, PanelSkeleton, PanelState, PanelSymbol, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import useCloses, { closesProvenance, failedText } from './useCloses'
 import { MIN_CORR_SESSIONS, collectSymbols, correlationMatrix, corrWindow, withArgsKey } from './relativeMath'
@@ -148,12 +148,12 @@ export default function CorrPanel({ sym, lookback, ...props }) {
       <div className={styles.tableBox}>
         <table className={styles.table} data-testid="terminal-corr-matrix" aria-label={`Correlation matrix, ${win} of daily returns`}>
           <thead>
-            <tr><th scope="col" aria-label="Symbol" />{read.syms.map((s) => <th key={s} scope="col">{s}</th>)}<th scope="col">Avg r</th></tr>
+            <tr><th scope="col" aria-label="Symbol" />{read.syms.map((s) => <th key={s} scope="col"><PanelSymbol sym={s} /></th>)}<th scope="col">Avg r</th></tr>
           </thead>
           <tbody>
             {read.syms.map((a, i) => (
               <tr key={a}>
-                <th scope="row" className={styles.symCell}>{a}</th>
+                <th scope="row" className={styles.symCell}><PanelSymbol sym={a} /></th>
                 {read.matrix[i].map((c, j) => (
                   <td key={read.syms[j]} data-testid={`corr-${a}-${read.syms[j]}`}
                     className={`${styles.corrCell} ${i === j ? styles.corrDiag : ''} ${c.r == null ? styles.corrNa : ''}`}

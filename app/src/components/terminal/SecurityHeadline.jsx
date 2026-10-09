@@ -1,0 +1,154 @@
+// UCT Terminal — the one-line headline every one-stock panel carries under its title
+// (wave 3, product list item #2): `NVDA 182.40 +3.1% · vol 2.4× avg · earnings Thu Nov 19`.
+//
+// Mounted ONCE by the shell's `Panel` frame (pages/terminal/TerminalShell.jsx) whenever the
+// panel shows a security, so no panel draws its own copy. It reads SHARED data only:
+//   * the price, % change and volume from the app-wide live-price pool (`useLivePrices` →
+//     livePriceStore: one poll of the union of every subscriber's tickers);
+//   * the next earnings date and 20-session average volume from `/api/research/snapshot-batch`
+//     under the SWR key `['/api/research/snapshot-batch', [SYM]]` — so two panels on the same
+//     ticker share ONE request (SWR dedupes by key), never one fetch per panel.
+// Honest states: "loading quote", "no quote for XYZ" (an unknown ticker, never a crash), and
+// "at last close" / "pre-market" / "after hours" whenever the regular session is not trading.
+import useSWR from 'swr'
+import useLivePrices from '../../hooks/useLivePrices'
+import useMarketOpen from '../../hooks/useMarketOpen'
+import styles from './SecurityHeadline.module.css'
+
+export const HEADLINE_SNAPSHOT_URL = '/api/research/snapshot-batch'
+
+/** The SWR key for one ticker's headline snapshot — exported so tests can prove the dedupe. */
+export function headlineKey(sym) {
+  const s = String(sym || '').trim().toUpperCase()
+  return s ? [HEADLINE_SNAPSHOT_URL, [s]] : null
+}
+
+const snapshotFetcher = ([url, tickers]) => {
+  const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const t = ac ? setTimeout(() => ac.abort(), 10000) : null
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tickers }),
+    signal: ac?.signal,
+  })
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+    .finally(() => { if (t) clearTimeout(t) })
+}
+
+const fin = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+
+export function fmtPrice(v) {
+  const n = fin(v)
+  if (n == null) return null
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+export function fmtPct(v) {
+  const n = fin(v)
+  if (n == null) return null
+  const sign = n > 0 ? '+' : n < 0 ? '−' : ''
+  return `${sign}${Math.abs(n).toFixed(2)}%`
+}
+
+/** Today's volume over the 20-session average, as `2.4×`; null when either side is missing. */
+export function volRatio(volume, avg) {
+  const v = fin(volume)
+  const a = fin(avg)
+  if (v == null || a == null || a <= 0) return null
+  const r = v / a
+  return `${r >= 10 ? r.toFixed(0) : r.toFixed(1)}×`
+}
+
+const ET = 'America/New_York'
+
+function etYmd(d) {
+  // en-CA formats as YYYY-MM-DD.
+  return d.toLocaleDateString('en-CA', { timeZone: ET })
+}
+
+/**
+ * The next earnings date in ET, e.g. `Thu Nov 19`. A calendar date (`2026-11-19`) is shown as
+ * that day, never shifted by the viewer's own timezone; an instant is converted to ET. A date
+ * already in the past (ET) is not "next" and returns null.
+ */
+export function fmtEarnings(raw, now = new Date()) {
+  if (!raw) return null
+  const s = String(raw)
+  let ymd
+  let d
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    ymd = s
+    d = new Date(`${s}T12:00:00Z`)
+    if (Number.isNaN(d.getTime())) return null
+    const label = d.toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short', month: 'short', day: 'numeric' })
+    return ymd < etYmd(now) ? null : label.replace(',', '')
+  }
+  d = new Date(s)
+  if (Number.isNaN(d.getTime())) return null
+  ymd = etYmd(d)
+  if (ymd < etYmd(now)) return null
+  return d.toLocaleDateString('en-US', { timeZone: ET, weekday: 'short', month: 'short', day: 'numeric' }).replace(',', '')
+}
+
+/** Which clause the strip carries when the regular session is not trading (null while open). */
+export function sessionClause(row, market) {
+  if (row?.market_closed) return 'at last close'
+  if (market?.isOpen) return null
+  const ext = String(row?.ext_session || '').toLowerCase()
+  if (ext.startsWith('pre') || (!ext && market?.isPremarket)) return 'pre-market'
+  if (ext || market?.isExtended) return 'after hours'
+  return 'at last close'
+}
+
+export default function SecurityHeadline({ sym }) {
+  const name = String(sym || '').trim().toUpperCase()
+  const { prices } = useLivePrices(name ? [name] : [])
+  const market = useMarketOpen()
+  const { data: snap, error: snapErr } = useSWR(headlineKey(name), snapshotFetcher, {
+    dedupingInterval: 5 * 60 * 1000,
+    revalidateOnFocus: false,
+  })
+  if (!name) return null
+  const row = prices[name] || null
+  const meta = snap && typeof snap === 'object' ? snap[name] || null : null
+  const price = fmtPrice(row?.price)
+
+  if (!price) {
+    // No quote yet. Unknown once the snapshot answered without a company for it; otherwise
+    // still loading (the live pool polls every 2s, so a real ticker fills in shortly).
+    const unknown = !!snap && !(meta && meta.name)
+    const state = unknown ? 'unknown' : snapErr ? 'unavailable' : 'loading'
+    return (
+      <div className={`${styles.strip} ${styles.muted}`} role="status" aria-live="polite"
+        data-testid="security-headline" data-state={state}>
+        {state === 'unknown' && <>No quote found for <b className={styles.sym}>{name}</b></>}
+        {state === 'unavailable' && <>Quote for <b className={styles.sym}>{name}</b> is unavailable right now</>}
+        {state === 'loading' && `Loading ${name} quote…`}
+      </div>
+    )
+  }
+
+  const pct = fmtPct(row?.change_pct)
+  const dir = fin(row?.change_pct) > 0 ? 'up' : fin(row?.change_pct) < 0 ? 'down' : 'flat'
+  const vol = volRatio(row?.volume, meta?.avg_vol_20d)
+  const earn = fmtEarnings(meta?.next_earnings)
+  const clause = sessionClause(row, market)
+  const extPrice = !row?.market_closed && clause && clause !== 'at last close' ? fmtPrice(row?.ext_price) : null
+
+  return (
+    <div className={`${styles.strip} ${clause ? styles.closed : ''}`} role="group"
+      aria-label={`${name} headline`} data-testid="security-headline" data-state={clause ? 'closed' : 'live'}>
+      <b className={styles.sym}>{name}</b>
+      <span className={styles.num} data-testid="security-headline-price">{price}</span>
+      {pct && (
+        <span className={`${styles.num} ${styles[dir]}`} data-testid="security-headline-pct">
+          <span aria-hidden="true">{dir === 'up' ? '▲' : dir === 'down' ? '▼' : ''}</span>{pct}
+        </span>
+      )}
+      {clause && <span className={styles.clause} data-testid="security-headline-session">{clause}{extPrice ? ` ${extPrice}` : ''}</span>}
+      {vol && <span className={styles.part} data-testid="security-headline-vol" title="Today's volume vs the 20-session average">· vol {vol} avg</span>}
+      {earn && <span className={styles.part} data-testid="security-headline-earn" title="Next earnings date (ET)">· earnings {earn}</span>}
+    </div>
+  )
+}

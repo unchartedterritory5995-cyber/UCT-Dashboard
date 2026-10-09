@@ -40,3 +40,17 @@ describe('CATH rows', () => {
     expect(api.publish).toHaveBeenLastCalledWith(null)
   })
 })
+
+describe('CATH tickers load the linked panels (wave 3 #3)', () => {
+  it('clicking a ticker runs `$SYM` through the panel, not a chart popup', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, status: 200, json: async () => ({ rows: [row('XP'), row('NVDA')] }) })
+    const api = { run: vi.fn(), publishRows: vi.fn(), publish: vi.fn(), openBoard: vi.fn(), codes: [], pageSize: 4 }
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+        <MemoryRouter><PanelListContext.Provider value={api}><CatalystsHistory /></PanelListContext.Provider></MemoryRouter>
+      </SWRConfig>,
+    )
+    ;(await screen.findByRole('button', { name: 'Load NVDA' })).click()
+    expect(api.run).toHaveBeenCalledWith('$NVDA')
+  })
+})

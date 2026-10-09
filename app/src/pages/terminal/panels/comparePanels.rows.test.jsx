@@ -68,3 +68,16 @@ describe('CORR publishes its rows', () => {
     expect(api.publish).toHaveBeenLastCalledWith(null)
   })
 })
+
+describe('CORR names load the linked panels (wave 3 #3)', () => {
+  it('a matrix row name runs `$SYM` through the panel', async () => {
+    const dates = weekdays(200)
+    serve({ AAA: series(dates, (i) => wiggle(i, 1)), BBB: series(dates, (i) => wiggle(i, 1), 40) })
+    const { api, wrapper } = harness()
+    api.run = vi.fn()
+    render(<CorrPanel sym="AAA" with0="BBB" />, { wrapper })
+    await screen.findByTestId('terminal-corr-matrix')
+    screen.getAllByRole('button', { name: 'Load BBB' })[0].click()
+    expect(api.run).toHaveBeenCalledWith('$BBB')
+  })
+})

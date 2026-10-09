@@ -90,3 +90,21 @@ describe('FREC strike formatting: byte-identical on every strike a listed contra
     expect(contractLine({ strike: 50, cp: 'C', exp: 'x', currency: 'CAD' })).toBe('CAD 50C x')
   })
 })
+
+describe('FREC tickers load the linked panels (wave 3 #3)', () => {
+  it('a tape ticker and a standout ticker each run `$SYM` through the panel', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200, json: async () => ({
+      picks_tracked: 2, overall: {}, by_grade: [], recent_winners: [pick('TSLA', 300)],
+      recent_picks: [pick('AMD', 90)],
+    }) })))
+    const api = { run: vi.fn(), publishRows: vi.fn(), publish: vi.fn(), openBoard: vi.fn(), codes: [], pageSize: 4 }
+    render(
+      <MemoryRouter><SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+        <PanelListContext.Provider value={api}><FlowScoreboard embedded /></PanelListContext.Provider>
+      </SWRConfig></MemoryRouter>,
+    )
+    ;(await screen.findByRole('button', { name: 'Load AMD' })).click()
+    screen.getByRole('button', { name: 'Load TSLA' }).click()
+    expect(api.run.mock.calls).toEqual([['$AMD'], ['$TSLA']])
+  })
+})

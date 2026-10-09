@@ -177,3 +177,13 @@ export function panelAsOf(source, at, { dataClass = null } = {}) {
 export function QuietPanelFreshness({ children }) {
   return createElement(PanelFreshnessContext.Provider, { value: null }, children)
 }
+
+/**
+ * Wave 3 (#3): open a RELATED FUNCTION from inside an embedded panel (an EVTS filing opens CF,
+ * a room-attention day opens CN), beside the panel the click came from — the command twin of
+ * `usePanelRun`. Returns `open(text)` inside a terminal panel, `null` everywhere else, so the
+ * caller renders plain text outside the shell. `PanelCommand` is the one consumer.
+ */
+export function usePanelOpen() {
+  return useContext(PanelListContext)?.open || null
+}
