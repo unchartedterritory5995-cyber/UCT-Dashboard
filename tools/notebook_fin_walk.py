@@ -59,7 +59,7 @@ import notebook_w14_onboarding_walk as w  # noqa: E402  -- probes, member factor
 import notebook_w13x_walk as x13  # noqa: E402  -- PRE_CHILD (bars / transcript / intel seed), series
 
 PORT = 8132            # this lane's port; 8134 is the fallback when 8132 is someone else's
-PORTS = (8132, 8134)
+PORTS = (8132, 8134, 8143)   # 8143: the verify-1009 lane (docs/notebook/verify-1009-sandbox.md)
 WALK_FILE = "walk.json"   # a --serve-only process writes walk-serve.json, never a walk's own file
 # The product's trading day is the ET day. A walk started late in the evening in another zone
 # would otherwise date its trades "yesterday" and read an empty daily review as a finding.
@@ -496,7 +496,8 @@ def flag_sets() -> dict:
             "c1": armed, "c2": armed + WAVE_FLAGS + TOUR_ONLY_FLAGS,
             "c3": armed + C3_ON,
             "keyed": sorted(set(armed + WAVE_FLAGS + KEYED_EXTRA)),
-            "keyedai": sorted(set(armed + WAVE_FLAGS + KEYED_EXTRA))}
+            "keyedai": sorted(set(armed + WAVE_FLAGS + KEYED_EXTRA)),
+            "verify": sorted(set(armed + WAVE_FLAGS + KEYED_EXTRA))}
 
 
 # ── seeding children (the driver itself never imports api.*) ───────────────────────────────
@@ -1025,7 +1026,7 @@ def set_env(fs: dict, config: str, data_dir: Path) -> None:
     os.environ.update({name: "1" for name in fs[config]})
     for stub in ("NOTEBOOK_VOICE_SANDBOX_STUB", "NOTEBOOK_AI_ACTIONS_SANDBOX_STUB", "HUB_SANDBOX_ALLOW_MODEL_KEYS"):
         os.environ.pop(stub, None)
-    if config in ("keyed", "keyedai"):
+    if config in ("keyed", "keyedai", "verify"):
         # the launcher's own opt-in (scripts/hub_sandbox_boot.py ALLOW_MODEL_KEYS_ENV); every other
         # configuration leaves it unset, so the launcher blanks the keys as it always has
         os.environ["HUB_SANDBOX_ALLOW_MODEL_KEYS"] = "1"
@@ -1107,6 +1108,9 @@ def run_config(config: str, args, fs: dict) -> int:
                     elif config == "keyedai":
                         import notebook_fin_walk_keyed_ai as keyed_ai
                         keyed_ai.run(sys.modules[__name__], browser, admin, base, fs, data_dir, only)
+                    elif config == "verify":
+                        import notebook_verify_walk as verify
+                        verify.run(sys.modules[__name__], browser, admin, base, fs, data_dir, only)
                     else:
                         import notebook_fin_walk_features as feat
                         feat.run_c2(sys.modules[__name__], browser, admin, base, fs, data_dir, only)
@@ -1154,7 +1158,7 @@ def run_config(config: str, args, fs: dict) -> int:
 def main(argv=None) -> int:
     global OUT
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--config", required=True, choices=["c1", "c2", "c3", "keyed", "keyedai"])
+    ap.add_argument("--config", required=True, choices=["c1", "c2", "c3", "keyed", "keyedai", "verify"])
     ap.add_argument("--data-root", required=True)
     ap.add_argument("--port", type=int, default=PORT)
     ap.add_argument("--out", required=True)
@@ -1170,7 +1174,9 @@ def main(argv=None) -> int:
     if why:
         print(f"REFUSED: {why}")
         return 3
-    if args.config in ("keyed", "keyedai"):
+    # verify: the walk process itself never uses a key; only the sandbox it boots does, so an
+    # --attach run against an already-held keyed sandbox does not need them in this process.
+    if args.config in ("keyed", "keyedai") or (args.config == "verify" and not args.attach):
         missing = [k for k in MODEL_KEY_NAMES if not os.environ.get(k)]
         if missing:
             print(f"REFUSED: the keyed walk needs {missing} in this process (start it through the key helper)")
@@ -1200,7 +1206,7 @@ def main(argv=None) -> int:
     except h.SetupFailed as e:
         print(f"REFUSED: {e}")
         return 3
-    REC["flag_sets"] = {k: fs[k] for k in ("prod_armed", "wave", "c1", "c2", "c3", "keyed", "keyedai")}
+    REC["flag_sets"] = {k: fs[k] for k in ("prod_armed", "wave", "c1", "c2", "c3", "keyed", "keyedai", "verify")}
     flush()
     rc = run_config(args.config, args, fs)
     REC.update({"finished": datetime.now(timezone.utc).isoformat(timespec="seconds"), "status": "COMPLETE" if rc in (0, 1) else "NOT COMPLETE"})
