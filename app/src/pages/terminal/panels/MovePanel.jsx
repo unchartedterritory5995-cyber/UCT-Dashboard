@@ -105,7 +105,7 @@ export default function MovePanel({ sym, onRun, onRows }) {
     <div className={styles.help} data-testid="terminal-move">
       {moveQuoteText(d.quote) && (
         <p className={styles.helpSyntax} data-testid="terminal-move-quote"
-          style={{ color: d.quote.change_pct > 0 ? 'var(--gain)' : d.quote.change_pct < 0 ? 'var(--loss)' : undefined }}>
+          style={{ color: d.quote.change_pct > 0 ? 'var(--success-ink)' : d.quote.change_pct < 0 ? 'var(--danger-ink)' : undefined }}>
           <strong>{sym}</strong> {moveQuoteText(d.quote)}
         </p>
       )}
