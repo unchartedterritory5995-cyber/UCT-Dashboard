@@ -63,7 +63,7 @@ function outputView(def, o, scope, gateCtx, chartVerdict, primary, helpers) {
   let formula = null
   let sentence = null
   // ⭐ BATCH 2 — the model reads `linreg(close, 50, 0)`, not its arithmetic, and changes
-  // it by re-sending the tree (no slots inside an expansion — `slots.js`).
+  // it by a slot on the call (`slots.js` reads slots off this collapsed tree).
   const shown = tree ? collapseExpansions(tree) : tree
   try { formula = printFormula(shown) } catch { formula = null }
   try { sentence = sentenceFor(tree, scope) } catch { sentence = null }

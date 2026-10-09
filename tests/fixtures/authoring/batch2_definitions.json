@@ -1037,6 +1037,13 @@
                 "s": "Market status"
               }
             },
+            "text_color": {
+              "v": "color",
+              "node": {
+                "c": "lit",
+                "hex": "chart.fg_color"
+              }
+            },
             "text_formatting": {
               "v": "const",
               "value": "bold"
@@ -1069,6 +1076,13 @@
               "node": {
                 "t": "lit",
                 "s": "RSI"
+              }
+            },
+            "text_color": {
+              "v": "color",
+              "node": {
+                "c": "lit",
+                "hex": "chart.fg_color"
               }
             }
           }
@@ -1163,6 +1177,13 @@
                 "t": "lit",
                 "s": "Trend"
               }
+            },
+            "text_color": {
+              "v": "color",
+              "node": {
+                "c": "lit",
+                "hex": "chart.fg_color"
+              }
             }
           }
         },
@@ -1210,6 +1231,13 @@
                     "s": "Bearish"
                   }
                 }
+              }
+            },
+            "text_color": {
+              "v": "color",
+              "node": {
+                "c": "lit",
+                "hex": "chart.fg_color"
               }
             },
             "bgcolor": {

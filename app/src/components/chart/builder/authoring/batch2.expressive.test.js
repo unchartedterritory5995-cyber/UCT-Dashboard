@@ -280,10 +280,11 @@ describe('6/7 · linear regression and cross-symbol correlation, authored', () =
     expect(last).toBeGreaterThanOrEqual(-1)
     expect(last).toBeLessThanOrEqual(1)
     expect(readback(def, {}, GATE).outputs[0].sentence).toMatch(/correlation of close with/)
-    // the model's view shows the call, and offers no slot inside it
+    // the model's view shows the call, and its slots are the CALL's arguments
     const view = compactView(def, openAuthoringState(def, { defId: 'u_1a1b2c3d4e5f', version: 1 }), GATE)
     expect(view.definition.outputs[0].formula).toBe("correlation(close, sym('SPY', close), 20)")
-    expect(view.definition.outputs[0].slots).toEqual([])
+    expect(view.definition.outputs[0].slots.map((s) => [s.id, s.role, s.value])).toEqual([
+      ['value#0', 'source', 'close'], ['value#1', 'symbol', 'SPY'], ['value#1.0', 'operand', 'close'], ['value#2', 'length', 20]])
     expect(view.capabilities.formulaFunctions).toContain('correlation(source1, source2, length)')
   })
 })
@@ -349,5 +350,62 @@ describe('colour security, version handling, legacy compatibility', () => {
     const text = JSON.stringify(plain)
     for (const k of ['colorPalette', '_cs', 'mergecells', 'text_size', 'colorWhen']) expect(text).not.toContain(k)
     expect(newAuthoringState().revision).toBe(0)
+  })
+})
+
+// ─── production real model 10-09: an assumption naming the formula function's length ──
+
+describe('slots in the coordinates the model is shown', () => {
+  const momOps = (extra = []) => [
+    { op: 'create', name: 'Momentum', placement: 'pane', outputs: [{ key: 'momentum', label: 'Momentum',
+      tree: { type: 'call', name: 'mom', args: [{ type: 'series', name: 'close' }, { type: 'num', value: 10 }] } }] },
+    { op: 'set_style', output: 'momentum', style: 'histogram' },
+    { op: 'set_color_states', output: 'momentum', states: FOUR }, ...extra]
+
+  it('⭐ the REAL turn: an assumption on "momentum#1" (the 10-bar length) is accepted', () => {
+    const env2 = { ...env(0, momOps()), assumptions: [{ slot: 'momentum#1', text: 'a 10-bar momentum (close minus close 10 bars ago)' }] }
+    const r = applyPatch(null, env2, { gateCtx: GATE })
+    expect(r.status, JSON.stringify(r.errors)).toBe('applied')
+    // said in the RESULT's coordinates: close - close[10] → the bars-ago count
+    expect(r.assumptions[0]).toMatchObject({ slot: 'momentum#1.n', output: 'momentum', value: 10 })
+    // …and a slot that names nothing in either tree is still refused
+    const bad = applyPatch(null, { ...env(0, momOps()), assumptions: [{ slot: 'momentum#7', text: 'x' }] }, { gateCtx: GATE })
+    expect(bad.errors[0].code).toBe('assumption:unknown-slot')
+  })
+
+  it('⭐ set_slot on the length moves EVERY copy (linreg 50 → 20 is exactly linreg(close, 20))', () => {
+    const def = applied(applyPatch(null, env(0, [{ op: 'create', name: 'R', outputs: [{ key: 'v', tree: P('linreg(close, 50)') }] }]), { gateCtx: GATE }))
+    const st = openAuthoringState({ ...def, id: 'u_2a1b2c3d4e5f', version: 1 }, { defId: 'u_2a1b2c3d4e5f', version: 1 })
+    const out = applyTurn(st, env(st.revision, [{ op: 'set_slot', slot: 'v#1', value: 20 }]), { gateCtx: GATE })
+    expect(out.result.status, JSON.stringify(out.result.errors)).toBe('applied')
+    const tree = modelOf(out.state.working).rows.find((r) => r.key === 'v').ast
+    expect(astHash(tree)).toBe(astHash(P('linreg(close, 20)')))
+  })
+
+  it('⛔ a length slot refuses a fraction or zero (a window), and slots outside an expansion keep their ids', () => {
+    const def = applied(applyPatch(null, env(0, [{ op: 'create', name: 'R', outputs: [{ key: 'v', tree: P('roc(close, 12) > 2') }] }]), { gateCtx: GATE }))
+    const st = openAuthoringState({ ...def, id: 'u_3a1b2c3d4e5f', version: 1 }, { defId: 'u_3a1b2c3d4e5f', version: 1 })
+    const bad = applyTurn(st, env(st.revision, [{ op: 'set_slot', slot: 'v#0.1', value: 2.5 }]), { gateCtx: GATE })
+    expect(bad.result.errors[0].code).toBe('slot:window')
+    const ids = compactView(def, st, GATE).definition.outputs[0].slots.map((s) => s.id)
+    expect(ids).toEqual(['v#0.0', 'v#0.1', 'v#1'])                     // the threshold 2 is still v#1
+  })
+})
+
+
+// ─── production 10-09: a plain table cell on a light theme ─────────────────────────
+
+describe('a plain cell is drawn in the chart theme\'s own text colour', () => {
+  it('⭐ the title and labels resolve to the theme text (Paper #5B6470), not a fixed light grey; the spec has no colour', () => {
+    const def = applied(applyPatch(null, env(0, tableOps), { gateCtx: GATE }))
+    expect(tableSpecOfDefinition(def).cells).toEqual(tableOps[1].cells)           // still round-trips exactly
+    assertObjectProgram(def.objects)
+    const bound = bindObjectProgram(def.objects, (i) => i)
+    const cols = def.objects.trees.map((tree) => Array.from(interpret(tree, BARS, {}, undefined, undefined,
+      { tf: 'D', semantics: 2, symbols: { SPY } })))
+    const res = evaluateObjects(bound, { barCount: N, readNode: (n, b) => (cols[n] ? cols[n][b] : NaN), readTime: (i) => BARS[i].t })
+    const paper = toRenderState(res.live, { bars: BARS, theme: { fg: '#5B6470', bg: '#FFFFFF' } }).tables[0]
+    const cell = (r, c) => paper.cells.find((x) => x.row === r && x.col === c)
+    for (const [r, c] of [[0, 0], [1, 0], [2, 0], [3, 0]]) expect(String(cell(r, c).text_color).toUpperCase()).toBe('#5B6470')
   })
 })

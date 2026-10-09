@@ -39,6 +39,7 @@ vi.mock('../../hooks/usePreferences', () => {
 
 vi.mock('./panels', async (importOriginal) => {
   const real = await importOriginal()
+  const { usePanelRerun } = await import('../../components/terminal/terminalPanel')
   const stubs = new Map()
   return {
     ...real,
@@ -46,7 +47,15 @@ vi.mock('./panels', async (importOriginal) => {
     panelComponent: (name) => {
       if (!stubs.has(name)) {
         stubs.set(name, function Stub({ sym, date }) {
-          return <div data-testid={`stub-${name}`}>{name}:{sym || '-'}{date ? `:date=${date}` : ''}</div>
+          // CATH's stub can write a picked day back, as the real page does (wave 6, lane B).
+          const rerun = usePanelRerun()
+          return (
+            <div data-testid={`stub-${name}`}>{name}:{sym || '-'}{date ? `:date=${date}` : ''}
+              {name === 'surfaceCatalystsHistory' && rerun && (
+                <button type="button" aria-label="pick 2026-06-01" data-testid="cath-pick" onClick={() => rerun('CATH 2026-06-01')} />
+              )}
+            </div>
+          )
         })
       }
       return stubs.get(name)
@@ -203,6 +212,23 @@ describe('fix 4: CATH takes a day', () => {
     expect(code(0)).toBe('CATH')
     expect(screen.getByTestId('terminal-panel-0')).toHaveTextContent(':date=2026-10-01')
     expect(params().get('cmd')).toBe('CATH 2026-10-01')
+  })
+
+  it('wave 6 (lane B): a day picked inside the panel is written back into its command and ?cmd=', async () => {
+    renderAt(['/terminal'])
+    await type('CATH 2026-10-01')
+    const count = document.querySelectorAll('[data-testid^="terminal-panel-"]').length
+    await act(async () => { fireEvent.click(screen.getByTestId('cath-pick')) })
+    await settle()
+    expect(code(0)).toBe('CATH')
+    expect(screen.getByTestId('terminal-panel-0')).toHaveTextContent(':date=2026-06-01')
+    expect(params().get('cmd')).toBe('CATH 2026-06-01')
+    // re-run in its own slot: no panel added, and the remounted panel does not re-run again
+    expect(document.querySelectorAll('[data-testid^="terminal-panel-"]').length).toBe(count)
+    const layoutWrites = store.writes.filter(([k]) => k === 'terminal_layout').length
+    await settle()
+    expect(store.writes.filter(([k]) => k === 'terminal_layout').length).toBe(layoutWrites)
+    expect(params().get('cmd')).toBe('CATH 2026-06-01')
   })
 
   it('a day still ahead is said to be not applied', async () => {

@@ -2282,7 +2282,7 @@ function SearchModal({onClose, mktcapData = {}, initialQuery = ""}){
         )}
         {results.length>0 && <SearchResultsTable items={results} mktcapData={mktcapData} initialExpanded={initialQuery && query===initialQuery && results.some(it=>it.t===initialQuery) ? initialQuery : null}/>}
         {query.length>0 && results.length===0 && (
-          <div style={{color:C.tx3,fontSize:13}}>No tickers found.</div>
+          <div style={{color:C.tx3,fontSize:13}}>{initialQuery && query===initialQuery ? `No dark pool prints for ${initialQuery} in this window.` : "No tickers found."}</div>
         )}
         {query.length===0 && (
           <div>

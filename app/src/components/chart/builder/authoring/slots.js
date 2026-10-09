@@ -22,7 +22,7 @@
 import { TABLE } from '../../engine/ast/parse'
 import { comparisons } from '../toCondition'
 import { outputTreeOf } from '../../engine/outputType'
-import { recogniseExpansion } from '../../engine/ast/callExpansions'
+import { collapseExpansions } from '../../engine/ast/callExpansions'
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 
@@ -79,8 +79,20 @@ export function replaceAt(tree, segs, next) {
 const BAR_FIELDS = Object.freeze(Object.keys(TABLE.series || {}))
 export const barFields = () => BAR_FIELDS
 
+/** ⭐ BATCH 2 — which argument of each formula function (`callExpansions.js`) is its
+ *  length: a slot there is a WINDOW (a whole number of at least 1). */
+const EXPANSION_ARGS = Object.freeze({
+  linreg: ['source', 'length', 'offset'], correlation: ['source', 'source', 'length'],
+  vwma: ['source', 'length'], roc: ['source', 'length'], mom: ['source', 'length'],
+  kcMiddle: ['source', 'length'], kcUpper: ['source', 'length', 'multiplier'], kcLower: ['source', 'length', 'multiplier'],
+})
+
 function roleOf(parent, index) {
   if (!parent) return { role: 'constant', window: false, label: 'value' }
+  if (parent.type === 'call' && Object.hasOwn(EXPANSION_ARGS, parent.name)) {
+    const role = EXPANSION_ARGS[parent.name][index] || `argument ${index + 1}`
+    return { role, window: role === 'length', label: `${parent.name} ${role}` }
+  }
   if (parent.type === 'call') {
     const spec = (TABLE.functions || {})[parent.name] || {}
     const role = Array.isArray(spec.argRoles) && spec.argRoles[index] ? spec.argRoles[index] : `argument ${index + 1}`
@@ -94,16 +106,19 @@ function roleOf(parent, index) {
   return { role: 'constant', window: false, label: 'value' }
 }
 
-/** The slots of ONE tree, deterministic pre-order. */
+/** The slots of ONE tree, deterministic pre-order.
+ *
+ *  ⭐ BATCH 2 — IN THE COORDINATES THE MODEL IS SHOWN. A stored `linreg(close, 50, 0)` is
+ *  the tree it IS (50 appears four times, `close` twice), and `compactView` shows the
+ *  call. Slots are read off that collapsed tree, so `mom#1` is the momentum length the
+ *  model sees and can name in an assumption (measured 10-09, production real model:
+ *  `assumption:unknown-slot "momentum#1"` refused a correct turn). A path OUTSIDE an
+ *  expansion is the same in both trees, so every other slot id is unchanged; `set_slot`
+ *  edits the collapsed tree and the gate re-expands it, so all four 50s move together. */
 export function slotsOfTree(output, tree) {
   const out = []
   const walk = (node, segs, parent, index, negated) => {
     if (!isObj(node)) return
-    // ⛔ BATCH 2 — NO SLOT INSIDE AN EXPANSION. `linreg(close, 50, 0)` is stored as the
-    // tree it IS, where 50 appears four times and `close` twice: a slot on one copy
-    // would edit a quarter of the maths and silently compute something else. The
-    // model sees the call (`compactView`) and changes it by re-sending the tree.
-    if (recogniseExpansion(node)) return
     if (node.type === 'num') {
       const r = roleOf(parent, index)
       out.push(Object.freeze({
@@ -149,7 +164,7 @@ export function slotsOfTree(output, tree) {
       node.args.forEach((a, i) => walk(a, [...segs, i], neg ? parent : node, neg ? index : i, neg))
     }
   }
-  walk(tree, [], null, 0, false)
+  walk(collapseExpansions(tree), [], null, 0, false)
   return out
 }
 
