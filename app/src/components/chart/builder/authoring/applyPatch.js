@@ -547,6 +547,9 @@ const OPS = {
     const row = rowOf(st, id.output)
     const slot = slotsOfTree(row.key, row.ast).find((s) => s.id === op.slot)
     if (!slot) throw err('slot:unknown', `"${op.slot}" names no parameter of "${row.key}".`, { output: row.key })
+    // ⭐ BATCH 2 — a slot path is in the COLLAPSED tree's coordinates (`slots.js`); the
+    // edit is made there and `setTree`'s gate expands the formula functions again.
+    const view = collapseExpansions(row.ast)
     let next
     if (slot.kind === 'symbol' || slot.kind === 'timeframe') {
       // ⭐ PHASE 5 — the wrapper's own field: SPY → QQQ, weekly → monthly.
@@ -554,9 +557,9 @@ const OPS = {
       if (want === undefined) {
         throw err('slot:kind', `"${op.slot}" is ${slot.kind === 'symbol' ? 'a symbol; give it a symbol' : 'a timeframe; give it a timeframe'}.`)
       }
-      next = { ...nodeAt(row.ast, id.segs), value: want }
+      next = { ...nodeAt(view, id.segs), value: want }
       const fromValue = slot.value
-      setTree(st, row, replaceAt(row.ast, id.segs, next), i, 'slot-set')
+      setTree(st, row, replaceAt(view, id.segs, next), i, 'slot-set')
       st.changes[st.changes.length - 1] = { ...st.changes[st.changes.length - 1], slot: op.slot,
         label: slot.label, fromValue, toValue: want }
       return
@@ -569,14 +572,14 @@ const OPS = {
       if ((slot.window || slot.role === 'bars-ago') && (!Number.isInteger(op.value) || op.value < 1)) {
         throw err('slot:window', `${slot.label} must be a whole number of at least 1.`)
       }
-      next = id.segs[id.segs.length - 1] === 'n' ? op.value : { ...nodeAt(row.ast, id.segs), value: op.value }
+      next = id.segs[id.segs.length - 1] === 'n' ? op.value : { ...nodeAt(view, id.segs), value: op.value }
     } else {
       if (op.series === undefined) throw err('slot:kind', `"${op.slot}" reads a price field; give it a series.`)
       if (!barFields().includes(op.series)) throw err('slot:series', `"${op.series}" is not a price field.`)
-      next = { ...nodeAt(row.ast, id.segs), name: op.series }
+      next = { ...nodeAt(view, id.segs), name: op.series }
     }
     const fromValue = slot.value
-    setTree(st, row, replaceAt(row.ast, id.segs, next), i, 'slot-set')
+    setTree(st, row, replaceAt(view, id.segs, next), i, 'slot-set')
     st.changes[st.changes.length - 1] = { ...st.changes[st.changes.length - 1], slot: op.slot,
       label: slot.label, fromValue, toValue: slot.kind === 'number' ? op.value : op.series }
   },
@@ -1241,15 +1244,47 @@ function runOps(input, ops, ctx) {
   return { ok: true, st, def, changes: [...st.changes, ...disclosures(st, input, def, gateCtx)] }
 }
 
-function checkAssumptions(patchAssumptions, def) {
-  const slots = new Map(parameterSlots(def).map((s) => [s.id, s]))
+/** ⭐ BATCH 2 — the trees the model WROTE in this patch, per output (the last write
+ *  wins). A slot id in an assumption is the model's own path into what it just wrote —
+ *  `mom(close, 10)` → `momentum#1` — and a formula function is stored as the tree it
+ *  IS (`close - close[10]`), where that path names nothing (measured 10-09, production
+ *  real model: a correct four-state momentum turn was refused `assumption:unknown-slot`). */
+function authoredTrees(ops) {
+  const out = new Map()
+  for (const op of ops || []) {
+    if (!op || typeof op !== 'object') continue
+    if (op.op === 'create') for (const o of op.outputs || []) { if (o && o.key && o.tree) out.set(o.key, o.tree) }
+    else if (op.op === 'add_output' && op.key && op.tree) out.set(op.key, op.tree)
+    else if (op.op === 'set_output_tree' && op.output && op.tree) out.set(op.output, op.tree)
+  }
+  return out
+}
+
+function checkAssumptions(patchAssumptions, def, authored = new Map()) {
+  const all = parameterSlots(def)
+  const slots = new Map(all.map((s) => [s.id, s]))
   const keys = new Set(outputsOf(def).map((o) => o.key))
   const out = []
   for (const a of patchAssumptions || []) {
     if (a.slot !== undefined) {
-      const s = slots.get(a.slot)
+      let s = slots.get(a.slot)
+      if (!s) {
+        // the model's path into the tree it authored: the SAME parameter, said in the
+        // result's coordinates when exactly one slot there matches (output, kind, value)
+        const id = parseSlotId(a.slot)
+        const wrote = id && authored.get(id.output)
+        const mine = wrote ? slotsOfTree(id.output, wrote).find((x) => x.id === a.slot) : null
+        if (mine) {
+          const same = all.filter((x) => x.output === mine.output && x.kind === mine.kind && x.value === mine.value)
+          if (same.length === 1) s = same[0]
+          else {
+            out.push({ output: mine.output, label: mine.label, value: mine.value, text: a.text, source: 'model' })
+            continue
+          }
+        }
+      }
       if (!s) throw err('assumption:unknown-slot', `The assumption names "${a.slot}", which is not a parameter of the result.`)
-      out.push({ slot: a.slot, output: s.output, label: s.label, value: s.value, text: a.text, source: 'model' })
+      out.push({ slot: s.id, output: s.output, label: s.label, value: s.value, text: a.text, source: 'model' })
     } else if (a.output !== undefined) {
       if (!keys.has(a.output)) throw err('assumption:unknown-output', `The assumption names "${a.output}", which is not an output.`)
       out.push({ output: a.output, text: a.text, source: 'model' })
@@ -1304,7 +1339,7 @@ export function applyPatch(definition, patch, ctx = {}) {
   }
   let assumptions
   try {
-    assumptions = [...checkAssumptions(patch.assumptions, run.def), ...run.st.engineAssumptions]
+    assumptions = [...checkAssumptions(patch.assumptions, run.def, authoredTrees(patch.ops)), ...run.st.engineAssumptions]
   } catch (e) {
     if (e instanceof AuthoringError) return refused([{ op: null, code: e.code, message: e.message }])
     throw e
