@@ -15,7 +15,7 @@
 import { useEffect, useMemo } from 'react'
 import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
-import useCloses, { closesProvenance } from './useCloses'
+import useCloses, { closesProvenance, failedText } from './useCloses'
 import { RRG_METHOD, collectSymbols, rrgPath, withArgsKey } from './relativeMath'
 import styles from './comparePanels.module.css'
 
@@ -131,10 +131,12 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
   useEffect(() => { onRows?.(cmds) }, [onRows, cmds])
 
   if (state.phase !== 'ready') return <PanelSkeleton label="Loading the rotation graph" shape="chart" testId="terminal-rrg-loading" />
+  // Re-running RRG keeps this panel and reads nothing, so every failure offers a Retry button.
+  const retry = <button type="button" onClick={state.retry} data-testid="terminal-rrg-retry">Retry</button>
   if (state.failed.includes(RRG_BENCHMARK)) {
     return (
-      <PanelState kind="error" title={`Could not read ${RRG_BENCHMARK}, the benchmark, just now.`} testId="terminal-rrg-error">
-        Every point on the graph is measured against it, so nothing is drawn. Run RRG again to retry.
+      <PanelState kind="error" title={`Could not read ${RRG_BENCHMARK}, the benchmark, just now.`} testId="terminal-rrg-error" action={retry}>
+        Every point on the graph is measured against it, so nothing is drawn.
       </PanelState>
     )
   }
@@ -142,8 +144,8 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
   // said "Not enough common history" — a failed read drawn as a genuine empty graph.
   if (!rows.length && state.failed.length) {
     return (
-      <PanelState kind="error" title={`Could not read ${state.failed.join(', ')} just now.`} testId="terminal-rrg-error">
-        Nothing could be placed on the graph. Run RRG again to retry.
+      <PanelState kind="error" title={failedText(state)} testId="terminal-rrg-error" action={retry}>
+        Nothing could be placed on the graph.
       </PanelState>
     )
   }
@@ -206,7 +208,8 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
       </div>
       {state.failed.length > 0 && (
         <p className={styles.note} role="status" data-testid="terminal-rrg-failed">
-          Could not read {state.failed.join(', ')} just now; {state.failed.length === 1 ? 'it is' : 'they are'} not on the graph.
+          {failedText(state)} {state.failed.length === 1 ? 'It is' : 'They are'} not on the graph.{' '}
+          <button type="button" className={styles.chip} onClick={state.retry}>Retry</button>
         </p>
       )}
       {short.length > 0 && (

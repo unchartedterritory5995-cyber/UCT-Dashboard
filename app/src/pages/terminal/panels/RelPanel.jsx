@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BoardFromList, PanelSkeleton, PanelState, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
-import useCloses, { closesProvenance } from './useCloses'
+import useCloses, { closesProvenance, failedText } from './useCloses'
 import { LOOKBACK_SESSIONS, collectSymbols, relativePerformance, withArgsKey } from './relativeMath'
 import styles from './comparePanels.module.css'
 
@@ -106,10 +106,17 @@ export default function RelPanel({ sym, lookback, ...props }) {
   }
   if (state.phase !== 'ready') return <PanelSkeleton label={`Loading ${syms.join(', ')}`} shape="chart" testId="terminal-rel-loading" />
   if (!read || read.lines.length < 2) {
-    const missing = state.failed.length ? `Could not read ${state.failed.join(', ')} just now.` : 'These names share too little trading history to compare.'
     // Nothing failed: too little SHARED history is a genuine empty answer, not an error to retry.
-    if (!state.failed.length) return <PanelState kind="empty" title={missing} testId="terminal-rel-empty">Try a shorter window, or drop the newest listing.</PanelState>
-    return <PanelState kind="error" title={missing} testId="terminal-rel-error">Run the command again to retry, or drop a name.</PanelState>
+    if (!state.failed.length) {
+      return <PanelState kind="empty" title="These names share too little trading history to compare." testId="terminal-rel-empty">Try a shorter window, or drop the newest listing.</PanelState>
+    }
+    // Re-running the same command keeps this panel and reads nothing, so the retry is a button.
+    return (
+      <PanelState kind="error" title={failedText(state)} testId="terminal-rel-error"
+        action={<button type="button" onClick={state.retry} data-testid="terminal-rel-retry">Retry</button>}>
+        Retry, or drop that name.
+      </PanelState>
+    )
   }
   const classes = read.lines.map((_, i) => styles[`s${i}`])
   return (
@@ -163,7 +170,10 @@ export default function RelPanel({ sym, lookback, ...props }) {
         </section>
       )}
       {state.failed.length > 0 && (
-        <p className={styles.note} role="status" data-testid="terminal-rel-failed">Could not read {state.failed.join(', ')} just now; not shown.</p>
+        <p className={styles.note} role="status" data-testid="terminal-rel-failed">
+          {failedText(state)} Not shown.{' '}
+          <button type="button" className={styles.chip} onClick={state.retry}>Retry</button>
+        </p>
       )}
       <p className={styles.muted}>
         Daily closes, compared only on sessions every name traded ({read.overlap} in common). The ratio

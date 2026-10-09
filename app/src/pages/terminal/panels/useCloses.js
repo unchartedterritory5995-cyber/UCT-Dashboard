@@ -7,8 +7,12 @@
 // most MAX_IN_FLIGHT run at once so a 12-name RRG can never herd the bars tier.
 //
 // A symbol that fails is NAMED in `failed`, never silently dropped — "XYZ could not be read"
-// and "XYZ is flat" are different facts.
-import { useEffect, useState } from 'react'
+// and "XYZ is flat" are different facts. The subset that answered 404 (no bars at all for that
+// symbol — a mistyped or unknown ticker) is ALSO named in `notFound`, so a panel can say "check
+// the ticker" instead of the "just now" a transient failure earns. `retry()` re-reads (a failed
+// read is never memoised, so it asks the network again); a panel offers it as its Retry, since
+// re-running the same command keeps the same component and would read nothing.
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { closesFromBars } from './relativeMath'
 
@@ -51,33 +55,59 @@ export async function settleLimited(tasks, limit = MAX_IN_FLIGHT) {
 }
 
 /**
- * `{ phase: 'idle'|'loading'|'ready', series: { SYM: [{d,c}] }, failed: [SYM], fetchedAt }`.
+ * `{ phase: 'idle'|'loading'|'ready', series: { SYM: [{d,c}] }, failed: [SYM], notFound: [SYM],
+ *   fetchedAt, retry }`. `notFound` ⊆ `failed`.
  * `syms` is compared by value, so a new array with the same names does not refetch.
  */
-const IDLE = Object.freeze({ phase: 'idle', series: {}, failed: [], fetchedAt: null })
-const LOADING = Object.freeze({ phase: 'loading', series: {}, failed: [], fetchedAt: null })
+const IDLE = Object.freeze({ phase: 'idle', series: {}, failed: [], notFound: [], fetchedAt: null })
+const LOADING = Object.freeze({ phase: 'loading', series: {}, failed: [], notFound: [], fetchedAt: null })
 
 export default function useCloses(syms, tf = 'D') {
   const list = syms || []
-  const key = `${tf}:${list.join(',')}`
+  const names = `${tf}:${list.join(',')}`
+  // A Retry is a new attempt of the same names: part of the key, so the panel reads as loading
+  // again at once and a late answer from the failed attempt is never shown.
+  const [attempt, setAttempt] = useState(0)
+  const key = `${names}#${attempt}`
   // The settled read is stored WITH the key it answers, so a new set of names reads as loading
   // at once (derived, not a second setState) and a late answer for an old set is never shown.
   const [state, setState] = useState({ key: null })
   useEffect(() => {
-    const names = key.slice(key.indexOf(':') + 1).split(',').filter(Boolean)
-    if (!names.length) return undefined
+    const want = names.slice(names.indexOf(':') + 1).split(',').filter(Boolean)
+    if (!want.length) return undefined
     let live = true
-    settleLimited(names.map((s) => () => fetchCloses(s, tf))).then((res) => {
+    settleLimited(want.map((s) => () => fetchCloses(s, tf))).then((res) => {
       if (!live) return
       const series = {}
       const failed = []
-      res.forEach((r, i) => { if (r.ok) series[names[i]] = r.value; else failed.push(names[i]) })
-      setState({ key, phase: 'ready', series, failed, fetchedAt: Date.now() })
+      const notFound = []
+      res.forEach((r, i) => {
+        if (r.ok) { series[want[i]] = r.value; return }
+        failed.push(want[i])
+        if (r.error?.status === 404) notFound.push(want[i])
+      })
+      setState({ key, phase: 'ready', series, failed, notFound, fetchedAt: Date.now() })
     })
     return () => { live = false }
-  }, [key, tf])
-  if (!list.length) return IDLE
-  return state.key === key ? state : LOADING
+  }, [key, names, tf])
+  const retry = useCallback(() => setAttempt((n) => n + 1), [])
+  const base = !list.length ? IDLE : state.key === key ? state : LOADING
+  return useMemo(() => ({ ...base, retry }), [base, retry])
+}
+
+/** Pure: the sentence for the names a settled read could not use. A 404 (no bars held for the
+ *  symbol) says "check the ticker"; anything else is a transient "could not read … just now".
+ *  Empty string when nothing failed. */
+export function failedText(state) {
+  const failed = state?.failed || []
+  const notFound = (state?.notFound || []).filter((s) => failed.includes(s))
+  const transient = failed.filter((s) => !notFound.includes(s))
+  const parts = []
+  if (notFound.length) {
+    parts.push(`No price history for ${notFound.join(', ')}: check the ${notFound.length === 1 ? 'ticker' : 'tickers'}.`)
+  }
+  if (transient.length) parts.push(`Could not read ${transient.join(', ')} just now.`)
+  return parts.join(' ')
 }
 
 /** Where the comparison panels' closes come from, in the words the panel header shows. */

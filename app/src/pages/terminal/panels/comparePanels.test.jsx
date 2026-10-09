@@ -55,7 +55,8 @@ describe('RRG', () => {
   it('names a symbol it could not read instead of dropping it silently', async () => {
     serve({ SPY: bench, XLK: shaped((i) => 0.0004 * i) })
     render(<RrgPanel with0="XLK" with1="NOPE" />)
-    expect((await screen.findByTestId('terminal-rrg-failed')).textContent).toBe('Could not read NOPE just now; it is not on the graph.')
+    // NOPE answers 404 (no bars held): a mistyped ticker, said as such — never "just now"
+    expect((await screen.findByTestId('terminal-rrg-failed')).textContent).toContain('No price history for NOPE: check the ticker. It is not on the graph.')
     expect(screen.queryByTestId('terminal-rrg-row-NOPE')).toBeNull()
   })
 
@@ -66,11 +67,25 @@ describe('RRG', () => {
     expect(screen.queryByTestId('terminal-rrg-table')).toBeNull()
   })
 
+  it('Retry re-reads a benchmark that failed (re-running RRG keeps the panel and read nothing)', async () => {
+    let down = true
+    const ok = fakeBarsFetch({ SPY: bench, XLK: shaped((i) => 0.0004 * i), XLU: shaped(() => 0) })
+    fetchSpy = vi.fn((url) => (down && /\/api\/bars\/SPY/.test(String(url))
+      ? Promise.resolve({ ok: false, status: 503, json: async () => ({}) })
+      : ok(url)))
+    globalThis.fetch = fetchSpy
+    render(<RrgPanel with0="XLK" with1="XLU" />)
+    await screen.findByTestId('terminal-rrg-error')
+    down = false
+    fireEvent.click(screen.getByTestId('terminal-rrg-retry'))
+    expect(await screen.findByTestId('terminal-rrg-table')).toBeTruthy()
+  })
+
   it('the benchmark read but every name failing is an ERROR naming them, never "not enough history"', async () => {
     serve({ SPY: bench })
     render(<RrgPanel with0="NOPE" with1="NADA" />)
     const err = await screen.findByTestId('terminal-rrg-error')
-    expect(err.textContent).toContain('Could not read NOPE, NADA just now.')
+    expect(err.textContent).toContain('No price history for NOPE, NADA: check the tickers.')
     expect(err.getAttribute('data-kind')).toBe('error')
     expect(screen.queryByTestId('terminal-rrg-empty')).toBeNull()
   })
@@ -146,7 +161,25 @@ describe('REL', () => {
   it('an unreadable comparator is an error that names it, never an empty chart', async () => {
     serve({ NVDA: series(dates, () => 0.002) })
     render(<RelPanel sym="NVDA" with0="ZZZZ" />)
-    expect((await screen.findByTestId('terminal-rel-error')).textContent).toContain('Could not read ZZZZ just now.')
+    expect((await screen.findByTestId('terminal-rel-error')).textContent).toContain('No price history for ZZZZ: check the ticker.')
+  })
+
+  it('a TRANSIENT failure says "just now", and Retry re-reads it (re-running the command could not)', async () => {
+    const good = { NVDA: series(dates, () => 0.002), AMD: series(dates, () => 0.001) }
+    let down = true
+    const ok = fakeBarsFetch(good)
+    fetchSpy = vi.fn((url) => (down && /\/api\/bars\/AMD/.test(String(url))
+      ? Promise.resolve({ ok: false, status: 503, json: async () => ({ detail: 'busy' }) })
+      : ok(url)))
+    globalThis.fetch = fetchSpy
+    render(<RelPanel sym="NVDA" with0="AMD" />)
+    const err = await screen.findByTestId('terminal-rel-error')
+    expect(err.textContent).toContain('Could not read AMD just now.')
+    expect(err.textContent).not.toContain('check the ticker')
+    down = false
+    fireEvent.click(screen.getByTestId('terminal-rel-retry'))
+    expect(await screen.findByTestId('terminal-rel-table')).toBeTruthy()
+    expect(screen.queryByTestId('terminal-rel-error')).toBeNull()
   })
 
   it('too little SHARED history (nothing failed) is an empty answer, not an error to retry', async () => {
