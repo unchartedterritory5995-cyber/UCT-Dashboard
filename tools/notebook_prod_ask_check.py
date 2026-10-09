@@ -73,7 +73,9 @@ Exit codes, three facts (the same split as `hub_nav_smoke.py`; H15 never fires o
                     failed or whose question is answered without the code or without a citation,
                     a touch toggle or chip under 44x44, two chips overlapping
   2  INCONCLUSIVE   not signed in, wrong account domain, the note could not be created, a page or
-                    an answer never arrived, the writing-help or autofill door not rendered, the
+                    an answer never arrived, the intro animation still covering Research Home
+                    after 15 s (Escape and Skip are sent first; a door counted through the
+                    overlay is not a measurement), the writing-help or autofill door not rendered, the
                     docx gate off (no document row), extraction still pending at the deadline, or
                     fewer than two chips so adjacency was never exercised
 
@@ -106,32 +108,6 @@ from pathlib import Path
 
 PROD = "https://uctintelligence.com"
 SYNTHETIC_DOMAIN = "@uctintelligence.internal"
-
-
-def settle_home(page, timeout_ms: int = 45_000) -> bool:
-    """Wait for Research Home with its Ask door VISIBLE, past the cinematic intro.
-
-    Measured 2026-10-08 23:12 CT: a run read "no Ask door" because the intro animation
-    (IntroAnimation.jsx, ~9 s, Escape or its Skip button ends it) was still covering the page
-    when a presence wait resolved. An overlay is not a missing door. Escape first, then Skip if
-    it is on screen, then a VISIBLE wait on the door or the first-run heading. Returns False
-    when neither appeared inside the budget (the caller reads that as INCONCLUSIVE, never 1)."""
-    try:
-        page.keyboard.press("Escape")
-    except Exception:
-        pass
-    try:
-        skip = page.get_by_role("button", name="Skip", exact=True)
-        if skip.count() and skip.first.is_visible():
-            skip.first.click()
-    except Exception:
-        pass
-    try:
-        page.wait_for_selector("[data-ask-toggle], h2:has-text('Welcome to your Notebook')",
-                               state="visible", timeout=timeout_ms)
-        return True
-    except Exception:
-        return False
 TITLE = "Smoke check: ZZZT plan (automated, removed by the run)"
 # Two paragraphs on purpose: two citable blocks, so an answer can cite the note twice (K7's
 # adjacency case needs at least two chips side by side).
@@ -161,6 +137,13 @@ DOC_POLL_S = 120
 TOUCH_VIEWPORT = {"width": 390, "height": 852}
 TOUCH_DPR = 3
 TAP_MIN = 44
+# The cinematic intro (app/src/components/intro/IntroAnimation.jsx) plays on EVERY page load for
+# ~9.3 s as an opaque fixed overlay; its root is unmounted once it finishes. Escape, Enter, Space
+# or the Skip button finish it. A door counted while it is up is a door the member cannot see,
+# and a door counted as absent while it is up is the intro, not the product.
+INTRO_SEL = "[role='dialog'][aria-label='Welcome']"
+INTRO_SKIP_SEL = "button[aria-label='Skip intro']"
+INTRO_BUDGET_MS = 15_000
 
 
 def overlapping_pairs(boxes: list[dict]) -> list[list[int]]:
@@ -186,12 +169,19 @@ def verdict(*, doors: int, alert: str, answer: str, sources: int, cited_opened: 
             help_alert: str = "", note_unchanged: bool = True,
             home_state: str = "full",
             drafts: dict | None = None, autofill: dict | None = None,
-            docx: dict | None = None, touch: dict | None = None) -> tuple[int, str]:
+            docx: dict | None = None, touch: dict | None = None,
+            intro_present: bool = False) -> tuple[int, str]:
     """The one place a measurement becomes a code. Pure, so `--self-check` can feed it.
 
     `drafts`, `autofill`, `docx` and `touch` are the new legs' measurements; `None` means the leg
     was never measured, which is a 2 -- reported only once every 1 has been ruled out, so a run
-    that failed early still names the failure and not the legs it never reached."""
+    that failed early still names the failure and not the legs it never reached.
+
+    `intro_present` comes FIRST: while the intro overlay still covers Research Home nothing about
+    the door count is a measurement of the product (the 23:12 CT post-deploy run read
+    `ask_doors 0` through the compass animation and called it a FAIL)."""
+    if intro_present:
+        return 2, f"the intro animation still covered Research Home after {INTRO_BUDGET_MS // 1000} s; no door was measurable"
     if doors == 0:
         return 1, "no Ask door on Research Home for a member with notes"
     if alert:
@@ -328,6 +318,7 @@ def self_check() -> int:
 
     cases = [
         ("healthy", healthy, 0),
+        ("intro still up: a 2, never a missing door", {**healthy, "doors": 0, "intro_present": True}, 2),
         ("no door", {**healthy, "doors": 0}, 1),
         ("alert shown", {**healthy, "alert": "Ask is unavailable right now."}, 1),
         ("empty answer", {**healthy, "answer": "   "}, 1),
@@ -482,6 +473,42 @@ CHIP_BOXES_JS = """() => {
 GROUP_SEL = "[role='group'][aria-label='What should Compass do?']"
 
 
+def _clear_intro(page, step, tag: str) -> bool:
+    """After a page load: finish the cinematic intro and wait for Research Home's door to be
+    VISIBLE with the intro's root gone. Returns True when the intro is gone (or never mounted
+    within the budget while the door became visible), False when it still covers the page at
+    the deadline -- the caller treats that as INCONCLUSIVE, never as a missing door.
+
+    ⛔ Polled, because the intro mounts with the app root AFTER `domcontentloaded` and an Escape
+    sent before it exists dismisses nothing. Each pass sends Escape (consumed by the intro's
+    capture listener), clicks Skip when it is visible, and asks whether the root is detached."""
+    deadline = time.time() + INTRO_BUDGET_MS / 1000
+    seen = False
+    skipped = False
+    while time.time() < deadline:
+        intro = page.locator(INTRO_SEL)
+        if intro.count():
+            seen = True
+            page.keyboard.press("Escape")
+            skip = page.locator(INTRO_SKIP_SEL)
+            try:
+                if skip.count() and skip.first.is_visible():
+                    skip.first.click(timeout=2_000)
+                    skipped = True
+            except Exception:
+                pass
+        else:
+            toggle = page.locator("[data-ask-toggle]")
+            welcome = page.locator("h2:has-text('Welcome to your Notebook')")
+            if (toggle.count() and toggle.first.is_visible()) or welcome.count():
+                step(f"intro_{tag}", seen=seen, skipped=skipped, gone=True)
+                return True
+        page.wait_for_timeout(400)
+    gone = page.locator(INTRO_SEL).count() == 0
+    step(f"intro_{tag}", seen=seen, skipped=skipped, gone=gone, deadline=True)
+    return gone
+
+
 def _ask(page, scope: str, question: str, out: Path, tag: str, step, previous: str = "") -> tuple[str, str, int]:
     """Open the Ask door for `scope`, ask, wait. Returns (answer, alert, sources). `previous` is the
     answer already on screen in a panel that was used before, so a settled OLD answer cannot read
@@ -619,10 +646,16 @@ def run(base: str, out: Path) -> int:
 
             # Leg A: the home's door and a whole-Notebook question.
             page.goto(f"{base}/journal/notebook", wait_until="domcontentloaded", timeout=60_000)
-            if not settle_home(page):
+            try:
+                page.wait_for_selector("[data-ask-toggle], h2:has-text('Welcome to your Notebook')", timeout=45_000)
+            except Exception as e:
                 page.screenshot(path=str(out / "home-timeout.png"), full_page=True)
-                step("home", settled=False)
-                return finish(2, "Research Home never settled (the intro overlay or a slow pod)")
+                step("home", settled=False, error=str(e)[:160])
+                return finish(2, "Research Home never settled")
+            if not _clear_intro(page, step, "home"):
+                page.screenshot(path=str(out / "home-intro.png"), full_page=True)
+                return finish(*verdict(doors=0, alert="", answer="", sources=0, cited_opened=None,
+                                       intro_present=True))
             quiet = page.get_by_text("Nothing needs your attention right now.").count() > 0
             full = page.get_by_text("Continue working").count() > 0
             doors = page.locator("[data-ask-toggle]").count()
@@ -851,10 +884,16 @@ def run(base: str, out: Path) -> int:
             if not t_who.endswith(SYNTHETIC_DOMAIN):
                 return finish(2, "the touch context did not sign in as the smoke account")
             tpage.goto(f"{base}/journal/notebook", wait_until="domcontentloaded", timeout=60_000)
-            if not settle_home(tpage) or tpage.locator("[data-ask-toggle]").count() == 0:
+            try:
+                tpage.wait_for_selector("[data-ask-toggle]", timeout=45_000)
+            except Exception as e:
                 tpage.screenshot(path=str(out / "touch-home-timeout.png"), full_page=True)
-                step("touch_home", settled=False)
+                step("touch_home", settled=False, error=str(e)[:160])
                 return finish(2, "Research Home never showed an Ask door in the touch context")
+            if not _clear_intro(tpage, step, "touch_home"):
+                tpage.screenshot(path=str(out / "touch-home-intro.png"), full_page=True)
+                return finish(2, f"the intro animation still covered Research Home in the touch context "
+                                 f"after {INTRO_BUDGET_MS // 1000} s; no toggle was measurable")
             touch["viewport"] = tpage.evaluate("() => ({innerWidth, innerHeight, dpr: devicePixelRatio,"
                                                " coarse: matchMedia('(pointer: coarse)').matches})")
             tog = tpage.locator("[data-ask-toggle]").first
