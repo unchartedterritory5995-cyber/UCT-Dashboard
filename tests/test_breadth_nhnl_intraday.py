@@ -78,14 +78,14 @@ def test_window_is_251_prior_sessions():
     assert out["nyse"][0] == 1                         # 20 has rolled out of the window
 
 
-def test_missing_bar_in_window_excludes_the_name():
+def test_a_gap_in_the_window_still_counts_the_name():
     ring = nhi.Ring()
     days = _sessions(253)
     frames = [_frame({"AAA": 10.0, "BBB": 10.0}, {"AAA": 9.0, "BBB": 9.0})] * 252
     frames[100] = _frame({"AAA": 10.0}, {"AAA": 9.0})  # BBB absent one session
     frames = frames + [_frame({"AAA": 11.0, "BBB": 11.0}, {"AAA": 9.0, "BBB": 9.0})]
     out = _run(ring, days, frames)
-    assert out["nyse"][0] == 1 and out["nyse"][5] == 1
+    assert out["nyse"][0] == 2 and out["nyse"][5] == 2      # the diary rule: listed, not complete
 
 
 def test_zero_volume_rows_are_not_traded():
@@ -229,3 +229,32 @@ def test_population_diagnostic_splits_by_venue_and_type(tmpdata, monkeypatch):
     assert out["ok"] and out["session"] == days[-1]
     assert out["by_venue_type"]["XNYS|PFD"]["complete_nl_intraday"] == 1
     assert out["by_venue_type"]["XNYS|CS"]["complete_nl_intraday"] == 0
+
+
+def test_young_issue_counts_against_its_history_since_listing():
+    ring = nhi.Ring()
+    days = _sessions(260)
+    frames = [_frame({"AAA": 10.0}, {"AAA": 9.0})] * 250
+    frames += [_frame({"AAA": 10.0, "IPO": 20.0}, {"AAA": 9.0, "IPO": 18.0})] * 9
+    frames.append(_frame({"AAA": 10.0, "IPO": 21.0}, {"AAA": 9.0, "IPO": 19.0}))
+    out = _run(ring, days, frames)
+    assert out["nyse"][0] == 1                              # IPO above every price since listing
+
+
+def test_all_issues_population_and_switch(tmpdata, monkeypatch):
+    from api.services import breadth_pit_frame as bpf
+    rec = lambda t, ex: [{"type": t, "primary_exchange": ex, "list_date": None, "delisted_utc": None}]
+    cls = nhi.Classifier({"AAA": rec("CS", "XNYS"), "PRF": rec("PFD", "XNYS"), "QQQ": rec("ETF", "XNAS")})
+    assert set(cls.classify("AAA", "2026-10-08")) == {"us", "nyse", "us:all", "nyse:all"}
+    assert set(cls.classify("PRF", "2026-10-08")) == {"us:all", "nyse:all"}
+    assert set(cls.classify("QQQ", "2026-10-08")) == {"us:all", "nasdaq:all"}
+    monkeypatch.setenv("BREADTH_NHNL_BASIS", "intraday")
+    _install(tmpdata, {"nyse": {"2026-10-08": [29, 96, 1, 1, 1900, 1800, 1, 1]},
+                       "nyse:all": {"2026-10-08": [34, 265, 1, 1, 2778, 2700, 1, 1]}})
+    monkeypatch.delenv("BREADTH_NHNL_POPULATION", raising=False)
+    assert nhi.values("nyse", "2026-10-08")["new_52w_lows"] == 96
+    t_common = nhi.token()
+    monkeypatch.setenv("BREADTH_NHNL_POPULATION", "all")
+    assert nhi.values("nyse", "2026-10-08")["new_52w_lows"] == 265
+    assert nhi.values("uct", "2026-10-08") is None
+    assert nhi.token() != t_common and nhi.token().endswith("-all")
