@@ -47,7 +47,8 @@ function failureText(err, what) {
 
 const COLUMNS = [
   { key: 'sym', label: 'Symbol', title: 'Click a symbol to load it into the linked panels' },
-  { key: 'last', label: 'Last' },
+  // Wave 3 (MOST P2 #13): the price floors say "$5"; the price column says its unit too.
+  { key: 'last', label: 'Last ($)' },
   { key: 'pct', label: '% Chg' },
   { key: 'ah', label: 'After hours', postOnly: true, title: 'Move since the 4:00 PM close' },
   { key: 'volume', label: 'Volume', title: 'Shares traded today (pre and post market included outside the regular session)' },
@@ -174,16 +175,24 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
           <table className={styles.table} data-testid="terminal-movers-table" aria-label={`${LENSES[lens]}, sortable`}>
             <thead>
               <tr>
-                {columns.map((c) => (
-                  <th scope="col" key={c.key} title={c.title} aria-sort={ariaSortFor(sort, c.key, 'none')}>
+                {columns.map((c) => {
+                  // Wave 3 (MOST P2 #17): the All lens sorts by the SIZE of the move (absPct), which
+                  // is no column, so no header carried a caret and the order was unexplained. The
+                  // % Chg header says it: a caret plus "by size", and aria-sort "other".
+                  const bySize = c.key === 'pct' && sort?.key === 'absPct'
+                  return (
+                  <th scope="col" key={c.key} aria-sort={bySize ? 'other' : ariaSortFor(sort, c.key, 'none')}
+                    title={bySize ? 'Sorted by the size of the move, up or down. Click to sort by % change.' : c.title}>
                     <button type="button" className={styles.sortBtn} onClick={() => toggleSort(c.key)}
                       data-testid={`terminal-movers-sort-${c.key}`}>
                       {c.label}
                       {/* The caret is decoration: the <th>'s aria-sort already says which way. */}
                       {sortCaretFor(sort, c.key) ? <span aria-hidden="true">{` ${sortCaretFor(sort, c.key)}`}</span> : null}
+                      {bySize ? <><span aria-hidden="true"> ▼</span><span className={styles.muted} data-testid="terminal-movers-by-size"> by size</span></> : null}
                     </button>
                   </th>
-                ))}
+                  )
+                })}
                 <th scope="col">Why</th>
               </tr>
             </thead>
