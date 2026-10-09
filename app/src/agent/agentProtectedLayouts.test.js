@@ -55,3 +55,39 @@ describe('from any other layout', () => {
     expect(protectionRefusal(host(null), plan('chart'), [])).toBe(null)
   })
 })
+
+describe('release audit (2026-10-09)', () => {
+  it('FAILS CLOSED while the layout list is loading: an unconfirmed open layout named Main Trading — or with no name yet — blocks board writes', () => {
+    const loading = (pending) => ({ layouts: { snapshot: () => ({ entries: [], active: null, pendingActive: pending }) } })
+    expect(protectionRefusal(loading({ id: '1', name: 'Main Trading' }), plan('chart'), [])).toMatch(/“Main Trading” is a protected layout/)
+    expect(protectionRefusal(loading({ id: '9', name: null }), plan('board'), [])).toMatch(/still loading/)
+    expect(undoProtectionRefusal(loading({ id: '9', name: null }), { items: [{ kind: 'chart' }] })).toMatch(/still loading/)
+    expect(protectionRefusal(loading({ id: '3', name: 'Swing' }), plan('chart'), [])).toBe(null)
+    expect(protectionRefusal(loading({ id: '9', name: null }), plan('watchlist'), [])).toBe(null)   // not a board write
+  })
+  it('only the Agent imports the guard — manual Charts use cannot be affected by it', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const root = path.resolve(__dirname, '..')
+    const hits = []
+    const walk = (dir) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name)
+        if (e.isDirectory()) { if (e.name !== 'node_modules') walk(p); continue }
+        if (!/\.(jsx?|tsx?)$/.test(e.name) || /\.test\./.test(e.name)) continue
+        if (/from ['"][^'"]*protectedLayouts['"]/.test(fs.readFileSync(p, 'utf8'))) hits.push(path.relative(root, p).split(path.sep).join('/'))
+      }
+    }
+    walk(root)
+    expect(hits).toEqual(['agent/useAgent.js'])
+  })
+  it('no Agent capability can change the protected list: the guard reads a key nothing in the Agent writes', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const dir = path.resolve(__dirname, 'capabilities')
+    for (const f of fs.readdirSync(dir).filter(x => x.endsWith('.js'))) {
+      const src = fs.readFileSync(path.join(dir, f), 'utf8')
+      expect(/protectedLayouts|PROTECTED_LAYOUTS_KEY|localStorage\.(setItem|removeItem|clear)/.test(src), f).toBe(false)
+    }
+  })
+})

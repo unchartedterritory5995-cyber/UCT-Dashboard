@@ -2951,6 +2951,9 @@ export default function ChartsWorkspace() {
     agentLayoutsRef.current = {
       entries: dockEntries,
       active: known ? { id: active.id, name: active.name, scope: active.scope || 'user' } : null,
+      // An open layout the list has not confirmed yet (the list is still loading): the Agent's
+      // protected-layout guard must FAIL CLOSED here, not read it as an unsaved board.
+      pendingActive: !known && active?.id != null ? { id: active.id, name: active.name || null } : null,
       unsaved,
       arrangement: arrangementSig(layout),
       open: (entry) => { if (entry && entry.id !== dockActiveId) handleDockOpen(entry) },

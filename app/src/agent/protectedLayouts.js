@@ -40,14 +40,23 @@ export function isProtected(entry, set = protectedSet()) {
   return !!entry && (set.has(norm(entry.name)) || set.has(norm(entry.id)))
 }
 
-/** The OPEN layout when it is protected, else null. */
+/** The OPEN layout when it is protected, else null. FAILS CLOSED: an open layout the list has
+ *  not confirmed yet (`pendingActive`, the list still loading) is treated as protected unless its
+ *  name says otherwise — a guard that opens while loading is open exactly when it matters. */
 export function protectedOpenLayout(host) {
   const snap = host?.layouts?.snapshot?.()
   const a = snap?.active
-  if (!a) return null
+  if (!a) {
+    const p = snap?.pendingActive
+    if (!p) return null
+    if (!p.name) return { id: p.id, name: null, pending: true }
+    return isProtected({ id: p.id, name: p.name }) ? { id: p.id, name: p.name } : null
+  }
   const entry = entryOf(snap, a.id) || (a.name ? { id: a.id, name: a.name } : null)
   return isProtected(entry) ? entry : null
 }
+const openWord = (open) => (open.pending ? 'Your layouts are still loading, so I can\u2019t yet tell whether this layout is protected. Try again in a moment.'
+  : null)
 
 // Kinds whose writes land on the open board or show on its charts.
 const ON_THE_BOARD = new Set(['chart', 'board', 'workspace', 'drawing'])
@@ -61,7 +70,7 @@ export function protectionRefusal(host, plan, ops = []) {
   const changed = (plan?.plans || []).filter(p => p.changed)
   if (open) {
     if (changed.some(p => ON_THE_BOARD.has(p.kind)) || ops.some(o => o?.action === 'layout.saveCurrent')) {
-      return `“${open.name}” is a protected layout, so UCT Agent doesn't change anything on it. Open another layout first (Layouts ▾).`
+      return openWord(open) || `“${open.name}” is a protected layout, so UCT Agent doesn't change anything on it. Open another layout first (Layouts ▾).`
     }
   }
   const snap = host?.layouts?.snapshot?.()
@@ -79,6 +88,6 @@ export function undoProtectionRefusal(host, entry) {
   if (!open) return null
   const kinds = new Set((entry?.items || []).map(it => it.kind))
   return [...kinds].some(k => ON_THE_BOARD.has(k))
-    ? `“${open.name}” is a protected layout, so UCT Agent doesn't undo changes into it. Open the layout the change was made on, then Undo.`
+    ? openWord(open) || `“${open.name}” is a protected layout, so UCT Agent doesn't undo changes into it. Open the layout the change was made on, then Undo.`
     : null
 }

@@ -173,6 +173,7 @@ export function buildLayoutSource(getLayouts) {
       return {
         entries: (L.entries || []).map(e => ({ id: e.id, name: e.name, scope: e.scope || 'user', kind: kindWord(e.scope, e.id) })),
         active: L.active || null,
+        pendingActive: L.pendingActive || null,
         unsaved: !!L.unsaved,
         arrangement: L.arrangement || '',
       }

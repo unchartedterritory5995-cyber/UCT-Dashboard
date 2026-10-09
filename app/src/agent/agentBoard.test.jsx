@@ -287,3 +287,25 @@ describe('widget tabs (the WidgetHost tab strip) — select / rename / close thr
     expect(host.state.writes).toBe(0)
   })
 })
+
+describe('release audit: compound commands and full tab restore', () => {
+  it('a compound plan that mixes a harmless op with a re-tiling op while a widget floats is refused WHOLE — nothing written', async () => {
+    const BOARD3 = [{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20 }, { id: 'wl', type: 'watchlist', x: 12, y: 0, w: 12, h: 20 }, { id: 'fl', type: 'scanner', x: 0, y: 0, w: 6, h: 8 }]
+    const host = boardHost(BOARD3, { detached: ['fl'] })
+    const { p } = await plan(host, [op('widget.setLink', { widget: 'wl', color: 'B' }), op('widget.arrange', { pattern: 'fill', widgets: null })])
+    expect(p.ok).toBe(false)
+    expect(host.state.writes).toBe(0)
+    const two = await plan(host, [op('widget.setLink', { widget: 'wl', color: 'B' }), op('widget.closeTab', { widget: 'fl', tab: '1' })])
+    expect(two.p.ok).toBe(false)
+  })
+  it('close a tab, then Undo: the WHOLE widget object is back — tabs, their settings, active tab, renamed main tab', async () => {
+    const before = { id: 'wl', type: 'watchlist', x: 0, y: 0, w: 12, h: 20, color: 'C', opts: { watchName: 'Momentum', settings: { rowH: 'compact' } }, mainTabName: 'Leaders',
+      wtabs: [{ id: 't1', type: 'scanner', color: 'B', name: 'Gainers', opts: { scanName: 'Top gainers', settings: { cols: ['sym', 'chg'] } } }, { id: 't2', type: 'news', color: 'A', opts: { sym: 'NVDA' } }], activeWtab: 1 }
+    const host = boardHost([before, { id: 'c', type: 'chart', x: 12, y: 0, w: 12, h: 20 }])
+    const r = await plan(host, [op('widget.closeTab', { widget: 'wl', tab: '1' })])
+    const res = await commitPlan(host, r.p, { env: r.env })
+    expect(host.state.widgets.find(w => w.id === 'wl').wtabs.map(t => t.id)).toEqual(['t2'])
+    expect((await undoEntry(host, res.undo)).ok).toBe(true)
+    expect(host.state.widgets.find(w => w.id === 'wl')).toEqual({ ...before, color: 'C' })
+  })
+})

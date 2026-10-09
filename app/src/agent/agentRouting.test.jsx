@@ -183,3 +183,19 @@ describe('routing — the bounded reroute in the panel', () => {
     expect(host.charts.n || 0).toBe(0)
   })
 })
+
+describe('release audit: every registered action is reachable through routing', () => {
+  it('each group can be sent (by its words or a reroute) within the per-request limit, and the groups cover the whole catalog', () => {
+    const covered = new Set()
+    for (const g of GROUPS) {
+      const r = routeManifest(FULL, 'zzz unrelated', { limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }, [g.id])
+      const names = r.manifest.map(c => c.name)
+      const mine = FULL.filter(c => groupOfAction(c.name) === g.id).map(c => c.name)
+      expect(mine.every(n => names.includes(n)), g.id).toBe(true)
+      expect(r.manifest.length).toBeLessThanOrEqual(MANIFEST_CONTRACT.limits.maxCapabilities)
+      for (const n of mine) covered.add(n)
+    }
+    expect(FULL.filter(c => !covered.has(c.name)).map(c => c.name)).toEqual([])
+    expect(FULL.length).toBe(77)
+  })
+})
