@@ -112,7 +112,7 @@ export default function GradePanel({ sym }) {
       <p className={styles.helpSyntax} data-testid="terminal-grade-verdict">
         <strong>{sym}</strong>{' '}
         <strong style={{ color: VERDICT_INK[d.verdict] }}>{d.verdict}</strong>
-        {' — '}{VERDICT_TEXT[d.verdict] || ''}
+        {': '}{VERDICT_TEXT[d.verdict] || ''}
       </p>
       <dl className={styles.helpRule} data-testid="terminal-grade-fields">
         {rows.map(([label, value]) => (

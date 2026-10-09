@@ -7,6 +7,8 @@ import rp from '../ResearchPage.module.css'
 import styles from './SeasonalityTab.module.css'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import { formatPercentAsSent } from '../../../lib/presentation/presentationPrimitives'
+import { withDeadline } from '../../../utils/withDeadline'
+import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
 
 // COV-01 (roadmap RM-L11) — how this stock has done by calendar month and by weekday,
 // from our own daily bars. DARK behind SEASONALITY_ENABLED.
@@ -52,7 +54,9 @@ export const PENDING_TRIES = 8
 // hand is read once now; only a transient failure goes on to sectionFetcher (its one warm retry).
 export async function seasonalityFetcher(url) {
   let res = null
-  try { res = await fetch(url) } catch { return sectionFetcher(url) }
+  // The shared 30 s deadline: a hung read must end (wave 9). A timeout is final; a dropped
+  // connection still gets sectionFetcher's one warm retry.
+  try { res = await withDeadline(fetch(url), url) } catch (e) { if (e?.timedOut) throw e; return sectionFetcher(url) }
   const retryAfter = res?.status === 503 ? res.headers?.get?.('Retry-After') : null
   if (retryAfter) {
     const secs = Number(retryAfter) || 15
@@ -93,6 +97,7 @@ export default function SeasonalityTab({ sym }) {
       Reading the full daily history for {s}… this panel fills in by itself.
     </div>
   }
+  if (isSwitchedOff(error)) return <SwitchedOff what="Seasonality" className={styles.note} testId="seasonality-off" />
   if (error || data?.pending) {
     return <div className={styles.note} data-testid="seasonality-unavailable">
       Seasonality is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={rp.basisBtn} onClick={retry}>Retry</button>
@@ -109,8 +114,8 @@ export default function SeasonalityTab({ sym }) {
       ? `We hold daily bars for ${s} only from ${data.covered_from} to ${data.covered_to}`
       : `We hold no daily bars for ${s}`
     return <div className={styles.note} data-testid="seasonality-thin">
-      Not enough history for seasonality. {held}, which is not one full calendar month
-      — at least one full month is needed, and {data.min_years || 5} years before a month can be leaned on.
+      Not enough history for seasonality. {held}, which is not one full calendar month.
+      At least one full month is needed, and {data.min_years || 5} years before a month can be leaned on.
     </div>
   }
   const thinNote = `Seen fewer than ${data.min_years} times: too few to lean on.`

@@ -84,3 +84,40 @@ export function computeSize({ account, riskPct, entry, stop, side = 'long' }) {
     targets,
   }
 }
+
+// ── ADR stop suggestion (wave 9, lane 2) ──
+// ADR% = the mean of (high / low - 1) over the last ADR_BARS COMPLETED daily bars, as a percent.
+// A bar still forming (today's, before the 4:00 PM ET close) is left out: its range is half a day.
+// The suggestion is one ADR from the entry (below for a long, above for a short). It is only ever
+// offered; the member applies it with a button.
+export const ADR_BARS = 20
+
+/**
+ * Pure: `{ adrPct, n, through }` from an `/api/bars` daily payload, or null when fewer than
+ * ADR_BARS usable bars remain. `forming` is the ET date of a still-forming bar to drop (or null).
+ */
+export function adrFromBars(payload, { forming = null, barDate = null } = {}) {
+  const rows = Array.isArray(payload?.bars) ? payload.bars : []
+  const usable = []
+  for (const b of rows) {
+    const d = barDate ? barDate(b) : null
+    if (forming && d === forming) continue
+    const h = Number(b?.h ?? b?.high)
+    const l = Number(b?.l ?? b?.low)
+    if (!Number.isFinite(h) || !Number.isFinite(l) || l <= 0 || h < l) continue
+    usable.push({ d, r: h / l - 1 })
+  }
+  if (usable.length < ADR_BARS) return null
+  const last = usable.slice(-ADR_BARS)
+  const adrPct = (last.reduce((s, x) => s + x.r, 0) / ADR_BARS) * 100
+  return { adrPct, n: ADR_BARS, through: last[last.length - 1].d }
+}
+
+/** Pure: the stop one ADR from the entry, rounded to the cent, or null when it cannot be one. */
+export function adrStop({ entry, adrPct, side = 'long' }) {
+  const E = parseNum(entry)
+  if (E === null || E <= 0 || !Number.isFinite(adrPct) || adrPct <= 0) return null
+  const raw = side === 'short' ? E * (1 + adrPct / 100) : E * (1 - adrPct / 100)
+  const p = Math.round(raw * 100) / 100
+  return p > 0 ? p : null
+}

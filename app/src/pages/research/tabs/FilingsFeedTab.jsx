@@ -9,6 +9,7 @@ import useMyTickers from '../../../hooks/useMyTickers'
 import useSinceLastVisit, { seenKey } from '../../../components/terminal/useSinceLastVisit'
 import { NewTag, SinceLine } from '../../../components/terminal/SinceLastVisit'
 import PanelSymbol from '../../../components/terminal/PanelSymbol'
+import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
 
 /** The seen key of one filing: its accepted / filed date + its accession number. */
 const filingKey = (r) => seenKey(String(r.accepted || r.filed || ''), r.accession)
@@ -113,7 +114,9 @@ export default function FilingsFeedTab({ sym, mine = false }) {
     !error && data && !data.paywalled && Array.isArray(rows) ? rows.map(filingKey) : null,
     { enabled: scope !== 'market' && (scope !== 'mine' || myNames.state === 'ready') })
   let body
-  if (error) {
+  if (isSwitchedOff(error)) {
+    body = <SwitchedOff what="The filings feed" className={styles.note} testId="feed-off" />
+  } else if (error) {
     body = <div className={styles.note} data-testid="feed-unavailable">
       The filings feed is unavailable right now. That is a gap in what we could read, not a finding about {label}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button>
     </div>

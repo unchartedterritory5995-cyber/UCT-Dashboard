@@ -5,7 +5,10 @@
 //   * picking a universe reads that universe;
 //   * clicking a dot loads that ticker into the linked panels;
 //   * a failed read is an error with Retry, never an empty plot; a 402 says paid plan;
-//   * the registry: `SCAT` resolves to this panel, market-only.
+//   * the registry: `SCAT` resolves to this panel, market-only;
+//   * the view is the command (wave 9): props from `SCAT NDX CHG_1M RS_RANK` open that view; a
+//     changed pick re-runs the panel's command, the same pick does nothing (no remount loop), and a
+//     member's own list is kept for the open panel, unsaved, and said so.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
 import { SWRConfig } from 'swr'
@@ -18,7 +21,8 @@ vi.mock('echarts-for-react', () => ({
 vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { PanelListContext } from '../../../components/terminal'
-import ScatterPanel, { METRICS_URL, UNIVERSES_URL, dataUrl, fmtMetric, scatterPoints, universeOptions } from './ScatterPanel'
+import ScatterPanel, { METRICS_URL, UNIVERSES_URL, dataUrl, fmtMetric, initialView, scatterPoints, universeOptions } from './ScatterPanel'
+import { applyArgs } from '../args'
 import { BY_CODE, variantFor } from '../functions'
 import { PANEL_IMPORTERS } from '../panels'
 import parseCommand from '../parseCommand'
@@ -30,6 +34,7 @@ const METRICS = { metrics: [
 ] }
 const UNIVERSES = { groups: [
   { group: 'Indices', items: [{ source: 'index', value: 'sp500', label: 'S&P 500' }, { source: 'index', value: 'ndx', label: 'Nasdaq 100' }] },
+  { group: 'My lists', items: [{ source: 'watchlist', value: 'ab12', label: 'Swing list' }] },
 ] }
 const SP500 = { label: 'S&P 500', tickers: [
   { sym: 'NVDA', dir: 'up', m: { rs_rank: 97, dist_52w_high: -2.5, chg_today: 3.1 } },
@@ -42,21 +47,24 @@ const err = (status) => Object.assign(new Error(`answered ${status}`), { status 
 function serve({ metrics = METRICS, universes = UNIVERSES, sp500 = SP500 } = {}) {
   jsonFetcher.mockImplementation(async (url) => {
     const hit = url === METRICS_URL ? metrics : url === UNIVERSES_URL ? universes
-      : url === dataUrl('index', 'sp500') ? sp500 : url === dataUrl('index', 'ndx') ? NDX : err(404)
+      : url === dataUrl('index', 'sp500') ? sp500 : url === dataUrl('index', 'ndx') ? NDX
+        : url === dataUrl('watchlist', 'ab12') ? NDX : err(404)
     if (hit instanceof Error) throw hit
     return hit
   })
 }
-function renderPanel({ open = vi.fn(), run = vi.fn() } = {}) {
+function renderPanel({ open = vi.fn(), run = vi.fn(), rerun = vi.fn(), props = {} } = {}) {
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
-      <PanelListContext.Provider value={{ open, rerun: vi.fn(), run }}>
-        <ScatterPanel />
+      <PanelListContext.Provider value={{ open, rerun, run }}>
+        <ScatterPanel {...props} />
       </PanelListContext.Provider>
     </SWRConfig>,
   )
-  return { open, run }
+  return { open, run, rerun }
 }
+/** The props the shell hands the panel for a typed command line. */
+const propsFor = (line) => applyArgs(BY_CODE.SCAT.market, parseCommand(line).args).props
 
 beforeEach(() => { jsonFetcher.mockReset(); chart.option = null; chart.onEvents = null })
 afterEach(cleanup)
@@ -126,6 +134,81 @@ describe('SCAT panel', () => {
     expect(fmtMetric(-2.5, 'pct')).toBe('-2.5%')
     expect(fmtMetric(97, 'num')).toBe('97.0')
     expect(fmtMetric(null, 'pct')).toBe('n/a')
+  })
+})
+
+describe('SCAT: the view is the command', () => {
+  it('a typed universe and axes open that view, and mounting re-runs nothing', async () => {
+    serve()
+    const { rerun } = renderPanel({ props: propsFor('SCAT NDX CHG_TODAY RS_RANK') })
+    await vi.waitFor(() => expect(chart.option?.series[0].data.map((d) => d.value[2])).toEqual(['AMD']))
+    expect(jsonFetcher).toHaveBeenCalledWith(dataUrl('index', 'ndx'))
+    expect(chart.option.yAxis.name).toBe('% Change Today')
+    expect(chart.option.xAxis.name).toBe('RS Rating')
+    expect(screen.getByTestId('terminal-scat-universe').value).toBe('index:ndx')
+    expect(rerun).not.toHaveBeenCalled()
+  })
+
+  it('a changed axis or universe is written back as the command', async () => {
+    serve()
+    const { rerun } = renderPanel()
+    await screen.findByTestId('terminal-scat-chart')
+    fireEvent.change(screen.getByTestId('terminal-scat-x'), { target: { value: 'chg_today' } })
+    expect(rerun).toHaveBeenLastCalledWith('SCAT RS_RANK CHG_TODAY')
+    fireEvent.change(screen.getByTestId('terminal-scat-universe'), { target: { value: 'index:ndx' } })
+    expect(rerun).toHaveBeenLastCalledWith('SCAT NDX RS_RANK CHG_TODAY')
+    fireEvent.change(screen.getByTestId('terminal-scat-x'), { target: { value: 'dist_52w_high' } })
+    expect(rerun).toHaveBeenLastCalledWith('SCAT NDX')
+    expect(rerun).toHaveBeenCalledTimes(3)
+  })
+
+  it('picking what is already showing does nothing: no re-run, so no remount loop', async () => {
+    serve()
+    const { rerun } = renderPanel({ props: propsFor('SCAT NDX') })
+    await screen.findByTestId('terminal-scat-chart')
+    fireEvent.change(screen.getByTestId('terminal-scat-universe'), { target: { value: 'index:ndx' } })
+    fireEvent.change(screen.getByTestId('terminal-scat-y'), { target: { value: 'rs_rank' } })
+    fireEvent.change(screen.getByTestId('terminal-scat-x'), { target: { value: 'dist_52w_high' } })
+    expect(rerun).not.toHaveBeenCalled()
+  })
+
+  it('the command a pick writes opens the same view when it is run again', async () => {
+    serve()
+    const { rerun } = renderPanel()
+    await screen.findByTestId('terminal-scat-chart')
+    fireEvent.change(screen.getByTestId('terminal-scat-y'), { target: { value: 'chg_today' } })
+    const written = rerun.mock.calls[0][0]
+    expect(initialView(propsFor(written))).toMatchObject({ pick: { source: 'index', value: 'sp500' }, yKey: 'chg_today', xKey: 'dist_52w_high' })
+  })
+
+  it('a member\'s own list is kept for the open panel, not written, and said so', async () => {
+    serve()
+    const { rerun } = renderPanel()
+    await screen.findByTestId('terminal-scat-chart')
+    expect(screen.queryByTestId('terminal-scat-unsaved')).toBeNull()
+    fireEvent.change(screen.getByTestId('terminal-scat-universe'), { target: { value: 'watchlist:ab12' } })
+    await vi.waitFor(() => expect(jsonFetcher).toHaveBeenCalledWith(dataUrl('watchlist', 'ab12')))
+    expect(screen.getByTestId('terminal-scat-unsaved').textContent).toBe('This list is not saved in the command, so a reload will not keep it.')
+    fireEvent.change(screen.getByTestId('terminal-scat-x'), { target: { value: 'chg_today' } })
+    expect(rerun).not.toHaveBeenCalled()                 // a re-run would drop the list
+    fireEvent.change(screen.getByTestId('terminal-scat-universe'), { target: { value: 'index:sp500' } })
+    expect(rerun).toHaveBeenLastCalledWith('SCAT RS_RANK CHG_TODAY')
+  })
+
+  it('outside a terminal panel (no rerun) a pick still changes the view', async () => {
+    serve()
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+        <ScatterPanel />
+      </SWRConfig>,
+    )
+    await screen.findByTestId('terminal-scat-chart')
+    fireEvent.change(screen.getByTestId('terminal-scat-x'), { target: { value: 'chg_today' } })
+    expect(chart.option.xAxis.name).toBe('% Change Today')
+  })
+
+  it('initialView: no props is the default view', () => {
+    expect(initialView()).toEqual({ pick: { source: 'index', value: 'sp500', label: 'S&P 500' }, yKey: 'rs_rank', xKey: 'dist_52w_high' })
   })
 })
 

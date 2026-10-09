@@ -20,7 +20,9 @@ import {
 } from '../../../components/terminal'
 import { formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { DEFAULT_WINDOW, IMOV_WINDOWS, POLL_MS, THEMES_URL, imovCommand, normSym, ownerSyms, themeKey, themesOf } from './imovModel'
-import { failureText } from './marketRead'
+import { canRetry, failureText, isWarmingBody } from './marketRead'
+import useWarmingPoll from './warmingPoll'
+import WarmingState from './WarmingState'
 import styles from './marketPanels.module.css'
 
 const SWR_OPTS = { refreshInterval: POLL_MS, marketHoursOnly: true, keepPreviousData: true, revalidateOnFocus: false }
@@ -97,6 +99,10 @@ export default function ThemeBoardPanel({ win: winProp = null }) {
   const perf = useMobileSWR(THEMES_URL, jsonFetcher, SWR_OPTS)
   const themes = useMemo(() => themesOf(perf.data), [perf.data])
   const board = useMemo(() => themeBoard(themes, THEME_PERIODS[period]), [themes, period])
+  // A cold theme cache answers 200 {"themes":[],"status":"computing"}: re-poll briefly (the panel's
+  // own poll is market-hours only, so off hours nothing else would ask again).
+  const computing = !themes.length && isWarmingBody(perf.data)
+  const warmPoll = useWarmingPoll(computing, () => perf.mutate())
 
   const asOf = perf.data?.live_as_of || perf.data?.generated_at || null
   const closed = !market.isOpen && !market.isPremarket && !market.isExtended
@@ -113,7 +119,7 @@ export default function ThemeBoardPanel({ win: winProp = null }) {
 
   if (!perf.data && !perf.error) return <PanelSkeleton label="Loading theme returns" testId="terminal-thms-loading" />
   if (!perf.data && perf.error) {
-    const locked = perf.error?.status === 402
+    const locked = !canRetry(perf.error)
     return (
       <PanelState kind={locked ? 'locked' : 'error'} title={failureText(perf.error, 'Theme performance')} testId="terminal-thms-error"
         action={locked ? null : <button type="button" className={styles.chip} onClick={() => perf.mutate()}>Retry</button>}>
@@ -121,10 +127,14 @@ export default function ThemeBoardPanel({ win: winProp = null }) {
       </PanelState>
     )
   }
+  if (computing) {
+    return <WarmingState what="today's theme returns" gaveUp={warmPoll.gaveUp} onRetry={warmPoll.retry} testId="terminal-thms-computing" />
+  }
   if (!themes.length) {
     return (
-      <PanelState kind="empty" title="Theme returns are still being computed." testId="terminal-thms-computing">
-        The theme service is building today&apos;s returns. This panel fills in on its own when they land.
+      <PanelState kind="empty" title="The theme tracker has no themes to show." testId="terminal-thms-none"
+        action={<button type="button" className={styles.chip} onClick={() => perf.mutate()}>Retry</button>}>
+        It answered with an empty list. Retry, or run THMS again.
       </PanelState>
     )
   }

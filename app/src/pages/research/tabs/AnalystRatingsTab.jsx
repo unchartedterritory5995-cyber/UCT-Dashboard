@@ -231,7 +231,7 @@ export default function AnalystRatingsTab({ sym }) {
           <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
         </div>
       )}
-      {empty && e.not_applicable && <div className={styles.fnote} data-testid="analyst-ratings-na">Not applicable to funds — {e.reason || `${sym} is a fund`}.</div>}
+      {empty && e.not_applicable && <div className={styles.fnote} data-testid="analyst-ratings-na">Not applicable to funds: {e.reason || `${sym} is a fund`}.</div>}
       {empty && !e.not_applicable && <div className={styles.fnote} data-testid="analyst-ratings-empty">No analyst coverage on file for {sym}.</div>}
 
       <AnalystRevisions sym={sym} />

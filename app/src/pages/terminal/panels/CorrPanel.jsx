@@ -14,6 +14,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { BoardFromList, PanelSkeleton, PanelState, PanelSymbol, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import useCloses, { closesProvenance, failedText } from './useCloses'
+import WarmingState from './WarmingState'
 import { MIN_CORR_SESSIONS, collectSymbols, correlationMatrix, corrWindow, withArgsKey } from './relativeMath'
 import styles from './comparePanels.module.css'
 
@@ -115,6 +116,7 @@ export default function CorrPanel({ sym, lookback, ...props }) {
       </PanelState>
     )
   }
+  if (state.phase === 'warming') return <WarmingState what="price history for these names" testId="terminal-corr-warming" />
   if (state.phase !== 'ready') return <PanelSkeleton label={`Loading ${syms.join(', ')}`} testId="terminal-corr-loading" />
   if (!read) {
     // Audit wave 2: an unknown ticker says "No price history for X: check the ticker" (a 404 is
