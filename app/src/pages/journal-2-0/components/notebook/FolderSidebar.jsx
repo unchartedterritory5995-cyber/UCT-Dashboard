@@ -21,7 +21,7 @@ import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
 import UIcon from '../../../../components/ui/UIcon'
 import ConfirmModal from '../ConfirmModal'
 import LoadFailed from '../LoadFailed'
-import { keysInOrder, neighbourFallback, neighbourKeys } from '../../lib/focusAfterRemoval'
+import { keysInOrder, neighbourFallback, neighbourKeys, treeRowOf } from '../../lib/focusAfterRemoval'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import { VIEW_MODES } from '../../lib/savedViewModes'
 import { useOpenFromList } from '../../lib/splitView'
@@ -655,6 +655,10 @@ function FolderNode({
   // Lane KEYS round 4: this folder is a ROW OF THE TREE (lib/useTreeRoving.js). The row is the
   // one focus target; nothing inside it is a Tab stop (tabIndex -1), though every control is
   // still a real button for the pointer. Its children sit in a group inside it.
+  // F3 (screen-reader pass 2026-10-09): the hook also moves focus that arrives on one of these
+  // buttons onto the row, so the focused element is always the treeitem (NVDA switches to focus
+  // mode for a tree view item and not for a button). The focus ring is drawn on the row's own
+  // line by FolderSidebar.module.css (`.folderItem[role='treeitem']:focus-visible > .folderRow`).
   return (
     <div className={styles.folderItem} role="treeitem" aria-level={depth + 1} aria-label={node.name}
       aria-expanded={hasChildren ? isExpanded : undefined}
@@ -2129,8 +2133,10 @@ export default function FolderSidebar({
           tone="danger"
           onConfirm={onDeleteConfirm}
           onClose={() => setDeleteTarget(null)}
-          fallbackFocus={neighbourFallback(asideRef, 'data-folder-row', deleteTarget.after || [],
-            () => asideRef.current?.querySelector('[data-all-notes-row]'))}
+          // F3: the landing is the neighbour's TREEITEM (the tree's focus target), found through
+          // the button that carries its key. `treeRowOf` is a no-op for a landing outside the tree.
+          fallbackFocus={treeRowOf(neighbourFallback(asideRef, 'data-folder-row', deleteTarget.after || [],
+            () => asideRef.current?.querySelector('[data-all-notes-row]')))}
         />
       )}
     </aside>

@@ -8,6 +8,7 @@
 // keyboard through one key, and that the pointer still does everything it did.
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { installFetch, latchWave8Flags, Providers, NOTES } from '../../a11y/fixtures'
 import { expectNoAxeViolations } from '../../a11y/axeHarness'
 import FolderSidebar from './FolderSidebar'
@@ -187,6 +188,85 @@ describe('the folder panel is a tree', () => {
     const add = screen.getByRole('button', { name: '+ New folder' })
     expect(t.contains(add)).toBe(false)
     expect(add.tabIndex).toBe(0)
+  })
+
+  // ── F3, screen-reader pass 2026-10-09 ──────────────────────────────────────────────────
+  // NVDA switches to focus mode by itself for a focused tree view item and NOT for a focused
+  // button. Measured on production: after Tab into the tree, document.activeElement was a
+  // BUTTON inside the treeitem, so the arrows went to NVDA's review cursor. The contract pinned
+  // here: whatever puts focus inside the tree, the focused element is the treeitem.
+  describe('F3: the focused element is the treeitem', () => {
+    it('Tab into the tree lands on a treeitem (Shift+Tab from the control right after it)', async () => {
+      const user = userEvent.setup()
+      renderSidebar()
+      const t = await tree()
+      await waitFor(() => row('Theses'))
+      const stop = within(t).getAllByRole('treeitem').find((el) => el.getAttribute('tabindex') === '0')
+      expect(stop.getAttribute('role')).toBe('treeitem')      // the ONE stop is a row, not a control
+      screen.getByRole('button', { name: '+ New folder' }).focus()
+      await user.tab({ shift: true })
+      expect(t.contains(document.activeElement)).toBe(true)
+      expect(document.activeElement.getAttribute('role')).toBe('treeitem')
+      expect(document.activeElement).toBe(stop)
+    })
+
+    it('focus given to a control inside a row (a pointer press, an AT\'s setFocus) lands on the row', async () => {
+      renderSidebar()
+      const t = await tree()
+      await waitFor(() => row('Plans'))
+      screen.getByRole('button', { name: 'Delete Plans' }).focus()
+      expect(document.activeElement).toBe(row('Plans'))
+      screen.getByRole('button', { name: 'Expand Plans' }).focus()
+      expect(document.activeElement).toBe(row('Plans'))
+      const allNotes = within(t).getAllByRole('button').find((b) => /^All notes/.test(b.textContent || ''))
+      allNotes.focus()
+      expect(document.activeElement).toBe(allNotes.closest('[role="treeitem"]'))
+      expect(document.activeElement.getAttribute('role')).toBe('treeitem')
+    })
+
+    it('a real click on a folder selects it AND leaves focus on its treeitem, where the arrows work', async () => {
+      const user = userEvent.setup()
+      const { onSelectFolder } = renderSidebar()
+      await tree()
+      await waitFor(() => row('Theses'))
+      await user.click(screen.getAllByText('Theses')[0].closest('button'))
+      expect(onSelectFolder).toHaveBeenCalledWith('f1')      // the pointer is unchanged
+      expect(document.activeElement).toBe(row('Theses'))
+      key('ArrowDown')
+      expect(document.activeElement).toBe(row('Plans'))
+      expect(document.activeElement.getAttribute('role')).toBe('treeitem')
+    })
+
+    it('the keys, from the treeitem: Down moves, Right expands in place, Enter selects, Shift+F10 opens the menu', async () => {
+      const { onSelectFolder } = renderSidebar()
+      const t = await tree()
+      await waitFor(() => row('Plans'))
+      within(t).getAllByRole('treeitem')[0].focus()           // All notes
+      key('ArrowDown')
+      expect(document.activeElement.getAttribute('aria-label')).toMatch(/^Unfiled/)
+      row('Plans').focus()
+      key('ArrowRight')
+      await waitFor(() => expect(row('Plans').getAttribute('aria-expanded')).toBe('true'))
+      expect(document.activeElement).toBe(row('Plans'))        // focus STAYS on the treeitem
+      key('Enter')
+      expect(onSelectFolder).toHaveBeenCalledWith('f2')       // the same handler as clicking the row
+      key('F10', { shiftKey: true })
+      expect(await screen.findByRole('menu', { name: 'Plans' })).toBeTruthy()
+    })
+
+    it('no control inside the tree ever reads tabindex 0, before or after focus moves through it', async () => {
+      renderSidebar()
+      const t = await tree()
+      await waitFor(() => row('Plans'))
+      const inner = () => [...t.querySelectorAll('button, a[href], input, select')]
+      expect(inner().length).toBeGreaterThan(8)                // NON-VACUITY
+      expect(inner().filter((el) => el.tabIndex >= 0)).toEqual([])
+      row('Plans').focus(); key('ArrowRight')
+      await waitFor(() => row('Archive 2025'))
+      key('ArrowRight'); key('ArrowDown'); key('End'); key('Home')
+      expect(inner().filter((el) => el.tabIndex >= 0)).toEqual([])
+      expect(within(t).getAllByRole('treeitem').filter((el) => el.getAttribute('tabindex') === '0')).toHaveLength(1)
+    })
   })
 
   it('the tree passes axe, closed and with a folder open', async () => {

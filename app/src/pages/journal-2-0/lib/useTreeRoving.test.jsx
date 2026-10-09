@@ -175,14 +175,46 @@ describe('useTreeRoving: the keys', () => {
     expect(fromMouse.defaultPrevented).toBe(false)
   })
 
-  it('the arrows carry on from a row whose BUTTON has focus (a member who clicked a folder)', () => {
+  // Screen-reader pass 2026-10-09, F3: NVDA keys its mode on the FOCUSED element, and only a
+  // focused treeitem switches it to focus mode. A button inside a row is focusable at tabIndex
+  // -1 (a pointer press, an assistive technology's setFocus, a page's own fallback), so focus
+  // arriving there is moved onto the row.
+  it('F3: focus given to a BUTTON inside a row lands on the ROW itself, and the keys are the row\'s', () => {
     const onPick = vi.fn()
     render(<Tree onPick={onPick} />)
     screen.getByRole('button', { name: 'Delete Beta' }).focus()
+    expect(document.activeElement).toBe(item('Beta'))
+    expect(document.activeElement.getAttribute('role')).toBe('treeitem')
+    expect(stops()).toEqual(['Beta'])
     key('ArrowDown'); expect(at()).toBe('Banana')
     screen.getByRole('button', { name: 'Delete Beta' }).focus()
-    key('Enter')                                   // the button's own press, not the row's
-    expect(onPick).not.toHaveBeenCalled()
+    key('Enter')                                   // on the row now: the row's primary control
+    expect(onPick.mock.calls).toEqual([['Beta']])
+    // the row's own primary control too, and a row's control in a NESTED row lands on that row
+    screen.getByRole('button', { name: 'Alpha' }).focus()
+    expect(document.activeElement).toBe(item('Alpha'))
+    key('ArrowRight')
+    screen.getByRole('button', { name: 'Apple' }).focus()
+    expect(document.activeElement).toBe(item('Apple'))
+  })
+
+  it('F3: a key in the same tick as a button focus still moves from that row', () => {
+    render(<Tree />)
+    const btn = screen.getByRole('button', { name: 'Delete Beta' })
+    // a keydown dispatched AT the button, as if focus had not yet settled on the row
+    fireEvent.keyDown(btn, { key: 'ArrowDown' })
+    expect(at()).toBe('Banana')
+  })
+
+  it('F3: no element inside the tree other than a treeitem ever holds focus after a focus event', () => {
+    render(<Tree />)
+    const inner = screen.getAllByRole('button').filter((b) => !['before', 'after'].includes(b.textContent))
+    expect(inner.length).toBeGreaterThan(5)        // NON-VACUITY
+    for (const b of inner) {
+      b.focus()
+      expect(document.activeElement.getAttribute('role')).toBe('treeitem')
+      expect(document.activeElement.contains(b)).toBe(true)
+    }
   })
 
   it('a key pressed in a FIELD inside a row is left alone (a rename field keeps its keys)', () => {
@@ -190,6 +222,7 @@ describe('useTreeRoving: the keys', () => {
     render(<Tree onPick={onPick} />)
     const inner = screen.getByRole('textbox', { name: 'Rename Beta' })
     inner.focus()
+    expect(document.activeElement).toBe(inner)      // F3 moves a BUTTON's focus to the row, never a field's
     const ev = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })
     inner.dispatchEvent(ev)
     expect(ev.defaultPrevented).toBe(false)
