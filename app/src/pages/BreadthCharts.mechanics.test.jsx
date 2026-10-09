@@ -54,8 +54,8 @@ describe('zoom survives rebuilds (A-07)', () => {
     expect(captured.dataZoom[0].endValue).toBe(ROWS[39].date)
 
     fireEvent.click(screen.getByRole('button', { name: /^Highs \/ Lows/ }))
-    fireEvent.click(screen.getByLabelText('52W Highs (Close)'))
-    await waitFor(() => expect(captured.series.some(s => s.name === '52W Highs (Close)')).toBe(true))
+    fireEvent.click(screen.getByLabelText('52W Highs'))
+    await waitFor(() => expect(captured.series.some(s => s.name === '52W Highs')).toBe(true))
     expect(captured.dataZoom[0].startValue).toBe(from)
   })
 
@@ -112,8 +112,8 @@ describe('a flattened series is announced (A-04)', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Primary Breadth/ }))
     fireEvent.click(screen.getByLabelText('Universe Count'))
     fireEvent.click(screen.getByRole('button', { name: /^Highs \/ Lows/ }))
-    fireEvent.click(screen.getByLabelText('52W Lows (Close)'))
-    expect(await screen.findByText(/^52W Lows \(Close\) is \d+× smaller than Universe Count on this axis\.$/))
+    fireEvent.click(screen.getByLabelText('52W Lows'))
+    expect(await screen.findByText(/^52W Lows is \d+× smaller than Universe Count on this axis\.$/))
       .toBeInTheDocument()
   })
 
