@@ -6417,6 +6417,25 @@ async def lifespan(app: FastAPI):
                 id="breadth_putcall_fill_boot", replace_existing=True)
             logging.getLogger(__name__).info(
                 "[startup] breadth put/call fill scheduled (07:05/19:05/22:05 ET + boot)")
+
+            # Intraday-basis new highs/lows: extend the series once each session's daily bar has
+            # settled, re-try in the morning, and resume after a redeploy (after the boot warms).
+            def _breadth_nhnl_extend():
+                try:
+                    from api.services import breadth_nhnl_intraday
+                    breadth_nhnl_intraday.scheduled_extend()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[nhnl-intraday] extend failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_nhnl_extend,
+                trigger=CronTrigger(day_of_week="mon-sat", hour="7,18,20", minute=35, timezone=_ET),
+                id="breadth_nhnl_extend", max_instances=1,
+                coalesce=True, misfire_grace_time=3600, replace_existing=True)
+            _scheduler.add_job(
+                _breadth_nhnl_extend, trigger="date",
+                run_date=_dt.now(_ET) + _td(minutes=12),
+                id="breadth_nhnl_extend_boot", replace_existing=True)
         except Exception:
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth put/call fill")

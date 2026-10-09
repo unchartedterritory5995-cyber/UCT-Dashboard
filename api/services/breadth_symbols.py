@@ -883,6 +883,20 @@ def _build_breadth_series(sym: str, metric: str,
                 else:
                     ohlc_map.pop(d, None)     # an authority body: no stale V1 wick survives
 
+    # ⭐ New highs / lows on the INTRADAY basis (`breadth_nhnl_intraday`) for every session that
+    # series covers — including the collector-owned and provisional UCT sessions the store
+    # override never sees. A close-to-close body: the series has no observed intraday range.
+    try:
+        from api.services import breadth_nhnl_intraday as _nhi
+        if metric in _nhi.SERVED and _nhi.active():
+            for d in list(closes_by_date):
+                v = (_nhi.values(universe, d) or {}).get(metric)
+                if v is not None:
+                    closes_by_date[d] = float(v)
+                    ohlc_map.pop(d, None)
+    except Exception:
+        pass
+
     seq: list[tuple[str, float]] = sorted(closes_by_date.items())  # oldest-first
 
     daily: list[dict] = []

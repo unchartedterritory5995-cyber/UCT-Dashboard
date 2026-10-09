@@ -49,6 +49,13 @@
   },
   {
    "method": "GET",
+   "path": "/api/breadth-monitor/nhnl-intraday",
+   "kind": "inline",
+   "marker": "_check_auth",
+   "reason": "Gated INLINE in the handler body by _check_auth (not a Depends), module api.routers.breadth_monitor."
+  },
+  {
+   "method": "GET",
    "path": "/api/breadth-monitor/live/reconcile",
    "kind": "inline",
    "marker": "_check_auth",

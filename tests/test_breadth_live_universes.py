@@ -152,7 +152,7 @@ def test_today_is_a_live_row_from_the_snapshot(market, monkeypatch):
     last = market["closes"][:, -1]
     prices = {t: float(last[i] * 1.01) for i, t in enumerate(market["tickers"])}   # everything up 1 %
     vols = {t: 1e5 for t in market["tickers"]}
-    monkeypatch.setattr(blu, "_snapshot", lambda: (prices, vols, None))
+    monkeypatch.setattr(blu, "_snapshot", lambda: (prices, vols, None, {}, {}))
     p = blu.compute(force=True)
     for u in blu.UNIVERSES:
         rows = p["universes"][u]["rows"]

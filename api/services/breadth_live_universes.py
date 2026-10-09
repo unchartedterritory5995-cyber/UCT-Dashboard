@@ -509,18 +509,44 @@ def _close_rows(st: dict, k: int) -> dict:
 
 
 def _snapshot():
-    """(prices, vols, opens) — `breadth_live`'s own snapshot when fresh, else one fetch."""
+    """(prices, vols, opens, highs, lows) — `breadth_live`'s own snapshot when fresh, else one
+    fetch. `highs`/`lows` are the session's running RTH high/low (intraday new highs/lows)."""
     from api.services import breadth_live as bl
     with bl._live_lock:
         at = bl._live_cache.get("at", 0)
         p, v = bl._live_cache.get("prices"), bl._live_cache.get("vols")
-    if p and time.time() - at <= SNAPSHOT_MAX_AGE:
-        return p, v or {}, None
+        hi, lo = bl._live_cache.get("highs"), bl._live_cache.get("lows")
+    if p and hi is not None and time.time() - at <= SNAPSHOT_MAX_AGE:
+        return p, v or {}, None, hi, lo or {}
     from api.services.massive import _get_client
     snap = _get_client().get_full_market_snapshot() or {}
     return ({t: d["last_price"] for t, d in snap.items() if d.get("last_price")},
             {t: d["today_vol"] for t, d in snap.items() if d.get("today_vol")},
-            {t: d["day_open"] for t, d in snap.items() if d.get("day_open")})
+            {t: d["day_open"] for t, d in snap.items() if d.get("day_open")},
+            {t: d["day_high"] for t, d in snap.items() if d.get("day_high")},
+            {t: d["day_low"] for t, d in snap.items() if d.get("day_low")})
+
+
+#: Fields the intraday new-highs/lows series owns when it is served (breadth_nhnl_intraday).
+def _apply_nhnl(universe: str, rows: list, highs: dict, lows: dict, members: list,
+                today_iso: str) -> None:
+    """Replace each row's new-high/low family with the INTRADAY basis: the series' value for a
+    settled session, the snapshot-measured count for today's row. A provisional session the
+    series has not reached yet carries NO new-high/low value — never a closing-basis count
+    beside intraday history."""
+    try:
+        from api.services import breadth_nhnl_intraday as nhi
+        if not nhi.active():
+            return
+        for row in rows:
+            d, m = row["date"], row["metrics"]
+            v = nhi.values(universe, d)
+            if v is None and d == today_iso:
+                v = nhi.live_counts(universe, highs or {}, lows or {}, members, d)
+            for k in nhi.SERVED:
+                m[k] = (v or {}).get(k)
+    except Exception as e:
+        _log.warning("[breadth_live_universes] nhnl overlay skipped: %s", e)
 
 
 def compute(force: bool = False) -> dict:
@@ -546,9 +572,10 @@ def compute(force: bool = False) -> dict:
     now_et = bl._now_et()
     today_iso = now_et.date().isoformat()
     live_today = None
+    highs, lows = {}, {}
     if bl._session_started() and today_iso > iso_dates[-1]:
         try:
-            prices, vols, opens = _snapshot()
+            prices, vols, opens, highs, lows = _snapshot()
         except Exception as e:
             prices, vols, opens = {}, {}, None
             _log.warning("[breadth_live_universes] snapshot failed: %s", e)
@@ -596,6 +623,7 @@ def compute(force: bool = False) -> dict:
         if live_today:
             r = finish_row(anchor(live_today[u], raw_s, c_s), window)
             rows.append({"date": today_iso, "final": False, "metrics": r})
+        _apply_nhnl(u, rows, highs, lows, st["members"][u], today_iso)
         out["universes"][u] = {"ok": True, "anchor": S, "population_drift": round(drift, 4),
                                "members": len(st["members"][u]), "rows": rows}
     return out
