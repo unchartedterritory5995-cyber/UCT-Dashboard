@@ -8,7 +8,7 @@ import { render, screen, within, fireEvent, waitFor } from '@testing-library/rea
 
 vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 import jsonFetcher from '../../../utils/jsonFetcher'
-import MovePanel, { factKey, catalystKey, moveRows } from './MovePanel'
+import MovePanel, { factKey, catalystKey, moveRows, moveQuoteText } from './MovePanel'
 
 const F1 = { kind: 'analyst', label: 'Upgraded to Buy', as_of: '2026-10-01' }
 const F2 = { kind: 'filing', label: '8-K filed', as_of: '2026-10-02' }
@@ -48,7 +48,7 @@ describe('MovePanel', () => {
     render(<MovePanel sym="AMD" />)
     await screen.findByTestId('terminal-move')
     expect(screen.getByText(/not "no news"/)).toBeTruthy()
-    expect(screen.queryByText(/No notable facts fired/)).toBeNull()
+    expect(screen.queryByTestId('terminal-move-nothing')).toBeNull()
   })
 
   it('the dark flag (404) reads as "not switched on", any other failure as retry', async () => {
@@ -70,6 +70,19 @@ describe('MovePanel', () => {
     const before = jsonFetcher.mock.calls.length
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     await waitFor(() => expect(jsonFetcher.mock.calls.length).toBe(before + 1))
+  })
+
+  it('Wave 2: says HOW MUCH it moved (price + % change), and a closed session says so', async () => {
+    jsonFetcher.mockResolvedValue({ intelligence: { status: 'ok', facts: [] }, catalysts: [], catalyst_status: 'ok',
+      since_last_visit: { first_visit: true, new: [] },
+      quote: { price: 912.4, change: -21.5, change_pct: -2.3, session: 'live' } })
+    render(<MovePanel sym="NVDA" />)
+    expect((await screen.findByTestId('terminal-move-quote')).textContent)
+      .toBe('NVDA $912.40 · down 2.30% ($21.50) today')
+    expect(moveQuoteText({ price: 10, change: 0.5, change_pct: 5, session: 'closed' })).toBe('$10.00 · up 5.00% ($0.50) at the last close')
+    expect(moveQuoteText({ price: 10, change_pct: null })).toBe('$10.00 · change not available')
+    expect(moveQuoteText(null)).toBeNull()
+    expect(moveQuoteText({ price: 0 })).toBeNull()
   })
 
   it('every numbered row is a command the registry knows', async () => {

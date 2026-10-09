@@ -116,6 +116,14 @@ export default function FlowTab({ sym }) {
                 </tbody>
               </table>
             </div>
+            {/* Audit 2026-10-08 (FLOW, point 20): the column headers are trader shorthand; say
+                what each means once, the way OMON's chain carries a key. */}
+            <div className={styles.srcNote} data-testid="flow-key">
+              V/OI: volume traded divided by open interest (near 1x or higher means mostly new positions).
+              {' '}Dir: bullish or bearish by which side of the market the buyer hit.
+              {' '}Perf: the contract's price change since the average fill.
+              {' '}Sweep/ISO: orders split across exchanges to fill fast, a sign of urgency.
+            </div>
             {/* TERM-019 (FB-S8-01) adoption: the source is S8's <Provenance>,
                 not bare local text. Wording unchanged. No `timestamp`: this
                 payload carries date-only window bounds and a `query_date`,
@@ -125,7 +133,7 @@ export default function FlowTab({ sym }) {
               Source:{' '}
               <Provenance
                 value="live options-flow tape (same aggregation as Options Flow → Search)"
-                provenance={{ sourceActivity: 'live_massive_router.ticker_flow' }}
+                provenance={{ sourceActivity: 'UCT options-flow tape, ticker search over the last 5 trading days' }}
               />
             </div>
           </section>

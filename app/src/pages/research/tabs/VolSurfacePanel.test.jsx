@@ -1,7 +1,7 @@
 // BRK-01 increment 3 -- the implied-vol surface, asserted on rendered text and on the chart
 // options it hands ECharts (canvas is invisible to jsdom, so the option IS the drawing).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 const charts = {}
@@ -140,7 +140,19 @@ describe('VolSurfacePanel', () => {
     wrap(<VolSurfacePanel sym="spy" expiration="" />)
     expect((await screen.findByTestId('vol-unavailable')).textContent).toMatch(/unavailable right now/)
   })
+
+  it('a failed read offers Retry, and Retry reads the surface again (audit 2026-10-08)', async () => {
+    surfaceStatus = 503
+    wrap(<VolSurfacePanel sym="spy" expiration="" />)
+    await screen.findByTestId('vol-unavailable')
+    surfaceStatus = 200
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByTestId('vol-surface')).toBeTruthy()
+  })
 })
+
+// Audit 2026-10-08: the chain folds its sub-panels into groups that mount on first open.
+const openGroup = async (id) => { const g = await screen.findByTestId(id); g.open = true; fireEvent(g, new Event('toggle')) }
 
 describe('OptionsChainTab with the surface switched on', () => {
   it('renders the surface under the chain only when switched on', async () => {
@@ -149,11 +161,13 @@ describe('OptionsChainTab with the surface switched on', () => {
     expect(screen.queryByTestId('vol-surface')).toBeNull()
     cleanup()
     wrap(<OptionsChainTab sym="spy" volSurface />)
+    await openGroup('chain-group-vol')
     await screen.findByTestId('vol-surface')
   })
 
   it('still offers no trade, run or send action', async () => {
     wrap(<OptionsChainTab sym="spy" volSurface />)
+    await openGroup('chain-group-vol')
     await screen.findByTestId('vol-grid')
     expect(screen.queryByRole('button')).toBeNull()
     expect(screen.queryByRole('link')).toBeNull()

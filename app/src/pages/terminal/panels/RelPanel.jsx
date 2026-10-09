@@ -11,9 +11,9 @@
 //
 // Computed in the panel from `/api/bars` daily closes; no new route (useCloses.js).
 import { useEffect, useMemo, useState } from 'react'
-import { BoardFromList, PanelSkeleton, PanelState, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { BoardFromList, PanelSkeleton, PanelState, PanelSymbol, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
-import useCloses, { closesProvenance, failedText } from './useCloses'
+import useCloses, { closesProvenance, failedText, formingThrough } from './useCloses'
 import { LOOKBACK_SESSIONS, collectSymbols, relativePerformance, withArgsKey } from './relativeMath'
 import styles from './comparePanels.module.css'
 
@@ -134,6 +134,7 @@ export default function RelPanel({ sym, lookback, ...props }) {
       )}
       <p className={styles.lede} data-testid="terminal-rel-lede">
         {read.lines.map((l) => l.sym).join(' vs ')}, rebased to 0 % on {read.dates[0]}, through {read.dates[read.dates.length - 1]} ({read.sessions} sessions).
+        {formingThrough(state) === read.dates[read.dates.length - 1] ? ' The last point is today\'s bar, still forming: it is intraday, not a close.' : ''}
       </p>
       {/* The label states the RESULT, not just the axis (a11y audit 2026-10-06). */}
       <LineChart lines={read.lines.map((l) => ({ key: l.sym, values: l.pct }))} classes={classes}
@@ -148,7 +149,7 @@ export default function RelPanel({ sym, lookback, ...props }) {
           <tbody>
             {read.rows.map((r, i) => (
               <tr key={r.sym} data-testid={`terminal-rel-row-${r.sym}`}>
-                <td><span className={`${styles.swatch} ${classes[i]}`} aria-hidden="true" /><span className={styles.symCell}>{r.sym}</span></td>
+                <td><span className={`${styles.swatch} ${classes[i]}`} aria-hidden="true" /><PanelSymbol sym={r.sym} className={styles.symCell} /></td>
                 <td className={r.ret > 0 ? styles.up : r.ret < 0 ? styles.down : undefined}>{formatPercent(r.ret, { decimals: 1, signed: true })}</td>
                 <td>{formatPercent(r.maxDd, { decimals: 1 })}</td>
                 <td className={r.excess > 0 ? styles.up : r.excess < 0 ? styles.down : undefined}>

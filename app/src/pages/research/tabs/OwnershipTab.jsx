@@ -80,6 +80,13 @@ export function signed(v, fmt) {
   return Number(v) > 0 ? `+${t}` : t
 }
 // tq-panels: the transaction side printed as the raw lowercase enum ("buy" / "sell").
+/** Audit 2026-10-08 (OWN P2, point 22): every non-buy type (an option exercise, a gift) was styled
+ *  red as if it were a sale. Only a buy is green and only a sale is red; anything else is plain. */
+export function sideClass(type) {
+  const t = String(type || '').trim().toLowerCase()
+  return t === 'buy' ? styles.up : t === 'sell' ? styles.down : ''
+}
+
 export function sideLabel(type) {
   const s = String(type || '').trim()
   if (!s) return '—'
@@ -133,7 +140,7 @@ function EdgarInsiderSection({ src, rows, sym, onRetry, reaskExhausted }) {
             <div key={`${t.accession}-${t.date}-${i}`} className={styles.insrow}>
               <span className={styles.rcdate}>{t.date}</span>
               <span className={styles.rcfirm}>{t.name}{t.title ? ` · ${t.title}` : ''}</span>
-              <span className={t.type === 'buy' ? styles.up : styles.down}>{sideLabel(t.type)}</span>
+              <span className={sideClass(t.type)}>{sideLabel(t.type)}</span>
               <span>{fmtShares(t.shares)}</span>
               <span className={styles.muted}>{fmtMoney(t.amount)}</span>
               {t.url
@@ -357,7 +364,7 @@ export default function OwnershipTab({ sym }) {
               <div key={`${t.date}-${t.name}-${i}`} className={styles.insrow}>
                 <span className={styles.rcdate}>{t.date}</span>
                 <span className={styles.rcfirm}>{t.name}{t.title ? ` · ${t.title}` : ''}</span>
-                <span className={t.type === 'buy' ? styles.up : styles.down}>{sideLabel(t.type)}</span>
+                <span className={sideClass(t.type)}>{sideLabel(t.type)}</span>
                 <span>{fmtShares(t.shares)}</span>
                 <span className={styles.muted}>{fmtMoney(t.amount)}</span>
               </div>

@@ -12,12 +12,39 @@ import { useEffect, useMemo, useState } from 'react'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import HighlightThesis, { isFailedSynthesis } from '../../../utils/highlightThesis'
 import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
-import { formatDateTimeEt } from '../../../lib/presentation/presentationPrimitives'
+import { formatCurrency, formatDateTimeEt, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import styles from '../TerminalShell.module.css'
+
+/** Audit 2026-10-08 (MOVE P2, point 9): a fact's `as_of` was printed in the server's raw format with
+ *  no zone. A bare date stays a date; a timestamp is shown on the market clock, labelled ET. */
+export function asOfText(v) {
+  if (v == null || v === '') return null
+  const s = String(v).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+  const ms = /^\d+(\.\d+)?$/.test(s) ? Number(s) * (Number(s) > 1e12 ? 1 : 1000) : Date.parse(s)
+  return Number.isFinite(ms) ? formatDateTimeEt(ms / 1000) : s
+}
 
 /** Pure: the key the server diffs on, so a row can say NEW without a second rule. */
 export function factKey(f) { return `${f?.kind}|${f?.label}|${f?.as_of}` }
 export function catalystKey(c) { return `cat|${c?.market_date}|${c?.tag}` }
+
+/** Pure (Wave 2, audit 2026-10-08): the one line that says HOW MUCH it moved — last price and
+ *  the day's change, from the server's live row. A closed-session row says it is the last
+ *  close's move, so a weekend read never passes for today's. Null when there is no price. */
+export function moveQuoteText(q) {
+  const price = Number(q?.price)
+  if (!q || !Number.isFinite(price) || price <= 0) return null
+  const pct = Number(q.change_pct)
+  const chg = Number(q.change)
+  const has = q.change_pct != null && Number.isFinite(pct)
+  const dir = !has ? '' : pct > 0 ? 'up ' : pct < 0 ? 'down ' : 'flat '
+  const move = has
+    ? `${dir}${formatPercent(Math.abs(pct))}${q.change != null && Number.isFinite(chg) ? ` (${formatCurrency(Math.abs(chg))})` : ''}`
+    : 'change not available'
+  const when = q.session === 'closed' ? ' at the last close' : ' today'
+  return `${formatCurrency(price)} · ${move}${has ? when : ''}`
+}
 
 /** Pure: the numbered follow-up commands for a security (row <GO> targets). */
 export function moveRows(sym) {
@@ -86,6 +113,12 @@ export default function MovePanel({ sym, onRun, onRows }) {
   const lastSeen = formatDateTimeEt(Number(since.last_visit_at))
   return (
     <div className={styles.help} data-testid="terminal-move">
+      {moveQuoteText(d.quote) && (
+        <p className={styles.helpSyntax} data-testid="terminal-move-quote"
+          style={{ color: d.quote.change_pct > 0 ? 'var(--success-ink)' : d.quote.change_pct < 0 ? 'var(--danger-ink)' : undefined }}>
+          <strong>{sym}</strong> {moveQuoteText(d.quote)}
+        </p>
+      )}
       <p className={styles.helpSyntax} data-testid="terminal-move-since">
         {since.first_visit
           ? `First MOVE visit to ${sym}: everything below is new to you.`
@@ -95,13 +128,13 @@ export default function MovePanel({ sym, onRun, onRows }) {
 
       <h3 className={styles.helpGroup}>What changed</h3>
       {facts.length === 0 && intel.status === 'ok' && (
-        <p className={styles.helpRule}>No notable facts fired for {sym} (every source answered).</p>
+        <p className={styles.helpRule} data-testid="terminal-move-nothing">Nothing notable has changed for {sym} in what we track (every source answered).</p>
       )}
       <ul className={styles.helpRule} data-testid="terminal-move-facts">
         {facts.map((f) => (
           <li key={factKey(f)} data-new={fresh.has(factKey(f)) ? 'true' : 'false'}>
             {fresh.has(factKey(f)) && <strong>NEW </strong>}{f.label}
-            {f.as_of ? <span className={styles.helpScope}> · {f.as_of}</span> : null}
+            {asOfText(f.as_of) ? <span className={styles.helpScope}> · {asOfText(f.as_of)}</span> : null}
           </li>
         ))}
       </ul>

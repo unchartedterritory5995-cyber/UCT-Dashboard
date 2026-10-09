@@ -74,7 +74,8 @@ def _append(entry: dict) -> None:
             os.replace(tmp, p)          # atomic — a torn write must never corrupt the record
     except Exception as e:                                     # noqa: BLE001
         _last_error = f"append: {e!r}"[:160]
-        logger.exception("[cold-path-instrument] could not append a record")
+        from api.services.discord_render.observe import scrubbed_traceback
+        logger.error("[cold-path-instrument] could not append a record\n%s", scrubbed_traceback())
 
 
 @contextlib.contextmanager
@@ -106,7 +107,8 @@ def observe_cold_call(name: str):
         except Exception:                                      # noqa: BLE001
             # ⛔ Observability must never be what breaks the cold path it is watching — the
             # same contract stall_record.note() states for itself.
-            logger.exception("[cold-path-instrument] recording failed for %r", name)
+            from api.services.discord_render.observe import scrubbed_traceback
+            logger.error("[cold-path-instrument] recording failed for %r\n%s", name, scrubbed_traceback())
 
 
 def snapshot() -> dict:

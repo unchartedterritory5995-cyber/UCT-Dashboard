@@ -8,6 +8,7 @@ import { count, dollars, num, fracPct, pctNum } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
+import { PanelSymbol } from '../../components/terminal'
 
 // FT-072 / FT-073 — one screener per option strategy, over COV-02's end-of-day screen file
 // (api/services/options_analytics/strategy_screens.py).
@@ -54,14 +55,14 @@ export function capNote(d) {
 
 function Row({ kind, r }) {
   if (kind === 'covered_calls') {
-    return <tr><th scope="row">{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{pctNum(r.premium_yield_pct)}</td><td>{pctNum(r.annualized_pct, 1)}</td><td>{pctNum(r.if_called_pct)}</td></tr>
+    return <tr><th scope="row"><PanelSymbol sym={r.underlying} /></th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{pctNum(r.premium_yield_pct)}</td><td>{pctNum(r.annualized_pct, 1)}</td><td>{pctNum(r.if_called_pct)}</td></tr>
   }
   if (kind === 'cash_secured_puts') {
-    return <tr><th scope="row">{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{pctNum(r.yield_on_cash_pct)}</td><td>{pctNum(r.annualized_pct, 1)}</td><td>{num(r.breakeven)} ({pctNum(r.cushion_pct)})</td></tr>
+    return <tr><th scope="row"><PanelSymbol sym={r.underlying} /></th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{pctNum(r.yield_on_cash_pct)}</td><td>{pctNum(r.annualized_pct, 1)}</td><td>{num(r.breakeven)} ({pctNum(r.cushion_pct)})</td></tr>
   }
   const credit = r.credit != null
   return (
-    <tr><th scope="row">{r.underlying}</th><td>{credit ? `sell ${leg(r.short)} / buy ${leg(r.long)}` : `buy ${leg(r.long)} / sell ${leg(r.short)}`} {r.expiration}</td>
+    <tr><th scope="row"><PanelSymbol sym={r.underlying} /></th><td>{credit ? `sell ${leg(r.short)} / buy ${leg(r.long)}` : `buy ${leg(r.long)} / sell ${leg(r.short)}`} {r.expiration}</td>
       <td>{credit ? `+${perContract(r.credit)}` : `-${perContract(r.debit)}`}</td><td>{perContract(r.max_profit)}</td><td>{perContract(r.max_loss)}</td>
       <td>{credit ? pctNum(r.return_on_risk_pct, 1) : `${num(r.reward_to_risk)} : 1`}</td></tr>
   )
@@ -127,11 +128,11 @@ function FirstScreens() {
 
 function MoreRow({ kind, r }) {
   if (kind === 'call_butterflies') {
-    return <tr><th scope="row">{r.underlying}</th><td>{num(r.lower.strike)} / {num(r.center.strike)} x2 / {num(r.upper.strike)} {r.expiration}</td>
+    return <tr><th scope="row"><PanelSymbol sym={r.underlying} /></th><td>{num(r.lower.strike)} / {num(r.center.strike)} x2 / {num(r.upper.strike)} {r.expiration}</td>
       <td>-{perContract(r.debit)}</td><td>{perContract(r.max_profit)}</td><td>{num(r.reward_to_risk)} : 1</td><td>{r.breakevens.map((b) => num(b)).join(' / ')}</td></tr>
   }
   if (kind === 'by_expiration') {
-    return <tr><th scope="row">{r.underlying}</th><td>{r.expiration} ({r.dte}d)</td><td>{count(r.volume)}</td>
+    return <tr><th scope="row"><PanelSymbol sym={r.underlying} /></th><td>{r.expiration} ({r.dte}d)</td><td>{count(r.volume)}</td>
       <td>{count(r.open_interest)}</td><td>{pctNum(r.call_share_pct, 1)}</td>
       <td>{fracPct(r.atm_iv)}</td></tr>
   }
@@ -221,7 +222,7 @@ export function SizzlePanel() {
                 <thead><tr><th scope="col">Ticker</th><th scope="col">Sizzle</th><th scope="col">Volume</th><th scope="col">5-session mean</th></tr></thead>
                 <tbody>
                   {data.ranked.map((r) => (
-                    <tr key={r.underlying}><th scope="row">{r.underlying}</th><td>{num(r.ratio)}x</td><td>{count(r.volume)}</td><td>{count(r.average)}</td></tr>
+                    <tr key={r.underlying}><th scope="row"><PanelSymbol sym={r.underlying} /></th><td>{num(r.ratio)}x</td><td>{count(r.volume)}</td><td>{count(r.average)}</td></tr>
                   ))}
                 </tbody>
               </table>

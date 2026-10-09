@@ -54,7 +54,7 @@ vi.mock('./panels', async (importOriginal) => {
         stubs.set(name, name === u20Name
           ? function U20Stub() {
             const syms = terminal.usePanelSymbolRows(['AMD', 'TSLA', 'AMD'], 'UCT 20')
-            return <div data-testid="stub-U20"><terminal.BoardFromList syms={syms} label="UCT 20" testId="uct20-board" /></div>
+            return <div data-testid="stub-U20"><terminal.BoardFromList syms={syms} label="UCT 20" testId="uct20-board" /><terminal.PanelSymbol sym="TSLA" /></div>
           }
           : function Stub({ sym }) { return <div data-testid={`stub-${name}`}>{name}:{sym || '-'}</div> })
       }
@@ -172,5 +172,17 @@ describe('an embedded list builds a board', () => {
     expect(screen.getByTestId('uct20-board-open')).toHaveTextContent('Open 2')
     await act(async () => { fireEvent.click(screen.getByTestId('uct20-board-open')) })
     expect(screen.getAllByTestId('stub-Chart').map((n) => n.textContent)).toEqual(['Chart:AMD', 'Chart:TSLA'])
+  })
+})
+
+describe('Wave 2 (audit 2026-10-08): a symbol in an embedded list is clickable', () => {
+  it('clicking it loads that name into the linked group, from any panel, like typing its row', async () => {
+    seedBoard(1)   // the chart is focused: the click works without first focusing the list
+    renderShell()
+    await screen.findByTestId('stub-U20')
+    expect(screen.getByTestId('stub-Chart')).toHaveTextContent('Chart:NVDA')
+    await act(async () => { fireEvent.click(screen.getByTestId('panel-symbol-TSLA')) })
+    expect([code(0), code(1)]).toEqual(['U20', 'GP'])
+    expect(screen.getByTestId('stub-Chart')).toHaveTextContent('Chart:TSLA')
   })
 })

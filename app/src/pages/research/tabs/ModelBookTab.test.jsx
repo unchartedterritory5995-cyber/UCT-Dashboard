@@ -57,14 +57,16 @@ describe('ModelBookTab', () => {
     vi.doMock('../hooks/useModelBookAppearances', () => ({ default: () => ({ data: null, isLoading: true }) }))
     await renderTab('NVDA')
     expect(screen.getByText('Loading Model Book history…')).toBeInTheDocument()
-    expect(screen.queryByText('Not yet in the Model Book.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Not yet in the Model Book/)).not.toBeInTheDocument()
   })
 
   it('shows the honest empty-state note for a ticker never curated -- never a blank card', async () => {
     vi.resetModules()
     vi.doMock('../hooks/useModelBookAppearances', () => ({ default: () => ({ data: { symbol: 'ZZZZ', appearances: [] }, isLoading: false }) }))
     await renderTab('ZZZZ')
-    expect(screen.getByText('Not yet in the Model Book.')).toBeInTheDocument()
+    expect(screen.getByText(/Not yet in the Model Book/)).toBeInTheDocument()
+    // Audit 2026-10-08 (MB P2, point 20): the empty state says what the Model Book is.
+    expect(screen.getByText(/Not yet in the Model Book/).textContent).toMatch(/curated library of the year's best-performing stocks/)
     expect(screen.queryByText('Model Book appearances')).not.toBeInTheDocument()
   })
 
@@ -75,14 +77,14 @@ describe('ModelBookTab', () => {
     vi.doMock('../hooks/useModelBookAppearances', () => ({ default: () => ({ data: null, isLoading: false, error: true, mutate: () => {} }) }))
     await renderTab('ZZZZ')
     expect(screen.getByTestId('modelbook-appearances-error')).toHaveTextContent("Couldn't load Model Book history")
-    expect(screen.queryByText('Not yet in the Model Book.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Not yet in the Model Book/)).not.toBeInTheDocument()
   })
 
   it('still renders the genuine empty state when the read succeeded with no appearances', async () => {
     vi.resetModules()
     vi.doMock('../hooks/useModelBookAppearances', () => ({ default: () => ({ data: { symbol: 'ZZZZ', appearances: [] }, isLoading: false, error: false, mutate: () => {} }) }))
     await renderTab('ZZZZ')
-    expect(screen.getByText('Not yet in the Model Book.')).toBeInTheDocument()
+    expect(screen.getByText(/Not yet in the Model Book/)).toBeInTheDocument()
     expect(screen.queryByTestId('modelbook-appearances-error')).not.toBeInTheDocument()
   })
 

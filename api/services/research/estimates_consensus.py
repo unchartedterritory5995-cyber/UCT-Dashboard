@@ -30,7 +30,7 @@ from __future__ import annotations
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
 from api.services import fmp_client
@@ -77,6 +77,13 @@ def last_report_date(earnings_rows: Any) -> Optional[str]:
         if len(d) == 10 and (best is None or d > best):
             best = d
     return best
+
+
+def today_et() -> date:
+    """Today's date in New York. Audit wave 2: "upcoming" was picked by the server's
+    UTC date, so from 8 PM ET a quarter could flip a day early. Every terminal date is ET."""
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo("America/New_York")).date()
 
 
 def is_unreported(period_end: str, last_report: Optional[str], today) -> bool:
@@ -175,7 +182,7 @@ def shape_rows(rows: Any, kind: str, *, today: Optional[date] = None,
     report date with an actual (see `is_unreported`)."""
     if not isinstance(rows, list):
         return []
-    today = today or datetime.now(timezone.utc).date()
+    today = today or today_et()
     parsed = []
     for r in rows:
         if not isinstance(r, dict):

@@ -1101,3 +1101,31 @@
     order: 1;
   }
 }
+
+/* Wave 2 (audit 2026-10-08): the first-run orientation card (FirstRunCard.jsx). App tokens only. */
+.firstRun {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border);
+  background: var(--info-bg);
+  font-size: var(--text-sm);
+}
+
+.firstRunTitle {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.firstRunList {
+  flex: 1 1 20rem;
+  margin: 0;
+  padding-left: 1.2em;
+  display: grid;
+  gap: var(--space-xs);
+}

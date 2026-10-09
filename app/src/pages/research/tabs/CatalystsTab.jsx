@@ -4,6 +4,7 @@ import AbsenceReceipt from '../../../components/provenance/AbsenceReceipt'
 import { mapAvailability, AVAILABLE } from '../../../components/provenance/availabilityContract'
 import { epochSecondsToIso } from '../../../components/provenance/presentationFormat'
 import ResearchLoading from '../ResearchLoading'
+import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
 import styles from '../ResearchPage.module.css'
 import HighlightThesis, { FAILED_SYNTHESIS_NOTE, hasNoWriteup } from '../../../utils/highlightThesis'
 import { CATALYST_TAG, CATALYST_TAGS, keyedBy } from '../../../lib/taxonomy/a8Taxonomy'
@@ -36,6 +37,14 @@ function whenLabel(marketDate) {
 // Keyed by A8's tag vocabulary (TERM-075) and checked against it at load.
 const TAG_CLASS = keyedBy(CATALYST_TAGS, { Earnings: styles.gold, Catalyst: styles.up, Gapper: styles.up, News: styles.muted })
 
+const CATS_SOURCE = 'UCT Catalyst Engine'
+/** Pure: the newest `market_date` among the entries (YYYY-MM-DD compares as text), or null. */
+function newestMarketDate(entries) {
+  let best = null
+  for (const e of entries || []) if (e?.market_date && (!best || e.market_date > best)) best = e.market_date
+  return best
+}
+
 function EntryProvenance({ entry }) {
   const availability = mapAvailability({ value: true, degraded: false })
   const provenance = availability === AVAILABLE ? {
@@ -50,6 +59,9 @@ function EntryProvenance({ entry }) {
 
 export default function CatalystsTab({ sym }) {
   const { data, isLoading, error, paywalled, mutate } = useCatalystHistory(sym)
+  // Audit wave 2: the terminal panel header names the source and the newest entry's session
+  // (CF and EEH already do). A no-op outside the terminal.
+  usePanelFreshness(data && !error && !paywalled ? panelAsOf(CATS_SOURCE, newestMarketDate(data.entries)) : null)
 
   if (isLoading) {
     return <ResearchLoading label="Loading catalyst history" />
@@ -100,7 +112,9 @@ export default function CatalystsTab({ sym }) {
 
       {!entries.length && (
         <div className={styles.fnote} data-testid="catalyst-history-empty">
-          No catalysts recorded for this ticker yet.
+          No catalysts recorded for {(sym || 'this ticker').toUpperCase()} yet. The engine only records a
+          name on a day it makes UCT&apos;s curated daily catalyst list (the top movers with a reason),
+          so most tickers have no entry.
         </div>
       )}
 

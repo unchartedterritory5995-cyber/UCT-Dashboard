@@ -72,5 +72,7 @@ describe('a week outside the data window', () => {
     renderCalendar('/calendar?week=2026-06-01')
     expect(screen.getByText(/Couldn.t load that week/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    // audit wave 2: the failure is announced to a screen reader
+    expect(screen.getByRole('alert').textContent).toMatch(/Couldn.t load that week/)
   })
 })

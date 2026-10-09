@@ -44,11 +44,12 @@ import HelpPanel, { KeysTable } from './panels/HelpPanel'
 import parseCommand, { normalizeInput } from './parseCommand'
 import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, researchHref, variantFor } from './functions'
 import { applyArgs, argsEcho } from './args'
+import { planAlert, setAlert } from './alertCommand'
 import { COMMAND_PANELS, FLUSH_PANELS, ROWS_OPEN_BESIDE, panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
 import useTerminalLayout from './useTerminalLayout'
 import useCommandHistory from './commandHistory'
 import {
-  BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
+  BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, DENSITY_LABELS, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
   closePanel, decodePopout, decodeShare, deleteBoard, duplicatePanel, encodeShare, findBoard, isCompatChannel, presetsOfBoard, restoreBoard,
   isLinkable, markOpened, movePanel, nextLinkChannel, reorderPanel, openBoard, panelBeside, panelChannel, panelSym, popoutHref, presetFor,
   recentSecurities, saveBoard, setCount as countTo,
@@ -58,6 +59,7 @@ import { BoardsMenu, RecentsMenu } from './BoardsMenu'
 import { pushFunctionRecent, readFunctionRecents } from './recents'
 import { TERMINAL_CALENDAR_PATH, TERMINAL_PATH } from './terminalGate'
 import L0Strip from './L0Strip'
+import FirstRunCard from './FirstRunCard'
 import {
   BOARD_PAGE, boardCodeRefusal, boardableCodes, buildScanBoard, cleanSymbols, scanBoardName, scanBoardNotice,
   symbolsFromRows,
@@ -284,7 +286,10 @@ export function Panel({
     // An embedded list's numbered rows (`usePanelRows`): the same focused-only `onRows` the
     // command panels get as a prop, so row <GO> reaches page/tab lists that are never forked.
     publishRows: rowsProp,
-  } : null), [onList, onBoard, owner, boardCodes, rowsProp])
+    // Wave 2: a click on a symbol in an embedded list runs `$SYM` from this panel
+    // (components/terminal/PanelSymbol), the click twin of typing its row number.
+    run: (text) => runHere(text, { keepFunction: true }),
+  } : null), [onList, onBoard, owner, boardCodes, rowsProp, runHere])
   // On a phone the switcher is an ARIA tablist whose tabs `aria-controls` this section, so it
   // is that tab's tabpanel (a11y audit 2026-10-06); elsewhere it is a labelled region.
   return (
@@ -751,6 +756,25 @@ export default function TerminalShell() {
       const listName = resolvePanel(lay.panels[focusIdx], symsRef.current, auth).name
       if (!fromUrl && ROWS_OPEN_BESIDE.has(listName)) return run(target, { next: true, from: focusIdx })
       return run(target, { fromUrl })
+    }
+    // ALRT with a price SETS an alert (lane 9, alertCommand.js): ONCE, from a typed command, then
+    // `SYM ALRT` (the list) opens, so no panel ever keeps a command that creates on reload.
+    if (cmd.type === 'function' && cmd.code === 'ALRT' && cmd.args?.length) {
+      if (fromUrl) {
+        setNotice({ kind: 'error', text: 'Price alerts are set from the command line, not from a link. Type the command to set one.' })
+        return null
+      }
+      const plan = planAlert(cmd)
+      if (!plan.ok) { setNotice({ kind: 'error', text: plan.error }); return null }
+      const opened = run(`${cmd.channel ? `@${cmd.channel} ` : ''}${plan.sym} ALRT`, { slot, next: beside, from })
+      setNotice({ kind: 'info', text: `Setting an alert for ${plan.sym}…` })
+      // The answer is ALWAYS said, even if the member typed on: an alert that was (or was not)
+      // set is a fact about their account, not a stale read of the screen.
+      setAlert(plan)
+        .then((r) => setNotice({ kind: 'info', text: r.text }))
+        .catch((err) => setNotice({ kind: 'error',
+          text: err?.memberText || `The alert for ${plan.sym} could not be saved. Nothing was set; try again.` }))
+      return opened
     }
     countCommand(cmd)
     if (cmd.type === 'ask') {
@@ -1665,7 +1689,7 @@ export default function TerminalShell() {
                 aria-pressed={layout.density === d} onClick={() => save(setDensity(layout, d))}
                 title={`${d[0].toUpperCase()}${d.slice(1)} density`} aria-label={`${d[0].toUpperCase()}${d.slice(1)} density`}
                 data-testid={`terminal-density-${d}`}>
-                {d === 'comfortable' ? 'Aa' : d === 'compact' ? 'Ab' : 'ab'}
+                {DENSITY_LABELS[d]}
               </button>
             ))}
           </div>
@@ -1749,6 +1773,7 @@ export default function TerminalShell() {
           )}
         </div>
       )}
+      {!sheet && <FirstRunCard onTry={runTyped} />}
       {!sheet && noticeEl}
       <div className={styles.body}>
         {!isPhone && (

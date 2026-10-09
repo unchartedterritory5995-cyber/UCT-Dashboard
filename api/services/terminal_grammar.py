@@ -227,12 +227,10 @@ def _prune_seen(keys: set, now_ts: float) -> set:
     return out
 
 
-def _live_change(s: str) -> tuple[Optional[float], Optional[float]]:
-    """R18: today's change % and its vendor observation time for `s`, looked up
-    SERVER-SIDE (no client passes `change_pct`, so the price-move fact never
-    fired). The shared live-price cache first; on a miss, one batch read through
-    the same path /api/live-prices uses, written back to that cache. A row that
-    replays a CLOSED session's move is not "today" and is not used."""
+def _live_row(s: str) -> Optional[dict]:
+    """The live-price row for `s`: the shared live-price cache first; on a miss, one
+    batch read through the same path /api/live-prices uses, written back to that
+    cache. None when nothing could be read (the caller degrades, never guesses)."""
     try:
         from api.routers import live_prices as lp
         row = lp.cache.get(lp._px_key(s))
@@ -242,13 +240,43 @@ def _live_change(s: str) -> tuple[Optional[float], Optional[float]]:
             row = got.get(s)
             if row is not None:
                 lp.cache.set(lp._px_key(s), row, ttl=lp._CACHE_TTL)
-        if not row or row.get("market_closed"):
-            return None, None
-        pct = row.get("change_pct")
-        return (float(pct) if isinstance(pct, (int, float)) else None), row.get("observed_at")
+        return row if isinstance(row, dict) else None
     except Exception as exc:  # noqa: BLE001 -- the move fact is optional
-        log.warning("[terminal_grammar] live change lookup failed for %s: %s", s, exc)
+        log.warning("[terminal_grammar] live price lookup failed for %s: %s", s, exc)
+        return None
+
+
+def _change_from_row(row: Optional[dict]) -> tuple[Optional[float], Optional[float]]:
+    """R18: today's change % and its vendor observation time. A row that replays a
+    CLOSED session's move is not "today" and is not used."""
+    if not row or row.get("market_closed"):
         return None, None
+    pct = row.get("change_pct")
+    return (float(pct) if isinstance(pct, (int, float)) else None), row.get("observed_at")
+
+
+def _live_change(s: str) -> tuple[Optional[float], Optional[float]]:
+    """R18: today's change % for `s`, looked up SERVER-SIDE (no client passes
+    `change_pct`, so the price-move fact never fired)."""
+    return _change_from_row(_live_row(s))
+
+
+def _quote_block(row: Optional[dict]) -> Optional[dict]:
+    """Wave 2 (audit 2026-10-08): "why is it moving" must say HOW MUCH it moved. The
+    last price and the day's change from the same live row; `session` says whether
+    it is today's live move or the last completed session's (weekend / overnight)."""
+    if not row:
+        return None
+
+    def num(k):
+        v = row.get(k)
+        return float(v) if isinstance(v, (int, float)) and v == v else None
+    price = num("price")
+    if price is None or price <= 0:
+        return None
+    return {"price": price, "change": num("change"), "change_pct": num("change_pct"),
+            "session": "closed" if row.get("market_closed") else "live",
+            "observed_at": row.get("observed_at")}
 
 
 def why_moving(user_id: str, sym: str, *, include_catalysts: bool,
@@ -263,8 +291,9 @@ def why_moving(user_id: str, sym: str, *, include_catalysts: bool,
 
     intel: dict = {"status": "unavailable", "notable": False, "facts": [], "context": {}}
     observed = None
+    row = _live_row(s)
     if not isinstance(change_pct, (int, float)):
-        change_pct, observed = _live_change(s)
+        change_pct, observed = _change_from_row(row)
     try:
         from api.services.watchlist_intelligence import get_intelligence_for_symbols
         changes = {s: change_pct} if isinstance(change_pct, (int, float)) else None
@@ -312,6 +341,7 @@ def why_moving(user_id: str, sym: str, *, include_catalysts: bool,
                  "new": [k for k in keys_now if k not in seen_before]}
     return {
         "sym": s,
+        "quote": _quote_block(row),
         "intelligence": intel,
         "catalysts": catalysts,
         "catalyst_status": catalyst_status,

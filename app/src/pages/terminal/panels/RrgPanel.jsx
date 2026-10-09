@@ -15,7 +15,7 @@
 import { useEffect, useMemo } from 'react'
 import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
-import useCloses, { closesProvenance, failedText } from './useCloses'
+import useCloses, { closesProvenance, failedText, formingThrough } from './useCloses'
 import { RRG_METHOD, collectSymbols, rrgPath, withArgsKey } from './relativeMath'
 import styles from './comparePanels.module.css'
 
@@ -80,6 +80,39 @@ function rrgChartLabel(rows) {
     + (parts.length ? `${parts.join('. ')}.` : 'Nothing plotted.')
 }
 
+// Label geometry in viewBox units, sized for the PHONE label (comparePanels.module.css raises
+// .pointLabel to 18 units at <=640px, ~11px on screen once the 560-wide graph is scaled to a
+// 390px phone). Audit 2026-10-08 (RRG #24): the labels were ~7px there and piled up in the centre.
+const LABEL_CHAR_W = 11
+const LABEL_GAP = 20
+
+/** Place one label per point head so no two overlap: each starts up-right of its point, flips
+ *  left near the right edge, and is pushed down past any already-placed label it would collide
+ *  with. Returns [{ sym, x, y, anchor, moved }] in input order. */
+export function placeLabels(heads, width = W) {
+  const placed = []
+  const order = heads.map((h, i) => i).sort((a, b) => heads[a].y - heads[b].y || heads[a].x - heads[b].x)
+  const out = []
+  for (const i of order) {
+    const h = heads[i]
+    const w = h.sym.length * LABEL_CHAR_W
+    const flip = h.x + 6 + w > width - 4
+    const left = flip ? h.x - 6 - w : h.x + 6
+    let y = h.y - 6
+    let bumped = true
+    while (bumped) {
+      bumped = false
+      for (const p of placed) {
+        const overlapX = left < p.left + p.w && p.left < left + w
+        if (overlapX && Math.abs(p.y - y) < LABEL_GAP) { y = p.y + LABEL_GAP; bumped = true }
+      }
+    }
+    placed.push({ left, w, y })
+    out[i] = { sym: h.sym, x: flip ? h.x - 6 : h.x + 6, y, anchor: flip ? 'end' : 'start', moved: y !== h.y - 6 }
+  }
+  return out
+}
+
 function Graph({ rows }) {
   const xs = rows.flatMap((r) => r.tail.map((p) => p.x))
   const ys = rows.flatMap((r) => r.tail.map((p) => p.y))
@@ -87,6 +120,10 @@ function Graph({ rows }) {
   const hy = Math.max(0.25, ...ys.map((v) => Math.abs(v - 100))) * 1.15
   const px = (v) => PAD + ((v - (100 - hx)) / (2 * hx)) * (W - 2 * PAD)
   const py = (v) => H - PAD - ((v - (100 - hy)) / (2 * hy)) * (H - 2 * PAD)
+  const labels = placeLabels(rows.map((r) => {
+    const head = r.tail[r.tail.length - 1]
+    return { sym: r.sym, x: px(head.x), y: py(head.y) }
+  }))
   return (
     <div className={styles.chartBox}>
       <svg className={styles.chart} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={rrgChartLabel(rows)}>
@@ -98,15 +135,17 @@ function Graph({ rows }) {
         <text className={styles.quadText} x={PAD + 4} y={PAD}>Improving</text>
         <text className={styles.axisText} x={W / 2} y={H - 8} textAnchor="middle">RS-Ratio →</text>
         <text className={styles.axisText} x={10} y={H / 2} transform={`rotate(-90 10 ${H / 2})`} textAnchor="middle">RS-Momentum →</text>
-        {rows.map((r) => {
+        {rows.map((r, i) => {
           const head = r.tail[r.tail.length - 1]
           const q = styles[Q_CLASS[r.quadrant]]
+          const lab = labels[i]
           return (
             <g key={r.sym} data-testid={`rrg-point-${r.sym}`} data-quadrant={r.quadrant}>
               <polyline className={`${styles.tailLine} ${q}`} points={r.tail.map((p) => `${px(p.x)},${py(p.y)}`).join(' ')} />
               {r.tail.slice(0, -1).map((p) => <circle key={p.d} className={q} cx={px(p.x)} cy={py(p.y)} r={1.6} />)}
               <circle className={q} cx={px(head.x)} cy={py(head.y)} r={4} />
-              <text className={styles.pointLabel} x={px(head.x) + 6} y={py(head.y) - 6}>{r.sym}</text>
+              {lab.moved && <line className={styles.labelLeader} x1={px(head.x)} y1={py(head.y)} x2={lab.x} y2={lab.y} />}
+              <text className={styles.pointLabel} x={lab.x} y={lab.y} textAnchor={lab.anchor}>{r.sym}</text>
             </g>
           )
         })}
@@ -221,7 +260,8 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
         <p className={styles.note} role="status">RRG plots at most {RRG_MAX} names; not shown: {universe.dropped.join(', ')}.</p>
       )}
       <p className={styles.muted} data-testid="terminal-rrg-method">
-        Closes through {asOf}{cadence === 'W' ? ' (the newest week is still forming until Friday\'s close)' : ''}.
+        Closes through {asOf}{cadence === 'W' ? ' (the newest week is still forming until Friday\'s close)'
+          : formingThrough(state) === asOf ? ' (today\'s bar is still forming: intraday, not a close)' : ''}.
         UCT&apos;s approximation, not JdK&apos;s proprietary formula: RS = 100 × price ÷ {RRG_BENCHMARK};
         RS-Ratio = 100 × RS ÷ its {RRG_METHOD.ratioLen}-{unit} average; RS-Momentum = 100 × RS-Ratio ÷ its{' '}
         {RRG_METHOD.momLen}-{unit} average. Tails show the last {RRG_METHOD.tail} {unit}s. Click a row, or type its number, to open its chart beside this graph.

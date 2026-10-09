@@ -57,6 +57,10 @@ router = APIRouter()
 # lifespan dashboard warm). They keep their behaviour: a cache hit, else a
 # synchronous build. Never a served-stale overlay.
 THEME_STALE_MAX_AGE = 30
+# Perf wave 2: while no US session can print (svc.prices_moving() is False) the snapshot does
+# not move, so the last complete overlay stays servable for 15 min and is refreshed behind the
+# caller; a lone off-hours visitor no longer pays the ~7 s rebuild.
+THEME_STALE_QUIET_MAX_AGE = 900
 _THEME_KEY = "theme_performance_overlaid"      # one global key, = svc._OVERLAID_KEY
 _THEME_STALE = ServeStale("theme_performance", max_age_seconds=THEME_STALE_MAX_AGE, max_keys=2)
 
@@ -93,6 +97,7 @@ def serve_theme_performance(refresh: bool = False):
         if _good(built):
             _THEME_STALE.remember(_THEME_KEY, built)
         return built[0], TIER_BUILD, None
+    _THEME_STALE.max_age = float(THEME_STALE_MAX_AGE if svc.prices_moving() else THEME_STALE_QUIET_MAX_AGE)
     served, tier, age = serve_with_tier(
         _THEME_STALE, _THEME_KEY,
         fresh=_fresh_theme, build=_build_theme, good=_good,
@@ -122,6 +127,56 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 _last_theme_warm = 0.0
 _THEME_WARM_INTERVAL = float(os.environ.get("THEME_WARM_INTERVAL_SECONDS", "600"))  # 10min
 _COLD_TAIL_CAP = int(os.environ.get("THEME_WARM_CAP", "30"))
+
+
+# Perf wave 2: the route sent ~985 KB uncompressed. These fields are written by the service for
+# its own Python callers but read by NO browser consumer (verified 2026-10-08 against every
+# fetch of /api/theme-performance in app/src: the Dashboard ThemeTracker tile, ThemeTrackerPage,
+# and the terminal IMOV panel). Stripped from the WIRE copy only; svc.get_theme_performance()
+# and its Python callers (voice tools, theme_index, rotation, warms) still get everything.
+_WIRE_DROP_THEME = ("sector_id", "sub_themes")
+_WIRE_DROP_HOLDING = ("weight_pct", "tier", "sub_theme_id")
+_WIRE_DROP_PERIODS = ("5d", "30d", "60d", "90d")
+_wire_memo: tuple = (None, None)          # (source payload, its wire copy) — one entry
+
+
+def wire_payload(result):
+    """A slimmed COPY of `result` for the browser; never mutates the shared payload."""
+    if not isinstance(result, dict) or not isinstance(result.get("themes"), list):
+        return result
+    out = {k: v for k, v in result.items() if k not in ("theme_set", "all_themes")}
+    themes = []
+    for t in result["themes"]:
+        if not isinstance(t, dict):
+            themes.append(t)
+            continue
+        nt = {k: v for k, v in t.items() if k not in _WIRE_DROP_THEME}
+        hs = []
+        for h in t.get("holdings") or []:
+            if not isinstance(h, dict):
+                hs.append(h)
+                continue
+            nh = {k: v for k, v in h.items() if k not in _WIRE_DROP_HOLDING}
+            for blk in ("returns", "ref_prices"):
+                if isinstance(nh.get(blk), dict):
+                    nh[blk] = {k: v for k, v in nh[blk].items() if k not in _WIRE_DROP_PERIODS}
+            hs.append(nh)
+        if "holdings" in t:
+            nt["holdings"] = hs
+        themes.append(nt)
+    out["themes"] = themes
+    return out
+
+
+def _wire_shared(result):
+    """wire_payload memoized on the shared overlay object (reused for its whole live window)."""
+    global _wire_memo
+    src, slim = _wire_memo
+    if src is result:
+        return slim
+    slim = wire_payload(result)
+    _wire_memo = (result, slim)
+    return slim
 
 
 @router.get("/api/theme-performance")
@@ -177,7 +232,7 @@ def get_theme_performance(response: Response = None, refresh: bool = False,
                     warm_bars_async(tickers[:_COLD_TAIL_CAP], tf="D", bars=8000)
         except Exception:
             pass
-        return result
+        return wire_payload(result) if set else _wire_shared(result)
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 

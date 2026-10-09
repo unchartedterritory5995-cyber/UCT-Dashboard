@@ -23,6 +23,13 @@ const FORMS = [
   { form: '10-Q', label: 'Quarterly (10-Q)' },
 ]
 
+// Audit 2026-10-08 (FIL, point 12): "Not located: {reason}." printed "undefined" when the server
+// sent no reason. Say the label alone instead.
+export function reasonSentence(label, reason) {
+  const r = memberText(reason)
+  return r ? `${label}: ${r}.` : `${label}.`
+}
+
 function Cite({ side, f }) {
   if (!f) return null
   return (
@@ -71,7 +78,7 @@ function Section({ s }) {
       <section className={styles.section} data-testid={`section-${s.key}`}>
         <h3 className={styles.h}>{s.label}</h3>
         <p className={styles.note} data-testid={`omitted-${s.key}`}>
-          Not in either filing: {s.reason}. That is not a finding that nothing changed.
+          {reasonSentence('Not in either filing', s.reason)} That is not a finding that nothing changed.
         </p>
       </section>
     )
@@ -81,7 +88,7 @@ function Section({ s }) {
       <section className={styles.section} data-testid={`section-${s.key}`}>
         <h3 className={styles.h}>{s.label}</h3>
         <p className={styles.note} data-testid={`notfound-${s.key}`}>
-          Not located: {s.reason}. This is a gap in what we could read, not a finding that nothing changed.
+          {reasonSentence('Not located', s.reason)} This is a gap in what we could read, not a finding that nothing changed.
         </p>
       </section>
     )
@@ -148,10 +155,10 @@ function FilingChanges({ sym, form }) {
       Filing changes are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={rp.basisBtn} onClick={() => mutate()}>Retry</button>
     </div>
   }
-  if (!data) return <div className={styles.note}>Loading filing changes…</div>
+  if (!data) return <div className={styles.note} role="status">Loading filing changes…</div>
   if (data.paywalled) return <div className={styles.note}>Filing changes require a paid plan.</div>
   if (data.state === 'pending') {
-    return <div className={styles.note} data-testid="blackline-pending">
+    return <div className={styles.note} data-testid="blackline-pending" role="status">
       Reading {s}'s two most recent {form}s from SEC EDGAR. This can take a minute; the page will update.
       <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The comparison" />
     </div>

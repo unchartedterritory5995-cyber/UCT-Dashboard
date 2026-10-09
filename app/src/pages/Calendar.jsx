@@ -52,6 +52,24 @@ import styles from './calendar/Calendar.module.css'
 // D-10: one stable empty registry, so turning the boost off does not re-tier every render.
 const NO_BUCKETS = Object.freeze([])
 
+// Audit wave 2 (ERN P2 #3): the next-report lookup (`ERN SYM` for a name outside the loaded
+// week) had no deadline, so a hung request left the modal unopened until the next SWR
+// revalidation happened to re-run the resolver (~2 min). Past this it opens unresolved.
+export const NEXT_REPORT_TIMEOUT_MS = 8000
+/** fetch that REJECTS at `ms` even if the network ignores the abort signal. */
+export function fetchWithDeadline(url, ms = NEXT_REPORT_TIMEOUT_MS) {
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null
+  let timer
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      try { ctl?.abort() } catch { /* already settled */ }
+      reject(Object.assign(new Error('next-report lookup timed out'), { timeout: true }))
+    }, ms)
+  })
+  const req = fetch(url, ctl ? { signal: ctl.signal } : undefined)
+  return Promise.race([req, deadline]).finally(() => clearTimeout(timer))
+}
+
 function fmtWeekRange(start, end) {
   const s = new Date(start + 'T00:00:00')
   const e = new Date(end   + 'T00:00:00')
@@ -438,7 +456,7 @@ export default function Calendar() {
       return
     }
     resolveRef.current = want
-    fetch(`/api/calendar/next-report?sym=${encodeURIComponent(want)}`)
+    fetchWithDeadline(`/api/calendar/next-report?sym=${encodeURIComponent(want)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         // Stale-response guard (Task 14): this ask may have been superseded
@@ -852,7 +870,7 @@ export default function Calendar() {
     return (
       <div className={styles.page}>
         {headerEl}
-        <div className={styles.error}>
+        <div className={styles.error} role="alert">
           Couldn&apos;t load that week.{' '}
           <button className="btn btn-secondary btn-sm" onClick={() => mutate()}>Retry</button>
         </div>

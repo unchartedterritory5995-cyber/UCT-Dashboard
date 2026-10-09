@@ -21,6 +21,7 @@ import re
 import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import TimeoutError as FuturesTimeout
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -896,6 +897,14 @@ def _pull_options_flow() -> dict[str, dict]:
     return out
 
 
+# Perf wave 2: the WALL-CLOCK bound on the parallel source pulls. `as_completed(timeout=30)`
+# inside `with ThreadPoolExecutor` did not bound anything: leaving the block waits for every
+# future, and when the timeout did fire the TimeoutError escaped (a 500 on /explain, a failed
+# refresh). A source still running at the deadline now counts as empty (and shows as 0 in
+# _LAST_SOURCE_STATS, which the health check reads); its thread finishes in the background.
+COLLECT_DEADLINE_S = 30.0
+
+
 def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
                 existing_tickers: Optional[set[str]] = None) -> list[dict]:
     """Runs all source pulls in parallel; merges into Candidate dicts
@@ -919,16 +928,26 @@ def collect_all(run_hunter: bool = False, hunter_mode: str = "deep",
         "av_news":    _pull_av_news,
     }
     results: dict[str, dict] = {}
-    with ThreadPoolExecutor(max_workers=8, thread_name_prefix="cat-src") as ex:
+    ex = ThreadPoolExecutor(max_workers=8, thread_name_prefix="cat-src")
+    try:
         futures = {ex.submit(_safe, fn, {}, name): name
                    for name, fn in tasks.items()}
-        for fut in as_completed(futures, timeout=30):
-            name = futures[fut]
-            try:
-                results[name] = fut.result()
-            except Exception as e:
-                logger.warning("[catalyst-sources] %s exception: %s", name, e)
-                results[name] = {}
+        try:
+            for fut in as_completed(futures, timeout=COLLECT_DEADLINE_S):
+                name = futures[fut]
+                try:
+                    results[name] = fut.result()
+                except Exception as e:
+                    logger.warning("[catalyst-sources] %s exception: %s", name, e)
+                    results[name] = {}
+        except FuturesTimeout:
+            late = sorted(n for f, n in futures.items() if not f.done())
+            logger.warning("[catalyst-sources] past the %.0fs deadline, counted empty: %s",
+                           COLLECT_DEADLINE_S, ", ".join(late))
+            for n in late:
+                results.setdefault(n, {})
+    finally:
+        ex.shutdown(wait=False, cancel_futures=True)
 
     # Universe = union of tickers from all sources
     universe: set[str] = set()

@@ -5,8 +5,8 @@
 // callers (Compass chat, voice, AI Search, grade_watchlist).
 import useMobileSWR from '../hooks/useMobileSWR'
 import UIcon from '../components/ui/UIcon'
-import { BoardFromList, useInTerminalPanel, PanelSkeleton, PanelState, usePanelFreshness, usePanelSymbolRows, panelAsOf } from '../components/terminal'
-import { formatPercent, formatPercentAsSent } from '../lib/presentation/presentationPrimitives'
+import { BoardFromList, PanelSymbol, useInTerminalPanel, PanelSkeleton, PanelState, usePanelFreshness, usePanelSymbolRows, panelAsOf } from '../components/terminal'
+import { formatCurrency, formatPercent, formatPercentAsSent } from '../lib/presentation/presentationPrimitives'
 import styles from './PortfolioHeat.module.css'
 
 // ⛔ NOT `fetch(url).then(r => r.json())` -- a 402 answers JSON too. See
@@ -21,6 +21,21 @@ export const pctText = (v) => formatPercent(v, { decimals: 1 })
 // two places, and the regime ceiling is a whole number), printed as sent: "3.27%", "3%", "100%"
 // — exactly as the old `${v}%` did; a missing or non-numeric value is the em dash, never "NaN%".
 export const pctAsSent = (v) => formatPercentAsSent(v)
+
+/** Wave 2 (audit 2026-10-08): the Stop cell names the stop PRICE and the dollars at risk to it
+ *  ("$95.50 · $45 at risk"); it printed a bare "set". An older server that sends no price
+ *  still reads "set". */
+export function stopText(p) {
+  const price = Number(p?.stop_price)
+  if (p?.stop_price == null || !Number.isFinite(price)) return 'set'
+  const risk = Number(p?.risk_dollars)
+  return p?.risk_dollars != null && Number.isFinite(risk)
+    ? `${formatCurrency(price)} · ${formatCurrency(risk, { decimals: 0, grouping: true })} at risk`
+    : formatCurrency(price)
+}
+
+/** Where RISK's positions come from, said in the empty state (it said only "No open positions."). */
+export const RISK_EMPTY_TEXT = 'No open positions. RISK reads the open positions in your Journal 2.0 (Journal → Journal 2.0 → Open Positions), including any a connected broker syncs in. Log a position there and it appears here.'
 
 function CapBar({ label, valuePct, capPct }) {
   if (!Number.isFinite(valuePct)) {
@@ -186,7 +201,7 @@ export default function PortfolioHeat() {
           <tbody>
             {per_position.map(p => (
               <tr key={p.symbol}>
-                <td className={styles.sym}>{p.symbol}</td>
+                <td className={styles.sym}><PanelSymbol sym={p.symbol} /></td>
                 <td>{p.side ? p.side[0].toUpperCase() + p.side.slice(1) : '—'}</td>
                 <td>{pctAsSent(p.dist_to_stop_pct)}</td>
                 <td>{pctAsSent(p.risk_pct)}</td>
@@ -195,12 +210,12 @@ export default function PortfolioHeat() {
                 <td>
                   {p.placeholder_stop
                     ? <span className={styles.placeholderBadge} title="No real stop on file — a broker placeholder">no real stop</span>
-                    : 'set'}
+                    : stopText(p)}
                 </td>
               </tr>
             ))}
             {per_position.length === 0 && (
-              <tr><td colSpan={5} className={styles.empty}>No open positions.</td></tr>
+              <tr><td colSpan={5} className={styles.empty} data-testid="risk-empty">{RISK_EMPTY_TEXT}</td></tr>
             )}
           </tbody>
         </table>

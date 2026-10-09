@@ -54,6 +54,32 @@ describe('FilingSearchPanel', () => {
     expect(global.fetch.mock.calls[0][0]).toContain('/api/research/filing-search?q=tariff&sym=AAPL')
   })
 
+  // Audit 2026-10-08 (FSRC, point 12): a hit with no paragraph number used to print "paragraph NaN".
+  it('a hit with no paragraph number leaves it out instead of printing NaN', async () => {
+    reply = { status: 200, body: { ...OK, hits: [{ ...HIT, para_no: undefined }] } }
+    renderTab()
+    search('tariff')
+    const hit = await screen.findByTestId('filing-search-hit')
+    expect(hit.textContent).not.toMatch(/NaN|undefined/)
+    expect(hit.textContent).not.toContain('paragraph')
+    expect(hit.textContent).toContain('10-K filed 2025-10-31 · Risk Factors')
+  })
+
+  // Audit 2026-10-08 (FSRC, point 7): zero hits gets a next step, not a bare empty list.
+  it('zero hits says so and suggests how to broaden the search', async () => {
+    reply = { status: 200, body: { ...OK, hits: [], count: 0 } }
+    renderTab()
+    search('zzzz')
+    expect((await screen.findByTestId('filing-search-no-hits')).textContent).toMatch(/No paragraph matched\. Try fewer words/)
+  })
+
+  it('the searching line is announced (role=status)', async () => {
+    global.fetch = vi.fn(() => new Promise(() => {}))
+    renderTab()
+    search('tariff')
+    expect((await screen.findByText('Searching…')).getAttribute('role')).toBe('status')
+  })
+
   it('prints the synonyms it also searched', async () => {
     renderTab()
     search('tariff')

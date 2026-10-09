@@ -24,7 +24,14 @@
 .grid thead th { color: var(--text-muted); font-weight: 600; position: sticky; top: 0; background: var(--bg-surface); }
 .left { text-align: left !important; }
 .session { text-align: left !important; color: var(--text-muted); }
+.screenGrid th[scope='row'] { font-weight: 500; color: var(--text); }
 @media (max-width: 640px) {
   .wrap { padding: 8px 16px; }
   .form input { width: 64px; }
+  /* Audit 2026-10-08 (OSCR, point 24): 15 columns on a 390px phone. The contract label already
+     carries the underlying, expiry, strike and type (the session is in the line above), so those columns drop out and the
+     contract column stays pinned while the numbers scroll under it. */
+  .narrowHide { display: none; }
+  .pin { position: sticky; left: 0; z-index: 1; background: var(--bg-surface); }
+  thead .pin { z-index: 2; }
 }

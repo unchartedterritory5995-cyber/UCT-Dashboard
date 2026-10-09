@@ -502,7 +502,18 @@ def research_snapshot_batch(tickers: list[str] = Body(..., embed=True)):
 def research_snapshot(sym: str = Depends(sym_path)):
     """Consolidated ratings + key fundamentals for the glanceable snapshot card."""
     try:
-        return get_snapshot(sym)
+        snap = get_snapshot(sym)
+        # Wave-2 audit: a snapshot with no identity and no numbers, for a symbol that is not a
+        # ticker, carries the additive `not_found` marker (api/services/symbol_presence.py).
+        # The provider-failure branch below never does.
+        from api.services.symbol_presence import mark_if_empty
+        # (`name` falls back to the symbol itself when no provider named the company.)
+        empty = (isinstance(snap, dict)
+                 and snap.get("name") in (None, "", sym)
+                 and not snap.get("sector")
+                 and snap.get("composite") is None
+                 and not any(v is not None for v in (snap.get("metrics") or {}).values()))
+        return mark_if_empty(snap, sym, empty)
     except Exception as exc:
         _logger.warning("research snapshot failed for %s: %s", sym, exc)
         return {"sym": (sym or "").upper(), "name": None, "sector": None, "industry": None,

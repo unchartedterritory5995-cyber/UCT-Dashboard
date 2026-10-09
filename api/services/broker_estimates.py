@@ -102,7 +102,9 @@ def periods(rows: list[dict], today: Optional[str] = None, limit: int = QUARTERS
     (`estimates_consensus.is_unreported`): a quarter whose period end has
     passed but which has not reported is the next one to report, and it stays."""
     from api.services.research.estimates_consensus import is_unreported
-    today = today or time.strftime("%Y-%m-%d")
+    if not today:
+        from api.services.research.estimates_consensus import today_et
+        today = today_et().isoformat()
     out = []
     for r in rows or []:
         if not isinstance(r, dict):

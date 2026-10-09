@@ -72,10 +72,23 @@ export function atmStrike(rows, spot) {
   return best
 }
 
+/** A folded group whose children mount (and so fire their reads) only once it is first opened. */
+export function LazyGroup({ title, testId, children }) {
+  const [opened, setOpened] = useState(false)
+  return (
+    <details className={`${styles.colKey} ${styles.group}`} data-testid={testId}
+      onToggle={(e) => { if (e.currentTarget.open) setOpened(true) }}>
+      <summary>{title}</summary>
+      {opened && children}
+    </details>
+  )
+}
+
 // `volSurface`: BRK-01 increment 3's switch (options_vol_surface_enabled), passed by ResearchPage.
 // `backtest`: BRK-01 increment 4's switch (options_backtest_enabled), passed by ResearchPage. Its
 // one button is "Simulate" -- a historical simulation, never an order.
-export default function OptionsChainTab({ sym, volSurface = false, backtest = false }) {
+// `focus`: 'surface' (the OVS code) leads with the vol surface and folds the chain beneath it.
+export default function OptionsChainTab({ sym, volSurface = false, backtest = false, focus = '' }) {
   const s = (sym || '').toUpperCase().trim()
   const [picked, setPicked] = useState('')
   // FT-016: a clicked quote opens the contract drill (renders nothing while OPTIONS_PRICER_ENABLED is off)
@@ -104,6 +117,12 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
     if (!d || d.paywalled) return { rows: [], dropped: 0 }
     return mergeChain(d.calls, d.puts, d.ticker || s)
   }, [chain.data, s])
+  // Audit 2026-10-08 (OMON P1): a quote cell opened the contract drill on a mouse click only. The
+  // drill exists only while its contract route answers (the same probe ContractPicker makes, so SWR
+  // shares the one read); while it does, each side's Mid cell is a keyboard stop (Enter / Space).
+  const probe = useMemo(() => rows.flatMap((r) => [r.call, r.put]).find((c) => c?.contract)?.contract, [rows])
+  const drillProbe = useDarkSection(probe ? `/api/research/options/${encodeURIComponent(s)}/contract/${encodeURIComponent(probe)}` : null)
+  const drillable = Array.isArray(drillProbe.data?.bars)
 
   if (chain.error) {
     return <div className={styles.note} data-testid="chain-unavailable">
@@ -127,6 +146,118 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
   const derive = (q) => (q ? { ...q, mid: midOf(q), vol_oi: volOiOf(q) } : q)
   const aug = (q, type) => (q && full ? { ...q, ...extraGreeks({ ...q, type }, Number(d.spot), days) } : q)
   const shown = rows.map((r) => ({ ...r, call: derive(aug(r.call, 'call')), put: derive(aug(r.put, 'put')) }))
+  const quoteCell = (type, r, k, l, how) => {
+    const q = r[type]
+    const text = fmt(q?.[k], how)
+    const cls = isItm(type, r.strike, d.spot) ? styles.itm : undefined
+    const open = () => { if (q) setDrill(q) }
+    if (drillable && q?.contract && k === 'mid') {
+      return <td key={`${type[0]}-${k}`} className={cls} tabIndex={0} onClick={open}
+        aria-label={`${l} ${text}: open the ${fmt(r.strike, 2)} ${type} contract`}
+        data-testid={`drill-${type}-${r.strike}`}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() } }}>{text}</td>
+    }
+    return <td key={`${type[0]}-${k}`} className={cls} onClick={drillable ? open : undefined}>{text}</td>
+  }
+
+  // Audit 2026-10-08 (OVS P1): `OVS` opened the whole chain with the surface ~6 panels down. With
+  // `focus="surface"` the surface leads and the chain folds below it (read only when opened).
+  const surfaceFirst = volSurface && focus === 'surface'
+  const chainBody = (
+    <>
+      <OptionMonitorStrip sym={s} />
+      {/* An empty chain was a header row over nothing. Say it in words. */}
+      {shown.length === 0 ? (
+        <p className={styles.note} data-testid="chain-empty">
+          {d.expiration
+            ? `No option contracts came back for ${s} at the ${d.expiration} expiration.`
+            : `No listed option expirations came back for ${s}.`}
+        </p>
+      ) : (
+      <div className={styles.scroll}>
+        <table className={styles.grid} aria-label={d.expiration ? `Option chain for ${s}, ${d.expiration} expiration` : `Option chain for ${s}`}>
+          <thead>
+            <tr>{isPhone && <td />}{showCalls && <th scope="colgroup" colSpan={cols.length}>Calls</th>}{!isPhone && <td />}{showPuts && <th scope="colgroup" colSpan={cols.length}>Puts</th>}</tr>
+            <tr>
+              {isPhone && <th scope="col" className={styles.strikeHead}>Strike</th>}
+              {showCalls && cols.map(([k, l, , t]) => <th scope="col" key={`c-${k}`} title={t}>{l}</th>)}
+              {!isPhone && <th scope="col" className={styles.strikeHead}>Strike</th>}
+              {showPuts && cols.map(([k, l, , t]) => <th scope="col" key={`p-${k}`} title={t}>{l}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((r) => (
+              <tr key={r.strike} className={r.strike === atm ? styles.atm : undefined}
+                  data-testid={r.strike === atm ? 'atm-row' : undefined}>
+                {isPhone && <td className={styles.strike}>{fmt(r.strike, 2)}</td>}
+                {showCalls && cols.map(([k, l, how]) => quoteCell('call', r, k, l, how))}
+                {!isPhone && <td className={styles.strike}>{fmt(r.strike, 2)}</td>}
+                {showPuts && cols.map(([k, l, how]) => quoteCell('put', r, k, l, how))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      )}
+      {/* The column definitions used to live only in header tooltips, which a finger cannot
+          hover. The same text, tappable. */}
+      <details className={styles.colKey} data-testid="chain-column-key">
+        <summary>What the columns mean</summary>
+        <dl>
+          <dt>ATM IV</dt><dd>Mean of the call and put implied volatility at the strike nearest spot (vendor IV)</dd>
+          {cols.filter((c) => c[3]).map(([k, l, , t]) => <div key={k}><dt>{l}</dt><dd>{t}</dd></div>)}
+        </dl>
+      </details>
+      {dropped > 0 && (
+        <p className={styles.muted} data-testid="chain-merge-note">
+          {dropped} adjusted or duplicate contract{dropped === 1 ? '' : 's'} sharing a strike {dropped === 1 ? 'was' : 'were'} left out;
+          each row shows the standard 100-share contract.
+        </p>
+      )}
+      {full && (
+        <p className={styles.muted} data-testid="chain-greeks-basis">
+          ρ, λ, ε computed: {full.rho} {full.lambda} {full.epsilon} {full.assumptions} {full.streaming}
+        </p>
+      )}
+      <ContractPicker sym={s} rows={rows} onPick={setDrill} />
+      {drill && <ContractDrill key={drill.contract} sym={s} contract={drill} spot={Number(d.spot)} onClose={() => setDrill(null)} />}
+      {drill && <StancePanel key={`stance-${drill.contract}`} sym={s} contract={drill} />}
+      <PayoffPanel rows={rows} spot={Number(d.spot)} sym={s} expiration={d.expiration || ''} atmIv={atmIv} />
+      {/* Audit 2026-10-08 (OMON P2, points 1/17): a dozen sub-panels stacked under the chain and
+          each fired its own read on open. They sit in three folded groups now; a group mounts (and
+          reads) only once a member opens it, and stays mounted after. Nothing was removed. */}
+      <LazyGroup title="Strategy tools: finder, spreads, edge, builder, probability" testId="chain-group-strategy">
+        <StrategyFinder sym={s} rows={rows} spot={Number(d.spot)} expiration={d.expiration || ''} atmIv={atmIv} />
+        <SpreadBookPanel />
+        <EdgePanel sym={s} expiration={d.expiration || ''} />
+        <PositionBuilder sym={s} rows={rows} spot={Number(d.spot)} />
+        <ProbabilityPanel sym={s} expiration={d.expiration || ''} />
+      </LazyGroup>
+      <LazyGroup title={`Volatility: ${volSurface && !surfaceFirst ? 'surface, ' : ''}skew, IV history, vol stats`} testId="chain-group-vol">
+        {volSurface && !surfaceFirst && <VolSurfacePanel sym={s} expiration={d.expiration || ''} />}
+        <VolSkewPanels sym={s} />
+        {/* TERM-019: these are panels of their own elsewhere; inside the chain they stay quiet so the
+            terminal header names the chain's source, not whichever embedded panel reported last. */}
+        <QuietPanelFreshness>
+          <IvHistoryPanel sym={s} />
+          <VolStatsPanel sym={s} />
+        </QuietPanelFreshness>
+      </LazyGroup>
+      <LazyGroup title={`History & positioning: ${backtest ? 'backtest, ' : ''}past straddles and moves, positioning`} testId="chain-group-history">
+        <QuietPanelFreshness>
+          {backtest && <BacktestPanel sym={s} />}
+          <OptionsHistoryPanel sym={s} />
+          <PositioningPanel sym={s} />
+        </QuietPanelFreshness>
+      </LazyGroup>
+      <p className={styles.muted} data-testid="chain-source">
+        Live chain from Massive (OPRA quotes) · IV and greeks are vendor-computed by Massive, per share
+        (Θ per calendar day, vega per 1 vol point) · OI is the OCC prior-close figure · shaded cells are in the money
+        · refreshed every {d.cache_seconds || 60}s
+        {etStamp(d.served_at) ? ` · as of ${etStamp(d.served_at)}` : ''}
+      </p>
+    </>
+  )
 
   return (
     <section data-testid="options-chain">
@@ -169,86 +300,12 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
           The list of expirations couldn&apos;t be loaded, so only {d.expiration || 'this expiration'} can be picked right now.
         </p>
       )}
-      <OptionMonitorStrip sym={s} />
-      {/* An empty chain was a header row over nothing. Say it in words. */}
-      {shown.length === 0 ? (
-        <p className={styles.note} data-testid="chain-empty">
-          {d.expiration
-            ? `No option contracts came back for ${s} at the ${d.expiration} expiration.`
-            : `No listed option expirations came back for ${s}.`}
-        </p>
-      ) : (
-      <div className={styles.scroll}>
-        <table className={styles.grid} aria-label={d.expiration ? `Option chain for ${s}, ${d.expiration} expiration` : `Option chain for ${s}`}>
-          <thead>
-            <tr>{isPhone && <td />}{showCalls && <th scope="colgroup" colSpan={cols.length}>Calls</th>}{!isPhone && <td />}{showPuts && <th scope="colgroup" colSpan={cols.length}>Puts</th>}</tr>
-            <tr>
-              {isPhone && <th scope="col" className={styles.strikeHead}>Strike</th>}
-              {showCalls && cols.map(([k, l, , t]) => <th scope="col" key={`c-${k}`} title={t}>{l}</th>)}
-              {!isPhone && <th scope="col" className={styles.strikeHead}>Strike</th>}
-              {showPuts && cols.map(([k, l, , t]) => <th scope="col" key={`p-${k}`} title={t}>{l}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {shown.map((r) => (
-              <tr key={r.strike} className={r.strike === atm ? styles.atm : undefined}
-                  data-testid={r.strike === atm ? 'atm-row' : undefined}>
-                {isPhone && <td className={styles.strike}>{fmt(r.strike, 2)}</td>}
-                {showCalls && cols.map(([k, , how]) => <td key={`c-${k}`} className={isItm('call', r.strike, d.spot) ? styles.itm : undefined} onClick={() => r.call && setDrill(r.call)}>{fmt(r.call?.[k], how)}</td>)}
-                {!isPhone && <td className={styles.strike}>{fmt(r.strike, 2)}</td>}
-                {showPuts && cols.map(([k, , how]) => <td key={`p-${k}`} className={isItm('put', r.strike, d.spot) ? styles.itm : undefined} onClick={() => r.put && setDrill(r.put)}>{fmt(r.put?.[k], how)}</td>)}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      )}
-      {/* The column definitions used to live only in header tooltips, which a finger cannot
-          hover. The same text, tappable. */}
-      <details className={styles.colKey} data-testid="chain-column-key">
-        <summary>What the columns mean</summary>
-        <dl>
-          <dt>ATM IV</dt><dd>Mean of the call and put implied volatility at the strike nearest spot (vendor IV)</dd>
-          {cols.filter((c) => c[3]).map(([k, l, , t]) => <div key={k}><dt>{l}</dt><dd>{t}</dd></div>)}
-        </dl>
-      </details>
-      {dropped > 0 && (
-        <p className={styles.muted} data-testid="chain-merge-note">
-          {dropped} adjusted or duplicate contract{dropped === 1 ? '' : 's'} sharing a strike {dropped === 1 ? 'was' : 'were'} left out;
-          each row shows the standard 100-share contract.
-        </p>
-      )}
-      {full && (
-        <p className={styles.muted} data-testid="chain-greeks-basis">
-          ρ, λ, ε computed: {full.rho} {full.lambda} {full.epsilon} {full.assumptions} {full.streaming}
-        </p>
-      )}
-      <ContractPicker sym={s} rows={rows} onPick={setDrill} />
-      {drill && <ContractDrill key={drill.contract} sym={s} contract={drill} spot={Number(d.spot)} onClose={() => setDrill(null)} />}
-      {drill && <StancePanel key={`stance-${drill.contract}`} sym={s} contract={drill} />}
-      <PayoffPanel rows={rows} spot={Number(d.spot)} sym={s} expiration={d.expiration || ''} atmIv={atmIv} />
-      <StrategyFinder sym={s} rows={rows} spot={Number(d.spot)} expiration={d.expiration || ''} atmIv={atmIv} />
-      <SpreadBookPanel />
-      <EdgePanel sym={s} expiration={d.expiration || ''} />
-      <PositionBuilder sym={s} rows={rows} spot={Number(d.spot)} />
-      <ProbabilityPanel sym={s} expiration={d.expiration || ''} />
-      {volSurface && <VolSurfacePanel sym={s} expiration={d.expiration || ''} />}
-      <VolSkewPanels sym={s} />
-      {/* TERM-019: these are panels of their own elsewhere; inside the chain they stay quiet so the
-          terminal header names the chain's source, not whichever embedded panel reported last. */}
-      <QuietPanelFreshness>
-        <IvHistoryPanel sym={s} />
-        {backtest && <BacktestPanel sym={s} />}
-        <OptionsHistoryPanel sym={s} />
-        <VolStatsPanel sym={s} />
-        <PositioningPanel sym={s} />
-      </QuietPanelFreshness>
-      <p className={styles.muted} data-testid="chain-source">
-        Live chain from Massive (OPRA quotes) · IV and greeks are vendor-computed by Massive, per share
-        (Θ per calendar day, vega per 1 vol point) · OI is the OCC prior-close figure · shaded cells are in the money
-        · refreshed every {d.cache_seconds || 60}s
-        {etStamp(d.served_at) ? ` · as of ${etStamp(d.served_at)}` : ''}
-      </p>
+      {surfaceFirst && <VolSurfacePanel sym={s} expiration={d.expiration || ''} />}
+      {surfaceFirst ? (
+        <LazyGroup title="The full option chain and its tools" testId="chain-group-chain">
+          {chainBody}
+        </LazyGroup>
+      ) : chainBody}
     </section>
   )
 }

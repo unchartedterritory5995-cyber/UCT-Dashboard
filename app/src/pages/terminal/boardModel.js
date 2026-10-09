@@ -42,6 +42,9 @@ export const MAX_CHANNELS = 12
 export const MAX_BOARDS = 24
 export const FAVORITES_MAX = 16
 export const DENSITIES = ['comfortable', 'compact', 'dense']
+/** The density control's visible words (audit 2026-10-08: the buttons read "Aa / Ab / ab",
+ *  which told a sighted member nothing). Each button's accessible name contains its word. */
+export const DENSITY_LABELS = { comfortable: 'Comfortable', compact: 'Compact', dense: 'Dense' }
 
 /** The /charts colour groups. Their security is `charts_workspace_groups`'. */
 export const COMPAT_CHANNELS = ['A', 'B', 'C', 'D']
