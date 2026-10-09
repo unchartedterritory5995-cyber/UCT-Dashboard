@@ -45,6 +45,11 @@ def snapshot(response: Response, user: dict = Depends(get_current_user)):
 def ticker_snapshot(ticker: str, user: dict = Depends(get_current_user)):
     try:
         data = get_ticker_snapshot(ticker.upper())
-        return data if data else {}
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
+    if data:
+        return data
+    # Wave-2 audit: `{}` for a symbol that is not a ticker also says so (additive marker,
+    # api/services/symbol_presence.py); `{}` for a real but quiet ticker stays `{}`.
+    from api.services.symbol_presence import unknown_marker
+    return unknown_marker(ticker)
