@@ -19,7 +19,9 @@ import useQuoteOfTheDay from '../hooks/useQuoteOfTheDay'
 import SaveQuoteButton from '../components/quote/SaveQuoteButton'
 import UIcon, { uiconSvgString } from '../components/ui/UIcon'
 import { useInTerminalPanel } from '../components/terminal'
-import PageHeader from '../components/PageHeader'
+// SurfaceHeader, not PageHeader: inside a UCT Terminal panel (WIRE) the panel header already
+// names the page, and the full-bleed PageHeader bar was a second title (lane C audit 2026-10-08).
+import SurfaceHeader from './SurfaceHeader'
 import { useAuth } from '../context/AuthContext'
 import { injectSetupControls, setupAnchor, missedSymFrom, loggedMisses } from './setupFeedback'
 import styles from './MorningWire.module.css'
@@ -362,7 +364,7 @@ export default function MorningWire() {
   return (
     <PullToRefresh onRefresh={handleRefresh}>
     <div className={styles.pageWrap}>
-    <PageHeader icon="wire" title="Morning Wire" />
+    <SurfaceHeader icon="wire" title="Morning Wire" />
     <div className={styles.page}>
 
       {/* ── Masthead band: one carded strip — clock · dateline+quote ·
