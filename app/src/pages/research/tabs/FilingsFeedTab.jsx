@@ -86,7 +86,7 @@ export default function FilingsFeedTab({ sym }) {
       The filings feed is unavailable right now. That is a gap in what we could read, not a finding about {label}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button>
     </div>
   } else if (!data) {
-    body = <div className={styles.note}>Loading filings…</div>
+    body = <div className={styles.note} role="status" data-testid="feed-loading">Loading filings…</div>
   } else if (data.paywalled) {
     body = <div className={styles.note}>The filings feed requires a paid plan.</div>
   } else if (!data.rows || data.rows.length === 0) {

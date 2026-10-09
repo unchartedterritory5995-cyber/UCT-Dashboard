@@ -106,7 +106,7 @@ export default function HistoryTab({ sym }) {
     return (e.aliases || []).filter((a) => a.alias !== body.ticker)
   }, [body])
 
-  if (isLoading && !data) return <div className={styles.card}>Loading history…</div>
+  if (isLoading && !data) return <div className={styles.card} role="status" data-testid="history-loading">Loading history…</div>
   // 402 is the paid gate, not an outage.
   if (data && !data.ok && data.httpStatus === 402) {
     return <div className={styles.card} data-testid="history-paywalled">Ticker history requires a paid plan.</div>
