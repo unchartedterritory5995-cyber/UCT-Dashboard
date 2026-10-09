@@ -101,6 +101,21 @@
   font-family: var(--font-mono);
 }
 
+.labelLeader {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+/* PHONE: the 560-unit RRG graph scales to ~62% on a 390px phone, so an 11-unit label drew at
+   ~7px. 18 units reads ~11px there; RrgPanel.placeLabels spaces labels for this size
+   (audit 2026-10-08, RRG #24). */
+@media (max-width: 640px) {
+  .pointLabel {
+    font-size: 18px;
+  }
+}
+
 .qLeading { stroke: var(--gain); fill: var(--gain); }
 .qWeakening { stroke: var(--warn); fill: var(--warn); }
 .qLagging { stroke: var(--loss); fill: var(--loss); }
