@@ -384,3 +384,84 @@ def compare_target(sym: str) -> dict[str, Any]:
         log.warning("[terminal_grammar] fundamentals failed for %s: %s", s, exc)
     etf = sector_etf_for(sector)
     return {"sym": s, "mode": "sector", "sector": sector, "comparator": etf}
+
+
+# ── wave 3 lane 13 (product #7): "new since your last visit" on news, filings and catalysts ──
+#
+# MOVE's since-last-visit, generalised to a per-(member, CODE, ticker) seen record. It reuses
+# `terminal_visits` (no new table): the row key is "<CODE>:<SYM>", which can never collide with a
+# MOVE row (a ticker never contains ':'). The panel sends the keys of the items it SHOWS (each
+# carrying the item's own date, so `_prune_seen` ages them out); the answer is which of them are
+# new since the previous visit, and when that visit was.
+#
+# ⛔ THROTTLED (CLAUDE.md "Performance & Scale": the 524 outage was an unthrottled per-request write
+# on a hot path). A visit is recorded at most once per SEEN_MIN_INTERVAL per (member, code, sym);
+# inside that window the answer is computed from an in-process snapshot of the PRE-visit state
+# with no database read or write at all, so a refresh, a remount or a re-poll costs nothing and
+# the NEW marks stay put instead of vanishing on the next render.
+
+SEEN_CODES = ("CN", "FEED", "CF", "CATS")
+SEEN_MIN_INTERVAL = 60.0          # seconds between recorded visits per (member, code, sym)
+MAX_SEEN_KEYS_PER_CALL = 200
+MAX_SEEN_KEY_LEN = 160
+MAX_SEEN_STORED = 400             # newest keys kept per (member, code, sym)
+_SEEN_SNAPSHOT_CAP = 5000         # in-process snapshots before the cache is dropped wholesale
+_SEEN_SNAPSHOTS: dict[tuple, tuple] = {}   # (user, code, sym) -> (recorded_at, prev_seen|None, prev_last|None)
+_seen_lock = threading.Lock()
+
+
+def _seen_row_key(code: str, sym: str) -> str:
+    return f"{code}:{sym}"
+
+
+def _cap_seen(keys: set) -> list:
+    """Newest MAX_SEEN_STORED keys (by the date each carries; undated last)."""
+    def date_of(k):
+        m = _DATE_IN_KEY.search(k)
+        return m.group(1) if m else ""
+    return sorted(sorted(keys), key=date_of, reverse=True)[:MAX_SEEN_STORED]
+
+
+def seen_since_last_visit(user_id: str, code: str, sym: str, keys: list,
+                          now: Optional[float] = None) -> dict[str, Any]:
+    c = (code or "").strip().upper()
+    if c not in SEEN_CODES:
+        raise ValueError("unsupported code")
+    s = (sym or "").strip().upper()
+    if s and not SYM_RE.match(s):
+        raise ValueError("invalid ticker")
+    clean = []
+    for k in (keys or [])[:MAX_SEEN_KEYS_PER_CALL]:
+        if isinstance(k, str) and 0 < len(k) <= MAX_SEEN_KEY_LEN:
+            clean.append(k)
+    ts = time.time() if now is None else float(now)
+    snap_key = (str(user_id), c, s)
+
+    with _seen_lock:
+        snap = _SEEN_SNAPSHOTS.get(snap_key)
+    if snap is not None and ts - snap[0] < SEEN_MIN_INTERVAL:
+        _recorded_at, prev_seen, prev_last = snap
+        recorded = False
+    else:
+        conn = _conn()
+        try:
+            row = conn.execute("SELECT last_visit_at, seen_json FROM terminal_visits WHERE user_id=? AND sym=?",
+                               (str(user_id), _seen_row_key(c, s))).fetchone()
+            prev_seen = frozenset(json.loads(row["seen_json"])) if row else None
+            prev_last = float(row["last_visit_at"]) if row else None
+            merged = _prune_seen(set(prev_seen or ()) | set(clean), ts)
+            conn.execute("INSERT OR REPLACE INTO terminal_visits (user_id, sym, last_visit_at, seen_json) "
+                         "VALUES (?,?,?,?)", (str(user_id), _seen_row_key(c, s), ts, json.dumps(_cap_seen(merged))))
+            conn.commit()
+        finally:
+            conn.close()
+        with _seen_lock:
+            if len(_SEEN_SNAPSHOTS) >= _SEEN_SNAPSHOT_CAP:
+                _SEEN_SNAPSHOTS.clear()
+            _SEEN_SNAPSHOTS[snap_key] = (ts, prev_seen, prev_last)
+        recorded = True
+
+    if prev_seen is None:
+        return {"code": c, "sym": s, "first_visit": True, "last_visit_at": None, "new": [], "recorded": recorded}
+    return {"code": c, "sym": s, "first_visit": False, "last_visit_at": prev_last,
+            "new": [k for k in clean if k not in prev_seen], "recorded": recorded}

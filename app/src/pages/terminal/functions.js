@@ -400,3 +400,16 @@ export function editDistance(a, b) {
   }
   return dp[a.length][b.length]
 }
+
+// ── wave 3 lane 13 (product #6 "Mine"): APPENDED, never edited above, so it merges beside the
+// lanes that own the entries. `MINE` (args.js `mine`) filters a panel to the member's own names —
+// the calendar's My Stocks set (hooks/useMyTickers.js). Each panel's "Mine" chip writes the word
+// back into its command, so a reload, `?cmd=` and history keep the filter.
+//   CAL MINE        this week's earnings for your names only (Calendar's `mine` prop)
+//   MOST [UP] MINE  movers that are yours           FREC MINE   the honest tape, your names
+//   NVDA CN MINE    news across all your names       NVDA FEED MINE  new filings by your names
+const MINE_ARG = Object.freeze({ kind: 'mine', prop: 'mine' })
+for (const [code, side] of [['CAL', 'market'], ['MOST', 'market'], ['FREC', 'market'], ['CN', 'ticker'], ['FEED', 'ticker']]) {
+  const v = BY_CODE[code]?.[side]
+  if (v && !(v.args || []).some((a) => a.kind === 'mine')) v.args = [...(v.args || []), MINE_ARG]
+}

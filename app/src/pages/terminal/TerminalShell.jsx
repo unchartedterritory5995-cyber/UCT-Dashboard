@@ -292,6 +292,9 @@ export function Panel({
     // Wave 3: a row that opens a related function (`NVDA CF`) opens it BESIDE this panel
     // (components/terminal/PanelCommand), the way a list's row <GO> does.
     open: (text) => runHere(text, { next: true }),
+    // Wave 3 (lane 13): re-run a command IN THIS PANEL's slot -- an embedded panel's chip writing
+    // its state back into its own command (`FREC MINE`), so a reload keeps it.
+    rerun: (text) => runHere(text, { here: true }),
   } : null), [onList, onBoard, owner, boardCodes, rowsProp, runHere])
   // On a phone the switcher is an ARIA tablist whose tabs `aria-controls` this section, so it
   // is that tab's tabpanel (a11y audit 2026-10-06); elsewhere it is a labelled region.

@@ -165,10 +165,20 @@ export const ARG_KINDS = {
     },
     describe: (v) => (v === 'FLAGGED' ? 'your flagged list' : v.startsWith('W:') ? `watchlist ${v}` : `list ${v}`),
   },
+  /** "Mine" (wave 3 #6): only the member's own names — the calendar's My Stocks set
+   *  (hooks/useMyTickers). `CAL MINE`, `MOST UP MINE`, `NVDA CN MINE`, `FREC MINE`. The chip a
+   *  panel draws writes this word back into its command, so a reload keeps the filter. */
+  mine: {
+    takes: 'MINE (only your names)',
+    parse: (tok) => (String(tok ?? '').trim().toUpperCase() === MINE_MARKER ? true : null),
+    describe: () => 'only your names',
+  },
 }
 
 /** The word IMOV writes before a hand-picked theme (see `themeName`). */
 export const THEME_MARKER = 'THEME'
+/** The word that filters a panel to the member's own names (see `mine`). */
+export const MINE_MARKER = 'MINE'
 
 /**
  * Pure: what a variant does with the tokens typed after its code.

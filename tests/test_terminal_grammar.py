@@ -306,6 +306,7 @@ _ALL_ROUTES = [
     ("delete", "/api/terminal/aliases/SEMIS", {}),
     ("get", "/api/terminal/move/NVDA", {}),
     ("get", "/api/terminal/compare-target?sym=NVDA", {}),
+    ("post", "/api/terminal/seen/CN", {"json": {"sym": "NVDA", "keys": ["2026-10-07|a"]}}),
 ]
 
 
@@ -323,6 +324,7 @@ def test_the_census_of_routes_is_complete():
     app = FastAPI()
     app.include_router(router_mod.router)
     served = {(m, r.path) for r in app.routes if r.path.startswith("/api/terminal/") for m in r.methods}
-    named = {(m.upper(), path.split("?")[0].replace("/SEMIS", "/{name}").replace("/NVDA", "/{sym}"))
+    named = {(m.upper(), path.split("?")[0].replace("/SEMIS", "/{name}").replace("/NVDA", "/{sym}")
+              .replace("/seen/CN", "/seen/{code}"))
              for m, path, _ in _ALL_ROUTES}
     assert named == served

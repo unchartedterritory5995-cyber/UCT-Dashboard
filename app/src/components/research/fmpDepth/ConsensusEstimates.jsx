@@ -21,6 +21,7 @@ import { AuthContext } from '../../../context/AuthContext'
 import { FETCH_FAILED, sectionFetcher } from '../sections/sectionFetch'
 import { WARMING_UP, useWarming } from '../../../utils/warmRetry'
 import SourceLine from './SourceLine'
+import { EarningsTradeCardForSym } from '../EarningsTradeCard'
 import { UNKNOWN_CCY, fmtCount, fmtEps, fmtGrowth, fmtMoney } from './depthFormat'
 import { formatNumber, isForeignCurrency, reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
 import styles from './FmpDepth.module.css'
@@ -205,6 +206,7 @@ export default function ConsensusEstimates({ sym }) {
 
   return (
     <div className={styles.wrap} data-testid="ee-deep" data-source={fmpOk ? 'fmp' : 'yfinance'}>
+      <EarningsTradeCardForSym sym={s} />
       {fmpOk ? (
         <section className={styles.card} data-testid="ee-consensus">
           <div className={styles.head}>
