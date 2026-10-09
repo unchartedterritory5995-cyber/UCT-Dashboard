@@ -195,7 +195,10 @@ export const FUNCTIONS = [
     market: { door: '/dashboard', leavesTerminal: true, why: 'the dashboard is itself a bento of tiles and hosts the hub tile; a board inside a panel is a second shell' } },
   { code: 'CHRT', label: 'Charts workspace', group: 'Market',
     market: { door: '/charts', leavesTerminal: true, why: 'the /charts board is the panel host itself (the panel set refuses it as board-host)' } },
-  { code: 'CATH', label: 'Catalysts history', group: 'Market', market: { surface: '/catalysts/history' } },
+  // `CATH 2026-10-01` / `CATH 10/01` opens that session's list (args.js `etDate`, Eastern time);
+  // a CATS row opens it for the row's date (wave 4, lane A). Bare `CATH` opens the latest session.
+  { code: 'CATH', label: 'Catalysts history', group: 'Market',
+    market: { surface: '/catalysts/history', args: [{ kind: 'etDate', prop: 'date' }] } },
   { code: 'FORM', label: 'Formula reference', group: 'Market',
     market: { door: '/formulas/reference', leavesTerminal: true, why: 'App.jsx loads it with a bare lazy() and no lazyPage importer to share' } },
   { code: 'DESK', label: 'The Desk', group: 'Market',

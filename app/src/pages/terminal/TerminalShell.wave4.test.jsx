@@ -195,3 +195,19 @@ describe('fix 3: `NVDA DP` opens the dark pool page on NVDA', () => {
     expect(where()).toBe('/dark-pool')
   })
 })
+
+describe('fix 4: CATH takes a day', () => {
+  it('`CATH 2026-10-01` opens the catalyst list for that session', async () => {
+    renderAt(['/terminal'])
+    await type('CATH 2026-10-01')
+    expect(code(0)).toBe('CATH')
+    expect(screen.getByTestId('terminal-panel-0')).toHaveTextContent(':date=2026-10-01')
+    expect(params().get('cmd')).toBe('CATH 2026-10-01')
+  })
+
+  it('a day still ahead is said to be not applied', async () => {
+    renderAt(['/terminal'])
+    await type('CATH 2099-01-01')
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent('Not applied: "2099-01-01"')
+  })
+})
