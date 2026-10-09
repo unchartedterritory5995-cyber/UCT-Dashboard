@@ -13,7 +13,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BoardFromList, PanelSkeleton, PanelState, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
-import useCloses, { closesProvenance } from './useCloses'
+import useCloses, { closesProvenance, failedText } from './useCloses'
 import { MIN_CORR_SESSIONS, collectSymbols, correlationMatrix, corrWindow, withArgsKey } from './relativeMath'
 import styles from './comparePanels.module.css'
 
@@ -117,8 +117,16 @@ export default function CorrPanel({ sym, lookback, ...props }) {
   }
   if (state.phase !== 'ready') return <PanelSkeleton label={`Loading ${syms.join(', ')}`} testId="terminal-corr-loading" />
   if (!read) {
-    const why = state.failed.length ? `Could not read ${state.failed.join(', ')} just now.` : 'Fewer than two names could be read.'
-    return <PanelState kind="error" title={why} testId="terminal-corr-error">CORR needs at least two names with price history. Run it again to retry.</PanelState>
+    // Audit wave 2: an unknown ticker says "No price history for X: check the ticker" (a 404 is
+    // not "just now"), and Retry is a button — re-running the same command keeps this panel and
+    // reads nothing (same treatment as REL / RRG, via useCloses.retry).
+    const why = failedText(state) || 'Fewer than two names could be read.'
+    return (
+      <PanelState kind="error" title={why} testId="terminal-corr-error"
+        action={<button type="button" onClick={state.retry} data-testid="terminal-corr-retry">Retry</button>}>
+        CORR needs at least two names with price history. Retry, or drop that name.
+      </PanelState>
+    )
   }
   return (
     <div className={styles.wrap} data-testid="terminal-corr">
@@ -151,7 +159,7 @@ export default function CorrPanel({ sym, lookback, ...props }) {
                     className={`${styles.corrCell} ${i === j ? styles.corrDiag : ''} ${c.r == null ? styles.corrNa : ''}`}
                     style={i === j ? undefined : { background: corrTint(c.r) }}
                     title={c.r == null ? `${c.n} common sessions: too few` : `${c.n} common sessions`}>
-                    {i === j ? '1' : c.r == null ? 'n/a' : formatNumber(c.r, { decimals: 2 })}
+                    {i === j ? '1.00' : c.r == null ? 'n/a' : formatNumber(c.r, { decimals: 2 })}
                   </td>
                 ))}
                 <td>{formatNumber(read.avg[i].avg, { decimals: 2 })}</td>
@@ -161,7 +169,10 @@ export default function CorrPanel({ sym, lookback, ...props }) {
         </table>
       </div>
       {state.failed.length > 0 && (
-        <p className={styles.note} role="status" data-testid="terminal-corr-failed">Could not read {state.failed.join(', ')} just now; not in the matrix.</p>
+        <p className={styles.note} role="status" data-testid="terminal-corr-failed">
+          {failedText(state)} Not in the matrix.{' '}
+          <button type="button" className={styles.chip} onClick={state.retry} data-testid="terminal-corr-failed-retry">Retry</button>
+        </p>
       )}
       <p className={styles.muted}>
         Pearson correlation of daily returns {windowPhrase(win)}, each pair on the
