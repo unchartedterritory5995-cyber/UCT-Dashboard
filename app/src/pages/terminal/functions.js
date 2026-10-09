@@ -115,6 +115,10 @@ export const FUNCTIONS = [
   { code: 'ASK', label: 'Ask AI', group: 'Security',
     ticker: { panel: 'AskAi', section: 'ai' },
     market: { door: '/ai-search', leavesTerminal: true, why: 'the AI search page owns a streaming conversation and its own history rail' } },
+  // ── wave 7 lane D: stock-lens codes (terminal-native panels over routes that already exist) ──
+  // PEER: the stock beside its peers, over /api/groups/peers (paid) + live prices + MON's returns read.
+  { code: 'PEER', label: 'Peers and relative value', group: 'Security',
+    ticker: { panel: 'Peer' } },
 
   // ── Research › Depth (each panel is its own surface behind its own flag) ──
   { code: 'DPTH', label: 'Research depth (every depth panel you have)', group: 'Research depth',
