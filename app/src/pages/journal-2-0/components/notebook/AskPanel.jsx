@@ -43,15 +43,6 @@ export const SCOPES = {
 const RATE_LIMIT_MSG = "You've hit today's Ask limit — it resets at midnight ET."
 const PAID_MSG = 'Ask requires a paid plan.'
 const OPEN_FAILED_MSG = "Couldn't open that source — try again."
-// The finished answer is written into the sr-only announcer ANNOUNCE_DELAY_MS after it lands, and
-// stays there ANNOUNCE_CLEAR_MS more. The delay is load-bearing: the moment the answer lands the
-// panel also moves focus (the question field was disabled while asking, so focus had fallen to the
-// page and is handed to the answer block), and a live write in the same instant as that focus
-// change was NOT spoken by NVDA 2026.2 on production (2026-10-09 03:50 CT, `ask_live_diag`), while
-// the same write 600 ms later was. NVDA reads a live change at the moment it happens; the copy only
-// has to outlive that moment.
-const ANNOUNCE_DELAY_MS = 600
-const ANNOUNCE_CLEAR_MS = 2500
 
 /** Read one SSE frame set out of a buffer. */
 function drainEvents(buf) {
@@ -205,22 +196,6 @@ export default function AskPanel({
     const lost = !at || at === document.body || (at.matches && at.matches('[role="dialog"]'))
     if (lost) answerRef.current?.focus({ preventScroll: true })
   }, [status, open])
-
-  // The finished answer is ANNOUNCED through a region that already exists (screen-reader pass
-  // 2026-10-09, row 19, finding F1). Measured with NVDA 2026.2 on a local page before this shape
-  // was chosen: a pre-existing polite region written once is spoken; a region that arrives with
-  // its text is not; a pre-existing region kept `aria-busy` through the stream and released at
-  // the end is not either. So: one sr-only region in the DOM from the moment the panel opens,
-  // written once when the answer is done, cleared a moment later so the words exist in the DOM
-  // twice only for as long as the announcement needs them (a find-in-page or a virtual cursor a
-  // minute later meets one copy, the visible one).
-  const [announce, setAnnounce] = useState('')
-  useEffect(() => {
-    if (status !== 'done' || !answer) { setAnnounce(''); return undefined }
-    const write = setTimeout(() => setAnnounce(answer), ANNOUNCE_DELAY_MS)
-    const clear = setTimeout(() => setAnnounce(''), ANNOUNCE_DELAY_MS + ANNOUNCE_CLEAR_MS)
-    return () => { clearTimeout(write); clearTimeout(clear) }
-  }, [status, answer])
 
   const ask = useCallback(async () => {
     const q = query.trim()
@@ -423,20 +398,9 @@ export default function AskPanel({
             </div>
           )}
 
-          {/* ⛔ THE LIVE REGION EXISTS BEFORE THE ANSWER DOES. A screen reader announces a CHANGE
-              inside a live region it already knows about; it does not announce a region that
-              arrives with its text. The answer block below is rendered only once there is an
-              answer, so when it carried `aria-live` the region was mounted together with its
-              first words and nothing was ever spoken -- measured on production with NVDA 2026.2,
-              five runs, 2026-10-09 (`docs/notebook/screen-reader-pass.md`, row 19, finding F1):
-              the DOM held "I couldn't find that in this note." and NVDA said nothing. This
-              sr-only region is in the DOM from the moment the panel opens, empty, and receives
-              the finished answer once; the visible block keeps `aria-busy` for the stream. */}
-          <div className={styles.srOnly} aria-live="polite" data-testid="ask-live">{announce}</div>
-
           {answer && (
             <div className={styles.answer} data-testid="ask-answer" ref={answerRef} tabIndex={-1}
-                 aria-busy={status === 'asking'}>
+                 aria-live="polite" aria-busy={status === 'asking'}>
               {parts.map((p, i) => (p.source
                 ? (
                   <button
