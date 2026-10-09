@@ -25,7 +25,8 @@ export default function FirstRunCard({ onTry }) {
   }, [loading, prefs, eligible])
   const [dismissed, setDismissed] = useState(false)
   if (!eligible || dismissed || prefs?.[ORIENTATION_PREF]) return null
-  const dismiss = () => { setDismissed(true); setPref(ORIENTATION_PREF, '1') }
+  // A literal key at the write site, so the preference census can read it (S5 CP2 additions-only rail).
+  const dismiss = () => { setDismissed(true); setPref('terminal_orientation_seen', '1') }
   const tryIt = (cmd) => (
     <button type="button" className={styles.chip} onClick={() => onTry?.(cmd)} data-testid={`terminal-firstrun-try-${cmd.replace(/\s+/g, '-')}`}>{cmd}</button>
   )

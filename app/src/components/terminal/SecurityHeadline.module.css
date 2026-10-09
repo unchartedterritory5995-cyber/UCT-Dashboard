@@ -24,11 +24,11 @@
 }
 
 .up {
-  color: var(--gain);
+  color: var(--success-ink);
 }
 
 .down {
-  color: var(--loss);
+  color: var(--danger-ink);
 }
 
 .flat {

@@ -148,7 +148,7 @@ describe('the grammar and registry reach MOST', () => {
     }
     const vol = applyArgs(fn.market, ['XYZ'])
     expect(vol.ignored).toEqual(['XYZ'])
-    expect(argsEcho('MOST', vol)).toBe('Not applied: "XYZ" — MOST takes UP, DOWN or RVOL.')
+    expect(argsEcho('MOST', vol)).toBe('Not applied: "XYZ" — MOST takes UP, DOWN or RVOL or MINE (only your names).')
   })
 
   it('a `$SYM` row is a load row; a command row and a bare word are not', () => {

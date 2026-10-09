@@ -637,6 +637,10 @@ ACKNOWLEDGED_FRONTEND_GATES = {
     "app/src/pages/terminal/TerminalShell.panelCount.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/terminal/TerminalShell.reorder.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/terminal/TerminalShell.scanBoard.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    # 2026-10-08/09 audit waves 2-3: first visit, MINE/ALRT/MON, and the trimmed list.
+    "app/src/pages/terminal/TerminalShell.firstVisit.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.myNames.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    "app/src/pages/terminal/TerminalShell.trim.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/breadth/drill/BreadthDrillModal.withdrawal.test.jsx":
         "TEST: fakes `cohorts_withdrawn` to drive the drill withdrawal block",
 }
