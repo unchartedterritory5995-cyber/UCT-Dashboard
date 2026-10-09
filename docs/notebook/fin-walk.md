@@ -395,6 +395,12 @@ Nothing else from K1 to K7 is open.
   (`ResearchHome.quietAsk.test.jsx`, which also proves the door survives the quiet-to-full flip).
 - From the whole Notebook a citation opens the cited note, not a passage in it. Inside a note it
   lands on the passage. Both are as built; only the second is a passage landing.
+  *Fixed, on master as #289 `01a38df644` (2026-10-09):* the whole-Notebook citation now carries
+  its passage (note id, server location, the text at the range) through `NotebookTab.openNote`'s
+  history state, and `NoteEditorPage` verifies it against the live doc and lands through the same
+  `selectResolvedPassage` the in-note Ask uses; a passage the note no longer holds opens the note
+  at the top, silently (`NotebookTab.citationLanding.test.jsx`, `openCitation.test.js`). The
+  server packet adds `location.text` so the landing is the matched term, not the whole excerpt.
 - A new member's "Default" account is not a stored account until it is used: an account made
   before the first trade replaces it. That was my setup error in the first run.
 
