@@ -130,3 +130,22 @@ The Indicator team's `docs/indicators/AGENT-INTEGRATION-HANDOFF.md` (2026-10-09)
 - **Where:** `CHARTS_EXTRA_GROUPS_ENABLED` (on in production since 2026-10-09) reaches the browser on the auth payload only; `charts_workspace_layout` saves are not checked for colours, for manual edits or Agent ones. With the flag off, a stored E–H reads as "not linked" (`colorGroups.effectiveGroup`), so the exposure is low.
 - **Agent:** `widget.setLink` / `chart.linkTab` refuse E–H whenever the board snapshot says the flag is off (the colour dot's own rule).
 - **Owner:** Charts workspace — optional server-side colour allow-list on board saves.
+
+## 13. Main Trading needs a product-level lock, not only an Agent rule [V]
+
+- **Problem:** any writer that drives `/charts` writes the ACTIVE layout — opening the page restores it, and the board auto-save flushes whatever is on screen. A test or an automation session in the owner's own browser (the risk named in `docs/indicators/AGENT-INTEGRATION-HANDOFF.md` "Risks") is indistinguishable from the owner. Board saves are protected against STALE writes (per-key CAS, `workspace-revision-safety`), not against a writer that should not be there at all.
+- **Agent (done, `82b093fadd`):** `agent/protectedLayouts.js` — while a protected layout is open, the Agent refuses every board / chart / widget / drawing change and Undo into it; from anywhere it never renames, deletes or saves into one. Protected = "Main Trading" + names/ids in `localStorage['uct.agent.protectedLayouts']`. Verified on the real page (10/10, stored board byte-identical).
+- **Proposed product lock (Charts workspace + backend):**
+  1. A `locked` flag on a `charts_layouts` row (owner toggles "Lock layout" in Layouts ▾).
+  2. While the ACTIVE layout is locked, `write_pref_checked` refuses board-key writes (`charts_workspace_layout`, its groups key) and row saves with a distinct status (e.g. 423 `layout_locked`) — unless the request carries a short-lived unlock token the UI obtains only from an explicit member click ("Unlock to edit" → `POST /api/charts/layouts/{id}/unlock` → token for this tab).
+  3. The UI shows a persistent "Locked — changes are not saved" notice with an Unlock button (the same pattern as the 409 conflict notice).
+  4. Optional belt-and-braces: when `navigator.webdriver` is true (Playwright / Selenium), the client never sends the unlock token.
+  Effect: the owner edits Main Trading after one click; nothing automated can change it without that click; the Agent rule above stays as a second line.
+- **Owner:** Charts workspace (UI) + backend (`api/services/workspace_doc_store.py`).
+
+## 14. Charts capability audit (2026-10-09) — what is safe next, what stays blocked [V]
+
+- **Done from this audit:** 8 setting rows promoted (crosshair thickness/style/magnet, swing-label colours, earnings beat/miss colours — `b13f88d37f`); floating / popped-out widgets are never re-tiled or edited by the Agent (`82627dbb8d` — the board snapshot included them while the grid does not).
+- **Next safe candidates (canonical, persisted, reversible, not Indicator-owned):** widget tabs on non-chart widgets — select / rename / close via `pages/charts/widgetTabs.js` (`setActiveWidgetTab`, `renameWidgetTab`, `closeWidgetTab`; `mainTabName` must join the board kind's fields) and merge-into via `addWidgetTab` + removing the source in one `applyBoard` (Undo restores both objects; `addWidgetTab` ids are random, so Undo restores the before-objects); the Chart Detail Dock (`chartDock.toggleDockPanel` on `opts.dock`); `header.colors.<key>` and `bgGradient.top/bottom` with their prerequisites; the "Merge Widgets" board toggle (`charts_merged` pref).
+- **Stay blocked:** float and pop-out (session-only React state, OS windows, no read-back); `handlePopOutLayout` (blanks and saves the main board); pane order / sizes / series order and `volumeOverlayIndicators` (Indicator-owned); `volume.separatePane` / `paneHeightPct` (inert on /charts) and `charts_vol_pane_pct` (a global pref); `watermark.color`+`opacity` (one 8-digit writer), `header.fields` / `barInfo` (set-valued, no descriptor rows); replay, drawing magnet, watchlist columns (session or localStorage only).
+- **Product gaps:** no un-merge (tab → own widget) reducer; no pane collapse/maximize on board charts.

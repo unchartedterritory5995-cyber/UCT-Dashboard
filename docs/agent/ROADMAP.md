@@ -43,7 +43,7 @@ UCT Agent is one product initiative. It is not one engine, and not one team.
 | Area | Agent today | Status |
 |---|---|---|
 | Chart symbol / timeframe / type / scale / session | `chart.setSymbol/.setTimeframe/.setType/.setScale/.setSession`. Session follows the UI's pre/post window rules. | available |
-| Chart appearance | `chart.applyTheme` (one chart) and `chart.applyThemeAll` (every chart), `.setBackground`, `.setCandleColors`, `volume.setState`, and `chart.setSetting`: **46** display settings from the product descriptor table (Batch 6 added grid/crosshair/text colours, watermark size/weight/lines, previous-day level style/width/colour, swing-label tint/background), colour names accepted | partial (indicator and drawing settings are owned elsewhere) |
+| Chart appearance | `chart.applyTheme` (one chart) and `chart.applyThemeAll` (every chart), `.setBackground`, `.setCandleColors`, `volume.setState`, and `chart.setSetting`: **54** display settings (post-integration, local: + crosshair thickness/style/magnet, swing-label and earnings colours) from the product descriptor table (Batch 6 added grid/crosshair/text colours, watermark size/weight/lines, previous-day level style/width/colour, swing-label tint/background), colour names accepted | partial (indicator and drawing settings are owned elsewhere) |
 | Chart templates / defaults | **`chart.applyTemplate`** (the look of one of your saved templates, confirmed first), **`chart.resetDefaults`** (the default look, confirmed first). Both exact Undo; both carry every indicator-owned key over unchanged (`keepOwned`, `OWNED_TOP_KEYS`) — the Agent never changes indicators. | partial (saving a new template is not supported) |
 | Go to a date / compare | **`chart.goToDate`** (a view change: the receipt waits for the chart's right edge to read back; Undo scrolls back), **`chart.compare`** (add / remove / clear overlay symbols, the Compare panel's own entries) | partial (a date RANGE and replay are not supported) |
 | Custom timeframes | **`chart.addCustomTimeframe`** (minutes / hours / days / weeks / months; optionally switches to it) | partial (removing one is not supported) |
@@ -165,7 +165,7 @@ One conversation that coordinates workspace actions, historical queries, visual 
 - ⚠ **Restore `UCT_AGENT_DAILY_CAP`** on Railway `web` (raised 300 → 3000 for development on 2026-10-08 22:20 EDT with the owner's approval; the cap is the Agent's only spend gate). Recommended: 1,000–3,000/admin/day while developing; 150–300/member/day at member rollout, tuned from real usage.
 - ✅ Small-request schema fixes released and verified (PRODUCT-HANDOFFS §8).
 - Re-run the full 57-case benchmark (routed) on the current build; the scorer should accept a correct create-and-open (case #3) and a clarify for a name (case #13).
-- A product-level guard for the owner's Main Trading layout (protection is operational today).
+- Main Trading: the Agent refuses to change it (`agent/protectedLayouts.js`, done); the product-level layout lock (PRODUCT-HANDOFFS §13) is still to build.
 - Unattended sessions follow `docs/agent/UNATTENDED-DEVELOPMENT.md`.
 
 ## Verification debt
@@ -189,3 +189,4 @@ One conversation that coordinates workspace actions, historical queries, visual 
 | Batch 6 (chart control, catalog scaling, resize, tabs) | `d3ca02f124` / Railway `b546b3ff` (2026-10-08 22:09 EDT); redeployed `22571854` (same commit) for the cap change | Real-model benchmark 22:35 EDT: routed 46/57, wide 49/57, Batch 6 cases 14/14 routed; found the live small-request schema defect (PRODUCT-HANDOFFS §8) — fix `b554a9f376` local, not deployed |
 | Production recovery 2026-10-09 | `b554a9f376` (live 2026-10-08 22:54 EDT, pushed by an unattended loop — see UNATTENDED-DEVELOPMENT.md) + `e3e48854df` / Railway `8efffe58` | small routed requests 400 at the model API (enum, then grammar size); 5/5 crash cases recovered, 9/9 smoke |
 | Overnight integration release (E–H, drawings narrow, refusal wording, audit fixes) | `9c5837c64a` / Railway `d3cd9982` (2026-10-09 09:39 EDT) | audit added Drawing Board-aware staleness and server-confirmed drawing receipts; prod smoke 8/8 HTTP 200 (planning only) |
+| Post-integration (local, unreleased) | `82b093fadd` protected layouts · `e95b21438e` M1 plan + acceptance skeleton · `82627dbb8d` detached-widget guard · `b13f88d37f` 8 more settings | awaiting a release decision; M1 waits on the Indicator team (M1-INDICATORS-PLAN.md) |
