@@ -870,7 +870,7 @@ export default function Calendar() {
     return (
       <div className={styles.page}>
         {headerEl}
-        <div className={styles.error}>
+        <div className={styles.error} role="alert">
           Couldn&apos;t load that week.{' '}
           <button className="btn btn-secondary btn-sm" onClick={() => mutate()}>Retry</button>
         </div>

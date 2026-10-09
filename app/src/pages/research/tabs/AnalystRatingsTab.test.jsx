@@ -65,6 +65,8 @@ describe('AnalystRatingsTab', () => {
     expect(within(ptSection).getByText('$250')).toBeInTheDocument() // consensus mid
     // livePrice 200, ptMid 250 -> +25.0%
     expect(within(ptSection).getByText('+25.0%')).toBeInTheDocument()
+    // audit wave 2: the live price is the last trade, and the label says so (not "current price")
+    expect(within(ptSection).getByText('vs last trade')).toBeInTheDocument()
 
     expect(screen.getByText('Recent analyst actions')).toBeInTheDocument()
     expect(screen.getByText('Evercore ISI')).toBeInTheDocument()

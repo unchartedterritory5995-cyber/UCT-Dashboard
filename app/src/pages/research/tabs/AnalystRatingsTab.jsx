@@ -195,7 +195,8 @@ export default function AnalystRatingsTab({ sym }) {
             </div>
             {upside != null && (
               <div>
-                <div className={styles.muted}>vs current price</div>
+                {/* Audit wave 2: the live price is the LAST TRADE (after hours, the last print). */}
+                <div className={styles.muted}>vs last trade</div>
                 <div className={upside >= 0 ? styles.up : styles.down}>{signedPct(upside)}</div>
               </div>
             )}
