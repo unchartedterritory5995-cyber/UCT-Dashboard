@@ -8,6 +8,7 @@ import { sessionModel } from '../../../components/dashboard/sessionModel'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { parseEtTimestamp, ET_ZONE } from '../../../lib/marketClock/etTime'
 import ResearchLoading from '../ResearchLoading'
+import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
 import styles from '../ResearchPage.module.css'
 
 // A8 News/Intelligence Slice 1 (owner-authorized narrow slice,
@@ -88,6 +89,9 @@ function hideBrokenImage(e) {
 export default function NewsTab({ sym }) {
   const { data, isLoading, error, paywalled, mutate } = useCompanyNews(sym)
   const session = useMarketOpen()
+  // Audit wave 2: source + read time in the terminal panel header (the trust strip sits below
+  // the whole list). A no-op outside the terminal.
+  usePanelFreshness(data && !error && !paywalled ? panelAsOf('FMP company news and press releases', data._meta?.sourceObservedAt ?? null) : null)
 
   if (isLoading) {
     return <ResearchLoading label="Loading news" />

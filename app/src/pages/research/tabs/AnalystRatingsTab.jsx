@@ -11,6 +11,7 @@ import useMarketOpen from '../../../hooks/useMarketOpen'
 import { formatCurrency } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
 import ResearchLoading from '../ResearchLoading'
+import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
 import styles from '../ResearchPage.module.css'
 import AnalystRevisions from './AnalystRevisions'
 
@@ -92,10 +93,20 @@ function toRatingChangeRows(actions) {
   }))
 }
 
+/** Pure: the newest `_meta.sourceObservedAt` (epoch seconds) across the three legs, or null. */
+function newestObservedAt(d) {
+  const ts = [d?.consensus?._meta, d?.price_target?._meta, d?.recent_actions?._meta]
+    .map((m) => Number(m?.sourceObservedAt)).filter((n) => Number.isFinite(n) && n > 0)
+  return ts.length ? Math.max(...ts) : null
+}
+
 export default function AnalystRatingsTab({ sym }) {
   const { data, isLoading, error, paywalled, mutate } = useAnalystRatings(sym)
   const session = useMarketOpen()
   const { prices: livePrices } = useLivePrices(sym ? [sym] : [])
+  // Audit wave 2: source + newest read time in the terminal panel header (CF and EEH do; the
+  // per-card trust strips stay). A no-op outside the terminal.
+  usePanelFreshness(data && !error && !paywalled ? panelAsOf('FMP analyst ratings and price targets', newestObservedAt(data)) : null)
 
   if (isLoading) {
     return <ResearchLoading label="Loading analyst ratings" />
