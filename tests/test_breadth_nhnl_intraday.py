@@ -213,3 +213,19 @@ def test_monitor_rows_take_the_intraday_basis_after_the_derive_pass(tmpdata, mon
     assert rows[0]["new_52w_highs"] == 5 and rows[0]["new_20d_lows"] == 60
     bm._apply_nhnl(rows, "derived")
     assert rows[0]["net_new_high_low"] == -45 and rows[0]["lo_ratio"] == 5.0
+
+
+def test_population_diagnostic_splits_by_venue_and_type(tmpdata, monkeypatch):
+    from api.services import breadth_pit_frame as bpf
+    ring = nhi.Ring()
+    days = _sessions(253)
+    frames = [_frame({"AAA": 10.0, "PRF": 25.0}, {"AAA": 9.0, "PRF": 24.0})] * 252
+    frames.append(_frame({"AAA": 10.0, "PRF": 25.0}, {"AAA": 9.5, "PRF": 23.0}))
+    _run(ring, days, frames)
+    ring.save(nhi.STATE_PATH, {"version": nhi.VERSION})
+    rec = lambda t: [{"type": t, "primary_exchange": "XNYS", "list_date": None, "delisted_utc": None}]
+    monkeypatch.setattr(bpf, "reference_map", lambda: {"AAA": rec("CS"), "PRF": rec("PFD")})
+    out = nhi.diagnose_population()
+    assert out["ok"] and out["session"] == days[-1]
+    assert out["by_venue_type"]["XNYS|PFD"]["complete_nl_intraday"] == 1
+    assert out["by_venue_type"]["XNYS|CS"]["complete_nl_intraday"] == 0
