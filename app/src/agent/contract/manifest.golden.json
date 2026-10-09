@@ -390,7 +390,7 @@
    "name": "chart.applyTemplate",
    "domain": "chart",
    "target": "chart",
-   "summary": "Apply one of the member's saved chart templates to ONE chart (right-click → Chart template). It replaces that chart's whole look, including its indicators, with the template's.",
+   "summary": "Apply one of the member's saved chart templates' LOOK to ONE chart (right-click → Chart template). The chart's indicators are kept exactly as they are — UCT Agent never changes indicators.",
    "hints": "template = a name from chartTemplates, exactly. For several charts (\"all my charts\"), one op per chart.",
    "args": {
     "type": "object",
@@ -413,7 +413,7 @@
    "name": "chart.resetDefaults",
    "domain": "chart",
    "target": "chart",
-   "summary": "Restore ONE chart's settings to UCT's defaults (Chart Settings → Restore defaults): its look, markers and indicators all go back to the default set.",
+   "summary": "Restore ONE chart's look to UCT's defaults (Chart Settings → Restore defaults): colours, markers, header, watermark and display settings. The chart's indicators are kept exactly as they are.",
    "hints": "target = the chart. Always shown as a proposal first.",
    "args": {
     "type": "object",

@@ -183,6 +183,10 @@ const INTERNAL = [
 export const CHART_SETTING_DESCRIPTORS = [...ELIGIBLE, ...SPECIALIZED, ...OWNED, ...KNOWN, ...INTERNAL]
 
 export const ELIGIBLE_SETTINGS = ELIGIBLE
+// The top-level keys other projects own (Indicator Intelligence: instances, panes, overlays).
+// A whole-look write by UCT Agent (template, restore defaults) carries these over from the
+// chart UNCHANGED — the Agent never adds, removes or resets an indicator.
+export const OWNED_TOP_KEYS = [...new Set(OWNED.map(d => d.id.split('.')[0]))]
 export const settingDescriptor = (id) => CHART_SETTING_DESCRIPTORS.find(d => d.id === id) || null
 
 /** The descriptor that classifies a settings PATH (exact id first, then the nearest `x.*`). */

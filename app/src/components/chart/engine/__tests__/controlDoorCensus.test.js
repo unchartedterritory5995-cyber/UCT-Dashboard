@@ -212,6 +212,13 @@ const BULK_BLOB_SITES = [
   ['app/src/components/chart/ChartToolbar.jsx',
     'applyPreset — the toolbar\'s theme buttons spread a preset\'s whole settings object onto ' +
     'the persisted chart_settings'],
+  ['app/src/agent/capabilities/chart.js',
+    'UCT Agent’s chart.applyTemplate / chart.resetDefaults — the right-click template flyout’s and ' +
+    'the modal Reset’s look writes (a clone of the LIVE CHART_DEFAULTS), ALWAYS shown as a proposal ' +
+    'first. NOT door seven’s hazard: keepOwned() carries every indicator-owned top-level key ' +
+    '(OWNED_TOP_KEYS from chartSettingsDescriptors — indicatorInstances, indicators, overlays, panes) ' +
+    'over from the chart unchanged, so the Agent never stamps indicator state; asserted in ' +
+    'agent/agentBatch6.test.jsx'],
   ['app/src/pages/Settings.jsx',
     'applyPreset (again) + resetToDefaults — the Settings page\'s own preset / reset controls, ' +
     'the same two surfaces engineEnabledMigration.test.js already names'],

@@ -13,7 +13,8 @@ import { repackAroundMoved, resolveResize } from '../pages/charts/ChartsWorkspac
 import { WIDGET_REGISTRY } from '../widgets/registry'
 import { boardProblems } from '../pages/charts/placement/arrange'
 import { chartTabList } from '../pages/charts/chartTabs'
-import { viewAt, dateMs } from './capabilities/chart'
+import { viewAt, dateMs, keepOwned } from './capabilities/chart'
+import { OWNED_TOP_KEYS } from '../components/chart/chartSettingsDescriptors'
 
 registerBuiltins()
 const CTX = { surface: 'charts' }
@@ -73,25 +74,41 @@ describe('chart.setSetting — Batch 6 rows (colours, watermark detail, prev-day
   })
 })
 
-describe('chart.applyTemplate / chart.resetDefaults — the product\'s own whole-blob writes, proposed first', () => {
-  const tpl = { name: 'Swing Dark', settings: { ...mergeChartSettings({}), chartType: 'bars', grid: { color: '#111111', visible: false } } }
-  it('applies {...template.settings, preset:custom} — exactly the right-click flyout — with Undo', async () => {
-    const host = chartHost({ templates: [tpl] })
+describe('chart.applyTemplate / chart.resetDefaults — the product\'s own look writes, proposed first, indicators untouched', () => {
+  const MINE = [{ id: 'i-mine', type: 'rsi', inputs: { length: 9 } }]
+  const tpl = { name: 'Swing Dark', settings: { ...mergeChartSettings({}), chartType: 'bars', grid: { color: '#111111', visible: false }, indicatorInstances: [{ id: 'i-tpl', type: 'macd' }], paneOrder: ['macd'] } }
+  const owned = (cs) => Object.fromEntries(OWNED_TOP_KEYS.map(k => [k, cs[k]]))
+  it('applies the template\'s look ({...settings, preset:custom}) and KEEPS every indicator-owned key the chart has; Undo', async () => {
+    const host = chartHost({ templates: [tpl], stored: { indicatorInstances: MINE } })
+    const before = host.charts.read('c1').cs
     const { p, env } = await plan(host, [op('chart.applyTemplate', { template: 'swing dark' })])
     expect(p.ok).toBe(true)
     expect(decideMode('apply', p)).toBe('propose')
-    expect(p.plans[0].after.cs).toEqual({ ...tpl.settings, preset: 'custom' })
+    const after = p.plans[0].after.cs
+    expect(owned(after)).toEqual(owned(before))                    // the member's indicators, panes, overlays — exactly
+    expect(after.indicatorInstances).toEqual(before.indicatorInstances)
+    expect(after).toMatchObject({ chartType: 'bars', grid: { color: '#111111', visible: false }, preset: 'custom' })
+    expect(p.lines[0]).toMatch(/your indicators are unchanged/)
     const res = await commitPlan(host, p, { env })
-    expect(host.st.stored).toEqual({ ...tpl.settings, preset: 'custom' })
+    expect(host.st.stored.indicatorInstances).toEqual(before.indicatorInstances)
     expect((await undoEntry(host, res.undo)).ok).toBe(true)
-    expect(host.st.stored).toBe(null)
+    expect(host.st.stored).toEqual({ indicatorInstances: MINE })
     expect((await plan(chartHost({ templates: [tpl] }), [op('chart.applyTemplate', { template: 'Nope' })])).p.refusals[0].reason).toMatch(/no chart template named “Nope”/)
   })
-  it('restore defaults writes CHART_DEFAULTS (Chart Settings → Restore defaults), proposed', async () => {
-    const host = chartHost({ stored: { chartType: 'line' } })
+  it('restore defaults = a clone of the live CHART_DEFAULTS for the look; indicator-owned keys carried over unchanged', async () => {
+    const host = chartHost({ stored: { chartType: 'line', indicatorInstances: MINE } })
+    const before = host.charts.read('c1').cs
     const { p } = await plan(host, [op('chart.resetDefaults', {})])
     expect(decideMode('apply', p)).toBe('propose')
-    expect(p.plans[0].after.cs).toEqual(JSON.parse(JSON.stringify(CHART_DEFAULTS)))
+    const after = p.plans[0].after.cs
+    expect(owned(after)).toEqual(owned(before))
+    expect(after.chartType).toBe(CHART_DEFAULTS.chartType)
+    const look = (o) => Object.fromEntries(Object.entries(o).filter(([k]) => !OWNED_TOP_KEYS.includes(k)))
+    expect(look(after)).toEqual(look(JSON.parse(JSON.stringify(CHART_DEFAULTS))))
+  })
+  it('keepOwned: a key the chart has keeps its value; a key it lacks stays absent', () => {
+    expect(keepOwned({ chartType: 'bars', indicatorInstances: [1] }, { overlays: ['x'] })).toEqual({ chartType: 'bars', overlays: ['x'] })
+    expect(OWNED_TOP_KEYS).toEqual(expect.arrayContaining(['indicatorInstances', 'indicators', 'paneOrder', 'paneSeriesOrder']))
   })
 })
 

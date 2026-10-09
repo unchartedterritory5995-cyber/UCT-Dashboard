@@ -29,7 +29,7 @@ import { getExtSessionCached } from '../../utils/extSession'
 import { unknownSymbols } from '../agentClient'
 import { mergeChartSettings, CHART_TYPE_OPTIONS } from '../../components/chart/chartDefaults'
 import { NATIVE_TFS, tfLabel as productTfLabel } from '../../components/chart/timeframes'
-import { ELIGIBLE_SETTINGS, settingDescriptor, coerceSettingValue, settingUnavailable, withSetting, settingValue } from '../../components/chart/chartSettingsDescriptors'
+import { ELIGIBLE_SETTINGS, OWNED_TOP_KEYS, settingDescriptor, coerceSettingValue, settingUnavailable, withSetting, settingValue } from '../../components/chart/chartSettingsDescriptors'
 import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
 import { makeTfCode, isValidTf, tfLabel as tfShort } from '../../components/chart/timeframes'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
@@ -253,6 +253,18 @@ export const chartKind = {
     const c = host?.widgets?.configOf?.(ref)
     return !!c && c.color === 'N' && c.symbol === born.symbol && (!born.tf || c.tf === born.tf)
   },
+}
+
+// A whole-look write (template, restore defaults) with every indicator-owned top-level key carried
+// over from the chart as it is now — present keeps its value, absent stays absent (door SEVEN: a bulk
+// write must never stamp indicatorInstances over what the member had).
+export function keepOwned(next, prev) {
+  const out = JSON.parse(JSON.stringify(next))
+  for (const k of OWNED_TOP_KEYS) {
+    if (prev && Object.prototype.hasOwnProperty.call(prev, k)) out[k] = JSON.parse(JSON.stringify(prev[k]))
+    else delete out[k]
+  }
+  return out
 }
 
 export function describeChart(snap, shortRef) {
@@ -561,29 +573,31 @@ const CAPABILITIES = [
   },
   {
     // ── chart.applyTemplate: the right-click "Chart template" flyout's own apply ──
-    // (ChartWidget.applyChartTemplate → paneRef.applySettings({...t.settings, preset:'custom'})):
-    // the WHOLE settings blob, indicators included — so it is always proposed.
+    // (ChartWidget.applyChartTemplate → paneRef.applySettings({...t.settings, preset:'custom'})),
+    // EXCEPT the indicator-owned keys (OWNED_TOP_KEYS), which stay exactly as the chart has them.
+    // A whole-look change, so it is always proposed.
     name: 'chart.applyTemplate',
     risk: 'confirm',
-    summary: "Apply one of the member's saved chart templates to ONE chart (right-click → Chart template). It replaces that chart's whole look, including its indicators, with the template's.",
+    summary: "Apply one of the member's saved chart templates' LOOK to ONE chart (right-click → Chart template). The chart's indicators are kept exactly as they are — UCT Agent never changes indicators.",
     hints: 'template = a name from chartTemplates, exactly. For several charts ("all my charts"), one op per chart.',
     args: { type: 'object', properties: { template: { type: 'string' } }, required: ['template'], additionalProperties: false },
     check: (st, { template }) => (findTemplate(template) ? null
       : templatesNow().length ? `You have no chart template named “${template}” (you have: ${templatesNow().map(t => t.name).slice(0, 8).join(', ')}).` : 'You have no saved chart templates yet — save one in Chart Settings → Templates.'),
-    apply: (st, { template }) => ({ ...st, cs: JSON.parse(JSON.stringify({ ...findTemplate(template).settings, preset: 'custom' })) }),
-    describe: (b, a, { template }) => (sameJson(b.cs, a.cs) ? null : `Applied your chart template “${findTemplate(template)?.name || template}” (replaces this chart's look and indicators)`),
+    apply: (st, { template }) => ({ ...st, cs: keepOwned({ ...findTemplate(template).settings, preset: 'custom' }, st.cs) }),
+    describe: (b, a, { template }) => (sameJson(b.cs, a.cs) ? null : `Applied the look of your chart template “${findTemplate(template)?.name || template}” (your indicators are unchanged)`),
     noop: () => 'The chart already looks exactly like that template',
   },
   {
-    // ── chart.resetDefaults: Chart Settings' own "Restore defaults" (CHART_DEFAULTS, whole blob) ──
+    // ── chart.resetDefaults: Chart Settings' own "Restore defaults" (a clone of the LIVE
+    // CHART_DEFAULTS), EXCEPT the indicator-owned keys, which stay exactly as the chart has them ──
     name: 'chart.resetDefaults',
     risk: 'confirm',
-    summary: "Restore ONE chart's settings to UCT's defaults (Chart Settings → Restore defaults): its look, markers and indicators all go back to the default set.",
+    summary: "Restore ONE chart's look to UCT's defaults (Chart Settings → Restore defaults): colours, markers, header, watermark and display settings. The chart's indicators are kept exactly as they are.",
     hints: 'target = the chart. Always shown as a proposal first.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     check: () => null,
-    apply: (st) => ({ ...st, cs: JSON.parse(JSON.stringify(CHART_DEFAULTS)) }),
-    describe: (b, a) => (sameJson(b.cs, a.cs) ? null : "Restored this chart's default settings (its look, markers and indicators)"),
+    apply: (st) => ({ ...st, cs: keepOwned(JSON.parse(JSON.stringify(CHART_DEFAULTS)), st.cs) }),
+    describe: (b, a) => (sameJson(b.cs, a.cs) ? null : "Restored this chart's default look (your indicators are unchanged)"),
     noop: () => 'This chart already has the default settings',
   },
   {
