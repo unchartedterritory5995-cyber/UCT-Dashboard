@@ -47,6 +47,20 @@ def test_the_ear_reads_nvda_speaking_lines_as_words(mod):
     assert mod.parse_speech("Input: kb(desktop):tab") == []  # a gesture line is not speech
 
 
+def test_the_ear_hears_a_string_python_wrote_with_double_quotes(mod):
+    """⚰️ The line that fooled the first grader for seven runs: a string holding an apostrophe is
+    written by Python's repr with DOUBLE quotes. The first parser read single-quoted strings only,
+    graded "I couldn't find that in this note." as never spoken, and a product defect was written
+    up, fixed twice and reverted (#294 F1, #295, #296, #297). The ear must hear both quote styles,
+    and a mixed line keeps its order."""
+    line = "Speaking [LangChangeCommand ('en_US'), \"I couldn't find that in this note.\"]"
+    assert mod.parse_speech(line) == ["I couldn't find that in this note."]
+    mixed = "Speaking [LangChangeCommand ('en_US'), 'button', 'expanded', \"Patrick's note\", 'link']"
+    assert mod.parse_speech(mixed) == ["button expanded Patrick's note link"]
+    # and the grader, fed that speech, PASSES the row it used to fail
+    assert mod.grade(["find", "note"], mod.parse_speech(line))[0] == "PASS"
+
+
 def test_the_foreground_guard_refuses_without_a_nonce_window_and_before_ensure(mod):
     class NoPage:
         def evaluate(self, *_a, **_k):

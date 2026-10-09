@@ -57,7 +57,7 @@ no longer exists in the file is itself a finding.
 | 16 | **Ctrl+F** (Mac: **Cmd+F**). Type a word. | `"Find in note"`, search landmark; `"Find in note"`, search box (focus is in it); the match count is read | `components/notebook/NoteFindBar.jsx:198`, `:223` | **PASS** | r7. `Find in note search landmark`, `Find in note edit`, then the count as each letter lands (`s 1/6`, `t 1/2`, `o 1/1`). |
 | 17 | **Ctrl+H** (Mac: **Cmd+Option+F**, appendix A). Tab to the replace field. **Escape**. | `"Hide replace"` / `"Show replace"`, button; `"Replace with"`, edit; Escape returns you to `"Note body"` | `components/notebook/NoteFindBar.jsx:206`, `:298`; `components/notebook/NoteEditorPage.jsx:556` (closeFind) | **PASS** | r7, keys differ from the script: Ctrl+H showed the replace row (DOM: `Hide replace` x1, `Replace with` x1), but from the find box it is SIX Tabs away (Match case, Whole word, Previous match, Next match, Close find, then `Replace with edit`, `Replace button`); Escape: `Note body`. |
 | 18 | Tab to Ask; **Enter**. | `"Ask a question about this note"`, button, collapsed -> expanded; the panel `"Ask This note"`; focus in `"Your question about This note"`, edit | `components/notebook/AskPanel.jsx:300` (scope label `:33`), `:307`, `:325` | **PASS** | r7. `Ask a question about this note button collapsed` -> `expanded`, `Ask This note dialog`, `Your question about This note edit`. |
-| 19 | Ask something the note does not contain (e.g. `What is the dividend?`), **Enter**, wait. | the answer is read politely, without moving focus: `"I couldn't find that in this note."` | live region `components/notebook/AskPanel.jsx:357`; sentence `api/services/journal_two/ask_service.py:55` | **FAIL** | r2, r3, r5, r6, r7 -- FIVE runs, the same: NVDA echoed the typed question and then said NOTHING of the answer, while the DOM held `I couldn't find that in this note.` in a `aria-live=polite`, `aria-busy=false` element. ⚠️ DEFECT, finding F1 below. |
+| 19 | Ask something the note does not contain (e.g. `What is the dividend?`), **Enter**, wait. | the answer is read politely, without moving focus: `"I couldn't find that in this note."` | live region `components/notebook/AskPanel.jsx:357`; sentence `api/services/journal_two/ask_service.py:55` | **PASS** | NVDA spoke `I couldn't find that in this note.` in EVERY run (its log: 02:43:55, 02:51:47, 03:01:28, 03:06:18, 03:10:52 CT), once as the focused answer block is read. ⚰️ Graded FAIL for seven runs by a grader that could not read a double-quoted string -- see "The instrument fault" below; withdrawn 04:20 CT. |
 | 20 | Tab to `"Close Ask"`, **Enter**. | the panel closes and focus is back on `"Ask a question about this note"`, button | `components/notebook/AskPanel.jsx:320`; `components/notebook/NoteEditorPage.jsx:3140` | **PASS** | r7. `Close Ask button`, then `Ask a question about this note button collapsed`. |
 | 21 | Leave the note (browser **Back**). Choose **Graph view**. Tab to `Show as list`, **Space**. | `"Graph view"`, toggle button; `"Show as list"`, toggle button, not pressed -> pressed; a table `"Notes in the graph, by title"` with `Note`, `Links`, `Linked notes` headers; each title a button | `lib/savedViewModes.js:28`; `components/notebook/NoteGraphView.jsx:537`, `:543` | **PASS** | r7 (after a reload). `Graph view toggle button`, `Show as list toggle button not pressed` -> `pressed`, the list's table. |
 | 22 | **Space** again (back to the picture). Tab to the canvas; **Home**, then an **arrow**, then **Enter**. | `"Note graph: <n> notes, <m> links"`, application, then the key instructions; after Home: `"<title>, <n> links"`; the arrow names the next note; Enter opens it | `components/notebook/NoteGraphView.jsx:589`, `:591`, `:599`, `:603` (words `:518`) | **PASS** | r7. `Note graph: 2 notes, 1 link` + the key instructions (`application`); Home: `SR pass, 1 link`. |
@@ -69,7 +69,9 @@ no longer exists in the file is itself a finding.
 
 ## Result -- NVDA 2026.2, 2026-10-09, production, the smoke account
 
-**26 PASS · 1 FAIL · 1 NOT RUN** (the table above; row 26 is the NOT RUN). The VoiceOver half was
+**26 PASS · 0 FAIL · 1 NOT RUN** (the table above; row 26 is the NOT RUN). ⚰️ This read **26 · 1 · 1**
+for about an hour, with row 19 as the FAIL and a "defect F1" under it, until the grader was found to be
+deaf to apostrophes (below). The VoiceOver half was
 not run: no Mac and no iPhone were at hand, and a BrowserStack Live mirror has never been shown to
 carry VoiceOver speech (precondition above), so it is recorded as **not available**, not as passed.
 
@@ -88,14 +90,19 @@ each `.speech.log` beside a record is NVDA's speech for that window (lines carry
 
 **Findings, in order of weight.**
 
-- **F1 -- DEFECT. The Ask answer is never spoken (row 19).** Five runs (r2, r3, r5, r6, r7), the
-  same: NVDA echoed the typed question and said nothing of the answer, while the DOM held
-  `I couldn't find that in this note.` in the answer element with `aria-live="polite"` and
-  `aria-busy="false"`. Mechanism, read from `components/notebook/AskPanel.jsx:401-403`: the element
-  is rendered as `{answer && <div aria-live="polite" aria-busy=...>}`, so the live region is MOUNTED
-  together with its first text and no change ever happens inside an existing live region; a screen
-  reader announces changes, not arrivals. Fix shape: keep an always-present (empty) polite region in
-  the panel and write the finished answer into it, or mount the region before the stream starts.
+- **F1 -- WITHDRAWN. "The Ask answer is never spoken (row 19)" was the grader's fault, not the
+  product's.** It was written here as a DEFECT with a mechanism read from `AskPanel.jsx` (a live
+  region mounted together with its text), fixed twice (#295 an sr-only announcer, #296 a deferred
+  write), each fix "verified still failing" on production by the same grader, and both fixes
+  reverted (#297) once NVDA's own log was read directly: the sentence was spoken in every run,
+  the untouched code included, as NVDA read the answer block that takes focus when the answer is
+  done. The two fixes had added a second, duplicate announcement (r9/r10 logs: the sentence twice,
+  600 ms apart). **The instrument fault** is in the next section. What stays true from the
+  investigation, measured on a local page with NVDA (`scratchpad/fin/live_region_probe.py`, all
+  apostrophe-free sentences, so the ear was sound there): a pre-existing polite region written once
+  IS spoken; a region that arrives already holding its text is NOT; a pre-existing region held
+  `aria-busy` through a stream and released at the end is NOT. The production panel is spoken
+  because focus moves to the answer, not because of its `aria-live`.
 - **F2 -- the Table tool bar is twelve Tab stops (row 11).** From the note heading, Tab reaches the
   body on the 29th press: ... Suggest values with Compass, then `Add a row above`, `Add a row
   below`, `Delete this row`, `Add a column to the left`, `Add a column to the right`, `Delete this
@@ -115,6 +122,21 @@ each `.speech.log` beside a record is NVDA's speech for that window (lines carry
   `Replace with`), "Tab to Delete" (inside `More note actions`). Each row PASSES on the sounds once
   the right keys are used; the Notes column carries the keys. Row 15's `[[` needs a space or a line
   start before it and closes on a space inside the query.
+
+**The instrument fault, and why it survived seven runs.** NVDA logs a speech sequence as a Python
+list repr. A string is written with single quotes -- unless it contains an apostrophe, when Python
+writes it with double quotes: `"I couldn't find that in this note."`. The grader's regex read
+single-quoted strings only, so every utterance with an apostrophe was invisible to it, and the one
+sentence this pass most needed to hear has an apostrophe in its second word. The blind spot was
+consistent, so it looked like a stable product fact: the same row failed the same way every time,
+the DOM probe showed the sentence present, and the story ("mounted with its text, so never a
+change") was a real live-region mechanism that happened not to be the one in play. What broke the
+spell was a diagnostic whose control sentences had no apostrophes and were "spoken" while the real
+sentence, written by hand into the same node, was "not" -- a difference the product could not have
+produced. ⭐ The ear now reads both quote styles and `tests/test_notebook_nvda_pass.py` pins the exact
+line that fooled it. The rule it leaves behind: **walk the ear against its own blind-spot list before
+grading, and a finding that only one instrument can see is a census of one** (the same shape as the
+quantised-instrument and own-blind-spot lessons in CLAUDE.md).
 
 **Driver faults found on the way, kept because the next runner will hit them.** (1) `SendInput`
 types into the OS foreground window, and `page.bring_to_front()` does not change it: r1 typed seven
