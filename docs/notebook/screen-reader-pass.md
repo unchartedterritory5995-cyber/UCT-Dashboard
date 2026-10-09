@@ -138,6 +138,13 @@ line that fooled it. The rule it leaves behind: **walk the ear against its own b
 grading, and a finding that only one instrument can see is a census of one** (the same shape as the
 quantised-instrument and own-blind-spot lessons in CLAUDE.md).
 
+**The re-grade run (r11, 04:34 CT, the reverted code #297 live, the fixed ear):** row 19 PASS -- the
+sentence spoken, twice (once as the focused answer block is read, once from the block's own
+`aria-live`; a double announcement that was there before any fix and is noted, not ruled on); 26
+PASS, 1 NOT RUN, and one FAIL that is the driver's: row 12's **H** said `no next heading` because
+row 11's Tabs had left NVDA's browse cursor BELOW the heading, in the table; **T** still found the
+table. r7 passed the row from above. `nvda-2026-10-09-r11-regraded-post297.json`.
+
 **Driver faults found on the way, kept because the next runner will hit them.** (1) `SendInput`
 types into the OS foreground window, and `page.bring_to_front()` does not change it: r1 typed seven
 minutes of keys into another browser. The tool now verifies, before EVERY key, that the window
