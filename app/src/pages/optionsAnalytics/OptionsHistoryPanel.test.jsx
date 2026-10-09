@@ -50,6 +50,30 @@ describe('OptionsHistoryPanel (FT-007/009/010)', () => {
     expect(sum.textContent).not.toMatch(/inside the implied move \d+%/)
   })
 
+  // Audit 2026-10-08 (OHIS, point 27): inside / outside the implied move is said in words, not
+  // told by the colour of the number alone.
+  it('each daily-move row says inside or outside in words', async () => {
+    stub({ '/daily-move': [200, { ...DAILY, pairs: [
+      ...DAILY.pairs,
+      { date: '2026-10-01', next: '2026-10-02', implied_move_pct: 2, actual_move_pct: -3, ratio: 1.5, inside: false },
+    ] }] })
+    mount()
+    const d = await screen.findByTestId('daily-move')
+    const rows = d.querySelectorAll('li')
+    expect(rows[0].textContent).toContain('actual -3.00% outside the implied move')
+    expect(rows[1].textContent).toContain('actual +1.00% inside the implied move')
+  })
+
+  it('the IV-crush summary rows are labelled in words and the offsets are explained', async () => {
+    const summary = { average: { '-1': 0.5, 0: 0.6, 1: 0.4 }, max: { '-1': 0.6, 0: 0.7, 1: 0.5 }, min: { '-1': 0.4, 0: 0.5, 1: 0.3 } }
+    stub({ '/iv-crush': [200, { ...CRUSH, summary }] })
+    mount()
+    const t = await screen.findByTestId('iv-crush')
+    const heads = [...t.querySelectorAll('tbody th[scope="row"]')].map((th) => th.textContent)
+    expect(heads.slice(-3)).toEqual(['Average', 'Max', 'Min'])
+    expect(screen.getByTestId('iv-crush-key').textContent).toMatch(/0 is the last session that closed before the print/)
+  })
+
   it('the IV-crush table leaves an unlogged session blank and states why no average exists', async () => {
     stub({ '/iv-crush': [200, CRUSH] })
     mount()
