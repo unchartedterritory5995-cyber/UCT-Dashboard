@@ -9591,6 +9591,8 @@ from api.routers import address_space as address_space_router  # noqa: E402  (TE
 app.include_router(address_space_router.router)
 from api.routers import terminal_grammar as terminal_grammar_router  # noqa: E402  (TERMINAL-NEXT T3, cohort-gated)
 app.include_router(terminal_grammar_router.router)
+from api.routers import terminal_grade as terminal_grade_router  # noqa: E402  (GRADE: Compass verdict, cohort + paid, brain-gated)
+app.include_router(terminal_grade_router.router)
 from api.routers import options_chain as options_chain_router  # noqa: E402  (BRK-01 inc 1, dark)
 app.include_router(options_chain_router.router)
 from api.routers import options_analytics as options_analytics_router  # noqa: E402  (FT-0xx options rows, each dark)
