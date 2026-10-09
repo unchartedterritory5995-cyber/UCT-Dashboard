@@ -362,7 +362,48 @@ Then a joint local sandbox pass, then admin-only production acceptance on a scra
 ### 14.8 Order of work (after the owner's go-ahead for the M2 build)
 
 1. Indicators: `canManageIndicators()` on the ChartPane handle + rail.
-2. Indicators: `removeInstanceWithRecord`, `restoreRemoved`, `groupFingerprint` + tests; the door-EIGHT
+2. Indicators: `removeInstanceWithRecord`, `restoreRemoved`, `groupFingerprint`, `dependentsOf` + tests; the door-EIGHT
    entry for the Agent file.
 3. Agent: the `indicatorInstance` kind, the three actions, the permission re-check, receipts, Undo.
 4. Joint sandbox, then production acceptance.
+
+### 14.9 Agent review (2026-10-09) — agreed additions
+
+- **Dependents are pinned too (14.4).** `dependentsOf(cs, ids) → [{ kind: 'source' | 'infoValue', instanceId?, key?, path }]`
+  (NEW, Indicators-owned, pure) lists everything a removal would sever. The proposal pins it, and Apply
+  refuses `changed-while-working` if the set differs from the pinned one, so a member never approves a
+  removal that severs something they were not shown.
+- **The proposal names what will be severed (14.5).** The Agent shows `dependentsOf` in the remove
+  proposal ("Moving Average over RSI will lose its source"). It does not dry-run the writers for this.
+  `removeInstance` and `removeInstanceWithRecord` are pure (they return a new settings object and write
+  nothing), but the list comes from `dependentsOf` so its shape is part of the contract.
+- **Remove is always a proposal** (risk: confirm). Show/hide and add follow the Agent's normal risk rules.
+- **Undo lives in memory only.** The removal record is held in the Agent's in-memory Undo entry and is
+  never persisted, so there is no Undo after a reload or on another device. A stored record would
+  restore over changes made elsewhere.
+- **Main Trading:** the `indicatorInstance` kind joins `protectedLayouts.ON_THE_BOARD`, so every M2
+  write and Undo on Main Trading is refused.
+- **Production acceptance surface: OPEN, owner decision.** The Agent runs only on `/charts`; the standing
+  rule is never to open `/charts` on the owner account, because it restores the active workspace (Main
+  Trading) and the layout dock auto-saves. 14.7's surface is decided by the owner before acceptance.
+
+### 14.10 Reason codes and refusal shapes
+
+Writers refuse by **identity**: `addInstance`, `removeInstance`, `setInstanceHidden` return the input `cs`
+object unchanged (`next === cs`) when they refuse. `validateInstance(inst, registry, ctx)` returns
+`{ ok: false, errors: string[] }`. The new functions return `{ ok: true, … } | { ok: false, reason, detail? }`.
+
+| `reason` | Raised by | Meaning (receipt) |
+|---|---|---|
+| `permission-changed` | Agent, at apply / Undo | Access, chart writability or definition ownership changed since planning; nothing written. |
+| `changed-while-working` | Agent, at apply | The target group, its fingerprint, the definition version or the dependents set changed. |
+| `not-found` | Agent (from `instancesOf`) | The instance is no longer live on this chart. |
+| `unknown-definition` | Agent, at plan / apply | The `defId` is neither built-in nor the member's own. |
+| `writer-refused` | Agent (writer returned `cs` unchanged) | Indicators' writer declined the change; `detail` = `validateInstance` errors when available. |
+| `restore-conflict` | `restoreRemoved` | A recorded path changed since the removal; `detail` = the first conflicting path. |
+| `record-invalid` | `restoreRemoved` | The record is malformed or for another chart. |
+| `dependent-exists` | Agent, Undo of add | Something now reads the added instance; removing it would sever it. |
+| `protected-layout` | Agent | Main Trading (or another protected layout) refuses M2 writes. |
+| `board-conflict` | Agent (409 / CAS) | The board changed elsewhere; nothing was overwritten. |
+| `persist-failed` | Agent | `host.persist()` did not ACK; the change is not reported as done. |
+| `did-not-land` | Agent (read-back) | `instancesOf` did not show exactly the intended change. |
