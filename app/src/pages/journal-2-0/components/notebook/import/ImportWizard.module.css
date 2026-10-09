@@ -425,8 +425,12 @@
 /* This product's touch tier is <=1024px, NOT <=640px — a floor restored only
    at 640 leaves tablet broken (a defect this repo has hit repeatedly). */
 @media (max-width: 1024px) {
+  /* Finish program (fin-walk F2, 820 and 390 px): a group's "All" button measured 38 x 44.
+     The height floor was here; the width was whatever "All" at 11 px plus padding came to.
+     A floor on both axes, so a two-letter label is as tappable as a long one. */
   .bulkBtn, .groupBulkBtn {
     min-height: 44px;
+    min-width: 44px;
     padding: 8px 12px;
   }
   .noteRow {
