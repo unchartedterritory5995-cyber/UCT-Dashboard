@@ -173,6 +173,36 @@ def _carry_not_live(date_str: str, keys, *, dates: dict | None = None) -> dict:
     return out
 
 
+def carry_missing_not_live(date_str: str) -> dict:
+    """Fill ONLY the NOT_LIVE fields (sentiment / put-call / exposure / index closes) a stored
+    session is missing, from the newest earlier non-degraded session — the same carry `heal_date`
+    applies, without re-computing or re-stating any measured field. A carried daily print is
+    stamped with the session it came from (`<key>_asof`). Never touches a present value.
+
+    ⭐ (2026-10-09 audit) UCTFG 2026-02-05 and UCTX 2026-05-21 were the only holes in their series:
+    the collector missed the print and the session was older than the self-heal's 10-day window.
+    """
+    from api.services import breadth_monitor as bm
+    stored = bm.raw_row(date_str)
+    if not stored:
+        return {"ok": False, "date": date_str, "reason": "no stored session"}
+    keys = _not_live_keys()
+    missing = [k for k in keys if stored.get(k) is None
+               or (k == "cnn_fear_greed" and stored.get(k) in (0, 0.0))]
+    if not missing:
+        return {"ok": True, "date": date_str, "carried": {}}
+    src: dict = {}
+    carried = _carry_not_live(date_str, missing, dates=src)
+    patch = {k: v for k, v in carried.items() if v is not None}
+    for k in list(patch):
+        if k in DATED_CARRY_KEYS and src.get(k):
+            patch[asof_key(k)] = src[k]
+    if not patch:
+        return {"ok": True, "date": date_str, "carried": {}, "unavailable": missing}
+    ok = bm.patch_fields(date_str, patch)
+    return {"ok": bool(ok), "date": date_str, "carried": patch, "from": src}
+
+
 def _recent_universe_list(date_str: str):
     """The newest real `universe_list` on-or-before `date_str` (the universe barely
     changes day to day). Used to restore one a heal stripped."""
