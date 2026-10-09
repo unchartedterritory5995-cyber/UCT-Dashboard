@@ -35,3 +35,6 @@
 .legendCall { border-top-color: var(--gain); }
 .legendPut { border-top-color: var(--loss); }
 .legendZero { border-top: 1px solid var(--border); }
+/* OHIS earnings markers (spec #8): dashed so the line is not told by colour alone; the key says it in words. */
+.earnMark { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.legendEarn { border-top: 1px dashed var(--text-muted); }
