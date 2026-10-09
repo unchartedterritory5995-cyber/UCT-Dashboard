@@ -45,15 +45,19 @@ words in chat; the scheduled-task readings were taken on this machine on 2026-10
   anyone's control, and then two small steps: put the install link in the Notebook's capture
   help, and switch the listing to Public at launch. If it is not, row 2 is still to do. One
   look at the Chrome Web Store developer dashboard settles it.
-  **SETTLED 2026-10-09 ~11:45 CT: NOT submitted.** Opening
-  `https://chrome.google.com/webstore/devconsole` in the owner's own signed-in Chrome landed on
-  `/webstore/devconsole/register` ("Chrome Web Store - Developer Agreement"): this Google
-  account has never registered as a Chrome Web Store developer, so no item exists. Row 2 is
-  the full §1 path: register ($5, agreement), New item, upload
-  `.extension-build/uct-browser-capture-0.1.0.zip` (rebuilt today, sha256 71f4c8251c952891),
-  paste the listing and privacy text from `chrome-web-store-listing.md`, Unlisted, submit.
-  ⚠️ Chrome forbids extensions from scripting the gallery/console pages, so an agent can open
-  them in the owner's Chrome but can neither read nor fill them; the owner does those tabs.
+  **SETTLED 2026-10-09 ~13:20 CT: SUBMITTED AND PUBLISHED (unlisted).** The owner's report was
+  right. The developer dashboard under the publisher account that owns it lists **UCT Browser
+  Capture, version 0.1.0, created and last updated Sep 26, 2026, status "Published - unlisted"**,
+  item id `kpogeikeoejgkefdcjdpeoonmbiflnlk`; the public page
+  `https://chromewebstore.google.com/detail/uct-browser-capture/kpogeikeoejgkefdcjdpeoonmbiflnlk`
+  answers 200 titled "UCT Browser Capture - Chrome Web Store". ⚰️ An earlier entry here (#303,
+  ~11:45 CT) said "NOT submitted": it read a DIFFERENT Google account's dashboard, which
+  redirects to developer registration, and generalised one account to all of them. The two
+  follow-ups are DONE: the Settings card links to the store page (#304), and the handshake is
+  pinned to this id (`CAPTURE_EXTENSION_IDS` on web, 2026-10-09 18:20Z, ledger `knobs`). What
+  remains at launch is one switch in the dashboard: Distribution, Unlisted to Public.
+  ⚠️ Chrome forbids extensions from scripting the gallery/console pages; the dashboard was read
+  from an OS screen capture of the window, never driven.
 - **Row 6 (the soak): already running.** The nightly roll-up task `UCT-NB-Soak` has run since
   2026-09-26; its last run was 2026-09-30 18:30 and exited 0. That run's line reads day 4.2 of
   30, verdict INCONCLUSIVE, with 2 of the 5 organic members and 3 of the 20 active members the
