@@ -88,3 +88,14 @@ Evidence labels:
 
 - **Where:** `pages/charts/chartTabs.js` has add / close / select / rename / patch reducers and no move; `ChartTabStrip.jsx` has no drag. The Agent cannot reorder tabs because the product cannot.
 - **Owner:** Charts workspace — a `moveChartTab(opts, tabId, toIndex)` reducer (keeping `activeChartTab` on the same tab) would let the Agent and a drag share one writer.
+
+## 11. Anchored drawings need the drawing layer's point and time rules exported [V]
+
+- **What the Agent does now (overnight Batch 8, narrow):** horizontal levels only — the price-axis menu's own shape (`{type:'horizontal', points:[{price}]}`, the member's drawing defaults), plus restyle / remove ONE drawing by id and list, all through `drawingsStore` (`addDrawing` / `updateDrawing` / `removeDrawing` / `peekDrawings`). Undo is by id, never `drawingsStore.undo` (that history is shared with the member's own edits). Verified on the real page: the line renders, syncs to `tracings_doc`, Undo removes exactly it.
+- **What blocks trendlines, rectangles, Fibonacci, text (Batch 8b):**
+  1. `POINT_COUNT` is module-private in `ChartDrawingOverlay.jsx` — please export it (or a `pointCountFor(type)`).
+  2. There is no `validateDrawing(type, points)`; the store accepts any object. An exported validator would let every non-overlay writer (`NewsWidget` today, the Agent tomorrow) refuse a malformed drawing instead of storing it.
+  3. `point.time` is the chart's DISPLAY time (D/W/M: ET `YYYY-MM-DD`; intraday: epoch seconds floored to the bar + ET offset) and a drawing does not record its timeframe. A drawing-owned `toStoredTime(tf, utcMs)` (over `barTime.computeBarTime`) — and a rule for what a daily-anchored drawing means on an intraday chart — is needed before the Agent places time anchors.
+  4. "The last swing high / the recent consolidation" need a deterministic detector the product already trusts (e.g. the swing-label engine) exposed as a read; until then the Agent asks for explicit dates and prices.
+- **Not offered on purpose:** "clear all drawings" — `clearAll(sym)` wipes every chart on the symbol and, through `useBoundDrawingAlerts`, the alerts bound to those lines.
+- **Owner:** Charts drawing layer.
