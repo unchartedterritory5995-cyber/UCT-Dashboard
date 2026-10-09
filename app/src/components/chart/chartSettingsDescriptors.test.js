@@ -39,10 +39,13 @@ describe('chart settings descriptors — the completeness rail', () => {
   // A chart where every prerequisite holds (Bars type; watermark, swing labels and prev-day lines on).
   const ready = (d) => {
     let b = mergeChartSettings({})
-    if (d.requires?.chartType) b = { ...b, chartType: d.requires.chartType[0] }
-    if (d.requires?.setting) {
-      const dep = settingDescriptor(d.requires.setting)
-      b = withSetting(b, dep, 'value' in d.requires ? d.requires.value : (dep.boolMap ? dep.boolMap.true : true))
+    // a row's prerequisites, in order (a LIST when the dialog nests controls)
+    for (const r of [].concat(d.requires || [])) {
+      if (r.chartType) b = { ...b, chartType: r.chartType[0] }
+      if (r.setting) {
+        const dep = settingDescriptor(r.setting)
+        b = withSetting(b, dep, 'value' in r ? r.value : (dep.boolMap ? dep.boolMap.true : true))
+      }
     }
     return b
   }
@@ -101,3 +104,25 @@ describe('chart settings descriptors — UI-equivalent writes', () => {
     expect(settingUnavailable(thin, { chartType: 'bars' })).toBe(null)
   })
 })
+
+describe('overnight follow-up: crosshair line options, swing / earnings colours', () => {
+  it('crosshair style takes the member’s word and stores the dialog’s LineStyle number; width is the panel’s 1-4', () => {
+    const style = settingDescriptor('crosshair.style')
+    expect(coerceSettingValue(style, 'dashed')).toEqual({ ok: true, value: 2 })
+    expect(coerceSettingValue(style, 'Dotted')).toEqual({ ok: true, value: 1 })
+    expect(coerceSettingValue(style, 0)).toEqual({ ok: true, value: 0 })
+    expect(coerceSettingValue(style, 'wavy').why).toMatch(/solid, dashed, dotted/)
+    expect(coerceSettingValue(settingDescriptor('crosshair.width'), 5).ok).toBe(false)
+  })
+  it('nested prerequisites: swing-high colour needs swing labels AND tint-by-type; earnings colours need earnings markers', () => {
+    const up = settingDescriptor('swingLabels.upColor')
+    const base = mergeChartSettings({})
+    expect(settingUnavailable(up, base)).toMatch(/Turn swing labels on first/)
+    const swingOn = withSetting(base, settingDescriptor('swingLabels.enabled'), true)
+    expect(settingUnavailable(up, swingOn)).toMatch(/tinted by high\/low/)
+    expect(settingUnavailable(up, withSetting(swingOn, settingDescriptor('swingLabels.tintByType'), true))).toBe(null)
+    const beat = settingDescriptor('markers.earningsBeat')
+    expect(settingUnavailable(beat, withSetting(base, settingDescriptor('markers.earnings'), false))).toMatch(/earnings markers on first/)
+  })
+})
+

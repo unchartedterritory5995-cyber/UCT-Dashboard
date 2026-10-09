@@ -48,6 +48,10 @@ export const PDL_LINES = [['high', 'Prev-day high'], ['low', 'Prev-day low'], ['
 export const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
 export const PDL_WIDTHS = [1, 2, 3, 4]
 // Watermark size scale (× the base per-role font, shown as %) and font weights.
+// The crosshair's line options, exactly what the colour panel offers (ColorPanel imports these).
+// Style values are the chart library's LineStyle numbers; the labels are what members say.
+export const CROSSHAIR_WIDTHS = [1, 2, 3, 4]
+export const CROSSHAIR_STYLES = [[0, 'solid'], [2, 'dashed'], [1, 'dotted']]
 export const WM_SIZES = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4]
 export const WM_WEIGHTS = [[300, 'Thin'], [400, 'Light'], [500, 'Regular'], [600, 'Medium'], [700, 'Bold'], [800, 'Heavy']]
 // The watermark's lines; the 3rd element marks a default-OFF line (logo).
@@ -58,6 +62,9 @@ const BAR_TYPES = ['bars', 'hlc']
 const WHEN_WATERMARK = { setting: 'watermark.visible', value: true, why: 'Turn the watermark on first — its details only apply while it is shown.' }
 const WHEN_SWING = { setting: 'swingLabels.enabled', value: true, why: 'Turn swing labels on first — their options only apply while they are shown.' }
 const WHEN_CROSSHAIR = { setting: 'crosshair.mode', not: 'off', why: 'The crosshair is off — turn it on first to change its color.' }
+const WHEN_SWING_BG = [WHEN_SWING, { setting: 'swingLabels.bgEnabled', value: true, why: 'Turn the swing label background on first.' }]
+const WHEN_SWING_TINT = [WHEN_SWING, { setting: 'swingLabels.tintByType', value: true, why: 'Turn on "tinted by high/low" first — the high and low colors only apply then.' }]
+const WHEN_EARNINGS = { setting: 'markers.earnings', value: true, why: 'Turn earnings markers on first — their beat/miss colors only apply while they are shown.' }
 const whenPdl = (k) => ({ setting: `prevDayLevels.${k}.enabled`, value: true, why: `Turn the ${k} prev-day line on first — its style only applies while it is shown.` })
 const vals = (xs) => xs.map(x => (Array.isArray(x) ? x[0] : (x && typeof x === 'object' ? x.val : x)))
 
@@ -88,6 +95,15 @@ const ELIGIBLE = [
   E('swingLabels.bgEnabled', 'markers', 'Swing label background', 'bool', { ui: 'Chart Settings → Markers → Swing labels', requires: WHEN_SWING, default: true }),
   E('grid.color', 'canvas', 'Grid color', 'color', { ui: 'Chart Settings → Canvas → Grid' }),
   E('crosshair.color', 'canvas', 'Crosshair color', 'color', { ui: 'Chart Settings → Canvas → Crosshair', requires: WHEN_CROSSHAIR }),
+  E('crosshair.width', 'canvas', 'Crosshair thickness', 'enum', { options: CROSSHAIR_WIDTHS, ui: 'Chart Settings → Canvas → Crosshair color → Thickness', requires: WHEN_CROSSHAIR }),
+  E('crosshair.style', 'canvas', 'Crosshair line style', 'enum', { options: vals(CROSSHAIR_STYLES), labels: Object.fromEntries(CROSSHAIR_STYLES.map(([v, n]) => [n, v])), ui: 'Chart Settings → Canvas → Crosshair color → Line style', requires: WHEN_CROSSHAIR }),
+  E('crosshair.magnet', 'canvas', 'Magnet crosshair (snaps to the bar)', 'bool', { ui: 'Right-click the price axis → Magnet crosshair', words: ['magnet', 'snap'] }),
+  E('swingLabels.color', 'markers', 'Swing label color', 'color', { ui: 'Chart Settings → Markers → Swing labels → Label color', requires: WHEN_SWING }),
+  E('swingLabels.bg', 'markers', 'Swing label background color', 'color', { ui: 'Chart Settings → Markers → Swing labels → Label background', requires: WHEN_SWING_BG }),
+  E('swingLabels.upColor', 'markers', 'Swing-high color', 'color', { ui: 'Chart Settings → Markers → Swing labels', requires: WHEN_SWING_TINT }),
+  E('swingLabels.downColor', 'markers', 'Swing-low color', 'color', { ui: 'Chart Settings → Markers → Swing labels', requires: WHEN_SWING_TINT }),
+  E('markers.earningsBeat', 'markers', 'Earnings beat color', 'color', { ui: 'Chart Settings → Markers → Earnings → Beat color', requires: WHEN_EARNINGS }),
+  E('markers.earningsMiss', 'markers', 'Earnings miss color', 'color', { ui: 'Chart Settings → Markers → Earnings → Miss color', requires: WHEN_EARNINGS }),
   E('textColor', 'canvas', 'Scale text color', 'color', { ui: 'Chart Settings → Canvas → Scale text' }),
   E('watermark.sizeScale', 'watermark', 'Watermark size', 'enum', { options: WM_SIZES, ui: 'Chart Settings → Canvas → Watermark', requires: WHEN_WATERMARK }),
   E('watermark.weight', 'watermark', 'Watermark weight', 'enum', { options: vals(WM_WEIGHTS), ui: 'Chart Settings → Canvas → Watermark', requires: WHEN_WATERMARK }),
@@ -128,9 +144,6 @@ const K = (id, section, label, ui) => ({ id, section, label, agent: 'known', ui 
 const KNOWN = [
   K('bgGradient.*', 'canvas', 'Gradient background colors', 'Chart Settings → Canvas → Background'),
   K('crosshair.enabled', 'canvas', 'Crosshair (legacy on/off)', 'Chart Settings → Canvas → Crosshair'),
-  K('crosshair.style', 'canvas', 'Crosshair line style', 'Chart Settings → Canvas → Crosshair'),
-  K('crosshair.width', 'canvas', 'Crosshair line width', 'Chart Settings → Canvas → Crosshair'),
-  K('crosshair.magnet', 'canvas', 'Crosshair magnet', 'Chart Settings → Canvas → Crosshair'),
   K('header.timeframes', 'header', 'Favorite timeframes', 'Timeframe menu ★'),
   K('header.customTimeframes', 'header', 'Custom timeframes', 'Timeframe menu → Custom interval'),
   K('header.showMarketCap', 'header', 'Market cap in the info row', 'Chart Settings → Header → Info row'),
@@ -158,13 +171,7 @@ const KNOWN = [
   K('watermark.y', 'watermark', 'Watermark position', 'right-click → Move watermark'),
   K('drawingDefaults.*', 'drawings', 'Default drawing style', 'drawing → Save as default'),
   K('hideDrawings', 'drawings', 'Hide all drawings', 'not on /charts (other chart surfaces)'),
-  K('swingLabels.color', 'markers', 'Swing label color', 'Chart Settings → Markers'),
-  K('swingLabels.upColor', 'markers', 'Swing high color', 'Chart Settings → Markers'),
-  K('swingLabels.downColor', 'markers', 'Swing low color', 'Chart Settings → Markers'),
-  K('swingLabels.bg', 'markers', 'Swing label background color', 'Chart Settings → Markers'),
   K('markers.ipo', 'markers', 'IPO marker', 'Chart Settings → Markers'),
-  K('markers.earningsBeat', 'markers', 'Earnings beat color', 'Chart Settings → Markers'),
-  K('markers.earningsMiss', 'markers', 'Earnings miss color', 'Chart Settings → Markers'),
   K('markers.ipoColor', 'markers', 'IPO marker color', 'Chart Settings → Markers'),
   K('darkPool.*', 'markers', 'Dark-pool levels (paid)', 'Chart Settings → Markers → Dark pool'),
   K('heikinAshi', 'priceStyle', 'Heikin Ashi', 'not on /charts (other chart surfaces)'),
@@ -246,10 +253,12 @@ export function coerceSettingValue(d, raw) {
     if (typeof raw === 'boolean' && d.boolMap) return { ok: true, value: d.boolMap[String(raw)] }
     const hit = d.options.find(o => String(o).toLowerCase() === String(raw).trim().toLowerCase())
     if (hit !== undefined) return { ok: true, value: hit }
+    const named = d.labels ? d.labels[String(raw).trim().toLowerCase()] : undefined
+    if (named !== undefined) return { ok: true, value: named }
     if (d.boolMap && ['on', 'off', 'true', 'false', 'show', 'hide'].includes(String(raw).trim().toLowerCase())) {
       return { ok: true, value: d.boolMap[String(['on', 'true', 'show'].includes(String(raw).trim().toLowerCase()))] }
     }
-    return { ok: false, why: `${d.label} can be ${d.options.join(', ')}` }
+    return { ok: false, why: `${d.label} can be ${d.labels ? Object.keys(d.labels).join(', ') : d.options.join(', ')}` }
   }
   if (d.type === 'color') {
     // The dialog's colour picker writes a hex colour into the same key.
@@ -261,6 +270,10 @@ export function coerceSettingValue(d, raw) {
 
 /** The UI-unavailable reason for this setting on this chart, or null (the same prerequisites the dialog enforces). */
 export function settingUnavailable(d, settings) {
+  if (Array.isArray(d?.requires)) {
+    for (const one of d.requires) { const why = settingUnavailable({ requires: one }, settings); if (why) return why }
+    return null
+  }
   const r = d?.requires
   if (r?.chartType && !r.chartType.includes(settings?.chartType || 'candles')) return r.why
   if (r?.setting) {

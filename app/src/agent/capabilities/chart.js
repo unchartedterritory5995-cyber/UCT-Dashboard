@@ -101,12 +101,13 @@ export const extWindowOpen = () => { const s = getExtSessionCached()?.session; r
 const sameJson = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 
 // ── chart.setSetting helpers (generated from the product's descriptor table) ──
-const settingWord = (d, v) => (d.type === 'bool' ? (v ? 'on' : 'off') : String(v))
+const settingWord = (d, v) => (d.type === 'bool' ? (v ? 'on' : 'off')
+  : d.labels ? (Object.entries(d.labels).find(([, x]) => x === v)?.[0] ?? String(v)) : String(v))
 const SETTING_HINTS = (() => {
   // Settings that share one option list are written once ("prevDayLevels.high|low|close.style: …").
   const groups = new Map()
   for (const d of ELIGIBLE_SETTINGS.filter(x => x.type === 'enum')) {
-    const key = d.options.join('|')
+    const key = d.labels ? Object.keys(d.labels).join('|') : d.options.join('|')
     groups.set(key, [...(groups.get(key) || []), d.id])
   }
   const short = (ids) => {
