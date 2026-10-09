@@ -75,6 +75,8 @@ export const PANEL_IMPORTERS = {
   // theme contribution (feature-gaps-2026-10-06 #4) — terminal-native; reads the Theme Tracker's
   // own cached /api/theme-performance payload
   Imov: () => import('./panels/ImovPanel'),
+  // market lists (wave 7, lane C) — terminal-native; read routes the dashboard tiles already serve
+  MarketNews: () => import('./panels/NewsPanel'),
   // my names (lane 9) — terminal-native; read the routes the watchlist page and the alert bell use
   Alerts: () => import('./panels/AlertsPanel'),
   Watchlist: () => import('./panels/WatchlistPanel'),

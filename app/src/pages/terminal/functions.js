@@ -213,6 +213,11 @@ export const FUNCTIONS = [
   { code: 'COMM', label: 'Community', group: 'Market',
     market: { door: '/community', leavesTerminal: true, why: 'threads are routed (/community/:threadId); a panel cannot hold the thread URL' } },
 
+  // ── market lists (wave 7, lane C): terminal-native panels over routes the app already serves.
+  // Market-only, no arguments unless named. A ticker in a row opens its DES beside the list.
+  { code: 'NEWS', label: 'Market news tape (every headline)', group: 'Market',
+    market: { panel: 'MarketNews' } },
+
   // ── the shell itself ──
   { code: 'HELP', label: 'Function list & syntax', group: 'Shell',
     market: { panel: 'Help', args: [{ kind: 'code', prop: 'focusCode' }] } },
