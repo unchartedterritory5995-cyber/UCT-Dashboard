@@ -5,7 +5,7 @@
 // ⛔ NOTHING HERE IS A SECOND LIST. Functions come from the registry, rules and prefixes from
 // grammar.js, keys from the shortcut registry's own declarations — each railed to its source.
 import { useEffect, useMemo } from 'react'
-import { FUNCTIONS, FUNCTION_GROUPS, ABSENT, BY_CODE, aliasesOf, flagOn } from '../functions'
+import { FUNCTIONS, FUNCTION_GROUPS, ABSENT, BY_CODE, aliasesOf, exampleFor, flagOn } from '../functions'
 import {
   ADDRESS_PREFIXES, ALIAS_RULE, ASK_RULE, BOARD_RULE, CHANNEL_RULE, COLLISION_RULE, COMPARE_RULE, RANKING_ORDER,
   ROW_RULE, START_HERE, TICKER_COLLISIONS,
@@ -97,6 +97,18 @@ export function argsLines(f) {
   return [line(f.ticker, `With a ticker (NVDA ${f.code})`), line(f.market, `Market-wide (${f.code})`)].filter(Boolean)
 }
 
+/** Pure: the short "takes …" a HELP row shows beside its example, from args.js's own `takes`
+ *  (both variants, once each), or null when the code takes nothing. `MINE` is left out: it is
+ *  a chip in the panel, not something a new member needs on the list. */
+export function takesLine(f) {
+  const kinds = [...(f.ticker?.args || []), ...(f.market?.args || [])].map((a) => a.kind)
+    .filter((k) => k !== 'mine' && k !== 'symbol')
+  const takes = [...new Set(kinds.map((k) => ARG_KINDS[k]?.takes).filter(Boolean))]
+  const symbols = [...(f.ticker?.args || []), ...(f.market?.args || [])].some((a) => a.kind === 'symbol')
+  if (symbols) takes.push('tickers to compare')
+  return takes.length ? takes.join(', ') : null
+}
+
 export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRanking, hasStats = false, auth = null }) {
   // `HELP GP` — the registry-validated code args.js applied (an unknown one is echoed, not shown).
   const focus = focusCode && BY_CODE[focusCode] ? BY_CODE[focusCode].code : null
@@ -170,6 +182,11 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
                             {' '}(also {aliasesOf(f.code).join(', ')})
                           </span>
                         )}
+                        <span className={styles.helpExample} data-testid={`terminal-help-example-${f.code}`}>
+                          <kbd>{exampleFor(f)}</kbd>
+                          {takesLine(f) && <> · takes {takesLine(f)}</>}
+                          {f.note && <> · {f.note}</>}
+                        </span>
                       </span>
                       <span className={styles.helpScope}>
                         {scopeLabel(f)}

@@ -13,12 +13,55 @@
 // define an alias for whoever clicks it).
 import parseCommand, { formatCommand } from './parseCommand'
 import { describeCommand } from './grammar'
+import { BY_CODE, codesForWords, isCode } from './functions'
 import { TERMINAL_PATH } from './terminalGate'
+
+/** A query that is a plain word for a function ("breakout", "position size", "nvda peers"): the
+ *  command it names, read from the registry's own `keywords` (functions.js `codesForWords`), or
+ *  null. A leading ticker is kept when the named code takes one. */
+export function wordCommand(query) {
+  const q = String(query || '').trim()
+  if (!q) return null
+  // A short single word reads as a ticker first (COMP, HEAT): only an exact keyword names a code.
+  const tickerShaped = /^\$?[A-Za-z]{1,5}$/.test(q)
+  const [whole] = codesForWords(q, 1, tickerShaped ? 0 : 3)
+  if (whole) return whole
+  const tokens = q.split(/\s+/)
+  const sym = tokens[0].replace(/^\$/, '').toUpperCase()
+  if (tokens.length < 2 || !/^[A-Z]{1,5}$/.test(sym) || isCode(sym)) return null
+  const code = codesForWords(tokens.slice(1).join(' '), 3).find((c) => BY_CODE[c]?.ticker)
+  return code ? `${sym} ${code}` : null
+}
+
+function wordRow(q) {
+  const text = wordCommand(q)
+  if (!text) return null
+  const p = parseCommand(text)
+  if (!p.ok) return null
+  const echo = describeCommand(p)
+  return {
+    placement: text.includes(' ') ? 'lead' : 'tail',
+    row: {
+      kind: 'terminal', id: `run:${text}`, label: echo?.text || text, command: text,
+      to: `${TERMINAL_PATH}?cmd=${encodeURIComponent(text)}`,
+    },
+  }
+}
 
 export function terminalCommandRow(query) {
   const q = String(query || '').trim()
   if (!q) return null
   const p = parseCommand(q)
+  // A word the parser does not take as a command ("breakout") or reads as a made-up ticker
+  // ("position size" would be the ticker POSITION) is offered as the function it names.
+  // Only where the parser has no command of its own: a refusal, a question it guessed at, or a
+  // bare word it would open as a ticker overview. An explicit command always wins.
+  const notACommand = !p.ok || (p.type === 'ask' && p.fallback)
+    || (p.type === 'function' && p.code === 'DES' && p.sym != null && q.split(/\s+/).length === 1)
+  if (notACommand) {
+    const words = wordRow(q)
+    if (words) return words
+  }
   if (!p.ok) return null
   const tokens = q.split(/\s+/)
   let placement = null

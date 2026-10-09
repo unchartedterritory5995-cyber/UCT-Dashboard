@@ -862,6 +862,14 @@
   font-size: var(--text-xs);
 }
 
+/* A HELP function row's second line: one example, what it takes, and a feed note. */
+.helpExample {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
 /* Per-member flag status on a HELP row (flagFor/flagOn in HelpPanel.jsx) — a code with no
    `flag` renders neither class at all. Text suffix, matching this file's existing idiom
    (no pill/badge component exists in the terminal panels). */
