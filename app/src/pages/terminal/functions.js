@@ -221,6 +221,8 @@ export const FUNCTIONS = [
     market: { panel: 'Regime' } },
   { code: 'INS', label: 'Insider buying (UCT 20 and large caps, 7 days)', group: 'Market',
     market: { panel: 'InsiderBuys' } },
+  { code: 'RSL', label: 'RS leaderboard (top names by RS rank)', group: 'Market',
+    market: { panel: 'RsLeaders' } },
 
   // ── the shell itself ──
   { code: 'HELP', label: 'Function list & syntax', group: 'Shell',
