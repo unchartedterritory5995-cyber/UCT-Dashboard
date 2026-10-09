@@ -49,7 +49,7 @@ import notebook_fin_walk_keyed as K  # noqa: E402  -- NOTE_A/B, doc_of, make_doc
 import notebook_fin_walk_keyed_ai as KA  # noqa: E402  -- LONG_PARAS, Q_LONG (the earlier walk's own text)
 import notebook_fin_walk_features as F  # noqa: E402  -- toolbar_button (scrolls an embed toolbar clear of the header)
 
-ORDER = ["bulk", "folder", "views", "restore", "gallery", "chartplan", "publish", "thesis", "docask", "drag", "longask"]
+ORDER = ["bulk", "folder", "views", "restore", "gallery", "chartplan", "publish", "thesis", "docask", "drag", "longask", "grip"]
 VPS = ("1280", "390")
 PW = "LocalTest2026!"
 NO_MODEL = os.environ.get("VERIFY_NO_MODEL") == "1"
@@ -93,7 +93,7 @@ print("PROJECTED " + json.dumps({"projected": done, "levels": levels}, default=s
 
 def run(C, browser, admin, base, fs, data_dir, only) -> None:
     S = C.STATE
-    cfg = "verify"
+    cfg = C.REC.get("config") or "verify"
     steps = [s for s in ORDER if (not only or s in only)]
     a_inst = C.Inst(admin, cfg, "1280")
 
@@ -798,7 +798,9 @@ def run(C, browser, admin, base, fs, data_dir, only) -> None:
                 pg_.mouse.move(px, py, steps=3)
                 pg_.wait_for_timeout(500)
                 gi = pg_.evaluate(GRIP_JS)
-                beside = [g_ for g_ in gi if g_["visible"] and abs(g_["box"][1] - fb["y"]) < 40 and 0 <= g_["box"][1] <= 800]
+                # beside the chart: shown, on screen, and within the chart's own vertical span (a fixed grip may be
+                # kept below a sticky header that covers the chart's top edge)
+                beside = [g_ for g_ in gi if g_["visible"] and fb["y"] - 40 <= g_["box"][1] <= fb["y"] + fb["height"] and 0 <= g_["box"][1] <= 800]
                 probes.append({"rest": label, "grip": gi, "beside_the_chart": bool(beside)})
                 if beside:
                     win = label
@@ -873,22 +875,28 @@ def run(C, browser, admin, base, fs, data_dir, only) -> None:
             pg_.drag_and_drop('[data-widget-embed-body]', '.ProseMirror p:has-text("Paragraph B.")', target_position={"x": 20, "y": 14})
 
         def grip_pointer(nid):
-            open_(nid, chart_top_at=170)
+            # 110, not 170: with the chart's top 170 px down, Paragraph A's line sits below the bottom edge of the
+            # note's visible scroll area at 1280x800 (y 754-783; the pane is clipped near 745), and a drop there
+            # lands on no editor at all
+            open_(nid, chart_top_at=110)
             g, info, fb = grip_for_embed()
             vis = g.filter(visible=True)
             if not vis.count() or not info["chart_grip_shown_at"]:
                 return {"grip": info, "grip_visible_beside_the_chart": False}
             gb = vis.first.bounding_box()
-            tb = pg_.locator(".ProseMirror p", has_text="Paragraph B.").first.bounding_box()
+            # the drop point: the END of Paragraph A's line. With the chart's top 170 px down, Paragraph B sits
+            # below the window's bottom edge at 1280x800 (this attempt aimed there before, and a drop off screen
+            # never lands); past a paragraph's middle is where ProseMirror's dropPoint puts a block after it
+            tb = pg_.locator(".ProseMirror p", has_text="Paragraph A.").first.bounding_box()
+            tx, ty = tb["x"] + min(tb["width"] - 10, 300), tb["y"] + tb["height"] / 2
             pg_.mouse.move(gb["x"] + gb["width"] / 2, gb["y"] + gb["height"] / 2)
             pg_.mouse.down()
             pg_.wait_for_timeout(200)
-            y1 = tb["y"] + tb["height"] - 2
             for i in range(1, 31):
-                pg_.mouse.move(gb["x"] + gb["width"] / 2 + 30, gb["y"] + (y1 - gb["y"]) * i / 30)
+                pg_.mouse.move(gb["x"] + gb["width"] / 2 + (tx - gb["x"]) * i / 30, gb["y"] + (ty - gb["y"]) * i / 30)
                 pg_.wait_for_timeout(35)
             pg_.mouse.up()
-            return {"grip": info}
+            return {"grip": info, "drop_point": [round(tx), round(ty)], "paragraph_a_box": [round(v) for v in (tb["x"], tb["y"], tb["width"], tb["height"])]}
 
         def grip_drag_to(nid):
             open_(nid, chart_top_at=170)
@@ -935,12 +943,120 @@ def run(C, browser, admin, base, fs, data_dir, only) -> None:
                          ("A3: as A2 but with the chart's top in view first and 10 pointer steps", body_pointer_chart_in_view),
                          ("B: locator.drag_to from the chart body to Paragraph B (synthesised HTML5 drag)", body_drag_to),
                          ("C: page.drag_and_drop from the chart body to Paragraph B (synthesised HTML5 drag)", page_dnd),
-                         ("D: the block grip 'Move this block': pointer down, moves, up", grip_pointer),
+                         ("D: the block grip 'Move this block': pointer down, 30 moves to the end of Paragraph A, up", grip_pointer),
                          ("E: locator.drag_to from the block grip to Paragraph B", grip_drag_to),
                          ("F: click the block grip, then Move down twice (a mouse path that is not a drag)", grip_menu)):
             attempt(name, fn)
         C.step(None, inst_, "6 chart block drag", f"{vp}: summary of every mouse attempt", "INFO",
                attempts=[{k: r_.get(k) for k in ("attempt", "stored_order_after", "moved_below_a_paragraph", "error")} for r_ in attempts], shot=False)
+
+    # ══ P2 follow-up: the block grip's drag, with the grip VISIBLE, and what events fire ═════════
+    EV_JS = r"""() => { window.__ev = []; window.__cnt = {};
+      const h = document.querySelector('button.uctBlockHandle'); const pm = document.querySelector('.ProseMirror');
+      const label = (n) => n ? (n.tagName + '.' + String(n.className && n.className.baseVal !== undefined ? n.className.baseVal : (n.className || '')).slice(0, 40)) : null;
+      const push = (where, e) => { const k = where + ':' + e.type; window.__cnt[k] = (window.__cnt[k] || 0) + 1;
+        if ((e.type === 'drag' || e.type === 'dragover') && window.__cnt[k] > 2) return;
+        window.__ev.push({ where, type: e.type, t: Math.round(performance.now()), target: label(e.target), defaultPrevented: e.defaultPrevented,
+                           dropEffect: e.dataTransfer ? e.dataTransfer.dropEffect : null, gripHidden: h ? h.hidden : null, x: e.clientX, y: e.clientY }) };
+      if (h) for (const t of ['pointerdown', 'mousedown', 'dragstart', 'drag', 'dragend', 'mouseleave', 'click']) h.addEventListener(t, (e) => push('grip', e), true);
+      if (pm) for (const t of ['dragenter', 'dragover', 'dragleave', 'drop']) pm.addEventListener(t, (e) => push('editor(capture)', e), true);
+      for (const t of ['dragover', 'drop', 'dragend']) document.addEventListener(t, (e) => push('document(bubble)', e), false);
+      // at the drop: where every top-level block is, and what the drop point is over
+      if (pm) pm.addEventListener('drop', (e) => { window.__ev.push({ where: 'editor(capture)', type: 'drop-geometry', x: e.clientX, y: e.clientY,
+          over: label(document.elementFromPoint(e.clientX, e.clientY)), target_text: (e.target.textContent || '').slice(0, 30),
+          blocks: [...pm.children].map(c => { const r = c.getBoundingClientRect(); return [label(c), (c.textContent || '').slice(0, 16), Math.round(r.top), Math.round(r.bottom)] }) }) }, true);
+      if (h) new MutationObserver(() => window.__ev.push({ where: 'grip', type: 'hidden=' + h.hidden, t: Math.round(performance.now()) })).observe(h, { attributes: true, attributeFilter: ['hidden'] });
+      return { grip: !!h, editor: !!pm } }"""
+
+    def grip(pg_, inst_, ctx_, vp):
+        """With the grip VISIBLE beside the block it moves (the block's top edge in view), drag it below
+        the last paragraph two ways; record the stored order and the DOM drag events. Chart, and a
+        paragraph as the control."""
+        M = ctx_.request
+        x = C.x13
+
+        def order(nid):
+            return [(c.get("type"), "".join(t.get("text", "") for t in (c.get("content") or []) if isinstance(t, dict)))
+                    for c in ((note_json(M, nid).get("bodyJson") or {}).get("content") or [])]
+
+        def scroll_top(loc, off=170):
+            loc.evaluate("""(el, off) => { let n = el.parentElement;
+                while (n && n !== document.body) { const cs = getComputedStyle(n);
+                  if (n.scrollHeight > n.clientHeight + 2 && /(auto|scroll)/.test(cs.overflowY)) break; n = n.parentElement }
+                const dy = el.getBoundingClientRect().top - off;
+                if (n && n !== document.body) n.scrollTop += dy; else window.scrollBy(0, dy) }""", off)
+            pg_.wait_for_timeout(400)
+
+        # the drop target: the paragraph right after the dragged block's neighbour, chosen so it is on screen at
+        # 1280x800 with the dragged block's top edge 170 px down (a 572 px chart pushes Paragraph B below the fold)
+        cases = [("chart", lambda tag: [x.chart_block("NVDA", [], f"e-g-{tag}"), x.para("Paragraph A."), x.para("Paragraph B.")],
+                  lambda: F.h2.frame_of(pg_, 0), "Paragraph A."),
+                 ("paragraph (control)", lambda tag: [x.para("Paragraph One."), x.para("Paragraph A."), x.para("Paragraph B.")],
+                  lambda: pg_.locator(".ProseMirror p", has_text="Paragraph One.").first, "Paragraph A.")]
+        for kind, blocks, src_of, target_text in cases:
+            for how in ("a: locator.drag_to from the grip", "b: page.mouse down on the grip, 20 moves, up",
+                        "c: page.mouse down on the grip, 4 px steps for the first 40 px, then 20 moves, up"):
+                tag = f"{kind.split()[0]}-{how[0]}-{int(time.time()) % 100000}"
+                nid = mk(ctx_, inst_, f"Grip drag {tag}", {"type": "doc", "content": blocks(tag)})
+                before = order(nid)
+                goto(pg_, f"/journal/notebook?note={nid}", ".ProseMirror")
+                if kind == "chart":
+                    pg_.locator("[data-widget-embed-body]").first.wait_for(state="visible", timeout=40000)
+                pg_.wait_for_timeout(2500)
+                src = src_of()
+                scroll_top(src, 110)   # the dragged block's top edge in view, and the drop target above the window's bottom edge
+                inst_ev = pg_.evaluate(EV_JS)
+                sb = src.bounding_box()
+                # the pointer arrives on the block the way a member's does, so the grip appears beside it
+                pg_.mouse.move(sb["x"] + sb["width"] / 2 - 20, sb["y"] + sb["height"] / 2 - 6)
+                pg_.mouse.move(sb["x"] + sb["width"] / 2, sb["y"] + sb["height"] / 2, steps=4)
+                pg_.wait_for_timeout(500)
+                g = pg_.locator("button.uctBlockHandle")
+                gi = g.first.evaluate("""b => { const r = b.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+                    return { hidden: b.hidden, pos: b.dataset.pos || null, box: [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)],
+                             on_top: !!e && (e === b || b.contains(e)) } }""")
+                # beside the block = the grip is shown for THIS block (its pos), sits within the block's own vertical
+                # span (the fix may keep it below a sticky header that covers the block's top edge), and is on screen
+                beside = ((not gi["hidden"]) and gi["box"][2] > 0 and gi["pos"] == "0" and sb["y"] - 40 <= gi["box"][1] <= sb["y"] + sb["height"]
+                          and 0 <= gi["box"][1] <= 800 and gi["on_top"])
+                tgt = pg_.locator(".ProseMirror p", has_text=target_text).first
+                tb = tgt.bounding_box()
+                # the END of the target paragraph's line: ProseMirror's dropPoint puts a block AFTER a paragraph
+                # only when the drop position is past that paragraph's middle (prosemirror-transform dropPoint)
+                drop_at = {"x": min(tb["width"] - 10, 300), "y": tb["height"] / 2}
+                err = None
+                try:
+                    if beside and how.startswith("a"):
+                        g.first.drag_to(tgt, target_position=drop_at)
+                    elif beside:
+                        gx, gy = gi["box"][0] + gi["box"][2] / 2, gi["box"][1] + gi["box"][3] / 2
+                        pg_.mouse.move(gx, gy)
+                        pg_.mouse.down()
+                        ty = tb["y"] + drop_at["y"]
+                        if how.startswith("c"):   # a slow start: the browser's drag begins while the pointer is still on the grip
+                            for i in range(1, 11):
+                                pg_.mouse.move(gx + i, gy + 4 * i)
+                                pg_.wait_for_timeout(30)
+                            gx, gy = gx + 10, gy + 40
+                        for i in range(1, 21):
+                            pg_.mouse.move(gx + (tb["x"] + drop_at["x"] - gx) * i / 20, gy + (ty - gy) * i / 20)
+                            pg_.wait_for_timeout(30)
+                        pg_.mouse.up()
+                except Exception as e:  # noqa: BLE001
+                    err = f"{type(e).__name__}: {str(e)[:300]}"
+                pg_.wait_for_timeout(1500)
+                after = before
+                for _ in range(15):
+                    after = order(nid)
+                    if after != before:
+                        break
+                    pg_.wait_for_timeout(500)
+                moved = bool(after) and after[0] != before[0] and before[0] in after
+                events = pg_.evaluate("() => ({ events: window.__ev || [], counts: window.__cnt || {} })")
+                C.step(pg_, inst_, "P2 grip drag", f"{vp}: {kind}, grip visible beside the block: {how}",
+                       ("PASS" if moved else "FAIL") if beside else "NOT_RUN", block=kind, note=nid, grip=gi, grip_beside_the_block_and_in_view=beside,
+                       block_box=[round(v) for v in (sb["x"], sb["y"], sb["width"], sb["height"])], order_before=before, stored_order_after=after,
+                       moved=moved, drop_target=target_text, error=err, listeners=inst_ev, dom_events=events["events"][:60], event_counts=events["counts"])
 
     # ══ run ══════════════════════════════════════════════════════════════════════════════════
     for vp in VPS:
@@ -972,6 +1088,12 @@ def run(C, browser, admin, base, fs, data_dir, only) -> None:
             inst = C.Inst(ctx, cfg, vp)
             pg = ctx.new_page()
             guard("drag", vp, pg, inst, lambda: drag(pg, inst, ctx, vp))
+            ctx.close()
+        if "grip" in steps and not touch:
+            ctx = enter("grip_1280", "vg", vp)
+            inst = C.Inst(ctx, cfg, vp)
+            pg = ctx.new_page()
+            guard("grip", vp, pg, inst, lambda: grip(pg, inst, ctx, vp))
             ctx.close()
         if "docask" in steps:
             ctx = enter("doc_member", "vdoc", vp)

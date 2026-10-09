@@ -314,3 +314,110 @@ describe('touch: a TAP on the grip lands — the editor blurring under the finge
     expect(grip().hidden).toBe(true)
   })
 })
+
+// ⛔⛔ P2 (verify-1009, docs/notebook/verify-1009-sandbox.md): a real browser starts an
+// HTML5 drag a few pixels AFTER the button goes down on the grip, and the mouse events in
+// between still reach the grip's view. Measured (evidence/verify-1009/sbx/grip/): a quick
+// first motion either crossed another block (the grip re-aimed at it, and the drag moved
+// the WRONG block) or left the grip into the gutter (the grip hid, and a hidden drag
+// source never starts). These replay that order of events.
+describe('P2: a press on the grip holds the block it was pressed for', () => {
+  it('a mousemove over another block between mousedown and dragstart does not change WHAT is dragged (chart)', () => {
+    const ed = mount([chart('e-orig'), P('Paragraph A.'), P('Paragraph B.')])
+    hoverAt(ed, 0)
+    expect(grip().dataset.pos).toBe('0')
+    fireEvent.mouseDown(grip(), { button: 0 })
+    hoverAt(ed, at(ed, 'Paragraph B.'))          // the pointer crosses Paragraph B before the drag begins
+    expect(grip().dataset.pos, 'the grip jumped to the block under the pointer while pressed').toBe('0')
+    const dt = dataTransfer()
+    drag(grip(), dt)
+    expect(ed.view.dragging.slice.content.firstChild.type.name, 'the drag took the block under the pointer, not the one grabbed').toBe('widgetEmbed')
+    dropAt(ed, at(ed, 'Paragraph B.') + 'Paragraph B.'.length + 1, dt)
+    ed.state.doc.check()
+    expect(top(ed).slice(0, 3)).toEqual(['Paragraph A.', 'Paragraph B.', 'widgetEmbed'])
+    expect(embedIds(ed)).toEqual(['e-orig'])
+  })
+
+  it('the same for a paragraph: the grabbed block is the one that moves', () => {
+    const ed = mount([P('One.'), P('Two.'), P('Three.')])
+    hoverAt(ed, at(ed, 'One.'))
+    fireEvent.mouseDown(grip(), { button: 0 })
+    hoverAt(ed, at(ed, 'Three.'))
+    const dt = dataTransfer()
+    drag(grip(), dt)
+    expect(ed.view.dragging.slice.content.firstChild.textContent).toBe('One.')
+  })
+
+  it('leaving the grip for the gutter while the button is down does not hide it (a hidden source never drags)', () => {
+    const ed = mount([chart('e-orig'), P('Paragraph A.')])
+    hoverAt(ed, 0)
+    fireEvent.mouseDown(grip(), { button: 0 })
+    fireEvent.mouseLeave(grip(), { relatedTarget: document.body })
+    expect(grip().hidden, 'the grip hid under a pressed button').toBe(false)
+    expect(ed.state.doc.firstChild.type.name).toBe('widgetEmbed')
+  })
+
+  it('CONTROL — once the button is up, the grip follows the pointer and leaving hides it, as before', () => {
+    const ed = mount([P('One.'), P('Two.')])
+    hoverAt(ed, at(ed, 'One.'))
+    fireEvent.mouseDown(grip(), { button: 0 })
+    fireEvent.mouseUp(document, { button: 0 })
+    hoverAt(ed, at(ed, 'Two.'))
+    expect(grip().dataset.pos).toBe(String(topBlockAt(ed.state.doc, at(ed, 'Two.')).pos))
+    fireEvent.mouseLeave(grip(), { relatedTarget: document.body })
+    expect(grip().hidden).toBe(true)
+  })
+
+  it('CONTROL — after a drag ends (dragend swallows the mouseup), the press is over too', () => {
+    const ed = mount([P('One.'), P('Two.')])
+    hoverAt(ed, at(ed, 'One.'))
+    fireEvent.mouseDown(grip(), { button: 0 })
+    drag(grip(), dataTransfer())
+    fireEvent(grip(), new Event('dragend', { bubbles: true }))
+    hoverAt(ed, at(ed, 'Two.'))
+    expect(grip().dataset.pos).toBe(String(topBlockAt(ed.state.doc, at(ed, 'Two.')).pos))
+  })
+})
+
+describe('P2: the grip stays inside the visible part of a block whose top edge is scrolled away', () => {
+  const rectAt = (top, bottom) => () => ({ top, bottom, left: 400, right: 1180, width: 780, height: bottom - top, x: 400, y: top })
+  function scrolled(scrollerTop) {
+    const scroller = document.createElement('div')
+    scroller.style.overflowY = 'auto'
+    scroller.getBoundingClientRect = rectAt(scrollerTop, 800)
+    document.body.appendChild(scroller)
+    const el = document.createElement('div')
+    scroller.appendChild(el)
+    editor = new Editor({ element: el, extensions: buildExtensions(), content: { type: 'doc', content: [chart('e-tall'), P('After.')] } })
+    return editor
+  }
+
+  it('a tall chart whose top is above the visible area: the grip sits at the visible top, not off screen', () => {
+    const ed = scrolled(60)
+    ed.view.nodeDOM(0).getBoundingClientRect = rectAt(-29, 543)
+    hoverAt(ed, 0)
+    expect(grip().hidden).toBe(false)
+    expect(grip().style.top, 'the grip was placed above the visible area').toBe('62px')
+  })
+
+  it('…and below anything pinned over that edge (the note\'s sticky header): the first row where the block shows', () => {
+    const ed = scrolled(60)
+    const dom = ed.view.nodeDOM(0)
+    dom.getBoundingClientRect = rectAt(-29, 543)
+    const header = document.createElement('div')
+    const realEFP = document.elementFromPoint
+    document.elementFromPoint = (_x, y) => (y < 130 ? header : dom)
+    try {
+      hoverAt(ed, 0)
+      expect(Number.parseInt(grip().style.top, 10)).toBeGreaterThanOrEqual(119)
+      expect(Number.parseInt(grip().style.top, 10)).toBeLessThan(140)
+    } finally { document.elementFromPoint = realEFP }
+  })
+
+  it('CONTROL — a block whose top edge is in view keeps the grip exactly where it stood (top + 2)', () => {
+    const ed = scrolled(60)
+    ed.view.nodeDOM(0).getBoundingClientRect = rectAt(170, 742)
+    hoverAt(ed, 0)
+    expect(grip().style.top).toBe('172px')
+  })
+})

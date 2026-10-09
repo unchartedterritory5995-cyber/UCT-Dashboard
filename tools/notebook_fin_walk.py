@@ -497,7 +497,9 @@ def flag_sets() -> dict:
             "c3": armed + C3_ON,
             "keyed": sorted(set(armed + WAVE_FLAGS + KEYED_EXTRA)),
             "keyedai": sorted(set(armed + WAVE_FLAGS + KEYED_EXTRA)),
-            "verify": sorted(set(armed + WAVE_FLAGS + KEYED_EXTRA))}
+            "verify": sorted(set(armed + WAVE_FLAGS + KEYED_EXTRA)),
+            # verifygrip: the P2 grip walk; no model, so no keys (the launcher blanks them)
+            "verifygrip": armed}
 
 
 # ── seeding children (the driver itself never imports api.*) ───────────────────────────────
@@ -1108,7 +1110,7 @@ def run_config(config: str, args, fs: dict) -> int:
                     elif config == "keyedai":
                         import notebook_fin_walk_keyed_ai as keyed_ai
                         keyed_ai.run(sys.modules[__name__], browser, admin, base, fs, data_dir, only)
-                    elif config == "verify":
+                    elif config in ("verify", "verifygrip"):
                         import notebook_verify_walk as verify
                         verify.run(sys.modules[__name__], browser, admin, base, fs, data_dir, only)
                     else:
@@ -1158,7 +1160,7 @@ def run_config(config: str, args, fs: dict) -> int:
 def main(argv=None) -> int:
     global OUT
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--config", required=True, choices=["c1", "c2", "c3", "keyed", "keyedai", "verify"])
+    ap.add_argument("--config", required=True, choices=["c1", "c2", "c3", "keyed", "keyedai", "verify", "verifygrip"])
     ap.add_argument("--data-root", required=True)
     ap.add_argument("--port", type=int, default=PORT)
     ap.add_argument("--out", required=True)
@@ -1206,7 +1208,7 @@ def main(argv=None) -> int:
     except h.SetupFailed as e:
         print(f"REFUSED: {e}")
         return 3
-    REC["flag_sets"] = {k: fs[k] for k in ("prod_armed", "wave", "c1", "c2", "c3", "keyed", "keyedai", "verify")}
+    REC["flag_sets"] = {k: fs[k] for k in ("prod_armed", "wave", "c1", "c2", "c3", "keyed", "keyedai", "verify", "verifygrip")}
     flush()
     rc = run_config(args.config, args, fs)
     REC.update({"finished": datetime.now(timezone.utc).isoformat(timespec="seconds"), "status": "COMPLETE" if rc in (0, 1) else "NOT COMPLETE"})
