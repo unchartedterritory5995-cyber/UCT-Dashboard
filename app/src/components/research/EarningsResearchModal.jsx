@@ -35,6 +35,7 @@ import CatalystsSection from './sections/CatalystsSection'
 import CallSection from './sections/CallSection'
 import FilingsTab from '../../pages/research/tabs/FilingsTab'
 import QuoteStrip from './QuoteStrip'
+import EarningsTradeCard from './EarningsTradeCard'
 import FinancialsSection from './sections/FinancialsSection'
 import AnalystsSection from './sections/AnalystsSection'
 import NewsSection from './sections/NewsSection'
@@ -354,6 +355,12 @@ export default function EarningsResearchModal({
           The row is rendered unconditionally and QuoteStrip returns null on a
           symbol with no quote payload — so "View chart" survives an absent
           quote, which it would not if it lived inside the strip. */}
+      {/* Wave 3 #8: the earnings trade in one sentence, for a report still ahead (after the
+          print a live straddle is IV-crushed, so there is no honest implied move to compare). */}
+      {!reported && (
+        <EarningsTradeCard sym={sym} impliedPct={row?.expected_move?.pct ?? em?.live?.pct ?? null}
+          moves={row?.hist_stats?.last_n} />
+      )}
       <div className={styles.subhead} data-testid="erm-subhead">
         {/* A +2% that opened at the high and faded is a different day from one
             that closed on it, and the banner's single price cannot say which. */}

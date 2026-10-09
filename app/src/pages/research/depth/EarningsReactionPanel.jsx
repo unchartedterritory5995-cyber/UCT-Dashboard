@@ -7,6 +7,7 @@ import { memberText, memberSentence } from '../../../lib/presentation/memberCopy
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import { formatCurrency, formatDateTimeEt, formatNumber, formatPercent, formatPercentAsSent, isForeignCurrency, normalizeCurrencyCode } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
+import EarningsTradeCard from '../../../components/research/EarningsTradeCard'
 
 // FT-005 — per-ticker earnings reaction, 8 quarters: the 5-session run-in, the
 // opening gap, the reacting session's close-to-close move and the 5-session
@@ -68,6 +69,8 @@ export default function EarningsReactionPanel({ sym }) {
     const sum = data.summary || {}
     body = (
       <div data-testid="earnings-reaction">
+        <EarningsTradeCard sym={s} impliedPct={data.implied_move?.state === 'ok' ? data.implied_move.pct : null}
+          moves={(data.quarters || []).map((q) => q.reaction_pct)} />
         <div className={styles.scroll}>
           <table className={styles.grid} aria-label="Earnings reaction (8 quarters)">
             <thead>
