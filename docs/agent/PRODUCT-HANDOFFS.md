@@ -61,3 +61,30 @@ Evidence labels:
 - **Where:** `POST /api/watchlists/{id}/save-as` returns 404 unless `WATCHLIST_COPY_OR_LINK_ENABLED` is set.
 - **Agent:** copies a list by creating a new one and adding the symbols, which works today.
 - **Owner:** Watchlists, plus an owner decision on the flag.
+
+---
+
+# Overnight 2026-10-08/09 additions
+
+## 8. ⛔ LIVE DEFECT — small routed Agent requests are rejected by the model API [V, measured on production]
+
+- **Where:** `api/services/uct_agent/turn.py` `envelope_schema`. A request with ≤ 10 actions (`STRICT_OP_VARIANTS_MAX`) embeds each action's args schema. Nullable enums (`{"type": ["string","null"], "enum": [...]}` — `screener.run.sort_dir`, `alert.list.status`, `settings.setAlertSound.sound`, `app.open.section`) are refused: *"output_config.format.schema: Invalid schema: Enum value 'asc' does not match declared type"* (Railway web logs, request ids `req_011CfqsmnamjSB2Ba7SNqi7d`, `req_011CfqsozrkW6U7mtMqA4vGY`).
+- **Impact:** since Batch 5 routing (`e4c3466e38`), every screener-only, alerts-only and settings/app-only Agent turn fails with "UCT Agent is unavailable right now (BadRequestError)". Admin-only (the Agent is dark). Found by the Batch 6 real-model benchmark: 5 of 57 routed cases.
+- **Fix (Agent-owned, NOT deployed):** local commit `b554a9f376` on `fix/uct-agent-nullable-enum` (also carried by `feat/uct-agent-overnight-1009`): `model_safe_schema()` rewrites each such node as `anyOf` of single-type enums with the same values; the model's answer is still validated against the capability's own args. Rail: `test_no_routed_request_sends_an_enum_under_a_union_type`.
+- **Owner action:** release the fix (guard → gate → promote), then re-run the routed benchmark half to confirm the 5 cases.
+
+## 9. Indicator writes by UCT Agent need the Indicator project to register the Agent [V]
+
+- **Where:** `app/src/components/chart/engine/__tests__/controlDoorCensus.test.js` "door EIGHT" declares the exact files allowed to call `addInstance` / `removeInstance` / `setInstanceInput` / `setInstanceHidden` (compared by equality); `app/src/agent/README.md` (and `docs/indicators/INTEGRATION-READINESS.md`): *"this registry has no `indicator.*` or pane capabilities until that project exposes them."*
+- **Agent:** Batch 7 implements NOTHING that touches indicators (a read-only prototype was written, then reverted the same night because the README agreement covers reads too). The design below is ready.
+- **What the Agent would use (all existing, all Indicator-owned):**
+  - read "what is on this chart": `indicatorRegistry.listAllIndicators(cs, nativeRegistry)` filtered by `readEnabled` — exactly the Chart Settings ▸ Indicators tab;
+  - search the library: `BUILT_IN_ROWS` + `catalogRows` + `userCatalogRows` (minus `hiddenLibraryIds`, through `libraryRowFor`) filtered by `IndicatorLibraryDialog.matches`, "on this chart" = `isRowOn` — exactly the Library dialog (a `libraryRows(settings, registry)` export would remove the 3-line composition the Agent would otherwise repeat);
+  - writes: `addInstance`, `setInstanceInput`, `setInstanceAppearance`, `setInstanceDisplayTarget`, `setInstanceHidden`, `removeInstance` inside the Agent's existing chart commit (one settings write, read-back, Undo = previous blob — the same path `chart.setSetting` uses).
+- **Asks of the Indicator project:** (a) say yes/no to `indicator.*` capabilities in the Agent registry (read-only first); (b) add `app/src/agent/capabilities/indicators.js` to the door-EIGHT ledger with its reason, or name the seam the Agent should call instead; (c) decide pane ordering ownership (`paneSeriesOrder` / `paneOrder`); (d) a headless authoring seam for Create Indicator (INTEGRATION-READINESS gaps 1–2) — until then the Agent can at most open the Create Indicator panel for the member.
+- **Disclosure:** Batch 6 (`7a8106dbf1`, released in `d3ca02f124`) added ONE entry to `controlDoorCensus.test.js` `BULK_BLOB_SITES` (the census's own instruction for a new whole-blob site): the Agent's template / restore-defaults look writes, which carry every indicator-owned key over unchanged (`keepOwned`). Please review that entry.
+
+## 10. Chart tabs cannot be reordered in UCT [V]
+
+- **Where:** `pages/charts/chartTabs.js` has add / close / select / rename / patch reducers and no move; `ChartTabStrip.jsx` has no drag. The Agent cannot reorder tabs because the product cannot.
+- **Owner:** Charts workspace — a `moveChartTab(opts, tabId, toIndex)` reducer (keeping `activeChartTab` on the same tab) would let the Agent and a drag share one writer.

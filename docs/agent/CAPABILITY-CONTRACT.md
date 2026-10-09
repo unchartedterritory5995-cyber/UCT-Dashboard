@@ -128,6 +128,10 @@ The server's prompt may name only the reviewed capabilities `widget.addCharts` a
 
 The **full** catalog is no longer a valid request once it passes 60 (70 after Batch 6): the kill switch (`uct.agent.routing=0`) still routes when the catalog is over the per-request limit.
 
+### 4a′. The model-facing schema (overnight 2026-10-09)
+
+A request of ≤ `STRICT_OP_VARIANTS_MAX` (10) actions embeds each action's own args schema in the structured-output format; a bigger one sends args as a JSON string (`compact_ops`). Routing made small requests common, which exposed a model-API rule: an `enum` under a UNION `type` (`["string","null"]`) is refused (400). `turn.model_safe_schema()` rewrites such nodes as `anyOf` of single-type enums (same values) in the schema the MODEL sees; validation of the answer still uses the capability's own args. Rail: `test_no_routed_request_sends_an_enum_under_a_union_type` (every routed group). Capability authors may keep writing `type: [T, 'null'] + enum`.
+
 ### 4b. Daily cap (Batch 6 Gate A)
 
 `UCT_AGENT_DAILY_CAP` (300) counts `/api/agent/turn` requests per user per **America/New_York** day (`daily_counters`, key scope/subject/day). Refused requests are not counted; a failed model call gives its charge back; a research turn is one charge for its two model calls; a reroute is a second charge. The Batch 5 evening 429 was the cap genuinely reached during the benchmark; the apparent "00:02 ET" reading was a Git Bash clock without tzdata printing UTC. Pinned by `tests/test_uct_agent_daily_cap.py`. No cap or counter was changed.
