@@ -1,0 +1,4 @@
+  Model keys   : BLANKED ANTHROPIC_API_KEY, WISDOM_ANTHROPIC_API_KEY, OPENAI_API_KEY, PERPLEXITY_API_KEY, ANTHROPIC_AUTH_TOKEN; keyring -> null backend (opt in: --allow-model-keys or HUB_SANDBOX_ALLOW_MODEL_KEYS=1)
+PROJECTED {"projected": 1, "levels": [{"note_id": "d887b7bec2294499a1b58436785e2b63", "level_id": "entry@200.0", "role": "entry", "price": 200.0}, {"note_id": "d887b7bec2294499a1b58436785e2b63", "level_id": "note", "role": "note", "price": null}, {"note_id": "d887b7bec2294499a1b58436785e2b63", "level_id": "stop@190.0", "role": "stop", "price": 190.0}, {"note_id": "d887b7bec2294499a1b58436785e2b63", "level_id": "target@230.0", "role": "target", "price": 230.0}]}
+
+--- stderr ---
