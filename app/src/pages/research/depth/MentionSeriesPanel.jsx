@@ -1,7 +1,7 @@
 import useSWR from 'swr'
 import { depthFetcher } from './depthFetch'
 import styles from './Depth.module.css'
-import { useDepthChrome, DepthLoading } from './depthChrome'
+import { useDepthChrome, DepthLoading, DepthBadRequest } from './depthChrome'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import { formatPercentAsSent } from '../../../lib/presentation/presentationPrimitives'
@@ -24,7 +24,7 @@ export default function MentionSeriesPanel({ sym }) {
     depthFetcher, { revalidateOnFocus: false })
   // TERM-019: name this panel's source (and its as-of) in the terminal panel header when it is the
   // whole panel (a DPTH stack names "several" itself); a no-op outside the terminal.
-  usePanelFreshness(chrome.alone && data && !data.paywalled && !error
+  usePanelFreshness(chrome.alone && data && !data.paywalled && !data.badRequest && !error
     ? { source: memberText(data.source) || null, age: { dataClass: 'end_of_day', asOfDate: data.window?.through || data.points?.[data.points.length - 1]?.date || null } }
     : null)
 
@@ -32,6 +32,7 @@ export default function MentionSeriesPanel({ sym }) {
   if (error) body = <div className={styles.error} data-testid="mentions-unavailable">Room attention is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading room attention" />
   else if (data.paywalled) body = <div className={styles.note}>Room attention requires a paid plan.</div>
+  else if (data.badRequest) body = <DepthBadRequest sentence={memberSentence(data.badRequest)} />
   else if (data.state !== 'ok') body = <div className={styles.note} data-testid="mentions-state">{memberSentence(data.reason) || `Room attention for ${s} is not available right now.`}</div>
   else if (!data.summary?.days_measured) {
     // state ok with nothing measured rendered "Last 0 measured days: — mentions a day"

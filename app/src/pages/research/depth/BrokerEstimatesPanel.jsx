@@ -1,7 +1,7 @@
 import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
-import { useDepthChrome, DepthLoading } from './depthChrome'
+import { useDepthChrome, DepthLoading, DepthBadRequest } from './depthChrome'
 import PendingGaveUp from './PendingGaveUp'
 import {
   formatCompactTerminal, formatCurrencyIn, formatNumber, isForeignCurrency, normalizeCurrencyCode,
@@ -46,6 +46,7 @@ export default function BrokerEstimatesPanel({ sym }) {
   if (error) body = <div className={styles.error} data-testid="broker-unavailable">Estimates are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading estimates" />
   else if (data.paywalled) body = <div className={styles.note}>Estimates require a paid plan.</div>
+  else if (data.badRequest) body = <DepthBadRequest sentence={memberSentence(data.badRequest)} />
   else {
     const firms = data.firms || {}
     body = (

@@ -1,11 +1,11 @@
 import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
-import { useDepthChrome, DepthLoading } from './depthChrome'
+import { useDepthChrome, DepthLoading, DepthBadRequest } from './depthChrome'
 import PendingGaveUp from './PendingGaveUp'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
-import { formatCurrency, formatNumber, formatPercent, formatPercentAsSent, isForeignCurrency, normalizeCurrencyCode } from '../../../lib/presentation/presentationPrimitives'
+import { formatCurrency, formatDateTimeEt, formatNumber, formatPercent, formatPercentAsSent, isForeignCurrency, normalizeCurrencyCode } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
 
 // FT-005 — per-ticker earnings reaction, 8 quarters: the 5-session run-in, the
@@ -34,7 +34,8 @@ function Implied({ im, next }) {
   if (im.state !== 'ok') {
     return <p className={styles.muted} data-testid="implied-unavailable">Implied move: unavailable ({memberText(im.reason) || 'no reading'}).</p>
   }
-  const read = im.read_at ? new Date(im.read_at * 1000).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : '—'
+  // ET, like every other time in the terminal (audit 2026-10-08: this one alone read UTC).
+  const read = formatDateTimeEt(im.read_at == null ? NaN : Number(im.read_at), { absent: '—' })
   return (
     <p className={styles.lede} data-testid="implied-move">
       Implied move{next ? ` into ${next}` : ''}: ±{formatPercent(Number(im.pct), { decimals: 1 })} ({formatCurrency(Number(im.dollar))}), the{' '}
@@ -60,6 +61,7 @@ export default function EarningsReactionPanel({ sym }) {
   if (error) body = <div className={styles.error} data-testid="earnings-reaction-unavailable">The earnings reaction is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading the earnings reaction" />
   else if (data.paywalled) body = <div className={styles.note}>The earnings reaction requires a paid plan.</div>
+  else if (data.badRequest) body = <DepthBadRequest sentence={memberSentence(data.badRequest)} />
   else if (data.state === 'ok' && !data.quarters?.length) body = <div className={styles.note} data-testid="earnings-reaction-none">No reported quarter for {s} is on file to measure a reaction against.</div>
   else if (data.state !== 'ok') body = <div className={styles.note} data-testid="earnings-reaction-state">{memberSentence(data.reason) || `The earnings reaction for ${s} is not available right now.`}</div>
   else {

@@ -1,10 +1,10 @@
 import useSWR from 'swr'
 import { depthFetcher, usePendingReask } from './depthFetch'
 import styles from './Depth.module.css'
-import { useDepthChrome, DepthLoading } from './depthChrome'
+import { useDepthChrome, DepthLoading, DepthBadRequest } from './depthChrome'
 import PendingGaveUp from './PendingGaveUp'
 import HighlightThesis from '../../../utils/highlightThesis'
-import { memberText } from '../../../lib/presentation/memberCopy'
+import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 
 // FT-064 — EVTS: this ticker's events staged against the nearest earnings print
@@ -27,12 +27,13 @@ export default function EventsPanel({ sym }) {
   // TERM-019: name this panel's source (and its as-of) in the terminal panel header when it is the
   // whole panel (a DPTH stack names "several" itself); a no-op outside the terminal.
   // Events come from several feeds and each row names its own, so the header says exactly that.
-  usePanelFreshness(chrome.alone && data && !data.paywalled && !error ? { source: 'several feeds; each row names its own' } : null)
+  usePanelFreshness(chrome.alone && data && !data.paywalled && !data.badRequest && !error ? { source: 'several feeds; each row names its own' } : null)
 
   let body
   if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading events" />
   else if (data.paywalled) body = <div className={styles.note}>Events require a paid plan.</div>
+  else if (data.badRequest) body = <DepthBadRequest sentence={memberSentence(data.badRequest)} />
   else {
     const errs = Object.entries(data.sources || {}).filter(([, v]) => v.state === 'error')
     const events = [...(data.events || [])].reverse()
@@ -86,7 +87,8 @@ export default function EventsPanel({ sym }) {
   return (
     <section className={chrome.panelClass} data-testid="events-panel">
       {chrome.showTitle && <h3 className={styles.panelTitle}>Events around the print</h3>}
-      <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The earnings read" />
+      {/* Names what is still pending: it is not always the earnings read (audit 2026-10-08). */}
+      <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what={pendingKinds.length ? `The ${pendingKinds.join(', ')} read` : 'The events read'} />
       {body}
     </section>
   )
