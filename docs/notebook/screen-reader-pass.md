@@ -128,14 +128,22 @@ each `.speech.log` beside a record is NVDA's speech for that window (lines carry
   not for a plain Tab. **Re-check on production (r12, `nvda-2026-10-09-r12-post300.json`): row 4
   PASS** -- the All notes button was focused programmatically and NVDA said `Folders tree view, level 1,
   All notes`, i.e. the focused element was the treeitem and NVDA was in focus mode with no Insert+Space.
-  Rows 5, 6 and 11 (r12 and r13) are **INCONCLUSIVE, not measured**: the owner's TC2000 window took
-  the OS foreground mid-sequence in both runs and the foreground guard withheld the keys, exactly as
-  designed after r1. Row 5's r12 speech window carried TC2000's own text and is not clean even though
-  the grader matched. To finish: with TC2000 closed and the desk quiet, run
-  `python tools/notebook_nvda_pass.py --only 5,6,11 --nvda-log %TEMP%\nvda-probe-r14.log --out
-  docs/notebook/evidence/screen-reader/nvda-2026-10-09-r14-post300.json` (NVDA started with
-  `-m --log-level=12 --log-file=<that log>`); the driver no longer presses Insert+Space for the tree
-  and counts the Tabs from the heading to the body (expected well under 29).
+  Rows 5, 6 and 11 were INCONCLUSIVE in r12 and r13 (the owner's TC2000 window took the OS
+  foreground mid-sequence both times and the guard withheld the keys, as designed after r1), then
+  **re-run clean on the owner's "RUN IT" at ~11:25 CT: r14 rows 4, 5, 6 PASS; r15 rows 10, 11 PASS**
+  (`nvda-2026-10-09-r14-post300.json`, `-r15-post300.json`; fixtures removed 0/0/0 both runs).
+  Measured: row 4 `activeElement` role `treeitem` after the button was focused; row 5 arrows moved
+  `Unfiled 2 of 5`, `Archived 3 of 5`, `Trash 4 of 5`, `SR folder collapsed 5 of 5` with NO
+  Insert+Space, focus role `treeitem` before and after; row 6 Shift+F10 read `Rename 1 of 4`,
+  `Add subfolder 2 of 4`, `Delete 3 of 4`; row 11 **18 Tabs from the heading to the body, was 29**,
+  `Table tool bar` spoken once, then `Note body`. r14's rows 10/11 FAILED for a driver reason only
+  (under `--only` the list was still filtered to the SR folder, so the test note was not on screen);
+  the driver now clears the folder filter before opening the note, and r15 is the measurement.
+  ⚠️ Teardown: quit NVDA with `& 'C:\Program Files\NVDA\nvda.exe' -q` from PowerShell (a Git Bash
+  path call answers "Permission denied", and `Stop-Process` from a bash-spawned shell was "Access is
+  denied"); r15's NVDA kept narrating the owner's desktop until another session killed it. Next run
+  should start NVDA with `--config-path` pointing at a config whose synth is `silence`: the level-12
+  log still carries every `Speaking [...]` line, and nothing is read aloud at the desk.
 - **F4..F7 -- the script's keys predate the product** (rows 5, 6, 9, 17, 24): "Tab to its
   disclosure" / "Tab along its row" (tree), "Tab to the view switcher" (tool bar), "Tab to the
   replace field" (six Tabs: Match case, Whole word, Previous match, Next match, Close find, then
