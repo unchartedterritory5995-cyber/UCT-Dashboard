@@ -103,6 +103,21 @@ export function defaultLayout() {
 
 export const DEFAULT_LAYOUT = Object.freeze(defaultLayout())
 
+/** The security a brand-new member's overview panel shows (group A) until they pick one. */
+export const FIRST_VISIT_SYM = 'SPY'
+
+/** A brand-new member's first board (owner decision 2026-10-08, product item #1): the calendar
+ *  beside an overview, i.e. the default board with its first TWO panels showing (CAL, then DES
+ *  on group A). `useTerminalLayout` shows it only for a member with no saved board at all
+ *  (`readLayout` status `absent`, preferences loaded) and fills group A with FIRST_VISIT_SYM
+ *  while the member has none, so the overview reads SPY rather than "needs a ticker". */
+export function firstVisitLayout() {
+  // Focus stays on CAL, as on the one-panel default. Focusing the overview instead made the
+  // shell write `?cmd=SPY DES` into the address bar on open, which overwrote a `?cmd=` deep link
+  // a new member arrived with (TerminalShell.audit2 #2 / #22 went red).
+  return { ...defaultLayout(), count: 2 }
+}
+
 /** Every panel's `group` letter, derived from its channel: the compatibility view. */
 function withCompat(layout) {
   return { ...layout, panels: layout.panels.map((p) => ({ ...p, group: groupLetter(p) })) }

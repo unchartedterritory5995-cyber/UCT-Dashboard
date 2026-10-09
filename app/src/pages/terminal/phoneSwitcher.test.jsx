@@ -150,8 +150,9 @@ describe('phone panel switcher (P14a)', () => {
   })
 
   it('the phone count control changes the active panel count and tab count, via the same setCount handler', async () => {
+    // a saved one-panel board (a brand-new member's first-visit board already shows two)
+    store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 1, focus: 0, panels: [{ code: 'CAL', group: 'A' }] }) }
     renderAt('/terminal')
-    // default fresh layout starts at count 1
     expect(screen.getByTestId('terminal-phone-switcher').querySelectorAll('[role="tab"]')).toHaveLength(1)
 
     await act(async () => { fireEvent.click(screen.getByTestId('terminal-phone-count-2')) })

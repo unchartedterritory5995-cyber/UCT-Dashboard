@@ -69,6 +69,12 @@ vi.mock('./panels', async (importOriginal) => {
 import TerminalShell from './TerminalShell'
 import { saveTiming } from './useTerminalLayout'
 import { CalendarRoute, TerminalRoute } from './TerminalRoutes'
+import { defaultLayout, serializeLayout } from './boardModel'
+
+// These rails drive a RETURNING member's one-panel board. A brand-new member (no saved board)
+// opens on the two-panel first-visit board instead; that has its own file
+// (TerminalShell.firstVisit.test.jsx).
+const SAVED_ONE_PANEL = serializeLayout(defaultLayout())
 
 function setViewport(width) {
   window.matchMedia = (query) => {
@@ -112,7 +118,7 @@ async function type(text) {
 beforeEach(() => {
   saveTiming.debounceMs = 0   // layout writes land at once here; the debounce has its own rail
   try { window.sessionStorage.clear() } catch { /* */ }   // the per-tab "Back to my layout" memory
-  store.prefs = {}
+  store.prefs = { terminal_layout: SAVED_ONE_PANEL }
   store.writes = []
   setViewport(1400)
   try { window.localStorage.clear() } catch { /* */ }
