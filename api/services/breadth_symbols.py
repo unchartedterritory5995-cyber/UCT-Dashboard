@@ -889,11 +889,18 @@ def _build_breadth_series(sym: str, metric: str,
     try:
         from api.services import breadth_nhnl_intraday as _nhi
         if metric in _nhi.SERVED and _nhi.active():
+            _last = max(closes_by_date) if closes_by_date else None
+            if _last:                      # sessions the series settled after the stored tail
+                for d in (_nhi._series_view() or {}).get("rows", {}).get(_nhi._uni(universe), {}):
+                    if d > _last:
+                        closes_by_date[d] = None
             for d in list(closes_by_date):
                 v = (_nhi.values(universe, d) or {}).get(metric)
                 if v is not None:
                     closes_by_date[d] = float(v)
                     ohlc_map.pop(d, None)
+                elif closes_by_date[d] is None:
+                    closes_by_date.pop(d)
     except Exception:
         pass
 

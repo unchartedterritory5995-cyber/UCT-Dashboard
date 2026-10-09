@@ -591,12 +591,21 @@ def override_history(metric: str, universe: str, hist: dict, with_source: bool =
     if not rows:
         return hist
     out = dict(hist)
-    for d in hist:
+    # ⭐ Sessions the series has settled AFTER the newest stored session are served too: the
+    # canonical producers publish D+1 ~20:15Z, but the series settles D at ~18:35 ET on D. Without
+    # this, a chart of new highs/lows ends a session behind all day (2026-10-09, owner report).
+    last = max(hist)
+    for d in rows:
+        if d > last:
+            out[d] = None
+    for d in list(out):
         r = rows.get(d)
         if r is None:
             continue
         v = derive(r).get(metric)
         if v is None:
+            if out[d] is None:
+                out.pop(d)
             continue
         # a BODY (no o/h/l): the series has one count per session, no observed intraday range
         out[d] = {"o": None, "h": None, "l": None, "c": v}
