@@ -409,3 +409,23 @@ describe('a plain cell is drawn in the chart theme\'s own text colour', () => {
     for (const [r, c] of [[0, 0], [1, 0], [2, 0], [3, 0]]) expect(String(cell(r, c).text_color).toUpperCase()).toBe('#5B6470')
   })
 })
+
+// ─── ⛔ production 10-09: Modify on a SAVED definition (the store sorts keys) ─────────────
+describe('a reopened saved definition keeps its formula functions', () => {
+  const sortKeys = (v) => (Array.isArray(v) ? v.map(sortKeys)
+    : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sortKeys(v[k])])) : v)
+  it('the view says linreg(close, 50), its length is ONE slot, and a length edit moves every copy', () => {
+    const made = applied(applyPatch(null, env(0, [{ op: 'create', name: 'LinReg 50', placement: 'price',
+      outputs: [{ key: 'value', tree: { type: 'call', name: 'linreg', args: [{ type: 'series', name: 'close' }, { type: 'num', value: 50 }] } }] }]), { gateCtx: GATE }))
+    const stored = sortKeys(JSON.parse(JSON.stringify({ ...made, id: 'u_5a1b2c3d4e5f', version: 1 })))
+    const st = openAuthoringState(stored, { defId: stored.id, version: 1 })
+    const out = compactView(st.working, st, GATE).definition.outputs[0]
+    expect(out.formula).toBe('linreg(close, 50)')
+    expect(out.slots.map((s) => s.id)).toEqual(['value#0', 'value#1'])
+    const r = applyTurn(st, env(st.revision, [{ op: 'set_slot', slot: 'value#1', value: 20 }]), { gateCtx: GATE })
+    expect(r.result.status).toBe('applied')
+    const tree = modelOf(r.state.working).rows.find((x) => x.key === 'value').ast
+    expect(astHash(tree)).toBe(astHash(P('linreg(close, 20)')))
+    expect(readback(r.state.working, r.state, GATE).outputs[0].sentence).toMatch(/20-bar linear regression/)
+  })
+})

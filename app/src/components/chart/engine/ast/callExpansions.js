@@ -268,7 +268,16 @@ function expandIn(tree, declared) {
 
 // ─── recognition: the readable name back from the expansion ───────────────────
 
-const keyOf = (t) => { try { return JSON.stringify(t) } catch { return null } }
+// ⛔ KEY ORDER IS NOT IDENTITY (prod 10-09). A definition comes back from the store with its
+// keys SORTED ({"args","name","type"}); the rebuild is written {type, name, args}. An
+// order-sensitive comparison failed every reopened expansion: the view showed the raw
+// arithmetic and its slots were the expanded tree's, so a length edit rewrote ONE copy of
+// the length — silently different maths. Canonical (sorted-key) form, as `astHash` uses.
+const canon = (v) => (Array.isArray(v) ? `[${v.map(canon).join(',')}]`
+  : v && typeof v === 'object'
+    ? `{${Object.keys(v).filter((k) => v[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${canon(v[k])}`).join(',')}}`
+    : JSON.stringify(v))
+const keyOf = (t) => { try { return canon(t) } catch { return null } }
 const same = (a, b) => { const x = keyOf(a); return x !== null && x === keyOf(b) }
 const isCall = (t, name) => !!t && t.type === 'call' && t.name === name && Array.isArray(t.args)
 const isOp = (t, name, n) => !!t && t.type === 'op' && t.name === name && Array.isArray(t.args) && t.args.length === n
