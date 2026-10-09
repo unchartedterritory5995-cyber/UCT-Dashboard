@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { choosePanelAnchor, clipBoundaryOf } from './askPanelAnchor'
 import Sheet from '../../../../components/mobile/Sheet'
 import { NOTEBOOK_DOORS, onNotebookDoor } from '../../lib/notebookDoors'
 import useFocusTrap from '../../../../components/mobile/useFocusTrap'
@@ -540,6 +541,19 @@ function PanelShell({ isTouch, label, onClose, children }) {
   const panelRef = useRef(null)
   const focusInside = useCallback(() => Boolean(panelRef.current?.contains(document.activeElement)), [])
   useFocusTrap(!isTouch, panelRef, focusInside)
+  // Fin polish: hang from whichever edge keeps the panel inside its clipping ancestor
+  // (`choosePanelAnchor` in askPanelAnchor.js). Read once at mount, before paint, so the member never sees
+  // the clipped frame; the toggle does not move while the panel is open.
+  const [anchor, setAnchor] = useState('end')
+  useLayoutEffect(() => {
+    if (isTouch) return
+    const el = panelRef.current
+    if (!el || typeof el.getBoundingClientRect !== 'function') return
+    const panel = el.getBoundingClientRect()
+    if (!panel || panel.right - panel.left === 0) return   // jsdom: no layout, nothing to decide
+    const toggle = el.parentElement?.getBoundingClientRect?.()
+    setAnchor(choosePanelAnchor({ panel, bound: clipBoundaryOf(el), toggleLeft: toggle?.left }))
+  }, [isTouch])
   if (isTouch) {
     return (
       <Sheet open onClose={onClose} variant="bottom-sheet" ariaLabel={label}>
@@ -550,7 +564,8 @@ function PanelShell({ isTouch, label, onClose, children }) {
   return (
     <div
       ref={panelRef}
-      className={styles.panel}
+      className={anchor === 'start' ? `${styles.panel} ${styles.panelStart}` : styles.panel}
+      data-anchor={anchor}
       role="dialog"
       aria-label={label}
       onKeyDown={(e) => {
