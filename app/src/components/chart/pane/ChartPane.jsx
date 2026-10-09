@@ -801,12 +801,16 @@ function ChartPane({
     ensureFullHistory: () => dateNavApiRef.current?.ensureFullHistory?.(),
     getDateMeta: () => (dateNavApiRef.current?.getDateMeta?.() || null),
     // ⭐ AGENT M1 — Create Indicator for UCT Agent (`ChartToolbar.openCreateIndicatorFor`):
-    // the settings modal closes first (one surface holding Escape), the studio opens with
+    // the settings modal closes when it opens (one surface holding Escape), the studio opens with
     // the request PREFILLED (never sent). `canCreateIndicator` is the button's own answer.
     openCreateIndicatorFor: (opts = null) => {
-      setSettingsOpen(false)
       const no = { ok: false, reason: 'unavailable', prefilled: false, draft: false, editing: false }
-      try { return paneToolbarApi.current?.openCreateIndicatorFor?.(opts) ?? no } catch { return no }
+      let res = no
+      try { res = paneToolbarApi.current?.openCreateIndicatorFor?.(opts) ?? no } catch { res = no }
+      // ⭐ only an open that HAPPENED closes Chart Settings (Agent team finding, 10-09):
+      // a refused one ('access' / 'readonly' / 'unknown-definition') leaves the screen as it was
+      if (res && res.ok) setSettingsOpen(false)
+      return res
     },
     canCreateIndicator: () => { try { return !!paneToolbarApi.current?.canModifyWithIntelligence?.() } catch { return false } },
   }), [openSettings, updateChartSettings, handleSymbolChange])
