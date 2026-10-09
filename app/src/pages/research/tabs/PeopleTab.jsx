@@ -55,7 +55,8 @@ function Executives({ part, sym }) {
       <table className={styles.grid} data-testid="people-execs" aria-label="Officers and key executives">
         <thead><tr>
           <th scope="col">Name</th><th scope="col">Title</th><th scope="col">Since</th>
-          <th scope="col">Pay (FMP)</th><th scope="col">Proxy total</th><th scope="col">Form 4 role</th>
+          {/* Wave 3 (PPL P3 #20): the header named a vendor members don't know; the source line says who. */}
+          <th scope="col">Reported pay</th><th scope="col">Proxy total</th><th scope="col">Form 4 role</th>
         </tr></thead>
         <tbody>
           {part.rows.map((e) => (

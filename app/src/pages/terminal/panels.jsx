@@ -29,7 +29,8 @@ export const PANEL_IMPORTERS = {
   // FA / EE on FMP (gap audit 3 + 4): the depth views, which fall back to the
   // yfinance tabs — labelled — only where FMP holds nothing.
   Financials: () => import('../../components/research/fmpDepth/FinancialsDeep'),
-  Estimates: () => import('../../components/research/fmpDepth/ConsensusEstimates'),
+  // EE: the consensus above plus BRKE's firms-acting list (folded in 2026-10-08), via an adapter.
+  Estimates: () => import('./panels/EstimatesPanel'),
   EstimateHistory: () => import('../research/tabs/EstimateHistoryTab'),
   AnalystRatings: () => import('../research/tabs/AnalystRatingsTab'),
   Ratings: () => import('../research/tabs/RatingsTab'),
@@ -51,7 +52,6 @@ export const PANEL_IMPORTERS = {
   EarningsReaction: () => import('../research/depth/EarningsReactionPanel'),
   Ftd: () => import('../research/depth/FtdPanel'),
   MentionSeries: () => import('../research/depth/MentionSeriesPanel'),
-  BrokerEstimates: () => import('../research/depth/BrokerEstimatesPanel'),
   OptionsChain: () => import('../research/tabs/OptionsChainTab'),
   IvHistory: () => import('../research/tabs/IvHistoryPanel'),
   Backtest: () => import('../research/tabs/BacktestPanel'),
@@ -78,6 +78,8 @@ export const PANEL_IMPORTERS = {
   // my names (lane 9) — terminal-native; read the routes the watchlist page and the alert bell use
   Alerts: () => import('./panels/AlertsPanel'),
   Watchlist: () => import('./panels/WatchlistPanel'),
+  // GRADE (wave 3, lane 11) — Compass's buy / hold / skip verdict, read-only over grade_ticker
+  Grade: () => import('./panels/GradePanel'),
 }
 
 /** The panel name a registry variant renders: its `panel`, or the panel-set id of its

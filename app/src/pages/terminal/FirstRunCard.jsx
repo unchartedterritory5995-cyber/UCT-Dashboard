@@ -4,8 +4,9 @@
 // to say what the terminal is. This is a short card under the command bar for a member with NO
 // saved board yet: how a command is shaped, where every function is listed, and how panels
 // follow each other. It is dismissible, and the dismissal is remembered on the member's account
-// (`terminal_orientation_seen`), so it never returns on another device. No redesign: the board
-// behind it is unchanged, and a member who already has a board never sees it.
+// (`terminal_orientation_seen`), so it never returns on another device. A member who already has
+// a board never sees it. Since 2026-10-08 the board behind it is the two-panel first-visit board
+// (CAL beside an SPY overview, boardModel `firstVisitLayout`).
 import { useEffect, useState } from 'react'
 import usePreferences from '../../hooks/usePreferences'
 import { TERMINAL_LAYOUT_PREF } from './useTerminalLayout'
@@ -24,7 +25,8 @@ export default function FirstRunCard({ onTry }) {
   }, [loading, prefs, eligible])
   const [dismissed, setDismissed] = useState(false)
   if (!eligible || dismissed || prefs?.[ORIENTATION_PREF]) return null
-  const dismiss = () => { setDismissed(true); setPref(ORIENTATION_PREF, '1') }
+  // A literal key at the write site, so the preference census can read it (S5 CP2 additions-only rail).
+  const dismiss = () => { setDismissed(true); setPref('terminal_orientation_seen', '1') }
   const tryIt = (cmd) => (
     <button type="button" className={styles.chip} onClick={() => onTry?.(cmd)} data-testid={`terminal-firstrun-try-${cmd.replace(/\s+/g, '-')}`}>{cmd}</button>
   )

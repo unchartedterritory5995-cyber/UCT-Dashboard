@@ -1348,6 +1348,7 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
         # history. The caller is responsible for slicing the response.
         return bars
     except Exception as _e:
+        _note_provider_fault(_e)
         import logging as _log
         _log.getLogger(__name__).error(
             f"[bars] _fetch_intraday_massive {ticker} tf={tf} failed: {type(_e).__name__}: {_e}"
@@ -1469,6 +1470,7 @@ def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
                 continue
         return bars[-max_bars:]
     except Exception as _e:
+        _note_provider_fault(_e)
         import logging as _log
         _log.getLogger(__name__).warning(
             f"[bars] _fetch_intraday_fmp {ticker} tf={tf} failed: {type(_e).__name__}: {_e}"
@@ -1520,6 +1522,7 @@ def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
             })
         return bars[-max_bars:]
     except Exception as _e:
+        _note_provider_fault(_e)
         import logging as _log
         _log.getLogger(__name__).warning(
             f"[bars] _fetch_intraday_yfinance {ticker} tf={tf} failed: {type(_e).__name__}: {_e}"
@@ -2066,6 +2069,7 @@ def _fetch_daily_yf(ticker: str, timeout: float = 20.0) -> list[dict]:
             _yf_daily_record_fail(ticker_up)
         return out
     except Exception as e:
+        _note_provider_fault(e)
         _yf_daily_record_fail(ticker_up)
         print(f"[bars] yfinance daily fetch failed for {ticker}: {e}")
         return []
@@ -2770,32 +2774,101 @@ _cold_bg_lock = _threading.Lock()
 _COLD_BG_QUEUE_MAX = _COLD_FETCH_CONCURRENCY * 4   # running + a small queue; drop beyond
 
 
+from api.services.provider_fault_scope import note as _note_provider_fault  # noqa: E402
+from api.services import provider_fault_scope as _provider_fault_scope   # noqa: E402
+
+# ── Cold NEGATIVE cache: "every provider was asked and none has this" ─────────
+# ⛔⛔ MEASURED ON PRODUCTION 2026-10-08/09: `/api/bars/ZZQXV?tf=D` (a made-up
+# ticker) answered 503 `{"error":"warming"}` on EVERY request, for as long as
+# anyone asked. The warming 503 is a promise — "a fetch is running, re-poll" — and
+# for a symbol no provider has, the fetch lands nothing, the next request finds
+# SQLite still empty, kicks ANOTHER cold fetch and makes the same promise. The
+# chart spun until the frontend gave up, and `symbol_presence` could never call a
+# real typo a typo, because /api/bars never stopped saying "ask me again".
+#
+# ⭐ SO A COMPLETED cold fetch that came back empty from EVERY provider, with NO
+# provider fault (error / timeout / breaker skip / rejected payload — see
+# `provider_fault_scope`), is remembered for a bounded TTL. The router turns the
+# next warming 503 for that (ticker, tf) into its honest 200 `no_data` with
+# `reason: "no_provider_data"`, and `_kick_cold_fetch` stops re-asking.
+#
+# ⚠️ WHAT IT CAN NEVER DO:
+#   • fire on a transient failure — any fault in the scope and nothing is cached,
+#     so today's retry behaviour stands (the SQ/XYZ breaker-open case included);
+#   • hide real bars — it is consulted only on the cold branch, i.e. when SQLite
+#     holds NOTHING for the key; the moment any path writes rows, it is never read;
+#   • outlive its TTL or grow without bound (in-process, oldest evicted first).
+_COLD_NEGATIVE_TTL_S = float(_os.environ.get("BARS_COLD_NEGATIVE_TTL_S", "1800"))
+_COLD_NEGATIVE_MAX = 5000
+_cold_negative: dict[str, float] = {}     # key -> monotonic expiry
+_cold_negative_lock = _threading.Lock()
+
+
+def _cold_neg_key(ticker: str, tf: str) -> str:
+    return f"{(ticker or '').strip().upper()}_{tf}"
+
+
+def _record_cold_negative(ticker: str, tf: str) -> None:
+    import time as _t
+    with _cold_negative_lock:
+        _cold_negative[_cold_neg_key(ticker, tf)] = _t.monotonic() + _COLD_NEGATIVE_TTL_S
+        if len(_cold_negative) > _COLD_NEGATIVE_MAX:
+            for k, _ in sorted(_cold_negative.items(), key=lambda kv: kv[1])[
+                    : len(_cold_negative) - _COLD_NEGATIVE_MAX]:
+                _cold_negative.pop(k, None)
+
+
+def cold_negative(ticker: str, tf: str) -> bool:
+    """True while a completed, fault-free cold fetch for (ticker, tf) found nothing."""
+    import time as _t
+    key = _cold_neg_key(ticker, tf)
+    with _cold_negative_lock:
+        exp = _cold_negative.get(key)
+        if exp is None:
+            return False
+        if _t.monotonic() >= exp:
+            _cold_negative.pop(key, None)
+            return False
+        return True
+
+
 def _do_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
     """The cold provider fetch, run OFF the request thread → warms bars.db so the
-    client's next poll is a SQLite hit. Same fetch + persist as the old inline path."""
+    client's next poll is a SQLite hit. Same fetch + persist as the old inline path.
+
+    When the fetch returns nothing AND no provider faulted, the (ticker, tf) is
+    negative-cached (see `_cold_negative` above)."""
     import logging as _log
     _lg = _log.getLogger(__name__)
     try:
         _deep = _is_deep_request(bars)
-        if tf in ("1", "5", "15", "30", "60"):
-            raw = _fetch_intraday(ticker_up, tf, bars)
-        elif tf == "W":
-            raw = _fetch_weekly(ticker_up, bars, deep=_deep)
-        elif tf == "M":
-            raw = _fetch_monthly(ticker_up, bars, deep=_deep)
-        else:
-            raw = _fetch_daily(ticker_up, bars, deep=_deep)
+        with _provider_fault_scope.scope() as _faults:
+            if tf in ("1", "5", "15", "30", "60"):
+                raw = _fetch_intraday(ticker_up, tf, bars)
+            elif tf == "W":
+                raw = _fetch_weekly(ticker_up, bars, deep=_deep)
+            elif tf == "M":
+                raw = _fetch_monthly(ticker_up, bars, deep=_deep)
+            else:
+                raw = _fetch_daily(ticker_up, bars, deep=_deep)
         if raw and (date_tf or not _is_intraday_stale(raw)):
             _sqlite.put_bars(ticker_up, tf, raw, date_tf=date_tf)
             if _deep:
                 _mark_history_complete(ticker_up, tf)
+        elif not raw and _faults.clean:
+            _record_cold_negative(ticker_up, tf)
+            _lg.info("[bars] cold bg fetch %s tf=%s: no provider has data — "
+                     "negative-cached %.0fs", ticker_up, tf, _COLD_NEGATIVE_TTL_S)
     except Exception as e:
         _lg.warning("[bars] cold bg fetch failed %s tf=%s: %s", ticker_up, tf, e)
 
 
 def _kick_cold_fetch(ticker_up: str, tf: str, bars: int, date_tf: bool) -> None:
     """Submit a deduped cold fetch to the bounded bg pool (drop past the queue cap so a
-    fresh-browser scan of obscure tickers can't pile up unbounded work)."""
+    fresh-browser scan of obscure tickers can't pile up unbounded work). A key every
+    provider already answered "nothing" for is not re-asked until its TTL lapses."""
+    if cold_negative(ticker_up, tf):
+        return
     key = f"{ticker_up}_{tf}"
     with _cold_bg_lock:
         if key in _cold_bg_inflight or len(_cold_bg_inflight) >= _COLD_BG_QUEUE_MAX:
@@ -3950,8 +4023,13 @@ def fetch_with_validation(
                 chosen = _accept(payload)
                 if chosen is not None:
                     return chosen
-        except Exception:
+            elif payload:
+                _note_provider_fault()   # it HAD bars; we refused them — not "nothing"
+        except Exception as _e:
+            _note_provider_fault(_e)
             _scb.record_attempt("massive", success=False)
+    else:
+        _note_provider_fault()       # breaker open: the source was never asked
 
     # FMP — intraday timeframes only
     if tf in ("1", "5", "15", "30", "60") and _scb.is_ok("fmp"):
@@ -3963,8 +4041,13 @@ def fetch_with_validation(
                 chosen = _accept(payload)
                 if chosen is not None:
                     return chosen
-        except Exception:
+            elif payload:
+                _note_provider_fault()   # it HAD bars; we refused them — not "nothing"
+        except Exception as _e:
+            _note_provider_fault(_e)
             _scb.record_attempt("fmp", success=False)
+    elif tf in ("1", "5", "15", "30", "60"):
+        _note_provider_fault()       # breaker open: the source was never asked
 
     # yfinance fallback (split-adjusted, includes premarket)
     if _scb.is_ok("yfinance"):
@@ -3976,8 +4059,13 @@ def fetch_with_validation(
                 chosen = _accept(payload)
                 if chosen is not None:
                     return chosen
-        except Exception:
+            elif payload:
+                _note_provider_fault()   # it HAD bars; we refused them — not "nothing"
+        except Exception as _e:
+            _note_provider_fault(_e)
             _scb.record_attempt("yfinance", success=False)
+    else:
+        _note_provider_fault()       # breaker open: the source was never asked
 
     # No source reached the expected session — return the freshest valid
     # payload we saw (better a few sessions behind than a blank chart). The

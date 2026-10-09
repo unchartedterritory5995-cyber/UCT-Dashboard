@@ -24,7 +24,7 @@
 //   ALIAS N = cmd · UNALIAS N · ALIAS → member aliases (collisions REFUSED, never shadowed)
 //
 // Never silent: every input yields `{ ok: true, … }` or `{ ok: false, error, suggestions }`.
-import { BY_CODE, ABSENT, canonicalCode, isCode, suggest } from './functions'
+import { BY_CODE, ABSENT, canonicalCode, isCode, retiredNote, suggest } from './functions'
 import { CHANNEL_RE, aliasNameRefusal, compareMode, isTickerCollision, looksLikeQuestion } from './grammar'
 import { ARG_KINDS } from './args'
 import { normalizeSym as normalizeUrlSym } from '../calendar/useEarningsModalRoute'
@@ -205,6 +205,10 @@ export default function parseCommand(input, opts = {}) {
       const mode = compareMode(r.sym, other)
       return { ...r, args: mode === 'sector' ? ['SECTOR', ...r.args.slice(1)] : [other, ...r.args.slice(1)], compareMode: mode }
     }
+    // Wave 4 (lane A): `ERN` with no ticker is the earnings CALENDAR (CAL). Without this it fell
+    // back to the focused panel's security, so on the first-visit board `ERN` opened SPY's
+    // earnings window. `NVDA ERN` is unchanged. `from` lets the echo say why it reads as CAL.
+    if (r.code === 'ERN' && r.sym == null) return { ...r, code: 'CAL', from: 'ERN' }
     // V5: a bare code that is ALSO a ticker is annotated, so the echo says so before Enter.
     if (!forced && FIRST === r.code && r.sym == null && isTickerCollision(r.code)) return { ...r, collision: r.code }
     return r
@@ -212,7 +216,7 @@ export default function parseCommand(input, opts = {}) {
   const r = core
   // A pasted ticker LIST (`NVDA AMD MSFT TSLA`) is not a question: say so, rather than spend
   // an AI Search on it. Upper-case only (see LIST_TICKER_RE); a `?` still means a question.
-  if (!r.ok && !r.absent && tokens.length >= 3 && !raw.includes('?')
+  if (!r.ok && !r.absent && !r.retired && tokens.length >= 3 && !raw.includes('?')
     && !looksLikeQuestion(tokens.slice(0, 2).join(' '))       // WHY IS NVDA DOWN is a question
     && tokens.every((t) => LIST_TICKER_RE.test(t))) {
     const syms = tokens.map((t) => t.replace(/^\$/, ''))
@@ -222,7 +226,7 @@ export default function parseCommand(input, opts = {}) {
       sym: syms[0], suggestions: [] }
   }
   // V16: a line that is not a command but reads like a question goes to AI Search.
-  if (!r.ok && r.error !== 'empty' && !r.absent && looksLikeQuestion(raw)) {
+  if (!r.ok && r.error !== 'empty' && !r.absent && !r.retired && looksLikeQuestion(raw)) {
     return { ok: true, type: 'ask', question: raw, fallback: true }
   }
   return r
@@ -313,6 +317,11 @@ function parseCore(raw) {
   if (second && !forced && Object.prototype.hasOwnProperty.call(ABSENT, second.toUpperCase())) {
     return { ok: false, error: ABSENT[second.toUpperCase()], absent: second.toUpperCase(), suggestions: [] }
   }
+  // `NVDA PMKT`: a code removed from the terminal (functions.js RETIRED) answers with where it
+  // went. Only in the code slot: `GP EXP` is still a chart of the ticker EXP.
+  if (second && !(!forced && isCode(FIRST)) && retiredNote(second)) {
+    return { ok: false, error: retiredNote(second), retired: second.toUpperCase(), suggestions: [] }
+  }
 
   // FUNC [TICKER] [args]
   if (!forced && isCode(FIRST)) {
@@ -340,6 +349,9 @@ function parseCore(raw) {
   }
   if (!forced && Object.prototype.hasOwnProperty.call(ABSENT, FIRST)) {
     return { ok: false, error: ABSENT[FIRST], absent: FIRST, suggestions: [] }
+  }
+  if (!forced && retiredNote(FIRST)) {
+    return { ok: false, error: retiredNote(FIRST), retired: FIRST, suggestions: [] }
   }
 
   // TICKER alone → DES

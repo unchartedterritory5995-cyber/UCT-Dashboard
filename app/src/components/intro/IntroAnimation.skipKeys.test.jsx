@@ -32,6 +32,7 @@ vi.mock('../../context/AuthContext', () => ({
 // keys) is the one under test.
 beforeEach(() => {
   window.sessionStorage.clear()
+  window.localStorage.clear()   // the intro is gated once per ET day (introStorage.js)
   vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener() {}, removeEventListener() {} })))
 })
 

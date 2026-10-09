@@ -107,6 +107,9 @@ def test_the_browser_side_models_state_their_assumptions(monkeypatch):
     assert set(fin["views"]) == {"bullish", "bearish", "neutral", "volatile"} and "not advice" in fin["method"]
     gr = c.get("/api/research/options/TST/chain-greeks").json()
     assert "Not streamed" in gr["streaming"]
+    # Wave 3 (OMON P2 #12): the note is printed to members, so no build notes or shorthand
+    assert "socket" not in gr["streaming"] and "60 seconds" in gr["streaming"]
+    assert "contract share" not in gr["rho"]
     assert c.get("/api/research/options/not a sym/payoff-model").status_code in (404, 422)
 
 
@@ -224,6 +227,8 @@ def test_the_3d_mesh_is_the_surface_grid_blank_cells_left_open(monkeypatch):
     assert m["strikes"] == [95, 100] and m["z"] == [[0.33, None], [0.30, 0.29]]
     assert m["expirations"] == [{"expiration": "2026-10-16", "dte": 14}, {"expiration": "2026-11-20", "dte": 49}]
     assert m["cells_filled"] == 3 and m["cells_total"] == 4
+    # Wave 3 (OVS P2 #20): printed between two sentences on the panel, so it is one itself
+    assert m["side_rule"] == "Each point is the otm."
 
 
 # ── FT-049 delta pressure and charm ────────────────────────────────────────────────────────────

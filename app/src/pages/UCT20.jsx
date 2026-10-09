@@ -7,7 +7,7 @@ import useSWR, { useSWRConfig } from 'swr'
 import PullToRefresh from '../components/PullToRefresh'
 import Sheet from '../components/mobile/Sheet'
 import TileCard from '../components/TileCard'
-import TickerPopup from '../components/TickerPopup'
+import PanelTicker from '../components/terminal/PanelTicker'
 import UCT20Performance from '../components/tiles/UCT20Performance'
 import UCT20Backtest from '../components/tiles/UCT20Backtest'
 import { SkeletonTable } from '../components/Skeleton'
@@ -205,9 +205,9 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
         </span>
         <span className={styles.tickerCell}>
           <span className={styles.tickerInner} onClick={e => e.stopPropagation()}>
-            <TickerPopup sym={sym} markers={chartMarkers} priceLines={chartPriceLines} stopPrice={posData?.stop_price ?? null}>
+            <PanelTicker sym={sym} markers={chartMarkers} priceLines={chartPriceLines} stopPrice={posData?.stop_price ?? null}>
               <span className={styles.sym}>{sym}</span>
-            </TickerPopup>
+            </PanelTicker>
           </span>
           {isNew && <span className={styles.newBadge}>NEW</span>}
           {hasInsiderBuy && <span className={styles.insiderBadge}>INSIDER</span>}

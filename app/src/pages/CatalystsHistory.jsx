@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import HighlightThesis, { FAILED_SYNTHESIS_NOTE, hasNoWriteup } from '../utils/highlightThesis'
 import { formatET } from '../utils/timeAgo'
-import TickerPopup from '../components/TickerPopup'
+import PanelTicker from '../components/terminal/PanelTicker'
 import UIcon from '../components/ui/UIcon'
 import Input from '../components/ui/Input'
 import { BoardFromList, PanelSkeleton, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../components/terminal'
@@ -78,9 +78,14 @@ function parseSources(raw) {
   }
 }
 
-export default function CatalystsHistory() {
+/** A `YYYY-MM-DD` the page can open on (the terminal's `CATH 2026-10-01`), else null. */
+function openingDate(d) {
+  return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null
+}
+
+export default function CatalystsHistory({ date: askedDate } = {}) {
   const inPanel = useInTerminalPanel()
-  const [date, setDate] = useState(defaultCatalystDate)
+  const [date, setDate] = useState(() => openingDate(askedDate) || defaultCatalystDate())
   const { data, error, isLoading, mutate } = useSWR(
     date ? `/api/catalysts/by-date/${date}` : null,
     fetcher,
@@ -184,9 +189,9 @@ export default function CatalystsHistory() {
                   return (
                     <tr key={r.ticker}>
                       <td className={styles.colSym}>
-                        <TickerPopup sym={r.ticker}>
+                        <PanelTicker sym={r.ticker}>
                           <span className={styles.ticker}>{r.ticker}</span>
-                        </TickerPopup>
+                        </PanelTicker>
                       </td>
                       <td className={styles.colPrice}>{fmtPrice(r.price)}</td>
                       {/* No move (or none on file) is not painted as a gain. */}

@@ -155,6 +155,12 @@ export default function ImovPanel({ sym: symProp = null, win: winProp = null, th
     const t = key ? byKey.get(key) : null
     if (t && onRun) onRun(imovCommand({ sym, theme: t, win }), { here: true })
   }
+  // Wave 3 (IMOV P2 #22): a window change was local state only, so a reload lost it. Like a theme
+  // pick it is written into this panel's own command (`IMOV THEME SEMICONDUCTORS 1W`).
+  const pickWin = (w) => {
+    setWin(w)
+    if (theme && onRun) onRun(imovCommand({ sym, theme, win: w }), { here: true })
+  }
   const themeChips = (list, testPrefix) => (
     <span className={styles.group}>
       {list.map((t) => (
@@ -270,7 +276,7 @@ export default function ImovPanel({ sym: symProp = null, win: winProp = null, th
         {picker}
         <div className={styles.group} role="group" aria-label="Window">
           {Object.keys(IMOV_WINDOWS).map((w) => (
-            <button key={w} type="button" className={styles.chip} aria-pressed={w === win} onClick={() => setWin(w)}
+            <button key={w} type="button" className={styles.chip} aria-pressed={w === win} onClick={() => pickWin(w)}
               data-testid={`terminal-imov-win-${w}`}>{w}</button>
           ))}
         </div>

@@ -5,7 +5,7 @@
 > (imports, `setPref` keys, URL params) and from the route table. `parityMatrix.test.js` fails when
 > this file and the derivation disagree, or when a row is GAP without a named owner (MG-7).
 
-**Rows: 36 · CARRIED 33 · UNAFFECTED 2 · GAP 1.**
+**Rows: 37 · CARRIED 34 · UNAFFECTED 2 · GAP 1.**
 
 Vocabulary (coexistence.md §3.1, inward): **CARRIED** = a member can do this inside the shell, so the
 old page is not needed for it. **UNAFFECTED** = not part of the `/calendar` page; the shell changes
@@ -50,20 +50,21 @@ nothing about it. **GAP** = a member must leave the shell for it; each GAP names
 | 20 | Page module | WeekView (./calendar/WeekView) | **CARRIED** | embedsSameModule |
 | 21 | Page module | MonthView (./calendar/MonthView) | **CARRIED** | embedsSameModule |
 | 22 | Page module | DayDetailDrawer (./calendar/DayDetailDrawer) | **CARRIED** | embedsSameModule |
-| 23 | Persisted key | `calendar_view_v3` (setPref) | **CARRIED** | embedsSameModule — same key, same writer, no rename (MG-4: no shim needed) |
-| 24 | Persisted key | `calendar_filters_v2` (setPref) | **CARRIED** | embedsSameModule — same key, same writer, no rename (MG-4: no shim needed) |
-| 25 | Persisted key | `calendar_mystocks_sources` (setPref) | **CARRIED** | embedsSameModule — same key, same writer, no rename (MG-4: no shim needed) |
-| 26 | Persisted key | `calendar_event_types_v2` (setPref) | **CARRIED** | embedsSameModule — same key, same writer, no rename (MG-4: no shim needed) |
-| 27 | URL contract | `?d=` | **CARRIED** | redirectKeepsSearch + routed (ROUTED_PATHS has /terminal/calendar) |
-| 28 | URL contract | `?earnings=` | **CARRIED** | redirectKeepsSearch + routed (ROUTED_PATHS has /terminal/calendar) |
-| 29 | URL contract | `?esection=` | **CARRIED** | redirectKeepsSearch + routed (ROUTED_PATHS has /terminal/calendar) |
-| 30 | URL contract | `?week=` | **CARRIED** | redirectKeepsSearch + routed (ROUTED_PATHS has /terminal/calendar) |
-| 31 | Adjacent | `/calendar` still answers (bookmarks, nav entry, hub, voice) | **CARRIED** | `<Route path="/calendar">` kept: the page, or a redirect into the shell — never 404 |
-| 32 | Adjacent | Free-tier `/calendar?earnings=SYM` -> `/research/SYM` (row E2) | **CARRIED** | AuthGuard matches `/calendar` exactly BEFORE the route element renders |
-| 33 | Adjacent | `/calendar/mystocks` hub (row D1, DEAD/retire-candidate) | **UNAFFECTED** | its own route, untouched |
-| 34 | Adjacent | `/r/calendar` screenshot contract (row D4) | **UNAFFECTED** | headless route, not inside the shell |
-| 35 | Adjacent | Zone D "On deck" door key `calendar` -> `/calendar` (row D6) | **CARRIED** | `/calendar` link still resolves (redirect for cohort members) |
-| 36 | Adjacent | Joystick hub `calendar` mode (row D9) | **GAP** | Joystick hub `calendar` mode is route-bound to `/calendar` (hub/registry.js). A cohort member is redirected to `/terminal/calendar`, so the hub does not resolve its calendar mode there. Needs a `/terminal` mode or route alias in `app/src/hub/**` — OUT OF THIS LANE (brief: STOP and report). |
+| 23 | Page module | MineNotice (./calendar/MineNotice) | **CARRIED** | embedsSameModule |
+| 24 | Persisted key | `calendar_view_v3` (setPref) | **CARRIED** | embedsSameModule — same key, same writer, no rename (MG-4: no shim needed) |
+| 25 | Persisted key | `calendar_filters_v2` (setPref) | **CARRIED** | embedsSameModule — same key, same writer, no rename (MG-4: no shim needed) |
+| 26 | Persisted key | `calendar_mystocks_sources` (setPref) | **CARRIED** | embedsSameModule — same key, same writer, no rename (MG-4: no shim needed) |
+| 27 | Persisted key | `calendar_event_types_v2` (setPref) | **CARRIED** | embedsSameModule — same key, same writer, no rename (MG-4: no shim needed) |
+| 28 | URL contract | `?d=` | **CARRIED** | redirectKeepsSearch + routed (ROUTED_PATHS has /terminal/calendar) |
+| 29 | URL contract | `?earnings=` | **CARRIED** | redirectKeepsSearch + routed (ROUTED_PATHS has /terminal/calendar) |
+| 30 | URL contract | `?esection=` | **CARRIED** | redirectKeepsSearch + routed (ROUTED_PATHS has /terminal/calendar) |
+| 31 | URL contract | `?week=` | **CARRIED** | redirectKeepsSearch + routed (ROUTED_PATHS has /terminal/calendar) |
+| 32 | Adjacent | `/calendar` still answers (bookmarks, nav entry, hub, voice) | **CARRIED** | `<Route path="/calendar">` kept: the page, or a redirect into the shell — never 404 |
+| 33 | Adjacent | Free-tier `/calendar?earnings=SYM` -> `/research/SYM` (row E2) | **CARRIED** | AuthGuard matches `/calendar` exactly BEFORE the route element renders |
+| 34 | Adjacent | `/calendar/mystocks` hub (row D1, DEAD/retire-candidate) | **UNAFFECTED** | its own route, untouched |
+| 35 | Adjacent | `/r/calendar` screenshot contract (row D4) | **UNAFFECTED** | headless route, not inside the shell |
+| 36 | Adjacent | Zone D "On deck" door key `calendar` -> `/calendar` (row D6) | **CARRIED** | `/calendar` link still resolves (redirect for cohort members) |
+| 37 | Adjacent | Joystick hub `calendar` mode (row D9) | **GAP** | Joystick hub `calendar` mode is route-bound to `/calendar` (hub/registry.js). A cohort member is redirected to `/terminal/calendar`, so the hub does not resolve its calendar mode there. Needs a `/terminal` mode or route alias in `app/src/hub/**` — OUT OF THIS LANE (brief: STOP and report). |
 
 ## What this matrix is not
 

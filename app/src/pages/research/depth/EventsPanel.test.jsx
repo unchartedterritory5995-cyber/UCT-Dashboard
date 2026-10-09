@@ -75,3 +75,26 @@ describe('EventsPanel', () => {
     expect(screen.queryByText('No events on file in the sources read.')).toBeNull()
   })
 })
+
+describe('EventsPanel in a terminal panel (wave 3 #3)', () => {
+  it('an event kind opens the function holding its detail beside the panel; earnings stays plain', async () => {
+    const { PanelListContext } = await import('../../../components/terminal')
+    const { default: EventsPanel } = await import('./EventsPanel')
+    const api = { open: vi.fn() }
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <PanelListContext.Provider value={api}><EventsPanel sym="aapl" /></PanelListContext.Provider>
+      </SWRConfig>,
+    )
+    const btn = await screen.findByRole('button', { name: 'Open AAPL catalyst history (AAPL CATS)' })
+    btn.click()
+    expect(api.open).toHaveBeenCalledWith('AAPL CATS')
+    expect(screen.queryByRole('button', { name: /AAPL ERN/ })).toBeNull()
+  })
+
+  it('CONTROL: outside the terminal the kind is plain text', async () => {
+    renderTab()
+    await screen.findAllByTestId('event-row')
+    expect(screen.queryByRole('button', { name: /AAPL CATS/ })).toBeNull()
+  })
+})

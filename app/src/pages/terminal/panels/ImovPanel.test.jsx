@@ -80,6 +80,17 @@ describe('IMOV', () => {
     expect(text('terminal-imov-total')).toContain('Semiconductors 1D: +0.50%')
   })
 
+  it('a window chip is written into the command, so a reload keeps it (wave 3)', async () => {
+    serve(PAYLOAD)
+    const onRun = vi.fn()
+    renderPanel({ win: '1W', onRun })
+    await screen.findByTestId('terminal-imov-total')
+    fireEvent.click(screen.getByTestId('terminal-imov-win-1M'))
+    expect(onRun).toHaveBeenLastCalledWith('IMOV THEME SEMICONDUCTORS 1M', { here: true })
+    fireEvent.click(screen.getByTestId('terminal-imov-win-1D'))
+    expect(onRun).toHaveBeenLastCalledWith('IMOV THEME SEMICONDUCTORS', { here: true })   // 1D is the default
+  })
+
   it('a row click loads that name into the linked group and keeps every function; rows are numbered for <GO>', async () => {
     serve(PAYLOAD)
     const onRun = vi.fn()

@@ -16,6 +16,9 @@
 import useSWR from 'swr'
 import { sectionFetcher } from '../components/research/sections/sectionFetch'
 
+// Wave 4: a 503 + Retry-After is "still fetching"; see ./transcriptRetry.js.
+import { transcriptOnErrorRetry } from './transcriptRetry'
+
 /**
  * @param {string|null} ticker
  * @param {object} opts
@@ -37,6 +40,7 @@ export default function useTranscript(ticker, { enabled = false, quarter = null 
       // Dedupe for the 24h cache window; avoids a second fetch if user
       // toggles the transcript panel open/close within the same session.
       dedupingInterval:  24 * 60 * 60 * 1000,
+      onErrorRetry: transcriptOnErrorRetry,
     },
   )
 }

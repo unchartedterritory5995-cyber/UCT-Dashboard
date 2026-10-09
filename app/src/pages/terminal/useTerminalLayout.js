@@ -29,8 +29,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import { FOCUS_PREF_KEY } from '../../hooks/useAppFocus'
 import {
-  channelSyms, isGuardedStatus, normalizeLayout, normalizeLibrary, readLayout, readLibrary,
-  serializeLayout,
+  FIRST_VISIT_SYM, channelSyms, firstVisitLayout, isGuardedStatus, normalizeLayout, normalizeLibrary,
+  readLayout, readLibrary, serializeLayout,
 } from './boardModel'
 
 export const TERMINAL_LAYOUT_PREF = 'terminal_layout'
@@ -91,9 +91,17 @@ export default function useTerminalLayout() {
   // another tab — is not something this hook wrote, and it wins (the effect below).
   const [local, setLocal] = useState(null)
   const guarded = isGuardedStatus(read.status)
-  const stored = useMemo(() => withViewerFocus(read.layout, readFocusId()), [read.layout])
+  // FIRST VISIT (owner decision 2026-10-08): a member with no saved board at all opens on CAL
+  // beside an SPY overview. Only once preferences have loaded, so a returning member never sees
+  // it flash before their own board. Nothing is written by opening; the first real change
+  // saves the board and, if group A is still empty, fills it with SPY so the overview keeps it.
+  const fresh = !loading && read.status === 'absent'
+  const stored = useMemo(() => withViewerFocus(fresh ? firstVisitLayout() : read.layout, readFocusId()),
+    [read.layout, fresh])
   const layout = guarded && session ? session : (local || stored)
-  const syms = useMemo(() => channelSyms(layout, groups), [layout, groups])
+  const shownGroups = useMemo(() => (fresh && !groups.A ? { ...groups, A: FIRST_VISIT_SYM } : groups),
+    [fresh, groups])
+  const syms = useMemo(() => channelSyms(layout, shownGroups), [layout, shownGroups])
 
   const loadingRef = useRef(loading)
   loadingRef.current = loading
@@ -101,6 +109,8 @@ export default function useTerminalLayout() {
   guardedRef.current = guarded
   const storedRef = useRef(stored)
   storedRef.current = stored
+  const seedRef = useRef(false)            // first visit: group A still needs its SPY written
+  seedRef.current = fresh && !groups.A
   const writtenRef = useRef(undefined)     // the blob this hook last wrote
   const writtenLayoutRef = useRef(null)    // …and the board it encodes
   const pendingRef = useRef(null)          // a blob waiting out the debounce
@@ -154,6 +164,16 @@ export default function useTerminalLayout() {
     if (pendingRef.current != null) { pendingRef.current = ser; return true }
     // Focus-only against what is stored: nothing to write, no version to mint.
     if (sameExceptFocus(normalized, writtenLayoutRef.current || storedRef.current)) return true
+    if (seedRef.current) {
+      // The first board a new member saves keeps the SPY its overview was showing. Merged, and
+      // only into an EMPTY group A: a ticker the member's own command set wins in either order.
+      seedRef.current = false
+      const p = setPrefMergedRef.current(FOCUS_PREF_KEY, (cur) => {
+        const base = cur && typeof cur === 'object' ? cur : {}
+        return base.A ? undefined : { ...base, A: FIRST_VISIT_SYM }
+      })
+      if (p && typeof p.catch === 'function') p.catch(() => {})
+    }
     pendingRef.current = ser
     if (!(saveTiming.debounceMs > 0)) { flush(); return true }
     timerRef.current = setTimeout(flush, saveTiming.debounceMs)

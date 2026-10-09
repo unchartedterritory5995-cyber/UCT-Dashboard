@@ -19,8 +19,10 @@ import { money, planAlert } from './alertModel'
  *  Cross-checked against `api/data/cap_universe.json` (2026-10-05 collision-list audit):
  *  GP, MB, LIVE, DP and COMM were removed — none is a tracked symbol, so warning on them
  *  was a false collision. CAL, TECH, FA, EE, PPL, CMP, NB and EXP were added — each IS a
- *  tracked symbol (Caleres, Bio-Techne-class tickers, etc.) and was missing a warning. */
-export const TICKER_COLLISIONS = Object.freeze(['DASH', 'CF', 'FORM', 'RES', 'CAL', 'TECH', 'FA', 'EE', 'PPL', 'CMP', 'NB', 'EXP'])
+ *  tracked symbol (Caleres, Bio-Techne-class tickers, etc.) and was missing a warning.
+ *  EXP left with its code (removed from the terminal 2026-10-08): bare EXP is the ticker's note
+ *  now (functions.js RETIRED), and `$EXP` loads Eagle Materials. */
+export const TICKER_COLLISIONS = Object.freeze(['DASH', 'CF', 'FORM', 'RES', 'CAL', 'TECH', 'FA', 'EE', 'PPL', 'CMP', 'NB'])
 
 /** THE RULE, as one sentence HELP prints verbatim. */
 export const COLLISION_RULE = 'A bare word that is a function code runs the function. '
@@ -31,6 +33,19 @@ export const COLLISION_RULE = 'A bare word that is a function code runs the func
 export function isTickerCollision(code) {
   return TICKER_COLLISIONS.includes(String(code || '').toUpperCase())
 }
+
+// ── HELP's "Start here" (owner decision 2026-10-08, product item #1) ───────────────────────
+/** The few functions a new swing trader uses every day, each with one example that runs as typed.
+ *  HELP prints this BEFORE the full list and the expert rules. `grammar.test.js` pins every code
+ *  to the registry and every example to a parse that opens that code. */
+export const START_HERE = Object.freeze([
+  { code: 'DES', example: 'NVDA DES', what: 'What a company is and how its stock is trading' },
+  { code: 'GP', example: 'NVDA GP', what: 'A price chart (add W for weekly: NVDA GP W)' },
+  { code: 'MOVE', example: 'NVDA MOVE', what: 'Why a stock is moving, and what is new since you last looked' },
+  { code: 'CAL', example: 'CAL', what: 'Earnings and events this week' },
+  { code: 'MOST', example: 'MOST', what: "Today's biggest gainers, losers and unusual volume" },
+  { code: 'RRG', example: 'RRG', what: 'Which sectors are leading or lagging the market' },
+])
 
 // ── V6b: channels ─────────────────────────────────────────────────────────────
 /** `@A NVDA` targets the panel(s) linked to group A; `@2 NVDA GP` targets panel 2. A–D are the
@@ -235,6 +250,7 @@ export function describeCommand(cmd) {
   const notes = []
   let tone = 'ok'
   if (marketOnly) { notes.push(`${cmd.code} is market-wide; ${cmd.sym} is ignored.`); tone = 'warn' }
+  if (cmd.from === 'ERN') notes.push('ERN with no ticker opens the earnings calendar; NVDA ERN opens one company.')
   if (cmd.collision) { notes.push(`${cmd.collision} is also a ticker: type $${cmd.collision} for the stock.`); tone = 'warn' }
   if (cmd.argNotTicker) {
     notes.push(`${cmd.argNotTicker} is read as ${cmd.code}'s argument; type $${cmd.argNotTicker} for the ticker.`)

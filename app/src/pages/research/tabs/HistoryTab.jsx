@@ -158,13 +158,17 @@ export default function HistoryTab({ sym }) {
           {pendingLanes.length > 0 ? ` so far (${pendingLanes.map((k) => LANE_LABEL[k] || k).join(', ')} still reading)` : ''}.
         </div>
       ) : (
-        <ul data-testid="history-rows">
+        // Wave 3 (HIS P2 #25): the rows were an unstyled bullet list of run-on text. Each row is a
+        // ruled entry now: date · lane · what happened on one line, its source on its own line.
+        // Wave 3 (HIS P2 #21): the flow link leaves the terminal, and says so like FlowGate does.
+        <ul data-testid="history-rows" className={styles.historyList}>
           {rows.map((r, i) => (
-            <li key={`${r.lane}-${r.date}-${i}`} data-testid="history-row">
-              <strong>{r.date}</strong> · {LANE_LABEL[r.lane] || r.lane} · <HighlightThesis text={rowText(r)} />
+            <li key={`${r.lane}-${r.date}-${i}`} data-testid="history-row" className={styles.historyRow}>
+              <strong className={styles.historyDate}>{r.date}</strong> · {LANE_LABEL[r.lane] || r.lane} · <HighlightThesis text={rowText(r)} />
               {r.symbol && r.symbol !== body.ticker && <span className={styles.muted}> (as {r.symbol})</span>}
-              <span className={styles.muted}> — {SOURCE_LABEL[r.source] || r.source}, as of {r.as_of}</span>
-              {r.lane === 'flow' && r.ref && <> · <a href={r.ref}>Open Options Flow</a></>}
+              <span className={`${styles.muted} ${styles.historySource}`} data-testid="history-row-source"> — {SOURCE_LABEL[r.source] || r.source}, as of {r.as_of}
+                {r.lane === 'flow' && r.ref && <> · <a href={r.ref}>Open Options Flow</a> (opens a page)</>}
+              </span>
             </li>
           ))}
         </ul>

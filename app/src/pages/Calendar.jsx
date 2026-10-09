@@ -44,6 +44,7 @@ import TodaysBrief from './calendar/TodaysBrief'
 import WeekView from './calendar/WeekView'
 import MonthView from './calendar/MonthView'
 import DayDetailDrawer from './calendar/DayDetailDrawer'
+import MineNotice from './calendar/MineNotice'
 import styles from './calendar/Calendar.module.css'
 
 // ── Helpers ported verbatim from the original Calendar.jsx ──────────────────
@@ -114,7 +115,9 @@ function currentMonthCursor() {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-export default function Calendar() {
+// `mine` (terminal `CAL MINE`, wave 3 lane 13): this week scoped to the member's own names, for this
+// panel only -- the saved audience filter is never written. Outside the terminal it is never set.
+export default function Calendar({ mine = false } = {}) {
   // ── URL time state: /calendar?week=YYYY-MM-DD&d=YYYY-MM-DD (deep-linkable) ──
   const [searchParams, setSearchParams] = useSearchParams()
   const rawWeek = searchParams.get('week')
@@ -236,7 +239,7 @@ export default function Calendar() {
   // Merged over the saved filters right before the views consume them; a
   // fresh object per render matches how `filters` itself already behaves.
   const [quickQ, setQuickQ] = useState('')
-  const effFilters = { ...filters, q: quickQ }
+  const effFilters = { ...filters, q: quickQ, ...(mine ? { audience: 'mine' } : {}) }
 
   // Event type filter — persisted as array (Set not JSON-serializable). KEY
   // BUMPED to _v2: macro used to be a locked always-on chip, so every legacy
@@ -900,6 +903,9 @@ export default function Calendar() {
       {headerEl}
 
       <div className={styles.body}>
+        {mine && (
+          <MineNotice view={view} shown={weekCounts.total} sources={mySources} loading={mySets === undefined} />
+        )}
         {indexEventsOn && view !== 'wire' && (
           <IndexEventsBand weekStart={data.week_start} weekEnd={data.week_end} />
         )}

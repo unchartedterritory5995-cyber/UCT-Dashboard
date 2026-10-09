@@ -36,5 +36,8 @@ export function useSectionsState(urls) {
     allOff: any && reads.every((r) => r.off),
     allLoading: any && reads.every((r) => r.loading),
     allPaywalled: any && reads.every((r) => r.paywalled),
+    // Wave 3 (OHIS P2 #7): some reads switched off (404) and the rest paid-gated (402). Every
+    // section renders nothing, yet neither "all" flag held, so the panel opened blank.
+    offOrPaywalled: any && reads.every((r) => r.off || r.paywalled) && reads.some((r) => r.paywalled),
   }
 }

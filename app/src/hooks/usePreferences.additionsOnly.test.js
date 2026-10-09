@@ -140,6 +140,9 @@ const BASELINE_KEYS = {
   // literal at the call site in pages/terminal/useTerminalLayout.js. Both store a JSON object.
   terminal_boards: 'structured',
   terminal_layout: 'structured',
+  // ⭐ Audit wave 2 (2026-10-08): the terminal's first-run welcome card, dismissed once per
+  // account (FirstRunCard.jsx, literal at the call site). Stores the string '1'.
+  terminal_orientation_seen: 'scalar',
   theme: 'scalar',
   theme_tracker_settings: 'structured',
   volume_scan_lists: 'structured',
