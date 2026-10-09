@@ -2813,6 +2813,10 @@ _PREFERENCE_KEYS = {
     # commandHistory.js`). Written only through `setPrefMerged` (read-modify-write, since this
     # endpoint replaces the whole value). Not a board key: it is not versioned with the board.
     "terminal_command_history": _PREF_OPAQUE,
+    # Audit wave 2 (2026-10-08): the terminal's first-run welcome card, dismissed once per
+    # account (`app/src/pages/terminal/FirstRunCard.jsx`). Stores '1'. Shipped client-side
+    # without this row, so "Got it, hide this" 400'd and the card came back every visit.
+    "terminal_orientation_seen": _PREF_OPAQUE,
     "theme": "theme",
     # A12 CP2 (2026-09-25): the Watchlists surface's chosen performance columns, a
     # JSON array of its PERF_COLS keys (`Watchlists.jsx` WATCHLIST_PERF_COLS_KEY).
