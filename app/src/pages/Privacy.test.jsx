@@ -38,7 +38,29 @@ test('the owner-approved wave-7 lines are present (legal sign-off 2026-09-25, it
   expect(text).not.toMatch(/only to deliver them to UCT/)
   // Writing help sends the selected text to Anthropic (writing_help.py reads
   // note_ask._SYNTH_MODEL), the same vendor and data class as Ask Notebook.
-  expect(text).toMatch(/including Ask Notebook,\s+writing help in the Notebook, Compass coaching/)
+  // 2026-10-09: voice-note summaries (notebook_voice_notes.py -> writing help's client) join the
+  // Anthropic list when NOTEBOOK_VOICE_NOTES_ENABLED is armed.
+  expect(text).toMatch(/including Ask Notebook,\s+writing help in the Notebook, voice-note summaries, Compass coaching/)
+})
+
+test('owner ruling 2026-10-09: published vendor terms, said plainly, before meaning search and voice notes arm', () => {
+  const { container } = renderWithProviders(<Privacy />)
+  const text = container.textContent.replace(/\s+/g, ' ')
+  // Meaning search sends note text to OpenAI (note_semantic.py, text-embedding-3-small).
+  expect(text).toMatch(/searching your notes by meaning: the text of your notes is sent to OpenAI/)
+  // Voice notes: Whisper transcription of recorded or uploaded audio; the audio never lands in a note.
+  expect(text).toMatch(/the voice notes you record or upload/)
+  expect(text).toMatch(/held on our servers only until it is transcribed, and is never stored in your notes/)
+  // No zero-retention claim: the owner chose the published terms over written ZDR letters.
+  expect(text).toMatch(/do not have a separate zero-data-retention agreement with either company/)
+  expect(text).not.toMatch(/zero[- ]retention (agreement|commitment) (with|from) (Anthropic|OpenAI)/i)
+})
+
+test('owner ruling 2026-10-09: activity data is kept for 1 year, then deleted (api/services/activity_retention.py)', () => {
+  const { container } = renderWithProviders(<Privacy />)
+  const text = container.textContent.replace(/\s+/g, ' ')
+  expect(text).toMatch(/kept for 1 year for security and support, then deleted automatically/)
+  expect(text).toMatch(/including the IP address of the request/)
 })
 
 test('community sharing names everything another member can see', () => {

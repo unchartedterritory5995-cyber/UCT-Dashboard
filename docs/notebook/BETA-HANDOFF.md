@@ -258,12 +258,10 @@ already on. Each feature's tour (1c) arms with it once step 17 is on.
 
 **Held, not in the order**
 
-- `NOTEBOOK_VOICE_NOTES_ENABLED` (wave 11): HOLD for the OpenAI zero-retention letter ~~and the
-  upload-size fix~~ (section 1). ⚰️ Struck 2026-10-06: only the letter holds it. Section 1's own
-  row says "The upload-size gap is closed (wave 14: the body is capped while it is read;
-  `docs/notebook/wave14-upload-cap.md`)".
-- `NOTEBOOK_SEMANTIC_SEARCH_ENABLED` (wave 7, listed because its tour arrived in wave 14): HOLD
-  for the same vendor letter (section 2, row 8a).
+- ~~`NOTEBOOK_VOICE_NOTES_ENABLED` and `NOTEBOOK_SEMANTIC_SEARCH_ENABLED`: HOLD for the vendor
+  zero-retention letters.~~ **Released by owner ruling 2026-10-09: the published vendor terms
+  are enough** (`VENDOR-TERMS-2026-09-23.md` §2). Both arm after the Privacy page that names
+  them is live; the ledger records the flip time.
 - `NOTEBOOK_ATTACHMENTS_ON`, `NOTEBOOK_CONFLICT_UX_ON`, `NOTEBOOK_OFFLINE_READ_ON` (wave K): never
   arm; the features behind them are not built.
 
