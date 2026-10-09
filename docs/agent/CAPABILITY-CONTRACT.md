@@ -113,7 +113,24 @@ The server's prompt may name only the reviewed capabilities `widget.addCharts` a
 - The browser re-asks ONCE (`reroute: true`) with those groups added; the member message is not stored twice and the plumbing envelope is not stored. A second `need_groups` ends with an honest sentence. Nothing executes between the two calls.
 - Every op is still validated against the FULL registry in the browser; routing changes only what the model sees.
 - Telemetry: `path` = model | routed | reroute; `disposition` = need_groups. Kill switch: localStorage `uct.agent.routing = 0`.
-- Rails: every registered capability belongs to exactly one group; the benchmark messages' routed manifests stay under `routingThreshold` (55); the full manifest must still fit `maxCapabilities` (60).
+- Rails: every registered capability belongs to exactly one group; the benchmark messages' routed manifests stay under `routingThreshold` (55).
+
+### 4a. Three limits, not one (Batch 6)
+
+| Limit | Value | Where | What it bounds |
+|---|---|---|---|
+| Registered (catalog) | `catalog.maxRegistered` = 200 | `manifest.contract.json`, `agentContracts.test.js` | everything the browser knows how to do |
+| One group | `catalog.maxGroupSize` = 40 | same | so any single group (+ the agent group) always fits one request |
+| Per request (server) | `limits.maxCapabilities` = 60 | `turn.MAX_CAPABILITIES` | what one model call may be shown — a request over it is **refused whole** ("sent too many actions for one request, so nothing was planned"), never trimmed |
+| Routed budget | `routingThreshold` = 55 | `routing.js` `routeManifest(…, {limit, budget})` | what the browser actually sends |
+
+**Packing** (`routeManifest`): groups go in priority order — always-on, a reroute's requested groups, the groups of a pending proposal and the last change, then the message's own groups (smallest first, so more of a multi-part request fits; when nothing is recognised, catalog order with charts first). A group that would overflow the budget is **not sent and is named** to the model, which can ask for it (`need_groups`). A group is never partially sent. If a reroute's group cannot fit either, the member is told "That touches too many parts of UCT for one request. Try asking for one part at a time." — nothing runs.
+
+The **full** catalog is no longer a valid request once it passes 60 (70 after Batch 6): the kill switch (`uct.agent.routing=0`) still routes when the catalog is over the per-request limit.
+
+### 4b. Daily cap (Batch 6 Gate A)
+
+`UCT_AGENT_DAILY_CAP` (300) counts `/api/agent/turn` requests per user per **America/New_York** day (`daily_counters`, key scope/subject/day). Refused requests are not counted; a failed model call gives its charge back; a research turn is one charge for its two model calls; a reroute is a second charge. The Batch 5 evening 429 was the cap genuinely reached during the benchmark; the apparent "00:02 ET" reading was a Git Bash clock without tzdata printing UTC. Pinned by `tests/test_uct_agent_daily_cap.py`. No cap or counter was changed.
 
 **Original design notes (Batch 4):**
 
