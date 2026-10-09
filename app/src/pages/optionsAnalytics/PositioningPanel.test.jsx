@@ -76,6 +76,22 @@ describe('PositioningPanel (FT-047/049/050/052/055)', () => {
     expect(screen.getAllByText('computed').length).toBe(6)
   })
 
+  it('audit 2026-10-08: NOPE, delta pressure and charm each say in plain English what they tell you', async () => {
+    const grid = { ...BODIES.heatmap, unit: '$ of delta' }
+    vi.stubGlobal('fetch', vi.fn((u) => {
+      const body = u.includes('/nope') ? BODIES.nope
+        : (u.includes('/delta-heatmap') || u.includes('/charm-heatmap')) ? grid : null
+      return Promise.resolve({ status: body ? 200 : 404, ok: !!body, json: () => Promise.resolve(body || {}) })
+    }))
+    mount()
+    const nope = await screen.findByTestId('posn-nope')
+    expect(screen.getByTestId('posn-nope-about').textContent).toMatch(/which way today's option buying leans/)
+    expect(nope).toHaveAccessibleDescription(/net bullish/)
+    expect((await screen.findByTestId('posn-delta-heatmap-about')).textContent).toMatch(/how much stock dealers would have to hold/)
+    expect((await screen.findByTestId('posn-charm-heatmap-about')).textContent).toMatch(/time passing alone/)
+    expect(screen.getByTestId('posn-charm-heatmap')).toHaveAccessibleDescription(/as expiry nears/)
+  })
+
   it('a failed read says so in words', async () => {
     vi.stubGlobal('fetch', vi.fn((u) => Promise.resolve(u.includes('/nope')
       ? { status: 503, ok: false, json: () => Promise.resolve({ detail: 'x' }) }
