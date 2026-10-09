@@ -48,7 +48,7 @@ import { COMMAND_PANELS, FLUSH_PANELS, ROWS_OPEN_BESIDE, panelComponent, panelNa
 import useTerminalLayout from './useTerminalLayout'
 import useCommandHistory from './commandHistory'
 import {
-  BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
+  BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, DENSITY_LABELS, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
   closePanel, decodePopout, decodeShare, deleteBoard, duplicatePanel, encodeShare, findBoard, isCompatChannel, presetsOfBoard, restoreBoard,
   isLinkable, markOpened, movePanel, nextLinkChannel, reorderPanel, openBoard, panelBeside, panelChannel, panelSym, popoutHref, presetFor,
   recentSecurities, saveBoard, setCount as countTo,
@@ -1669,7 +1669,7 @@ export default function TerminalShell() {
                 aria-pressed={layout.density === d} onClick={() => save(setDensity(layout, d))}
                 title={`${d[0].toUpperCase()}${d.slice(1)} density`} aria-label={`${d[0].toUpperCase()}${d.slice(1)} density`}
                 data-testid={`terminal-density-${d}`}>
-                {d === 'comfortable' ? 'Aa' : d === 'compact' ? 'Ab' : 'ab'}
+                {DENSITY_LABELS[d]}
               </button>
             ))}
           </div>
