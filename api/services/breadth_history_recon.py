@@ -301,7 +301,7 @@ _SWEEP_STATE: dict = {"status": "idle"}
 def sweep_history(from_date: str, to_date: Optional[str] = None,
                   tickers: Optional[list[str]] = None, window: int = 320,
                   batch: int = 4000, universe: Optional[str] = None,
-                  warmup_days: int = 560) -> dict:
+                  warmup_days: int = 560, missing_only: bool = False) -> dict:
     """Backfill close-basis breadth history for [from_date, to_date]: load the deep frame
     ONCE, recompute every session, write close-to-close BODIES to breadth_daily_ohlc
     (source 'close_recon'). Bounded memory (numpy frame) + batched writes. This is the
@@ -400,6 +400,19 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
     # metrics need `WARM_SESSIONS` — fifteen. `build_frame` now resolves those fifteen,
     # which is ~2 % more raw fetches over a full grind.
     members_of = (pit_frame or {}).get("eligible") or {}
+    # ⭐ `missing_only` (2026-10-09 audit): write ONLY the (date, metric) slots the store does not
+    # hold. A plain sweep overwrites every metric of every session it touches, which re-states
+    # history that is already published; filling a hole must not move its neighbours.
+    have_keys = None
+    if missing_only:
+        have_keys = set()
+        try:
+            with breadth_daily_ohlc._conn() as _c:
+                have_keys = {(d, m) for d, m in _c.execute(
+                    "SELECT date, metric FROM breadth_daily_ohlc WHERE universe=? AND date BETWEEN ? AND ?",
+                    (breadth_daily_ohlc._uni(uni), from_date, to_date)).fetchall()}
+        except Exception as e:
+            return {"ok": False, "reason": f"missing_only: store unreadable ({e})"}
     for ds in sweep:
         r = recompute_from_frame(frame, tickers, ds, window,
                                  members=members_of.get(ds))
@@ -447,8 +460,9 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
             if fv is None:
                 continue
             o = prev.get(metric, fv)                       # close-to-close body
-            rows.append((ds, metric, round(o, 4), round(max(o, fv), 4),
-                         round(min(o, fv), 4), round(fv, 4)))
+            if have_keys is None or (ds, metric) not in have_keys:
+                rows.append((ds, metric, round(o, 4), round(max(o, fv), 4),
+                             round(min(o, fv), 4), round(fv, 4)))
             prev[metric] = fv
         computed += 1
         _SWEEP_STATE.update(progress=f"{ds} ({computed} written)")
@@ -610,7 +624,8 @@ def run_backfill_chain(floor: str, ceiling: str = "2023-12-31", chunk_days: int 
                             trace=traceback.format_exc()[-600:])
 
 
-def run_sweep_async(from_date: str, to_date: Optional[str] = None, limit: int = 0) -> None:
+def run_sweep_async(from_date: str, to_date: Optional[str] = None, limit: int = 0,
+                    missing_only: bool = False) -> None:
     """Background wrapper: recompute-and-store the close-basis history for a range."""
     import time as _t
     from api.services import breadth_live as bl
@@ -621,7 +636,7 @@ def run_sweep_async(from_date: str, to_date: Optional[str] = None, limit: int = 
         if limit:
             tickers = tickers[:limit]
         t0 = _t.perf_counter()
-        res = sweep_history(from_date, to_date, tickers)
+        res = sweep_history(from_date, to_date, tickers, missing_only=missing_only)
         res["elapsed_s"] = round(_t.perf_counter() - t0, 1)
         res["status"] = "done"
         _SWEEP_STATE.clear()

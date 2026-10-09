@@ -376,16 +376,19 @@ def backfill_chain(request: Request, floor: str = Query(...), ceiling: str = Que
 
 @router.post("/api/breadth-monitor/history/sweep")
 def sweep_breadth_history(request: Request, from_date: str = Query(...),
-                          to_date: str = Query(default=""), limit: int = Query(default=0, ge=0, le=6000)):
+                          to_date: str = Query(default=""), limit: int = Query(default=0, ge=0, le=6000),
+                          missing_only: int = Query(default=0, ge=0, le=1)):
     """Backfill close-basis breadth history for a date range into the chart store
     (source 'close_recon'). Loads the deep frame once, recomputes every session. Heavy →
     runs in a BACKGROUND THREAD; poll GET .../history/sweep-status. PUSH_SECRET-gated."""
     _check_auth(request)
     import threading
     from api.services import breadth_history_recon as r
-    threading.Thread(target=r.run_sweep_async, args=(from_date, to_date or None, limit),
+    threading.Thread(target=r.run_sweep_async, args=(from_date, to_date or None, limit,
+                                                     bool(missing_only)),
                      name="breadth-history-sweep", daemon=True).start()
-    return {"ok": True, "started": True, "from": from_date, "to": to_date or "(latest)"}
+    return {"ok": True, "started": True, "from": from_date, "to": to_date or "(latest)",
+            "missing_only": bool(missing_only)}
 
 
 @router.get("/api/breadth-monitor/history/sweep-status")
