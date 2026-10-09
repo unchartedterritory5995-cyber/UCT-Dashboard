@@ -27,4 +27,15 @@ describe('setupLabel', () => {
     expect(screen.getAllByTestId('technical-verdict-card')[0].textContent).toMatch(/^MACD Bullish Crossover/)
     expect(document.body.textContent).not.toMatch(/Macd/)
   })
+
+  it('the chosen verdict card is a pressed toggle, so the choice is not colour alone (lane C audit)', async () => {
+    const { fireEvent } = await import('@testing-library/react')
+    const v = (setup, d) => ({ setup, tf: 'D', asof_date: d, confirmed: 1, key_level: 10, checks: [] })
+    mockReturn = { isLoading: false, data: { evaluated: 2, verdicts: [v('bull_flag', '2026-10-02'), v('vcp', '2026-10-01')] } }
+    renderWithProviders(<TechnicalTab sym="AMD" />, { route: '/research/AMD' })
+    const cards = screen.getAllByTestId('technical-verdict-card')
+    expect(cards.map((c) => c.getAttribute('aria-pressed'))).toEqual(['true', 'false'])
+    fireEvent.click(cards[1])
+    expect(screen.getAllByTestId('technical-verdict-card').map((c) => c.getAttribute('aria-pressed'))).toEqual(['false', 'true'])
+  })
 })

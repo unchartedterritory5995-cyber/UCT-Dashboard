@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
 import FailedRead from './FailedRead'
@@ -22,6 +22,23 @@ import Select from '../../components/ui/Select'
 // (OPTIONS_SIZZLE_ENABLED: COV-03's unusual volume on a 5-session window).
 
 const leg = (l) => `${l.type} ${num(l.strike)}`
+
+/** How long typing in a "Limit to tickers" box must pause before the screen is asked again. */
+export const TICKER_FILTER_DEBOUNCE_MS = 350
+
+/** The `?underlyings=` query for what is typed, once typing PAUSES. Every keystroke used to be a
+ *  new screen request ("NVDA,AMD" was eight reads, most for half-typed tickers that answered
+ *  nothing) (lane C audit 2026-10-08). Clearing the box applies at once. */
+export function useUnderlyingsQuery(text, delay = TICKER_FILTER_DEBOUNCE_MS) {
+  const typed = String(text || '').trim().toUpperCase()
+  const [settled, setSettled] = useState(typed)
+  useEffect(() => {
+    if (!typed) { setSettled(''); return undefined }
+    const t = setTimeout(() => setSettled(typed), delay)
+    return () => clearTimeout(t)
+  }, [typed, delay])
+  return settled ? `?underlyings=${encodeURIComponent(settled)}` : ''
+}
 // Spread and butterfly dollars arrive PER SHARE (strike points; strategy_screens.py / more_screens.py).
 // They are shown PER CONTRACT (x100 shares) -- the unit the payoff panel, the strategy finder and the
 // backtester all print -- and every header says so.
@@ -60,7 +77,7 @@ function FirstScreens() {
   const cat = useDarkSection('/api/options-screener/strategies')
   const [kind, setKind] = useState('covered_calls')
   const [syms, setSyms] = useState('')
-  const q = syms.trim() ? `?underlyings=${encodeURIComponent(syms.trim().toUpperCase())}` : ''
+  const q = useUnderlyingsQuery(syms)
   const res = useDarkSection(cat.data?.strategies ? `/api/options-screener/strategy/${kind}${q}` : null)
   if (cat.hidden) return null
   if (!Array.isArray(cat.data?.strategies)) {
@@ -132,7 +149,7 @@ export function MoreStrategyScreens() {
   const cat = useDarkSection('/api/options-screener/more-strategies')
   const [kind, setKind] = useState('call_butterflies')
   const [syms, setSyms] = useState('')
-  const q = syms.trim() ? `?underlyings=${encodeURIComponent(syms.trim().toUpperCase())}` : ''
+  const q = useUnderlyingsQuery(syms)
   const res = useDarkSection(cat.data?.strategies ? `/api/options-screener/more/${kind}${q}` : null)
   if (cat.hidden) return null
   if (!Array.isArray(cat.data?.strategies)) {

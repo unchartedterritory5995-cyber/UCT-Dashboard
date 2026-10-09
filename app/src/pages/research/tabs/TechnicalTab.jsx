@@ -59,6 +59,8 @@ function VerdictCard({ v, selected, onSelect }) {
     <button
       type="button"
       onClick={onSelect}
+      // the selected card drives the chart below; say which one is chosen in more than colour
+      aria-pressed={!!selected}
       data-testid="technical-verdict-card"
       className={`${styles.card} ${styles.verdictCard} ${selected ? styles.verdictOn : ''}`}
     >

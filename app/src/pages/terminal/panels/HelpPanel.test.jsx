@@ -21,6 +21,11 @@ describe('HELP says which codes leave the terminal (audit 2026-10-08)', () => {
     expect(scopeLabel(BY_CODE.MOST)).toBe('market')
   })
 
+  it('lane C doors (PMKT, SETL, RES) are marked; panel codes (U20, REL, HELP) are not', () => {
+    for (const code of ['PMKT', 'SETL', 'RES']) expect(scopeLabel(BY_CODE[code])).toContain('opens a page')
+    for (const code of ['U20', 'REL', 'HELP']) expect(scopeLabel(BY_CODE[code])).not.toContain('opens a page')
+  })
+
   it('the list a member reads carries the marker', () => {
     render(<HelpPanel auth={{}} />)
     expect(screen.getByText('Journal').closest('button').textContent).toContain('opens a page')

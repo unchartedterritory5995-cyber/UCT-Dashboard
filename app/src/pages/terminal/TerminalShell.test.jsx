@@ -10,6 +10,8 @@ import path from 'node:path'
 import { AuthContext } from '../../context/AuthContext'
 
 const store = vi.hoisted(() => ({ prefs: {}, listeners: new Set(), writes: [] }))
+// A stub given the security FLAKY throws while `flaky.on` is true (the crash-retry rail).
+const flaky = vi.hoisted(() => ({ on: false }))
 
 vi.mock('../../hooks/usePreferences', () => {
   const parsePref = (raw, fallback) => {
@@ -51,6 +53,7 @@ vi.mock('./panels', async (importOriginal) => {
       if (!stubs.has(name)) {
         stubs.set(name, function Stub({ sym, volSurface, tf, focusCode }) {
           if (sym === 'BOOM') throw new Error(`stub ${name} blew up`)
+          if (sym === 'FLAKY' && flaky.on) throw new Error(`stub ${name} blew up once`)
           return (
             <div data-testid={`stub-${name}`}>
               {name}:{sym || '-'}{volSurface ? ':vol' : ''}{tf ? `:tf=${tf}` : ''}{focusCode ? `:focus=${focusCode}` : ''}
@@ -295,6 +298,31 @@ describe('V22: a panel that throws takes down ONLY itself', () => {
       expect(screen.getByTestId('terminal-panel-1')).toHaveTextContent('Overview:MSFT')
       expect(screen.getByTestId('terminal-shell')).toBeTruthy()
     } finally {
+      quiet.mockRestore()
+    }
+  })
+})
+
+describe('a crashed panel can be retried (audit lane C, 2026-10-08)', () => {
+  it('"Try again" remounts the panel body; re-running the same command alone never could', async () => {
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    flaky.on = true
+    try {
+      store.prefs = { terminal_layout: JSON.stringify({ v: 1, count: 1, focus: 0, panels: [
+        { code: 'FA', group: 'N', sym: 'FLAKY' }, { code: 'DES', group: 'N' },
+        { code: 'GP', group: 'A' }, { code: 'GP', group: 'A' },
+      ] }) }
+      renderAt('/terminal')
+      const panel = screen.getByTestId('terminal-panel-0')
+      await within(panel).findByTestId('terminal-panel-crashed')
+      // the cause is gone, but nothing remounts the boundary on its own
+      flaky.on = false
+      expect(within(panel).queryByText(/run FA again/)).toBeNull()
+      fireEvent.click(within(panel).getByTestId('terminal-panel-retry'))
+      expect(await within(panel).findByTestId('stub-Financials')).toHaveTextContent('Financials:FLAKY')
+      expect(within(panel).queryByTestId('terminal-panel-crashed')).toBeNull()
+    } finally {
+      flaky.on = false
       quiet.mockRestore()
     }
   })

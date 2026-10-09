@@ -101,3 +101,25 @@ test('deleting a DIFFERENT board while one is open leaves currentBoard untouched
   // The OPEN board's name must survive deleting an unrelated one.
   expect(screen.getByTestId('terminal-boards-button').textContent).toBe('Board: Swing Board')
 })
+
+test('a deleted board comes back with Undo, open-state and all (lane C audit 2026-10-08)', async () => {
+  const prefs = buildPrefs()
+  renderShell(prefs)
+  await flush()
+  fireEvent.click(screen.getByTestId('terminal-boards-button'))
+  await flush()
+  fireEvent.click(screen.getByText('Swing Board'))
+  await flush()
+  fireEvent.click(screen.getByTestId('terminal-boards-button'))
+  await flush()
+  fireEvent.click(screen.getByLabelText('Delete Swing Board'))
+  await flush()
+  // the delete is said where the member is looking (the sheet), with a way back
+  expect(screen.getByTestId('terminal-notice').textContent).toContain('Deleted your board Swing Board.')
+  expect(screen.queryByLabelText('Delete Swing Board')).toBeNull()
+  fireEvent.click(screen.getByTestId('terminal-notice-undo-delete'))
+  await flush()
+  expect(screen.getByLabelText('Delete Swing Board')).toBeTruthy()
+  expect(screen.getByTestId('terminal-notice').textContent).toContain('Restored your board Swing Board (B:swing-board).')
+  expect(screen.getByTestId('terminal-boards-button').textContent).toBe('Board: Swing Board')
+})
