@@ -51,7 +51,7 @@ export default function FilingsTab({ sym }) {
         )}
         {!isLoading && unavailable && (
           <div className={styles.fnote} data-testid="filings-unavailable">
-            SEC EDGAR couldn&rsquo;t be read right now. This is not a statement about the company.{' '}
+            SEC EDGAR couldn&rsquo;t be read right now &mdash; this is not a statement about the company.{' '}
             <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
           </div>
         )}

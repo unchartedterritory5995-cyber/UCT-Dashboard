@@ -18,7 +18,7 @@ describe('notFoundOf', () => {
     expect(notFoundOf({ not_found: 'yes' })).toBeNull()
   })
   it('falls back to a message when the server sent none', () => {
-    expect(notFoundOf({ not_found: true }, 'abc').message).toBe('No data for ABC: check the ticker')
+    expect(notFoundOf({ not_found: true }, 'abc').message).toBe('No data for ABC — check the ticker')
   })
 })
 

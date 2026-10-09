@@ -16,7 +16,7 @@ import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { readEconomicSeries } from '../../../components/chart/engine/economicSeries'
 import { observationReadout, shortDate } from '../../../components/chart/economic/econUi'
-import { canRetry, failureText, useMarketRead } from './marketRead'
+import { failureText, useMarketRead } from './marketRead'
 import styles from './marketPanels.module.css'
 
 export const SENTIMENT_URL = '/api/breadth-monitor?days=90'
@@ -112,13 +112,10 @@ function fmtChange(d, unit) {
   return `${d > 0 ? '+' : ''}${formatNumber(d, { decimals })}${suffix}`
 }
 
-/** A small neutral sparkline. No colour: a rising reading is not good or bad on its own. Its
- *  name says where the line starts and ends, so the shape is not the only way to read it. */
-export function Spark({ values, label, fmt = null }) {
+/** A small neutral sparkline. No colour: a rising reading is not good or bad on its own. */
+export function Spark({ values, label }) {
   const pts = (values || []).filter((v) => Number.isFinite(v))
   if (pts.length < 2) return <span className={styles.muted}>n/a</span>
-  const say = fmt || ((v) => formatNumber(v, { decimals: 2 }))
-  const name = `${label}, from ${say(pts[0])} to ${say(pts[pts.length - 1])}`
   const min = Math.min(...pts)
   const span = Math.max(...pts) - min || 1
   const d = pts.map((v, i) => {
@@ -127,7 +124,7 @@ export function Spark({ values, label, fmt = null }) {
     return `${i ? 'L' : 'M'}${x} ${y}`
   }).join(' ')
   return (
-    <svg className={styles.spark} viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label={name}>
+    <svg className={styles.spark} viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label={label}>
       <path d={d} fill="none" vectorEffect="non-scaling-stroke" />
     </svg>
   )
@@ -137,7 +134,7 @@ function SentimentTable({ read }) {
   const rows = useMemo(() => sentimentRows(read.body), [read.body])
   if (read.loading) return <PanelSkeleton label="Loading sentiment" testId="terminal-sent-loading" />
   if (read.error && !read.body) {
-    const locked = !canRetry(read.error)
+    const locked = read.error?.status === 402
     return (
       <PanelState kind={locked ? 'locked' : 'error'} title={failureText(read.error, 'Sentiment')} testId="terminal-sent-error"
         action={locked ? null : <button type="button" className={styles.chip} onClick={read.retry}>Retry</button>}>
@@ -171,7 +168,7 @@ function SentimentTable({ read }) {
                   <td>{shortDate(r.last.date)}</td>
                   <td>{fmtChange(r.week, r.unit)}</td>
                   <td className={styles.phoneHide}>{fmtChange(r.month, r.unit)}</td>
-                  <td className={styles.phoneHide}><Spark values={r.spark} label={`${r.label}, last ${r.spark.length} readings`} fmt={(v) => fmtValue(v, r.unit)} /></td>
+                  <td className={styles.phoneHide}><Spark values={r.spark} label={`${r.label}, last ${r.spark.length} readings`} /></td>
                 </>
               ) : (
                 <td colSpan={5} className={styles.muted} data-testid={`terminal-sent-none-${r.key}`}>No data in the last 90 sessions.</td>

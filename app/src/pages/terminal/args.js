@@ -13,7 +13,6 @@ import { todayIso } from '../calendar/earningsModalRow'
 import { currentWeekMonday, mondayOf } from '../calendar/weekAnchor'
 import { canonicalCode, isCode } from './functions'
 import { parseAlertPrice } from './alertModel'
-import { parseScatMetric, parseScatUniverse, scatMetricLabel } from './scatterArgs'
 
 /** The chart's timeframe codes (StockChart `tf`), with the spellings a member types. */
 export const TIMEFRAMES = {
@@ -195,26 +194,6 @@ export const ARG_KINDS = {
     takes: 'MINE (only your names)',
     parse: (tok) => (String(tok ?? '').trim().toUpperCase() === MINE_MARKER ? true : null),
     describe: () => 'only your names',
-  },
-  // ── SCAT (wave 9, lane 2): the universe and the two axes, written back by the panel ──
-  /** SCAT's universe: an index (SP500 NDX DOW R2K), MARKET, SECTORS, FLAGGED, UCT20, one of the
-   *  sector ETFs (XLK), or SCAN:KEY / BREADTH:KEY. Tables in scatterArgs.js mirror the server. */
-  scatUniverse: {
-    takes: 'a universe (SP500, NDX, DOW, R2K, MARKET, SECTORS, FLAGGED, UCT20, an ETF like XLK, SCAN:VOLUME or BREADTH:NEW_52W_HIGHS)',
-    parse: (tok) => parseScatUniverse(tok),
-    describe: (v) => `universe ${v.label}`,
-  },
-  /** SCAT's Y axis: the FIRST metric key typed (RS_RANK). */
-  scatY: {
-    takes: 'two metrics, Y then X (RS_RANK DIST_52W_HIGH)',
-    parse: (tok) => parseScatMetric(tok),
-    describe: (v) => `Y axis ${scatMetricLabel(v)}`,
-  },
-  /** SCAT's X axis: the SECOND metric key typed. */
-  scatX: {
-    takes: 'two metrics, Y then X (RS_RANK DIST_52W_HIGH)',
-    parse: (tok) => parseScatMetric(tok),
-    describe: (v) => `X axis ${scatMetricLabel(v)}`,
   },
 }
 

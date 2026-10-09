@@ -1259,30 +1259,6 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             warm_week_previews()
             warm_reported_analyses()
 
-        def _screener_meta_payload():
-            # The rest of /api/screener/meta beyond the bands above (cold-start lane w9-1):
-            # the filter registry, the distinct-value option lists and the lift ledger, built
-            # once without a member so their first-touch costs land here. A slow build logs
-            # its parts (filters._log_if_slow). Local SQLite and local files only.
-            from api.services.screener import filters
-            filters.meta(user_id=None)
-
-        def _scatter_universes():
-            # Terminal SCAT (cold-start lane w9-1): /api/scatter/universes measured 43 s cold
-            # after a web deploy, past the panel's 30 s deadline. This builds the member-
-            # independent part of the menu (themes from auth.db, industries from the industry
-            # map) so first-touch costs are paid here. Local SQLite only; no outbound call.
-            from api.services import scatter
-            scatter.list_universes(None)
-
-        def _flow_reads_proxied():
-            # With FLOW_READS_PROXY_ENABLED=1 + WORKER_INTERNAL_URL (production) every
-            # /api/live/massive read is served by flow-worker, so web's local /recent cache
-            # and day stats are never read, and warming them is a 20-30 s cold scan of a
-            # frozen flow.db copy at the head of this chain. Same rule flow_proxy applies.
-            from api import flow_proxy
-            return bool(flow_proxy.PROXY_ENABLED and flow_proxy.WORKER_INTERNAL_URL)
-
         def _flow_tape_critical():
             # The surfaces users hit FIRST — default ALL FLOW tape + market-read
             # hero. Fills the /recent snapshot cache + warms the flow.db OS page
@@ -1297,9 +1273,6 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             # still matters when the proxy is off (local / fallback). Use
             # warm_recent (SYNCHRONOUS fill) because recent_massive_alerts now
             # returns a non-blocking "warming" stub on a cold key.
-            if _flow_reads_proxied():
-                log.info("[dashboard-warm] flow-tape skipped: flow reads are proxied to flow-worker")
-                return
             from api.live_massive_router import warm_recent, day_stats
             warm_recent(limit=10000, min_grade="D", target_date=None,
                         sort_by="recent", tier=None, curated=False)
@@ -1313,9 +1286,6 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             # cold. Also: limit MUST equal the frontend's default (10000). The old
             # limit=5000 warmed a DIFFERENT cache key (key includes limit), so the
             # user's exact request never hit a warm entry.
-            if _flow_reads_proxied():
-                log.info("[dashboard-warm] flow-curated skipped: flow reads are proxied to flow-worker")
-                return
             from api.live_massive_router import warm_recent
             warm_recent(limit=10000, min_grade="D", target_date=None,
                         sort_by="recent", tier=None, curated=True)
@@ -1324,18 +1294,13 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
         # recompute each) until this block finishes (see readiness.py).
         with readiness.gate("dashboard"):
             _warm("flow-tape", _flow_tape_critical)   # FIRST — the tape is the priority surface
-            # Terminal reads measured slowest cold (2026-10-09: /api/screener/meta >60 s,
-            # /api/scatter/universes 43 s) go next, ahead of everything that can wait.
-            # Both local SQLite only.
-            _warm("screener-meta", _screener_meta)
-            _warm("screener-meta-payload", _screener_meta_payload)
-            _warm("scatter-universes", _scatter_universes)
-            _warm("options-sizzle", _options_sizzle)
             _warm("movers", _movers)
             _warm("themes", _themes)
             _warm("news", _news)
             _warm("breadth", _breadth)
             _warm("breadth-live", _breadth_live)
+            _warm("screener-meta", _screener_meta)
+            _warm("options-sizzle", _options_sizzle)
             _warm("his-wire-archive", _his_wire_archive)
             _warm("calendar", _calendar)
             # earnings-previews only needs `_calendar` (it reads the week list),

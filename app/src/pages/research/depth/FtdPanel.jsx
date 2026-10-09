@@ -5,7 +5,6 @@ import { useDepthChrome, DepthLoading } from './depthChrome'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
-import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
 
 // FT-068 — SEC fails-to-deliver as its own dataset. DARK behind FTD_DATASET_ENABLED.
 //
@@ -30,8 +29,7 @@ export default function FtdPanel({ sym }) {
     : null)
 
   let body
-  if (isSwitchedOff(error)) body = <SwitchedOff what="Fails-to-deliver data" className={styles.note} testId="ftd-off" />
-  else if (error) body = <div className={styles.error} data-testid="ftd-unavailable">Fails-to-deliver data is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
+  if (error) body = <div className={styles.error} data-testid="ftd-unavailable">Fails-to-deliver data is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading fails to deliver" />
   else if (data.paywalled) body = <div className={styles.note}>Fails to deliver requires a paid plan.</div>
   else if (data.state === 'not_ingested') body = <div className={styles.note} data-testid="ftd-not-ingested">{memberSentence(data.reason) || 'No fails-to-deliver file has been read yet.'}</div>

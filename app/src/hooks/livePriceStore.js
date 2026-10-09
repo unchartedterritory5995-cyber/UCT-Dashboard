@@ -59,17 +59,6 @@ function _emit() {
   for (const l of _listeners) l()
 }
 
-/** Same flat entry (every field `Object.is`-equal). A nested value compares by reference, so it
- *  reads as changed -- the safe direction: an extra render, never a missed price. */
-function _sameEntry(a, b) {
-  if (a === b) return true
-  if (!a || !b) return false
-  const ka = Object.keys(a)
-  if (ka.length !== Object.keys(b).length) return false
-  for (const k of ka) if (!Object.is(a[k], b[k])) return false
-  return true
-}
-
 async function _poll() {
   // If a poll is already running, mark that another is wanted (e.g. the union
   // just grew) and re-run once it finishes — so newly-added tickers populate
@@ -125,11 +114,6 @@ async function _poll() {
     // entries that carry a real price (the WHOLE prior entry — incl. its ext /
     // after-hours price — is preserved when this poll's entry is degraded).
     const merged = { ..._prices }
-    // Lane w9-10 (render storms): a poll whose entries did not move keeps the PREVIOUS entry
-    // objects, and a poll that moved nothing at all emits nothing. Every subscriber re-rendered
-    // on every 2 s poll even after hours (four terminal panels, four headlines, all static), and
-    // a reused entry is what lets `useLivePrices` skip a caller whose own slice is unchanged.
-    let changed = false
     for (const sym in next) {
       const nv = next[sym]
       if (!nv || typeof nv !== 'object') continue
@@ -140,14 +124,12 @@ async function _poll() {
       // while nothing actually traded (identical price) — Massive intermittently
       // omits lastTrade on the weekend / after hours. A real new session MOVES the
       // price, so this never pins a stale ext once regular trading resumes.
-      const entry = (prev && nv.ext_price == null && prev.ext_price != null && price === Number(prev.price))
-        ? { ...nv, ext_price: prev.ext_price, ext_session: prev.ext_session }
-        : nv
-      if (_sameEntry(prev, entry)) continue          // keep `prev` (already in `merged`)
-      merged[sym] = entry
-      changed = true
+      if (prev && nv.ext_price == null && prev.ext_price != null && price === Number(prev.price)) {
+        merged[sym] = { ...nv, ext_price: prev.ext_price, ext_session: prev.ext_session }
+      } else {
+        merged[sym] = nv
+      }
     }
-    if (!changed) return                              // nothing moved: no new snapshot, no renders
     _prices = merged
     _emit()
   } catch {

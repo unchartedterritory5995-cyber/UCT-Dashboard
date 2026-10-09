@@ -12,7 +12,7 @@
 // `?cmd=` link, so a write here happens only inside a button's click handler, and each button stays
 // spent (and says so) until the plan changes, so a double press cannot write twice.
 // ⛔ Every write ends in a visible sentence: what was set or saved, or what was not and why.
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Input from '../../../components/ui/Input'
 import useLivePrices from '../../../hooks/useLivePrices'
@@ -49,27 +49,6 @@ export default function PlanPanel({ sym, buy: buyArg = null, stop: stopArg = nul
   const [alerts, setAlerts] = useState({ busy: false, sig: null, ok: null, text: null })
   const [journal, setJournal] = useState({ busy: false, sig: null, ok: null, text: null, noteId: null })
 
-  // A pressed button is disabled while it writes (and stays disabled once spent), which drops
-  // keyboard focus to the page. When the write ends, focus lands on the sentence that says what
-  // happened, so a keyboard or screen-reader member is not left nowhere. Only when the press came
-  // from a focused button and focus has not moved on since.
-  const alertsOutRef = useRef(null)
-  const journalOutRef = useRef(null)
-  const refocus = useRef(null)
-  const armRefocus = (which, e) => {
-    const from = e?.currentTarget || null
-    refocus.current = from && typeof document !== 'undefined' && document.activeElement === from ? { which, from } : null
-  }
-  useEffect(() => {
-    const pending = refocus.current
-    if (!pending) return
-    const el = pending.which === 'alerts' ? alertsOutRef.current : journalOutRef.current
-    if (!el) return
-    refocus.current = null
-    const active = document.activeElement
-    if (!active || active === document.body || active === pending.from) el.focus()
-  }, [alerts.text, journal.text])
-
   // A new command (`NVDA PLAN 210 200`) re-seeds the two prices it names (adjusted during render,
   // React's own pattern for state that follows a prop).
   const [seeded, setSeeded] = useState({ buyArg, stopArg })
@@ -97,9 +76,8 @@ export default function PlanPanel({ sym, buy: buyArg = null, stop: stopArg = nul
     )
   }
 
-  const onSetAlerts = async (e) => {
+  const onSetAlerts = async () => {
     if (!plan.ok || alerts.busy) return
-    armRefocus('alerts', e)
     setAlerts({ busy: true, sig: null, ok: null, text: null })
     const results = []
     for (const leg of alertLegs(plan)) {
@@ -115,9 +93,8 @@ export default function PlanPanel({ sym, buy: buyArg = null, stop: stopArg = nul
     setAlerts({ busy: false, sig: allOk ? sig : null, ok: allOk, text: alertsResultText(s, results) })
   }
 
-  const onLogJournal = async (e) => {
+  const onLogJournal = async () => {
     if (!plan.ok || journal.busy) return
-    armRefocus('journal', e)
     setJournal({ busy: true, sig: null, ok: null, text: null, noteId: null })
     try {
       const body = await jsonFetcher(NOTES_URL, {
@@ -137,16 +114,12 @@ export default function PlanPanel({ sym, buy: buyArg = null, stop: stopArg = nul
   const alertsSpent = alerts.sig != null && alerts.sig === sig
   const journalSpent = journal.sig != null && journal.sig === sig
 
-  // The plan's refusal sentence can be about any field, so every field points at it.
-  const errorId = `${ids}-error`
-  const showError = !blank && !plan.ok
   const field = (key, label, value, set, hint = null) => (
     <div className={sizeStyles.field}>
       <label className={sizeStyles.label} htmlFor={`${ids}-${key}`}>{label}</label>
       <Input id={`${ids}-${key}`} className={sizeStyles.input} type="text" inputMode="decimal" autoComplete="off"
-        aria-describedby={[hint ? `${ids}-${key}-hint` : null, showError ? errorId : null].filter(Boolean).join(' ') || undefined}
         value={value} onChange={(e) => set(e.target.value)} data-testid={`terminal-plan-${key}`} />
-      {hint ? <span className={sizeStyles.hint} id={`${ids}-${key}-hint`}>{hint}</span> : null}
+      {hint ? <span className={sizeStyles.hint}>{hint}</span> : null}
     </div>
   )
 
@@ -167,7 +140,7 @@ export default function PlanPanel({ sym, buy: buyArg = null, stop: stopArg = nul
       {blank ? (
         <p className={shared.muted} data-testid="terminal-plan-prompt">Fill in the buy point and the stop to make a plan.</p>
       ) : !plan.ok ? (
-        <p className={`${shared.note} ${styles.bad}`} role="alert" id={errorId} data-testid="terminal-plan-error">{plan.error}</p>
+        <p className={`${shared.note} ${styles.bad}`} role="alert" data-testid="terminal-plan-error">{plan.error}</p>
       ) : (
         <div data-testid="terminal-plan-summary">
           <ul className={styles.lines}>
@@ -192,14 +165,14 @@ export default function PlanPanel({ sym, buy: buyArg = null, stop: stopArg = nul
 
       {alerts.text ? (
         <p className={alerts.ok ? styles.good : `${shared.note} ${styles.bad}`} role={alerts.ok ? 'status' : 'alert'}
-          ref={alertsOutRef} tabIndex={-1} data-testid="terminal-plan-alerts-result">
+          data-testid="terminal-plan-alerts-result">
           {alerts.text}{' '}
-          <PanelCommand cmd={`${s} ALRT`} label={`See alerts for ${s}`} className={shared.linkBtn}>See alerts</PanelCommand>
+          <PanelCommand cmd={`${s} ALRT`} label={`See the ${s} alerts`} className={shared.linkBtn}>See alerts</PanelCommand>
         </p>
       ) : null}
       {journal.text ? (
         <p className={journal.ok ? styles.good : `${shared.note} ${styles.bad}`} role={journal.ok ? 'status' : 'alert'}
-          ref={journalOutRef} tabIndex={-1} data-testid="terminal-plan-journal-result">
+          data-testid="terminal-plan-journal-result">
           {journal.text}
           {journal.noteId ? <> <Link className={shared.linkBtn} to={noteHref(journal.noteId)}>Open the note</Link></> : null}
         </p>

@@ -183,7 +183,7 @@ describe('AnalystRatingsTab -- a fund', () => {
     const { default: Fresh } = await import('./AnalystRatingsTab')
     render(<Fresh sym="SPY" />)
     expect(screen.getByTestId('analyst-ratings-na').textContent)
-      .toBe('Not applicable to funds: SPY is a fund; funds carry no sell-side analyst ratings or price targets.')
+      .toBe('Not applicable to funds — SPY is a fund; funds carry no sell-side analyst ratings or price targets.')
     expect(screen.queryByTestId('analyst-ratings-empty')).toBeNull()
   })
 })

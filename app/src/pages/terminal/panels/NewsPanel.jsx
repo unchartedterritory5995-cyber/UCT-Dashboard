@@ -10,7 +10,7 @@
 import { useMemo } from 'react'
 import { PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
 import { formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
-import { canRetry, etWallToIso, failureText, useMarketRead } from './marketRead'
+import { etWallToIso, failureText, useMarketRead } from './marketRead'
 import styles from './marketPanels.module.css'
 
 export const NEWS_URL = '/api/news'
@@ -55,7 +55,7 @@ export default function NewsPanel() {
 
   if (read.loading) return <PanelSkeleton label="Loading market news" testId="terminal-news-loading" />
   if (read.error && !read.body) {
-    const locked = !canRetry(read.error)
+    const locked = read.error?.status === 402
     return (
       <PanelState kind={locked ? 'locked' : 'error'} title={failureText(read.error, 'Market news')} testId="terminal-news-error"
         action={locked ? null : <button type="button" className={styles.chip} onClick={read.retry}>Retry</button>}>

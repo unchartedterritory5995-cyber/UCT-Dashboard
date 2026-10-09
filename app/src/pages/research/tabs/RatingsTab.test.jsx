@@ -89,7 +89,7 @@ describe('RatingsTab -- failed read vs genuine empty state', () => {
   it('an all-blank rating whose legs all answered says there are no inputs on file', async () => {
     await renderWith({ data: { ...BLANK, complete: true }, isLoading: false, error: false, mutate: () => {} })
     expect(screen.getByTestId('ratings-empty').textContent)
-      .toBe('No rating inputs on file for AAPL: none of the seven components could be measured.')
+      .toBe('No rating inputs on file for AAPL — none of the seven components could be measured.')
     expect(screen.queryByText('UCT Composite Rating')).toBeNull()
     expect(screen.queryByTestId('ratings-error')).not.toBeInTheDocument()
   })
@@ -104,7 +104,7 @@ describe('RatingsTab -- failed read vs genuine empty state', () => {
     await renderWith({ data: { sym: 'SPY', not_applicable: 'fund', composite: null, components: {}, checkup: [], coverage: null,
       reason: "SPY is a fund; the UCT composite rates a company's earnings, growth, margins and value, which a fund does not have" },
     isLoading: false, error: false, mutate: () => {} })
-    expect(screen.getByTestId('ratings-na').textContent).toMatch(/^Not applicable to funds: SPY is a fund; the UCT composite rates a company/)
+    expect(screen.getByTestId('ratings-na').textContent).toMatch(/^Not applicable to funds — SPY is a fund; the UCT composite rates a company/)
     expect(screen.queryByText('UCT Composite Rating')).toBeNull()
   })
 

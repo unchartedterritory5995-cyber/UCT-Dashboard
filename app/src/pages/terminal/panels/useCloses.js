@@ -12,15 +12,9 @@
 // the ticker" instead of the "just now" a transient failure earns. `retry()` re-reads (a failed
 // read is never memoised, so it asks the network again); a panel offers it as its Retry, since
 // re-running the same command keeps the same component and would read nothing.
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import jsonFetcher from '../../../utils/jsonFetcher'
-import { isWarmingError } from './marketRead'
 import { closesFromBars } from './relativeMath'
-
-/** A warming name is re-asked this often, this many times per attempt (about a minute). The bar
- *  store sends Retry-After: 3 to 4 seconds with its warming answer. */
-export const WARM_POLL_MS = 4000
-export const WARM_TRIES = 15
 
 /** Bars requested per timeframe — deep enough for a 2Y window plus a 50-session average (D)
  *  and a 10+5-period RRG with an 8-point tail (W). One depth per tf keeps the cache shared. */
@@ -87,58 +81,29 @@ export default function useCloses(syms, tf = 'D') {
   const [state, setState] = useState({ key: null })
   // A background refresh: NOT part of `key`, so the settled read stays on screen while it runs.
   const [tick, setTick] = useState(0)
-  // A hidden tab does not re-read (lane w9-10, the useMobileSWR rule): a refresh that comes due
-  // while hidden is owed, and paid once when the tab is shown again, not every 15 min overnight.
   useEffect(() => {
     if (!list.length) return undefined
-    const hidden = () => typeof document !== 'undefined' && document.hidden
-    let owed = false
-    const id = setInterval(() => {
-      if (hidden()) { owed = true; return }
-      setTick((n) => n + 1)
-    }, CLOSES_TTL_MS)
-    const onVisible = () => {
-      if (!hidden() && owed) { owed = false; setTick((n) => n + 1) }
-    }
-    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      clearInterval(id)
-      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible)
-    }
+    const id = setInterval(() => setTick((n) => n + 1), CLOSES_TTL_MS)
+    return () => clearInterval(id)
   }, [list.length])
-  // Wave 9 lane 9: a name the bar store answers 503 {"error":"warming"} for is being fetched in the
-  // background RIGHT NOW. It is re-asked every WARM_POLL_MS (phase 'warming', "the server is
-  // preparing this"), at most WARM_TRIES times per attempt, never drawn as "could not read".
-  const [warmTick, setWarmTick] = useState(0)
-  const warmTries = useRef({ key: null, n: 0 })
   useEffect(() => {
     const want = names.slice(names.indexOf(':') + 1).split(',').filter(Boolean)
     if (!want.length) return undefined
     let live = true
-    let timer = null
     settleLimited(want.map((s) => () => fetchCloses(s, tf))).then((res) => {
       if (!live) return
       const series = {}
       const failed = []
       const notFound = []
-      const warming = []
       res.forEach((r, i) => {
         if (r.ok) { series[want[i]] = r.value; return }
         failed.push(want[i])
         if (r.error?.status === 404) notFound.push(want[i])
-        if (isWarmingError(r.error)) warming.push(want[i])
       })
-      if (warmTries.current.key !== key) warmTries.current = { key, n: 0 }
-      if (warming.length && warmTries.current.n < WARM_TRIES) {
-        warmTries.current.n += 1
-        setState({ key, phase: 'warming', series, failed: [], notFound: [], warming, fetchedAt: null })
-        timer = setTimeout(() => setWarmTick((n) => n + 1), WARM_POLL_MS)
-        return
-      }
-      setState({ key, phase: 'ready', series, failed, notFound, warming, fetchedAt: Date.now() })
+      setState({ key, phase: 'ready', series, failed, notFound, fetchedAt: Date.now() })
     })
-    return () => { live = false; if (timer) clearTimeout(timer) }
-  }, [key, names, tf, tick, warmTick])
+    return () => { live = false }
+  }, [key, names, tf, tick])
   const retry = useCallback(() => setAttempt((n) => n + 1), [])
   const base = !list.length ? IDLE : state.key === key ? state : LOADING
   return useMemo(() => ({ ...base, retry }), [base, retry])
@@ -150,13 +115,11 @@ export default function useCloses(syms, tf = 'D') {
 export function failedText(state) {
   const failed = state?.failed || []
   const notFound = (state?.notFound || []).filter((s) => failed.includes(s))
-  const warming = (state?.warming || []).filter((s) => failed.includes(s) && !notFound.includes(s))
-  const transient = failed.filter((s) => !notFound.includes(s) && !warming.includes(s))
+  const transient = failed.filter((s) => !notFound.includes(s))
   const parts = []
   if (notFound.length) {
     parts.push(`No price history for ${notFound.join(', ')}: check the ${notFound.length === 1 ? 'ticker' : 'tickers'}.`)
   }
-  if (warming.length) parts.push(`The server is still preparing price history for ${warming.join(', ')}. Retry in a minute.`)
   if (transient.length) parts.push(`Could not read ${transient.join(', ')} just now.`)
   return parts.join(' ')
 }
