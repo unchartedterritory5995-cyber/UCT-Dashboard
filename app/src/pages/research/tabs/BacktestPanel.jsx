@@ -6,7 +6,7 @@ import { usePendingReask, PENDING_REASK_MS } from '../depth/depthFetch'
 import { STRATEGIES } from './optionPayoff'
 import {
   ENTRY_DTES, EXIT_PCTS, OFFSETS, WIDTHS, offsetLabel, money, legsLabel, exitLabel,
-  summaryFacts, excludedText, notRunText, ivText,
+  summaryFacts, excludedText, notRunText, ivText, plainBacktest,
 } from './optionBacktest'
 import styles from './OptionsChainTab.module.css'
 import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
@@ -212,7 +212,7 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
       {poll.error && <FailedRead testId="backtest-error" retry={() => poll.mutate()} title="The backtest result is unavailable right now." />}
       {st && (st.state === 'queued' || st.state === 'running') && (
         <p className={styles.note} data-testid="backtest-running">
-          Simulating {sym} over {earnings ? 'past earnings prints' : 'the past year of monthly expirations'}… {st.budget_text || ''}
+          Simulating {sym} over {earnings ? 'past earnings prints' : 'the past year of monthly expirations'}…
         </p>
       )}
       {st?.state === 'failed' && <p className={styles.note} data-testid="backtest-error">{st.error}</p>}
@@ -234,7 +234,7 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
                   <tr>
                     {r.anchor === 'earnings' && <th scope="col">Report</th>}
                     <th scope="col">Entry</th><th scope="col">Expiry</th><th scope="col">Contracts</th><th scope="col">Debit</th>
-                    <th scope="col" title={r.iv_source_text}>IV (computed)</th><th scope="col">Exit</th><th scope="col">P&amp;L</th>
+                    <th scope="col" title={plainBacktest(r.iv_source_text)}>IV (computed)</th><th scope="col">Exit</th><th scope="col">P&amp;L</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -254,10 +254,7 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
               </table>
             </div>
           )}
-          <p className={styles.muted} data-testid="backtest-iv-source">{r.iv_source_text}</p>
-          <p className={styles.muted} data-testid="backtest-budget">
-            Used {r.vendor_requests?.used} of at most {r.vendor_requests?.budget} vendor requests for this run.
-          </p>
+          <p className={styles.muted} data-testid="backtest-iv-source">{plainBacktest(r.iv_source_text)}</p>
         </div>
       )}
     </section>

@@ -68,6 +68,22 @@ describe('BacktestPanel', () => {
     expect(rows[0].textContent).toContain('held to expiry')
   })
 
+  it('while running it says what it is doing and never prints the vendor request budget', async () => {
+    const base = global.fetch
+    global.fetch = vi.fn((url, init) => {
+      if (String(url).includes('/backtest/j1')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(
+          { job: 'j1', state: 'running', budget_text: 'At most 400 vendor requests per run.' }) })
+      }
+      return base(url, init)
+    })
+    wrap(<BacktestPanel sym="SPY" />)
+    fireEvent.click(screen.getByTestId('backtest-simulate'))
+    const line = await screen.findByTestId('backtest-running')
+    expect(line.textContent).toMatch(/^Simulating SPY over the past year of monthly expirations…$/)
+    expect(line.textContent).not.toMatch(/vendor/i)
+  })
+
   it('COUNTS the excluded expirations with their reasons, never drops them', async () => {
     wrap(<BacktestPanel sym="SPY" />)
     await simulate()
@@ -84,15 +100,20 @@ describe('BacktestPanel', () => {
     expect(screen.getByTestId('backtest-small-sample').textContent)
       .toBe('Only 4 trades could be simulated; a sample under 6 is too small to summarise.')
     expect(screen.queryByTestId('backtest-summary')).toBeNull()
-    expect(screen.getByTestId('backtest-not-run').textContent).toMatch(/not run — .*vendor request budget ran out/)
-    expect(screen.getByTestId('backtest-budget').textContent).toBe('Used 10 of at most 10 vendor requests for this run.')
+    // Audit 2026-10-08: the reason reads as member copy; no vendor request count is shown.
+    expect(screen.getByTestId('backtest-not-run').textContent).toMatch(/not run — .*the run reached its data limit/)
+    expect(screen.queryByTestId('backtest-budget')).toBeNull()
+    expect(screen.getByTestId('backtest-result').textContent).not.toMatch(/vendor/i)
   })
 
-  it('labels the IV as computed, never as the vendor\'s', async () => {
+  it('labels the IV as computed, never as a data feed\'s, and names no vendor', async () => {
     wrap(<BacktestPanel sym="SPY" />)
     await simulate()
     expect(screen.getByText('IV (computed)')).toBeTruthy()
-    expect(screen.getByTestId('backtest-iv-source').textContent).toMatch(/COMPUTED here, not the vendor's/)
+    const src = screen.getByTestId('backtest-iv-source').textContent
+    expect(src).toMatch(/COMPUTED here, not a data feed's/)
+    expect(src).not.toMatch(/vendor|Massive/)
+    expect(src).toMatch(/Historical IV is not available from our data provider\./)
     expect(screen.getByTestId('backtest-trades').querySelector('tbody tr').textContent).toContain('20.0%')
   })
 
