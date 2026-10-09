@@ -392,3 +392,20 @@ describe('slots in the coordinates the model is shown', () => {
   })
 })
 
+
+// ─── production 10-09: a plain table cell on a light theme ─────────────────────────
+
+describe('a plain cell is drawn in the chart theme\'s own text colour', () => {
+  it('⭐ the title and labels resolve to the theme text (Paper #5B6470), not a fixed light grey; the spec has no colour', () => {
+    const def = applied(applyPatch(null, env(0, tableOps), { gateCtx: GATE }))
+    expect(tableSpecOfDefinition(def).cells).toEqual(tableOps[1].cells)           // still round-trips exactly
+    assertObjectProgram(def.objects)
+    const bound = bindObjectProgram(def.objects, (i) => i)
+    const cols = def.objects.trees.map((tree) => Array.from(interpret(tree, BARS, {}, undefined, undefined,
+      { tf: 'D', semantics: 2, symbols: { SPY } })))
+    const res = evaluateObjects(bound, { barCount: N, readNode: (n, b) => (cols[n] ? cols[n][b] : NaN), readTime: (i) => BARS[i].t })
+    const paper = toRenderState(res.live, { bars: BARS, theme: { fg: '#5B6470', bg: '#FFFFFF' } }).tables[0]
+    const cell = (r, c) => paper.cells.find((x) => x.row === r && x.col === c)
+    for (const [r, c] of [[0, 0], [1, 0], [2, 0], [3, 0]]) expect(String(cell(r, c).text_color).toUpperCase()).toBe('#5B6470')
+  })
+})

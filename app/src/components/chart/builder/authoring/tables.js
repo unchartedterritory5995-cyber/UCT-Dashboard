@@ -105,7 +105,12 @@ export function tableProgram(spec, treeOf, kindOf) {
       when: null, lastBarOnly: true,
       props: {
         text: { v: 'text', node: text },
-        ...(c.colorWhen ? { text_color: following(c.colorWhen, c.color || THEME_TEXT) } : (c.color ? { text_color: colour(c.color) } : {})),
+        // ⭐ BATCH 2 (prod 10-09) — A PLAIN CELL IS THE CHART'S OWN TEXT COLOUR. With no colour of
+        // its own a cell fell to the renderer's fixed #D1D4DC (`objectTableDom.js`), a light grey
+        // meant for a dark chart: on a white light theme ("Paper") the title and labels were
+        // ~1.5:1 — unreadable. `chart.fg_color` is the theme's text (6:1 on Paper), resolved at
+        // draw time, so the same table reads on every theme. Read back as "no colour".
+        ...(c.colorWhen ? { text_color: following(c.colorWhen, c.color || THEME_TEXT) } : { text_color: colour(c.color || THEME_TEXT) }),
         ...(c.backgroundWhen ? { bgcolor: following(c.backgroundWhen, c.background || CLEAR_BACKGROUND) } : (c.background ? { bgcolor: colour(c.background) } : {})),
         ...(c.bold ? { text_formatting: { v: 'const', value: 'bold' } } : {}),
         ...(c.size ? { text_size: { v: 'const', value: c.size } } : {}),
@@ -187,7 +192,7 @@ export function tableSpecOf(program, outputOfTree) {
     } else return null
     const c = hexOf(op.props.text_color)
     const b = hexOf(op.props.bgcolor)
-    if (c) cell.color = c
+    if (c && c !== THEME_TEXT) cell.color = c
     if (b) cell.background = b
     const cw = op.props.text_color && !c ? followingOf(op.props.text_color) : null
     const bw = op.props.bgcolor && !b ? followingOf(op.props.bgcolor) : null
