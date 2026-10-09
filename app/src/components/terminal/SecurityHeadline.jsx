@@ -18,6 +18,9 @@
 //     the batch has answered with no company and the pool has no price, so a real ticker never
 //     pays for it. The frame mounts this line outside the panel's run context, so suggestions are
 //     clickable when the caller passes `onRun`, plain names otherwise.
+//   * a closed-market row names WHEN its price was set: "at the 4:00 PM ET close" (today) or
+//     "at the Fri 4:00 PM ET close", from the row's `session_close_at` (live-prices, additive).
+//     An extended-hours print carries its own ET time from `observed_at`.
 import useSWR from 'swr'
 import useLivePrices from '../../hooks/useLivePrices'
 import useMarketOpen from '../../hooks/useMarketOpen'
@@ -111,6 +114,29 @@ export function sessionClause(row, market) {
   return 'at last close'
 }
 
+/** `h:mm AM ET` for an epoch (seconds or milliseconds); null when it is not a real instant. */
+export function etClock(epoch) {
+  const n = fin(epoch)
+  if (n == null || n <= 0) return null
+  const d = new Date(n < 1e12 ? n * 1000 : n)
+  if (Number.isNaN(d.getTime())) return null
+  return `${d.toLocaleTimeString('en-US', { timeZone: ET, hour: 'numeric', minute: '2-digit' })} ET`
+}
+
+/**
+ * The closed-market clause with its time: "at the 4:00 PM ET close" when that close was today
+ * (ET), "at the Fri 4:00 PM ET close" otherwise. Without a timestamp: "at last close".
+ */
+export function closeClause(row, now = new Date()) {
+  const at = fin(row?.session_close_at)
+  const clock = etClock(at)
+  if (!clock) return 'at last close'
+  const d = new Date(at * 1000)
+  if (etYmd(d) === etYmd(now)) return `at the ${clock} close`
+  const day = d.toLocaleDateString('en-US', { timeZone: ET, weekday: 'short' })
+  return `at the ${day} ${clock} close`
+}
+
 export default function SecurityHeadline({ sym, onRun = null }) {
   const name = String(sym || '').trim().toUpperCase()
   const { prices } = useLivePrices(name ? [name] : [])
@@ -148,8 +174,11 @@ export default function SecurityHeadline({ sym, onRun = null }) {
   const dir = fin(row?.change_pct) > 0 ? 'up' : fin(row?.change_pct) < 0 ? 'down' : 'flat'
   const vol = volRatio(row?.volume, meta?.avg_vol_20d)
   const earn = fmtEarnings(meta?.next_earnings)
-  const clause = sessionClause(row, market)
-  const extPrice = !row?.market_closed && clause && clause !== 'at last close' ? fmtPrice(row?.ext_price) : null
+  const session = sessionClause(row, market)
+  const extended = !row?.market_closed && session && session !== 'at last close'
+  const clause = session === 'at last close' ? closeClause(row) : session
+  const extPrice = extended ? fmtPrice(row?.ext_price) : null
+  const extAt = extended && extPrice ? etClock(row?.observed_at) : null
 
   return (
     <div className={`${styles.strip} ${clause ? styles.closed : ''}`} role="group"
@@ -161,7 +190,7 @@ export default function SecurityHeadline({ sym, onRun = null }) {
           <span aria-hidden="true">{dir === 'up' ? '▲' : dir === 'down' ? '▼' : ''}</span>{pct}
         </span>
       )}
-      {clause && <span className={styles.clause} data-testid="security-headline-session">{clause}{extPrice ? ` ${extPrice}` : ''}</span>}
+      {clause && <span className={styles.clause} data-testid="security-headline-session">{clause}{extPrice ? ` ${extPrice}` : ''}{extAt ? ` at ${extAt}` : ''}</span>}
       {vol && <span className={styles.part} data-testid="security-headline-vol" title="Today's volume vs the 20-session average">· vol {vol} avg</span>}
       {earn && <span className={styles.part} data-testid="security-headline-earn" title="Next earnings date (ET)">· earnings {earn}</span>}
     </div>
