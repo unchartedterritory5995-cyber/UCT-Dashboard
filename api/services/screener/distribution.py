@@ -387,6 +387,48 @@ def _fingerprint(conn, path) -> str:
 _COMPUTE_LOCK = threading.Lock()
 
 
+def _disk_path(db_path) -> str:
+    """The bands for the snapshot at `db_path`, beside it: same directory, same lifetime."""
+    return f"{db_path}.distribution.json"
+
+
+def _read_disk(db_path, key):
+    """The bands written for THIS fingerprint, or None. Never raises.
+
+    ⭐ WHY A DISK COPY: the in-memory cache empties on every deploy, and measured on prod
+    2026-10-09 the first compute after a boot took 83.5 s (vs ~0.1 s warm) while the boot's
+    other warmers held the CPU, so /api/screener/meta and BRKO waited behind it. The bands
+    only change when the nightly snapshot does, and the fingerprint names that snapshot, so a
+    copy keyed on it is exactly as fresh as a recompute.
+    """
+    import json
+    try:
+        with open(_disk_path(db_path), encoding="utf-8") as fh:
+            saved = json.load(fh)
+        if isinstance(saved, dict) and saved.get("key") == key and isinstance(saved.get("out"), dict):
+            return saved["out"]
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def _write_disk(db_path, key, out) -> None:
+    """Atomic write (tmp + replace); best-effort, a failure only costs the next boot a compute."""
+    import json
+    import os as _os
+    target = _disk_path(db_path)
+    tmp = f"{target}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"key": key, "out": out}, fh)
+        _os.replace(tmp, target)
+    except (OSError, TypeError, ValueError):
+        try:
+            _os.remove(tmp)
+        except OSError:
+            pass
+
+
 def distributions() -> dict:
     """The cached `{"basis", "columns"}` blob. NEVER raises.
 
@@ -409,8 +451,11 @@ def distributions() -> dict:
             hit = _CACHE.get(key)
             if hit is not None:
                 return hit
-            with closing(snapshot_db.connect()) as conn:
-                out = compute(conn)
+            out = _read_disk(path, key)
+            if out is None:
+                with closing(snapshot_db.connect()) as conn:
+                    out = compute(conn)
+                _write_disk(path, key, out)
             _CACHE.set(key, out, CACHE_TTL_SECONDS)
             return out
     except (sqlite3.Error, OSError, ValueError, TypeError, KeyError):
@@ -419,5 +464,12 @@ def distributions() -> dict:
 
 def invalidate() -> None:
     """Drop every cached vintage. For tests and for an operator who has just
-    rewritten the snapshot out of band."""
+    rewritten the snapshot out of band. The disk copy goes too: a rewrite that keeps the
+    fingerprint (same row count, build stamp and date) must not be served from disk."""
     _CACHE.clear()
+    try:
+        import os as _os
+        from api.services.screener import snapshot_db
+        _os.remove(_disk_path(snapshot_db.get_db_path()))
+    except Exception:  # noqa: BLE001 -- absent file, unreadable path: nothing to drop
+        pass
