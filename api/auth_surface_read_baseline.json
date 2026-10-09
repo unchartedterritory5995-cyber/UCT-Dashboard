@@ -332,6 +332,18 @@
   },
   {
    "method": "GET",
+   "path": "/api/ltr/call-request",
+   "kind": "public",
+   "reason": "Not a read: the call-request form's POST-only endpoint answers GET with a fixed 405 + Allow: POST (declared so the SPA catch-all cannot answer it with index.html and a 200). Returns no data; the form itself is on the public LTR page."
+  },
+  {
+   "method": "HEAD",
+   "path": "/api/ltr/call-request",
+   "kind": "public",
+   "reason": "Same handler as GET /api/ltr/call-request: a fixed 405 + Allow: POST, no data."
+  },
+  {
+   "method": "GET",
    "path": "/api/maintenance",
    "kind": "public",
    "reason": "Maintenance-banner state; read before sign-in so a signed-out visitor sees it."
@@ -341,6 +353,27 @@
    "path": "/api/market-calendar",
    "kind": "public",
    "reason": "Exchange trading calendar (public market fact)."
+  },
+  {
+   "method": "GET",
+   "path": "/api/marketcap/pit-status",
+   "kind": "inline",
+   "marker": "_reader_access",
+   "reason": "Market Cap PIT V1 (pit-status). Gated by the router's _enabled dependency (dark 404 unless MCAP_PIT_ENABLED/MCAP_PIT_PREVIEW) and by _reader_access, which CALLS require_bars_access (the chart-data entitlement) rather than Depends on it, so PREVIEW can turn a 401/403 into the dark 404; PREVIEW additionally requires role admin."
+  },
+  {
+   "method": "GET",
+   "path": "/api/marketcap/pit/{ticker}",
+   "kind": "inline",
+   "marker": "_reader_access",
+   "reason": "Market Cap PIT V1 (the PIT series). Gated by the router's _enabled dependency (dark 404 unless MCAP_PIT_ENABLED/MCAP_PIT_PREVIEW) and by _reader_access, which CALLS require_bars_access (the chart-data entitlement) rather than Depends on it, so PREVIEW can turn a 401/403 into the dark 404; PREVIEW additionally requires role admin."
+  },
+  {
+   "method": "GET",
+   "path": "/api/marketcap/pit/{ticker}/latest",
+   "kind": "inline",
+   "marker": "_reader_access",
+   "reason": "Market Cap PIT V1 (the PIT latest value). Gated by the router's _enabled dependency (dark 404 unless MCAP_PIT_ENABLED/MCAP_PIT_PREVIEW) and by _reader_access, which CALLS require_bars_access (the chart-data entitlement) rather than Depends on it, so PREVIEW can turn a 401/403 into the dark 404; PREVIEW additionally requires role admin."
   },
   {
    "method": "GET",
