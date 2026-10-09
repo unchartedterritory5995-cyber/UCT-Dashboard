@@ -51,6 +51,9 @@ export const PANEL_IMPORTERS = {
   Etf: () => import('./panels/EtfPanel'),
   Twt: () => import('./panels/TwtPanel'),
   Size: () => import('./panels/SizePanel'),
+  // ── wave 8 lane F: CHK pre-trade check ──
+  Check: () => import('./panels/CheckPanel'),
+  // ── end wave 8 lane F ──
   Depth: () => import('./panels/DepthPanel'),
   Events: () => import('../research/depth/EventsPanel'),
   FilingSearch: () => import('../research/depth/FilingSearchPanel'),

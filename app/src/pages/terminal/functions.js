@@ -130,6 +130,13 @@ export const FUNCTIONS = [
   { code: 'SIZE', label: 'Position size and R calculator', group: 'Security',
     ticker: { panel: 'Size' },
     market: { panel: 'Size' } },
+  // ── wave 8 lane F: CHK pre-trade check ──
+  // CHK: a planned trade (setup, entry, stop) against the setup library's checklist, its win rate,
+  // past trades of it in today's phase and the member's open book. Five existing paid reads in
+  // api/routers/intelligence.py; no flag (the engine's own "not loaded" answer is said in words).
+  { code: 'CHK', label: 'Pre-trade check (checklist, win rate, past trades, risk)', group: 'Security',
+    ticker: { panel: 'Check' } },
+  // ── end wave 8 lane F ──
 
   // ── Research › Depth (each panel is its own surface behind its own flag) ──
   { code: 'DPTH', label: 'Research depth (every depth panel you have)', group: 'Research depth',
