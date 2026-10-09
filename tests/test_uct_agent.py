@@ -634,3 +634,65 @@ def test_a_lone_object_argument_written_FLAT_is_wrapped_only_when_its_keys_match
     for bad in ({"from": "lastScreen"}, {"from": "lastScreen", "top": 15, "extra": 1}, {"tickers": ["NVDA"]}):
         with pytest.raises(turn.TurnError):
             turn.expand_compact_ops(op(bad), caps)
+
+
+# ── PRODUCTION 2026-10-09: an embedded-args schema the model API refuses (HTTP 400, nothing
+# generated) is retried ONCE in the compact shape; nothing else is ever retried ──
+class BadRequestError(Exception):
+    """Same class NAME the Anthropic SDK raises (turn._schema_refused matches by name + message)."""
+
+
+def _refusing_then(*resps, message="Error code: 400 - The compiled grammar is too large, which would cause performance issues."):
+    calls = []
+
+    def caller(**kw):
+        calls.append(kw)
+        if len(calls) == 1:
+            raise BadRequestError(message)
+        return resps[len(calls) - 2]
+    caller.calls = calls
+    return caller
+
+
+def test_a_schema_refusal_is_retried_once_compact_and_args_are_still_checked_strictly():
+    few = _many_caps(3)                                   # small → embedded first
+    assert not turn.compact_ops(turn.validate_manifest(few))
+    good = {"action": "example.set1", "target": "c1", "args_json": json.dumps({"level": "high", "note": None})}
+    c = _refusing_then(_resp(env("apply", ops=[good])))
+    out = turn.run_turn(message="set it", context=CTX, history=[], capabilities=few, caller=c)
+    assert len(c.calls) == 2
+    assert "anyOf" in c.calls[0]["output_config"]["format"]["schema"]["properties"]["ops"]["items"]          # embedded
+    assert c.calls[1]["output_config"]["format"]["schema"]["properties"]["ops"]["items"]["required"] == ["action", "target", "args_json"]
+    assert "args_json" in c.calls[1]["system"][0]["text"]
+    assert out["envelope"]["ops"] == [{"action": "example.set1", "target": "c1", "args": {"level": "high", "note": None}}]
+    assert out["usage"]["schema_fallback"] is True and out["usage"]["model_calls"] == 1
+    bad = {"action": "example.set1", "target": "c1", "args_json": json.dumps({"level": "max", "note": None})}
+    with pytest.raises(turn.TurnError, match="unreadable"):
+        turn.run_turn(message="set it", context=CTX, history=[], capabilities=few, caller=_refusing_then(_resp(env("apply", ops=[bad]))))
+
+
+@pytest.mark.parametrize("message", ["Error code: 400 - prompt is too long", "Error code: 429 - rate limited"])
+def test_any_other_error_is_never_retried(message):
+    c = _refusing_then(_resp(env("answer", reply="x")), message=message)
+    with pytest.raises(BadRequestError):
+        turn.run_turn(message="set it", context=CTX, history=[], capabilities=_many_caps(3), caller=c)
+    assert len(c.calls) == 1
+
+
+def test_an_already_compact_request_is_never_retried():
+    c = _refusing_then(_resp(env("answer", reply="x")))
+    with pytest.raises(BadRequestError):
+        turn.run_turn(message="set it", context=CTX, history=[], capabilities=_many_caps(turn.STRICT_OP_VARIANTS_MAX + 3), caller=c)
+    assert len(c.calls) == 1
+
+
+def test_a_second_refusal_after_the_fallback_is_not_retried_again():
+    calls = []
+
+    def caller(**kw):
+        calls.append(kw)
+        raise BadRequestError("Error code: 400 - Invalid schema: something")
+    with pytest.raises(BadRequestError):
+        turn.run_turn(message="set it", context=CTX, history=[], capabilities=_many_caps(3), caller=caller)
+    assert len(calls) == 2
+
