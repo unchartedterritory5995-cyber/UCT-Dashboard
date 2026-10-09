@@ -187,13 +187,17 @@ describe('integration audit (2026-10-09): Drawing Boards and the server copy', (
   it('the server confirmation is exact: ok only when tracings_doc holds this board\u2019s drawings for the symbol', async () => {
     store.addDrawing(SYM, { type: 'horizontal', points: [{ price: 5 }], color: '#fff', lineWidth: 1 })
     const board = store.getActiveTracingId()
-    const serve = (byTracing) => async () => new Response(JSON.stringify({ tracings_doc: JSON.stringify({ v: 1, activeId: board, tracings: [{ id: board }], byTracing }) }), { status: 200 })
+    // the sync's real envelope: setPref('tracings_doc', { updatedAt, doc: exportTracings() })
+    const serve = (byTracing) => async () => new Response(JSON.stringify({ tracings_doc: JSON.stringify({ updatedAt: 1, doc: { v: 1, activeId: board, tracings: [{ id: board }], visibleIds: [board], byTracing } }) }), { status: 200 })
     const ok = await confirmDrawingsSynced(SYM, store, { timeoutMs: 50, everyMs: 10, fetchFn: serve({ [board]: { [SYM]: drawings() } }) })
     expect(ok).toEqual({ ok: true })
     const stale = await confirmDrawingsSynced(SYM, store, { timeoutMs: 50, everyMs: 10, fetchFn: serve({ [board]: { [SYM]: [] } }) })
     expect(stale).toEqual({ ok: false, reason: 'not-synced' })
     const down = await confirmDrawingsSynced(SYM, store, { timeoutMs: 50, everyMs: 10, fetchFn: async () => new Response('{}', { status: 503 }) })
     expect(down.ok).toBe(false)
+    // and against the store's OWN export (the exact payload the sync pushes)
+    const real = async () => new Response(JSON.stringify({ tracings_doc: JSON.stringify({ updatedAt: 2, doc: store.exportTracings() }) }), { status: 200 })
+    expect(await confirmDrawingsSynced(SYM, store, { timeoutMs: 50, everyMs: 10, fetchFn: real })).toEqual({ ok: true })
   })
   it('drawings are not layout-scoped: a layout switch neither pins a proposal nor blocks an Undo', async () => {
     const { drawingKind } = await import('./capabilities/drawings')

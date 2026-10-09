@@ -376,8 +376,11 @@ export async function confirmDrawingsSynced(sym, store = drawingsStore, { timeou
       const r = await fetchFn('/api/auth/preferences', { credentials: 'include', cache: 'no-store' })
       if (r.ok) {
         const prefs = await r.json()
+        // the sync's own envelope (useTracingsSync: setPref('tracings_doc', { updatedAt, doc })),
+        // parsed the way parsePref does (a JSON string, or an already-parsed object)
         const raw = prefs?.tracings_doc
-        const doc = typeof raw === 'string' ? JSON.parse(raw) : raw
+        const env = typeof raw === 'string' ? JSON.parse(raw) : raw
+        const doc = env?.doc ?? null
         const onServer = doc?.byTracing?.[board ?? doc?.activeId]?.[sym]
         if (drawingSig(onServer) === want) return { ok: true }
       }
