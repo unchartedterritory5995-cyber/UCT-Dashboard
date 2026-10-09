@@ -175,12 +175,14 @@ describe('chart.setSetting — one capability over the product descriptor table'
 describe('capability questions — deterministic, truthful, never future-as-present', () => {
   const ask = (q) => fastParse(q)?.ops?.[0] || null
   const answer = (q) => answerFor(ask(q).args.topic)
-  it('"Can you draw trendlines for me?" → not yet; UCT has it; planned (Batch 8)', () => {
-    expect(ask('Can you draw trendlines for me?')).toEqual({ action: 'agent.capabilities', args: { topic: 'drawings' } })
-    const a = answer('Can you draw trendlines for me?')
-    expect(a.status).toBe('known')
-    expect(a.text).toMatch(/^Not yet\./)
-    expect(a.text).toMatch(/Planned for UCT Agent \(Batch 8, not available yet\)/)
+  it('Overnight Batch 8: drawings are PARTLY available — levels yes, trendlines not yet (said, planned 8b), never claimed', () => {
+    // "Can you draw…" may now be a request the Agent can do (a level), so it is no longer swallowed here.
+    expect(fastDiscovery('Can you draw trendlines for me?')).toBe(null)
+    const a = answerFor('drawings')
+    expect(a.status).toBe('partial')
+    expect(a.text).toMatch(/^Partly\. .*horizontal line at a price/)
+    expect(a.text).toMatch(/trendlines, rectangles, Fibonacci and text need anchors in time/)
+    expect(a.text).toMatch(/Planned for UCT Agent \(Batch 8b, not available yet\)/)
   })
   it('Batch 5: "Can you resize my chart widgets?" is now something the Agent DOES — a polite command, not a question', () => {
     expect(fastDiscovery('Can you resize my chart widgets?')).toBe(null)

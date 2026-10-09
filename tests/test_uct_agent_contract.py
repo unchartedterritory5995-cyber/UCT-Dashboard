@@ -21,7 +21,8 @@ BY = {c["name"]: c for c in CAPS}
 # group (with the always-on agent group) is validated, schema-built and prompted on its own.
 _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layout": "workspace",
              "watchlist": "lists", "screener": "screener", "alert": "alerts", "stock": "data",
-             "news": "data", "settings": "settings", "app": "settings", "agent": "agent"}
+             "news": "data", "settings": "settings", "app": "settings", "agent": "agent",
+             "drawing": "drawings"}
 
 
 def _requests():

@@ -29,6 +29,8 @@ export const GROUPS = [
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link) and saved layouts (open, save, create, copy, rename, delete)', domains: ['widget', 'layout'],
     words: [/\bwidgets?\b/, /\blayouts?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(add|open|close|remove|delete)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
       /\b(link|unlink|colou?r group)\b/, /\bsave\b.*\b(changes|this|it|layout)\b/] },
+  { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, restyle, remove, list)', domains: ['drawing'],
+    words: [/\bdraw\w*\b/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
   { id: 'lists', title: 'Watchlists (show, create, rename, add, remove, clear, delete)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],

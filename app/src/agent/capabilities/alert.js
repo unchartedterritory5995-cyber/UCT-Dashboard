@@ -47,7 +47,7 @@ function slim(r) {
   return {
     id: String(r.id), sym: String(r.sym || '').toUpperCase(), price: Number(r.target_price), direction: r.direction === 'below' ? 'below' : 'above',
     active: !!r.is_active, triggeredAt: r.triggered_at || null, createdAt: r.created_at || null,
-    type: r.alert_type || 'price', bound: !!r.drawing_id,
+    type: r.alert_type || 'price', bound: !!r.drawing_id, drawingId: r.drawing_id ? String(r.drawing_id) : null,
   }
 }
 const rowSig = (a) => JSON.stringify([a.id, a.sym, a.price, a.direction, a.active, a.triggeredAt])

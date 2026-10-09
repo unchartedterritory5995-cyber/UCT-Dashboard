@@ -92,9 +92,10 @@ export const TOPICS = [
   {
     id: 'drawings', title: 'Drawing tools',
     words: [/\bdraw\w*\b/, /\b(trend ?lines?|horizontal (line|level)s?|fib\w*|rectangles?|channels?|pitchforks?|annotat\w+)\b/],
-    caps: [], productHas: true,
-    known: () => [`the drawing toolbar (${drawingTools().length} tools: ${sample(drawingTools())})`],
-    planned: { when: 'Batch 8', what: 'drawing lines, levels, rectangles and Fibonacci tools from prices and dates you give me' },
+    caps: ['drawing.addLevel', 'drawing.style', 'drawing.remove', 'drawing.list'], productHas: true,
+    canDo: 'draw a horizontal line at a price you give me, change one drawing\'s colour, line style or width, remove one drawing (not one with an alert attached), and list the drawings on a chart — each with Undo',
+    known: () => [`the rest of the drawing toolbar (${drawingTools().length} tools: ${sample(drawingTools())}) — trendlines, rectangles, Fibonacci and text need anchors in time, which I can't place yet`, 'clearing all drawings'],
+    planned: { when: 'Batch 8b', what: 'trendlines, rectangles and Fibonacci tools from the dates and prices you give me, once the drawing layer exposes its point and time rules' },
   },
   {
     id: 'chartSettings', title: 'Chart appearance and settings',

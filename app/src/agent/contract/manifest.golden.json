@@ -2300,6 +2300,146 @@
    "query": false
   },
   {
+   "name": "drawing.list",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "List the drawings on a chart's symbol (every chart on that symbol shares them): each one's id, tool, level and style. Read-only.",
+   "hints": "target = the drawings entry for the chart's symbol.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "drawing.addLevel",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Draw a HORIZONTAL LINE at a price on a chart's symbol — the price axis's own \"Draw horizontal line at $X\". Every chart on that symbol shows it; Undo removes it. Only horizontal levels: trendlines, rectangles, Fibonacci and text are not available.",
+   "hints": "target = the drawings entry for the chart's symbol; price = the level (a number, as the member said it — never invented); color = a colour name or #hex, null = the member's drawing default; style = solid | dashed | dotted, null = solid. One op per level. A level the member describes without a number (\"the recent high\", \"support\") has no price — clarify, never guess.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "price": {
+      "type": "number"
+     },
+     "color": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "style": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "solid",
+       "dashed",
+       "dotted",
+       null
+      ]
+     }
+    },
+    "required": [
+     "price",
+     "color",
+     "style"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "drawing.style",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Change ONE drawing's colour, line style or width (what its settings do). Undo puts the old style back.",
+   "hints": "target = the drawings entry; drawing = its id from that entry's drawings (the most recent one the member drew is last); color / style / width null = leave as is. \"Make that line pink and dashed\" = the line just drawn.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     },
+     "color": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "style": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "solid",
+       "dashed",
+       "dotted",
+       null
+      ]
+     },
+     "width": {
+      "type": [
+       "integer",
+       "null"
+      ],
+      "enum": [
+       1,
+       2,
+       3,
+       4,
+       null
+      ]
+     }
+    },
+    "required": [
+     "drawing",
+     "color",
+     "style",
+     "width"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "drawing.remove",
+   "domain": "drawing",
+   "target": "drawing",
+   "summary": "Remove ONE drawing by id from a chart's symbol (every chart on it). Refused for a locked drawing and for one an alert is attached to. Undo puts it back.",
+   "hints": "target = the drawings entry; drawing = its id. \"Remove the line I just added\" = the newest one. Clearing ALL drawings is not available.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "drawing": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "drawing"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
    "name": "agent.capabilities",
    "domain": "agent",
    "target": "about",

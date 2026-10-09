@@ -14,6 +14,7 @@ import { planPlacement, planGroupPlacement } from '../pages/charts/placement/pla
 import { boardWidgetCount, boardCanGrow, MAX_BOARD_WIDGETS } from '../pages/charts/boardBound'
 import { WORKSPACE_MENU_TYPES } from '../widgets/registry'
 import { UCT_DEFAULT_ID } from '../pages/charts/layoutDockPins'
+import * as drawingsStore from '../components/chart/drawingsStore'
 
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
 
@@ -58,6 +59,8 @@ export function buildChartSource({ chartApiById, getWidgets }) {
           symbol: e.r.symbol, tf: e.r.tf, cs: e.r.cs, stored: e.r.stored,
           linkedCount, group: e.r.groupKey,
           view: e.api.agent.view?.() || null,
+          // the exact symbol string StockChart keys its drawings by (useChartDrawings(sym))
+          drawSym: e.api.agent.drawSym?.() || e.r.symbol,
         },
       }
     })
@@ -323,6 +326,34 @@ async function readServerBoard() {
   return { sig: boardSig(layout.widgets), epoch: active && active.id != null ? `${active.scope || 'user'}:${active.id}` : (p.charts_active_template === undefined ? null : 'unsaved') }
 }
 
+/**
+ * The drawings on each SYMBOL a chart shows — the product's own drawing store (the array every
+ * overlay on that symbol paints; persisted and synced like a manual edit). One entry per symbol:
+ * every chart on NVDA shares NVDA's drawings. Writers are the store's own, by drawing id.
+ */
+export function buildDrawingSource(charts, store = drawingsStore) {
+  const entries = () => {
+    const by = new Map()
+    for (const c of charts.list()) {
+      const sym = c.drawSym || c.symbol
+      if (!sym) continue
+      const e = by.get(sym) || { ref: sym, symbol: sym, charts: [], defaults: null }
+      e.charts.push(c.label)
+      // the chart's own "drawing defaults" (Chart Settings → Drawings), as the context menu uses them
+      if (!e.defaults) { const dd = c.cs?.drawingDefaults || {}; e.defaults = { color: dd.color || null, width: dd.width || null } }
+      by.set(sym, e)
+    }
+    return [...by.values()].map(e => ({ ...e, label: `Drawings on ${e.symbol}`, drawings: store.peekDrawings(e.symbol) }))
+  }
+  return {
+    list: entries,
+    read: (ref) => entries().find(e => e.ref === ref) || null,
+    add: (sym, d) => store.addDrawing(sym, d),
+    update: (sym, id, u) => store.updateDrawing(sym, id, u),
+    remove: (sym, id) => store.removeDrawing(sym, id),
+  }
+}
+
 export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, readServer = readServerBoard }) {
   const layoutSource = layouts ? buildLayoutSource(layouts) : null
   const epoch = layoutSource ? () => {
@@ -332,6 +363,7 @@ export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widg
   return {
     ...(watchlists ? { watchlists: buildWatchlistSource({ ...watchlists, getWidgets }) } : {}),
     charts: buildChartSource({ chartApiById, getWidgets }),
+    drawings: buildDrawingSource(buildChartSource({ chartApiById, getWidgets })),
     ...(widgetOps ? { widgets: buildWidgetSource({ widgetOps, getWidgets }) } : {}),
     ...(layoutSource ? {
       layouts: layoutSource,
