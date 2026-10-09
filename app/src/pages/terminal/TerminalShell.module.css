@@ -990,6 +990,13 @@
     min-height: var(--tap-min);
   }
 
+  /* HELP's "Advanced" disclosure (wave 5): its summary is the control a finger opens. It stays
+     display: list-item so the open/closed marker is kept. */
+  .helpAdvanced > summary {
+    min-height: var(--tap-min);
+    line-height: var(--tap-min);
+  }
+
   .panelAct,
   .panelGrip,
   .menuBtn {
