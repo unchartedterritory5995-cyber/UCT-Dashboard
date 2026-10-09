@@ -1,0 +1,57 @@
+/* PLAN: the trade-plan panel (wave 8, lane G). App tokens only; the terminal wears the member's
+   theme. Fields come from sizePanel.module.css, notes and links from myNamesPanel.module.css. */
+
+.lines {
+  margin: 0;
+  padding-left: var(--space-lg);
+  color: var(--text-bright);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-normal);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.action {
+  font: inherit;
+  font-size: var(--text-sm);
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text-bright);
+  cursor: pointer;
+}
+
+.action:disabled {
+  border-color: var(--border);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.good {
+  margin: 0;
+  color: var(--success-ink);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+.bad {
+  color: var(--danger-ink);
+}
+
+/* TOUCH TIER (phone + tablet): each write button is a finger target. */
+@media (max-width: 1024px) {
+  .action {
+    min-height: var(--tap-min);
+  }
+}

@@ -95,6 +95,9 @@ export const PANEL_IMPORTERS = {
   // end wave 8, lane E
   // my names (lane 9) — terminal-native; read the routes the watchlist page and the alert bell use
   Alerts: () => import('./panels/AlertsPanel'),
+  // wave 8 lane G: the breakout loop (BRKO, PLAN)
+  Breakout: () => import('./panels/BreakoutPanel'),
+  Plan: () => import('./panels/PlanPanel'),
   Watchlist: () => import('./panels/WatchlistPanel'),
   // GRADE (wave 3, lane 11) — Compass's buy / hold / skip verdict, read-only over grade_ticker
   Grade: () => import('./panels/GradePanel'),
