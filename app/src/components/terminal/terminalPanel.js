@@ -87,6 +87,16 @@ export function usePanelRows(rows = null) {
 }
 
 /**
+ * Wave 2 (audit 2026-10-08): run a command from inside an embedded panel, the CLICK twin of
+ * `usePanelRows` (a row's `$SYM` typed by number). Returns `run(text)` inside a terminal panel,
+ * `null` everywhere else — so a caller renders plain text outside the shell. `PanelSymbol` is
+ * the one consumer; use it rather than calling this directly.
+ */
+export function usePanelRun() {
+  return useContext(PanelListContext)?.run || null
+}
+
+/**
  * The common case: a list whose rows each name ONE security. Publishes `$SYM` per visible row
  * (duplicates kept — row N is the Nth row on screen) and the de-duplicated names as the panel's
  * list for `BOARD <FUNC>` / the "Board of" control. Returns the de-duplicated names.

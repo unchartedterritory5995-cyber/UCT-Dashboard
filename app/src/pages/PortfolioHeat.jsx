@@ -5,7 +5,7 @@
 // callers (Compass chat, voice, AI Search, grade_watchlist).
 import useMobileSWR from '../hooks/useMobileSWR'
 import UIcon from '../components/ui/UIcon'
-import { BoardFromList, useInTerminalPanel, PanelSkeleton, PanelState, usePanelFreshness, usePanelSymbolRows, panelAsOf } from '../components/terminal'
+import { BoardFromList, PanelSymbol, useInTerminalPanel, PanelSkeleton, PanelState, usePanelFreshness, usePanelSymbolRows, panelAsOf } from '../components/terminal'
 import { formatCurrency, formatPercent, formatPercentAsSent } from '../lib/presentation/presentationPrimitives'
 import styles from './PortfolioHeat.module.css'
 
@@ -201,7 +201,7 @@ export default function PortfolioHeat() {
           <tbody>
             {per_position.map(p => (
               <tr key={p.symbol}>
-                <td className={styles.sym}>{p.symbol}</td>
+                <td className={styles.sym}><PanelSymbol sym={p.symbol} /></td>
                 <td>{p.side ? p.side[0].toUpperCase() + p.side.slice(1) : '—'}</td>
                 <td>{pctAsSent(p.dist_to_stop_pct)}</td>
                 <td>{pctAsSent(p.risk_pct)}</td>
