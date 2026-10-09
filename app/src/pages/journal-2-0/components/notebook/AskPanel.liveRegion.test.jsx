@@ -52,7 +52,13 @@ describe('the Ask answer reaches a live region that already existed', () => {
     const before = screen.getByTestId('ask-live')
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'What is the dividend?' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
-    await waitFor(() => expect(screen.getByTestId('ask-live').textContent).toBe(SENTENCE))
+    // the answer lands first, and the announcer is still empty at that instant: the write is
+    // deferred past the focus move that happens when the answer lands (measured on production, NVDA
+    // spoke neither the focus nor a same-instant live write; a write 600 ms later it did)
+    const landed = await screen.findByTestId('ask-answer')
+    await waitFor(() => expect(landed).toHaveAttribute('aria-busy', 'false'))
+    expect(screen.getByTestId('ask-live').textContent).toBe('')
+    await waitFor(() => expect(screen.getByTestId('ask-live').textContent).toBe(SENTENCE), { timeout: 3000 })
     expect(screen.getByTestId('ask-live')).toBe(before)
     // the visible block is rendered and is not a second live region
     const visible = await screen.findByTestId('ask-answer')
@@ -75,7 +81,7 @@ describe('the Ask answer reaches a live region that already existed', () => {
     const visible = await screen.findByTestId('ask-answer')
     expect(visible.textContent).toContain(SENTENCE)
     expect(document.querySelectorAll('[aria-live="polite"]').length).toBe(1)   // one announcer, not two
-    expect(screen.getByTestId('ask-live').textContent).toBe(SENTENCE)
+    await waitFor(() => expect(screen.getByTestId('ask-live').textContent).toBe(SENTENCE), { timeout: 3000 })
   })
 
   it('a mid-stream error leaves the live region empty (the alert speaks instead)', async () => {
