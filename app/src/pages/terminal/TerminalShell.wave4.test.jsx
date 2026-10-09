@@ -211,3 +211,24 @@ describe('fix 4: CATH takes a day', () => {
     expect(screen.getByTestId('terminal-notice')).toHaveTextContent('Not applied: "2099-01-01"')
   })
 })
+
+describe('fix 5: `ERN` alone opens the earnings calendar', () => {
+  it('on a board whose focused panel shows a ticker, ERN opens CAL, not that ticker\'s earnings', async () => {
+    store.prefs = ONE_DES()
+    renderAt(['/terminal'])
+    await type('ERN')
+    await settle()
+    expect(code(0)).toBe('CAL')
+    expect(where()).toMatch(/^\/terminal\/calendar/)
+    expect(params().get('earnings')).toBeNull()
+  })
+
+  it('`NVDA ERN` still opens NVDA\'s earnings window', async () => {
+    store.prefs = ONE_DES()
+    renderAt(['/terminal'])
+    await type('NVDA ERN')
+    await settle()
+    expect(code(0)).toBe('ERN')
+    expect(params().get('earnings')).toBe('NVDA')
+  })
+})

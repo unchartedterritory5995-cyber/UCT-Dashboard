@@ -250,6 +250,7 @@ export function describeCommand(cmd) {
   const notes = []
   let tone = 'ok'
   if (marketOnly) { notes.push(`${cmd.code} is market-wide; ${cmd.sym} is ignored.`); tone = 'warn' }
+  if (cmd.from === 'ERN') notes.push('ERN with no ticker opens the earnings calendar; NVDA ERN opens one company.')
   if (cmd.collision) { notes.push(`${cmd.collision} is also a ticker: type $${cmd.collision} for the stock.`); tone = 'warn' }
   if (cmd.argNotTicker) {
     notes.push(`${cmd.argNotTicker} is read as ${cmd.code}'s argument; type $${cmd.argNotTicker} for the ticker.`)

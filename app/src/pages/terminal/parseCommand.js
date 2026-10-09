@@ -205,6 +205,10 @@ export default function parseCommand(input, opts = {}) {
       const mode = compareMode(r.sym, other)
       return { ...r, args: mode === 'sector' ? ['SECTOR', ...r.args.slice(1)] : [other, ...r.args.slice(1)], compareMode: mode }
     }
+    // Wave 4 (lane A): `ERN` with no ticker is the earnings CALENDAR (CAL). Without this it fell
+    // back to the focused panel's security, so on the first-visit board `ERN` opened SPY's
+    // earnings window. `NVDA ERN` is unchanged. `from` lets the echo say why it reads as CAL.
+    if (r.code === 'ERN' && r.sym == null) return { ...r, code: 'CAL', from: 'ERN' }
     // V5: a bare code that is ALSO a ticker is annotated, so the echo says so before Enter.
     if (!forced && FIRST === r.code && r.sym == null && isTickerCollision(r.code)) return { ...r, collision: r.code }
     return r
