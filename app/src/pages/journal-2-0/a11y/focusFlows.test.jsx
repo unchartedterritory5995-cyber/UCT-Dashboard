@@ -168,7 +168,11 @@ describe('focus in the Notebook tab', () => {
     allNotes.focus()
     fireEvent.click(allNotes)
     await settle()
-    expect(active()).toBe(allNotes)
+    // F3 (screen-reader pass 2026-10-09): the sidebar's focus target is the ROW (treeitem) the
+    // button sits in, so a click on "All notes" leaves focus on that row -- in the sidebar, not
+    // stolen by the pane. ⚰️ This asserted the BUTTON itself, which is what kept NVDA in browse mode.
+    expect(active()).toBe(allNotes.closest('[role="treeitem"]'))
+    expect(active().getAttribute('role')).toBe('treeitem')
   })
 
   it('deleting a note through ConfirmModal puts focus on the NEXT row', async () => {

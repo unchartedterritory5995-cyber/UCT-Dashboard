@@ -1,0 +1,70 @@
+/* SIZE: the position-size calculator (wave 7, lane D). App tokens only; the terminal wears the
+   member's theme. Tables, chips and notes come from myNamesPanel.module.css. */
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-sm);
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.label {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.input {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.side {
+  display: inline-block;
+  padding: 0 var(--space-sm);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+.sideLong { color: var(--success-ink); }
+.sideShort { color: var(--danger-ink); }
+
+.big {
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-bright);
+}
+
+/* TOUCH TIER (phone + tablet): a typed field is a finger target too. */
+@media (max-width: 1024px) {
+  .input {
+    min-height: var(--tap-min);
+  }
+}

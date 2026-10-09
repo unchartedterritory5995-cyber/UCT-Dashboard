@@ -115,6 +115,21 @@ export const FUNCTIONS = [
   { code: 'ASK', label: 'Ask AI', group: 'Security',
     ticker: { panel: 'AskAi', section: 'ai' },
     market: { door: '/ai-search', leavesTerminal: true, why: 'the AI search page owns a streaming conversation and its own history rail' } },
+  // ── wave 7 lane D: stock-lens codes (terminal-native panels over routes that already exist) ──
+  // PEER: the stock beside its peers, over /api/groups/peers (paid) + live prices + MON's returns read.
+  { code: 'PEER', label: 'Peers and relative value', group: 'Security',
+    ticker: { panel: 'Peer' } },
+  // ETF: leveraged / inverse ETFs on a stock (paid family map) and, for an ETF, its holdings.
+  { code: 'ETF', label: 'ETF exposure (leveraged ETFs, holdings)', group: 'Security',
+    ticker: { panel: 'Etf' } },
+  // TWT: the curated X feed's posts on a ticker, 7 days. Honours VITE_TWITTER_UI_ENABLED in the panel.
+  { code: 'TWT', label: 'Social posts (curated X feed, 7 days)', group: 'Security',
+    ticker: { panel: 'Twt' } },
+  // SIZE: position size + R targets, pure client math. With a ticker the entry is prefilled from the
+  // live price; without one it is a plain calculator.
+  { code: 'SIZE', label: 'Position size and R calculator', group: 'Security',
+    ticker: { panel: 'Size' },
+    market: { panel: 'Size' } },
 
   // ── Research › Depth (each panel is its own surface behind its own flag) ──
   { code: 'DPTH', label: 'Research depth (every depth panel you have)', group: 'Research depth',
@@ -212,6 +227,20 @@ export const FUNCTIONS = [
   { code: 'RISK', label: 'Portfolio risk', group: 'Market', market: { surface: '/portfolio-heat' } },
   { code: 'COMM', label: 'Community', group: 'Market',
     market: { door: '/community', leavesTerminal: true, why: 'threads are routed (/community/:threadId); a panel cannot hold the thread URL' } },
+
+  // ── market lists (wave 7, lane C): terminal-native panels over routes the app already serves.
+  // Market-only, no arguments unless named. A ticker in a row opens its DES beside the list.
+  { code: 'NEWS', label: 'Market news tape (every headline)', group: 'Market',
+    market: { panel: 'MarketNews' } },
+  { code: 'REGM', label: 'Market regime and exposure call', group: 'Market',
+    market: { panel: 'Regime' } },
+  { code: 'INS', label: 'Insider buying (UCT 20 and large caps, 7 days)', group: 'Market',
+    market: { panel: 'InsiderBuys' } },
+  { code: 'RSL', label: 'RS leaderboard (top names by RS rank)', group: 'Market',
+    market: { panel: 'RsLeaders' } },
+  // THMS 1W: the UCT theme leaderboard over a window (1D 1W 1M 3M; 1Y and YTD are chips in the panel).
+  { code: 'THMS', label: 'Theme leaderboard (leaders and laggards by period)', group: 'Market',
+    market: { panel: 'ThemeBoard', args: [{ kind: 'contribWindow', prop: 'win' }] } },
 
   // ── the shell itself ──
   { code: 'HELP', label: 'Function list & syntax', group: 'Shell',

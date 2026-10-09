@@ -25,11 +25,23 @@
  * convention for "go to the toolbar" — moves focus onto this bar from inside a
  * table, and Escape hands it back to the cell it came from.
  *
+ * ⛔ THE BAR IS ONE TAB STOP (screen-reader pass 2026-10-09, finding F2). Each of
+ * its twelve buttons used to be its own Tab stop, so from the note heading Tab
+ * reached the body on the 29th press on any note with a table, while the Editor
+ * toolbar two stops earlier was ONE stop with arrow roving. The same hook now
+ * runs this bar (`lib/useToolbarRoving.js`): exactly one enabled control holds
+ * tabIndex 0, Left and Right move one control and wrap, Home and End jump to
+ * the ends, and the stop follows focus. The first stop is the first ENABLED
+ * control, because the hook never gives the stop to a disabled one. Escape is
+ * this file's own key (the hook does not know about the editor).
+ * Rail: TableToolbar.oneStop.test.jsx.
+ *
  * Touch tier (≤1024px): every control meets `var(--tap-min)`.
  */
 import { useCallback, useEffect, useLayoutEffect, useReducer, useRef } from 'react'
 import { selectedRect } from '@tiptap/pm/tables'
 import UIcon from '../../../../components/ui/UIcon'
+import useToolbarRoving from '../../lib/useToolbarRoving'
 import {
   COLUMN_MAX_PX, COLUMN_MIN_PX, COLUMN_STEP_PX, canSortTable, currentColumnWidth,
   hasHeaderRowNode, setColumnWidthTr, sortTableTr, tableContext,
@@ -109,7 +121,17 @@ const CONTROLS = [
 ]
 
 export default function TableToolbar({ editor }) {
+  // F2: the one-stop toolbar pattern, on the DOM that is there. The hook owns tabindex and
+  // the arrow keys; this component keeps Escape and Alt+F10. The hook's ref is the bar's DOM
+  // ref (as in WidgetEmbedView). `barRef` is this component's own ref to the SAME element,
+  // mirrored after every commit, for placement (which writes the bar's style) and Alt+F10.
+  // ⛔ Each shorter wiring trips the React Compiler lint: a merged callback ref writes into the
+  // hook's ref (NoteEditorPage's wiring, refused as a mutation); reading `.current` off the
+  // hook's returned object marks every `roving.*` in JSX as a ref access; and a callback that
+  // reads `.current` off a destructured hook field is not seen as reading a ref at all.
+  const { ref: rovingRef, onKeyDown: rovingKeyDown, onFocus: rovingFocus } = useToolbarRoving()
   const barRef = useRef(null)
+  useLayoutEffect(() => { barRef.current = rovingRef.current })
 
   // Wave 10 (TY, standard 4): this component's OWN subscription, mirroring
   // LinkPasteMenu -- not a field on NoteEditorPage's toolbar-sync reducer. This
@@ -196,7 +218,11 @@ export default function TableToolbar({ editor }) {
     const onKey = (e) => {
       if (e.key !== 'F10' || !e.altKey) return
       if (!tableAtSelection(editor.state) || !editor.isEditable) return
-      const first = barRef.current?.querySelector('button:not([disabled])')
+      // The bar's ONE Tab stop (the control the roving hook marked), else its first
+      // enabled control: Alt+F10 lands where Tab would.
+      const bar = barRef.current
+      const first = bar?.querySelector('button[tabindex="0"]:not([disabled])')
+        || bar?.querySelector('button:not([disabled])')
       if (!first) return
       e.preventDefault()
       first.focus()
@@ -248,14 +274,10 @@ export default function TableToolbar({ editor }) {
       if (!editor.isDestroyed) editor.view.focus()
       return
     }
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
-    // A toolbar is ONE tab stop in spirit; arrows move within it.
-    const buttons = [...(barRef.current?.querySelectorAll('button:not([disabled])') || [])]
-    const i = buttons.indexOf(document.activeElement)
-    if (i < 0) return
-    e.preventDefault()
-    const next = buttons[(i + (e.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length]
-    next?.focus()
+    // Left / Right (wrapping), Home / End: the one-stop hook's keys. ⚰️ This file carried
+    // its own Left/Right walk over `button:not([disabled])` while every control stayed a
+    // Tab stop — arrows that moved within a bar nobody could skip past.
+    rovingKeyDown(e)
   }
 
   // A control must not take the caret out of the cell on mouse down; the chain
@@ -264,12 +286,13 @@ export default function TableToolbar({ editor }) {
 
   return (
     <div
-      ref={barRef}
+      ref={rovingRef}
       className={styles.bar}
       role="toolbar"
       aria-label={TABLE_TOOLBAR_LABEL}
       data-export-exclude
       onKeyDown={onBarKeyDown}
+      onFocus={rovingFocus}
     >
       {CONTROLS.map(([cmd, label, name, icon], i) => (
         <span key={cmd} className={styles.slot}>

@@ -116,6 +116,26 @@ each `.speech.log` beside a record is NVDA's speech for that window (lines carry
   cursor instead (r3: Down read `A`, `notes`). A member who does not know Insert+Space cannot reach a
   folder's disclosure or its actions by keyboard. (The `Notes list tools` tool bar, row 9, is fine:
   its first control is a combo box, which NVDA does switch for.)
+- **F2 and F3 FIXED, 2026-10-09 (#300, live from the 08:50 CT pod).** F2: `TableToolbar.jsx` runs
+  `useToolbarRoving`, one Tab stop with arrow roving, Escape back to the cell, Alt+F10 to the stop
+  (rail `TableToolbar.oneStop.test.jsx`). F3: `lib/useTreeRoving.js` moves focus that arrives on a
+  button or link inside a tree row onto the `[role="treeitem"]` itself, so the focused element is the
+  treeitem whatever put focus there (rails in `FolderSidebar.tree.test.jsx`, `useTreeRoving.test.jsx`,
+  `focusFlows`, `deleteFocusFallback`). ⚠️ A correction to F3's wording above: on master the Tab stop
+  was ALREADY the treeitem; what put focus on the button in rows 4-6 was this driver's own
+  `focus_role("button", "All notes")`, a programmatic focus of the kind an assistive technology or a
+  pointer press also produces. The fix covers every such path, and the finding stands for those paths,
+  not for a plain Tab. **Re-check on production (r12, `nvda-2026-10-09-r12-post300.json`): row 4
+  PASS** -- the All notes button was focused programmatically and NVDA said `Folders tree view, level 1,
+  All notes`, i.e. the focused element was the treeitem and NVDA was in focus mode with no Insert+Space.
+  Rows 5, 6 and 11 (r12 and r13) are **INCONCLUSIVE, not measured**: the owner's TC2000 window took
+  the OS foreground mid-sequence in both runs and the foreground guard withheld the keys, exactly as
+  designed after r1. Row 5's r12 speech window carried TC2000's own text and is not clean even though
+  the grader matched. To finish: with TC2000 closed and the desk quiet, run
+  `python tools/notebook_nvda_pass.py --only 5,6,11 --nvda-log %TEMP%\nvda-probe-r14.log --out
+  docs/notebook/evidence/screen-reader/nvda-2026-10-09-r14-post300.json` (NVDA started with
+  `-m --log-level=12 --log-file=<that log>`); the driver no longer presses Insert+Space for the tree
+  and counts the Tabs from the heading to the body (expected well under 29).
 - **F4..F7 -- the script's keys predate the product** (rows 5, 6, 9, 17, 24): "Tab to its
   disclosure" / "Tab along its row" (tree), "Tab to the view switcher" (tool bar), "Tab to the
   replace field" (six Tabs: Match case, Whole word, Previous match, Next match, Close find, then

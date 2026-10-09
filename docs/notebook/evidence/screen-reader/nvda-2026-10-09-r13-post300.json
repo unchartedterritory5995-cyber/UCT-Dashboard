@@ -1,0 +1,91 @@
+{
+ "started": "2026-10-09T09:19:20",
+ "nvda_version": "2026.2",
+ "base": "https://uctintelligence.com",
+ "nonce": "00ac7c9e7867",
+ "rows": [
+  {
+   "n": 1,
+   "keys": "Tab",
+   "expected": [
+    "Skip to notes list",
+    "link"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 2,
+   "keys": "Enter",
+   "expected": [
+    "All notes",
+    "heading"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 3,
+   "keys": "focus Hide folders panel, Tab",
+   "expected": [
+    "Hide folders panel",
+    "button",
+    "Panel view",
+    "tab"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 4,
+   "keys": "focus the All notes row",
+   "expected": [
+    "All notes"
+   ],
+   "result": "SKIPPED",
+   "notes": "--only",
+   "heard": []
+  },
+  {
+   "n": 5,
+   "keys": "on All notes: Down until SR folder, Right (expand) -- no Insert+Space",
+   "expected": [
+    "SR folder",
+    "collapsed",
+    "expanded"
+   ],
+   "result": "INCONCLUSIVE",
+   "notes": "keys withheld mid-row: foreground moved to 'TC2000 - 6 STOCKS BEACH' mid-sequence; key withheld",
+   "heard": [
+    "complementary landmark",
+    "Folders tree view",
+    "level 1 All notes, 2 1 of 5",
+    "TC2000 - 6 STOCKS BEACH window",
+    "edit blank",
+    "Google Chrome pinned"
+   ]
+  }
+ ],
+ "made": {
+  "notes": [
+   "b5125579e43b4ccaa38bbe09d78eafde",
+   "d3925be4287a4af5801e1bf7a4173786"
+  ],
+  "folders": [
+   "824b0162bd8641c4a1d1c19952d2e76b",
+   "c57b1d8918f54430a4c5b753764320fb"
+  ],
+  "views": [
+   "2910a49b0d67437ba57c436fd9056dc2"
+  ]
+ },
+ "aborted": "row 5: foreground moved to 'TC2000 - 6 STOCKS BEACH' mid-sequence; key withheld",
+ "stray_notes_trashed": [],
+ "left_active_notes": 0,
+ "left_sr_folders": 0,
+ "left_sr_views": 0,
+ "finished": "2026-10-09T09:19:46"
+}

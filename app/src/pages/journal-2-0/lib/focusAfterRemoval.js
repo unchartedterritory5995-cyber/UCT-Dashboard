@@ -61,6 +61,22 @@ export function neighbourFallback(root, attr, keys, ...fallbacks) {
   }
 }
 
+/**
+ * A resolver whose landing, when it is a control INSIDE a tree row, becomes that row.
+ * F3 (screen-reader pass 2026-10-09): the folder tree's focus target is the `[role="treeitem"]`
+ * (NVDA switches to focus mode for a focused tree view item, and not for a focused button), and
+ * the keys the callers record live on the row's primary BUTTON. A landing outside any tree row
+ * (a pane heading, a saved-view row) is returned unchanged.
+ */
+export function treeRowOf(resolve) {
+  return () => {
+    const el = asElement(resolve)
+    if (!el) return null
+    const row = typeof el.closest === 'function' ? el.closest('[role="treeitem"]') : null
+    return row && canTakeFocus(row) ? row : el
+  }
+}
+
 function cssEscape(v) {
   const s = String(v)
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(s)

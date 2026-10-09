@@ -515,22 +515,33 @@ def main(argv=None) -> int:
             row(2, "Enter", ["All notes", "heading"], lambda: press("enter"))
             row(3, "focus Hide folders panel, Tab", ["Hide folders panel", "button", "Panel view", "tab"],
                 lambda: (focus_role("button", "Hide folders panel"), time.sleep(1.2), press("tab")))
-            row(4, "focus the All notes row", ["All notes", "button"],
-                lambda: focus_role("button", re.compile(r"^All notes"), exact=False))
+            # F3 (fixed 2026-10-09, lib/useTreeRoving.js): focus that lands on a BUTTON inside a tree
+            # row is moved onto the treeitem itself, so the focused element is the treeitem and NVDA
+            # switches to focus mode on its own. Row 4 focuses the button the way the first pass did
+            # (programmatically, as an AT or a pointer press can) and records where focus ended up.
+            ACTIVE_ROLE = "() => { const a = document.activeElement; return a ? (a.getAttribute('role') || a.tagName.toLowerCase()) : 'none' }"
+            def _all_notes():
+                focus_role("button", re.compile(r"^All notes"), exact=False); time.sleep(1)
+                PROBE["txt"] = f"DOM: after focusing the All notes button, activeElement role is {page.evaluate(ACTIVE_ROLE)!r}"
+            row(4, "focus the All notes row", ["All notes"], _all_notes,
+                note="(F3: the button hands focus to its treeitem; NVDA names the row, not a button)")
             # The folder sidebar is a roving TREE (lib/useTreeRoving.js): a folder is a treeitem, the
             # buttons inside it are tabIndex -1, arrows move, Right expands, Shift+F10 opens its menu.
             # The script's "Tab to its disclosure" / "Tab along its row" predates that tree.
             def _to_folder():
                 focus_role("button", re.compile(r"^All notes"), exact=False); time.sleep(1)
-                focus_mode()                              # focus sits on a BUTTON in the tree, so NVDA stays in browse mode by itself
+                # F3: NO Insert+Space here. With focus on the treeitem NVDA is already in focus mode;
+                # toggling would put it BACK into browse mode and send the arrows to the review cursor.
+                role_before = page.evaluate(ACTIVE_ROLE)
                 for _ in range(6):                        # Down until the SR folder row is the one announced
                     pos = ear.log.stat().st_size
                     press("down"); time.sleep(1.2)
                     if "sr folder" in " ".join(parse_speech(ear.log.read_bytes()[pos:].decode("utf-8", "replace"))).lower():
                         break
-                press("right")
-            row(5, "on All notes: Insert+Space (focus mode), Down until SR folder, Right (expand)", ["SR folder", "collapsed", "expanded"], _to_folder,
-                note="(script says Tab to the disclosure; the tree is arrow-driven and needs NVDA focus mode, which a focused button does not trigger)")
+                press("right"); time.sleep(0.8)
+                PROBE["txt"] = f"DOM: focus role before arrows {role_before!r}; after Down/Right {page.evaluate(ACTIVE_ROLE)!r}"
+            row(5, "on All notes: Down until SR folder, Right (expand) -- no Insert+Space", ["SR folder", "collapsed", "expanded"], _to_folder,
+                note="(F3 re-check: the arrows must work with no mode toggle; a focused treeitem puts NVDA in focus mode by itself)")
             row(6, "Enter on the SR folder row, then Shift+F10 (its menu), Escape", ["SR folder", "Rename", "Add subfolder", "Delete"],
                 lambda: (press("enter"), time.sleep(1.2), press("shift", "f10"), time.sleep(1.5), press("down"), time.sleep(0.8), press("down"), time.sleep(0.8), press("escape")),
                 note="(script says Tab along the row to Rename/Add subfolder/Delete; those are tabIndex -1 and reached by Shift+F10)")
@@ -555,15 +566,16 @@ def main(argv=None) -> int:
                 card.first.focus(); time.sleep(1); press("enter")
             row(10, "Back to List; focus the SR pass card; Enter", ["SR pass", "heading"], _open_sr)
             def _tabs():
-                press("tab", times=28)
-                extra = 0
+                # F2 (fixed 2026-10-09): the Table tool bar is ONE Tab stop, so the count from the
+                # heading to the body is measured, not assumed (it was 29 with twelve table stops).
                 in_body = "() => !!(document.activeElement && document.activeElement.closest('.ProseMirror'))"
-                while extra < 8 and not page.evaluate(in_body):
-                    press("tab"); extra += 1; time.sleep(0.4)
+                tabs = 0
+                while tabs < 40 and not page.evaluate(in_body):
+                    press("tab"); tabs += 1; time.sleep(0.45)
                 where = page.evaluate("() => { const a = document.activeElement; return a ? (a.getAttribute('aria-label') || a.textContent.trim().slice(0, 40) || a.tagName) : 'none' }")
-                PROBE["txt"] = f"DOM: after 28 Tabs {extra} more were needed before focus was in the body; focus ended on {where!r}"
-            row(11, "Tab x28 (then Tab until the body)", ["Subtitle", "Editor toolbar", "Note body"], _tabs,
-                note="(the script's 'Tab, Tab ...' has no count; the measured order is in the speech)")
+                PROBE["txt"] = f"DOM: {tabs} Tabs from the heading to the body (was 29 before F2); focus ended on {where!r}"
+            row(11, "Tab until the body (count measured)", ["Subtitle", "Editor toolbar", "Table", "Note body"], _tabs,
+                note="(F2 re-check: the Table tool bar must be heard ONCE and cost one Tab; the count is in the DOM note)")
             row(12, "Insert+Space (browse mode), H, T, Down, Right", ["Setup", "heading", "table", "Sym"],
                 lambda: (press("insert", "space"), time.sleep(1), press("h"), time.sleep(1), press("t"), time.sleep(1), press("down"), press("right")))
             row("12b", "Insert+Space (focus mode); Tab, Tab, Alt+F10, Escape", ["Table", "tool bar"],

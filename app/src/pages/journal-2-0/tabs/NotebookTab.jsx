@@ -34,7 +34,7 @@ import { reportOptIn } from '../lib/offline/offlineOptInEvent'
 import { SAVEABLE_VIEW_MODES, VIEW_MODES } from '../lib/savedViewModes'
 import ConfirmModal from '../components/ConfirmModal'
 import LoadFailed from '../components/LoadFailed'
-import { keysInOrder, neighbourFallback, neighbourKeys } from '../lib/focusAfterRemoval'
+import { keysInOrder, neighbourFallback, neighbourKeys, treeRowOf } from '../lib/focusAfterRemoval'
 import { SkeletonLine } from '../../../components/Skeleton'
 import styles from './NotebookTab.module.css'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
@@ -2065,8 +2065,9 @@ export default function NotebookTab() {
             tone="danger"
             onConfirm={onDeleteViewConfirm}
             onClose={() => setDeleteViewTarget(null)}
-            fallbackFocus={neighbourFallback(wrapRef, 'data-saved-view-row', deleteViewTarget.after || [],
-              paneHeadingRef, () => wrapRef.current?.querySelector('[data-all-notes-row]'))}
+            // F3: a landing on "All notes" is its TREEITEM, the folder tree's focus target.
+            fallbackFocus={treeRowOf(neighbourFallback(wrapRef, 'data-saved-view-row', deleteViewTarget.after || [],
+              paneHeadingRef, () => wrapRef.current?.querySelector('[data-all-notes-row]')))}
           />
         )}
         {savedViewError && (
