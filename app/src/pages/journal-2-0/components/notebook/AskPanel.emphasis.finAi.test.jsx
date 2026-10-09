@@ -1,7 +1,7 @@
 // Finish program, lane AI-FE, K3: the Ask panel shows the model's bold and italic as bold
 // and italic, never as asterisks, and never as HTML.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import AskPanel from './AskPanel'
 
 function sse(events) {
@@ -62,7 +62,9 @@ describe('Ask panel: Markdown emphasis in an answer', () => {
 
   it('control: stray asterisks stay as the model wrote them', async () => {
     const box = await ask('5 * 3 * 2 = 30 [1]')
-    await screen.findByText(/5 \* 3 \* 2/)
+    // Scoped to the visible block: for a moment after the answer lands the same words also sit in
+    // the panel's sr-only announcer (AskPanel.liveRegion.test.jsx), and this test is about rendering.
+    await within(box).findByText(/5 \* 3 \* 2/)
     expect(box.querySelector('strong, em')).toBeNull()
   })
 })
