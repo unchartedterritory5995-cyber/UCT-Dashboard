@@ -1,0 +1,91 @@
+{
+ "base": "https://uctintelligence.com",
+ "started": "2026-10-09T20:50:47Z",
+ "steps": [
+  {
+   "name": "login_1280",
+   "status": 200,
+   "me": 200,
+   "synthetic": true,
+   "t": 2.7
+  },
+  {
+   "name": "login_390",
+   "status": 200,
+   "me": 200,
+   "synthetic": true,
+   "t": 3.7
+  },
+  {
+   "name": "inventory_before",
+   "active": 0,
+   "trash": 67,
+   "t": 4.1
+  },
+  {
+   "name": "note_created",
+   "title": "Smoke verify 1009: Bedtime rule",
+   "status": 200,
+   "id_present": true,
+   "t": 4.3
+  },
+  {
+   "name": "note_created",
+   "title": "Smoke verify 1009: Copper inventories",
+   "status": 200,
+   "id_present": true,
+   "t": 4.5
+  },
+  {
+   "name": "note_created",
+   "title": "Smoke verify 1009: Position sizing table",
+   "status": 200,
+   "id_present": true,
+   "t": 4.7
+  },
+  {
+   "name": "note_created",
+   "title": "Smoke verify 1009: PLTR deep dive",
+   "status": 502,
+   "id_present": false,
+   "t": 4.8
+  },
+  {
+   "name": "cleanup",
+   "removed": 0,
+   "created": 3,
+   "inventory_after": {
+    "active": null,
+    "trash": null
+   },
+   "t": 5.4
+  }
+ ],
+ "legs": {},
+ "inventory_before": {
+  "active": 0,
+  "trash": 67
+ },
+ "verdict": {
+  "code": 2,
+  "why": "a check note could not be created"
+ },
+ "cleanup": {
+  "b02dea6e": {
+   "delete": 502,
+   "get_after": 502
+  },
+  "1edc6e9a": {
+   "delete": 502,
+   "get_after": 502
+  },
+  "f9bd20b7": {
+   "delete": 502,
+   "get_after": 502
+  }
+ },
+ "inventory_after": {
+  "active": null,
+  "trash": null
+ }
+}

@@ -1,0 +1,8 @@
+  login_1280: {"status": 200, "me": 200, "synthetic": true, "t": 2.7}
+  login_390: {"status": 200, "me": 200, "synthetic": true, "t": 3.7}
+  inventory_before: {"active": 0, "trash": 67, "t": 4.1}
+  note_created: {"title": "Smoke verify 1009: Bedtime rule", "status": 200, "id_present": true, "t": 4.3}
+  note_created: {"title": "Smoke verify 1009: Copper inventories", "status": 200, "id_present": true, "t": 4.5}
+  note_created: {"title": "Smoke verify 1009: Position sizing table", "status": 200, "id_present": true, "t": 4.7}
+  note_created: {"title": "Smoke verify 1009: PLTR deep dive", "status": 502, "id_present": false, "t": 4.8}
+  cleanup: {"removed": 0, "created": 3, "inventory_after": {"active": null, "trash": null}, "t": 5.4}
