@@ -1,5 +1,7 @@
 # UCT Agent × Indicator Intelligence — M2 and M3 proposals
 
+> **Update 2026-10-09:** the M2 section is SUPERSEDED by the agreed contract (`docs/indicators/AGENT-INTEGRATION-HANDOFF.md` §14) and the Agent plan `docs/agent/M2-INDICATORS-PLAN.md`. Its three open questions were decided by the owner: show/hide in M2 via `setInstanceHidden`; exact remove-Undo via Indicators' `restoreRemoved` (never a re-add); `canManageIndicators()` checked at plan AND at every write/Undo. The M3 section below stands.
+>
 > **Status: PROPOSALS for joint review — nothing here is implemented.** M1 (`indicator.list`,
 > `indicator.openCreate`) is built and accepted locally on `feat/uct-agent-m1` (unreleased).
 > Indicator Intelligence owns formula interpretation, calculation, validation and authoring
