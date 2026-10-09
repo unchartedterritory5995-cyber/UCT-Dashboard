@@ -78,9 +78,14 @@ function parseSources(raw) {
   }
 }
 
-export default function CatalystsHistory() {
+/** A `YYYY-MM-DD` the page can open on (the terminal's `CATH 2026-10-01`), else null. */
+function openingDate(d) {
+  return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null
+}
+
+export default function CatalystsHistory({ date: askedDate } = {}) {
   const inPanel = useInTerminalPanel()
-  const [date, setDate] = useState(defaultCatalystDate)
+  const [date, setDate] = useState(() => openingDate(askedDate) || defaultCatalystDate())
   const { data, error, isLoading, mutate } = useSWR(
     date ? `/api/catalysts/by-date/${date}` : null,
     fetcher,

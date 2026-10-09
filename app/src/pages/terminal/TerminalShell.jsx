@@ -394,7 +394,7 @@ export function Panel({
       </header>
       {/* Wave 3 (#2): ONE headline line per one-stock panel — price, % change, volume vs
           average, next earnings — drawn by the frame so no panel carries its own copy. */}
-      {r.state === 'ready' && r.sym && !panel.popout && <SecurityHeadline sym={r.sym} />}
+      {r.state === 'ready' && r.sym && !panel.popout && <SecurityHeadline sym={r.sym} onRun={(t) => runHere(t)} />}
       <div className={`${styles.panelBody} ${flush && !panel.popout ? styles.panelBodyFlush : ''}`}
         data-inset={flush && !panel.popout ? 'flush' : 'inset'} data-testid={`terminal-body-${index}`}>
         {panel.popout && (
@@ -823,6 +823,20 @@ export default function TerminalShell() {
     // command back where it was, not into whichever panel is focused now. A slot this board
     // no longer shows falls back to the focused panel.
     if (!cmd.channel && Number.isInteger(slot) && slot >= 1 && slot <= cur.count) at = slot - 1
+    // Wave 4 (lane A): a bare ticker typed while the focused panel follows no security (the
+    // calendar, HELP, a market list) loads into an overview ALREADY on screen — the linked
+    // panel — instead of turning the focused panel into a second copy of that overview (the
+    // first-visit board: CAL beside SPY DES). The focused panel keeps its function. With no
+    // overview on screen the focused panel takes it, exactly as before.
+    let overviewFrom = null
+    if (!cmd.channel && !beside && slot == null && isBareTicker(raw, cmd) && !isLinkable(cur.panels[at])) {
+      const own = panelChannel(cur.panels[at])
+      const visible = cur.panels.slice(0, cur.count)
+      const isOverview = (p, j) => j !== at && p.code === 'DES' && isLinkable(p) && !p.popout
+      let i = own ? visible.findIndex((p, j) => isOverview(p, j) && panelChannel(p) === own) : -1
+      if (i < 0) i = visible.findIndex(isOverview)
+      if (i >= 0) { overviewFrom = { index: at, code: cur.panels[at].code }; at = i }
+    }
     // An "Open SYM CODE" link inside a LIST panel (MOST's catalyst story, an RRG row) opens
     // BESIDE the list, never over it: a fresh panel when the board has room, else the next one
     // (boardModel.panelBeside). The provisional layout is only saved if the command opens.
@@ -956,7 +970,8 @@ export default function TerminalShell() {
       ignoredTicker && `${cmd.code} is market-wide; ${cmd.sym} was not applied.`,
       // The function's label, never the panel's internal name (`surfaceScreener`, round 3).
       redirectedFrom && `${BY_CODE[cmd.code].label} is already open in panel ${target + 1}; @${redirectedFrom} was redirected there instead of opening a second copy.`,
-      besideOf && target !== besideOf.src && `Opened ${[scope === 'ticker' ? sym : null, cmd.code].filter(Boolean).join(' ')} in ${besideOf.added ? 'a new ' : ''}panel ${target + 1}; ${besideOf.code} stays in panel ${besideOf.src + 1}.`,
+      overviewFrom && `Loaded ${sym} into the overview in panel ${target + 1}; ${overviewFrom.code} stays in panel ${overviewFrom.index + 1}.`,
+      besideOf && target !== besideOf.src &&`Opened ${[scope === 'ticker' ? sym : null, cmd.code].filter(Boolean).join(' ')} in ${besideOf.added ? 'a new ' : ''}panel ${target + 1}; ${besideOf.code} stays in panel ${besideOf.src + 1}.`,
       echo,
     ].filter(Boolean)
     if (said.length) setNotice({ kind: applied.ignored.length ? 'error' : 'info', text: said.join(' ') })
@@ -1058,7 +1073,14 @@ export default function TerminalShell() {
       pendingNavRef.current = null
     }
     if (pendingRef.current && pendingRef.current !== focusedText) return
+    // Wave 4 (lane A): an arriving command that put nothing in a panel — a door, an AI question,
+    // an address, a refusal — must not be answered in the SAME commit by the focused panel's
+    // command. The door's own navigation is still landing (writing now replaced it, so a
+    // returning member whose focused panel shows a ticker never reached the link's page), and a
+    // refused command stays in the address bar beside the notice that says why.
+    const ranNothing = justRan && pendingRef.current == null
     pendingRef.current = null
+    if (ranNothing) { userRunRef.current = null; return }
     const writeUrl = (mutate, replace) => {
       const p = new URLSearchParams(location.search)
       mutate(p)

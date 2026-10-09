@@ -75,6 +75,28 @@ export const ARG_KINDS = {
     },
     describe: (v) => (v.d ? `day ${v.d}` : `week of ${v.week}`),
   },
+  /** One past session, Eastern time (CATH's day, wave 4 lane A): `2026-10-01`, or `10/01` / `10/1`
+   *  for the most recent such day — this year's, or last year's when this year's is still ahead.
+   *  A day after today (ET) has no catalyst list yet, so it is not taken. */
+  etDate: {
+    takes: 'a date (YYYY-MM-DD or MM/DD, Eastern time)',
+    parse: (tok, ctx = {}) => {
+      const t = String(tok ?? '').trim()
+      const today = ctx.today || todayIso()
+      const p = (n) => String(n).padStart(2, '0')
+      let iso = null
+      if (/^\d{4}-\d{2}-\d{2}$/.test(t)) iso = t
+      else {
+        const m = t.match(/^(\d{1,2})\/(\d{1,2})$/)
+        if (!m) return null
+        const year = Number(today.slice(0, 4))
+        iso = `${year}-${p(m[1])}-${p(m[2])}`
+        if (iso > today) iso = `${year - 1}-${p(m[1])}-${p(m[2])}`
+      }
+      return isRealIsoDate(iso) && iso <= today ? iso : null
+    },
+    describe: (v) => `day ${v}`,
+  },
   code: {
     takes: 'a function code (HELP GP)',
     parse: (tok) => (isCode(tok) ? canonicalCode(tok) : null),   // HELP MOVERS focuses MOST

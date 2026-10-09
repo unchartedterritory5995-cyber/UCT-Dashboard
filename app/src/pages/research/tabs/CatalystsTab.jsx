@@ -10,6 +10,7 @@ import HighlightThesis, { FAILED_SYNTHESIS_NOTE, hasNoWriteup } from '../../../u
 import { CATALYST_TAG, CATALYST_TAGS, keyedBy } from '../../../lib/taxonomy/a8Taxonomy'
 import useSinceLastVisit, { seenKey } from '../../../components/terminal/useSinceLastVisit'
 import { NewTag, SinceLine } from '../../../components/terminal/SinceLastVisit'
+import PanelCommand from '../../../components/terminal/PanelCommand'
 
 /** The seen key of one catalyst entry: its market date + tag (MOVE's own catalyst key shape). */
 const catalystKey = (e) => seenKey(e.market_date, `cat|${e.tag || ''}`)
@@ -107,7 +108,12 @@ export default function CatalystsTab({ sym }) {
                   <div className={styles.rowHead}>
                     <NewTag since={since} itemKey={catalystKey(e)} />
                     <span className={TAG_CLASS[e.tag] || styles.muted}>{e.tag || CATALYST_TAG.CATALYST}</span>
-                    <span className={styles.muted}>{whenLabel(e.market_date)}</span>
+                    {/* Wave 4 (lane A): in a terminal panel the date opens that session's whole
+                        catalyst list (`CATH <date>`) beside this one; plain text elsewhere. */}
+                    {/^\d{4}-\d{2}-\d{2}$/.test(e.market_date || '')
+                      ? <PanelCommand cmd={`CATH ${e.market_date}`} label={`Open the catalyst list for ${whenLabel(e.market_date)}`}
+                          className={styles.muted}>{whenLabel(e.market_date)}</PanelCommand>
+                      : <span className={styles.muted}>{whenLabel(e.market_date)}</span>}
                   </div>
                   {hasNoWriteup(e)
                     ? <p className={styles.rowNote} data-testid="catalyst-no-writeup">{FAILED_SYNTHESIS_NOTE}</p>
