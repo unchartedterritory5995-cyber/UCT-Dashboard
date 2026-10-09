@@ -548,7 +548,11 @@ def list_universes(user_id: Optional[str]) -> list:
         t1 = time.perf_counter()
         try:
             from api.services import watchlist_service
-            for wl in watchlist_service.list_user_watchlists(user_id):
+            # Names only: the picker never reads `items`. The full read ships every
+            # symbol of every list, and on an admin account that includes the prebuilt
+            # index lists (~4,700 rows); measured 28 s cold on prod 2026-09-07 for
+            # exactly this call, and SCAT's universe read hung past 60 s on 2026-10-09.
+            for wl in watchlist_service.list_user_watchlists(user_id, include_items=False):
                 mine.append({"source": "watchlist", "value": wl.get("id"),
                              "label": wl.get("name") or "Watchlist"})
         except Exception:
