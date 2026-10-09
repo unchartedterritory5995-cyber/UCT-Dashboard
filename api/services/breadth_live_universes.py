@@ -43,6 +43,7 @@ after the production reconcile). `breadth_live.enabled()` (BREADTH_LIVE_ENABLED)
 from __future__ import annotations
 
 import logging
+import json
 import math
 import os
 import threading
@@ -629,6 +630,51 @@ def compute(force: bool = False) -> dict:
     return out
 
 
+#: ⭐ THE LAST GOOD PAYLOAD SURVIVES A RESTART. Every web deploy starts a process that may not
+#: build for BOOT_GRACE_SECONDS (+ the build itself); on 2026-10-09 other sessions redeployed ~8
+#: times in a morning and every chart lost the provisional session and today's bar each time.
+#: A payload that was good, saved this ET session day and is younger than CARRY_MAX_SECONDS is
+#: served (marked `carried`) until the new process builds its own.
+LAST_GOOD_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "breadth_live_universes_last.json")
+CARRY_MAX_SECONDS = 3 * 3600
+
+
+def _good(p: dict) -> bool:
+    return bool(p and p.get("ok") and any((u or {}).get("ok") for u in (p.get("universes") or {}).values()))
+
+
+def _save_last_good(p: dict) -> None:
+    try:
+        tmp = LAST_GOOD_PATH + ".tmp"
+        with open(tmp, "w") as fh:
+            json.dump({"saved_at": time.time(), "payload": p}, fh, separators=(",", ":"))
+        os.replace(tmp, LAST_GOOD_PATH)
+    except Exception as e:
+        _log.warning("[breadth_live_universes] last-good save failed: %s", e)
+
+
+def _carried(now: float) -> Optional[dict]:
+    """The last good payload (memory, else disk) if it is from this ET day and recent enough."""
+    from api.services import breadth_live as bl
+    rec = _last_good.get("rec")
+    if rec is None:
+        try:
+            with open(LAST_GOOD_PATH) as fh:
+                rec = json.load(fh)
+        except Exception:
+            return None
+        _last_good["rec"] = rec
+    p, at = rec.get("payload") or {}, float(rec.get("saved_at") or 0)
+    if now - at > CARRY_MAX_SECONDS or not _good(p):
+        return None
+    if str(p.get("as_of") or "")[:10] != bl._now_et().date().isoformat():
+        return None
+    return dict(p, carried=True, carried_from=p.get("as_of"))
+
+
+_last_good: dict = {}
+
+
 def refresh(force: bool = False) -> dict:
     with _lock:
         try:
@@ -636,7 +682,16 @@ def refresh(force: bool = False) -> dict:
         except Exception as e:      # never break a serve path
             _log.warning("[breadth_live_universes] compute failed: %s", e)
             p = {"ok": False, "reason": f"compute failed: {e}"}
-        _payload.update(value=p, at=time.time())
+        now = time.time()
+        if _good(p):
+            _last_good["rec"] = {"saved_at": now, "payload": p}
+            _save_last_good(p)
+        else:
+            c = _carried(now)
+            if c is not None:
+                c["carried_reason"] = p.get("reason")
+                p = c
+        _payload.update(value=p, at=now)
         return p
 
 
