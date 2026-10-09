@@ -9,6 +9,7 @@ import {
   precisionWords,
   citedSources,
   resolveNoteCitation,
+  citedPassageText,
 } from '../../lib/askCitation'
 import { styledParts } from '../../lib/askEmphasis'
 import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
@@ -281,9 +282,11 @@ export default function AskPanel({
     let resolved = null
     if (source?.navigation?.kind === 'note' && getEditorDoc) {
       // ⛔ VERIFY BEFORE NAVIGATING. Positions do not survive an edit, and a
-      // confident jump to the wrong paragraph is worse than not jumping.
+      // confident jump to the wrong paragraph is worse than not jumping. The
+      // needle is the ONE rule every door shares (`citedPassageText`): the
+      // text at the range when the packet names it, else the snippet.
       resolved = resolveNoteCitation(getEditorDoc(), source.location,
-                                     source.snippet)
+                                     citedPassageText(source))
     }
     let outcome = null
     try {
