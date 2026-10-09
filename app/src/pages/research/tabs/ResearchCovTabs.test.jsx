@@ -58,6 +58,10 @@ describe('PeopleTab (COV-05)', () => {
     routes['/api/research/people/AAPL'] = PEOPLE
     wrap(<PeopleTab sym="aapl" />)
     expect((await screen.findByTestId('people-execs-source')).textContent).toContain('Source: FMP, read 2026-10-02') // vendor named, endpoint path is not member copy
+    // wave 3 (PPL): the column header says what it is, not which vendor
+    const heads = within(screen.getByTestId('people-execs')).getAllByRole('columnheader').map((h) => h.textContent)
+    expect(heads).toContain('Reported pay')
+    expect(heads.join(' ')).not.toMatch(/FMP/)
     const perica = screen.getByTestId('exec-Adrian Perica')
     const missing = within(perica).getAllByTestId('people-missing')
     expect(missing).toHaveLength(2) // since + pay
