@@ -6771,6 +6771,22 @@ async def lifespan(app: FastAPI):
         _scheduler.add_job(_cot_daily_catchup, trigger=CronTrigger(hour=18, minute=0, timezone=_ET), id="cot_daily_catchup", max_instances=1, replace_existing=True)
         _scheduler.add_job(cleanup_expired_sessions, trigger=CronTrigger(hour=3, minute=0, timezone=_ET), id="session_cleanup", max_instances=1, replace_existing=True)
 
+        # -- Activity data retention (owner ruling 2026-10-09: keep 1 year) ----
+        # Deletes activity_log + page_views rows older than RETENTION_DAYS (365,
+        # a code constant in the service) in bounded batches, one commit each.
+        # 03:50 ET: clear of the 03:40 broker fidelity audit, which also uses
+        # auth.db. Unconditional (no flag). run_scheduled never raises.
+        try:
+            from api.services import activity_retention as _activity_retention
+            _scheduler.add_job(
+                _activity_retention.run_scheduled,
+                trigger=CronTrigger(hour=3, minute=50, timezone=_ET),
+                id="activity_log_retention", max_instances=1, replace_existing=True,
+                coalesce=True, misfire_grace_time=3600,
+            )
+        except Exception as e:
+            print(f"[scheduler] activity retention registration error: {e}")
+
         # -- Ticker logo miss-retry (2026-08-05 cache-poison sweep) ----------
         try:
             register_logo_miss_retry_job(_scheduler)

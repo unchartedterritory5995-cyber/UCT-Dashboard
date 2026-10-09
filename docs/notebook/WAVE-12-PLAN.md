@@ -333,6 +333,10 @@ and `api/services/journal_two/notebook_schema.py`, take a `NODE_POLICY` row in e
   - a caching service worker can serve a stale bundle straight through a rollback, which is the
     one failure a beta rollout must never have;
   - virtualising the editor is a large rewrite for the top few percent of note sizes.
+- **Re-confirmed 2026-10-09.** The owner delegated D18/D19/D20 again ("whatever is the best
+  product") and the answer is unchanged, for the same three reasons above: the members' data
+  and the rollback path are worth more than three scorecard clauses. Recorded so nobody reads
+  these as open questions.
 - **So the finish line is 13 of 16 standards at bar.** Standards 10, 11 and 14 finish at their
   maximum with these clauses recorded as deliberate no's. The remaining 18 (c) clauses are the
   owner's beta-testing plan: people, devices, vendor letters and calendar time.
