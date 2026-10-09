@@ -1,0 +1,105 @@
+{
+  "run_id": "37976935663",
+  "run_number": "981",
+  "sha": "937c5bd117a80ec88478aa91e6bda8a3ba1a515a",
+  "branch": "306/merge",
+  "finished": "2026-10-09T19:53:04.914482+00:00",
+  "vitest": {
+    "suite": "vitest",
+    "collected": 0,
+    "passed": 0,
+    "failed": 0,
+    "errored": 0,
+    "skipped": 0,
+    "wall_s": null,
+    "failed_files": [
+      "src/__tests__/entryExcludesChartEngine.test.js",
+      "src/components/chart/engine/__tests__/suiteCoverage.test.js",
+      "src/components/chart/engine/__tests__/vendorHarness/vendorHarness.rt6RuntimeColour.test.js",
+      "src/components/chart/engine/__tests__/vendorHarness/vendorHarness.test.js",
+      "src/components/chart/engine/ast/pine.timeout.test.js",
+      "src/components/chart/engine/ast/pineProbeReplay.test.js",
+      "src/components/screener/reachable.test.js",
+      "src/hooks/pollingSites.rail.test.js",
+      "src/lib/context/symbolLinkChannels.test.js",
+      "src/lib/presentation/handRolledFormatters.census.test.js",
+      "src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js",
+      "src/utils/jsonFetcher.test.js"
+    ],
+    "totals_line_found": false,
+    "runner_line": "",
+    "ok": false
+  },
+  "pytest": {
+    "shards_total": 20,
+    "shards_reported": 20,
+    "shards_success": 19,
+    "shards_cancelled": 1,
+    "shards_failed": 0,
+    "shards_unreadable": [],
+    "shards_missing": [],
+    "shards_without_totals": [],
+    "collected": 42223,
+    "passed": 41833,
+    "failed": 252,
+    "per_test_timeouts": 0,
+    "shard_runner_lines": {
+      "dir-api": "341 passed, 1 skipped, 7 warnings in 39.60s",
+      "dir-discord_render": "46 passed, 2 warnings in 13.06s",
+      "dir-econ": "854 passed, 14 warnings in 37.29s",
+      "dir-fundamentals_pit": "213 passed, 1 warning in 130.66s (0:02:10)",
+      "dir-marketcap": "402 passed, 5 skipped, 2 warnings in 34.38s",
+      "dir-pattern_engine": "1 failed, 2618 passed, 9 xfailed, 2 warnings in 18.65s",
+      "dir-theme_curation": "57 passed in 1.90s",
+      "dir-theme_engine": "64 passed, 50961 warnings in 5.54s",
+      "tests-01": "9 failed, 3902 passed, 7 skipped, 30 warnings in 767.85s (0:12:47)",
+      "tests-02": "2 failed, 2449 passed, 17 skipped, 1 xfailed, 7539 warnings in 394.11s (0:06:34)",
+      "tests-03": "8 failed, 2724 passed, 30 skipped, 1 xfailed, 7 warnings in 402.56s (0:06:42)",
+      "tests-04": "47 failed, 2973 passed, 1 skipped, 254 warnings in 511.39s (0:08:31)",
+      "tests-05": "9 failed, 3624 passed, 10 skipped, 14730 warnings in 440.38s (0:07:20)",
+      "tests-06": "33 failed, 3363 passed, 20 skipped, 22 warnings in 622.49s (0:10:22)",
+      "tests-07": "21 failed, 3416 passed, 10 skipped, 39 warnings in 920.68s (0:15:20)",
+      "tests-08": "59 failed, 3343 passed, 3 skipped, 54 warnings, 13 errors in 736.68s (0:12:16)",
+      "tests-09": "9 failed, 2844 passed, 8 skipped, 12 warnings in 411.31s (0:06:51)",
+      "tests-10": "29 failed, 3252 passed, 3 skipped, 14720 warnings in 581.21s (0:09:41)",
+      "tests-11": "16 failed, 2896 passed, 1 xfailed, 340 warnings in 709.71s (0:11:49)",
+      "tests-12": "9 failed, 2452 passed, 10 skipped, 7 warnings in 227.74s (0:03:47)"
+    },
+    "runner_line": "341 passed, 1 skipped, 7 warnings in 39.60s \u00b7 46 passed, 2 warnings in 13.06s \u00b7 854 passed, 14 warnings in 37.29s \u00b7 213 passed, 1 warning in 130.66s (0:02:10) \u00b7 402 passed, 5 skipped, 2 warnings in 34.38s \u00b7 1 failed, 2618 passed, 9 xfailed, 2 warnings in 18.65s \u00b7 57 passed in 1.90s \u00b7 64 passed, 50961 warnings in 5.54s \u00b7 9 failed, 3902 passed, 7 skipped, 30 warnings in 767.85s (0:12:47) \u00b7 2 failed, 2449 passed, 17 skipped, 1 xfailed, 7539 warnings in 394.11s (0:06:34) \u00b7 8 failed, 2724 passed, 30 skipped, 1 xfailed, 7 warnings in 402.56s (0:06:42) \u00b7 47 failed, 2973 passed, 1 skipped, 254 warnings in 511.39s (0:08:31) \u00b7 9 failed, 3624 passed, 10 skipped, 14730 warnings in 440.38s (0:07:20) \u00b7 33 failed, 3363 passed, 20 skipped, 22 warnings in 622.49s (0:10:22) \u00b7 21 failed, 3416 passed, 10 skipped, 39 warnings in 920.68s (0:15:20) \u00b7 59 failed, 3343 passed, 3 skipped, 54 warnings, 13 errors in 736.68s (0:12:16) \u00b7 9 failed, 2844 passed, 8 skipped, 12 warnings in 411.31s (0:06:51) \u00b7 29 failed, 3252 passed, 3 skipped, 14720 warnings in 581.21s (0:09:41) \u00b7 16 failed, 2896 passed, 1 xfailed, 340 warnings in 709.71s (0:11:49) \u00b7 9 failed, 2452 passed, 10 skipped, 7 warnings in 227.74s (0:03:47)",
+    "ok": false,
+    "ok_basis": "all_success=False (19/20) \u00b7 every_shard_has_totals=True \u00b7 failed=252 \u00b7 missing=0 \u00b7 runner_verdict_unreadable=0"
+  },
+  "runner_line": {
+    "vitest": "",
+    "pytest": "341 passed, 1 skipped, 7 warnings in 39.60s \u00b7 46 passed, 2 warnings in 13.06s \u00b7 854 passed, 14 warnings in 37.29s \u00b7 213 passed, 1 warning in 130.66s (0:02:10) \u00b7 402 passed, 5 skipped, 2 warnings in 34.38s \u00b7 1 failed, 2618 passed, 9 xfailed, 2 warnings in 18.65s \u00b7 57 passed in 1.90s \u00b7 64 passed, 50961 warnings in 5.54s \u00b7 9 failed, 3902 passed, 7 skipped, 30 warnings in 767.85s (0:12:47) \u00b7 2 failed, 2449 passed, 17 skipped, 1 xfailed, 7539 warnings in 394.11s (0:06:34) \u00b7 8 failed, 2724 passed, 30 skipped, 1 xfailed, 7 warnings in 402.56s (0:06:42) \u00b7 47 failed, 2973 passed, 1 skipped, 254 warnings in 511.39s (0:08:31) \u00b7 9 failed, 3624 passed, 10 skipped, 14730 warnings in 440.38s (0:07:20) \u00b7 33 failed, 3363 passed, 20 skipped, 22 warnings in 622.49s (0:10:22) \u00b7 21 failed, 3416 passed, 10 skipped, 39 warnings in 920.68s (0:15:20) \u00b7 59 failed, 3343 passed, 3 skipped, 54 warnings, 13 errors in 736.68s (0:12:16) \u00b7 9 failed, 2844 passed, 8 skipped, 12 warnings in 411.31s (0:06:51) \u00b7 29 failed, 3252 passed, 3 skipped, 14720 warnings in 581.21s (0:09:41) \u00b7 16 failed, 2896 passed, 1 xfailed, 340 warnings in 709.71s (0:11:49) \u00b7 9 failed, 2452 passed, 10 skipped, 7 warnings in 227.74s (0:03:47)"
+  },
+  "outcome": {
+    "vitest": {
+      "job_result": "cancelled",
+      "test_step_outcome": "cancelled",
+      "elapsed_s": 2720.0,
+      "timeout_minutes": 45,
+      "timed_out": true,
+      "timed_out_basis": "job_result=cancelled, elapsed_s=2720, cap_s=2700, threshold_s=2640 (cap-60) -> TIMED OUT"
+    },
+    "pytest": {
+      "job_result": "cancelled",
+      "test_step_outcome": "success",
+      "elapsed_s": 289.0,
+      "timeout_minutes": 20,
+      "timed_out": false,
+      "timed_out_basis": "job_result=cancelled, elapsed_s=289, cap_s=1200, threshold_s=1140 (cap-60) -> not a cap cut"
+    }
+  },
+  "verdict": "RED",
+  "detail": {
+    "dir": "results/37976935663",
+    "pytest_collect_errors": "results/37976935663/pytest_collect_errors.txt",
+    "pytest_error_buckets": "results/37976935663/pytest_error_buckets.txt",
+    "pytest_failures": "results/37976935663/pytest_failures.txt",
+    "vitest_failures": "results/37976935663/vitest_failures.txt",
+    "vitest_junit": "results/37976935663/vitest-junit.xml",
+    "collect_profile": "results/37976935663/collect_profile.json"
+  },
+  "contract_gaps": []
+}
