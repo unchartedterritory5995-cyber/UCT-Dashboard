@@ -224,6 +224,14 @@ export default function AskAiTab({ sym }) {
     ask()
   }
 
+  // Enter asks, Shift+Enter is a new line (audit 2026-10-08: the box only took a mouse click on
+  // Ask, in a keyboard-first terminal). An IME composition's Enter is left alone.
+  function onKeyDown(e) {
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent?.isComposing) return
+    e.preventDefault()
+    if (!busy) ask()
+  }
+
   function resetConversation() {
     setTurns([])
     historyRef.current = []
@@ -257,6 +265,7 @@ export default function AskAiTab({ sym }) {
             placeholder={`Ask about ${sym}'s recent news, financials, estimates, ownership, analyst activity, or filings…`}
             value={question}
             onChange={e => setQuestion(e.target.value)}
+            onKeyDown={onKeyDown}
             data-testid="ask-ai-input"
           />
           <button type="submit" className={styles.explainBtn}
@@ -270,10 +279,11 @@ export default function AskAiTab({ sym }) {
             Ask about this company's recent news, financials, estimates, ownership, analyst
             activity, or SEC filings — grounded in UCT's own data, with sources.
             This assistant explains; it does not give buy/sell/hold advice.
+            {' '}Press Enter to ask, Shift+Enter for a new line.
           </div>
         )}
 
-        <div className={styles.explainThread} data-testid="ask-ai-thread">
+        <div className={styles.explainThread} aria-live="polite" data-testid="ask-ai-thread">
           {turns.map(t => (
             <div key={t.id} className={styles.explainTurn} data-testid="ask-ai-turn">
               <div className={styles.explainTurnQuestion} data-testid="ask-ai-turn-question">
@@ -281,10 +291,10 @@ export default function AskAiTab({ sym }) {
               </div>
 
               {t.status === 'loading' && (
-                <div className={styles.fnote} data-testid="ask-ai-loading">Reading UCT's canonical research data…</div>
+                <div className={styles.fnote} role="status" data-testid="ask-ai-loading">Reading UCT&apos;s research data on {sym}…</div>
               )}
               {t.status === 'error' && (
-                <div className={styles.fnote} data-testid="ask-ai-error">
+                <div className={styles.fnote} role="alert" data-testid="ask-ai-error">
                   {t.timedOut
                     ? 'The answer took too long, so this request was stopped.'
                     : 'The AI assistant could not answer right now.'}{' '}
