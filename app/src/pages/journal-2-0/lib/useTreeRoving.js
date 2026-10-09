@@ -36,8 +36,10 @@
  * 2026-10-09, finding F3). NVDA switches to focus mode by itself for a focused tree view item
  * (role treeitem, with aria-expanded / aria-selected / aria-level); for a focused BUTTON it
  * stays in browse mode, the arrows go to its review cursor, and a member who does not know
- * Insert+Space can never reach a folder's disclosure or its actions. Measured on production:
- * after Tab into the tree, `document.activeElement` was a button inside the row. The
+ * Insert+Space can never reach a folder's disclosure or its actions. Measured on production
+ * (`tools/notebook_nvda_pass.py`, rows 5-6): the pass driver had focused the row's "All notes"
+ * BUTTON programmatically, the way an assistive technology or a pointer press can, and NVDA
+ * stayed in browse mode until Insert+Space; a plain Tab already landed on the treeitem. The
  * tabindex contract alone cannot promise where focus lands -- an assistive technology's
  * `setFocus`, a pointer press, or a page's own "focus the standing row" fallback can each put
  * focus on a button, which is focusable at tabIndex -1. So `onFocus` moves focus arriving on a
