@@ -38,19 +38,24 @@ import {
 } from '../authoringIntent'
 import { printFormula } from '../../engine/ast/pine'
 import { assertCanonical, astHash, TABLE } from '../../engine/ast/parse'
+import { expandCalls, collapseExpansions, ExpansionRefusal } from '../../engine/ast/callExpansions'
 import { declaredInputs } from '../../engine/ast/lint'
 import { outputTypeOf, outputsOf, treeOutputType, OUTPUT_TYPES } from '../../engine/outputType'
 import { evaluability, LANES, STATUS } from '../../engine/evaluability'
 import { signalAlertGate, numericAlertGate, NUMERIC_CONDITIONS } from '../../engine/triggerPolicy'
 import { infoValueOutputExists } from '../../engine/infoValueResolve'
 import { validateUserDefinitions } from '../../engine/nativeRegistry'
+import { MARKER_SIZE_RANGE } from '../../engine/defSchema'
 import { reconcileParams, ATTACHED } from '../paramEdit'
 import { symTickersOf, storeTickerOf } from '../../engine/otherSymbols'
 import { calcTimeframeCapability } from '../../engine/calcTimeframeCapability'
 import { frameRelation } from '../../engine/instanceTimeframe'
 import CROSS from './crossContext.json'
 import { COLOR_HELPER_SUFFIX, FILL_HELPER_SUFFIX, risingTree, aboveTree, sameTree } from './colorRules'
-import { tableProgram, tableSpecOf, tableSpecProblem } from './tables'
+import { tableProgram, tableSpecOf, tableSpecProblem, cellOutputKeys } from './tables'
+import {
+  STATES_SUFFIX, PAINT_STATE_KEYS, MAX_COLOR_STATES, RELATIONS, stateIndexTree, decomposeStateTree, rederiveStates,
+} from './colorStates'
 
 /** The node types a patch tree may use — the concierge's ADVERTISED union plus
  *  PHASE 5's three scope wrappers (`sym`, `tf`, `tf_live`; bounds in
@@ -101,6 +106,15 @@ export function gateTree(tree, scope, key) {
   try { assertCanonical(tree) } catch (e) {
     throw err('tree:not-canonical', `${key}: the tree is not a canonical formula node (${e.message})`, { output: key })
   }
+  // ⭐ BATCH 2 — a model's `linreg` / `correlation` / `vwma` / `roc` / `mom` /
+  // Keltner call becomes the exact tree it is (`callExpansions.js`, the parser's own
+  // expansion), so the definition stores only what both lanes already compute.
+  try {
+    tree = expandCalls(tree, (name) => Object.prototype.hasOwnProperty.call(TABLE.functions, name))
+  } catch (e) {
+    if (e instanceof ExpansionRefusal) throw err('tree:expansion', `${key}: ${e.message}`, { output: key })
+    throw e
+  }
   const stack = [tree]
   while (stack.length) {
     const n = stack.pop()
@@ -126,7 +140,9 @@ export function gateTree(tree, scope, key) {
     if (Array.isArray(n.args)) stack.push(...n.args)
   }
   let text
-  try { text = printFormula(tree) } catch (e) {
+  // ⭐ BATCH 2 — written in its readable form (`linreg(close, 50, 0)`): the parser
+  // expands it back to the SAME tree, which the round-trip check below proves.
+  try { text = printFormula(collapseExpansions(tree)) } catch (e) {
     throw err('tree:unprintable', `${key}: the tree cannot be written as a formula (${e.message})`, { output: key })
   }
   const ev = evaluateRowSource(text, scope, key)
@@ -160,7 +176,7 @@ function setTree(st, row, tree, i, kind) {
   st.touched.add(row.key)
   st.changes.push({ op: i, kind, output: row.key, from, to: g.source })
   syncHelpers(st, row, before)
-  if (tableBefore && tableBefore.cells.some((c) => c.output === row.key)) writeTable(st, tableBefore)
+  if (tableBefore && tableBefore.cells.some((c) => cellOutputKeys(c).includes(row.key))) writeTable(st, tableBefore)
 }
 
 // ─── ⭐ OVERNIGHT E — member inputs (a number the member sets in settings) ──────────
@@ -266,7 +282,14 @@ export function helperOwner(m, row) {
       const w = helperRow(m, o.fill.with)
       if (w && w.ast && sameTree(row.ast, aboveTree(o.ast, w.ast))) return { owner: o, kind: 'cloud' }
     }
+    // ⭐ BATCH 2 — a multi-state colour's STATE column
+    if (o.colorMode === `column:${row.key}` && row.key === `${o.key}${STATES_SUFFIX}` && Array.isArray(o.colorPalette)
+      && decomposeStateTree(row.ast)) return { owner: o, kind: 'states' }
   }
+  // ⭐ BATCH 2 — the candles' / background's STATE column
+  const channel = Object.keys(PAINT_STATE_KEYS).find((c) => PAINT_STATE_KEYS[c] === row.key)
+  if (channel && (m.paints || []).some((p) => p && p.kind === channel && p.colorMode === `column:${row.key}`)
+    && decomposeStateTree(row.ast)) return { owner: { key: channel === 'barcolor' ? 'candles' : 'background' }, kind: 'paint-states' }
   return null
 }
 
@@ -282,6 +305,13 @@ function syncHelpers(st, row, before) {
   const own = helperRow(m, `${row.key}${COLOR_HELPER_SUFFIX}`)
   if (own && own !== row && row.colorMode === `column:${own.key}` && sameTree(own.ast, risingTree(before))) {
     regate(st, own, risingTree(row.ast))
+  }
+  // ⭐ BATCH 2 — a state written as a RELATION of this output ("above zero and rising")
+  // follows its maths: EMA 20 → 50 keeps the states about the 50.
+  const states = helperRow(m, `${row.key}${STATES_SUFFIX}`)
+  if (states && states !== row && row.colorMode === `column:${states.key}`) {
+    const t = rederiveStates(states.ast, before, row.ast)
+    if (t) regate(st, states, t)
   }
   for (const o of m.rows) {
     if (!o.fill || o.fill.colorMode !== `column:${o.key}${FILL_HELPER_SUFFIX}`) continue
@@ -308,7 +338,7 @@ function dropHelper(st, key, i) {
   const m = st.model
   const h = helperRow(m, key)
   if (!h || h.hidden !== true || columnInUse(st, key, null)) return
-  if (!key.endsWith(COLOR_HELPER_SUFFIX) && !key.endsWith(FILL_HELPER_SUFFIX)) return
+  if (!key.endsWith(COLOR_HELPER_SUFFIX) && !key.endsWith(FILL_HELPER_SUFFIX) && !key.endsWith(STATES_SUFFIX)) return
   m.rows = m.rows.filter((r) => r !== h)
   st.touched.delete(key)
   st.removed.add(key)
@@ -333,6 +363,11 @@ function putHelper(st, key, tree, owner, i) {
 /** The colour rule a row carries, in the conversation's words — or `foreign`. */
 export function colorRuleOf(m, row) {
   if (!row || !row.colorMode) return { rule: 'none' }
+  // ⭐ BATCH 2 — this door's own multi-state colour (replaceable by any colour rule)
+  if (row.colorMode === `column:${row.key}${STATES_SUFFIX}` && Array.isArray(row.colorPalette)) {
+    const h = helperRow(m, `${row.key}${STATES_SUFFIX}`)
+    if (h && helperOwner(m, h)) return { rule: 'states' }
+  }
   if (row.colorMode === 'sign' && row.colorUp && row.colorDown) return { rule: 'sign', up: row.colorUp, down: row.colorDown }
   if (String(row.colorMode).startsWith('column:') && row.colorUp && row.colorDown
     && !row.colorPalette && !row.colorGradient && !row.colorPacked) {
@@ -455,7 +490,7 @@ const OPS = {
     if (m.rows.length === 1) throw err('output:last', 'A definition needs at least one output.')
     const col = `column:${row.key}`
     const table = tableSpecOfModel(m)
-    if (table && table.cells.some((c) => c.output === row.key)) {
+    if (table && table.cells.some((c) => cellOutputKeys(c).includes(row.key))) {
       throw err('output:referenced', `"${row.key}" is shown in the chart table; change or remove that cell first.`, { output: row.key })
     }
     if (helperOwner(m, row)) {
@@ -613,10 +648,16 @@ const OPS = {
 
   set_marker(st, op, i) {
     const row = rowOf(st, op.output)
+    // ⭐ BATCH 2 — size and colour, the marker vocabulary the renderer already draws
+    // (`defSchema.MARKER_SIZE_RANGE`; the marker wears its output's own colour).
     const marker = { shape: op.shape, position: op.position || SIGNAL_MARKER_DEFAULT.position,
-      ...(op.text ? { text: op.text } : {}) }
+      ...(op.text ? { text: op.text } : {}), ...(op.size !== undefined ? { size: op.size } : {}) }
     const problem = markerRequestProblem(marker)
     if (problem) throw err('marker:unrepresentable', problem, { output: row.key })
+    if (op.size !== undefined && !(typeof op.size === 'number' && op.size >= MARKER_SIZE_RANGE.min && op.size <= MARKER_SIZE_RANGE.max)) {
+      throw err('marker:size', `A marker's size runs from ${MARKER_SIZE_RANGE.min} to ${MARKER_SIZE_RANGE.max}.`, { output: row.key })
+    }
+    if (op.color !== undefined) row.color = op.color
     if (!op.position) {
       st.engineAssumptions.push({ output: row.key, source: 'engine',
         text: `marker position was not given; it is drawn ${marker.position === 'belowBar' ? 'below the bar' : marker.position}` })
@@ -808,10 +849,11 @@ const OPS = {
     if (op.rule !== 'condition' && op.when !== undefined) {
       throw err('color:when', 'Only a condition rule names a yes/no output.', { output: row.key })
     }
-    const oldKey = was.rule === 'rising' || was.rule === 'condition' ? row.colorMode.slice('column:'.length) : null
+    const oldKey = was.rule === 'rising' || was.rule === 'condition' || was.rule === 'states' ? row.colorMode.slice('column:'.length) : null
     delete row.colorMode
     delete row.colorUp
     delete row.colorDown
+    delete row.colorPalette
     if (op.rule === 'sign') {
       Object.assign(row, { colorMode: 'sign', colorUp: op.up, colorDown: op.down })
     } else if (op.rule === 'rising') {
@@ -831,6 +873,94 @@ const OPS = {
     st.touched.add(row.key)
     st.changes.push({ op: i, kind: op.rule === 'none' ? 'color-rule-removed' : 'color-rule-set', output: row.key,
       rule: op.rule, ...(needsColours ? { up: op.up, down: op.down } : {}), ...(op.when ? { when: op.when } : {}), from: was })
+  },
+
+  // ─── ⭐ BATCH 2 — up to four condition-driven colours (`colorStates.js`) ──────
+
+  set_color_states(st, op, i) {
+    const m = st.model
+    if (!m) throw err('definition:none', 'There is no definition yet.')
+    const owner = op.output !== undefined ? rowOf(st, op.output) : null
+    const channel = op.channel || null
+    if (!owner && !channel) throw err('color:target', 'Say which line to colour, or the candles or the background.')
+    const states = Array.isArray(op.states) ? op.states : []
+    const total = states.length + (op.otherwise !== undefined ? 1 : 0)
+    if (states.length > MAX_COLOR_STATES || total > MAX_COLOR_STATES) {
+      throw err('color:states-limit', `At most ${MAX_COLOR_STATES} colours, counting an "otherwise" colour.`)
+    }
+    if (!states.length && op.otherwise !== undefined) throw err('color:states-few', 'An "otherwise" colour needs at least one state.')
+    if (states.length === 1 && op.otherwise === undefined) {
+      throw err('color:states-few', 'Colouring by state needs at least two colours: two states, or one state and an "otherwise" colour.')
+    }
+    const target = owner ? owner.key : channel
+    const conds = states.map((s, j) => {
+      if (s.relation !== undefined) {
+        if (!owner) throw err('color:relation', 'A state like "rising" or "above zero" describes a line; name the line it describes.')
+        if (treeOutputType(owner.ast).type === OUTPUT_TYPES.CONDITION) {
+          throw err('color:relation', `"${owner.key}" is a yes/no; "rising" or "above zero" describe a number.`, { output: owner.key })
+        }
+        if (!RELATIONS[s.relation]) throw err('color:relation', `"${s.relation}" is not a state UCT can test.`)
+        return RELATIONS[s.relation](owner.ast)
+      }
+      if (s.when === undefined) throw err('color:state-when', `State ${j + 1} says neither its condition nor a relation.`)
+      const g = gateTree(s.when, scopeOf(m), `${target} colour state ${j + 1}`)
+      if (treeOutputType(g.ast).type !== OUTPUT_TYPES.CONDITION) {
+        throw err('color:state-not-yes-no', `State ${j + 1} is a number, not a yes/no test; it needs a comparison such as "above 70".`)
+      }
+      return g.ast
+    })
+    const palette = [...states.map((s) => s.color), ...(op.otherwise !== undefined ? [op.otherwise] : [])]
+    const tree = stateIndexTree(conds, states.length)
+
+    if (channel) {
+      const key = PAINT_STATE_KEYS[channel]
+      const paints = (m.paints || []).slice()
+      const at = paints.findIndex((p) => p && p.kind === channel && p.colorMode === `column:${key}`)
+      if (!states.length) {
+        if (at < 0) throw err('color:none', `The ${channel === 'barcolor' ? 'candles' : 'background'} carry no state colours to remove.`)
+        paints.splice(at, 1)
+        m.paints = paints.length ? paints : null
+        dropHelper(st, key, i)
+        st.changes.push({ op: i, kind: 'color-states-removed', channel })
+        return
+      }
+      putHelper(st, key, tree, { key: channel === 'barcolor' ? 'candles' : 'background' }, i)
+      const paint = { kind: channel, title: channel === 'barcolor' ? 'Candle states' : 'Background states',
+        colorMode: `column:${key}`, colorPalette: palette }
+      if (at >= 0) paints[at] = paint
+      else paints.push(paint)
+      m.paints = paints
+      st.changes.push({ op: i, kind: 'color-states-set', channel, states: states.length, otherwise: op.otherwise !== undefined })
+      return
+    }
+
+    const row = owner
+    if (helperOwner(m, row)) throw err('color:helper', `"${row.key}" is a hidden colour column, not a line.`, { output: row.key })
+    if (row.marker) throw err('color:marker', `"${row.key}" is drawn as markers; colour states need a line or histogram.`, { output: row.key })
+    if (treeOutputType(row.ast).type === OUTPUT_TYPES.CONDITION) {
+      throw err('color:condition-output', `"${row.key}" is a yes/no; show it through candle or background colours, or a marker, instead.`, { output: row.key })
+    }
+    const was = colorRuleOf(m, row)
+    if (was.rule === 'foreign') throw err('color:foreign', `"${row.key}" carries an imported colour palette; it is not overwritten here.`, { output: row.key })
+    const key = `${row.key}${STATES_SUFFIX}`
+    const oldKey = was.rule === 'rising' || was.rule === 'condition' || was.rule === 'states' ? row.colorMode.slice('column:'.length) : null
+    if (!states.length) {
+      if (was.rule !== 'states') throw err('color:none', `"${row.key}" has no colour states to remove.`, { output: row.key })
+      delete row.colorMode
+      delete row.colorPalette
+      dropHelper(st, key, i)
+      st.touched.add(row.key)
+      st.changes.push({ op: i, kind: 'color-states-removed', output: row.key })
+      return
+    }
+    putHelper(st, key, tree, row, i)
+    delete row.colorUp
+    delete row.colorDown
+    row.colorMode = `column:${key}`
+    row.colorPalette = palette
+    if (oldKey && oldKey !== key) dropHelper(st, oldKey, i)
+    st.touched.add(row.key)
+    st.changes.push({ op: i, kind: 'color-states-set', output: row.key, states: states.length, otherwise: op.otherwise !== undefined, from: was.rule })
   },
 
   set_calculation_timeframe(st, op, i) {

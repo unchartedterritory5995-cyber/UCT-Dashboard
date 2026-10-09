@@ -3085,7 +3085,13 @@ describe('sentence.js is a pure function of (ast, inputs) — by AST over its ow
     // allowlist widened until it means nothing.
     expect(got.imports).toEqual(['./parse.js'])
     const parseImports = scan(acorn.parse(readSource('parse.js'), { ecmaVersion: 2023, sourceType: 'module' })).imports
-    expect(parseImports).toEqual(['./closedTable.json', 'jsep'])
+    expect(parseImports).toEqual(['./callExpansions.js', './closedTable.json', 'jsep'])
+    // ⭐ BATCH 2 — `parse.js` expands the exact-identity functions with
+    // `callExpansions.js`, which is SCANNED here rather than allowed: no findings
+    // and no imports of its own, so the closure stays exactly as narrow as before.
+    const expansions = scan(acorn.parse(readSource('callExpansions.js'), { ecmaVersion: 2023, sourceType: 'module' }))
+    expect(expansions.findings, 'callExpansions.js reached something outside a pure derivation').toEqual([])
+    expect(expansions.imports).toEqual([])
   })
 
   it('…and the detector can FAIL — the positive control', async () => {

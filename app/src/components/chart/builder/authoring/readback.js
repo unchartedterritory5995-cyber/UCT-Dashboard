@@ -18,7 +18,10 @@
 // compares something). `sentence.js` is untouched: its exact sentence stays on
 // `outputs[i].sentence`, and is the line whenever `conditionWords` declines.
 
-import { sentenceFor } from '../../engine/ast/sentence'
+// ⭐ BATCH 2 — the shipped sentence writer, with exact-identity functions said by name.
+import { describeTree as sentenceFor, conditionWords, RELATION_WORDS } from './expansionWords'
+
+export { conditionWords }
 import { TABLE } from '../../engine/ast/parse'
 import { declaredInputs, lintRepaint } from '../../engine/ast/lint'
 import { outputTreeOf } from '../../engine/outputType'
@@ -26,7 +29,7 @@ import { STATUS } from '../../engine/evaluability'
 import { policyLabel, numericAlertWords } from '../../engine/triggerPolicy'
 import { symTickersOf } from '../../engine/otherSymbols'
 import { calcTimeframeLabel } from '../../engine/instanceTimeframe'
-import { helpersOfDefinition, plotColorRule, plotFillRule } from './colorRules'
+import { helpersOfDefinition, plotColorRule, plotFillRule, paintStatesOf } from './colorRules'
 import { tableSpecOfDefinition, tableLines } from './tables'
 import { stampSemantics, semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from '../../engine/definitionSemantics'
 import { INTENTS, intentReadback, NO_PAINT } from '../authoringIntent'
@@ -134,14 +137,23 @@ export function presentationLines(def) {
     if (p.style === 'markers' && p.marker) {
       const where = POSITION_WORDS[p.marker.position] || p.marker.position || 'on the bar'
       out.push(`${label}: ${colour} ${SHAPE_WORDS[p.marker.shape] || p.marker.shape} ${where} where it is true`
-        + (p.marker.text ? `, labelled "${p.marker.text}"` : ''))
+        + (p.marker.text ? `, labelled "${p.marker.text}"` : '')
+        // ⭐ BATCH 2 — a size other than the chart's normal one is said
+        + (Number.isFinite(p.marker.size) && p.marker.size !== 1 ? `, size ${p.marker.size}` : ''))
     } else {
       const style = STYLE_WORDS[p.style || 'line'] || p.style
       out.push(`${label}: ${colour} ${style}, width ${width}${colorRuleWords(plotColorRule(def, p, helpers), nameOf)}`)
     }
   }
+  // ⭐ BATCH 2 — candles / background coloured by state (`colorStates.js`)
+  const stateKeys = new Set()
+  for (const ps of paintStatesOf(def, helpers)) {
+    stateKeys.add(ps.channel)
+    out.push(`${ps.channel === 'barcolor' ? 'candles painted' : 'background shaded'} by state: ${statesWords(ps)}`)
+  }
   for (const paint of def.paints || []) {
     if (!paint) continue
+    if (stateKeys.has(paint.kind) && Array.isArray(paint.colorPalette)) continue
     const key = typeof paint.colorMode === 'string' && paint.colorMode.startsWith('column:') ? paint.colorMode.slice(7) : null
     const own = key && paint.colorDown === NO_PAINT && typeof paint.colorUp === 'string'
     if (own && paint.kind === 'barcolor') out.push(`candles painted ${colourWords(paint.colorUp)} where ${nameOf(key)} is true (normal colour otherwise)`)
@@ -164,7 +176,15 @@ export function colorRuleWords(rule, nameOf) {
   if (rule.rule === 'sign') return ` (coloured ${up} at or above zero, ${down} below)`
   if (rule.rule === 'rising') return ` (coloured ${up} while it rises, ${down} otherwise)`
   if (rule.rule === 'condition') return ` (coloured ${up} where ${nameOf(rule.when)} is true, ${down} otherwise)`
+  if (rule.rule === 'states') return ` (coloured by state: ${statesWords(rule)})`
   return ' (its colour follows an imported rule)'
+}
+
+/** ⭐ BATCH 2 — "#00e676 when above zero and rising, …; #9e9e9e otherwise". */
+export function statesWords(read) {
+  const parts = read.states.map((st) => `${colourWords(st.color)} when ${st.words || 'its condition holds'}`)
+  return parts.join(', ') + (read.otherwise ? `; ${colourWords(read.otherwise)} otherwise`
+    : '; its normal colour otherwise')
 }
 
 // ─── ⭐ P3 — line style, fills and levels ─────────────────────────────────────
@@ -209,45 +229,8 @@ export function vocabularyLines(def) {
   return out
 }
 
-const RELATION_WORDS = Object.freeze({
-  '>': 'is above', '<': 'is below', '>=': 'is at or above', '<=': 'is at or below', '==': 'equals', '!=': 'does not equal',
-})
-const isLogical = (n) => !!n && n.type === 'op' && (n.name === '&&' || n.name === '||')
-const isTruthOp = (n) => !!n && n.type === 'op' && (!!RELATION_WORDS[n.name] || isLogical(n) || n.name === '!')
-
-/**
- * A yes/no tree built ONLY from comparisons of numbers joined by and / or / not,
- * said as the condition it is ("the 14-bar RSI of close is above 70 and …");
- * null for anything else, which then keeps `sentence.js`'s exact sentence. The
- * operands are `sentence.js`'s own phrases — this adds relation and join words.
- *
- * EXACT: a comparison is 1 or 0 (or, under semantics 2, unknown — never 1), and
- * over such values `&&` / `||` / `!` are 1 exactly when the plain logic words are
- * true. So "true when P" is the bar set the engine marks 1. What an UNKNOWN bar
- * shows is the semantics line's job, not this sentence's.
- */
-export function conditionWords(node, scope) {
-  if (!node || node.type !== 'op' || !Array.isArray(node.args)) return null
-  if (RELATION_WORDS[node.name] && node.args.length === 2) {
-    if (node.args.some(isTruthOp)) return null // a yes/no compared as a number: keep the exact sentence
-    return `${sentenceFor(node.args[0], scope)} ${RELATION_WORDS[node.name]} ${sentenceFor(node.args[1], scope)}`
-  }
-  if (isLogical(node) && node.args.length === 2) {
-    const parts = []
-    for (const c of node.args) {
-      const p = conditionWords(c, scope)
-      if (p === null) return null
-      parts.push(isLogical(c) && c.name !== node.name ? `(${p})` : p)
-    }
-    return parts.join(node.name === '&&' ? ' and ' : ' or ')
-  }
-  if (node.name === '!' && node.args.length === 1) {
-    const p = conditionWords(node.args[0], scope)
-    return p === null ? null : `not (${p})`
-  }
-  return null
-}
-
+// ⭐ BATCH 2 — moved to `expansionWords.js` (the colour-state read-back needs the same
+// words and `colorRules.js` cannot import this module); ONE copy, re-exported here.
 /** Does a tree compare anything? (Where rule A of the semantics shows.) */
 function comparesAnything(node) {
   if (!node || typeof node !== 'object') return false

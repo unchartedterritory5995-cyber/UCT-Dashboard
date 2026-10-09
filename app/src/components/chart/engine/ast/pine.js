@@ -75,6 +75,7 @@
 // would be a fabrication, and it is the kind a competitor can disprove in one
 // screenshot.
 
+import { CALL_EXPANSIONS } from './callExpansions.js'
 import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise, TICKER_SHAPE, BAR_READERS, barReadersOf, RECURRENCES , hostAdmissible } from './parse.js'
 // ⭐ THE ONE `yields` RESOLVER IN THIS LANE. See `treeYieldsBool` — this module
 // used to carry a second copy, and closed table v2 made the two disagree in a
@@ -2080,10 +2081,9 @@ export const BUILTIN_CALL_TREE = Object.freeze({
   // did not match the imported one — two definitions, two cache entries, and a
   // "why are these different?" nobody can answer from the read-back. Matching the
   // natural spelling is what makes astHash equality worth having.
-  roc: (a) => {
-    const prev = { type: 'offset', value: a[1].value, args: [a[0]] }
-    return cOp('/', [cOp('*', [cNum(100), cOp('-', [a[0], prev])]), prev])
-  },
+  // ⭐ BATCH 2 — the ONE builder, shared with the native formula language
+  // (`callExpansions.js`), so `ta.roc` and a member's `roc(…)` are one tree.
+  roc: (a) => CALL_EXPANSIONS.roc.build(a),
   // ⚰️⚰️ AND THIS MAP IS ONLY REACHED FOR NAMES THE TABLE DOES **NOT** DECLARE.
   // Measured 2026-09-01 by writing three entries here that never fired:
   // `ta.cci(hlc3, 20)`, `ta.mfi(hlc3, 14)` and `ta.vwap(hlc3)` all still refused,
@@ -2107,7 +2107,7 @@ export const BUILTIN_CALL_TREE = Object.freeze({
   // "the difference between the current price and the price `length` bars ago",
   // which is the `source - source[length]` already sitting inside the line above
   // — so this costs the table nothing and cannot disagree with `roc`.
-  mom: (a) => cOp('-', [a[0], { type: 'offset', value: a[1].value, args: [a[0]] }]),
+  mom: (a) => CALL_EXPANSIONS.mom.build(a),
   // ⭐ REACHED ONLY THROUGH THE `bare === 'tr'` GUARD ABOVE, which has already
   // decided that the argument is `false`. Kept here so `tr` is a name this map
   // holds rather than a special case bolted onto the guard block.
@@ -2171,28 +2171,8 @@ export const BUILTIN_CALL_TREE = Object.freeze({
   // ⛔ THE LENGTH MUST BE A WHOLE NUMBER, checked here rather than left to `sma`:
   // the expansion uses it TWICE, so a bad window would produce two refusals
   // pointing at a function the member never wrote.
-  vwma: (a) => {
-    const n = a[1] && a[1].type === 'num' ? Number(a[1].value) : NaN
-    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 1) return null
-    const vol = { type: 'series', name: 'volume' }
-    return cOp('/', [
-      cCall('sma', [cOp('*', [a[0], vol]), cNum(n)]),
-      cCall('sma', [vol, cNum(n)]),
-    ])
-  },
-  linreg: (a) => {
-    const n = a[1] && a[1].type === 'num' ? Number(a[1].value) : NaN
-    const off = a[2] === undefined ? 0
-      : (a[2] && a[2].type === 'num' ? Number(a[2].value) : NaN)
-    if (!Number.isFinite(n) || !Number.isFinite(off) || !Number.isInteger(n) || n < 2) return null
-    const total = cCall('sum', [a[0], cNum(n)])
-    const weighted = cCall('wma', [a[0], cNum(n)])
-    const C = (6 * ((n - 1) / 2 - off)) / (n * (n - 1))
-    return cOp('+', [
-      cOp('/', [total, cNum(n)]),
-      cOp('*', [cOp('-', [cOp('*', [cNum(n), weighted]), total]), cNum(C)]),
-    ])
-  },
+  vwma: (a) => CALL_EXPANSIONS.vwma.build(a),
+  linreg: (a) => CALL_EXPANSIONS.linreg.build(a),
   // ⭐⭐ `ta.correlation(source1, source2, length)` — THE PEARSON CORRELATION
   // COEFFICIENT, and it costs this table ZERO NEW VOCABULARY. TradingView's own
   // page: "Describes the degree to which two series tend to deviate from their
@@ -2217,19 +2197,7 @@ export const BUILTIN_CALL_TREE = Object.freeze({
   // produce up to four refusals pointing at functions the member never wrote —
   // the same reasoning `vwma` above states for its own length. `stdev` of a
   // single sample is a divide-by-zero waiting to happen, so 2 is the floor.
-  correlation: (a) => {
-    const n = a[2] && a[2].type === 'num' ? Number(a[2].value) : NaN
-    if (!Number.isFinite(n) || !Number.isInteger(n) || n < 2) return null
-    const [x, y] = a
-    const covariance = cOp('-', [
-      cCall('sma', [cOp('*', [x, y]), cNum(n)]),
-      cOp('*', [cCall('sma', [x, cNum(n)]), cCall('sma', [y, cNum(n)])]),
-    ])
-    return cOp('/', [
-      covariance,
-      cOp('*', [cCall('stdev', [x, cNum(n)]), cCall('stdev', [y, cNum(n)])]),
-    ])
-  },
+  correlation: (a) => CALL_EXPANSIONS.correlation.build(a),
   // ⭐⭐ BATCH 1 — `ta.kcw(src, length, mult, useTrueRange=true)`, Keltner
   // Channel Width. TradingView's own published `f_kcw` reference-manual
   // source, verbatim:

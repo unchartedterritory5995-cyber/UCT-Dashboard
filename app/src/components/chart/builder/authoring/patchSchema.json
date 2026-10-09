@@ -80,7 +80,8 @@
         { "$ref": "#/$defs/op_remove_fill" },
         { "$ref": "#/$defs/op_set_color_rule" }, { "$ref": "#/$defs/op_set_calculation_timeframe" },
         { "$ref": "#/$defs/op_set_table" }, { "$ref": "#/$defs/op_remove_table" },
-        { "$ref": "#/$defs/op_set_input" }, { "$ref": "#/$defs/op_remove_input" }
+        { "$ref": "#/$defs/op_set_input" }, { "$ref": "#/$defs/op_remove_input" },
+        { "$ref": "#/$defs/op_set_color_states" }
       ]
     },
     "op_create": {
@@ -181,7 +182,9 @@
         "op": { "const": "set_marker" }, "output": { "$ref": "#/$defs/outputKey" },
         "shape": { "enum": ["circle", "square", "arrowUp", "arrowDown"] },
         "position": { "enum": ["aboveBar", "belowBar", "inBar"] },
-        "text": { "type": "string", "minLength": 1, "maxLength": 24 }
+        "text": { "type": "string", "minLength": 1, "maxLength": 24 },
+        "size": { "description": "BATCH 2 — the marker's size, 0.25 (tiny) to 4 (large); 1 is the chart's normal size.", "type": "number", "minimum": 0.25, "maximum": 4 },
+        "color": { "description": "BATCH 2 — the marker's colour (the output's own colour).", "$ref": "#/$defs/colour" }
       }
     },
     "op_remove_marker": {
@@ -252,6 +255,28 @@
       "type": "object", "additionalProperties": false, "required": ["op", "output"],
       "properties": { "op": { "const": "remove_fill" }, "output": { "$ref": "#/$defs/outputKey" } }
     },
+    "colorState": {
+      "description": "BATCH 2 — one colour state: the colour, and EITHER `when` (a yes/no formula tree) OR `relation` (a test of the coloured output itself, which follows that output's maths when it is edited).",
+      "type": "object", "additionalProperties": false, "required": ["color"],
+      "properties": {
+        "color": { "$ref": "#/$defs/colour" },
+        "when": { "$ref": "#/$defs/node" },
+        "relation": { "enum": ["positive", "negative", "rising", "falling", "positive_rising", "positive_falling", "negative_rising", "negative_falling"] }
+      },
+      "oneOf": [ { "required": ["when"] }, { "required": ["relation"] } ]
+    },
+    "op_set_color_states": {
+      "description": "BATCH 2 — up to FOUR condition-driven colours (counting `otherwise`). Target ONE output's line or histogram (`output`), or the chart's candles / background (`channel`: barcolor / bgcolor; `when` trees only). States are tested in order and the FIRST true one colours the bar; `otherwise` colours bars where none is true (omit it to leave those bars in the output's own colour, normal candles, or no shading). Needs two colours at least (two states, or one state + otherwise). states [] removes them. A bar whose test is unknown takes no state colour. Re-send the WHOLE list to change one state.",
+      "type": "object", "additionalProperties": false, "required": ["op", "states"],
+      "properties": {
+        "op": { "const": "set_color_states" },
+        "output": { "$ref": "#/$defs/outputKey" },
+        "channel": { "enum": ["barcolor", "bgcolor"] },
+        "states": { "type": "array", "maxItems": 4, "items": { "$ref": "#/$defs/colorState" } },
+        "otherwise": { "$ref": "#/$defs/colour" }
+      },
+      "oneOf": [ { "required": ["output"] }, { "required": ["channel"] } ]
+    },
     "op_set_color_rule": {
       "description": "PHASE 5 — per-bar colour of ONE output's line or histogram. sign: up at or above zero, down below. rising: up when higher than the bar before, down otherwise. condition: up where the yes/no output `when` is true, down where false. none: back to one colour (up/down omitted). An unknown bar takes no rule colour.",
       "type": "object", "additionalProperties": false, "required": ["op", "output", "rule"],
@@ -275,12 +300,23 @@
         "suffix": { "type": "string", "maxLength": 6 },
         "color": { "$ref": "#/$defs/colour" },
         "background": { "$ref": "#/$defs/colour" },
-        "bold": { "type": "boolean" }
+        "bold": { "type": "boolean" },
+        "colorWhen": { "$ref": "#/$defs/cellCondition" },
+        "backgroundWhen": { "$ref": "#/$defs/cellCondition" },
+        "labels": { "description": "BATCH 2 — the words a yes/no output's cell shows (default Yes / No), e.g. Bullish / Bearish.", "type": "object", "additionalProperties": false, "required": ["true", "false"],
+          "properties": { "true": { "type": "string", "minLength": 1, "maxLength": 16 }, "false": { "type": "string", "minLength": 1, "maxLength": 16 } } },
+        "size": { "description": "BATCH 2 — text size.", "enum": ["tiny", "small", "normal", "large", "huge"] },
+        "span": { "description": "BATCH 2 — merge this cell with the cells to its right, this many columns wide in total (a title across the top).", "type": "integer", "minimum": 2, "maximum": 6 }
       },
       "oneOf": [ { "required": ["text"] }, { "required": ["output"] } ]
     },
+    "cellCondition": {
+      "description": "BATCH 2 — a colour that follows a yes/no output of this indicator: `true` where it is true, `false` where false. Where it is unknown the cell keeps its plain colour (`color` / `background`, or the theme's).",
+      "type": "object", "additionalProperties": false, "required": ["output", "true", "false"],
+      "properties": { "output": { "$ref": "#/$defs/outputKey" }, "true": { "$ref": "#/$defs/colour" }, "false": { "$ref": "#/$defs/colour" } }
+    },
     "op_set_table": {
-      "description": "OVERNIGHT D — a table drawn ON the chart at one of nine positions (the existing chart-table renderer). cells REPLACES the whole table: each cell is fixed text, or the LATEST value of an output of this indicator (a number output with an optional format / prefix / suffix; a yes/no output shows Yes or No). An unknown value shows as a dash. Use hidden outputs for values that should appear only in the table.",
+      "description": "OVERNIGHT D — a table drawn ON the chart at one of nine positions (the existing chart-table renderer). cells REPLACES the whole table: each cell is fixed text, or the LATEST value of an output of this indicator (a number output with an optional format / prefix / suffix; a yes/no output shows Yes or No, or its own `labels`). An unknown value shows as a dash. BATCH 2: a cell's text or background colour may follow a yes/no output (`colorWhen` / `backgroundWhen` — e.g. green where bullish, red where not), `size` sets its text size, and `span` merges it across columns (a title over the table). Use hidden outputs for values or tests that should appear only in the table.",
       "type": "object", "additionalProperties": false, "required": ["op", "cells"],
       "properties": {
         "op": { "const": "set_table" },

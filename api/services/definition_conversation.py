@@ -62,7 +62,7 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 from jsonschema import Draft202012Validator
 
-from api.services import ast_interpret, ast_lint, conversation_preflight, user_definitions
+from api.services import ast_interpret, ast_lint, call_expansions, conversation_preflight, user_definitions
 from api.services import definition_concierge as dc
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TableRefusal
@@ -223,6 +223,14 @@ def composed_schema() -> Dict[str, Any]:
     name = schema["$defs"]["series"]["properties"]["name"]
     schema["$defs"]["series"]["properties"]["name"] = {
         "anyOf": [name, {"type": "string", "pattern": INPUT_KEY_PATTERN}]}
+    # ⭐ BATCH 2 -- the exact-identity functions are callable HERE (``call_expansions``):
+    # the browser stores their expansion, so no interpreter learns a new name.
+    call_name = schema["$defs"]["call"]["properties"]["name"]
+    call_name["enum"] = list(call_name["enum"]) + [
+        n for n in call_expansions.EXPANSION_NAMES if n not in call_name["enum"]]
+    call_name["description"] = ("Also: " + "; ".join(
+        spec[2] for spec in call_expansions.CALL_EXPANSIONS.values())
+        + ". Lengths are whole-number literals; these are exact closed forms over the table.")
     # ⭐ SLICE 2 — THE MODEL MUST SAY WHAT ITS TURN IS. Optional in the shared
     # engine file (older envelopes and the engine's own tests carry none); required
     # of the model here, so mutation is never inferred from which fields happen to
@@ -276,6 +284,9 @@ def anthropic_tool() -> Dict[str, Any]:
 #: are reported under ``dc.REFUSALS``. ⛔ Disjoint from every other door's phrases
 #: (``tests/test_p2_truth_server.py`` asserts it).
 REFUSALS: Mapping[str, str] = {
+    # ⭐ BATCH 2 -- linreg / correlation / vwma / roc / mom / Keltner with an unusable length
+    "resolve:expansion": (
+        "a formula function was given a length it cannot use (a whole number is needed)"),
     "converse:too-large": (
         "this conversation turn carries more than the assistant may read at once"),
     "converse:view": (
@@ -502,6 +513,13 @@ CONVERSE_SYSTEM_PROMPT = (
     "set_placement. Per-bar colour of a line or histogram: set_color_rule (rule "
     "sign = up colour at or above zero, down below; rising = up when higher than the "
     "bar before; condition = up when a yes/no output is true; none = one colour). "
+    "SEVERAL colours by state (up to four, counting `otherwise`) -- a histogram bright green "
+    "above zero and rising, dark green above zero and falling, red below zero and falling, "
+    "orange below zero and rising; candles green in an uptrend, yellow in consolidation, red in "
+    "a downtrend: set_color_states (`output` for a line / histogram, whose states may name a "
+    "`relation` of that output; or `channel` barcolor / bgcolor for the candles / background, "
+    "whose states are yes/no `when` trees). The first true state wins; re-send the WHOLE list "
+    "to change one state. A marker's size and colour: set_marker `size` / `color`. "
     "A conditional cloud: set_fill with `when` (colorAbove where the first output is "
     "above the second, colorBelow where below). A header value: request_info_value. "
     "An alert: request_alert -- on a yes/no output with triggerPolicy is_true, "
@@ -510,7 +528,12 @@ CONVERSE_SYSTEM_PROMPT = (
     "another (higher) timeframe than the chart's: set_calculation_timeframe (\"a daily "
     "EMA on my 5-minute chart\"). A TABLE drawn on the chart: set_table (a position and cells; a "
     "cell is fixed text or the latest value of an output -- put values that belong only in the "
-    "table in HIDDEN outputs and point cells at them); remove_table removes it. A number the "
+    "table in HIDDEN outputs and point cells at them; a cell's text or background colour may "
+    "follow a yes/no output -- colorWhen / backgroundWhen, e.g. green where bullish, red where "
+    "not -- a yes/no cell may show its own `labels`, `size` sets text size and `span` merges a "
+    "title across columns); remove_table removes it. Formula functions linreg, correlation, "
+    "vwma, roc, mom, kcUpper / kcMiddle / kcLower may be called in any tree (their lengths are "
+    "whole-number literals; `capabilities.formulaFunctions` lists them). A number the "
     "MEMBER sets (account size, risk %, entry, stop): declare it as an input (create `inputs`, "
     "or set_input) and read it in a tree as a series named by its key. NEVER invent the member's "
     "own figures -- default 0 and tell them to set it in the indicator's settings. Changing a "
@@ -763,6 +786,13 @@ def _trees_of(envelope: Mapping[str, Any]) -> List[Tuple[str, Any]]:
             for j, o in enumerate(outputs):
                 if isinstance(o, Mapping) and "tree" in o:
                     out.append((f"ops[{i}].outputs[{j}].tree", o["tree"]))
+        # ⭐ BATCH 2 -- a colour state's condition is a tree like any other (scopes,
+        # tickers, budget, lint and the expansion check all read it).
+        states = op.get("states")
+        if isinstance(states, list):
+            for j, s in enumerate(states):
+                if isinstance(s, Mapping) and "when" in s:
+                    out.append((f"ops[{i}].states[{j}].when", s["when"]))
     return out
 
 
@@ -956,6 +986,15 @@ def _inputs_as_constants(tree: Any, inputs: frozenset) -> Any:
 
 def _check_tree(where: str, tree: Any, inputs: frozenset = frozenset()) -> None:
     """The concierge's own tree gates, minus evaluation (the engine probes)."""
+    # ⭐ BATCH 2 -- a model's linreg / correlation / vwma / roc / mom / Keltner call is
+    # checked as the tree the browser will STORE (``call_expansions``, mirrored from
+    # ``callExpansions.js``), so budget, schema and lint judge only declared names.
+    from api.services import ast_table
+    try:
+        tree = call_expansions.expand_calls(
+            tree, lambda name: name in (ast_table.TABLE.get("functions") or {}))
+    except call_expansions.ExpansionRefused as exc:
+        raise _Refused(exc.guard, f"{where}: {exc}", member=str(exc)) from exc
     tree = _inputs_as_constants(tree, inputs)
     _check_scopes(where, tree)
     try:

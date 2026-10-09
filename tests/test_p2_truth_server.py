@@ -205,6 +205,17 @@ def test_the_composed_schema_is_the_contract_with_the_concierge_node_defs(conv):
             assert composed["$defs"][k] == {"oneOf": v["oneOf"] + [
                 {"$ref": f"#/$defs/{kind}"} for kind in conv.SCOPE_NODES]}
             assert all(composed["$defs"][kind] == spec for kind, spec in conv._scope_defs().items())
+        elif k == "call":
+            # BATCH 2 -- this door also calls the exact-identity functions (call_expansions):
+            # the concierge's enum first, the expansion names appended, nothing else moved
+            from api.services import call_expansions
+            mine = copy.deepcopy(composed["$defs"][k])
+            name = mine["properties"]["name"]
+            assert name.pop("description").startswith("Also: ")
+            assert name["enum"] == v["properties"]["name"]["enum"] + [
+                n for n in call_expansions.EXPANSION_NAMES if n not in v["properties"]["name"]["enum"]]
+            name["enum"] = v["properties"]["name"]["enum"]
+            assert mine == v, k
         elif k != "series":
             assert composed["$defs"][k] == v, k
     # series: the concierge's, minus every nightly scalar (decision E, this door only)

@@ -13,20 +13,23 @@
 //   • types are `outputTypeOf`'s and lanes are the shared gate's.
 
 import { printFormula } from '../../engine/ast/pine'
-import { sentenceFor } from '../../engine/ast/sentence'
+// ⭐ BATCH 2 — the shipped sentence writer, with exact-identity functions said by name.
+import { describeTree as sentenceFor } from './expansionWords'
+import { collapseExpansions, CALL_EXPANSIONS, EXPANSION_NAMES } from '../../engine/ast/callExpansions'
+import { MAX_COLOR_STATES, RELATION_NAMES } from './colorStates'
 import { declaredInputs } from '../../engine/ast/lint'
 import { outputsOf, outputTreeOf } from '../../engine/outputType'
 import { evaluability, LANES, STATUS } from '../../engine/evaluability'
 import { signalAlertGate, TRIGGER_POLICIES } from '../../engine/triggerPolicy'
 import { INFO_VALUE_FORMATS } from '../../engine/infoValues'
-import { MARKER_SHAPES, MARKER_POSITIONS, PLOT_LINE_STYLES } from '../../engine/defSchema'
+import { MARKER_SHAPES, MARKER_POSITIONS, PLOT_LINE_STYLES, MARKER_SIZE_RANGE } from '../../engine/defSchema'
 import { typeWords, intentReadback, INTENTS, NO_PAINT } from '../authoringIntent'
 import { slotsOfTree, clausesOfTree } from './slots'
 import { OP_NAMES, PATCH_LIMITS, PATCH_CONTRACT } from './patchValidate'
 import { NUMERIC_CONDITIONS } from '../../engine/triggerPolicy'
-import { helpersOfDefinition, plotColorRule, plotFillRule, COLOR_RULES } from './colorRules'
+import { helpersOfDefinition, plotColorRule, plotFillRule, paintStatesOf, COLOR_RULES } from './colorRules'
 import CROSS from './crossContext.json'
-import { tableSpecOfDefinition, TABLE_POSITIONS, TABLE_FORMATS } from './tables'
+import { tableSpecOfDefinition, TABLE_POSITIONS, TABLE_FORMATS, TEXT_SIZES } from './tables'
 
 export const VIEW_CONTRACT = 'uct.authoring.view/1'
 export const VIEW_MAX_CHARS = 24000
@@ -50,14 +53,19 @@ function outputView(def, o, scope, gateCtx, chartVerdict, primary, helpers) {
   // no slots or clauses of its own: it is re-derived from its owner, never edited.
   const helper = helpers.get(o.key)
   if (helper) {
-    return { key: o.key, role: helper.kind === 'rising' ? 'colour-rule-column' : 'cloud-column', of: helper.owner,
+    const role = { rising: 'colour-rule-column', cloud: 'cloud-column', states: 'colour-states-column',
+      'paint-states': 'candle-or-background-states-column' }[helper.kind] || 'helper-column'
+    return { key: o.key, role, of: helper.owner || helper.channel || null,
       type: o.type, typeWords: typeWords(o.type), primary: false }
   }
   const colorRule = plotColorRule(def, plot, helpers)
   const fillRule = plotFillRule(def, plot, helpers)
   let formula = null
   let sentence = null
-  try { formula = printFormula(tree) } catch { formula = null }
+  // ⭐ BATCH 2 — the model reads `linreg(close, 50, 0)`, not its arithmetic, and changes
+  // it by re-sending the tree (no slots inside an expansion — `slots.js`).
+  const shown = tree ? collapseExpansions(tree) : tree
+  try { formula = printFormula(shown) } catch { formula = null }
   try { sentence = sentenceFor(tree, scope) } catch { sentence = null }
   const paints = (def.paints || []).filter((p) => p && p.colorMode === `column:${o.key}`)
     .map((p) => ({ channel: p.kind, color: p.colorUp || p.color || null, own: p.colorDown === NO_PAINT }))
@@ -67,7 +75,7 @@ function outputView(def, o, scope, gateCtx, chartVerdict, primary, helpers) {
     type: o.type,
     typeWords: typeWords(o.type),
     primary: o.key === primary,
-    tree: tree || null,
+    tree: shown || null,
     formula,
     readback: sentence,
     slots: tree ? slotsOfTree(o.key, tree).map(({ id, kind, role, value, label }) => ({ id, kind, role, value, label })) : [],
@@ -81,7 +89,10 @@ function outputView(def, o, scope, gateCtx, chartVerdict, primary, helpers) {
       color: resolveRef(def, plot.color),
       width: resolveRef(def, plot.width),
       hidden: plot.hidden === true,
-      ...(plot.marker ? { marker: { shape: plot.marker.shape, position: plot.marker.position } } : {}),
+      ...(plot.marker ? { marker: { shape: plot.marker.shape, position: plot.marker.position,
+        // ⭐ BATCH 2 — so "make the up arrows bigger" can be answered from the view
+        ...(Number.isFinite(plot.marker.size) ? { size: plot.marker.size } : {}),
+        ...(plot.marker.text ? { text: untrusted(plot.marker.text) } : {}) } } : {}),
       // ⭐ P3 — only when the plot says so, so every other view is unchanged.
       ...(typeof plot.lineStyle === 'string' ? { lineStyle: plot.lineStyle } : {}),
       ...(fillRule ? { fill: fillRule } : {}),
@@ -121,6 +132,13 @@ const CAPABILITIES = Object.freeze({
   infoValueFormats: INFO_VALUE_FORMATS,
   maxOutputs: PATCH_LIMITS.maxOutputs,
   maxOpsPerPatch: PATCH_LIMITS.maxOps,
+  // ⭐ BATCH 2 — set_color_states, richer table cells, marker size, and the
+  // exact-identity formula functions (callable in any tree; stored as their expansion).
+  maxColorStates: MAX_COLOR_STATES,
+  colorStateRelations: RELATION_NAMES,
+  tableTextSizes: TEXT_SIZES,
+  markerSizeRange: [MARKER_SIZE_RANGE.min, MARKER_SIZE_RANGE.max],
+  formulaFunctions: EXPANSION_NAMES.map((n) => CALL_EXPANSIONS[n].signature),
 })
 
 /** ⭐ P3 — the definition's horizontal levels (its one `hlines` guide), only when it has any. */
@@ -175,6 +193,12 @@ export function compactView(def, state = {}, gateCtx = {}) {
       ...levelsView(def),
       // ⭐ OVERNIGHT D — the chart table, as the spec set_table takes (or "imported").
       ...(def.objects ? { table: (() => { const t = tableSpecOfDefinition(def); return t === 'imported' ? { imported: true } : t })() } : {}),
+      // ⭐ BATCH 2 — candles / background coloured by state, as set_color_states takes them
+      ...(() => {
+        const ps = paintStatesOf(def, helpers)
+        return ps.length ? { paintStates: ps.map((x) => ({ channel: x.channel, otherwise: x.otherwise,
+          states: x.states.map((st) => ({ color: st.color, when: collapseExpansions(st.when), words: st.words })) })) } : {}
+      })(),
       primary,
       outputs: shown.map((o) => outputView(def, o, scope, gateCtx, chartOf.get(o.key), primary, helpers)),
       ...(all.length > shown.length ? { omittedOutputs: all.length - shown.length } : {}),

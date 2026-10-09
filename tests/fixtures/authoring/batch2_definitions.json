@@ -1,0 +1,2110 @@
+{
+  "four_state_histogram": {
+    "schemaVersion": 1,
+    "id": "u_43810a3299e9",
+    "version": 1,
+    "compute": {
+      "kind": "ast",
+      "fn": "sha256:a3ba22d539d5cb4ab38c263213a5c56a2e82876d9dde3017e71e22d07b35b7b7",
+      "rev": 1,
+      "ast": {
+        "type": "op",
+        "name": "-",
+        "args": [
+          {
+            "type": "call",
+            "name": "ema",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 12
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "ema",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 26
+              }
+            ]
+          }
+        ]
+      },
+      "source": "ema(close, 12) - ema(close, 26)",
+      "trees": {
+        "hist": {
+          "type": "op",
+          "name": "-",
+          "args": [
+            {
+              "type": "call",
+              "name": "ema",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 12
+                }
+              ]
+            },
+            {
+              "type": "call",
+              "name": "ema",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 26
+                }
+              ]
+            }
+          ]
+        },
+        "hist_cs": {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            {
+              "type": "op",
+              "name": "&&",
+              "args": [
+                {
+                  "type": "op",
+                  "name": ">",
+                  "args": [
+                    {
+                      "type": "op",
+                      "name": "-",
+                      "args": [
+                        {
+                          "type": "call",
+                          "name": "ema",
+                          "args": [
+                            {
+                              "type": "series",
+                              "name": "close"
+                            },
+                            {
+                              "type": "num",
+                              "value": 12
+                            }
+                          ]
+                        },
+                        {
+                          "type": "call",
+                          "name": "ema",
+                          "args": [
+                            {
+                              "type": "series",
+                              "name": "close"
+                            },
+                            {
+                              "type": "num",
+                              "value": 26
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 0
+                    }
+                  ]
+                },
+                {
+                  "type": "op",
+                  "name": ">",
+                  "args": [
+                    {
+                      "type": "op",
+                      "name": "-",
+                      "args": [
+                        {
+                          "type": "call",
+                          "name": "ema",
+                          "args": [
+                            {
+                              "type": "series",
+                              "name": "close"
+                            },
+                            {
+                              "type": "num",
+                              "value": 12
+                            }
+                          ]
+                        },
+                        {
+                          "type": "call",
+                          "name": "ema",
+                          "args": [
+                            {
+                              "type": "series",
+                              "name": "close"
+                            },
+                            {
+                              "type": "num",
+                              "value": 26
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "offset",
+                      "value": 1,
+                      "args": [
+                        {
+                          "type": "op",
+                          "name": "-",
+                          "args": [
+                            {
+                              "type": "call",
+                              "name": "ema",
+                              "args": [
+                                {
+                                  "type": "series",
+                                  "name": "close"
+                                },
+                                {
+                                  "type": "num",
+                                  "value": 12
+                                }
+                              ]
+                            },
+                            {
+                              "type": "call",
+                              "name": "ema",
+                              "args": [
+                                {
+                                  "type": "series",
+                                  "name": "close"
+                                },
+                                {
+                                  "type": "num",
+                                  "value": 26
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "num",
+              "value": 0
+            },
+            {
+              "type": "op",
+              "name": "?:",
+              "args": [
+                {
+                  "type": "op",
+                  "name": "&&",
+                  "args": [
+                    {
+                      "type": "op",
+                      "name": ">",
+                      "args": [
+                        {
+                          "type": "op",
+                          "name": "-",
+                          "args": [
+                            {
+                              "type": "call",
+                              "name": "ema",
+                              "args": [
+                                {
+                                  "type": "series",
+                                  "name": "close"
+                                },
+                                {
+                                  "type": "num",
+                                  "value": 12
+                                }
+                              ]
+                            },
+                            {
+                              "type": "call",
+                              "name": "ema",
+                              "args": [
+                                {
+                                  "type": "series",
+                                  "name": "close"
+                                },
+                                {
+                                  "type": "num",
+                                  "value": 26
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "num",
+                          "value": 0
+                        }
+                      ]
+                    },
+                    {
+                      "type": "op",
+                      "name": "<",
+                      "args": [
+                        {
+                          "type": "op",
+                          "name": "-",
+                          "args": [
+                            {
+                              "type": "call",
+                              "name": "ema",
+                              "args": [
+                                {
+                                  "type": "series",
+                                  "name": "close"
+                                },
+                                {
+                                  "type": "num",
+                                  "value": 12
+                                }
+                              ]
+                            },
+                            {
+                              "type": "call",
+                              "name": "ema",
+                              "args": [
+                                {
+                                  "type": "series",
+                                  "name": "close"
+                                },
+                                {
+                                  "type": "num",
+                                  "value": 26
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "offset",
+                          "value": 1,
+                          "args": [
+                            {
+                              "type": "op",
+                              "name": "-",
+                              "args": [
+                                {
+                                  "type": "call",
+                                  "name": "ema",
+                                  "args": [
+                                    {
+                                      "type": "series",
+                                      "name": "close"
+                                    },
+                                    {
+                                      "type": "num",
+                                      "value": 12
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "call",
+                                  "name": "ema",
+                                  "args": [
+                                    {
+                                      "type": "series",
+                                      "name": "close"
+                                    },
+                                    {
+                                      "type": "num",
+                                      "value": 26
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "num",
+                  "value": 1
+                },
+                {
+                  "type": "op",
+                  "name": "?:",
+                  "args": [
+                    {
+                      "type": "op",
+                      "name": "&&",
+                      "args": [
+                        {
+                          "type": "op",
+                          "name": "<",
+                          "args": [
+                            {
+                              "type": "op",
+                              "name": "-",
+                              "args": [
+                                {
+                                  "type": "call",
+                                  "name": "ema",
+                                  "args": [
+                                    {
+                                      "type": "series",
+                                      "name": "close"
+                                    },
+                                    {
+                                      "type": "num",
+                                      "value": 12
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "call",
+                                  "name": "ema",
+                                  "args": [
+                                    {
+                                      "type": "series",
+                                      "name": "close"
+                                    },
+                                    {
+                                      "type": "num",
+                                      "value": 26
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "num",
+                              "value": 0
+                            }
+                          ]
+                        },
+                        {
+                          "type": "op",
+                          "name": "<",
+                          "args": [
+                            {
+                              "type": "op",
+                              "name": "-",
+                              "args": [
+                                {
+                                  "type": "call",
+                                  "name": "ema",
+                                  "args": [
+                                    {
+                                      "type": "series",
+                                      "name": "close"
+                                    },
+                                    {
+                                      "type": "num",
+                                      "value": 12
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "call",
+                                  "name": "ema",
+                                  "args": [
+                                    {
+                                      "type": "series",
+                                      "name": "close"
+                                    },
+                                    {
+                                      "type": "num",
+                                      "value": 26
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "offset",
+                              "value": 1,
+                              "args": [
+                                {
+                                  "type": "op",
+                                  "name": "-",
+                                  "args": [
+                                    {
+                                      "type": "call",
+                                      "name": "ema",
+                                      "args": [
+                                        {
+                                          "type": "series",
+                                          "name": "close"
+                                        },
+                                        {
+                                          "type": "num",
+                                          "value": 12
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "call",
+                                      "name": "ema",
+                                      "args": [
+                                        {
+                                          "type": "series",
+                                          "name": "close"
+                                        },
+                                        {
+                                          "type": "num",
+                                          "value": 26
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 2
+                    },
+                    {
+                      "type": "op",
+                      "name": "?:",
+                      "args": [
+                        {
+                          "type": "op",
+                          "name": "&&",
+                          "args": [
+                            {
+                              "type": "op",
+                              "name": "<",
+                              "args": [
+                                {
+                                  "type": "op",
+                                  "name": "-",
+                                  "args": [
+                                    {
+                                      "type": "call",
+                                      "name": "ema",
+                                      "args": [
+                                        {
+                                          "type": "series",
+                                          "name": "close"
+                                        },
+                                        {
+                                          "type": "num",
+                                          "value": 12
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "call",
+                                      "name": "ema",
+                                      "args": [
+                                        {
+                                          "type": "series",
+                                          "name": "close"
+                                        },
+                                        {
+                                          "type": "num",
+                                          "value": 26
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "num",
+                                  "value": 0
+                                }
+                              ]
+                            },
+                            {
+                              "type": "op",
+                              "name": ">",
+                              "args": [
+                                {
+                                  "type": "op",
+                                  "name": "-",
+                                  "args": [
+                                    {
+                                      "type": "call",
+                                      "name": "ema",
+                                      "args": [
+                                        {
+                                          "type": "series",
+                                          "name": "close"
+                                        },
+                                        {
+                                          "type": "num",
+                                          "value": 12
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "type": "call",
+                                      "name": "ema",
+                                      "args": [
+                                        {
+                                          "type": "series",
+                                          "name": "close"
+                                        },
+                                        {
+                                          "type": "num",
+                                          "value": 26
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "offset",
+                                  "value": 1,
+                                  "args": [
+                                    {
+                                      "type": "op",
+                                      "name": "-",
+                                      "args": [
+                                        {
+                                          "type": "call",
+                                          "name": "ema",
+                                          "args": [
+                                            {
+                                              "type": "series",
+                                              "name": "close"
+                                            },
+                                            {
+                                              "type": "num",
+                                              "value": 12
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "type": "call",
+                                          "name": "ema",
+                                          "args": [
+                                            {
+                                              "type": "series",
+                                              "name": "close"
+                                            },
+                                            {
+                                              "type": "num",
+                                              "value": 26
+                                            }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "num",
+                          "value": 3
+                        },
+                        {
+                          "type": "num",
+                          "value": 4
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "treesHash": "sha256:43b045ae02f297aa3b41acecbf0cc64c469a741ad195b6df806ab15ca63db61d",
+      "scanPlot": "hist",
+      "sources": {
+        "hist": "ema(close, 12) - ema(close, 26)",
+        "hist_cs": "ema(close, 12) - ema(close, 26) > 0 && ema(close, 12) - ema(close, 26) > (ema(close, 12) - ema(close, 26))[1] ? 0 : ema(close, 12) - ema(close, 26) > 0 && ema(close, 12) - ema(close, 26) < (ema(close, 12) - ema(close, 26))[1] ? 1 : ema(close, 12) - ema(close, 26) < 0 && ema(close, 12) - ema(close, 26) < (ema(close, 12) - ema(close, 26))[1] ? 2 : ema(close, 12) - ema(close, 26) < 0 && ema(close, 12) - ema(close, 26) > (ema(close, 12) - ema(close, 26))[1] ? 3 : 4"
+      }
+    },
+    "meta": {
+      "name": "EMA 12 − EMA 26",
+      "shortName": "EMA 12 −",
+      "category": "Custom",
+      "description": "(the 12-bar exponential average of close) minus (the 26-bar exponential average of close)",
+      "tags": [
+        "custom"
+      ],
+      "tier": "premium",
+      "repaint": "non-repainting",
+      "freshness": "live",
+      "semantics": 2
+    },
+    "placement": {
+      "target": "pane",
+      "pane": {
+        "height": 0.15
+      }
+    },
+    "inputs": [
+      {
+        "key": "color",
+        "type": "color",
+        "label": "Color",
+        "default": "#c9a84c"
+      },
+      {
+        "key": "lineWidth",
+        "type": "int",
+        "label": "Line width",
+        "default": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1
+      },
+      {
+        "key": "hist_csColor",
+        "type": "color",
+        "label": "hist colour rule colour",
+        "default": "#c9a84c"
+      },
+      {
+        "key": "hist_csWidth",
+        "type": "int",
+        "label": "hist colour rule width",
+        "default": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1
+      }
+    ],
+    "plots": [
+      {
+        "key": "hist",
+        "label": "EMA 12 −",
+        "style": "histogram",
+        "color": "$color",
+        "width": "$lineWidth",
+        "role": "primary",
+        "legend": {
+          "decimals": 2
+        },
+        "colorMode": "column:hist_cs",
+        "colorPalette": [
+          "#00e676",
+          "#1b5e20",
+          "#d50000",
+          "#ff9800"
+        ]
+      },
+      {
+        "key": "hist_cs",
+        "label": "hist colour rule",
+        "style": "line",
+        "color": "$hist_csColor",
+        "width": "$hist_csWidth",
+        "role": "secondary",
+        "legend": {
+          "decimals": 2
+        },
+        "hidden": true
+      }
+    ]
+  },
+  "three_state_candles": {
+    "schemaVersion": 1,
+    "id": "u_9771893e0bb4",
+    "version": 1,
+    "paints": [
+      {
+        "kind": "barcolor",
+        "title": "Candle states",
+        "colorMode": "column:candles_cs",
+        "colorPalette": [
+          "#00c853",
+          "#d50000",
+          "#ffd600"
+        ]
+      }
+    ],
+    "compute": {
+      "kind": "ast",
+      "fn": "sha256:f48b38127c287839d78ae24d1feab4eb8fe26c25a9167389cb6d1163b394e1c3",
+      "rev": 1,
+      "ast": {
+        "type": "call",
+        "name": "ema",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 10
+          }
+        ]
+      },
+      "source": "ema(close, 10)",
+      "trees": {
+        "fast": {
+          "type": "call",
+          "name": "ema",
+          "args": [
+            {
+              "type": "series",
+              "name": "close"
+            },
+            {
+              "type": "num",
+              "value": 10
+            }
+          ]
+        },
+        "candles_cs": {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            {
+              "type": "op",
+              "name": ">",
+              "args": [
+                {
+                  "type": "call",
+                  "name": "ema",
+                  "args": [
+                    {
+                      "type": "series",
+                      "name": "close"
+                    },
+                    {
+                      "type": "num",
+                      "value": 10
+                    }
+                  ]
+                },
+                {
+                  "type": "op",
+                  "name": "*",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "ema",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 30
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 1.01
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "num",
+              "value": 0
+            },
+            {
+              "type": "op",
+              "name": "?:",
+              "args": [
+                {
+                  "type": "op",
+                  "name": "<",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "ema",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 10
+                        }
+                      ]
+                    },
+                    {
+                      "type": "op",
+                      "name": "*",
+                      "args": [
+                        {
+                          "type": "call",
+                          "name": "ema",
+                          "args": [
+                            {
+                              "type": "series",
+                              "name": "close"
+                            },
+                            {
+                              "type": "num",
+                              "value": 30
+                            }
+                          ]
+                        },
+                        {
+                          "type": "num",
+                          "value": 0.99
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "num",
+                  "value": 1
+                },
+                {
+                  "type": "num",
+                  "value": 2
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "treesHash": "sha256:a2b2c83b53ba0c015b42186680555130b32372c9d048897db403f4261ca0e30c",
+      "scanPlot": "fast",
+      "sources": {
+        "fast": "ema(close, 10)",
+        "candles_cs": "ema(close, 10) > ema(close, 30) * 1.01 ? 0 : ema(close, 10) < ema(close, 30) * 0.99 ? 1 : 2"
+      }
+    },
+    "meta": {
+      "name": "EMA 10",
+      "shortName": "EMA 10",
+      "category": "Custom",
+      "description": "the 10-bar exponential average of close",
+      "tags": [
+        "custom"
+      ],
+      "tier": "premium",
+      "repaint": "non-repainting",
+      "freshness": "live",
+      "semantics": 2
+    },
+    "placement": {
+      "target": "price"
+    },
+    "inputs": [
+      {
+        "key": "color",
+        "type": "color",
+        "label": "Color",
+        "default": "#c9a84c"
+      },
+      {
+        "key": "lineWidth",
+        "type": "int",
+        "label": "Line width",
+        "default": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1
+      },
+      {
+        "key": "candles_csColor",
+        "type": "color",
+        "label": "candles colour rule colour",
+        "default": "#c9a84c"
+      },
+      {
+        "key": "candles_csWidth",
+        "type": "int",
+        "label": "candles colour rule width",
+        "default": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1
+      }
+    ],
+    "plots": [
+      {
+        "key": "fast",
+        "label": "EMA 10",
+        "style": "line",
+        "color": "$color",
+        "width": "$lineWidth",
+        "role": "primary",
+        "legend": {
+          "decimals": 2
+        }
+      },
+      {
+        "key": "candles_cs",
+        "label": "candles colour rule",
+        "style": "line",
+        "color": "$candles_csColor",
+        "width": "$candles_csWidth",
+        "role": "secondary",
+        "legend": {
+          "decimals": 2
+        },
+        "hidden": true
+      }
+    ]
+  },
+  "conditional_table": {
+    "schemaVersion": 1,
+    "id": "u_d56112b56121",
+    "version": 1,
+    "objects": {
+      "programVersion": 1,
+      "regs": [
+        {
+          "id": "r0",
+          "family": "table"
+        }
+      ],
+      "colls": [],
+      "ops": [
+        {
+          "k": "create",
+          "family": "table",
+          "site": "s1",
+          "into": "r0",
+          "when": null,
+          "once": true,
+          "props": {
+            "position": {
+              "v": "const",
+              "value": "top_right"
+            },
+            "columns": {
+              "v": "const",
+              "value": 2
+            },
+            "rows": {
+              "v": "const",
+              "value": 3
+            }
+          }
+        },
+        {
+          "k": "cell",
+          "target": {
+            "r": "reg",
+            "id": "r0"
+          },
+          "col": {
+            "v": "const",
+            "value": 0
+          },
+          "row": {
+            "v": "const",
+            "value": 0
+          },
+          "when": null,
+          "lastBarOnly": true,
+          "props": {
+            "text": {
+              "v": "text",
+              "node": {
+                "t": "lit",
+                "s": "Market status"
+              }
+            },
+            "text_formatting": {
+              "v": "const",
+              "value": "bold"
+            },
+            "text_size": {
+              "v": "const",
+              "value": "large"
+            }
+          }
+        },
+        {
+          "k": "cell",
+          "target": {
+            "r": "reg",
+            "id": "r0"
+          },
+          "col": {
+            "v": "const",
+            "value": 0
+          },
+          "row": {
+            "v": "const",
+            "value": 1
+          },
+          "when": null,
+          "lastBarOnly": true,
+          "props": {
+            "text": {
+              "v": "text",
+              "node": {
+                "t": "lit",
+                "s": "RSI"
+              }
+            }
+          }
+        },
+        {
+          "k": "cell",
+          "target": {
+            "r": "reg",
+            "id": "r0"
+          },
+          "col": {
+            "v": "const",
+            "value": 1
+          },
+          "row": {
+            "v": "const",
+            "value": 1
+          },
+          "when": null,
+          "lastBarOnly": true,
+          "props": {
+            "text": {
+              "v": "text",
+              "node": {
+                "t": "if",
+                "cond": {
+                  "v": "tree",
+                  "tree": 1
+                },
+                "then": {
+                  "t": "lit",
+                  "s": "—"
+                },
+                "else": {
+                  "t": "num",
+                  "tree": 0,
+                  "fmt": "0.0"
+                }
+              }
+            },
+            "text_color": {
+              "v": "color",
+              "node": {
+                "c": "if",
+                "cond": {
+                  "v": "tree",
+                  "tree": 2
+                },
+                "then": {
+                  "c": "lit",
+                  "hex": "chart.fg_color"
+                },
+                "else": {
+                  "c": "if",
+                  "cond": {
+                    "v": "tree",
+                    "tree": 3
+                  },
+                  "then": {
+                    "c": "lit",
+                    "hex": "#00c853"
+                  },
+                  "else": {
+                    "c": "lit",
+                    "hex": "#d50000"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "k": "cell",
+          "target": {
+            "r": "reg",
+            "id": "r0"
+          },
+          "col": {
+            "v": "const",
+            "value": 0
+          },
+          "row": {
+            "v": "const",
+            "value": 2
+          },
+          "when": null,
+          "lastBarOnly": true,
+          "props": {
+            "text": {
+              "v": "text",
+              "node": {
+                "t": "lit",
+                "s": "Trend"
+              }
+            }
+          }
+        },
+        {
+          "k": "cell",
+          "target": {
+            "r": "reg",
+            "id": "r0"
+          },
+          "col": {
+            "v": "const",
+            "value": 1
+          },
+          "row": {
+            "v": "const",
+            "value": 2
+          },
+          "when": null,
+          "lastBarOnly": true,
+          "props": {
+            "text": {
+              "v": "text",
+              "node": {
+                "t": "if",
+                "cond": {
+                  "v": "tree",
+                  "tree": 5
+                },
+                "then": {
+                  "t": "lit",
+                  "s": "—"
+                },
+                "else": {
+                  "t": "if",
+                  "cond": {
+                    "v": "tree",
+                    "tree": 4
+                  },
+                  "then": {
+                    "t": "lit",
+                    "s": "Bullish"
+                  },
+                  "else": {
+                    "t": "lit",
+                    "s": "Bearish"
+                  }
+                }
+              }
+            },
+            "bgcolor": {
+              "v": "color",
+              "node": {
+                "c": "if",
+                "cond": {
+                  "v": "tree",
+                  "tree": 5
+                },
+                "then": {
+                  "c": "lit",
+                  "hex": "chart.bg_color@100"
+                },
+                "else": {
+                  "c": "if",
+                  "cond": {
+                    "v": "tree",
+                    "tree": 4
+                  },
+                  "then": {
+                    "c": "lit",
+                    "hex": "#1b5e20"
+                  },
+                  "else": {
+                    "c": "lit",
+                    "hex": "#b71c1c"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "k": "mergecells",
+          "target": {
+            "r": "reg",
+            "id": "r0"
+          },
+          "col": {
+            "v": "const",
+            "value": 0
+          },
+          "row": {
+            "v": "const",
+            "value": 0
+          },
+          "col2": {
+            "v": "const",
+            "value": 1
+          },
+          "row2": {
+            "v": "const",
+            "value": 0
+          },
+          "when": null,
+          "lastBarOnly": true
+        }
+      ],
+      "trees": [
+        {
+          "type": "call",
+          "name": "rsi",
+          "args": [
+            {
+              "type": "series",
+              "name": "close"
+            },
+            {
+              "type": "num",
+              "value": 14
+            }
+          ]
+        },
+        {
+          "type": "call",
+          "name": "na",
+          "args": [
+            {
+              "type": "call",
+              "name": "rsi",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 14
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "call",
+          "name": "na",
+          "args": [
+            {
+              "type": "op",
+              "name": ">",
+              "args": [
+                {
+                  "type": "call",
+                  "name": "rsi",
+                  "args": [
+                    {
+                      "type": "series",
+                      "name": "close"
+                    },
+                    {
+                      "type": "num",
+                      "value": 14
+                    }
+                  ]
+                },
+                {
+                  "type": "num",
+                  "value": 50
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            {
+              "type": "call",
+              "name": "rsi",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 14
+                }
+              ]
+            },
+            {
+              "type": "num",
+              "value": 50
+            }
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            {
+              "type": "call",
+              "name": "ema",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 20
+                }
+              ]
+            },
+            {
+              "type": "call",
+              "name": "ema",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 50
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "call",
+          "name": "na",
+          "args": [
+            {
+              "type": "op",
+              "name": ">",
+              "args": [
+                {
+                  "type": "call",
+                  "name": "ema",
+                  "args": [
+                    {
+                      "type": "series",
+                      "name": "close"
+                    },
+                    {
+                      "type": "num",
+                      "value": 20
+                    }
+                  ]
+                },
+                {
+                  "type": "call",
+                  "name": "ema",
+                  "args": [
+                    {
+                      "type": "series",
+                      "name": "close"
+                    },
+                    {
+                      "type": "num",
+                      "value": 50
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "compute": {
+      "kind": "ast",
+      "fn": "sha256:1c11f25fae2ac009e67b22871a4d162a562511f845090eb657fbcea0e646476d",
+      "rev": 1,
+      "ast": {
+        "type": "call",
+        "name": "rsi",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 14
+          }
+        ]
+      },
+      "source": "rsi(close, 14)",
+      "trees": {
+        "rsi": {
+          "type": "call",
+          "name": "rsi",
+          "args": [
+            {
+              "type": "series",
+              "name": "close"
+            },
+            {
+              "type": "num",
+              "value": 14
+            }
+          ]
+        },
+        "bull": {
+          "type": "op",
+          "name": ">",
+          "args": [
+            {
+              "type": "call",
+              "name": "rsi",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 14
+                }
+              ]
+            },
+            {
+              "type": "num",
+              "value": 50
+            }
+          ]
+        },
+        "trend": {
+          "type": "op",
+          "name": ">",
+          "args": [
+            {
+              "type": "call",
+              "name": "ema",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 20
+                }
+              ]
+            },
+            {
+              "type": "call",
+              "name": "ema",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 50
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "treesHash": "sha256:df986ce52156fc0fe2c4e470d71138d28b6497718a44c46f70419761beb1dcbb",
+      "scanPlot": "rsi",
+      "sources": {
+        "rsi": "rsi(close, 14)",
+        "bull": "rsi(close, 14) > 50",
+        "trend": "ema(close, 20) > ema(close, 50)"
+      }
+    },
+    "meta": {
+      "name": "Market status",
+      "shortName": "Market",
+      "category": "Custom",
+      "description": "the 14-bar RSI of close",
+      "tags": [
+        "custom"
+      ],
+      "tier": "premium",
+      "repaint": "non-repainting",
+      "freshness": "live",
+      "semantics": 2
+    },
+    "placement": {
+      "target": "price"
+    },
+    "inputs": [
+      {
+        "key": "color",
+        "type": "color",
+        "label": "Color",
+        "default": "#c9a84c"
+      },
+      {
+        "key": "lineWidth",
+        "type": "int",
+        "label": "Line width",
+        "default": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1
+      },
+      {
+        "key": "bullColor",
+        "type": "color",
+        "label": "RSI 14 > 50 colour",
+        "default": "#c9a84c"
+      },
+      {
+        "key": "bullWidth",
+        "type": "int",
+        "label": "RSI 14 > 50 width",
+        "default": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1
+      },
+      {
+        "key": "trendColor",
+        "type": "color",
+        "label": "Trend colour",
+        "default": "#c9a84c"
+      },
+      {
+        "key": "trendWidth",
+        "type": "int",
+        "label": "Trend width",
+        "default": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1
+      }
+    ],
+    "plots": [
+      {
+        "key": "rsi",
+        "label": "RSI",
+        "style": "line",
+        "color": "$color",
+        "width": "$lineWidth",
+        "role": "primary",
+        "legend": {
+          "decimals": 2
+        },
+        "hidden": true
+      },
+      {
+        "key": "bull",
+        "label": "RSI 14 > 50",
+        "style": "line",
+        "color": "$bullColor",
+        "width": "$bullWidth",
+        "role": "secondary",
+        "legend": {
+          "decimals": 2
+        },
+        "hidden": true
+      },
+      {
+        "key": "trend",
+        "label": "Trend",
+        "style": "line",
+        "color": "$trendColor",
+        "width": "$trendWidth",
+        "role": "secondary",
+        "legend": {
+          "decimals": 2
+        },
+        "hidden": true
+      }
+    ]
+  },
+  "styled_markers": {
+    "schemaVersion": 1,
+    "id": "u_a6bc3119d8cd",
+    "version": 1,
+    "compute": {
+      "kind": "ast",
+      "fn": "sha256:2794e09daa4cfecba1ecb2e43df0a2a034c97937f75068ab2d6cb7b223e8782b",
+      "rev": 1,
+      "ast": {
+        "type": "call",
+        "name": "crossOver",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "call",
+            "name": "ema",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 20
+              }
+            ]
+          }
+        ]
+      },
+      "source": "crossOver(close, ema(close, 20))"
+    },
+    "meta": {
+      "name": "Close crosses above EMA 20",
+      "shortName": "Close crosse",
+      "category": "Custom",
+      "description": "close crossing above (the 20-bar exponential average of close)",
+      "tags": [
+        "custom"
+      ],
+      "tier": "premium",
+      "repaint": "non-repainting",
+      "freshness": "live",
+      "semantics": 2
+    },
+    "placement": {
+      "target": "price"
+    },
+    "inputs": [
+      {
+        "key": "color",
+        "type": "color",
+        "label": "Color",
+        "default": "#ff9800"
+      },
+      {
+        "key": "lineWidth",
+        "type": "int",
+        "label": "Line width",
+        "default": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1
+      }
+    ],
+    "plots": [
+      {
+        "key": "buy",
+        "label": "Close crosse",
+        "style": "markers",
+        "color": "$color",
+        "width": "$lineWidth",
+        "role": "primary",
+        "legend": {
+          "decimals": 2
+        },
+        "marker": {
+          "shape": "arrowUp",
+          "position": "belowBar",
+          "size": 2
+        }
+      }
+    ]
+  },
+  "linreg_and_correlation": {
+    "schemaVersion": 1,
+    "id": "u_82b558054ee6",
+    "version": 1,
+    "compute": {
+      "kind": "ast",
+      "fn": "sha256:b62ec09d3a66d9d5ad4bab3fe954ed0e4349db4b4d166e8ac831f5371f5b8132",
+      "rev": 1,
+      "ast": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "call",
+                "name": "sum",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 50
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 50
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              {
+                "type": "op",
+                "name": "-",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "*",
+                    "args": [
+                      {
+                        "type": "num",
+                        "value": 50
+                      },
+                      {
+                        "type": "call",
+                        "name": "wma",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "num",
+                            "value": 50
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "name": "sum",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 50
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 0.06
+              }
+            ]
+          }
+        ]
+      },
+      "source": "linreg(close, 50)",
+      "trees": {
+        "reg": {
+          "type": "op",
+          "name": "+",
+          "args": [
+            {
+              "type": "op",
+              "name": "/",
+              "args": [
+                {
+                  "type": "call",
+                  "name": "sum",
+                  "args": [
+                    {
+                      "type": "series",
+                      "name": "close"
+                    },
+                    {
+                      "type": "num",
+                      "value": 50
+                    }
+                  ]
+                },
+                {
+                  "type": "num",
+                  "value": 50
+                }
+              ]
+            },
+            {
+              "type": "op",
+              "name": "*",
+              "args": [
+                {
+                  "type": "op",
+                  "name": "-",
+                  "args": [
+                    {
+                      "type": "op",
+                      "name": "*",
+                      "args": [
+                        {
+                          "type": "num",
+                          "value": 50
+                        },
+                        {
+                          "type": "call",
+                          "name": "wma",
+                          "args": [
+                            {
+                              "type": "series",
+                              "name": "close"
+                            },
+                            {
+                              "type": "num",
+                              "value": 50
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "call",
+                      "name": "sum",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 50
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "num",
+                  "value": 0.06
+                }
+              ]
+            }
+          ]
+        },
+        "corr": {
+          "type": "op",
+          "name": "/",
+          "args": [
+            {
+              "type": "op",
+              "name": "-",
+              "args": [
+                {
+                  "type": "call",
+                  "name": "sma",
+                  "args": [
+                    {
+                      "type": "op",
+                      "name": "*",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "sym",
+                          "value": "SPY",
+                          "args": [
+                            {
+                              "type": "series",
+                              "name": "close"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 20
+                    }
+                  ]
+                },
+                {
+                  "type": "op",
+                  "name": "*",
+                  "args": [
+                    {
+                      "type": "call",
+                      "name": "sma",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        },
+                        {
+                          "type": "num",
+                          "value": 20
+                        }
+                      ]
+                    },
+                    {
+                      "type": "call",
+                      "name": "sma",
+                      "args": [
+                        {
+                          "type": "sym",
+                          "value": "SPY",
+                          "args": [
+                            {
+                              "type": "series",
+                              "name": "close"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "num",
+                          "value": 20
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "op",
+              "name": "*",
+              "args": [
+                {
+                  "type": "call",
+                  "name": "stdev",
+                  "args": [
+                    {
+                      "type": "series",
+                      "name": "close"
+                    },
+                    {
+                      "type": "num",
+                      "value": 20
+                    }
+                  ]
+                },
+                {
+                  "type": "call",
+                  "name": "stdev",
+                  "args": [
+                    {
+                      "type": "sym",
+                      "value": "SPY",
+                      "args": [
+                        {
+                          "type": "series",
+                          "name": "close"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "num",
+                      "value": 20
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "treesHash": "sha256:0655c0a7cd68594c687c1e608354a819385493bb65dd67e5cfafc9a17940df2e",
+      "scanPlot": "reg",
+      "sources": {
+        "reg": "linreg(close, 50)",
+        "corr": "correlation(close, sym('SPY', close), 20)"
+      }
+    },
+    "meta": {
+      "name": "LINREG 50 · CORRELATION 20 (SPY Close)",
+      "shortName": "LINREG 50",
+      "category": "Custom",
+      "description": "((the sum of close over the last 50 bars) divided by 50) plus (((50 times (the 50-bar weighted average of close)) minus (the sum of close over the last 50 bars)) times 0.06)",
+      "tags": [
+        "custom"
+      ],
+      "tier": "premium",
+      "repaint": "non-repainting",
+      "freshness": "live",
+      "semantics": 2
+    },
+    "placement": {
+      "target": "pane",
+      "pane": {
+        "height": 0.15
+      }
+    },
+    "inputs": [
+      {
+        "key": "color",
+        "type": "color",
+        "label": "Color",
+        "default": "#c9a84c"
+      },
+      {
+        "key": "lineWidth",
+        "type": "int",
+        "label": "Line width",
+        "default": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1
+      },
+      {
+        "key": "corrColor",
+        "type": "color",
+        "label": "CORRELATION 20 (SPY Close) colour",
+        "default": "#c9a84c"
+      },
+      {
+        "key": "corrWidth",
+        "type": "int",
+        "label": "CORRELATION 20 (SPY Close) width",
+        "default": 1,
+        "min": 1,
+        "max": 4,
+        "step": 1
+      }
+    ],
+    "plots": [
+      {
+        "key": "reg",
+        "label": "LINREG 50",
+        "style": "line",
+        "color": "$color",
+        "width": "$lineWidth",
+        "role": "primary",
+        "legend": {
+          "decimals": 2
+        }
+      },
+      {
+        "key": "corr",
+        "label": "CORRELATION 20 (SPY Close)",
+        "style": "line",
+        "color": "$corrColor",
+        "width": "$corrWidth",
+        "role": "secondary",
+        "legend": {
+          "decimals": 2
+        }
+      }
+    ]
+  }
+}

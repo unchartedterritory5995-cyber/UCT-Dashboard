@@ -35,6 +35,7 @@
 import { helperKeysOfRows, sameTree } from './colorRules'
 import { tableSpecOf } from './tables'
 import PREFLIGHT_RULES from './preflightRules.json'
+import { recogniseExpansion } from '../../engine/ast/callExpansions'
 
 const OP_WORDS = Object.freeze({
   '>': '>', '<': '<', '>=': '≥', '<=': '≤', '==': '=', '!=': '≠',
@@ -145,8 +146,14 @@ const fmtNum = (v) => {
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 
 /** One node → compact chart words. Deterministic; total over the node grammar. */
+/** ⭐ BATCH 2 — how an exact-identity function reads in a name ("LINREG 50"). */
+const EXPANSION_LABELS = Object.freeze({ kcUpper: 'KC upper', kcLower: 'KC lower', kcMiddle: 'KC middle' })
+
 export function nameOfTree(node, parentPrec = 0) {
   if (!isObj(node)) return '?'
+  // ⭐ BATCH 2 — a stored expansion is named by the function it IS, not its arithmetic.
+  const hit = recogniseExpansion(node)
+  if (hit) return nameOfTree({ type: 'call', name: EXPANSION_LABELS[hit.name] || hit.name, args: hit.args }, parentPrec)
   switch (node.type) {
     case 'num': return fmtNum(node.value)
     case 'series': return cap(String(node.name || ''))

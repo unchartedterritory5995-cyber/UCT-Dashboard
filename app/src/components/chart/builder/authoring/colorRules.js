@@ -15,6 +15,9 @@
 
 import { astHash } from '../../engine/ast/parse'
 import { outputTreeOf } from '../../engine/outputType'
+import { declaredInputs } from '../../engine/ast/lint'
+import { STATES_SUFFIX, PAINT_STATE_KEYS, statesFrom, decomposeStateTree, RELATION_WORDS } from './colorStates'
+import { describeTree, conditionWords } from './expansionWords'
 
 export const COLOR_HELPER_SUFFIX = '_c'
 export const FILL_HELPER_SUFFIX = '_fc'
@@ -59,6 +62,42 @@ export function helpersOfDefinition(def) {
       const w = outputTreeOf(def, p.fill.with)
       if (h && h.hidden === true && w && sameTree(outputTreeOf(def, fk), aboveTree(own, w))) out.set(fk, { owner: p.key, kind: 'cloud' })
     }
+    // ⭐ BATCH 2 — a multi-state colour's hidden STATE column (`colorStates.js`).
+    const sk = `${p.key}${STATES_SUFFIX}`
+    if (p.colorMode === `column:${sk}` && Array.isArray(p.colorPalette)) {
+      const h = plotOf(def, sk)
+      if (h && h.hidden === true && statesFrom({ helperTree: outputTreeOf(def, sk), palette: p.colorPalette })) out.set(sk, { owner: p.key, kind: 'states' })
+    }
+  }
+  // ⭐ BATCH 2 — the candles' / background's STATE column.
+  for (const paint of (def && def.paints) || []) {
+    const key = paint && PAINT_STATE_KEYS[paint.kind]
+    if (!key || paint.colorMode !== `column:${key}` || !Array.isArray(paint.colorPalette)) continue
+    const h = plotOf(def, key)
+    if (h && h.hidden === true && statesFrom({ helperTree: outputTreeOf(def, key), palette: paint.colorPalette })) out.set(key, { owner: null, kind: 'paint-states', channel: paint.kind })
+  }
+  return out
+}
+
+/** ⭐ BATCH 2 — a state list in member words (`describeTree` for a formula state). */
+function statesWithWords(def, read) {
+  if (!read) return null
+  const scope = declaredInputs(def)
+  const words = (s) => {
+    if (s.relation) return RELATION_WORDS[s.relation]
+    try { return conditionWords(s.when, scope) || describeTree(s.when, scope) } catch { return 'its condition' }
+  }
+  return { ...read, states: read.states.map((s) => ({ ...s, words: words(s) })) }
+}
+
+/** ⭐ BATCH 2 — the candle / background states of a definition: `[{channel, states, otherwise?}]`. */
+export function paintStatesOf(def, helpers = helpersOfDefinition(def)) {
+  const out = []
+  for (const paint of (def && def.paints) || []) {
+    const key = paint && PAINT_STATE_KEYS[paint.kind]
+    if (!key || !helpers.has(key) || paint.colorMode !== `column:${key}`) continue
+    const read = statesWithWords(def, statesFrom({ helperTree: outputTreeOf(def, key), palette: paint.colorPalette }))
+    if (read) out.push({ channel: paint.kind, ...read })
   }
   return out
 }
@@ -66,6 +105,13 @@ export function helpersOfDefinition(def) {
 /** A plot's colour rule in the conversation's words (definition-level). */
 export function plotColorRule(def, plot, helpers = helpersOfDefinition(def)) {
   if (!plot || !plot.colorMode) return null
+  // ⭐ BATCH 2 — up to four condition-driven colours (`colorStates.js`).
+  const sk = `${plot.key}${STATES_SUFFIX}`
+  if (plot.colorMode === `column:${sk}` && helpers.get(sk) && helpers.get(sk).kind === 'states') {
+    const read = statesWithWords(def, statesFrom({ helperTree: outputTreeOf(def, sk), palette: plot.colorPalette,
+      ownerTree: outputTreeOf(def, plot.key) }))
+    if (read) return { rule: 'states', ...read }
+  }
   if (plot.colorMode === 'sign' && plot.colorUp && plot.colorDown) return { rule: 'sign', up: plot.colorUp, down: plot.colorDown }
   if (String(plot.colorMode).startsWith('column:') && plot.colorUp && plot.colorDown
     && !plot.colorPalette && !plot.colorGradient && !plot.colorPacked) {
@@ -111,6 +157,15 @@ export function helperKeysOfRows(rows) {
     const f = at(fk)
     const w = o.fill && typeof o.fill.with === 'string' ? at(o.fill.with) : null
     if (f && w && w.ast && f.hidden === true && o.fill.colorMode === `column:${fk}` && sameTree(f.ast, aboveTree(o.ast, w.ast))) out.add(fk)
+    // ⭐ BATCH 2 — a multi-state colour's STATE column
+    const sk = `${o.key}${STATES_SUFFIX}`
+    const s = at(sk)
+    if (s && s.hidden === true && s.ast && o.colorMode === `column:${sk}` && decomposeStateTree(s.ast)) out.add(sk)
+  }
+  // ⭐ BATCH 2 — the candles' / background's STATE column (a hidden row of its own)
+  for (const key of Object.values(PAINT_STATE_KEYS)) {
+    const s = at(key)
+    if (s && s.hidden === true && s.ast && decomposeStateTree(s.ast)) out.add(key)
   }
   return out
 }
