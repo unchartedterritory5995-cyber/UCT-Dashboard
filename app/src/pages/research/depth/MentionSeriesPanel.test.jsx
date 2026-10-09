@@ -78,3 +78,13 @@ describe('MentionSeriesPanel — a failed read', () => {
     expect((await screen.findByTestId('mentions-state')).textContent).toMatch(/not available right now/)
   })
 })
+
+// Audit 2026-10-08 (lane A): with no earlier measured day the summary says so in words.
+describe('MentionSeriesPanel with no earlier window', () => {
+  it('never reads "the 0 before: — a day"', async () => {
+    renderTab()
+    const t = (await screen.findByTestId('mentions-summary')).textContent
+    expect(t).not.toMatch(/the 0 before/)
+    expect(t).toContain('Last 2 measured days: 1.5 mentions a day (15% of the room); no earlier measured day to compare with yet.')
+  })
+})

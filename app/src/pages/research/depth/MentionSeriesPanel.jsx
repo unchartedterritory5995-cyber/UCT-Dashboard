@@ -43,8 +43,11 @@ export default function MentionSeriesPanel({ sym }) {
     body = (
       <div data-testid="mentions">
         <p className={styles.lede} data-testid="mentions-summary">
-          Last {sm.last7_days} measured days: {num(sm.last7_avg_mentions)} mentions a day ({formatPercentAsSent(sm.last7_avg_share_pct)} of the room);
-          {' '}the {sm.prior30_days} before: {num(sm.prior30_avg_mentions)} a day ({formatPercentAsSent(sm.prior30_avg_share_pct)}).
+          Last {sm.last7_days} measured {sm.last7_days === 1 ? 'day' : 'days'}: {num(sm.last7_avg_mentions)} mentions a day ({formatPercentAsSent(sm.last7_avg_share_pct)} of the room)
+          {/* No earlier measured day: say so, not "the 0 before: — a day (—)" (audit 2026-10-08). */}
+          {sm.prior30_days
+            ? <>; the {sm.prior30_days} before: {num(sm.prior30_avg_mentions)} a day ({formatPercentAsSent(sm.prior30_avg_share_pct)}).</>
+            : '; no earlier measured day to compare with yet.'}
           {' '}{sm.mentions_total} mentions over {sm.days_measured} measured days since {data.window.from > data.window.store_from ? data.window.from : data.window.store_from} (ET).
         </p>
         <div className={styles.scroll}>
