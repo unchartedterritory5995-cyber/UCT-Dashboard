@@ -19,6 +19,16 @@ import TileCard from '../../../components/TileCard'
 
 const URL = '/api/j2/capture/connections'
 
+/**
+ * The extension's Chrome Web Store page. The listing is UNLISTED (published 2026-09-26, item
+ * `kpogeikeoejgkefdcjdpeoonmbiflnlk`), so this link is the only way a member finds it: the
+ * store's search does not show an unlisted item. The same id is pinned server-side in
+ * `CAPTURE_EXTENSION_IDS` (api/services/journal_two/capture_auth.py), so a renamed or
+ * re-published item needs BOTH changed.
+ */
+export const CAPTURE_EXTENSION_ID = 'kpogeikeoejgkefdcjdpeoonmbiflnlk'
+export const CAPTURE_INSTALL_URL = `https://chromewebstore.google.com/detail/uct-browser-capture/${CAPTURE_EXTENSION_ID}`
+
 const fetcher = (u) => fetch(u, { credentials: 'include' }).then((r) => {
   if (!r.ok) throw new Error(String(r.status))
   return r.json()
@@ -61,8 +71,20 @@ export default function BrowserCaptureCard() {
 
       {!isLoading && !error && connections.length === 0 && (
         <div style={{ opacity: 0.75, lineHeight: 1.6 }}>
-          Not connected. Install the UCT Browser Capture extension and choose
-          Connect to save research from any page into your Notebook.
+          Not connected.{' '}
+          <a href={CAPTURE_INSTALL_URL} target="_blank" rel="noopener noreferrer">
+            Install the UCT Browser Capture extension
+          </a>{' '}
+          (Chrome) and choose Connect to save research from any page into your Notebook.
+        </div>
+      )}
+
+      {!isLoading && !error && connections.length > 0 && (
+        <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
+          On another computer?{' '}
+          <a href={CAPTURE_INSTALL_URL} target="_blank" rel="noopener noreferrer">
+            Get the extension
+          </a>
         </div>
       )}
 
