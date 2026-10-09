@@ -43,8 +43,14 @@ export const SCOPES = {
 const RATE_LIMIT_MSG = "You've hit today's Ask limit — it resets at midnight ET."
 const PAID_MSG = 'Ask requires a paid plan.'
 const OPEN_FAILED_MSG = "Couldn't open that source — try again."
-// How long the finished answer stays in the sr-only announcer after it is written there. NVDA reads
-// a live change at the moment it happens; the copy only has to outlive that moment.
+// The finished answer is written into the sr-only announcer ANNOUNCE_DELAY_MS after it lands, and
+// stays there ANNOUNCE_CLEAR_MS more. The delay is load-bearing: the moment the answer lands the
+// panel also moves focus (the question field was disabled while asking, so focus had fallen to the
+// page and is handed to the answer block), and a live write in the same instant as that focus
+// change was NOT spoken by NVDA 2026.2 on production (2026-10-09 03:50 CT, `ask_live_diag`), while
+// the same write 600 ms later was. NVDA reads a live change at the moment it happens; the copy only
+// has to outlive that moment.
+const ANNOUNCE_DELAY_MS = 600
 const ANNOUNCE_CLEAR_MS = 2500
 
 /** Read one SSE frame set out of a buffer. */
@@ -211,9 +217,9 @@ export default function AskPanel({
   const [announce, setAnnounce] = useState('')
   useEffect(() => {
     if (status !== 'done' || !answer) { setAnnounce(''); return undefined }
-    setAnnounce(answer)
-    const t = setTimeout(() => setAnnounce(''), ANNOUNCE_CLEAR_MS)
-    return () => clearTimeout(t)
+    const write = setTimeout(() => setAnnounce(answer), ANNOUNCE_DELAY_MS)
+    const clear = setTimeout(() => setAnnounce(''), ANNOUNCE_DELAY_MS + ANNOUNCE_CLEAR_MS)
+    return () => { clearTimeout(write); clearTimeout(clear) }
   }, [status, answer])
 
   const ask = useCallback(async () => {
