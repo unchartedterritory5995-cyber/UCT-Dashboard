@@ -1059,7 +1059,14 @@ export default function TerminalShell() {
       pendingNavRef.current = null
     }
     if (pendingRef.current && pendingRef.current !== focusedText) return
+    // Wave 4 (lane A): an arriving command that put nothing in a panel — a door, an AI question,
+    // an address, a refusal — must not be answered in the SAME commit by the focused panel's
+    // command. The door's own navigation is still landing (writing now replaced it, so a
+    // returning member whose focused panel shows a ticker never reached the link's page), and a
+    // refused command stays in the address bar beside the notice that says why.
+    const ranNothing = justRan && pendingRef.current == null
     pendingRef.current = null
+    if (ranNothing) { userRunRef.current = null; return }
     const writeUrl = (mutate, replace) => {
       const p = new URLSearchParams(location.search)
       mutate(p)
