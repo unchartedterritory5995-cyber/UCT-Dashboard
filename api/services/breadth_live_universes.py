@@ -306,7 +306,14 @@ def _load_frame_from_pack(tickers: list, L_iso: str):
     (`barspack`, R2 `barspack/latest.json` + 40 gzip shards, `PACK_DEPTH` daily bars per
     ticker, sanitized exactly as charts serve them). Measured 2026-10-08: reading the same
     ~6,000-name frame from the web pod's 26 GB bars.db took 20+ minutes (cold, scattered
-    rows) whether by IN-list or per-key probe; the pack is ~40 sequential downloads.
+    rows); the pack is ~40 sequential downloads.
+
+    ⛔⛔ STREAMED, ONE SHARD AT A TIME, STRAIGHT INTO NUMPY. The first version kept every
+    wanted ticker's columnar JSON lists alive until the end (~5,700 x 300 bars x 6 Python lists)
+    and the web pods that built it stalled near 3 GB RSS (10-08 incident, live breadth switched
+    off at 17:37 CT). Now the calendar comes from SPY's own shard first, the arrays are
+    preallocated, and each shard's parsed document is dropped before the next is fetched — peak
+    extra memory is one shard, not the universe.
 
     ⛔ Used only when the pack's newest session IS the last completed session `L_iso`; an
     older pack would silently measure yesterday's levels as today's, so the caller falls
@@ -315,44 +322,82 @@ def _load_frame_from_pack(tickers: list, L_iso: str):
     import gzip as _gz
     import json as _json
     from api.services import data_sync
+    from api.services import barspack as _bp
     raw = data_sync.get_bytes("barspack/latest.json")
     if not raw:
         return None
     man = _json.loads(raw)
-    want = set(tickers)
-    series: dict = {}
-    for sh in man.get("shards") or []:
-        body = data_sync.get_bytes(sh["name"])
-        if not body:
-            return None
-        doc = _json.loads(_gz.decompress(body))
-        for sym, entry in (doc.get("tickers") or {}).items():
-            if sym in want or sym == "SPY":
-                d = entry.get("D")
-                if d:
-                    series[sym] = d
-    spy = series.get("SPY")
+    shards = man.get("shards") or []
+    if not shards:
+        return None
+    nshards = int(man.get("num_shards") or len(shards))
+
+    def fetch(name):
+        body = data_sync.get_bytes(name)
+        return None if not body else _json.loads(_gz.decompress(body))
+
+    by_idx = {int(sh.get("idx", i)): sh["name"] for i, sh in enumerate(shards)}
+    spy_name = by_idx.get(_bp._shard_of("SPY", nshards))
+    spy_doc = fetch(spy_name) if spy_name else None
+    spy = (((spy_doc or {}).get("tickers") or {}).get("SPY") or {}).get("D")
+    del spy_doc
     if not spy or not spy.get("t") or spy["t"][-1] != L_iso:
         return None
     iso_dates = list(spy["t"])
     pos = {t: i for i, t in enumerate(iso_dates)}
+    row = {t: r for r, t in enumerate(tickers)}
     n, m = len(tickers), len(iso_dates)
     closes = np.full((n, m), np.nan, dtype=np.float64)
     volumes = np.full((n, m), np.nan, dtype=np.float64)
-    for r, sym in enumerate(tickers):
-        d = series.get(sym)
-        if not d:
-            continue
-        for t, c, v in zip(d["t"], d["c"], d["v"]):
-            j = pos.get(t)
-            if j is None:
+    for sh in shards:
+        doc = fetch(sh["name"])
+        if doc is None:
+            return None
+        for sym, entry in (doc.get("tickers") or {}).items():
+            r = row.get(sym)
+            if r is None:
                 continue
-            if c is not None:
-                closes[r, j] = c
-            if v is not None:
-                volumes[r, j] = v
+            d = entry.get("D")
+            if not d:
+                continue
+            for t, c, v in zip(d["t"], d["c"], d["v"]):
+                j = pos.get(t)
+                if j is None:
+                    continue
+                if c is not None:
+                    closes[r, j] = c
+                if v is not None:
+                    volumes[r, j] = v
+        del doc
     dates = [int(t.replace("-", "")) for t in iso_dates]
     return dates, closes, volumes
+
+
+def _rss_mb() -> Optional[float]:
+    """Current resident memory of this process in MB (Linux), else None."""
+    try:
+        with open("/proc/self/statm") as fh:
+            pages = int(fh.read().split()[1])
+        return round(pages * os.sysconf("SC_PAGE_SIZE") / 1e6, 1)
+    except Exception:
+        return None
+
+
+def _process_uptime() -> float:
+    """Seconds since this process started (Linux), else a large number."""
+    try:
+        with open("/proc/self/stat") as fh:
+            start_ticks = int(fh.read().rsplit(")", 1)[1].split()[19])
+        with open("/proc/uptime") as fh:
+            up = float(fh.read().split()[0])
+        return up - start_ticks / os.sysconf("SC_CLK_TCK")
+    except Exception:
+        return 1e9
+
+
+#: ⛔ No state build in a freshly started web process. Every 10-08 stall sat in the first 1-3
+#: minutes of a pod's life, while the boot warms run; a ~100 s build there piles onto them.
+BOOT_GRACE_SECONDS = int(os.environ.get("BREADTH_LIVE_UNIVERSES_BOOT_GRACE", "600"))
 
 
 #: How long the dividend-basis read may take before the frame is used unadjusted.
@@ -392,6 +437,7 @@ def _build_state(L: int) -> Optional[dict]:
     from api.services import breadth_live as bl
     conn = bl._bars_conn()
     today_ts = bl._ts_int(bl._now_et().date())
+    rss0 = _rss_mb()
     t0 = time.time()
     _stage("members")
     mem = members(_iso(L))
@@ -430,6 +476,7 @@ def _build_state(L: int) -> Optional[dict]:
                "dividend_basis_s": round(t_div, 2), "dividend_basis": div_state,
                "levels_s": round(time.time() - t3, 2),
                "frame_source": source, "names": len(union), "sessions": len(dates),
+               "rss_before_mb": rss0, "rss_after_mb": _rss_mb(),
                "priced_last": int((~np.isnan(closes[:, -1])).sum())}
     _log.info("[breadth_live_universes] state built: %s", timings)
     return {"L": L, "dates": dates, "union": union, "members": mem, "idx": idx,
@@ -483,6 +530,9 @@ def compute(force: bool = False) -> dict:
         return {"ok": False, "reason": "no completed session in bars.db"}
     st = _state.get("value")
     if force or not st or st["L"] != L:
+        if not force and _process_uptime() < BOOT_GRACE_SECONDS:
+            return {"ok": False, "reason": "boot grace: no state build in the first %ss of a process"
+                    % BOOT_GRACE_SECONDS}
         st = _build_state(L)
         if st is None:
             return {"ok": False, "reason": "frame unavailable (members or bars.db too thin)"}
