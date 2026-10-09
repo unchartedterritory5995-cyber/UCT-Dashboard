@@ -91,22 +91,26 @@ Then a joint local sandbox pass, then admin-only production acceptance on a **sc
 /charts** (the Agent runs only there), with the Main Trading fingerprint before and after and the member
 cohort OFF.
 
-## 6. Open questions to Indicators (reply to §14)
+## 6. Contract review outcome (Indicators §14.9–14.10, commit `9168f61435`)
 
-1. **Proposal disclosure of severed dependents (14.1/14.5):** can `removeInstanceWithRecord` be
-   run as a pure dry run (it is pure today) so the proposal lists "this disconnects X and Y"? Or
-   would you rather expose `dependentsOf(cs, ids)`? Either works; we need the names before the member
-   approves.
-2. **New dependent between plan and Apply (14.4):** `groupFingerprint` covers the target group only.
-   If another indicator starts reading the target after the proposal, the remove would sever a source
-   the member never saw. Proposal: Apply also compares the dependents set (from 1.) and refuses
-   `changed-while-working` if it grew.
-3. **Production acceptance location (14.7):** "never /charts on the owner account" conflicts with the
-   Agent living only on /charts. Proposal: /charts on the owner account but on a dedicated scratch
-   layout, never Main Trading or Positions, with the board and Main Trading fingerprinted before and
-   after. Please confirm or name the alternative.
-4. **Refusal vocabulary:** please list the exact `reason` codes (`permission-changed`,
-   `changed-while-working`, `restore-conflict`, …) and any validation error shapes, so receipts can
-   quote them and tests can pin them.
-5. **Record lifetime:** the record lives only in the in-memory Undo entry (no Undo after a reload),
-   which is consistent with every other Agent Undo. Any objection?
+| Item | Outcome |
+|---|---|
+| Severed-dependents disclosure | AGREED: Indicators adds pure `dependentsOf(cs, ids) → [{kind: 'source'\|'infoValue', instanceId?, key?, path}]`. The remove proposal lists them; no writer dry-run. |
+| New dependent between plan and Apply | AGREED: the dependents set is pinned with the group fingerprint; Apply refuses `changed-while-working` if it differs. |
+| Writers are pure | CONFIRMED: `removeInstance` / `removeInstanceWithRecord` return a new `cs` and write nothing. |
+| Record lifetime | AGREED: in-memory Undo entry only; no Undo after a reload. |
+| `indicatorInstance` on the board | AGREED: it joins `protectedLayouts.ON_THE_BOARD`. |
+| Production acceptance location (§14.7) | **OPEN, the owner's call.** The standing rule is "never /charts on the owner account"; the Agent runs only on /charts. Agent proposal: a dedicated scratch layout on /charts (never Main Trading or Positions), with the board and Main Trading fingerprinted before and after, and the cohort OFF. |
+
+**Refusal shapes and codes (§14.10)**, for receipts and tests to pin:
+- writers refuse by identity (`next === cs`);
+- `validateInstance → {ok: false, errors: string[]}` (shown verbatim);
+- new functions → `{ok, reason, detail?}`;
+- codes: `permission-changed`, `changed-while-working`, `not-found`, `unknown-definition`,
+  `writer-refused`, `restore-conflict` (detail = the first conflicting path), `record-invalid`,
+  `dependent-exists`, `protected-layout`, `board-conflict`, `persist-failed`, `did-not-land`.
+
+Acceptance additions: A5 also covers "a new dependent appeared → `changed-while-working`"; every
+refusal test pins its code from the list above.
+
+Neither team writes M2 code until the owner says go.
