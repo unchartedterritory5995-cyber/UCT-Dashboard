@@ -58,6 +58,7 @@ import { BoardsMenu, RecentsMenu } from './BoardsMenu'
 import { pushFunctionRecent, readFunctionRecents } from './recents'
 import { TERMINAL_CALENDAR_PATH, TERMINAL_PATH } from './terminalGate'
 import L0Strip from './L0Strip'
+import FirstRunCard from './FirstRunCard'
 import {
   BOARD_PAGE, boardCodeRefusal, boardableCodes, buildScanBoard, cleanSymbols, scanBoardName, scanBoardNotice,
   symbolsFromRows,
@@ -1752,6 +1753,7 @@ export default function TerminalShell() {
           )}
         </div>
       )}
+      {!sheet && <FirstRunCard onTry={runTyped} />}
       {!sheet && noticeEl}
       <div className={styles.body}>
         {!isPhone && (
