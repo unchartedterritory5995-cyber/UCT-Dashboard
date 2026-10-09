@@ -810,6 +810,16 @@
   text-transform: uppercase;
 }
 
+/* Wave 5: HELP's reference material sits under a closed "Advanced" disclosure. */
+.helpAdvanced > summary {
+  cursor: pointer;
+}
+
+.helpAdvanced > summary:hover,
+.helpAdvanced > summary:focus-visible {
+  color: var(--text);
+}
+
 .helpList {
   margin: 0;
   padding: 0;
