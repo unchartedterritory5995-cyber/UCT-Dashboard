@@ -122,6 +122,9 @@ export const FUNCTIONS = [
   // ETF: leveraged / inverse ETFs on a stock (paid family map) and, for an ETF, its holdings.
   { code: 'ETF', label: 'ETF exposure (leveraged ETFs, holdings)', group: 'Security',
     ticker: { panel: 'Etf' } },
+  // TWT: the curated X feed's posts on a ticker, 7 days. Honours VITE_TWITTER_UI_ENABLED in the panel.
+  { code: 'TWT', label: 'Social posts (curated X feed, 7 days)', group: 'Security',
+    ticker: { panel: 'Twt' } },
 
   // ── Research › Depth (each panel is its own surface behind its own flag) ──
   { code: 'DPTH', label: 'Research depth (every depth panel you have)', group: 'Research depth',

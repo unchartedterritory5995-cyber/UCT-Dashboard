@@ -49,6 +49,7 @@ export const PANEL_IMPORTERS = {
   // wave 7 lane D: stock-lens panels (terminal-native)
   Peer: () => import('./panels/PeerPanel'),
   Etf: () => import('./panels/EtfPanel'),
+  Twt: () => import('./panels/TwtPanel'),
   Depth: () => import('./panels/DepthPanel'),
   Events: () => import('../research/depth/EventsPanel'),
   FilingSearch: () => import('../research/depth/FilingSearchPanel'),
