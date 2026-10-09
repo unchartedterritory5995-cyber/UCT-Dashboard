@@ -156,7 +156,9 @@ export const FUNCTIONS = [
     // initial tab) — without it "Full page" always landed on the Stocks tab.
     market: { panel: 'OptionsScreener', full: '/screener?tab=options', flag: 'optionsScreenerEnabled' } },
   { code: 'FLOW', label: 'Options flow', group: 'Options',
-    ticker: { panel: 'Flow', section: 'flow', flag: 'researchFlowTabEnabled' },
+    // No shell flag (audit 2026-10-08, FLOW P1): the `Flow` panel is FlowGate -- the flow tab while
+    // researchFlowTabEnabled is on; with it off it says so and offers the page doors.
+    ticker: { panel: 'Flow', section: 'flow' },
     market: { door: '/options-flow', leavesTerminal: true, why: 'partner-owned page; its view routing lives in App.jsx\'s OptionsFlowRoute, which no panel can import' } },
   { code: 'GEX', label: 'Gamma exposure', group: 'Options',
     // GEX lives INSIDE the Options Flow page (its `gex` data mode), so it is a door — one

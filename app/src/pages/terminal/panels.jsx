@@ -61,7 +61,8 @@ export const PANEL_IMPORTERS = {
   OptionsScreener: () => import('../screener/options/OptionsScreener'),
   MarketTide: () => import('../optionsAnalytics/MarketTidePanel'),
   StrategyScreens: () => import('../optionsAnalytics/StrategyScreensPanel'),
-  Flow: () => import('../research/tabs/FlowTab'),
+  // FlowGate: the flow tab, or (switch off) the page doors -- audit 2026-10-08, FLOW P1.
+  Flow: () => import('../research/tabs/FlowGate'),
   Help: () => import('./panels/HelpPanel'),
   Move: () => import('./panels/MovePanel'),
   // comparison analytics (feature-gaps-2026-10-06) — terminal-native panels, no page behind them
