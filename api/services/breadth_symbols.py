@@ -883,6 +883,16 @@ def _build_breadth_series(sym: str, metric: str,
                 else:
                     ohlc_map.pop(d, None)     # an authority body: no stale V1 wick survives
 
+    # ⭐ UCT's DERIVED series (5/10-day ratios, % at highs/lows, breadth score) are computed by the
+    # Monitor's derive pass, but their stored rows stop where the store's derived rows stop: the
+    # 2026-10-09 audit found all of 2024-2025 and 145 sessions of 2009 missing on the charts while
+    # the Monitor showed every one. Fill each missing session with the SAME derivation.
+    if universe == DEFAULT_UNIVERSE and metric in _DERIVED_FILL:
+        try:
+            _fill_derived_gaps(metric, closes_by_date, ohlc_map)
+        except Exception as e:
+            _log.warning("[breadth_symbols] derived fill failed %s: %s", metric, e)
+
     # ⭐ New highs / lows on the INTRADAY basis (`breadth_nhnl_intraday`) for every session that
     # series covers — including the collector-owned and provisional UCT sessions the store
     # override never sees. A close-to-close body: the series has no observed intraday range.
@@ -984,6 +994,72 @@ def _append_today_candle(daily: list[dict], metric: str) -> list[dict]:
             bar.update({"o": round(row["o"], 4), "h": round(max(row["h"], c), 4),
                         "l": round(min(row["l"], c), 4), OHLC_OBSERVED_KEY: 1})
     return daily + [bar]
+
+
+#: UCT metrics that exist only as a derivation of other stored metrics.
+_DERIVED_FILL = ("ratio_5day", "ratio_10day", "hi_ratio", "lo_ratio", "breadth_score")
+_RATIO_WINDOW = {"ratio_5day": 5, "ratio_10day": 10}
+
+
+def _uct_closes(metric: str) -> dict:
+    """{date: close} of a UCT base series exactly as its own chart serves it (sealed)."""
+    sym = next((s for s, m, *_ in _ROWS if m == metric), metric)
+    return {b["t"]: b["c"] for b in _build_breadth_series(sym, metric, DEFAULT_UNIVERSE)}
+
+
+def _fill_derived_gaps(metric: str, closes_by_date: dict, ohlc_map: dict) -> None:
+    """Fill the sessions a UCT derived series is missing, in place (bodies, no observed range).
+
+    • 5/10-day ratios — `breadth_monitor._ratio` over the UCT up-4% / down-4% series, the same
+      rows the Monitor's derive pass sums (any era, including the V2 start whose window a
+      blank session had voided).
+    • % at highs/lows and the breadth score — the Monitor's own deep-history rows
+      (`get_history_deep`, the derived row a member sees there), for sessions before V2_START.
+    """
+    from api.services import breadth_monitor as bm
+    if not closes_by_date:
+        return
+    up = _uct_closes("up_4pct_today")
+    cal = sorted(d for d in up if d <= max(closes_by_date))
+    missing = [d for d in cal if d not in closes_by_date]
+    if not missing:
+        return
+    if metric in _RATIO_WINDOW:
+        dn = _uct_closes("down_4pct_today")
+        n = _RATIO_WINDOW[metric]
+        pos = {d: i for i, d in enumerate(cal)}
+        for d in missing:
+            win = cal[max(0, pos[d] - n + 1):pos[d] + 1]
+            v = bm._ratio([{"u": up.get(x), "d": dn.get(x)} for x in win], "u", "d")
+            if v is not None:
+                closes_by_date[d] = v
+                ohlc_map.pop(d, None)
+        return
+    try:
+        from api.services import breadth_authority as ba
+        v2_start = ba.V2_START
+    except Exception:
+        v2_start = "9999-12-31"
+    gaps = [d for d in missing if d < v2_start]
+    # one deep read per run of consecutive missing sessions (2009, 2024-2025, …)
+    pos = {d: i for i, d in enumerate(cal)}
+    runs, cur = [], []
+    for d in gaps:
+        if cur and pos[d] - pos[cur[-1]] > 15:
+            runs.append(cur)
+            cur = []
+        cur.append(d)
+    if cur:
+        runs.append(cur)
+    for run in runs:
+        span = pos[run[-1]] - pos[run[0]] + 1
+        rows = bm.get_history_deep(days=span + 5, end=run[-1]) or []
+        by = {r.get("date"): r.get(metric) for r in rows}
+        for d in run:
+            v = _finite(by.get(d))
+            if v is not None:
+                closes_by_date[d] = v
+                ohlc_map.pop(d, None)
 
 
 def _refresh_series(sym: str, metric: str,
