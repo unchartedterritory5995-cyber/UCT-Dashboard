@@ -32,6 +32,15 @@ describe('RatingsTab', () => {
     expect(screen.queryByTestId('entity-unresolved-note')).toBeNull()
   })
 
+  it('audit 2026-10-08: SMR and Acc / Dis say in plain words what they grade, visibly and to a screen reader', () => {
+    render(<RatingsTab sym="AAPL" />)
+    expect(screen.getByTestId('rating-hint-smr')).toHaveTextContent(/Sales growth, profit margin and return on equity/)
+    expect(screen.getByTestId('rating-hint-accdis')).toHaveTextContent(/volume on up days against down days/)
+    // The letter itself is described by the hint, so a screen reader hears what "A" means.
+    const smrLetter = screen.getByText('A', { selector: '[aria-describedby="rating-hint-smr"]' })
+    expect(smrLetter).toHaveAccessibleDescription(/return on equity/)
+  })
+
   it('discloses the price leg\'s as-of date, never a provider badge', () => {
     render(<RatingsTab sym="AAPL" />)
     expect(screen.getByText(/price data as of 2026-09-02/)).toBeInTheDocument()

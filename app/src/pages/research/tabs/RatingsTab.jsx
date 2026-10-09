@@ -12,10 +12,12 @@ const NUM_COMPONENTS = [
   ['growth', 'Growth'],
   ['value', 'Value'],
 ]
+// Audit 2026-10-08 (RTG #20): "SMR" and "Acc / Dis" were shown with no explanation. Each
+// letter card now says in plain words what it grades (ratings.py `_smr`, `_accdis_ratio`).
 const LETTER_COMPONENTS = [
-  ['smr', 'SMR'],
-  ['accdis', 'Acc / Dis'],
-  ['sponsorship', 'Sponsorship'],
+  ['smr', 'SMR', 'Sales growth, profit margin and return on equity. A is best, E is weakest.'],
+  ['accdis', 'Acc / Dis', 'Accumulation / distribution: volume on up days against down days over the last 13 weeks. A means heavy buying, E heavy selling.'],
+  ['sponsorship', 'Sponsorship', 'How much of the stock institutions own. A is the most.'],
 ]
 
 // Composite + sub-score inks come from the --score-* ladder in tokens.css (one
@@ -122,10 +124,12 @@ export default function RatingsTab({ sym }) {
               </div>
             </div>
           ))}
-          {LETTER_COMPONENTS.map(([k, label]) => (
+          {LETTER_COMPONENTS.map(([k, label, hint]) => (
             <div key={k} className={styles.ratingCard} data-panel-tile>
               <div className={styles.ratingLbl}>{label}</div>
-              <div className={`${styles.ratingVal} ${ink(letterTier(comp[k]))}`}>{comp[k] ?? ABSENT}</div>
+              <div className={`${styles.ratingVal} ${ink(letterTier(comp[k]))}`}
+                aria-describedby={`rating-hint-${k}`}>{comp[k] ?? ABSENT}</div>
+              <div className={styles.ratingHint} id={`rating-hint-${k}`} data-testid={`rating-hint-${k}`}>{hint}</div>
             </div>
           ))}
         </div>
