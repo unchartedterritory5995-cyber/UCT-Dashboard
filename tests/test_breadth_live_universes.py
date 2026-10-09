@@ -278,21 +278,28 @@ def test_frame_from_the_bars_pack(monkeypatch):
     import gzip
     import json
     from api.services import data_sync
+    from api.services import barspack as bp
+    spy_idx = bp._shard_of("SPY", 2)
+    other = 1 - spy_idx
     shards = {
-        "barspack/d/000.json.gz": {"tickers": {
+        f"barspack/d/{spy_idx:03d}.json.gz": {"tickers": {
             "SPY": {"D": {"t": ["2026-10-06", "2026-10-07"], "c": [1, 2], "v": [1, 1]}},
             "AAA": {"D": {"t": ["2026-10-06", "2026-10-07"], "c": [10.0, 11.0], "v": [5, 6]}}}},
-        "barspack/d/001.json.gz": {"tickers": {
+        f"barspack/d/{other:03d}.json.gz": {"tickers": {
             "BBB": {"D": {"t": ["2026-10-07"], "c": [20.0], "v": [7]}}}},
     }
-    store = {"barspack/latest.json": json.dumps({"shards": [{"name": k} for k in shards]}).encode()}
+    store = {"barspack/latest.json": json.dumps({"num_shards": 2, "shards": [
+        {"idx": spy_idx, "name": f"barspack/d/{spy_idx:03d}.json.gz"},
+        {"idx": other, "name": f"barspack/d/{other:03d}.json.gz"}]}).encode()}
     store.update({k: gzip.compress(json.dumps(v).encode()) for k, v in shards.items()})
     monkeypatch.setattr(data_sync, "get_bytes", lambda k: store.get(k))
     dates, c, v = blu._load_frame_from_pack(["AAA", "BBB", "ZZZ"], "2026-10-07")
     assert dates == [20261006, 20261007]
     assert c[0].tolist() == [10.0, 11.0] and np.isnan(c[1, 0]) and c[1, 1] == 20.0
     assert np.isnan(c[2]).all() and v[0].tolist() == [5, 6]
-    assert blu._load_frame_from_pack(["AAA"], "2026-10-08") is None      # pack not current
+    assert blu._load_frame_from_pack(["AAA"], "2026-10-08") is None      # pack older than L
+    dates, c, _ = blu._load_frame_from_pack(["AAA"], "2026-10-06")       # pack newer than L: cut
+    assert dates == [20261006] and c[0].tolist() == [10.0]
 
 
 
@@ -314,3 +321,12 @@ def test_serving_is_on_by_default(monkeypatch):
     monkeypatch.delenv("BREADTH_LIVE_UNIVERSES", raising=False)
     monkeypatch.setattr(bl, "enabled", lambda: True)
     assert blu.serving() is True
+
+
+
+def test_no_state_build_inside_the_boot_grace(market, monkeypatch):
+    monkeypatch.setattr(blu, "_process_uptime", lambda: 30.0)
+    monkeypatch.setattr(bl, "_session_started", lambda now=None: False)
+    p = blu.compute()
+    assert p["ok"] is False and "boot grace" in p["reason"]
+    assert blu._state.get("value") is None
