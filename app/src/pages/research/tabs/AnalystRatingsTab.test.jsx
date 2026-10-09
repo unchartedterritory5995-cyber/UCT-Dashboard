@@ -185,3 +185,14 @@ describe('AnalystRatingsTab -- a fund', () => {
     expect(screen.queryByTestId('analyst-ratings-empty')).toBeNull()
   })
 })
+
+// Audit 2026-10-08 (lane A): the colour-only rating bar has a text equivalent.
+describe('AnalystRatingsTab consensus bar', () => {
+  it('is an image with the whole split in words', async () => {
+    vi.resetModules()
+    vi.doMock('../hooks/useAnalystRatings', () => ({ default: () => ({ data: fullData, isLoading: false }) }))
+    const { default: FreshTab } = await import('./AnalystRatingsTab')
+    render(<FreshTab sym="AAPL" />)
+    expect(screen.getByRole('img', { name: 'Rating split: 1 Strong Buy, 69 Buy, 34 Hold, 7 Sell, 0 Strong Sell' })).toBeInTheDocument()
+  })
+})
