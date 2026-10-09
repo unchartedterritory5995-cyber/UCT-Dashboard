@@ -82,6 +82,16 @@ describe('BacktestPanel', () => {
     const line = await screen.findByTestId('backtest-running')
     expect(line.textContent).toMatch(/^Simulating SPY over the past year of monthly expirations…$/)
     expect(line.textContent).not.toMatch(/vendor/i)
+    // the 2 s poll's progress line is announced to a screen reader
+    expect(line.getAttribute('role')).toBe('status')
+  })
+
+  it('a trade row with no legs renders a dash instead of crashing the panel', async () => {
+    result = { ...FX.full, trades: [{ ...FX.full.trades[0], legs: undefined }] }
+    wrap(<BacktestPanel sym="SPY" />)
+    await simulate()
+    const row = screen.getByTestId('backtest-trades').querySelector('tbody tr')
+    expect(row.textContent).toContain('—')
   })
 
   it('COUNTS the excluded expirations with their reasons, never drops them', async () => {

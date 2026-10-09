@@ -199,19 +199,19 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
           title="The full strategy list could not be read right now, so only the first set of strategies is offered." />
       )}
       {waiting && !exhausted && (
-        <p className={styles.note} data-testid="backtest-busy">
+        <p className={styles.note} data-testid="backtest-busy" role="status">
           The backtester is busy right now. This asks again by itself every {PENDING_REASK_MS / 1000} seconds.
         </p>
       )}
       {waiting && exhausted && (
-        <p className={styles.note} data-testid="backtest-busy">
+        <p className={styles.note} data-testid="backtest-busy" role="status">
           The backtester is still busy.{' '}
           <button type="button" onClick={retry}>Try again</button>
         </p>
       )}
       {poll.error && <FailedRead testId="backtest-error" retry={() => poll.mutate()} title="The backtest result is unavailable right now." />}
       {st && (st.state === 'queued' || st.state === 'running') && (
-        <p className={styles.note} data-testid="backtest-running">
+        <p className={styles.note} data-testid="backtest-running" role="status">
           Simulating {sym} over {earnings ? 'past earnings prints' : 'the past year of monthly expirations'}…
         </p>
       )}
@@ -245,7 +245,7 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
                       <td>{t.expiry}</td>
                       <td>{legsLabel(t.legs)}</td>
                       <td>{money(t.debit)}</td>
-                      <td>{t.legs.map((l) => ivText(l.iv_computed)).join(' / ')}</td>
+                      <td>{Array.isArray(t.legs) && t.legs.length ? t.legs.map((l) => ivText(l?.iv_computed)).join(' / ') : '—'}</td>
                       <td>{exitLabel(t.exit)}</td>
                       <td>{money(t.pnl)}</td>
                     </tr>
