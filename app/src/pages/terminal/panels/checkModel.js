@@ -149,3 +149,67 @@ export function analogRows(body, n = ANALOGS_N) {
     days: num(a?.days_held),
   }))
 }
+
+// ── This ticker ───────────────────────────────────────────────────────────────────────────────
+// GET /api/analogs?…&symbol=  keeps one ticker's past trades of the setup. The engine has no
+// symbol filter (and the engine package is never changed), so the ROUTE reads the setup's latest
+// window and keeps that ticker's rows; it echoes `symbol`, `scanned` and `complete`. A server
+// that does not echo `symbol` ignored the filter, so its rows are never shown as this ticker's.
+// GET /api/j2/trades?symbol=&limit=  the member's own closed Journal 2.0 trades (read only). The
+// journal's symbol filter is a PREFIX match (NV finds NVDA and NVAX), so rows are kept exact here.
+
+export const JOURNAL_N = 10
+/** Rows asked of the journal: room for prefix neighbours before the exact filter. */
+export const JOURNAL_ASK = 50
+
+export function tickerAnalogsUrl(setup, regime, sym, limit = ANALOGS_N) {
+  const s = String(sym || '').trim().toUpperCase()
+  if (!setup || !regime || !s) return null
+  return `/api/analogs?setup_type=${q(setup)}&regime=${q(regime)}&limit=${limit}&symbol=${q(s)}`
+}
+
+/**
+ * The this-ticker answer, as one of:
+ *   { state: 'rows', rows }          past trades of this setup in this ticker
+ *   { state: 'none' }                the whole record was read and holds none
+ *   { state: 'partial', scanned }    none in the latest `scanned` trades read (older ones unread)
+ *   { state: 'unread' }              nothing was read (the engine is not loaded on this server)
+ *   { state: 'unsupported' }         the server did not filter by ticker
+ */
+export function tickerAnalogView(body, sym, n = ANALOGS_N) {
+  const s = String(sym || '').trim().toUpperCase()
+  if (!body || typeof body !== 'object' || !s) return null
+  if (String(body.symbol || '').toUpperCase() !== s) return { state: 'unsupported' }
+  const rows = analogRows(body, Number.MAX_SAFE_INTEGER).filter((r) => r.sym === s).slice(0, n)
+  if (rows.length) return { state: 'rows', rows }
+  if (body.complete === true) return { state: 'none' }
+  const scanned = num(body.scanned)
+  if (!scanned) return { state: 'unread' }
+  return { state: 'partial', scanned }
+}
+
+export function journalTradesUrl(sym, limit = JOURNAL_ASK) {
+  const s = String(sym || '').trim().toUpperCase()
+  return s ? `/api/j2/trades?symbol=${q(s)}&limit=${limit}` : null
+}
+
+/** The member's own closed trades in exactly this ticker, newest entry first (the route's order). */
+export function journalRows(body, sym, n = JOURNAL_N) {
+  const s = String(sym || '').trim().toUpperCase()
+  const list = Array.isArray(body?.trades) ? body.trades : []
+  return list
+    .filter((t) => String(t?.symbol || '').trim().toUpperCase() === s)
+    .slice(0, n)
+    .map((t, i) => {
+      const frac = num(t?.pnlPercent)
+      return {
+        key: `${t?.id ?? i}-${i}`,
+        entryDate: typeof t?.entryDate === 'string' ? t.entryDate.slice(0, 10) : null,
+        exitDate: typeof t?.exitDate === 'string' ? t.exitDate.slice(0, 10) : null,
+        side: t?.side || null,
+        setup: typeof t?.setup === 'string' && t.setup.trim() ? t.setup.trim() : null,
+        pnlPct: frac === null ? null : frac * 100,
+        r: num(t?.rMultiple),
+      }
+    })
+}

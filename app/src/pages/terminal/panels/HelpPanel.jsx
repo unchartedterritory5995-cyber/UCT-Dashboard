@@ -4,8 +4,8 @@
 //
 // ⛔ NOTHING HERE IS A SECOND LIST. Functions come from the registry, rules and prefixes from
 // grammar.js, keys from the shortcut registry's own declarations — each railed to its source.
-import { useEffect, useMemo } from 'react'
-import { FUNCTIONS, FUNCTION_GROUPS, ABSENT, BY_CODE, aliasesOf, flagOn } from '../functions'
+import { useEffect, useId, useMemo } from 'react'
+import { FUNCTIONS, FUNCTION_GROUPS, ABSENT, BY_CODE, aliasesOf, exampleFor, flagOn } from '../functions'
 import {
   ADDRESS_PREFIXES, ALIAS_RULE, ASK_RULE, BOARD_RULE, CHANNEL_RULE, COLLISION_RULE, COMPARE_RULE, RANKING_ORDER,
   ROW_RULE, START_HERE, TICKER_COLLISIONS,
@@ -97,9 +97,23 @@ export function argsLines(f) {
   return [line(f.ticker, `With a ticker (NVDA ${f.code})`), line(f.market, `Market-wide (${f.code})`)].filter(Boolean)
 }
 
+/** Pure: the short "takes …" a HELP row shows beside its example, from args.js's own `takes`
+ *  (both variants, once each), or null when the code takes nothing. `MINE` is left out: it is
+ *  a chip in the panel, not something a new member needs on the list. */
+export function takesLine(f) {
+  const kinds = [...(f.ticker?.args || []), ...(f.market?.args || [])].map((a) => a.kind)
+    .filter((k) => k !== 'mine' && k !== 'symbol')
+  const takes = [...new Set(kinds.map((k) => ARG_KINDS[k]?.takes).filter(Boolean))]
+  const symbols = [...(f.ticker?.args || []), ...(f.market?.args || [])].some((a) => a.kind === 'symbol')
+  if (symbols) takes.push('tickers to compare')
+  return takes.length ? takes.join(', ') : null
+}
+
 export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRanking, hasStats = false, auth = null }) {
   // `HELP GP` — the registry-validated code args.js applied (an unknown one is echoed, not shown).
   const focus = focusCode && BY_CODE[focusCode] ? BY_CODE[focusCode].code : null
+  // Per-instance heading id: two HELP panels can be open on one board.
+  const startTitleId = `${useId()}-start-title`
   const rows = focus ? [BY_CODE[focus]] : FUNCTIONS
   // The numbered order = the order rendered (grouped), so "3" opens the row labelled 3.
   const ordered = useMemo(() => FUNCTION_GROUPS.flatMap((g) => rows.filter((f) => f.group === g)), [rows])
@@ -115,8 +129,8 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
           to begin, so the first thing it shows is the handful of daily functions, each with an
           example that runs on click. Not numbered: the numbered rows are the full list below. */}
       {!focus && (
-        <section data-testid="terminal-help-start" aria-labelledby="terminal-help-start-title">
-          <h3 id="terminal-help-start-title" className={styles.helpGroup}>Start here</h3>
+        <section data-testid="terminal-help-start" aria-labelledby={startTitleId}>
+          <h3 id={startTitleId} className={styles.helpGroup}>Start here</h3>
           <ul className={styles.helpList}>
             {START_HERE.map((s) => (
               <li key={s.code}>
@@ -170,6 +184,11 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
                             {' '}(also {aliasesOf(f.code).join(', ')})
                           </span>
                         )}
+                        <span className={styles.helpExample} data-testid={`terminal-help-example-${f.code}`}>
+                          <kbd>{exampleFor(f)}</kbd>
+                          {takesLine(f) && <> · takes {takesLine(f)}</>}
+                          {f.note && <> · {f.note}</>}
+                        </span>
                       </span>
                       <span className={styles.helpScope}>
                         {scopeLabel(f)}

@@ -112,6 +112,16 @@
   font-size: var(--text-xs);
 }
 
+/* A long name (a fund, a holding) wraps inside its own cell instead of widening the table: the other
+   cells stay on one line, and the floor keeps a word from breaking one letter per line. */
+.table td.wrapCell,
+.table th.wrapCell {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 8rem;
+  text-align: left;
+}
+
 .sortBtn,
 .rowBtn,
 .linkBtn,
@@ -174,6 +184,10 @@
 @media (max-width: 640px) {
   .phoneHide {
     display: none;
+  }
+  .table td.wrapCell,
+  .table th.wrapCell {
+    min-width: 6rem;
   }
 }
 

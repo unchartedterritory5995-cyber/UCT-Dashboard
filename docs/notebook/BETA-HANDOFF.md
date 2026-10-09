@@ -258,12 +258,10 @@ already on. Each feature's tour (1c) arms with it once step 17 is on.
 
 **Held, not in the order**
 
-- `NOTEBOOK_VOICE_NOTES_ENABLED` (wave 11): HOLD for the OpenAI zero-retention letter ~~and the
-  upload-size fix~~ (section 1). ⚰️ Struck 2026-10-06: only the letter holds it. Section 1's own
-  row says "The upload-size gap is closed (wave 14: the body is capped while it is read;
-  `docs/notebook/wave14-upload-cap.md`)".
-- `NOTEBOOK_SEMANTIC_SEARCH_ENABLED` (wave 7, listed because its tour arrived in wave 14): HOLD
-  for the same vendor letter (section 2, row 8a).
+- ~~`NOTEBOOK_VOICE_NOTES_ENABLED` and `NOTEBOOK_SEMANTIC_SEARCH_ENABLED`: HOLD for the vendor
+  zero-retention letters.~~ **Released by owner ruling 2026-10-09: the published vendor terms
+  are enough** (`VENDOR-TERMS-2026-09-23.md` §2). Both arm after the Privacy page that names
+  them is live; the ledger records the flip time.
 - `NOTEBOOK_ATTACHMENTS_ON`, `NOTEBOOK_CONFLICT_UX_ON`, `NOTEBOOK_OFFLINE_READ_ON` (wave K): never
   arm; the features behind them are not built.
 
@@ -274,7 +272,7 @@ already on. Each feature's tour (1c) arms with it once step 17 is on.
 | 1c, 5a, 5b, 5c, 16a | a task-based study with 5-8 traders (core tasks unaided, SUS >= 80, first useful note < 2 min) | `docs/notebook/user-study-kit.md` |
 | 3a | 30 days with real members and zero data loss | `docs/notebook/soak-30day.md` |
 | 8a, 12c, 12d, 13a | zero-retention terms in writing from Anthropic and OpenAI; then arm meaning search | the vendor letters |
-| 1a, 1b | the above letter, plus the browser-extension store submission (G-043): reported submitted 2026-09-26, not verified in the store. `OWNER-ACTIONS.md` records the owner's report; its only source is outside git, and the scorecard still reads `BLOCKED (owner)`. One look at the store's developer dashboard settles it (added 2026-10-07) | Chrome Web Store |
+| 1a, 1b | the above letter, plus the browser-extension store submission (G-043): **verified 2026-10-09 -- Published, unlisted, since 2026-09-26** (item `kpogeikeoejgkefdcjdpeoonmbiflnlk`, v0.1.0). The Settings card now links to it (#304) and the handshake is pinned to that id. At launch: Distribution, Unlisted to Public, in the developer dashboard | Chrome Web Store |
 | 9c | a screen-reader pass by a person, VoiceOver and NVDA | `docs/notebook/a11y-second-review-brief.md` |
 | 10a | run the iOS Shortcut on an iPhone (G-044) | the Shortcut docs |
 | 10c | a real-device pass per release | BrowserStack Live (Automate is not on the account) |

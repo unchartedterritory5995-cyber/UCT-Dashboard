@@ -1203,6 +1203,20 @@ def _evidence_basis() -> dict:
     }
 
 
+#: A meta() build slower than this names its parts in the log (cold-start lane w9-1).
+SLOW_META_LOG_S = 3.0
+
+
+def _log_if_slow(label, total_s, parts):
+    """One WARNING line naming each part's seconds, only when the build was slow."""
+    if total_s < SLOW_META_LOG_S:
+        return
+    import logging  # noqa: PLC0415
+    logging.getLogger(__name__).warning(
+        "[%s] slow build %.1fs: %s", label, total_s,
+        " ".join(f"{k}={v:.1f}s" for k, v in parts.items()))
+
+
 def meta(user_id=None) -> dict:
     """The whole panel payload.
 
@@ -1240,8 +1254,15 @@ def meta(user_id=None) -> dict:
     is beside `MIN_COVERAGE`; read it there and run it.
     """
     from api.services.screener import distribution  # noqa: PLC0415 — lazy, as above
+    import time as _time  # noqa: PLC0415
 
+    # Cold-start lane w9-1 (2026-10-09): measured >60 s on the first read after a web
+    # deploy, with no cause visible from code alone. A slow build names its slowest
+    # parts in one log line; a fast one logs nothing.
+    _t0 = _time.perf_counter()
+    _parts = {}
     dist = distribution.distributions()
+    _parts["distribution"] = _time.perf_counter() - _t0
     bands = dist.get("columns") or {}
     out_filters = []
     for key, f in FILTERS.items():
@@ -1280,16 +1301,22 @@ def meta(user_id=None) -> dict:
                 entry["evidence"] = ev
                 entry["evidence_basis"] = _evidence_basis()
         out_filters.append(entry)
+    _parts["filters"] = _time.perf_counter() - _t0 - _parts["distribution"]
     categories = CATEGORIES
     if user_id is not None:
+        _t1 = _time.perf_counter()
         entry = _my_scans_entry(user_id)
+        _parts["my_scans"] = _time.perf_counter() - _t1
         if entry is not None:
             out_filters.append(entry)
             categories = CATEGORIES + [{"key": "my_scans", "label": "My Scans"}]
+        _t1 = _time.perf_counter()
         lists = _my_lists_entry(user_id)
+        _parts["my_lists"] = _time.perf_counter() - _t1
         if lists is not None:
             out_filters.append(lists)
             categories = categories + [{"key": "my_lists", "label": "My Lists"}]
+    _log_if_slow("screener-meta", _time.perf_counter() - _t0, _parts)
     return {"filters": out_filters,
             "views": [{"key": k, **v} for k, v in VIEWS.items()],
             "categories": categories,

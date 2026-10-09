@@ -6,7 +6,7 @@ export default function Privacy() {
     <div className={styles.page}>
       <Link to="/" className={styles.backLink}>&larr; Back to home</Link>
       <h1 className={styles.heading}>Privacy Policy</h1>
-      <p className={styles.subheading}>Last updated: September 26, 2026</p>
+      <p className={styles.subheading}>Last updated: October 9, 2026</p>
 
       <div className={styles.prose}>
         <h2>1. Information We Collect</h2>
@@ -86,14 +86,16 @@ export default function Privacy() {
           <li><strong>Cloudflare</strong> — network delivery and security for our website, storage for backups of our account database (Cloudflare R2), and, if you use your Notebook email address, receiving those emails and passing them to us (Cloudflare Email Routing and Workers)</li>
           <li>
             <strong>Anthropic</strong> — powers our AI features, including Ask Notebook,
-            writing help in the Notebook, Compass coaching, and trade reviews. When you use one of these features, the
+            writing help in the Notebook, voice-note summaries, Compass coaching, and trade reviews. When you use one of these features, the
             content it needs (for example, your question and the notes or journal entries
             it draws on) is sent to Anthropic to produce the answer.
           </li>
           <li>
-            <strong>OpenAI</strong> — powers voice features: transcribing your dictation,
-            voice conversations with Compass, cleaning up transcripts, and searching your
-            voice-assistant history. The audio or text involved is sent to OpenAI.
+            <strong>OpenAI</strong> — powers voice features: transcribing your dictation
+            and the voice notes you record or upload, voice conversations with Compass,
+            cleaning up transcripts, and searching your voice-assistant history. It also
+            powers searching your notes by meaning: the text of your notes is sent to OpenAI to
+            build a search index that only your account can query. The audio or text involved is sent to OpenAI.
           </li>
           <li>
             <strong>Perplexity</strong> — when you ask Compass to research a question on the
@@ -106,8 +108,11 @@ export default function Privacy() {
         </ul>
         <p>
           Under their commercial API terms, Anthropic and OpenAI do not use the content we
-          send them to train their models. OpenAI may keep API data for up to 30 days to
-          monitor for abuse. Each provider has its own privacy policy governing how it
+          send them to train their models. Both may keep API data for a limited period to
+          monitor for abuse (OpenAI states up to 30 days); we rely on these published terms and
+          do not have a separate zero-data-retention agreement with either company. Audio you
+          upload for a voice note is held on our servers only until it is transcribed, and is
+          never stored in your notes. Each provider has its own privacy policy governing how it
           handles data, and we share only what each one needs to do its job.
         </p>
 
@@ -156,7 +161,7 @@ export default function Privacy() {
           <li><strong>Account data</strong> — retained as long as your account is active</li>
           <li><strong>Session tokens</strong> — expire after 30 days and are cleaned up automatically</li>
           <li><strong>Your content</strong> (notes, trade journal, watchlists, alerts) — retained until you delete it or your account is deleted. A note you delete goes to Trash, where you can restore it for 30 days; after that it is removed permanently.</li>
-          <li><strong>Activity data</strong> — retained for security and support; you can ask us to delete it</li>
+          <li><strong>Activity data</strong> (a record of the actions you take and pages you open, including the IP address of the request) — kept for 1 year for security and support, then deleted automatically; you can ask us to delete it sooner</li>
           <li>
             <strong>Backups</strong> — we copy our account database about every six hours and
             keep a rolling set of recent copies. Something you delete can remain in those

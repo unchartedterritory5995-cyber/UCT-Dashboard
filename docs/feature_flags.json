@@ -3037,6 +3037,16 @@
       "since": "2026-10-05",
       "default": "unset (built-in word list only)",
       "note": "Extends the title guard's dictionary without a deploy, for a new show or guest word the built-in list does not know. Without it, such a name publishes under the generic title and the ops alert names the suspect words, which is the cue to add them here."
+    },
+    "CAPTURE_EXTENSION_IDS": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/journal_two/capture_auth.py::allowed_extension_ids (read per handshake; comma-separated 32-char Chrome extension ids)",
+      "kind": "config",
+      "status": "armed",
+      "since": "2026-10-09",
+      "where": ["web"],
+      "default": "unset (any well-formed chromiumapp.org id may complete the Browser Capture handshake)",
+      "note": "ARMED on web 2026-10-09 18:20Z (=kpogeikeoejgkefdcjdpeoonmbiflnlk), owner's go: the Chrome Web Store item UCT Browser Capture has been Published - unlisted since 2026-09-26 under that id, so the handshake is pinned to it. One bare --set, web SUCCESS 18:20Z; probed as the smoke account after the boot: a foreign id answers 400 'That extension is not authorized', a non-extension target 400 'That redirect target is not a browser extension'. Existing connections are unaffected (checked at handshake only). The same id is CAPTURE_EXTENSION_ID in app/src/pages/journal-2-0/components/BrowserCaptureCard.jsx (the install link); a re-published item needs both changed. Rollback: set it to \"\" (Railway ignores null) and verify a new boot."
     }
   }
 }

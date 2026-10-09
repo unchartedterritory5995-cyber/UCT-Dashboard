@@ -255,8 +255,9 @@ export const FUNCTIONS = [
     market: { panel: 'Sentiment' } },
   // SCAT: a universe on two metrics (RS rank vs % off the 52-week high by default), over the /charts
   // Market Map's own /api/scatter reads. A dot opens DES beside the panel.
+  // SCAT NDX CHG_1M RS_RANK: universe, then Y and X (scatterArgs.js); the panel writes picks back.
   { code: 'SCAT', label: 'Scatter a universe (RS rank vs % off 52-week high)', group: 'Market',
-    market: { panel: 'Scatter' } },
+    market: { panel: 'Scatter', args: [{ kind: 'scatUniverse', prop: 'universe' }, { kind: 'scatY', prop: 'yKey' }, { kind: 'scatX', prop: 'xKey' }] } },
   // ── end wave 8, lane E ──
 
   // ── the shell itself ──
@@ -478,4 +479,135 @@ const MINE_ARG = Object.freeze({ kind: 'mine', prop: 'mine' })
 for (const [code, side] of [['CAL', 'market'], ['MOST', 'market'], ['FREC', 'market'], ['CN', 'ticker'], ['FEED', 'ticker']]) {
   const v = BY_CODE[code]?.[side]
   if (v && !(v.args || []).some((a) => a.kind === 'mine')) v.args = [...(v.args || []), MINE_ARG]
+}
+
+// ── wave 9 lane 6 (discoverability): APPENDED, never edited above, so it merges beside the lanes
+// that own the entries. Registry DATA a member finds a code by, read by HELP, the command line's
+// suggestions (ranking.js) and the Ctrl/Cmd-K palette (paletteGrammar.js). Nothing here is a second
+// list of functions: every key must be a registered code (railed in functionWords.test.js), and a
+// code with no entry still gets a derived example and its label's own words.
+//   `example`  one realistic command HELP shows (default: `NVDA CODE`, or `CODE` when market-only).
+//   `keywords` plain words a swing trader types for it ("breakout", "position size"), lower case.
+//   `note`     what the panel says when its feed is switched off at the server (no shell flag).
+const FUNCTION_WORDS = {
+  CAL: { example: 'CAL NEXT', keywords: ['earnings', 'calendar', 'events', 'earnings this week'] },
+  MYST: { keywords: ['my stocks'] },
+  ERN: { keywords: ['earnings date', 'earnings report'] },
+  DES: { keywords: ['overview', 'company', 'profile', 'description'] },
+  GP: { example: 'NVDA GP W', keywords: ['chart', 'price chart', 'graph'] },
+  CN: { keywords: ['news', 'company news'] },
+  CATS: { keywords: ['catalysts'] },
+  MOVE: { keywords: ['why is it moving', 'why moving', 'wiim'], note: 'Says so if this read is switched off.' },
+  TECH: { keywords: ['technicals', 'support', 'resistance', 'moving averages'] },
+  FA: { keywords: ['financials', 'fundamentals', 'revenue', 'income statement', 'balance sheet'] },
+  EE: { keywords: ['estimates', 'eps', 'consensus'] },
+  EEH: { keywords: ['revisions', 'estimate revisions'] },
+  ANR: { keywords: ['analysts', 'upgrades', 'downgrades', 'price target'] },
+  RTG: { keywords: ['rating', 'score'] },
+  OWN: { keywords: ['ownership', 'institutions', 'holders', '13f'] },
+  PPL: { keywords: ['executives', 'management', 'ceo'] },
+  TRAN: { keywords: ['transcript', 'conference call', 'earnings call'] },
+  MB: { keywords: ['model book'] },
+  SEAS: { keywords: ['seasonality'] },
+  CF: { keywords: ['filings', 'sec', '10-k', '10-q'] },
+  FIL: { keywords: ['blackline', 'filing changes'] },
+  RSCH: { keywords: ['my notes', 'research notes'] },
+  CMP: { example: 'NVDA CMP AMD', keywords: ['compare', 'versus', 'side by side'] },
+  ASK: { keywords: ['ai', 'question'] },
+  PEER: { keywords: ['peers', 'competitors', 'comps', 'relative value', 'valuation'] },
+  ETF: { keywords: ['etf', 'leveraged etf', 'holdings'] },
+  TWT: { keywords: ['twitter', 'tweets', 'social'], note: 'Says so if the X feed is switched off.' },
+  SIZE: { keywords: ['position size', 'sizing', 'shares', 'risk per trade', 'r multiple'] },
+  CHK: { keywords: ['check', 'checklist', 'pre-trade', 'win rate'], note: 'Says so if the setup library is not loaded.' },
+  ERX: { keywords: ['earnings reaction'] },
+  FTD: { keywords: ['fails to deliver'] },
+  ATTN: { keywords: ['mentions', 'attention'] },
+  OMON: { keywords: ['options chain', 'options'] },
+  OVS: { keywords: ['vol surface', 'skew'] },
+  IVH: { keywords: ['iv', 'implied volatility'] },
+  POS: { keywords: ['max pain', 'positioning'] },
+  OHIS: { keywords: ['straddle', 'expected move'] },
+  OBT: { keywords: ['options backtest'] },
+  FLOW: { keywords: ['options flow', 'unusual options'] },
+  GEX: { keywords: ['gamma', 'gamma exposure'] },
+  TIDE: { keywords: ['market tide', 'net premium'] },
+  LIVE: { keywords: ['live tape'] },
+  DP: { keywords: ['dark pool'] },
+  FREC: { keywords: ['flow record', 'scoreboard'] },
+  WIRE: { keywords: ['morning wire', 'premarket', 'game plan'] },
+  BRD: { keywords: ['breadth', 'advance decline'] },
+  SCR: { keywords: ['screener', 'scan', 'filter'] },
+  U20: { keywords: ['uct 20', 'top 20'] },
+  CATH: { example: 'CATH 10/01', keywords: ['catalyst history'] },
+  JRNL: { keywords: ['journal', 'trade log'] },
+  NB: { keywords: ['notebook'] },
+  RISK: { keywords: ['portfolio risk', 'heat', 'open risk'] },
+  COMM: { keywords: ['community', 'chat'] },
+  NEWS: { keywords: ['market news', 'news tape', 'headlines'] },
+  REGM: { keywords: ['regime', 'market regime', 'exposure', 'market trend'] },
+  INS: { keywords: ['insider', 'insider buying', 'insiders', 'form 4'] },
+  RSL: { keywords: ['relative strength', 'rs rank', 'rs leaders', 'leaders'] },
+  THMS: { example: 'THMS 1W', keywords: ['theme', 'themes', 'groups', 'industries', 'leading themes'] },
+  SENT: { keywords: ['sentiment', 'aaii', 'naaim', 'fear and greed', 'put call', 'macro', 'economy'],
+    note: 'The economy rows say so if that feed is switched off.' },
+  SCAT: { keywords: ['scatter', 'scatter plot', 'market map'] },
+  HELP: { example: 'HELP CHK', keywords: ['help', 'functions', 'commands'] },
+  RRG: { keywords: ['rotation', 'sector rotation', 'sectors'] },
+  REL: { example: 'NVDA REL SMH', keywords: ['relative performance', 'ratio'] },
+  CORR: { example: 'NVDA CORR AMD AVGO', keywords: ['correlation'] },
+  MOST: { example: 'MOST UP', keywords: ['movers', 'gainers', 'losers', 'unusual volume', 'top gainers'] },
+  IMOV: { example: 'IMOV semiconductors', keywords: ['theme movers', 'theme drivers'] },
+  ALRT: { example: 'NVDA ALRT 950', keywords: ['alert', 'alerts', 'price alert'] },
+  BRKO: { keywords: ['breakout', 'breakouts', 'pivot', 'tight', 'setups', 'near pivot'] },
+  PLAN: { example: 'NVDA PLAN 203 195', keywords: ['plan', 'trade plan', 'buy point', 'stop', 'entry'] },
+  MON: { keywords: ['watchlist', 'watchlists', 'monitor'] },
+  GRADE: { keywords: ['grade', 'compass', 'verdict', 'buy or skip'], note: 'Says so if grades are not available yet.' },
+}
+for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
+  const f = BY_CODE[code]
+  if (!f || code !== f.code) continue   // an unregistered key is reported by functionWords.test.js
+  if (w.example) f.example = w.example
+  if (w.keywords) f.keywords = Object.freeze([...w.keywords])
+  if (w.note) f.note = w.note
+}
+/** Every key of the word data, for its rail (each must be a registered code). */
+export const FUNCTION_WORD_CODES = Object.freeze(Object.keys(FUNCTION_WORDS))
+
+/** The example HELP shows for a code: its own, else derived from its variants. */
+export function exampleFor(f) {
+  if (!f) return null
+  if (f.example) return f.example
+  return f.ticker ? `NVDA ${f.code}` : f.code
+}
+
+// Words in a label that say nothing about the function (they would match half the registry).
+const LABEL_STOP = new Set(['with', 'from', 'what', 'every', 'list', 'this', 'your', 'last', 'since',
+  'only', 'full', 'page', 'days', 'names', 'name', 'stock', 'stocks', 'market', 'which', 'drive', 'also', 'more'])
+// An all-capitals token in a label is a code or a ticker in an example (`NVDA ALRT 950`), not a
+// word for what the function does, so it is left out.
+const labelWords = (f) => String(f.label || '').split(/[^A-Za-z0-9]+/)
+  .filter((w) => w.length >= 4 && w !== w.toUpperCase()).map((w) => w.toLowerCase()).filter((w) => !LABEL_STOP.has(w))
+
+/**
+ * The codes a plain word or phrase names, best first. `q` is what the member typed ("breakout",
+ * "position size", "insider"). Score: 0 a keyword is exactly it, 1 a keyword starts with it,
+ * 2 a word inside a keyword starts with it, 3 a word of the label starts with it. Ties keep
+ * registry order. Fewer than 3 letters names nothing (a ticker is far more likely). `maxScore`
+ * narrows it (0 = an exact keyword only) where a ticker is the likelier reading.
+ */
+export function codesForWords(q, limit = 3, maxScore = 3) {
+  const t = String(q || '').trim().toLowerCase().replace(/\s+/g, ' ')
+  if (t.length < 3) return []
+  const scored = []
+  FUNCTIONS.forEach((f, i) => {
+    const kws = f.keywords || []
+    let s = null
+    if (kws.includes(t)) s = 0
+    else if (kws.some((k) => k.startsWith(t))) s = 1
+    else if (kws.some((k) => k.split(/[^a-z0-9]+/).some((w) => w && w.startsWith(t)))) s = 2
+    else if (!t.includes(' ') && labelWords(f).some((w) => w.startsWith(t))) s = 3
+    if (s != null && s <= maxScore) scored.push([s, i, f.code])
+  })
+  scored.sort((a, b) => a[0] - b[0] || a[1] - b[1])
+  return scored.slice(0, limit).map(([, , code]) => code)
 }

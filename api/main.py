@@ -1202,6 +1202,17 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             from api.services.screener import distribution
             distribution.distributions()
 
+        def _options_sizzle():
+            # FT-075 Sizzle (terminal OSCR/STRS, /api/options-screener/sizzle): one in-memory
+            # ranking per set of logged sessions (research/options_screener.cached), reset on
+            # every deploy. Measured 2026-10-09: 42.6 s cold after a web deploy, 1.3 s warm --
+            # past the terminal panel's 30 s read deadline, so the first member after each
+            # deploy saw an error. Skipped while the route's own switch is off.
+            from api.services.options_analytics import flags as oa_flags
+            if oa_flags.is_on("OPTIONS_SIZZLE_ENABLED"):
+                from api.services.options_analytics import sizzle
+                sizzle.get()
+
         def _his_wire_archive():
             # TERM-049 HIS: the wire lane parses every archived Morning Wire once per
             # process (ticker_history._WIRE_DOC_MEMO), so the first HIS open after each
@@ -1248,6 +1259,30 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             warm_week_previews()
             warm_reported_analyses()
 
+        def _screener_meta_payload():
+            # The rest of /api/screener/meta beyond the bands above (cold-start lane w9-1):
+            # the filter registry, the distinct-value option lists and the lift ledger, built
+            # once without a member so their first-touch costs land here. A slow build logs
+            # its parts (filters._log_if_slow). Local SQLite and local files only.
+            from api.services.screener import filters
+            filters.meta(user_id=None)
+
+        def _scatter_universes():
+            # Terminal SCAT (cold-start lane w9-1): /api/scatter/universes measured 43 s cold
+            # after a web deploy, past the panel's 30 s deadline. This builds the member-
+            # independent part of the menu (themes from auth.db, industries from the industry
+            # map) so first-touch costs are paid here. Local SQLite only; no outbound call.
+            from api.services import scatter
+            scatter.list_universes(None)
+
+        def _flow_reads_proxied():
+            # With FLOW_READS_PROXY_ENABLED=1 + WORKER_INTERNAL_URL (production) every
+            # /api/live/massive read is served by flow-worker, so web's local /recent cache
+            # and day stats are never read, and warming them is a 20-30 s cold scan of a
+            # frozen flow.db copy at the head of this chain. Same rule flow_proxy applies.
+            from api import flow_proxy
+            return bool(flow_proxy.PROXY_ENABLED and flow_proxy.WORKER_INTERNAL_URL)
+
         def _flow_tape_critical():
             # The surfaces users hit FIRST — default ALL FLOW tape + market-read
             # hero. Fills the /recent snapshot cache + warms the flow.db OS page
@@ -1262,6 +1297,9 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             # still matters when the proxy is off (local / fallback). Use
             # warm_recent (SYNCHRONOUS fill) because recent_massive_alerts now
             # returns a non-blocking "warming" stub on a cold key.
+            if _flow_reads_proxied():
+                log.info("[dashboard-warm] flow-tape skipped: flow reads are proxied to flow-worker")
+                return
             from api.live_massive_router import warm_recent, day_stats
             warm_recent(limit=10000, min_grade="D", target_date=None,
                         sort_by="recent", tier=None, curated=False)
@@ -1275,6 +1313,9 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             # cold. Also: limit MUST equal the frontend's default (10000). The old
             # limit=5000 warmed a DIFFERENT cache key (key includes limit), so the
             # user's exact request never hit a warm entry.
+            if _flow_reads_proxied():
+                log.info("[dashboard-warm] flow-curated skipped: flow reads are proxied to flow-worker")
+                return
             from api.live_massive_router import warm_recent
             warm_recent(limit=10000, min_grade="D", target_date=None,
                         sort_by="recent", tier=None, curated=True)
@@ -1283,12 +1324,18 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
         # recompute each) until this block finishes (see readiness.py).
         with readiness.gate("dashboard"):
             _warm("flow-tape", _flow_tape_critical)   # FIRST — the tape is the priority surface
+            # Terminal reads measured slowest cold (2026-10-09: /api/screener/meta >60 s,
+            # /api/scatter/universes 43 s) go next, ahead of everything that can wait.
+            # Both local SQLite only.
+            _warm("screener-meta", _screener_meta)
+            _warm("screener-meta-payload", _screener_meta_payload)
+            _warm("scatter-universes", _scatter_universes)
+            _warm("options-sizzle", _options_sizzle)
             _warm("movers", _movers)
             _warm("themes", _themes)
             _warm("news", _news)
             _warm("breadth", _breadth)
             _warm("breadth-live", _breadth_live)
-            _warm("screener-meta", _screener_meta)
             _warm("his-wire-archive", _his_wire_archive)
             _warm("calendar", _calendar)
             # earnings-previews only needs `_calendar` (it reads the week list),
@@ -6723,6 +6770,22 @@ async def lifespan(app: FastAPI):
 
         _scheduler.add_job(_cot_daily_catchup, trigger=CronTrigger(hour=18, minute=0, timezone=_ET), id="cot_daily_catchup", max_instances=1, replace_existing=True)
         _scheduler.add_job(cleanup_expired_sessions, trigger=CronTrigger(hour=3, minute=0, timezone=_ET), id="session_cleanup", max_instances=1, replace_existing=True)
+
+        # -- Activity data retention (owner ruling 2026-10-09: keep 1 year) ----
+        # Deletes activity_log + page_views rows older than RETENTION_DAYS (365,
+        # a code constant in the service) in bounded batches, one commit each.
+        # 03:50 ET: clear of the 03:40 broker fidelity audit, which also uses
+        # auth.db. Unconditional (no flag). run_scheduled never raises.
+        try:
+            from api.services import activity_retention as _activity_retention
+            _scheduler.add_job(
+                _activity_retention.run_scheduled,
+                trigger=CronTrigger(hour=3, minute=50, timezone=_ET),
+                id="activity_log_retention", max_instances=1, replace_existing=True,
+                coalesce=True, misfire_grace_time=3600,
+            )
+        except Exception as e:
+            print(f"[scheduler] activity retention registration error: {e}")
 
         # -- Ticker logo miss-retry (2026-08-05 cache-poison sweep) ----------
         try:

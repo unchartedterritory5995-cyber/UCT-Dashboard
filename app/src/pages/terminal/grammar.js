@@ -21,14 +21,28 @@ import { money, planAlert } from './alertModel'
  *  was a false collision. CAL, TECH, FA, EE, PPL, CMP, NB and EXP were added — each IS a
  *  tracked symbol (Caleres, Bio-Techne-class tickers, etc.) and was missing a warning.
  *  EXP left with its code (removed from the terminal 2026-10-08): bare EXP is the ticker's note
- *  now (functions.js RETIRED), and `$EXP` loads Eagle Materials. */
-export const TICKER_COLLISIONS = Object.freeze(['DASH', 'CF', 'FORM', 'RES', 'CAL', 'TECH', 'FA', 'EE', 'PPL', 'CMP', 'NB'])
+ *  now (functions.js RETIRED), and `$EXP` loads Eagle Materials.
+ *  OBT (Orange County Bancorp) and OSCR (Oscar Health) added 2026-10-09 (w9-4): both are in
+ *  cap_universe.json and were missing their warning. parseCommand.routing.test.js now pins the
+ *  list to the universe file, so a new code that is also a ticker cannot slip in silently. */
+export const TICKER_COLLISIONS = Object.freeze(['DASH', 'CF', 'FORM', 'RES', 'CAL', 'TECH', 'FA', 'EE', 'PPL', 'CMP', 'NB', 'OBT', 'OSCR'])
 
 /** THE RULE, as one sentence HELP prints verbatim. */
 export const COLLISION_RULE = 'A bare word that is a function code runs the function. '
   + 'To mean the ticker, put $ in front of it ($CF, $DASH) or follow it with a function '
   + '(CF DES). When a code is also a real ticker, the line above the input says so before '
   + 'you press Enter: it is never resolved silently.'
+
+/** A market-wide code given a ticker: the code that shows that ticker's own version, if any. */
+export const TICKER_INSTEAD = Object.freeze({ NEWS: 'CN', INS: 'PPL' })
+
+/** Pure: "NEWS is market-wide; NVDA is ignored." plus, when one exists, the code to type for the
+ *  ticker's own view. `verb` is "is ignored" before Enter and "was not applied" after it. */
+export function marketWideNote(code, sym, verb = 'is ignored') {
+  const alt = TICKER_INSTEAD[String(code || '').toUpperCase()]
+  const base = `${code} is market-wide; ${sym} ${verb}.`
+  return alt && BY_CODE[alt]?.ticker ? `${base} ${sym} ${alt} opens ${BY_CODE[alt].label.toLowerCase()}.` : base
+}
 
 export function isTickerCollision(code) {
   return TICKER_COLLISIONS.includes(String(code || '').toUpperCase())
@@ -85,6 +99,7 @@ export const RANKING_ORDER = Object.freeze([
   { key: 'symbol', label: 'Exact ticker' },
   { key: 'prefix', label: 'Prefix match' },
   { key: 'fuzzy', label: 'Close spelling' },
+  { key: 'word', label: 'A word for what a function does (breakout, insider, position size)' },
   { key: 'frecency', label: 'Your most-used codes, and tickers you viewed lately (tie-break)' },
   { key: 'popular', label: 'Widely traded ticker, then A-Z (tie-break)' },
 ])
@@ -158,6 +173,7 @@ export function argShape(code) {
   if (fn.code === 'HELP') return 'HELP [FUNC]'
   if (fn.code === 'ALRT') return 'TICKER ALRT PRICE (or >PRICE, <PRICE)  ·  [TICKER] ALRT'
   if (fn.code === 'MON') return 'MON [N | W:id | FLAGGED]  ·  W'
+  if (fn.code === 'SCAT') return 'SCAT [UNIVERSE] [Y-METRIC X-METRIC]'
   if (t && m) return `[TICKER] ${fn.code}${tail}`
   if (t) return `TICKER ${fn.code}${tail}`
   return fn.code
@@ -249,7 +265,7 @@ export function describeCommand(cmd) {
   const base = `${cmd.code}: ${label}${on}${extra}${via}${ch}${leaves}`
   const notes = []
   let tone = 'ok'
-  if (marketOnly) { notes.push(`${cmd.code} is market-wide; ${cmd.sym} is ignored.`); tone = 'warn' }
+  if (marketOnly) { notes.push(marketWideNote(cmd.code, cmd.sym)); tone = 'warn' }
   if (cmd.from === 'ERN') notes.push('ERN with no ticker opens the earnings calendar; NVDA ERN opens one company.')
   if (cmd.collision) { notes.push(`${cmd.collision} is also a ticker: type $${cmd.collision} for the stock.`); tone = 'warn' }
   if (cmd.argNotTicker) {

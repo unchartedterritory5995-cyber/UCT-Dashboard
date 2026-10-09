@@ -34,9 +34,19 @@ costs at our size, and what attribution is required.
 **Published terms relied on, not a signed agreement:** Anthropic and OpenAI do not train on
 API data under their commercial terms. OpenAI keeps API data for up to 30 days for abuse
 monitoring (OpenAI "your data" guide). Anthropic's retention is in its API data-retention docs.
-**Zero-data-retention** needs a sales agreement with each company. Decision D7 still stands:
+**Zero-data-retention** needs a sales agreement with each company. ~~Decision D7 still stands:
 features already live keep running under the published terms, and **semantic search over
-member notes stays dark until ZDR is confirmed in writing**.
+member notes stays dark until ZDR is confirmed in writing**.~~
+**OWNER RULING 2026-10-09 supersedes D7's hold: the published terms are enough.** Asked whether
+to send the two zero-retention letters or rely on the published commercial terms (no training
+on API data, limited abuse-monitoring retention), the owner chose the published terms. So: no
+ZDR letters are sent; meaning search (`NOTEBOOK_SEMANTIC_SEARCH_ENABLED`) and voice notes
+(`NOTEBOOK_VOICE_NOTES_ENABLED`) arm on those terms; and `Privacy.jsx` says so plainly before
+either arms -- it names meaning search and voice notes under OpenAI, voice-note summaries under
+Anthropic, and states "we rely on these published terms and do not have a separate
+zero-data-retention agreement with either company". The scorecard clauses that read "vendor
+data terms verified in writing (zero retention)" stay unmet by this decision, and that is the
+owner's call, recorded rather than worked around.
 
 ⚠️ **The voice-history embeddings are already live** and already send member content to
 OpenAI under the default retention (`risk_voice_embeddings_default_retention` in memory). As of

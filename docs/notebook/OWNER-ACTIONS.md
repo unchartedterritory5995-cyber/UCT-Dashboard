@@ -45,22 +45,28 @@ words in chat; the scheduled-task readings were taken on this machine on 2026-10
   anyone's control, and then two small steps: put the install link in the Notebook's capture
   help, and switch the listing to Public at launch. If it is not, row 2 is still to do. One
   look at the Chrome Web Store developer dashboard settles it.
-  **SETTLED 2026-10-09 ~11:45 CT: NOT submitted.** Opening
-  `https://chrome.google.com/webstore/devconsole` in the owner's own signed-in Chrome landed on
-  `/webstore/devconsole/register` ("Chrome Web Store - Developer Agreement"): this Google
-  account has never registered as a Chrome Web Store developer, so no item exists. Row 2 is
-  the full §1 path: register ($5, agreement), New item, upload
-  `.extension-build/uct-browser-capture-0.1.0.zip` (rebuilt today, sha256 71f4c8251c952891),
-  paste the listing and privacy text from `chrome-web-store-listing.md`, Unlisted, submit.
-  ⚠️ Chrome forbids extensions from scripting the gallery/console pages, so an agent can open
-  them in the owner's Chrome but can neither read nor fill them; the owner does those tabs.
+  **SETTLED 2026-10-09 ~13:20 CT: SUBMITTED AND PUBLISHED (unlisted).** The owner's report was
+  right. The developer dashboard under the publisher account that owns it lists **UCT Browser
+  Capture, version 0.1.0, created and last updated Sep 26, 2026, status "Published - unlisted"**,
+  item id `kpogeikeoejgkefdcjdpeoonmbiflnlk`; the public page
+  `https://chromewebstore.google.com/detail/uct-browser-capture/kpogeikeoejgkefdcjdpeoonmbiflnlk`
+  answers 200 titled "UCT Browser Capture - Chrome Web Store". ⚰️ An earlier entry here (#303,
+  ~11:45 CT) said "NOT submitted": it read a DIFFERENT Google account's dashboard, which
+  redirects to developer registration, and generalised one account to all of them. The two
+  follow-ups are DONE: the Settings card links to the store page (#304), and the handshake is
+  pinned to this id (`CAPTURE_EXTENSION_IDS` on web, 2026-10-09 18:20Z, ledger `knobs`). What
+  remains at launch is one switch in the dashboard: Distribution, Unlisted to Public.
+  ⚠️ Chrome forbids extensions from scripting the gallery/console pages; the dashboard was read
+  from an OS screen capture of the window, never driven.
 - **Row 6 (the soak): already running.** The nightly roll-up task `UCT-NB-Soak` has run since
   2026-09-26; its last run was 2026-09-30 18:30 and exited 0. That run's line reads day 4.2 of
   30, verdict INCONCLUSIVE, with 2 of the 5 organic members and 3 of the 20 active members the
   soak needs. So the setup is done; what is left is the cohort. The 30 days only count once
   enough real members are using the Notebook.
-- **Row 1 (the two zero-retention letters): deferred by the owner.** On 2026-09-26 the owner
-  chose to send them shortly after the live launch. The drafts in §2 are unchanged and ready.
+- **Row 1 (the two zero-retention letters): CLOSED by owner ruling 2026-10-09 -- not sent.** The
+  owner chose the vendors' published terms over written ZDR (`VENDOR-TERMS-2026-09-23.md` §2).
+  Meaning search and voice notes arm on those terms, after `Privacy.jsx` says so. The drafts in
+  §2 are kept for the record only.
 - **Row 7's caveat is closed.** The screener now asks the weekly question (question 6 in
   `docs/notebook/user-study/screener.md` §2), and the kit says how to read the answers
   (`docs/notebook/user-study-kit.md` §9), both added on 2026-10-01. So the trader study can
@@ -1033,6 +1039,11 @@ for this table at all (the previous, false "90 days" claim was removed in `24db0
 
 **Owner time:** ~15–20 min to decide and say so; building the purge job and updating the Privacy
 page is not owner time.
+
+**DECIDED 2026-10-09 by the owner: 1 year.** `activity_log` and `page_views` (both are the
+"Activity data" the Privacy page describes) are kept 365 days, then deleted by a daily job
+(`api/services/activity_retention.py`, scheduler id `activity_log_retention`), and `Privacy.jsx`
+states "kept for 1 year for security and support, then deleted automatically".
 
 ---
 
