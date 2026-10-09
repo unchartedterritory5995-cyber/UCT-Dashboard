@@ -33,6 +33,19 @@ export function isTickerCollision(code) {
   return TICKER_COLLISIONS.includes(String(code || '').toUpperCase())
 }
 
+// ── HELP's "Start here" (owner decision 2026-10-08, product item #1) ───────────────────────
+/** The few functions a new swing trader uses every day, each with one example that runs as typed.
+ *  HELP prints this BEFORE the full list and the expert rules. `grammar.test.js` pins every code
+ *  to the registry and every example to a parse that opens that code. */
+export const START_HERE = Object.freeze([
+  { code: 'DES', example: 'NVDA DES', what: 'What a company is and how its stock is trading' },
+  { code: 'GP', example: 'NVDA GP', what: 'A price chart (add W for weekly: NVDA GP W)' },
+  { code: 'MOVE', example: 'NVDA MOVE', what: 'Why a stock is moving, and what is new since you last looked' },
+  { code: 'CAL', example: 'CAL', what: 'Earnings and events this week' },
+  { code: 'MOST', example: 'MOST', what: "Today's biggest gainers, losers and unusual volume" },
+  { code: 'RRG', example: 'RRG', what: 'Which sectors are leading or lagging the market' },
+])
+
 // ── V6b: channels ─────────────────────────────────────────────────────────────
 /** `@A NVDA` targets the panel(s) linked to group A; `@2 NVDA GP` targets panel 2. A–D are the
  *  /charts groups; E … Z (then C27, C28 …) are the groups a board adds (boardModel
