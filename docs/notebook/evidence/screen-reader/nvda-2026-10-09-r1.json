@@ -1,0 +1,399 @@
+{
+ "started": "2026-10-09T02:24:34",
+ "nvda_version": "2026.2",
+ "base": "https://uctintelligence.com",
+ "rows": [
+  {
+   "n": 1,
+   "keys": "Tab",
+   "expected": [
+    "Skip to notes list",
+    "link"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Skip to notes list', 'link']; heard: column 3 Sort by Name button",
+   "heard": [
+    "column 3 Sort by Name button"
+   ]
+  },
+  {
+   "n": 2,
+   "keys": "Enter",
+   "expected": [
+    "All notes",
+    "heading"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['All notes', 'heading']; heard: sorted ascending",
+   "heard": [
+    "sorted ascending"
+   ]
+  },
+  {
+   "n": 3,
+   "keys": "focus Hide folders panel, Tab",
+   "expected": [
+    "Hide folders panel",
+    "button",
+    "Panel view",
+    "tab"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Hide folders panel', 'Panel view', 'tab']; heard: Resize Name column button",
+   "heard": [
+    "Resize Name column button"
+   ]
+  },
+  {
+   "n": 4,
+   "keys": "focus the All notes row",
+   "expected": [
+    "All notes",
+    "button"
+   ],
+   "result": "FAIL",
+   "notes": "NVDA spoke nothing in the window",
+   "heard": []
+  },
+  {
+   "n": 5,
+   "keys": "focus Expand SR folder, Enter",
+   "expected": [
+    "Expand SR folder",
+    "button",
+    "collapsed",
+    "expanded"
+   ],
+   "result": "FAIL",
+   "notes": "NVDA spoke nothing in the window",
+   "heard": []
+  },
+  {
+   "n": 6,
+   "keys": "Enter on SR folder, Tab x3",
+   "expected": [
+    "SR folder",
+    "Rename SR folder",
+    "Add subfolder to SR folder",
+    "Delete SR folder"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['SR folder', 'Rename SR folder', 'Add subfolder to SR folder', 'Delete SR folder']; heard: column 4 Sort by Type button / column 5 Sort by Content button / Resize Content column button",
+   "heard": [
+    "column 4 Sort by Type button",
+    "column 5 Sort by Content button",
+    "Resize Content column button"
+   ]
+  },
+  {
+   "n": 7,
+   "keys": "focus the tag row",
+   "expected": [
+    "srpass",
+    "button"
+   ],
+   "result": "FAIL",
+   "notes": "NVDA spoke nothing in the window",
+   "heard": []
+  },
+  {
+   "n": 8,
+   "keys": "focus Expand Saved Views, Enter, focus SR view",
+   "expected": [
+    "Expand Saved Views",
+    "button",
+    "SR view"
+   ],
+   "result": "FAIL",
+   "notes": "driver error: TimeoutError: Locator.focus: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Expand Saved Views\", exact=True).first\n",
+   "heard": []
+  },
+  {
+   "n": 9,
+   "keys": "focus All notes row (clears the view); focus Sort notes; Tab to List view; Tab; Space on Table view",
+   "expected": [
+    "Sort notes",
+    "combo box",
+    "List view",
+    "pressed",
+    "Table view"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Sort notes', 'combo box', 'List view', 'pressed', 'Table view']; heard: column 6 Sort by Proxy status button / column 7 Sort by TTL button / sorted descending",
+   "heard": [
+    "column 6 Sort by Proxy status button",
+    "column 7 Sort by TTL button",
+    "sorted descending"
+   ]
+  },
+  {
+   "n": 10,
+   "keys": "Back to List; Tab to the SR pass card; Enter",
+   "expected": [
+    "SR pass",
+    "heading"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['SR pass', 'heading']; heard: sorted ascending / not sorted",
+   "heard": [
+    "sorted ascending",
+    "not sorted"
+   ]
+  },
+  {
+   "n": 11,
+   "keys": "Tab x6",
+   "expected": [
+    "Subtitle",
+    "Editor toolbar",
+    "Note body"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Subtitle', 'Editor toolbar', 'Note body']; heard: column 8 Resize Tags column button / column 9 Resize Comment column button / column 10 Resize Details column button / row 2 Select All column 1 Select CNAME record with name cka2._domainkey.mail.uctintelligence.com check box checked /   column 11 Edit CNAME record with name cka2._domainkey.mail.ucti",
+   "heard": [
+    "column 8 Resize Tags column button",
+    "column 9 Resize Comment column button",
+    "column 10 Resize Details column button",
+    "row 2 Select All column 1 Select CNAME record with name cka2._domainkey.mail.uctintelligence.com check box checked",
+    "  column 11 Edit CNAME record with name cka2._domainkey.mail.uctintelligence.com button collapsed",
+    "row 3 Select All column 1 Select CNAME record with name cka._domainkey.mail.uctintelligence.com check box checked"
+   ]
+  },
+  {
+   "n": 12,
+   "keys": "Insert+Space (browse mode), H, T, Down, Right",
+   "expected": [
+    "Setup",
+    "heading",
+    "table",
+    "Sym"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Setup', 'heading', 'table', 'Sym']; heard: \ufffc / blank",
+   "heard": [
+    "\ufffc",
+    "blank"
+   ]
+  },
+  {
+   "n": "12b",
+   "keys": "Insert+Space (focus mode); Tab, Tab, Alt+F10, Escape",
+   "expected": [
+    "Table",
+    "tool bar"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Table', 'tool bar']; heard:   column 11 Edit CNAME record with name cka._domainkey.mail.uctintelligence.com button collapsed / row 4 Select All column 1 Select CNAME record with name ckespa.mail.uctintelligence.com check box checked",
+   "heard": [
+    "  column 11 Edit CNAME record with name cka._domainkey.mail.uctintelligence.com button collapsed",
+    "row 4 Select All column 1 Select CNAME record with name ckespa.mail.uctintelligence.com check box checked"
+   ]
+  },
+  {
+   "n": 13,
+   "keys": "end of body, Enter, /, Down",
+   "expected": [
+    "Insert block"
+   ],
+   "result": "FAIL",
+   "notes": "driver error: TimeoutError: Locator.focus: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\".ProseMirror\").first\n",
+   "heard": []
+  },
+  {
+   "n": 14,
+   "keys": "Escape",
+   "expected": [
+    "Note body"
+   ],
+   "result": "FAIL",
+   "notes": "(expects the body's name back, nothing else) NVDA spoke nothing in the window",
+   "heard": []
+  },
+  {
+   "n": 15,
+   "keys": "type [[SR tar, Down, Enter",
+   "expected": [
+    "Link to a note",
+    "SR target"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Link to a note', 'SR target']; heard: no next separator / no next radio button / no next table / no next annotation / no next radio button / S / not checked",
+   "heard": [
+    "no next separator",
+    "no next radio button",
+    "no next table",
+    "no next annotation",
+    "no next radio button",
+    "S",
+    "not checked"
+   ]
+  },
+  {
+   "n": 16,
+   "keys": "Ctrl+F, type stop",
+   "expected": [
+    "Find in note"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Find in note']; heard: s Account | Cloudflare - Part of group \u2705Claude - Google Chrome - Patrick\",  / s Account | Cloudflare\",  / Find edit F / s / t / o / p / Result 1 of 1",
+   "heard": [
+    "s Account | Cloudflare - Part of group \u2705Claude - Google Chrome - Patrick\", ",
+    "s Account | Cloudflare\", ",
+    "Find edit F",
+    "s",
+    "t",
+    "o",
+    "p",
+    "Result 1 of 1"
+   ]
+  },
+  {
+   "n": 17,
+   "keys": "Ctrl+H, Tab, Escape",
+   "expected": [
+    "replace",
+    "Note body"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['replace', 'Note body']; heard: History / Loading\u2026 / Search history edit blank / menu / Chrome history current page 1 of 3 / All items unselected, selection mode exited.  ",
+   "heard": [
+    "History",
+    "Loading\u2026",
+    "Search history edit blank",
+    "menu",
+    "Chrome history current page 1 of 3",
+    "All items unselected, selection mode exited.  "
+   ]
+  },
+  {
+   "n": 18,
+   "keys": "focus Ask, Enter",
+   "expected": [
+    "Ask a question about this note",
+    "Your question"
+   ],
+   "result": "FAIL",
+   "notes": "driver error: TimeoutError: Locator.focus: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Ask a question about this note\", exact=True).first\n",
+   "heard": []
+  },
+  {
+   "n": 19,
+   "keys": "type a question the note cannot answer, Enter, wait",
+   "expected": [
+    "find",
+    "note"
+   ],
+   "result": "FAIL",
+   "notes": "driver error: TimeoutError: Page.wait_for_function: Timeout 90000ms exceeded.",
+   "heard": []
+  },
+  {
+   "n": 20,
+   "keys": "focus Close Ask, Enter",
+   "expected": [
+    "Ask a question about this note",
+    "button"
+   ],
+   "result": "FAIL",
+   "notes": "driver error: TimeoutError: Locator.focus: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Close Ask\", exact=True).first\n",
+   "heard": []
+  },
+  {
+   "n": 21,
+   "keys": "list; Graph view; Show as list, Space",
+   "expected": [
+    "Graph view",
+    "Show as list",
+    "pressed"
+   ],
+   "result": "FAIL",
+   "notes": "driver error: TimeoutError: Locator.focus: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Show as list\", exact=True).first\n",
+   "heard": []
+  },
+  {
+   "n": 22,
+   "keys": "Space; focus the canvas; Home; Right",
+   "expected": [
+    "Note graph",
+    "notes",
+    "links"
+   ],
+   "result": "FAIL",
+   "notes": "driver error: TimeoutError: Locator.focus: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"application\").first\n",
+   "heard": []
+  },
+  {
+   "n": 23,
+   "keys": "List; Save view, Enter, Escape",
+   "expected": [
+    "Save view",
+    "dialog",
+    "Name"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Save view', 'dialog', 'Name']; heard: All items unselected, selection mode exited.  ",
+   "heard": [
+    "All items unselected, selection mode exited.  "
+   ]
+  },
+  {
+   "n": 24,
+   "keys": "open the note; Delete, Enter; confirm",
+   "expected": [
+    "Delete this note",
+    "dialog"
+   ],
+   "result": "FAIL",
+   "notes": "driver error: TimeoutError: Locator.focus: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"dialog\").get_by_role(\"button\", name=re.compile(r\"Delete|Move to Trash|Trash\")).first\n",
+   "heard": []
+  },
+  {
+   "n": 25,
+   "keys": "no notes: open the Notebook home; focus its heading",
+   "expected": [
+    "Welcome to your Notebook",
+    "heading"
+   ],
+   "result": "FAIL",
+   "notes": "NVDA spoke nothing in the window",
+   "heard": []
+  },
+  {
+   "n": 26,
+   "keys": "Share, Enter, Tab, Escape",
+   "expected": [
+    "Share this note",
+    "Share link address"
+   ],
+   "result": "NOT RUN",
+   "notes": "left to the owner: the step mints a public share link for a note on the smoke account",
+   "heard": []
+  },
+  {
+   "n": 27,
+   "keys": "? anywhere in the Journal",
+   "expected": [
+    "Keyboard Shortcuts",
+    "dialog"
+   ],
+   "result": "FAIL",
+   "notes": "NVDA spoke nothing in the window",
+   "heard": []
+  }
+ ],
+ "made": {
+  "notes": [
+   "043f154589464bbd948a9e97cc98db0b",
+   "c35bff1a729b4db98f2ebee085324fc0"
+  ],
+  "folders": [
+   "fb09f741e6f4498ba68ae69311bfe984",
+   "c780dd83bb284daf81e9c84f74b19e21"
+  ],
+  "views": [
+   "937ee4008b8848b8a843a828a7d564f3"
+  ]
+ },
+ "left_active_notes": 0,
+ "finished": "2026-10-09T02:31:42"
+}
