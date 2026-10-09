@@ -598,6 +598,22 @@ describe('PHONE (<=640): one panel, the command line pinned first, functions in 
   })
 })
 
+describe('wave 4 lane D: a panel header dot draws its group through the theme token, the stored hex unchanged', () => {
+  it('a linked panel paints var(--link-group-*) (ring + letter); the saved board still holds the hex', async () => {
+    store.prefs = { terminal_layout: JSON.stringify({ v: 2, count: 2, focus: 0, closed: [],
+      channels: [{ id: 'E', name: 'Group E', color: '#facc15', sym: 'EEE', history: [] }],
+      panels: [{ id: 'b', code: 'GP', channel: 'A', sym: 'AAA' }, { id: 'c', code: 'DES', channel: 'E', sym: 'EEE' }] }) }
+    renderAt('/terminal')
+    const a = screen.getByTestId('terminal-group-0')
+    const e = screen.getByTestId('terminal-group-1')
+    expect(a.style.getPropertyValue('--dot')).toBe('var(--link-group-a)')
+    expect(a.style.getPropertyValue('--dot-ink')).toBe('var(--link-group-a)')
+    expect(e.style.getPropertyValue('--dot')).toBe('var(--link-group-4)')
+    expect(e.style.getPropertyValue('--dot-ink')).toBe('var(--link-group-4)')
+    expect(JSON.parse(store.prefs.terminal_layout).channels.find((c) => c.id === 'E').color).toBe('#facc15')
+  })
+})
+
 describe('PHONE layout rail (CSS source — jsdom computes no layout; see tapFloor.test.js)', () => {
   const css = fs.readFileSync(path.join(process.cwd(), 'src/pages/terminal/TerminalShell.module.css'), 'utf8')
     .replace(/\/\*[\s\S]*?\*\//g, '')

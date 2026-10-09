@@ -55,6 +55,26 @@ export const GROUP_DOT = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc
 /** Colours for channels beyond D, cycled. Data, not a ceiling. */
 export const CHANNEL_COLORS = ['#f472b6', '#fb923c', '#2dd4bf', '#facc15', '#a3e635', '#38bdf8', '#e879f9', '#f87171']
 
+/** Stored group hex -> the theme-aware DISPLAY token it renders as (tokens.css `--link-group-*`).
+ *  ⛔ RENDER-TIME ONLY: the hex above stays what boards, share links and /charts store and
+ *  compare; nothing is migrated. On the dark default each token IS its stored hex, so dark draws
+ *  exactly what /charts draws; the light theme darkens each one until it reads as text (AA). */
+const GROUP_TOKEN = new Map([
+  ...COMPAT_CHANNELS.map((id) => [GROUP_DOT[id], `--link-group-${id.toLowerCase()}`]),
+  ...CHANNEL_COLORS.map((hex, i) => [hex, `--link-group-${i + 1}`]),
+])
+
+/** The inline style a group dot/swatch takes for a STORED colour: `--dot` (ring / swatch, may
+ *  stay decorative) and `--dot-ink` (letter text, AA on every theme). A valid hex outside the
+ *  palette (an old share link) keeps its own ring and gets NO `--dot-ink`, so its letter falls
+ *  back to `--text` rather than an unmeasured colour. */
+export function groupStyle(color) {
+  if (typeof color !== 'string' || !HEX_RE.test(color)) return {}
+  const token = GROUP_TOKEN.get(color.toLowerCase())
+  if (!token) return { '--dot': color }
+  return { '--dot': `var(${token})`, '--dot-ink': `var(${token})` }
+}
+
 /** `B:<slug>` — a named board's address. Same character class as the server's addresses. */
 export const BOARD_ADDRESS_RE = /^B:([A-Za-z0-9_-]{1,40})$/i
 const CHANNEL_ID_RE = /^[A-Z][A-Z0-9]{0,3}$/
