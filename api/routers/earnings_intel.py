@@ -300,22 +300,51 @@ def transcript_endpoint(
     if not sym:
         return None
     entity, _ = resolve_entity(sym)
+    # Wave-2 audit 2026-10-08: a cold open measured ~17 s. The provider chain below
+    # (FMP index + body at 10 s each, then up to four AlphaVantage probes at 15 s each)
+    # ran on the request thread with no overall bound. It now runs off the request
+    # thread, deduped per (symbol, quarter); past _TRANSCRIPT_BUDGET this answers 503 +
+    # Retry-After and the fetch keeps going and caches, so the client's re-ask (the
+    # section fetcher retries a 503 once by itself) is a cache hit or joins the SAME
+    # fetch instead of starting a second chain.
+    from api.services import bounded_flight
+    try:
+        res = bounded_flight.run(
+            f"transcript::{sym}::{quarter or 'latest'}",
+            lambda: _fetch_transcript(sym, quarter or None),
+            _TRANSCRIPT_BUDGET)
+    except bounded_flight.Pending:
+        raise HTTPException(
+            status_code=503,
+            detail=f"The transcript for {sym} is still being fetched; try again shortly",
+            headers={"Retry-After": "8"})
+    if res:
+        res["entity"] = entity
+    return res
+
+
+# How long a transcript read waits on the provider chain before answering 503 +
+# Retry-After (the chain keeps running; see bounded_flight).
+_TRANSCRIPT_BUDGET = float(os.environ.get("TRANSCRIPT_REQUEST_BUDGET", "8.0"))
+
+
+def _fetch_transcript(sym: str, quarter):
+    """FMP first, AlphaVantage only when FMP came up empty. Never raises. The module
+    names are read at CALL time so a test's monkeypatch reaches this path."""
     # FMP first — uncapped on Ultimate, so no quota discipline needed.
     try:
-        res = get_fmp_transcript(sym, quarter=quarter or None)
+        res = get_fmp_transcript(sym, quarter=quarter)
         if res and res.get("segments"):
             res = _with_qa_boundary(res)
             res["source"] = "fmp"
-            res["entity"] = entity
             return res
     except Exception as e:
         _log.warning("[earnings_intel] fmp transcript failed for %s: %s", sym, e)
     # AlphaVantage fallback (rate-limited) only when FMP came up empty.
     try:
-        res = _with_qa_boundary(get_transcript(sym, quarter=quarter or None))
+        res = _with_qa_boundary(get_transcript(sym, quarter=quarter))
         if res:
             res["source"] = "alphavantage"
-            res["entity"] = entity
         return res
     except Exception as e:
         _log.warning("[earnings_intel] av transcript failed for %s: %s", sym, e)

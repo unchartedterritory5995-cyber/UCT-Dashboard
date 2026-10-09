@@ -41,6 +41,9 @@ _RECAP_TTL   = 24 * 3600   # 24 hours — a SUCCESSFUL recap
 #                 far too long to hold it.
 _FAILURE_TTL = 600         # 10 minutes
 _EMPTY_TTL   = 3600        # 1 hour
+# How long a cold call-recap / sentiment read waits on the transcript lookup before
+# answering "generating" (the lookup keeps running; see bounded_flight).
+_RECAP_TX_BUDGET = float(os.environ.get("CALL_RECAP_TX_BUDGET", "4.0"))
 _SENTIMENT_TTL = 12 * 3600  # 12 hours
 _WEBCAST_TTL  = 24 * 3600   # 24 hours
 _RATINGS_TTL  = 6 * 3600    # 6 hours
@@ -136,6 +139,25 @@ def _transcript_for(sym: str):
     except Exception as exc:
         _log.debug("[call_recap] av transcript unavailable for %s: %s", sym, exc)
         return None
+
+
+class _TranscriptPending(Exception):
+    """The bounded transcript lookup is still running past its budget."""
+
+
+def _bounded_transcript_for(sym: str):
+    """`_transcript_for` off the request thread, waited on for at most
+    `_RECAP_TX_BUDGET` seconds and shared by every concurrent caller for the symbol
+    (the recap and the sentiment read of one TRAN open join ONE lookup). Raises
+    `_TranscriptPending` past the budget; the lookup keeps running and its provider
+    services cache the answer for the next ask. `_transcript_for` is looked up at
+    CALL time so a test's patch of it still reaches this path."""
+    from api.services import bounded_flight
+    try:
+        return bounded_flight.run(
+            f"recap-transcript::{sym}", lambda: _transcript_for(sym), _RECAP_TX_BUDGET)
+    except bounded_flight.Pending:
+        raise _TranscriptPending(sym) from None
 
 
 def _anthropic_client():
@@ -260,7 +282,15 @@ def get_call_recap_with_status(
     # warmer rather than generated inline: 39s on the request path is exactly
     # the behaviour this design exists to remove. The transcript panel still
     # opens immediately, so the reader is never blocked on the summary.
-    transcript = _transcript_for(sym)
+    # Wave-2 audit 2026-10-08: the cold transcript lookup is a provider CHAIN (FMP
+    # index + body, then up to four AlphaVantage probes) and ran unbounded on the
+    # request thread. Bounded now; past the budget the lookup keeps running in the
+    # background (and caches), and the reader is told "generating" -- which the panel
+    # already re-asks on its own -- instead of being held for the whole chain.
+    try:
+        transcript = _bounded_transcript_for(sym)
+    except _TranscriptPending:
+        return None, "generating"
     if transcript and transcript.get("segments"):
         _trigger_background_warm(sym)
         return None, "generating"
@@ -434,7 +464,10 @@ def get_sentiment(ticker: str) -> Optional[dict[str, Any]]:
 
     # No warmed recap: a transcript-bearing ticker is left to the warmer rather
     # than paying for a separate web-grounded read on the request path.
-    transcript = _transcript_for(sym)
+    try:
+        transcript = _bounded_transcript_for(sym)   # wave-2: bounded, see the recap
+    except _TranscriptPending:
+        return None
     if transcript and transcript.get("segments"):
         _trigger_background_warm(sym)
         return None
