@@ -97,6 +97,16 @@ export function usePanelRun() {
 }
 
 /**
+ * Wave 3 (lane 13): re-run a command IN THIS PANEL (its own slot), so an embedded panel's chip can
+ * write its state back into its command -- `FREC` -> `FREC MINE` -- and a reload, `?cmd=` and the
+ * history keep it. Returns `rerun(text)` inside a terminal panel, `null` everywhere else (the page
+ * then keeps the choice in component state only).
+ */
+export function usePanelRerun() {
+  return useContext(PanelListContext)?.rerun || null
+}
+
+/**
  * The common case: a list whose rows each name ONE security. Publishes `$SYM` per visible row
  * (duplicates kept — row N is the Nth row on screen) and the de-duplicated names as the panel's
  * list for `BOARD <FUNC>` / the "Board of" control. Returns the de-duplicated names.

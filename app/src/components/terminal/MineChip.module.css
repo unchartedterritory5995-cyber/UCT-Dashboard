@@ -1,0 +1,54 @@
+/* The "Mine" chip and its empty state (wave 3 lane 13). App tokens only: the terminal wears the
+   member's theme (dark / light / oled). The pressed state is said by aria-pressed AND a tick, so
+   colour is never the only signal. */
+
+.chip {
+  font: inherit;
+  font-size: var(--text-xs);
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 24px;
+}
+
+.chip[aria-pressed='true'] {
+  color: var(--text-bright);
+  border-color: var(--accent);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (max-width: 1024px) {
+  .chip { min-height: var(--tap-min); }
+}
+
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+.noteTitle {
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs) var(--space-sm);
+}
