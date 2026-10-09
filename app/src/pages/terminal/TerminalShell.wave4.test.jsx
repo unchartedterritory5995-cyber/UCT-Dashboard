@@ -144,3 +144,36 @@ describe('fix 1: an arriving ?cmd= is never overwritten by the focused panel\'s 
     expect(params().get('cmd')).toBe('NVDA GP')
   })
 })
+
+describe('fix 2: a bare ticker on the calendar loads into the overview beside it', () => {
+  it('first-visit board (CAL focused, SPY overview): NVDA goes into the overview, the calendar stays', async () => {
+    renderAt(['/terminal'])                                   // no saved board: CAL + SPY DES
+    await settle()
+    await type('NVDA')
+    expect(code(0)).toBe('CAL')
+    expect(code(1)).toBe('DES')
+    expect(screen.getAllByTestId('stub-Overview')).toHaveLength(1)
+    expect(screen.getByTestId('stub-Overview')).toHaveTextContent('Overview:NVDA')
+    expect(screen.getByTestId('terminal-panel-1').dataset.focused).toBe('true')
+    expect(screen.getByTestId('terminal-notice')).toHaveTextContent('Loaded NVDA into the overview in panel 2; CAL stays in panel 1.')
+    expect(params().get('cmd')).toBe('NVDA DES')
+    expect(params().get('p')).toBe('2')
+  })
+
+  it('with no overview on screen, the focused calendar takes the ticker as before', async () => {
+    store.prefs = { terminal_layout: JSON.stringify({ v: 2, count: 1, focus: 0, panels: [{ id: 'p1', code: 'CAL', channel: 'A' }] }) }
+    renderAt(['/terminal'])
+    await type('NVDA')
+    expect(code(0)).toBe('DES')
+    expect(screen.getByTestId('stub-Overview')).toHaveTextContent('Overview:NVDA')
+  })
+
+  it('a ticker panel keeps the old rule: a bare ticker turns the focused panel into DES', async () => {
+    store.prefs = { charts_workspace_groups: JSON.stringify({ A: 'AMD' }),
+      terminal_layout: JSON.stringify({ v: 2, count: 2, focus: 0, panels: [
+        { id: 'p1', code: 'GP', channel: 'A' }, { id: 'p2', code: 'DES', channel: 'A' }] }) }
+    renderAt(['/terminal'])
+    await type('NVDA')
+    expect(code(0)).toBe('DES')
+  })
+})

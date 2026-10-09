@@ -824,6 +824,20 @@ export default function TerminalShell() {
     // command back where it was, not into whichever panel is focused now. A slot this board
     // no longer shows falls back to the focused panel.
     if (!cmd.channel && Number.isInteger(slot) && slot >= 1 && slot <= cur.count) at = slot - 1
+    // Wave 4 (lane A): a bare ticker typed while the focused panel follows no security (the
+    // calendar, HELP, a market list) loads into an overview ALREADY on screen — the linked
+    // panel — instead of turning the focused panel into a second copy of that overview (the
+    // first-visit board: CAL beside SPY DES). The focused panel keeps its function. With no
+    // overview on screen the focused panel takes it, exactly as before.
+    let overviewFrom = null
+    if (!cmd.channel && !beside && slot == null && isBareTicker(raw, cmd) && !isLinkable(cur.panels[at])) {
+      const own = panelChannel(cur.panels[at])
+      const visible = cur.panels.slice(0, cur.count)
+      const isOverview = (p, j) => j !== at && p.code === 'DES' && isLinkable(p) && !p.popout
+      let i = own ? visible.findIndex((p, j) => isOverview(p, j) && panelChannel(p) === own) : -1
+      if (i < 0) i = visible.findIndex(isOverview)
+      if (i >= 0) { overviewFrom = { index: at, code: cur.panels[at].code }; at = i }
+    }
     // An "Open SYM CODE" link inside a LIST panel (MOST's catalyst story, an RRG row) opens
     // BESIDE the list, never over it: a fresh panel when the board has room, else the next one
     // (boardModel.panelBeside). The provisional layout is only saved if the command opens.
@@ -957,7 +971,8 @@ export default function TerminalShell() {
       ignoredTicker && `${cmd.code} is market-wide; ${cmd.sym} was not applied.`,
       // The function's label, never the panel's internal name (`surfaceScreener`, round 3).
       redirectedFrom && `${BY_CODE[cmd.code].label} is already open in panel ${target + 1}; @${redirectedFrom} was redirected there instead of opening a second copy.`,
-      besideOf && target !== besideOf.src && `Opened ${[scope === 'ticker' ? sym : null, cmd.code].filter(Boolean).join(' ')} in ${besideOf.added ? 'a new ' : ''}panel ${target + 1}; ${besideOf.code} stays in panel ${besideOf.src + 1}.`,
+      overviewFrom && `Loaded ${sym} into the overview in panel ${target + 1}; ${overviewFrom.code} stays in panel ${overviewFrom.index + 1}.`,
+      besideOf && target !== besideOf.src &&`Opened ${[scope === 'ticker' ? sym : null, cmd.code].filter(Boolean).join(' ')} in ${besideOf.added ? 'a new ' : ''}panel ${target + 1}; ${besideOf.code} stays in panel ${besideOf.src + 1}.`,
       echo,
     ].filter(Boolean)
     if (said.length) setNotice({ kind: applied.ignored.length ? 'error' : 'info', text: said.join(' ') })
