@@ -106,7 +106,7 @@ describe('gridFor · the stack', () => {
     // long `shortOf` label and getting clipped. `new_52w_highs` has no `short`
     // override in the registry, so its end label is the FULL label — longer
     // than the old fixed 72px margin.
-    const longLabelKey = 'new_52w_highs'
+    const longLabelKey = 'hi_ratio'
     expect(shortOf(longLabelKey).length, 'fixture assumption').toBeGreaterThan(10)
     const [longPanel] = gridFor(panelsFor([longLabelKey]))
     expect(parseFloat(longPanel.right)).toBeGreaterThan(72)

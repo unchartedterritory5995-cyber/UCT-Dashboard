@@ -233,10 +233,10 @@ const TILE_DEFS = [
     getFmt:  r => r.stage4_count ?? '—' },
 
   { key: '__h_highs', label: 'HIGHS / LOWS',        isHeader: true, group: 'Highs/Lows' },
-  // ⚠️ CLOSING basis, all of them — `count_nd_highs` uses the rolling max of
-  // CLOSES. Published NH/NL (NYSE, WSJ, Barchart) are INTRADAY basis and run
-  // systematically higher, so the labels name the basis rather than inviting a
-  // comparison that can never tie out.
+  // ⭐ INTRADAY basis (2026-10-09, `breadth_nhnl_intraday`): the session high above the
+  // prior 52 weeks' highest high (low below the lowest low) — the exchange / WSJ /
+  // StockCharts convention. Common stock only, so the counts still run below the
+  // all-issues diaries (which include preferreds, closed-end funds and ETFs).
   { key: 'new_52w_highs', group: 'Highs/Lows',
     getTier: r => pairedUpColor(r.new_52w_highs, r.new_52w_lows),
     getFmt:  r => r.new_52w_highs ?? '—' },

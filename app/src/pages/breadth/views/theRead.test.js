@@ -341,7 +341,7 @@ describe('no clause adds an opinion its view does not already assert', () => {
 // builds ITSELF, from the fixture and the source functions — not from anything
 // `theRead.js` returns, which would be the module grading its own homework.
 
-// Names carry digits: "% above 50 SMA", "52W Highs (Close)", "90% Up Volume
+// Names carry digits: "% above 50 SMA", "52W Highs", "90% Up Volume
 // Day", "20 days". Those digits belong to a NAME, not to a claim about the tape.
 //
 // ⛔ AND THE FIX IS TO ALLOW THEM, NOT TO DELETE THE NAMES FROM THE TEXT. The

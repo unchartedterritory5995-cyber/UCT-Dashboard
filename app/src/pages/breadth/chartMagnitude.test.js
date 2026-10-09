@@ -40,11 +40,11 @@ describe('magnitudeGaps', () => {
 })
 
 describe('describeGap', () => {
-  const label = k => ({ new_52w_lows: '52W Lows (Close)', universe_count: 'Universe Count' }[k])
+  const label = k => ({ new_52w_lows: '52W Lows', universe_count: 'Universe Count' }[k])
   it('says which series is flattened, by how much, on this axis', () => {
     expect(describeGap({ axis: 0, small: 'new_52w_lows', large: 'universe_count', ratio: 300 }, label))
-      .toBe('52W Lows (Close) is 300× smaller than Universe Count on this axis.')
+      .toBe('52W Lows is 300× smaller than Universe Count on this axis.')
     expect(describeGap({ axis: 0, small: 'new_52w_lows', large: 'universe_count', ratio: 7.25 }, label))
-      .toBe('52W Lows (Close) is 7.3× smaller than Universe Count on this axis.')
+      .toBe('52W Lows is 7.3× smaller than Universe Count on this axis.')
   })
 })

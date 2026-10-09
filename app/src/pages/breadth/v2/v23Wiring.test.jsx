@@ -271,7 +271,7 @@ describe('⛔⛔ the metric picker — the live V2 mount shipped with NO way to 
     expect(lastRequestedKeys()).not.toContain('pct_above_50sma')
 
     const lastBox = within(screen.getByTestId('v2-metric-group-Highs / Lows'))
-      .getByLabelText('52W Highs (Close)')
+      .getByLabelText('52W Highs')
     fireEvent.click(lastBox)
     expect(lastBox.checked).toBe(true)
     expect(lastRequestedKeys()).toContain('new_52w_highs')
@@ -330,7 +330,7 @@ describe('⛔⛔ the canvas chart gets an accessible alternative (was silent to 
     // `new_52w_highs` has no `short` override in the registry, so `shortOf`
     // falls back to its full `label` — the same rule that made the legend
     // clipping bug fire on this exact metric.
-    expect(headers).toEqual(['Date', 'Health', '52W Highs (Close)'])
+    expect(headers).toEqual(['Date', 'Health', '52W Highs'])
     // 3 header cells is the fixture's whole series length — a real row for
     // every session, not a truncated preview.
     expect(table.querySelectorAll('tbody tr').length).toBe(3)

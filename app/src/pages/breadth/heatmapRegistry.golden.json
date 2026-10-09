@@ -384,7 +384,7 @@
     },
     {
       "key": "new_52w_highs",
-      "label": "52W Highs (Close)",
+      "label": "52W Highs",
       "group": "Highs/Lows",
       "drillKey": "new_52w_highs_list",
       "polarity": "bull",
@@ -397,7 +397,7 @@
     },
     {
       "key": "new_52w_lows",
-      "label": "52W Lows (Close)",
+      "label": "52W Lows",
       "group": "Highs/Lows",
       "drillKey": "new_52w_lows_list",
       "polarity": "bear",
@@ -410,7 +410,7 @@
     },
     {
       "key": "new_20d_highs",
-      "label": "20D Highs (Close)",
+      "label": "20D Highs",
       "group": "Highs/Lows",
       "drillKey": "new_20d_highs_list",
       "polarity": "bull",
@@ -423,7 +423,7 @@
     },
     {
       "key": "new_20d_lows",
-      "label": "20D Lows (Close)",
+      "label": "20D Lows",
       "group": "Highs/Lows",
       "drillKey": "new_20d_lows_list",
       "polarity": "bear",

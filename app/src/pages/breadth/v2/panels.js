@@ -108,7 +108,7 @@ const round = v => Math.round(v * 100) / 100
  * legend off — "identity is carried by the end labels"), so the right margin
  * has to fit whatever `shortOf` actually returns for THIS panel's keys, not a
  * number that happened to fit the metrics on screen when it was chosen. A
- * fixed 72px clipped labels like "52W Highs (Close)" and "% at 52W Highs
+ * fixed 72px clipped labels like "52W Highs" and "% at 52W Highs
  * (Close)" (no `short` override in the registry) the moment a member picked
  * one of the longer Highs/Lows metrics.
  *
