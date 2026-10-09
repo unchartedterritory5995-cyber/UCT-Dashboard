@@ -91,14 +91,25 @@ export default function IvHistoryPanel({ sym, offNotice = false }) {
     return <FailedRead testId="iv-history-unavailable" retry={mutate}
       title={`The IV history is unavailable right now. That does not mean ${s} has none.`} />
   }
+  // Audit 2026-10-08 (IVH P1): an answer with a status this build doesn't know rendered nothing, so
+  // the standalone IVH panel was a titled box with an empty body. On its own it now says so.
+  if (data && !KNOWN.has(data.status) && offNotice) {
+    return <FailedRead testId="iv-history-unrecognised" retry={mutate}
+      title={`The IV history for ${s} came back in a form this panel can't read, so nothing is shown. That does not mean ${s} has none.`} />
+  }
   if (!data || !KNOWN.has(data.status)) return null
 
   const withIv = (data.points || []).filter((p) => p.atm_iv != null)
+  // `no_log` already says the log is empty above; its partial reason repeated it word for word.
+  const NO_LOG_NOTE = 'The options log holds no sessions yet.'
+  const partialText = data.partial
+    ? (data.partial_reasons || []).filter((r) => !(data.status === 'no_log' && String(r).trim() === NO_LOG_NOTE)).join(' ')
+    : ''
   const last = withIv[withIv.length - 1]
   return (
     <section className={styles.payoff} data-testid="iv-history">
       <div className={styles.volHead}>IV history (our own options log)</div>
-      {data.status === 'no_log' && <p className={styles.note}>The options log holds no sessions yet.</p>}
+      {data.status === 'no_log' && <p className={styles.note}>{NO_LOG_NOTE}</p>}
       {withIv.length > 0 && (
         <>
           <p className={styles.payoffFacts} data-testid="iv-latest">
@@ -122,7 +133,7 @@ export default function IvHistoryPanel({ sym, offNotice = false }) {
         {data.logging_began ? `Logging began ${data.logging_began}` : 'Logging has not begun'}
         {data.covers_from ? `; ${s} covered from ${data.covers_from}` : ''}
         {data.covers_to ? ` to ${data.covers_to}` : ''}.
-        {data.partial && (data.partial_reasons || []).length > 0 ? ` Partial: ${data.partial_reasons.join(' ')}` : ''}
+        {partialText ? ` Partial: ${partialText}` : ''}
       </p>
       {data.status !== 'no_log' && <ImpliedVsRealized sym={s} />}
       <p className={styles.muted}>{data.method} Source: {memberText(data.source)}.</p>
