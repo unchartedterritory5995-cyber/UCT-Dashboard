@@ -4,8 +4,9 @@
 // to say what the terminal is. This is a short card under the command bar for a member with NO
 // saved board yet: how a command is shaped, where every function is listed, and how panels
 // follow each other. It is dismissible, and the dismissal is remembered on the member's account
-// (`terminal_orientation_seen`), so it never returns on another device. No redesign: the board
-// behind it is unchanged, and a member who already has a board never sees it.
+// (`terminal_orientation_seen`), so it never returns on another device. A member who already has
+// a board never sees it. Since 2026-10-08 the board behind it is the two-panel first-visit board
+// (CAL beside an SPY overview, boardModel `firstVisitLayout`).
 import { useEffect, useState } from 'react'
 import usePreferences from '../../hooks/usePreferences'
 import { TERMINAL_LAYOUT_PREF } from './useTerminalLayout'

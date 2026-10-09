@@ -1,4 +1,4 @@
-// MOVE / WIIM — "why is it moving" (TERMINAL-NEXT lane T3, V15).
+// MOVE — "why is it moving" (TERMINAL-NEXT lane T3, V15). WIIM is its alias (functions.js CODE_ALIASES).
 //
 // ⛔ NOT A NEW ANALYSIS. The server route (`/api/terminal/move/:sym`) composes the services
 // that already exist — watchlist-intelligence facts and the catalyst engine's recent rows —

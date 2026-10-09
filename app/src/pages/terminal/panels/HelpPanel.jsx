@@ -8,7 +8,7 @@ import { useEffect, useMemo } from 'react'
 import { FUNCTIONS, FUNCTION_GROUPS, ABSENT, BY_CODE, aliasesOf, flagOn } from '../functions'
 import {
   ADDRESS_PREFIXES, ALIAS_RULE, ASK_RULE, BOARD_RULE, CHANNEL_RULE, COLLISION_RULE, COMPARE_RULE, RANKING_ORDER,
-  ROW_RULE, TICKER_COLLISIONS,
+  ROW_RULE, START_HERE, TICKER_COLLISIONS,
 } from '../grammar'
 import { SHORTCUTS } from '../../command/shortcutRegistry'
 import { boardableCodes } from '../scanBoard'
@@ -111,6 +111,26 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
   let n = 0
   return (
     <div className={styles.help} data-testid="terminal-help">
+      {/* Owner decision 2026-10-08 (product item #1): a new member opens HELP to find out where
+          to begin, so the first thing it shows is the handful of daily functions, each with an
+          example that runs on click. Not numbered: the numbered rows are the full list below. */}
+      {!focus && (
+        <section data-testid="terminal-help-start" aria-labelledby="terminal-help-start-title">
+          <h3 id="terminal-help-start-title" className={styles.helpGroup}>Start here</h3>
+          <ul className={styles.helpList}>
+            {START_HERE.map((s) => (
+              <li key={s.code}>
+                <button type="button" className={styles.helpRow} onClick={() => onRun?.(s.example)}
+                  data-testid={`terminal-help-start-${s.code}`} aria-label={`${s.what}. Run ${s.example}`}>
+                  <span className={styles.code}>{s.code}</span>
+                  <span>{s.what}</span>
+                  <kbd>{s.example}</kbd>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <p className={styles.helpSyntax}>
         Type <kbd>TICKER</kbd> for an overview, <kbd>TICKER FUNC</kbd> for a function
         (<kbd>NVDA GP</kbd>, <kbd>AAPL FA</kbd>), or a bare <kbd>FUNC</kbd> for a market-wide one
