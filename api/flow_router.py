@@ -1115,8 +1115,12 @@ def search_warm_state() -> dict:
                 "cooling_off": sorted(_WARM_FAILED_UNTIL)}
 
 
-def _spawn_search_warm(sym: str, src: str, key: tuple, version: str) -> bool:
+def _spawn_search_warm(sym: str, src: str, key: tuple, version: str, then_recent: bool = False) -> bool:
     """Build one ticker's Search product in the background. Never raises.
+
+    `then_recent` (wave 5): the asking client accepts a labelled RECENT WINDOW. If the full build
+    is declined as over budget, the newest sessions that fit `_RECENT_ROWS` are built next (after
+    the lane is released), so the member's next search gets the window, not a third refusal.
 
     ⛔ FIRE AND FORGET, DELIBERATELY. The caller has already been answered with a
     503 and is on the legacy path; this exists only so the NEXT search for this
@@ -1162,6 +1166,8 @@ def _spawn_search_warm(sym: str, src: str, key: tuple, version: str) -> bool:
             finally:
                 _SEARCH_BUILD_LOCK.release()
                 _WARM_STATS["last_ms"] = int((time.monotonic() - t0) * 1000)
+            if then_recent and _too_big_recently(sym, src, key):
+                _spawn_basis_refresh(sym, src, version, _RECENT_ROWS)
         except Exception as e:  # noqa: BLE001
             _note_warm_failure(sym)
             _WARM_STATS["failed"] += 1
@@ -1494,6 +1500,56 @@ def _windowed_ticker_product(sym: str, src: str, version: str, wd: int, st):
         _SEARCH_BUILD_LOCK.release()
 
 
+# ── wave 5: a labelled RECENT WINDOW for a head ticker the member Search cannot derive in full ──
+# NVDA, SPY, QQQ and SPXW always exceed the 48 MB / 20 s materialisation budget, so their Search
+# deep-dive was a refusal ("too big") and the member was always sent to the 4+ s legacy tape. A
+# client that says it can LABEL a partial answer (`recent=1`) now gets the page's own derivation
+# over the newest sessions whose rows fit `_RECENT_ROWS` -- the Discord card's basis machinery
+# (newest-first read under `_BASIS_READ_BUDGET_S`, the 48 MB byte cap still applies, a
+# served-stale copy within `_BASIS_STALE_MAX_S` labelled with its build time) -- with
+# `X-Flow-Window: recent` and the body's `window_dates` / `sessions_total` / `basis_complete`, so
+# the panel can say "showing the most recent N of M sessions".
+# ⛔ NEVER THE WHOLE HISTORY ON A REQUEST. This path runs ONLY when the full product is already
+# known to be over budget (the 300 s remembered verdict) or its warm is cooling off after a
+# failure, so it never re-reads the full history; it reads at most `_RECENT_ROWS` rows.
+# ⛔ A PARTIAL BASIS CAN READ DIFFERENTLY FROM THE FULL ONE (AMD 9/25, see _basis_ticker_product),
+# which is why it is served only to a caller that opted in to show the label.
+_RECENT_ROWS = int(os.environ.get("FLOW_SEARCH_RECENT_ROWS", "200000") or 200000)
+
+
+def _warm_cooling(sym: str) -> bool:
+    with _SEARCH_WARMING_LOCK:
+        until = _WARM_FAILED_UNTIL.get(sym)
+    return until is not None and time.monotonic() < until
+
+
+def _recent_member_product(sym: str, src: str, version: str, st, warm_only: bool):
+    """The member Search's labelled recent window. With `warm_only` it never builds on the request
+    (the member is answered at once and the window is built behind them); without, it builds
+    inline, bounded exactly as the card's basis build is."""
+    cap = _RECENT_ROWS
+    key_r = (sym, src, version, f"r{cap}")
+    cached = _search_product_cache_get(key_r)
+    if cached is None:
+        rec = _basis_recent_get(sym, src, cap)
+        if rec is not None and rec["age_s"] <= _BASIS_STALE_MAX_S:
+            if rec["age_s"] > _BASIS_REUSE_S or rec["version"] != version:
+                _spawn_basis_refresh(sym, src, version, cap)
+            st.flush("RECENT_WINDOW_STALE")
+            resp = _search_response(rec["gz"], rec["version"], "recent-window", as_of=rec["built_at"])
+            resp.headers["X-Flow-Window"] = "recent"
+            return resp
+    if cached is None and warm_only:
+        if not _too_big_recently(sym, src, key_r):
+            _spawn_basis_refresh(sym, src, version, cap)
+        st.flush("RECENT_WINDOW_PENDING")
+        return JSONResponse({"ok": False, "error": "not warm", "window_pending": True}, status_code=503)
+    resp = _basis_ticker_product(sym, src, version, cap, st)
+    if isinstance(resp, Response) and not isinstance(resp, JSONResponse):
+        resp.headers["X-Flow-Window"] = "recent"
+    return resp
+
+
 # ⛔ THE DECORATOR BELONGS TO THE HANDLER. On 2026-09-25 `_symbol_dates` was inserted between this
 # line and the handler and silently took the route: every Search request 422'd on the missing
 # `sym`/`src` query params while a test that called the handler directly stayed green.
@@ -1503,6 +1559,7 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
                             warm_only: str = "",
                             window_days: int = 0,
                             basis_rows: int = 0,
+                            recent: str = "",
                             _auth: dict = Depends(require_flow_user)):
     """The Search deep-dive product for ONE ticker: {all_directional, TICKER_DB}.
 
@@ -1515,6 +1572,10 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
     and answering with `window_dates` so the caller can resolve year-less `Dt`. It never
     takes the `warm_only` short-cut (its caller is a background job, not a member waiting on
     a click) but it does take the same build lane, so it cannot run beside a member's build.
+
+    `recent=1` (wave 5): the caller can label a partial answer. When the full product is known
+    to be over budget, the answer is the newest sessions that fit (`_recent_member_product`,
+    `X-Flow-Window: recent`) instead of the "too big" refusal.
     """
     sym = (symbol or "").strip().upper()
     if not sym:
@@ -1564,8 +1625,14 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
     # it cannot stack: a thread that finds the lock held exits immediately rather
     # than queueing. Many distinct symbols searched at once therefore cost at
     # most one running derivation, not one per symbol.
+    if _truthy(recent) and (_too_big_recently(sym, src, key) or _warm_cooling(sym)):
+        return _recent_member_product(sym, src, version, st, _truthy(warm_only))
+
     if _truthy(warm_only):
-        _spawn_search_warm(sym, src, key, version)
+        if _truthy(recent):
+            _spawn_search_warm(sym, src, key, version, then_recent=True)
+        else:
+            _spawn_search_warm(sym, src, key, version)   # the call every older stub expects
         st.flush("MISS_WARM_ONLY")
         return JSONResponse({"ok": False, "error": "not warm"}, status_code=503)
 
