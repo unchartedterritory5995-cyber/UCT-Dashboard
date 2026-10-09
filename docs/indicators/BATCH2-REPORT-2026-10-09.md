@@ -46,7 +46,7 @@ deployed environment); merging the 14 newer master commits (no file overlap — 
 | JS `src/components` full (22,173 tests) | 15 fail / 12 files | each file re-run alone: identical to master except `enumerationSites` (fixed: vocabulary moved to JSON — now master's single failure) | no regression |
 | Python: every file touching the conversation door / planner (27 files, 837 tests) | 11 fail | same 11 on master | no regression |
 | Python suspect files from the full run (11 files incl. `compute_graph`, `concept_vocabulary`, `ast_interpret`, `ast_conformance`) | — | identical counts on master | no regression |
-| Python full suite (single process) | see appendix when finished | — | (environment-sensitive; per-file comparison is authoritative) |
+| Python full suite (single process, 2 h 45 m) | 254 failed + 36 errors in 84 files / 41,801 passed | each of the 84 files re-run alone on both trees: 83 identical, 1 better on the branch (`test_mutation_check` 1 vs 3) | no regression |
 | `vite build` | rc 0, StockChart chunk 745.76 kB (was 745.40) | | ✅ |
 | Lint, changed files | no new errors (StockChart 109 = master 109) | | ✅ |
 
