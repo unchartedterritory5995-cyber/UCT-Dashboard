@@ -12,6 +12,7 @@ import {
 } from '../grammar'
 import { SHORTCUTS } from '../../command/shortcutRegistry'
 import { boardableCodes } from '../scanBoard'
+import { ARG_KINDS } from '../args'
 import { COMMAND_LINE_KEYS } from '../CommandLine'
 import styles from '../TerminalShell.module.css'
 
@@ -85,6 +86,17 @@ export function KeysTable() {
   )
 }
 
+/** Pure: what `HELP <code>` says a code's arguments are, per variant, from args.js's own `takes`
+ *  text (audit 2026-10-08, HELP P2: `HELP GP` showed the label only). Never retyped. */
+export function argsLines(f) {
+  const line = (v, how) => {
+    if (!v) return null
+    const takes = [...new Set((v.args || []).map((a) => ARG_KINDS[a.kind]?.takes).filter(Boolean))]
+    return `${how}: ${takes.length ? `takes ${takes.join(' or ')}` : 'takes no arguments'}.`
+  }
+  return [line(f.ticker, `With a ticker (NVDA ${f.code})`), line(f.market, `Market-wide (${f.code})`)].filter(Boolean)
+}
+
 export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRanking, hasStats = false, auth = null }) {
   // `HELP GP` — the registry-validated code args.js applied (an unknown one is echoed, not shown).
   const focus = focusCode && BY_CODE[focusCode] ? BY_CODE[focusCode].code : null
@@ -106,42 +118,9 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
         <kbd>CAL TODAY</kbd>, <kbd>CAL NEXT</kbd>. <kbd>$CAL</kbd> forces a ticker. Saved things open by
         address (<kbd>L:12</kbd>, <kbd>W:3</kbd>). The line above the input says what Enter will do.
       </p>
-      {!focus && (
-        <section data-testid="terminal-help-rules">
-          <h3 className={styles.helpGroup}>Rules</h3>
-          {[COLLISION_RULE, CHANNEL_RULE, COMPARE_RULE, ASK_RULE, ALIAS_RULE, ROW_RULE, BOARD_RULE].map((r) => (
-            <p key={r} className={styles.helpRule}>{r}</p>
-          ))}
-          {/* BOARD's entry names the codes the list panels' "Board of" menu offers — the SAME list
-              the menu reads (scanBoard.boardableCodes), never a copy, and only once flags are known. */}
-          {flagsKnown && (
-            <p className={styles.helpRule} data-testid="terminal-help-board-codes">
-              The &ldquo;Board of&rdquo; menu on a list (MOST, the screener, RRG) offers:{' '}
-              {boardableCodes(auth).map((c, i) => (
-                <span key={c.code}>{i ? ', ' : ''}<kbd>{c.code}</kbd> {c.label.toLowerCase()}</span>
-              ))}. Any other per-security code works when typed (<kbd>BOARD OWN</kbd>).
-            </p>
-          )}
-          <p className={styles.helpRule}>Codes that are also tickers: {TICKER_COLLISIONS.join(', ')}.</p>
-          <h3 className={styles.helpGroup}>Suggestion order</h3>
-          <ol className={styles.helpRule} data-testid="terminal-help-ranking">
-            {RANKING_ORDER.map((r) => <li key={r.key}>{r.label}</li>)}
-          </ol>
-          <button type="button" data-panel-row className={`${styles.helpRow} ${styles.helpRowPlain}`} onClick={() => onResetRanking?.()}
-            disabled={!onResetRanking || !hasStats} data-testid="terminal-reset-ranking">
-            <span>Reset my ranking</span>
-            <span className={styles.helpScope}>{hasStats ? 'forget my command counts' : 'nothing learned yet'}</span>
-          </button>
-          <h3 className={styles.helpGroup}>Keys</h3>
-          <KeysTable />
-          <h3 className={styles.helpGroup}>Addresses</h3>
-          <table className={styles.helpTable} data-testid="terminal-help-addresses" aria-label="Address prefixes">
-            <tbody>
-              {ADDRESS_PREFIXES.map((a) => (
-                <tr key={a.prefix}><td><kbd>{a.prefix}:id</kbd></td><td>{a.label}</td></tr>
-              ))}
-            </tbody>
-          </table>
+      {focus && (
+        <section data-testid="terminal-help-args">
+          {argsLines(BY_CODE[focus]).map((l) => <p key={l} className={styles.helpRule}>{l}</p>)}
         </section>
       )}
       {FUNCTION_GROUPS.map((g) => {
@@ -191,6 +170,46 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
           </section>
         )
       })}
+      {/* Audit 2026-10-08 (HELP P2): the reference material (rules, ranking, keys, addresses) used
+          to come BEFORE the function list, which is what a new member opens HELP for. It follows it. */}
+      {!focus && (
+        <section data-testid="terminal-help-rules">
+          <h3 className={styles.helpGroup}>Rules</h3>
+          {[COLLISION_RULE, CHANNEL_RULE, COMPARE_RULE, ASK_RULE, ALIAS_RULE, ROW_RULE, BOARD_RULE].map((r) => (
+            <p key={r} className={styles.helpRule}>{r}</p>
+          ))}
+          {/* BOARD's entry names the codes the list panels' "Board of" menu offers — the SAME list
+              the menu reads (scanBoard.boardableCodes), never a copy, and only once flags are known. */}
+          {flagsKnown && (
+            <p className={styles.helpRule} data-testid="terminal-help-board-codes">
+              The &ldquo;Board of&rdquo; menu on a list (MOST, the screener, RRG) offers:{' '}
+              {boardableCodes(auth).map((c, i) => (
+                <span key={c.code}>{i ? ', ' : ''}<kbd>{c.code}</kbd> {c.label.toLowerCase()}</span>
+              ))}. Any other per-security code works when typed (<kbd>BOARD OWN</kbd>).
+            </p>
+          )}
+          <p className={styles.helpRule}>Codes that are also tickers: {TICKER_COLLISIONS.join(', ')}.</p>
+          <h3 className={styles.helpGroup}>Suggestion order</h3>
+          <ol className={styles.helpRule} data-testid="terminal-help-ranking">
+            {RANKING_ORDER.map((r) => <li key={r.key}>{r.label}</li>)}
+          </ol>
+          <button type="button" data-panel-row className={`${styles.helpRow} ${styles.helpRowPlain}`} onClick={() => onResetRanking?.()}
+            disabled={!onResetRanking || !hasStats} data-testid="terminal-reset-ranking">
+            <span>Reset my ranking</span>
+            <span className={styles.helpScope}>{hasStats ? 'forget my command counts' : 'nothing learned yet'}</span>
+          </button>
+          <h3 className={styles.helpGroup}>Keys</h3>
+          <KeysTable />
+          <h3 className={styles.helpGroup}>Addresses</h3>
+          <table className={styles.helpTable} data-testid="terminal-help-addresses" aria-label="Address prefixes">
+            <tbody>
+              {ADDRESS_PREFIXES.map((a) => (
+                <tr key={a.prefix}><td><kbd>{a.prefix}:id</kbd></td><td>{a.label}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
       {!focus && Object.keys(ABSENT).length > 0 && (
         <section>
           <h3 className={styles.helpGroup}>Not on this release</h3>
