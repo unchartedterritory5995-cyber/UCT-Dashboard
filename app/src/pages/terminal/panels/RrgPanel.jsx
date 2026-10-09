@@ -16,6 +16,7 @@ import { useEffect, useMemo } from 'react'
 import { PanelSkeleton, PanelState, usePanelFreshness, usePanelLinkedSym } from '../../../components/terminal'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import useCloses, { closesProvenance, failedText, formingThrough } from './useCloses'
+import WarmingState from './WarmingState'
 import { RRG_METHOD, collectSymbols, rrgPath, withArgsKey } from './relativeMath'
 import styles from './comparePanels.module.css'
 
@@ -172,6 +173,7 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
   const linked = usePanelLinkedSym()
   useEffect(() => { onRows?.(cmds) }, [onRows, cmds])
 
+  if (state.phase === 'warming') return <WarmingState what="price history for these names" testId="terminal-rrg-warming" />
   if (state.phase !== 'ready') return <PanelSkeleton label="Loading the rotation graph" shape="chart" testId="terminal-rrg-loading" />
   // Re-running RRG keeps this panel and reads nothing, so every failure offers a Retry button.
   const retry = <button type="button" onClick={state.retry} data-testid="terminal-rrg-retry">Retry</button>

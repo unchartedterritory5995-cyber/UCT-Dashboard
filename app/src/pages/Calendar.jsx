@@ -994,7 +994,7 @@ export default function Calendar({ mine = false } = {}) {
           key={openSeq}
           fallback={
             <div className={styles.boundaryNote}>
-              Unable to load — click a ticker to retry.
+              Unable to load. Click a ticker to retry.
             </div>
           }
         >

@@ -9,6 +9,7 @@ import {
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import ResearchLoading from '../ResearchLoading'
+import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
 
 // COV-07 (roadmap RM-L19) — how the consensus EPS and revenue estimate for each
 // upcoming quarter has moved, from UCT's own daily snapshots of FMP's consensus
@@ -82,6 +83,7 @@ export default function EstimateHistoryTab({ sym }) {
     ? { source: memberText(data.source) || null, age: { dataClass: 'end_of_day', asOfDate: data.last_snapshot || null } }
     : null)
 
+  if (isSwitchedOff(error)) return <SwitchedOff what="Estimate history" className={styles.note} testId="esthist-off" />
   if (error) {
     return <div className={styles.note} data-testid="esthist-unavailable">
       Estimate history is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button>

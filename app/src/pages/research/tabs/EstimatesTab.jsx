@@ -152,7 +152,7 @@ export default function EstimatesTab({ sym }) {
       )}
 
       {/* tq-panels: the route marks a fund (`not_applicable` + `reason`, e910f8ff6). */}
-      {empty && e.not_applicable && <div className={styles.fnote} data-testid="estimates-na">Not applicable to funds — {e.reason || `${sym} is a fund`}.</div>}
+      {empty && e.not_applicable && <div className={styles.fnote} data-testid="estimates-na">Not applicable to funds: {e.reason || `${sym} is a fund`}.</div>}
       {empty && !e.not_applicable && <div className={styles.fnote}>Estimate data is unavailable for this ticker.</div>}
     </div>
   )

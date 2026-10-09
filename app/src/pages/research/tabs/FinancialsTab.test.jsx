@@ -111,7 +111,7 @@ describe('FinancialsTab -- a fund', () => {
     const { default: Fresh } = await import('./FinancialsTab')
     render(<Fresh sym="SPY" />)
     expect(screen.getByTestId('financials-na').textContent)
-      .toBe('Not applicable to funds — SPY is a fund; funds report no company income statement, balance sheet or cash flow.')
+      .toBe('Not applicable to funds: SPY is a fund; funds report no company income statement, balance sheet or cash flow.')
     expect(screen.queryByText('Statement history is unavailable for this ticker.')).toBeNull()
   })
 })
