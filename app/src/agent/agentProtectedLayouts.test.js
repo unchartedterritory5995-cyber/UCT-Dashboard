@@ -2,6 +2,7 @@
 // renames/deletes/saves into a protected layout, never Undoes into one — but may read, open and
 // duplicate it.
 import { describe, it, expect, beforeEach } from 'vitest'
+import { fileURLToPath } from 'node:url'
 import { protectionRefusal, undoProtectionRefusal, protectedOpenLayout, PROTECTED_LAYOUTS_KEY } from './protectedLayouts'
 
 const host = (activeId, entries = [{ id: '1', name: 'Main Trading' }, { id: '2', name: 'Agent Test' }, { id: '3', name: 'Swing' }]) => ({
@@ -68,7 +69,7 @@ describe('release audit (2026-10-09)', () => {
   it('only the Agent imports the guard — manual Charts use cannot be affected by it', async () => {
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const root = path.resolve(__dirname, '..')
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
     const hits = []
     const walk = (dir) => {
       for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -84,7 +85,7 @@ describe('release audit (2026-10-09)', () => {
   it('no Agent capability can change the protected list: the guard reads a key nothing in the Agent writes', async () => {
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const dir = path.resolve(__dirname, 'capabilities')
+    const dir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'capabilities')
     for (const f of fs.readdirSync(dir).filter(x => x.endsWith('.js'))) {
       const src = fs.readFileSync(path.join(dir, f), 'utf8')
       expect(/protectedLayouts|PROTECTED_LAYOUTS_KEY|localStorage\.(setItem|removeItem|clear)/.test(src), f).toBe(false)
