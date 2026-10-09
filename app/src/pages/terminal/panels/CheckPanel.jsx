@@ -20,7 +20,7 @@ import useLivePrices from '../../../hooks/useLivePrices'
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
 import {
-  PanelCommand, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness,
+  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness,
 } from '../../../components/terminal'
 import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import { stampedRead, failureText } from './marketRead'
@@ -316,7 +316,7 @@ export default function CheckPanel({ sym }) {
                   <tbody>
                     {analogList.map((a) => (
                       <tr key={a.key}>
-                        <td>{a.sym ? <PanelCommand cmd={`${a.sym} DES`} label={`Open ${a.sym} description`} className={shared.sym}>{a.sym}</PanelCommand> : 'n/a'}</td>
+                        <td>{a.sym ? <PanelSymbol sym={a.sym} className={shared.sym} /> : 'n/a'}</td>
                         <td>{a.date || 'n/a'}</td>
                         <td className={shared.phoneHide}>{price(a.entry)}</td>
                         <td className={a.outcome > 0 ? shared.up : a.outcome < 0 ? shared.down : undefined}>

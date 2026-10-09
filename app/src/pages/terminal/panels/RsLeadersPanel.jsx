@@ -9,7 +9,7 @@
 // not "no leaders". Any other failure is an error with Retry.
 import { useMemo, useState } from 'react'
 import {
-  PanelCommand, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
+  PanelSkeleton, PanelSymbol, PanelState, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
@@ -115,7 +115,7 @@ export default function RsLeadersPanel() {
             {rows.map((r) => (
               <tr key={r.sym} data-testid={`terminal-rsl-row-${r.sym}`}>
                 <td className={styles.rowNum}>{r.order + 1}</td>
-                <td><PanelCommand cmd={`${r.sym} DES`} label={`Open ${r.sym} description`} className={styles.sym}>{r.sym}</PanelCommand></td>
+                <td><PanelSymbol sym={r.sym} className={styles.sym} /></td>
                 <td>{formatNumber(r.rank, { decimals: 0 })}</td>
                 <td className={styles.phoneHide}>{formatNumber(r.score, { decimals: 2 })}</td>
                 <td className={`${styles.phoneHide} ${tone(r.w1) || ''}`}>{formatPercent(r.w1, { decimals: 1, signed: true })}</td>

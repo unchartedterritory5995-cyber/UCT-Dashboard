@@ -1,6 +1,8 @@
 import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import TickerPopup from '../../../components/TickerPopup'
+// Linked panels (2026-10-09): inside a terminal panel a result LOADS into the linked panels;
+// on the screener page it is the usual chart popup.
+import PanelTicker from '../../../components/terminal/PanelTicker'
 import TickerActionsMenu, { useTickerActions } from '../../../components/TickerActions'
 import UIcon from '../../../components/ui/UIcon'
 import { useFlagged } from '../../../hooks/useFlagged'
@@ -201,7 +203,7 @@ const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort,
                         <span className={live ? styles.dotLive : styles.dotStatic}
                           title={live ? 'live price' : 'beyond the live window — snapshot values'} />
                         <span {...ta.longPressProps(row.ticker)}>
-                          <TickerPopup sym={row.ticker}>{row.ticker}</TickerPopup>
+                          <PanelTicker sym={row.ticker}>{row.ticker}</PanelTicker>
                         </span>
                         {/* Flag while scrolling. Hover-revealed on pointer devices
                             so a scanned grid stays clean; a FLAGGED row keeps its

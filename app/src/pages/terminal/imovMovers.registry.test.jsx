@@ -88,7 +88,8 @@ describe('IMOV through the grammar', () => {
     seen.Imov.onRun('NVDA IMOV THEME SEMICONDUCTORS', { here: true })
     expect(onRun).toHaveBeenLastCalledWith('NVDA IMOV THEME SEMICONDUCTORS', { here: true, slot: 1 })
     seen.Imov.onRun('$AMD', { keepFunction: true })
-    expect(onRun).toHaveBeenLastCalledWith('$AMD', { keepFunction: true })
+    // Linked panels: a loaded row is published FROM this panel (its group), not the focused one.
+    expect(onRun).toHaveBeenLastCalledWith('$AMD', { keepFunction: true, from: 0 })
     expect(typeof seen.Imov.onRows).toBe('function')
   })
 })

@@ -9,7 +9,7 @@
 // ⛔ A failed read is an error with Retry, never "no insider buys".
 import { useMemo, useState } from 'react'
 import {
-  PanelCommand, PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
+  PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
 import { formatCompactTerminal, formatCurrency, formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
@@ -114,7 +114,7 @@ export default function InsiderPanel() {
               <tr key={r.key} data-testid={`terminal-insider-row-${r.sym}`}>
                 <td>
                   <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
-                  <PanelCommand cmd={`${r.sym} DES`} label={`Open ${r.sym} description`} className={styles.sym}>{r.sym}</PanelCommand>
+                  <PanelSymbol sym={r.sym} className={styles.sym} />
                 </td>
                 <td>{r.name}</td>
                 <td className={styles.phoneHide}>{r.role}</td>

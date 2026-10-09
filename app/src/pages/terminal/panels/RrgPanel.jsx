@@ -13,7 +13,7 @@
 // ⛔ The RS-Ratio / RS-Momentum formula is UCT's stated approximation (relativeMath.RRG_METHOD),
 // printed under the chart. JdK's own formula is proprietary; the panel never claims to be it.
 import { useEffect, useMemo } from 'react'
-import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, usePanelFreshness, usePanelLinkedSym } from '../../../components/terminal'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import useCloses, { closesProvenance, failedText, formingThrough } from './useCloses'
 import { RRG_METHOD, collectSymbols, rrgPath, withArgsKey } from './relativeMath'
@@ -166,7 +166,10 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
   // TERM-019: the panel header names the bar store and the newest close on screen.
   usePanelFreshness(closesProvenance(state, cadence))
   const rows = useMemo(() => (state.phase === 'ready' ? rrgRows(state.series, universe.syms) : []), [state, universe])
-  const cmds = useMemo(() => rows.map((r) => `${r.sym} GP`), [rows])
+  // Linked panels (2026-10-09): a row LOADS its name into this graph's group, like every list;
+  // with nothing on screen following the group it opens `SYM GP` beside the graph (LIST_OPENS).
+  const cmds = useMemo(() => rows.map((r) => `$${r.sym}`), [rows])
+  const linked = usePanelLinkedSym()
   useEffect(() => { onRows?.(cmds) }, [onRows, cmds])
 
   if (state.phase !== 'ready') return <PanelSkeleton label="Loading the rotation graph" shape="chart" testId="terminal-rrg-loading" />
@@ -227,7 +230,8 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
             {rows.map((r, i) => (
               <tr key={r.sym} data-testid={`terminal-rrg-row-${r.sym}`}>
                 <td>
-                  <button type="button" className={styles.rowBtn} onClick={() => onRun?.(`${r.sym} GP`, { next: true })} title={`Open ${r.sym} GP beside this graph`}>
+                  <button type="button" className={styles.rowBtn} onClick={() => onRun?.(`$${r.sym}`, { keepFunction: true })} aria-current={linked === r.sym ? 'true' : undefined}
+                    title={`Load ${r.sym} into the linked panels`}>
                     <span className={styles.rowNum}>{i + 1}</span>
                     <span className={styles.symCell}>{r.sym}</span>
                     {r.name ? <span className={styles.muted}> {r.name}</span> : null}

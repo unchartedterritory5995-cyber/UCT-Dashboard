@@ -1,6 +1,6 @@
 // NEWS: the market-wide news tape. Rails:
 //   * every headline is shown, newest first, with its time, source and tickers;
-//   * a ticker opens its DES beside the panel (the shell's `open` wire);
+//   * a ticker loads into the linked panels (the shell's `run` wire);
 //   * the server's "News unavailable" placeholder row is never drawn as a headline;
 //   * a failed read is an error with Retry, never "no news"; a 402 says paid plan;
 //   * the registry: `NEWS` resolves to this panel, market-only.
@@ -22,32 +22,32 @@ const ITEMS = [
   { headline: 'NVDA beats', source: 'Benzinga', url: 'https://x/2', time: '2026-10-09 09:40:00', category: 'EARN', tickers: ['NVDA', 'AMD'], change_pct: 3.2 },
 ]
 
-function renderPanel(open = vi.fn()) {
+function renderPanel(run = vi.fn()) {
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-      <PanelListContext.Provider value={{ open, run: vi.fn() }}>
+      <PanelListContext.Provider value={{ open: vi.fn(), run }}>
         <NewsPanel />
       </PanelListContext.Provider>
     </SWRConfig>,
   )
-  return open
+  return run
 }
 
 beforeEach(() => { jsonFetcher.mockReset() })
 afterEach(cleanup)
 
 describe('NEWS panel', () => {
-  it('lists every headline newest first, and a ticker opens DES beside it', async () => {
+  it('lists every headline newest first, and a ticker loads into the linked panels', async () => {
     jsonFetcher.mockResolvedValue(ITEMS)
-    const open = renderPanel()
+    const run = renderPanel()
     const list = await screen.findByTestId('terminal-news-list')
     const rows = within(list).getAllByTestId('terminal-news-row')
     expect(rows.map((r) => r.querySelector('a').textContent)).toEqual(['NVDA beats', 'Older story'])
     expect(rows[0].textContent).toContain('Benzinga')
     expect(rows[0].textContent).toContain('+3.20%')
     expect(rows[0].textContent).toContain('9:40')
-    fireEvent.click(screen.getByTestId('panel-command-NVDA-DES'))
-    expect(open).toHaveBeenCalledWith('NVDA DES')
+    fireEvent.click(screen.getByTestId('panel-symbol-NVDA'))
+    expect(run).toHaveBeenCalledWith('$NVDA')
     expect(jsonFetcher).toHaveBeenCalledWith(NEWS_URL)
   })
 

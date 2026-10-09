@@ -97,6 +97,20 @@ export function usePanelRun() {
 }
 
 /**
+ * Linked panels (2026-10-09): the security this panel's rows LOAD into is showing now, i.e. the
+ * security of the group a row click publishes to. A list marks that row as current
+ * (`aria-current`), so the member can see which name the linked panels follow. `null` outside a
+ * terminal panel, and when the group shows nothing. Its own context, not a field of the list API,
+ * so a group change re-renders the rows without re-publishing every list.
+ */
+export const PanelLinkContext = createContext(null)
+
+/** The upper-case security this panel's group follows, or null. */
+export function usePanelLinkedSym() {
+  return useContext(PanelLinkContext)
+}
+
+/**
  * Wave 3 (lane 13): re-run a command IN THIS PANEL (its own slot), so an embedded panel's chip can
  * write its state back into its command -- `FREC` -> `FREC MINE` -- and a reload, `?cmd=` and the
  * history keep it. Returns `rerun(text)` inside a terminal panel, `null` everywhere else (the page

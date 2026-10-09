@@ -136,7 +136,7 @@ function MoreRow({ kind, r }) {
       <td>{count(r.open_interest)}</td><td>{pctNum(r.call_share_pct, 1)}</td>
       <td>{fracPct(r.atm_iv)}</td></tr>
   }
-  return <tr><th scope="row">{r.symbol}</th><td>{callPutWords(r.type)} {num(r.strike)} {r.expiration}</td><td>{sideWords(r.side)}</td>
+  return <tr><th scope="row"><PanelSymbol sym={r.symbol} /></th><td>{callPutWords(r.type)} {num(r.strike)} {r.expiration}</td><td>{sideWords(r.side)}</td>
     <td>{dollars(r.premium)}</td><td>{r.contracts}</td><td>{r.time}</td></tr>
 }
 

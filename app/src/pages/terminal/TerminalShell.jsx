@@ -33,7 +33,7 @@ import ContextPopover from '../../components/mobile/ContextPopover'
 import Sheet from '../../components/mobile/Sheet'
 import FreshnessBadge from '../../components/provenance/FreshnessBadge'
 import Provenance from '../../components/provenance/Provenance'
-import { PanelFreshnessContext, PanelListContext, PanelSkeleton, PanelState, SecurityHeadline, TerminalPanelContext } from '../../components/terminal'
+import { PanelFreshnessContext, PanelLinkContext, PanelListContext, PanelSkeleton, PanelState, SecurityHeadline, TerminalPanelContext } from '../../components/terminal'
 import UIcon from '../../components/ui/UIcon'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import useDoorParam from '../../hooks/useDoorParam'
@@ -45,13 +45,14 @@ import parseCommand, { normalizeInput } from './parseCommand'
 import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, researchHref, retiredNote, variantFor } from './functions'
 import { applyArgs, argsEcho } from './args'
 import { planAlert, setAlert } from './alertCommand'
-import { COMMAND_PANELS, FLUSH_PANELS, ROWS_OPEN_BESIDE, panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
+import { COMMAND_PANELS, FLUSH_PANELS, LIST_OPENS, panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
 import useTerminalLayout from './useTerminalLayout'
 import useCommandHistory from './commandHistory'
 import {
   BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, DENSITY_LABELS, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
   closePanel, decodePopout, decodeShare, deleteBoard, duplicatePanel, encodeShare, findBoard, isCompatChannel, presetsOfBoard, restoreBoard,
   isLinkable, markOpened, movePanel, nextLinkChannel, reorderPanel, openBoard, panelBeside, panelChannel, panelSym, popoutHref, presetFor,
+  rowLinkPlan,
   groupStyle, recentSecurities, saveBoard, setCount as countTo,
   setDensity, setKeepCalendar, setPanelChannel, setPopout, setPreset, shareHref, toggleFavorite, undoClose,
 } from './boardModel'
@@ -241,7 +242,7 @@ export function Panel({
   index, panel, focused, syms, auth, channel, onFocus, onChannelMenu, onRun, onRows, onList, onBoard, boardCodes, helpProps,
   onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone, hidden = false,
   density = 'comfortable', domId, canMaximise = false, maximised = false, onMaximise,
-  reorder = null,
+  reorder = null, linkedSym = null,
 }) {
   const r = resolvePanel(panel, syms, auth)
   const Comp = r.state === 'ready' && !panel.popout ? panelComponent(r.name) : null
@@ -271,6 +272,9 @@ export function Panel({
   // command in this panel's own slot. Everything else reaches the shell untouched.
   const runHere = useCallback((text, o) => {
     if (o?.next) return onRun?.(text, { ...o, from: index })
+    // A row's name (`$SYM`, clicked or keyboard-activated) is published FROM this panel: the
+    // shell sends it to this panel's group (rowLinkPlan), not to whichever panel has focus.
+    if (o?.keepFunction) return onRun?.(text, { ...o, from: index })
     if (o?.here) return onRun?.(text, { ...o, slot: index + 1 })
     return onRun?.(text, o)
   }, [onRun, index])
@@ -409,6 +413,7 @@ export function Panel({
                 security's freshness into the next one's loading state. */}
             <PanelFreshnessContext.Provider value={setFreshness} key={identity}>
               <PanelListContext.Provider value={listApi}>
+              <PanelLinkContext.Provider value={linkedSym}>
               <TerminalPanelContext.Provider value={frame}>
                 {/* ONE loading treatment: the same skeleton a panel shows while its own data
                     loads (components/terminal/PanelSkeleton), never a "Loading CODE..." line
@@ -422,6 +427,7 @@ export function Panel({
                       : <Comp sym={r.sym || undefined} {...(r.variant.props || {})} {...r.props} />}
                 </Suspense>
               </TerminalPanelContext.Provider>
+              </PanelLinkContext.Provider>
               </PanelListContext.Provider>
             </PanelFreshnessContext.Provider>
           </ErrorBoundary>
@@ -509,6 +515,7 @@ export default function TerminalShell() {
   const rowsRef = useRef({ owner: null, rows: [] })
   // `loadSecurity` is declared after `run` (it falls back to it), so `run`'s row <GO> reaches it here.
   const loadSecurityRef = useRef(null)
+  const publishSymbolRef = useRef(null)
   const onRows = useCallback((rows, owner) => {
     rowsRef.current = { owner: owner ?? null, rows: Array.isArray(rows) ? rows : [] }
   }, [])
@@ -763,13 +770,11 @@ export default function TerminalShell() {
         return null
       }
       countCommand(cmd)
-      // A `$SYM` row (MOST's list) LOADS the name into the linked group and keeps every
-      // panel's function, exactly as clicking that row does — it never turns the list into DES.
-      if (!fromUrl && isLoadRow(target) && loadSecurityRef.current) return loadSecurityRef.current(target)
-      // A row of a list that opens BESIDE itself (RRG's `SYM GP`) does the same typed as clicked.
+      // A `$SYM` row (any list) LOADS the name into the list's group and keeps every panel's
+      // function, exactly as clicking that row does (the one publisher, `publishSymbol`): it
+      // never turns the list into DES.
       const focusIdx = Math.min(lay.focus, lay.count - 1)
-      const listName = resolvePanel(lay.panels[focusIdx], symsRef.current, auth).name
-      if (!fromUrl && ROWS_OPEN_BESIDE.has(listName)) return run(target, { next: true, from: focusIdx })
+      if (!fromUrl && isLoadRow(target) && publishSymbolRef.current) return publishSymbolRef.current(target, focusIdx)
       return run(target, { fromUrl })
     }
     // ALRT with a price SETS an alert (lane 9, alertCommand.js): ONCE, from a typed command, then
@@ -1018,15 +1023,60 @@ export default function TerminalShell() {
   }, [run, save, commitChannelSym])
   loadSecurityRef.current = loadSecurity
 
+  /** Linked panels (2026-10-09): THE ONE PUBLISHER for a ticker activated in a list row (a click,
+   *  a keyboard press on the row, or its number typed + Enter). The name goes to the group of
+   *  the panel it came FROM (boardModel.rowLinkPlan) and every panel on that group follows; the
+   *  list keeps its function and what it shows. Nothing on screen follows that group: the name
+   *  opens beside the list instead (DES, or the list's own LIST_OPENS function). Shift+Enter
+   *  from the command line is `loadSecurity` above, unchanged. */
+  const publishSymbol = useCallback((text, from) => {
+    const raw = normalizeInput(text)
+    const cmd = parseCommand(raw, { aliases: aliasesRef.current })
+    if (!isBareTicker(raw, cmd)) return run(text)
+    const sym = cmd.sym
+    let cur = layoutRef.current
+    const at = Number.isInteger(from) && from >= 0 && from < cur.count ? from : Math.min(cur.focus, cur.count - 1)
+    const src = cur.panels[at]
+    if (!src || src.popout) return loadSecurity(text)
+    const plan = rowLinkPlan(cur, at, symsRef.current)
+    const listCode = src.code
+    let held = ''
+    if (plan.hold) {
+      // The list shows every name only because its group is empty: following the new name would
+      // turn it into a one-name list. Unlink it first so it keeps what it shows.
+      cur = { ...setPanelChannel(cur, at, null, symsRef.current), activeChannel: plan.channel }
+      layoutRef.current = cur
+      held = ` ${listCode} in panel ${at + 1} keeps its full list and is no longer linked.`
+    }
+    if (!plan.followers.length) {
+      // A link never dead-ends (IA §11.1 rule 2): nothing on screen follows the group, so the
+      // name opens beside the list, on the list's group.
+      if (plan.hold) save(cur)
+      const opens = LIST_OPENS[resolvePanel(src, symsRef.current, auth).name] || 'DES'
+      const out = run(`${sym} ${opens}`, { next: true, from: at })
+      if (held) setNotice((n) => (n ? { ...n, text: `${n.text}${held}` } : { kind: 'info', text: held.trim() }))
+      return out
+    }
+    setNotice(null)
+    runSeqRef.current += 1
+    save({ ...commitChannelSym(cur, plan.channel, sym), focus: cur.focus })
+    const name = channelOf(cur, plan.channel)?.name || `group ${plan.channel}`
+    const n = plan.followers.map((j) => j + 1)
+    setNotice({ kind: 'info', text: `Loaded ${sym} into ${name}: panel${n.length > 1 ? 's' : ''} ${n.join(', ')} kept ${n.length > 1 ? 'their functions' : 'its function'}.${held}` })
+    return null
+  }, [run, save, commitChannelSym, loadSecurity, auth])
+  publishSymbolRef.current = publishSymbol
+
   const runTyped = useCallback((text, opts) => {
     userRunRef.current = null
     // `next` (+ `from`, the panel the link was clicked in) opens beside a list; `slot` re-runs a
     // panel's own command in that panel (IMOV writing a hand-picked theme into its args).
-    const out = opts?.keepFunction ? loadSecurity(text)
+    const out = opts?.keepFunction
+      ? (Number.isInteger(opts?.from) ? publishSymbol(text, opts.from) : loadSecurity(text))
       : run(text, { next: !!opts?.next, from: opts?.from ?? null, slot: opts?.slot ?? null })
     userRunRef.current = out || null
     return out
-  }, [run, loadSecurity])
+  }, [run, loadSecurity, publishSymbol])
 
   // ── V6d: EVERY COMMAND IS A URL ──────────────────────────────────────────────
   // `?cmd=` reflects the focused panel. An arriving `?cmd=` (a link, a palette pick, back/
@@ -1872,6 +1922,7 @@ export default function TerminalShell() {
                 isPhone={isPhone}
                 density={layout.density}
                 reorder={reorderFor(p, i)}
+                linkedSym={syms[panelChannel(p) || layout.activeChannel || 'A'] || null}
               />
           ))}
         </div>
