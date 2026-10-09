@@ -15,6 +15,16 @@ import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../component
 import { formatDateTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import styles from '../TerminalShell.module.css'
 
+/** Audit 2026-10-08 (MOVE P2, point 9): a fact's `as_of` was printed in the server's raw format with
+ *  no zone. A bare date stays a date; a timestamp is shown on the market clock, labelled ET. */
+export function asOfText(v) {
+  if (v == null || v === '') return null
+  const s = String(v).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+  const ms = /^\d+(\.\d+)?$/.test(s) ? Number(s) * (Number(s) > 1e12 ? 1 : 1000) : Date.parse(s)
+  return Number.isFinite(ms) ? formatDateTimeEt(ms / 1000) : s
+}
+
 /** Pure: the key the server diffs on, so a row can say NEW without a second rule. */
 export function factKey(f) { return `${f?.kind}|${f?.label}|${f?.as_of}` }
 export function catalystKey(c) { return `cat|${c?.market_date}|${c?.tag}` }
@@ -95,13 +105,13 @@ export default function MovePanel({ sym, onRun, onRows }) {
 
       <h3 className={styles.helpGroup}>What changed</h3>
       {facts.length === 0 && intel.status === 'ok' && (
-        <p className={styles.helpRule}>No notable facts fired for {sym} (every source answered).</p>
+        <p className={styles.helpRule} data-testid="terminal-move-nothing">Nothing notable has changed for {sym} in what we track (every source answered).</p>
       )}
       <ul className={styles.helpRule} data-testid="terminal-move-facts">
         {facts.map((f) => (
           <li key={factKey(f)} data-new={fresh.has(factKey(f)) ? 'true' : 'false'}>
             {fresh.has(factKey(f)) && <strong>NEW </strong>}{f.label}
-            {f.as_of ? <span className={styles.helpScope}> · {f.as_of}</span> : null}
+            {asOfText(f.as_of) ? <span className={styles.helpScope}> · {asOfText(f.as_of)}</span> : null}
           </li>
         ))}
       </ul>

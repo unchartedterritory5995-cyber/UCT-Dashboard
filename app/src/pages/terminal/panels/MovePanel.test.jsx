@@ -48,7 +48,7 @@ describe('MovePanel', () => {
     render(<MovePanel sym="AMD" />)
     await screen.findByTestId('terminal-move')
     expect(screen.getByText(/not "no news"/)).toBeTruthy()
-    expect(screen.queryByText(/No notable facts fired/)).toBeNull()
+    expect(screen.queryByTestId('terminal-move-nothing')).toBeNull()
   })
 
   it('the dark flag (404) reads as "not switched on", any other failure as retry', async () => {
