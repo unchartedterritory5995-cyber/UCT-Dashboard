@@ -876,9 +876,15 @@ def _enrich_with_rating_changes(top: list[dict]) -> None:
             data = get_analyst_grades(c.get("ticker") or "")
         except Exception:
             data = None
-        if not data:
+        # Shape guard: the grades service can hand back a bare string (an error
+        # message) or a list holding strings; reading `.get` off either raised
+        # "'str' object has no attribute 'get'" on every refresh (2026-10-08 logs).
+        if not isinstance(data, dict):
             continue
-        for a in (data.get("recent_actions") or []):  # newest-first
+        actions = data.get("recent_actions")
+        for a in (actions if isinstance(actions, list) else []):  # newest-first
+            if not isinstance(a, dict):
+                continue
             if (a.get("action") or "").lower() not in ("upgrade", "downgrade", "initiate"):
                 continue
             d = str(a.get("date") or "")[:10]

@@ -95,6 +95,24 @@
       "owner": "breadth-v2-cutover",
       "note": "Breadth V2 cutover (2026-09-29). Starts the web background thread that installs the frozen V2c2 artifact as a sha-verified 0444 read-only replica (from the R2 freeze archive) and adopts the dedicated producer's VALIDATED live publications into a local replica. Writes no authoritative Breadth; serving consults the replicas only when BREADTH_AUTHORITY=v2. Rollback: unset."
     },
+    "BREADTH_EXCH_RUNNER_ENABLED": {
+      "status": "armed",
+      "where": ["breadth-v2-runner"],
+      "owner": "exchange-breadth-v1",
+      "note": "Exchange Breadth V1 (NYSE / NASDAQ), 3f822ace4. On the breadth-v2-runner service (api/breadth_v2_producer_main.py) it starts a SECOND thread running breadth_exchange_runner (archive -> compute -> validate -> publish), kicked after every US V2 producer tick but never inside it, so it cannot fail or delay a V2 publication; status at /exchange. Read live 2026-10-08 (railway variables --kv): =1 on breadth-v2-runner, with BREADTH_EXCH_MEMBER_AUTHORITY_SINCE=2026-10-07T13:25:10Z; set on no other service. Rollback: unset (or <runner root>/HOLD parks it)."
+    },
+    "BREADTH_EXCH_SYNC_ENABLED": {
+      "status": "armed",
+      "where": ["web"],
+      "owner": "exchange-breadth-v1",
+      "note": "Exchange Breadth V1, 3f822ace4. Starts the web thread (api/main.py) that follows the runner's published pointer into a verified read-only replica (breadth_exchange_authority.sync_loop, every BREADTH_EXCH_SYNC_SECS, default 600). Writes no authoritative breadth; serving consults the replica only when BREADTH_AUTHORITY_EXCH=v1. Read live 2026-10-08: =1 on web, beside BREADTH_AUTHORITY_EXCH=v1. Rollback: unset BREADTH_AUTHORITY_EXCH first (serving stops consulting the replica), then this."
+    },
+    "BREADTH_EXCH_RETENTION_RETIRE_ENABLED": {
+      "status": "dark",
+      "where": ["breadth-v2-runner"],
+      "owner": "exchange-breadth-v1",
+      "note": "Exchange Breadth V1 retention, e5d4e5c58. DELIBERATELY OFF: breadth_exchange_retention.retire() refuses (RETIREMENT_DISABLED) unless this is 1, and the runner never calls it in the initial deployment. Owner rule in the module docstring: the first production retirement happens only after the real-cycle proof, and then only when every A-I clause is re-proven at deletion (full re-hash). Read live 2026-10-08: set on no service (web, breadth-v2-runner, worker, bars-api, flow-worker, chart-renderer, terminal-next-monitor). Arming it lets retire() delete archived vintage bytes; SUMS, ack and evidence records stay."
+    },
     "A8_PRIMARY_MENTION_ENABLED": {
       "status": "armed",
       "where": [

@@ -28,15 +28,19 @@ import styles from '../ResearchPage.module.css'
 // catalog or light theme recolours it like every other accent.
 const keyLevelInk = () => themeInk('--ut-gold', CHART_INK.gold)
 
-// Acronyms the fallback title-casing would mangle ("Macd", "Vsa", "Avwap").
-const ACRONYMS = { macd: 'MACD', vsa: 'VSA', avwap: 'AVWAP', vwap: 'VWAP', rsi: 'RSI', sma: 'SMA', ema: 'EMA', atr: 'ATR', htf: 'HTF', ep: 'EP' }
+// Acronyms the fallback title-casing would mangle ("Macd", "Vsa", "Avwap"). These are
+// WORDS of a setup id ("macd_bullish_cross"), not indicator ids, so they are held as the
+// upper-case acronym itself: keyed by the lower-case spelling, the table read as a hand-list
+// of indicator ids to chart/engine/__tests__/enumerationSites.test.js, and no new indicator
+// ever has to be added here.
+const ACRONYMS = new Set(['MACD', 'VSA', 'AVWAP', 'VWAP', 'RSI', 'SMA', 'EMA', 'ATR', 'HTF', 'EP'])
 
 /** The server's `setup_name` (the pattern engine's own name) when it sent one; otherwise the id,
  *  title-cased with acronyms kept (quality pass 2026-10-05: "Macd Bullish Cross"). */
 export function setupLabel(setup, name = null) {
   if (name) return name
   return (setup || '').split('_').filter(Boolean)
-    .map((w) => ACRONYMS[w.toLowerCase()] || (w[0].toUpperCase() + w.slice(1))).join(' ')
+    .map((w) => (ACRONYMS.has(w.toUpperCase()) ? w.toUpperCase() : (w[0].toUpperCase() + w.slice(1)))).join(' ')
 }
 
 // Whole ET calendar days since `asof_date` (a market date). It used to round

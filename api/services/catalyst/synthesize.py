@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import time
 from typing import Optional
 
@@ -376,6 +377,39 @@ def _parse_json_response(text: str) -> Optional[dict]:
         return None
 
 
+# 2026-10-08: a reply can PARSE and still not be a write-up a member can read.
+# _parse_json_response only promises "some JSON value": a list crashed
+# synthesize_ticker (no fallback tried), a dict/list thesis was stored as-is
+# (the panels call .split on it), and a double-encoded or fenced thesis was
+# shown as raw JSON. Only a usable write-up passes; anything else is treated
+# exactly like unparseable output (fallback model, then "malformed").
+_RAW_JSON_THESIS = re.compile(r'^\s*[\[{]|```|"thesis"\s*:', re.I)
+
+
+def _usable_writeup(parsed) -> Optional[dict]:
+    """Return the reply normalised to display types, or None when it is not a
+    write-up that can be shown to a member."""
+    if not isinstance(parsed, dict):
+        return None
+    thesis = parsed.get("thesis")
+    if not isinstance(thesis, str):
+        return None
+    thesis = thesis.strip()
+    if not thesis or _RAW_JSON_THESIS.search(thesis):
+        return None
+    urls = parsed.get("source_urls")
+    if isinstance(urls, str):
+        urls = [urls]
+    if not isinstance(urls, list):
+        urls = []
+    ctype = parsed.get("catalyst_type")
+    out = dict(parsed)
+    out["thesis"] = thesis
+    out["source_urls"] = [u.strip() for u in urls if isinstance(u, str) and u.strip()]
+    out["catalyst_type"] = ctype.strip() if isinstance(ctype, str) and ctype.strip() else None
+    return out
+
+
 def _validate_no_sources_phrasing(parsed: dict, has_sources: bool) -> bool:
     """If candidate has no sources, the thesis MUST contain 'no clear catalyst'."""
     if has_sources:
@@ -517,8 +551,8 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
         cost_guard.record(market_date, candidate["ticker"], model,
                           in_i, out_i, was_cached=False)
         raw_text = _extract_text(msg)
-        cand = _parse_json_response(raw_text)
-        if cand is not None and cand.get("thesis"):
+        cand = _usable_writeup(_parse_json_response(raw_text))
+        if cand is not None:
             parsed = cand
             used_model = model
             break
@@ -560,7 +594,7 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
             cost_guard.record(market_date, candidate["ticker"], used_model,
                               in2, out2, was_cached=False)
             raw_text2 = _extract_text(msg2)
-            parsed2 = _parse_json_response(raw_text2)
+            parsed2 = _usable_writeup(_parse_json_response(raw_text2))
             if parsed2 and _validate_no_sources_phrasing(parsed2, has_sources):
                 parsed = parsed2
             else:
