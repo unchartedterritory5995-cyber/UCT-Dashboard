@@ -60,7 +60,8 @@ describe('unknown codes suggest the near miss', () => {
 
 // Today's codes in every placement.
 const SECURITY = ['PEER', 'ETF', 'TWT', 'CHK', 'PLAN']
-const MARKET = ['NEWS', 'REGM', 'INS', 'RSL', 'SENT', 'SCAT', 'BRKO']
+// SCAT is not here: it takes a universe and axes (scatterArgs.js), so like THMS it says what it takes.
+const MARKET = ['NEWS', 'REGM', 'INS', 'RSL', 'SENT', 'BRKO']
 
 describe("today's codes, every placement", () => {
   it.each(SECURITY)('%s: NVDA X, X NVDA and lowercase all read X on NVDA; X alone waits for the linked security', (c) => {
@@ -82,6 +83,12 @@ describe("today's codes, every placement", () => {
     expect(parseCommand('THMS 1W')).toMatchObject(fn('THMS', null, ['1W']))
     expect(parseCommand('THMS NVDA')).toMatchObject(fn('THMS', null, ['NVDA']))
     expect(describeCommand(parseCommand('THMS NVDA')).text).toMatch(/Not applied: "NVDA"/)
+  })
+
+  it('SCAT takes a universe and axes, so SCAT NVDA says NVDA was not applied', () => {
+    expect(parseCommand('SCAT')).toMatchObject(fn('SCAT', null))
+    expect(parseCommand('SCAT NVDA')).toMatchObject(fn('SCAT', null, ['NVDA']))
+    expect(describeCommand(parseCommand('SCAT NVDA')).text).toMatch(/Not applied: "NVDA"/)
   })
 
   it('SIZE works with or without a ticker', () => {

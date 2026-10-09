@@ -170,7 +170,6 @@ export const STILL_UNCHECKED = [
   // can hide, so the list is only allowed to shrink by DELETION.
   'pages/SetupLibrary.jsx',
   'pages/ThemeTrackerPage.jsx',
-  'pages/UCT20.jsx',
   'pages/admin/ChartHealth.jsx',
   'pages/admin/PatternAdmin.jsx',
   'pages/admin/PatternReview.jsx',
