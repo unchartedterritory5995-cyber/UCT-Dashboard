@@ -50,8 +50,6 @@ async function startRun(sym, body) {
   let j = null
   try { j = await r.json() } catch { /* a non-JSON body is a failure below */ }
   if (r.status === 402) return { error: 'The backtester requires a paid plan.' }
-  // A dark route answers 404 with FastAPI's bare "Not Found": say what that means (wave 9).
-  if (r.status === 404) return { error: "The backtester isn't switched on for this server yet." }
   if (r.status === 429) {
     const wait = Number(r.headers?.get?.('Retry-After'))
     if (Number.isFinite(wait) && wait > 0 && wait <= BUSY_REASK_MAX_WAIT_S) return { busy: true }
@@ -140,7 +138,7 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
   return (
     <section className={styles.payoff} data-testid="backtest">
       <div className={styles.volHead}>
-        Backtest: a historical simulation over {earnings ? 'past earnings prints' : 'past monthly expirations'}
+        Backtest — a historical simulation over {earnings ? 'past earnings prints' : 'past monthly expirations'}
       </div>
       <div className={styles.head}>
         <label>Strategy{' '}
@@ -155,7 +153,7 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
               <option value="monthly">Monthly expirations</option>
               <option value="earnings" disabled={!earningsAnchor}>
                 {earningsAnchor ? 'Earnings reports (after the close or before the open)'
-                  : 'Earnings reports (after the close or before the open), not available yet'}
+                  : 'Earnings reports (after the close or before the open) — not available yet'}
               </option>
             </Select>
           </label>

@@ -5,18 +5,15 @@
 // against every other name. The UCT 20 page reads the same table. The panel shows the top
 // `TOP_N` and sorts within them; the full universe is thousands of rows.
 //
-// ⛔ A cold server answers 503 {"status":"warming"} while it computes (never in the request); that
-// reads "Loading, the server is preparing this" and re-polls briefly, never "no leaders". A 503
-// without that body is an outage (error with Retry); a 402 or a switched-off route has no Retry.
+// ⛔ A cold server answers 503 while it computes (never in the request); that reads "being computed",
+// not "no leaders". Any other failure is an error with Retry.
 import { useMemo, useState } from 'react'
 import {
   PanelSkeleton, PanelSymbol, PanelState, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
-import { canRetry, failureKind, failureText, isWarmingError, useMarketRead } from './marketRead'
-import useWarmingPoll from './warmingPoll'
-import WarmingState from './WarmingState'
+import { failureText, useMarketRead } from './marketRead'
 import styles from './marketPanels.module.css'
 
 export const RS_URL = '/api/rs-rankings'
@@ -61,9 +58,6 @@ const tone = (v) => (v > 0 ? styles.up : v < 0 ? styles.down : undefined)
 export default function RsLeadersPanel() {
   const inPanel = useInTerminalPanel()
   const read = useMarketRead(RS_URL, { refreshInterval: POLL_MS })
-  // The server answers 503 {"status":"warming"} with Retry-After: 30 while it builds the ranking.
-  const warming = !read.body && isWarmingError(read.error)
-  const warmPoll = useWarmingPoll(warming, read.retry, { everyMs: 10_000, maxTries: 12 })
   const board = useMemo(() => rsLeaders(read.body), [read.body])
   const [sort, setSort] = useState({ key: 'order', dir: 'asc' })
   const rows = useMemo(() => sortRows(board.rows, sort, { valueOf, isNumeric, tiebreak: byOrder }), [board.rows, sort])
@@ -71,13 +65,18 @@ export default function RsLeadersPanel() {
   usePanelSymbolRows(rows.map((r) => r.sym), 'RS leaders', { total: board.total })
 
   if (read.loading) return <PanelSkeleton label="Loading RS rankings" testId="terminal-rsl-loading" />
-  if (warming) {
-    return <WarmingState what="the RS rankings" gaveUp={warmPoll.gaveUp} onRetry={warmPoll.retry} testId="terminal-rsl-warming" />
-  }
   if (read.error && !read.body) {
-    const locked = !canRetry(read.error)
+    if (read.error?.status === 503) {
+      return (
+        <PanelState kind="empty" role="status" title="RS rankings are being computed." testId="terminal-rsl-warming"
+          action={<button type="button" className={styles.chip} onClick={read.retry}>Retry</button>}>
+          The server builds the ranking in the background after a restart. Try again in a minute.
+        </PanelState>
+      )
+    }
+    const locked = read.error?.status === 402
     return (
-      <PanelState kind={failureKind(read.error)} title={failureText(read.error, 'RS rankings')} testId="terminal-rsl-error"
+      <PanelState kind={locked ? 'locked' : 'error'} title={failureText(read.error, 'RS rankings')} testId="terminal-rsl-error"
         action={locked ? null : <button type="button" className={styles.chip} onClick={read.retry}>Retry</button>}>
         {locked ? null : 'Retry, or run RSL again.'}
       </PanelState>

@@ -7,7 +7,6 @@ import HighlightThesis from '../../../utils/highlightThesis'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import PanelCommand from '../../../components/terminal/PanelCommand'
-import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
 
 // FT-064 — EVTS: this ticker's events staged against the nearest earnings print
 // (T-n / T / T+n in weekdays). DARK behind EVENTS_TIMELINE_ENABLED.
@@ -39,8 +38,7 @@ export default function EventsPanel({ sym }) {
   usePanelFreshness(chrome.alone && data && !data.paywalled && !data.badRequest && !error ? { source: 'several feeds; each row names its own' } : null)
 
   let body
-  if (isSwitchedOff(error)) body = <SwitchedOff what="Events" className={styles.note} testId="events-off" />
-  else if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
+  if (error) body = <div className={styles.error} data-testid="events-unavailable">Events are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading events" />
   else if (data.paywalled) body = <div className={styles.note}>Events require a paid plan.</div>
   else if (data.badRequest) body = <DepthBadRequest sentence={memberSentence(data.badRequest)} />
@@ -65,7 +63,7 @@ export default function EventsPanel({ sym }) {
             {/* tq-panels: "No events on file" while a source is still pending was a claim
                 about sources not yet read. */}
             {pendingKinds.length > 0
-              ? `No events on file yet: ${pendingKinds.join(', ')} ${pendingKinds.length > 1 ? 'are' : 'is'} still being read.`
+              ? `No events on file yet — ${pendingKinds.join(', ')} ${pendingKinds.length > 1 ? 'are' : 'is'} still being read.`
               : 'No events on file in the sources read.'}
           </p>
           : (
@@ -84,7 +82,7 @@ export default function EventsPanel({ sym }) {
                           {OPENS[e.kind]
                             ? <PanelCommand cmd={`${s} ${OPENS[e.kind].code}`} label={`Open ${s} ${OPENS[e.kind].what}`}>{KIND[e.kind] || e.kind}</PanelCommand>
                             : (KIND[e.kind] || e.kind)}
-                        </strong> <HighlightThesis text={e.title} />{e.detail ? <>: <HighlightThesis text={e.detail} /></> : ''}
+                        </strong> <HighlightThesis text={e.title} />{e.detail ? <> — <HighlightThesis text={e.detail} /></> : ''}
                         {e.url ? <> · <a href={e.url} target="_blank" rel="noopener noreferrer">document</a></> : null}
                       </td>
                       <td className={styles.text}>{memberText(e.source)}</td>

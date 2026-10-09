@@ -14,7 +14,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { BoardFromList, PanelSkeleton, PanelState, PanelSymbol, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import useCloses, { closesProvenance, failedText, formingThrough } from './useCloses'
-import WarmingState from './WarmingState'
 import { LOOKBACK_SESSIONS, collectSymbols, relativePerformance, withArgsKey } from './relativeMath'
 import styles from './comparePanels.module.css'
 
@@ -105,7 +104,6 @@ export default function RelPanel({ sym, lookback, ...props }) {
       </PanelState>
     )
   }
-  if (state.phase === 'warming') return <WarmingState what="price history for these names" testId="terminal-rel-warming" />
   if (state.phase !== 'ready') return <PanelSkeleton label={`Loading ${syms.join(', ')}`} shape="chart" testId="terminal-rel-loading" />
   if (!read || read.lines.length < 2) {
     // Nothing failed: too little SHARED history is a genuine empty answer, not an error to retry.

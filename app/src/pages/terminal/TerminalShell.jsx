@@ -45,7 +45,6 @@ import parseCommand, { normalizeInput } from './parseCommand'
 import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, researchHref, retiredNote, variantFor } from './functions'
 import { applyArgs, argsEcho } from './args'
 import { planAlert, setAlert } from './alertCommand'
-import { marketWideNote } from './grammar'
 import { COMMAND_PANELS, FLUSH_PANELS, LIST_OPENS, panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
 import useTerminalLayout from './useTerminalLayout'
 import useCommandHistory from './commandHistory'
@@ -178,25 +177,6 @@ export function telemetryKey(cmd) {
   if (cmd.alias) return cmd.alias
   if (cmd.type === 'function') return cmd.code
   return { ask: 'ASK', address: 'ADDR', row: 'ROW', board: 'BOARD' }[cmd.type] || null
-}
-
-/** Pure: the visible panel a bare ticker typed on a non-security panel (`at`: CAL, HELP, a
- *  market list) loads into, or -1. Same link group first; within a tier DES, then GP, then any
- *  linkable panel already showing a security. Popped-out panels never count. */
-export function securityPanelFor(layout, at, syms) {
-  const visible = layout.panels.slice(0, layout.count)
-  const own = panelChannel(visible[at])
-  const rank = (p) => (p.code === 'DES' ? 0 : p.code === 'GP' ? 1 : panelSym(p, syms) ? 2 : -1)
-  let best = -1
-  let bestScore = Infinity
-  visible.forEach((p, j) => {
-    if (j === at || !p || p.popout || !isLinkable(p) || !BY_CODE[p.code]?.ticker?.panel) return
-    const r = rank(p)
-    if (r < 0) return
-    const score = (own && panelChannel(p) === own ? 0 : 10) + r
-    if (score < bestScore) { best = j; bestScore = score }
-  })
-  return best
 }
 
 /** Pure: is this input a bare ticker (the one form a per-ticker preset may answer)? */
@@ -689,7 +669,7 @@ export default function TerminalShell() {
     // shell REPLACES that entry, so Back does not land on it and bounce forward again.
     const go = (to) => (fromUrl ? navigate(to, { replace: true }) : navigate(to))
     if (BOARD_ADDRESS_RE.test(raw)) { openNamed(raw); return null }
-    let cmd = parseCommand(raw, { aliases: aliasesRef.current })
+    const cmd = parseCommand(raw, { aliases: aliasesRef.current })
     if (!cmd.ok) {
       if (cmd.error !== 'empty') {
         setNotice({ kind: 'error', text: cmd.error, sym: cmd.sym, suggestions: cmd.suggestions || [],
@@ -853,18 +833,14 @@ export default function TerminalShell() {
     // panel — instead of turning the focused panel into a second copy of that overview (the
     // first-visit board: CAL beside SPY DES). The focused panel keeps its function. With no
     // overview on screen the focused panel takes it, exactly as before.
-    // W9-4: not only DES. Any visible security panel takes it (CAL beside a GP chart loads the
-    // chart, it does not become DES): same group first, then DES, then GP, then any panel
-    // already showing a security. A non-DES target keeps its function and arguments.
     let overviewFrom = null
     if (!cmd.channel && !beside && slot == null && isBareTicker(raw, cmd) && !isLinkable(cur.panels[at])) {
-      const i = securityPanelFor(cur, at, symsRef.current)
-      if (i >= 0) {
-        const t = cur.panels[i]
-        overviewFrom = { index: at, code: cur.panels[at].code, into: t.code }
-        if (t.code !== 'DES') cmd = { ...cmd, code: t.code, args: t.args || [] }
-        at = i
-      }
+      const own = panelChannel(cur.panels[at])
+      const visible = cur.panels.slice(0, cur.count)
+      const isOverview = (p, j) => j !== at && p.code === 'DES' && isLinkable(p) && !p.popout
+      let i = own ? visible.findIndex((p, j) => isOverview(p, j) && panelChannel(p) === own) : -1
+      if (i < 0) i = visible.findIndex(isOverview)
+      if (i >= 0) { overviewFrom = { index: at, code: cur.panels[at].code }; at = i }
     }
     // An "Open SYM CODE" link inside a LIST panel (MOST's catalyst story, an RRG row) opens
     // BESIDE the list, never over it: a fresh panel when the board has room, else the next one
@@ -889,16 +865,10 @@ export default function TerminalShell() {
     let { variant, scope, reason, ignoredTicker } = variantFor(cmd.code, !!sym)
     if (!variant && reason === 'needs-ticker') {
       sym = panelSym(panel, symsRef.current)
-      // W9-4: a focused CAL / HELP / market list follows no security; borrow the one a visible
-      // security panel shows (the same pick a bare ticker would load into).
-      if (!sym && !isLinkable(panel)) {
-        const j = securityPanelFor(cur, at, symsRef.current)
-        if (j >= 0) sym = panelSym(cur.panels[j], symsRef.current)
-      }
       if (sym) { variant = BY_CODE[cmd.code].ticker; scope = 'ticker' }
     }
     if (!variant) {
-      setNotice({ kind: 'info', text: `${cmd.code} needs a ticker. Type it after one, like NVDA ${cmd.code}.` })
+      setNotice({ kind: 'error', text: `${cmd.code} needs a ticker — e.g. NVDA ${cmd.code}.` })
       return null
     }
     if (!flagOn(auth, variant.flag)) {
@@ -953,7 +923,7 @@ export default function TerminalShell() {
       // …and the same for a TICKER a market-wide door cannot carry (`NVDA DASH`): say so, and
       // let the member open it without the ticker in one click.
       if (ignoredTicker) {
-        setNotice({ kind: 'error', text: marketWideNote(cmd.code, cmd.sym),
+        setNotice({ kind: 'error', text: `${cmd.code} is market-wide; ${cmd.sym} is ignored.`,
           actions: [{ label: `Open ${cmd.code} without ${cmd.sym}`, id: 'go', to }] })
         return null
       }
@@ -1002,10 +972,10 @@ export default function TerminalShell() {
     if (scope === 'ticker' && channel) next = commitChannelSym(next, channel, sym)
     save(next)
     const said = [
-      ignoredTicker && marketWideNote(cmd.code, cmd.sym, 'was not applied'),
+      ignoredTicker && `${cmd.code} is market-wide; ${cmd.sym} was not applied.`,
       // The function's label, never the panel's internal name (`surfaceScreener`, round 3).
       redirectedFrom && `${BY_CODE[cmd.code].label} is already open in panel ${target + 1}; @${redirectedFrom} was redirected there instead of opening a second copy.`,
-      overviewFrom && `Loaded ${sym} into ${overviewFrom.into === 'DES' ? 'the overview' : overviewFrom.into} in panel ${target + 1}; ${overviewFrom.code} stays in panel ${overviewFrom.index + 1}.`,
+      overviewFrom && `Loaded ${sym} into the overview in panel ${target + 1}; ${overviewFrom.code} stays in panel ${overviewFrom.index + 1}.`,
       besideOf && target !== besideOf.src &&`Opened ${[scope === 'ticker' ? sym : null, cmd.code].filter(Boolean).join(' ')} in ${besideOf.added ? 'a new ' : ''}panel ${target + 1}; ${besideOf.code} stays in panel ${besideOf.src + 1}.`,
       echo,
     ].filter(Boolean)

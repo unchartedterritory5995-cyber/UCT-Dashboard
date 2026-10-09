@@ -45,9 +45,9 @@ describe('HistoryTab', () => {
     ]
     await renderWith({ ok: true, body: { ...BODY, timeline: rows } })
     const got = screen.getAllByTestId('history-row').map((li) => li.textContent)
-    expect(got[0]).toMatch(/· Catalysts · On the catalyst list \(Earnings\) ·/)
-    expect(got[1]).toMatch(/· Catalysts · On the catalyst list \(untagged\) ·/)
-    expect(got[2]).toMatch(/· Setups · Setups entry; no description was recorded ·/)
+    expect(got[0]).toMatch(/· Catalysts · On the catalyst list \(Earnings\) —/)
+    expect(got[1]).toMatch(/· Catalysts · On the catalyst list \(untagged\) —/)
+    expect(got[2]).toMatch(/· Setups · Setups entry; no description was recorded —/)
     expect(got[3]).toMatch(/No write-up for this day: the summary step failed/)
   })
 
@@ -117,8 +117,8 @@ describe('HistoryTab', () => {
     ]
     await renderWith({ ok: true, body: { ...BODY, timeline: rows } })
     const text = screen.getByTestId('history-rows').textContent
-    expect(text).toMatch(/Setups · VCP setup from 2026-09-25: won \(\+0\.42R\) · UCT setup ledger, as of 2026-09-29/)
-    expect(text).toMatch(/Published as a VCP setup \(leadership list\) · UCT setup ledger, as of 2026-09-25/)
+    expect(text).toMatch(/Setups · VCP setup from 2026-09-25: won \(\+0\.42R\) — UCT setup ledger, as of 2026-09-29/)
+    expect(text).toMatch(/Published as a VCP setup \(leadership list\) — UCT setup ledger, as of 2026-09-25/)
   })
 
   it('names how far a nightly lane reaches, and an unreadable flow lane as missing', async () => {

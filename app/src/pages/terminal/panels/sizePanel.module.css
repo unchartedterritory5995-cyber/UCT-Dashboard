@@ -76,14 +76,3 @@
     min-height: var(--tap-min);
   }
 }
-
-/* The ADR stop suggestion: a sentence and its Use button, wrapping on a narrow panel. */
-.adr {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-sm);
-  margin: 0;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}

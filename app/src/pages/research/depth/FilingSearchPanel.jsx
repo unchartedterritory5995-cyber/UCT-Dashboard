@@ -7,7 +7,6 @@ import { memberText, memberSentence } from '../../../lib/presentation/memberCopy
 import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
-import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
 
 // FT-058 / FT-059 / FT-060 — boolean, proximity, synonym and section-scoped
 // search over this ticker's newest 10-K and 10-Q. DARK behind FILING_SEARCH_ENABLED.
@@ -71,7 +70,6 @@ export default function FilingSearchPanel({ sym }) {
 
   let body = null
   if (!submitted) body = null
-  else if (isSwitchedOff(error)) body = <SwitchedOff what="Filing search" className={styles.note} testId="filing-search-off" />
   else if (error) body = <div className={styles.error} data-testid="filing-search-unavailable">Filing search is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <div className={styles.note} role="status">Searching…</div>
   else if (data.paywalled) body = <div className={styles.note}>Filing search requires a paid plan.</div>

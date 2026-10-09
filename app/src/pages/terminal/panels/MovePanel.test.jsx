@@ -90,14 +90,3 @@ describe('MovePanel', () => {
     for (const cmd of moveRows('NVDA')) expect(BY_CODE[cmd.split(' ')[1]], cmd).toBeTruthy()
   })
 })
-
-describe('MOVE paid plan (wave 9)', () => {
-  it('a 402 says paid plan, without Retry', async () => {
-    jsonFetcher.mockRejectedValueOnce(Object.assign(new Error('p'), { status: 402 }))
-    render(<MovePanel sym="NVDA" />)
-    const el = await screen.findByTestId('terminal-move-error')
-    expect(el.textContent).toContain('paid plan')
-    expect(el.getAttribute('data-kind')).toBe('locked')
-    expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
-  })
-})

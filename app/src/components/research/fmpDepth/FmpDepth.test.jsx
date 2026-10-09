@@ -303,7 +303,7 @@ describe('a fund on FA / EE', () => {
       not_applicable: 'fund', reason: 'SPY is a fund; funds report no company income statement, balance sheet or cash flow' }
     mount(<FinancialsDeep sym="SPY" />)
     expect((await screen.findByTestId('fa-na')).textContent)
-      .toBe('Not applicable to funds: SPY is a fund; funds report no company income statement, balance sheet or cash flow.')
+      .toBe('Not applicable to funds — SPY is a fund; funds report no company income statement, balance sheet or cash flow.')
     expect(screen.queryByText(/FMP holds no statement history/)).toBeNull()
   })
 
@@ -313,7 +313,7 @@ describe('a fund on FA / EE', () => {
       not_applicable: 'fund', reason: 'SPY is a fund; analysts publish no earnings or revenue estimates for a fund' }
     mount(<ConsensusEstimates sym="SPY" />)
     expect((await screen.findByTestId('ee-na')).textContent)
-      .toBe('Not applicable to funds: SPY is a fund; analysts publish no earnings or revenue estimates for a fund.')
+      .toBe('Not applicable to funds — SPY is a fund; analysts publish no earnings or revenue estimates for a fund.')
     expect(screen.queryByText(/Neither FMP nor Yahoo/)).toBeNull()
   })
 })

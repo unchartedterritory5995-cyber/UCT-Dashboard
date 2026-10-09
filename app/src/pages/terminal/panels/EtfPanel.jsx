@@ -13,7 +13,7 @@
 // ⛔ HONEST GAPS. There is no route that lists which index ETFs hold a stock, so this panel says so
 // rather than implying none do. The holdings route answers an empty list both for a non-ETF and when
 // its vendor is down, so an ETF with no holdings is an error with Retry, never "holds nothing".
-import { useId, useMemo } from 'react'
+import { useMemo } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import {
@@ -51,8 +51,6 @@ function familyNote(err) {
 export default function EtfPanel({ sym }) {
   const s = String(sym || '').trim().toUpperCase()
   const inPanel = useInTerminalPanel()
-  // Two ETF panels can be open at once, so the section headings carry per-instance ids.
-  const hid = useId()
   const holdings = useSWR(s ? holdingsUrl(s) : null, stamped, SWR_OPTS)
   const family = useSWR(s ? familyUrl(s) : null, stamped, SWR_OPTS)
   const etfs = useSWR(s ? ETF_SYMBOLS_URL : null, jsonFetcher, { revalidateOnFocus: false, dedupingInterval: 60 * 60 * 1000 })
@@ -98,8 +96,8 @@ export default function EtfPanel({ sym }) {
 
   return (
     <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-etf">
-      <section aria-labelledby={`${hid}-family`}>
-        <h3 id={`${hid}-family`} className={styles.lede}>
+      <section aria-labelledby="terminal-etf-family-h">
+        <h3 id="terminal-etf-family-h" className={styles.lede}>
           {leveragedEtf ? `${s} is a leveraged ETF on ${underlying}. The ${underlying} family:` : `Leveraged and inverse ETFs on ${s}`}
         </h3>
         {family.error ? (
@@ -134,8 +132,8 @@ export default function EtfPanel({ sym }) {
         )}
       </section>
 
-      <section aria-labelledby={`${hid}-holdings`}>
-        <h3 id={`${hid}-holdings`} className={styles.lede}>{isEtf ? `What ${s} holds` : `Index ETFs that hold ${s}`}</h3>
+      <section aria-labelledby="terminal-etf-holdings-h">
+        <h3 id="terminal-etf-holdings-h" className={styles.lede}>{isEtf ? `What ${s} holds` : `Index ETFs that hold ${s}`}</h3>
         {holdings.error || holdingsMissing ? (
           <PanelState kind="error" compact testId="terminal-etf-holdings-error" action={retry}
             title={`Could not read the holdings of ${s} just now.`}>

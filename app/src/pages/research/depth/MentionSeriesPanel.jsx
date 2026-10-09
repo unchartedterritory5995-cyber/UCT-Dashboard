@@ -6,7 +6,6 @@ import { memberText, memberSentence } from '../../../lib/presentation/memberCopy
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import PanelCommand from '../../../components/terminal/PanelCommand'
 import { formatPercentAsSent } from '../../../lib/presentation/presentationPrimitives'
-import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
 
 // FT-080 — room attention per ticker, from the /buzz mention store. A research
 // panel, not a chart overlay. DARK behind MENTION_SERIES_ENABLED.
@@ -31,8 +30,7 @@ export default function MentionSeriesPanel({ sym }) {
     : null)
 
   let body
-  if (isSwitchedOff(error)) body = <SwitchedOff what="Room attention" className={styles.note} testId="mentions-off" />
-  else if (error) body = <div className={styles.error} data-testid="mentions-unavailable">Room attention is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
+  if (error) body = <div className={styles.error} data-testid="mentions-unavailable">Room attention is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
   else if (!data) body = <DepthLoading inPanel={chrome.inPanel} label="Loading room attention" />
   else if (data.paywalled) body = <div className={styles.note}>Room attention requires a paid plan.</div>
   else if (data.badRequest) body = <DepthBadRequest sentence={memberSentence(data.badRequest)} />

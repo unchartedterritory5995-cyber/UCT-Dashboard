@@ -96,9 +96,7 @@ export default function MovePanel({ sym, onRun, onRows }) {
       // same body for both, so the copy claims neither. Any other failure is an error with a Retry.
       status === 404
         ? <PanelState kind="locked" role="status" title="MOVE isn't switched on yet." testId="terminal-move-error" />
-        : status === 402
-        ? <PanelState kind="locked" role="status" title="MOVE is part of the paid plan." testId="terminal-move-error" />
-        : <PanelState kind="error" title={state.error?.timedOut ? `Why ${sym} is moving did not answer within 30 seconds.` : `Could not load why ${sym} is moving just now.`} testId="terminal-move-error"
+        : <PanelState kind="error" title={`Could not load why ${sym} is moving just now.`} testId="terminal-move-error"
             action={<button type="button" onClick={() => setAttempt((n) => n + 1)}>Retry</button>}>
             Run {sym} MOVE again, or retry here.
           </PanelState>
@@ -149,7 +147,7 @@ export default function MovePanel({ sym, onRun, onRows }) {
         {cats.map((c) => (
           <li key={catalystKey(c)} data-new={fresh.has(catalystKey(c)) ? 'true' : 'false'}>
             {fresh.has(catalystKey(c)) && <strong>NEW </strong>}
-            {c.market_date} · {c.tag}{c.thesis_text && !isFailedSynthesis(c.thesis_text) ? <>: <HighlightThesis text={c.thesis_text} /></> : ''}
+            {c.market_date} · {c.tag}{c.thesis_text && !isFailedSynthesis(c.thesis_text) ? <> — <HighlightThesis text={c.thesis_text} /></> : ''}
           </li>
         ))}
       </ul>

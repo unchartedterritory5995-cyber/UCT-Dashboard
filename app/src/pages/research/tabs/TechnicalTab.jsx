@@ -165,7 +165,7 @@ export default function TechnicalTab({ sym }) {
 
       {scannerHint && hintMatched === false && (
         <div className={styles.entityNote} data-testid="scanner-hint-stale">
-          Detected from Scanner: {setupLabel(scannerHint)}. This setup is no longer
+          Detected from Scanner: {setupLabel(scannerHint)} — this setup is no longer
           confirmed as active for {sym}.
         </div>
       )}
@@ -196,7 +196,7 @@ export default function TechnicalTab({ sym }) {
           {evaluated > 0 ? (
             <>
               {evaluated} setup{evaluated === 1 ? '' : 's'} evaluated on {sym} in
-              the last 7 days, none confirmed. Setups are re-checked hourly
+              the last 7 days — none confirmed. Setups are re-checked hourly
               during market hours.
             </>
           ) : (

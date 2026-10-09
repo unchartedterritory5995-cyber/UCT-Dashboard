@@ -68,12 +68,6 @@ export default function TwtPanel({ sym }) {
   }
   if (!q.data && !q.error) return <PanelSkeleton label={`Reading posts about ${s}`} testId="terminal-twt-loading" />
   if (q.error && !q.data) {
-    if (q.error?.status === 402 || q.error?.status === 404) {
-      return (
-        <PanelState kind="locked" role="status" testId="terminal-twt-error"
-          title={q.error.status === 402 ? 'Social posts are part of the paid plan.' : 'Social posts are not switched on for this server yet.'} />
-      )
-    }
     return (
       <PanelState kind="error" testId="terminal-twt-error" title={failureTitle(q.error, s)}
         action={<button type="button" className={styles.chip} onClick={() => q.mutate()}>Retry</button>}>
@@ -109,8 +103,7 @@ export default function TwtPanel({ sym }) {
                 {formatNumber(Number(t.like_count) || 0, { decimals: 0 })} likes, {formatNumber(Number(t.retweet_count) || 0, { decimals: 0 })} reposts
               </span>
               {t.url ? (
-                <a className={styles.linkBtn} href={t.url} target="_blank" rel="noopener noreferrer"
-                  aria-label={`Open on X: post by @${t.author_handle}, opens in a new tab`}>Open on X</a>
+                <a className={styles.linkBtn} href={t.url} target="_blank" rel="noopener noreferrer">Open on X</a>
               ) : null}
             </div>
           </li>

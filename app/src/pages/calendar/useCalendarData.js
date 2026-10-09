@@ -4,8 +4,7 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import { localIso } from './weekAnchor'
 import { withDeadline } from '../../utils/withDeadline'
 
-// The shared 30 s deadline (wave 9): a hung overlay read must end, not hold its slot forever.
-const fetcher = (url) => withDeadline(fetch(url), url).then(r => r.ok ? r.json() : null)
+const fetcher = (url) => fetch(url).then(r => r.ok ? r.json() : null)
 
 // The five rendered days of a week, Monday → Friday.
 //
@@ -168,7 +167,7 @@ export function useWeekMetrics(weekDates, isCurrentWeek = true) {
   const key = weekDates && weekDates.length ? `metrics:${weekDates.join(',')}` : null
   return useSWR(
     key,
-    () => withDeadline(fetch(`/api/calendar/day-metrics-batch?dates=${weekDates.join(',')}`), 'day-metrics-batch')
+    () => fetch(`/api/calendar/day-metrics-batch?dates=${weekDates.join(',')}`)
       .then(r => (r.ok ? r.json() : {}))
       .then(m => m || {})
       .catch(() => ({})),

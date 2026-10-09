@@ -69,7 +69,7 @@ describe('EventsPanel', () => {
       sources: { earnings: { state: 'pending' }, uct_catalyst: { state: 'empty', events: 0 } } }
     renderTab()
     expect((await screen.findByTestId('events-empty')).textContent)
-      .toBe('No events on file yet: Earnings is still being read.')
+      .toBe('No events on file yet — Earnings is still being read.')
     expect(screen.getByTestId('events-pending').textContent)
       .toBe('Still reading: Earnings. Events from that source appear when the read finishes.')
     expect(screen.queryByText('No events on file in the sources read.')).toBeNull()

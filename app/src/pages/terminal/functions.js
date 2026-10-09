@@ -255,9 +255,8 @@ export const FUNCTIONS = [
     market: { panel: 'Sentiment' } },
   // SCAT: a universe on two metrics (RS rank vs % off the 52-week high by default), over the /charts
   // Market Map's own /api/scatter reads. A dot opens DES beside the panel.
-  // SCAT NDX CHG_1M RS_RANK: universe, then Y and X (scatterArgs.js); the panel writes picks back.
   { code: 'SCAT', label: 'Scatter a universe (RS rank vs % off 52-week high)', group: 'Market',
-    market: { panel: 'Scatter', args: [{ kind: 'scatUniverse', prop: 'universe' }, { kind: 'scatY', prop: 'yKey' }, { kind: 'scatX', prop: 'xKey' }] } },
+    market: { panel: 'Scatter' } },
   // ── end wave 8, lane E ──
 
   // ── the shell itself ──

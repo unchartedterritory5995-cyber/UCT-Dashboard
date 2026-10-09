@@ -33,9 +33,6 @@ import {
   biggestMover, contributionRead, imovCommand, matchTheme, normSym, refusalFor, splitRead, themeKey, themesHolding,
   themesOf, trackerDiffers,
 } from './imovModel'
-import { canRetry, failureText as sharedFailureText, isWarmingBody } from './marketRead'
-import useWarmingPoll from './warmingPoll'
-import WarmingState from './WarmingState'
 import styles from './imovPanel.module.css'
 
 const SWR_OPTS = { refreshInterval: POLL_MS, marketHoursOnly: true, keepPreviousData: true, revalidateOnFocus: false }
@@ -56,7 +53,11 @@ export function formatPts(v) {
 
 const tone = (v) => (v > 0 ? styles.up : v < 0 ? styles.down : undefined)
 
-const failureText = (err) => sharedFailureText(err, 'Theme performance')
+function failureText(err) {
+  if (err?.status === 402) return 'Theme performance needs a paid plan.'
+  if (err?.timedOut) return 'Theme performance did not answer within 30 seconds.'
+  return 'Theme performance could not be read just now.'
+}
 
 function ContribTable({ title, rows, start, n, sym, onLoad, testId }) {
   const linked = usePanelLinkedSym()
@@ -104,9 +105,6 @@ export default function ImovPanel({ sym: symProp = null, win: winProp = null, th
   const indexRefusal = sym && INDEX_FUNDS.includes(sym) && !picked && !themeQuery
   const perf = useMobileSWR(indexRefusal ? null : THEMES_URL, jsonFetcher, SWR_OPTS)
   const themes = useMemo(() => themesOf(perf.data), [perf.data])
-  // A cold theme cache answers 200 {"themes":[],"status":"computing"}: re-poll briefly.
-  const computing = !themes.length && isWarmingBody(perf.data)
-  const warmPoll = useWarmingPoll(computing, () => perf.mutate())
   const byKey = useMemo(() => new Map(themes.map((t) => [themeKey(t), t])), [themes])
   const holding = useMemo(() => (sym ? themesHolding(themes, sym) : []), [themes, sym])
   // A theme NAMED on the command line (`IMOV semiconductors`), resolved against what was read.
@@ -187,7 +185,7 @@ export default function ImovPanel({ sym: symProp = null, win: winProp = null, th
   }
   if (!perf.data && !perf.error) return <PanelSkeleton label="Loading theme returns" testId="terminal-imov-loading" />
   if (!perf.data && perf.error) {
-    const locked = !canRetry(perf.error)
+    const locked = perf.error?.status === 402
     return (
       <PanelState kind={locked ? 'locked' : 'error'} title={failureText(perf.error)} testId="terminal-imov-error"
         action={locked ? null : <button type="button" className={styles.chip} onClick={() => perf.mutate()}>Retry</button>}>
@@ -195,14 +193,10 @@ export default function ImovPanel({ sym: symProp = null, win: winProp = null, th
       </PanelState>
     )
   }
-  if (computing) {
-    return <WarmingState what="today's theme returns" gaveUp={warmPoll.gaveUp} onRetry={warmPoll.retry} testId="terminal-imov-computing" />
-  }
   if (!themes.length) {
     return (
-      <PanelState kind="empty" title="The theme tracker has no themes to show." testId="terminal-imov-none"
-        action={<button type="button" className={styles.chip} onClick={() => perf.mutate()}>Retry</button>}>
-        It answered with an empty list. Retry, or run IMOV again.
+      <PanelState kind="empty" title="Theme returns are still being computed." testId="terminal-imov-computing">
+        The theme service is building today&apos;s returns. This panel fills in on its own when they land.
       </PanelState>
     )
   }

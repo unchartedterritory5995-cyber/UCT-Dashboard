@@ -107,7 +107,7 @@ describe('EstimatesTab -- a fund', () => {
     const { default: Fresh } = await import('./EstimatesTab')
     render(<Fresh sym="SPY" />)
     expect(screen.getByTestId('estimates-na').textContent)
-      .toBe('Not applicable to funds: SPY is a fund; analysts publish no earnings or revenue estimates for a fund.')
+      .toBe('Not applicable to funds — SPY is a fund; analysts publish no earnings or revenue estimates for a fund.')
     expect(screen.queryByText('Estimate data is unavailable for this ticker.')).toBeNull()
   })
 })

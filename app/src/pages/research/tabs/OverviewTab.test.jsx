@@ -105,7 +105,7 @@ describe('OverviewTab analyst view (DES)', () => {
   it('no earnings record says so in the analyst card, with no error banner', () => {
     render(<OverviewTab {...base} analyst={{}} analystMissing />)
     expect(screen.getByTestId('analyst-missing').textContent)
-      .toBe('No earnings record for AAPL: the source holds no consensus or price target for it.')
+      .toBe('No earnings record for AAPL — the source holds no consensus or price target for it.')
     expect(screen.queryByTestId('overview-error')).toBeNull()
     expect(screen.queryByTestId('target-range')).toBeNull()
   })
@@ -113,7 +113,7 @@ describe('OverviewTab analyst view (DES)', () => {
   it('a fund says not applicable to funds in both the report and analyst cards', () => {
     render(<OverviewTab {...base} sym="SPY" reportState="not_applicable" reportReason="SPY is a fund; funds do not report earnings" analystMissing />)
     expect(screen.getByTestId('latest-report-na').textContent)
-      .toBe('Not applicable to funds: SPY is a fund; funds do not report earnings.')
+      .toBe('Not applicable to funds — SPY is a fund; funds do not report earnings.')
     expect(screen.queryByTestId('latest-report-empty')).toBeNull()
     expect(screen.getByTestId('analyst-missing').textContent).toMatch(/^Not applicable to funds/)
   })

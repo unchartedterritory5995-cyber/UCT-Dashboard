@@ -104,7 +104,7 @@ describe('Strategy screens units and cap', () => {
     expect(perContract(null)).toBe('—')
   })
   it('names the cap only when the read hit it', () => {
-    expect(capNote({ candidates_read: 3000, candidate_cap: 3000 })).toBe('Capped at 3,000 contracts by open interest, so higher-yield contracts with little open interest may be missing.')
+    expect(capNote({ candidates_read: 3000, candidate_cap: 3000 })).toBe('Capped at 3,000 contracts by open interest — higher-yield low-OI contracts may be missing.')
     expect(capNote({ candidates_read: 2999, candidate_cap: 3000 })).toBeNull()
     expect(capNote({ candidates_read: 3000 })).toBeNull()
   })
