@@ -122,7 +122,7 @@ describe('M1 indicator.list (query) — built only from instancesOf', () => {
     expect(hidden.text).toBe('1 indicator hidden on Left chart (NVDA).')
     expect(hidden.table.rows.map(r => r.name)).toEqual([instancesOf(csWith([MACD_HIDDEN]), registry)[0].name])
     expect(list(h, 'L', 'shown').table.rows).toHaveLength(3)
-    expect(list(host([LEFT(csWith([RSI]))]), 'L', 'hidden')).toMatch(/^Nothing is hidden on Left chart \(NVDA\)/)
+    expect(list(host([LEFT(csWith([RSI]))]), 'L', 'hidden')).toMatch(/^Nothing is hidden on Left chart \(NVDA\) — everything on it is shown\./)
   })
 })
 
@@ -221,6 +221,15 @@ describe('M1 indicator.openCreate — the Indicators opener, never /converse', (
     expect(sent.length).toBeLessThanOrEqual(SEED_MAX)
     expect(sent.includes(String.fromCharCode(7))).toBe(false)
     expect(sent.startsWith('rsi above 70')).toBe(true)
+  })
+  it('joint-acceptance polish: a restored MODIFY draft says Modify; "not added" only when a request was given; counts exclude the Volume pane', () => {
+    expect(openedLine({ ok: true, prefilled: false, draft: true, editing: true }, { defId: CUSTOM, name: 'LINREG 50', chart: 'Left chart (NVDA)' }))
+      .toMatch(/^Opened Modify on LINREG 50 in Create Indicator on Left chart \(NVDA\) — your earlier draft is open instead\. Nothing/)
+    expect(openedLine({ ok: true, prefilled: false, draft: true, editing: false }, { chart: 'Left chart (NVDA)' })).not.toMatch(/not added/)
+    expect(openedLine({ ok: true, prefilled: false, draft: true, editing: false }, { seed: 'x', chart: 'Left chart (NVDA)' })).toMatch(/so your new request was not added\./)
+    const h = host([LEFT(csWith([RSI, MACD_HIDDEN], { volume: true }))])
+    expect(list(h, 'L').text).toBe('2 indicators on Left chart (NVDA) (plus the Volume pane).')
+    expect(list(host([LEFT(csWith([], { volume: true }))]), 'L').text).toBe('Only the Volume pane is on Left chart (NVDA) — no indicators.')
   })
   it('already open on the same target: the receipt says nothing was typed over (never "in the box")', () => {
     expect(openedLine({ ok: true, prefilled: false, draft: false, editing: false }, { seed: 'x', chart: 'Left chart (NVDA)' }))
@@ -348,12 +357,12 @@ describe('M1 in the real panel (scripted model)', () => {
     await screen.findByText('Which indicators?')
     expect(turnBodies()).toHaveLength(0)
     fireEvent.click(await screen.findByRole('button', { name: /Right chart \(AAPL\)/ }))
-    await screen.findByText(/^\d+ indicators? on Right chart \(AAPL\)\./)
+    await screen.findByText(/^\d+ indicators? on Right chart \(AAPL\)( \(plus the Volume pane\))?\./)
   })
   it('"List the indicators on the right chart." → answered from the RIGHT chart only, fast path', async () => {
     const { say } = mountPanel()
     say('List the indicators on the right chart.')
-    await screen.findByText(/^\d+ indicators? on Right chart \(AAPL\)\./)
+    await screen.findByText(/^\d+ indicators? on Right chart \(AAPL\)( \(plus the Volume pane\))?\./)
     expect(turnBodies()).toHaveLength(0)
   })
   it('"Which indicators are hidden?" on the left chart → only the hidden one', async () => {

@@ -76,7 +76,10 @@ export const OPENER_REFUSALS = {
 export function openedLine(res, open) {
   const where = open?.chart ? ` on ${open.chart}` : ''
   const tail = ' Nothing was created or saved — review it there, and close the panel to cancel.'
-  if (res.draft) return `Opened Create Indicator${where} — your earlier draft is open instead, so your new request was not added.${tail}`
+  if (res.draft) {
+    const what = res.editing || open?.defId ? `Modify on ${open?.name || 'that indicator'} in Create Indicator` : 'Create Indicator'
+    return `Opened ${what}${where} — your earlier draft is open instead${open?.seed ? ', so your new request was not added' : ''}.${tail}`
+  }
   if (res.editing) {
     return `Opened Modify on ${open?.name || 'that indicator'} in Create Indicator${where}${res.prefilled ? ', with your request in the box — press Send when you’re ready.' : '.'}${tail}`
   }
@@ -132,12 +135,15 @@ export function registerIndicatorCapabilities() {
     answer: (snap, { filter } = {}) => {
       if (!snap) return 'That chart is not available.'
       const all = snap.indicators
+      const count = (list) => list.filter(i => !i.setting).length
+      const plural = (n) => `${n} indicator${n === 1 ? '' : 's'}`
+      const vol = (list) => (list.some(i => i.setting) ? ' (plus the Volume pane)' : '')
       const rows = filter === 'hidden' ? all.filter(i => i.hidden) : filter === 'shown' ? all.filter(i => !i.hidden) : all
       if (!all.length) return `No indicators on ${snap.label}.`
-      if (!rows.length) return filter === 'hidden' ? `Nothing is hidden on ${snap.label} — all ${all.length} indicator${all.length === 1 ? ' is' : 's are'} shown.` : `Every indicator on ${snap.label} is hidden.`
+      if (!rows.length) return filter === 'hidden' ? `Nothing is hidden on ${snap.label} — everything on it is shown.` : `Everything on ${snap.label} is hidden.`
       const what = filter === 'hidden' ? 'hidden on' : filter === 'shown' ? 'shown on' : 'on'
       return {
-        text: `${rows.length} indicator${rows.length === 1 ? '' : 's'} ${what} ${snap.label}.`,
+        text: count(rows) ? `${plural(count(rows))} ${what} ${snap.label}${vol(rows)}.` : `Only the Volume pane ${filter === 'hidden' ? 'is hidden on' : 'is on'} ${snap.label} — no indicators.`,
         table: {
           columns: [{ key: 'name', label: 'Indicator' }, { key: 'kind', label: 'Type' }, { key: 'state', label: 'Shown' }, { key: 'place', label: 'Where' }],
           rows: rows.map(i => ({
