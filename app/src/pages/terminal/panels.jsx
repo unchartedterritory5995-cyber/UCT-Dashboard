@@ -50,6 +50,7 @@ export const PANEL_IMPORTERS = {
   Peer: () => import('./panels/PeerPanel'),
   Etf: () => import('./panels/EtfPanel'),
   Twt: () => import('./panels/TwtPanel'),
+  Size: () => import('./panels/SizePanel'),
   Depth: () => import('./panels/DepthPanel'),
   Events: () => import('../research/depth/EventsPanel'),
   FilingSearch: () => import('../research/depth/FilingSearchPanel'),

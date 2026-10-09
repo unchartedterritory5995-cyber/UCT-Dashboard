@@ -125,6 +125,11 @@ export const FUNCTIONS = [
   // TWT: the curated X feed's posts on a ticker, 7 days. Honours VITE_TWITTER_UI_ENABLED in the panel.
   { code: 'TWT', label: 'Social posts (curated X feed, 7 days)', group: 'Security',
     ticker: { panel: 'Twt' } },
+  // SIZE: position size + R targets, pure client math. With a ticker the entry is prefilled from the
+  // live price; without one it is a plain calculator.
+  { code: 'SIZE', label: 'Position size and R calculator', group: 'Security',
+    ticker: { panel: 'Size' },
+    market: { panel: 'Size' } },
 
   // ── Research › Depth (each panel is its own surface behind its own flag) ──
   { code: 'DPTH', label: 'Research depth (every depth panel you have)', group: 'Research depth',
