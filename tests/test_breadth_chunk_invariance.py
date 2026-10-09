@@ -243,3 +243,22 @@ def test_bite_check_unseeded_prev_breaks_the_bodies(frame, monkeypatch, tmp_path
     # ⭐ and the FIXED run does not
     fo, _fh, _fl, fc = a[(boundary, "pct_above_50sma")]
     assert fo != fc
+
+
+def test_missing_only_fills_holes_and_never_moves_existing_rows(frame, monkeypatch):
+    """2026-10-09: filling 2009's empty slots must not re-state the sessions around them."""
+    monkeypatch.setattr(bpf, "build_frame", lambda uni, f, t, **kw: _sliced(frame, f, t))
+    recon.sweep_history(FRM, TO, universe="us")
+    full = rows_for()
+    # poison one existing value and delete one slot
+    d0, d1 = DATES[-10], DATES[-5]
+    with store._conn() as c:
+        c.execute("UPDATE breadth_daily_ohlc SET c=12345 WHERE universe='us' AND date=? "
+                  "AND metric='pct_above_50sma'", (d0,))
+        c.execute("DELETE FROM breadth_daily_ohlc WHERE universe='us' AND date=? "
+                  "AND metric='pct_above_50sma'", (d1,))
+    res = recon.sweep_history(FRM, TO, universe="us", missing_only=True)
+    after = rows_for()
+    assert res["ok"] and res["rows"] >= 1
+    assert after[(d0, "pct_above_50sma")][3] == 12345                     # untouched
+    assert after[(d1, "pct_above_50sma")] == full[(d1, "pct_above_50sma")]  # refilled
