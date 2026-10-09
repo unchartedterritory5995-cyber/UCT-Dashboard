@@ -63,7 +63,22 @@ const planSig = (lines) => JSON.stringify(lines || [])
 const UNSAVED_NOTE = {
   conflict: 'Shown on this screen but NOT saved: your workspace was changed in another window or device. Reload to see the current workspace (reloading discards this change).',
   'not-saved': 'Shown on this screen, but the save was not confirmed — it is not saved yet.',
+  'not-synced': 'Drawn on this device, but syncing it to your account was not confirmed yet — keep this tab open a few seconds; closing it now may lose the change.',
 }
+// Drawings reach the account through the tracings sync, not the board save: wait for the server's
+// copy of each touched symbol to match (host.drawings.confirm). Same rule as a board change: until
+// confirmed, the receipt says so and offers no Undo.
+async function confirmDrawings(host, refs) {
+  if (!host?.drawings?.confirm || !refs.length) return { ok: true }
+  for (const ref of [...new Set(refs)]) {
+    try {
+      const r = await host.drawings.confirm(ref)
+      if (!r?.ok) return { ok: false, reason: r?.reason || 'not-synced' }
+    } catch { return { ok: false, reason: 'not-synced' } }
+  }
+  return { ok: true }
+}
+const drawingRefsOfPlan = (plan) => (plan?.plans || []).filter(p => p.kind === 'drawing' && p.changed).map(p => p.ref)
 async function persistBoard(host, ops) {
   if (!host?.persist || boardEpoch(host, ops) == null) return { ok: true }
   try {
@@ -330,6 +345,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       // Persistence acknowledgment (board changes): the receipt and its Undo wait for the server.
       saved = res.ok ? await persistBoard(host, ops) : { ok: true }
+      if (res.ok && saved.ok) saved = await confirmDrawings(host, drawingRefsOfPlan(plan))
     } finally {
       // Reached an outcome (even a thrown one): no longer in flight. Only a reload/close skips this.
       writeLocal(AGENT_INFLIGHT_KEY, null)
@@ -386,9 +402,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (res.ok) {
       undoRef.current = stack.filter(e => e.id !== entry.id)
       setItems(xs => xs.map(x => (x.undoId === entry.id ? { ...x, undone: true } : x)))
-      const saved = entry.epoch != null && host?.persist
+      let saved = entry.epoch != null && host?.persist
         ? await (async () => { try { const r = await host.persist(); return r && r.ok ? { ok: true } : { ok: false, reason: (r && r.reason) || 'not-saved' } } catch { return { ok: false, reason: 'not-saved' } } })()
         : { ok: true }
+      if (saved.ok) saved = await confirmDrawings(host, entry.items.filter(it => it.kind === 'drawing').map(it => it.ref))
       if (!saved.ok) {
         push({ role: 'receipt', lines: res.lines, undoId: null, isUndo: true, unsaved: true, notes: [UNSAVED_NOTE[saved.reason] || UNSAVED_NOTE['not-saved']] })
         record({ member, outcome: `${res.lines.join(' · ')} · NOT SAVED (${saved.reason})`, outcomeData: { kind: 'undo-unsaved' }, telemetry: { path: 'fast', undo: true, voice, refused: true } })

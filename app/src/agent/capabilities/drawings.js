@@ -39,6 +39,9 @@ const nameOf = (d) => `${objectTypeName(d.type)}${objectSummary(d) ? ` ${objectS
 
 export const drawingKind = {
   name: 'drawing',
+  // Drawings are keyed by SYMBOL (and Drawing Board), not by the open layout: a layout switch
+  // does not change what a drawing id means, so it neither pins a proposal nor blocks an Undo.
+  boardScoped: false,
   // host.drawings: one entry per SYMBOL shown on a chart (agent/host.js buildDrawingSource)
   list: (host) => host?.drawings?.list() || [],
   read: (host, ref) => host?.drawings?.read(ref) || null,
@@ -98,16 +101,18 @@ export const drawingKind = {
       update: (p.update || []).map(u => ({ id: u.id, set: u.prev, prev: u.set })),
     }
   },
-  fingerprint: (snap) => JSON.stringify(snap.drawings),
+  fingerprint: (snap) => JSON.stringify([snap.board ?? null, snap.drawings]),
   // UNDO'S STALENESS IS SCOPED TO THE DRAWINGS THIS CHANGE TOUCHED: a line the member drew
   // afterwards is not "a newer edit to what I changed" (Undo works by id and leaves it alone), but
   // moving or restyling the Agent's own line is — then Undo refuses rather than overwrite it.
   fingerprintFor(host, snap, item) {
     const p = item?.patch
-    if (!p || !snap) return snap ? JSON.stringify(snap.drawings) : null
+    if (!p || !snap) return snap ? JSON.stringify([snap.board ?? null, snap.drawings]) : null
     const by = new Map(snap.drawings.map(d => [d.id, d]))
     const ids = [...(p.added || []).map(x => x.id), ...(p.update || []).map(u => u.id), ...(p.remove || []).map(x => x.id)]
-    return JSON.stringify(ids.map(id => by.get(id) || null))
+    // …and the ACTIVE BOARD: after a board switch the ids name nothing here, and an Undo would
+    // "succeed" while the drawing stayed on the other board.
+    return JSON.stringify([snap.board ?? null, ids.map(id => by.get(id) || null)])
   },
 }
 

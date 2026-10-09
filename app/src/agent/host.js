@@ -343,7 +343,10 @@ export function buildDrawingSource(charts, store = drawingsStore) {
       if (!e.defaults) { const dd = c.cs?.drawingDefaults || {}; e.defaults = { color: dd.color || null, width: dd.width || null } }
       by.set(sym, e)
     }
-    return [...by.values()].map(e => ({ ...e, label: `Drawings on ${e.symbol}`, drawings: store.peekDrawings(e.symbol) }))
+    // `board`: the ACTIVE Drawing Board (tracing). The store holds only the active board's
+    // drawings, so a board switch changes what an id means — it is part of every staleness check.
+    const board = typeof store.getActiveTracingId === 'function' ? store.getActiveTracingId() : null
+    return [...by.values()].map(e => ({ ...e, label: `Drawings on ${e.symbol}`, board, drawings: store.peekDrawings(e.symbol) }))
   }
   return {
     list: entries,
@@ -351,7 +354,37 @@ export function buildDrawingSource(charts, store = drawingsStore) {
     add: (sym, d) => store.addDrawing(sym, d),
     update: (sym, id, u) => store.updateDrawing(sym, id, u),
     remove: (sym, id) => store.removeDrawing(sym, id),
+    // AUTHORITATIVE READ-BACK: the drawings reach the member's account only through the tracings
+    // sync (useTracingsSync: a 1.5 s debounced push of exportTracings() into the tracings_doc
+    // preference). Poll the SERVER's copy until this board's drawings for this symbol equal the
+    // local ones. { ok } — or { ok:false, reason:'not-synced' } when the push is not seen in time
+    // (a closed tab, a sync that is down): the receipt then says so instead of claiming it.
+    confirm: (sym, opts) => confirmDrawingsSynced(sym, store, opts),
   }
+}
+
+const drawingSig = (list) => JSON.stringify((Array.isArray(list) ? list : []).map(d => [
+  d.id, d.type, d.points, d.color ?? null, d.lineStyle ?? null, d.lineWidth ?? null, !!d.locked, !!d.hidden,
+]))
+
+export async function confirmDrawingsSynced(sym, store = drawingsStore, { timeoutMs = 8000, everyMs = 500, fetchFn = (u, o) => fetch(u, o) } = {}) {
+  const board = typeof store.getActiveTracingId === 'function' ? store.getActiveTracingId() : null
+  const want = drawingSig(store.peekDrawings(sym))
+  const t0 = Date.now()
+  while (Date.now() - t0 <= timeoutMs) {
+    try {
+      const r = await fetchFn('/api/auth/preferences', { credentials: 'include', cache: 'no-store' })
+      if (r.ok) {
+        const prefs = await r.json()
+        const raw = prefs?.tracings_doc
+        const doc = typeof raw === 'string' ? JSON.parse(raw) : raw
+        const onServer = doc?.byTracing?.[board ?? doc?.activeId]?.[sym]
+        if (drawingSig(onServer) === want) return { ok: true }
+      }
+    } catch { /* keep polling until the deadline */ }
+    await new Promise(res => setTimeout(res, everyMs))
+  }
+  return { ok: false, reason: 'not-synced' }
 }
 
 export function buildWorkspaceHost({ chartApiById, getWidgets, widgetLabel, widgetOps, layouts, watchlists, prefs, navigate, readServer = readServerBoard }) {

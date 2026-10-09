@@ -6,7 +6,7 @@ import { registerBuiltins } from './builtins'
 import { buildContext } from './capabilities'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { commitPlan, undoEntry } from './runtime'
-import { buildDrawingSource } from './host'
+import { buildDrawingSource, confirmDrawingsSynced } from './host'
 import { routeManifest } from './routing'
 import { manifestFor } from './capabilities'
 import { _resetAlertCache } from './capabilities/alert'
@@ -165,3 +165,39 @@ describe('an action UCT Agent does not have', () => {
     expect(p.refusals[0].reason).toMatch(/UCT Agent can't “indicator\.add” here/)
   })
 })
+
+describe('integration audit (2026-10-09): Drawing Boards and the server copy', () => {
+  it('⛔ a Drawing Board switch makes the Agent\u2019s Undo refuse — the line lives on the other board now', async () => {
+    const h = host()
+    const { p, env } = await plan(h, [op('drawing.addLevel', { price: 77, color: null, style: null })])
+    const res = await commitPlan(h, p, { env })
+    const before = store.getActiveTracingId()
+    const other = store.createTracing('Agent audit board')
+    store.setActiveTracing(other)
+    try {
+      const u = await undoEntry(h, res.undo)
+      expect(u.ok).toBe(false)
+      expect(u.reason).toMatch(/has changed since I made that change/)
+    } finally {
+      store.setActiveTracing(before)
+      store.deleteTracing(other)
+    }
+    expect(drawings().some(d => d.points?.[0]?.price === 77)).toBe(true)     // still there, untouched
+  })
+  it('the server confirmation is exact: ok only when tracings_doc holds this board\u2019s drawings for the symbol', async () => {
+    store.addDrawing(SYM, { type: 'horizontal', points: [{ price: 5 }], color: '#fff', lineWidth: 1 })
+    const board = store.getActiveTracingId()
+    const serve = (byTracing) => async () => new Response(JSON.stringify({ tracings_doc: JSON.stringify({ v: 1, activeId: board, tracings: [{ id: board }], byTracing }) }), { status: 200 })
+    const ok = await confirmDrawingsSynced(SYM, store, { timeoutMs: 50, everyMs: 10, fetchFn: serve({ [board]: { [SYM]: drawings() } }) })
+    expect(ok).toEqual({ ok: true })
+    const stale = await confirmDrawingsSynced(SYM, store, { timeoutMs: 50, everyMs: 10, fetchFn: serve({ [board]: { [SYM]: [] } }) })
+    expect(stale).toEqual({ ok: false, reason: 'not-synced' })
+    const down = await confirmDrawingsSynced(SYM, store, { timeoutMs: 50, everyMs: 10, fetchFn: async () => new Response('{}', { status: 503 }) })
+    expect(down.ok).toBe(false)
+  })
+  it('drawings are not layout-scoped: a layout switch neither pins a proposal nor blocks an Undo', async () => {
+    const { drawingKind } = await import('./capabilities/drawings')
+    expect(drawingKind.boardScoped).toBe(false)
+  })
+})
+
