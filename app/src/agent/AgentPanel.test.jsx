@@ -71,7 +71,7 @@ describe('UCT Agent panel', () => {
     const host = makeHost([{ ref: 'w1' }])
     turns.push(env('answer', [], 'An EMA weights recent prices more heavily.'))
     render(<AgentPanel host={host} onClose={() => {}} />)
-    type('What is the difference between an EMA and an SMA?')
+    type('What is a pullback, in plain words?')
     await screen.findByText(/weights recent prices/)
     expect(host.commits).toHaveLength(0)
     // the model was told what it can do (manifest) and what is on screen (context)

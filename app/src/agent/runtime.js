@@ -116,7 +116,9 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
       }
       return fail(p.snap.label, 'did not take effect')
     }
-    landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: p.lines, before: p.snap, after: snap, patch: p.patch, created: res?.created || null })
+    // A kind whose commit reports what ACTUALLY happened (`res.lines` — e.g. the Create Indicator
+    // opener: prefilled, or a draft restored instead) is receipted from that, not from the plan.
+    landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: Array.isArray(res?.lines) && res.lines.length ? res.lines : p.lines, before: p.snap, after: snap, patch: p.patch, created: res?.created || null })
   }
 
   // 2 — created targets: resolve the alias, re-plan on the REAL target, commit

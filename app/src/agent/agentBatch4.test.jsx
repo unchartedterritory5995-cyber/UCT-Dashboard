@@ -189,11 +189,13 @@ describe('capability questions — deterministic, truthful, never future-as-pres
     expect(answerFor('arrange').status).toBe('partial')
     expect(answerFor('arrange').text).toMatch(/^Partly\. .*move one.*resize one/)
   })
-  it('"Can you create a custom indicator?" → known (Create Indicator exists), planned hand-off', () => {
-    const a = answer('Can you create a custom indicator?')
-    expect(ask('Can you create a custom indicator?').args.topic).toBe('customIndicator')
-    expect(a.status).toBe('known')
+  it('"Can you create a custom indicator?" → partial (M1: I open Create Indicator with your request; I never build or save it)', () => {
+    // like drawings / resize: "Can you…" is now a polite request the Agent can act on, so the model gets it
+    expect(fastDiscovery('Can you create a custom indicator?')).toBe(null)
+    const a = answerFor('customIndicator')
+    expect(a.status).toBe('partial')
     expect(a.text).toMatch(/Create Indicator/)
+    expect(a.text).toMatch(/don’t build, preview, add or save/)
   })
   it('"What can you do with saved screeners?" → partial, listing only REGISTERED abilities', () => {
     expect(ask('What can you do with saved screeners?').args.topic).toBe('savedScreens')

@@ -16,7 +16,9 @@
 // conversation, so the model's next turn remembers what UCT DID.
 
 import { protectionRefusal, undoProtectionRefusal } from './protectedLayouts'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { AuthContext } from '../context/AuthContext'
+import { useCreateIndicatorAccess } from '../components/chart/builder/studio/createIndicatorFlag'
 import { fastParse, matchPosition } from './fastPath'
 import { planOps, prepareOps, collectTargets, undoNotesFor } from './executor'
 import { decideMode } from './policy'
@@ -102,7 +104,11 @@ function refusalText(refusals) {
 }
 
 export default function useAgent({ host, gridMode = false, surface = 'charts' }) {
-  const capCtx = useMemo(() => ({ surface }), [surface])
+  // Create Indicator access — the button's own rule (Indicators' createIndicatorAccess: admin +
+  // this browser's flag, or the server cohort). It makes indicator.openCreate available or not;
+  // the chart's opener re-checks it, and /converse enforces it server-side.
+  const createIndicator = useCreateIndicatorAccess(useContext(AuthContext))
+  const capCtx = useMemo(() => ({ surface, createIndicator }), [surface, createIndicator])
   const [items, setItems] = useState([])
   const [busy, setBusy] = useState(false)
   // ⛔ ONE thing at a time: a send, an Apply, an Undo or a choice. A ref (not the
@@ -153,7 +159,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (!alive) return
       setRestoring(false)
       if (!conv) { setConversationId(null); return }
-      const history = conv.turns.map(t => ({
+      const history = (Array.isArray(conv.turns) ? conv.turns : []).map(t => ({
         id: `h${t.id}`, role: t.role === 'member' ? 'member' : (t.role === 'outcome' ? 'outcome' : 'agent'),
         text: t.text, history: true,
       }))
