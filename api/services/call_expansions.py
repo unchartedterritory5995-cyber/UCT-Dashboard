@@ -13,7 +13,7 @@ node and requires the trees to be byte-identical, so the two copies cannot drift
 """
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Mapping, Optional
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
 
 def _num(value: Any) -> Dict[str, Any]:
@@ -162,15 +162,78 @@ def expand_call(node: Mapping[str, Any]) -> Optional[Dict[str, Any]]:
     return spec[3](list(args))
 
 
+#: ⭐ The written size an expansion may reach, in tree nodes -- ``callExpansions.js``'s
+#: ``MAX_EXPANDED_NODES``, same number, same refusal text (the parity test pins both).
+MAX_EXPANDED_NODES = 1000
+MAX_EXPANSION_DEPTH = 200
+TOO_LARGE = (f"this formula nests linreg, correlation, vwma, roc, mom or the Keltner bands so deeply "
+             f"that it would write out more than {MAX_EXPANDED_NODES} terms — nest fewer of them")
+TOO_DEEP = f"this formula is nested more than {MAX_EXPANSION_DEPTH} levels deep"
+
+
+def _scan(tree: Any, declared: Callable[[str], bool]) -> Tuple[bool, int]:
+    found, depth = False, 0
+    stack = [(tree, 1)]
+    while stack:
+        n, d = stack.pop()
+        if not isinstance(n, Mapping):
+            continue
+        depth = max(depth, d)
+        if n.get("type") == "call" and n.get("name") in CALL_EXPANSIONS and not declared(n["name"]):
+            found = True
+        args = n.get("args")
+        if isinstance(args, list):
+            stack.extend((a, d + 1) for a in args)
+    return found, depth
+
+
+def expanded_size(tree: Any, cap: float = float("inf")) -> int:
+    """The tree-node count of ``tree`` (a shared subtree counted at every place it is
+    written), saturating just past ``cap``. Linear in the DISTINCT nodes."""
+    memo: Dict[int, int] = {}
+    stack = [(tree, False)]
+    while stack:
+        n, done = stack.pop()
+        if not isinstance(n, Mapping) or (id(n) in memo and not done):
+            continue
+        args = n.get("args") if isinstance(n.get("args"), list) else []
+        if not done:
+            stack.append((n, True))
+            stack.extend((a, False) for a in args if isinstance(a, Mapping) and id(a) not in memo)
+            continue
+        size = 1 + sum(memo.get(id(a), 0) for a in args if isinstance(a, Mapping))
+        memo[id(n)] = int(min(size, cap + 1))
+    return memo.get(id(tree), 0)
+
+
 def expand_calls(tree: Any, declared: Callable[[str], bool] = lambda _n: False) -> Any:
     """Every expansion call in ``tree`` replaced (innermost first) by its expansion. A name
-    the closed table declares is never expanded. Raises ``ExpansionRefused``."""
+    the closed table declares is never expanded. Raises ``ExpansionRefused``.
+
+    ⛔ As in the browser: a tree with no expansion is returned untouched (no recursion),
+    one nested past ``MAX_EXPANSION_DEPTH`` is refused before the recursive pass, and the
+    expanded result may not WRITE more than ``MAX_EXPANDED_NODES`` nodes (an expansion
+    repeats its arguments, so nesting multiplies)."""
+    if not isinstance(tree, Mapping):
+        return tree
+    found, depth = _scan(tree, declared)
+    if not found:
+        return tree
+    if depth > MAX_EXPANSION_DEPTH:
+        raise ExpansionRefused(TOO_DEEP)
+    out = _expand_in(tree, declared)
+    if expanded_size(out, MAX_EXPANDED_NODES) > MAX_EXPANDED_NODES:
+        raise ExpansionRefused(TOO_LARGE)
+    return out
+
+
+def _expand_in(tree: Any, declared: Callable[[str], bool]) -> Any:
     if not isinstance(tree, Mapping):
         return tree
     args = tree.get("args")
     node: Any = tree
     if isinstance(args, list):
-        new_args = [expand_calls(a, declared) for a in args]
+        new_args = [_expand_in(a, declared) for a in args]
         if any(x is not y for x, y in zip(new_args, args)):
             node = dict(tree)
             node["args"] = new_args

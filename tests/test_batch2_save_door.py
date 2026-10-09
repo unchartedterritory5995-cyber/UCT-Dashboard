@@ -75,3 +75,22 @@ def test_the_stored_expansions_carry_no_new_function_name():
     text = json.dumps(DEFS["linreg_and_correlation"]["compute"])
     for name in ("\"linreg\"", "\"correlation\""):
         assert f"\"name\": {name}" not in text
+
+
+# ⛔ BATCH 2 SECURITY -- every colour field this batch writes is refused with CSS in it
+@pytest.mark.parametrize("case,needle,evil", [
+    ("styled_markers", "#ff9800", "url(https://evil.example/m)"),            # marker colour ($color input)
+    ("conditional_table", "#00c853", "url(https://evil.example/t)"),         # colorWhen true colour
+    ("conditional_table", "#b71c1c", "red;background:url(x)"),               # backgroundWhen false colour
+    ("four_state_histogram", "#00e676", "expression(alert(1))"),              # plot palette
+    ("three_state_candles", "#ffd600", "url(https://evil.example/c)"),       # paint palette / otherwise
+])
+def test_a_batch2_colour_field_with_css_in_it_is_refused(case, needle, evil):
+    text = json.dumps(DEFS[case])
+    assert needle in text
+    doc = json.loads(text.replace(needle, evil))
+    def_id = svc.new_def_id()
+    doc["id"] = def_id
+    with pytest.raises(svc.SaveRefused):
+        svc.save(OWNER, def_id, doc)
+    assert svc.get(OWNER, def_id) is None                 # nothing was stored

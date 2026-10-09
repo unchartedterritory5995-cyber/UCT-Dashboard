@@ -137,3 +137,85 @@ def test_browser_and_server_compute_the_same_values_for_every_expansion():
     assert verdict["differences"] == [], verdict["differences"][:5]
     for cid, _, _ in calls:     # non-vacuity: real numbers, in both lanes
         assert sum(1 for v in py[cid] if v is not None) > len(bars) // 2, cid
+
+
+# --------------------------------------------------------------------------- #
+# BATCH 2 -- the chart door's planner reads the function words as terms
+# --------------------------------------------------------------------------- #
+
+def test_chart_door_keeps_a_momentum_clause_the_shared_vocabulary_refuses():
+    from api.services import definition_concierge as dc
+    from api.services import definition_conversation as conv
+    ask = ("Make a momentum histogram: bright green when positive and rising, dark green "
+           "when positive and falling, red when negative and falling, orange when negative and rising")
+    got = dc.plan(ask, dc.INDICATOR_KIND, lexicon=conv.CHART_LEXICON)
+    assert got["not_understood"] == []
+    assert got["understood"] == ask                       # nothing excised, verbatim
+    assert "mom" in [t["name"] for t in got["terms"]]
+    # the shared planner (screens, /propose) is unchanged: "momentum" is still refused there
+    assert [n["phrase"] for n in dc.plan("momentum stocks", dc.INDICATOR_KIND)["not_understood"]] == ["momentum"]
+
+
+def test_chart_door_function_words_and_refusals_that_stay():
+    from api.services import definition_concierge as dc
+    from api.services import definition_conversation as conv
+    names = lambda m: [t["name"] for t in dc.plan(m, dc.INDICATOR_KIND, lexicon=conv.CHART_LEXICON)["terms"]]  # noqa: E731
+    assert "linreg" in names("Plot the 50-bar linear regression of close")
+    assert "correlation" in names("show the 20 day correlation with SPY")
+    assert "roc" in names("a 12 bar rate of change")
+    assert "kcUpper" in names("add keltner channels")
+    cheap = dc.plan("color it green when cheap", dc.INDICATOR_KIND, lexicon=conv.CHART_LEXICON)
+    assert [n["phrase"] for n in cheap["not_understood"]] == ["cheap"]
+    # every phrase is its own unique bucket (a tie would match nothing)
+    for phrase, key in conv.EXPANSION_PHRASES:
+        stems, _ = dc._stem_key(dc._form_tokens(phrase))
+        assert [r["key"] for r in conv.CHART_LEXICON["index"][stems]] == [key]
+
+
+# --------------------------------------------------------------------------- #
+# BATCH 2 SECURITY -- the expanded size is bounded, identically in both lanes
+# --------------------------------------------------------------------------- #
+
+def _nest(depth):
+    t = CLOSE
+    for _ in range(depth):
+        t = {"type": "call", "name": "correlation", "args": [t, {"type": "series", "name": "open"}, n(5)]}
+    return t
+
+
+def test_nested_expansion_is_refused_past_the_cap_fast():
+    import time
+    assert ce.expanded_size(ce.expand_calls(_nest(4))) == 801
+    t0 = time.time()
+    for depth in (6, 12, 20):
+        with pytest.raises(ce.ExpansionRefused) as exc:
+            ce.expand_calls(_nest(depth))
+        assert exc.value.guard == "resolve:expansion"
+    assert time.time() - t0 < 0.5
+    deep = CLOSE
+    for _ in range(ce.MAX_EXPANSION_DEPTH + 5):
+        deep = {"type": "op", "name": "u-", "args": [deep]}
+    with pytest.raises(ce.ExpansionRefused, match="levels deep"):
+        ce.expand_calls({"type": "call", "name": "roc", "args": [deep, n(5)]})
+    assert ce.expand_calls(deep) is deep
+
+
+def test_the_conversation_door_refuses_a_nested_expansion_by_name():
+    from api.services import definition_conversation as conv
+    with pytest.raises(conv._Refused) as exc:
+        conv._check_tree("plot 'v'", _nest(15))
+    assert exc.value.gate == "resolve:expansion"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not on PATH")
+def test_the_two_lanes_share_the_caps_and_the_refusal_text():
+    script = (f"import {{ MAX_EXPANDED_NODES, MAX_EXPANSION_DEPTH, expandCalls }} from {json.dumps(JS)};"
+              f"const t = {json.dumps(_nest(8))};"
+              "let msg = null; try { expandCalls(t) } catch (e) { msg = e.message }"
+              "process.stdout.write(JSON.stringify([MAX_EXPANDED_NODES, MAX_EXPANSION_DEPTH, msg]))")
+    res = subprocess.run(["node", "--input-type=module", "-e", script], capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert res.returncode == 0, res.stderr
+    cap, depth, msg = json.loads(res.stdout)
+    with pytest.raises(ce.ExpansionRefused) as exc:
+        ce.expand_calls(_nest(8))
+    assert [cap, depth, msg] == [ce.MAX_EXPANDED_NODES, ce.MAX_EXPANSION_DEPTH, str(exc.value)]

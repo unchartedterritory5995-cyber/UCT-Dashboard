@@ -189,19 +189,64 @@ export function expandCalls(tree, declared = () => false) {
   // ⛔ AN ITERATIVE SCAN FIRST: a tree with no expansion call is returned untouched
   // without recursing, so a pathologically deep formula still reaches the BUDGET's
   // depth refusal (`parse.deepTree.test.js`) instead of a stack overflow here.
-  if (!containsExpansion(tree, declared)) return tree
-  return expandIn(tree, declared)
+  const { found, depth } = scanExpansions(tree, declared)
+  if (!found) return tree
+  if (depth > MAX_EXPANSION_DEPTH) throw new ExpansionRefusal(TOO_DEEP)
+  const out = expandIn(tree, declared)
+  // ⛔⛔ THE EXPANDED SIZE IS BOUNDED, because an expansion REPEATS its arguments
+  // (`correlation` reads each of its two series four times): nesting multiplies, so a
+  // 250-character formula nested ten deep became a 25 MB definition and a twelve-deep
+  // one froze the tab for a minute (measured 10-09). Evaluation is not the cost — the
+  // evaluator computes a shared subtree once — the WRITTEN tree is: the gate walk, the
+  // hash, the stored JSON and the server's checks all read it as a tree.
+  if (expandedSize(out, MAX_EXPANDED_NODES) > MAX_EXPANDED_NODES) throw new ExpansionRefusal(TOO_LARGE)
+  return out
 }
 
-function containsExpansion(tree, declared) {
-  const stack = [tree]
+/** ⭐ The written size an expansion may reach, in tree nodes (the stored JSON's). A
+ *  definition is at most 64 KB at the save door (`user_definitions.MAX_DEFINITION_BYTES`),
+ *  about 1,500 nodes for the WHOLE document, so a tree past this cap could hardly be saved
+ *  beside anything else. The largest realistic composite measured (three nested linregs)
+ *  writes 209. */
+export const MAX_EXPANDED_NODES = 1000
+/** A tree holding an expansion deeper than this is refused before the recursive pass. */
+export const MAX_EXPANSION_DEPTH = 200
+const TOO_LARGE = `this formula nests linreg, correlation, vwma, roc, mom or the Keltner bands so deeply that it would write out more than ${MAX_EXPANDED_NODES} terms — nest fewer of them`
+const TOO_DEEP = `this formula is nested more than ${MAX_EXPANSION_DEPTH} levels deep`
+
+function scanExpansions(tree, declared) {
+  let found = false
+  let depth = 0
+  const stack = [[tree, 1]]
   while (stack.length) {
-    const n = stack.pop()
+    const [n, d] = stack.pop()
     if (!n || typeof n !== 'object') continue
-    if (n.type === 'call' && isExpansionName(n.name) && !declared(n.name)) return true
-    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+    if (d > depth) depth = d
+    if (n.type === 'call' && isExpansionName(n.name) && !declared(n.name)) found = true
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push([a, d + 1])
   }
-  return false
+  return { found, depth }
+}
+
+/** The tree-node count of `tree` (a shared subtree counted at every place it is
+ *  written), saturating just past `cap`. Linear in the DISTINCT nodes. */
+export function expandedSize(tree, cap = Infinity) {
+  const memo = new Map()
+  const stack = [[tree, false]]
+  while (stack.length) {
+    const [n, done] = stack.pop()
+    if (!n || typeof n !== 'object' || (memo.has(n) && !done)) continue
+    const args = Array.isArray(n.args) ? n.args : []
+    if (!done) {
+      stack.push([n, true])
+      for (const a of args) if (a && typeof a === 'object' && !memo.has(a)) stack.push([a, false])
+      continue
+    }
+    let size = 1
+    for (const a of args) size += a && typeof a === 'object' ? (memo.get(a) || 0) : 0
+    memo.set(n, Math.min(size, cap + 1))
+  }
+  return memo.get(tree) || 0
 }
 
 function expandIn(tree, declared) {

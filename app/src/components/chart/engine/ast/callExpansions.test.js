@@ -8,6 +8,7 @@ import { translatePine } from './pine'
 import { evaluateFormula } from '../../builder/FormulaField'
 import {
   CALL_EXPANSIONS, EXPANSION_NAMES, expandCalls, recogniseExpansion, collapseExpansions,
+  expandedSize, MAX_EXPANDED_NODES, MAX_EXPANSION_DEPTH, ExpansionRefusal,
 } from './callExpansions'
 import { printFormula } from './pine'
 
@@ -155,5 +156,50 @@ describe('recognition: the readable form, structurally', () => {
     const t = { type: 'call', name: 'roc', args: [{ type: 'series', name: 'close' }, { type: 'num', value: 3 }] }
     expect(expandCalls(t, declared)).toBe(t)
     expect(CALL_EXPANSIONS.roc.build(t.args)).toBeTruthy()
+  })
+})
+
+// ─── ⛔ BATCH 2 SECURITY — an expansion repeats its arguments, so nesting multiplies ──
+
+describe('the written size of an expansion is bounded', () => {
+  const S = (n) => ({ type: 'series', name: n })
+  const N = (v) => ({ type: 'num', value: v })
+  const nest = (d) => { let t = S('close'); for (let i = 0; i < d; i++) t = { type: 'call', name: 'correlation', args: [t, S('open'), N(5)] }; return t }
+
+  it('nested correlation grows ~3× a level and is refused past the cap — fast, by name', () => {
+    expect(expandedSize(expandCalls(nest(4)))).toBe(801)
+    const t0 = Date.now()
+    for (const d of [6, 12, 20]) expect(() => expandCalls(nest(d))).toThrow(ExpansionRefusal)
+    expect(Date.now() - t0).toBeLessThan(500)                     // was 68 s for depth 12 at the door
+    const r = parseFormula('correlation(correlation(correlation(correlation(correlation(correlation(close, open, 5), open, 5), open, 5), open, 5), open, 5), open, 5)')
+    expect(r.ok).toBe(false)
+    expect(r.guard).toBe('resolve:expansion')
+    expect(r.error).toMatch(new RegExp(`more than ${MAX_EXPANDED_NODES} terms`))
+  })
+
+  it('realistic composites stay far under the cap', () => {
+    for (const src of ['correlation(linreg(close, 50), sym("SPY", linreg(close, 50)), 20)',
+      'linreg(linreg(linreg(close, 10), 10), 10)', 'kcUpper(vwma(close, 20), 20, 2) - kcLower(vwma(close, 20), 20, 2)']) {
+      const r = parseFormula(src)
+      expect(r.ok, src).toBe(true)
+      expect(expandedSize(r.ast)).toBeLessThan(MAX_EXPANDED_NODES / 4)
+    }
+  })
+
+  it('a tree deeper than the expansion depth limit that holds an expansion is refused, not overflowed', () => {
+    let t = S('close')
+    for (let i = 0; i < MAX_EXPANSION_DEPTH + 5; i++) t = { type: 'op', name: 'u-', args: [t] }
+    expect(() => expandCalls({ type: 'call', name: 'roc', args: [t, N(5)] })).toThrow(/levels deep/)
+    // …and one with NO expansion is returned untouched, for the budget's own depth refusal
+    expect(expandCalls(t)).toBe(t)
+  })
+
+  it('expandedSize counts a shared subtree at every place it is written, and saturates', () => {
+    const leaf = S('close')
+    const shared = { type: 'op', name: '+', args: [leaf, leaf] }
+    expect(expandedSize({ type: 'op', name: '*', args: [shared, shared] })).toBe(7)
+    let dag = leaf
+    for (let i = 0; i < 40; i++) dag = { type: 'op', name: '+', args: [dag, dag] }   // 2^41 written nodes
+    expect(expandedSize(dag, 50)).toBe(51)
   })
 })

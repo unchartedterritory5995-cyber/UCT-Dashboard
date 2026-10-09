@@ -1108,6 +1108,41 @@ def _product_nouns_plain(message: str) -> str:
     return _PRODUCT_NOUN_RE.sub(lambda m: m.group(0).lower(), str(message))
 
 
+# ⭐ BATCH 2 -- THE FORMULA FUNCTIONS BY THEIR MEMBER WORDS, FOR THIS DOOR'S PLANNER.
+#
+# The shared vocabulary refuses "momentum" because a SCREEN would need a threshold
+# nobody published ("momentum stocks"). On a chart the word also names a function
+# this door now authors exactly (`mom`, `call_expansions.py`), and the refusal
+# EXCISED the clause: "Make a momentum histogram: bright green when positive …"
+# reached the model as the colour words alone (measured in the 10-08 sandbox). Here
+# the function words are ordinary terms -- each phrase's bucket REPLACED, so a word
+# the vocabulary refuses elsewhere is not a tie that matches nothing. The shared
+# vocabulary and the screener's planner (`dc.LEXICON`) are unchanged.
+EXPANSION_PHRASES: Tuple[Tuple[str, str], ...] = (
+    ("momentum", "mom"),
+    ("linear regression", "linreg"), ("linreg", "linreg"),
+    ("correlation", "correlation"), ("correlation coefficient", "correlation"),
+    ("rate of change", "roc"), ("roc", "roc"),
+    ("vwma", "vwma"), ("volume weighted moving average", "vwma"),
+    ("keltner channel", "kcUpper"), ("keltner channels", "kcUpper"), ("keltner", "kcUpper"),
+)
+
+
+def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:
+    index = dict(base["index"])
+    for phrase, key in EXPANSION_PHRASES:
+        words = dc._form_tokens(phrase)
+        stems, cost = dc._stem_key(words)
+        index[stems] = [{"kind": dc.TABLE_ENTRY, "key": key, "section": "functions",
+                         "words": words, "cost": cost}]
+    return {"index": index, "max_words": max((len(k) for k in index), default=1),
+            "collisions": {k: v for k, v in (base.get("collisions") or {}).items() if k in index
+                           and index[k] is base["index"].get(k)}}
+
+
+CHART_LEXICON: Dict[str, Any] = _chart_lexicon(dc.LEXICON)
+
+
 #: ⭐ P3 -- the rules the model reads beside a phrase / symbol it may discuss only.
 NOT_IN_VOCABULARY_RULE = ("not in UCT's function vocabulary -- you may discuss it, "
                           "never author with it")
@@ -1527,7 +1562,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     # (`derivedName.memberCueNames`, one shared rule in `preflightRules.json`).
     member_names, unnamed = conversation_preflight.naming_split(message)
     plain = _product_nouns_plain(unnamed if member_names else message)
-    understanding = dc.plan(plain, dc.INDICATOR_KIND) if plain.strip() else \
+    understanding = dc.plan(plain, dc.INDICATOR_KIND, lexicon=CHART_LEXICON) if plain.strip() else \
         {"understood": "", "not_understood": [], "unavailable": [], "concepts": []}
     not_understood = understanding["not_understood"]
     unavailable = understanding["unavailable"]
