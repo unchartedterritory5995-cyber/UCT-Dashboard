@@ -101,6 +101,12 @@ describe('HistoryTab', () => {
     expect(row.textContent).toMatch(/2026-09-27 · Options flow · 1,234 options prints on the tape/)
     expect(row.textContent).toMatch(/Options flow tape \(print counts\), as of 2026-09-27/)
     expect(row.querySelector('a').getAttribute('href')).toBe('/options-flow')
+    // Wave 3 (HIS P2 #21): the link leaves the terminal, and says so
+    expect(row.textContent).toMatch(/Open Options Flow \(opens a page\)/)
+    // Wave 3 (HIS P2 #25): ruled rows, the source on its own line
+    expect(screen.getByTestId('history-rows').className).toMatch(/historyList/)
+    expect(row.className).toMatch(/historyRow/)
+    expect(row.querySelector('[data-testid="history-row-source"]').className).toMatch(/historySource/)
     expect(row.textContent).not.toMatch(/\$|premium/i)
   })
 

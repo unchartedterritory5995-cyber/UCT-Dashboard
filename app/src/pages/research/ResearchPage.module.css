@@ -377,3 +377,10 @@
     min-width: var(--tap-min);
   }
 }
+
+/* Wave 3 (HIS P2 #25): the history timeline as ruled, scannable rows, not a bullet list. */
+.historyList { list-style: none; margin: var(--space-sm) 0 0; padding: 0; }
+.historyRow { padding: var(--space-xs) 0; border-bottom: 1px solid var(--border); line-height: 1.5; }
+.historyRow:last-child { border-bottom: 0; }
+.historyDate { font-variant-numeric: tabular-nums; }
+.historySource { display: block; font-size: var(--text-sm); }
