@@ -59,6 +59,11 @@ before a save lands (by design, retried).
 `c1/walk.json`, 820 and 390: the "All" filter button is 38 x 44; one checkbox input is 20 x 20;
 in the import wizard the destination row ("Daily, Imported from Files ...") is 37 px tall.
 The chart block toolbar and the Reporting soon link are now at least 44 x 44 (confirmed).
+*Status (2026-10-08):* the destination select and the checkbox rows were fixed by lane KEYS3 round 3
+(`ImportWizard.module.css`, the ≤1024 px block); the "All" button is the import wizard's per-group
+"All"/"None" control and got its 44 px width floor on `feat/notebook-fin-polish`
+(`a11y/targetFloors.test.js`, "the import wizard's bulk buttons"). The 20 px checkbox box is by
+design: its hit area is the 44 px label row it sits in.
 
 ### F3. Dragging a chart block with the pointer did not move it (UNSETTLED)
 - Where: c1, 1280, `live: chart block`, step "dragging the chart moves it below the paragraphs".
@@ -385,6 +390,9 @@ Nothing else from K1 to K7 is open.
   then gives one.
 - Research Home shows no "Ask" button for a member who has three notes and has not opened one
   yet (0 buttons before, 1 after opening them). The quiet state of the page leaves it out.
+  *Fixed on `feat/notebook-fin-polish` (2026-10-08):* the quiet state and the quiet-with-error
+  state render the same Ask door as the full home, at the same tree position
+  (`ResearchHome.quietAsk.test.jsx`, which also proves the door survives the quiet-to-full flip).
 - From the whole Notebook a citation opens the cited note, not a passage in it. Inside a note it
   lands on the passage. Both are as built; only the second is a passage landing.
 - A new member's "Default" account is not a stored account until it is used: an account made
