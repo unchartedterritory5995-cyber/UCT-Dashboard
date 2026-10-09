@@ -41,6 +41,14 @@ describe('RatingsTab', () => {
     expect(smrLetter).toHaveAccessibleDescription(/return on equity/)
   })
 
+  it('audit 2026-10-08: each numeric sub-score bar is a labelled meter with its value', () => {
+    render(<RatingsTab sym="AAPL" />)
+    const eps = screen.getByRole('meter', { name: 'EPS Strength, 0 to 99' })
+    expect(eps).toHaveAttribute('aria-valuenow', '90')
+    expect(eps).toHaveAttribute('aria-valuetext', '90 of 99')
+    expect(screen.getAllByRole('meter')).toHaveLength(4)
+  })
+
   it('discloses the price leg\'s as-of date, never a provider badge', () => {
     render(<RatingsTab sym="AAPL" />)
     expect(screen.getByText(/price data as of 2026-09-02/)).toBeInTheDocument()

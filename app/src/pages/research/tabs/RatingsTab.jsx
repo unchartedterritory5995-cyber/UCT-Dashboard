@@ -119,7 +119,10 @@ export default function RatingsTab({ sym }) {
             <div key={k} className={styles.ratingCard} data-panel-tile>
               <div className={styles.ratingLbl}>{label}</div>
               <div className={`${styles.ratingVal} ${ink(scoreTier(comp[k]))}`}>{comp[k] ?? ABSENT}</div>
-              <div className={styles.meter}>
+              {/* Audit 2026-10-08 (RTG #26): the bar is a meter to assistive tech too. */}
+              <div className={styles.meter} role="meter" aria-label={`${label}, 0 to 99`}
+                aria-valuemin={0} aria-valuemax={99} aria-valuenow={comp[k] ?? undefined}
+                aria-valuetext={comp[k] == null ? 'not measured' : `${comp[k]} of 99`}>
                 <div className={`${styles.meterFill} ${fill(scoreTier(comp[k]))}`} style={{ width: `${comp[k] ?? 0}%` }} />
               </div>
             </div>
