@@ -206,7 +206,7 @@ describe('CORR', () => {
     // r = -1 is the most OPPOSITE pair, not the least related one (audit 2026-10-08)
     expect(screen.getByTestId('terminal-corr-least').textContent).toMatch(/^Most opposite: (AAA|BBB) and CCC \(r = -1\.00\)\.$/)
     expect(screen.getByTestId('corr-AAA-BBB').textContent).toBe('1.00')
-    expect(screen.getByTestId('corr-AAA-AAA').textContent).toBe('1')
+    expect(screen.getByTestId('corr-AAA-AAA').textContent).toBe('1.00')   // audit wave 2: same decimals as every cell
     expect(screen.getByTestId('corr-AAA-NEWB').textContent).toBe('n/a')
     expect(screen.getByTestId('corr-AAA-NEWB').getAttribute('title')).toBe('7 common sessions: too few')
     // 3M default window: every daily-closes request, one per name
@@ -228,7 +228,8 @@ describe('CORR', () => {
   it('control: with nothing readable it is an error, not an empty matrix', async () => {
     serve({})
     render(<CorrPanel sym="AAA" with0="BBB" />)
-    expect((await screen.findByTestId('terminal-corr-error')).textContent).toContain('Could not read AAA, BBB just now.')
+    // neither name is served: a 404, so the panel says "check the tickers", never "just now" (audit wave 2)
+    expect((await screen.findByTestId('terminal-corr-error')).textContent).toContain('No price history for AAA, BBB: check the tickers.')
   })
 })
 

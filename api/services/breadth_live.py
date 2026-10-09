@@ -1537,6 +1537,26 @@ def apply_anchor(metrics: dict, basis: Optional[dict]) -> dict:
 _live_lock = threading.Lock()
 _live_cache: dict = {}
 _LIVE_TTL_SECONDS = 55
+# Perf wave 2 (2026-10-08): /api/breadth-monitor/live measured 4-5 s cold. The per-minute
+# sampler keeps the 55 s cache warm only weekdays 9:00-16:59 ET; outside the regular session
+# every request more than 55 s after the last one re-fetched the WHOLE-market snapshot
+# (~10k tickers) and re-scored the universe on the request thread. With the regular session
+# closed the inputs stop moving, so the window there is _LIVE_TTL_CLOSED_SECONDS; and concurrent
+# cold callers now collapse onto ONE compute (single-flight) instead of each pulling the market.
+_LIVE_TTL_CLOSED_SECONDS = 600
+_live_flight = threading.Lock()
+
+
+def _live_ttl(now_et: Optional[datetime] = None) -> int:
+    """55 s from 9:00 to 16:30 ET on weekdays (the sampler's window, plus the closing prints
+    settling); _LIVE_TTL_CLOSED_SECONDS outside it, when the snapshot's day fields cannot move."""
+    try:
+        n = now_et or _now_et()
+        m = n.hour * 60 + n.minute
+        quiet = n.weekday() >= 5 or m < 9 * 60 or m >= 16 * 60 + 30
+        return _LIVE_TTL_CLOSED_SECONDS if quiet else _LIVE_TTL_SECONDS
+    except Exception:
+        return _LIVE_TTL_SECONDS
 #: How old a payload a `cached_only` reader (chart serves) still accepts — see compute_live.
 CACHED_ONLY_GRACE_SECONDS = 180
 
@@ -1653,10 +1673,11 @@ def compute_live(force: bool = False, cached_only: bool = False) -> dict:
         return {"ok": False, "reason": "breadth live disabled (BREADTH_LIVE_ENABLED=0)"}
     import time as _time
     now = _time.time()
+    ttl = _live_ttl()
     with _live_lock:
         hit = _live_cache.get("payload")
         age = now - _live_cache.get("at", 0)
-        if hit and not force and age < _LIVE_TTL_SECONDS:
+        if hit and not force and age < ttl:
             return hit
         # ⭐ (2026-10-08) A cache-only reader takes a payload up to CACHED_ONLY_GRACE old. The
         # per-minute sampler refreshes a 55 s TTL, so a strict TTL left a few seconds every minute
@@ -1667,6 +1688,18 @@ def compute_live(force: bool = False, cached_only: bool = False) -> dict:
     if cached_only:
         return {"ok": False, "reason": "no warm live cache (cached_only)"}
 
+    with _live_flight:
+        if not force:
+            # A racer may have computed while we queued: take its answer, not a second market pull.
+            with _live_lock:
+                hit = _live_cache.get("payload")
+                if hit and _time.time() - _live_cache.get("at", 0) < ttl:
+                    return hit
+        return _compute_fresh(now)
+
+
+def _compute_fresh(now: float) -> dict:
+    """The uncached live compute (one full-market snapshot); caches its payload at `now`."""
     levels = reference_levels()
     if not levels:
         return {"ok": False, "reason": "reference levels unavailable"}

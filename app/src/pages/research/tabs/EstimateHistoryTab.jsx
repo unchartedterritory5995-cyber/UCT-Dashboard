@@ -8,6 +8,7 @@ import {
 } from '../../../lib/presentation/presentationPrimitives'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
+import ResearchLoading from '../ResearchLoading'
 
 // COV-07 (roadmap RM-L19) — how the consensus EPS and revenue estimate for each
 // upcoming quarter has moved, from UCT's own daily snapshots of FMP's consensus
@@ -86,7 +87,7 @@ export default function EstimateHistoryTab({ sym }) {
       Estimate history is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button>
     </div>
   }
-  if (!data) return <div className={styles.note}>Loading estimate history…</div>
+  if (!data) return <div data-testid="esthist-loading"><ResearchLoading label="Loading estimate history" /></div>
   if (data.paywalled) return <div className={styles.note}>Estimate history requires a paid plan.</div>
 
   const failed = data.failed_days || []

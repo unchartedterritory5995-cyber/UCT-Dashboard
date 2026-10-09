@@ -4,10 +4,11 @@ import styles from './Depth.module.css'
 import { useDepthChrome, DepthLoading, DepthBadRequest } from './depthChrome'
 import PendingGaveUp from './PendingGaveUp'
 import {
-  formatCompactTerminal, formatCurrencyIn, formatNumber, isForeignCurrency, normalizeCurrencyCode,
+  formatCompactTerminal, formatNumber, isForeignCurrency, normalizeCurrencyCode,
   relabelDollarText, reportingCurrencyNote,
 } from '../../../lib/presentation/presentationPrimitives'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
+import { fmtEps, fmtMoney } from '../../../components/research/fmpDepth/depthFormat'
 import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
 
 // FT-071 — estimates with the number of estimates beside the mean, the
@@ -26,9 +27,16 @@ const big = (v) => {
 // FMP's consensus is in the company's REPORTING currency (TSM: Taiwan dollars);
 // the payload names it (`currency`). A non-USD mean carries its ISO code; USD and
 // unknown render exactly as before (bare). Nothing is converted.
-const n2In = (v, ccy) => (isForeignCurrency(ccy) && v != null ? formatCurrencyIn(Number(v), ccy) : n2(v))
+// Audit wave 2: USD EPS reads "$2.92" as on EE; unknown currency stays bare (EE's rule).
+const n2In = (v, ccy) => (v == null ? n2(v) : fmtEps(Number(v), ccy))
+// Audit wave 2: a USD revenue mean reads "$138.00B", as EE shows the same figure; an
+// unknown currency carries no symbol (EE's rule, depthFormat.fmtMoney).
 const bigIn = (v, ccy) => (isForeignCurrency(ccy) && v != null
-  ? relabelDollarText(formatCompactTerminal(Number(v), { money: true }), ccy) : big(v))
+  ? relabelDollarText(formatCompactTerminal(Number(v), { money: true }), ccy)
+  : (v == null ? big(v) : fmtMoney(Number(v), ccy)))
+// Both ends missing is one dash, never "—–—".
+const rangeIn = (lo, hi, ccy) => (lo == null && hi == null ? '—' : `${n2In(lo, ccy)}–${n2In(hi, ccy)}`)
+const SPREAD_HELP = 'Spread is how far apart the highest and lowest estimates are, as a share of the mean: (high − low) ÷ mean. A wide spread means analysts disagree. When the mean is close to zero the spread reads very large.'
 const headIn = (label, ccy) => (isForeignCurrency(ccy) ? `${label}, ${normalizeCurrencyCode(ccy)}` : label)
 
 export default function BrokerEstimatesPanel({ sym }) {
@@ -57,9 +65,9 @@ export default function BrokerEstimatesPanel({ sym }) {
             ? <p className={styles.note} data-testid="broker-no-periods">No upcoming quarter has a consensus estimate on file for {s}.</p>
             : (
             <div className={styles.scroll}>
-              <table className={styles.grid} aria-label="Estimates by contributor">
+              <table className={styles.grid} aria-label="Analyst consensus estimates">
                 <thead>
-                  <tr><th scope="col">Quarter ending</th><th scope="col">{headIn('EPS mean', data.currency)}</th><th scope="col"># Ests</th><th scope="col">{headIn('Low–high', data.currency)}</th><th scope="col">Spread</th>
+                  <tr><th scope="col">Quarter ending</th><th scope="col">{headIn('EPS mean', data.currency)}</th><th scope="col"># Ests</th><th scope="col">{headIn('Low–high', data.currency)}</th><th scope="col"><abbr title={SPREAD_HELP}>Spread</abbr></th>
                     <th scope="col">{headIn('Revenue mean', data.currency)}</th><th scope="col"># Ests</th></tr>
                 </thead>
                 <tbody>
@@ -67,13 +75,14 @@ export default function BrokerEstimatesPanel({ sym }) {
                     <tr key={p.period_end} data-testid="broker-row">
                       <th scope="row">{p.period_end}</th>
                       <td>{n2In(p.eps.mean, data.currency)}</td><td>{p.eps.n ?? '—'}</td>
-                      <td>{n2In(p.eps.low, data.currency)}–{n2In(p.eps.high, data.currency)}</td>
+                      <td>{rangeIn(p.eps.low, p.eps.high, data.currency)}</td>
                       <td>{p.eps.dispersion_pct == null ? '—' : `${p.eps.dispersion_pct}%`}</td>
                       <td>{bigIn(p.revenue.mean, data.currency)}</td><td>{p.revenue.n ?? '—'}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              <p className={styles.muted} data-testid="broker-spread-help">{SPREAD_HELP}</p>
             </div>
           )}
         {data.state === 'ok' && reportingCurrencyNote(data.currency) && (
@@ -100,7 +109,7 @@ export default function BrokerEstimatesPanel({ sym }) {
   }
   return (
     <section className={chrome.panelClass} data-testid="broker-panel">
-      {chrome.showTitle && <h3 className={styles.panelTitle}>Estimates by contributor</h3>}
+      {chrome.showTitle && <h3 className={styles.panelTitle}>Analyst consensus estimates</h3>}
       <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The estimate read" />
       {body}
     </section>

@@ -52,6 +52,8 @@ describe('EventsPanel', () => {
   it('prints the offset unit', async () => {
     renderTab()
     expect((await screen.findByTestId('events-unit')).textContent).toMatch(/holidays are not removed/)
+    // audit wave 2: the stage notation itself is explained
+    expect(screen.getByTestId('events-unit').textContent).toMatch(/T is the report day, T-2 two/)
   })
 
   it('unstaged events say why', async () => {

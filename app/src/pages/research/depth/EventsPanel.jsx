@@ -80,7 +80,10 @@ export default function EventsPanel({ sym }) {
               </table>
             </div>
           )}
-        <p className={styles.muted} data-testid="events-unit">Offsets are counted in {data.offset_unit}.</p>
+        <p className={styles.muted} data-testid="events-unit">
+          Stage reads against the nearest earnings report: T is the report day, T-2 two {data.offset_unit} before
+          it, T+3 three after; the quarter label names which report. Offsets are counted in {data.offset_unit}.
+        </p>
       </div>
     )
   }

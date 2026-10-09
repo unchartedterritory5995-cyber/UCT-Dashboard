@@ -2176,6 +2176,45 @@ def _get_calendar_payload(week: str | None = None):
     )
 
 
+# Perf wave 2 (2026-10-08): /api/calendar was 7.2 s cold on prod. The serve-stale slot above only
+# helps while it is <= 30 min old, and nothing refreshed it outside the wire detector's windows
+# (weekday 6-9 / 16 ET + an hourly tick) -- so from :35 to :05 of every off-window hour, and all
+# weekend, the first visitor rebuilt synchronously. This loop asks for the current week every
+# WEEKLY_REWARM_INTERVAL_S, UNDER the stale bound: a lapsed TTL is served from the slot and
+# refreshed in the background (the ordinary serve path), so the slot never ages out and no
+# user builds. Off-window that is ~3 builds an hour instead of ~1 + a user-paid one; inside the
+# detector's windows it adds nothing (the detector already keeps the TTL fresh).
+WEEKLY_REWARM_INTERVAL_S = 20 * 60
+
+
+def rewarm_current_week_once() -> None:
+    """One re-warm tick: the same serve path a request takes (fresh / stale+kick / build)."""
+    _WEEKLY_STALE.serve(
+        "current",
+        fresh=lambda: cache.get("calendar_weekly"),
+        build=_build_current_week,
+        good=_weekly_payload_is_good,
+    )
+
+
+def start_weekly_rewarm(delay_seconds: float = 120, interval_s: float | None = None) -> threading.Thread:
+    """Daemon loop calling `rewarm_current_week_once` every `interval_s`. Never raises."""
+    every = float(interval_s or WEEKLY_REWARM_INTERVAL_S)
+
+    def _loop():
+        time.sleep(delay_seconds)
+        while True:
+            try:
+                rewarm_current_week_once()
+            except Exception:
+                logging.getLogger(__name__).exception("[calendar-weekly-rewarm] failed")
+            time.sleep(every)
+
+    t = threading.Thread(target=_loop, daemon=True, name="calendar-weekly-rewarm")
+    t.start()
+    return t
+
+
 def _build_current_week() -> dict:
     """The expensive path: EW + Finviz live, Finnhub past-day backfill, Finnhub
     actuals patch, ForexFactory econ, names. 4.5-8s against live providers.

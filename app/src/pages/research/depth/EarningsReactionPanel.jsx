@@ -91,6 +91,11 @@ export default function EarningsReactionPanel({ sym }) {
             </tbody>
           </table>
         </div>
+        <p className={styles.muted} data-testid="earnings-reaction-help">
+          Run-in: the 5 sessions before the report. Gap: the report-day open against the prior close
+          (what the news repriced overnight). Reaction: the report-day close against the prior close.
+          Drift: the 5 sessions after the report day.
+        </p>
         <p className={styles.lede} data-testid="earnings-reaction-summary">
           {SUMS.map(([k, l]) => {
             const st = sum[k] || {}
