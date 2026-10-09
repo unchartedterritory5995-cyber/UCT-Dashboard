@@ -122,6 +122,12 @@
 /* ownership tab */
 .ownHolders { margin-top: var(--space-sm); }
 .holderName { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Wave 3 (OWN P2 #24): on a phone the two 5-column holder tables scroll sideways; the holder name
+   stays pinned so a scrolled row still says whose it is. */
+@media (max-width: 640px) {
+  .ownHolders th:first-child, .ownHolders td:first-child { position: sticky; left: 0; z-index: 1; background: var(--bg-surface); }
+  .ownHolders .holderName { max-width: 120px; }
+}
 .insrow { display: grid; grid-template-columns: 88px 1fr auto auto auto; gap: var(--space-md); align-items: center; font-size: var(--text-base); padding: var(--space-xs) 0; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
 
 /* filings tab */
