@@ -12,10 +12,17 @@ router = APIRouter()
 @router.get("/api/ticker-meta/{ticker}")
 def ticker_meta(ticker: str):
     try:
-        return get_ticker_meta(ticker.upper())
+        meta = get_ticker_meta(ticker.upper())
     except Exception:
         _logger.warning("ticker_meta endpoint error for %s", ticker, exc_info=True)
         return {"name": None, "sector": None, "industry": None}
+    # Wave-2 audit: an all-null answer for a symbol that is not a ticker carries the additive
+    # `not_found` marker (api/services/symbol_presence.py). A provider failure (the except
+    # above) never does -- that is "we could not read it", not "it does not exist".
+    from api.services.symbol_presence import mark_if_empty
+    empty = isinstance(meta, dict) and not any(
+        meta.get(k) for k in ("name", "sector", "industry", "exchange"))
+    return mark_if_empty(meta, ticker, empty)
 
 
 @router.get("/api/ticker-ipo/{ticker}")

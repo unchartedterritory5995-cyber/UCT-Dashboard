@@ -162,3 +162,12 @@ class TestPartialColdRead:
         r = TestClient(app).get("/api/research/seasonality/NVDA")
         assert r.status_code == 503 and r.headers.get("retry-after") == "15"
         assert "still being read" in r.json()["detail"]
+
+    def test_a_deep_read_is_served_without_the_in_memory_marker(self, monkeypatch):
+        """Wave-2 2026-10-08: the 6h in-memory marker is gone after a deploy, and NVDA holds
+        fewer than 7,200 sessions. A read spanning 10+ years is a record, not a cold tail."""
+        from api.routers import seasonality as route
+        from api.services import bars_fetch
+        self._serve(monkeypatch, 12 * 12)                    # 2024-01 .. 2035-12
+        monkeypatch.setattr(bars_fetch, "_history_complete", lambda t, tf: False)
+        assert len(route._daily_bars("NVDA")) == 288
