@@ -397,11 +397,13 @@
   min-width: 0;
 }
 
-/* A link group's dot. `--dot` is the group's STORED colour (the /charts group hexes, pinned
-   equal by boardModel.test.js), so it is never rewritten — only drawn readably: the ring is the
-   stored colour, a hairline in the text colour sits outside it so a pale yellow or green still
-   has an edge on a light theme, and the letter is the stored colour pulled toward the text
-   colour (lighter on dark themes, darker on light ones). */
+/* A link group's dot. The STORED colour (the /charts group hexes, pinned equal by
+   boardModel.test.js) is never rewritten: `groupStyle()` (boardModel.js) maps it at render time
+   to its theme-aware display token (tokens.css `--link-group-*`). `--dot` is the ring
+   (decorative; a hairline in the text colour sits outside it so a pale hue still has an edge),
+   `--dot-ink` the letter, which is TEXT and must clear AA on every theme
+   (a11y/linkGroupColours.test.js). A hex outside the palette sets no `--dot-ink`, so its letter
+   falls back to `--text` rather than an unmeasured colour. */
 .groupDot {
   display: inline-flex;
   align-items: center;
@@ -413,7 +415,7 @@
   border-radius: 50%;
   background: transparent;
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent);
-  color: color-mix(in srgb, var(--dot, var(--text-muted)) 62%, var(--text));
+  color: var(--dot-ink, var(--text));
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-weight: 700;
@@ -431,7 +433,7 @@
   border: 2px dashed var(--dot, var(--border));
   border-radius: 50%;
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent);
-  color: color-mix(in srgb, var(--dot, var(--text-muted)) 62%, var(--text));
+  color: var(--dot-ink, var(--text));
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-weight: 700;

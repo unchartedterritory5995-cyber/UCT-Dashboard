@@ -597,6 +597,27 @@
 
   /* The composite crown needs more than the scale's 24px cap. */
   --text-display: 40px;
+
+  /* Terminal link-group DISPLAY colours (wave 4, lane D). A group's colour is
+     STORED as a fixed hex (boardModel.js GROUP_DOT / CHANNEL_COLORS, the /charts
+     COLOR_HEX); boards, share links and /charts keep that hex untouched.
+     `groupStyle()` maps each stored hex to one of these at RENDER time. On the
+     dark default (and oled, which inherits :root) each token IS its stored hex,
+     so the terminal draws exactly what /charts draws. Each one is also read as
+     TEXT (the group letter), so every value clears WCAG AA on every surface of
+     every theme: pages/terminal/a11y/linkGroupColours.test.js. */
+  --link-group-a: #c9a84c;
+  --link-group-b: #60a5fa;
+  --link-group-c: #4ade80;
+  --link-group-d: #c084fc;
+  --link-group-1: #f472b6;
+  --link-group-2: #fb923c;
+  --link-group-3: #2dd4bf;
+  --link-group-4: #facc15;
+  --link-group-5: #a3e635;
+  --link-group-6: #38bdf8;
+  --link-group-7: #e879f9;
+  --link-group-8: #f87171;
 }
 
 /* Control density (TERM-067). Three steps over the canonical control geometry
@@ -783,6 +804,21 @@
   --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.10);
   --shadow-modal: 0 20px 50px rgba(0, 0, 0, 0.16);
   --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* Link-group display colours on white: the same hues, darkened until each
+     reads as text on every light surface (the stored yellow #facc15 was 1.2:1). */
+  --link-group-a: #7a5c16;
+  --link-group-b: #1d4ed8;
+  --link-group-c: #166534;
+  --link-group-d: #7e22ce;
+  --link-group-1: #be185d;
+  --link-group-2: #9a3412;
+  --link-group-3: #115e59;
+  --link-group-4: #854d0e;
+  --link-group-5: #3f6212;
+  --link-group-6: #0369a1;
+  --link-group-7: #a21caf;
+  --link-group-8: #b91c1c;
 }
 
 /* ── Hub high-contrast mode ([data-hub-contrast="high"]) ────────────────────

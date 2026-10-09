@@ -52,7 +52,7 @@ import {
   BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, DENSITY_LABELS, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
   closePanel, decodePopout, decodeShare, deleteBoard, duplicatePanel, encodeShare, findBoard, isCompatChannel, presetsOfBoard, restoreBoard,
   isLinkable, markOpened, movePanel, nextLinkChannel, reorderPanel, openBoard, panelBeside, panelChannel, panelSym, popoutHref, presetFor,
-  recentSecurities, saveBoard, setCount as countTo,
+  groupStyle, recentSecurities, saveBoard, setCount as countTo,
   setDensity, setKeepCalendar, setPanelChannel, setPopout, setPreset, shareHref, toggleFavorite, undoClose,
 } from './boardModel'
 import { BoardsMenu, RecentsMenu } from './BoardsMenu'
@@ -248,7 +248,6 @@ export function Panel({
   const title = [r.sym, panel.code, ...(panel.args || [])].filter(Boolean).join(' ')
   const full = fullHref(r)
   const linkable = isLinkable(panel)
-  const dot = channel?.color || 'var(--border)'
   // Only the FOCUSED panel publishes its numbered rows (row <GO> addresses the focused list),
   // tagged with what it is showing so a list it no longer shows cannot be run.
   const owner = rowsOwner(panel)
@@ -342,7 +341,7 @@ export function Panel({
           <button
             type="button"
             className={styles.groupDot}
-            style={{ '--dot': dot }}
+            style={groupStyle(channel?.color)}
             onClick={(e) => { e.stopPropagation(); onChannelMenu(e) }}
             aria-label={channel ? `Linked to ${channel.name} — change` : 'Not linked — link to a group'}
             aria-keyshortcuts="Alt+L"

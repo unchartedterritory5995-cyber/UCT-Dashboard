@@ -24,7 +24,7 @@ import useMobileSWR from '../../hooks/useMobileSWR'
 import jsonFetcher from '../../utils/jsonFetcher'
 import { sessionModel } from '../../components/dashboard/sessionModel'
 import AlertBell from '../../components/AlertBell'
-import { activeChannelOf } from './boardModel'
+import { activeChannelOf, groupStyle } from './boardModel'
 import styles from './L0Strip.module.css'
 
 // jsonFetcher, not a bare r.json(): a 402/500 answers JSON too, and its {detail} body was read
@@ -130,7 +130,7 @@ export default function L0Strip({ layout, isPhone }) {
         aria-label={`Active link group: ${activeGroup?.name || `Group ${activeChannel}`}`}
         title={`Active link group: ${activeGroup?.name || `Group ${activeChannel}`}. Panels linked to it follow its ticker.`}>
         <span className={styles.chipLabel}>{isPhone ? 'GRP' : 'GROUP'}</span>
-        <span className={styles.groupSwatch} style={{ '--dot': activeGroup?.color }} aria-hidden="true" />
+        <span className={styles.groupSwatch} style={groupStyle(activeGroup?.color)} aria-hidden="true" />
         <span className={styles.chipValue}>{activeChannel}</span>
       </div>
 
