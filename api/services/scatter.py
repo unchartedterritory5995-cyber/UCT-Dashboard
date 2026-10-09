@@ -505,6 +505,15 @@ def _scanner_syms(which: str) -> list:
     return []
 
 
+def _theme_rows(payload):
+    """theme_db.get_all_themes() answers {"sectors": [...], "themes": [...]}, not a list.
+    Iterating the dict walked its two KEYS, `.get` on a str raised, and the except swallowed it,
+    so the Themes group never reached the SCAT universe picker (found 2026-10-09)."""
+    if isinstance(payload, dict):
+        return [t for t in (payload.get("themes") or []) if isinstance(t, dict)]
+    return [t for t in (payload or []) if isinstance(t, dict)]
+
+
 def list_universes(user_id: Optional[str]) -> list:
     """The grouped universe menu for the picker. Dynamic groups (watchlists, tags,
     themes) are filled from the user's account; static groups are always present."""
@@ -567,7 +576,7 @@ def list_universes(user_id: Optional[str]) -> list:
     themes = []
     try:
         from api.services import theme_db
-        for th in theme_db.get_all_themes() or []:
+        for th in _theme_rows(theme_db.get_all_themes()):
             tid = th.get("id") or th.get("theme_id")
             if tid:
                 themes.append({"source": "theme", "value": str(tid),
@@ -637,7 +646,7 @@ def label_for(source: str, value: Optional[str], user_id: Optional[str]) -> str:
     if src == "theme" and value:
         try:
             from api.services import theme_db
-            for th in theme_db.get_all_themes() or []:
+            for th in _theme_rows(theme_db.get_all_themes()):
                 if str(th.get("id") or th.get("theme_id")) == str(value):
                     return th.get("name") or "Theme"
         except Exception:
