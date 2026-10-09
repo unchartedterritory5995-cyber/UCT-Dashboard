@@ -173,10 +173,13 @@ describe('M2 add / remove / show / hide — through the Indicators interface onl
 describe('M2 targets: multiple charts, duplicate names, exact identity', () => {
   it('two charts: each has its own `manage` ref; a removal on the right chart touches only the right chart', async () => {
     const h = host([L(), R()])
-    const ctx = buildContext(h, CTX).context.indicators
-    expect(ctx.map(e => e.manage)).toHaveLength(2)
-    expect(new Set(ctx.map(e => e.manage)).size).toBe(2)
-    expect(ctx[0].indicators.find(i => /RSI/.test(i.name)).id).toBe('inst:rsi:1')
+    const { context, refMap } = buildContext(h, CTX)
+    const edits = context.indicatorEdits
+    expect(edits).toHaveLength(2)
+    // ⛔ the server accepts a target only if a context item publishes it as `ref`
+    expect(edits.every(e => typeof e.ref === 'string' && refMap[e.ref]?.kind === 'indicatorEdits')).toBe(true)
+    expect(new Set(edits.map(e => e.ref)).size).toBe(2)
+    expect(context.indicators[0].indicators.find(i => /RSI/.test(i.name)).id).toBe('inst:rsi:1')
     const left = JSON.stringify(h.store.L)
     const { res } = await run(h, [op('indicator.hide', 'R', { instance: 'inst:rsi:1' })])
     expect(res.lines[0]).toMatch(/on Right chart \(AAPL\)/)

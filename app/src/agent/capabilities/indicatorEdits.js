@@ -206,6 +206,15 @@ export function registerIndicatorEditCapabilities() {
   if (registered) return
   registered = true
   registerTargetKind(indicatorEditsKind)
+  // ⛔ A TARGET IS ONLY VALID IF A CONTEXT ITEM PUBLISHES IT AS `ref` (the server's
+  // `_context_refs`; anything else is refused as "Which one do you mean?"). One entry per chart.
+  registerContextProvider({
+    key: 'indicatorEdits',
+    build: (host, refFor) => {
+      const list = indicatorEditsKind.list(host)
+      return list.length ? list.map(s => ({ ref: refFor('indicatorEdits', s.ref), chart: s.label, position: s.position, symbol: s.symbol, canManage: s.canManage })) : undefined
+    },
+  })
   registerContextProvider({
     key: 'indicatorCatalog',
     // what can be added — only when the request is about adding something
@@ -217,7 +226,7 @@ export function registerIndicatorEditCapabilities() {
     ...common,
     name: 'indicator.add',
     summary: 'Add ONE indicator to ONE chart — exactly what the Indicator Library\'s Add to Chart does. Built-in indicators or the member\'s own saved ones; Undo removes it again.',
-    hints: 'target = the chart\'s `manage` ref from the indicators context. defId = an id from indicatorCatalog (never invented, never a name). Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings.',
+    hints: 'target = the ref of that chart\'s indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings.',
     args: { type: 'object', properties: { defId: { type: 'string' } }, required: ['defId'], additionalProperties: false },
     check(st, { defId }) {
       if (NOT_ADDABLE.test(String(defId || '').trim())) return refusalSentence({ reason: REASONS.UNSUPPORTED_DEFINITION })
@@ -236,7 +245,7 @@ export function registerIndicatorEditCapabilities() {
     name: 'indicator.remove',
     risk: 'confirm',              // always a proposal: it can sever other indicators' inputs
     summary: 'Remove ONE indicator (its whole group, e.g. all COT panes) from ONE chart — the settings ✕ / legend Delete. Always shown as a proposal first, listing anything it would disconnect. Undo restores it exactly (same identity, reconnected inputs).',
-    hints: 'target = the chart\'s `manage` ref. instance = the indicator\'s `id` from that chart\'s list (exact; a name only if it is unique). Volume is not an indicator (use volume.setState).',
+    hints: 'target = the ref of that chart\'s indicatorEdits entry. instance = the indicator\'s `id` from that chart\'s indicators list (exact; a name only if it is unique). Volume is not an indicator (use volume.setState).',
     args: { type: 'object', properties: { instance: { type: 'string' } }, required: ['instance'], additionalProperties: false },
     check(st, { instance }) {
       const t = targetOf(st, instance)
@@ -263,7 +272,7 @@ export function registerIndicatorEditCapabilities() {
       ...common,
       name,
       summary: `${visible ? 'Show' : 'Hide'} ONE indicator (its whole group) on ONE chart — the settings / legend eye. Undo puts it back.`,
-      hints: 'target = the chart\'s `manage` ref. instance = the indicator\'s `id` from that chart\'s list (exact; a name only if it is unique). Volume is not an indicator (use volume.setState).',
+      hints: 'target = the ref of that chart\'s indicatorEdits entry. instance = the indicator\'s `id` from that chart\'s indicators list (exact; a name only if it is unique). Volume is not an indicator (use volume.setState).',
       args: { type: 'object', properties: { instance: { type: 'string' } }, required: ['instance'], additionalProperties: false },
       check(st, { instance }) {
         const t = targetOf(st, instance)
