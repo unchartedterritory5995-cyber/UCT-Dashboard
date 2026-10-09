@@ -31,6 +31,19 @@ describe('IvHistoryPanel states', () => {
     expect(container.innerHTML).toBe('')
   })
 
+  it('a failed implied-vs-realized read says so with a Retry instead of vanishing', async () => {
+    global.fetch = vi.fn((url) => {
+      const u = String(url)
+      if (u.endsWith('/iv-history/AAPL')) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ symbol: 'AAPL', status: 'ok', points: [],
+          rank: null, rank_note: 'needs 20.', method: 'm.', source: 'UCT options log' }) })
+      }
+      return Promise.resolve({ ok: false, status: 503, json: async () => ({}) })
+    })
+    mount({ offNotice: true })
+    expect((await screen.findByTestId('ivr-unavailable')).textContent).toMatch(/unavailable right now/)
+  })
+
   it('no_log says "no sessions yet" once, not again as a partial reason', async () => {
     serve({ symbol: 'AAPL', status: 'no_log', points: [], partial: true,
       partial_reasons: ['The options log holds no sessions yet.'], rank: null, rank_note: 'needs 20.',

@@ -40,8 +40,14 @@ function Spark({ points }) {
 }
 
 function ImpliedVsRealized({ sym }) {
-  const { data, error } = useSWR(`/api/research/iv-history/${encodeURIComponent(sym)}/implied-vs-realized`,
+  const { data, error, mutate } = useSWR(`/api/research/iv-history/${encodeURIComponent(sym)}/implied-vs-realized`,
     sectionFetcher, { revalidateOnFocus: false })
+  // Audit 2026-10-08 (IVH P2 point 8): a failed read returned null, so the earnings block silently
+  // vanished. A 404 (switched off) still renders nothing; any other failure says so, with a Retry.
+  if (error && error.status !== 404) {
+    return <FailedRead testId="ivr-unavailable" retry={mutate}
+      title="The implied-vs-realized earnings comparison is unavailable right now." />
+  }
   if (error || !data || data.paywalled || !Array.isArray(data.prints)) return null
   const shown = data.prints.filter((p) => p.implied_move_pct != null || p.note)
   return (
