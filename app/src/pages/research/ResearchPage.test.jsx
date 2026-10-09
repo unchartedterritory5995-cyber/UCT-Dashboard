@@ -210,7 +210,7 @@ describe('ResearchPage', () => {
     // been a curated Model Book entry.
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=modelbook' })
-    expect(screen.getByText('Not yet in the Model Book.')).toBeInTheDocument()
+    expect(screen.getByText(/Not yet in the Model Book/)).toBeInTheDocument()
   })
 
   it('renders the "Model Book" tab button', () => {
@@ -255,7 +255,7 @@ describe('ResearchPage', () => {
     // catalyst engine ever flagged about this ticker, across every date.
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=catalysts' })
-    expect(screen.getByText('No catalysts recorded for this ticker yet.')).toBeInTheDocument()
+    expect(screen.getByText(/No catalysts recorded for AAPL yet/)).toBeInTheDocument()
     expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
   })
 
