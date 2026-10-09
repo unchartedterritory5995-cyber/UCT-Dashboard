@@ -357,3 +357,26 @@ def test_last_good_payload_is_carried_through_a_restart(tmp_path, monkeypatch):
     assert blu.refresh() == {"ok": False, "reason": "boot grace"}
     blu._last_good.clear()
     blu._payload.clear()
+
+
+def test_uct_live_frame_reads_the_pack_and_leaves_older_columns_empty(monkeypatch):
+    from api.services import breadth_live as bl
+    tickers = ["T%03d" % i for i in range(120)]
+    pdates = [20250000 + i for i in range(1, 301)]
+    pc = np.arange(120 * 300, dtype=float).reshape(120, 300)
+    calls = []
+    monkeypatch.setattr(blu, "_load_frame_from_pack",
+                        lambda t, last: calls.append(last) or (pdates, pc, pc * 0 + 7))
+    bl._pack_frame_cache.clear()
+    dates = [20240000 + i for i in range(1, 81)] + pdates          # 380 wide, pack covers 300
+    c, v = bl._load_frame(None, tickers, dates)
+    assert c.shape == (120, 380) and np.isnan(c[:, :80]).all()
+    assert c[5, -1] == pc[5, -1] and v[0, 100] == 7
+    bl._load_frame(None, tickers, dates)
+    assert len(calls) == 1                                           # cached per pack read
+    # a pack that does not reach the newest requested session is not used
+    bl._pack_frame_cache.clear()
+    assert bl._frame_from_pack(tickers, pdates + [20260001]) is None
+    # small requests stay on bars.db
+    assert bl._frame_from_pack(tickers[:5], pdates) is None
+    bl._pack_frame_cache.clear()
