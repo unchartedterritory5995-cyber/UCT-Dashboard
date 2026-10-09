@@ -903,6 +903,13 @@ def _start_recent_cache_warmer():
 
     def _loop():
         from api import live_massive_router as lmr
+        # L11 (2026-10-08): before the first ~70 s curated scan lands, serve the last
+        # tape this worker saved today (marked `warming`) instead of an empty stub.
+        try:
+            from api import live_recent_snapshot
+            live_recent_snapshot.seed()
+        except Exception:
+            log.exception("[recent-warmer] snapshot seed failed")
         # small settle so flow.db + indexes exist (mirrors _ensure_flow_indexes)
         time.sleep(int(os.environ.get("MASSIVE_RECENT_WARM_DELAY", "8")))
         last_day = None
@@ -941,6 +948,13 @@ def _start_recent_cache_warmer():
                         lmr.warm_recent(**KEYS[1], bounded=False)
                     except Exception:
                         log.exception("[recent-warmer] non-curated warm failed")
+                # Persist the two canonical keys' last-good tape (throttled) so the
+                # next restart can serve it while it re-warms (live_recent_snapshot).
+                try:
+                    from api import live_recent_snapshot
+                    live_recent_snapshot.save_due([ck, nc])
+                except Exception:
+                    log.exception("[recent-warmer] snapshot save failed")
                 # (2) /day-stats default key — the Market Read hero, also every page
                 # view. Same cold-scan class as /recent (~14s cold). No auto-push,
                 # so calling the route directly just fills its 30s cache.
