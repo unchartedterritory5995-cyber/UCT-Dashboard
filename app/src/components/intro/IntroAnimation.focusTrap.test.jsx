@@ -40,6 +40,7 @@ function Background() {
 
 beforeEach(() => {
   window.sessionStorage.clear()
+  window.localStorage.clear()   // the intro is gated once per ET day (introStorage.js)
   // prefersReducedMotion() reads matchMedia, which jsdom does not implement.
   // "no preference" so the full cinematic (the `playing` branch) is under test.
   vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false, addEventListener() {}, removeEventListener() {} })))
