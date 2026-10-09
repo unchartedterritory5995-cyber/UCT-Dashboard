@@ -17,6 +17,7 @@ import {
 } from '../../../lib/presentation/presentationPrimitives'
 import { CHROME_INK, SEMANTIC_INK, useThemeInk, withAlpha } from '../../../lib/theme'
 import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
+import Select from '../../../components/ui/Select'
 import { failureText, useMarketRead } from './marketRead'
 import styles from './marketPanels.module.css'
 
@@ -149,13 +150,13 @@ export default function ScatterPanel() {
   const axisSelect = (label, value, set, testId) => (
     <label className={styles.muted}>
       {label}{' '}
-      <select value={value} onChange={(e) => set(e.target.value)} data-testid={testId} className={styles.chip}>
+      <Select value={value} onChange={(e) => set(e.target.value)} data-testid={testId} className={styles.chip}>
         {[...new Set(catalog.map((m) => m.group || ''))].map((g) => (
           <optgroup key={g} label={g || 'Metrics'}>
             {catalog.filter((m) => (m.group || '') === g).map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
           </optgroup>
         ))}
-      </select>
+      </Select>
     </label>
   )
 
@@ -188,13 +189,13 @@ export default function ScatterPanel() {
       <div className={styles.toolbar}>
         <label className={styles.muted}>
           Universe{' '}
-          <select value={`${pick.source}:${pick.value ?? ''}`} onChange={onUniverse} data-testid="terminal-scat-universe" className={styles.chip}>
+          <Select value={`${pick.source}:${pick.value ?? ''}`} onChange={onUniverse} data-testid="terminal-scat-universe" className={styles.chip}>
             {groups.map((g, gi) => (
               <optgroup key={`${g.label}-${gi}`} label={g.label || 'Current'}>
                 {g.items.map((it) => <option key={it.key} value={it.key}>{it.label}</option>)}
               </optgroup>
             ))}
-          </select>
+          </Select>
         </label>
         {axisSelect('Y', yKey, setYKey, 'terminal-scat-y')}
         {axisSelect('X', xKey, setXKey, 'terminal-scat-x')}
