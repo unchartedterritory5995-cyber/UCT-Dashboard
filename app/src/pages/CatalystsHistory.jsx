@@ -13,7 +13,7 @@ import { formatET } from '../utils/timeAgo'
 import PanelTicker from '../components/terminal/PanelTicker'
 import UIcon from '../components/ui/UIcon'
 import Input from '../components/ui/Input'
-import { BoardFromList, PanelSkeleton, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../components/terminal'
+import { BoardFromList, PanelSkeleton, useInTerminalPanel, usePanelFreshness, usePanelRerun, usePanelSymbolRows } from '../components/terminal'
 import { formatPercent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
 import styles from './CatalystsHistory.module.css'
 import { CATALYST_TAGS, keyedBy } from '../lib/taxonomy/a8Taxonomy'
@@ -85,7 +85,20 @@ function openingDate(d) {
 
 export default function CatalystsHistory({ date: askedDate } = {}) {
   const inPanel = useInTerminalPanel()
-  const [date, setDate] = useState(() => openingDate(askedDate) || defaultCatalystDate())
+  // The day this panel opened on. Every write-back below re-runs the panel's command, which
+  // remounts it with the new day as `askedDate`, so this is always the day its command names.
+  const [openedOn] = useState(() => openingDate(askedDate) || defaultCatalystDate())
+  const [date, setDate] = useState(openedOn)
+  // Wave 6 (lane B): inside a terminal panel a picked day is written back into the panel's
+  // command (`CATH 2026-10-01`), so `?cmd=`, a reload and the history keep it. Only on a real
+  // pick: the day the panel already shows, a half-typed or empty value, or a day still ahead
+  // (the shell would refuse it) re-runs nothing -- the remount a re-run causes never re-runs.
+  const rerun = usePanelRerun()
+  const commit = (d) => {
+    if (!rerun || !openingDate(d) || d === openedOn || d > ymdNDaysAgo(0)) return
+    rerun(`CATH ${d}`)
+  }
+  const pick = (d) => { setDate(d); commit(d) }
   const { data, error, isLoading, mutate } = useSWR(
     date ? `/api/catalysts/by-date/${date}` : null,
     fetcher,
@@ -124,6 +137,10 @@ export default function CatalystsHistory({ date: askedDate } = {}) {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
+            // Typing a day fires a change per segment; it is written back when the member is
+            // done (leaves the field or presses Enter), so the remount never steals the caret.
+            onBlur={(e) => commit(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') commit(e.currentTarget.value) }}
             className={styles.dateInput}
             max={ymdNDaysAgo(0)}
           />
@@ -134,7 +151,7 @@ export default function CatalystsHistory({ date: askedDate } = {}) {
               key={q.label}
               type="button"
               className={`${styles.quickBtn} ${q.d === date ? styles.quickBtnActive : ''}`}
-              onClick={() => setDate(q.d)}
+              onClick={() => pick(q.d)}
             >
               {q.label}
             </button>
