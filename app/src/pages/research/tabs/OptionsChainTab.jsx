@@ -104,6 +104,12 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
     if (!d || d.paywalled) return { rows: [], dropped: 0 }
     return mergeChain(d.calls, d.puts, d.ticker || s)
   }, [chain.data, s])
+  // Audit 2026-10-08 (OMON P1): a quote cell opened the contract drill on a mouse click only. The
+  // drill exists only while its contract route answers (the same probe ContractPicker makes, so SWR
+  // shares the one read); while it does, each side's Mid cell is a keyboard stop (Enter / Space).
+  const probe = useMemo(() => rows.flatMap((r) => [r.call, r.put]).find((c) => c?.contract)?.contract, [rows])
+  const drillProbe = useDarkSection(probe ? `/api/research/options/${encodeURIComponent(s)}/contract/${encodeURIComponent(probe)}` : null)
+  const drillable = Array.isArray(drillProbe.data?.bars)
 
   if (chain.error) {
     return <div className={styles.note} data-testid="chain-unavailable">
@@ -127,6 +133,19 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
   const derive = (q) => (q ? { ...q, mid: midOf(q), vol_oi: volOiOf(q) } : q)
   const aug = (q, type) => (q && full ? { ...q, ...extraGreeks({ ...q, type }, Number(d.spot), days) } : q)
   const shown = rows.map((r) => ({ ...r, call: derive(aug(r.call, 'call')), put: derive(aug(r.put, 'put')) }))
+  const quoteCell = (type, r, k, l, how) => {
+    const q = r[type]
+    const text = fmt(q?.[k], how)
+    const cls = isItm(type, r.strike, d.spot) ? styles.itm : undefined
+    const open = () => { if (q) setDrill(q) }
+    if (drillable && q?.contract && k === 'mid') {
+      return <td key={`${type[0]}-${k}`} className={cls} tabIndex={0} onClick={open}
+        aria-label={`${l} ${text}: open the ${fmt(r.strike, 2)} ${type} contract`}
+        data-testid={`drill-${type}-${r.strike}`}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open() } }}>{text}</td>
+    }
+    return <td key={`${type[0]}-${k}`} className={cls} onClick={drillable ? open : undefined}>{text}</td>
+  }
 
   return (
     <section data-testid="options-chain">
@@ -194,9 +213,9 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
               <tr key={r.strike} className={r.strike === atm ? styles.atm : undefined}
                   data-testid={r.strike === atm ? 'atm-row' : undefined}>
                 {isPhone && <td className={styles.strike}>{fmt(r.strike, 2)}</td>}
-                {showCalls && cols.map(([k, , how]) => <td key={`c-${k}`} className={isItm('call', r.strike, d.spot) ? styles.itm : undefined} onClick={() => r.call && setDrill(r.call)}>{fmt(r.call?.[k], how)}</td>)}
+                {showCalls && cols.map(([k, l, how]) => quoteCell('call', r, k, l, how))}
                 {!isPhone && <td className={styles.strike}>{fmt(r.strike, 2)}</td>}
-                {showPuts && cols.map(([k, , how]) => <td key={`p-${k}`} className={isItm('put', r.strike, d.spot) ? styles.itm : undefined} onClick={() => r.put && setDrill(r.put)}>{fmt(r.put?.[k], how)}</td>)}
+                {showPuts && cols.map(([k, l, how]) => quoteCell('put', r, k, l, how))}
               </tr>
             ))}
           </tbody>
