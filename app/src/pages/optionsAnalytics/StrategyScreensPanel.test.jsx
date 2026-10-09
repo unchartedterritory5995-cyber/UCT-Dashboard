@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import StrategyScreensPanel, { MoreStrategyScreens } from './StrategyScreensPanel'
 
@@ -29,6 +29,26 @@ const mountMore = () => render(<SWRConfig value={{ provider: () => new Map(), de
 
 describe('StrategyScreensPanel (FT-072/073)', () => {
   afterEach(() => vi.unstubAllGlobals())
+
+  it('typing tickers asks for the screen ONCE, after typing pauses -- not once per keystroke', async () => {
+    stub({ '/strategies': [200, CATALOG], '/strategy/covered_calls': [200, CC] })
+    mount()
+    await screen.findByTestId('strategy-basis')
+    const box = screen.getByLabelText('Limit to tickers')
+    vi.useFakeTimers()
+    try {
+      for (const v of ['N', 'NV', 'NVD', 'NVDA', 'NVDA,', 'NVDA,A', 'NVDA,AM', 'NVDA,AMD']) {
+        fireEvent.change(box, { target: { value: v } })
+        act(() => { vi.advanceTimersByTime(60) })
+      }
+      act(() => { vi.advanceTimersByTime(1000) })
+    } finally {
+      vi.useRealTimers()
+    }
+    await waitFor(() => expect(fetch.mock.calls.some(([u]) => u.includes('underlyings=NVDA%2CAMD'))).toBe(true))
+    const filtered = fetch.mock.calls.map(([u]) => u).filter((u) => u.includes('underlyings='))
+    expect(filtered).toEqual([expect.stringContaining('underlyings=NVDA%2CAMD')])
+  })
 
   it('dark: nothing', async () => {
     stub({})
