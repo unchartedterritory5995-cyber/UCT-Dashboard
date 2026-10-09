@@ -535,7 +535,7 @@
       "cadence": null,
       "yields": "num",
       "authority": "derived",
-      "sentence": "McClellan Oscillator"
+      "sentence": "McClellan Oscillator (Raw)"
     },
     "breadth_snapshot_numeric.near_52w_high": {
       "store": "breadth_snapshot_numeric",
