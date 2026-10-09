@@ -116,3 +116,20 @@ def compare_target(sym: str = Query(..., min_length=1, max_length=8),
     if not out.get("comparator"):
         raise HTTPException(status_code=404, detail=f"No sector ETF is known for {out['sym']}")
     return out
+
+
+class SeenBody(BaseModel):
+    sym: str = Field("", max_length=8)
+    keys: list[str] = Field(default_factory=list, max_length=tg.MAX_SEEN_KEYS_PER_CALL)
+
+
+@router.post("/api/terminal/seen/{code}")
+def seen_since_last_visit(body: SeenBody, code: str = Path(..., min_length=2, max_length=4),
+                          user: dict = Depends(get_current_user_with_plan)):
+    """Wave 3 #7: which of the items a CN / FEED / CF / CATS panel shows are new since the caller's
+    last visit to that panel for that ticker, and when that visit was. The visit write is
+    THROTTLED in the service (once a minute per member, code and ticker)."""
+    try:
+        return tg.seen_since_last_visit(str(user["id"]), code, body.sym, body.keys)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

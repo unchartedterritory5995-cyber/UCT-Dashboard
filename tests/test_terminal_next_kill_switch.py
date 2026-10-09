@@ -329,6 +329,9 @@ T3_GRAMMAR_ROUTES = [
     ("GET", "/api/terminal/compare-target"),
     ("GET", "/api/terminal/move/{sym}"),
     ("POST", "/api/terminal/commands/event"),
+    # wave 3 lane 13 (product #7): the throttled "new since your last visit" record for CN / FEED /
+    # CF / CATS -- same router, same three gates, acknowledged here deliberately.
+    ("POST", "/api/terminal/seen/{code}"),
     ("PUT", "/api/terminal/aliases/{name}"),
 ]
 
