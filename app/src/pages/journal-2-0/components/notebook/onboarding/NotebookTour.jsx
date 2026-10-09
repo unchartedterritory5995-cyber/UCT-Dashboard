@@ -68,7 +68,7 @@ export function availableSteps() {
   return TOUR_STEPS.filter((s) => anchorFor(s.anchor))
 }
 
-export default function NotebookTour({ hasAnyNotes = false, notesKnown = false }) {
+export default function NotebookTour({ hasAnyNotes = false, notesKnown = false, hadNotes = false }) {
   const enabled = notebookFlag('notebook_onboarding_enabled') === true
   const isPaid = useIsPaid()
   const { prefs, setPref, loading } = usePreferences()
@@ -114,7 +114,7 @@ export default function NotebookTour({ hasAnyNotes = false, notesKnown = false }
   // The rule is tourPref.js's, shared with the gate that fetched this chunk (fix I-2).
   useEffect(() => {
     if (autoTriedRef.current || steps) return undefined
-    if (!tourIsForThisMember({ enabled, isPaid, notesKnown, hasAnyNotes, loading })) return undefined
+    if (!tourIsForThisMember({ enabled, isPaid, notesKnown, hasAnyNotes, loading, hadNotes })) return undefined
     if (tourFinished(savedState)) {
       autoTriedRef.current = true
       return undefined
@@ -127,7 +127,7 @@ export default function NotebookTour({ hasAnyNotes = false, notesKnown = false }
       if (first) record(TOUR_STATES.started, first.id)
     }, AUTO_START_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [enabled, isPaid, notesKnown, hasAnyNotes, loading, savedState, savedStep, steps, open, record])
+  }, [enabled, isPaid, notesKnown, hasAnyNotes, hadNotes, loading, savedState, savedStep, steps, open, record])
 
   // ── the doors that reopen it whatever the preference says ──────────────────────────
   useEffect(() => {

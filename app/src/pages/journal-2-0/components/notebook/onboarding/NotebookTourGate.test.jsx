@@ -196,6 +196,24 @@ describe('the chunk is fetched only when the tour is about to show', () => {
     expect(await screen.findByText('the tour is open')).toBeInTheDocument()
   })
 
+  // verify-1009 P1: the tour opened as a modal over the "Moved N notes to the Trash" notice
+  // and covered its Undo. A count of zero AFTER the member had notes is a trash, not a
+  // newcomer. Mutation proof: drop `hadNotes` from the gate's call and this goes red.
+  it('a member who TRASHES their last notes is not shown the tour on its own', async () => {
+    const load = tourLoader()
+    const Gate = makeTourGate(load, 0)
+    const { rerender } = render(<Page Gate={Gate} hasAnyNotes />)
+    await waitFor(() => expect(prefsRead()).toBe(true))
+    await settle()
+    rerender(<Page Gate={Gate} hasAnyNotes={false} />)
+    await settle(80)
+    expect(load).not.toHaveBeenCalled()
+    expect(screen.queryByText('the tour is open')).toBeNull()
+    // the explicit door still opens it
+    act(() => { openNotebookTour() })
+    expect(await screen.findByText('the tour is open')).toBeInTheDocument()
+  })
+
   it("the help article's link (state.startTour) fetches it", async () => {
     const load = tourLoader()
     const Gate = makeTourGate(load, 0)

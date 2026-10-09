@@ -16,6 +16,8 @@ import { AuthContext } from '../../../../../context/AuthContext'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { installTourLayout } from './__fixtures__/tourLayout'
 import { isFirstRunStageHeld } from '../../../../../components/firstRun/firstRunStage'
+import { whenWritesSettle } from '../../../../../hooks/usePreferences'
+import { TOUR_PREF } from './tourPref'
 
 let prefs
 function installFetch() {
@@ -52,7 +54,14 @@ beforeEach(() => {
   installFetch()
   installTourLayout()
 })
-afterEach(() => {
+// ⚰️ 2026-10-09 (verify-1009): since 2c902624e4 every preference save runs through a per-key
+// queue (usePreferences `queueWrite`), so the tour's "done"/"dismissed" POST from one test can
+// leave AFTER the next test's beforeEach has reset `prefs` and installed its fetch. That late
+// POST then wrote "done" into the NEXT test's fake server, and its tour never auto-started
+// (red on master; green at the 10/07 gate). Wait for this file's own writes before the next
+// test begins: the leak is the test's, and the product's queue is correct.
+afterEach(async () => {
+  await whenWritesSettle([TOUR_PREF])
   __resetNotebookFlags()
   vi.restoreAllMocks()
 })

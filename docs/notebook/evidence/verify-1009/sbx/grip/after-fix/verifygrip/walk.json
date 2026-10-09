@@ -1,0 +1,5062 @@
+{
+ "tool": "tools/notebook_fin_walk.py",
+ "steps": [
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "6 chart block drag",
+   "step": "1280: where the chart's grip sits when the chart's top edge is scrolled above the window",
+   "verdict": "INFO",
+   "at": "2026-10-09T22:54:19+00:00",
+   "chart_box": [
+    414,
+    -29,
+    778,
+    572
+   ],
+   "grip": {
+    "probes": [
+     {
+      "rest": "chart frame, 6 px inside its top-left",
+      "grip": [
+       {
+        "label": "Move this block",
+        "draggable": "true",
+        "hidden": true,
+        "pos": null,
+        "box": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "visible": false
+       }
+      ],
+      "beside_the_chart": false
+     },
+     {
+      "rest": "chart frame, top centre",
+      "grip": [
+       {
+        "label": "Move this block",
+        "draggable": "true",
+        "hidden": true,
+        "pos": null,
+        "box": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "visible": false
+       }
+      ],
+      "beside_the_chart": false
+     },
+     {
+      "rest": "chart, centre",
+      "grip": [
+       {
+        "label": "Move this block",
+        "draggable": "true",
+        "hidden": false,
+        "pos": "0",
+        "box": [
+         386,
+         225,
+         22,
+         22
+        ],
+        "visible": true
+       }
+      ],
+      "beside_the_chart": true
+     }
+    ],
+    "chart_grip_shown_at": "chart, centre",
+    "paragraph_control": [
+     {
+      "label": "Move this block",
+      "draggable": "true",
+      "hidden": false,
+      "pos": "1",
+      "box": [
+       386,
+       557,
+       22,
+       22
+      ],
+      "visible": true
+     }
+    ]
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=19ace186ab864dfab1081127d1281318",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/NVDA?tf=5&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/NVDA?tf=60&bars=1138&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/NVDA?tf=30&bars=1120&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/NVDA?tf=15&bars=1152&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/NVDA?tf=W&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/NVDA?tf=M&bars=600&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/bars/NVDA?tf=1&bars=960&warm=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0c2ce4e3-35c\",\"user_id\":\"48761d4a-6f56-45d3-aaf2-f49769def7bf\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:54:06.696918+00:00\",\"updated_at\":\"2026-10-09T22:54:06.942609+00:00\",\"items\":[],\"owner_name\":\"q1vd\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"34c4e390-c660-4bc8-a684-db9f27f51a02\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-09T22:54:06.850Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/19ace186ab864dfab1081127d1281318/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":191}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-6-chart-block-drag-1280-where-the-chart-s-grip-sits-when-the-chart-s-top-edge-is-scr-87d39d4c.png"
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "6 chart block drag",
+   "step": "1280: A: pointer down on the chart body, 30 moves, up (fin-walk F3's gesture)",
+   "verdict": "FAIL",
+   "at": "2026-10-09T22:54:45+00:00",
+   "attempt": "A: pointer down on the chart body, 30 moves, up (fin-walk F3's gesture)",
+   "note": "9951b3d0fec84d26b0a86db2a5736789",
+   "order_before": [
+    "widgetEmbed",
+    "paragraph",
+    "paragraph"
+   ],
+   "stored_order_after": [
+    "widgetEmbed",
+    "paragraph",
+    "paragraph"
+   ],
+   "moved_below_a_paragraph": false,
+   "error": null,
+   "how_to_read": "FAIL means the stored order did not change after this gesture; whether a member can do it is judged from all attempts together",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=9951b3d0fec84d26b0a86db2a5736789",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0c2ce4e3-35c\",\"user_id\":\"48761d4a-6f56-45d3-aaf2-f49769def7bf\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:54:06.696918+00:00\",\"updated_at\":\"2026-10-09T22:54:21.466196+00:00\",\"items\":[],\"owner_name\":\"q1vd\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/9951b3d0fec84d26b0a86db2a5736789/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":335}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-6-chart-block-drag-1280-A-pointer-down-on-the-chart-body-30-moves-up-fin-walk-F3-s-gesture-.png"
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "6 chart block drag",
+   "step": "1280: A2: pointer down on the chart body, one move to Paragraph B, up (no hold)",
+   "verdict": "FAIL",
+   "at": "2026-10-09T22:55:08+00:00",
+   "attempt": "A2: pointer down on the chart body, one move to Paragraph B, up (no hold)",
+   "note": "e1f65bdcdc0e4023aa24aa7fb57ae508",
+   "order_before": [
+    "widgetEmbed",
+    "paragraph",
+    "paragraph"
+   ],
+   "stored_order_after": [
+    "widgetEmbed",
+    "paragraph",
+    "paragraph"
+   ],
+   "moved_below_a_paragraph": false,
+   "error": null,
+   "how_to_read": "FAIL means the stored order did not change after this gesture; whether a member can do it is judged from all attempts together",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=e1f65bdcdc0e4023aa24aa7fb57ae508",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0c2ce4e3-35c\",\"user_id\":\"48761d4a-6f56-45d3-aaf2-f49769def7bf\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:54:06.696918+00:00\",\"updated_at\":\"2026-10-09T22:54:45.839562+00:00\",\"items\":[],\"owner_name\":\"q1vd\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/e1f65bdcdc0e4023aa24aa7fb57ae508/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":229}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-6-chart-block-drag-1280-A2-pointer-down-on-the-chart-body-one-move-to-Paragraph-B-up-no-hold-.png"
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "6 chart block drag",
+   "step": "1280: A3: as A2 but with the chart's top in view first and 10 pointer steps",
+   "verdict": "FAIL",
+   "at": "2026-10-09T22:55:31+00:00",
+   "attempt": "A3: as A2 but with the chart's top in view first and 10 pointer steps",
+   "note": "93535b27f5924712a7b1bd9f693ff981",
+   "order_before": [
+    "widgetEmbed",
+    "paragraph",
+    "paragraph"
+   ],
+   "stored_order_after": [
+    "widgetEmbed",
+    "paragraph",
+    "paragraph"
+   ],
+   "moved_below_a_paragraph": false,
+   "error": null,
+   "chart_box": [
+    415,
+    171,
+    776,
+    427
+   ],
+   "paragraph_b_box": [
+    414,
+    795,
+    778,
+    29
+   ],
+   "how_to_read": "FAIL means the stored order did not change after this gesture; whether a member can do it is judged from all attempts together",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=93535b27f5924712a7b1bd9f693ff981",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0c2ce4e3-35c\",\"user_id\":\"48761d4a-6f56-45d3-aaf2-f49769def7bf\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:54:06.696918+00:00\",\"updated_at\":\"2026-10-09T22:55:09.249551+00:00\",\"items\":[],\"owner_name\":\"q1vd\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/93535b27f5924712a7b1bd9f693ff981/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":252}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-6-chart-block-drag-1280-A3-as-A2-but-with-the-chart-s-top-in-view-first-and-10-pointer-steps.png"
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "6 chart block drag",
+   "step": "1280: B: locator.drag_to from the chart body to Paragraph B (synthesised HTML5 drag)",
+   "verdict": "PASS",
+   "at": "2026-10-09T22:55:45+00:00",
+   "attempt": "B: locator.drag_to from the chart body to Paragraph B (synthesised HTML5 drag)",
+   "note": "80f6fb2443de489fa8487740dea206ae",
+   "order_before": [
+    "widgetEmbed",
+    "paragraph",
+    "paragraph"
+   ],
+   "stored_order_after": [
+    "paragraph",
+    "widgetEmbed",
+    "paragraph"
+   ],
+   "moved_below_a_paragraph": true,
+   "error": null,
+   "how_to_read": "FAIL means the stored order did not change after this gesture; whether a member can do it is judged from all attempts together",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=80f6fb2443de489fa8487740dea206ae",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0c2ce4e3-35c\",\"user_id\":\"48761d4a-6f56-45d3-aaf2-f49769def7bf\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:54:06.696918+00:00\",\"updated_at\":\"2026-10-09T22:55:32.671678+00:00\",\"items\":[],\"owner_name\":\"q1vd\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/80f6fb2443de489fa8487740dea206ae/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":229}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/80f6fb2443de489fa8487740dea206ae",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-dr-B\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"baseUpdatedAt\":\"2026-10-09T22:55:31.923858+00:00\"}",
+     "response": "{\"note\":{\"id\":\"80f6fb2443de489fa8487740dea206ae\",\"userId\":\"48761d4a-6f56-45d3-aaf2-f49769def7bf\",\"accountId\":null,\"folderId\":null,\"title\":\"Chart drag B\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-dr-B\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"bodyPlain\":\"Paragraph A. [widget] Paragraph B.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-09T22:55:31.923858+00:00\",\"updatedAt\":\"2026-10-09T22:55:45.594035+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-6-chart-block-drag-1280-B-locator.drag_to-from-the-chart-body-to-Paragraph-B-synthes-a23126ba.png"
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "6 chart block drag",
+   "step": "1280: C: page.drag_and_drop from the chart body to Paragraph B (synthesised HTML5 drag)",
+   "verdict": "PASS",
+   "at": "2026-10-09T22:55:59+00:00",
+   "attempt": "C: page.drag_and_drop from the chart body to Paragraph B (synthesised HTML5 drag)",
+   "note": "071adbcfcd6a4e47a2b684d39e064ef3",
+   "order_before": [
+    "widgetEmbed",
+    "paragraph",
+    "paragraph"
+   ],
+   "stored_order_after": [
+    "paragraph",
+    "widgetEmbed",
+    "paragraph"
+   ],
+   "moved_below_a_paragraph": true,
+   "error": null,
+   "how_to_read": "FAIL means the stored order did not change after this gesture; whether a member can do it is judged from all attempts together",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=071adbcfcd6a4e47a2b684d39e064ef3",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0c2ce4e3-35c\",\"user_id\":\"48761d4a-6f56-45d3-aaf2-f49769def7bf\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:54:06.696918+00:00\",\"updated_at\":\"2026-10-09T22:55:46.755581+00:00\",\"items\":[],\"owner_name\":\"q1vd\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/071adbcfcd6a4e47a2b684d39e064ef3/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":249}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/071adbcfcd6a4e47a2b684d39e064ef3",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-dr-C\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"baseUpdatedAt\":\"2026-10-09T22:55:46.038600+00:00\"}",
+     "response": "{\"note\":{\"id\":\"071adbcfcd6a4e47a2b684d39e064ef3\",\"userId\":\"48761d4a-6f56-45d3-aaf2-f49769def7bf\",\"accountId\":null,\"folderId\":null,\"title\":\"Chart drag C\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-dr-C\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"bodyPlain\":\"Paragraph A. [widget] Paragraph B.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-09T22:55:46.038600+00:00\",\"updatedAt\":\"2026-10-09T22:55:59.661448+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-6-chart-block-drag-1280-C-page.drag_and_drop-from-the-chart-body-to-Paragraph-B-synt-b8bc321c.png"
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "6 chart block drag",
+   "step": "1280: D: the block grip 'Move this block': pointer down, 30 moves to the end of Paragraph A, up",
+   "verdict": "PASS",
+   "at": "2026-10-09T22:56:19+00:00",
+   "attempt": "D: the block grip 'Move this block': pointer down, 30 moves to the end of Paragraph A, up",
+   "note": "8ba58b50ebd046c094e15ad512273716",
+   "order_before": [
+    "widgetEmbed",
+    "paragraph",
+    "paragraph"
+   ],
+   "stored_order_after": [
+    "paragraph",
+    "widgetEmbed",
+    "paragraph"
+   ],
+   "moved_below_a_paragraph": true,
+   "error": null,
+   "grip": {
+    "probes": [
+     {
+      "rest": "chart frame, 6 px inside its top-left",
+      "grip": [
+       {
+        "label": "Move this block",
+        "draggable": "true",
+        "hidden": true,
+        "pos": null,
+        "box": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "visible": false
+       }
+      ],
+      "beside_the_chart": false
+     },
+     {
+      "rest": "chart frame, top centre",
+      "grip": [
+       {
+        "label": "Move this block",
+        "draggable": "true",
+        "hidden": true,
+        "pos": null,
+        "box": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "visible": false
+       }
+      ],
+      "beside_the_chart": false
+     },
+     {
+      "rest": "chart, centre",
+      "grip": [
+       {
+        "label": "Move this block",
+        "draggable": "true",
+        "hidden": false,
+        "pos": "0",
+        "box": [
+         386,
+         225,
+         22,
+         22
+        ],
+        "visible": true
+       }
+      ],
+      "beside_the_chart": true
+     }
+    ],
+    "chart_grip_shown_at": "chart, centre",
+    "paragraph_control": [
+     {
+      "label": "Move this block",
+      "draggable": "true",
+      "hidden": false,
+      "pos": "1",
+      "box": [
+       386,
+       696,
+       22,
+       22
+      ],
+      "visible": true
+     }
+    ]
+   },
+   "drop_point": [
+    714,
+    708
+   ],
+   "paragraph_a_box": [
+    414,
+    694,
+    778,
+    29
+   ],
+   "how_to_read": "FAIL means the stored order did not change after this gesture; whether a member can do it is judged from all attempts together",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=8ba58b50ebd046c094e15ad512273716",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0c2ce4e3-35c\",\"user_id\":\"48761d4a-6f56-45d3-aaf2-f49769def7bf\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:54:06.696918+00:00\",\"updated_at\":\"2026-10-09T22:56:01.055627+00:00\",\"items\":[],\"owner_name\":\"q1vd\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/8ba58b50ebd046c094e15ad512273716/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":236}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/8ba58b50ebd046c094e15ad512273716",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-dr-D\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"baseUpdatedAt\":\"2026-10-09T22:56:00.149170+00:00\"}",
+     "response": "{\"note\":{\"id\":\"8ba58b50ebd046c094e15ad512273716\",\"userId\":\"48761d4a-6f56-45d3-aaf2-f49769def7bf\",\"accountId\":null,\"folderId\":null,\"title\":\"Chart drag D\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-dr-D\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"bodyPlain\":\"Paragraph A. [widget] Paragraph B.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-09T22:56:00.149170+00:00\",\"updatedAt\":\"2026-10-09T22:56:18.739310+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-6-chart-block-drag-1280-D-the-block-grip-Move-this-block-pointer-down-30-moves-to-th-deeff58f.png"
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "6 chart block drag",
+   "step": "1280: E: locator.drag_to from the block grip to Paragraph B",
+   "verdict": "PASS",
+   "at": "2026-10-09T22:56:36+00:00",
+   "attempt": "E: locator.drag_to from the block grip to Paragraph B",
+   "note": "15d7a88875c647f7983fbe66f93bd5b6",
+   "order_before": [
+    "widgetEmbed",
+    "paragraph",
+    "paragraph"
+   ],
+   "stored_order_after": [
+    "paragraph",
+    "widgetEmbed",
+    "paragraph"
+   ],
+   "moved_below_a_paragraph": true,
+   "error": null,
+   "grip": {
+    "probes": [
+     {
+      "rest": "chart frame, 6 px inside its top-left",
+      "grip": [
+       {
+        "label": "Move this block",
+        "draggable": "true",
+        "hidden": true,
+        "pos": null,
+        "box": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "visible": false
+       }
+      ],
+      "beside_the_chart": false
+     },
+     {
+      "rest": "chart frame, top centre",
+      "grip": [
+       {
+        "label": "Move this block",
+        "draggable": "true",
+        "hidden": true,
+        "pos": null,
+        "box": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "visible": false
+       }
+      ],
+      "beside_the_chart": false
+     },
+     {
+      "rest": "chart, centre",
+      "grip": [
+       {
+        "label": "Move this block",
+        "draggable": "true",
+        "hidden": false,
+        "pos": "0",
+        "box": [
+         386,
+         172,
+         22,
+         22
+        ],
+        "visible": true
+       }
+      ],
+      "beside_the_chart": true
+     }
+    ],
+    "chart_grip_shown_at": "chart, centre",
+    "paragraph_control": [
+     {
+      "label": "Move this block",
+      "draggable": "true",
+      "hidden": true,
+      "pos": "0",
+      "box": [
+       0,
+       0,
+       0,
+       0
+      ],
+      "visible": false
+     }
+    ]
+   },
+   "how_to_read": "FAIL means the stored order did not change after this gesture; whether a member can do it is judged from all attempts together",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=15d7a88875c647f7983fbe66f93bd5b6",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0c2ce4e3-35c\",\"user_id\":\"48761d4a-6f56-45d3-aaf2-f49769def7bf\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:54:06.696918+00:00\",\"updated_at\":\"2026-10-09T22:56:19.900844+00:00\",\"items\":[],\"owner_name\":\"q1vd\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/15d7a88875c647f7983fbe66f93bd5b6/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":236}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/15d7a88875c647f7983fbe66f93bd5b6",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-dr-E\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"baseUpdatedAt\":\"2026-10-09T22:56:19.179556+00:00\"}",
+     "response": "{\"note\":{\"id\":\"15d7a88875c647f7983fbe66f93bd5b6\",\"userId\":\"48761d4a-6f56-45d3-aaf2-f49769def7bf\",\"accountId\":null,\"folderId\":null,\"title\":\"Chart drag E\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-dr-E\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"bodyPlain\":\"Paragraph A. [widget] Paragraph B.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-09T22:56:19.179556+00:00\",\"updatedAt\":\"2026-10-09T22:56:36.030764+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-6-chart-block-drag-1280-E-locator.drag_to-from-the-block-grip-to-Paragraph-B.png"
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "6 chart block drag",
+   "step": "1280: F: click the block grip, then Move down twice (a mouse path that is not a drag)",
+   "verdict": "PASS",
+   "at": "2026-10-09T22:56:54+00:00",
+   "attempt": "F: click the block grip, then Move down twice (a mouse path that is not a drag)",
+   "note": "56a5d44311754e7488bf77db422cdc97",
+   "order_before": [
+    "widgetEmbed",
+    "paragraph",
+    "paragraph"
+   ],
+   "stored_order_after": [
+    "paragraph",
+    "widgetEmbed",
+    "paragraph"
+   ],
+   "moved_below_a_paragraph": true,
+   "error": null,
+   "grip": {
+    "probes": [
+     {
+      "rest": "chart frame, 6 px inside its top-left",
+      "grip": [
+       {
+        "label": "Move this block",
+        "draggable": "true",
+        "hidden": true,
+        "pos": null,
+        "box": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "visible": false
+       }
+      ],
+      "beside_the_chart": false
+     },
+     {
+      "rest": "chart frame, top centre",
+      "grip": [
+       {
+        "label": "Move this block",
+        "draggable": "true",
+        "hidden": true,
+        "pos": null,
+        "box": [
+         0,
+         0,
+         0,
+         0
+        ],
+        "visible": false
+       }
+      ],
+      "beside_the_chart": false
+     },
+     {
+      "rest": "chart, centre",
+      "grip": [
+       {
+        "label": "Move this block",
+        "draggable": "true",
+        "hidden": false,
+        "pos": "0",
+        "box": [
+         386,
+         172,
+         22,
+         22
+        ],
+        "visible": true
+       }
+      ],
+      "beside_the_chart": true
+     }
+    ],
+    "chart_grip_shown_at": "chart, centre",
+    "paragraph_control": [
+     {
+      "label": "Move this block",
+      "draggable": "true",
+      "hidden": true,
+      "pos": "0",
+      "box": [
+       0,
+       0,
+       0,
+       0
+      ],
+      "visible": false
+     }
+    ]
+   },
+   "menu": "Move up\nMove down",
+   "how_to_read": "FAIL means the stored order did not change after this gesture; whether a member can do it is judged from all attempts together",
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=56a5d44311754e7488bf77db422cdc97",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"0c2ce4e3-35c\",\"user_id\":\"48761d4a-6f56-45d3-aaf2-f49769def7bf\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:54:06.696918+00:00\",\"updated_at\":\"2026-10-09T22:56:37.241561+00:00\",\"items\":[],\"owner_name\":\"q1vd\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/56a5d44311754e7488bf77db422cdc97/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":261}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/56a5d44311754e7488bf77db422cdc97",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-dr-F\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"baseUpdatedAt\":\"2026-10-09T22:56:36.496228+00:00\"}",
+     "response": "{\"note\":{\"id\":\"56a5d44311754e7488bf77db422cdc97\",\"userId\":\"48761d4a-6f56-45d3-aaf2-f49769def7bf\",\"accountId\":null,\"folderId\":null,\"title\":\"Chart drag F\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-dr-F\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"bodyPlain\":\"Paragraph A. [widget] Paragraph B.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-09T22:56:36.496228+00:00\",\"updatedAt\":\"2026-10-09T22:56:53.808843+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-6-chart-block-drag-1280-F-click-the-block-grip-then-Move-down-twice-a-mouse-path-tha-e4da02c6.png"
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "6 chart block drag",
+   "step": "1280: summary of every mouse attempt",
+   "verdict": "INFO",
+   "at": "2026-10-09T22:56:54+00:00",
+   "attempts": [
+    {
+     "attempt": "A: pointer down on the chart body, 30 moves, up (fin-walk F3's gesture)",
+     "stored_order_after": [
+      "widgetEmbed",
+      "paragraph",
+      "paragraph"
+     ],
+     "moved_below_a_paragraph": false,
+     "error": null
+    },
+    {
+     "attempt": "A2: pointer down on the chart body, one move to Paragraph B, up (no hold)",
+     "stored_order_after": [
+      "widgetEmbed",
+      "paragraph",
+      "paragraph"
+     ],
+     "moved_below_a_paragraph": false,
+     "error": null
+    },
+    {
+     "attempt": "A3: as A2 but with the chart's top in view first and 10 pointer steps",
+     "stored_order_after": [
+      "widgetEmbed",
+      "paragraph",
+      "paragraph"
+     ],
+     "moved_below_a_paragraph": false,
+     "error": null
+    },
+    {
+     "attempt": "B: locator.drag_to from the chart body to Paragraph B (synthesised HTML5 drag)",
+     "stored_order_after": [
+      "paragraph",
+      "widgetEmbed",
+      "paragraph"
+     ],
+     "moved_below_a_paragraph": true,
+     "error": null
+    },
+    {
+     "attempt": "C: page.drag_and_drop from the chart body to Paragraph B (synthesised HTML5 drag)",
+     "stored_order_after": [
+      "paragraph",
+      "widgetEmbed",
+      "paragraph"
+     ],
+     "moved_below_a_paragraph": true,
+     "error": null
+    },
+    {
+     "attempt": "D: the block grip 'Move this block': pointer down, 30 moves to the end of Paragraph A, up",
+     "stored_order_after": [
+      "paragraph",
+      "widgetEmbed",
+      "paragraph"
+     ],
+     "moved_below_a_paragraph": true,
+     "error": null
+    },
+    {
+     "attempt": "E: locator.drag_to from the block grip to Paragraph B",
+     "stored_order_after": [
+      "paragraph",
+      "widgetEmbed",
+      "paragraph"
+     ],
+     "moved_below_a_paragraph": true,
+     "error": null
+    },
+    {
+     "attempt": "F: click the block grip, then Move down twice (a mouse path that is not a drag)",
+     "stored_order_after": [
+      "paragraph",
+      "widgetEmbed",
+      "paragraph"
+     ],
+     "moved_below_a_paragraph": true,
+     "error": null
+    }
+   ],
+   "console_errors": [],
+   "page_errors": [],
+   "failed_requests": [],
+   "writes": []
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "P2 grip drag",
+   "step": "1280: chart, grip visible beside the block: a: locator.drag_to from the grip",
+   "verdict": "PASS",
+   "at": "2026-10-09T22:57:08+00:00",
+   "block": "chart",
+   "note": "d5d9aef33c0e4f838b4e48292ad52a3c",
+   "grip": {
+    "hidden": false,
+    "pos": "0",
+    "box": [
+     386,
+     225,
+     22,
+     22
+    ],
+    "on_top": true
+   },
+   "grip_beside_the_block_and_in_view": true,
+   "block_box": [
+    414,
+    110,
+    778,
+    572
+   ],
+   "order_before": [
+    [
+     "widgetEmbed",
+     ""
+    ],
+    [
+     "paragraph",
+     "Paragraph A."
+    ],
+    [
+     "paragraph",
+     "Paragraph B."
+    ]
+   ],
+   "stored_order_after": [
+    [
+     "paragraph",
+     "Paragraph A."
+    ],
+    [
+     "widgetEmbed",
+     ""
+    ],
+    [
+     "paragraph",
+     "Paragraph B."
+    ]
+   ],
+   "moved": true,
+   "drop_target": "Paragraph A.",
+   "error": null,
+   "listeners": {
+    "grip": true,
+    "editor": true
+   },
+   "dom_events": [
+    {
+     "where": "grip",
+     "type": "hidden=false",
+     "t": 10734
+    },
+    {
+     "where": "grip",
+     "type": "pointerdown",
+     "t": 11385,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 397,
+     "y": 236
+    },
+    {
+     "where": "grip",
+     "type": "mousedown",
+     "t": 11385,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 397,
+     "y": 236
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 11428,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 11428,
+     "target": "SPAN.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 11428,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "grip",
+     "type": "dragstart",
+     "t": 11429,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 397,
+     "y": 236
+    },
+    {
+     "where": "grip",
+     "type": "drag",
+     "t": 11442,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 11442,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragover",
+     "t": 11442,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragover",
+     "t": 11444,
+     "target": "P.",
+     "defaultPrevented": true,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "editor(capture)",
+     "type": "drop",
+     "t": 11444,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "editor(capture)",
+     "type": "drop-geometry",
+     "x": 714,
+     "y": 708,
+     "over": "P.",
+     "target_text": "Paragraph A.",
+     "blocks": [
+      [
+       "DIV.react-renderer node-widgetEmbed ProseMir",
+       "‹1m5m15m30m1hDWM",
+       110,
+       682
+      ],
+      [
+       "P.",
+       "Paragraph A.",
+       694,
+       723
+      ],
+      [
+       "P.",
+       "Paragraph B.",
+       735,
+       764
+      ]
+     ]
+    },
+    {
+     "where": "document(bubble)",
+     "type": "drop",
+     "t": 11466,
+     "target": "P.",
+     "defaultPrevented": true,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "grip",
+     "type": "dragend",
+     "t": 11471,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "move",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragend",
+     "t": 11471,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "move",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    }
+   ],
+   "event_counts": {
+    "grip:pointerdown": 1,
+    "grip:mousedown": 1,
+    "grip:mouseleave": 3,
+    "grip:dragstart": 1,
+    "grip:drag": 1,
+    "editor(capture):dragenter": 1,
+    "editor(capture):dragover": 1,
+    "document(bubble):dragover": 1,
+    "editor(capture):drop": 1,
+    "document(bubble):drop": 1,
+    "grip:dragend": 1,
+    "document(bubble):dragend": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=d5d9aef33c0e4f838b4e48292ad52a3c",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"02ff47cd-e7b\",\"user_id\":\"8d6fae19-2ca6-4a88-bf5a-be47f6174903\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:56:55.506507+00:00\",\"updated_at\":\"2026-10-09T22:56:55.809746+00:00\",\"items\":[],\"owner_name\":\"q1vg\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_offline_opt_in\",\"props\":{\"sessionId\":\"3f9b4985-bb26-41eb-954f-b294f0caeaa2\",\"flag\":{\"key\":null,\"enabled\":true,\"byDefault\":true,\"def\":true},\"at\":\"2026-10-09T22:56:55.752Z\"}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/d5d9aef33c0e4f838b4e48292ad52a3c/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":223}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/d5d9aef33c0e4f838b4e48292ad52a3c",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-g-chart-a-86614\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"baseUpdatedAt\":\"2026-10-09T22:56:54.973022+00:00\"}",
+     "response": "{\"note\":{\"id\":\"d5d9aef33c0e4f838b4e48292ad52a3c\",\"userId\":\"8d6fae19-2ca6-4a88-bf5a-be47f6174903\",\"accountId\":null,\"folderId\":null,\"title\":\"Grip drag chart-a-86614\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-g-chart-a-86614\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"bodyPlain\":\"Paragraph A. [widget] Paragraph B.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-09T22:56:54.973022+00:00\",\"updatedAt\":\"2026-10-09T22:57:07.292958+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-P2-grip-drag-1280-chart-grip-visible-beside-the-block-a-locator.drag_to-from-the-grip.png"
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "P2 grip drag",
+   "step": "1280: chart, grip visible beside the block: b: page.mouse down on the grip, 20 moves, up",
+   "verdict": "PASS",
+   "at": "2026-10-09T22:57:24+00:00",
+   "block": "chart",
+   "note": "ffc7551ba78c4e3fb730dc2f874823f9",
+   "grip": {
+    "hidden": false,
+    "pos": "0",
+    "box": [
+     386,
+     225,
+     22,
+     22
+    ],
+    "on_top": true
+   },
+   "grip_beside_the_block_and_in_view": true,
+   "block_box": [
+    414,
+    110,
+    778,
+    572
+   ],
+   "order_before": [
+    [
+     "widgetEmbed",
+     ""
+    ],
+    [
+     "paragraph",
+     "Paragraph A."
+    ],
+    [
+     "paragraph",
+     "Paragraph B."
+    ]
+   ],
+   "stored_order_after": [
+    [
+     "paragraph",
+     "Paragraph A."
+    ],
+    [
+     "widgetEmbed",
+     ""
+    ],
+    [
+     "paragraph",
+     "Paragraph B."
+    ]
+   ],
+   "moved": true,
+   "drop_target": "Paragraph A.",
+   "error": null,
+   "listeners": {
+    "grip": true,
+    "editor": true
+   },
+   "dom_events": [
+    {
+     "where": "grip",
+     "type": "hidden=false",
+     "t": 13023
+    },
+    {
+     "where": "grip",
+     "type": "pointerdown",
+     "t": 13622,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 397,
+     "y": 236
+    },
+    {
+     "where": "grip",
+     "type": "mousedown",
+     "t": 13622,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 397,
+     "y": 236
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 13634,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 412,
+     "y": 259
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 13634,
+     "target": "SPAN.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 412,
+     "y": 259
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 13634,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 412,
+     "y": 259
+    },
+    {
+     "where": "grip",
+     "type": "dragstart",
+     "t": 13634,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 397,
+     "y": 236
+    },
+    {
+     "where": "grip",
+     "type": "drag",
+     "t": 13650,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 412,
+     "y": 259
+    },
+    {
+     "where": "grip",
+     "type": "drag",
+     "t": 13688,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 428,
+     "y": 283
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 13688,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 428,
+     "y": 283
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragover",
+     "t": 13735,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 444,
+     "y": 306
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragover",
+     "t": 13736,
+     "target": "CANVAS.",
+     "defaultPrevented": true,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 444,
+     "y": 306
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragover",
+     "t": 13782,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 460,
+     "y": 330
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragover",
+     "t": 13782,
+     "target": "CANVAS.",
+     "defaultPrevented": true,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 460,
+     "y": 330
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14065,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 555,
+     "y": 472
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14065,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 555,
+     "y": 472
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14158,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 587,
+     "y": 519
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14159,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 587,
+     "y": 519
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14205,
+     "target": "SECTION._panel_tum95_3",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 603,
+     "y": 542
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14206,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 603,
+     "y": 542
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14253,
+     "target": "SPAN._meta_tum95_25",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 618,
+     "y": 566
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14253,
+     "target": "SECTION._panel_tum95_3",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 618,
+     "y": 566
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14301,
+     "target": "SECTION._panel_tum95_3",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 634,
+     "y": 590
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14301,
+     "target": "SPAN._meta_tum95_25",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 634,
+     "y": 590
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14347,
+     "target": "SELECT._select_tum95_73",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 650,
+     "y": 613
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14347,
+     "target": "SECTION._panel_tum95_3",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 650,
+     "y": 613
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14394,
+     "target": "SECTION._panel_tum95_3",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 666,
+     "y": 637
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14394,
+     "target": "SELECT._select_tum95_73",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 666,
+     "y": 637
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14440,
+     "target": "DIV._actions_tum95_119",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 682,
+     "y": 660
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14440,
+     "target": "SECTION._panel_tum95_3",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 682,
+     "y": 660
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14488,
+     "target": "DIV.tiptap ProseMirror _proseEditor_1n8ec_44",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 698,
+     "y": 684
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14488,
+     "target": "DIV._actions_tum95_119",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 698,
+     "y": 684
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14535,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14536,
+     "target": "DIV.tiptap ProseMirror _proseEditor_1n8ec_44",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "editor(capture)",
+     "type": "drop",
+     "t": 14583,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "editor(capture)",
+     "type": "drop-geometry",
+     "x": 714,
+     "y": 708,
+     "over": "P.",
+     "target_text": "Paragraph A.",
+     "blocks": [
+      [
+       "DIV.react-renderer node-widgetEmbed ProseMir",
+       "‹1m5m15m30m1hDWM",
+       110,
+       682
+      ],
+      [
+       "P.",
+       "Paragraph A.",
+       694,
+       723
+      ],
+      [
+       "P.",
+       "Paragraph B.",
+       735,
+       764
+      ]
+     ]
+    },
+    {
+     "where": "document(bubble)",
+     "type": "drop",
+     "t": 14597,
+     "target": "P.",
+     "defaultPrevented": true,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "grip",
+     "type": "dragend",
+     "t": 14598,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "move",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragend",
+     "t": 14598,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "move",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    }
+   ],
+   "event_counts": {
+    "grip:pointerdown": 1,
+    "grip:mousedown": 1,
+    "grip:mouseleave": 3,
+    "grip:dragstart": 1,
+    "grip:drag": 18,
+    "editor(capture):dragenter": 11,
+    "editor(capture):dragover": 9,
+    "document(bubble):dragover": 9,
+    "editor(capture):dragleave": 10,
+    "editor(capture):drop": 1,
+    "document(bubble):drop": 1,
+    "grip:dragend": 1,
+    "document(bubble):dragend": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=ffc7551ba78c4e3fb730dc2f874823f9",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"02ff47cd-e7b\",\"user_id\":\"8d6fae19-2ca6-4a88-bf5a-be47f6174903\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:56:55.506507+00:00\",\"updated_at\":\"2026-10-09T22:57:08.986903+00:00\",\"items\":[],\"owner_name\":\"q1vg\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":197}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/ffc7551ba78c4e3fb730dc2f874823f9/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/ffc7551ba78c4e3fb730dc2f874823f9",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-g-chart-b-86628\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"baseUpdatedAt\":\"2026-10-09T22:57:08.273092+00:00\"}",
+     "response": "{\"note\":{\"id\":\"ffc7551ba78c4e3fb730dc2f874823f9\",\"userId\":\"8d6fae19-2ca6-4a88-bf5a-be47f6174903\",\"accountId\":null,\"folderId\":null,\"title\":\"Grip drag chart-b-86628\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-g-chart-b-86628\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"bodyPlain\":\"Paragraph A. [widget] Paragraph B.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-09T22:57:08.273092+00:00\",\"updatedAt\":\"2026-10-09T22:57:23.734453+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-P2-grip-drag-1280-chart-grip-visible-beside-the-block-b-page.mouse-down-on-the-grip--aa08c6d2.png"
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "P2 grip drag",
+   "step": "1280: chart, grip visible beside the block: c: page.mouse down on the grip, 4 px steps for the first 40 px, then 20 moves, up",
+   "verdict": "PASS",
+   "at": "2026-10-09T22:57:41+00:00",
+   "block": "chart",
+   "note": "1b7fcd24971d4d3f94cb9036bed60d67",
+   "grip": {
+    "hidden": false,
+    "pos": "0",
+    "box": [
+     386,
+     225,
+     22,
+     22
+    ],
+    "on_top": true
+   },
+   "grip_beside_the_block_and_in_view": true,
+   "block_box": [
+    414,
+    110,
+    778,
+    572
+   ],
+   "order_before": [
+    [
+     "widgetEmbed",
+     ""
+    ],
+    [
+     "paragraph",
+     "Paragraph A."
+    ],
+    [
+     "paragraph",
+     "Paragraph B."
+    ]
+   ],
+   "stored_order_after": [
+    [
+     "paragraph",
+     "Paragraph A."
+    ],
+    [
+     "widgetEmbed",
+     ""
+    ],
+    [
+     "paragraph",
+     "Paragraph B."
+    ]
+   ],
+   "moved": true,
+   "drop_target": "Paragraph A.",
+   "error": null,
+   "listeners": {
+    "grip": true,
+    "editor": true
+   },
+   "dom_events": [
+    {
+     "where": "grip",
+     "type": "hidden=false",
+     "t": 13028
+    },
+    {
+     "where": "grip",
+     "type": "pointerdown",
+     "t": 13628,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 397,
+     "y": 236
+    },
+    {
+     "where": "grip",
+     "type": "mousedown",
+     "t": 13628,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 397,
+     "y": 236
+    },
+    {
+     "where": "grip",
+     "type": "dragstart",
+     "t": 13639,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 397,
+     "y": 236
+    },
+    {
+     "where": "grip",
+     "type": "drag",
+     "t": 13652,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 398,
+     "y": 240
+    },
+    {
+     "where": "grip",
+     "type": "drag",
+     "t": 13693,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 399,
+     "y": 244
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragover",
+     "t": 13787,
+     "target": "DIV._column_1n8ec_399",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 401,
+     "y": 252
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragover",
+     "t": 13835,
+     "target": "DIV._column_1n8ec_399",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 402,
+     "y": 256
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14116,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 422,
+     "y": 297
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragover",
+     "t": 14162,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 437,
+     "y": 319
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragover",
+     "t": 14211,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 453,
+     "y": 340
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14491,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 545,
+     "y": 470
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14491,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 545,
+     "y": 470
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14586,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 575,
+     "y": 513
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14586,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 575,
+     "y": 513
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14680,
+     "target": "SPAN._meta_tum95_25",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 606,
+     "y": 556
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14680,
+     "target": "CANVAS.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 606,
+     "y": 556
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14728,
+     "target": "SECTION._panel_tum95_3",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 621,
+     "y": 578
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14728,
+     "target": "SPAN._meta_tum95_25",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 621,
+     "y": 578
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14822,
+     "target": "SELECT._select_tum95_73",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 652,
+     "y": 621
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14822,
+     "target": "SECTION._panel_tum95_3",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 652,
+     "y": 621
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14867,
+     "target": "DIV._actions_tum95_119",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 667,
+     "y": 643
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14867,
+     "target": "SELECT._select_tum95_73",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 667,
+     "y": 643
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14961,
+     "target": "DIV.tiptap ProseMirror _proseEditor_1n8ec_44",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 698,
+     "y": 686
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14961,
+     "target": "DIV._actions_tum95_119",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 698,
+     "y": 686
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 15009,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 15009,
+     "target": "DIV.tiptap ProseMirror _proseEditor_1n8ec_44",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "editor(capture)",
+     "type": "drop",
+     "t": 15056,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "editor(capture)",
+     "type": "drop-geometry",
+     "x": 714,
+     "y": 708,
+     "over": "P.",
+     "target_text": "Paragraph A.",
+     "blocks": [
+      [
+       "DIV.react-renderer node-widgetEmbed ProseMir",
+       "‹1m5m15m30m1hDWM",
+       110,
+       682
+      ],
+      [
+       "P.",
+       "Paragraph A.",
+       694,
+       723
+      ],
+      [
+       "P.",
+       "Paragraph B.",
+       735,
+       764
+      ]
+     ]
+    },
+    {
+     "where": "document(bubble)",
+     "type": "drop",
+     "t": 15076,
+     "target": "P.",
+     "defaultPrevented": true,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "grip",
+     "type": "dragend",
+     "t": 15077,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "move",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragend",
+     "t": 15077,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "move",
+     "gripHidden": false,
+     "x": 714,
+     "y": 708
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 15089,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 398,
+     "y": 240
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 15089,
+     "target": "SPAN.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 398,
+     "y": 240
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 15089,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 398,
+     "y": 240
+    },
+    {
+     "where": "grip",
+     "type": "hidden=true",
+     "t": 15090
+    }
+   ],
+   "event_counts": {
+    "grip:pointerdown": 1,
+    "grip:mousedown": 1,
+    "grip:dragstart": 1,
+    "grip:drag": 24,
+    "document(bubble):dragover": 19,
+    "editor(capture):dragenter": 9,
+    "editor(capture):dragover": 12,
+    "editor(capture):dragleave": 8,
+    "editor(capture):drop": 1,
+    "document(bubble):drop": 1,
+    "grip:dragend": 1,
+    "document(bubble):dragend": 1,
+    "grip:mouseleave": 3
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=1b7fcd24971d4d3f94cb9036bed60d67",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    },
+    {
+     "status": 503,
+     "method": "GET",
+     "url": "/api/stream/bars?bars=NVDA:1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"02ff47cd-e7b\",\"user_id\":\"8d6fae19-2ca6-4a88-bf5a-be47f6174903\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:56:55.506507+00:00\",\"updated_at\":\"2026-10-09T22:57:25.368110+00:00\",\"items\":[],\"owner_name\":\"q1vg\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/1b7fcd24971d4d3f94cb9036bed60d67/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":268}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/1b7fcd24971d4d3f94cb9036bed60d67",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-g-chart-c-86644\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"baseUpdatedAt\":\"2026-10-09T22:57:24.601232+00:00\"}",
+     "response": "{\"note\":{\"id\":\"1b7fcd24971d4d3f94cb9036bed60d67\",\"userId\":\"8d6fae19-2ca6-4a88-bf5a-be47f6174903\",\"accountId\":null,\"folderId\":null,\"title\":\"Grip drag chart-c-86644\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"widgetEmbed\",\"attrs\":{\"v\":1,\"widgetId\":\"chart\",\"params\":{\"symbol\":\"NVDA\",\"tf\":\"D\",\"to\":null},\"capturedAt\":\"2026-10-09T15:00:00Z\",\"embedId\":\"e-g-chart-c-86644\",\"mode\":\"live\",\"fallback\":null,\"frozen\":false,\"tradeRef\":null,\"annotations\":[],\"caption\":null,\"layout\":{\"width\":\"full\",\"height\":320},\"searchText\":null,\"ta\":null}},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"bodyPlain\":\"Paragraph A. [widget] Paragraph B.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-09T22:57:24.601232+00:00\",\"updatedAt\":\"2026-10-09T22:57:40.560917+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-P2-grip-drag-1280-chart-grip-visible-beside-the-block-c-page.mouse-down-on-the-grip--09c31fdf.png"
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "P2 grip drag",
+   "step": "1280: paragraph (control), grip visible beside the block: a: locator.drag_to from the grip",
+   "verdict": "PASS",
+   "at": "2026-10-09T22:57:56+00:00",
+   "block": "paragraph (control)",
+   "note": "2246e0c5c5e24e658b83d59f6e3db523",
+   "grip": {
+    "hidden": false,
+    "pos": "0",
+    "box": [
+     386,
+     239,
+     22,
+     22
+    ],
+    "on_top": true
+   },
+   "grip_beside_the_block_and_in_view": true,
+   "block_box": [
+    414,
+    237,
+    778,
+    29
+   ],
+   "order_before": [
+    [
+     "paragraph",
+     "Paragraph One."
+    ],
+    [
+     "paragraph",
+     "Paragraph A."
+    ],
+    [
+     "paragraph",
+     "Paragraph B."
+    ]
+   ],
+   "stored_order_after": [
+    [
+     "paragraph",
+     "Paragraph A."
+    ],
+    [
+     "paragraph",
+     "Paragraph One."
+    ],
+    [
+     "paragraph",
+     "Paragraph B."
+    ]
+   ],
+   "moved": true,
+   "drop_target": "Paragraph A.",
+   "error": null,
+   "listeners": {
+    "grip": true,
+    "editor": true
+   },
+   "dom_events": [
+    {
+     "where": "grip",
+     "type": "hidden=false",
+     "t": 13014
+    },
+    {
+     "where": "grip",
+     "type": "pointerdown",
+     "t": 13628,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 397,
+     "y": 250
+    },
+    {
+     "where": "grip",
+     "type": "mousedown",
+     "t": 13628,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 397,
+     "y": 250
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 13676,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 13676,
+     "target": "SPAN.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 13676,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "grip",
+     "type": "dragstart",
+     "t": 13677,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 397,
+     "y": 250
+    },
+    {
+     "where": "grip",
+     "type": "drag",
+     "t": 13684,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 13684,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragover",
+     "t": 13684,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragover",
+     "t": 13685,
+     "target": "P.",
+     "defaultPrevented": true,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "editor(capture)",
+     "type": "drop",
+     "t": 13685,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "editor(capture)",
+     "type": "drop-geometry",
+     "x": 714,
+     "y": 291,
+     "over": "P.",
+     "target_text": "Paragraph A.",
+     "blocks": [
+      [
+       "P.ProseMirror-selectednode",
+       "Paragraph One.",
+       237,
+       265
+      ],
+      [
+       "P.",
+       "Paragraph A.",
+       277,
+       306
+      ],
+      [
+       "P.",
+       "Paragraph B.",
+       318,
+       347
+      ]
+     ]
+    },
+    {
+     "where": "document(bubble)",
+     "type": "drop",
+     "t": 13698,
+     "target": "P.",
+     "defaultPrevented": true,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "grip",
+     "type": "dragend",
+     "t": 13701,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "move",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragend",
+     "t": 13701,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "move",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    }
+   ],
+   "event_counts": {
+    "grip:pointerdown": 1,
+    "grip:mousedown": 1,
+    "grip:mouseleave": 3,
+    "grip:dragstart": 1,
+    "grip:drag": 1,
+    "editor(capture):dragenter": 1,
+    "editor(capture):dragover": 1,
+    "document(bubble):dragover": 1,
+    "editor(capture):drop": 1,
+    "document(bubble):drop": 1,
+    "grip:dragend": 1,
+    "document(bubble):dragend": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=2246e0c5c5e24e658b83d59f6e3db523",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"02ff47cd-e7b\",\"user_id\":\"8d6fae19-2ca6-4a88-bf5a-be47f6174903\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:56:55.506507+00:00\",\"updated_at\":\"2026-10-09T22:57:42.454118+00:00\",\"items\":[],\"owner_name\":\"q1vg\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/2246e0c5c5e24e658b83d59f6e3db523/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":336}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/2246e0c5c5e24e658b83d59f6e3db523",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph One.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"baseUpdatedAt\":\"2026-10-09T22:57:41.547410+00:00\"}",
+     "response": "{\"note\":{\"id\":\"2246e0c5c5e24e658b83d59f6e3db523\",\"userId\":\"8d6fae19-2ca6-4a88-bf5a-be47f6174903\",\"accountId\":null,\"folderId\":null,\"title\":\"Grip drag paragraph-a-86661\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph One.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"bodyPlain\":\"Paragraph A. Paragraph One. Paragraph B.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-09T22:57:41.547410+00:00\",\"updatedAt\":\"2026-10-09T22:57:56.117817+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-P2-grip-drag-1280-paragraph-control-grip-visible-beside-the-block-a-locator.drag_to--ae3ca861.png"
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "P2 grip drag",
+   "step": "1280: paragraph (control), grip visible beside the block: b: page.mouse down on the grip, 20 moves, up",
+   "verdict": "PASS",
+   "at": "2026-10-09T22:58:13+00:00",
+   "block": "paragraph (control)",
+   "note": "5f6595e7facd473fa1db96336c474c0a",
+   "grip": {
+    "hidden": false,
+    "pos": "0",
+    "box": [
+     386,
+     239,
+     22,
+     22
+    ],
+    "on_top": true
+   },
+   "grip_beside_the_block_and_in_view": true,
+   "block_box": [
+    414,
+    237,
+    778,
+    29
+   ],
+   "order_before": [
+    [
+     "paragraph",
+     "Paragraph One."
+    ],
+    [
+     "paragraph",
+     "Paragraph A."
+    ],
+    [
+     "paragraph",
+     "Paragraph B."
+    ]
+   ],
+   "stored_order_after": [
+    [
+     "paragraph",
+     "Paragraph A."
+    ],
+    [
+     "paragraph",
+     "Paragraph One."
+    ],
+    [
+     "paragraph",
+     "Paragraph B."
+    ]
+   ],
+   "moved": true,
+   "drop_target": "Paragraph A.",
+   "error": null,
+   "listeners": {
+    "grip": true,
+    "editor": true
+   },
+   "dom_events": [
+    {
+     "where": "grip",
+     "type": "hidden=false",
+     "t": 13009
+    },
+    {
+     "where": "grip",
+     "type": "pointerdown",
+     "t": 13609,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 397,
+     "y": 250
+    },
+    {
+     "where": "grip",
+     "type": "mousedown",
+     "t": 13609,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 397,
+     "y": 250
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 13622,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 412,
+     "y": 252
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 13622,
+     "target": "SPAN.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 412,
+     "y": 252
+    },
+    {
+     "where": "grip",
+     "type": "mouseleave",
+     "t": 13622,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 412,
+     "y": 252
+    },
+    {
+     "where": "grip",
+     "type": "dragstart",
+     "t": 13622,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 397,
+     "y": 250
+    },
+    {
+     "where": "grip",
+     "type": "drag",
+     "t": 13631,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 412,
+     "y": 252
+    },
+    {
+     "where": "grip",
+     "type": "drag",
+     "t": 13670,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 428,
+     "y": 254
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 13670,
+     "target": "P.ProseMirror-selectednode",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 428,
+     "y": 254
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragover",
+     "t": 13718,
+     "target": "P.ProseMirror-selectednode",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 444,
+     "y": 256
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragover",
+     "t": 13719,
+     "target": "P.ProseMirror-selectednode",
+     "defaultPrevented": true,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 444,
+     "y": 256
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragover",
+     "t": 13765,
+     "target": "P.ProseMirror-selectednode",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 460,
+     "y": 258
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragover",
+     "t": 13765,
+     "target": "P.ProseMirror-selectednode",
+     "defaultPrevented": true,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 460,
+     "y": 258
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 13952,
+     "target": "DIV.tiptap ProseMirror _proseEditor_1n8ec_44",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 523,
+     "y": 266
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 13952,
+     "target": "P.ProseMirror-selectednode",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 523,
+     "y": 266
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14187,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 603,
+     "y": 277
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragleave",
+     "t": 14187,
+     "target": "DIV.tiptap ProseMirror _proseEditor_1n8ec_44",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 603,
+     "y": 277
+    },
+    {
+     "where": "editor(capture)",
+     "type": "drop",
+     "t": 14562,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "editor(capture)",
+     "type": "drop-geometry",
+     "x": 714,
+     "y": 291,
+     "over": "P.",
+     "target_text": "Paragraph A.",
+     "blocks": [
+      [
+       "P.ProseMirror-selectednode",
+       "Paragraph One.",
+       237,
+       265
+      ],
+      [
+       "P.",
+       "Paragraph A.",
+       277,
+       306
+      ],
+      [
+       "P.",
+       "Paragraph B.",
+       318,
+       347
+      ]
+     ]
+    },
+    {
+     "where": "document(bubble)",
+     "type": "drop",
+     "t": 14576,
+     "target": "P.",
+     "defaultPrevented": true,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "grip",
+     "type": "dragend",
+     "t": 14578,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "move",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragend",
+     "t": 14578,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "move",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    }
+   ],
+   "event_counts": {
+    "grip:pointerdown": 1,
+    "grip:mousedown": 1,
+    "grip:mouseleave": 3,
+    "grip:dragstart": 1,
+    "grip:drag": 18,
+    "editor(capture):dragenter": 3,
+    "editor(capture):dragover": 17,
+    "document(bubble):dragover": 17,
+    "editor(capture):dragleave": 2,
+    "editor(capture):drop": 1,
+    "document(bubble):drop": 1,
+    "grip:dragend": 1,
+    "document(bubble):dragend": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=5f6595e7facd473fa1db96336c474c0a",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"02ff47cd-e7b\",\"user_id\":\"8d6fae19-2ca6-4a88-bf5a-be47f6174903\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:56:55.506507+00:00\",\"updated_at\":\"2026-10-09T22:57:57.671023+00:00\",\"items\":[],\"owner_name\":\"q1vg\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/5f6595e7facd473fa1db96336c474c0a/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":275}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/5f6595e7facd473fa1db96336c474c0a",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph One.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"baseUpdatedAt\":\"2026-10-09T22:57:56.954357+00:00\"}",
+     "response": "{\"note\":{\"id\":\"5f6595e7facd473fa1db96336c474c0a\",\"userId\":\"8d6fae19-2ca6-4a88-bf5a-be47f6174903\",\"accountId\":null,\"folderId\":null,\"title\":\"Grip drag paragraph-b-86676\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph One.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"bodyPlain\":\"Paragraph A. Paragraph One. Paragraph B.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-09T22:57:56.954357+00:00\",\"updatedAt\":\"2026-10-09T22:58:12.401232+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-P2-grip-drag-1280-paragraph-control-grip-visible-beside-the-block-b-page.mouse-down--756db7fc.png"
+  },
+  {
+   "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+   "config": "verifygrip",
+   "viewport": "1280",
+   "feature": "P2 grip drag",
+   "step": "1280: paragraph (control), grip visible beside the block: c: page.mouse down on the grip, 4 px steps for the first 40 px, then 20 moves, up",
+   "verdict": "PASS",
+   "at": "2026-10-09T22:58:29+00:00",
+   "block": "paragraph (control)",
+   "note": "53dfc46af89c4421b20b5fb41cc457f1",
+   "grip": {
+    "hidden": false,
+    "pos": "0",
+    "box": [
+     386,
+     239,
+     22,
+     22
+    ],
+    "on_top": true
+   },
+   "grip_beside_the_block_and_in_view": true,
+   "block_box": [
+    414,
+    237,
+    778,
+    29
+   ],
+   "order_before": [
+    [
+     "paragraph",
+     "Paragraph One."
+    ],
+    [
+     "paragraph",
+     "Paragraph A."
+    ],
+    [
+     "paragraph",
+     "Paragraph B."
+    ]
+   ],
+   "stored_order_after": [
+    [
+     "paragraph",
+     "Paragraph A."
+    ],
+    [
+     "paragraph",
+     "Paragraph One."
+    ],
+    [
+     "paragraph",
+     "Paragraph B."
+    ]
+   ],
+   "moved": true,
+   "drop_target": "Paragraph A.",
+   "error": null,
+   "listeners": {
+    "grip": true,
+    "editor": true
+   },
+   "dom_events": [
+    {
+     "where": "grip",
+     "type": "hidden=false",
+     "t": 13010
+    },
+    {
+     "where": "grip",
+     "type": "pointerdown",
+     "t": 13604,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 397,
+     "y": 250
+    },
+    {
+     "where": "grip",
+     "type": "mousedown",
+     "t": 13604,
+     "target": "svg.",
+     "defaultPrevented": false,
+     "dropEffect": null,
+     "gripHidden": false,
+     "x": 397,
+     "y": 250
+    },
+    {
+     "where": "grip",
+     "type": "dragstart",
+     "t": 13625,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 397,
+     "y": 250
+    },
+    {
+     "where": "grip",
+     "type": "drag",
+     "t": 13630,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 398,
+     "y": 254
+    },
+    {
+     "where": "grip",
+     "type": "drag",
+     "t": 13668,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 399,
+     "y": 258
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragover",
+     "t": 13762,
+     "target": "DIV._column_1n8ec_399",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 401,
+     "y": 266
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragover",
+     "t": 13809,
+     "target": "DIV._column_1n8ec_399",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 402,
+     "y": 270
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragenter",
+     "t": 14089,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 422,
+     "y": 290
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragover",
+     "t": 14137,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 437,
+     "y": 290
+    },
+    {
+     "where": "editor(capture)",
+     "type": "dragover",
+     "t": 14183,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 453,
+     "y": 290
+    },
+    {
+     "where": "editor(capture)",
+     "type": "drop",
+     "t": 15026,
+     "target": "P.",
+     "defaultPrevented": false,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "editor(capture)",
+     "type": "drop-geometry",
+     "x": 714,
+     "y": 291,
+     "over": "P.",
+     "target_text": "Paragraph A.",
+     "blocks": [
+      [
+       "P.ProseMirror-selectednode",
+       "Paragraph One.",
+       237,
+       265
+      ],
+      [
+       "P.",
+       "Paragraph A.",
+       277,
+       306
+      ],
+      [
+       "P.",
+       "Paragraph B.",
+       318,
+       347
+      ]
+     ]
+    },
+    {
+     "where": "document(bubble)",
+     "type": "drop",
+     "t": 15041,
+     "target": "P.",
+     "defaultPrevented": true,
+     "dropEffect": "none",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "grip",
+     "type": "dragend",
+     "t": 15042,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "move",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    },
+    {
+     "where": "document(bubble)",
+     "type": "dragend",
+     "t": 15043,
+     "target": "BUTTON.uctBlockHandle",
+     "defaultPrevented": false,
+     "dropEffect": "move",
+     "gripHidden": false,
+     "x": 714,
+     "y": 291
+    }
+   ],
+   "event_counts": {
+    "grip:pointerdown": 1,
+    "grip:mousedown": 1,
+    "grip:dragstart": 1,
+    "grip:drag": 29,
+    "document(bubble):dragover": 27,
+    "editor(capture):dragenter": 1,
+    "editor(capture):dragover": 20,
+    "editor(capture):drop": 1,
+    "document(bubble):drop": 1,
+    "grip:dragend": 1,
+    "document(bubble):dragend": 1
+   },
+   "overflow": {
+    "vw": 1280,
+    "doc": 1280,
+    "body": 1280,
+    "main": [
+     1220,
+     1220
+    ],
+    "mainOverflowX": "auto",
+    "horizontal": false,
+    "offenders": []
+   },
+   "small": null,
+   "error_boundary": false,
+   "url": "/journal/notebook?note=53dfc46af89c4421b20b5fb41cc457f1",
+   "console_errors": [
+    "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+   ],
+   "page_errors": [],
+   "failed_requests": [
+    {
+     "status": 503,
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "benign": true
+    }
+   ],
+   "writes": [
+    {
+     "method": "POST",
+     "url": "/api/auth/track",
+     "status": 200,
+     "request": "{\"page\":\"/journal/notebook\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_tab_visit\"}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"notebook_config_served\",\"props\":{\"served\":true,\"waited_bucket_ms\":0}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/fills/check",
+     "status": 200,
+     "request": "",
+     "response": "{\"checked\":0,\"newFills\":0,\"skipped\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/broker/sync?background=1",
+     "status": 503,
+     "request": "",
+     "response": "{\"detail\":\"Brokerage sync is not configured on this server.\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/watchlists/flagged/sync",
+     "status": 200,
+     "request": "{\"symbols\":[]}",
+     "response": "{\"id\":\"02ff47cd-e7b\",\"user_id\":\"8d6fae19-2ca6-4a88-bf5a-be47f6174903\",\"name\":\"Flagged\",\"description\":\"\",\"is_public\":0,\"is_flagged_list\":1,\"is_prebuilt\":0,\"created_at\":\"2026-10-09T22:56:55.506507+00:00\",\"updated_at\":\"2026-10-09T22:58:13.954547+00:00\",\"items\":[],\"owner_name\":\"q1vg\"}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/notes/53dfc46af89c4421b20b5fb41cc457f1/opened",
+     "status": 200,
+     "request": "",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"note_open_ms\",\"props\":{\"ms\":253}}",
+     "response": "{\"ok\":true}"
+    },
+    {
+     "method": "PUT",
+     "url": "/api/j2/notes/53dfc46af89c4421b20b5fb41cc457f1",
+     "status": 200,
+     "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph One.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"baseUpdatedAt\":\"2026-10-09T22:58:13.246693+00:00\"}",
+     "response": "{\"note\":{\"id\":\"53dfc46af89c4421b20b5fb41cc457f1\",\"userId\":\"8d6fae19-2ca6-4a88-bf5a-be47f6174903\",\"accountId\":null,\"folderId\":null,\"title\":\"Grip drag paragraph-c-86693\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph A.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph One.\"}]},{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Paragraph B.\"}]}]},\"bodyPlain\":\"Paragraph A. Paragraph One. Paragraph B.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-09T22:58:13.246693+00:00\",\"updatedAt\":\"2026-10-09T22:58:29.161648+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{}}}"
+    },
+    {
+     "method": "POST",
+     "url": "/api/j2/telemetry",
+     "status": 200,
+     "request": "{\"event\":\"save_success\",\"props\":{\"door\":\"editor\",\"queued\":false}}",
+     "response": "{\"ok\":true}"
+    }
+   ],
+   "screenshot": "verifygrip-1280-P2-grip-drag-1280-paragraph-control-grip-visible-beside-the-block-c-page.mouse-down--ce6721ff.png"
+  }
+ ],
+ "configs": {
+  "verifygrip": {
+   "base": "http://127.0.0.1:8143",
+   "data_dir": "C:\\data-verify-grip\\verifygrip",
+   "flags_on": [
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "COMPASS_NOTES_TOOL_ENABLED",
+    "J2_SHARE_LINKS_ENABLED",
+    "NOTEBOOK_AI_ACTIONS_ENABLED",
+    "NOTEBOOK_ASK_INSERT_ON",
+    "NOTEBOOK_CHART_PLAN_ENABLED",
+    "NOTEBOOK_EARNINGS_PREP_ENABLED",
+    "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+    "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "NOTEBOOK_FORMULAS_ENABLED",
+    "NOTEBOOK_GETTING_STARTED_ENABLED",
+    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+    "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+    "NOTEBOOK_ONBOARDING_ENABLED",
+    "NOTEBOOK_PASSED_SETUPS_ENABLED",
+    "NOTEBOOK_PLAN_GRADING_ENABLED",
+    "NOTEBOOK_PLAYBOOK_ENABLED",
+    "NOTEBOOK_PUBLISH_ENABLED",
+    "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+    "NOTEBOOK_SETUPS_BOARD_ENABLED",
+    "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+    "NOTEBOOK_THESIS_CHIPS_ENABLED",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED",
+    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "NOTEBOOK_VOICE_NOTES_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED"
+   ],
+   "sandbox_identity": {
+    "ok": true,
+    "sentence": "http://127.0.0.1:8143 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-verify-sbx\\docs\\plans\\joystick\\sandbox-runs\\2026-10-09T17-53-29.md (identity 7b206b19f0be..., data dir C:\\data-verify-grip\\verifygrip)"
+   },
+   "stop": "graceful to the shutdown checkpoint, then forced exit",
+   "integrity": {
+    "path": "docs\\notebook\\evidence\\verify-1009\\sbx\\grip\\after-fix\\verifygrip\\integrity-verifygrip.md",
+    "required": [
+     "pre-boot (baseline)",
+     "post-boot (+15s)",
+     "post-prewarm (+120s)",
+     "shutdown"
+    ],
+    "checkpoints": [
+     {
+      "label": "pre-boot (baseline)",
+      "at": "2026-10-09 17:53:34",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-boot (+15s)",
+      "at": "2026-10-09 17:54:04",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "post-prewarm (+120s)",
+      "at": "2026-10-09 17:55:55",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     },
+     {
+      "label": "shutdown",
+      "at": "2026-10-09 17:58:36",
+      "root": "C:\\data",
+      "db_files": 62,
+      "verdict": "CLEAN"
+     }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+   },
+   "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: docs\\notebook\\evidence\\verify-1009\\sbx\\grip\\after-fix\\verifygrip\\integrity-verifygrip.md",
+   "not_run": null,
+   "failure": null,
+   "port_free_after": true,
+   "driver_imported_api": []
+  }
+ },
+ "config": "verifygrip",
+ "tip": "27d6289b75+fix(blockHandle.js sha256 137ed967)",
+ "tool_tree": "27d6289b75e7c4cff38b466e3456b0e94a757c39",
+ "started": "2026-10-09T22:53:25+00:00",
+ "viewports": {
+  "1280": [
+   1280,
+   800
+  ],
+  "820": [
+   820,
+   1180
+  ],
+  "390": [
+   390,
+   844
+  ]
+ },
+ "status": "COMPLETE",
+ "flag_sets": {
+  "prod_armed": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "wave": [
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "c1": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "c2": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED"
+  ],
+  "c3": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED"
+  ],
+  "keyed": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "keyedai": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "verify": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_OCR_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_ATTACHMENTS_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ],
+  "verifygrip": [
+   "AWARENESS_NOTE_RESURFACE_ENABLED",
+   "COMPASS_NOTES_TOOL_ENABLED",
+   "J2_SHARE_LINKS_ENABLED",
+   "NOTEBOOK_AI_ACTIONS_ENABLED",
+   "NOTEBOOK_ASK_INSERT_ON",
+   "NOTEBOOK_CHART_PLAN_ENABLED",
+   "NOTEBOOK_EARNINGS_PREP_ENABLED",
+   "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
+   "NOTEBOOK_FIND_SIMILAR_ENABLED",
+   "NOTEBOOK_FORMULAS_ENABLED",
+   "NOTEBOOK_GETTING_STARTED_ENABLED",
+   "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED",
+   "NOTEBOOK_INBOUND_EMAIL_ENABLED",
+   "NOTEBOOK_ONBOARDING_ENABLED",
+   "NOTEBOOK_PASSED_SETUPS_ENABLED",
+   "NOTEBOOK_PLAN_GRADING_ENABLED",
+   "NOTEBOOK_PLAYBOOK_ENABLED",
+   "NOTEBOOK_PUBLISH_ENABLED",
+   "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
+   "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
+   "NOTEBOOK_SETUPS_BOARD_ENABLED",
+   "NOTEBOOK_TASK_REMINDERS_ENABLED",
+   "NOTEBOOK_TA_FINGERPRINT_ENABLED",
+   "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
+   "NOTEBOOK_THESIS_CHIPS_ENABLED",
+   "NOTEBOOK_TRADE_CANVAS_ENABLED",
+   "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
+   "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+   "NOTEBOOK_VOICE_NOTES_ENABLED",
+   "NOTEBOOK_WRITING_HELP_ENABLED"
+  ]
+ },
+ "api_writes": [
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Chart drag grip-probe\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-grip-probe\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"19ace186ab864dfab1081127d1281318\", \"userId\": \"48761d4a-6f56-45d3-aaf2-f49769def7bf\", \"accountId\": null, \"folderId\": null, \"title\": \"Chart drag grip-probe\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-grip-probe\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"[widget] Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:54:06.310498+00:00\", \"updatedAt\": \"2026-10-09T22:54:06.310498+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Chart drag A\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-A\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"9951b3d0fec84d26b0a86db2a5736789\", \"userId\": \"48761d4a-6f56-45d3-aaf2-f49769def7bf\", \"accountId\": null, \"folderId\": null, \"title\": \"Chart drag A\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-A\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"[widget] Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:54:19.832295+00:00\", \"updatedAt\": \"2026-10-09T22:54:19.832295+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Chart drag A2\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-A2\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"e1f65bdcdc0e4023aa24aa7fb57ae508\", \"userId\": \"48761d4a-6f56-45d3-aaf2-f49769def7bf\", \"accountId\": null, \"folderId\": null, \"title\": \"Chart drag A2\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-A2\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"[widget] Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:54:45.209644+00:00\", \"updatedAt\": \"2026-10-09T22:54:45.209644+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Chart drag A3\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-A3\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"93535b27f5924712a7b1bd9f693ff981\", \"userId\": \"48761d4a-6f56-45d3-aaf2-f49769def7bf\", \"accountId\": null, \"folderId\": null, \"title\": \"Chart drag A3\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-A3\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"[widget] Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:55:08.593089+00:00\", \"updatedAt\": \"2026-10-09T22:55:08.593089+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Chart drag B\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-B\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"80f6fb2443de489fa8487740dea206ae\", \"userId\": \"48761d4a-6f56-45d3-aaf2-f49769def7bf\", \"accountId\": null, \"folderId\": null, \"title\": \"Chart drag B\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-B\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"[widget] Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:55:31.923858+00:00\", \"updatedAt\": \"2026-10-09T22:55:31.923858+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Chart drag C\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-C\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"071adbcfcd6a4e47a2b684d39e064ef3\", \"userId\": \"48761d4a-6f56-45d3-aaf2-f49769def7bf\", \"accountId\": null, \"folderId\": null, \"title\": \"Chart drag C\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-C\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"[widget] Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:55:46.038600+00:00\", \"updatedAt\": \"2026-10-09T22:55:46.038600+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Chart drag D\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-D\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"8ba58b50ebd046c094e15ad512273716\", \"userId\": \"48761d4a-6f56-45d3-aaf2-f49769def7bf\", \"accountId\": null, \"folderId\": null, \"title\": \"Chart drag D\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-D\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"[widget] Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:56:00.149170+00:00\", \"updatedAt\": \"2026-10-09T22:56:00.149170+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Chart drag E\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-E\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"15d7a88875c647f7983fbe66f93bd5b6\", \"userId\": \"48761d4a-6f56-45d3-aaf2-f49769def7bf\", \"accountId\": null, \"folderId\": null, \"title\": \"Chart drag E\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-E\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"[widget] Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:56:19.179556+00:00\", \"updatedAt\": \"2026-10-09T22:56:19.179556+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Chart drag F\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-F\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"56a5d44311754e7488bf77db422cdc97\", \"userId\": \"48761d4a-6f56-45d3-aaf2-f49769def7bf\", \"accountId\": null, \"folderId\": null, \"title\": \"Chart drag F\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-dr-F\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"[widget] Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:56:36.496228+00:00\", \"updatedAt\": \"2026-10-09T22:56:36.496228+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Grip drag chart-a-86614\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-g-chart-a-86614\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"d5d9aef33c0e4f838b4e48292ad52a3c\", \"userId\": \"8d6fae19-2ca6-4a88-bf5a-be47f6174903\", \"accountId\": null, \"folderId\": null, \"title\": \"Grip drag chart-a-86614\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-g-chart-a-86614\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"[widget] Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:56:54.973022+00:00\", \"updatedAt\": \"2026-10-09T22:56:54.973022+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Grip drag chart-b-86628\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-g-chart-b-86628\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"ffc7551ba78c4e3fb730dc2f874823f9\", \"userId\": \"8d6fae19-2ca6-4a88-bf5a-be47f6174903\", \"accountId\": null, \"folderId\": null, \"title\": \"Grip drag chart-b-86628\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-g-chart-b-86628\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"[widget] Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:57:08.273092+00:00\", \"updatedAt\": \"2026-10-09T22:57:08.273092+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Grip drag chart-c-86644\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-g-chart-c-86644\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"1b7fcd24971d4d3f94cb9036bed60d67\", \"userId\": \"8d6fae19-2ca6-4a88-bf5a-be47f6174903\", \"accountId\": null, \"folderId\": null, \"title\": \"Grip drag chart-c-86644\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"widgetEmbed\", \"attrs\": {\"v\": 1, \"widgetId\": \"chart\", \"params\": {\"symbol\": \"NVDA\", \"tf\": \"D\", \"to\": null}, \"capturedAt\": \"2026-10-09T15:00:00Z\", \"embedId\": \"e-g-chart-c-86644\", \"mode\": \"live\", \"annotations\": []}}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"[widget] Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:57:24.601232+00:00\", \"updatedAt\": \"2026-10-09T22:57:24.601232+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Grip drag paragraph-a-86661\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph One.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"2246e0c5c5e24e658b83d59f6e3db523\", \"userId\": \"8d6fae19-2ca6-4a88-bf5a-be47f6174903\", \"accountId\": null, \"folderId\": null, \"title\": \"Grip drag paragraph-a-86661\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph One.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"Paragraph One. Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:57:41.547410+00:00\", \"updatedAt\": \"2026-10-09T22:57:41.547410+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Grip drag paragraph-b-86676\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph One.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"5f6595e7facd473fa1db96336c474c0a\", \"userId\": \"8d6fae19-2ca6-4a88-bf5a-be47f6174903\", \"accountId\": null, \"folderId\": null, \"title\": \"Grip drag paragraph-b-86676\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph One.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"Paragraph One. Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:57:56.954357+00:00\", \"updatedAt\": \"2026-10-09T22:57:56.954357+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  },
+  {
+   "config": "verifygrip",
+   "viewport": "1280",
+   "method": "POST",
+   "url": "/api/j2/notes",
+   "status": 200,
+   "request": "{\"title\": \"Grip drag paragraph-c-86693\", \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph One.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}}",
+   "response": "{\"note\": {\"id\": \"53dfc46af89c4421b20b5fb41cc457f1\", \"userId\": \"8d6fae19-2ca6-4a88-bf5a-be47f6174903\", \"accountId\": null, \"folderId\": null, \"title\": \"Grip drag paragraph-c-86693\", \"subtitle\": null, \"bodyJson\": {\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph One.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph A.\"}]}, {\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Paragraph B.\"}]}]}, \"bodyPlain\": \"Paragraph One. Paragraph A. Paragraph B.\", \"heroImageUrl\": null, \"firstImageUrl\": null, \"ticker\": null, \"tags\": [], \"createdAt\": \"2026-10-09T22:58:13.246693+00:00\", \"updatedAt\": \"2026-10-09T22:58:13.246693+00:00\", \"deletedAt\": null, \"archivedAt\": null, \"locked\": false, \"dailyDate\": null, \"propertiesJson\": {}}}"
+  }
+ ],
+ "finished": "2026-10-09T22:59:07+00:00"
+}
