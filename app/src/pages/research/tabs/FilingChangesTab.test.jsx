@@ -78,6 +78,40 @@ describe('FilingChangesTab', () => {
     expect(screen.queryByTestId('counts-mdna')).toBeNull()
   })
 
+  // Audit 2026-10-08 (FIL, point 12): a missing reason used to print "Not located: undefined."
+  it('a section with no reason from the server never prints "undefined"', async () => {
+    body = { ...OK, sections: [
+      { ...OK.sections[1], reason: undefined },
+      { key: 'risk_factors', label: 'Part II, Item 1A. Risk Factors', state: 'omitted', counts: null, paragraphs: null },
+    ] }
+    renderTab()
+    const nf = await screen.findByTestId('notfound-mdna')
+    expect(nf.textContent).toMatch(/^Not located\. This is a gap in what we could read/)
+    const om = screen.getByTestId('omitted-risk_factors')
+    expect(om.textContent).toMatch(/^Not in either filing\. That is not a finding/)
+    expect(nf.textContent + om.textContent).not.toMatch(/undefined|null/)
+  })
+
+  it('the loading and pending lines are announced (role=status)', async () => {
+    global.fetch = vi.fn(() => new Promise(() => {}))
+    renderTab()
+    expect(screen.getByText('Loading filing changes…').getAttribute('role')).toBe('status')
+    cleanup()
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ticker: 'AAPL', state: 'pending', queued: true }) }))
+    renderTab()
+    expect((await screen.findByTestId('blackline-pending')).getAttribute('role')).toBe('status')
+  })
+
+  // Audit 2026-10-08 (FIL, point 27): colour is never the only mark of an insertion.
+  it('insertions are underlined and deletions struck through, not tint alone', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const css = readFileSync(join(process.cwd(), 'src/pages/research/tabs/FilingChangesTab.module.css'), 'utf8')
+    const rule = (sel) => (css.match(new RegExp(`\\${sel}\\s*\\{([^}]*)\\}`)) || [])[1] || ''
+    expect(rule('.ins')).toMatch(/text-decoration:\s*underline/)
+    expect(rule('.del')).toMatch(/text-decoration:\s*line-through/)
+  })
+
   it('pending says it is reading, not that nothing changed', async () => {
     body = { ticker: 'AAPL', state: 'pending', queued: true }
     renderTab()
