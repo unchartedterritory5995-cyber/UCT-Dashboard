@@ -138,7 +138,8 @@ export default function FlowScoreboard({ embedded = false, mine: mineProp = fals
             <button type="button" onClick={() => mutate()}>Retry</button>
           </div>
         ) : isLoading && !data ? (
-          <div className={styles.loading}>Loading the scoreboard…</div>
+          // Wave 3 (FREC P2 #26): announced, like every other loading line in the terminal.
+          <div className={styles.loading} role="status" data-testid="scoreboard-loading">Loading the scoreboard…</div>
         ) : !hasData ? (
           <div className={styles.empty}>
             The tracker is warming up — picks need at least two daily snapshots before
@@ -170,6 +171,13 @@ export default function FlowScoreboard({ embedded = false, mine: mineProp = fals
               <span className={styles.statValue}>{fmtPct(overall?.oi_confirmed_rate, { signed: false })}</span>
               <span className={styles.statLabel}>OI-confirmed follow-through</span>
             </div>
+            {/* Wave 3 (FREC P2 #20): the two measures were explained only in the methodology at
+                the foot of the page. Said here, in the server's own definitions. */}
+            <p className={styles.statKey} data-testid="frec-key">
+              <b>Hit +25%</b>: the option&rsquo;s best daily close after the flag was at least 25% above
+              its entry price. <b>OI-confirmed</b>: open interest later rose more than 10% above its
+              first snapshot, a sign the position was opened, not closed.
+            </p>
           </div>
         )}
       </div>
@@ -265,7 +273,7 @@ export default function FlowScoreboard({ embedded = false, mine: mineProp = fals
                 what={`is among the last ${data.recent_picks?.length || 0} picks`} explainer={myNames.explainer} testId="frec-mine-empty" />
             )}
             <div className={styles.tableWrap}>
-              <table className={styles.table} aria-label="Recent picks">
+              <table className={`${styles.table} ${styles.tapeTable}`} aria-label="Recent picks">
                 <thead>
                   <tr>
                     <th scope="col">Pick</th>

@@ -34,6 +34,13 @@ describe('OptionsHistoryPanel (FT-007/009/010)', () => {
     expect(screen.getByTestId('options-history').children.length).toBe(0)
   })
 
+  it('standalone with one read switched off and the rest paid-gated says so, not a blank panel (wave 3)', async () => {
+    stub({ '/straddle': [402, {}], '/daily-move': [402, {}] })   // iv-crush answers 404
+    render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><OptionsHistoryPanel sym="tst" offNotice /></SWRConfig>)
+    expect((await screen.findByTestId('feature-paywalled')).textContent).toBe('Options history requires a paid plan.')
+    expect(screen.queryByTestId('feature-off')).toBeNull()
+  })
+
   it('shows the straddle in dollars and percent, with n and when the log began', async () => {
     stub({ '/straddle': [200, STRADDLE] })
     mount()

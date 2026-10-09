@@ -55,16 +55,23 @@ export function daysAgo(dateStr, now = Date.now()) {
 function VerdictCard({ v, selected, onSelect }) {
   const age = daysAgo(v.asof_date)
   const ageLabel = age == null ? '' : age <= 0 ? 'today' : age === 1 ? '1 day ago' : `${age} days ago`
+  // Wave 3 (TECH P2 #26): the whole card was a <button> wrapping <div>s and a <ul> (invalid
+  // content model), so a screen reader read the entire card as one long button name. The card is
+  // a plain box now; its title is the button (named by the setup, still a pressed toggle), and a
+  // stretched hit area keeps the whole card clickable for a mouse.
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      // the selected card drives the chart below; say which one is chosen in more than colour
-      aria-pressed={!!selected}
+    <div
       data-testid="technical-verdict-card"
       className={`${styles.card} ${styles.verdictCard} ${selected ? styles.verdictOn : ''}`}
     >
-      <div className={styles.ct}>{setupLabel(v.setup, v.setup_name)}</div>
+      <button
+        type="button"
+        onClick={onSelect}
+        // the selected card drives the chart below; say which one is chosen in more than colour
+        aria-pressed={!!selected}
+        className={`${styles.ct} ${styles.verdictPick}`}
+        data-testid="technical-verdict-pick"
+      >{setupLabel(v.setup, v.setup_name)}</button>
       <div className={styles.verdictLine}>
         Confirmed as of {v.asof_date || ABSENT}{ageLabel && ` (${ageLabel})`}
         {typeof v.vision_confidence === 'number' && ` · ${Math.round(v.vision_confidence)}% confidence`}
@@ -81,7 +88,7 @@ function VerdictCard({ v, selected, onSelect }) {
           ))}
         </ul>
       )}
-    </button>
+    </div>
   )
 }
 

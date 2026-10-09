@@ -21,9 +21,10 @@ export function OffLine({ feature }) {
 }
 
 export default function OffNotice({ urls, feature }) {
-  const { allOff, allLoading, allPaywalled } = useSectionsState(urls)
+  const { allOff, allLoading, allPaywalled, offOrPaywalled } = useSectionsState(urls)
   if (allOff) return <OffLine feature={feature} />
-  if (allPaywalled) return <p className={styles.note} data-testid="feature-paywalled">{feature} requires a paid plan.</p>
+  // A mix of switched-off and paid-gated reads: what is switched on needs a paid plan.
+  if (allPaywalled || offOrPaywalled) return <p className={styles.note} data-testid="feature-paywalled">{feature} requires a paid plan.</p>
   if (allLoading) return <p className={styles.note} data-testid="feature-loading">Loading {feature.toLowerCase()}…</p>
   return null
 }

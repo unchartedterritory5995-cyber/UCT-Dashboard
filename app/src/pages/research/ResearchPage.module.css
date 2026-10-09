@@ -122,6 +122,12 @@
 /* ownership tab */
 .ownHolders { margin-top: var(--space-sm); }
 .holderName { max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Wave 3 (OWN P2 #24): on a phone the two 5-column holder tables scroll sideways; the holder name
+   stays pinned so a scrolled row still says whose it is. */
+@media (max-width: 640px) {
+  .ownHolders th:first-child, .ownHolders td:first-child { position: sticky; left: 0; z-index: 1; background: var(--bg-surface); }
+  .ownHolders .holderName { max-width: 120px; }
+}
 .insrow { display: grid; grid-template-columns: 88px 1fr auto auto auto; gap: var(--space-md); align-items: center; font-size: var(--text-base); padding: var(--space-xs) 0; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
 
 /* filings tab */
@@ -248,7 +254,10 @@
 
 /* technical tab: confirmed-setup cards are buttons wearing the research card */
 .verdictList { display: flex; flex-direction: column; gap: var(--space-sm); margin-bottom: var(--space-md); }
-.verdictCard { text-align: left; width: 100%; cursor: pointer; font: inherit; color: var(--text); }
+.verdictCard { text-align: left; width: 100%; cursor: pointer; font: inherit; color: var(--text); position: relative; }
+/* The card's title is its button; ::after stretches the hit area over the whole card. */
+.verdictPick { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; }
+.verdictPick::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
 .verdictOn { border-color: var(--ut-gold); }
 .verdictLine { font-size: var(--text-base); margin-bottom: var(--space-xs); }
 .checkList { list-style: none; margin: var(--space-xs) 0 0; padding: 0; font-size: var(--text-sm); color: var(--text-muted); }
@@ -377,3 +386,10 @@
     min-width: var(--tap-min);
   }
 }
+
+/* Wave 3 (HIS P2 #25): the history timeline as ruled, scannable rows, not a bullet list. */
+.historyList { list-style: none; margin: var(--space-sm) 0 0; padding: 0; }
+.historyRow { padding: var(--space-xs) 0; border-bottom: 1px solid var(--border); line-height: 1.5; }
+.historyRow:last-child { border-bottom: 0; }
+.historyDate { font-variant-numeric: tabular-nums; }
+.historySource { display: block; font-size: var(--text-sm); }

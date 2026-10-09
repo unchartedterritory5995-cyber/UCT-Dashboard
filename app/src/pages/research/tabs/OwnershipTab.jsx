@@ -288,7 +288,8 @@ export default function OwnershipTab({ sym }) {
 
       {tf && (
         <section className={styles.card}>
-          <div className={styles.ct}>Form 13F · institutional activity <span className={styles.muted}>· {tf.quarter}</span></div>
+          {/* Wave 3 (OWN P2 #12): a missing quarter printed a dangling "· " and "…holders, undefined". */}
+          <div className={styles.ct}>Form 13F · institutional activity{tf.quarter ? <span className={styles.muted}> · {tf.quarter}</span> : null}</div>
           <div className={`${styles.statRow} ${styles.statRowGap}`}>
             {/* NOT the same measure as the "% of shares outstanding" figure in
                 the card above, and the two disagree hard: on 2026-08-06 AAPL
@@ -324,15 +325,16 @@ export default function OwnershipTab({ sym }) {
 
           {!!tf.holders?.length && (
             <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
-              <table className={styles.fgrid} aria-label={`Form 13F top holders, ${tf.quarter}`}>
+              <table className={styles.fgrid} aria-label={tf.quarter ? `Form 13F top holders, ${tf.quarter}` : 'Form 13F top holders'}>
                 <thead><tr><th scope="col">Top holder</th><th scope="col">Shares</th><th scope="col">Δ Shares</th><th scope="col">% Own</th><th scope="col">Value (USD)</th></tr></thead>
                 <tbody>
                   {tf.holders.map((h, i) => (
                     <tr key={`${h.name}-${i}`}>
                       <td className={`${styles.fperiod} ${styles.holderName}`}>
                         {h.name}
-                        {h.is_new && <span className={`${styles.up} ${styles.holderBadge}`} data-holder-badge="new">NEW</span>}
-                        {h.is_sold_out && <span className={`${styles.down} ${styles.holderBadge}`} data-holder-badge="sold">SOLD</span>}
+                        {/* !! -- a vendor 0/1 flag would otherwise render a stray "0" beside the name */}
+                        {!!h.is_new && <span className={`${styles.up} ${styles.holderBadge}`} data-holder-badge="new">NEW</span>}
+                        {!!h.is_sold_out && <span className={`${styles.down} ${styles.holderBadge}`} data-holder-badge="sold">SOLD</span>}
                       </td>
                       <td>{fmtShares(h.shares)}</td>
                       <td className={chgClass(h.change_shares)}>{signed(h.change_shares, fmtShares) ?? '—'}</td>

@@ -54,12 +54,12 @@ FINDER_MODEL = {
 GREEKS_MODEL = {
     "label": "computed",
     "assumptions": ASSUMPTIONS,
-    "rho": "Rho = the price change for a 1-point rise in the interest rate, per contract share.",
+    "rho": "Rho = the price change for a 1-point rise in the interest rate, per share.",
     "lambda": "Lambda (leverage) = delta x underlying price / option mid: % option move per 1% stock move.",
     "epsilon": "Epsilon = the price change for a 1-point rise in the dividend yield.",
     "inputs": "From the vendor's IV for each contract; the vendor's own Delta/Gamma/Theta/Vega are unchanged.",
-    "streaming": ("Not streamed: a live option-quote stream would need a new vendor socket; the "
-                  "chain refreshes every 60 s."),
+    # Wave 3 (OMON P2 #12): printed under the chain verbatim, so no build notes ("vendor socket").
+    "streaming": "Not streamed: these refresh with the chain, every 60 seconds.",
 }
 
 
