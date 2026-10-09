@@ -16,6 +16,7 @@ import useMobileSWR from '../hooks/useMobileSWR'
 import ReadAloudButton from '../components/voice/ReadAloudButton'
 import styles from './UCT20.module.css'
 import { formatPercent, formatPercentAsSent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
+import { etCalendarDaysBetween } from '../lib/marketClock/etTime'
 import jsonFetcher from '../utils/jsonFetcher'
 import { useThemeInk, SEMANTIC_INK } from '../lib/theme'
 import { ASC, DESC, ariaSortFor, nextSort, sortCaretFor } from '../lib/presentation/dataGrid'
@@ -62,7 +63,7 @@ const fmtRating = (v) => formatNumber(v, { decimals: 1, absent: null })
 const ER_BADGE_MAX_DAYS = 7   // show the row badge inside this window
 const ER_SOON_DAYS      = 3   // red styling: binary risk a breakout buyer inherits
 
-function earningsInfo(item) {
+export function earningsInfo(item, now = Date.now()) {
   const session = item.earnings_session === 'BMO' || item.earnings_session === 'AMC'
     ? item.earnings_session : null
   // Recompute days client-side from the report date — the shipped
@@ -74,8 +75,10 @@ function earningsInfo(item) {
     const d = new Date(`${item.earnings_date}T12:00:00`)
     if (!Number.isNaN(d.getTime())) {
       dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      const today = new Date(); today.setHours(12, 0, 0, 0)
-      days = Math.round((d - today) / 86400000)
+      // Days counted on the ET calendar (the report date is an ET market date). It was the
+      // browser's own "today", so outside US time zones "ER TODAY" showed a day early or late.
+      const n = etCalendarDaysBetween(now, item.earnings_date.slice(0, 10))
+      days = Number.isFinite(n) ? n : null
     }
   }
   if (days == null) days = num(item.days_to_earnings)
