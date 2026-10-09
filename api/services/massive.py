@@ -1423,7 +1423,11 @@ def get_agg_bars(ticker: str, from_date: str, to_date: str) -> list[dict]:
         )
         data = client._get(url)
         return data.get("results") or []
-    except Exception:
+    except Exception as exc:
+        # "Empty on any error" stays the contract; the side channel lets a caller
+        # that must tell "no such symbol" from "request failed" do so.
+        from api.services import provider_fault_scope
+        provider_fault_scope.note(exc)
         return []
 
 
