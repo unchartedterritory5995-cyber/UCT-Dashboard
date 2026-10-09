@@ -21,6 +21,10 @@
 //   * a closed-market row names WHEN its price was set: "at the 4:00 PM ET close" (today) or
 //     "at the Fri 4:00 PM ET close", from the row's `session_close_at` (live-prices, additive).
 //     An extended-hours print carries its own ET time from `observed_at`.
+//
+// Wave 5: the earnings date carries BMO / AMC when the earnings calendar data already cached
+// for that day knows the session (`session: true` on the same batch request; the server reads
+// its calendar cache and never builds a week). No new request: it rides the existing key.
 import useSWR from 'swr'
 import useLivePrices from '../../hooks/useLivePrices'
 import useMarketOpen from '../../hooks/useMarketOpen'
@@ -30,19 +34,27 @@ import styles from './SecurityHeadline.module.css'
 
 export const HEADLINE_SNAPSHOT_URL = '/api/research/snapshot-batch'
 
-/** The SWR key for one ticker's headline snapshot — exported so tests can prove the dedupe. */
+/** The SWR key for one ticker's headline snapshot — exported so tests can prove the dedupe.
+ *  The third element asks for the earnings session, and keeps this key apart from a
+ *  one-name Watchlist's `[url, [SYM]]`, whose fetcher does not ask. */
 export function headlineKey(sym) {
   const s = String(sym || '').trim().toUpperCase()
-  return s ? [HEADLINE_SNAPSHOT_URL, [s]] : null
+  return s ? [HEADLINE_SNAPSHOT_URL, [s], 'session'] : null
 }
 
-const snapshotFetcher = ([url, tickers]) => {
+/** What the earnings field says about WHEN in the day the report lands; null when unknown. */
+export const EARNINGS_SESSION = {
+  bmo: { abbr: 'BMO', long: 'before the market opens' },
+  amc: { abbr: 'AMC', long: 'after the market closes' },
+}
+
+const snapshotFetcher = ([url, tickers, session]) => {
   const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
   const t = ac ? setTimeout(() => ac.abort(), 10000) : null
   return fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tickers }),
+    body: JSON.stringify(session ? { tickers, session: true } : { tickers }),
     signal: ac?.signal,
   })
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
@@ -174,6 +186,7 @@ export default function SecurityHeadline({ sym, onRun = null }) {
   const dir = fin(row?.change_pct) > 0 ? 'up' : fin(row?.change_pct) < 0 ? 'down' : 'flat'
   const vol = volRatio(row?.volume, meta?.avg_vol_20d)
   const earn = fmtEarnings(meta?.next_earnings)
+  const earnSession = earn ? EARNINGS_SESSION[String(meta?.next_earnings_session || '').toLowerCase()] || null : null
   const session = sessionClause(row, market)
   const extended = !row?.market_closed && session && session !== 'at last close'
   const clause = session === 'at last close' ? closeClause(row) : session
@@ -192,7 +205,13 @@ export default function SecurityHeadline({ sym, onRun = null }) {
       )}
       {clause && <span className={styles.clause} data-testid="security-headline-session">{clause}{extPrice ? ` ${extPrice}` : ''}{extAt ? ` at ${extAt}` : ''}</span>}
       {vol && <span className={styles.part} data-testid="security-headline-vol" title="Today's volume vs the 20-session average">· vol {vol} avg</span>}
-      {earn && <span className={styles.part} data-testid="security-headline-earn" title="Next earnings date (ET)">· earnings {earn}</span>}
+      {earn && (
+        <span className={styles.part} data-testid="security-headline-earn"
+          title={`Next earnings date (ET)${earnSession ? `, ${earnSession.long}` : ''}`}>
+          · earnings {earn}
+          {earnSession && <>{' '}<abbr title={earnSession.long} data-testid="security-headline-earn-session">{earnSession.abbr}</abbr></>}
+        </span>
+      )}
     </div>
   )
 }

@@ -438,11 +438,17 @@ def research_compare_explain(sym: str = Depends(sym_path), comparator: str = Dep
 
 
 @router.post("/api/research/snapshot-batch")
-def research_snapshot_batch(tickers: list[str] = Body(..., embed=True)):
+def research_snapshot_batch(tickers: list[str] = Body(..., embed=True),
+                           session: bool = Body(False, embed=True)):
     """Compact snapshot (market cap / next earnings / UCT rating) for a BATCH of
     tickers — powers the Watchlist's optional Market Cap / Next Earnings / UCT Rating
     columns. Bounded parallel over get_snapshot (each internally cached), capped at 100.
     Only the three fields the columns need, to keep the payload small.
+
+    Wave 5: ``session: true`` (the terminal headline) adds ``next_earnings_session`` —
+    'bmo' / 'amc' / None — read from the earnings calendar data ALREADY cached for that
+    date (``calendar.cached_report_session``: no build, no provider call). Callers that do
+    not ask (the Watchlist) get the payload unchanged.
     """
     syms = list(dict.fromkeys(
         (t or "").upper().strip() for t in (tickers or []) if t and t.strip()
@@ -495,6 +501,19 @@ def research_snapshot_batch(tickers: list[str] = Body(..., embed=True)):
         ftd = {}
     for sym in out:
         out[sym]["ipo_date"] = ftd.get(sym)
+
+    if session:
+        try:
+            from api.routers.calendar import cached_report_session
+        except Exception:
+            cached_report_session = None
+        for sym, val in out.items():
+            ne = val.get("next_earnings")
+            try:
+                val["next_earnings_session"] = (
+                    cached_report_session(sym, ne) if (cached_report_session and ne) else None)
+            except Exception:
+                val["next_earnings_session"] = None
     return out
 
 

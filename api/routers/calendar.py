@@ -1960,6 +1960,33 @@ def _days_for_date(ds: str) -> dict | None:
     return (wk or {}).get("days", {}).get(ds)
 
 
+def cached_report_session(sym: str, ds: str) -> str | None:
+    """'bmo' / 'amc' for ``sym`` reporting on ``ds``, read ONLY from calendar data that is
+    already cached (this week's ``calendar_weekly``, or a ``calendar_week_<monday>`` another
+    reader built). Never builds a week and never calls a provider, so a caller on the request
+    path pays a dict lookup at most. ``None`` when the day is not cached, the name is not on
+    that day, or its session is not known (``tbd``). Wave 5: the terminal headline's
+    "earnings Thu Nov 19 AMC" reads this; a miss shows the date alone.
+    """
+    s = (sym or "").upper().strip()
+    try:
+        d = date.fromisoformat(str(ds)[:10])
+    except (ValueError, TypeError):
+        return None
+    if not s:
+        return None
+    monday = _monday_of(d)
+    if monday == _week_dates()[0]:
+        wk = cache.get("calendar_weekly")
+    else:
+        wk = cache.get(f"calendar_week_{monday.isoformat()}")
+    day = ((wk or {}).get("days") or {}).get(d.isoformat()) or {}
+    for t in ("bmo", "amc"):
+        if any((e.get("sym") or "").upper() == s for e in (day.get(t) or []) if isinstance(e, dict)):
+            return t
+    return None
+
+
 _MONTH_CACHE_TTL = 1800  # 30 minutes
 
 
