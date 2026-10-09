@@ -219,3 +219,10 @@ def test_the_two_lanes_share_the_caps_and_the_refusal_text():
     with pytest.raises(ce.ExpansionRefused) as exc:
         ce.expand_calls(_nest(8))
     assert [cap, depth, msg] == [ce.MAX_EXPANDED_NODES, ce.MAX_EXPANSION_DEPTH, str(exc.value)]
+
+
+def test_every_chart_function_word_names_a_real_expansion():
+    from api.services import conversation_preflight
+    words = conversation_preflight.rules()["chartFunctionWords"]["words"]
+    assert words and all(len(w) == 2 for w in words)
+    assert {k for _, k in words} <= set(ce.EXPANSION_NAMES)

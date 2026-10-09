@@ -563,6 +563,11 @@ CONVERSE_SYSTEM_PROMPT = (
     "sym(SPY, ema(close, 50)). A ticker missing a bar on some date makes that bar "
     "UNKNOWN; never fill it.\n\n"
     "DO NOT FABRICATE CAPABILITIES\n"
+    "  * Read another symbol ONLY when the member names it in this message (or the "
+    "indicator already reads it). Relative strength, a correlation or a comparison with "
+    "no symbol named: set disposition clarify and ask which symbol to compare against "
+    "(for example SPY or QQQ) -- never pick one yourself; a change reading a symbol the "
+    "member did not name is refused.\n"
     "  * Other symbols through `sym`; weekly/monthly reads through `tf`/`tf_live`; a whole "
     "indicator on a higher timeframe through set_calculation_timeframe. Never a LOWER "
     "timeframe than the chart's. Nightly snapshot values (one number per symbol, the same on every "
@@ -1118,14 +1123,10 @@ def _product_nouns_plain(message: str) -> str:
 # the function words are ordinary terms -- each phrase's bucket REPLACED, so a word
 # the vocabulary refuses elsewhere is not a tie that matches nothing. The shared
 # vocabulary and the screener's planner (`dc.LEXICON`) are unchanged.
-EXPANSION_PHRASES: Tuple[Tuple[str, str], ...] = (
-    ("momentum", "mom"),
-    ("linear regression", "linreg"), ("linreg", "linreg"),
-    ("correlation", "correlation"), ("correlation coefficient", "correlation"),
-    ("rate of change", "roc"), ("roc", "roc"),
-    ("vwma", "vwma"), ("volume weighted moving average", "vwma"),
-    ("keltner channel", "kcUpper"), ("keltner channels", "kcUpper"), ("keltner", "kcUpper"),
-)
+#: The phrase table is DATA (``preflightRules.json::chartFunctionWords``), shared with the
+#: browser's pre-flight file, never a list in this module.
+EXPANSION_PHRASES: Tuple[Tuple[str, str], ...] = tuple(
+    (str(w), str(k)) for w, k in conversation_preflight.rules()["chartFunctionWords"]["words"])
 
 
 def _chart_lexicon(base: Mapping[str, Any]) -> Dict[str, Any]:

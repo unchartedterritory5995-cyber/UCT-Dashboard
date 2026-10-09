@@ -482,6 +482,10 @@ function lastPointValue(points) {
 function removeRunSeries(chart, entry) {
   const runs = entry && Array.isArray(entry.runSeries) ? entry.runSeries : []
   for (const s of runs) attempt(() => chart.removeSeries(s))
+  // ⭐ BATCH 2 — a marker layer riding the PRICE series does not go with `b.series`,
+  // so every path that removes the binding clears it here.
+  const ml = entry && entry.markerLayer
+  if (ml && ml.onPrice === true) attempt(() => ml.clear())
 }
 
 /** One split per points ARRAY: `pointsFor` memoises points on the column's
@@ -2290,7 +2294,18 @@ export function createBinder({ chart, LWC }) {
       // rather than throwing on a chart that was otherwise fine.
       let markerLayer = (b.from && b.from.markerLayer) || null
       const markerSpec = b.plot && b.plot.marker
-      if (markerLayer && (b.source !== 'same' || !markerSpec)) {
+      // ⭐⭐ BATCH 2 — ON THE PRICE PANE, "ABOVE / BELOW THE BAR" MEANS THE CANDLE. The
+      // plot's own series holds the 0/1 condition, so a `belowBar` glyph riding it sat
+      // at price ≈ 0 — 900 px under a 220–360 price pane, i.e. never seen (measured
+      // 10-09: "big orange up arrows" saved, drew nothing visible). On pane 0 an
+      // above/below glyph rides the chart's own price series (`ctx.priceSeries()`, the
+      // host `syncPaints` already uses); in any other pane, and for `inBar` (the value
+      // the author plotted), it stays on the plot's series exactly as before.
+      const anchored = !!markerSpec && (markerSpec.position === 'aboveBar' || markerSpec.position === 'belowBar')
+      const priceHost = anchored && paneIndex === 0 && typeof ctx.priceSeries === 'function'
+        ? (attempt(() => ctx.priceSeries()).value || null) : null
+      const markerHost = priceHost || series
+      if (markerLayer && (b.source !== 'same' || !markerSpec || markerLayer.host !== markerHost)) {
         attempt(() => markerLayer.clear())
         markerLayer = null
       }
@@ -2300,7 +2315,13 @@ export function createBinder({ chart, LWC }) {
         const markShift = drawShiftOf(b.plot)
         const own = displacedColumn(columns.get(b.key), markShift)
         if (own) {
-          if (!markerLayer) markerLayer = createMarkerLayer(ctx.createSeriesMarkers, series)
+          if (!markerLayer) {
+            markerLayer = createMarkerLayer(ctx.createSeriesMarkers, markerHost)
+            // the host it rides, and whether it outlives the plot's own series
+            // (`removeRunSeries` clears a price-hosted layer when the binding goes)
+            markerLayer.host = markerHost
+            markerLayer.onPrice = markerHost !== series
+          }
           const cc = columnColorsForPlot(b.plot)
           attempt(() => markerLayer.set(markersFor({
             column: own,

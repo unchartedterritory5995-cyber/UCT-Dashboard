@@ -64,7 +64,7 @@ notebook record on master (`docs/notebook/RESUME-2026-10-08.md`, commit `2bd0c37
 follow-up") shows `BREADTH_LIVE_ENABLED=0` already set during the 10-08 web-stall incident and
 `BREADTH_EXCH_SYNC_ENABLED=0` set 18:33 CT as an incident lever. Owner: Breadth / the incident's session.
 
-## 6. A saved indicator's other-symbol read is not fetched after a page reload (chart owner — pre-existing)
+## 6. A saved indicator's other-symbol read is not fetched after a page reload — ✅ FIXED in Batch 2 hardening
 
 **Seen:** local sandbox, 10-08, while accepting Batch 2. A saved status table on AAPL with an
 "RS vs SPY" cell (`close / sym("SPY", close)`) showed the label and no value after a reload; the
@@ -83,5 +83,42 @@ the member's saved definitions finish loading, so the needed-symbol set is compu
 and its conditional colour; with SPY absent the cell is WITHHELD (the shipped `readUnknown`
 rule), never "NaN" and never a state colour.
 
-**Suggested direction (not done):** pass `userDefsGeneration` (or a value combining it with
-`csView`) as `useSecondarySources`' `revalidate`, and likewise for `useOtherSymbolExchanges`.
+**Fixed (10-09):** StockChart passes `_otherSymbolsRevalidate = {csView, userDefsGeneration}` to
+`useSecondarySources` and `useOtherSymbolExchanges`; verified in the sandbox (RS vs SPY 0.440 after
+reload) and pinned by `engine/__tests__/secondarySourcesRevalidate.test.jsx`.
+
+## 7. Authored and Pine-imported markers never drew on a live chart — ✅ FIXED in Batch 2 hardening
+
+Found during Batch 2 browser acceptance (item 5, "big orange up arrows"). Two causes, both older
+than Batch 2: (a) the binder draws `plots[].marker` only through an injected
+`ctx.createSeriesMarkers`, and StockChart never injected it (unit tests use a fake); (b) on the
+price pane an above/below glyph rode the plot's own 0/1 series, i.e. price ≈ 0 — 900 px below the
+pane. Fixed: StockChart injects `createSeriesMarkers`; on pane 0 an `aboveBar`/`belowBar` glyph
+rides the price series (other panes and `inBar` unchanged), cleared when its binding goes.
+Pinned by `engine/__tests__/markerHost.test.js`. Pine `plotshape`/`plotchar` imports benefit too.
+
+## 8. Inspector offered colour/width controls for hidden data columns — ✅ FIXED
+
+A colour rule's hidden index column (`_c`, `_cs`) and table-only outputs carry their own
+`$…Color`/`$…Width` inputs (built per row since the overnight colour rule). The binder never draws a
+`hidden: true` plot, so these were controls with no effect ("hist colour rule …"). The Inspector now
+omits inputs read only by hidden plots (`indicatorRegistry.hiddenPlotOnlyInputKeys`) and gives
+hidden plots no style row. Stored definitions are unchanged.
+
+## 9. Light chart themes render table plain text at low contrast (chart-theme owner)
+
+On the "Paper" chart theme, table cells with no colour of their own (and the legend / OHLC labels)
+use the theme's `textColor`, a pale grey on white. Batch 2's conditional cells fall back to the same
+`chart.fg_color`, so they match the chart; the issue is the theme's text colour. Not changed.
+
+## 10. `useFundamentalSources` has the same reload pattern as §6 (chart owner)
+
+`StockChart.jsx` passes `csView` as its revalidate; a pinned `fund:` source whose definition loads
+after the chart restores could be missed the same way. Not changed (chart-owner feature).
+
+## 11. "Relative strength" with no benchmark named (Indicators — prompt, Batch 2)
+
+The owner's acceptance sentence ("…RSI, trend direction, and relative strength…") names no
+benchmark. The Phase 5 backstop refuses a change that reads a symbol the member did not name, so a
+model that assumed SPY produced a hard refusal. Batch 2 adds a system-prompt rule: with no symbol
+named, ask which one (`clarify`). Needs real-model confirmation.

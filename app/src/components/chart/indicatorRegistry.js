@@ -311,6 +311,21 @@ export function styleInputKeys(def) {
 }
 
 /**
+ * ⭐ BATCH 2 — the style inputs ONLY a `hidden: true` plot reads (a colour rule's
+ * hidden index column, a table-only value). The binder never draws such a plot
+ * (`binder.js` orphans it), so its colour / width box would be a control with no
+ * effect; the Inspector leaves these out. An input a visible plot also reads stays.
+ */
+export function hiddenPlotOnlyInputKeys(def) {
+  const plots = Array.isArray(def?.plots) ? def.plots : []
+  const hidden = styleInputKeys({ plots: plots.filter((p) => p && p.hidden === true) })
+  if (!hidden.size) return hidden
+  const shown = styleInputKeys({ plots: plots.filter((p) => p && p.hidden !== true) })
+  for (const k of shown) hidden.delete(k)
+  return hidden
+}
+
+/**
  * Is this input ACTIVE, given the values the form currently holds?
  *
  * `activeWhen` is the JSON-expressible successor to this file's own `showIf`

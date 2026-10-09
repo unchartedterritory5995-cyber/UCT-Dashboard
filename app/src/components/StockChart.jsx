@@ -13,7 +13,7 @@ import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
 import { getTodayBar, touchTodayPack, todayPackUsable } from '../lib/todayPackClient'
 import useSWR, { mutate as globalMutate } from 'swr'
-import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
+import { createChart, createSeriesMarkers, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import {
   mergeChartSettings, mergeSettingsOverride,
@@ -6690,11 +6690,19 @@ export default function StockChart({
   // something unrelated triggered another paint. The hook keeps the map's
   // IDENTITY stable while nothing changes, which is what stops that dependency
   // repainting continuously.
+  //
+  // ⭐ BATCH 2 — RE-ASKED WHEN THE MEMBER'S DEFINITIONS LAND, not only when the view
+  // changes. `_defOf` never changes identity, so on a reload the needed set was read
+  // once while the saved definitions were still loading (`_defOf` → null) and never
+  // again: a saved table's `sym("SPY", …)` cell stayed blank until something unrelated
+  // (a timeframe flip) re-ran it (measured 10-09, sandbox; OPEN-FINDINGS §6).
+  // `useLowerTfSources` below takes `userDefsGeneration` for the same reason.
+  const _otherSymbolsRevalidate = useMemo(() => ({ csView, userDefsGeneration }), [csView, userDefsGeneration])
   const secondarySources = useSecondarySources(
-    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, csView)
+    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
-  const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, csView)
+  const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, _otherSymbolsRevalidate)
   // ⭐ C41 — this symbol's intraday bars, for a Pine document that reads BELOW the
   // chart (`request.security(syminfo.tickerid, "60", …)` → an `ltf` node). A chart
   // with no such indicator makes NO request (`useLowerTfSources`).
@@ -12916,6 +12924,12 @@ export default function StockChart({
         // ⭐⭐ B1 — Pine `bgcolor` on an overlay script that binds no series of its
         // own is drawn on the price pane, through the candles' series.
         priceSeries: () => candleSeriesRef.current,
+        // ⭐⭐ BATCH 2 — THE GLYPH CAPABILITY THE BINDER HAS ALWAYS ASKED FOR. `binder`
+        // draws `plots[].marker` (plotshape / plotchar, and the authoring door's
+        // `set_marker`) only through an injected `createSeriesMarkers`, and nothing
+        // injected it: every marker was planned, computed and never drawn on a live
+        // chart (measured 10-09, sandbox — the unit tests use a fake).
+        createSeriesMarkers,
         // ⭐⭐ B1 — Pine `barcolor`: the binder hands the overrides here only when
         // they CHANGE; the candles are re-applied from their own remembered data
         // (one `update` of the last bar when only it changed). No React state.
