@@ -55,13 +55,35 @@ class BarsUnavailable(Exception):
     serve's own classified reason so the 503 says which failure it was."""
 
 
-def _history_is_partial(sym: str, n_bars: int) -> bool:
+DEEP_ENOUGH_YEARS = 10     # a read spanning this many years is a real record, marker or not
+
+
+def _span_years(bars: list) -> float:
+    """Calendar years between the first and last bar (0 when either date is unreadable)."""
+    from api.services import seasonality as svc
+    a = svc._ymd((bars[0] or {}).get("t")) if bars else None
+    b = svc._ymd((bars[-1] or {}).get("t")) if bars else None
+    if not a or not b:
+        return 0.0
+    return (b[0] - a[0]) + (b[1] - a[1]) / 12.0
+
+
+def _history_is_partial(sym: str, bars: list) -> bool:
     """The bar serve's OWN test for a partial deep read (bars_fetch: fewer than 90% of
     the requested bars AND no "this is all there is" marker), so the two cannot
     disagree about what "partial" means. A short-lived listing whose full history has
-    been read carries the marker and is not partial."""
+    been read carries the marker and is not partial.
+
+    Wave-2 audit 2026-10-08: that marker is an in-memory entry with a 6h TTL, and most
+    listings hold fewer than DAILY_BARS*0.9 (7,200) sessions -- NVDA has ~6,950 since its
+    1999 IPO. So after every deploy and every 6h, a ticker whose FULL history already sat
+    in the store answered the first view with a 503 "still being read" (seen live). A read
+    that already spans DEEP_ENOUGH_YEARS is not the shallow cold tail L8 guards against
+    (that was ~2 years); it is served, and the page states its covered_from window."""
     from api.services import bars_fetch
-    return n_bars < DAILY_BARS * 0.9 and not bars_fetch._history_complete(sym.upper(), "D")
+    if len(bars) >= DAILY_BARS * 0.9 or bars_fetch._history_complete(sym.upper(), "D"):
+        return False
+    return _span_years(bars) < DEEP_ENOUGH_YEARS
 
 
 def _daily_bars(sym: str) -> list:
@@ -93,7 +115,7 @@ def _daily_bars(sym: str) -> list:
     out = out if isinstance(out, list) else []
     if not out and payload.get("no_data"):
         raise NoDailyHistory(sym)
-    if out and _history_is_partial(sym, len(out)):
+    if out and _history_is_partial(sym, out):
         raise HistoryPending(sym)
     return out
 
