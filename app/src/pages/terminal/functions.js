@@ -173,7 +173,11 @@ export const FUNCTIONS = [
   { code: 'LIVE', label: 'Live flow tape', group: 'Options',
     market: { door: '/live-massive', leavesTerminal: true, why: 'a socket-fed tape page that owns a live stream connection per mount' } },
 
-  { code: 'DP', label: 'Dark pool prints', group: 'Options', market: { door: '/dark-pool', leavesTerminal: true } },
+  // `NVDA DP` opens the page on that ticker: DarkPool.jsx reads `?ticker=` and opens its own
+  // ticker search on the name (wave 4, lane A: the ticker used to be refused as market-wide).
+  { code: 'DP', label: 'Dark pool prints', group: 'Options',
+    ticker: { door: '/dark-pool?ticker={sym}', leavesTerminal: true },
+    market: { door: '/dark-pool', leavesTerminal: true } },
   // `embedded` is the page's OWN prop (it already honours it inside the Options Flow page): the
   // panel header names the function, so the page drops its outer page chrome.
   { code: 'FREC', label: 'Flow record (scoreboard)', group: 'Options',

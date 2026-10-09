@@ -177,3 +177,21 @@ describe('fix 2: a bare ticker on the calendar loads into the overview beside it
     expect(code(0)).toBe('DES')
   })
 })
+
+describe('fix 3: `NVDA DP` opens the dark pool page on NVDA', () => {
+  it('the ticker rides in the URL the page reads (?ticker=), instead of being refused', async () => {
+    renderAt(['/terminal'])
+    await type('NVDA DP')
+    expect(where()).toBe('/dark-pool?ticker=NVDA')
+  })
+
+  it('`DP TSLA` is the same command; `DP` alone still opens the whole page', async () => {
+    renderAt(['/terminal'])
+    await type('DP TSLA')
+    expect(where()).toBe('/dark-pool?ticker=TSLA')
+    cleanup()
+    renderAt(['/terminal'])
+    await type('DP')
+    expect(where()).toBe('/dark-pool')
+  })
+})
