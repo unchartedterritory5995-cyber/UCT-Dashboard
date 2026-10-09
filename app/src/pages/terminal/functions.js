@@ -219,6 +219,8 @@ export const FUNCTIONS = [
     market: { panel: 'MarketNews' } },
   { code: 'REGM', label: 'Market regime and exposure call', group: 'Market',
     market: { panel: 'Regime' } },
+  { code: 'INS', label: 'Insider buying (UCT 20 and large caps, 7 days)', group: 'Market',
+    market: { panel: 'InsiderBuys' } },
 
   // ── the shell itself ──
   { code: 'HELP', label: 'Function list & syntax', group: 'Shell',

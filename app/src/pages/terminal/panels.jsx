@@ -78,6 +78,7 @@ export const PANEL_IMPORTERS = {
   // market lists (wave 7, lane C) — terminal-native; read routes the dashboard tiles already serve
   MarketNews: () => import('./panels/NewsPanel'),
   Regime: () => import('./panels/RegimePanel'),
+  InsiderBuys: () => import('./panels/InsiderPanel'),
   // my names (lane 9) — terminal-native; read the routes the watchlist page and the alert bell use
   Alerts: () => import('./panels/AlertsPanel'),
   Watchlist: () => import('./panels/WatchlistPanel'),
