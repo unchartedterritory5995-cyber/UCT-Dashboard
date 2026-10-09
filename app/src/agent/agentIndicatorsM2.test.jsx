@@ -369,6 +369,11 @@ describe('M2 safety, routing and budget', () => {
       expect(routeManifest(FULL, m, opts).manifest.length, m).toBeLessThanOrEqual(55)
     }
   })
+  it('"Undo that indicator removal" (and kin) is the ordinary Undo of the newest change; other text is not', async () => {
+    const { fastParse } = await import('./fastPath')
+    for (const m of ['Undo that indicator removal.', 'undo the last hide', 'undo removing that', 'revert that change', 'undo']) expect(fastParse(m)?.kind, m).toBe('undo')
+    for (const m of ['undo my watchlist from yesterday', 'remove the undo button']) expect(fastParse(m)?.kind, m).not.toBe('undo')
+  })
   it('⛔ the Agent file never writes indicator state itself (no writer import, no array/flag edits)', () => {
     const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/agent/capabilities/indicatorEdits.js'), 'utf8')
     expect(src).not.toMatch(/from ['"][^'"]*instanceControls['"]/)
