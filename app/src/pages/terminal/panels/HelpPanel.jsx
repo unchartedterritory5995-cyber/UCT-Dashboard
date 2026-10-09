@@ -51,6 +51,15 @@ function flagFor(f) {
   return f.market?.flag || f.ticker?.flag || null
 }
 
+/** What HELP says a variant is: `security` / `market`, and "(opens a page)" when running it leaves the
+ *  terminal for a page of its own (a `leavesTerminal` door). The rail's hover already said so; the list
+ *  a new member reads did not, so JRNL, LIVE, GEX or EXP pulled them out of the terminal unannounced
+ *  (audit 2026-10-08). Read from the registry, never typed. */
+export function scopeLabel(f) {
+  const one = (v, name) => (v ? (v.door && v.leavesTerminal ? `${name} (opens a page)` : name) : null)
+  return [one(f.ticker, 'security'), one(f.market, 'market')].filter(Boolean).join(' · ')
+}
+
 /** The keyboard sheet: every terminal binding (from the registry's own declarations) and the
  *  command line's keys. HELP prints it; Alt+/ shows the same element over the board. */
 export function KeysTable() {
@@ -164,7 +173,7 @@ export default function HelpPanel({ focusCode = null, onRun, onRows, onResetRank
                         )}
                       </span>
                       <span className={styles.helpScope}>
-                        {[f.ticker && 'security', f.market && 'market'].filter(Boolean).join(' · ')}
+                        {scopeLabel(f)}
                         {enabled != null && (
                           <span
                             className={enabled ? styles.helpFlagOn : styles.helpFlagOff}
