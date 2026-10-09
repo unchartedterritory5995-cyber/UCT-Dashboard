@@ -311,8 +311,8 @@
    "name": "chart.setSetting",
    "domain": "chart",
    "target": "chart",
-   "summary": "Change one chart display setting from UCT's approved list (grid, crosshair, legend, watermark, labels, markers, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale).",
-   "hints": "value = true/false for on/off settings (crosshair.mode and header.legendMode also take true/false). Allowed values — crosshair.mode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; header.legendMode: always|hold|off; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high. Only these settings: for any other chart setting (colors, watermark opacity, volume style…) do NOT plan an op — say it is not Agent-enabled yet and where it lives in Chart Settings.",
+   "summary": "Change one chart display setting from UCT's approved list (grid and its color, crosshair and its color, scale text size/color, legend, watermark and its size/weight/lines, labels, event markers, swing labels and their options, prev-day lines and their style/width/color, countdown, title, color mode, thin bars, inverted scale).",
+   "hints": "value = true/false for on/off settings (crosshair.mode and header.legendMode also take true/false); a hex color (#2962ff) for color settings. Allowed values — crosshair.mode, header.legendMode: always|hold|off; textSize: 8|10|11|12|14|16|18|20|22|24|28|32|40; header.titleMode: ticker|company|both; candleColorMode: onecolor|netchange|openclose; swingLabels.sensitivity: low|medium|high; watermark.sizeScale: 0.5|0.75|1|1.25|1.5|2|2.5|3|4; watermark.weight: 300|400|500|600|700|800; prevDayLevels.high|low|close.style: solid|dashed|dotted; prevDayLevels.high|low|close.width: 1|2|3|4. Only these settings: for any other chart setting (watermark opacity, volume style…) do NOT plan an op — say it is not Agent-enabled yet and where it lives in Chart Settings.",
    "args": {
     "type": "object",
     "properties": {
@@ -334,6 +334,29 @@
        "countdown",
        "swingLabels.enabled",
        "swingLabels.sensitivity",
+       "swingLabels.tintByType",
+       "swingLabels.bgEnabled",
+       "grid.color",
+       "crosshair.color",
+       "textColor",
+       "watermark.sizeScale",
+       "watermark.weight",
+       "watermark.lines.logo",
+       "watermark.lines.ticker",
+       "watermark.lines.interval",
+       "watermark.lines.company",
+       "watermark.lines.sector",
+       "watermark.lines.industry",
+       "watermark.lines.theme",
+       "prevDayLevels.high.style",
+       "prevDayLevels.high.width",
+       "prevDayLevels.high.color",
+       "prevDayLevels.low.style",
+       "prevDayLevels.low.width",
+       "prevDayLevels.low.color",
+       "prevDayLevels.close.style",
+       "prevDayLevels.close.width",
+       "prevDayLevels.close.color",
        "markers.earnings",
        "markers.splits",
        "markers.dividends",
@@ -355,6 +378,144 @@
     "required": [
      "setting",
      "value"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.applyTemplate",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Apply one of the member's saved chart templates to ONE chart (right-click → Chart template). It replaces that chart's whole look, including its indicators, with the template's.",
+   "hints": "template = a name from chartTemplates, exactly. For several charts (\"all my charts\"), one op per chart.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "template": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "template"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.resetDefaults",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Restore ONE chart's settings to UCT's defaults (Chart Settings → Restore defaults): its look, markers and indicators all go back to the default set.",
+   "hints": "target = the chart. Always shown as a proposal first.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.goToDate",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Scroll ONE chart so a past date is at its right edge — exactly the Time Navigator date box. A view change only: every bar stays on the chart (it is not a replay), nothing is saved; Undo scrolls back.",
+   "hints": "date = YYYY-MM-DD. \"As it looked on <date>\" = this (say in the reply that later bars are still there, just scrolled off to the right).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "date": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "date"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.compare",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Overlay other symbols on ONE chart (Tools → Compare Symbols): add tickers, remove some, or clear all comparisons.",
+   "hints": "add = tickers to overlay, uppercase ([] for none); remove = tickers to take off ([] for none); clear = true to remove every comparison. \"Compare NVDA against QQQ on this chart\" = target the NVDA chart, add [QQQ].",
+   "args": {
+    "type": "object",
+    "properties": {
+     "add": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "remove": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "clear": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "add",
+     "remove",
+     "clear"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.addCustomTimeframe",
+   "domain": "chart",
+   "target": "chart",
+   "summary": "Add a custom timeframe (e.g. 45 minutes, 2 hours, 3 days) to ONE chart's timeframe menu, exactly like the menu's Custom interval, and optionally switch the chart to it.",
+   "hints": "unit = minutes | hours | days | weeks | months; count = how many (45 for 45 minutes); switch = true to show the chart on it now (the usual case), false to only add it to the menu.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "unit": {
+      "type": "string",
+      "enum": [
+       "minutes",
+       "hours",
+       "days",
+       "weeks",
+       "months"
+      ]
+     },
+     "count": {
+      "type": "integer"
+     },
+     "switch": {
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "unit",
+     "count",
+     "switch"
     ],
     "additionalProperties": false
    },
@@ -1915,6 +2076,213 @@
     },
     "required": [
      "theme"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "widget.resize",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Resize ONE widget by moving one of its edges, exactly like dragging that edge: the widget the edge moves into shrinks (never below its minimum); nothing leaves the board.",
+   "hints": "target = the ref of the board entry; widget = its id; edge = left | right | top | bottom; by = cells to move the edge OUTWARD (positive = bigger, negative = smaller). \"Make my watchlist narrower and give the chart more space\" = resize the CHART toward the watchlist (the watchlist shrinks), or the watchlist inward then widget.arrange fill on the chart.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "edge": {
+      "type": "string",
+      "enum": [
+       "left",
+       "right",
+       "top",
+       "bottom"
+      ]
+     },
+     "by": {
+      "type": "integer"
+     }
+    },
+    "required": [
+     "widget",
+     "edge",
+     "by"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.addTab",
+   "domain": "chart",
+   "target": "board",
+   "summary": "Add a new chart TAB to a chart widget (the tab strip's \"+\"), on the same link colour as the tab showing now, and switch to it.",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; timeframe = 1|5|15|30|60|D|W|M or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "timeframe": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "1",
+       "5",
+       "15",
+       "30",
+       "60",
+       "D",
+       "W",
+       "M",
+       null
+      ]
+     },
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "timeframe",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.selectTab",
+   "domain": "chart",
+   "target": "board",
+   "summary": "Switch a chart widget to one of its tabs (clicking the tab).",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; tab = \"main\" (the widget's own chart), the extra tab's position \"1\", \"2\"… or its label, from the board entry's chartTabs.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "tab": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget",
+     "tab"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.closeTab",
+   "domain": "chart",
+   "target": "board",
+   "summary": "Close one EXTRA tab of a chart widget (its settings go with it; Undo brings it back exactly). The main tab cannot be closed.",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; tab = \"main\" (the widget's own chart), the extra tab's position \"1\", \"2\"… or its label, from the board entry's chartTabs.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "tab": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget",
+     "tab"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.renameTab",
+   "domain": "chart",
+   "target": "board",
+   "summary": "Rename a chart widget's tab (double-click on the tab).",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; tab = \"main\" (the widget's own chart), the extra tab's position \"1\", \"2\"… or its label, from the board entry's chartTabs. name = the new label (24 characters at most).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "tab": {
+      "type": "string"
+     },
+     "name": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget",
+     "tab",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "chart.linkTab",
+   "domain": "chart",
+   "target": "board",
+   "summary": "Set the link colour of one chart TAB (the tab's colour dot): tabs and widgets with the same colour follow the same symbol.",
+   "hints": "target = the ref of the board entry; widget = the chart widget's id; tab = \"main\" (the widget's own chart), the extra tab's position \"1\", \"2\"… or its label, from the board entry's chartTabs. color = A (gold), B (blue), C (green), D (purple) — a tab is always linked to a colour. \"Two tabs with linked symbols\" = give both the same colour.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "tab": {
+      "type": "string"
+     },
+     "color": {
+      "type": "string",
+      "enum": [
+       "A",
+       "B",
+       "C",
+       "D"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "tab",
+     "color"
     ],
     "additionalProperties": false
    },

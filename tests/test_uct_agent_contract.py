@@ -16,6 +16,21 @@ GOLDEN = json.loads((ROOT / "app/src/agent/contract/manifest.golden.json").read_
 CAPS = GOLDEN["capabilities"]
 BY = {c["name"]: c for c in CAPS}
 
+# Since Batch 6 the CATALOG may exceed one request: the browser routes it (app/src/agent/routing.js)
+# into per-request manifests of whole action GROUPS. The server is checked the same way — every
+# group (with the always-on agent group) is validated, schema-built and prompted on its own.
+_GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layout": "workspace",
+             "watchlist": "lists", "screener": "screener", "alert": "alerts", "stock": "data",
+             "news": "data", "settings": "settings", "app": "settings", "agent": "agent"}
+
+
+def _requests():
+    groups = {}
+    for c in CAPS:
+        groups.setdefault(_GROUP_OF[c["name"].split(".")[0]], []).append(c)
+    agent = groups.pop("agent", [])
+    return [(g, cs + agent) for g, cs in groups.items()]
+
 
 def test_server_limits_equal_the_shared_contract():
     L = CONTRACT["limits"]
@@ -28,9 +43,17 @@ def test_server_limits_equal_the_shared_contract():
     assert GOLDEN["manifestVersion"] == CONTRACT["manifestVersion"]
 
 
+def test_every_capability_belongs_to_a_routing_group_and_each_request_fits():
+    assert all(c["name"].split(".")[0] in _GROUP_OF for c in CAPS)
+    for g, req in _requests():
+        assert len(req) <= CONTRACT["catalog"]["maxGroupSize"] + 1, g
+        assert len(req) <= turn.MAX_CAPABILITIES, g
+
+
 def test_the_real_manifest_survives_validation_intact():
-    kept = turn.validate_manifest(CAPS)
-    assert [c["name"] for c in kept] == [c["name"] for c in CAPS], "an entry was dropped by the server"
+    kept = [c for _, req in _requests() for c in turn.validate_manifest(req) if c["name"] != "agent.capabilities"]
+    kept += turn.validate_manifest([BY["agent.capabilities"]])
+    assert sorted(c["name"] for c in kept) == sorted(c["name"] for c in CAPS), "an entry was dropped by the server"
     for c in kept:
         src = BY[c["name"]]
         assert c["summary"] == src["summary"], f"{c['name']}: summary cut"
@@ -39,12 +62,15 @@ def test_the_real_manifest_survives_validation_intact():
 
 
 def test_schema_and_prompt_build_from_the_real_manifest():
-    kept = turn.validate_manifest(CAPS)
-    schema = turn.envelope_schema(kept)
-    assert schema["type"] == "object"
-    prompt = turn.system_prompt(kept)
-    for c in kept:
-        assert f"- {c['name']}(" in prompt
+    prompt = ""
+    for _, req in _requests():
+        kept = turn.validate_manifest(req)
+        schema = turn.envelope_schema(kept)
+        assert schema["type"] == "object"
+        p = turn.system_prompt(kept)
+        for c in kept:
+            assert f"- {c['name']}(" in p
+        prompt += p
     # The model is told the truth about Undo.
     digest = next(line for line in prompt.splitlines() if line.startswith("- settings.setWatchlistDigest("))
     assert "no Undo" in digest
@@ -57,7 +83,7 @@ def test_schema_and_prompt_build_from_the_real_manifest():
 def test_every_compact_op_example_round_trips_through_args_match():
     """Each capability's own schema accepts a value built from its own enums (compact mode is
     always on with this many capabilities, so args_match is the server's only arg check)."""
-    for c in turn.validate_manifest(CAPS):
+    for c in [c for _, req in _requests() for c in turn.validate_manifest(req)]:
         props = c["args"]["properties"]
         sample = {}
         for k, p in props.items():

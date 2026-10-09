@@ -42,7 +42,8 @@ describe('golden manifest (the JS ⇄ Python contract)', () => {
   })
   it('fits the server limits from the shared contract (nothing is cut on the way to the model)', () => {
     const L = MANIFEST_CONTRACT.limits
-    expect(manifest.length).toBeLessThanOrEqual(L.maxCapabilities)
+    // The CATALOG may exceed one request (Batch 6); every entry must still fit the per-entry limits.
+    expect(manifest.length).toBeLessThanOrEqual(MANIFEST_CONTRACT.catalog.maxRegistered)
     for (const c of manifest) {
       expect(JSON.stringify(c).length, c.name).toBeLessThanOrEqual(L.maxCapBytes)
       expect(String(c.summary).length, c.name).toBeLessThanOrEqual(L.maxSummary)
@@ -57,7 +58,7 @@ describe('golden manifest (the JS ⇄ Python contract)', () => {
       'Run my Momentum Screen and put the results into a new watchlist called Momentum Picks, then open the top three in charts',
       'Hide the grid on the left chart and turn the crosshair off', 'Change the watchlist widget to show my Semiconductor list', 'Alert me if NVDA crosses 150']
     for (const m of msgs) {
-      const r = routeManifest(manifest, m, { limit: MANIFEST_CONTRACT.limits.maxCapabilities })
+      const r = routeManifest(manifest, m, { limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold })
       expect(r.routing, m).not.toBe(null)
       expect(r.manifest.length, m).toBeLessThanOrEqual(MANIFEST_CONTRACT.routingThreshold)
     }

@@ -320,6 +320,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             symbol: r.symbol, tf: r.tf, cs: r.cs, stored: r.stored ?? null,
           }
         },
+        // The Time Navigator's own read-out and jump (ChartPane → StockChart date-nav API):
+        // a VIEW, not a setting — nothing is persisted beyond the view lock the jump itself sets.
+        view: () => paneRef.current?.getDateMeta?.() || null,
+        goToDate: (ms) => paneRef.current?.goToDate?.(ms),
         // ONE onOptsChange for settings + tf; the ticker through the colour group.
         // `settings` present (even null) means "store exactly this blob".
         commit: (patch) => {

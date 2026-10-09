@@ -30,6 +30,9 @@ import { unknownSymbols } from '../agentClient'
 import { mergeChartSettings, CHART_TYPE_OPTIONS } from '../../components/chart/chartDefaults'
 import { NATIVE_TFS, tfLabel as productTfLabel } from '../../components/chart/timeframes'
 import { ELIGIBLE_SETTINGS, settingDescriptor, coerceSettingValue, settingUnavailable, withSetting, settingValue } from '../../components/chart/chartSettingsDescriptors'
+import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
+import { makeTfCode, isValidTf, tfLabel as tfShort } from '../../components/chart/timeframes'
+import { pickComparisonColor } from '../../components/chart/comparisonUtils'
 
 // The chart types and the timeframes UCT charts natively are the PRODUCT's lists
 // (chartDefaults.CHART_TYPE_OPTIONS, timeframes.NATIVE_TFS) — imported, never copied, so a new
@@ -100,10 +103,23 @@ const sameJson = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? nul
 // ── chart.setSetting helpers (generated from the product's descriptor table) ──
 const settingWord = (d, v) => (d.type === 'bool' ? (v ? 'on' : 'off') : String(v))
 const SETTING_HINTS = (() => {
-  const enums = ELIGIBLE_SETTINGS.filter(d => d.type === 'enum').map(d => `${d.id}: ${d.options.join('|')}`)
-  return 'value = true/false for on/off settings (crosshair.mode and header.legendMode also take true/false). '
+  // Settings that share one option list are written once ("prevDayLevels.high|low|close.style: …").
+  const groups = new Map()
+  for (const d of ELIGIBLE_SETTINGS.filter(x => x.type === 'enum')) {
+    const key = d.options.join('|')
+    groups.set(key, [...(groups.get(key) || []), d.id])
+  }
+  const short = (ids) => {
+    if (ids.length === 1) return ids[0]
+    const parts = ids.map(id => id.split('.'))
+    const same = parts.every(p => p.length === parts[0].length && p.every((x, i) => i === 1 || x === parts[0][i]))
+    return same ? parts[0].map((x, i) => (i === 1 ? ids.map(id => id.split('.')[1]).join('|') : x)).join('.') : ids.join(', ')
+  }
+  const enums = [...groups.entries()].map(([opts, ids]) => `${short(ids)}: ${opts}`)
+  return 'value = true/false for on/off settings (crosshair.mode and header.legendMode also take true/false); '
+    + 'a hex color (#2962ff) for color settings. '
     + `Allowed values — ${enums.join('; ')}. `
-    + 'Only these settings: for any other chart setting (colors, watermark opacity, volume style…) do NOT plan an op — '
+    + 'Only these settings: for any other chart setting (watermark opacity, volume style…) do NOT plan an op — '
     + 'say it is not Agent-enabled yet and where it lives in Chart Settings.'
 })()
 // "turn off the grid", "hide the watermark", "crosshair off", "show swing labels"
@@ -125,6 +141,40 @@ function fastSetting(text) {
   return null
 }
 
+// ── the date view (chart.goToDate) ──
+const DAY_MS = 86400000
+// Did the view arrive? The Time Navigator puts the LAST BAR ON OR BEFORE the date at the right
+// edge (clamped to the first bar before inception, and to the last bar for a future date).
+export function viewAt(meta, target) {
+  if (!meta || !Number.isFinite(meta.rightMs) || meta.loading) return false
+  if (Number.isFinite(meta.lastMs) && target >= meta.lastMs) return meta.rightMs === meta.lastMs
+  if (Number.isFinite(meta.firstMs) && target <= meta.firstMs && meta.fullyLoaded) return meta.rightMs === meta.firstMs
+  return meta.rightMs <= target + DAY_MS && target - meta.rightMs <= 45 * DAY_MS
+}
+const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/
+export function dateMs(s) {
+  const m = ISO_DAY.exec(String(s || '').trim())
+  if (!m) return null
+  const ms = Date.UTC(+m[1], +m[2] - 1, +m[3])
+  const d = new Date(ms)
+  return d.getUTCFullYear() === +m[1] && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3] ? ms : null
+}
+const fmtDay = (ms) => new Date(ms).toISOString().slice(0, 10)
+
+// ── saved chart templates (the member's own, pref chart_templates) ──
+let TEMPLATES = []
+export const templatesNow = () => TEMPLATES
+function readTemplates(host) {
+  const raw = host?.prefs?.read?.()?.chart_templates
+  try { const a = typeof raw === 'string' ? JSON.parse(raw) : raw; TEMPLATES = Array.isArray(a) ? a.filter(t => t && t.name && t.settings) : [] } catch { TEMPLATES = [] }
+  return TEMPLATES
+}
+const findTemplate = (name) => {
+  const n = String(name || '').trim().toLowerCase()
+  const hits = TEMPLATES.filter(t => String(t.name).trim().toLowerCase() === n)
+  return hits.length === 1 ? hits[0] : null
+}
+
 // ── target kind ─────────────────────────────────────────────────────────────
 // `host.charts` is the workspace binding (agent/host.js) over every mounted
 // ChartWidget's agent adapter.
@@ -132,20 +182,38 @@ export const chartKind = {
   name: 'chart',
   list: (host) => host?.charts?.list() || [],
   read: (host, ref) => host?.charts?.read(ref) || null,
-  stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol }),
+  stateOf: (snap) => ({ cs: snap.cs, tf: snap.tf, symbol: snap.symbol, goto: null }),
   patch(before, after) {
     const p = {}
     if (after.cs !== before.cs) p.settings = after.cs
     if (after.tf !== before.tf) p.tf = after.tf
     if (after.symbol !== before.symbol) p.symbol = after.symbol
+    if (after.goto != null) p.goto = after.goto
     return Object.keys(p).length ? p : null
   },
-  commit: (host, ref, patch) => host.charts.commit(ref, patch),
+  // Settings / timeframe / ticker in ONE write through the widget; a date jump (a VIEW) through
+  // the Time Navigator's own goToDate, then wait for the view to arrive (a jump past the loaded
+  // history loads it first) — the receipt only claims what the chart then shows.
+  async commit(host, ref, patch) {
+    const { goto, ...rest } = patch
+    let ok = true
+    if (Object.keys(rest).length) ok = host.charts.commit(ref, rest)
+    if (goto != null && ok) {
+      if (!host.charts.goTo?.(ref, goto)) return false
+      const t0 = Date.now()
+      while (Date.now() - t0 < 10000) {
+        if (viewAt(host.charts.read(ref)?.view, goto)) break
+        await new Promise(r => setTimeout(r, 150))
+      }
+    }
+    return ok
+  },
   landed(snap, patch) {
     if (!snap) return false
     if ('settings' in patch && !sameJson(snap.stored, patch.settings)) return false
     if ('tf' in patch && snap.tf !== patch.tf) return false
     if ('symbol' in patch && snap.symbol !== patch.symbol) return false
+    if ('goto' in patch && !viewAt(snap.view, patch.goto)) return false
     return true
   },
   undoPatch(item) {
@@ -153,6 +221,8 @@ export const chartKind = {
     if ('settings' in item.patch) p.settings = item.before.stored ?? null
     if ('tf' in item.patch) p.tf = item.before.tf
     if ('symbol' in item.patch) p.symbol = item.before.symbol
+    // Undo a date jump = jump back to where the right edge was.
+    if ('goto' in item.patch) { if (item.before.view?.rightMs == null) return null; p.goto = item.before.view.rightMs }
     return p
   },
   fingerprint: (snap) => JSON.stringify([snap.stored ?? null, snap.tf, snap.symbol]),
@@ -458,7 +528,7 @@ const CAPABILITIES = [
     // read back, and undoable like every other chart change. A UI prerequisite (thin bars only
     // on Bars/HLC) refuses exactly where the dialog hides the control.
     name: 'chart.setSetting',
-    summary: 'Change one chart display setting from UCT\'s approved list (grid, crosshair, legend, watermark, labels, markers, swing labels, prev-day lines, countdown, title, color mode, thin bars, inverted scale).',
+    summary: 'Change one chart display setting from UCT\'s approved list (grid and its color, crosshair and its color, scale text size/color, legend, watermark and its size/weight/lines, labels, event markers, swing labels and their options, prev-day lines and their style/width/color, countdown, title, color mode, thin bars, inverted scale).',
     hints: SETTING_HINTS,
     args: { type: 'object', properties: {
       setting: { type: 'string', enum: ELIGIBLE_SETTINGS.map(d => d.id) },
@@ -468,13 +538,13 @@ const CAPABILITIES = [
     check(st, { setting, value }) {
       const d = settingDescriptor(setting)
       if (!d || d.agent !== 'eligible') return `“${setting}” isn't a chart setting UCT Agent can change.`
-      const v = coerceSettingValue(d, value)
+      const v = coerceSettingValue(d, d.type === 'color' ? (normalizeColor(value) || value) : value)
       if (!v.ok) return `${d.label}: ${v.why}.`
       return settingUnavailable(d, st.cs)
     },
     apply(st, { setting, value }) {
       const d = settingDescriptor(setting)
-      const v = coerceSettingValue(d, value).value
+      const v = coerceSettingValue(d, d.type === 'color' ? (normalizeColor(value) || value) : value).value
       if (sameJson(settingValue(st.cs, d), v)) return st
       return { ...st, cs: withSetting(st.cs, d, v) }
     },
@@ -489,6 +559,129 @@ const CAPABILITIES = [
       return d ? `${d.label} is already ${settingWord(d, settingValue(a.cs, d))}` : 'Already set'
     },
   },
+  {
+    // ── chart.applyTemplate: the right-click "Chart template" flyout's own apply ──
+    // (ChartWidget.applyChartTemplate → paneRef.applySettings({...t.settings, preset:'custom'})):
+    // the WHOLE settings blob, indicators included — so it is always proposed.
+    name: 'chart.applyTemplate',
+    risk: 'confirm',
+    summary: "Apply one of the member's saved chart templates to ONE chart (right-click → Chart template). It replaces that chart's whole look, including its indicators, with the template's.",
+    hints: 'template = a name from chartTemplates, exactly. For several charts ("all my charts"), one op per chart.',
+    args: { type: 'object', properties: { template: { type: 'string' } }, required: ['template'], additionalProperties: false },
+    check: (st, { template }) => (findTemplate(template) ? null
+      : templatesNow().length ? `You have no chart template named “${template}” (you have: ${templatesNow().map(t => t.name).slice(0, 8).join(', ')}).` : 'You have no saved chart templates yet — save one in Chart Settings → Templates.'),
+    apply: (st, { template }) => ({ ...st, cs: JSON.parse(JSON.stringify({ ...findTemplate(template).settings, preset: 'custom' })) }),
+    describe: (b, a, { template }) => (sameJson(b.cs, a.cs) ? null : `Applied your chart template “${findTemplate(template)?.name || template}” (replaces this chart's look and indicators)`),
+    noop: () => 'The chart already looks exactly like that template',
+  },
+  {
+    // ── chart.resetDefaults: Chart Settings' own "Restore defaults" (CHART_DEFAULTS, whole blob) ──
+    name: 'chart.resetDefaults',
+    risk: 'confirm',
+    summary: "Restore ONE chart's settings to UCT's defaults (Chart Settings → Restore defaults): its look, markers and indicators all go back to the default set.",
+    hints: 'target = the chart. Always shown as a proposal first.',
+    args: { type: 'object', properties: {}, required: [], additionalProperties: false },
+    check: () => null,
+    apply: (st) => ({ ...st, cs: JSON.parse(JSON.stringify(CHART_DEFAULTS)) }),
+    describe: (b, a) => (sameJson(b.cs, a.cs) ? null : "Restored this chart's default settings (its look, markers and indicators)"),
+    noop: () => 'This chart already has the default settings',
+  },
+  {
+    // ── chart.goToDate: the Time Navigator's jump (a VIEW; nothing is saved) ──
+    name: 'chart.goToDate',
+    summary: 'Scroll ONE chart so a past date is at its right edge — exactly the Time Navigator date box. A view change only: every bar stays on the chart (it is not a replay), nothing is saved; Undo scrolls back.',
+    hints: 'date = YYYY-MM-DD. "As it looked on <date>" = this (say in the reply that later bars are still there, just scrolled off to the right).',
+    args: { type: 'object', properties: { date: { type: 'string' } }, required: ['date'], additionalProperties: false },
+    check(st, { date }) {
+      const ms = dateMs(date)
+      if (ms == null) return `“${date}” isn't a date — use YYYY-MM-DD.`
+      if (ms < Date.UTC(1900, 0, 1)) return 'That date is earlier than any chart history.'
+      if (ms > Date.now() + DAY_MS) return 'That date is in the future.'
+      return null
+    },
+    apply: (st, { date }) => ({ ...st, goto: dateMs(date) }),
+    describe: (b, a) => (a.goto != null ? `Moved the view to ${fmtDay(a.goto)} — the right edge shows the last bar on or before it (view only; later bars are still there)` : null),
+  },
+  {
+    // ── chart.compare: the Compare Symbols panel's add / remove / clear (comparisonSymbols) ──
+    // Entries are exactly the panel's: {sym, enabled:true, color: pickComparisonColor, scaleMode:'new'};
+    // clear also leaves "Group only", and (as the open panel does) a percent scale is switched off.
+    name: 'chart.compare',
+    summary: 'Overlay other symbols on ONE chart (Tools → Compare Symbols): add tickers, remove some, or clear all comparisons.',
+    hints: 'add = tickers to overlay, uppercase ([] for none); remove = tickers to take off ([] for none); clear = true to remove every comparison. "Compare NVDA against QQQ on this chart" = target the NVDA chart, add [QQQ].',
+    args: { type: 'object', properties: {
+      add: { type: 'array', items: { type: 'string' } }, remove: { type: 'array', items: { type: 'string' } }, clear: { type: 'boolean' },
+    }, required: ['add', 'remove', 'clear'], additionalProperties: false },
+    async prepare(ops) {
+      const syms = ops.flatMap(o => (o.args?.add || []).map(x => String(x || '').trim().toUpperCase())).filter(Boolean)
+      return syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
+    },
+    check(st, { add, remove, clear }, env) {
+      const list = (add || []).map(x => String(x || '').trim().toUpperCase())
+      if (!clear && !list.length && !(remove || []).length) return 'Which symbols should I compare?'
+      const odd = list.find(x => !/^[A-Z0-9.$:^_\-/]{1,24}$/.test(x))
+      if (odd) return `“${odd}” doesn't look like a ticker.`
+      if (list.includes(String(st.symbol || '').toUpperCase())) return `The chart already shows ${st.symbol} — compare it against a different symbol.`
+      const bad = list.find(x => env?.unknownSymbols?.has(x))
+      if (bad) return `UCT has no symbol “${bad}”.`
+      const cur = Array.isArray(st.cs?.comparisonSymbols) ? st.cs.comparisonSymbols.length : 0
+      if (cur + list.length > 10) return 'That would be more than 10 comparisons on one chart.'
+      return null
+    },
+    apply(st, { add, remove, clear }) {
+      let list = clear ? [] : (Array.isArray(st.cs?.comparisonSymbols) ? [...st.cs.comparisonSymbols] : [])
+      const drop = new Set((remove || []).map(x => String(x).trim().toUpperCase()))
+      list = list.filter(x => !drop.has(String(x.sym).toUpperCase()))
+      for (const raw of add || []) {
+        const sym = String(raw || '').trim().toUpperCase()
+        if (!sym || list.some(x => x.sym === sym)) continue
+        list = [...list, { sym, enabled: true, color: pickComparisonColor(list.length, list.map(x => x.color)), scaleMode: 'new' }]
+      }
+      const next = { ...st.cs, comparisonSymbols: list, preset: 'custom' }
+      if (clear) next.compareHideBase = false
+      if (list.length && next.percentScale) { next.percentScale = false; next.logScale = false }
+      return sameJson(next.comparisonSymbols, st.cs?.comparisonSymbols ?? []) && !clear ? st : { ...st, cs: next }
+    },
+    describe(b, a) {
+      const was = (b.cs?.comparisonSymbols || []).map(x => x.sym), now = (a.cs?.comparisonSymbols || []).map(x => x.sym)
+      if (sameJson(was, now)) return null
+      return now.length ? `Comparing ${a.symbol || 'this chart'} with ${now.join(', ')}` : 'Removed every comparison from this chart'
+    },
+    noop: () => 'Those comparisons are already there',
+  },
+  {
+    // ── chart.addCustomTimeframe: the timeframe menu's "Custom interval" (ChartPane.addCustomTf):
+    // the code joins header.customTimeframes and, when asked, the chart switches to it.
+    name: 'chart.addCustomTimeframe',
+    summary: 'Add a custom timeframe (e.g. 45 minutes, 2 hours, 3 days) to ONE chart\'s timeframe menu, exactly like the menu\'s Custom interval, and optionally switch the chart to it.',
+    hints: 'unit = minutes | hours | days | weeks | months; count = how many (45 for 45 minutes); switch = true to show the chart on it now (the usual case), false to only add it to the menu.',
+    args: { type: 'object', properties: {
+      unit: { type: 'string', enum: ['minutes', 'hours', 'days', 'weeks', 'months'] }, count: { type: 'integer' }, switch: { type: 'boolean' },
+    }, required: ['unit', 'count', 'switch'], additionalProperties: false },
+    check(st, { unit, count }) {
+      if (!Number.isInteger(count) || count < 1 || count > 999) return 'Give a whole number of units (1–999).'
+      const code = makeTfCode(unit, count)
+      if (!code || !isValidTf(code)) return `UCT can't chart a ${count}-${unit} timeframe.`
+      return null
+    },
+    apply(st, { unit, count, switch: sw }) {
+      const code = makeTfCode(unit, count)
+      const hdr = st.cs?.header || {}
+      const customs = Array.isArray(hdr.customTimeframes) ? hdr.customTimeframes : []
+      let next = st
+      if (!customs.includes(code)) next = { ...next, cs: { ...st.cs, header: { ...hdr, customTimeframes: [...customs, code] }, preset: 'custom' } }
+      if (sw && st.tf !== code) next = { ...next, tf: code }
+      return next
+    },
+    describe(b, a, { unit, count }) {
+      const code = makeTfCode(unit, count)
+      const added = !sameJson(b.cs?.header?.customTimeframes, a.cs?.header?.customTimeframes)
+      const switched = a.tf !== b.tf
+      if (!added && !switched) return null
+      return `${added ? `Added a ${tfShort(code)} timeframe` : `Switched to ${tfShort(code)}`}${added && switched ? ' and switched the chart to it' : ''}`
+    },
+    noop: () => 'That timeframe is already in the menu',
+  },
 ]
 
 let registered = false
@@ -499,6 +692,11 @@ export function registerChartCapabilities() {
   registerContextProvider({
     key: 'charts',
     build: (host, refFor) => chartKind.list(host).map(s => describeChart(s, refFor('chart', s.ref))),
+  })
+  registerContextProvider({
+    key: 'chartTemplates',
+    // The member's saved chart templates, by name (chart.applyTemplate).
+    build: (host) => { const t = readTemplates(host); return t.length ? t.slice(0, 30).map(x => x.name) : undefined },
   })
   registerContextProvider({
     key: 'otherWidgets',

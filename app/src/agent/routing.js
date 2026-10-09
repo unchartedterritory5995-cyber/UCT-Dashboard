@@ -24,7 +24,7 @@ export const ROUTING_VERSION = 1
 export const GROUPS = [
   { id: 'charts', title: 'Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume', domains: ['chart', 'volume'],
     words: [/\bcharts?\b/, /\b(timeframe|daily|weekly|monthly|intraday|\d+ ?(min|minute|hour|hr)s?|1h|4h)\b/, /\b(candles?|candlesticks?|hollow|bars|hlc|line chart|area chart|heikin)\b/,
-      /\b(log|logarithmic|percent|linear) scale\b|\bscale\b/, /\b(extended|pre-?market|post-?market|regular hours|rth)\b/, /\b(theme|colou?rs?|background|grid|crosshair|legend|watermark|labels?|markers?|countdown|swing|thin bars|invert)\b/,
+      /\b(log|logarithmic|percent|linear) scale\b|\bscale\b/, /\b(extended|pre-?market|post-?market|regular hours|rth)\b/, /\b(theme|colou?rs?|background|grid|crosshair|legend|watermark|labels?|markers?|countdown|swing|thin bars|invert|template|defaults?|tabs?|compare|versus|against|overlay|go to|scroll|as it looked|custom (time ?frame|interval))\b/,
       /\bvolume\b/] },
   { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link) and saved layouts (open, save, create, copy, rename, delete)', domains: ['widget', 'layout'],
     words: [/\bwidgets?\b/, /\blayouts?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(add|open|close|remove|delete)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
@@ -74,8 +74,12 @@ export function selectGroups(message, { pendingActions = [], recentActions = [] 
   const followUps = [...new Set([...pendingActions, ...recentActions].map(groupOfAction).filter(Boolean))]
   const matched = hits.size > 0
   // PRIORITY order (Batch 6): always-on, then follow-ups, then the message's own groups (catalog
-  // order). routeManifest packs them in this order under the per-request budget.
-  const priority = [...new Set([...always, ...followUps, ...GROUPS.map(g => g.id).filter(id => hits.has(id))])]
+  // order). routeManifest packs them in this order under the per-request budget. When NOTHING was
+  // recognised, every group is a candidate in catalog order (charts first — the page's own
+  // controls), so a catalog bigger than one request still sends as much as fits, not just the
+  // always-on group; the rest are named and the model can ask for them.
+  const own = matched ? GROUPS.map(g => g.id).filter(id => hits.has(id)) : GROUPS.map(g => g.id)
+  const priority = [...new Set([...always, ...followUps, ...own])]
   return { selected: GROUPS.map(g => g.id).filter(id => priority.includes(id)), priority, matched }
 }
 
@@ -95,8 +99,15 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
   if (!matched && !extra.length && manifest.length <= limit) return { manifest, routing: null }
   // A reroute's requested groups come straight after the always-on ones.
   const always = GROUPS.filter(g => g.always).map(g => g.id)
-  const order = [...new Set([...always, ...extra, ...priority])]
   const sizeOf = (id) => manifest.filter(c => groupOfAction(c.name) === id).length
+  // The message's OWN groups are packed smallest-first (after the always-on, reroute and follow-up
+  // groups, which keep their place): more of the distinct things a multi-part request names fit,
+  // and if one must wait it is the biggest, most often incidental, group.
+  const pinned = [...new Set([...always, ...extra, ...(opts.pendingActions || []), ...(opts.recentActions || [])].map(x => (x.includes?.('.') ? groupOfAction(x) : x)).filter(Boolean))]
+  const rest = priority.filter(id => !pinned.includes(id))
+  // (nothing recognised: catalog order — charts first — not size order)
+  const own = matched ? [...rest].sort((a, b) => sizeOf(a) - sizeOf(b)) : rest
+  const order = [...new Set([...pinned, ...own])]
   // PACK under the budget, in priority order. A group that would overflow is NOT sent — it is
   // named (unselected), so the model can ask for it; nothing is ever partially sent.
   const want = new Set()

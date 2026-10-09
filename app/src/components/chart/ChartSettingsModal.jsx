@@ -9,7 +9,7 @@ import { BAR_INFO_FIELDS, barInfoFieldsOf, withBarInfoField } from './barInfoFie
 import { WM_BOX_WIDTHS, DEFAULT_BOX_W } from './watermarkPrimitive'
 import { crosshairModeOf, CROSSHAIR_MODES } from './crosshairMode'
 // The option lists (and the meaning of every setting) live in the product-owned descriptor table.
-import { COLOR_MODES, TITLE_MODES, TEXT_SIZES, SWING_SENS, EVENT_MARKERS, PDL_LINES } from './chartSettingsDescriptors'
+import { COLOR_MODES, TITLE_MODES, TEXT_SIZES, SWING_SENS, EVENT_MARKERS, PDL_LINES, LINE_STYLES, PDL_WIDTHS, WM_SIZES, WM_WEIGHTS, WM_LINES } from './chartSettingsDescriptors'
 import {
   listAllIndicators, applyRowPatch, splitIndTarget, isIndTarget, overlayRowId,
   isSignTarget, splitSignTarget,
@@ -783,8 +783,6 @@ export default function ChartSettingsModal({
   const wmWeight = watermark.weight ?? 700
   const wmBoxW = watermark.boxW ?? DEFAULT_BOX_W
   // Watermark size scale options (× the base per-role font). Shown as percent.
-  const WM_SIZES = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4]
-  const WM_WEIGHTS = [[300, 'Thin'], [400, 'Light'], [500, 'Regular'], [600, 'Medium'], [700, 'Bold'], [800, 'Heavy']]
   // Header tab.
   const header = settings?.header || {}
   const setHeader = (patch) => setSetting({ header: { ...header, ...patch } })
@@ -817,7 +815,6 @@ export default function ChartSettingsModal({
   const pdl = settings?.prevDayLevels || {}
   const setPrevDay = (key, patch) => setSetting({ prevDayLevels: { ...pdl, [key]: { ...(pdl[key] || {}), ...patch } } })
   const PDL_COLOR_TARGET = { high: 'pdlHighColor', low: 'pdlLowColor', close: 'pdlCloseColor' }
-  const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
   // 'desk' = Desk-mention markers (spec 2026-08-11 §C). Opt-in like News: it carries
   // no default in CHART_DEFAULTS.markers, so an unset blob reads undefined → OFF.
   const curTextSize = settings.textSize ?? 11
@@ -1150,7 +1147,7 @@ export default function ChartSettingsModal({
                     {/* `logo` (default OFF) prefixes the ticker line with the company
                         logo; `interval` (default ON) appends ", <timeframe>" to it,
                         e.g. "ARM, 1D". The `true` 3rd element marks a default-OFF field. */}
-                    {[['logo', 'Logo', true], ['ticker', 'Ticker'], ['interval', 'Interval'], ['company', 'Company'], ['sector', 'Sector'], ['industry', 'Industry'], ['theme', 'Theme']].map(([key, label, defOff]) => {
+                    {WM_LINES.map(([key, label, defOff]) => {
                       const on = defOff ? !!wmLines[key] : wmLines[key] !== false
                       return (
                         <button
@@ -1518,7 +1515,7 @@ export default function ChartSettingsModal({
                           value={c.width || 1}
                           onChange={(e) => setPrevDay(key, { width: Number(e.target.value) })}
                         >
-                          {[1, 2, 3, 4].map((w) => <option key={w} value={w}>{w}px</option>)}
+                          {PDL_WIDTHS.map((w) => <option key={w} value={w}>{w}px</option>)}
                         </select>
                         {colorSwatch(PDL_COLOR_TARGET[key], `${label} color`)}
                       </>)}

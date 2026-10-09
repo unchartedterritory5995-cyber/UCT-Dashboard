@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mergeChartSettings, CHART_DEFAULTS } from './chartDefaults'
 import {
-  CHART_SETTING_DESCRIPTORS, ELIGIBLE_SETTINGS, classifySettingPath, coerceSettingValue,
+  CHART_SETTING_DESCRIPTORS, ELIGIBLE_SETTINGS, classifySettingPath, coerceSettingValue, settingDescriptor,
   settingUnavailable, withSetting, settingValue,
 } from './chartSettingsDescriptors'
 
@@ -30,19 +30,43 @@ describe('chart settings descriptors — the completeness rail', () => {
     for (const d of CHART_SETTING_DESCRIPTORS) expect(d.agent, d.id).toMatch(AGENT)
     for (const d of ELIGIBLE_SETTINGS) {
       expect(d.label && d.section && d.ui, d.id).toBeTruthy()
-      expect(['bool', 'enum'], d.id).toContain(d.type)
+      expect(['bool', 'enum', 'color'], d.id).toContain(d.type)
       if (d.type === 'enum') expect(d.options.length, d.id).toBeGreaterThan(1)
+      if (d.requires?.setting) expect(settingDescriptor(d.requires.setting), `${d.id} requires an unknown setting`).toBeTruthy()
     }
   })
 
+  // A chart where every prerequisite holds (Bars type; watermark, swing labels and prev-day lines on).
+  const ready = (d) => {
+    let b = mergeChartSettings({})
+    if (d.requires?.chartType) b = { ...b, chartType: d.requires.chartType[0] }
+    if (d.requires?.setting) {
+      const dep = settingDescriptor(d.requires.setting)
+      b = withSetting(b, dep, 'value' in d.requires ? d.requires.value : (dep.boolMap ? dep.boolMap.true : true))
+    }
+    return b
+  }
   it('a row never points at a key the allow-list would DROP (an eligible write must survive a reload)', () => {
     for (const d of ELIGIBLE_SETTINGS) {
-      const cur = settingValue(mergeChartSettings({}), d)
-      const want = d.type === 'bool' ? !cur : d.options.find(o => o !== cur)
-      const base = d.requires?.chartType ? { ...mergeChartSettings({}), chartType: d.requires.chartType[0] } : mergeChartSettings({})
+      const base = ready(d)
+      expect(settingUnavailable(d, base), d.id).toBe(null)
+      const cur = settingValue(base, d)
+      const want = d.type === 'bool' ? !cur : d.type === 'color' ? (cur === '#123456' ? '#654321' : '#123456') : d.options.find(o => o !== cur)
       const written = withSetting(base, d, want)
       expect(settingValue(mergeChartSettings(written), d), d.id).toEqual(want)
     }
+  })
+  it('Batch 6: a setting whose control the dialog hides behind another setting refuses until it holds', () => {
+    const cs = mergeChartSettings({})
+    expect(settingUnavailable(settingDescriptor('swingLabels.tintByType'), cs)).toMatch(/swing labels on first/)
+    expect(settingUnavailable(settingDescriptor('watermark.sizeScale'), withSetting(cs, settingDescriptor('watermark.visible'), false))).toMatch(/watermark on first/)
+    expect(settingUnavailable(settingDescriptor('crosshair.color'), withSetting(cs, settingDescriptor('crosshair.mode'), 'off'))).toMatch(/crosshair is off/)
+    expect(settingUnavailable(settingDescriptor('crosshair.color'), cs)).toBe(null)
+    expect(coerceSettingValue(settingDescriptor('grid.color'), 'ABC')).toEqual({ ok: true, value: '#aabbcc' })
+    expect(coerceSettingValue(settingDescriptor('grid.color'), 'blue').ok).toBe(false)
+    // a default-ON watermark line reads ON when absent, like the dialog shows it
+    expect(settingValue(cs, settingDescriptor('watermark.lines.interval'))).toBe(true)
+    expect(settingValue(cs, settingDescriptor('watermark.lines.logo'))).toBe(false)
   })
 })
 

@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { registerBuiltins } from './builtins'
-import { manifestFor } from './capabilities'
+import { manifestFor, MANIFEST_CONTRACT } from './capabilities'
 import { selectGroups, routeManifest, groupOfAction, GROUPS } from './routing'
 import { fastParse } from './fastPath'
 import AgentPanel from './AgentPanel'
@@ -103,7 +103,7 @@ const CASES = [
 
 describe('routing — offline accuracy over the benchmark messages', () => {
   const rows = CASES.map(([msg, need]) => {
-    const r = routeManifest(FULL, msg)
+    const r = routeManifest(FULL, msg, { limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold })
     const sent = new Set(r.manifest.map(c => groupOfAction(c.name)))
     return { msg, ok: need.every(g => sent.has(g)), full: r.routing === null, caps: r.manifest.length }
   })
