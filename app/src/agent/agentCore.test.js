@@ -49,11 +49,12 @@ const op = (action, args, target = 'c1') => ({ action, target, args })
 const plan = (host, ops, env = {}) => planOps(collectTargets(host, ['chart']), ops, env, CTX)
 
 describe('capability registry', () => {
-  it('chart capabilities are registered through the seam, none indicator-owned', () => {
+  it('chart capabilities are registered through the seam, none indicator-owned (M1: only indicator.list / indicator.openCreate, no writer)', () => {
     const names = allCapabilityNames()
     expect(names).toEqual(expect.arrayContaining(['chart.setType', 'chart.setTimeframe', 'chart.setSymbol', 'chart.setSession',
       'chart.applyTheme', 'chart.setBackground', 'chart.setCandleColors', 'volume.setState', 'chart.setScale']))
-    for (const n of names) expect(n).not.toMatch(/^(indicator|pane)\./)
+    for (const n of names) expect(n).not.toMatch(/^pane\./)
+    expect(names.filter(n => n.startsWith('indicator.')).sort()).toEqual(['indicator.list', 'indicator.openCreate'])
   })
   it('the manifest is metadata only, gated by surface', () => {
     const m = manifestFor(CTX)

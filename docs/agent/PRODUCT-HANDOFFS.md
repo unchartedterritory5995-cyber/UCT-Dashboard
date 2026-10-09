@@ -75,6 +75,8 @@ Evidence labels:
 
 ## 9. Indicator integration — aligned with the Indicator team's plan [V]
 
+> **Update 2026-10-09:** M1 is built locally (`feat/uct-agent-m1`): `indicator.list` reads only `instancesOf`; `indicator.openCreate` calls the ChartPane opener with `seedFrom(request)` and is offered only under `createIndicatorAccess`. The table below is the pre-M1 snapshot. M2/M3: `docs/agent/M2-M3-PROPOSALS.md`.
+
 The Indicator team's `docs/indicators/AGENT-INTEGRATION-HANDOFF.md` (2026-10-09) is the plan of record; this section is the Agent side of it. **Nothing indicator-related is implemented in the Agent** (a read-only prototype written overnight was reverted because `app/src/agent/README.md` says the registry has no `indicator.*` capabilities until the Indicator project exposes them).
 
 **Agreed architecture (theirs, restated):** the Agent owns conversation, routing, approvals and orchestration; Indicator Intelligence owns formula semantics, validation, authoring and definitions. The Agent never saves a definition, never calls `/converse`, and writes instances only through `engine/instanceControls`.

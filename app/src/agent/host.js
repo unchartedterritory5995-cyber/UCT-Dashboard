@@ -72,6 +72,16 @@ export function buildChartSource({ chartApiById, getWidgets }) {
       const e = entries().find(x => x.ref === ref)
       return e ? e.api.agent.commit(patch) : false
     },
+    // INDICATORS M1 — the chart's own Create Indicator door (ChartPane handle, Indicators-owned):
+    // the button's access answer, and the opener's STRUCTURED result. The Agent adds nothing.
+    canCreateIndicator: (ref) => {
+      const e = entries().find(x => x.ref === ref)
+      try { return !!e?.api.agent.canCreateIndicator?.() } catch { return false }
+    },
+    openCreateIndicator: (ref, opts) => {
+      const e = entries().find(x => x.ref === ref)
+      return e?.api.agent.openCreateIndicator ? e.api.agent.openCreateIndicator(opts) : null
+    },
     // The Time Navigator's jump on this chart (a view; see ChartWidget's adapter).
     goTo: (ref, ms) => {
       const e = entries().find(x => x.ref === ref)

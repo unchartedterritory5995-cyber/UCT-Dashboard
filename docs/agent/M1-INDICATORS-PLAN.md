@@ -1,6 +1,8 @@
 # UCT Agent — Indicators M1 integration plan (Agent side)
 
-> **Status: PLANNED — not started.** Plan of record: `docs/indicators/AGENT-INTEGRATION-CONTRACT.md` (Indicators-owned) and `docs/indicators/AGENT-INTEGRATION-HANDOFF.md`. This file is only the Agent team's half.
+> **Status: BUILT + ACCEPTED LOCALLY 2026-10-09 (branch `feat/uct-agent-m1`, unreleased).** Start gate met: interfaces on master at `83ff279b3d` (feature `4fa65141a2`), live in production, Indicators confirmed them (cross-session message 2026-10-09). As built: `agentSeams.js` exports no `createIndicatorAvailable` — access comes from Indicators' `createIndicatorAccess` / `useCreateIndicatorAccess` (`studio/createIndicatorFlag.js`), the button's own rule. Receipts add one opener case the table below lacked: already open on the same target → "didn't type over what's in the box". Next: `docs/agent/M2-M3-PROPOSALS.md`.
+>
+> *Original status:* PLANNED — not started. Plan of record: `docs/indicators/AGENT-INTEGRATION-CONTRACT.md` (Indicators-owned) and `docs/indicators/AGENT-INTEGRATION-HANDOFF.md`. This file is only the Agent team's half.
 >
 > **Start gate (owner, 2026-10-09):** M1 begins only when ALL hold:
 > 1. `app/src/components/chart/builder/agentSeams.js` (`instancesOf`, `seedFrom`, `SEED_MAX`, `createIndicatorAvailable`) and the opener (`openCreateIndicatorFor` / `canCreateIndicator` on the toolbar → StockChart → ChartPane handle) are **merged into master**;

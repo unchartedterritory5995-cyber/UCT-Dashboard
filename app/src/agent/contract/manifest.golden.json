@@ -2537,6 +2537,70 @@
    "query": false
   },
   {
+   "name": "indicator.list",
+   "domain": "indicator",
+   "target": "indicators",
+   "summary": "List the indicators on ONE chart (as its legend names them): built-in or custom, shown or hidden, on the price chart or in its own pane. Read-only — answers \"what indicators are on my chart\", \"is RSI on\", \"which are hidden\".",
+   "hints": "target = the indicators entry for the chart the member means (with several charts and no chart named, ask which). filter: hidden | shown | null (all).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "filter": {
+      "type": [
+       "string",
+       "null"
+      ],
+      "enum": [
+       "hidden",
+       "shown",
+       null
+      ]
+     }
+    },
+    "required": [
+     "filter"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true
+  },
+  {
+   "name": "indicator.openCreate",
+   "domain": "indicator",
+   "target": "indicators",
+   "summary": "Open Create Indicator (the indicator builder) on one chart, with the member's indicator request typed into its box for them to review and send. It does NOT build, preview, add or save anything — the member presses Send there. With defId, opens Modify on one of their own saved custom indicators on that chart.",
+   "hints": "target = the indicators entry for the chart. request = the member's description of the indicator, in their words (≤ 600 characters), or null to just open it. defId = a custom indicator's defId from that chart's list (only to modify it), else null — never a name. Use for \"open Create Indicator\", \"help me build/write an indicator that…\". Adding, removing or changing indicators directly is not available yet.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "request": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "defId": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "request",
+     "defId"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false
+  },
+  {
    "name": "agent.capabilities",
    "domain": "agent",
    "target": "about",

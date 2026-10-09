@@ -10,7 +10,7 @@ import { fastParse } from './fastPath'
 import AgentPanel from './AgentPanel'
 
 registerBuiltins()
-const FULL = manifestFor({ surface: 'charts' })
+const FULL = manifestFor({ surface: 'charts', createIndicator: true })   // the widest member manifest (M1: openCreate needs access)
 
 describe('routing — selection', () => {
   it('every registered capability belongs to exactly one routing group (a new domain fails here)', () => {
@@ -19,9 +19,13 @@ describe('routing — selection', () => {
     expect(new Set(ids).size).toBe(ids.length)
   })
   it('nothing recognised → the FULL manifest (the pre-routing behaviour), never a guess', () => {
-    const r = routeManifest(FULL, 'What is the difference between an EMA and an SMA?')
+    const r = routeManifest(FULL, 'What is a pullback, in plain words?')
     expect(r.routing).toBe(null)
     expect(r.manifest).toBe(FULL)
+  })
+  it('M1: an indicator word (EMA, SMA, RSI…) is recognised now — the indicators group (agreed with Indicators), the model may still just answer', () => {
+    const r = routeManifest(FULL, 'What is the difference between an EMA and an SMA?')
+    expect(r.routing.selected).toEqual(['indicators', 'agent'])
   })
   it('a recognised request gets its groups plus the always-on agent group, and names the rest', () => {
     const r = routeManifest(FULL, 'Rename my Growth watchlist to Leaders')
@@ -196,6 +200,6 @@ describe('release audit: every registered action is reachable through routing', 
       for (const n of mine) covered.add(n)
     }
     expect(FULL.filter(c => !covered.has(c.name)).map(c => c.name)).toEqual([])
-    expect(FULL.length).toBe(77)
+    expect(FULL.length).toBe(79)
   })
 })

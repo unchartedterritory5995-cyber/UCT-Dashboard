@@ -28,7 +28,7 @@ const ROOT = path.resolve(HERE, '..', '..')
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8')
 
 registerBuiltins()
-const manifest = manifestFor({ surface: 'charts' })
+const manifest = manifestFor({ surface: 'charts', createIndicator: true })
 const enumOf = (cap, arg) => getCapability(cap).args.properties[arg].enum.filter(v => v !== null)
 
 describe('golden manifest (the JS ⇄ Python contract)', () => {

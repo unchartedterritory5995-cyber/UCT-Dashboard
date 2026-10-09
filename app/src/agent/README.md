@@ -84,11 +84,13 @@ no change.
 - No DOM/browser control, no runtime discovery of internal state.
 - `available(ctx)` must reflect what this member may do manually; server routes
   behind each writer remain the authority.
-- Indicators are owned by Indicator Intelligence; this registry has no
-  `indicator.*` or pane capabilities until that project exposes them. The plan of
-  record is `docs/indicators/AGENT-INTEGRATION-HANDOFF.md` (M1 read + hand-off,
-  M2 add/remove through `instanceControls`), waiting on their step 1
-  (`instancesOf`, `instanceFingerprint`); see `docs/agent/PRODUCT-HANDOFFS.md` §9.
+- Indicators are owned by Indicator Intelligence. The registry has exactly the
+  two M1 capabilities they exposed seams for (`capabilities/indicators.js`):
+  `indicator.list` (reads `agentSeams.instancesOf` only) and `indicator.openCreate`
+  (the ChartPane opener with `seedFrom(request)`; offered only under
+  `createIndicatorAccess`; never sends, never saves). No indicator WRITER and no
+  pane capability until M2 (`docs/agent/M2-M3-PROPOSALS.md`); plan of record
+  `docs/indicators/AGENT-INTEGRATION-HANDOFF.md` §11–13.
 - Drawings go through the product's drawing store only (`drawingsStore` writers,
   by symbol + id); Undo is by id, never the store's shared undo; receipts wait for
   the server's `tracings_doc`. Anchored tools wait on PRODUCT-HANDOFFS §11.
