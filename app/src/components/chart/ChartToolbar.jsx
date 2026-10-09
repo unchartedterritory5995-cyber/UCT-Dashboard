@@ -50,7 +50,8 @@ const BuilderSheet = lazy(() => import('./builder/BuilderSheet'))
 // ⭐ P2 Track B — lazy for the same reason: it pulls the authoring engine.
 const CreateIndicatorPanel = lazy(() => import('./builder/studio/CreateIndicatorPanel'))
 const SaveReceipt = lazy(() => import('./builder/studio/SaveReceipt'))
-import { mintScope, chartScope, createKey, editKey } from './builder/authoring/conversationSessions'
+import { mintScope, chartScope, createKey, editKey, draftWillRestore } from './builder/authoring/conversationSessions'
+import { seedFrom } from './builder/agentSeams'
 import { useUserDefinitions } from '../../hooks/useUserDefinitions'
 import { createCustomCopy } from './builder/definitionActions'
 import { useCreateIndicatorAccess } from './builder/studio/createIndicatorFlag'
@@ -1136,6 +1137,9 @@ function ChartToolbar({
   // ⭐ P2 Track B — CREATE INDICATOR. Mounted only while open: closing it IS the
   // end of the conversation, and its unmount is what tears the preview down.
   const [createOpen, setCreateOpen] = useState(false)
+  // ⭐ AGENT M1 — a request to PREFILL into the studio's box (never sent); consumed at mount
+  const [createSeed, setCreateSeed] = useState(null)
+  // a seed lives for ONE opening: every other door clears it as it opens the studio
   // ⭐ PHASE 4 — UNIFIED EDITING. The STORE's row the studio / builder was opened on
   // (null = a new indicator). Held in state (a stable identity: the builder's
   // `editRow` contract), resolved from the member's own definitions by id.
@@ -1250,13 +1254,47 @@ function ChartToolbar({
     // An unknown id refuses (false) rather than opening a blank studio.
     openCreateIndicator: (opts = null) => {
       if (!canManageIndicators || typeof onStudioPreview !== 'function') return false
+      // ⭐ AGENT M1 — the opener checks access itself (it used to be only the button's
+      // job): the same answer the studio and the server's `/converse` gate give.
+      if (!canModifyWithIntelligence) return false
       const row = rowFor(opts)
       if (opts && (opts.defId || opts.row) && !row) return false
       setLibraryOpen(false)
       setBuilderOpen(false)
+      setCreateSeed(null)
       setCreateEditRow(row)
       setCreateOpen(true)
       return true
+    },
+    // ⭐ AGENT M1 — the same door for UCT Agent, with a STRUCTURED answer and an
+    // optional prefilled request. `seed` is placed in the input box only: no request is
+    // made, nothing is saved or added — the member reads, edits and presses Send. A draft
+    // already kept for this chart (or this definition) WINS: it is restored as today and
+    // the seed is not applied. Already open → nothing is typed over what is there.
+    // @returns {{ok, reason?: 'access'|'readonly'|'unknown-definition'|'unavailable',
+    //            prefilled, draft, editing}}
+    openCreateIndicatorFor: (opts = null) => {
+      const no = (reason) => ({ ok: false, reason, prefilled: false, draft: false, editing: false })
+      if (!canManageIndicators || typeof onStudioPreview !== 'function') return no('readonly')
+      if (!canModifyWithIntelligence) return no('access')
+      const wantsDef = !!(opts && opts.defId)
+      const row = wantsDef ? rowFor({ defId: opts.defId }) : null
+      if (wantsDef && !row) return no('unknown-definition')
+      const editing = !!row
+      const seed = seedFrom(opts && opts.seed)
+      const sameOpen = createOpen && ((createEditRow && createEditRow.def_id) || null) === (row ? row.def_id : null)
+      const key = row ? editKey(row.def_id) : createKey(studioScope)
+      const draft = !sameOpen && draftWillRestore(key, row ? { defId: row.def_id, version: Number(row.version) || 1 } : null)
+      const prefilled = !!seed && !sameOpen && !draft
+      setLibraryOpen(false)
+      setBuilderOpen(false)
+      if (!sameOpen) {
+        // a different definition (or create ↔ edit) re-mounts the panel (its `key`)
+        setCreateSeed(prefilled ? seed : null)
+        setCreateEditRow(row)
+        setCreateOpen(true)
+      }
+      return { ok: true, prefilled, draft, editing }
     },
     // ⭐ PHASE 4 — "Edit formula": the builder opened on the definition (its own
     // `editRow` door). Returns false on a read-only mount or an unknown id.
@@ -1283,6 +1321,7 @@ function ChartToolbar({
       setLibraryOpen(false)
       if (canModifyWithIntelligence && typeof onStudioPreview === 'function') {
         setBuilderOpen(false)
+        setCreateSeed(null)
         setCreateEditRow(res.row)
         setCreateOpen(true)
       } else {
@@ -1308,7 +1347,7 @@ function ChartToolbar({
       setAlertPopoverOpen(true)
       return true
     },
-  }), [canManageIndicators, currentSym, openBuilder, onStudioPreview, rowFor, chartSettings, onUpdateSettings, canModifyWithIntelligence])
+  }), [canManageIndicators, currentSym, openBuilder, onStudioPreview, rowFor, chartSettings, onUpdateSettings, canModifyWithIntelligence, createOpen, createEditRow, studioScope])
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings
@@ -1810,7 +1849,8 @@ function ChartToolbar({
               key={createEditRow ? `edit:${createEditRow.def_id}` : 'create'}
               editRow={createEditRow}
               onEditFormula={createEditRow ? () => { const r = createEditRow; setCreateOpen(false); setCreateEditRow(null); setBuilderEditRow(r); setBuilderMode(null); setBuilderEverOpened(true); setBuilderOpen(true) } : null}
-              onClose={(res) => { setCreateOpen(false); setCreateEditRow(null); if (res && res.receipt) setSaveReceipt(res.receipt) }}
+              onClose={(res) => { setCreateOpen(false); setCreateEditRow(null); setCreateSeed(null); if (res && res.receipt) setSaveReceipt(res.receipt) }}
+              seed={createSeed}
               settings={cs}
               onChange={onUpdateSettings}
               sym={currentSym}

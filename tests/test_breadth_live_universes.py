@@ -330,3 +330,30 @@ def test_no_state_build_inside_the_boot_grace(market, monkeypatch):
     p = blu.compute()
     assert p["ok"] is False and "boot grace" in p["reason"]
     assert blu._state.get("value") is None
+
+
+def test_last_good_payload_is_carried_through_a_restart(tmp_path, monkeypatch):
+    """A fresh process inside its boot grace serves the previous process's good payload."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from api.services import breadth_live as bl
+    monkeypatch.setattr(blu, "LAST_GOOD_PATH", str(tmp_path / "last.json"))
+    now_et = datetime(2026, 10, 9, 9, 52, tzinfo=ZoneInfo("America/New_York"))
+    monkeypatch.setattr(bl, "_now_et", lambda: now_et)
+    good = {"ok": True, "as_of": "2026-10-09T09:40:00-04:00", "L": "2026-10-07",
+            "universes": {"nasdaq": {"ok": True, "rows": [{"date": "2026-10-08", "final": True,
+                                                           "metrics": {"advancing": 1}}]}}}
+    blu._last_good.clear()
+    monkeypatch.setattr(blu, "compute", lambda force=False: good)
+    blu.refresh()
+    blu._last_good.clear()                              # a new process: memory empty, disk kept
+    monkeypatch.setattr(blu, "compute", lambda force=False: {"ok": False, "reason": "boot grace"})
+    p = blu.refresh()
+    assert p["carried"] and p["universes"]["nasdaq"]["rows"][0]["date"] == "2026-10-08"
+    assert p["carried_reason"] == "boot grace"
+    # the next ET day never serves yesterday's carried payload
+    blu._last_good.clear()
+    monkeypatch.setattr(bl, "_now_et", lambda: datetime(2026, 10, 10, 9, 52, tzinfo=ZoneInfo("America/New_York")))
+    assert blu.refresh() == {"ok": False, "reason": "boot grace"}
+    blu._last_good.clear()
+    blu._payload.clear()

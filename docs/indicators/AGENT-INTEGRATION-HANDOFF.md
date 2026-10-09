@@ -160,3 +160,95 @@ change; with the studio open an Agent Apply never persists `u_studio-preview`; m
 - Edit drafts are keyed by `defId` only: Modify of one definition from two charts in one tab
   shares a draft.
 - The 40/h converse window and the conversation ledger are per-process (not durable).
+
+---
+
+## 11. AGREED M1 INTERFACES (implemented — Indicators, branch `feat/indicator-agent-m1`)
+
+Agreed with the UCT Agent team on 2026-10-09 (their reply confirmed every shape below). This section
+supersedes §2/§8 of `AGENT-INTEGRATION-CONTRACT.md` where they differ. The Agent team builds
+`indicator.list`, `indicator.openCreate`, the `indicators` routing group and the two `ChartWidget`
+adapter lines; Indicators builds nothing on the Agent side.
+
+**`app/src/components/chart/builder/agentSeams.js`** (pure; no React, no network, no writes)
+
+| Export | Contract |
+|---|---|
+| `instancesOf(cs, registry) → IndicatorSummary[]` | The indicators on ONE chart in stored order. `{instanceId, defId, name, kind: 'builtin'\|'custom', version, hidden, enabled (= !hidden), placement: 'price'\|'pane'}`; plus one `{instanceId:'volume', setting:true}` row for the Volume pane (a chart setting — Agent's `volume.setState` owns it). `name` = `instanceLabel` (the legend's own name). Never the live preview (`u_studio-preview`), a removed tombstone, or an instance whose definition this browser cannot resolve. The classic averages (`ovl:<i>`) are adopted first (`maAdoption`). |
+| `instanceFingerprint(cs) → string` | `ii:<count>:<fnv1a>` over ONLY `indicatorInstances` (preview excluded, tombstones kept, canonical key order). Unchanged by theme/timeframe/scale; changes on add/remove/hide/re-parameterise. For M2's instance-scoped Undo. |
+| `seedFrom(text) → string\|null`, `SEED_MAX = 600` | Control characters stripped, whitespace folded, trimmed, capped at a word boundary. |
+| `INDICATOR_OWNED_TOP_KEYS` | The top-level chart-settings keys Indicators owns; Agent's `OWNED_TOP_KEYS` is held equal by a rail. |
+
+**Opener** — `ChartToolbar` → `StockChart` toolbar API → **`ChartPane` imperative handle** (what the
+`chartApiById` entry's `paneRef` reaches):
+
+- `openCreateIndicatorFor({defId?, seed?}) → {ok, reason?: 'access'|'readonly'|'unknown-definition'|'unavailable', prefilled, draft, editing}`
+  - checks access itself (admin + `uct.feature.createIndicator`, or the server cohort — the button's own answer);
+  - `defId` opens Modify on that saved definition (unknown/foreign → `unknown-definition`, nothing opens);
+  - `seed` is placed in the input box only — **no `/converse` request, nothing saved or added**;
+  - a draft kept for that chart (or that definition) **wins**: restored as today, seed not applied (`draft: true`);
+  - already open on the same target: nothing is typed over the box (`prefilled: false`);
+  - Chart Settings closes first (one surface holding Escape).
+- `canCreateIndicator() → boolean` — the button's own access answer (use in the capability's `check`).
+- The existing `openCreateIndicator(opts) → boolean` is unchanged for its callers and now also checks access.
+
+**Save refusals** — `saveUserDefinition` (`hooks/useUserDefinitions.js`) now also returns `status`,
+`refusal {gate, guard, plot, mode, errors?}` on a 422 and `conflictInfo {defId, expectedVersion,
+currentVersion}` on a 409 (`conflict: true` unchanged); `storeConversation` carries both through.
+Additive: `ok` / `error` / `conflict` are exactly as before.
+
+**Routing (agreed):** group `indicators` (2 actions; group cap 40), words: `\bindicators?\b`,
+`\b(rsi|macd|ema|sma|vwap|atr|bollinger|keltner|stochastic|supertrend|regression|correlation|momentum|oscillator|histogram)\b`,
+`\b(build|make|create|write|code)\b.*\b(indicator|study|signal|formula)\b`,
+`\b(when|whenever|if)\b.*\b(cross(es)?|above|below)\b`. A message matching an indicators word AND a
+charts word routes BOTH groups; the hints decide ("colour the candles by trend / when RSI > 70" =
+indicators; "colour the candles green" = charts; "compare AAPL to SPY" and "markers" alone = charts).
+Budget: 74 → 76 registered (cap 200); max routed request unchanged at 55 (packing is whole-group).
+
+**Not in M1:** `listDrafts()` (named in `docs/agent/PRODUCT-HANDOFFS.md` §9) — the opener's `draft`
+answer covers M1; revisit with M2's hand-off work.
+
+## 12. REVIEW: the Agent's `controlDoorCensus` `BULK_BLOB_SITES` entry — ACCEPTED
+
+Entry: `app/src/agent/capabilities/chart.js` (`chart.applyTemplate` / `chart.resetDefaults`, commit
+`7a8106dbf1`). Checked independently on 2026-10-09:
+
+- `keepOwned(next, prev)` copies every `OWNED_TOP_KEYS` key from the chart's current blob (deep copy,
+  tombstones included) and deletes it from the template when the chart had none — so a whole-blob look
+  write can neither stamp nor drop indicator state.
+- `OWNED_TOP_KEYS` = `indicatorInstances, indicators, overlays, paneOrder, paneSizes, paneSeriesOrder,
+  volumeOverlayIndicators, infoValues` — every indicator-related stored key in `chartDefaults` (searched:
+  `paneHeights`, `indicatorAlerts`, `instanceOrder` are runtime names, not stored keys).
+- The writes are always proposed first; the preview cannot leak (it lives only in StockChart's view).
+- `agent/agentBatch6.test.jsx` asserts it; it passes on the branch.
+- **Added by Indicators:** `INDICATOR_OWNED_TOP_KEYS` (owner-declared) and a rail holding the Agent's
+  list equal to it, so a key Indicators adds later cannot be silently omitted from `keepOwned`.
+
+Verdict: the entry complies with the ownership rules; no change to it.
+
+## 13. M2 APPROVAL CRITERIA (gate owned by Indicators)
+
+M2 = the Agent adds or removes a saved or built-in indicator on one chart. Indicators approves it only
+when ALL of these hold, each with a failing-first test:
+
+1. **Canonical writers only.** Adds go through `engine/instanceControls.addInstance`, removes through
+   `removeInstance` — the same calls the Indicator Library dialog makes — and the result is
+   byte-identical to the dialog's for the same input. Indicators registers the Agent's file in the
+   door-EIGHT ledger of `controlDoorCensus.test.js`; no other writer of `indicatorInstances` is allowed.
+2. **Permissions.** Paid + admin-dark Agent gate, AND the chart is writable (`canManageIndicators`);
+   a custom `defId` must be the member's own row (`userDefinitionRows`) or a built-in; a foreign or
+   unknown id is refused before any proposal. No cohort / budget change.
+3. **Persistence.** The write lands through the chart's one persist path (`ChartWidget` `.agent.commit`
+   → `onOptsChange`), `host.persist()` ACKs before Undo is offered, and the stored blob never contains
+   `u_studio-preview` (asserted with the studio open).
+4. **Stale-state protection.** The proposal pins `instanceFingerprint(cs)` (and the definition
+   `version` for a custom add); Apply re-reads and refuses on a mismatch; `boardInSync` applies.
+5. **Read-back.** After Apply, `instancesOf` must show exactly the intended change (one instance added
+   or one removed, by `instanceId`), or the receipt says it did not land.
+6. **Undo.** Exact: add → `removeInstance` of that `instanceId`; remove → the removed instance restored
+   byte-identically at its position (tombstone revived, not a new id). Undo refuses when that instance
+   changed since; it does NOT refuse after an unrelated chart change (theme, timeframe, scale).
+7. **Never saves, never alerts.** No `/api/user-definitions` write, no `/converse`, no alert arm; Main
+   Trading untouched in acceptance (fingerprint before/after).
+8. **Regression.** Library add/remove, Create Indicator, Modify, legend chips and the Indicators
+   suites unchanged; the agent manifest rails and golden updated.

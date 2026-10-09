@@ -261,3 +261,13 @@ def test_all_issues_population_and_switch(tmpdata, monkeypatch):
     assert nhi.values("nyse", "2026-10-08")["new_52w_lows"] == 265
     assert nhi.values("uct", "2026-10-08") is None
     assert nhi.token() != t_common and nhi.token().endswith("-all")
+
+
+def test_override_history_adds_sessions_settled_after_the_stored_tail(tmpdata, monkeypatch):
+    monkeypatch.setenv("BREADTH_NHNL_BASIS", "intraday")
+    _install(tmpdata, {"nyse": {"2026-10-07": [16, 117, 1, 1, 1900, 1800, 1, 1],
+                                "2026-10-08": [31, 112, 1, 1, 1900, 1800, 1, 1]}})
+    hist = {"2026-10-07": {"o": 1, "h": 2, "l": 0, "c": 22}}
+    out = nhi.override_history("net_new_high_low", "nyse", hist)
+    assert out["2026-10-07"]["c"] == -101 and out["2026-10-08"]["c"] == -81
+    assert nhi.override_history("advancing", "nyse", hist) is hist      # other metrics: unchanged

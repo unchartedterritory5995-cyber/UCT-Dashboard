@@ -1,0 +1,81 @@
+/* CHK: the pre-trade check (wave 8, lane F). App tokens only; the terminal wears the member's
+   theme. Tables, chips and notes come from myNamesPanel.module.css, the form from
+   sizePanel.module.css. Pass and fail ink is --success-ink / --danger-ink, always beside a word. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--border);
+  min-width: 0;
+}
+
+.sectionTitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+.checks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-xs) var(--space-sm);
+}
+
+.verdict {
+  min-width: 3.5em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.pass { color: var(--success-ink); }
+.fail { color: var(--danger-ink); }
+.unknown { color: var(--text-muted); }
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-md);
+  align-items: center;
+}
+
+.rules {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px var(--space-sm);
+}
+
+.rules dt {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.rules dd {
+  margin: 0;
+}
+
+/* TOUCH TIER (phone + tablet): finger targets. */
+@media (max-width: 1024px) {
+  .links :where(button) {
+    min-height: var(--tap-min);
+  }
+
+  .rules {
+    grid-template-columns: 1fr;
+  }
+}

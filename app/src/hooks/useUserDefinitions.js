@@ -199,8 +199,16 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
     return { ok: true, row }
   }
   let detail = ''
+  let refusal = null
+  let conflictInfo = null
   try {
     const body = await r.json()
+    // ⭐ AGENT M1 / M2 PREP — THE SERVER'S STRUCTURED ANSWER, PASSED THROUGH (additive).
+    // A 422 carries `refusal {gate, plot, mode, guard, errors?}` and a 409 carries
+    // `conflict {def_id, expected_version, current_version}`; until now only `detail`
+    // survived, so no caller could branch on WHICH gate refused. Plain data only.
+    refusal = structuredRefusal(body && body.refusal)
+    conflictInfo = structuredConflict(body && body.conflict)
     // ⚠️ `detail` IS ONLY USED WHEN IT IS A STRING. FastAPI answers a
     // schema-invalid body with `detail: [{loc, msg, type}, …]`; interpolating
     // that shows the user "[object Object]", which is worse than the silence.
@@ -218,7 +226,31 @@ export async function saveUserDefinition(definition, defId = null, telemetry = n
     error: detail || `The server refused this formula (${r.status}).`,
     // ⭐ PHASE 4 — a stale edit: nothing was saved; the editor says so in its words.
     ...(r.status === 409 ? { conflict: true } : {}),
+    status: r.status,
+    ...(conflictInfo ? { conflictInfo } : {}),
+    ...(refusal ? { refusal } : {}),
   }
+}
+
+const str = (v) => (typeof v === 'string' ? v : null)
+const int = (v) => (Number.isInteger(v) ? v : null)
+
+/** The 422 body's `refusal`, reduced to plain fields (or null). */
+export function structuredRefusal(x) {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return null
+  const errors = Array.isArray(x.errors)
+    ? x.errors.filter((e) => e && typeof e === 'object').slice(0, 20)
+      .map((e) => ({ code: str(e.code), message: str(e.message), path: str(e.path) }))
+    : null
+  const out = { gate: str(x.gate), guard: str(x.guard), plot: str(x.plot), mode: str(x.mode), ...(errors ? { errors } : {}) }
+  return out.gate || out.guard ? out : null
+}
+
+/** The 409 body's `conflict`, reduced to plain fields (or null). */
+export function structuredConflict(x) {
+  if (!x || typeof x !== 'object' || Array.isArray(x)) return null
+  const out = { defId: str(x.def_id), expectedVersion: int(x.expected_version), currentVersion: int(x.current_version) }
+  return out.defId || out.currentVersion !== null ? out : null
 }
 
 /**

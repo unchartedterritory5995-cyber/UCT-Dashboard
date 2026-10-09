@@ -150,6 +150,7 @@ export default function CreateIndicatorPanel({
   onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null,
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
   dockHost = null, onDocked = null, sessionKey = null, editRow = null, onEditFormula = null,
+  seed = null,
 }) {
   // ⭐ PHASE 4 — held once: the row this studio was opened on (a later list refresh
   // must not re-open it under the member's feet).
@@ -163,7 +164,9 @@ export default function CreateIndicatorPanel({
   const { state, transcript, rb, busy, saving, previewDefinition } = conv
   const previewCalcTf = (state && state.requests && state.requests.calculationTimeframe) || null
   const previewBase = (state && state.base) || null
-  const [message, setMessage] = useState('')
+  // ⭐ AGENT M1 — a PREFILLED request (UCT Agent's hand-off): it sits in the box for the
+  // member to read, edit and send. Never sent here, and never over a restored draft.
+  const [message, setMessage] = useState(() => (!conv.restored && typeof seed === 'string' ? seed : ''))
   // Floating geometry is measured only when there is no dock to live in.
   const rect = useDockRect(anchorRef, !dockHost)
   // ⭐ THE ROOM IS MADE IN THE SAME PAINT THE DOCK APPEARS IN. A layout effect, so

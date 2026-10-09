@@ -51,6 +51,9 @@ export const PANEL_IMPORTERS = {
   Etf: () => import('./panels/EtfPanel'),
   Twt: () => import('./panels/TwtPanel'),
   Size: () => import('./panels/SizePanel'),
+  // ── wave 8 lane F: CHK pre-trade check ──
+  Check: () => import('./panels/CheckPanel'),
+  // ── end wave 8 lane F ──
   Depth: () => import('./panels/DepthPanel'),
   Events: () => import('../research/depth/EventsPanel'),
   FilingSearch: () => import('../research/depth/FilingSearchPanel'),
@@ -86,6 +89,10 @@ export const PANEL_IMPORTERS = {
   InsiderBuys: () => import('./panels/InsiderPanel'),
   RsLeaders: () => import('./panels/RsLeadersPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
+  // wave 8, lane E: market reads (SENT)
+  Sentiment: () => import('./panels/SentimentPanel'),
+  Scatter: () => import('./panels/ScatterPanel'),
+  // end wave 8, lane E
   // my names (lane 9) — terminal-native; read the routes the watchlist page and the alert bell use
   Alerts: () => import('./panels/AlertsPanel'),
   Watchlist: () => import('./panels/WatchlistPanel'),

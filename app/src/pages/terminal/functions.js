@@ -130,6 +130,13 @@ export const FUNCTIONS = [
   { code: 'SIZE', label: 'Position size and R calculator', group: 'Security',
     ticker: { panel: 'Size' },
     market: { panel: 'Size' } },
+  // ── wave 8 lane F: CHK pre-trade check ──
+  // CHK: a planned trade (setup, entry, stop) against the setup library's checklist, its win rate,
+  // past trades of it in today's phase and the member's open book. Five existing paid reads in
+  // api/routers/intelligence.py; no flag (the engine's own "not loaded" answer is said in words).
+  { code: 'CHK', label: 'Pre-trade check (checklist, win rate, past trades, risk)', group: 'Security',
+    ticker: { panel: 'Check' } },
+  // ── end wave 8 lane F ──
 
   // ── Research › Depth (each panel is its own surface behind its own flag) ──
   { code: 'DPTH', label: 'Research depth (every depth panel you have)', group: 'Research depth',
@@ -241,6 +248,16 @@ export const FUNCTIONS = [
   // THMS 1W: the UCT theme leaderboard over a window (1D 1W 1M 3M; 1Y and YTD are chips in the panel).
   { code: 'THMS', label: 'Theme leaderboard (leaders and laggards by period)', group: 'Market',
     market: { panel: 'ThemeBoard', args: [{ kind: 'contribWindow', prop: 'win' }] } },
+  // ── wave 8, lane E: market reads over routes the app already serves ──
+  // SENT: AAII, NAAIM, put/call and Fear & Greed from the Breadth Monitor rows, plus the key
+  // economic series /api/econ publishes (dark until ECON_ENABLED; the panel says so).
+  { code: 'SENT', label: 'Sentiment and macro (AAII, NAAIM, put/call, Fear & Greed, economy)', group: 'Market',
+    market: { panel: 'Sentiment' } },
+  // SCAT: a universe on two metrics (RS rank vs % off the 52-week high by default), over the /charts
+  // Market Map's own /api/scatter reads. A dot opens DES beside the panel.
+  { code: 'SCAT', label: 'Scatter a universe (RS rank vs % off 52-week high)', group: 'Market',
+    market: { panel: 'Scatter' } },
+  // ── end wave 8, lane E ──
 
   // ── the shell itself ──
   { code: 'HELP', label: 'Function list & syntax', group: 'Shell',

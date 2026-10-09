@@ -26,6 +26,24 @@ export function parseNum(v) {
 }
 
 /**
+ * The entry / stop half of the validation, on its own: `{ ok: true, entry, stop }` or
+ * `{ ok: false, error }`. A long needs the stop below the entry, a short above. SIZE and CHK both
+ * read it, so a stop on the wrong side is refused with the same sentence everywhere.
+ */
+export function checkLevels({ entry, stop, side = 'long' }) {
+  const E = parseNum(entry)
+  const S = parseNum(stop)
+  if (E === null || E <= 0) return { ok: false, error: 'Enter an entry price above zero.' }
+  if (S === null || S <= 0) return { ok: false, error: 'Enter a stop price above zero.' }
+  if (side === 'short') {
+    if (S <= E) return { ok: false, error: 'For a short, the stop must be above the entry. Pick Long if the stop is below.' }
+  } else if (S >= E) {
+    return { ok: false, error: 'For a long, the stop must be below the entry. Pick Short if the stop is above.' }
+  }
+  return { ok: true, entry: E, stop: S }
+}
+
+/**
  * `{ ok: true, ... }` with every output, or `{ ok: false, error }` with the one sentence that says
  * what to fix. `side` is 'long' or 'short'.
  */
@@ -36,13 +54,8 @@ export function computeSize({ account, riskPct, entry, stop, side = 'long' }) {
   const S = parseNum(stop)
   if (A === null || A <= 0) return { ok: false, error: 'Enter an account size above zero.' }
   if (r === null || r <= 0 || r > 100) return { ok: false, error: 'Enter a risk percent above 0 and at most 100.' }
-  if (E === null || E <= 0) return { ok: false, error: 'Enter an entry price above zero.' }
-  if (S === null || S <= 0) return { ok: false, error: 'Enter a stop price above zero.' }
-  if (side === 'short') {
-    if (S <= E) return { ok: false, error: 'For a short, the stop must be above the entry. Pick Long if the stop is below.' }
-  } else if (S >= E) {
-    return { ok: false, error: 'For a long, the stop must be below the entry. Pick Short if the stop is above.' }
-  }
+  const levels = checkLevels({ entry: E, stop: S, side })
+  if (!levels.ok) return levels
   const perShare = Math.abs(E - S)
   const budget = (A * r) / 100
   const shares = Math.floor(budget / perShare + 1e-9)

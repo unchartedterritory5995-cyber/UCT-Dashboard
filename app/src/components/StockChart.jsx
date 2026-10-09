@@ -5247,6 +5247,12 @@ export default function StockChart({
       openCreateIndicator: (opts = null) => {
         try { return toolbarRef.current?.openCreateIndicator?.(opts) ?? false } catch { return false }
       },
+      // ⭐ AGENT M1 — the same door with a structured answer and an optional prefilled
+      // request (`ChartToolbar.openCreateIndicatorFor`); never sends, never saves.
+      openCreateIndicatorFor: (opts = null) => {
+        const no = { ok: false, reason: 'unavailable', prefilled: false, draft: false, editing: false }
+        try { return toolbarRef.current?.openCreateIndicatorFor?.(opts) ?? no } catch { return no }
+      },
       // ⭐ PHASE 4 — the definition's own doors, for Chart Settings → Indicators and
       // the "Your indicators" list (siblings of this chart, so a CALL, not a mount).
       openFormulaEditor: (opts = null) => {
