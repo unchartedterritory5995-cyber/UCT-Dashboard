@@ -427,7 +427,8 @@ def test_cold_start_builds_once_and_returns_what_it_cached(live, clock):
     service cached it, and the complete build becomes last-good."""
     body, resp = _route()
     assert _tier(resp) == "fetch" and live.recomputes == 1
-    assert body is cache.get(svc._OVERLAID_KEY)
+    # perf wave 2: the route sends the WIRE copy of what the service cached (unread fields dropped)
+    assert body == tp_router.wire_payload(cache.get(svc._OVERLAID_KEY))
     assert _slot_live1d() == 1.5
     assert "live_as_of" in body
 
