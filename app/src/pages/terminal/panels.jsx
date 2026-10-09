@@ -78,6 +78,8 @@ export const PANEL_IMPORTERS = {
   // my names (lane 9) — terminal-native; read the routes the watchlist page and the alert bell use
   Alerts: () => import('./panels/AlertsPanel'),
   Watchlist: () => import('./panels/WatchlistPanel'),
+  // GRADE (wave 3, lane 11) — Compass's buy / hold / skip verdict, read-only over grade_ticker
+  Grade: () => import('./panels/GradePanel'),
 }
 
 /** The panel name a registry variant renders: its `panel`, or the panel-set id of its

@@ -250,6 +250,12 @@ export const FUNCTIONS = [
   // `MON FLAGGED` pick a list. Market-only: a row CLICK loads the name into the linked group.
   { code: 'MON', label: 'Watchlist monitor (my lists, live; also W)', group: 'Market',
     market: { panel: 'Watchlist', args: [{ kind: 'watchlistPick', prop: 'list' }] } },
+  // ── Compass grade (wave 3, lane 11, owner decision 2026-10-08): the buy / hold / skip verdict
+  // Compass gives, read-only, via `/api/terminal/grade/:sym` over api/services/grade_ticker.py.
+  // No shell flag: the server decides. While BRAIN_TOOLS_ENABLED (or the Brain Pack) is off the
+  // route answers `available: false` and the panel says "Grade not available yet" (never a verdict).
+  { code: 'GRADE', label: 'Compass grade (buy / hold / skip verdict)', group: 'Security',
+    ticker: { panel: 'Grade' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code

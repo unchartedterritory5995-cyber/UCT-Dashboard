@@ -327,6 +327,7 @@ T3_GRAMMAR_ROUTES = [
     ("GET", "/api/terminal/aliases"),
     ("GET", "/api/terminal/commands/stats"),
     ("GET", "/api/terminal/compare-target"),
+    ("GET", "/api/terminal/grade/{sym}"),
     ("GET", "/api/terminal/move/{sym}"),
     ("POST", "/api/terminal/commands/event"),
     ("PUT", "/api/terminal/aliases/{name}"),
