@@ -285,8 +285,17 @@ The automated production walk was blocked by the agent permission system, so the
 NOT-VERIFIED until a person uses them on the live site:
 
 - G-050 Ask the current note
+  ✅ **Walked on the LIVE site 2026-10-08 22:48 CT by `tools/notebook_prod_ask_check.py`** as the
+  smoke account, on a note the run created and removed: "What is my stop for ZZZT?" answered with
+  the stop from the note. Evidence `docs/notebook/evidence/prod-ask/2026-10-08-2248/`. A person's
+  own run is still welcome; it is no longer the only evidence.
 - G-051 Ask the whole Notebook
+  ✅ Same run: the whole-Notebook question answered with both numbers from the note, one citation,
+  and the citation opened the note (`answer.png`, `cited-note.png`).
 - G-165 writing help: summarize, rewrite, continue, translate, property autofill
+  ✅ Same run, **Summarize only**: a 185-character draft in 1.6 s, Discard left the note byte-identical
+  on the server (`writing-help.png`). Rewrite, continue, translate and property autofill are NOT
+  walked on the live site.
 - G-166 Ask over an attached Word file or image
 - G-162 dictation
 - G-153 a task reminder at 07:00 or 09:00 ET
