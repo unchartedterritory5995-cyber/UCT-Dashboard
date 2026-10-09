@@ -149,7 +149,7 @@ export default function MovePanel({ sym, onRun, onRows }) {
         {cats.map((c) => (
           <li key={catalystKey(c)} data-new={fresh.has(catalystKey(c)) ? 'true' : 'false'}>
             {fresh.has(catalystKey(c)) && <strong>NEW </strong>}
-            {c.market_date} · {c.tag}{c.thesis_text && !isFailedSynthesis(c.thesis_text) ? <> — <HighlightThesis text={c.thesis_text} /></> : ''}
+            {c.market_date} · {c.tag}{c.thesis_text && !isFailedSynthesis(c.thesis_text) ? <>: <HighlightThesis text={c.thesis_text} /></> : ''}
           </li>
         ))}
       </ul>
