@@ -140,6 +140,15 @@ describe('VolSurfacePanel', () => {
     wrap(<VolSurfacePanel sym="spy" expiration="" />)
     expect((await screen.findByTestId('vol-unavailable')).textContent).toMatch(/unavailable right now/)
   })
+
+  it('a failed read offers Retry, and Retry reads the surface again (audit 2026-10-08)', async () => {
+    surfaceStatus = 503
+    wrap(<VolSurfacePanel sym="spy" expiration="" />)
+    await screen.findByTestId('vol-unavailable')
+    surfaceStatus = 200
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByTestId('vol-surface')).toBeTruthy()
+  })
 })
 
 // Audit 2026-10-08: the chain folds its sub-panels into groups that mount on first open.
