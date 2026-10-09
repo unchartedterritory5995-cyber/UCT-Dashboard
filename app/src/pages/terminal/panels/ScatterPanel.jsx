@@ -9,9 +9,16 @@
 //
 // ⛔ A failed read is an error with Retry, never an empty plot. A name missing either value is
 // counted and said, never drawn at zero.
+//
+// ⭐ THE VIEW IS THE COMMAND (wave 9, lane 2). `SCAT NDX CHG_1M RS_RANK` opens the Nasdaq 100 with
+// 1-month % up and RS rating across (scatterArgs.js has the grammar). A pick in the toolbar is
+// written back through usePanelRerun, so `?cmd=`, history and a reload keep it. The re-run
+// remounts this panel with the new props, so a pick only re-runs when the view CHANGED (picking
+// the value already showing does nothing) and nothing re-runs from an effect. A member's own
+// list cannot be written into a command: it is kept for the open panel, and the panel says so.
 import { useCallback, useMemo, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
-import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelRun } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelRerun, usePanelRun } from '../../../components/terminal'
 import {
   formatCompact, formatCurrency, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -20,12 +27,13 @@ import { CHART_FONT_FAMILY } from '../../../utils/chartFont'
 import Select from '../../../components/ui/Select'
 import { useHasCoarsePointer } from '../../../hooks/useBreakpoint'
 import { failureText, useMarketRead } from './marketRead'
+import { SCAT_DEFAULT, SCAT_INDEXES, scatCommand } from '../scatterArgs'
 import styles from './marketPanels.module.css'
 
 export const METRICS_URL = '/api/scatter/metrics'
 export const UNIVERSES_URL = '/api/scatter/universes'
 export const dataUrl = (source, value) => `/api/scatter/data?source=${encodeURIComponent(source)}&value=${encodeURIComponent(value ?? '')}`
-export const DEFAULTS = Object.freeze({ source: 'index', value: 'sp500', xKey: 'dist_52w_high', yKey: 'rs_rank' })
+export const DEFAULTS = SCAT_DEFAULT
 const POLL_MS = 60 * 1000
 
 // Dot inks: the theme's text-safe success / danger inks, so the dots read on every theme.
@@ -114,13 +122,20 @@ function makeOption({ points, xMeta, yMeta, ink, coarse }) {
   }
 }
 
-export default function ScatterPanel() {
+/** Pure: the view a command's props open (`universe` from scatUniverse, `yKey` / `xKey` keys). */
+export function initialView({ universe = null, yKey = null, xKey = null } = {}) {
+  const u = universe && universe.source ? universe
+    : { source: DEFAULTS.source, value: DEFAULTS.value, label: SCAT_INDEXES[DEFAULTS.value][0] }
+  return { pick: { source: u.source, value: u.value ?? '', label: u.label }, yKey: yKey || DEFAULTS.yKey, xKey: xKey || DEFAULTS.xKey }
+}
+
+export default function ScatterPanel({ universe = null, yKey: yProp = null, xKey: xProp = null } = {}) {
   const inPanel = useInTerminalPanel()
   // Linked panels (2026-10-09): a dot LOADS its name into this panel's group, like a list row.
   const run = usePanelRun()
-  const [pick, setPick] = useState({ source: DEFAULTS.source, value: DEFAULTS.value, label: 'S&P 500' })
-  const [xKey, setXKey] = useState(DEFAULTS.xKey)
-  const [yKey, setYKey] = useState(DEFAULTS.yKey)
+  const rerun = usePanelRerun()
+  const [view, setView] = useState(() => initialView({ universe, yKey: yProp, xKey: xProp }))
+  const { pick, yKey, xKey } = view
   const metrics = useMarketRead(METRICS_URL)
   const universes = useMarketRead(UNIVERSES_URL)
   const read = useMarketRead(dataUrl(pick.source, pick.value), { refreshInterval: POLL_MS })
@@ -140,12 +155,26 @@ export default function ScatterPanel() {
   }, [run])
   usePanelFreshness(points.length ? { source: 'UCT Market Map (nightly metrics and a live snapshot)', asOf: read.receivedAt } : null)
 
+  // One door for every pick: the same view is a no-op; a changed one is kept here and, when it can
+  // be written, re-run as this panel's command so a reload keeps it.
+  const commit = (next) => {
+    const same = next.pick.source === pick.source && String(next.pick.value ?? '') === String(pick.value ?? '')
+      && next.yKey === yKey && next.xKey === xKey
+    if (same) return
+    setView(next)
+    const cmd = scatCommand({ source: next.pick.source, value: next.pick.value, yKey: next.yKey, xKey: next.xKey })
+    if (cmd && rerun) rerun(cmd)
+  }
+  const unsaved = scatCommand({ source: pick.source, value: pick.value, yKey, xKey }) === null
+
   const onUniverse = (e) => {
     const [source, ...rest] = e.target.value.split(':')
     const value = rest.join(':')
     const item = groups.flatMap((g) => g.items).find((it) => it.key === e.target.value)
-    setPick({ source, value, label: item?.label || value || source })
+    commit({ ...view, pick: { source, value, label: item?.label || value || source } })
   }
+  const setYKey = (k) => commit({ ...view, yKey: k })
+  const setXKey = (k) => commit({ ...view, xKey: k })
 
   if (metrics.loading) return <PanelSkeleton label="Loading the scatter axes" testId="terminal-scat-loading" />
   if (metrics.error && !metrics.body) {
@@ -212,6 +241,11 @@ export default function ScatterPanel() {
         {axisSelect('X', xKey, setXKey, 'terminal-scat-x')}
       </div>
       {read.error && read.body ? <p className={styles.note} role="status">{failureText(read.error, 'This universe')} Showing the last read.</p> : null}
+      {unsaved ? (
+        <p className={styles.muted} role="status" data-testid="terminal-scat-unsaved">
+          This list is not saved in the command, so a reload will not keep it.
+        </p>
+      ) : null}
       {body}
       <p className={styles.muted} data-testid="terminal-scat-method">
         {points.length ? `${points.length} name${points.length === 1 ? '' : 's'} plotted. ` : ''}

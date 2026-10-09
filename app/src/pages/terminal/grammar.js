@@ -173,6 +173,7 @@ export function argShape(code) {
   if (fn.code === 'HELP') return 'HELP [FUNC]'
   if (fn.code === 'ALRT') return 'TICKER ALRT PRICE (or >PRICE, <PRICE)  ·  [TICKER] ALRT'
   if (fn.code === 'MON') return 'MON [N | W:id | FLAGGED]  ·  W'
+  if (fn.code === 'SCAT') return 'SCAT [UNIVERSE] [Y-METRIC X-METRIC]'
   if (t && m) return `[TICKER] ${fn.code}${tail}`
   if (t) return `TICKER ${fn.code}${tail}`
   return fn.code
