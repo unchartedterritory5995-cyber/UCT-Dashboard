@@ -1,4 +1,9 @@
+import { useState } from 'react'
 import useCompanyNews from '../hooks/useCompanyNews'
+import { useInTerminalPanel, usePanelRerun } from '../../../components/terminal/terminalPanel'
+import MineChip, { mineStyles } from '../../../components/terminal/MineChip'
+import { myNamesExplainer } from '../../../hooks/useMyTickers'
+import MyNewsList from './MyNewsList'
 import Provenance from '../../../components/provenance/Provenance'
 import FreshnessBadge from '../../../components/provenance/FreshnessBadge'
 import { mapAvailability, AVAILABLE } from '../../../components/provenance/availabilityContract'
@@ -85,9 +90,24 @@ function hideBrokenImage(e) {
   e.currentTarget.style.display = 'none'
 }
 
-export default function NewsTab({ sym }) {
-  const { data, isLoading, error, paywalled, mutate } = useCompanyNews(sym)
+// `mine` (terminal `NVDA CN MINE`, wave 3 lane 13): news across ALL the member's own names instead
+// of this one ticker (MyNewsList). Terminal-only; the research page never shows the chip.
+export default function NewsTab({ sym, mine: mineProp = false }) {
+  const inPanel = useInTerminalPanel()
+  const rerun = usePanelRerun()
+  const [mineState, setMine] = useState(!!mineProp)
+  const mine = !!inPanel && mineState
+  const s = (sym || '').toUpperCase().trim()
+  const toggleMine = (next) => { if (rerun) rerun(`${s ? `${s} ` : ''}CN${next ? ' MINE' : ''}`); else setMine(next) }
+  const mineChip = inPanel
+    ? <div className={mineStyles.row}><MineChip on={mine} onToggle={toggleMine} explainer={myNamesExplainer()} testId="news-mine" /></div>
+    : null
+  const { data, isLoading, error, paywalled, mutate } = useCompanyNews(mine ? null : sym)
   const session = useMarketOpen()
+
+  if (mine) {
+    return <div className={styles.finWrap}>{mineChip}<MyNewsList whenLabel={whenLabel} /></div>
+  }
 
   if (isLoading) {
     return <ResearchLoading label="Loading news" />
@@ -114,6 +134,7 @@ export default function NewsTab({ sym }) {
 
   return (
     <div className={styles.finWrap}>
+      {mineChip}
       {e.entity && e.entity.status !== 'resolved' && (
         <div className={styles.entityNote} data-testid="entity-unresolved-note">
           This symbol is not yet linked to a company record, so some sources below may not match it.

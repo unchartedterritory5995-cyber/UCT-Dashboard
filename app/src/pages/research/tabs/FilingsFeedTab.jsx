@@ -3,7 +3,9 @@ import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './ResearchCov.module.css'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
-import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
+import { useInTerminalPanel, usePanelFreshness, usePanelRerun } from '../../../components/terminal/terminalPanel'
+import { MineEmpty } from '../../../components/terminal/MineChip'
+import useMyTickers from '../../../hooks/useMyTickers'
 
 // COV-09 (roadmap RM-L19) — new SEC filings, live: this ticker, or the whole
 // market. 8-K (with its item codes), 10-Q, 10-K, Form 4, Schedule 13D/G, S-1.
@@ -61,9 +63,19 @@ function Row({ r, showCompany }) {
   )
 }
 
-export default function FilingsFeedTab({ sym }) {
+// `mine` (terminal `NVDA FEED MINE`, wave 3 lane 13): a third scope, the market feed narrowed to the
+// member's own names (hooks/useMyTickers). Terminal-only: outside a panel the toggle has two scopes.
+export default function FilingsFeedTab({ sym, mine = false }) {
   const s = (sym || '').toUpperCase().trim()
-  const [scope, setScope] = useState('ticker')
+  const inPanel = useInTerminalPanel()
+  const rerun = usePanelRerun()
+  const [scope, setScopeState] = useState(inPanel && mine ? 'mine' : 'ticker')
+  const myNames = useMyTickers({ enabled: scope === 'mine' })
+  // Entering or leaving "Mine" is written into the command (`NVDA FEED MINE`) so a reload keeps it.
+  const setScope = (next) => {
+    if (rerun && (next === 'mine') !== (scope === 'mine')) rerun(`${s ? `${s} ` : ''}FEED${next === 'mine' ? ' MINE' : ''}`)
+    else setScopeState(next)
+  }
   const [form, setForm] = useState('All')
   const q = form === 'All' ? '' : `?form=${encodeURIComponent(form)}`
   const url = scope === 'ticker'
@@ -79,7 +91,8 @@ export default function FilingsFeedTab({ sym }) {
     ? { source: memberText(data.source), age: { asOfDate: data.rows?.[0] && (data.rows[0].accepted || data.rows[0].filed) ? when(data.rows[0]) : null } }
     : null)
 
-  const label = scope === 'ticker' ? s : 'the market'
+  const label = scope === 'ticker' ? s : scope === 'mine' ? 'your names' : 'the market'
+  const rows = Array.isArray(data?.rows) && scope === 'mine' ? data.rows.filter((r) => myNames.has(r.ticker)) : data?.rows
   let body
   if (error) {
     body = <div className={styles.note} data-testid="feed-unavailable">
@@ -89,7 +102,11 @@ export default function FilingsFeedTab({ sym }) {
     body = <div className={styles.note} role="status" data-testid="feed-loading">Loading filings…</div>
   } else if (data.paywalled) {
     body = <div className={styles.note}>The filings feed requires a paid plan.</div>
-  } else if (!data.rows || data.rows.length === 0) {
+  } else if (scope === 'mine' && myNames.state !== 'ready' && myNames.state !== 'empty') {
+    body = <MineEmpty state={myNames.state} explainer={myNames.explainer} testId="feed-mine-state" />
+  } else if (scope === 'mine' && Array.isArray(data.rows) && data.rows.length && !rows.length) {
+    body = <MineEmpty state="ready" what={`is among the ${data.rows.length} newest filings`} explainer={myNames.explainer} testId="feed-mine-empty" />
+  } else if (!rows || rows.length === 0) {
     body = <div className={styles.gap} data-testid="feed-gap">{emptyText(data, form, label)}</div>
   } else {
     body = (
@@ -98,10 +115,10 @@ export default function FilingsFeedTab({ sym }) {
         <div className={styles.scroll}>
           <table className={styles.grid} data-testid="feed" aria-label={`Filings feed: ${label}`}>
             <thead><tr>
-              <th scope="col">Form</th>{scope === 'market' && <th scope="col">Company</th>}
+              <th scope="col">Form</th>{scope !== 'ticker' && <th scope="col">Company</th>}
               <th scope="col">8-K items</th><th scope="col">Accepted (ET)</th><th scope="col">Accession</th><th scope="col">Source</th>
             </tr></thead>
-            <tbody>{data.rows.map((r) => <Row key={r.accession} r={r} showCompany={scope === 'market'} />)}</tbody>
+            <tbody>{rows.map((r) => <Row key={r.accession} r={r} showCompany={scope !== 'ticker'} />)}</tbody>
           </table>
         </div>
         <p className={styles.muted} data-testid="feed-source">
@@ -116,7 +133,7 @@ export default function FilingsFeedTab({ sym }) {
   return (
     <section className={styles.section} data-testid="filings-feed">
       <div className={styles.toggle}>
-        {[['ticker', s || 'Ticker'], ['market', 'All market']].map(([k, l]) => (
+        {[['ticker', s || 'Ticker'], ...(inPanel ? [['mine', 'Mine']] : []), ['market', 'All market']].map(([k, l]) => (
           <button key={k} type="button" className={`${styles.toggleBtn} ${scope === k ? styles.toggleOn : ''}`}
             aria-pressed={scope === k} onClick={() => setScope(k)}>{l}</button>
         ))}

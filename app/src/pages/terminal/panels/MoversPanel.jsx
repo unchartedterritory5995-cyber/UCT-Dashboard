@@ -19,6 +19,8 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import useLivePrices from '../../../hooks/useLivePrices'
 import useMarketOpen from '../../../hooks/useMarketOpen'
+import useMyTickers from '../../../hooks/useMyTickers'
+import MineChip, { MineEmpty } from '../../../components/terminal/MineChip'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import Select from '../../../components/ui/Select'
 import HighlightThesis, { isFailedSynthesis } from '../../../utils/highlightThesis'
@@ -59,7 +61,14 @@ const VOL_SOURCE_TEXT = {
   catalyst: 'Today\'s volume ÷ the 30-day average (catalyst board)',
 }
 
-export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
+/** Pure: the MOST command for a lens and the Mine filter (what the Mine chip writes back, so a
+ *  reload and `?cmd=` keep it). */
+const LENS_WORD = { up: 'UP', down: 'DOWN', volume: 'RVOL' }
+export function moversCommand(lens, mine) {
+  return ['MOST', LENS_WORD[lens] || null, mine ? 'MINE' : null].filter(Boolean).join(' ')
+}
+
+export default function MoversPanel({ lens: lensProp = null, mine: mineProp = false, onRun, onRows }) {
   const inPanel = useInTerminalPanel()
   const market = useMarketOpen()
   const session = sessionOf(market)
@@ -80,14 +89,17 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
   const [minPrice, setMinPrice] = useState(0)
   const [minVolume, setMinVolume] = useState(0)
   const [open, setOpen] = useState(null)   // the symbol whose "why" is expanded
+  // `MOST MINE` (wave 3 #6): only the member's own names (hooks/useMyTickers). Read only while on.
+  const [mine, setMine] = useState(!!mineProp)
+  const myNames = useMyTickers({ enabled: mine })
 
   const all = useMemo(() => buildRows({
     movers: movers.data, catalysts: catalysts.data, volume: volume.data, prices, session,
   }), [movers.data, catalysts.data, volume.data, prices, session])
-  const rows = useMemo(
-    () => sortRows(filterRows(all, { lens, minPrice, minVolume }), sort).slice(0, MAX_ROWS),
-    [all, lens, minPrice, minVolume, sort],
-  )
+  const rows = useMemo(() => {
+    const pool = mine ? all.filter((r) => myNames.has(r.sym)) : all
+    return sortRows(filterRows(pool, { lens, minPrice, minVolume }), sort).slice(0, MAX_ROWS)
+  }, [all, lens, minPrice, minVolume, sort, mine, myNames])
   const cmds = useMemo(() => rows.map((r) => `$${r.sym}`), [rows])
   const rowSyms = useMemo(() => rows.map((r) => r.sym), [rows])
   useEffect(() => { onRows?.(cmds) }, [onRows, cmds])
@@ -100,6 +112,9 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
 
   const pickLens = (next) => { setLens(next); setSort(defaultSort(next)); setOpen(null) }
   const toggleSort = (key) => setSort((s) => nextSort(s, key, firstDirFor))
+  // The chip writes itself into the command (`MOST UP MINE`) so a reload keeps it; outside the
+  // shell (no onRun) it is plain component state.
+  const toggleMine = (next) => { if (onRun) onRun(moversCommand(lens, next), { here: true }); else setMine(next) }
   const load = (sym) => onRun?.(`$${sym}`, { keepFunction: true })
 
   if (!movers.data && !movers.error) {
@@ -143,6 +158,7 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
               onClick={() => pickLens(key)} data-testid={`terminal-movers-lens-${key}`}>{label}</button>
           ))}
         </div>
+        <MineChip on={mine} onToggle={toggleMine} explainer={myNames.explainer} testId="terminal-movers-mine" />
         <label className={styles.filter}>
           Min price
           <Select value={minPrice} onChange={(e) => setMinPrice(Number(e.target.value))} data-testid="terminal-movers-min-price"
@@ -160,7 +176,12 @@ export default function MoversPanel({ lens: lensProp = null, onRun, onRows }) {
 
       {notes.map((n) => <p key={n} className={styles.note} role="status">{n}</p>)}
 
-      {rows.length === 0 ? (
+      {rows.length === 0 && mine ? (
+        <MineEmpty state={myNames.state === 'empty' || myNames.state === 'ready' ? 'ready' : myNames.state}
+          what="is on the movers list right now" explainer={myNames.explainer} testId="terminal-movers-mine-empty">
+          <button type="button" className={styles.chip} onClick={() => toggleMine(false)}>Show all movers</button>
+        </MineEmpty>
+      ) : rows.length === 0 ? (
         <PanelState kind="empty" compact testId="terminal-movers-empty"
           title={all.length ? `No ${LENSES[lens].toLowerCase()} pass these filters.` : 'Nothing is on the movers list right now.'}>
           {all.length
