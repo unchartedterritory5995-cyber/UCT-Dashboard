@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { AuthContext } from '../../../context/AuthContext'
-import OptionsScreener, { screenUrl } from './OptionsScreener'
+import OptionsScreener, { screenUrl, contractLabel } from './OptionsScreener'
 import Screener from '../../Screener'
 
 // COV-02/03 — the Screener's Options view. Seeded payloads, no network.
@@ -158,6 +158,82 @@ describe('OptionsScreener', () => {
     expect(state.textContent).toContain('1 sessions logged under the current ATM read')
     expect(state.textContent).toContain('available on 2026-10-29')
     expect(screen.queryByRole('table')).toBeNull()
+  })
+
+  // ── Audit 2026-10-08 (lane B, OSCR) ─────────────────────────────────────
+  it('the view tabs follow the ARIA tabs contract: roving tabindex, arrows, Home/End, a tabpanel', async () => {
+    wrap(<OptionsScreener />)
+    await screen.findByText(`${S} EOD`)
+    const screenTab = screen.getByRole('tab', { name: 'Option screen' })
+    const volTab = screen.getByRole('tab', { name: 'Unusual volume' })
+    const ivTab = screen.getByRole('tab', { name: 'IV percentile' })
+    expect(screenTab.tabIndex).toBe(0)
+    expect(volTab.tabIndex).toBe(-1)
+    const panel = screen.getByRole('tabpanel')
+    expect(screenTab.getAttribute('aria-controls')).toBe(panel.id)
+    expect(panel.getAttribute('aria-labelledby')).toBe(screenTab.id)
+    fireEvent.keyDown(screenTab, { key: 'ArrowRight' })
+    expect(screen.getByRole('tab', { name: 'Unusual volume', selected: true })).toBe(document.activeElement)
+    expect(volTab.tabIndex).toBe(0)
+    fireEvent.keyDown(volTab, { key: 'End' })
+    expect(screen.getByRole('tab', { name: 'IV percentile', selected: true })).toBe(document.activeElement)
+    fireEvent.keyDown(ivTab, { key: 'ArrowRight' })   // wraps
+    expect(screen.getByRole('tab', { name: 'Option screen', selected: true })).toBe(document.activeElement)
+    fireEvent.keyDown(screenTab, { key: 'ArrowLeft' })  // wraps back
+    expect(screen.getByRole('tab', { name: 'IV percentile', selected: true })).toBeTruthy()
+    fireEvent.keyDown(ivTab, { key: 'Home' })
+    expect(screen.getByRole('tab', { name: 'Option screen', selected: true })).toBeTruthy()
+  })
+
+  it('a result row names the contract in words, keeps the OCC code as its title, and capitalises the type', async () => {
+    wrap(<OptionsScreener />)
+    const cell = await screen.findByTestId('opts-contract')
+    expect(cell.textContent).toBe("AAA Nov 20 '26 $90 Put")
+    expect(cell.getAttribute('title')).toBe('AAA261120P00090000')
+    const row = cell.closest('tr')
+    expect(row.textContent).not.toMatch(/\bput\b/)
+    expect(row.textContent).toContain('Put')
+  })
+
+  it('contractLabel falls back to the code when a field is missing, never a half label', () => {
+    expect(contractLabel({ contract: 'O:AAA261120C00092500', underlying: 'AAA', type: 'call', strike: 92.5, expiration: '2026-11-20' }))
+      .toBe("AAA Nov 20 '26 $92.5 Call")
+    expect(contractLabel({ contract: 'O:AAA261120P00090000', underlying: 'AAA', type: 'put', strike: 90 })).toBe('AAA261120P00090000')
+    expect(contractLabel({ contract: 'O:AAA261120P00090000', underlying: 'AAA', type: 'x', strike: 90, expiration: '2026-11-20' }))
+      .toBe('AAA261120P00090000')
+  })
+
+  it('on a phone the redundant columns can drop and the contract column is the one pinned', async () => {
+    wrap(<OptionsScreener />)
+    const table = await screen.findByRole('table', { name: 'Option screener results' })
+    const heads = [...table.querySelectorAll('thead th')]
+    const hidden = heads.filter((th) => /narrowHide/.test(th.className)).map((th) => th.textContent)
+    expect(hidden).toEqual(['Session', 'Und', 'Type', 'Strike', 'Exp'])
+    const pinned = heads.filter((th) => /\bpin\b|_pin_/.test(th.className)).map((th) => th.textContent)
+    expect(pinned).toEqual(['Contract'])
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const css = readFileSync(join(process.cwd(), 'src/pages/screener/options/OptionsScreener.module.css'), 'utf8')
+    const phone = css.slice(css.indexOf('@media (max-width: 640px)'))
+    expect(phone).toMatch(/\.narrowHide\s*\{\s*display:\s*none/)
+    expect(phone).toMatch(/\.pin\s*\{[^}]*position:\s*sticky/)
+  })
+
+  it('explains the filter shorthand', async () => {
+    wrap(<OptionsScreener />)
+    expect((await screen.findByTestId('opts-filter-key')).textContent).toMatch(/DTE: days to expiry/)
+  })
+
+  it('unusual volume with nothing ranked and nothing unranked says so, never a header-only table', async () => {
+    const empty = { ...PAYLOADS['unusual-volume'], ranked: [], not_ranked: [] }
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      const key = url.split('/api/options-screener/')[1].split('?')[0]
+      return { ok: true, status: 200, json: async () => (key === 'unusual-volume' ? empty : PAYLOADS[key]) }
+    }))
+    wrap(<OptionsScreener />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Unusual volume' }))
+    expect((await screen.findByTestId('opts-vol-empty')).textContent).toMatch(/nothing to rank yet/)
+    expect(screen.queryByRole('table', { name: 'Option volume ranking' })).toBeNull()
   })
 
   it('screenUrl drops blanks and "any"', () => {

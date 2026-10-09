@@ -102,14 +102,25 @@ describe('FlowTab', () => {
     expect(within(line).getByTestId('provenance-present')).toBeInTheDocument()
   })
 
-  it('the source disclosure names the endpoint and never invents an observed time', () => {
+  it('the source disclosure names the source in member words and never invents an observed time', () => {
     mockReturn = { data: bullish, isLoading: false }
     renderWithProviders(<FlowTab sym="AAPL" />, { route: '/research/AAPL' })
     const line = screen.getByTestId('flow-source')
     fireEvent.click(within(line).getByTestId('provenance-detail-toggle'))
     const panel = within(line).getByTestId('provenance-detail-panel')
-    expect(panel).toHaveTextContent('Source: live_massive_router.ticker_flow')
+    // Audit 2026-10-08: no internal module / function name reaches a member.
+    expect(panel).toHaveTextContent('Source: UCT options-flow tape, ticker search over the last 5 trading days')
+    expect(panel).not.toHaveTextContent(/live_massive_router|ticker_flow|_/)
     expect(panel).not.toHaveTextContent(/Observed:/)
+  })
+
+  it('explains the shorthand column headers in a key under the table', () => {
+    mockReturn = { data: bullish, isLoading: false }
+    renderWithProviders(<FlowTab sym="AAPL" />, { route: '/research/AAPL' })
+    const key = screen.getByTestId('flow-key')
+    expect(key).toHaveTextContent(/V\/OI: volume traded divided by open interest/)
+    expect(key).toHaveTextContent(/Perf: the contract's price change since the average fill/)
+    expect(key).toHaveTextContent(/Sweep\/ISO: orders split across exchanges/)
   })
 
   it('a FAILED read says unavailable with a retry, never "no qualifying options flow"', () => {

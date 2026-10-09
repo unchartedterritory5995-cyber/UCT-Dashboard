@@ -164,6 +164,36 @@ describe('FA — FinancialsDeep', () => {
     expect(src).toHaveTextContent('Fallback: Yahoo Finance')
     expect(src).toHaveTextContent(/FMP holds no statement history/)
   })
+
+  // Audit 2026-10-08 (FA, point 20): the source detail is member copy, never a vendor endpoint
+  // path or a library method name.
+  it('the FMP source detail names no endpoint path', async () => {
+    routes['/api/research/financial-history/NVDA?period=quarter'] = HISTORY_Q
+    routes['/api/research/financial-history/NVDA?period=annual'] = HISTORY_A
+    mount(<FinancialsDeep sym="NVDA" />)
+    const src = await screen.findByTestId('depth-source')
+    fireEvent.click(within(src).getByTestId('provenance-detail-toggle'))
+    const panel = within(src).getByTestId('provenance-detail-panel')
+    expect(panel).toHaveTextContent('Source: FMP quarterly and annual financial statements')
+    expect(panel).not.toHaveTextContent(/\/stable\//)
+  })
+
+  it('the Yahoo fallback detail names no library method', async () => {
+    routes['/api/research/financial-history/ZZZ'] = { sym: 'ZZZ', period: 'quarter', periods: [], series: {} }
+    routes['/api/research/financials/ZZZ'] = { sym: 'ZZZ', quarterly: [], annual: [], balance: {}, metrics: {} }
+    mount(<FinancialsDeep sym="ZZZ" />)
+    const src = await screen.findByTestId('depth-source')
+    expect(src).not.toHaveTextContent(/yfinance/)
+    fireEvent.click(within(src).getByTestId('provenance-detail-toggle'))
+    const panel = within(src).getByTestId('provenance-detail-panel')
+    expect(panel).not.toHaveTextContent(/yfinance|income_stmt|_/)
+  })
+
+  it('the loading line is announced (role=status)', () => {
+    routes['/api/research/financial-history/NVDA'] = new Promise(() => {})
+    mount(<FinancialsDeep sym="NVDA" />)
+    expect(screen.getByRole('status')).toHaveTextContent(/Loading financials…|warming/i)
+  })
 })
 
 describe('quality pass 2026-10-05: a failed leg is not a finding', () => {
@@ -172,7 +202,7 @@ describe('quality pass 2026-10-05: a failed leg is not a finding', () => {
     routes['/api/research/financials/ZZZ'] = { sym: 'ZZZ', quarterly: [], annual: [], balance: {}, metrics: {} }
     mount(<FinancialsDeep sym="ZZZ" />)
     const src = await screen.findByTestId('depth-source')
-    expect(src).toHaveTextContent(/could not be read right now; showing yfinance/)
+    expect(src).toHaveTextContent(/could not be read right now; showing Yahoo Finance/)
     expect(src).not.toHaveTextContent(/holds no statement history/)
   })
 

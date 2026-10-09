@@ -16,7 +16,9 @@
 .kind { display: block; font-size: var(--text-sm); font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .boiler { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .text { font-size: var(--text-md); line-height: 1.55; color: var(--text); margin: 2px 0 0; overflow-wrap: anywhere; }
-.ins { background: color-mix(in srgb, var(--gain) 22%, transparent); text-decoration: none; }
+/* Audit 2026-10-08 (FIL, point 27): an insertion is underlined, as a deletion is struck through,
+   so the mark never rests on the tint alone. */
+.ins { background: color-mix(in srgb, var(--gain) 22%, transparent); text-decoration: underline; }
 .del { background: color-mix(in srgb, var(--loss) 22%, transparent); text-decoration: line-through; }
 .forms { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 var(--space-md); }
 .formBtn { min-height: 32px; padding: var(--space-xs) var(--space-md); font-size: var(--text-base); border-radius: var(--radius-md); border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; }

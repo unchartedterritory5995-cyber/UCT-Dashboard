@@ -6,7 +6,7 @@ import { usePendingReask, PENDING_REASK_MS } from '../depth/depthFetch'
 import { STRATEGIES } from './optionPayoff'
 import {
   ENTRY_DTES, EXIT_PCTS, OFFSETS, WIDTHS, offsetLabel, money, legsLabel, exitLabel,
-  summaryFacts, excludedText, notRunText, ivText,
+  summaryFacts, excludedText, notRunText, ivText, plainBacktest,
 } from './optionBacktest'
 import styles from './OptionsChainTab.module.css'
 import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
@@ -147,11 +147,13 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
           </Select>
         </label>
         {more && (
-          <label>Anchor{' '}
+          // Audit 2026-10-08 (OBT, point 20): "Anchor" and "AMC / BMO" were unexplained shorthand.
+          <label>Time entries to{' '}
             <Select aria-label="Entry anchor" value={anchor} onChange={(e) => setAnchor(e.target.value)}>
               <option value="monthly">Monthly expirations</option>
               <option value="earnings" disabled={!earningsAnchor}>
-                {earningsAnchor ? 'Earnings prints (AMC / BMO)' : 'Earnings prints (AMC / BMO) — not available yet'}
+                {earningsAnchor ? 'Earnings reports (after the close or before the open)'
+                  : 'Earnings reports (after the close or before the open) — not available yet'}
               </option>
             </Select>
           </label>
@@ -199,20 +201,20 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
           title="The full strategy list could not be read right now, so only the first set of strategies is offered." />
       )}
       {waiting && !exhausted && (
-        <p className={styles.note} data-testid="backtest-busy">
+        <p className={styles.note} data-testid="backtest-busy" role="status">
           The backtester is busy right now. This asks again by itself every {PENDING_REASK_MS / 1000} seconds.
         </p>
       )}
       {waiting && exhausted && (
-        <p className={styles.note} data-testid="backtest-busy">
+        <p className={styles.note} data-testid="backtest-busy" role="status">
           The backtester is still busy.{' '}
           <button type="button" onClick={retry}>Try again</button>
         </p>
       )}
       {poll.error && <FailedRead testId="backtest-error" retry={() => poll.mutate()} title="The backtest result is unavailable right now." />}
       {st && (st.state === 'queued' || st.state === 'running') && (
-        <p className={styles.note} data-testid="backtest-running">
-          Simulating {sym} over {earnings ? 'past earnings prints' : 'the past year of monthly expirations'}… {st.budget_text || ''}
+        <p className={styles.note} data-testid="backtest-running" role="status">
+          Simulating {sym} over {earnings ? 'past earnings prints' : 'the past year of monthly expirations'}…
         </p>
       )}
       {st?.state === 'failed' && <p className={styles.note} data-testid="backtest-error">{st.error}</p>}
@@ -234,7 +236,7 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
                   <tr>
                     {r.anchor === 'earnings' && <th scope="col">Report</th>}
                     <th scope="col">Entry</th><th scope="col">Expiry</th><th scope="col">Contracts</th><th scope="col">Debit</th>
-                    <th scope="col" title={r.iv_source_text}>IV (computed)</th><th scope="col">Exit</th><th scope="col">P&amp;L</th>
+                    <th scope="col" title={plainBacktest(r.iv_source_text)}>IV (computed)</th><th scope="col">Exit</th><th scope="col">P&amp;L</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -245,7 +247,7 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
                       <td>{t.expiry}</td>
                       <td>{legsLabel(t.legs)}</td>
                       <td>{money(t.debit)}</td>
-                      <td>{t.legs.map((l) => ivText(l.iv_computed)).join(' / ')}</td>
+                      <td>{Array.isArray(t.legs) && t.legs.length ? t.legs.map((l) => ivText(l?.iv_computed)).join(' / ') : '—'}</td>
                       <td>{exitLabel(t.exit)}</td>
                       <td>{money(t.pnl)}</td>
                     </tr>
@@ -254,10 +256,7 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
               </table>
             </div>
           )}
-          <p className={styles.muted} data-testid="backtest-iv-source">{r.iv_source_text}</p>
-          <p className={styles.muted} data-testid="backtest-budget">
-            Used {r.vendor_requests?.used} of at most {r.vendor_requests?.budget} vendor requests for this run.
-          </p>
+          <p className={styles.muted} data-testid="backtest-iv-source">{plainBacktest(r.iv_source_text)}</p>
         </div>
       )}
     </section>

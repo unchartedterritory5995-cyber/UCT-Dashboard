@@ -71,8 +71,13 @@ function DailyMove({ sym }) {
         <>
           <ul className={styles.list}>
             {data.pairs.slice(-20).reverse().map((p) => (
+              // Audit 2026-10-08 (OHIS, point 27): inside / outside the implied move was told by
+              // colour alone. The words carry it now; the colour only repeats them.
               <li key={p.date}>{p.date} → {p.next}: implied ±{pctNum(p.implied_move_pct)}, actual{' '}
-                <b className={p.inside ? styles.gain : styles.loss}>{signedPct(p.actual_move_pct)}</b>
+                <b className={p.inside === true ? styles.gain : p.inside === false ? styles.loss : undefined}>{signedPct(p.actual_move_pct)}</b>
+                {p.inside === true || p.inside === false
+                  ? <span data-testid="daily-move-verdict">{p.inside ? ' inside' : ' outside'} the implied move</span>
+                  : null}
                 <span className={styles.muted}> ({num(p.ratio)}× implied)</span></li>
             ))}
           </ul>
@@ -108,12 +113,19 @@ function IvCrush({ sym }) {
                     <tr key={p.report_date}><th scope="row">{p.report_date}</th>{offs.map((k) => <td key={k}>{cell(p.iv[String(k)])}</td>)}
                       <td>{p.crush_pct == null ? '' : pctNum(p.crush_pct, 1)}</td></tr>
                   ))}
-                  {data.summary && ['average', 'max', 'min'].map((s) => (
-                    <tr key={s}><th scope="row">{s}</th>{offs.map((k) => <td key={k}>{cell(data.summary[s][String(k)])}</td>)}<td /></tr>
+                  {data.summary && [['average', 'Average'], ['max', 'Max'], ['min', 'Min']].map(([s, label]) => (
+                    <tr key={s}><th scope="row">{label}</th>{offs.map((k) => <td key={k}>{cell(data.summary[s]?.[String(k)])}</td>)}<td /></tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          )}
+          {data.prints.length > 0 && (
+            <p className={styles.muted} data-testid="iv-crush-key">
+              Each column is a session counted from the earnings print: 0 is the last session that closed
+              before the print, +1 the first session after it, -1 the session before 0. Crush is the change in
+              IV from session 0 to +1.
+            </p>
           )}
           {!data.summary && <p className={styles.note} data-testid="iv-crush-note">{data.summary_note}</p>}
           <p className={styles.muted}>{data.method}</p>

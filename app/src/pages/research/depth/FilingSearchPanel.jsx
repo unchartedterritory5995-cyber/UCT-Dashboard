@@ -37,6 +37,14 @@ function Snippet({ text, marks }) {
   return <>{out}</>
 }
 
+// The server's paragraph index is 0-based; a member reads 1-based. Null when it is missing or not
+// a whole number, so the citation leaves it out instead of printing "paragraph NaN".
+export function paraLabel(paraNo) {
+  if (paraNo === null || paraNo === undefined || paraNo === '') return null
+  const n = Number(paraNo)
+  return Number.isInteger(n) && n >= 0 ? `paragraph ${n + 1}` : null
+}
+
 export default function FilingSearchPanel({ sym }) {
   const chrome = useDepthChrome()
   const s = (sym || '').toUpperCase().trim()
@@ -63,7 +71,7 @@ export default function FilingSearchPanel({ sym }) {
   let body = null
   if (!submitted) body = null
   else if (error) body = <div className={styles.error} data-testid="filing-search-unavailable">Filing search is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
-  else if (!data) body = <div className={styles.note}>Searching…</div>
+  else if (!data) body = <div className={styles.note} role="status">Searching…</div>
   else if (data.paywalled) body = <div className={styles.note}>Filing search requires a paid plan.</div>
   else if (data.badRequest) body = <div className={styles.error} data-testid="filing-search-bad-query">{data.badRequest}</div>
   else if (data.index_state && !['indexed', 'corpus'].includes(data.index_state)) {
@@ -82,12 +90,25 @@ export default function FilingSearchPanel({ sym }) {
           </p>
         )}
         {(data.notes || []).map((n, i) => <p key={i} className={styles.muted}>{n}</p>)}
+        {/* Audit 2026-10-08 (FSRC, point 7): zero hits over an empty list read as a dead end. */}
+        {!(data.hits || []).length && (
+          <p className={styles.note} data-testid="filing-search-no-hits">
+            No paragraph matched. Try fewer words, All sections, or OR between alternatives (tariff OR duties).
+          </p>
+        )}
         <ol className={styles.hits} data-panel-list>
           {(data.hits || []).map((h) => (
             <li key={`${h.accession}-${h.section}-${h.para_no}`} className={styles.hit} data-testid="filing-search-hit">
               <Snippet text={h.snippet} marks={data.snippet_marks} />
               <div className={styles.cite}>
-                {h.form} {h.filed ? `filed ${h.filed}` : ''} · {h.section_label} · paragraph {Number(h.para_no) + 1} ·{' '}
+                {/* Audit 2026-10-08 (FSRC, point 12): a missing field is left out, never printed as
+                    "paragraph NaN" or a stray separator. */}
+                {[
+                  [h.form, h.filed ? `filed ${h.filed}` : ''].filter(Boolean).join(' '),
+                  h.section_label,
+                  paraLabel(h.para_no),
+                ].filter(Boolean).join(' · ')}
+                {' · '}
                 {h.url ? <a href={h.url} target="_blank" rel="noopener noreferrer">SEC document {h.accession}</a> : h.accession}
               </div>
             </li>
