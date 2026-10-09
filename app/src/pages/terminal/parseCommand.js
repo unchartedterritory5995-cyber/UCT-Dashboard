@@ -313,6 +313,13 @@ function parseCore(raw) {
       args: second ? [second.toUpperCase()] : [] }
   }
 
+  // W9-4: `PEER CAL` / `GP CAL`: both words are codes, but only the second is a real ticker
+  // (grammar.js TICKER_COLLISIONS) and the first takes one, so it is FUNC on that ticker, not
+  // CAL on a ticker called PEER. `CAL PEER` (CAL is a ticker) keeps the canonical order.
+  if (second && !forced && isCode(FIRST) && isCode(second) && !second.startsWith('$')
+    && BY_CODE[FIRST].ticker && !isTickerCollision(FIRST) && isTickerCollision(second)) {
+    return { ok: true, type: 'function', code: canonicalCode(FIRST), sym: second.toUpperCase(), args: rest }
+  }
   // TICKER FUNC [args]  — the canonical order; a code in second place makes the first a ticker.
   if (second && isCode(second)) {
     const sym = normalizeSym(firstTok)
@@ -349,6 +356,12 @@ function parseCore(raw) {
     const sym = normalizeSym(second)
     if (sym && BY_CODE[FIRST].ticker) {
       return { ok: true, type: 'function', code: canonicalCode(FIRST), sym, args: rest }
+    }
+    // W9-4: `NEWS NVDA` is `NVDA NEWS`. A market-wide code that declares no arguments reads a
+    // lone ticker after it as the ticker, so both orders say the same thing ("NEWS is market-wide;
+    // NVDA is ignored", plus where that ticker's own view is) instead of "NEWS takes no arguments".
+    if (sym && !rest.length && !BY_CODE[FIRST].ticker && !(BY_CODE[FIRST].market?.args || []).length) {
+      return { ok: true, type: 'function', code: canonicalCode(FIRST), sym, args: [] }
     }
     return { ok: true, type: 'function', code: canonicalCode(FIRST), sym: null, args: [second, ...rest] }
   }

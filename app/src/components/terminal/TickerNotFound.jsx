@@ -26,7 +26,7 @@ export function notFoundOf(payload, sym = '') {
   const name = String(sym || payload.sym || payload.symbol || payload.ticker || '').trim().toUpperCase()
   const message = typeof payload.message === 'string' && payload.message.trim()
     ? payload.message.trim()
-    : `No data for ${name || 'this symbol'} — check the ticker`
+    : `No data for ${name || 'this symbol'}: check the ticker`
   const suggestions = Array.isArray(payload.suggestions)
     ? [...new Set(payload.suggestions
       .map((s) => String((s && typeof s === 'object' ? s.symbol || s.ticker : s) || '').trim().toUpperCase())

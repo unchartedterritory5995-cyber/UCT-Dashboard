@@ -128,7 +128,7 @@ describe('TechnicalTab', () => {
     mockReturn = { data: { verdicts: [bullFlag] }, isLoading: false }
     renderWithProviders(<TechnicalTab sym="AAPL" />, { route: '/research/AAPL?setup=vcp' })
     expect(screen.getByTestId('scanner-hint-stale')).toHaveTextContent(
-      'Detected from Scanner: Vcp — this setup is no longer confirmed as active for AAPL.',
+      'Detected from Scanner: Vcp. This setup is no longer confirmed as active for AAPL.',
     )
   })
 

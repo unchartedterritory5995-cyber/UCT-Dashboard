@@ -4,6 +4,7 @@ import styles from '../ResearchPage.module.css'
 import HighlightThesis, { isFailedSynthesis, FAILED_SYNTHESIS_NOTE } from '../../../utils/highlightThesis'
 import { withDeadline } from '../../../utils/withDeadline'
 import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
+import SwitchedOff from '../SwitchedOff'
 
 // TERM-049 (FB-A13-01) -- one ticker, one timeline. Reads
 // GET /api/research/history/{sym} (api/services/ticker_history.py), DARK behind
@@ -111,6 +112,9 @@ export default function HistoryTab({ sym }) {
   if (data && !data.ok && data.httpStatus === 402) {
     return <div className={styles.card} data-testid="history-paywalled">Ticker history requires a paid plan.</div>
   }
+  if (data && !data.ok && data.httpStatus === 404) {
+    return <SwitchedOff what="Ticker history" className={styles.card} testId="history-off" />
+  }
   if (data && !data.ok) {
     return <div className={styles.card} data-testid="history-unavailable">
       History is unavailable right now. That does not mean nothing happened.{' '}
@@ -166,7 +170,7 @@ export default function HistoryTab({ sym }) {
             <li key={`${r.lane}-${r.date}-${i}`} data-testid="history-row" className={styles.historyRow}>
               <strong className={styles.historyDate}>{r.date}</strong> · {LANE_LABEL[r.lane] || r.lane} · <HighlightThesis text={rowText(r)} />
               {r.symbol && r.symbol !== body.ticker && <span className={styles.muted}> (as {r.symbol})</span>}
-              <span className={`${styles.muted} ${styles.historySource}`} data-testid="history-row-source"> — {SOURCE_LABEL[r.source] || r.source}, as of {r.as_of}
+              <span className={`${styles.muted} ${styles.historySource}`} data-testid="history-row-source"> · {SOURCE_LABEL[r.source] || r.source}, as of {r.as_of}
                 {r.lane === 'flow' && r.ref && <> · <a href={r.ref}>Open Options Flow</a> (opens a page)</>}
               </span>
             </li>

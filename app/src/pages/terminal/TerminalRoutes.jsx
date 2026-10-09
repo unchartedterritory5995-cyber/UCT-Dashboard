@@ -11,8 +11,9 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import usePreferences from '../../hooks/usePreferences'
 import useTerminalNext, { calendarIntoShell, shellOutToCalendar } from './terminalGate'
-import { isGuardedStatus, readLibrary } from './boardModel'
-import { TERMINAL_BOARDS_PREF } from './useTerminalLayout'
+// `boardPrefs`, never `boardModel` / `useTerminalLayout`: this file is in App.jsx's static graph, and
+// those two pull the whole function registry into the app entry chunk (lane w9-10).
+import { TERMINAL_BOARDS_PREF, isGuardedStatus, readKeepCalendar } from './boardPrefs'
 import { PanelSkeleton } from '../../components/terminal'
 
 /** `/calendar`: today's page, or — for an admitted member — the shell's Calendar section.
@@ -29,7 +30,7 @@ export function CalendarRoute({ children }) {
   const { prefs, loading } = usePreferences(open)
   if (!open) return children
   if (loading) return <div style={{ padding: 'var(--space-lg)' }}><PanelSkeleton label="Loading" /></div>
-  const { library, status } = readLibrary(prefs?.[TERMINAL_BOARDS_PREF])
+  const { keepCalendar, status } = readKeepCalendar(prefs?.[TERMINAL_BOARDS_PREF])
   // An unreadable/newer preference must not silently reverse "keep classic calendar" —
   // warn and stay put, the same idiom BoardsMenu uses for the same guarded states.
   if (isGuardedStatus(status)) {
@@ -43,7 +44,7 @@ export function CalendarRoute({ children }) {
       </>
     )
   }
-  if (library.keepCalendar) return children
+  if (keepCalendar) return children
   return <Navigate to={calendarIntoShell(search, hash)} replace />
 }
 

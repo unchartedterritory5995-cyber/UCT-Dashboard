@@ -4,6 +4,7 @@ import { PROVIDER_ERROR } from '../../../components/provenance/availabilityContr
 import styles from '../ResearchPage.module.css'
 import ResearchLoading from '../ResearchLoading'
 import { stageText, dropReasonText } from './decisionRecordCopy'
+import SwitchedOff from '../SwitchedOff'
 
 // TERM-088 (item 15 ACC-02) -- "the decision record gets a member surface".
 //
@@ -95,7 +96,7 @@ function CoverageCaveat({ coverage, source }) {
 function SafetyNote() {
   return (
     <p className={styles.fnote} data-testid="decision-record-safety">
-      This is UCT&rsquo;s own decision record &mdash; what the desk&rsquo;s Morning Wire looked at and
+      This is UCT&rsquo;s own decision record: what the desk&rsquo;s Morning Wire looked at and
       passed on, not a member&rsquo;s trades and not a recommendation. A name dropped on a date says
       only that it did not clear that morning&rsquo;s process.
     </p>
@@ -110,7 +111,7 @@ function Unavailable({ onRetry }) {
         <Provenance value="Decision record" availability={PROVIDER_ERROR} />
         <p className={styles.fnote}>
           The decision record could not be read right now. That is not
-          the same as this name never having been considered &mdash; nothing is being said about it.
+          the same as this name never having been considered; nothing is being said about it.
         </p>
         {onRetry && <button type="button" className={styles.basisBtn} onClick={() => onRetry()}>Retry</button>}
       </section>
@@ -130,6 +131,9 @@ export default function DecisionRecordTab({ sym }) {
   // tq-panels: a 402 is the paid gate, not "unavailable".
   if (result && !result.ok && result.httpStatus === 402) {
     return <div className={styles.fnote} data-testid="decision-record-paywalled">The decision record requires a paid plan.</div>
+  }
+  if (result && !result.ok && result.httpStatus === 404) {
+    return <SwitchedOff what="The decision record" className={styles.fnote} testId="decision-record-off" />
   }
   if (!result || !result.ok || !result.body) return <Unavailable onRetry={mutate} />
   const body = result.body
@@ -159,7 +163,7 @@ export default function DecisionRecordTab({ sym }) {
             <strong>Not considered.</strong> {ticker} does not appear in any of the{' '}
             {coverage && coverage.issues_held} Morning Wire issues this record holds
             {coverage && coverage.first_issue ? ` (${coverage.first_issue} → ${coverage.last_issue})` : ''}.
-            It was never looked at and passed on &mdash; it was not on the list at all.
+            It was never looked at and passed on: it was not on the list at all.
           </p>
         </section>
         <CoverageCaveat coverage={coverage} source={source} />

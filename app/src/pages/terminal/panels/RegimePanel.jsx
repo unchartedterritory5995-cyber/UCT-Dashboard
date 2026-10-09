@@ -12,7 +12,7 @@
 import { useMemo } from 'react'
 import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
-import { failureText, useMarketRead } from './marketRead'
+import { canRetry, failureText, useMarketRead } from './marketRead'
 import styles from './marketPanels.module.css'
 
 export const REGIME_URL = '/api/regime'
@@ -67,7 +67,7 @@ export default function RegimePanel() {
 
   if (read.loading) return <PanelSkeleton label="Reading the market regime" testId="terminal-regime-loading" />
   if (read.error && !body) {
-    const locked = read.error?.status === 402
+    const locked = !canRetry(read.error)
     return (
       <PanelState kind={locked ? 'locked' : 'error'} title={failureText(read.error, 'The regime call')} testId="terminal-regime-error"
         action={locked ? null : <button type="button" className={styles.chip} onClick={read.retry}>Retry</button>}>

@@ -244,7 +244,7 @@ export default function AskAiTab({ sym }) {
     <div className={styles.finWrap}>
       <section className={styles.card}>
         <div className={styles.explainHeaderRow}>
-          <div className={styles.ct}>Ask AI — {sym}</div>
+          <div className={styles.ct}>Ask AI: {sym}</div>
           {turns.length > 0 && (
             <button type="button" className={styles.explainNewConvoBtn} onClick={resetConversation}
                     data-testid="ask-ai-new-conversation">
@@ -277,7 +277,7 @@ export default function AskAiTab({ sym }) {
         {turns.length === 0 && (
           <div className={styles.fnote}>
             Ask about this company's recent news, financials, estimates, ownership, analyst
-            activity, or SEC filings — grounded in UCT's own data, with sources.
+            activity, or SEC filings, grounded in UCT's own data, with sources.
             This assistant explains; it does not give buy/sell/hold advice.
             {' '}Press Enter to ask, Shift+Enter for a new line.
           </div>

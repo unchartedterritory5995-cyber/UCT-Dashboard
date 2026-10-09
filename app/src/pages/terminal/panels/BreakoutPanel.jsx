@@ -28,7 +28,7 @@ import {
 import { formatCurrency, formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
 import CoverageLine from '../../../components/provenance/CoverageLine'
-import { failureText } from './marketRead'
+import { canRetry, failureText } from './marketRead'
 import styles from './marketPanels.module.css'
 
 export const BRKO_URL = '/api/screener/scan'
@@ -178,7 +178,7 @@ export default function BreakoutPanel() {
 
   if (!r.data && !r.error) return <PanelSkeleton label="Loading the breakout-ready list" testId="terminal-brko-loading" />
   if (!r.data && r.error) {
-    const locked = r.error?.status === 402
+    const locked = !canRetry(r.error)
     const title = r.error?.status === 400
       ? 'The breakout scan cannot run on this server yet. The screener snapshot is missing a column it needs.'
       : failureText(r.error, 'The breakout-ready list')

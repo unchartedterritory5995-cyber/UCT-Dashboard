@@ -358,7 +358,7 @@ describe('ResearchPage', () => {
     // AI door inside the existing research experience.
     auth.isPaid = true
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=ai' })
-    expect(screen.getByText('Ask AI — AAPL')).toBeInTheDocument()
+    expect(screen.getByText('Ask AI: AAPL')).toBeInTheDocument()
     expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
   })
 
