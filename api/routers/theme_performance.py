@@ -57,6 +57,10 @@ router = APIRouter()
 # lifespan dashboard warm). They keep their behaviour: a cache hit, else a
 # synchronous build. Never a served-stale overlay.
 THEME_STALE_MAX_AGE = 30
+# Perf wave 2: while no US session can print (svc.prices_moving() is False) the snapshot does
+# not move, so the last complete overlay stays servable for 15 min and is refreshed behind the
+# caller; a lone off-hours visitor no longer pays the ~7 s rebuild.
+THEME_STALE_QUIET_MAX_AGE = 900
 _THEME_KEY = "theme_performance_overlaid"      # one global key, = svc._OVERLAID_KEY
 _THEME_STALE = ServeStale("theme_performance", max_age_seconds=THEME_STALE_MAX_AGE, max_keys=2)
 
@@ -93,6 +97,7 @@ def serve_theme_performance(refresh: bool = False):
         if _good(built):
             _THEME_STALE.remember(_THEME_KEY, built)
         return built[0], TIER_BUILD, None
+    _THEME_STALE.max_age = float(THEME_STALE_MAX_AGE if svc.prices_moving() else THEME_STALE_QUIET_MAX_AGE)
     served, tier, age = serve_with_tier(
         _THEME_STALE, _THEME_KEY,
         fresh=_fresh_theme, build=_build_theme, good=_good,

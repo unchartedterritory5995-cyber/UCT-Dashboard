@@ -135,6 +135,14 @@ def live(monkeypatch, clock):
 
 
 @pytest.fixture(autouse=True)
+def _session_printing(monkeypatch):
+    # Perf wave 2: the live windows are 10 s / 30 s only while a US session can print
+    # (svc.prices_moving); quiet hours are pinned in tests/test_theme_performance_cold_path.py.
+    # These tests pin the in-session behaviour, so they must not depend on the wall clock.
+    monkeypatch.setattr(svc, "prices_moving", lambda now=None: True)
+
+
+@pytest.fixture(autouse=True)
 def _isolate_cache():
     prior_base = cache.get(svc._CACHE_KEY)
     for k in _LIVE_KEYS + (svc._CACHE_KEY,):
