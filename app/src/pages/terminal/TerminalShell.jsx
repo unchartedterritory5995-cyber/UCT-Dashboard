@@ -33,7 +33,7 @@ import ContextPopover from '../../components/mobile/ContextPopover'
 import Sheet from '../../components/mobile/Sheet'
 import FreshnessBadge from '../../components/provenance/FreshnessBadge'
 import Provenance from '../../components/provenance/Provenance'
-import { PanelFreshnessContext, PanelListContext, PanelSkeleton, PanelState, TerminalPanelContext } from '../../components/terminal'
+import { PanelFreshnessContext, PanelListContext, PanelSkeleton, PanelState, SecurityHeadline, TerminalPanelContext } from '../../components/terminal'
 import UIcon from '../../components/ui/UIcon'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import useDoorParam from '../../hooks/useDoorParam'
@@ -386,6 +386,9 @@ export function Panel({
           </span>
         )}
       </header>
+      {/* Wave 3 (#2): ONE headline line per one-stock panel — price, % change, volume vs
+          average, next earnings — drawn by the frame so no panel carries its own copy. */}
+      {r.state === 'ready' && r.sym && !panel.popout && <SecurityHeadline sym={r.sym} />}
       <div className={`${styles.panelBody} ${flush && !panel.popout ? styles.panelBodyFlush : ''}`}
         data-inset={flush && !panel.popout ? 'flush' : 'inset'} data-testid={`terminal-body-${index}`}>
         {panel.popout && (
