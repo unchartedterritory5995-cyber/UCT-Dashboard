@@ -131,7 +131,8 @@ export const FUNCTIONS = [
   { code: 'OMON', label: 'Option chain', group: 'Options',
     ticker: { panel: 'OptionsChain', section: 'options', flag: 'optionsChainEnabled' } },
   { code: 'OVS', label: 'Volatility surface', group: 'Options',
-    ticker: { panel: 'OptionsChain', props: { volSurface: true }, section: 'options',
+    // `focus`: the surface leads and the chain folds beneath it (audit 2026-10-08, OVS P1).
+    ticker: { panel: 'OptionsChain', props: { volSurface: true, focus: 'surface' }, section: 'options',
               flag: 'optionsVolSurfaceEnabled' } },
   // `offNotice`: these six open a dark surface ON ITS OWN, and every route behind them answers 404
   // until its own switch is set. Embedded under the chain or on Options Flow, a 404 renders nothing;

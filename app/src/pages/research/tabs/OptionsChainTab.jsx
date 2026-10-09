@@ -87,7 +87,8 @@ export function LazyGroup({ title, testId, children }) {
 // `volSurface`: BRK-01 increment 3's switch (options_vol_surface_enabled), passed by ResearchPage.
 // `backtest`: BRK-01 increment 4's switch (options_backtest_enabled), passed by ResearchPage. Its
 // one button is "Simulate" -- a historical simulation, never an order.
-export default function OptionsChainTab({ sym, volSurface = false, backtest = false }) {
+// `focus`: 'surface' (the OVS code) leads with the vol surface and folds the chain beneath it.
+export default function OptionsChainTab({ sym, volSurface = false, backtest = false, focus = '' }) {
   const s = (sym || '').toUpperCase().trim()
   const [picked, setPicked] = useState('')
   // FT-016: a clicked quote opens the contract drill (renders nothing while OPTIONS_PRICER_ENABLED is off)
@@ -159,47 +160,11 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
     return <td key={`${type[0]}-${k}`} className={cls} onClick={drillable ? open : undefined}>{text}</td>
   }
 
-  return (
-    <section data-testid="options-chain">
-      <div className={styles.head}>
-        <label className={styles.expiry}>
-          Expiration{' '}
-          <Select value={d.expiration || ''} onChange={(e) => setPicked(e.target.value)} aria-label="Expiration">
-            {(expList.length ? expList : [d.expiration]).filter(Boolean).map((x) => {
-              const n = daysTo(x)
-              return <option key={x} value={x}>{n == null ? x : `${x} (${n}d)`}</option>
-            })}
-          </Select>
-        </label>
-        <span>{s} <b>{fmt(d.spot, 2)}</b></span>
-        <span data-testid="atm-iv" title="Mean of the call and put implied volatility at the strike nearest spot (vendor IV)">ATM IV <b>{fmt(atmIv, 'pct')}</b></span>
-        <span data-testid="expected-move" title="At-the-money straddle mid (call mid + put mid at the strike nearest spot) ÷ spot. A rule of thumb from today's quotes, not a forecast.">
-          Expected move to {d.expiration || 'expiry'}{days != null ? ` (${days}d)` : ''}{' '}
-          {move ? <b>±{formatCurrency(move.dollars)} (±{formatPercent(move.pct, { decimals: 1 })})</b> : <b>—</b>}
-          <span className={styles.muted}> ATM straddle ÷ spot</span>
-        </span>
-        {isPhone && (
-          <span className={styles.mode} role="group" aria-label="Chain side" data-testid="chain-phone-side">
-            {PHONE_SIDES.map(([k, l]) => <button key={k} type="button" aria-pressed={phoneSide === k} onClick={() => setPhoneSide(k)}>{l}</button>)}
-          </span>
-        )}
-        {full && !isPhone && (
-          <span className={styles.mode} role="group" aria-label="Chain view" data-testid="chain-mode">
-            {MODES.map(([k, l]) => <button key={k} type="button" aria-pressed={mode === k} onClick={() => setMode(k)}>{l}</button>)}
-          </span>
-        )}
-        <IvRankBadge sym={s} fallback={
-          <span className={styles.muted} title="IV rank compares today's IV with its own history, which is not licensed yet.">
-            IV rank: needs IV history
-          </span>} />
-      </div>
-      {/* Quality pass 2026-10-05: a failed expirations read was silently ignored -- the
-          picker quietly held the one expiration the chain came back with. */}
-      {exps.error && (
-        <p className={styles.note} data-testid="chain-expirations-unavailable">
-          The list of expirations couldn&apos;t be loaded, so only {d.expiration || 'this expiration'} can be picked right now.
-        </p>
-      )}
+  // Audit 2026-10-08 (OVS P1): `OVS` opened the whole chain with the surface ~6 panels down. With
+  // `focus="surface"` the surface leads and the chain folds below it (read only when opened).
+  const surfaceFirst = volSurface && focus === 'surface'
+  const chainBody = (
+    <>
       <OptionMonitorStrip sym={s} />
       {/* An empty chain was a header row over nothing. Say it in words. */}
       {shown.length === 0 ? (
@@ -268,8 +233,8 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
         <PositionBuilder sym={s} rows={rows} spot={Number(d.spot)} />
         <ProbabilityPanel sym={s} expiration={d.expiration || ''} />
       </LazyGroup>
-      <LazyGroup title={`Volatility: ${volSurface ? 'surface, ' : ''}skew, IV history, vol stats`} testId="chain-group-vol">
-        {volSurface && <VolSurfacePanel sym={s} expiration={d.expiration || ''} />}
+      <LazyGroup title={`Volatility: ${volSurface && !surfaceFirst ? 'surface, ' : ''}skew, IV history, vol stats`} testId="chain-group-vol">
+        {volSurface && !surfaceFirst && <VolSurfacePanel sym={s} expiration={d.expiration || ''} />}
         <VolSkewPanels sym={s} />
         {/* TERM-019: these are panels of their own elsewhere; inside the chain they stay quiet so the
             terminal header names the chain's source, not whichever embedded panel reported last. */}
@@ -291,6 +256,56 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
         · refreshed every {d.cache_seconds || 60}s
         {etStamp(d.served_at) ? ` · as of ${etStamp(d.served_at)}` : ''}
       </p>
+    </>
+  )
+
+  return (
+    <section data-testid="options-chain">
+      <div className={styles.head}>
+        <label className={styles.expiry}>
+          Expiration{' '}
+          <Select value={d.expiration || ''} onChange={(e) => setPicked(e.target.value)} aria-label="Expiration">
+            {(expList.length ? expList : [d.expiration]).filter(Boolean).map((x) => {
+              const n = daysTo(x)
+              return <option key={x} value={x}>{n == null ? x : `${x} (${n}d)`}</option>
+            })}
+          </Select>
+        </label>
+        <span>{s} <b>{fmt(d.spot, 2)}</b></span>
+        <span data-testid="atm-iv" title="Mean of the call and put implied volatility at the strike nearest spot (vendor IV)">ATM IV <b>{fmt(atmIv, 'pct')}</b></span>
+        <span data-testid="expected-move" title="At-the-money straddle mid (call mid + put mid at the strike nearest spot) ÷ spot. A rule of thumb from today's quotes, not a forecast.">
+          Expected move to {d.expiration || 'expiry'}{days != null ? ` (${days}d)` : ''}{' '}
+          {move ? <b>±{formatCurrency(move.dollars)} (±{formatPercent(move.pct, { decimals: 1 })})</b> : <b>—</b>}
+          <span className={styles.muted}> ATM straddle ÷ spot</span>
+        </span>
+        {isPhone && (
+          <span className={styles.mode} role="group" aria-label="Chain side" data-testid="chain-phone-side">
+            {PHONE_SIDES.map(([k, l]) => <button key={k} type="button" aria-pressed={phoneSide === k} onClick={() => setPhoneSide(k)}>{l}</button>)}
+          </span>
+        )}
+        {full && !isPhone && (
+          <span className={styles.mode} role="group" aria-label="Chain view" data-testid="chain-mode">
+            {MODES.map(([k, l]) => <button key={k} type="button" aria-pressed={mode === k} onClick={() => setMode(k)}>{l}</button>)}
+          </span>
+        )}
+        <IvRankBadge sym={s} fallback={
+          <span className={styles.muted} title="IV rank compares today's IV with its own history, which is not licensed yet.">
+            IV rank: needs IV history
+          </span>} />
+      </div>
+      {/* Quality pass 2026-10-05: a failed expirations read was silently ignored -- the
+          picker quietly held the one expiration the chain came back with. */}
+      {exps.error && (
+        <p className={styles.note} data-testid="chain-expirations-unavailable">
+          The list of expirations couldn&apos;t be loaded, so only {d.expiration || 'this expiration'} can be picked right now.
+        </p>
+      )}
+      {surfaceFirst && <VolSurfacePanel sym={s} expiration={d.expiration || ''} />}
+      {surfaceFirst ? (
+        <LazyGroup title="The full option chain and its tools" testId="chain-group-chain">
+          {chainBody}
+        </LazyGroup>
+      ) : chainBody}
     </section>
   )
 }
