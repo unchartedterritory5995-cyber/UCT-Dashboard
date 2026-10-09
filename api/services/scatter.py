@@ -580,7 +580,7 @@ def list_universes(user_id: Optional[str]) -> list:
     themes = []
     try:
         from api.services import theme_db
-        for th in _theme_rows(theme_db.get_all_themes()):
+        for th in _theme_rows(theme_db.get_theme_names()):
             tid = th.get("id") or th.get("theme_id")
             if tid:
                 themes.append({"source": "theme", "value": str(tid),
@@ -650,7 +650,7 @@ def label_for(source: str, value: Optional[str], user_id: Optional[str]) -> str:
     if src == "theme" and value:
         try:
             from api.services import theme_db
-            for th in _theme_rows(theme_db.get_all_themes()):
+            for th in _theme_rows([theme_db.get_theme(value)]):
                 if str(th.get("id") or th.get("theme_id")) == str(value):
                     return th.get("name") or "Theme"
         except Exception:

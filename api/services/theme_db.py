@@ -263,6 +263,22 @@ def get_themes_for_ticker(sym):
         conn.close()
 
 
+def get_theme_names():
+    """Every theme's id and name, in display order, without memberships.
+
+    For pickers that list themes by name. `get_all_themes()` also merges every owner and
+    engine membership, which measured 9.2 s inside SCAT's universe menu on prod
+    (2026-10-09) for a list that only needs names."""
+    conn = get_connection()
+    try:
+        rows = conn.execute("SELECT id, name FROM themes ORDER BY display_order").fetchall()
+        return [{"id": r["id"], "name": r["name"]} for r in rows]
+    except sqlite3.OperationalError:
+        return []
+    finally:
+        conn.close()
+
+
 def get_theme(theme_id):
     """One theme's own row (no memberships), or ``None`` when no such theme exists. The
     existence check ``get_theme_holdings`` cannot give: it answers ``[]`` for an unknown id."""

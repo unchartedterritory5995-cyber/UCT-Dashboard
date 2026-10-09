@@ -19,6 +19,8 @@ free to be wrong, so it was; it is load-bearing the moment data arrives.
 """
 
 
+import threading
+
 from . import bar_character, base_catalog, candle_catalog
 
 
@@ -1217,6 +1219,88 @@ def _log_if_slow(label, total_s, parts):
         " ".join(f"{k}={v:.1f}s" for k, v in parts.items()))
 
 
+def _build_shared_filters(dist):
+    """The member-independent part of `meta()`: every filter with its presets, bands and
+    evidence. It depends only on the snapshot and the ledgers, never on who asks."""
+    bands = dist.get("columns") or {}
+    out_filters = []
+    for key, f in FILTERS.items():
+        if f.get("options_column"):
+            presets = _distinct_options(f["options_column"])
+        elif f.get("options_list_column"):
+            presets = _distinct_list_options(f["options_list_column"])
+        else:
+            presets = f["presets"]
+        entry = {"key": key, "label": f["label"],
+                 "category": f["category"], "type": f["type"],
+                 "presets": presets, "allow_custom": f["allow_custom"],
+                 "unit": f["unit"]}
+        # A custom control (e.g. the Type filter's Include/Exclude multi-select)
+        # rides beside the standard fields; the rail picks the renderer off it.
+        if f.get("control"):
+            entry["control"] = f["control"]
+        if f.get("options"):
+            entry["options"] = list(f["options"])
+        if f["type"] == "range":
+            band = bands.get(f["column"])
+            if band is not None:
+                entry["distribution"] = band
+        # ⭐ MEASURED EVIDENCE RIDES BESIDE THE CONTROL, EXACTLY AS
+        # `distribution` DOES, AND FOR THE SAME REASON: it is a MEASUREMENT,
+        # not an editorial preset. A member choosing "Darvas Box" should be
+        # able to see that it beat the market's own base rate by a measured
+        # amount, and — far more often — that a structure has NO measured
+        # number at all. Refused structures are deliberately absent from this
+        # dict rather than present with a zero: `lift_ledger.for_structure`
+        # returns None for both "never measured" and "measured and refused",
+        # because to a member those say the same honest thing.
+        if key == "base_structure":
+            ev = _structure_evidence()
+            if ev:
+                entry["evidence"] = ev
+                entry["evidence_basis"] = _evidence_basis()
+        out_filters.append(entry)
+    return out_filters
+
+
+#: One build of the shared filter list per snapshot vintage, for `_SHARED_TTL_S`.
+#: Measured 2026-10-09 on prod: `filters` was 3.3 s of a 4.1 s `/api/screener/meta`, rebuilt
+#: on EVERY request (distinct-value scans, list-token scans, the lift ledger) although
+#: it only changes when the nightly snapshot or a ledger does. The key carries the
+#: distribution basis (the snapshot vintage) and the identity of the builders, so a
+#: test that substitutes one is never handed another test's answer.
+_SHARED_TTL_S = 600
+_SHARED_CACHE = {}
+_SHARED_LOCK = threading.Lock()
+
+
+def _shared_filters(dist):
+    import json as _json  # noqa: PLC0415
+    import time as _time  # noqa: PLC0415
+    if dist.get("basis") is None:
+        # No vintage to key on (an unreadable or absent snapshot): build fresh.
+        return _build_shared_filters(dist)
+    try:
+        basis = _json.dumps(dist.get("basis"), sort_keys=True, default=str)
+    except (TypeError, ValueError):
+        basis = repr(dist.get("basis"))
+    # Every filter by key AND object identity: adding, removing or replacing a filter
+    # (a registry edit, or a test's setitem) is a different key, never a stale hit.
+    key = (basis, tuple((k, id(v)) for k, v in FILTERS.items()), id(_distinct_options),
+           id(_distinct_list_options), id(_structure_evidence), id(_evidence_basis))
+    hit = _SHARED_CACHE.get(key)
+    if hit and _time.monotonic() - hit[0] < _SHARED_TTL_S:
+        return list(hit[1])
+    with _SHARED_LOCK:
+        hit = _SHARED_CACHE.get(key)
+        if hit and _time.monotonic() - hit[0] < _SHARED_TTL_S:
+            return list(hit[1])
+        built = _build_shared_filters(dist)
+        _SHARED_CACHE.clear()
+        _SHARED_CACHE[key] = (_time.monotonic(), built)
+        return list(built)
+
+
 def meta(user_id=None) -> dict:
     """The whole panel payload.
 
@@ -1263,44 +1347,7 @@ def meta(user_id=None) -> dict:
     _parts = {}
     dist = distribution.distributions()
     _parts["distribution"] = _time.perf_counter() - _t0
-    bands = dist.get("columns") or {}
-    out_filters = []
-    for key, f in FILTERS.items():
-        if f.get("options_column"):
-            presets = _distinct_options(f["options_column"])
-        elif f.get("options_list_column"):
-            presets = _distinct_list_options(f["options_list_column"])
-        else:
-            presets = f["presets"]
-        entry = {"key": key, "label": f["label"],
-                 "category": f["category"], "type": f["type"],
-                 "presets": presets, "allow_custom": f["allow_custom"],
-                 "unit": f["unit"]}
-        # A custom control (e.g. the Type filter's Include/Exclude multi-select)
-        # rides beside the standard fields; the rail picks the renderer off it.
-        if f.get("control"):
-            entry["control"] = f["control"]
-        if f.get("options"):
-            entry["options"] = list(f["options"])
-        if f["type"] == "range":
-            band = bands.get(f["column"])
-            if band is not None:
-                entry["distribution"] = band
-        # ⭐ MEASURED EVIDENCE RIDES BESIDE THE CONTROL, EXACTLY AS
-        # `distribution` DOES, AND FOR THE SAME REASON: it is a MEASUREMENT,
-        # not an editorial preset. A member choosing "Darvas Box" should be
-        # able to see that it beat the market's own base rate by a measured
-        # amount, and — far more often — that a structure has NO measured
-        # number at all. Refused structures are deliberately absent from this
-        # dict rather than present with a zero: `lift_ledger.for_structure`
-        # returns None for both "never measured" and "measured and refused",
-        # because to a member those say the same honest thing.
-        if key == "base_structure":
-            ev = _structure_evidence()
-            if ev:
-                entry["evidence"] = ev
-                entry["evidence_basis"] = _evidence_basis()
-        out_filters.append(entry)
+    out_filters = _shared_filters(dist)
     _parts["filters"] = _time.perf_counter() - _t0 - _parts["distribution"]
     categories = CATEGORIES
     if user_id is not None:
