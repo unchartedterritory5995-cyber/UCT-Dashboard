@@ -15,7 +15,7 @@ and definitions.** The Agent gets no formula engine and no second conversational
 - `agentContract.js` no longer exists. Line numbers in the old doc have drifted
   (`openCreateIndicator` is `ChartToolbar.jsx:1251`).
 - Stale elsewhere (not ours to fix): `app/src/agent/README.md` still says `widget.remove` is not
-  shipped; `CAPABILITY-CONTRACT.md` says 51/60 (golden manifest holds **59**); `ai_doors.py`
+  shipped; `CAPABILITY-CONTRACT.md` says 51/60 (golden manifest held **59** at this branch's base; master's Gate C later made 60 a per-request limit); `ai_doors.py`
   still calls `/converse` admin-only (it is admin **or cohort**).
 
 ## 1. What the Agent can invoke today
@@ -131,9 +131,12 @@ turns and alerts stay in the studio.
 ## 10. Order and acceptance
 
 1. Indicators: `instancesOf`, `instanceFingerprint`, 422 refusal passthrough.
-2. Agent: routing group + `indicator.list`; golden manifest update. **⚠ Manifest budget:** 59 of
-   `maxCapabilities` 60 are used and routed manifests must stay ≤ 55; the owner declined raising the
-   cap — M1's two capabilities need one slot freed/consolidated or an owner decision.
+2. Agent: routing group + `indicator.list`; golden manifest update. **Manifest budget (updated
+   after master `e74817ec91`, "Gate C", which landed after this branch's base):** `maxCapabilities`
+   60 is now a PER-REQUEST limit and the catalog may register up to 200 (`catalog.maxRegistered`);
+   routing packs whole groups under `routingThreshold` 55, and no group may exceed
+   `maxGroupSize` 40. So M1 needs an `indicators` routing group small enough to pack beside the
+   always-on group — not a freed slot. (On this branch's base the full manifest was 59/60.)
 3. Host: `openCreateIndicator` on the `chartApiById` entry; `indicator.openCreate` gated as above.
 4. Indicators: the seed prefill (never auto-sends).
 5. M2 add/remove with the indicator kind.
@@ -149,7 +152,7 @@ change; with the studio open an Agent Apply never persists `u_studio-preview`; m
 
 ## Risks
 
-- **Manifest ceiling** (above) is the binding constraint.
+- **Routed packing** (above): an `indicators` group must fit beside the always-on group in one request.
 - Two chart write paths (StockChart `handleUpdateChartSettings` vs ChartWidget `onOptsChange`);
   the server validates neither `indicatorInstances` nor def ownership.
 - **Main Trading has no code guard in `app/src/agent`** — protection is operational
