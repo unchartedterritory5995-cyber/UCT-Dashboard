@@ -83,7 +83,12 @@ describe('who sees the door (rendered DOM)', () => {
 })
 
 describe('selecting it opens the confirmation, never a publish (ruling D-9D1)', () => {
-  it('confirm, publish once, see the address — and focus goes back to the folder\'s action on close', async () => {
+  // ⚰️ This said focus goes back to the "Publish Theses" BUTTON. Since F3 (#300, ceb38aaef5) the
+  // folder tree is one Tab stop and focus that lands on a control inside a row moves to the row
+  // itself (`useTreeRoving` onFocus), which NVDA verified (docs/notebook/screen-reader-pass.md, r14/r15).
+  // So the sheet's return lands on the folder's treeitem, the row that holds the action. Red on
+  // master since #300; the second test below already expected the row (verify-1009).
+  it('confirm, publish once, see the address — and focus goes back to the folder\'s row on close', async () => {
     latchWave8Flags(true)
     await renderTab()
     const action = screen.getByRole('button', { name: 'Publish Theses' })
@@ -103,7 +108,9 @@ describe('selecting it opens the confirmation, never a publish (ruling D-9D1)', 
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Publish Theses' }))
+    const row = screen.getByRole('treeitem', { name: 'Theses' })
+    expect(document.activeElement).toBe(row)
+    expect(row.contains(screen.getByRole('button', { name: 'Publish Theses' }))).toBe(true)
   })
 
   // Lane KEYS round 4: the folder panel is a tree (one Tab stop), so the keyboard reaches a
