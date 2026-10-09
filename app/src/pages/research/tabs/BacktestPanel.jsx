@@ -147,11 +147,13 @@ export default function BacktestPanel({ sym, earningsAnchor = EARNINGS_TIMING_ON
           </Select>
         </label>
         {more && (
-          <label>Anchor{' '}
+          // Audit 2026-10-08 (OBT, point 20): "Anchor" and "AMC / BMO" were unexplained shorthand.
+          <label>Time entries to{' '}
             <Select aria-label="Entry anchor" value={anchor} onChange={(e) => setAnchor(e.target.value)}>
               <option value="monthly">Monthly expirations</option>
               <option value="earnings" disabled={!earningsAnchor}>
-                {earningsAnchor ? 'Earnings prints (AMC / BMO)' : 'Earnings prints (AMC / BMO) — not available yet'}
+                {earningsAnchor ? 'Earnings reports (after the close or before the open)'
+                  : 'Earnings reports (after the close or before the open) — not available yet'}
               </option>
             </Select>
           </label>
