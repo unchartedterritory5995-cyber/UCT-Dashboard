@@ -255,155 +255,204 @@ when ALL of these hold, each with a failing-first test:
 
 ## 14. M2 MUTATION CONTRACT — FINAL (owner decisions 2026-10-09)
 
-**Status: agreed contract, NOT implemented.** Supersedes §13 where they differ and answers the three
-open questions in `docs/agent/M2-M3-PROPOSALS.md` (Agent branch). Owner decisions:
+**Status: authoritative; Indicators half IMPLEMENTED (§15), Agent half NOT started.** Supersedes §13
+where they differ, `AGENT-INTEGRATION-CONTRACT.md` §2–§6, and answers the three open questions in
+`docs/agent/M2-M3-PROPOSALS.md` (Agent-owned). Reviewed with the Agent team 2026-10-09 (their
+review is folded in below).
 
-1. Show/hide is IN M2, through the existing canonical visibility writer.
-2. Exact Undo of a removal requires an **Indicators-owned restore writer**. Original instance identity
-   and every affected reference are preserved; a restore that cannot be guaranteed exact is refused.
-3. The authoritative permission check is exposed as the **first** M2 implementation step, and the Agent
-   **re-checks permission at execution**, never relying on planning-time access alone.
+**Owner decisions (2026-10-09):**
+1. Show/hide is IN M2 and reuses the canonical visibility writer (`setInstanceHidden`).
+2. Undo of a removal restores the original instance identity and every dependent reference, through an
+   Indicators-owned restore; a restore that cannot be guaranteed exact is refused.
+3. The authoritative permission check (`canManageIndicators()`) is implemented first and re-checked at
+   execution and at every Undo.
+4. Production acceptance runs on `/charts`, ONLY inside a dedicated, isolated, admin-owned **"Agent
+   Indicators Acceptance"** workspace — never Main Trading, never Positions, never the Breadth drill board
+   (§14.8).
 
-### 14.1 Operations (one chart, one logical indicator per call)
+### 14.1 Operations — one chart, one logical indicator per call
 
-| Agent action | Writer (Indicators-owned, `engine/instanceControls.js`) | Exact inverse |
+| Agent action | Canonical writer (product UI that uses it) | Undo |
 |---|---|---|
-| `indicator.add {defId}` | `addInstance(cs, defId, registry)` | `removeInstance` of the instance it created |
-| `indicator.remove {instance}` | `removeInstanceWithRecord(cs, instanceId, registry)` (NEW; same result as `removeInstance`, plus a removal record — 14.5) | `restoreRemoved(cs, record, registry)` (NEW) |
-| `indicator.setVisible {instance, visible}` | `setInstanceHidden(cs, instanceId, !visible, registry)` — the settings eye's writer | the same writer with the prior value |
+| add `{defId}` | `addInstance` (Add to Chart → `createFromResult`) | `removeInstance` of the created id (the product's own delete), refused while anything reads it |
+| remove `{instanceId}` | `removeInstance` (Chart Settings ✕, legend chip Delete) | `restoreRemoved` — same ids, positions, inputs, dependents |
+| setVisible `{instanceId, visible}` | `setInstanceHidden` (Chart Settings eye, legend chip eye) | the recorded `hidden` leaves put back |
 
-A **logical indicator is its group**: `removeInstance` and `setInstanceHidden` act on every live member of
-`group.id` (`groupMemberIds`, e.g. the three COT panes). Read-back, receipts and Undo are group-scoped.
-Not in M2: inputs, style, placement, timeframe, duplicate, reorder, definitions, alerts.
+A **logical indicator is its group** (`groupMemberIds`: e.g. the three COT panes act as one). Remove and
+show/hide act on the whole group; receipts list every member id. Not in M2: inputs, style, placement,
+timeframe, duplicate, reorder, definitions, alerts, the Volume setting (Agent's `volume.setState`).
 
 ### 14.2 Ownership
 
 | Indicators owns | Agent owns |
 |---|---|
-| Every writer above, `restoreRemoved`, the removal record's shape | Routing, capability declarations, proposals, receipts, Undo plumbing |
-| `canManageIndicators()` on the ChartPane handle (the toolbar's own predicate) | Calling the writers inside the chart kind's `.agent.commit` |
-| `instanceFingerprint`, `instancesOf`, a new `groupFingerprint(cs, ids)` | Pinning and comparing them; refusing on mismatch |
-| The door-EIGHT census entry for the Agent file (one entry: add / remove / hide / restore) | No other code that writes `indicatorInstances` or any `INDICATOR_OWNED_TOP_KEYS` key |
-| Validation errors (refusal text) | Showing refusals verbatim, never reworded |
+| `builder/agentMutations.js` (every function in §15), the writers, the record and restore semantics | Capabilities, routing, chart selection, proposals, member-facing wording, Undo plumbing |
+| `canManageIndicators()` on the ChartPane handle | The ChartWidget `.agent` adapter line that exposes it (§15.6) |
+| Permission, staleness, persistence verification, revive | Calling plan → apply → commit → persist ACK → confirm, and holding the Undo token |
+| The door-EIGHT census entry for `agentMutations.js` | No code that writes `indicatorInstances` or any indicator key except by committing what `apply`/`undo` return |
 
-The Agent never calls `/api/user-definitions`, `/converse` or the alert API, never edits a definition and
-never writes the live preview. Main Trading's protected-layout guard applies to every M2 write.
+Never: `/api/user-definitions`, `/converse`, alert APIs, definition edits, the live preview
+(`u_studio-preview`), Main Trading. The Agent never edits the returned settings before committing them.
 
-### 14.3 Permission (checked twice)
+### 14.3 Permission — checked at plan, at apply, at every Undo
 
-- **First implementation step (Indicators):** `ChartPane.canManageIndicators() → boolean`, the same
-  predicate the toolbar's Indicators button uses (`chartSettings && onUpdateSettings`), with a rail
-  holding the two equal.
-- **Plan time (Agent `available()` / proposal):** paid + admin-dark Agent gate, `canManageIndicators()`,
-  and for `add` a `defId` that is a built-in or the member's own definition row (`userDefinitionRows`);
-  foreign or unknown ids are refused before any proposal.
-- **Execution time (Agent `apply` and every Undo):** all of the above are **re-read immediately before
-  the write**. Any change (access lost, chart became read-only, definition deleted or no longer the
-  member's) refuses with `permission-changed` and writes nothing.
+- **Indicators:** `ctx.canManage` = `ChartPane.canManageIndicators()` (the toolbar's own predicate:
+  the chart has settings and a save path). For `add`, the `defId` must resolve in the registry and, if it
+  is a saved definition (`u_` + 12 hex), be in `ctx.ownedDefinitionIds` (the member's own rows).
+- **Agent:** its own gate (paid + admin-dark) first; then a FRESH `ctx` for every call — never one cached
+  from planning. A loss between plan and apply/undo → `permission-changed`, nothing to write.
 
-### 14.4 Stale-state checks
+### 14.4 Stale-state protection — refused before writing
 
-- The proposal pins `instanceFingerprint(cs)`; for remove/hide, `groupFingerprint(cs, ids)` over the
-  target group's instance objects; for a custom add, the definition `version`.
-- **Apply** re-reads the chart's current settings and refuses (`changed-while-working`) unless the target
-  group still has exactly the pinned members and fingerprint, and (custom add) the version is unchanged.
-  A change elsewhere on the chart (theme, timeframe, scale, another indicator) does not refuse.
-- `boardInSync` and the workspace revision CAS (409 → "the board changed elsewhere; nothing was
-  overwritten") apply unchanged; no M2 write bypasses the board save.
+The plan pins, and apply re-checks against the CURRENT settings:
+- the target group's membership and `groupFingerprint` (any edit, hide, remove or revive of the target);
+- the target's **dependents** (`dependentsOf`) — a new reader since the proposal would be severed unseen;
+- for a custom add, the definition `version`;
+- the optional `ctx.boardRevision` (Agent's workspace revision), if the Agent supplies one.
 
-### 14.5 Restoration guarantees (remove → Undo)
+A change elsewhere — theme, timeframe, scale, another indicator — does NOT make a plan stale. The board's
+workspace CAS (409) applies to the commit unchanged.
 
-`removeInstance` changes more than the instance: the group's members become tombstones (same ids); other
-indicators' `@<id>::<plot>` source inputs and the header info values that read them are **severed**
-(visible gravestones); the definition's `indicators[defId].enabled` mirror may clear; the list is
-re-sorted and `preset` becomes `custom`. A re-add through `addInstance` cannot reproduce any of that.
+### 14.5 Restoration guarantees
 
-- **Removal record (Indicators):** `removeInstanceWithRecord(cs, instanceId, registry) → { cs, record }`,
-  where `record = { ids, paths: [{ path, before, after }] }` lists every changed path under
-  `INDICATOR_OWNED_TOP_KEYS` (plus `preset`), deep-copied. `removeInstance` is unchanged for its
-  existing callers, and both produce the same `cs`.
-- **`restoreRemoved(cs, record, registry) → { ok: true, cs } | { ok: false, reason }`:** restores **only
-  if every recorded path still equals its `after` value** (compare-and-swap per path), then writes each
-  `before` back. Result: the same instance ids at the same positions, the same inputs, style and
-  placement, every severed source and info value re-attached, and the mirror and `preset` as they were.
-  The recorded paths are byte-identical to the pre-remove settings.
-- **Refused (nothing written)** when any recorded path changed since (`restore-conflict`, for example the
-  member re-pointed a severed source, re-added the indicator or removed a dependent), the record is
-  malformed, or permission fails at execution. The receipt says Undo is no longer exact and nothing changed.
-- Undo of **add** = `removeInstance` of the created id, refused if anything now reads it (a source input
-  or info value) or its group fingerprint changed. Undo of **hide/show** = the prior value, refused if the
-  group membership or its fingerprint changed.
+`removeInstance` changes more than the instance: its group becomes tombstones (same ids); other
+indicators' `@<id>::<plot>` source inputs and the header's info values that read it are severed (visible
+gravestones); the definition's enabled mirror may clear; the list re-sorts; `preset` → `custom`.
 
-### 14.6 Persistence receipts
+- The removal **record** lists every changed leaf (instances keyed by `instanceId`, list order recorded
+  separately) in the settings **as the chart reads them back** (stored JSON → `mergeChartSettings`), so a
+  reload is never mistaken for a conflict.
+- **Restore** succeeds only if every recorded leaf still holds what the removal left there
+  (compare-and-swap per leaf); then it writes each prior value back and restores the recorded ids' order.
+  Result: the original ids, definition references, ordering, placement, inputs, presentation and every
+  severed link — equal by value to the pre-removal settings. Indicators added later are kept (after them).
+- Otherwise `restore-conflict` with the first conflicting path, and nothing is written.
+- Never simulated by adding a new instance with a new id.
 
-1. Write through the chart's one persist path (`ChartWidget` `.agent.commit` → `onOptsChange`).
-2. Wait for the `host.persist()` ACK; **only then** is the change reported as done and Undo offered.
-3. Read back with `instancesOf`: exactly the intended change by `instanceId` (one group added, removed,
-   hidden or shown; after a restore, the original ids live again). Anything else → receipt "did not
-   land" with what was observed, and no Undo.
-4. The stored blob never contains `u_studio-preview` (asserted with the studio open).
-5. A 409 / CAS refusal or persist failure → refusal receipt; no retry that overwrites.
+### 14.6 Persistence and receipts
 
-Receipts name the indicator by its legend name (`instancesOf().name`), never by a formula.
+1. `apply` / `undo` return `{cs, pending}`. **Nothing is done yet.**
+2. Agent commits `cs` through the chart's one persist path (`.agent.commit({settings: cs})`) and waits for
+   `host.persist()` ACK.
+3. Agent reads the chart's settings back (`.agent.read().cs`, or the stored board copy) and calls
+   `confirmIndicatorMutation(readBack, pending, ctx)`:
+   - `confirmed` → the receipt, and (for a mutation) the Undo token;
+   - `unconfirmed` → no read-back: report "not confirmed", never success, no Undo;
+   - `did-not-land` → the read-back lacks the change (`mismatch.path`): report it, no Undo.
+4. A 409 / persist failure → refusal receipt; never a retry that overwrites. A late ACK may be confirmed
+   later with the same `pending`.
 
-### 14.7 Acceptance (failing-first tests, both teams)
+The Undo token is held in memory only (no Undo after reload of the Agent panel or on another device); it
+carries the record and is bound to `chartId`.
 
-§13 criteria 1–5, 7 and 8 stand; 6 is replaced by 14.5. Added:
-- hide/show parity with the settings eye (byte-identical) and group behaviour;
-- `restoreRemoved` round-trip byte-equality for an indicator with dependents and info values, a grouped
-  COT product and a legacy-id built-in;
-- `restore-conflict` after each kind of intervening edit;
-- permission re-check at apply and at Undo (access revoked between plan and apply → no write);
-- Undo-add refused once the instance has gained a dependent.
+### 14.7 Reason codes — see §15.4 (exported as `REASONS`).
 
-Then a joint local sandbox pass, then admin-only production acceptance on a scratch chart (never
-`/charts` on the owner account), Main Trading fingerprint before/after, member cohort OFF.
+### 14.8 Production acceptance (owner decision 4)
 
-### 14.8 Order of work (after the owner's go-ahead for the M2 build)
+- Only on `/charts`, inside a dedicated admin-owned workspace named **Agent Indicators Acceptance**, holding
+  only scratch charts/indicators created for the test.
+- **Isolation gate — before ANY mutation:** (a) Main Trading fingerprint (sha256 of `/api/auth/preferences`
+  `chart_settings`) recorded; (b) the loaded board's active layout id/name is the acceptance workspace, and
+  no other layout's row changes during a 2-minute observation with zero mutations; (c) every write observed
+  in that window targets the acceptance workspace only. **If isolation cannot be demonstrated, stop** — no
+  testing against shared or member data.
+- Covers: add, remove, show, hide, persistence and reload, permission re-checks, stale-state refusals,
+  receipts, exact Undo preserving ids and dependent references.
+- Main Trading fingerprint identical after; cohort OFF; budgets and flags unchanged.
 
-1. Indicators: `canManageIndicators()` on the ChartPane handle + rail.
-2. Indicators: `removeInstanceWithRecord`, `restoreRemoved`, `groupFingerprint`, `dependentsOf` + tests; the door-EIGHT
-   entry for the Agent file.
-3. Agent: the `indicatorInstance` kind, the three actions, the permission re-check, receipts, Undo.
-4. Joint sandbox, then production acceptance.
+## 15. M2 IMPLEMENTED INTERFACE (Indicators, branch `feat/indicator-agent-m2`)
 
-### 14.9 Agent review (2026-10-09) — agreed additions
+### 15.1 Module and exports — `app/src/components/chart/builder/agentMutations.js` (pure; no React/network)
 
-- **Dependents are pinned too (14.4).** `dependentsOf(cs, ids) → [{ kind: 'source' | 'infoValue', instanceId?, key?, path }]`
-  (NEW, Indicators-owned, pure) lists everything a removal would sever. The proposal pins it, and Apply
-  refuses `changed-while-working` if the set differs from the pinned one, so a member never approves a
-  removal that severs something they were not shown.
-- **The proposal names what will be severed (14.5).** The Agent shows `dependentsOf` in the remove
-  proposal ("Moving Average over RSI will lose its source"). It does not dry-run the writers for this.
-  `removeInstance` and `removeInstanceWithRecord` are pure (they return a new settings object and write
-  nothing), but the list comes from `dependentsOf` so its shape is part of the contract.
-- **Remove is always a proposal** (risk: confirm). Show/hide and add follow the Agent's normal risk rules.
-- **Undo lives in memory only.** The removal record is held in the Agent's in-memory Undo entry and is
-  never persisted, so there is no Undo after a reload or on another device. A stored record would
-  restore over changes made elsewhere.
-- **Main Trading:** the `indicatorInstance` kind joins `protectedLayouts.ON_THE_BOARD`, so every M2
-  write and Undo on Main Trading is refused.
-- **Production acceptance surface: OPEN, owner decision.** The Agent runs only on `/charts`; the standing
-  rule is never to open `/charts` on the owner account, because it restores the active workspace (Main
-  Trading) and the layout dock auto-saves. 14.7's surface is decided by the owner before acceptance.
+| Export | Signature → result |
+|---|---|
+| `MUTATION_CONTRACT` | `'uct.indicators.mutation/1'` |
+| `MUTATION_OPS` | `['add', 'remove', 'setVisible']` |
+| `REASONS` | frozen map of reason strings (§15.4) |
+| `checkIndicatorPermission(op, args, ctx)` | `{ok:true}` \| refusal |
+| `resolveIndicatorTarget(cs, registry, {instanceId?, name?})` | `{ok, instanceId, name}` \| `not-found` \| `ambiguous` (`detail.candidates`) |
+| `planIndicatorMutation(cs, request, ctx)` | `{ok:true, plan}` \| refusal — writes nothing |
+| `applyIndicatorMutation(cs, plan, ctx)` | `{ok:true, cs, pending}` \| refusal |
+| `confirmIndicatorMutation(readBack, pending, ctx)` | `{status:'confirmed', receipt, undo}` \| `{status:'unconfirmed'\|'did-not-land', reason, receipt, mismatch?}` |
+| `undoIndicatorMutation(cs, undo, ctx)` | `{ok:true, cs, pending}` \| refusal (confirm it like a mutation; no further Undo) |
+| `dependentsOf(cs, ids, registry)` | `[{kind:'source'\|'infoValue', instanceId?, key?, index?, reads, name}]` |
+| `groupFingerprint(cs, ids)` | `'gf:<n>:<fnv1a>'` |
+| `removeInstanceWithRecord(cs, instanceId, registry)` / `restoreRemoved(cs, record)` | the remove/revive pair |
+| `changeRecord(prev, next)` | `{paths:[…]}` (used internally; exported for tests) |
 
-### 14.10 Reason codes and refusal shapes
+Also: `ChartPane` handle `canManageIndicators() → boolean` (forwarded by `StockChart` from
+`ChartToolbar`). M1 exports (`instancesOf`, `instanceFingerprint`, `seedFrom`) are unchanged.
 
-Writers refuse by **identity**: `addInstance`, `removeInstance`, `setInstanceHidden` return the input `cs`
-object unchanged (`next === cs`) when they refuse. `validateInstance(inst, registry, ctx)` returns
-`{ ok: false, errors: string[] }`. The new functions return `{ ok: true, … } | { ok: false, reason, detail? }`.
+### 15.2 Schemas (JSON-compatible)
 
-| `reason` | Raised by | Meaning (receipt) |
-|---|---|---|
-| `permission-changed` | Agent, at apply / Undo | Access, chart writability or definition ownership changed since planning; nothing written. |
-| `changed-while-working` | Agent, at apply | The target group, its fingerprint, the definition version or the dependents set changed. |
-| `not-found` | Agent (from `instancesOf`) | The instance is no longer live on this chart. |
-| `unknown-definition` | Agent, at plan / apply | The `defId` is neither built-in nor the member's own. |
-| `writer-refused` | Agent (writer returned `cs` unchanged) | Indicators' writer declined the change; `detail` = `validateInstance` errors when available. |
-| `restore-conflict` | `restoreRemoved` | A recorded path changed since the removal; `detail` = the first conflicting path. |
-| `record-invalid` | `restoreRemoved` | The record is malformed or for another chart. |
-| `dependent-exists` | Agent, Undo of add | Something now reads the added instance; removing it would sever it. |
-| `protected-layout` | Agent | Main Trading (or another protected layout) refuses M2 writes. |
-| `board-conflict` | Agent (409 / CAS) | The board changed elsewhere; nothing was overwritten. |
-| `persist-failed` | Agent | `host.persist()` did not ACK; the change is not reported as done. |
-| `did-not-land` | Agent (read-back) | `instancesOf` did not show exactly the intended change. |
+```ts
+type Ctx = { canManage: boolean; ownedDefinitionIds: string[]; registry: Registry;
+             chartId?: string; boardRevision?: string | number }
+type Request = { op: 'add'; defId: string }
+             | { op: 'remove'; instanceId: string }
+             | { op: 'setVisible'; instanceId: string; visible: boolean }
+type Dependent = { kind: 'source' | 'infoValue'; instanceId?: string; key?: string; index?: number; reads: string; name: string }
+type Plan = { contract: 'uct.indicators.mutation/1'; op: Request['op']; args: object;
+              target: { ids: string[]; defId: string };
+              pins: { groupFingerprint?: string; dependents?: Dependent[]; defVersion?: number | null };
+              preview: { name: string; severs: Dependent[] };       // show `severs` before approval
+              boardRevision: string | number | null; instanceFingerprint: string }
+type Receipt = { contract: string; op: 'add' | 'remove' | 'setVisible' | 'undo';
+                 status: 'confirmed' | 'unconfirmed' | 'did-not-land';
+                 instanceIds: string[]; defId: string; name: string | null; chartId: string | null;
+                 undoOf?: 'add' | 'remove' | 'setVisible'; visible?: boolean;
+                 severed?: Dependent[];   // remove
+                 restored?: Dependent[] } // undo of remove
+type Refusal = { ok: false; reason: string; detail?: object }
+```
+`pending` and `undo` are opaque to the Agent: hold them, pass them back, never edit them.
+
+### 15.3 Lifecycle
+
+```
+plan(cs, req, ctx)            → show plan.preview (name, severs) → member approves
+apply(read().cs, plan, ctx₂)  → commit({settings: cs}) → await persist ACK
+confirm(read().cs, pending)   → receipt (+ undo token)  → say exactly what the receipt says
+undo(read().cs, undo, ctx₃)   → commit → ACK → confirm   → receipt {op:'undo', undoOf}
+```
+`ctx₂`, `ctx₃` are re-read at that moment (`canManageIndicators()`, the member's definition rows).
+
+### 15.4 Reason codes (`REASONS`)
+
+`bad-request`, `readonly`, `permission-changed` (detail.was), `unknown-definition`,
+`unsupported-definition`, `not-found`, `ambiguous` (detail.candidates), `writer-refused`, `no-change`,
+`changed-while-working` (detail.what = `indicator` | `group` | `dependents` | `definition` | `board`),
+`restore-conflict` (detail.path), `dependent-exists`, `unconfirmed`, `did-not-land` (mismatch.path).
+Agent-side codes stay the Agent's (`protected-layout`, `board-conflict`, `persist-failed`).
+
+### 15.5 Minimal integration (Agent side — illustrative, not implemented here)
+
+```js
+import { planIndicatorMutation, applyIndicatorMutation, confirmIndicatorMutation, undoIndicatorMutation } from '../components/chart/builder/agentMutations'
+import * as registry from '../components/chart/engine/nativeRegistry'
+const ctx = () => ({ canManage: entry.agent.canManageIndicators(), ownedDefinitionIds: ownIds(), registry, chartId })
+const p = planIndicatorMutation(entry.agent.read().cs, { op: 'remove', instanceId }, ctx())
+if (!p.ok) return refusalReceipt(p.reason)
+// … member approves p.plan.preview …
+const a = applyIndicatorMutation(entry.agent.read().cs, p.plan, ctx())
+if (!a.ok) return refusalReceipt(a.reason, a.detail)
+entry.agent.commit({ settings: a.cs }); await host.persist()
+const done = confirmIndicatorMutation(entry.agent.read().cs, a.pending, ctx())
+// done.status === 'confirmed' → done.receipt, keep done.undo; otherwise report done.status
+```
+
+### 15.6 The one Agent adapter line (ChartWidget `.agent`, Agent-owned)
+
+`canManageIndicators: () => !!paneRef.current?.canManageIndicators?.()` beside `canCreateIndicator`.
+
+### 15.7 Fixtures and evidence
+
+- `builder/agentMutations.test.js` — byte-equality with the UI writers (add = `createFromResult`, remove,
+  hide), built-in and saved custom, classic averages, groups, receipts, unconfirmed/did-not-land/late ACK,
+  exact Undo (same ids, order, dependents) incl. after a store round trip, unrelated edits, conflict
+  refusals, Undo-add with a new reader, permission at plan/apply/undo, staleness (indicator, dependents,
+  definition, board, not-found), ambiguity, two charts, no-change, nothing else moves, no network imports.
+- `builder/agentPermission.test.jsx` — `canManageIndicators()` equals the Indicator Library's gate.
+- Browser: the Add to Chart harness (`add-to-chart-harness.html`, real ChartWidget, persistence writes
+  refused) exposes `window.__a2c.api()`; the M2 run (remove → reload → Undo → reload, hide/Undo, add/Undo,
+  stale plan, lost write, read-only) is recorded in the release notes for this branch.

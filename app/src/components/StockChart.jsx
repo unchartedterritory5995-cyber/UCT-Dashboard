@@ -5264,6 +5264,10 @@ export default function StockChart({
       canModifyWithIntelligence: () => {
         try { return !!toolbarRef.current?.canModifyWithIntelligence?.() } catch { return false }
       },
+      // ⭐ AGENT M2 — the Indicators button's own "can this chart's indicators change?"
+      canManageIndicators: () => {
+        try { return !!toolbarRef.current?.canManageIndicators?.() } catch { return false }
+      },
       openAlerts: (initialFor = null) => {
         try { return toolbarRef.current?.openAlerts?.(initialFor) ?? false } catch { return false }
       },

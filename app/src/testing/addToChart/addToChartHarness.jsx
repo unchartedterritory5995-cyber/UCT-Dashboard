@@ -102,6 +102,10 @@ function Harness() {
         return saved.length
       },
       blocked: () => BLOCKED.slice(),
+      // ⭐ AGENT M2 acceptance: the widget's own `chartApiById` entry (`.agent.read/commit`) —
+      // the door UCT Agent reaches a chart through — so the Indicators mutation interface
+      // (`builder/agentMutations.js`) is driven against the REAL chart, persist path and reload.
+      api: () => [...chartApiById.current.values()][0] || null,
     }
   }, [])
 

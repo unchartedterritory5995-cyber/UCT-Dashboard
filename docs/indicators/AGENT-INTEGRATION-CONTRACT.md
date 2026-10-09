@@ -1,6 +1,6 @@
 # UCT Agent ↔ Indicator Intelligence — Milestone 1 integration contract
 
-Status: **superseded where it differs by `AGENT-INTEGRATION-HANDOFF.md` §11–§13 (agreed with the Agent team and implemented, 2026-10-09)** — the authoritative contract. Original proposal kept below for history. Prepared 2026-10-09 after the Batch 2 production
+Status: **superseded where it differs by `AGENT-INTEGRATION-HANDOFF.md` §11–§15 (agreed with the Agent team and implemented, 2026-10-09)** — the authoritative contract. Original proposal kept below for history. Prepared 2026-10-09 after the Batch 2 production
 release (master `0693b529fc`). Companion to `AGENT-INTEGRATION-HANDOFF.md` (the investigation).
 
 **Ownership (owner rule, unchanged):** the Agent team owns routing, capability declarations, proposals,
