@@ -395,7 +395,7 @@ export function Panel({
       </header>
       {/* Wave 3 (#2): ONE headline line per one-stock panel — price, % change, volume vs
           average, next earnings — drawn by the frame so no panel carries its own copy. */}
-      {r.state === 'ready' && r.sym && !panel.popout && <SecurityHeadline sym={r.sym} />}
+      {r.state === 'ready' && r.sym && !panel.popout && <SecurityHeadline sym={r.sym} onRun={(t) => runHere(t)} />}
       <div className={`${styles.panelBody} ${flush && !panel.popout ? styles.panelBodyFlush : ''}`}
         data-inset={flush && !panel.popout ? 'flush' : 'inset'} data-testid={`terminal-body-${index}`}>
         {panel.popout && (
