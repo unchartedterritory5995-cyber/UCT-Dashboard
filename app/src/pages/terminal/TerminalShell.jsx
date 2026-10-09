@@ -99,12 +99,17 @@ export function aliasFailure(cmd, status) {
   return `${cmd.name} was not saved just now; try again.`
 }
 
-/** What a panel shows when the component inside it throws: the rest of the shell lives on. */
-function PanelCrashed({ code }) {
+/** What a panel shows when the component inside it throws: the rest of the shell lives on.
+ *  ⛔ Retry is a BUTTON that remounts the panel body. The copy used to say "run CODE again to
+ *  retry", which did nothing: re-running the same command keeps the panel's identity (same
+ *  code, security and args), so the error boundary — keyed by that identity — stayed tripped
+ *  (audit lane C, 2026-10-08). */
+function PanelCrashed({ code, onRetry }) {
   return (
     <PanelState kind="error" role="alert" testId="terminal-panel-crashed"
-      title={`${code} hit an error and stopped.`}>
-      The other panels are unaffected; run {code} again to retry.
+      title={`${code} hit an error and stopped.`}
+      action={onRetry ? <button type="button" onClick={onRetry} data-testid="terminal-panel-retry">Try again</button> : null}>
+      The other panels are unaffected.
     </PanelState>
   )
 }
@@ -258,7 +263,9 @@ export function Panel({
   // page can drop its own title and page padding (components/terminal/terminalPanel.js).
   const flush = !!(r.name && FLUSH_PANELS.has(r.name))
   const frame = useMemo(() => ({ code: panel.code, density, inset: !flush }), [panel.code, density, flush])
-  const identity = `${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}`
+  // `attempt` is bumped by the crashed state's "Try again": a new key remounts the body.
+  const [attempt, setAttempt] = useState(0)
+  const identity = `${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}#${attempt}`
   // A panel's links say WHERE they act from: `next` opens beside this panel, `here` re-runs a
   // command in this panel's own slot. Everything else reaches the shell untouched.
   const runHere = useCallback((text, o) => {
@@ -383,7 +390,7 @@ export function Panel({
             action={<button type="button" className={styles.chip} onClick={onBringBack}>Bring it back</button>} />
         )}
         {Comp && (
-          <ErrorBoundary key={identity} fallback={<div className={styles.panelState}><PanelCrashed code={panel.code} /></div>}>
+          <ErrorBoundary key={identity} fallback={<div className={styles.panelState}><PanelCrashed code={panel.code} onRetry={() => setAttempt((n) => n + 1)} /></div>}>
             {/* V8: a fresh Provider per panel identity (same key as the ErrorBoundary above) so
                 switching security/args clears a stale badge rather than carrying the previous
                 security's freshness into the next one's loading state. */}
