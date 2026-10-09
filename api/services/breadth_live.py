@@ -1177,6 +1177,63 @@ def _apply_dividend_basis(tickers: list[str], dates: list[int],
         return closes
 
 
+#: ⛔ How long the dividend store may take before the live read goes on unadjusted. Measured on
+#: production 2026-10-08/09: right after a restart that range read sat 11+ and 20+ minutes on the
+#: cold volume, holding the levels build (and so every UCT live bar) the whole time.
+DIVIDEND_BUDGET_SECONDS = int(os.environ.get("BREADTH_LIVE_DIVIDEND_BUDGET", "60"))
+#: {session_ts: "applied" | "skipped"} — ONE basis per session for the levels AND the anchor.
+#: Mixing them (adjusted levels against an unadjusted prior-close anchor) would bias every
+#: anchored ratio; the first build of the session decides and every later one follows.
+_session_div: dict = {}
+#: Set (thread-local) while `anchor_basis` re-prices the prior close — only that read takes the
+#: session's budgeted basis; the EOD row, recon and calibration keep the store's full basis.
+_live_anchor_ctx = threading.local()
+
+
+def _session_ts() -> int:
+    return _ts_int(_now_et().date())
+
+
+def _dividend_basis_for_session(tickers: list[str], dates: list[int], closes: np.ndarray,
+                                measured_ts: int) -> tuple:
+    """`(closes, basis)` — `_apply_dividend_basis` under a time budget, session-consistent."""
+    if not dividend_basis_enabled():
+        return closes, "off"
+    key = _session_ts()
+    st = _session_div.get(key)
+    if st == "skipped":
+        return closes, "skipped"
+    if st == "applied":
+        return _apply_dividend_basis(tickers, dates, closes, measured_ts), "applied"
+    import concurrent.futures as cf
+    ex = cf.ThreadPoolExecutor(max_workers=1, thread_name_prefix="bl-div")
+    fut = ex.submit(_apply_dividend_basis, tickers, dates, closes, measured_ts)
+    try:
+        out = fut.result(timeout=DIVIDEND_BUDGET_SECONDS)
+        if _session_div.setdefault(key, "applied") == "skipped":
+            return closes, "skipped"          # another build already decided unadjusted
+        return out, "applied"
+    except cf.TimeoutError:
+        print(f"[breadth_live] dividend basis exceeded {DIVIDEND_BUDGET_SECONDS}s — "
+              f"session {key} measured unadjusted")
+        _session_div.setdefault(key, "skipped")
+        return closes, "skipped"
+    except Exception as e:                       # noqa: BLE001 - never break the read
+        print(f"[breadth_live] dividend basis failed: {type(e).__name__}: {e}")
+        return closes, "skipped"
+    finally:
+        ex.shutdown(wait=False)
+
+
+def _adopt_basis(basis: Optional[str]) -> bool:
+    """A persisted snapshot built under `basis` may be used only if it matches the session's
+    basis (adopting it when the session has not decided yet). Untagged snapshots are 'applied'."""
+    if not dividend_basis_enabled():
+        return True
+    b = basis if basis in ("applied", "skipped") else "applied"
+    return _session_div.setdefault(_session_ts(), b) == b
+
+
 # ── Restart survival: persist the prior-close levels + anchor to disk ───────────
 # The reference levels and the anchor's prior-close breadth are BOTH functions of
 # the last completed session, so they are constant for the whole trading day. A
@@ -1256,7 +1313,10 @@ def _load_persisted_levels(as_of_ts: int) -> Optional[dict]:
             blob = pickle.load(f)
         if blob.get("as_of_ts") != as_of_ts:   # snapshot is for a different day
             return None
-        return blob.get("levels")
+        lv = blob.get("levels")
+        if lv is not None and not _adopt_basis(lv.get("dividend_basis")):
+            return None
+        return lv
     except Exception as e:
         print(f"[breadth-live] load levels failed (non-fatal): {e}")
         return None
@@ -1295,7 +1355,8 @@ def _persist_anchor(as_of_ts: int, live_prev: dict, tickers=()) -> None:
         path = _snapshot_path("breadth_live_anchor.json")
         tmp = f"{path}.tmp"
         with open(tmp, "w") as f:
-            json.dump({"as_of_ts": as_of_ts, "live_prev": live_prev}, f)
+            json.dump({"as_of_ts": as_of_ts, "live_prev": live_prev,
+                       "dividend_basis": _session_div.get(_session_ts())}, f)
         os.replace(tmp, path)
     except Exception as e:
         print(f"[breadth-live] persist anchor failed (non-fatal): {e}")
@@ -1311,6 +1372,8 @@ def _load_persisted_anchor(as_of_ts: int) -> Optional[dict]:
         with open(path) as f:
             blob = json.load(f)
         if blob.get("as_of_ts") != as_of_ts:
+            return None
+        if not _adopt_basis(blob.get("dividend_basis")):
             return None
         return blob.get("live_prev")
     except Exception as e:
@@ -1398,9 +1461,10 @@ def reference_levels(as_of_ts: Optional[int] = None, force: bool = False) -> Opt
             return fallback
 
         closes, volumes = _load_frame(conn, tickers, dates)
-        closes = _apply_dividend_basis(tickers, dates, closes, measured_ts)
+        closes, div_basis = _dividend_basis_for_session(tickers, dates, closes, measured_ts)
         levels = build_levels(tickers, closes, volumes, as_of_ts)
         levels["universe_date"] = uni_date
+        levels["dividend_basis"] = div_basis
         levels["index"] = build_index_levels(_load_index_series(conn, as_of_ts, start))
         del closes, volumes
 
@@ -1450,7 +1514,11 @@ def _metrics_at_close(conn, tickers: list[str], target_ts: int,
     if len(dates) < 221:
         return None
     closes, volumes = _load_frame(conn, tickers, dates)
-    closes = _apply_dividend_basis(tickers, dates, closes, target_ts, dividend_basis)
+    if getattr(_live_anchor_ctx, "on", False) and dividend_basis is None:
+        # the live anchor: the SESSION's basis under the same budget as the levels
+        closes, _b = _dividend_basis_for_session(tickers, dates, closes, target_ts)
+    else:
+        closes = _apply_dividend_basis(tickers, dates, closes, target_ts, dividend_basis)
     levels = build_levels(tickers, closes, volumes, prior)
     index_levels = build_index_levels(_load_index_series(conn, prior, start))
     del closes, volumes
@@ -1525,7 +1593,11 @@ def anchor_basis(as_of_ts: int, tickers: list[str],
                 if disk is not None and _anchor_build_is_good(disk, tickers):
                     live_prev = disk
                 else:
-                    built = _metrics_at_close(_bars_conn(), tickers, as_of_ts)
+                    _live_anchor_ctx.on = True
+                    try:
+                        built = _metrics_at_close(_bars_conn(), tickers, as_of_ts)
+                    finally:
+                        _live_anchor_ctx.on = False
                     if built is not None and _anchor_build_is_good(built, tickers):
                         _persist_anchor(as_of_ts, built, tickers)
                     # Whichever read priced more of the universe wins — a rebuild that

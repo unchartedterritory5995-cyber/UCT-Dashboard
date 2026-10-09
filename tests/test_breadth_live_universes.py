@@ -380,3 +380,28 @@ def test_uct_live_frame_reads_the_pack_and_leaves_older_columns_empty(monkeypatc
     # small requests stay on bars.db
     assert bl._frame_from_pack(tickers[:5], pdates) is None
     bl._pack_frame_cache.clear()
+
+
+def test_uct_dividend_basis_is_budgeted_and_session_consistent(monkeypatch):
+    import time as _t
+    from api.services import breadth_live as bl
+    monkeypatch.setattr(bl, "dividend_basis_enabled", lambda: True)
+    monkeypatch.setattr(bl, "DIVIDEND_BUDGET_SECONDS", 0.2)
+    monkeypatch.setattr(bl, "_session_ts", lambda: 20261009)
+    bl._session_div.clear()
+    closes = np.ones((2, 3))
+    slow = lambda t, d, c, m, o=None: (_t.sleep(1.0), c * 2)[1]
+    monkeypatch.setattr(bl, "_apply_dividend_basis", slow)
+    out, b = bl._dividend_basis_for_session(["A", "B"], [1, 2, 3], closes, 20261008)
+    assert b == "skipped" and (out == 1).all()
+    # the anchor in the same session follows, even when the store is fast again
+    monkeypatch.setattr(bl, "_apply_dividend_basis", lambda t, d, c, m, o=None: c * 2)
+    out, b = bl._dividend_basis_for_session(["A", "B"], [1, 2, 3], closes, 20261008)
+    assert b == "skipped" and (out == 1).all()
+    assert not bl._adopt_basis("applied") and bl._adopt_basis("skipped")
+    # a new session decides afresh
+    monkeypatch.setattr(bl, "_session_ts", lambda: 20261010)
+    out, b = bl._dividend_basis_for_session(["A", "B"], [1, 2, 3], closes, 20261009)
+    assert b == "applied" and (out == 2).all()
+    assert bl._adopt_basis(None)                               # untagged = applied
+    bl._session_div.clear()

@@ -301,6 +301,16 @@ export const FUNCTIONS = [
   { code: 'ALRT', label: 'Price alerts (set one: NVDA ALRT 950)', group: 'Market',
     ticker: { panel: 'Alerts', args: [{ kind: 'alertPrice', prop: 'price' }] },
     market: { panel: 'Alerts', args: [{ kind: 'alertPrice', prop: 'price' }] } },
+  // ── wave 8 lane G: the breakout loop (BRKO finds the names; PLAN turns one into alerts + a note) ──
+  // BRKO: tight names near a pattern pivot with a rising RS line, one read of the nightly screener
+  // snapshot (POST /api/screener/scan, fixed spec in panels/BreakoutPanel.jsx). No new route.
+  { code: 'BRKO', label: 'Breakout-ready list (tight, near pivot, RS rising)', group: 'Market',
+    market: { panel: 'Breakout' } },
+  // PLAN: `NVDA PLAN` (or `NVDA PLAN 203 195` to prefill buy point and stop). Set alerts writes the
+  // buy point and the stop through the SAME POST /api/watchlist-alerts ALRT uses; Log to journal
+  // writes one Journal 2.0 notebook note (POST /api/j2/notes). Each only on a button press.
+  { code: 'PLAN', label: 'Trade plan (buy point, stop, alerts, journal)', group: 'Security',
+    ticker: { panel: 'Plan', args: [{ kind: 'alertPrice', prop: 'buy' }, { kind: 'alertPrice', prop: 'stop' }] } },
   // MON: the member's watchlists as one live table (Bloomberg's MON). `W` alone opens it too
   // (parseCommand: W is Wayfair's ticker, so `$W` still means the stock). `MON 2` / `MON W:id` /
   // `MON FLAGGED` pick a list. Market-only: a row CLICK loads the name into the linked group.
