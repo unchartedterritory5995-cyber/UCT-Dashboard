@@ -80,6 +80,7 @@ export const PANEL_IMPORTERS = {
   Regime: () => import('./panels/RegimePanel'),
   InsiderBuys: () => import('./panels/InsiderPanel'),
   RsLeaders: () => import('./panels/RsLeadersPanel'),
+  ThemeBoard: () => import('./panels/ThemeBoardPanel'),
   // my names (lane 9) — terminal-native; read the routes the watchlist page and the alert bell use
   Alerts: () => import('./panels/AlertsPanel'),
   Watchlist: () => import('./panels/WatchlistPanel'),

@@ -223,6 +223,9 @@ export const FUNCTIONS = [
     market: { panel: 'InsiderBuys' } },
   { code: 'RSL', label: 'RS leaderboard (top names by RS rank)', group: 'Market',
     market: { panel: 'RsLeaders' } },
+  // THMS 1W: the UCT theme leaderboard over a window (1D 1W 1M 3M; 1Y and YTD are chips in the panel).
+  { code: 'THMS', label: 'Theme leaderboard (leaders and laggards by period)', group: 'Market',
+    market: { panel: 'ThemeBoard', args: [{ kind: 'contribWindow', prop: 'win' }] } },
 
   // ── the shell itself ──
   { code: 'HELP', label: 'Function list & syntax', group: 'Shell',

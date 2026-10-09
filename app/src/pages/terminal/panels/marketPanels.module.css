@@ -228,6 +228,24 @@
   line-height: var(--lh-normal);
 }
 
+/* THMS: leaders beside laggards, stacked when narrow. */
+.split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--space-md);
+  align-items: start;
+}
+
+.caption {
+  caption-side: top;
+  text-align: left;
+  padding-bottom: 2px;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
 /* PHONE: the less-used columns fold away so a 390px panel keeps sym, last and % change. */
 @media (max-width: 640px) {
   .phoneHide {
