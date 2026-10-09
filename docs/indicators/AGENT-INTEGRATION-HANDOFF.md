@@ -360,6 +360,22 @@ carries the record and is bound to `chartId`.
   receipts, exact Undo preserving ids and dependent references.
 - Main Trading fingerprint identical after; cohort OFF; budgets and flags unchanged.
 
+### 14.9 Retained limits (owner, 2026-10-09 — not to be relaxed without a contract change)
+
+1. **Undo is session-scoped and memory-only.** The Undo token is held in the Agent's in-memory Undo entry,
+   bound to one `chartId`; it is never persisted, so there is no Undo after the Agent panel reloads or on
+   another device.
+2. **Classic overlay averages and Volume Profile are NOT supported by the M2 add path.** `add` accepts a
+   registered technical definition or the member's own saved definition (`addInstance`); the legacy
+   overlay rows (restore EMA 9 …) and the carved-out Volume Profile use other Library writers and are
+   refused (`unsupported-definition` / `unknown-definition`). An already-adopted classic average
+   (`ovl:<i>`) can be removed, hidden and restored exactly like any instance.
+3. **Success receipts require authoritative persistence read-back.** Only `confirmIndicatorMutation`
+   returning `confirmed` may be reported as success; `unconfirmed` and `did-not-land` are never success.
+4. **Removal Undo must preserve original identity and dependent references** (§14.5), or be refused.
+5. **Production mutation acceptance requires the isolated, admin-owned acceptance workspace on `/charts`**
+   (§14.8), established and verified by the Agent team before any mutation.
+
 ## 15. M2 IMPLEMENTED INTERFACE (Indicators, branch `feat/indicator-agent-m2`)
 
 ### 15.1 Module and exports — `app/src/components/chart/builder/agentMutations.js` (pure; no React/network)
