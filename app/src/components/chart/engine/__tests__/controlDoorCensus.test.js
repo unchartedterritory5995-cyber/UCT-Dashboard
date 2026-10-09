@@ -873,6 +873,15 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'that is not on the chart. editTarget and the write door SHARE the resolver: ' +
        'resolving them separately would show one instance while writing another, the ' +
        'exact defect this door exists to make sayable'],
+      ['app/src/components/chart/builder/agentMutations.js',
+       '⭐ AGENT M2 (Indicators-owned, AGENT-INTEGRATION-HANDOFF §14–§15) — UCT Agent\'s ' +
+       'ONLY way to add / remove / show / hide an indicator. A SECOND SURFACE on the same ' +
+       'writers, never a second writer: addInstance (= Add to Chart\'s createFromResult), ' +
+       'removeInstance (= the settings ✕ and the chip\'s Delete) and setInstanceHidden ' +
+       '(= the eye). It addresses ONE instanceId resolved through instancesOf, and it ' +
+       'only RECORDS what the writer changed, so the change can be verified after the ' +
+       'persist and undone exactly (restoreRemoved revives the SAME ids; byte-equality ' +
+       'with the UI writers is asserted in agentMutations.test.js)'],
     ]
 
     const perInstance = new RegExp('\\b(' + DOORS.join('|') + ')\\s*\\(')

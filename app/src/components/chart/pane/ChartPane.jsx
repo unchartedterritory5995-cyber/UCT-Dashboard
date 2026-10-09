@@ -813,6 +813,10 @@ function ChartPane({
       return res
     },
     canCreateIndicator: () => { try { return !!paneToolbarApi.current?.canModifyWithIntelligence?.() } catch { return false } },
+    // ⭐ AGENT M2 — THE authoritative "may this chart's indicators be added / removed /
+    // shown / hidden?" (the Indicators button's own predicate). Agent passes it as
+    // `ctx.canManage` to `builder/agentMutations.js` at plan, at apply and at every Undo.
+    canManageIndicators: () => { try { return !!paneToolbarApi.current?.canManageIndicators?.() } catch { return false } },
   }), [openSettings, updateChartSettings, handleSymbolChange])
 
   // Docked = the chart section gives up `studioDockW` on the right. Below

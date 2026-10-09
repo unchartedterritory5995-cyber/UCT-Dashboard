@@ -1333,6 +1333,10 @@ function ChartToolbar({
       }
       return res
     },
+    /** ⭐ AGENT M2 — may indicators on THIS chart be added, removed, shown or hidden?
+     *  The Indicators button's own predicate (`canManageIndicators` above). UCT Agent
+     *  asks it at plan time AND again before every write and every Undo. */
+    canManageIndicators: () => canManageIndicators,
     /** ⭐ PHASE 4 — may this member open "Modify with UCT Intelligence"? */
     canModifyWithIntelligence: () => !!(canModifyWithIntelligence && canManageIndicators && typeof onStudioPreview === 'function'),
     // ⭐ chart-UX-walls TASK 4 — the legend chip's "Add alert…" row, and the
