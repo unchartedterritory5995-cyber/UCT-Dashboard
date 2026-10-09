@@ -150,7 +150,9 @@ export default function AnalystRatingsTab({ sym }) {
             <span className={`${styles.statBig} ${consensusClass(con.label)}`} data-testid="consensus-label">{con.label || '—'}</span>
             {Number.isFinite(con.total) && <span className={styles.muted}>{con.total} {con.total === 1 ? 'analyst' : 'analysts'}</span>}
           </div>
-          <div className={styles.segBar}>
+          {/* The bar is colour only; a screen reader gets the same split as one sentence. */}
+          <div className={styles.segBar} role="img"
+               aria-label={`Rating split: ${SEG.map(s => `${con[s.key] || 0} ${s.label}`).join(', ')}`}>
             {SEG.map(s => {
               const v = con[s.key] || 0
               const w = con.total ? (v / con.total) * 100 : 0

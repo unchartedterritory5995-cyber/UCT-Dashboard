@@ -32,3 +32,10 @@ export function DepthLoading({ inPanel, label }) {
   if (inPanel) return <PanelSkeleton label={label} />
   return <div className={styles.note}>{label}…</div>
 }
+
+/** A 400 from a Depth route (depthFetch's `{ badRequest }`): the request named something that
+ *  is not a ticker (`'$$' is not a ticker symbol`). Said in the server's own sentence, not as
+ *  "not available right now" or a panel of "undefined" fields (audit 2026-10-08). */
+export function DepthBadRequest({ sentence }) {
+  return <div className={styles.note} data-testid="depth-bad-request">{sentence}</div>
+}

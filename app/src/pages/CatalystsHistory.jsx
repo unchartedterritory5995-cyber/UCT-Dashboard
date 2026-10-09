@@ -18,6 +18,7 @@ import { formatPercent, formatCurrency, formatNumber } from '../lib/presentation
 import styles from './CatalystsHistory.module.css'
 import { CATALYST_TAGS, keyedBy } from '../lib/taxonomy/a8Taxonomy'
 import jsonFetcher from '../utils/jsonFetcher'
+import { expectedLatestDailySessionET, isTradingSessionTodayET } from '../utils/marketSession'
 
 // Throws on failure (jsonFetcher). The old `r.ok ? r.json() : { rows: [] }` rendered a failed
 // read as "No catalysts recorded for this date" (quality pass 2026-10-05).
@@ -36,6 +37,12 @@ function ymdNDaysAgo(n) {
   const base = new Date(Date.UTC(y, m - 1, d))
   base.setUTCDate(base.getUTCDate() - n)
   return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, '0')}-${String(base.getUTCDate()).padStart(2, '0')}`
+}
+
+// The date CATH opens on: today on a trading day, else the last session (audit 2026-10-08: on a
+// weekend or a market holiday it opened on an empty day and told the member weekends may be empty).
+export function defaultCatalystDate() {
+  return isTradingSessionTodayET() ? ymdNDaysAgo(0) : expectedLatestDailySessionET()
 }
 
 // Shared formatter; "+" only above zero (a flat 0.00% reads unsigned), em dash when absent.
@@ -73,7 +80,7 @@ function parseSources(raw) {
 
 export default function CatalystsHistory() {
   const inPanel = useInTerminalPanel()
-  const [date, setDate] = useState(ymdNDaysAgo(0))
+  const [date, setDate] = useState(defaultCatalystDate)
   const { data, error, isLoading, mutate } = useSWR(
     date ? `/api/catalysts/by-date/${date}` : null,
     fetcher,
@@ -177,7 +184,8 @@ export default function CatalystsHistory() {
                         </TickerPopup>
                       </td>
                       <td className={styles.colPrice}>{fmtPrice(r.price)}</td>
-                      <td className={`${styles.colGap} ${(r.gap_pct ?? 0) >= 0 ? styles.gain : styles.loss}`}>
+                      {/* No move (or none on file) is not painted as a gain. */}
+                      <td className={`${styles.colGap} ${r.gap_pct > 0 ? styles.gain : r.gap_pct < 0 ? styles.loss : ''}`}>
                         {fmtPct(r.gap_pct)}
                       </td>
                       <td className={styles.colVol}>

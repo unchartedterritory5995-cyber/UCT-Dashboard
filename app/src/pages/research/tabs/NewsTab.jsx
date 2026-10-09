@@ -73,8 +73,12 @@ export function whenLabel(iso, now = Date.now()) {
   if (hrs < 24) return `${hrs}h ago`
   const days = Math.floor(hrs / 24)
   if (days < 7) return `${days}d ago`
-  const d = new Date(t)
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: ET_ZONE })
+  // A story from an earlier year carries its year (audit 2026-10-08: a 2024 headline read "Aug 9",
+  // indistinguishable from this August's).
+  const year = (ms) => new Date(ms).toLocaleDateString('en-US', { year: 'numeric', timeZone: ET_ZONE })
+  const opts = { month: 'short', day: 'numeric', timeZone: ET_ZONE }
+  if (year(t) !== year(now)) opts.year = 'numeric'
+  return new Date(t).toLocaleDateString(undefined, opts)
 }
 
 function hideBrokenImage(e) {

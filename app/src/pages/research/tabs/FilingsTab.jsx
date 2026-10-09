@@ -33,7 +33,8 @@ export default function FilingsTab({ sym }) {
                 {f.period && <span className={styles.muted}>for {f.period}</span>}
                 {f.accession && <span className={styles.accession}>{f.accession}</span>}
                 {f.url
-                  ? <a className={styles.filingLink} href={f.url} target="_blank" rel="noopener noreferrer">View →</a>
+                  ? <a className={styles.filingLink} href={f.url} target="_blank" rel="noopener noreferrer"
+                      aria-label={`View ${f.form || 'filing'}${f.filed ? ` filed ${f.filed}` : ''} on SEC EDGAR (opens in a new tab)`}>View →</a>
                   : <span className={styles.muted}>—</span>}
               </div>
             ))}

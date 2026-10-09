@@ -71,3 +71,11 @@ describe('FilingsTab', () => {
     mockData = saved
   })
 })
+
+// Audit 2026-10-08 (lane A): forty "View →" links read the same to a screen reader.
+describe('FilingsTab link names', () => {
+  it('each View link names its form and filing date', () => {
+    render(<FilingsTab sym="AAPL" />)
+    expect(screen.getByRole('link', { name: 'View 10-K filed 2026-01-29 on SEC EDGAR (opens in a new tab)' })).toBeInTheDocument()
+  })
+})

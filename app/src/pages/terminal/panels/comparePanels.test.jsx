@@ -170,7 +170,8 @@ describe('CORR', () => {
     })
     render(<CorrPanel sym="AAA" with0="BBB" with1="CCC" with2="NEWB" />)
     expect((await screen.findByTestId('terminal-corr-verdict')).textContent).toBe('AAA and BBB move almost as one (r = 1.00).')
-    expect(screen.getByTestId('terminal-corr-least').textContent).toMatch(/^Least related: (AAA|BBB) and CCC \(r = -1\.00\)\.$/)
+    // r = -1 is the most OPPOSITE pair, not the least related one (audit 2026-10-08)
+    expect(screen.getByTestId('terminal-corr-least').textContent).toMatch(/^Most opposite: (AAA|BBB) and CCC \(r = -1\.00\)\.$/)
     expect(screen.getByTestId('corr-AAA-BBB').textContent).toBe('1.00')
     expect(screen.getByTestId('corr-AAA-AAA').textContent).toBe('1')
     expect(screen.getByTestId('corr-AAA-NEWB').textContent).toBe('n/a')
@@ -225,5 +226,24 @@ describe('the fetch layer', () => {
     render(<RelPanel sym="AAA" with0="BBB" />)
     await waitFor(() => expect(screen.getByTestId('terminal-rel-lede')).toBeTruthy())
     expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+})
+
+// Audit 2026-10-08 (lane A): a strong NEGATIVE correlation is a strong relationship.
+describe('CORR wording for negative correlation', () => {
+  it('a strongest pair at r = -0.95 reads as moving opposite, never "independently"', async () => {
+    const { corrVerdict } = await import('./CorrPanel')
+    const v = corrVerdict({ most: { a: 'SPY', b: 'SH', r: -0.95 } })
+    expect(v).toBe('SPY and SH move almost exactly opposite (r = -0.95).')
+  })
+  it('"Least related" is the pair closest to zero, not the most negative one', async () => {
+    const { corrSecondLine } = await import('./CorrPanel')
+    const cell = (r) => ({ r, n: 63 })
+    const read = {
+      syms: ['A', 'B', 'C'],
+      most: { a: 'A', b: 'B', r: 0.9 },
+      matrix: [[cell(1), cell(0.9), cell(-0.2)], [cell(0.9), cell(1), cell(0.05)], [cell(-0.2), cell(0.05), cell(1)]],
+    }
+    expect(corrSecondLine(read)).toBe('Least related: B and C (r = 0.05).')
   })
 })
