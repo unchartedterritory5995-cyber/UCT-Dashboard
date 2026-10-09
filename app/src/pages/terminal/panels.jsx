@@ -89,6 +89,9 @@ export const PANEL_IMPORTERS = {
   InsiderBuys: () => import('./panels/InsiderPanel'),
   RsLeaders: () => import('./panels/RsLeadersPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
+  // wave 8, lane E: market reads (SENT)
+  Sentiment: () => import('./panels/SentimentPanel'),
+  // end wave 8, lane E
   // my names (lane 9) — terminal-native; read the routes the watchlist page and the alert bell use
   Alerts: () => import('./panels/AlertsPanel'),
   Watchlist: () => import('./panels/WatchlistPanel'),

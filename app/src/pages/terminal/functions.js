@@ -248,6 +248,12 @@ export const FUNCTIONS = [
   // THMS 1W: the UCT theme leaderboard over a window (1D 1W 1M 3M; 1Y and YTD are chips in the panel).
   { code: 'THMS', label: 'Theme leaderboard (leaders and laggards by period)', group: 'Market',
     market: { panel: 'ThemeBoard', args: [{ kind: 'contribWindow', prop: 'win' }] } },
+  // ── wave 8, lane E: market reads over routes the app already serves ──
+  // SENT: AAII, NAAIM, put/call and Fear & Greed from the Breadth Monitor rows, plus the key
+  // economic series /api/econ publishes (dark until ECON_ENABLED; the panel says so).
+  { code: 'SENT', label: 'Sentiment and macro (AAII, NAAIM, put/call, Fear & Greed, economy)', group: 'Market',
+    market: { panel: 'Sentiment' } },
+  // ── end wave 8, lane E ──
 
   // ── the shell itself ──
   { code: 'HELP', label: 'Function list & syntax', group: 'Shell',
