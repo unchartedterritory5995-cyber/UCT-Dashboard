@@ -107,7 +107,7 @@ import { addInstance } from '../engine/instanceControls'
 import {
   useUserDefinitions, saveUserDefinition, deleteUserDefinition,
 } from '../../../hooks/useUserDefinitions'
-import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
+import FormulaField, { evaluateFormula, canSaveFormula, SHEET } from './FormulaField'
 import { manifestFromPlacements } from './pineParamManifest'
 import { carryPriorParamIds, savedParamManifest, carryNotice, inputPlaces } from './paramCarry'
 import ParamControls from './ParamControls'
@@ -1452,7 +1452,7 @@ export default function BuilderSheet({
         // the same clean slate `newPlotRow` gives a brand new row.
         acknowledged: false,
         source: rowSrc,
-        result: evaluateFormula(rowSrc, scope),
+        result: evaluateFormula(rowSrc, scope, undefined, SHEET),
       }
     })
     if (!restored.length || restored.some((r) => r === null)) {
@@ -1544,7 +1544,7 @@ export default function BuilderSheet({
     // render value and this callback has an empty dependency list on purpose, so
     // it would be the scope from the FIRST render — empty of the very inputs the
     // stored definition declares.
-    setResult(evaluateFormula(restored[0].source, scope))
+    setResult(evaluateFormula(restored[0].source, scope, undefined, SHEET))
     // ⛔ AND THE SHEET MOVES TO THE FORMULA — the SAME `EDIT_MODE` the seed and
     // the open-reset read, because this is the same rule arriving by a different
     // route: `openForEdit` is also called for a row that shows up while the
