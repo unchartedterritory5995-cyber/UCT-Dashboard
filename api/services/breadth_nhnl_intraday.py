@@ -54,10 +54,14 @@ import numpy as np
 
 _log = logging.getLogger("breadth_nhnl_intraday")
 
-VERSION = "nhnl-intraday-v1"
+VERSION = "nhnl-intraday-v2"
 BASIS_TEXT = ("intraday: session high above the prior 251 sessions' highest high (low below "
               "the lowest low); split-adjusted, not dividend-adjusted; common stock")
 UNIVERSES = ("uct", "us", "nyse", "nasdaq")
+#: The all-issues diary populations (WSJ / Dow Jones, StockCharts $NYHGH …): every security
+#: listed on the venue, not only common stock. Served instead of the common-stock counts when
+#: `BREADTH_NHNL_POPULATION=all`.
+ALL_KEYS = ("us:all", "nyse:all", "nasdaq:all")
 #: Metrics this series answers, and their stored-row positions.
 COUNTS = ("new_52w_highs", "new_52w_lows", "new_20d_highs", "new_20d_lows")
 SERVED = COUNTS + ("net_new_high_low", "hi_ratio", "lo_ratio")
@@ -69,13 +73,23 @@ RING = 252
 START = "2006-12-01"
 #: Request pacing (seconds between grouped calls) — at most ~75/min of the shared 300/min budget.
 PACE_SECONDS = float(os.environ.get("BREADTH_NHNL_PACE", "0.8"))
+#: Which population the exchange universes serve: "common" (CS + ADRC, the population of every
+#: other breadth metric) or "all" (every listed issue — the published diaries' population).
+DEFAULT_POPULATION = "common"
+
+
+def population() -> str:
+    v = (os.environ.get("BREADTH_NHNL_POPULATION") or DEFAULT_POPULATION).strip().lower()
+    return v if v in ("common", "all") else DEFAULT_POPULATION
+
+
 #: A session is processed only once its daily bar has settled.
 SETTLE_MINUTES_AFTER_CLOSE = 120
 
 _DATA = os.environ.get("DATA_DIR", "/data")
-SERIES_PATH = os.path.join(_DATA, "breadth_nhnl_intraday.json")
-STATE_PATH = os.path.join(_DATA, "breadth_nhnl_intraday_state.npz")
-R2_KEY = "breadth_nhnl/intraday_v1.json.gz"
+SERIES_PATH = os.path.join(_DATA, "breadth_nhnl_intraday_v2.json")
+STATE_PATH = os.path.join(_DATA, "breadth_nhnl_intraday_v2_state.npz")
+R2_KEY = "breadth_nhnl/intraday_v2.json.gz"
 
 
 #: The served basis when `BREADTH_NHNL_BASIS` is unset. ⛔ Flipped to "intraday" only after the
@@ -120,12 +134,20 @@ class Classifier:
         self._uct_last: Optional[set] = None
 
     def classify(self, sym: str, date_iso: str) -> tuple:
+        """Universe keys `sym` belongs to on `date_iso`: the common-stock universes (us / nyse /
+        nasdaq) and the ALL-ISSUES diary populations (us:all / nyse:all / nasdaq:all — every
+        security listed on the venue: preferreds, funds, ETFs, warrants, units …)."""
         from api.services import breadth_pit_frame as bpf
         rec = bpf.resolve(self.ref.get(sym), date_iso)
-        if rec is None or rec.get("type") not in bpf.COMMON_TYPES:
+        if rec is None:
             return ()
         ex = (rec.get("primary_exchange") or "").upper()
-        return tuple(u for u in ("us", "nyse", "nasdaq") if ex and ex in self.venues[u])
+        if not ex:
+            return ()
+        out = [u + ":all" for u in ("us", "nyse", "nasdaq") if ex in self.venues[u]]
+        if rec.get("type") in bpf.COMMON_TYPES:
+            out += [u for u in ("us", "nyse", "nasdaq") if ex in self.venues[u]]
+        return tuple(out)
 
     def uct(self, date_iso: str) -> Optional[set]:
         lst = _uct_list(date_iso)
@@ -175,18 +197,24 @@ class Ring:
         return (self.n - k) % RING
 
     def prior(self, rows: np.ndarray, width: int):
-        """(max high, min low, complete) over the `width` sessions before the next one."""
-        if self.n < width:
+        """(max high, min low, listed) over the `width` sessions before the next one.
+
+        ⭐ `listed` = the issue traded at least once in that window — the diary convention: a
+        name listed for less than a year makes a new 52-week high by trading above every price
+        since it listed (measured 2026-10-08: the complete-year rule missed ~15% of the NYSE's
+        and Nasdaq's published new lows)."""
+        w = min(width, self.n)
+        if w <= 0:
             z = np.full(len(rows), np.nan)
             return z, z, np.zeros(len(rows), dtype=bool)
-        cols = [(self.n - k) % RING for k in range(1, width + 1)]
+        cols = [(self.n - k) % RING for k in range(1, w + 1)]
         h = self.H[np.ix_(rows, cols)]
         lo = self.L[np.ix_(rows, cols)]
-        complete = ~np.isnan(h).any(axis=1) & ~np.isnan(lo).any(axis=1)
         with np.errstate(invalid="ignore"), _quiet():
             mx = np.nanmax(h, axis=1) if h.size else np.full(len(rows), np.nan)
             mn = np.nanmin(lo, axis=1) if lo.size else np.full(len(rows), np.nan)
-        return mx, mn, complete
+        listed = ~np.isnan(mx) & ~np.isnan(mn)
+        return mx, mn, listed
 
     def write(self, date_iso: str, rows: np.ndarray, h, lo, c):
         s = self.slot()
@@ -282,7 +310,7 @@ def measure(ring: Ring, date_iso: str, frame: dict, cls: Classifier) -> dict:
     a50, v50 = ring.sma_above(rows, c, 50)
     a200, v200 = ring.sma_above(rows, c, 200)
 
-    member = {u: np.zeros(len(syms), dtype=bool) for u in UNIVERSES}
+    member = {u: np.zeros(len(syms), dtype=bool) for u in UNIVERSES + ALL_KEYS}
     uct = cls.uct(date_iso)
     for i, s in enumerate(syms):
         for u in cls.classify(s, date_iso):
@@ -520,7 +548,7 @@ def token() -> str:
     """'' unless the intraday series is being served; else its identity (cache keys / ETags)."""
     if not active():
         return ""
-    return ":nhnl-" + _series_view()["sha"][:10]
+    return ":nhnl-" + _series_view()["sha"][:10] + ("-all" if population() == "all" else "")
 
 
 def values(universe: str, date_iso: str) -> Optional[dict]:
@@ -540,8 +568,13 @@ def derive(r) -> dict:
 
 
 def _uni(u) -> str:
+    """The series key a served universe reads: its own, or its all-issues population."""
     u = str(u or "uct").strip().lower()
-    return "uct" if u in ("", "default", "uct") else u
+    if u in ("", "default", "uct"):
+        return "uct"
+    if population() == "all" and u + ":all" in ALL_KEYS:
+        return u + ":all"
+    return u
 
 
 def override_history(metric: str, universe: str, hist: dict, with_source: bool = False) -> dict:
@@ -599,6 +632,26 @@ def _ring_for_live() -> Optional[Ring]:
     return _live_ring["ring"]
 
 
+_all_memo: dict = {}
+
+
+def _all_members(key: str, session_iso: str, tickers: list) -> list:
+    """Every snapshot ticker listed on the venue of the all-issues population `key` (memoised
+    per session: the reference map changes weekly, the classification once a day)."""
+    memo = _all_memo.get(session_iso)
+    if memo is None:
+        from api.services import breadth_pit_frame as bpf
+        cls = Classifier(bpf.reference_map())
+        memo = {}
+        for t in tickers:
+            for k in cls.classify(canon(t), session_iso):
+                if k in ALL_KEYS:
+                    memo.setdefault(k, []).append(t)
+        _all_memo.clear()
+        _all_memo[session_iso] = memo
+    return memo.get(key) or []
+
+
 def live_counts(universe: str, highs: dict, lows: dict, members, session_iso: str,
                 lists: bool = False) -> Optional[dict]:
     """Today's intraday counts for `members` from the snapshot's running high/low, measured
@@ -622,6 +675,8 @@ def live_counts(universe: str, highs: dict, lows: dict, members, session_iso: st
             return None
     except Exception:
         return None
+    if _uni(universe).endswith(":all"):
+        members = _all_members(_uni(universe), session_iso, list(highs))
     syms = [canon(t) for t in members if highs.get(t) and lows.get(t)]
     raw = [t for t in members if highs.get(t) and lows.get(t)]
     if not syms:
