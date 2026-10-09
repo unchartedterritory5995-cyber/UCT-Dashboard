@@ -34,8 +34,12 @@ describe('FREC rows', () => {
   })
 
   it('the headline measures are explained beside them, and the loading line is announced (wave 3)', async () => {
+    // Hold the SCOREBOARD read open; anything else the panel reads (its "Mine" names) answers
+    // empty at once. A single shared resolver was overwritten by the second read (wave 3 merge).
     let answer
-    vi.stubGlobal('fetch', vi.fn(() => new Promise((r) => { answer = r })))
+    vi.stubGlobal('fetch', vi.fn((url) => (String(url).includes('scoreboard')
+      ? new Promise((r) => { answer = r })
+      : Promise.resolve({ ok: true, status: 200, json: async () => ({}) }))))
     mount()
     expect((await screen.findByTestId('scoreboard-loading')).getAttribute('role')).toBe('status')
     answer({ ok: true, status: 200, json: async () => ({ picks_tracked: 1, overall: {}, by_grade: [], recent_winners: [], recent_picks: [pick('NVDA', 150)] }) })
