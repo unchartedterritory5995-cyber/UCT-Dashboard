@@ -285,10 +285,12 @@ The automated production walk was blocked by the agent permission system, so the
 NOT-VERIFIED until a person uses them on the live site:
 
 - G-050 Ask the current note
-  ✅ **Walked on the LIVE site 2026-10-08 22:48 CT by `tools/notebook_prod_ask_check.py`** as the
+  ✅ **Walked on the LIVE site 2026-10-08 22:43 CT by `tools/notebook_prod_ask_check.py`** as the
   smoke account, on a note the run created and removed: "What is my stop for ZZZT?" answered with
-  the stop from the note. Evidence `docs/notebook/evidence/prod-ask/2026-10-08-2248/`. A person's
-  own run is still welcome; it is no longer the only evidence.
+  the stop from the note. Evidence `docs/notebook/evidence/prod-ask/2026-10-08-2243/` (the time is
+  the result file's write time; an earlier attempt at 22:42 CT was INCONCLUSIVE, the home skeleton
+  stayed up 45 s on a slow pod, and the retry passed). A person's own run is still welcome; it is
+  no longer the only evidence.
 - G-051 Ask the whole Notebook
   ✅ Same run: the whole-Notebook question answered with both numbers from the note, one citation,
   and the citation opened the note (`answer.png`, `cited-note.png`).
