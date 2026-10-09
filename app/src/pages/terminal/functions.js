@@ -119,6 +119,9 @@ export const FUNCTIONS = [
   // PEER: the stock beside its peers, over /api/groups/peers (paid) + live prices + MON's returns read.
   { code: 'PEER', label: 'Peers and relative value', group: 'Security',
     ticker: { panel: 'Peer' } },
+  // ETF: leveraged / inverse ETFs on a stock (paid family map) and, for an ETF, its holdings.
+  { code: 'ETF', label: 'ETF exposure (leveraged ETFs, holdings)', group: 'Security',
+    ticker: { panel: 'Etf' } },
 
   // ── Research › Depth (each panel is its own surface behind its own flag) ──
   { code: 'DPTH', label: 'Research depth (every depth panel you have)', group: 'Research depth',
