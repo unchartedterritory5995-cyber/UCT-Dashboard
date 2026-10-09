@@ -275,9 +275,11 @@ export default function FlowScoreboard({ embedded = false }) {
                         {fmtPct(p.current_gain_pct)}
                       </td>
                       <td className={styles.num}>
+                        {/* The tick is an icon a screen reader skips; the cell names itself
+                            either way (audit 2026-10-08), never silence for "confirmed". */}
                         {p.oi_confirmed
-                          ? <span className={styles.oiTick} title="OI confirmed"><UIcon name="check" size={12} gold /></span>
-                          : <span className={styles.oiDash}>—</span>}
+                          ? <span className={styles.oiTick} title="OI confirmed" role="img" aria-label="OI confirmed" data-testid="frec-oi-yes"><UIcon name="check" size={12} gold /></span>
+                          : <span className={styles.oiDash} role="img" aria-label="Not OI-confirmed">—</span>}
                       </td>
                     </tr>
                   ))}

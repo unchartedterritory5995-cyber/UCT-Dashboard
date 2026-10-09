@@ -29,6 +29,8 @@ describe('MovePanel', () => {
     expect(items.map((li) => li.dataset.new)).toEqual(['false', 'true'])
     expect(within(screen.getByTestId('terminal-move-catalysts')).getByRole('listitem').dataset.new).toBe('true')
     expect(screen.getByTestId('terminal-move-since').textContent).toContain('2 new since your last visit')
+    // the last-visit time is on the market clock and says so, whatever zone the viewer is in
+    expect(screen.getByTestId('terminal-move-since').textContent).toContain('(9/21/2026, 10:13:20 AM ET)')
     expect(jsonFetcher).toHaveBeenCalledWith('/api/terminal/move/NVDA')
     expect(onRows).toHaveBeenCalledWith(moveRows('NVDA'))
   })

@@ -1659,13 +1659,18 @@ class GroupedFrameError(RuntimeError):
         self.reason, self.attempts = reason, attempts
 
 
-def get_grouped_daily_frame(day_iso: str, adjusted: bool = False) -> dict:
+def get_grouped_daily_frame(day_iso: str, adjusted: bool = False, store: bool = True) -> dict:
     """`{"rows": {...}, "empty": bool}` — or RAISE `GroupedFrameError`.
 
     Three outcomes, three distinguishable answers:
       rows present          the session traded
       rows empty, no error  the provider answered with nothing — a closure
       GroupedFrameError     we do not know, and the caller must not guess
+
+    `store=False` reads the durable tier when a file is already there but writes NOTHING —
+    neither the in-memory cache nor disk. ⛔ For whole-history sweeps on the web process
+    (`breadth_nhnl_intraday`): ~4,700 sessions x ~10k rows held in the 7-day memory cache
+    would be gigabytes, and a fresh 18-year disk tier several GB of the shared volume.
 
     ⛔ A FAILURE IS NEVER CACHED. The durable tier is written only for a settled date
     that actually returned rows, so a transient 429 cannot poison a date as "zero
@@ -1685,7 +1690,8 @@ def get_grouped_daily_frame(day_iso: str, adjusted: bool = False) -> dict:
             with open(fpath) as fh:
                 m = _json.load(fh)
             if m:
-                cache.set(ck, m, ttl=604800)
+                if store:
+                    cache.set(ck, m, ttl=604800)
                 return {"rows": m, "empty": False}
         except Exception:
             pass
@@ -1769,6 +1775,8 @@ def get_grouped_daily_frame(day_iso: str, adjusted: bool = False) -> dict:
                 "o": _num(r.get("o")), "h": _num(r.get("h")), "l": _num(r.get("l")),
                 "c": float(c), "v": _num(r.get("v")) or 0.0,
             }
+    if not store:
+        return {"rows": out, "empty": not out}
     if out:
         cache.set(ck, out, ttl=(604800 if settled else 900))
         if settled:

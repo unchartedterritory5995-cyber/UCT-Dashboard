@@ -1610,6 +1610,32 @@ def enabled() -> bool:
     return os.environ.get("BREADTH_LIVE_ENABLED", "1") != "0"
 
 
+def _apply_nhnl_live(payload: dict, members: dict, highs: dict, lows: dict, tickers) -> None:
+    """New highs / lows on the INTRADAY basis (`breadth_nhnl_intraday`) in the live payload and its
+    drill lists, when that basis is served: the settled session's series value, else today's count
+    from the snapshot's running high/low. Neither available → the family is withheld (None), never
+    a closing-basis count beside intraday history."""
+    try:
+        from api.services import breadth_nhnl_intraday as nhi
+        if not nhi.active():
+            return
+        session = payload.get("session_date")
+        v = nhi.values("uct", session)
+        if v is None:
+            v = nhi.live_counts("uct", highs, lows, tickers, session, lists=True)
+        lists = (v or {}).pop("_lists", None) if v else None
+        for k in nhi.SERVED:
+            payload["metrics"][k] = (v or {}).get(k)
+        for k in nhi.COUNTS:
+            if lists and k in lists:
+                members[k] = lists[k]
+            else:
+                members.pop(k, None)
+        payload["nhnl_basis"] = "intraday"
+    except Exception as e:
+        print(f"[breadth_live] nhnl overlay skipped: {type(e).__name__}: {e}")
+
+
 def compute_live(force: bool = False, cached_only: bool = False) -> dict:
     """Breadth right now: one snapshot compared against cached levels.
 
@@ -1656,6 +1682,8 @@ def compute_live(force: bool = False, cached_only: bool = False) -> dict:
     prices = {t: d["last_price"] for t, d in snap.items() if d.get("last_price")}
     vols = {t: d["today_vol"] for t, d in snap.items() if d.get("today_vol")}
     opens = {t: d["day_open"] for t, d in snap.items() if d.get("day_open")}
+    highs = {t: d["day_high"] for t, d in snap.items() if d.get("day_high")}
+    lows = {t: d["day_low"] for t, d in snap.items() if d.get("day_low")}
 
     # Share of the BREADTH universe that has actually traded today — the
     # holiday tell, and a cheap read on how far into the session we are.
@@ -1708,6 +1736,8 @@ def compute_live(force: bool = False, cached_only: bool = False) -> dict:
         "not_live": list(NOT_LIVE),
     }
 
+    _apply_nhnl_live(payload, members, highs, lows, levels["tickers"])
+
     with _live_lock:
         _live_cache["payload"] = payload
         _live_cache["at"] = now
@@ -1717,6 +1747,8 @@ def compute_live(force: bool = False, cached_only: bool = False) -> dict:
         _live_cache["members"] = members
         _live_cache["prices"] = prices
         _live_cache["vols"] = vols
+        _live_cache["highs"] = highs
+        _live_cache["lows"] = lows
         _live_cache["levels"] = levels
     return payload
 

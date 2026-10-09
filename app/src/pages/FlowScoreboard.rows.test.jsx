@@ -23,6 +23,16 @@ function mount() {
 const pick = (sym, strike) => ({ sym, strike, cp: 'C', exp: '2026-11-20', grade: 'A', dateSaved: '2026-10-01', entry: 2, max_gain_pct: 10, current_gain_pct: 5 })
 
 describe('FREC rows', () => {
+  it('the honest tape OI tick has an accessible name, not a bare icon (audit 2026-10-08)', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200, json: async () => ({
+      picks_tracked: 2, overall: {}, by_grade: [], recent_winners: [],
+      recent_picks: [{ ...pick('NVDA', 150), oi_confirmed: true }, pick('AMD', 90)],
+    }) })))
+    mount()
+    expect(await screen.findByRole('img', { name: 'OI confirmed' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Not OI-confirmed' })).toBeInTheDocument()
+  })
+
   it('one `$SYM` row per tape row (repeats kept), the names de-duplicated as the list', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200, json: async () => ({
       picks_tracked: 3, overall: {}, by_grade: [], recent_winners: [],

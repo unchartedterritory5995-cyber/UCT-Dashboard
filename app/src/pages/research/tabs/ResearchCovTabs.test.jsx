@@ -7,7 +7,7 @@ import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-li
 import { SWRConfig } from 'swr'
 import PeopleTab from './PeopleTab'
 import EstimateHistoryTab from './EstimateHistoryTab'
-import FilingsFeedTab, { emptyText } from './FilingsFeedTab'
+import FilingsFeedTab, { emptyText, partialText } from './FilingsFeedTab'
 
 let routes
 let status
@@ -200,6 +200,16 @@ describe('FilingsFeedTab (COV-09)', () => {
       .toBe('Unavailable. (SEC EDGAR submissions)')
     expect(emptyText({ state: 'none_in_scope', rows: [], reason: "SEC's recent-filings list for this company holds no 8-K filing" }, '8-K', 'AAPL'))
       .toBe("None: SEC's recent-filings list for this company holds no 8-K filing.")
+  })
+
+  it('a stale/partial note is sentences, never a lowercase run-on with a doubled stop (audit 2026-10-08)', async () => {
+    routes['/api/research/filings-feed/AAPL'] = { state: 'stale', ticker: 'AAPL', source: 'SEC EDGAR submissions', rows: [ROW_8K],
+      reason: 'the last successful poll was 12 minutes ago', partial: 'these forms could not be read on the last poll: 4.' }
+    wrap(<FilingsFeedTab sym="AAPL" />)
+    expect((await screen.findByTestId('feed-partial')).textContent)
+      .toBe('The last successful poll was 12 minutes ago. These forms could not be read on the last poll: 4.')
+    expect(partialText({})).toBe('')
+    expect(partialText({ partial: 'x' })).toBe('X.')
   })
 
   it('a failed request is unavailable, not "nothing filed"', async () => {

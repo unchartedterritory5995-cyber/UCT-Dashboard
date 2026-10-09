@@ -207,6 +207,38 @@ def breadth_live_universes_reconcile(request: Request, sessions: int = 10, start
     return blu.job("reconcile")
 
 
+@router.get("/api/breadth-monitor/nhnl-intraday")
+def breadth_nhnl_intraday(request: Request, start: int = 0, rebuild: int = 0,
+                          max_sessions: int = 0, date: str = ""):
+    """Intraday-basis new highs/lows series (`breadth_nhnl_intraday`): status, or `start=1` to
+    extend it in a background job (`rebuild=1` sweeps from scratch). `date=YYYY-MM-DD` adds the
+    series' values for that session beside the stored (closing-basis) counts. PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_nhnl_intraday as nhi
+    out = {"status": nhi.status()}
+    if start:
+        out["job"] = nhi.start_sweep(rebuild=bool(rebuild), max_sessions=max_sessions or None)
+    if date:
+        try:
+            v = nhi._series_view() or {}
+        except Exception:
+            v = {}
+        cmp_ = {}
+        for u in nhi.UNIVERSES:
+            r = ((v.get("rows") or {}).get(u) or {}).get(date)
+            stored = {}
+            try:
+                from api.services import breadth_daily_ohlc as bdo
+                for m in ("new_52w_highs", "new_52w_lows", "pct_above_50sma", "pct_above_200sma"):
+                    row = (bdo._history_stored(m, limit=40, universe=u) or {}).get(date)
+                    stored[m] = row and row.get("c")
+            except Exception as e:
+                stored = {"error": str(e)[:120]}
+            cmp_[u] = {"intraday": r, "stored": stored}
+        out["date"] = {date: cmp_, "fields": (nhi._load_series() or {}).get("fields")}
+    return out
+
+
 @router.post("/api/breadth-monitor/history/pull-now")
 def pull_breadth_ohlc_now(request: Request):
     """Force an immediate web-side pull + gap-fill merge of the latest breadth OHLC
