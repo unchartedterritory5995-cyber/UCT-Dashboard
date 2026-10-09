@@ -54,7 +54,10 @@ export async function storeConversation(state, { previewAcked = false, draftId =
   const res = await save(prep.doc, prep.defId, null, Object.keys(opts).length ? opts : null)
   if (!res || !res.ok) {
     return { ok: false, stage: res && res.conflict ? 'conflict' : 'store',
-      error: (res && res.error) || 'The server refused this definition.' }
+      error: (res && res.error) || 'The server refused this definition.',
+      // ⭐ the server's structured answer, when it gave one (`saveUserDefinition`)
+      ...(res && res.refusal ? { refusal: res.refusal } : {}),
+      ...(res && res.conflictInfo ? { conflictInfo: res.conflictInfo } : {}) }
   }
   const row = res.row || { def_id: prep.doc.id, version: prep.doc.version, rev: 1 }
   // ⛔ THE STORE'S id / version / rev / semantics — never the draft's guess.

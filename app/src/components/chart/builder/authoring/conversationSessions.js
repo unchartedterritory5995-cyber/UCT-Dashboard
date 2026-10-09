@@ -165,6 +165,24 @@ export function readSession(key) {
   return readPersisted(key)
 }
 
+/**
+ * ⭐ AGENT M1 — will opening the studio on `key` RESTORE a draft? The same rule
+ * `useIndicatorConversation` applies at mount (a snapshot with a transcript or a working
+ * definition; for an edit, the SAME definition opened from the version still stored),
+ * minus its registry-validity drop — which only ever makes the answer "no draft"
+ * later, so a seed is at worst withheld, never typed over a member's draft.
+ * Read-only: it never clears or writes a session.
+ * @param {string} key  `createKey(scope)` / `editKey(defId)`
+ * @param {{defId: string, version: number}|null} open  the definition an edit opens, or null
+ */
+export function draftWillRestore(key, open = null) {
+  const kept = readSession(key)
+  if (!kept) return false
+  const st = kept.state
+  if (open && !(st && st.defId === open.defId && st.baseVersion === open.version)) return false
+  return !!((kept.transcript && kept.transcript.length) || (st && st.working))
+}
+
 /** Store a snapshot (most recent last; the oldest beyond the cap is dropped).
  *  `persist` mirrors it into this tab's sessionStorage (best effort). */
 export function writeSession(key, snapshot, { persist = false } = {}) {

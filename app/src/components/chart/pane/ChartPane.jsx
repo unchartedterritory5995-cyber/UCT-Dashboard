@@ -800,6 +800,15 @@ function ChartPane({
     stepBar: (dir) => dateNavApiRef.current?.stepBar?.(dir),
     ensureFullHistory: () => dateNavApiRef.current?.ensureFullHistory?.(),
     getDateMeta: () => (dateNavApiRef.current?.getDateMeta?.() || null),
+    // ⭐ AGENT M1 — Create Indicator for UCT Agent (`ChartToolbar.openCreateIndicatorFor`):
+    // the settings modal closes first (one surface holding Escape), the studio opens with
+    // the request PREFILLED (never sent). `canCreateIndicator` is the button's own answer.
+    openCreateIndicatorFor: (opts = null) => {
+      setSettingsOpen(false)
+      const no = { ok: false, reason: 'unavailable', prefilled: false, draft: false, editing: false }
+      try { return paneToolbarApi.current?.openCreateIndicatorFor?.(opts) ?? no } catch { return no }
+    },
+    canCreateIndicator: () => { try { return !!paneToolbarApi.current?.canModifyWithIntelligence?.() } catch { return false } },
   }), [openSettings, updateChartSettings, handleSymbolChange])
 
   // Docked = the chart section gives up `studioDockW` on the right. Below
