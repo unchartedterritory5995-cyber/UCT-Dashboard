@@ -71,6 +71,14 @@ function fmtChgInt(v) {
   return `${v > 0 ? '+' : ''}${formatNumber(Math.round(v))}`
 }
 function chgClass(v) { return v > 0 ? styles.up : v < 0 ? styles.down : '' }
+// A change carries its own sign, so green/red is never the only signal (audit 2026-10-08: a
+// rise read "1.2M" in green and a fall "-1.2M" in red; a colour-blind member saw no direction
+// on the rise, and the dollar change dropped the + the other change chips carry).
+export function signed(v, fmt) {
+  if (v == null || !Number.isFinite(Number(v))) return null
+  const t = fmt(Number(v))
+  return Number(v) > 0 ? `+${t}` : t
+}
 // tq-panels: the transaction side printed as the raw lowercase enum ("buy" / "sell").
 export function sideLabel(type) {
   const s = String(type || '').trim()
@@ -296,7 +304,7 @@ export default function OwnershipTab({ sym }) {
             </div>
             <div>
               <div className={styles.muted}>Total invested (USD)</div>
-              <div>{fmtMoney(tfs.total_invested)} {fmtChgInt(tfs.total_invested_change) && <span className={`${chgClass(tfs.total_invested_change)} ${styles.statChg}`}>{fmtMoney(tfs.total_invested_change)}</span>}</div>
+              <div>{fmtMoney(tfs.total_invested)} {signed(tfs.total_invested_change, fmtMoney) && <span className={`${chgClass(tfs.total_invested_change)} ${styles.statChg}`}>{signed(tfs.total_invested_change, fmtMoney)}</span>}</div>
             </div>
           </div>
           {/* Position flow this quarter */}
@@ -320,7 +328,7 @@ export default function OwnershipTab({ sym }) {
                         {h.is_sold_out && <span className={`${styles.down} ${styles.holderBadge}`} data-holder-badge="sold">SOLD</span>}
                       </td>
                       <td>{fmtShares(h.shares)}</td>
-                      <td className={chgClass(h.change_shares)}>{h.change_shares != null ? fmtShares(h.change_shares) : '—'}</td>
+                      <td className={chgClass(h.change_shares)}>{signed(h.change_shares, fmtShares) ?? '—'}</td>
                       <td>{formatPercent(h.ownership, { decimals: 1 })}</td>
                       <td>{fmtMoney(h.market_value)}</td>
                     </tr>
