@@ -10,6 +10,7 @@
 import { BY_CODE, ABSENT, isCode } from './functions'
 import { applyArgs, argsEcho } from './args'
 import { MAX_VISIBLE } from './boardModel'
+import { money, planAlert } from './alertModel'
 
 // ── V5: codes that are ALSO real tickers ───────────────────────────────────────
 /** Function codes that are ALSO ticker symbols (the TERMINAL-NEXT scope audit's list,
@@ -140,6 +141,8 @@ export function argShape(code) {
   if (fn.code === 'CMP') return 'TICKER CMP <TICKER | SECTOR>  ·  A/B'
   if (fn.code === 'ASK') return 'ASK <question>  ·  TICKER ASK'
   if (fn.code === 'HELP') return 'HELP [FUNC]'
+  if (fn.code === 'ALRT') return 'TICKER ALRT PRICE (or >PRICE, <PRICE)  ·  [TICKER] ALRT'
+  if (fn.code === 'MON') return 'MON [N | W:id | FLAGGED]  ·  W'
   if (t && m) return `[TICKER] ${fn.code}${tail}`
   if (t) return `TICKER ${fn.code}${tail}`
   return fn.code
@@ -204,6 +207,13 @@ export function describeCommand(cmd) {
   // (ticker variant when a security is present and the code has one, else market).
   const variant = cmd.sym && fn?.ticker ? fn.ticker : fn?.market
   const leaves = variant?.door && variant?.leavesTerminal ? ' (leaves Terminal)' : ''
+  // ALRT with a price SETS an alert (alertCommand.js): say what will be set, before Enter.
+  if (cmd.code === 'ALRT' && cmd.args?.length) {
+    const plan = planAlert(cmd)
+    if (!plan.ok) return { text: plan.error, tone: 'warn', shape }
+    const how = plan.direction ? `${plan.direction} ${money(plan.price)}` : `at ${money(plan.price)} (above or below is worked out from the current price)`
+    return { text: `Set a price alert: ${plan.sym} ${how}${via}${ch}`, tone: 'ok', shape }
+  }
   if (cmd.code === 'CMP' && cmd.sym) {
     const other = cmd.args?.[0]
     const mode = cmd.compareMode || compareMode(cmd.sym, other)
