@@ -62,17 +62,21 @@ export function routingEnabled() {
 export function selectGroups(message, { pendingActions = [], recentActions = [] } = {}) {
   const raw = String(message || '')
   const q = raw.toLowerCase()
-  const sel = new Set(GROUPS.filter(g => g.always).map(g => g.id))
-  let matched = false
+  const always = GROUPS.filter(g => g.always).map(g => g.id)
+  const hits = new Set()
   for (const g of GROUPS) {
     if (g.always) continue
-    if (g.words.some(re => re.test(q))) { sel.add(g.id); matched = true }
+    if (g.words.some(re => re.test(q))) hits.add(g.id)
   }
   // "put NVDA on the left", "Switch to AMD": a ticker-shaped word (case-sensitive, on the raw
   // text) after a show/switch verb is a chart symbol request.
-  if (SYMBOL_VERB.test(q) && tickerWords(raw).length) { sel.add('charts'); matched = true }
-  for (const a of [...pendingActions, ...recentActions]) { const g = groupOfAction(a); if (g) sel.add(g) }
-  return { selected: GROUPS.map(g => g.id).filter(id => sel.has(id)), matched }
+  if (SYMBOL_VERB.test(q) && tickerWords(raw).length) hits.add('charts')
+  const followUps = [...new Set([...pendingActions, ...recentActions].map(groupOfAction).filter(Boolean))]
+  const matched = hits.size > 0
+  // PRIORITY order (Batch 6): always-on, then follow-ups, then the message's own groups (catalog
+  // order). routeManifest packs them in this order under the per-request budget.
+  const priority = [...new Set([...always, ...followUps, ...GROUPS.map(g => g.id).filter(id => hits.has(id))])]
+  return { selected: GROUPS.map(g => g.id).filter(id => priority.includes(id)), priority, matched }
 }
 
 /**
@@ -81,15 +85,29 @@ export function selectGroups(message, { pendingActions = [], recentActions = [] 
  * `extra` adds groups (the bounded reroute).
  */
 export function routeManifest(manifest, message, opts = {}, extra = []) {
-  const limit = opts.limit ?? Infinity
-  // Kill switch / nothing recognised → the FULL manifest — while it fits the server's limit.
-  // Past the limit the fallback is the always-on groups plus the follow-up groups, with every
-  // other group NAMED, so the model asks for what it needs (need_groups) instead of the server
-  // cutting the list.
+  const limit = opts.limit ?? Infinity                     // the server's per-request maximum
+  const budget = Math.min(opts.budget ?? limit, limit)     // what one request may carry (routingThreshold)
+  // Kill switch / nothing recognised → the FULL manifest — while it fits the per-request limit.
+  // Past it, routing always applies: the always-on and follow-up groups, every other group NAMED,
+  // so the model asks for what it needs (need_groups) instead of anything being cut.
   if (opts.enabled === false && manifest.length <= limit) return { manifest, routing: null }
-  const { selected, matched } = selectGroups(message, opts)
+  const { priority, matched } = selectGroups(message, opts)
   if (!matched && !extra.length && manifest.length <= limit) return { manifest, routing: null }
-  const want = new Set([...selected, ...extra])
+  // A reroute's requested groups come straight after the always-on ones.
+  const always = GROUPS.filter(g => g.always).map(g => g.id)
+  const order = [...new Set([...always, ...extra, ...priority])]
+  const sizeOf = (id) => manifest.filter(c => groupOfAction(c.name) === id).length
+  // PACK under the budget, in priority order. A group that would overflow is NOT sent — it is
+  // named (unselected), so the model can ask for it; nothing is ever partially sent.
+  const want = new Set()
+  let used = manifest.filter(c => groupOfAction(c.name) === null).length
+  const over = []
+  for (const id of order) {
+    const n = sizeOf(id)
+    if (!n) continue
+    if (used + n > budget && want.size >= always.length) { over.push(id); continue }
+    want.add(id); used += n
+  }
   const present = GROUPS.filter(g => manifest.some(c => groupOfAction(c.name) === g.id))
   const routed = manifest.filter(c => want.has(groupOfAction(c.name)) || groupOfAction(c.name) === null)
   if (routed.length === manifest.length) return { manifest, routing: null }
@@ -100,5 +118,7 @@ export function routeManifest(manifest, message, opts = {}, extra = []) {
       groups: present.map(g => ({ id: g.id, title: g.title })),
       selected: present.filter(g => want.has(g.id)).map(g => g.id),
     },
+    // groups the request needed but the budget could not carry (a reroute cannot add these either)
+    overBudget: over,
   }
 }

@@ -10,5 +10,10 @@
     "maxContextBytes": 24000,
     "maxOps": 12
   },
-  "routingThreshold": 55
+  "routingThreshold": 55,
+  "catalog": {
+    "maxRegistered": 200,
+    "maxGroupSize": 40,
+    "note": "maxCapabilities is PER REQUEST (what one /api/agent/turn may carry; the server refuses more). maxRegistered bounds the browser catalog. routingThreshold is the routed budget per request. No routing group may exceed maxGroupSize, so any single group (plus the always-on group) fits one request."
+  }
 }

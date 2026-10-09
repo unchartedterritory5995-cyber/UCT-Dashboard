@@ -132,8 +132,14 @@ def validate_manifest(caps: Any) -> list[dict]:
     if not isinstance(caps, list):
         return out
     if len(caps) > MAX_CAPABILITIES:
-        log.warning("[uct-agent] manifest has %d capabilities; only the first %d reach the model", len(caps), MAX_CAPABILITIES)
-    for c in caps[:MAX_CAPABILITIES]:
+        # ⛔ NEVER A SILENT CUT (Batch 6, Gate C). MAX_CAPABILITIES is the PER-REQUEST limit, not
+        # the size of the catalog: the browser's routing (app/src/agent/routing.js) sends only the
+        # action groups a request needs, under budget. A request over the limit is a client bug —
+        # refused whole, never trimmed to "the first 60", which would silently drop actions the
+        # member may have asked for.
+        log.warning("[uct-agent] manifest has %d capabilities; over the per-request limit %d — refused", len(caps), MAX_CAPABILITIES)
+        raise TurnError("UCT Agent was sent too many actions for one request, so nothing was planned. Try again.")
+    for c in caps:
         if not isinstance(c, dict):
             continue
         name = str(c.get("name") or "")

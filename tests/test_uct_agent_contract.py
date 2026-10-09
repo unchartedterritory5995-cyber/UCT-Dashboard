@@ -96,3 +96,20 @@ def test_manifest_version_skew_is_served_and_logged(caplog):
     out = turn.run_turn(message="hi", context={}, history=[], capabilities=CAPS[:3], caller=caller, manifest_version=99)
     assert out["envelope"]["disposition"] == "answer"
     assert any("manifest version" in r.message for r in caplog.records)
+
+
+def test_over_the_per_request_limit_is_refused_whole_never_trimmed():
+    """Batch 6, Gate C: MAX_CAPABILITIES is per REQUEST; a request over it is a client bug and is
+    refused (the charge is given back by the route), never cut to "the first 60"."""
+    import pytest
+    too_many = [dict(CAPS[0], name=f"chart.fake{i}") for i in range(turn.MAX_CAPABILITIES + 1)]
+    with pytest.raises(turn.TurnError, match="too many actions"):
+        turn.validate_manifest(too_many)
+    exactly = [dict(CAPS[0], name=f"chart.fake{i}") for i in range(turn.MAX_CAPABILITIES)]
+    assert len(turn.validate_manifest(exactly)) == turn.MAX_CAPABILITIES
+
+
+def test_catalog_contract_distinguishes_catalog_from_request():
+    cat = CONTRACT["catalog"]
+    assert cat["maxRegistered"] > CONTRACT["limits"]["maxCapabilities"]
+    assert cat["maxGroupSize"] < CONTRACT["routingThreshold"] <= CONTRACT["limits"]["maxCapabilities"]

@@ -20,7 +20,7 @@ import { CHART_THEMES } from '../components/chart/chartThemes'
 import { WORKSPACE_MENU_TYPES } from '../widgets/registry'
 import { CHART_SETTING_DESCRIPTORS, ELIGIBLE_SETTINGS } from '../components/chart/chartSettingsDescriptors'
 import { SETTINGS_SECTIONS } from './capabilities/app'
-import { routeManifest } from './routing'
+import { routeManifest, groupOfAction } from './routing'
 
 const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))
 const GOLDEN = path.join(HERE, 'contract', 'manifest.golden.json')
@@ -62,13 +62,36 @@ describe('golden manifest (the JS ⇄ Python contract)', () => {
       expect(r.manifest.length, m).toBeLessThanOrEqual(MANIFEST_CONTRACT.routingThreshold)
     }
   })
-  it('the full manifest still fits the server limit; past it the fallback is routed, never cut', () => {
-    expect(manifest.length).toBeLessThanOrEqual(MANIFEST_CONTRACT.limits.maxCapabilities)
-    const big = [...manifest, ...Array.from({ length: 30 }, (_, i) => ({ ...manifest[0], name: `chart.fake${i}` }))]
-    const r = routeManifest(big, 'What is the difference between an EMA and an SMA?', { limit: MANIFEST_CONTRACT.limits.maxCapabilities })
-    expect(r.routing).not.toBe(null)
-    expect(r.manifest.length).toBeLessThanOrEqual(MANIFEST_CONTRACT.routingThreshold)
-    expect(r.routing.groups.length).toBeGreaterThan(r.routing.selected.length)
+  // Batch 6, Gate C: the CATALOG may exceed the per-request limit; no single request ever does.
+  const L = MANIFEST_CONTRACT.limits, CAT = MANIFEST_CONTRACT.catalog
+  const opts = { limit: L.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
+  it('the catalog stays under maxRegistered and every routing group under maxGroupSize (any one group always fits a request)', () => {
+    expect(manifest.length).toBeLessThanOrEqual(CAT.maxRegistered)
+    const by = {}
+    for (const c of manifest) { const g = groupOfAction(c.name); by[g] = (by[g] || 0) + 1 }
+    for (const [g, n] of Object.entries(by)) expect(n, g).toBeLessThanOrEqual(CAT.maxGroupSize)
+  })
+  describe('a synthetic 150-action catalog (the anticipated Charts size)', () => {
+    const fake = (domain, n) => Array.from({ length: n }, (_, i) => ({ ...manifest[0], name: `${domain}.fake${i}`, domain }))
+    const big = [...manifest, ...fake('chart', 30), ...fake('widget', 15), ...fake('watchlist', 20), ...fake('screener', 25)].slice(0, 150)
+    it('every request is under the budget — routed, multi-intent, follow-up and unrecognised alike', () => {
+      for (const m of ['Hide the grid on the left chart', 'Run my Momentum Screen and put the results into a new watchlist called Picks, then open the top three in charts',
+        'What is the difference between an EMA and an SMA?', 'only the first two']) {
+        const r = routeManifest(big, m, { ...opts, recentActions: ['layout.open'] })
+        expect(r.routing, m).not.toBe(null)                                  // never the whole catalog
+        expect(r.manifest.length, m).toBeLessThanOrEqual(MANIFEST_CONTRACT.routingThreshold)
+      }
+    })
+    it('groups that do not fit are NAMED (overBudget), never partially sent; a reroute puts the needed group first', () => {
+      const r = routeManifest(big, 'Run my Momentum Screen and put the results into a new watchlist called Picks, then open the top three in charts', opts)
+      const sent = new Set(r.manifest.map(c => groupOfAction(c.name)))
+      for (const g of r.routing.selected) expect(sent.has(g)).toBe(true)
+      for (const g of r.overBudget) expect(sent.has(g), g).toBe(false)
+      const need = r.overBudget[0] || r.routing.groups.map(g => g.id).find(g => !r.routing.selected.includes(g))
+      const again = routeManifest(big, 'Run my Momentum Screen and put the results into a new watchlist called Picks, then open the top three in charts', opts, [need])
+      expect(again.routing.selected).toContain(need)
+      expect(again.manifest.length).toBeLessThanOrEqual(MANIFEST_CONTRACT.routingThreshold)
+    })
   })
 })
 
