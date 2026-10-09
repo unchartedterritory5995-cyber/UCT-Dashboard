@@ -892,6 +892,46 @@ _NEWLINE = bytes([10])   # written this way so no escape survives three layers o
 _SEARCH_CSV_DEADLINE_S = float(os.environ.get("FLOW_SEARCH_CSV_DEADLINE_S", "20") or 20)
 
 
+# ⛔ A KNOWN-TOO-BIG TICKER ANSWERS AT ONCE (wave-2 audit 2026-10-08). The warm path already
+# cools a failed ticker off (`_WARM_FAILED_UNTIL`), but the three REQUEST paths -- the member
+# build, the windowed product and the Discord card's basis -- re-ran the full bounded
+# materialisation on EVERY ask: up to `_SEARCH_CSV_DEADLINE_S` / `_SEARCH_CSV_MAX_BYTES` of read
+# holding one of the build lanes, to arrive at the same "too big" 503 every time (seen live on
+# /flow for a head ticker). The over-budget verdict is remembered per (symbol, partition,
+# variant) -- NOT per version, which moves with every print and would forget it at once -- for
+# `_TOO_BIG_TTL_S`, and a request in that window gets the same 503 without touching the lane.
+# A cache HIT still wins: the check runs only where a build would otherwise start.
+_TOO_BIG_TTL_S = float(os.environ.get("FLOW_SEARCH_TOO_BIG_TTL_S", "300") or 300)
+_TOO_BIG_UNTIL: dict = {}
+_TOO_BIG_LOCK = threading.Lock()
+
+
+def _too_big_key(sym: str, src: str, key: tuple) -> tuple:
+    return (sym, src, key[3] if len(key) > 3 else "full")
+
+
+def _note_too_big(sym: str, src: str, key: tuple) -> None:
+    with _TOO_BIG_LOCK:
+        _TOO_BIG_UNTIL[_too_big_key(sym, src, key)] = time.monotonic() + _TOO_BIG_TTL_S
+
+
+def _too_big_recently(sym: str, src: str, key: tuple) -> bool:
+    k = _too_big_key(sym, src, key)
+    with _TOO_BIG_LOCK:
+        until = _TOO_BIG_UNTIL.get(k)
+        if until is None:
+            return False
+        if time.monotonic() >= until:
+            _TOO_BIG_UNTIL.pop(k, None)
+            return False
+        return True
+
+
+def _too_big_response():
+    return JSONResponse({"ok": False, "error": "too big to derive within budget"},
+                        status_code=503)
+
+
 def _build_search_product(sym: str, src: str, key: tuple, version: str, st, dates=None, extra=None,
                           pre_chunks=None):
     """Derive, serialise, gzip and CACHE one ticker's Search product.
@@ -948,6 +988,7 @@ def _build_search_product(sym: str, src: str, key: tuple, version: str, st, date
                 break
         if overrun:
             parts = None
+            _note_too_big(sym, src, key)
             st.mark("csv_overrun", why=overrun, kb=csv_len // 1024, rows=rows_seen)
             st.flush("TOO_BIG")
             log.info("[flow-search] %s/%s exceeds the warm budget (%s) - declining "
@@ -1282,6 +1323,12 @@ def _basis_ticker_product(sym: str, src: str, version: str, cap_rows: int, st):
                              "market_dates": _market_dates(src)[-20:],
                              "basis_complete": True, "basis_rows": 0, "sessions_total": 0,
                              "product": {"all_directional": [], "TICKER_DB": []}, "rows": 0})
+    if _too_big_recently(sym, src, key):
+        if rec is not None and rec["age_s"] <= _BASIS_STALE_MAX_S:
+            st.flush("STALE_BASIS_TOO_BIG")
+            return _search_response(rec["gz"], rec["version"], "basis-stale", as_of=rec["built_at"])
+        st.flush("TOO_BIG_REMEMBERED")
+        return _too_big_response()
     if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
         if rec is not None and rec["age_s"] <= _BASIS_STALE_MAX_S:
             st.flush("STALE_BASIS_BUSY")
@@ -1431,6 +1478,9 @@ def _windowed_ticker_product(sym: str, src: str, version: str, wd: int, st):
         return JSONResponse({"ok": True, "sym": sym, "source": src, "version": version,
                              "schema": _SEARCH_PRODUCT_SCHEMA, "window_dates": [],
                              "product": {"all_directional": [], "TICKER_DB": []}, "rows": 0})
+    if _too_big_recently(sym, src, key):
+        st.flush("TOO_BIG_REMEMBERED")
+        return _too_big_response()
     if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
         st.flush("DECLINED_BUSY")
         return JSONResponse({"ok": False, "error": "busy"}, status_code=503)
@@ -1519,6 +1569,9 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
         st.flush("MISS_WARM_ONLY")
         return JSONResponse({"ok": False, "error": "not warm"}, status_code=503)
 
+    if _too_big_recently(sym, src, key):
+        st.flush("TOO_BIG_REMEMBERED")
+        return _too_big_response()
     if not _SEARCH_BUILD_LOCK.acquire(blocking=False):
         st.flush("DECLINED_BUSY")
         return JSONResponse({"ok": False, "error": "busy"}, status_code=503)
