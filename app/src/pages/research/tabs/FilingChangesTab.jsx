@@ -7,6 +7,7 @@ import { usePendingReask } from '../depth/depthFetch'
 import PendingGaveUp from '../depth/PendingGaveUp'
 import { memberText } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
+import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
 
 // COV-04 (roadmap RM-L12) — what changed between a company's two most recent 10-Ks
 // (or, selectable, its two most recent 10-Qs), section by section, from SEC EDGAR.
@@ -150,6 +151,7 @@ function FilingChanges({ sym, form }) {
     ? { source: 'SEC EDGAR', age: { asOfDate: data.newer?.filing_date || null } }
     : null)
 
+  if (isSwitchedOff(error)) return <SwitchedOff what="Filing changes" className={styles.note} testId="blackline-off" />
   if (error) {
     return <div className={styles.note} data-testid="blackline-unavailable">
       Filing changes are unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={rp.basisBtn} onClick={() => mutate()}>Retry</button>

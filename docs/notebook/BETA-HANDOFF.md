@@ -47,7 +47,7 @@ All are read per request; unset means off. Turn on one change at a time, then ch
 | `NOTEBOOK_AI_ACTIONS_ENABLED=1` | "Ask Notebook to do something" (plan, approve each change, undo) | ARMED on web, 2026-10-03 |
 | `NOTEBOOK_FORMULAS_ENABLED=1` | formula and rollup properties, the position-tracker template's formulas | ARMED on web, 2026-10-07 22:31 CT (the quiet 50k reading had passed: `docs/notebook/formulas-and-rollups.md`, Scale section, run 3) |
 | `NOTEBOOK_TEMPLATE_GALLERY_ENABLED=1` | community template gallery (admin approves before listing) | ARMED on web, 2026-10-08 00:30 CT |
-| `NOTEBOOK_VOICE_NOTES_ENABLED=1` | voice and meeting notes | HOLD: needs the OpenAI zero-retention letter (row 8a, the owner's). The upload-size gap is closed (wave 14: the body is capped while it is read; `docs/notebook/wave14-upload-cap.md`) |
+| `NOTEBOOK_VOICE_NOTES_ENABLED=1` | voice and meeting notes | ARMED on web, 2026-10-09 14:36 CT, by owner ruling (published vendor terms are enough; no zero-retention letter). The upload-size gap is closed (wave 14: the body is capped while it is read; `docs/notebook/wave14-upload-cap.md`) |
 
 ## 1b. Wave 13 switches (ARMED on web 2026-10-08, in the section 1d order)
 
@@ -125,7 +125,7 @@ section said those four would appear as soon as wave 14 deployed; that was true 
 | Task reminders | `NOTEBOOK_TASK_REMINDERS_ENABLED` | armed |
 | Template gallery | `NOTEBOOK_TEMPLATE_GALLERY_ENABLED` | armed (2026-10-08) |
 | Formulas and rollups | `NOTEBOOK_FORMULAS_ENABLED` | armed (2026-10-07) |
-| Search by meaning | `NOTEBOOK_SEMANTIC_SEARCH_ENABLED` | dark (HOLD, vendor letter) |
+| Search by meaning | `NOTEBOOK_SEMANTIC_SEARCH_ENABLED` | ARMED on web, 2026-10-09 14:36 CT (owner ruling: published vendor terms) |
 | The technical fingerprint | `NOTEBOOK_TA_FINGERPRINT_ENABLED` | armed (2026-10-08) |
 | Plan versus execution grading | `NOTEBOOK_PLAN_GRADING_ENABLED` | armed (2026-10-08) |
 | Entry context card | `NOTEBOOK_ENTRY_CONTEXT_ENABLED` | armed (2026-10-08) |
@@ -261,7 +261,8 @@ already on. Each feature's tour (1c) arms with it once step 17 is on.
 - ~~`NOTEBOOK_VOICE_NOTES_ENABLED` and `NOTEBOOK_SEMANTIC_SEARCH_ENABLED`: HOLD for the vendor
   zero-retention letters.~~ **Released by owner ruling 2026-10-09: the published vendor terms
   are enough** (`VENDOR-TERMS-2026-09-23.md` §2). Both arm after the Privacy page that names
-  them is live; the ledger records the flip time.
+  them is live; the ledger records the flip time. **ARMED on web 2026-10-09 19:36Z**, both in
+  one set, after the Privacy page (#307) was confirmed live.
 - `NOTEBOOK_ATTACHMENTS_ON`, `NOTEBOOK_CONFLICT_UX_ON`, `NOTEBOOK_OFFLINE_READ_ON` (wave K): never
   arm; the features behind them are not built.
 
@@ -271,7 +272,7 @@ already on. Each feature's tour (1c) arms with it once step 17 is on.
 |---|---|---|
 | 1c, 5a, 5b, 5c, 16a | a task-based study with 5-8 traders (core tasks unaided, SUS >= 80, first useful note < 2 min) | `docs/notebook/user-study-kit.md` |
 | 3a | 30 days with real members and zero data loss | `docs/notebook/soak-30day.md` |
-| 8a, 12c, 12d, 13a | zero-retention terms in writing from Anthropic and OpenAI; then arm meaning search | the vendor letters |
+| 8a, 12c, 12d, 13a | ~~zero-retention terms in writing from Anthropic and OpenAI; then arm meaning search~~ **Decided 2026-10-09: the owner accepted the published vendor terms instead of written zero retention; meaning search is armed.** The scorecard's "in writing" wording stays unmet by that choice | owner ruling, `VENDOR-TERMS-2026-09-23.md` §2 |
 | 1a, 1b | the above letter, plus the browser-extension store submission (G-043): **verified 2026-10-09 -- Published, unlisted, since 2026-09-26** (item `kpogeikeoejgkefdcjdpeoonmbiflnlk`, v0.1.0). The Settings card now links to it (#304) and the handshake is pinned to that id. At launch: Distribution, Unlisted to Public, in the developer dashboard | Chrome Web Store |
 | 9c | a screen-reader pass by a person, VoiceOver and NVDA | `docs/notebook/a11y-second-review-brief.md` |
 | 10a | run the iOS Shortcut on an iPhone (G-044) | the Shortcut docs |
@@ -320,7 +321,8 @@ NOT-VERIFIED until a person uses them on the live site:
   review; no auto-hide on reports (full list: `docs/notebook/wave12-12a.md`).
 - Position tracker: formula fields are set up only from the Notebook's own picker, not from the
   joystick hub's Templates action (owner: fine as is, 2026-10-02).
-- Voice notes stay dark until the vendor letter (above).
+- ~~Voice notes stay dark until the vendor letter (above).~~ Armed 2026-10-09 on the published
+  vendor terms (owner ruling).
 - The switch-arming order for waves 11-14 (1d above) is a proposal, not a decision: ruling P6
   leaves the order, and the timing, to the owner.
 

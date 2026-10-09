@@ -25,10 +25,14 @@
 // 2026-08-14), so their record's `sym` is never read. E and later keep `sym` in the record.
 // `history` is that channel's entity recents (IA §14.2), bounded.
 import { BY_CODE, canonicalCode } from './functions'
+import { LIBRARY_VERSION, isGuardedStatus, parseLibraryBlob } from './boardPrefs'
+
+// The library's version, its parse and the guarded-status test live in `boardPrefs.js` (no
+// imports, so App.jsx's /calendar wrapper can read them without this module); re-exported here.
+export { LIBRARY_VERSION, isGuardedStatus }
 
 export const LAYOUT_VERSION = 2
 export const LEGACY_LAYOUT_VERSION = 1
-export const LIBRARY_VERSION = 1
 
 /** The visible-panel counts a board can show. 3 exists so closing one of four is not a jump. */
 export const PANEL_COUNTS = [1, 2, 3, 4]
@@ -290,8 +294,6 @@ export function readLayout(raw) {
   return { layout: defaultLayout(), status: 'unreadable' }
 }
 
-/** True when the stored blob must not be written over without the member's say-so. */
-export const isGuardedStatus = (status) => status === 'unreadable' || status === 'newer'
 
 export function serializeLayout(layout) {
   return JSON.stringify(normalizeLayout(layout))
@@ -722,15 +724,8 @@ export function normalizeLibrary(v) {
 
 /** `{ library, status }` — `status` as `readLayout`'s (absent · ok · unreadable · newer). */
 export function readLibrary(raw) {
-  if (raw == null || raw === '') return { library: emptyLibrary(), status: 'absent' }
-  let v = raw
-  if (typeof raw === 'string') {
-    try { v = JSON.parse(raw) } catch { return { library: emptyLibrary(), status: 'unreadable' } }
-  }
-  if (!isObj(v)) return { library: emptyLibrary(), status: 'unreadable' }
-  if (v.v === LIBRARY_VERSION) return { library: normalizeLibrary(v), status: 'ok' }
-  if (Number.isInteger(v.v) && v.v > LIBRARY_VERSION) return { library: emptyLibrary(), status: 'newer' }
-  return { library: emptyLibrary(), status: 'unreadable' }
+  const { status, value } = parseLibraryBlob(raw)
+  return { library: status === 'ok' ? normalizeLibrary(value) : emptyLibrary(), status }
 }
 
 /** Save the board on screen under `name` (the same name overwrites it). `{ library, board, ok, reason? }`. */

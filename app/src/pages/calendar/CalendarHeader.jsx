@@ -309,7 +309,7 @@ export default function CalendarHeader({
   const [sectorReadOpen, setSectorReadOpen] = useState(false)
   useEffect(() => { setSectorReadOpen(false) }, [filters.sector])
   const sectorReadWeek = dayTabs.length ? dayTabs[0].ds : null
-  const { line: sectorReadLine, generating: sectorReadBusy } =
+  const { line: sectorReadLine, generating: sectorReadBusy, unavailable: sectorReadOff } =
     useSectorRead(sectorReadOpen ? (filters.sector || null) : null, sectorReadWeek)
 
   // A member-facing hint ONLY when the FMP leg genuinely failed for this
@@ -843,7 +843,9 @@ export default function CalendarHeader({
               <UIcon name="sparkle" size={12} style={{ verticalAlign: '-1px', marginRight: 6, flex: '0 0 auto' }} />
               {sectorReadLine
                 ? <span>{sectorReadLine}</span>
-                : <span className={styles.sectorReadBusy}>Reading the {activeSector} tape…</span>}
+                : sectorReadOff
+                  ? <span data-testid="sector-read-off">The {activeSector} read is not available right now.</span>
+                  : <span className={styles.sectorReadBusy}>Reading the {activeSector} tape…</span>}
             </span>
           )}
         </div>

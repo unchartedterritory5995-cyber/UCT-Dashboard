@@ -74,7 +74,7 @@ function ReportNote({ state, reason, retry }) {
   if (state === 'loading') return <div className={styles.fnote} data-testid="latest-report-loading">Loading latest report…</div>
   if (state === 'empty') return <div className={styles.fnote} data-testid="latest-report-empty">No reported quarter on file yet.</div>
   if (state === 'not_applicable') {
-    return <div className={styles.fnote} data-testid="latest-report-na">Not applicable to funds{reason ? ` — ${reason}.` : '.'}</div>
+    return <div className={styles.fnote} data-testid="latest-report-na">Not applicable to funds{reason ? `: ${reason}.` : '.'}</div>
   }
   if (state === 'error') {
     return (
@@ -217,8 +217,8 @@ export default function OverviewTab({ sym, stats, analyst, ai, row, reportState,
         {analystMissing || reportState === 'not_applicable' ? (
           <div className={styles.fnote} data-testid="analyst-missing">
             {reportState === 'not_applicable'
-              ? 'Not applicable to funds — analysts do not rate or target a fund here.'
-              : `No earnings record for ${sym} — the source holds no consensus or price target for it.`}
+              ? 'Not applicable to funds: analysts do not rate or target a fund here.'
+              : `No earnings record for ${sym}: the source holds no consensus or price target for it.`}
           </div>
         ) : (
           <>

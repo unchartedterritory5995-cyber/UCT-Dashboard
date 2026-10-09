@@ -371,3 +371,117 @@ describe('mounted surfaces — every table the terminal reaches by import', () =
     expect(f.unsorted).toEqual(['x:3'])
   })
 })
+
+// ── 6. Panel-instance ids and form-control names (2026-10-09, lane w9-7) ────────────────────
+//
+// A board can hold two copies of one panel (two ETF panels, two CHK panels), so a LITERAL `id`
+// inside a panel is a duplicate id the moment the second copy opens: `aria-labelledby` and
+// `htmlFor` then point at whichever copy came first. Panel ids come from `useId()`. The shell's
+// own singletons (BoardsMenu, FirstRunCard) live outside these two roots and are not checked.
+//
+// And every form control a panel draws has a name a screen reader can read: an aria-label /
+// aria-labelledby / title, a wrapping <label>, or an `id` that a <label htmlFor> in the same file
+// names (compared as source text, so `${ids}-entry` matches `${ids}-entry`).
+// DERIVED like the rest of this file: every .jsx under the roots, every run.
+
+const PANEL_ROOTS = [join(SRC, 'pages', 'terminal', 'panels'), join(SRC, 'components', 'terminal')]
+const inPanelRoots = (f) => PANEL_ROOTS.some((r) => f.startsWith(r + sep))
+const CONTROLS = new Set(['input', 'select', 'textarea', 'Input', 'Select'])
+
+const attrOf = (el, name) => el.openingElement.attributes.find((a) => a.type === 'JSXAttribute' && a.name?.name === name)
+const isLiteralValue = (a) => a?.value?.type === 'Literal'
+  || (a?.value?.type === 'JSXExpressionContainer' && a.value.expression.type === 'TemplateLiteral'
+    && a.value.expression.expressions.length === 0)
+  || (a?.value?.type === 'JSXExpressionContainer' && a.value.expression.type === 'Literal')
+
+/** `file:line` of every DOM element (lowercase tag) carrying a literal `id`. */
+export function literalIdOffenders(file, src, ast = parseModule(src)) {
+  const out = []
+  walkAst(ast, (n) => {
+    if (n.type !== 'JSXElement') return
+    const name = jsxName(n)
+    if (!name || name[0] !== name[0].toLowerCase()) return
+    if (isLiteralValue(attrOf(n, 'id'))) out.push(`${file}:${n.loc.start.line}`)
+  })
+  return out
+}
+
+/** `file:line` of every form control with no accessible name in its own file. */
+export function unnamedControlOffenders(file, src, ast = parseModule(src)) {
+  const text = (a) => (a?.value ? src.slice(a.value.start, a.value.end).replace(/^\{|\}$/g, '') : null)
+  const labelFor = new Set()
+  walkAst(ast, (n) => {
+    if (n.type === 'JSXElement' && jsxName(n) === 'label') {
+      const f = text(attrOf(n, 'htmlFor'))
+      if (f) labelFor.add(f)
+    }
+  })
+  const out = []
+  const visit = (node, underLabel) => {
+    if (!node || typeof node.type !== 'string') return
+    let inside = underLabel
+    if (node.type === 'JSXElement') {
+      const name = jsxName(node)
+      if (name === 'label') inside = true
+      if (CONTROLS.has(name)) {
+        const type = text(attrOf(node, 'type'))
+        const named = inside || ['aria-label', 'aria-labelledby', 'title'].some((k) => attrOf(node, k))
+          || (attrOf(node, 'id') && labelFor.has(text(attrOf(node, 'id'))))
+        if (!named && type !== '"hidden"') out.push(`${file}:${node.loc.start.line}`)
+      }
+    }
+    for (const k of Object.keys(node)) {
+      if (k === 'loc') continue
+      const v = node[k]
+      if (Array.isArray(v)) v.forEach((c) => visit(c, inside))
+      else if (v && typeof v.type === 'string') visit(v, inside)
+    }
+  }
+  visit(ast, false)
+  return out
+}
+
+describe('panels — per-instance ids and named form controls', () => {
+  const parsed = () => JSX.map((f) => ({ f, src: readFileSync(f, 'utf8') })).map((x) => ({ ...x, ast: parseModule(x.src) }))
+
+  it('walks the panels that carry ids and controls (non-vacuity)', () => {
+    const files = JSX.filter(inPanelRoots).map(posix)
+    for (const p of ['EtfPanel', 'CheckPanel', 'SizePanel', 'PlanPanel', 'ScatterPanel']) {
+      expect(files).toContain(`pages/terminal/panels/${p}.jsx`)
+    }
+    const controls = parsed().reduce((s, { src, ast }) => {
+      let c = 0
+      walkAst(ast, (n) => { if (n.type === 'JSXElement' && CONTROLS.has(jsxName(n))) c += 1 })
+      return s + c
+    }, 0)
+    expect(controls).toBeGreaterThanOrEqual(10)
+  })
+
+  it('no literal id inside a panel (two copies of a panel must not share one)', () => {
+    const off = parsed().filter(({ f }) => inPanelRoots(f)).flatMap(({ f, src, ast }) => literalIdOffenders(posix(f), src, ast))
+    expect(off).toEqual([])
+  })
+
+  it('every terminal form control has an accessible name', () => {
+    const off = parsed().flatMap(({ f, src, ast }) => unnamedControlOffenders(posix(f), src, ast))
+    expect(off).toEqual([])
+  })
+
+  it('CONTROL: each check SEES its defect', () => {
+    const src = [
+      'export const A = ({ ids }) => (<div>',
+      '  <h3 id="fixed-title">T</h3>',
+      '  <h3 id={`${ids}-title`}>T</h3>',
+      '  <Section id="setup" />',
+      '  <label htmlFor={`${ids}-entry`}>Entry</label>',
+      '  <Input id={`${ids}-entry`} />',
+      '  <Input id={`${ids}-stop`} />',
+      '  <label>Y axis <Select value={v} /></label>',
+      '  <select aria-label="Period" />',
+      '  <input type="hidden" />',
+      '</div>)',
+    ].join('\n')
+    expect(literalIdOffenders('x', src)).toEqual(['x:2'])
+    expect(unnamedControlOffenders('x', src)).toEqual(['x:7'])
+  })
+})

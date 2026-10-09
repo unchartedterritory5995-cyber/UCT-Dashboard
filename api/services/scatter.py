@@ -505,11 +505,24 @@ def _scanner_syms(which: str) -> list:
     return []
 
 
+def _theme_rows(payload):
+    """theme_db.get_all_themes() answers {"sectors": [...], "themes": [...]}, not a list.
+    Iterating the dict walked its two KEYS, `.get` on a str raised, and the except swallowed it,
+    so the Themes group never reached the SCAT universe picker (found 2026-10-09)."""
+    if isinstance(payload, dict):
+        return [t for t in (payload.get("themes") or []) if isinstance(t, dict)]
+    return [t for t in (payload or []) if isinstance(t, dict)]
+
+
 def list_universes(user_id: Optional[str]) -> list:
     """The grouped universe menu for the picker. Dynamic groups (watchlists, tags,
     themes) are filled from the user's account; static groups are always present."""
     # "UCT Universe" (the whole tradable market) leads the menu, mirroring the NH/NL
     # scanner — it replaces the old "Whole Market" item that sat at the very bottom.
+    # Cold-start lane w9-1 (2026-10-09): measured 43 s on the first read after a web deploy.
+    # A slow build names its slowest parts in one log line; a fast one logs nothing.
+    t0 = time.perf_counter()
+    parts = {}
     groups = [{
         "group": "Universe",
         "items": [{"source": "market", "value": "", "label": "UCT Universe"}],
@@ -532,9 +545,14 @@ def list_universes(user_id: Optional[str]) -> list:
     mine = [{"source": "flagged", "value": "", "label": "Flagged"},
             {"source": "uct20", "value": "", "label": "UCT 20"}]
     if user_id:
+        t1 = time.perf_counter()
         try:
             from api.services import watchlist_service
-            for wl in watchlist_service.list_user_watchlists(user_id):
+            # Names only: the picker never reads `items`. The full read ships every
+            # symbol of every list, and on an admin account that includes the prebuilt
+            # index lists (~4,700 rows); measured 28 s cold on prod 2026-09-07 for
+            # exactly this call, and SCAT's universe read hung past 60 s on 2026-10-09.
+            for wl in watchlist_service.list_user_watchlists(user_id, include_items=False):
                 mine.append({"source": "watchlist", "value": wl.get("id"),
                              "label": wl.get("name") or "Watchlist"})
         except Exception:
@@ -546,6 +564,7 @@ def list_universes(user_id: Optional[str]) -> list:
                 mine.append({"source": "tag", "value": c, "label": f"{c.title()} tag"})
         except Exception:
             pass
+        parts["my_lists"] = time.perf_counter() - t1
     groups.append({"group": "My Lists", "items": mine})
 
     groups.append({
@@ -557,10 +576,11 @@ def list_universes(user_id: Optional[str]) -> list:
         "items": [{"source": "breadth", "value": k, "label": lbl} for k, lbl in _BREADTH_SETS],
     })
 
+    t1 = time.perf_counter()
     themes = []
     try:
         from api.services import theme_db
-        for th in theme_db.get_all_themes() or []:
+        for th in _theme_rows(theme_db.get_all_themes()):
             tid = th.get("id") or th.get("theme_id")
             if tid:
                 themes.append({"source": "theme", "value": str(tid),
@@ -569,7 +589,9 @@ def list_universes(user_id: Optional[str]) -> list:
         pass
     if themes:
         groups.append({"group": "Themes", "items": themes})
+    parts["themes"] = time.perf_counter() - t1
 
+    t1 = time.perf_counter()
     try:
         from api.services import industry_map
         inds = industry_map.list_industries()
@@ -578,8 +600,19 @@ def list_universes(user_id: Optional[str]) -> list:
                            "items": [{"source": "industry", "value": n, "label": n} for n in inds]})
     except Exception:
         pass
+    parts["industries"] = time.perf_counter() - t1
+    total = time.perf_counter() - t0
+    if total >= SLOW_UNIVERSES_LOG_S:
+        import logging
+        logging.getLogger(__name__).warning(
+            "[scatter-universes] slow build %.1fs: %s", total,
+            " ".join(f"{k}={v:.1f}s" for k, v in parts.items()))
 
     return groups
+
+
+#: A list_universes() build slower than this names its parts in the log (lane w9-1).
+SLOW_UNIVERSES_LOG_S = 3.0
 
 
 def label_for(source: str, value: Optional[str], user_id: Optional[str]) -> str:
@@ -617,7 +650,7 @@ def label_for(source: str, value: Optional[str], user_id: Optional[str]) -> str:
     if src == "theme" and value:
         try:
             from api.services import theme_db
-            for th in theme_db.get_all_themes() or []:
+            for th in _theme_rows(theme_db.get_all_themes()):
                 if str(th.get("id") or th.get("theme_id")) == str(value):
                     return th.get("name") or "Theme"
         except Exception:

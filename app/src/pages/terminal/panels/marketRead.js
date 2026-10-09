@@ -27,10 +27,16 @@ export function useMarketRead(url, { refreshInterval = 0 } = {}) {
   }
 }
 
-/** Plain words for a failed read. `what` is the thing read, capitalised ("Market news"). */
+/** `what` as it reads mid-sentence: the first letter lowered, unless the first word is a code or a
+ *  ticker ("RS rankings", "ETF exposure" keep their capitals; "Market news" becomes "market news"). */
+export const midSentence = (what) => (/^[A-Z][A-Z0-9]/.test(what) ? what : what.charAt(0).toLowerCase() + what.slice(1))
+
+/** Plain words for a failed read. `what` is the thing read, capitalised ("Market news"). A 404 is a
+ *  route this server has not switched on (a dark flag), so it says that rather than "try again". */
 export function failureText(err, what) {
-  if (err?.status === 401) return `You are signed out, so ${what.toLowerCase()} cannot be read. Sign in again.`
+  if (err?.status === 401) return `You are signed out, so ${midSentence(what)} cannot be read. Sign in again.`
   if (err?.status === 402) return `${what} needs a paid plan.`
+  if (err?.status === 404) return `${what} is not switched on for this server yet.`
   if (err?.timedOut) return `${what} did not answer within 30 seconds.`
   return `${what} could not be read just now.`
 }
@@ -52,3 +58,31 @@ export function etWallToIso(raw) {
   const out = new Date(asUtc - offset)
   return Number.isNaN(out.getTime()) ? null : out.toISOString()
 }
+
+// ── A route that is switched off, a paywall, a cold cache ──────────────────────────────────
+// Wave 9 lane 9 (states and copy, 2026-10-09).
+
+/** A failed read Retry cannot fix: a paid-plan route (402), or a route this server has not
+ *  switched on (a dark flag answers 404). A panel shows these as `locked`, with no Retry. */
+export const canRetry = (err) => !(err?.status === 402 || err?.status === 404)
+
+/** The PanelState kind for a failed read: `locked` when Retry cannot help, else `error`. */
+export const failureKind = (err) => (canRetry(err) ? 'error' : 'locked')
+
+const WARM_WORDS = new Set(['warming', 'computing', 'generating'])
+
+/** A body that says "I have started building this, ask again shortly": `{"error":"warming"}`
+ *  (the bar store), `{"warming":true}`, or `{"status":"warming"|"computing"|"generating"}`
+ *  (RS rankings, theme performance, the modelbook and calendar AI routes). */
+export function isWarmingBody(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return false
+  if (body.warming === true || body.error === 'warming') return true
+  return WARM_WORDS.has(String(body.status || '').toLowerCase())
+}
+
+/** A failed read that is a warming answer: a 503 whose body says warming (jsonFetcher keeps the
+ *  body of a 503 on `err.body`). A 503 WITHOUT that body is an outage, not a warm-up. */
+export const isWarmingError = (err) => err?.status === 503 && isWarmingBody(err.body)
+
+/** The one sentence a panel shows while the server prepares an answer. */
+export const WARMING_TITLE = 'Loading, the server is preparing this.'
