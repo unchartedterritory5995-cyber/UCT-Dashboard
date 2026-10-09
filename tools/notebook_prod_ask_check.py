@@ -106,6 +106,32 @@ from pathlib import Path
 
 PROD = "https://uctintelligence.com"
 SYNTHETIC_DOMAIN = "@uctintelligence.internal"
+
+
+def settle_home(page, timeout_ms: int = 45_000) -> bool:
+    """Wait for Research Home with its Ask door VISIBLE, past the cinematic intro.
+
+    Measured 2026-10-08 23:12 CT: a run read "no Ask door" because the intro animation
+    (IntroAnimation.jsx, ~9 s, Escape or its Skip button ends it) was still covering the page
+    when a presence wait resolved. An overlay is not a missing door. Escape first, then Skip if
+    it is on screen, then a VISIBLE wait on the door or the first-run heading. Returns False
+    when neither appeared inside the budget (the caller reads that as INCONCLUSIVE, never 1)."""
+    try:
+        page.keyboard.press("Escape")
+    except Exception:
+        pass
+    try:
+        skip = page.get_by_role("button", name="Skip", exact=True)
+        if skip.count() and skip.first.is_visible():
+            skip.first.click()
+    except Exception:
+        pass
+    try:
+        page.wait_for_selector("[data-ask-toggle], h2:has-text('Welcome to your Notebook')",
+                               state="visible", timeout=timeout_ms)
+        return True
+    except Exception:
+        return False
 TITLE = "Smoke check: ZZZT plan (automated, removed by the run)"
 # Two paragraphs on purpose: two citable blocks, so an answer can cite the note twice (K7's
 # adjacency case needs at least two chips side by side).
@@ -593,12 +619,10 @@ def run(base: str, out: Path) -> int:
 
             # Leg A: the home's door and a whole-Notebook question.
             page.goto(f"{base}/journal/notebook", wait_until="domcontentloaded", timeout=60_000)
-            try:
-                page.wait_for_selector("[data-ask-toggle], h2:has-text('Welcome to your Notebook')", timeout=45_000)
-            except Exception as e:
+            if not settle_home(page):
                 page.screenshot(path=str(out / "home-timeout.png"), full_page=True)
-                step("home", settled=False, error=str(e)[:160])
-                return finish(2, "Research Home never settled")
+                step("home", settled=False)
+                return finish(2, "Research Home never settled (the intro overlay or a slow pod)")
             quiet = page.get_by_text("Nothing needs your attention right now.").count() > 0
             full = page.get_by_text("Continue working").count() > 0
             doors = page.locator("[data-ask-toggle]").count()
@@ -827,11 +851,9 @@ def run(base: str, out: Path) -> int:
             if not t_who.endswith(SYNTHETIC_DOMAIN):
                 return finish(2, "the touch context did not sign in as the smoke account")
             tpage.goto(f"{base}/journal/notebook", wait_until="domcontentloaded", timeout=60_000)
-            try:
-                tpage.wait_for_selector("[data-ask-toggle]", timeout=45_000)
-            except Exception as e:
+            if not settle_home(tpage) or tpage.locator("[data-ask-toggle]").count() == 0:
                 tpage.screenshot(path=str(out / "touch-home-timeout.png"), full_page=True)
-                step("touch_home", settled=False, error=str(e)[:160])
+                step("touch_home", settled=False)
                 return finish(2, "Research Home never showed an Ask door in the touch context")
             touch["viewport"] = tpage.evaluate("() => ({innerWidth, innerHeight, dpr: devicePixelRatio,"
                                                " coarse: matchMedia('(pointer: coarse)').matches})")

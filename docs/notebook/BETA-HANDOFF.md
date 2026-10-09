@@ -295,10 +295,18 @@ NOT-VERIFIED until a person uses them on the live site:
   ✅ Same run: the whole-Notebook question answered with both numbers from the note, one citation,
   and the citation opened the note (`answer.png`, `cited-note.png`).
 - G-165 writing help: summarize, rewrite, continue, translate, property autofill
-  ✅ Same run, **Summarize only**: a 185-character draft in 1.6 s, Discard left the note byte-identical
-  on the server (`writing-help.png`). Rewrite, continue, translate and property autofill are NOT
-  walked on the live site.
+  ✅ 22:43 CT run, **Summarize**: a 185-character draft in 1.6 s, Discard left the note byte-identical
+  on the server (`writing-help.png`). ✅ **23:14 CT run, the rest**
+  (`docs/notebook/evidence/prod-ask/2026-10-08-2314-full/`): Summarize 190 chars, Rewrite shorter 114,
+  Continue writing 464, Translate (Spanish) 215, each discarded and the note byte-identical after each;
+  Suggest values answered "Compass found nothing in this note to fill in" and Close applied nothing.
+  Only the "found nothing" branch of autofill is walked; a note with fillable properties is not.
 - G-166 Ask over an attached Word file or image
+  ✅ **Word file walked on the LIVE site 2026-10-08 23:14 CT** (same evidence folder, `docx-answer.png`): a
+  964-byte .docx uploaded through the note's attachments door reached `status=ready` in 2.4 s, and
+  "What is the budget code?" inside the note answered `QX-7731` with the document cited as source 2
+  (page 1). An image is not walked on the live site (the OCR engine is in the web image and
+  `J2_OCR_ENABLED=1`; see `RESUME-2026-10-08.md` section 5).
 - G-162 dictation
 - G-153 a task reminder at 07:00 or 09:00 ET
   ⚰️ Corrected 2026-10-06: this row WAS walked by automation, on a sandbox, in wave 15.
