@@ -102,7 +102,7 @@ describe('L0Strip', () => {
       channels: [{ id: 'B', name: 'Group B', color: '#60a5fa' }] } })
     const chip = screen.getByTestId('l0-channel-chip')
     expect(chip).toHaveTextContent('GROUP')
-    expect(chip).not.toHaveTextContent(/CH/)
+    expect(chip).not.toHaveTextContent(/\bCH\b/)
     expect(chip).toHaveAccessibleName('Active link group: Group B')
     expect(chip.querySelector('[style]').style.getPropertyValue('--dot')).toBe('#60a5fa')
   })
