@@ -315,9 +315,9 @@ def _load_frame_from_pack(tickers: list, L_iso: str):
     preallocated, and each shard's parsed document is dropped before the next is fetched — peak
     extra memory is one shard, not the universe.
 
-    ⛔ Used only when the pack's newest session IS the last completed session `L_iso`; an
-    older pack would silently measure yesterday's levels as today's, so the caller falls
-    back to bars.db instead.
+    ⛔ Used only when the pack CONTAINS the last completed session `L_iso` (a newer pack is cut
+    at L); an older pack would silently measure yesterday's levels as today's, so the caller
+    falls back to bars.db instead.
     """
     import gzip as _gz
     import json as _json
@@ -341,9 +341,11 @@ def _load_frame_from_pack(tickers: list, L_iso: str):
     spy_doc = fetch(spy_name) if spy_name else None
     spy = (((spy_doc or {}).get("tickers") or {}).get("SPY") or {}).get("D")
     del spy_doc
-    if not spy or not spy.get("t") or spy["t"][-1] != L_iso:
+    if not spy or not spy.get("t") or L_iso not in spy["t"]:
         return None
-    iso_dates = list(spy["t"])
+    # ⭐ A pack built after today's close already holds today; the frame ends at the last
+    # COMPLETED session L, so the newer columns are simply not read (cut, never shifted).
+    iso_dates = list(spy["t"][:spy["t"].index(L_iso) + 1])
     pos = {t: i for i, t in enumerate(iso_dates)}
     row = {t: r for r, t in enumerate(tickers)}
     n, m = len(tickers), len(iso_dates)

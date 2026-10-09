@@ -297,7 +297,9 @@ def test_frame_from_the_bars_pack(monkeypatch):
     assert dates == [20261006, 20261007]
     assert c[0].tolist() == [10.0, 11.0] and np.isnan(c[1, 0]) and c[1, 1] == 20.0
     assert np.isnan(c[2]).all() and v[0].tolist() == [5, 6]
-    assert blu._load_frame_from_pack(["AAA"], "2026-10-08") is None      # pack not current
+    assert blu._load_frame_from_pack(["AAA"], "2026-10-08") is None      # pack older than L
+    dates, c, _ = blu._load_frame_from_pack(["AAA"], "2026-10-06")       # pack newer than L: cut
+    assert dates == [20261006] and c[0].tolist() == [10.0]
 
 
 
