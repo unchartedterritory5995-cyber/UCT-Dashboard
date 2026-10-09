@@ -16,7 +16,7 @@ import {
 import jsonFetcher from '../utils/jsonFetcher'
 import { registerShortcuts } from '../pages/command/shortcutRegistry'
 import useTerminalNext, { TERMINAL_PATH } from '../pages/terminal/terminalGate'
-import { terminalCommandRow } from '../pages/terminal/paletteGrammar'
+import usePaletteCommandRow from '../pages/terminal/usePaletteCommandRow'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../pages/journal-2-0/lib/notebookTelemetry'
 import { notebookFlag } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { checklistEnabled } from '../pages/journal-2-0/components/notebook/onboarding/gettingStartedPref'
@@ -512,10 +512,8 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   // a ticker or a note, so what a bare Enter opens is decided exactly as before.
   const savedFresh = !isHelp && savedFor === trimmedQuery ? savedRows : []
   // V4: one terminal-command row from the shell's own parser (paletteGrammar.js says where).
-  const terminalRow = useMemo(
-    () => (terminalOpen && !isHelp ? terminalCommandRow(trimmedQuery) : null),
-    [terminalOpen, isHelp, trimmedQuery],
-  )
+  // The parser loads off the first-open path (usePaletteCommandRow); '' answers no row.
+  const terminalRow = usePaletteCommandRow(isHelp ? '' : trimmedQuery, terminalOpen)
   const displayRows = useMemo(() => {
     if (terminalRow?.placement === 'lead') return [terminalRow.row, ...orderedRows, ...savedFresh]
     if (terminalRow) return [...orderedRows, ...savedFresh, terminalRow.row]
