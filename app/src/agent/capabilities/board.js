@@ -126,7 +126,21 @@ export const boardKind = {
 
 
 // widget.resize: the dragged-edge rectangle → the product's resolveResize (neighbours shrink).
+// The board's own resolver (the drag handles' resolveResize) shrinks each neighbour on its own
+// and then clamps the resized widget to the tightest one — so a step a neighbour can only partly
+// give leaves a gap beside the others. Ask for the LARGEST step the board grants in full: `by`,
+// then `by-1`, … — the first whose result grows the widget by exactly that much (no gap, ever).
 function resizeOf(st, env, t, edge, by) {
+  for (let step = by; step >= 1; step--) {
+    const next = resizeStep(st, env, t, edge, step)
+    if (!next) continue
+    const a = next.find(w => w.id === t.id)
+    const grew = edge === 'left' || edge === 'right' ? a.w - t.w : a.h - t.h
+    if (grew === step) return next
+  }
+  return by >= 1 ? null : resizeStep(st, env, t, edge, by)
+}
+function resizeStep(st, env, t, edge, by) {
   const r = { x: t.x, y: t.y, w: t.w, h: t.h }
   const handle = { left: 'w', right: 'e', top: 'n', bottom: 's' }[edge]
   if (edge === 'right') r.w += by
@@ -425,11 +439,13 @@ export function registerBoardCapabilities() {
       const next = resizeOf(st, env, t, edge, by)
       return !next || next.every((w, i) => GEOM.every(k => w[k] === st.board[i]?.[k])) ? st : { ...st, board: next }
     },
-    describe(b, a, { widget }) {
+    describe(b, a, { widget, by }) {
       const t0 = b.board.find(w => w.id === String(widget)), t1 = a.board.find(w => w.id === String(widget))
       if (!t0 || !t1 || GEOM.every(k => t0[k] === t1[k])) return null
       const others = changedIds(b.board, a.board).filter(id => id !== t1.id).length
-      return `Resized the ${nameOf(t0, b.board)} to ${t1.w}×${t1.h} cells${others ? ` (${others} neighbour${others === 1 ? '' : 's'} gave up the space)` : ''}`
+      const grew = Math.abs((t1.w - t0.w) || (t1.h - t0.h))
+      const short = by > grew ? ` — ${grew} of the ${by} asked; a neighbour is at its minimum size` : ''
+      return `Resized the ${nameOf(t0, b.board)} to ${t1.w}×${t1.h} cells${others ? ` (${others} neighbour${others === 1 ? '' : 's'} gave up the space)` : ''}${short}`
     },
     noop: () => "It can't grow that way — its neighbour is already at its minimum size, or it is at the board's edge",
   })

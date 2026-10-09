@@ -179,6 +179,22 @@ describe('widget.resize — the resize handles\' own resolveResize', () => {
     expect((await undoEntry(host, res.undo)).ok).toBe(true)
     expect(host.state.widgets.find(w => w.id === 'wl')).toMatchObject({ x: 16, w: 8 })
   })
+
+  it('two neighbours, one near its minimum: the largest step BOTH can give, never a gap (found in browser acceptance)', async () => {
+    // the local acceptance board: chart 3..20, watchlist 20..24 above search 20..24 (search min 3)
+    const host = boardHost([{ id: 'c', type: 'chart', x: 3, y: 0, w: 17, h: 17 }, { id: 'wl', type: 'watchlist', x: 20, y: 0, w: 4, h: 11 },
+      { id: 's', type: 'search', x: 20, y: 11, w: 4, h: 9 }, { id: 't', type: 'themes', x: 0, y: 0, w: 3, h: 20 }, { id: 'f', type: 'fundamentals', x: 3, y: 17, w: 17, h: 3 }])
+    const sMin = minOf({ type: 'search' }).minW
+    const { p, env } = await plan(host, [bop('widget.resize', { widget: 'c', edge: 'right', by: 2 })], ['board'])
+    expect(p.ok).toBe(true)
+    await commitPlan(host, p, { env })
+    const g = (id) => host.state.widgets.find(w => w.id === id)
+    const step = Math.min(2, 4 - sMin)
+    expect(g('c').w).toBe(17 + step)
+    for (const id of ['wl', 's']) expect(g(id).x).toBe(g('c').x + g('c').w)   // flush — no gap
+    expect(boardProblems(host.state.widgets, COLS, ROWS, minOf)).toEqual([])
+    if (step < 2) expect(p.lines[0]).toMatch(new RegExp(`${step} of the 2 asked`))
+  })
 })
 
 describe('chart tabs — the tab strip\'s reducers, one board write, exact Undo', () => {
