@@ -1202,6 +1202,17 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             from api.services.screener import distribution
             distribution.distributions()
 
+        def _options_sizzle():
+            # FT-075 Sizzle (terminal OSCR/STRS, /api/options-screener/sizzle): one in-memory
+            # ranking per set of logged sessions (research/options_screener.cached), reset on
+            # every deploy. Measured 2026-10-09: 42.6 s cold after a web deploy, 1.3 s warm --
+            # past the terminal panel's 30 s read deadline, so the first member after each
+            # deploy saw an error. Skipped while the route's own switch is off.
+            from api.services.options_analytics import flags as oa_flags
+            if oa_flags.is_on("OPTIONS_SIZZLE_ENABLED"):
+                from api.services.options_analytics import sizzle
+                sizzle.get()
+
         def _his_wire_archive():
             # TERM-049 HIS: the wire lane parses every archived Morning Wire once per
             # process (ticker_history._WIRE_DOC_MEMO), so the first HIS open after each
@@ -1289,6 +1300,7 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
             _warm("breadth", _breadth)
             _warm("breadth-live", _breadth_live)
             _warm("screener-meta", _screener_meta)
+            _warm("options-sizzle", _options_sizzle)
             _warm("his-wire-archive", _his_wire_archive)
             _warm("calendar", _calendar)
             # earnings-previews only needs `_calendar` (it reads the week list),
