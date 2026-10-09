@@ -49,7 +49,12 @@ function snapOf(host) {
   // The member's own watchlists (id → name) for widget.showList — the same rows the watchlist
   // capabilities read; prebuilt, flagged and linked-copy lists are not offered there either.
   const lists = new Map((host?.watchlists?.snapshot?.() || []).map(l => [String(l.id), l.name]))
-  return { ref: 'board', label: 'Board', raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists }
+  // DETACHED widgets: floating or popped out (ChartsWorkspace floatingWidgetIds / poppedWidgetIds).
+  // They stay in layout.widgets with their grid slot, but are not on the grid — the visible board
+  // (host `visible`) leaves them out. Nothing here may re-tile or edit one it cannot see.
+  const onGrid = new Set((s.visible || s.raw).map(w => String(w.id)))
+  const detached = s.raw.filter(w => !onGrid.has(String(w.id))).map(w => String(w.id))
+  return { ref: 'board', label: 'Board', raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists, detached }
 }
 const nameOf = (w, all) => {
   const pos = positionWord(w, all)
@@ -220,9 +225,21 @@ export function registerBoardCapabilities() {
   })
 
   const common = { target: 'board', surfaces: ['charts'], available: (ctx) => ctx.surface === 'charts' }
+  // Every board action first passes the detached-widget rule: arranging (move / arrange / resize)
+  // re-tiles the whole grid, so it waits while ANY widget floats or is popped out; an action aimed
+  // at one widget refuses when that widget is detached. Then the action's own check runs.
+  const REPACKS = new Set(['widget.move', 'widget.arrange', 'widget.resize'])
+  const detachedWhy = (name, args, env) => {
+    const det = env?.target?.detached || []
+    if (!det.length) return null
+    if (REPACKS.has(name)) return 'A widget is floating or popped out right now — dock it back first, then I can rearrange the board (arranging would move its spot on the grid while you can’t see it).'
+    if (args && args.widget != null && det.includes(String(args.widget))) return 'That widget is floating or popped out — dock it back onto the board first.'
+    return null
+  }
+  const reg = (d) => registerCapability({ ...d, check: (st, args, env) => detachedWhy(d.name, args, env) || (d.check ? d.check(st, args, env) : null) })
   const widgetArg = { type: 'string' }
 
-  registerCapability({
+  reg({
     ...common,
     name: 'widget.remove',
     summary: 'Remove a widget from the board (any type). Undo puts it back exactly — same place, size, link colour and settings. The space it leaves stays empty unless widget.arrange fills it.',
@@ -238,7 +255,7 @@ export function registerBoardCapabilities() {
     },
   })
 
-  registerCapability({
+  reg({
     ...common,
     name: 'widget.move',
     summary: 'Move and/or resize ONE widget to a rectangle on the board grid, exactly like dropping it there: the other widgets re-tile around it.',
@@ -279,7 +296,7 @@ export function registerBoardCapabilities() {
     noop: () => 'It is already there',
   })
 
-  registerCapability({
+  reg({
     ...common,
     name: 'widget.arrange',
     summary: 'Re-arrange widgets: "fill" grows them into the empty space around them (nothing else moves); "grid", "columns" or "rows" re-tile them evenly over the area they cover.',
@@ -321,7 +338,7 @@ export function registerBoardCapabilities() {
     noop: (b, a, { pattern } = {}) => (pattern === 'fill' ? 'There was no empty space next to them to fill' : 'They are already arranged that way'),
   })
 
-  registerCapability({
+  reg({
     ...common,
     name: 'widget.setLink',
     summary: 'Set a widget\'s link colour: widgets with the same colour follow the same symbol; N = not linked.',
@@ -347,7 +364,7 @@ export function registerBoardCapabilities() {
     noop: () => 'It already has that link colour',
   })
 
-  registerCapability({
+  reg({
     ...common,
     name: 'widget.showList',
     summary: 'Make a Watchlist widget show one of the member\'s own watchlists (what picking it in the widget does).',
@@ -374,7 +391,7 @@ export function registerBoardCapabilities() {
     noop: () => 'It already shows that list',
   })
 
-  registerCapability({
+  reg({
     ...common,
     name: 'widget.showScan',
     summary: 'Make a Scanner widget show one of UCT\'s scans (what picking it in the widget does).',
@@ -400,7 +417,7 @@ export function registerBoardCapabilities() {
     noop: () => 'It already shows that scan',
   })
 
-  registerCapability({
+  reg({
     ...common,
     name: 'chart.applyThemeAll',
     summary: 'Apply one of UCT\'s chart themes to EVERY chart on the board (and chart tabs), exactly as the theme gallery\'s "all charts" does; new charts on this layout start with it.',
@@ -422,7 +439,7 @@ export function registerBoardCapabilities() {
   })
 
   // ── widget.resize: the custom resize handles' own resolveResize ──
-  registerCapability({
+  reg({
     ...common,
     name: 'widget.resize',
     summary: 'Resize ONE widget by moving one of its edges, exactly like dragging that edge: the widget the edge moves into shrinks (never below its minimum); nothing leaves the board.',
@@ -467,7 +484,7 @@ export function registerBoardCapabilities() {
   const tabArg = { type: 'string' }
   const tabHint = 'tab = "main" (the widget\'s own chart), the extra tab\'s position "1", "2"… or its label, from the board entry\'s chartTabs.'
 
-  registerCapability({
+  reg({
     ...common,
     name: 'chart.addTab',
     summary: 'Add a new chart TAB to a chart widget (the tab strip\'s "+"), on the same link colour as the tab showing now, and switch to it.',
@@ -492,7 +509,7 @@ export function registerBoardCapabilities() {
       return `Added a chart tab “${tabs[tabs.length - 1].label}” to the ${nameOf(o, b.board)} and switched to it`
     },
   })
-  registerCapability({
+  reg({
     ...common,
     name: 'chart.selectTab',
     summary: 'Switch a chart widget to one of its tabs (clicking the tab).',
@@ -513,7 +530,7 @@ export function registerBoardCapabilities() {
     },
     noop: () => 'That tab is already showing',
   })
-  registerCapability({
+  reg({
     ...common,
     name: 'chart.closeTab',
     summary: 'Close one EXTRA tab of a chart widget (its settings go with it; Undo brings it back exactly). The main tab cannot be closed.',
@@ -535,7 +552,7 @@ export function registerBoardCapabilities() {
       return o ? `Closed the “${findTab(o, tab)?.label || tab}” tab of the ${nameOf(o, b.board)}` : null
     },
   })
-  registerCapability({
+  reg({
     ...common,
     name: 'chart.renameTab',
     summary: 'Rename a chart widget\'s tab (double-click on the tab).',
@@ -557,7 +574,7 @@ export function registerBoardCapabilities() {
     },
     noop: () => 'It already has that name',
   })
-  registerCapability({
+  reg({
     ...common,
     name: 'chart.linkTab',
     summary: 'Set the link colour of one chart TAB (the tab\'s colour dot): tabs and widgets with the same colour follow the same symbol.',

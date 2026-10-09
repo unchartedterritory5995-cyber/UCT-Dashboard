@@ -23,7 +23,7 @@ const CTX = { surface: 'charts' }
 const COLS = 24, ROWS = 20
 const minOf = (w) => ({ minW: WIDGET_REGISTRY[w?.type]?.defaults?.minW || 2, minH: WIDGET_REGISTRY[w?.type]?.defaults?.minH || 3 })
 
-function boardHost(widgets, { lists = [], extraGroups = false } = {}) {
+function boardHost(widgets, { lists = [], extraGroups = false, detached = [] } = {}) {
   const state = { widgets: widgets.map(w => ({ color: 'A', opts: {}, ...w })), layoutTheme: undefined, writes: 0 }
   const widgetOps = {
     layout: () => state,
@@ -43,7 +43,8 @@ function boardHost(widgets, { lists = [], extraGroups = false } = {}) {
   }
   return {
     state,
-    widgets: buildWidgetSource({ widgetOps, getWidgets: () => state.widgets }),
+    // the workspace's VISIBLE board leaves floating / popped widgets out (ChartsWorkspace visibleWidgets)
+    widgets: buildWidgetSource({ widgetOps, getWidgets: () => state.widgets.filter(w => !detached.includes(w.id)) }),
     watchlists: { snapshot: () => lists.map(l => ({ ...l, items: [], shownIn: [] })) },
     manual(id, patch) { state.widgets = state.widgets.map(w => (w.id === id ? { ...w, ...patch } : w)) },
   }
@@ -224,3 +225,29 @@ describe('layout.saveCurrent — the Layouts ▾ menu\'s own save, own layouts o
     expect(fastParse('Save this layout').ops[0].action).toBe('layout.saveCurrent')
   })
 })
+
+describe('floating / popped-out widgets are not on the grid — the Agent never re-tiles or edits them', () => {
+  const BOARD3 = [{ id: 'c', type: 'chart', x: 0, y: 0, w: 12, h: 20 }, { id: 'wl', type: 'watchlist', x: 12, y: 0, w: 12, h: 20 }, { id: 'fl', type: 'scanner', x: 0, y: 0, w: 6, h: 8 }]
+  it('move / arrange / resize wait while any widget floats; nothing is written', async () => {
+    const host = boardHost(BOARD3, { detached: ['fl'] })
+    for (const o of [op('widget.move', { widget: 'c', x: 12, y: 0, w: 12, h: null }), op('widget.arrange', { pattern: 'fill', widgets: null }), op('widget.resize', { widget: 'c', edge: 'right', by: 2 })]) {
+      const r = (await plan(host, [o])).p
+      expect(r.ok, o.action).toBe(false)
+      expect(r.refusals[0].reason).toMatch(/floating or popped out right now — dock it back first/)
+    }
+    expect(host.state.writes).toBe(0)
+  })
+  it('an action aimed AT the floating widget refuses; one aimed at an on-grid widget still works', async () => {
+    const host = boardHost(BOARD3, { detached: ['fl'] })
+    expect((await plan(host, [op('widget.remove', { widget: 'fl' })])).p.refusals[0].reason).toMatch(/That widget is floating or popped out/)
+    const { p } = await plan(host, [op('widget.setLink', { widget: 'wl', color: 'B' })])
+    expect(p.ok).toBe(true)
+  })
+  it('with nothing detached, arranging works exactly as before', async () => {
+    const host = boardHost(BOARD3.slice(0, 2))
+    const rr = (await plan(host, [op('widget.move', { widget: 'wl', x: 0, y: 0, w: 12, h: null })])).p
+    expect(rr.refusals || []).toEqual([])
+    expect(rr.ok).toBe(true)
+  })
+})
+
