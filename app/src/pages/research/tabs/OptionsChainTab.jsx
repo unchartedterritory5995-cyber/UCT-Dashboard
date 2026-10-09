@@ -159,6 +159,22 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
     }
     return <td key={`${type[0]}-${k}`} className={cls} onClick={drillable ? open : undefined}>{text}</td>
   }
+  // Wave 3 (OMON P2 #27): the in-the-money shading was the only signal. The strike cell now says it
+  // in text too: a small "ITM" tag on the side that is in the money (left of the strike for calls,
+  // right of it for puts; on a phone only when the side shown is ITM), plus a screen-reader line.
+  const strikeCell = (r) => {
+    const side = isItm('call', r.strike, d.spot) ? 'call' : isItm('put', r.strike, d.spot) ? 'put' : null
+    const visible = side && (!isPhone || (side === 'call') === (phoneSide === 'calls'))
+    const tag = visible ? <span className={styles.itmTag} aria-hidden="true" data-testid={`itm-tag-${side}-${r.strike}`}>ITM</span> : null
+    return (
+      <td className={styles.strike}>
+        {side === 'call' && !isPhone && tag}
+        <span>{fmt(r.strike, 2)}</span>
+        {(side === 'put' || isPhone) && tag}
+        {side && <span className={styles.srOnly}>{side === 'call' ? ', calls in the money' : ', puts in the money'}</span>}
+      </td>
+    )
+  }
 
   // Audit 2026-10-08 (OVS P1): `OVS` opened the whole chain with the surface ~6 panels down. With
   // `focus="surface"` the surface leads and the chain folds below it (read only when opened).
@@ -189,9 +205,9 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
             {shown.map((r) => (
               <tr key={r.strike} className={r.strike === atm ? styles.atm : undefined}
                   data-testid={r.strike === atm ? 'atm-row' : undefined}>
-                {isPhone && <td className={styles.strike}>{fmt(r.strike, 2)}</td>}
+                {isPhone && strikeCell(r)}
                 {showCalls && cols.map(([k, l, how]) => quoteCell('call', r, k, l, how))}
-                {!isPhone && <td className={styles.strike}>{fmt(r.strike, 2)}</td>}
+                {!isPhone && strikeCell(r)}
                 {showPuts && cols.map(([k, l, how]) => quoteCell('put', r, k, l, how))}
               </tr>
             ))}
@@ -252,7 +268,7 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
       </LazyGroup>
       <p className={styles.muted} data-testid="chain-source">
         Live chain from Massive (OPRA quotes) · IV and greeks are vendor-computed by Massive, per share
-        (Θ per calendar day, vega per 1 vol point) · OI is the OCC prior-close figure · shaded cells are in the money
+        (Θ per calendar day, vega per 1 vol point) · OI is the OCC prior-close figure · shaded cells are in the money (ITM beside the strike marks that side)
         · refreshed every {d.cache_seconds || 60}s
         {etStamp(d.served_at) ? ` · as of ${etStamp(d.served_at)}` : ''}
       </p>
