@@ -156,3 +156,12 @@ describe('context and routing', () => {
     expect(r.manifest.some(c => c.name === 'drawing.addLevel')).toBe(true)
   })
 })
+
+describe('an action UCT Agent does not have', () => {
+  it('"Add RSI 14": indicator.add is refused as an action the Agent cannot do — never as a missing target', async () => {
+    const h = host()
+    const { p } = await plan(h, [{ action: 'indicator.add', target: 'c1', args: { name: 'RSI', length: 14 } }])
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0].reason).toMatch(/UCT Agent can't “indicator\.add” here/)
+  })
+})

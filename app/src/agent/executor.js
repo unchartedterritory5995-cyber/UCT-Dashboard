@@ -76,7 +76,8 @@ export function planOps(targets, ops, env = {}, ctx = null) {
     const items = groups.get(ref)
     const tgt = all.get(ref)
     if (!tgt) {
-      for (const { op, index } of items) refusals.push({ index, action: op?.action, target: ref, reason: 'That target is not on the workspace.' })
+      // An action UCT Agent does not have says so (not "target missing" — it has no target kind at all).
+      for (const { op, index } of items) refusals.push({ index, action: op?.action, target: ref, reason: (getCapability(op?.action) ? null : shapeError(op?.action, op?.args, ctx)) || 'That target is not on the workspace.' })
       continue
     }
     const kind = getTargetKind(tgt.kind)
