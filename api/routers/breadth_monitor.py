@@ -207,6 +207,43 @@ def breadth_live_universes_reconcile(request: Request, sessions: int = 10, start
     return blu.job("reconcile")
 
 
+@router.get("/api/breadth-monitor/nhnl-intraday")
+def breadth_nhnl_intraday(request: Request, start: int = 0, rebuild: int = 0,
+                          max_sessions: int = 0, date: str = "", population: int = 0):
+    """Intraday-basis new highs/lows series (`breadth_nhnl_intraday`): status, or `start=1` to
+    extend it in a background job (`rebuild=1` sweeps from scratch). `date=YYYY-MM-DD` adds the
+    series' values for that session beside the stored (closing-basis) counts. PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_nhnl_intraday as nhi
+    out = {"status": nhi.status()}
+    if population:
+        out["population"] = nhi.diagnose_population()
+    if start:
+        out["job"] = nhi.start_sweep(rebuild=bool(rebuild), max_sessions=max_sessions or None)
+    if date:
+        try:
+            v = nhi._series_view() or {}
+        except Exception:
+            v = {}
+        cmp_ = {}
+        for u in nhi.UNIVERSES + nhi.ALL_KEYS:
+            r = ((v.get("rows") or {}).get(u) or {}).get(date)
+            if ":" in u:
+                cmp_[u] = {"intraday": r}
+                continue
+            stored = {}
+            try:
+                from api.services import breadth_daily_ohlc as bdo
+                for m in ("new_52w_highs", "new_52w_lows", "pct_above_50sma", "pct_above_200sma"):
+                    row = (bdo._history_stored(m, limit=6000, universe=u) or {}).get(date)
+                    stored[m] = row and row.get("c")
+            except Exception as e:
+                stored = {"error": str(e)[:120]}
+            cmp_[u] = {"intraday": r, "stored": stored}
+        out["date"] = {date: cmp_, "fields": (nhi._load_series() or {}).get("fields")}
+    return out
+
+
 @router.post("/api/breadth-monitor/history/pull-now")
 def pull_breadth_ohlc_now(request: Request):
     """Force an immediate web-side pull + gap-fill merge of the latest breadth OHLC
@@ -1230,6 +1267,9 @@ def sample_live_for_scheduler() -> dict:
     return _live_payload(force=False, persist=True)
 
 
+INTRADAY_READ_MEMO_S = 20
+
+
 def _live_payload(force: bool, persist: bool) -> dict:
     from api.services import breadth_live as live
 
@@ -1281,25 +1321,36 @@ def _live_payload(force: bool, persist: bool) -> dict:
                 breadth_daily_ohlc.update_intraday(payload["session_date"], payload["row"])
             except Exception:
                 pass
-        payload["path"] = breadth_intraday.session_path(payload["session_date"])
-        payload["open"] = breadth_intraday.session_open(payload["session_date"])
-        # A store that fails silently for a whole session is how you discover at
-        # 4pm that no path was ever written. Publishing its health costs nothing
-        # and makes that visible from the same payload the surfaces already read.
-        payload["store"] = breadth_intraday.health()
-
-        # Ratio-Bars FREEZE: the live-only internals (adv/dec, from-open, on-
-        # volume) exist only in this read, so once the market is not in the
-        # regular session the widget holds the last regular-session (<=16:00 ET)
-        # sample of the most recent session with data — the day's close, kept on
-        # screen until the next 9:30 open.
-        fdate = breadth_intraday.latest_session()
-        payload["internals_frozen"] = (
-            breadth_intraday.session_last(fdate, keys=live.RATIO_INTERNAL_KEYS,
-                                          before_et_minute=16 * 60)
-            if fdate else {}
-        )
-        payload["internals_frozen_date"] = fdate
+        # Perf wave 2: these four reads scan the session's stored rows (three full scans with a
+        # json.loads per row, each on a fresh sqlite connection) on EVERY member poll, which is
+        # most of the ~1.1 s warm read. The store only gains a row once a minute (the sampler),
+        # so a member read reuses them for INTRADAY_READ_MEMO_S; the sampler (persist) always
+        # re-reads after its own write.
+        memo_key = f"breadth_live_intraday::{payload['session_date']}"
+        parts = None if persist else cache.get(memo_key)
+        if parts is None:
+            parts = {
+                "path": breadth_intraday.session_path(payload["session_date"]),
+                "open": breadth_intraday.session_open(payload["session_date"]),
+                # A store that fails silently for a whole session is how you discover at
+                # 4pm that no path was ever written. Publishing its health costs nothing
+                # and makes that visible from the same payload the surfaces already read.
+                "store": breadth_intraday.health(),
+            }
+            # Ratio-Bars FREEZE: the live-only internals (adv/dec, from-open, on-
+            # volume) exist only in this read, so once the market is not in the
+            # regular session the widget holds the last regular-session (<=16:00 ET)
+            # sample of the most recent session with data — the day's close, kept on
+            # screen until the next 9:30 open.
+            fdate = breadth_intraday.latest_session()
+            parts["internals_frozen"] = (
+                breadth_intraday.session_last(fdate, keys=live.RATIO_INTERNAL_KEYS,
+                                              before_et_minute=16 * 60)
+                if fdate else {}
+            )
+            parts["internals_frozen_date"] = fdate
+            cache.set(memo_key, parts, ttl=INTRADAY_READ_MEMO_S)
+        payload.update(parts)
     except Exception as e:
         # A store that cannot write must still let the live read through.
         print(f"[breadth_monitor] intraday store unavailable: {e}")

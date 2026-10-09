@@ -4,7 +4,7 @@ import useUserTickerSet from '../../hooks/useUserTickerSet'
 import useLivePrices from '../../hooks/useLivePrices'
 import HighlightThesis from '../../utils/highlightThesis'
 import { timeAgo } from '../../utils/timeAgo'
-import TickerPopup from '../TickerPopup'
+import PanelTicker from '../terminal/PanelTicker'
 import CompanyLogo from '../CompanyLogo'
 import { useAuth } from '../../context/AuthContext'
 import { useFlagged } from '../../hooks/useFlagged'
@@ -831,12 +831,12 @@ export default function CatalystTable({
                     <td className={styles.colSym}>
                       <span className={styles.symCell}>
                         <CompanyLogo sym={r.ticker} size={20} tile />
-                        <TickerPopup sym={r.ticker}>
+                        <PanelTicker sym={r.ticker}>
                           <span className={styles.ticker}>
                             {onMyList && <span className={styles.star} title="On your watchlist or flagged"><UIcon name="star-fill" size={12} /></span>}
                             {r.ticker}
                           </span>
-                        </TickerPopup>
+                        </PanelTicker>
                         <NewDot isNew={r.is_new} />
                       </span>
                     </td>

@@ -46,7 +46,7 @@ export default function StatementTables({ sym }) {
   if (error) {
     body = <EmptyState {...FETCH_FAILED} compact onRetry={() => mutate()} />
   } else if (data === undefined) {
-    body = <p className={styles.note}>Loading statements…</p>
+    body = <p className={styles.note} role="status">Loading statements…</p>
   } else if (!table.columns.length || !table.rows.length) {
     body = <p className={styles.note}>FMP holds no {shownPeriod === 'annual' ? 'annual' : 'quarterly'} statements for this ticker.</p>
   } else {

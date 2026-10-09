@@ -240,9 +240,14 @@ describe('TERM-019 — every terminal panel says where its numbers came from', (
   })
 
   it('NON-VACUITY: the detector sees a real graph and tells the two fixtures apart', () => {
-    // A known body adopter and a known header adopter, by name.
+    // A body adopter and a known header adopter. News used to be THE named body adopter; audit
+    // wave 2 gave it a header line too (usePanelFreshness), so it now witnesses as 'header'. The
+    // control needs SOME real body adopter, not that one: derive it rather than name a panel
+    // that will drift again.
     const news = PANELS.find((p) => p.name === 'News')
-    expect(adoptionWitness(news.file)?.kind).toBe('body')
+    expect(adoptionWitness(news.file)?.kind, 'News still says where its numbers came from').toBeTruthy()
+    const bodies = PANELS.filter((p) => adoptionWitness(p.file)?.kind === 'body').map((p) => p.name)
+    expect(bodies.length, `body adopters: ${bodies.join(', ')}`).toBeGreaterThan(0)
     const move = PANELS.find((p) => p.name === 'Move')
     expect(adoptionWitness(move.file)?.kind).toBe('header')
     // ⛔ The fixture that renders a value and names no source MUST fail — it imports the modules

@@ -99,6 +99,9 @@
   line-height: 1.4;
 }
 
+/* Wave 3 (FREC P2 #20): the key under the four headline numbers spans the whole row. */
+.statKey { grid-column: 1 / -1; margin: 0; font-size: var(--text-sm); color: var(--text-muted); line-height: 1.5; }
+
 .loading,
 .empty {
   padding: 28px 8px;
@@ -342,6 +345,10 @@
   .cardGrid { grid-template-columns: 1fr; }
   .section { padding: 14px 12px; }
   .dateCol, .dateCell { display: none; }
+  /* Wave 3 (FREC P2 #24): the tape still scrolls sideways on a phone; the pick stays pinned so a
+     scrolled row still says which contract it is. */
+  .tapeTable th:first-child, .tapeTable td:first-child { position: sticky; left: 0; z-index: 1; background: var(--bg-surface); }
+  .tapeTable .pickCell { max-width: 150px; }
 }
 
 /* Inside a UCT Terminal panel the shell insets the body (--panel-inset); the page's own

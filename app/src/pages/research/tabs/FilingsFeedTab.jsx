@@ -2,8 +2,16 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './ResearchCov.module.css'
-import { memberText } from '../../../lib/presentation/memberCopy'
-import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
+import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
+import { useInTerminalPanel, usePanelFreshness, usePanelRerun } from '../../../components/terminal/terminalPanel'
+import { MineEmpty } from '../../../components/terminal/MineChip'
+import useMyTickers from '../../../hooks/useMyTickers'
+import useSinceLastVisit, { seenKey } from '../../../components/terminal/useSinceLastVisit'
+import { NewTag, SinceLine } from '../../../components/terminal/SinceLastVisit'
+import PanelSymbol from '../../../components/terminal/PanelSymbol'
+
+/** The seen key of one filing: its accepted / filed date + its accession number. */
+const filingKey = (r) => seenKey(String(r.accepted || r.filed || ''), r.accession)
 
 // COV-09 (roadmap RM-L19) — new SEC filings, live: this ticker, or the whole
 // market. 8-K (with its item codes), 10-Q, 10-K, Form 4, Schedule 13D/G, S-1.
@@ -20,6 +28,14 @@ const when = (r) => (r.accepted ? String(r.accepted).replace('T', ' ').slice(0, 
 // read "Unavailable: undefined."), and a read that succeeded but holds none of
 // the filtered form says so about the WINDOW we fetched, never about the
 // company: the feed and the submissions list are both a recent slice.
+/** The note above a feed that answered with rows but was stale or partial: each server clause as
+ *  its own capitalised sentence, through memberText like every other line here (audit 2026-10-08:
+ *  it printed "the last successful poll was 12 minutes ago. these forms could not be read...",
+ *  lowercase, raw, and with a doubled full stop whenever a clause already ended in one). */
+export function partialText(data) {
+  return [data?.reason, data?.partial].filter(Boolean).map(memberSentence).filter(Boolean).join(' ')
+}
+
 export function emptyText(data, form, label) {
   const src = data.source ? ` (${memberText(data.source)})` : ''
   const why = data.reason ? `: ${memberText(data.reason)}` : ''
@@ -33,11 +49,19 @@ export function emptyText(data, form, label) {
   return `Unavailable${why}.${src}`
 }
 
-function Row({ r, showCompany }) {
+// Wave 3 (FEED P2 #20): the per-row source was the server's own name, raw. A row comes from one
+// of two SEC reads; say which in plain words, and pass anything else through memberText.
+const ROW_SOURCE = {
+  'SEC EDGAR submissions': "SEC company filing list",
+  'SEC EDGAR latest-filings feed': 'SEC live filings feed',
+}
+export const rowSource = (src) => ROW_SOURCE[src] || memberText(src)
+
+function Row({ r, showCompany, since }) {
   return (
     <tr data-testid={`filing-${r.accession}`}>
-      <td>{r.form}</td>
-      {showCompany && <td>{r.ticker ? `${r.ticker} · ` : ''}{r.company}{r.filed_by ? ` (filed by ${r.filed_by})` : ''}</td>}
+      <td>{r.form} <NewTag since={since} itemKey={filingKey(r)} /></td>
+      {showCompany && <td>{r.ticker ? <><PanelSymbol sym={r.ticker} />{' · '}</> : ''}{r.company}{r.filed_by ? ` (filed by ${r.filed_by})` : ''}</td>}
       <td>
         {r.items
           ? (r.items.length
@@ -48,14 +72,24 @@ function Row({ r, showCompany }) {
       </td>
       <td>{when(r)}</td>
       <td><a className={styles.link} href={r.url} target="_blank" rel="noopener noreferrer">{r.accession}</a></td>
-      <td className={styles.muted}>{r.source}</td>
+      <td className={styles.muted}>{rowSource(r.source)}</td>
     </tr>
   )
 }
 
-export default function FilingsFeedTab({ sym }) {
+// `mine` (terminal `NVDA FEED MINE`, wave 3 lane 13): a third scope, the market feed narrowed to the
+// member's own names (hooks/useMyTickers). Terminal-only: outside a panel the toggle has two scopes.
+export default function FilingsFeedTab({ sym, mine = false }) {
   const s = (sym || '').toUpperCase().trim()
-  const [scope, setScope] = useState('ticker')
+  const inPanel = useInTerminalPanel()
+  const rerun = usePanelRerun()
+  const [scope, setScopeState] = useState(inPanel && mine ? 'mine' : 'ticker')
+  const myNames = useMyTickers({ enabled: scope === 'mine' })
+  // Entering or leaving "Mine" is written into the command (`NVDA FEED MINE`) so a reload keeps it.
+  const setScope = (next) => {
+    if (rerun && (next === 'mine') !== (scope === 'mine')) rerun(`${s ? `${s} ` : ''}FEED${next === 'mine' ? ' MINE' : ''}`)
+    else setScopeState(next)
+  }
   const [form, setForm] = useState('All')
   const q = form === 'All' ? '' : `?form=${encodeURIComponent(form)}`
   const url = scope === 'ticker'
@@ -71,29 +105,40 @@ export default function FilingsFeedTab({ sym }) {
     ? { source: memberText(data.source), age: { asOfDate: data.rows?.[0] && (data.rows[0].accepted || data.rows[0].filed) ? when(data.rows[0]) : null } }
     : null)
 
-  const label = scope === 'ticker' ? s : 'the market'
+  const label = scope === 'ticker' ? s : scope === 'mine' ? 'your names' : 'the market'
+  const rows = Array.isArray(data?.rows) && scope === 'mine' ? data.rows.filter((r) => myNames.has(r.ticker)) : data?.rows
+  // Wave 3 #7: NEW since this member's last FEED visit -- per ticker, or one record for "Mine".
+  // The whole-market scope is not marked (it is everyone's feed, not a list you follow).
+  const since = useSinceLastVisit('FEED', scope === 'ticker' ? s : '',
+    !error && data && !data.paywalled && Array.isArray(rows) ? rows.map(filingKey) : null,
+    { enabled: scope !== 'market' && (scope !== 'mine' || myNames.state === 'ready') })
   let body
   if (error) {
     body = <div className={styles.note} data-testid="feed-unavailable">
       The filings feed is unavailable right now. That is a gap in what we could read, not a finding about {label}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button>
     </div>
   } else if (!data) {
-    body = <div className={styles.note}>Loading filings…</div>
+    body = <div className={styles.note} role="status" data-testid="feed-loading">Loading filings…</div>
   } else if (data.paywalled) {
     body = <div className={styles.note}>The filings feed requires a paid plan.</div>
-  } else if (!data.rows || data.rows.length === 0) {
+  } else if (scope === 'mine' && myNames.state !== 'ready' && myNames.state !== 'empty') {
+    body = <MineEmpty state={myNames.state} explainer={myNames.explainer} testId="feed-mine-state" />
+  } else if (scope === 'mine' && Array.isArray(data.rows) && data.rows.length && !rows.length) {
+    body = <MineEmpty state="ready" what={`is among the ${data.rows.length} newest filings`} explainer={myNames.explainer} testId="feed-mine-empty" />
+  } else if (!rows || rows.length === 0) {
     body = <div className={styles.gap} data-testid="feed-gap">{emptyText(data, form, label)}</div>
   } else {
     body = (
       <>
-        {(data.reason || data.partial) && <div className={styles.gap} data-testid="feed-partial">{[data.reason, data.partial].filter(Boolean).join('. ')}.</div>}
+        {partialText(data) && <div className={styles.gap} data-testid="feed-partial">{partialText(data)}</div>}
+        <SinceLine since={since} noun="filing" />
         <div className={styles.scroll}>
           <table className={styles.grid} data-testid="feed" aria-label={`Filings feed: ${label}`}>
             <thead><tr>
-              <th scope="col">Form</th>{scope === 'market' && <th scope="col">Company</th>}
-              <th scope="col">8-K items</th><th scope="col">Accepted (ET)</th><th scope="col">Accession</th><th scope="col">Source</th>
+              <th scope="col">Form</th>{scope !== 'ticker' && <th scope="col">Company</th>}
+              <th scope="col">Details</th><th scope="col">Accepted (ET)</th><th scope="col">Accession</th><th scope="col">Source</th>
             </tr></thead>
-            <tbody>{data.rows.map((r) => <Row key={r.accession} r={r} showCompany={scope === 'market'} />)}</tbody>
+            <tbody>{rows.map((r) => <Row key={r.accession} r={r} showCompany={scope !== 'ticker'} since={since} />)}</tbody>
           </table>
         </div>
         <p className={styles.muted} data-testid="feed-source">
@@ -107,13 +152,14 @@ export default function FilingsFeedTab({ sym }) {
 
   return (
     <section className={styles.section} data-testid="filings-feed">
-      <div className={styles.toggle}>
-        {[['ticker', s || 'Ticker'], ['market', 'All market']].map(([k, l]) => (
+      {/* Wave 3 (FEED P2 #24): two unlabelled rows of toggle chips; each is a named group now. */}
+      <div className={styles.toggle} role="group" aria-label="Whose filings">
+        {[['ticker', s || 'Ticker'], ...(inPanel ? [['mine', 'Mine']] : []), ['market', 'All market']].map(([k, l]) => (
           <button key={k} type="button" className={`${styles.toggleBtn} ${scope === k ? styles.toggleOn : ''}`}
             aria-pressed={scope === k} onClick={() => setScope(k)}>{l}</button>
         ))}
       </div>
-      <div className={styles.toggle}>
+      <div className={styles.toggle} role="group" aria-label="Form type">
         {FORMS.map((f) => (
           <button key={f} type="button" className={`${styles.toggleBtn} ${form === f ? styles.toggleOn : ''}`}
             aria-pressed={form === f} onClick={() => setForm(f)}>{f === '4' ? 'Form 4' : f}</button>

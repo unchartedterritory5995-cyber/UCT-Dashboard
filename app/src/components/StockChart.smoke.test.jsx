@@ -10,7 +10,9 @@ import { render, cleanup } from '@testing-library/react'
 // actually executes in jsdom.
 
 // lightweight-charts touches <canvas>; stub the whole surface it uses.
-vi.mock('lightweight-charts', () => {
+vi.mock('lightweight-charts', async (importOriginal) => {
+  // Real constants/series definitions; only the canvas-touching factory is stubbed.
+  const real = await importOriginal()
   const series = {
     setData: () => {}, update: () => {}, applyOptions: () => {}, priceScale: () => ({ applyOptions: () => {} }),
     createPriceLine: () => ({}), removePriceLine: () => {}, setMarkers: () => {}, attachPrimitive: () => {},
@@ -31,10 +33,11 @@ vi.mock('lightweight-charts', () => {
     resize: () => {}, remove: () => {}, takeScreenshot: () => document.createElement('canvas'),
   }
   return {
+    ...real,
     createChart: () => chart,
     ColorType: { Solid: 'solid', VerticalGradient: 'gradient' },
     CrosshairMode: { Normal: 0, Magnet: 1 }, LineStyle: { Solid: 0, Dotted: 1, Dashed: 2, LargeDashed: 3 },
-    CandlestickSeries: {}, HistogramSeries: {}, LineSeries: {}, AreaSeries: {}, BarSeries: {}, createSeriesMarkers: () => ({ setMarkers: () => {} }),
+    CandlestickSeries: {}, HistogramSeries: {}, LineSeries: {}, AreaSeries: {}, BarSeries: {}, BaselineSeries: {}, createSeriesMarkers: () => ({ setMarkers: () => {} }),
   }
 })
 

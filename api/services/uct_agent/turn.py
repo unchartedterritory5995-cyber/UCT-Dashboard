@@ -180,8 +180,23 @@ def validate_manifest(caps: Any) -> list[dict]:
 STRICT_OP_VARIANTS_MAX = 10
 
 
-def compact_ops(capabilities: list[dict]) -> bool:
-    return len(capabilities) > STRICT_OP_VARIANTS_MAX
+def compact_ops(capabilities: list[dict], force: bool = False) -> bool:
+    return force or len(capabilities) > STRICT_OP_VARIANTS_MAX
+
+
+# The model API refuses some embedded-args schemas outright (HTTP 400, nothing generated, no cost):
+# a strict grammar that compiles too large — measured on production 2026-10-09 for the 9-action
+# screener group (screener.run's array of condition objects) — or a construct it does not accept.
+# Such a request is retried ONCE in the compact op shape, whose args are still checked against each
+# capability's own schema here (expand_compact_ops → args_match). Nothing else is ever retried.
+_SCHEMA_REFUSALS = ("compiled grammar is too large", "invalid schema")
+
+
+def _schema_refused(err: Exception) -> bool:
+    if type(err).__name__ != "BadRequestError":
+        return False
+    text = str(getattr(err, "message", "") or err).lower()
+    return any(m in text for m in _SCHEMA_REFUSALS)
 
 
 def _compact_op_schema(capabilities: list[dict]) -> dict:
@@ -325,7 +340,7 @@ def _is_json_type(v, t: str) -> bool:
     return py is not None and isinstance(v, py)
 
 
-def envelope_schema(capabilities: list[dict], unselected: list[dict] | None = None) -> dict:
+def envelope_schema(capabilities: list[dict], unselected: list[dict] | None = None, compact: bool | None = None) -> dict:
     op_variants = [{
         "type": "object",
         "properties": {
@@ -336,7 +351,7 @@ def envelope_schema(capabilities: list[dict], unselected: list[dict] | None = No
         "required": ["action", "target", "args"],
         "additionalProperties": False,
     } for a in capabilities]
-    if compact_ops(capabilities):
+    if compact_ops(capabilities, force=bool(compact)):
         ops_items = _compact_op_schema(capabilities)
     else:
         ops_items = {"anyOf": op_variants} if op_variants else {"type": "null"}
@@ -423,9 +438,9 @@ def _arg_text(spec: dict) -> str:
     return t if isinstance(t, str) else "/".join(map(str, t or []))
 
 
-def system_prompt(capabilities: list[dict], unselected: list[dict] | None = None) -> str:
+def system_prompt(capabilities: list[dict], unselected: list[dict] | None = None, compact: bool | None = None) -> str:
     """Generic rules + an action list GENERATED from the manifest."""
-    return _system_prompt_core(capabilities) + _routing_note(unselected)
+    return _system_prompt_core(capabilities, compact) + _routing_note(unselected)
 
 
 def _routing_note(unselected: list[dict] | None) -> str:
@@ -438,7 +453,7 @@ def _routing_note(unselected: list[dict] | None) -> str:
             "actions listed. Never invent an action. Otherwise set need_groups to null.\n")
 
 
-def _system_prompt_core(capabilities: list[dict]) -> str:
+def _system_prompt_core(capabilities: list[dict], compact: bool | None = None) -> str:
     if not capabilities:
         return _SYSTEM_HEAD + "(none available here -- answer, clarify or say unsupported)\n" + _SYSTEM_TAIL
     lines = []
@@ -457,7 +472,7 @@ def _system_prompt_core(capabilities: list[dict]) -> str:
             vals = [x for x in (v.get("enum") or []) if x is not None]
             if len(vals) > 12:
                 lines.append(f"  {k} ids: " + ", ".join(map(str, vals)))
-    if compact_ops(capabilities):
+    if compact_ops(capabilities, force=bool(compact)):
         lines.append('Each op is {"action", "target", "args_json"}: args_json is a JSON object written as a string, '
                      'with EXACTLY the args listed for that action — e.g. args_json "{\\"timeframe\\": \\"W\\"}".')
     return _SYSTEM_HEAD + "\n".join(lines) + "\n" + _SYSTEM_TAIL
@@ -668,8 +683,9 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     unselected_ids = {g["id"] for g in unselected} if unselected else None
 
     caller = caller or _default_caller
-    schema = envelope_schema(caps, unselected)
-    sysprompt = system_prompt(caps, unselected)
+    compact = compact_ops(caps)
+    schema = envelope_schema(caps, unselected, compact)
+    sysprompt = system_prompt(caps, unselected, compact)
     blocks = [_block("workspace_context", context or {})]
     if pending:
         blocks.append(_block("pending_proposal", pending))
@@ -684,12 +700,27 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
     cap_names = {c["name"] for c in caps}
     pre_research = None
     for round_ in range(MAX_RESEARCH_CALLS + 1):
-        resp = caller(
-            model=model(), max_tokens=MAX_TOKENS,
-            system=[{"type": "text", "text": sysprompt, "cache_control": {"type": "ephemeral"}}],
-            output_config={"format": {"type": "json_schema", "schema": schema}},
-            messages=messages,
-        )
+        try:
+            resp = caller(
+                model=model(), max_tokens=MAX_TOKENS,
+                system=[{"type": "text", "text": sysprompt, "cache_control": {"type": "ephemeral"}}],
+                output_config={"format": {"type": "json_schema", "schema": schema}},
+                messages=messages,
+            )
+        except Exception as e:  # noqa: BLE001 — anything but a schema refusal is re-raised unchanged
+            if compact or round_ != 0 or not _schema_refused(e):
+                raise
+            log.warning("[uct-agent] embedded-args schema refused by the model API (%d actions); retrying once compact", len(caps))
+            usage["schema_fallback"] = True
+            compact = True
+            schema = envelope_schema(caps, unselected, compact)
+            sysprompt = system_prompt(caps, unselected, compact)
+            resp = caller(
+                model=model(), max_tokens=MAX_TOKENS,
+                system=[{"type": "text", "text": sysprompt, "cache_control": {"type": "ephemeral"}}],
+                output_config={"format": {"type": "json_schema", "schema": schema}},
+                messages=messages,
+            )
         usage["model_calls"] += 1
         u = getattr(resp, "usage", None)
         usage["input_tokens"] += int(getattr(u, "input_tokens", 0) or 0)
@@ -724,7 +755,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
             # kept as planned. Nothing the post-research call returns can add or alter ops.
             if env.get("disposition") in MUTATING and env.get("ops"):
                 planned = env
-                if compact_ops(caps):
+                if compact:
                     planned = expand_compact_ops(env, caps)
                 pre_research = {"disposition": env["disposition"], "ops": list(planned.get("ops") or [])}
             usage["research_calls"] += 1
@@ -756,7 +787,7 @@ def run_turn(*, message: str, context: dict, history: list[dict], capabilities: 
                    "reply": ("I looked that up, but I don't make changes based on what I find online in the same "
                              "step. Tell me exactly what you'd like changed and I'll do it.") if mutated or not env.get("reply")
                    else env.get("reply")}
-        if compact_ops(caps) and isinstance(env, dict) and env.get("disposition") in MUTATING:
+        if compact and isinstance(env, dict) and env.get("disposition") in MUTATING:
             env = expand_compact_ops(env, caps)
         envelope = sanitize_envelope(env, valid_refs, cap_names, unselected_ids)
         usage["latency_ms"] = int((time.monotonic() - started) * 1000)

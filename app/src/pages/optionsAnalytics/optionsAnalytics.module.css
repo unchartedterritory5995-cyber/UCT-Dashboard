@@ -13,6 +13,7 @@
 .seg button[aria-pressed='true'] { border-color: var(--ut-gold); color: var(--text-heading); }
 .chart { width: 100%; max-width: 760px; height: auto; display: block; margin: 6px 0; }
 .axis { stroke: var(--border); stroke-width: 1; }
+.tickText { fill: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .lineCall { stroke: var(--gain); stroke-width: 2; fill: none; }
 .linePut { stroke: var(--loss); stroke-width: 2; fill: none; }
 .lineGold { stroke: var(--ut-gold); stroke-width: 2; fill: none; }
@@ -34,3 +35,6 @@
 .legendCall { border-top-color: var(--gain); }
 .legendPut { border-top-color: var(--loss); }
 .legendZero { border-top: 1px solid var(--border); }
+/* OHIS earnings markers (spec #8): dashed so the line is not told by colour alone; the key says it in words. */
+.earnMark { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.legendEarn { border-top: 1px dashed var(--text-muted); }

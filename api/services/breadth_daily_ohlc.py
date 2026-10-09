@@ -1042,6 +1042,18 @@ def live_row(date: str, metric: str, universe: str = DEFAULT_UNIVERSE) -> Option
 
 def history(metric: str, limit: int = 6000,
             universe: str = DEFAULT_UNIVERSE, with_source: bool = False) -> dict:
+    """`_history_stored`, with new highs / lows (and their net and ratios) on the INTRADAY basis
+    for every session `breadth_nhnl_intraday` covers, when that basis is served."""
+    out = _history_stored(metric, limit, universe, with_source)
+    try:
+        from api.services import breadth_nhnl_intraday as _nhi
+        return _nhi.override_history(metric, universe, out, with_source=with_source)
+    except Exception:
+        return out
+
+
+def _history_stored(metric: str, limit: int = 6000,
+                    universe: str = DEFAULT_UNIVERSE, with_source: bool = False) -> dict:
     """{ 'YYYY-MM-DD': {o,h,l,c} } for a metric, newest `limit` days — TRUSTED sources
     only. A breadth metric's true intraday high/low can only come from sampling the actual
     value through the day (the live accumulator); daily-bar 'reconstruct' rows assume every

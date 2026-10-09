@@ -1,0 +1,199 @@
+/* ALRT and MON — the member's own names (lane 9). App tokens only (the terminal wears the
+   member's theme); row height, gaps and type size follow the board density through --panel-*. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--panel-gap, var(--space-sm));
+  color: var(--text);
+  font-size: var(--panel-fs, var(--text-sm));
+  min-width: 0;
+}
+
+.inPanel {
+  min-height: 0;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.lede {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0 var(--space-sm);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.badge_regular { color: var(--success-ink); }
+.badge_pre,
+.badge_post { color: var(--info); }
+.badge_closed { color: var(--text-muted); }
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-md);
+}
+
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+
+.chip {
+  font: inherit;
+  font-size: var(--text-xs);
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--text-bright);
+}
+
+.note {
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border-left: 2px solid var(--warn);
+  background: var(--warn-bg);
+  color: var(--text);
+  font-size: var(--text-xs);
+}
+
+.tableBox {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  height: var(--panel-row-h, 24px);
+  padding: calc(var(--panel-gap, var(--space-sm)) / 4) var(--space-sm);
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.table th:first-child,
+.table td:first-child {
+  text-align: left;
+}
+
+.table th {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: var(--text-xs);
+}
+
+.sortBtn,
+.rowBtn,
+.linkBtn,
+.delBtn {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+.sortBtn:hover,
+.sortBtn:focus-visible,
+.rowBtn:hover,
+.rowBtn:focus-visible {
+  color: var(--accent);
+}
+
+.rowNum {
+  display: inline-block;
+  min-width: 1.6em;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.sym {
+  font-family: var(--font-mono);
+  color: var(--text-bright);
+}
+
+.linkBtn {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.delBtn {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  text-decoration: underline;
+}
+
+.delBtn:hover,
+.delBtn:focus-visible {
+  color: var(--text-bright);
+}
+
+.muted {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+.up { color: var(--success-ink); }
+.down { color: var(--danger-ink); }
+
+/* PHONE: the less-used columns fold away so a 390px panel keeps sym, last and % change. */
+@media (max-width: 640px) {
+  .phoneHide {
+    display: none;
+  }
+}
+
+/* TOUCH TIER (phone + tablet): finger targets, as MOST (moversPanel.module.css). */
+@media (max-width: 1024px) {
+  .chip,
+  .sortBtn,
+  .rowBtn,
+  .delBtn,
+  .linkBtn {
+    min-height: var(--tap-min);
+  }
+
+  .chip {
+    min-width: var(--tap-min);
+  }
+
+  .linkBtn,
+  .delBtn {
+    display: inline-flex;
+    align-items: center;
+  }
+}

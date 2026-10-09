@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
 import FailedRead from './FailedRead'
@@ -8,6 +8,7 @@ import { count, dollars, num, fracPct, pctNum } from './optionsFormat'
 import styles from './optionsAnalytics.module.css'
 import Input from '../../components/ui/Input'
 import Select from '../../components/ui/Select'
+import { PanelSymbol } from '../../components/terminal'
 
 // FT-072 / FT-073 — one screener per option strategy, over COV-02's end-of-day screen file
 // (api/services/options_analytics/strategy_screens.py).
@@ -22,6 +23,23 @@ import Select from '../../components/ui/Select'
 // (OPTIONS_SIZZLE_ENABLED: COV-03's unusual volume on a 5-session window).
 
 const leg = (l) => `${l.type} ${num(l.strike)}`
+
+/** How long typing in a "Limit to tickers" box must pause before the screen is asked again. */
+export const TICKER_FILTER_DEBOUNCE_MS = 350
+
+/** The `?underlyings=` query for what is typed, once typing PAUSES. Every keystroke used to be a
+ *  new screen request ("NVDA,AMD" was eight reads, most for half-typed tickers that answered
+ *  nothing) (lane C audit 2026-10-08). Clearing the box applies at once. */
+export function useUnderlyingsQuery(text, delay = TICKER_FILTER_DEBOUNCE_MS) {
+  const typed = String(text || '').trim().toUpperCase()
+  const [settled, setSettled] = useState(typed)
+  useEffect(() => {
+    if (!typed) { setSettled(''); return undefined }
+    const t = setTimeout(() => setSettled(typed), delay)
+    return () => clearTimeout(t)
+  }, [typed, delay])
+  return settled ? `?underlyings=${encodeURIComponent(settled)}` : ''
+}
 // Spread and butterfly dollars arrive PER SHARE (strike points; strategy_screens.py / more_screens.py).
 // They are shown PER CONTRACT (x100 shares) -- the unit the payoff panel, the strategy finder and the
 // backtester all print -- and every header says so.
@@ -37,14 +55,14 @@ export function capNote(d) {
 
 function Row({ kind, r }) {
   if (kind === 'covered_calls') {
-    return <tr><th scope="row">{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{pctNum(r.premium_yield_pct)}</td><td>{pctNum(r.annualized_pct, 1)}</td><td>{pctNum(r.if_called_pct)}</td></tr>
+    return <tr><th scope="row"><PanelSymbol sym={r.underlying} /></th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{pctNum(r.premium_yield_pct)}</td><td>{pctNum(r.annualized_pct, 1)}</td><td>{pctNum(r.if_called_pct)}</td></tr>
   }
   if (kind === 'cash_secured_puts') {
-    return <tr><th scope="row">{r.underlying}</th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{pctNum(r.yield_on_cash_pct)}</td><td>{pctNum(r.annualized_pct, 1)}</td><td>{num(r.breakeven)} ({pctNum(r.cushion_pct)})</td></tr>
+    return <tr><th scope="row"><PanelSymbol sym={r.underlying} /></th><td>{leg(r)} {r.expiration}</td><td>{num(r.bid)}</td><td>{pctNum(r.yield_on_cash_pct)}</td><td>{pctNum(r.annualized_pct, 1)}</td><td>{num(r.breakeven)} ({pctNum(r.cushion_pct)})</td></tr>
   }
   const credit = r.credit != null
   return (
-    <tr><th scope="row">{r.underlying}</th><td>{credit ? `sell ${leg(r.short)} / buy ${leg(r.long)}` : `buy ${leg(r.long)} / sell ${leg(r.short)}`} {r.expiration}</td>
+    <tr><th scope="row"><PanelSymbol sym={r.underlying} /></th><td>{credit ? `sell ${leg(r.short)} / buy ${leg(r.long)}` : `buy ${leg(r.long)} / sell ${leg(r.short)}`} {r.expiration}</td>
       <td>{credit ? `+${perContract(r.credit)}` : `-${perContract(r.debit)}`}</td><td>{perContract(r.max_profit)}</td><td>{perContract(r.max_loss)}</td>
       <td>{credit ? pctNum(r.return_on_risk_pct, 1) : `${num(r.reward_to_risk)} : 1`}</td></tr>
   )
@@ -60,7 +78,7 @@ function FirstScreens() {
   const cat = useDarkSection('/api/options-screener/strategies')
   const [kind, setKind] = useState('covered_calls')
   const [syms, setSyms] = useState('')
-  const q = syms.trim() ? `?underlyings=${encodeURIComponent(syms.trim().toUpperCase())}` : ''
+  const q = useUnderlyingsQuery(syms)
   const res = useDarkSection(cat.data?.strategies ? `/api/options-screener/strategy/${kind}${q}` : null)
   if (cat.hidden) return null
   if (!Array.isArray(cat.data?.strategies)) {
@@ -110,11 +128,11 @@ function FirstScreens() {
 
 function MoreRow({ kind, r }) {
   if (kind === 'call_butterflies') {
-    return <tr><th scope="row">{r.underlying}</th><td>{num(r.lower.strike)} / {num(r.center.strike)} x2 / {num(r.upper.strike)} {r.expiration}</td>
+    return <tr><th scope="row"><PanelSymbol sym={r.underlying} /></th><td>{num(r.lower.strike)} / {num(r.center.strike)} x2 / {num(r.upper.strike)} {r.expiration}</td>
       <td>-{perContract(r.debit)}</td><td>{perContract(r.max_profit)}</td><td>{num(r.reward_to_risk)} : 1</td><td>{r.breakevens.map((b) => num(b)).join(' / ')}</td></tr>
   }
   if (kind === 'by_expiration') {
-    return <tr><th scope="row">{r.underlying}</th><td>{r.expiration} ({r.dte}d)</td><td>{count(r.volume)}</td>
+    return <tr><th scope="row"><PanelSymbol sym={r.underlying} /></th><td>{r.expiration} ({r.dte}d)</td><td>{count(r.volume)}</td>
       <td>{count(r.open_interest)}</td><td>{pctNum(r.call_share_pct, 1)}</td>
       <td>{fracPct(r.atm_iv)}</td></tr>
   }
@@ -132,7 +150,7 @@ export function MoreStrategyScreens() {
   const cat = useDarkSection('/api/options-screener/more-strategies')
   const [kind, setKind] = useState('call_butterflies')
   const [syms, setSyms] = useState('')
-  const q = syms.trim() ? `?underlyings=${encodeURIComponent(syms.trim().toUpperCase())}` : ''
+  const q = useUnderlyingsQuery(syms)
   const res = useDarkSection(cat.data?.strategies ? `/api/options-screener/more/${kind}${q}` : null)
   if (cat.hidden) return null
   if (!Array.isArray(cat.data?.strategies)) {
@@ -204,7 +222,7 @@ export function SizzlePanel() {
                 <thead><tr><th scope="col">Ticker</th><th scope="col">Sizzle</th><th scope="col">Volume</th><th scope="col">5-session mean</th></tr></thead>
                 <tbody>
                   {data.ranked.map((r) => (
-                    <tr key={r.underlying}><th scope="row">{r.underlying}</th><td>{num(r.ratio)}x</td><td>{count(r.volume)}</td><td>{count(r.average)}</td></tr>
+                    <tr key={r.underlying}><th scope="row"><PanelSymbol sym={r.underlying} /></th><td>{num(r.ratio)}x</td><td>{count(r.volume)}</td><td>{count(r.average)}</td></tr>
                   ))}
                 </tbody>
               </table>

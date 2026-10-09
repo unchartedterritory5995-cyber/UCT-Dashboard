@@ -13,7 +13,7 @@ import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
 import { getTodayBar, touchTodayPack, todayPackUsable } from '../lib/todayPackClient'
 import useSWR, { mutate as globalMutate } from 'swr'
-import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
+import { createChart, createSeriesMarkers, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import {
   mergeChartSettings, mergeSettingsOverride,
@@ -981,6 +981,11 @@ const fetcher = async (url, extSignal) => {
     _releaseBarsSlot()             // ALWAYS release — even on error/abort — so the gate can't deadlock
   }
 }
+
+// How long a "warming" answer may last before the chart stops the skeleton and
+// says no price history was found. The retry schedule below spends ~100s on 12
+// polls; a genuine cold fetch lands in a few seconds, so 75s is generous.
+export const WARMING_GIVE_UP_MS = 75000
 
 // Conservative retry for transient (5xx / aborted-network) failures.
 // Cold Massive fetches can legitimately take 5–15s, so aggressive 1s
@@ -6690,11 +6695,19 @@ export default function StockChart({
   // something unrelated triggered another paint. The hook keeps the map's
   // IDENTITY stable while nothing changes, which is what stops that dependency
   // repainting continuously.
+  //
+  // ⭐ BATCH 2 — RE-ASKED WHEN THE MEMBER'S DEFINITIONS LAND, not only when the view
+  // changes. `_defOf` never changes identity, so on a reload the needed set was read
+  // once while the saved definitions were still loading (`_defOf` → null) and never
+  // again: a saved table's `sym("SPY", …)` cell stayed blank until something unrelated
+  // (a timeframe flip) re-ran it (measured 10-09, sandbox; OPEN-FINDINGS §6).
+  // `useLowerTfSources` below takes `userDefsGeneration` for the same reason.
+  const _otherSymbolsRevalidate = useMemo(() => ({ csView, userDefsGeneration }), [csView, userDefsGeneration])
   const secondarySources = useSecondarySources(
-    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, csView)
+    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
-  const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, csView)
+  const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, _otherSymbolsRevalidate)
   // ⭐ C41 — this symbol's intraday bars, for a Pine document that reads BELOW the
   // chart (`request.security(syminfo.tickerid, "60", …)` → an `ltf` node). A chart
   // with no such indicator makes NO request (`useLowerTfSources`).
@@ -7796,7 +7809,22 @@ export default function StockChart({
   // 200 {no_data:true} is a SETTLED empty answer for a genuinely-uncarried symbol —
   // NOT an infinite load: it must stop the skeleton and show an honest "no data" note
   // (the 2026-08-31 bug: no_data rendered as a forever-spinner for off-cap-universe ETFs).
-  const _warming = !!error && error.warming === true && !bars?.length
+  const _warmingRaw = !!error && error.warming === true && !bars?.length
+  // A "warming" answer that never resolves is a symbol nothing carries (a typo,
+  // a made-up ticker): the server kicks a background fetch that finds nothing and
+  // answers "warming" again on the next ask. barsSwrOnErrorRetry stops polling
+  // after 12 tries, and without this the skeleton then spun forever (audit
+  // 2026-10-08, ZZQXV). After WARMING_GIVE_UP_MS of continuous warming, stop the
+  // skeleton and say so honestly; a real cold fetch lands in a few seconds.
+  const [warmingGaveUp, setWarmingGaveUp] = useState(false)
+  useEffect(() => {
+    setWarmingGaveUp(false)
+    if (!_warmingRaw) return undefined
+    const id = setTimeout(() => setWarmingGaveUp(true), WARMING_GIVE_UP_MS)
+    return () => clearTimeout(id)
+  }, [_warmingRaw, sym, resolvedTf])
+  const _warming = _warmingRaw && !warmingGaveUp
+  const _warmingTimedOut = _warmingRaw && warmingGaveUp
   const _serverNoData = !!(data && data.no_data) && !bars?.length && !error
   const loading = (!bars && !error && !_serverNoData) || _warming
   // Delay the loading skeleton: a fast cache hit (pack / IDB / mem — ~tens of
@@ -7850,10 +7878,11 @@ export default function StockChart({
   // recover silently. Otherwise a transient backend 5xx pins the chart at
   // a hard-fail state for the user even though usable history is sitting
   // in IndexedDB. The retry button below still mutate()'s on click.
-  const showFatalError = !!error && !bars?.length && !_warming
+  const showFatalError = !!error && !bars?.length && !_warming && !_warmingTimedOut
   // Honest settled empty-state for a symbol the provider genuinely doesn't carry
   // (a real 200 no_data), so it reads "no data" rather than spinning forever.
   const showNoData = _serverNoData && !showFatalError
+  const showWarmingTimedOut = _warmingTimedOut && !showNoData
 
   // Real-time price streaming for live candle updates
   const { prices: livePrices, staleSymbols, isStreaming } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
@@ -12916,6 +12945,12 @@ export default function StockChart({
         // ⭐⭐ B1 — Pine `bgcolor` on an overlay script that binds no series of its
         // own is drawn on the price pane, through the candles' series.
         priceSeries: () => candleSeriesRef.current,
+        // ⭐⭐ BATCH 2 — THE GLYPH CAPABILITY THE BINDER HAS ALWAYS ASKED FOR. `binder`
+        // draws `plots[].marker` (plotshape / plotchar, and the authoring door's
+        // `set_marker`) only through an injected `createSeriesMarkers`, and nothing
+        // injected it: every marker was planned, computed and never drawn on a live
+        // chart (measured 10-09, sandbox — the unit tests use a fake).
+        createSeriesMarkers,
         // ⭐⭐ B1 — Pine `barcolor`: the binder hands the overrides here only when
         // they CHANGE; the candles are re-applied from their own remembered data
         // (one `update` of the last bar when only it changed). No React state.
@@ -18635,6 +18670,16 @@ export default function StockChart({
           </span>
         </div>
       )}
+      {showWarmingTimedOut && (
+        <div className={styles.error} {...RENDER_UNAVAILABLE} data-testid="chart-warming-timed-out">
+          <span>No price history found for {sym}.</span>
+          <span style={{ fontSize: 10, opacity: 0.8, maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
+            Check the spelling. If it is a real ticker, it may be new or thinly traded;
+            try again in a minute.
+          </span>
+          <button className="btn btn-secondary btn-sm" onClick={() => { setWarmingGaveUp(false); mutate() }}>Retry</button>
+        </div>
+      )}
       {!loading && !showFatalError && selectedRangeEmpty && (
         <div className={styles.error} {...RENDER_UNAVAILABLE}>
           <span>No {sym} chart data for the selected dates.</span>
@@ -18649,7 +18694,7 @@ export default function StockChart({
         ref={containerRef}
         className={styles.chart}
         style={{
-          display: (showFatalError || showNoData || selectedRangeEmpty) ? 'none' : 'block',
+          display: (showFatalError || showNoData || showWarmingTimedOut || selectedRangeEmpty) ? 'none' : 'block',
           // Sunrise (and any user gradient) paints a continuous gradient HERE, behind
           // the transparent LWC canvas, so it flows unbroken through the price + volume
           // panes. The user gradient (Canvas settings) works the same way. For a SOLID

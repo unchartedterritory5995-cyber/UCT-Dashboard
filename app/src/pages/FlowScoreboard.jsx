@@ -7,10 +7,13 @@
 // verbatim from the API so the numbers and the words can't drift apart.
 //
 // Data: GET /api/flow-scoreboard (public, read-only, 5-min server cache).
+import { useState } from 'react'
 import useSWR from 'swr'
-import TickerPopup from '../components/TickerPopup'
+import PanelTicker from '../components/terminal/PanelTicker'
 import UIcon from '../components/ui/UIcon'
-import { BoardFromList, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../components/terminal'
+import { BoardFromList, useInTerminalPanel, usePanelFreshness, usePanelRerun, usePanelSymbolRows } from '../components/terminal'
+import MineChip, { MineEmpty } from '../components/terminal/MineChip'
+import useMyTickers from '../hooks/useMyTickers'
 import styles from './FlowScoreboard.module.css'
 import { currencyPrefix, formatCurrency, formatNumber, formatPercent } from '../lib/presentation/presentationPrimitives'
 import jsonFetcher from '../utils/jsonFetcher'
@@ -81,7 +84,9 @@ function OiBadge({ confirmed }) {
 
 /* ── Page ────────────────────────────────────────────────────────────────── */
 
-export default function FlowScoreboard({ embedded = false }) {
+// `mine` (terminal `FREC MINE`, wave 3 lane 13): the standouts and the honest tape narrowed to the
+// member's own names. Terminal-only: the public page never reads the paid my-sets route.
+export default function FlowScoreboard({ embedded = false, mine: mineProp = false }) {
   const { data, error, isLoading, mutate } = useSWR('/api/flow-scoreboard', fetcher, {
     refreshInterval: 300_000,
     revalidateOnFocus: false,
@@ -98,9 +103,16 @@ export default function FlowScoreboard({ embedded = false }) {
   const pageCls = embedded ? `${styles.page} ${styles.embedded}`
     : inPanel?.inset ? `${styles.page} ${styles.pageInPanel}` : styles.page
   const hasData = (data?.picks_tracked ?? 0) > 0
+  const rerun = usePanelRerun()
+  const [mineState, setMine] = useState(!!mineProp)
+  const mine = !!inPanel && mineState
+  const myNames = useMyTickers({ enabled: mine })
+  const toggleMine = (next) => { if (rerun) rerun(next ? 'FREC MINE' : 'FREC'); else setMine(next) }
+  const picks = (data?.recent_picks || []).filter((p) => !mine || myNames.has(p.sym))
+  const winners = (data?.recent_winners || []).filter((w) => !mine || myNames.has(w.sym))
   // Row <GO>: the honest tape's rows, in order, each loads its name (`$SYM`); its names are
   // the list a "Board of" opens. Only while the tape is on screen.
-  const tapeSyms = usePanelSymbolRows(hasData ? (data?.recent_picks || []).map((p) => p.sym) : [], 'FREC picks')
+  const tapeSyms = usePanelSymbolRows(hasData ? picks.map((p) => p.sym) : [], 'FREC picks')
 
   return (
     <div className={pageCls}>
@@ -126,7 +138,8 @@ export default function FlowScoreboard({ embedded = false }) {
             <button type="button" onClick={() => mutate()}>Retry</button>
           </div>
         ) : isLoading && !data ? (
-          <div className={styles.loading}>Loading the scoreboard…</div>
+          // Wave 3 (FREC P2 #26): announced, like every other loading line in the terminal.
+          <div className={styles.loading} role="status" data-testid="scoreboard-loading">Loading the scoreboard…</div>
         ) : !hasData ? (
           <div className={styles.empty}>
             The tracker is warming up — picks need at least two daily snapshots before
@@ -158,6 +171,13 @@ export default function FlowScoreboard({ embedded = false }) {
               <span className={styles.statValue}>{fmtPct(overall?.oi_confirmed_rate, { signed: false })}</span>
               <span className={styles.statLabel}>OI-confirmed follow-through</span>
             </div>
+            {/* Wave 3 (FREC P2 #20): the two measures were explained only in the methodology at
+                the foot of the page. Said here, in the server's own definitions. */}
+            <p className={styles.statKey} data-testid="frec-key">
+              <b>Hit +25%</b>: the option&rsquo;s best daily close after the flag was at least 25% above
+              its entry price. <b>OI-confirmed</b>: open interest later rose more than 10% above its
+              first snapshot, a sign the position was opened, not closed.
+            </p>
           </div>
         )}
       </div>
@@ -202,7 +222,7 @@ export default function FlowScoreboard({ embedded = false }) {
           </section>
 
           {/* ── Recent standouts ───────────────────────────────────────── */}
-          {(data.recent_winners || []).length > 0 && (
+          {winners.length > 0 && (
             <section className={styles.section}>
               <div className={styles.sectionHeader}>
                 <span className={styles.sectionTitle}>
@@ -212,12 +232,12 @@ export default function FlowScoreboard({ embedded = false }) {
                 <span className={styles.sectionMeta}>best peak gains, picks from the last 45 days</span>
               </div>
               <div className={styles.cardGrid}>
-                {data.recent_winners.map((w) => (
+                {winners.map((w) => (
                   <div key={`${w.sym}-${w.strike}-${w.exp}-${w.dateSaved}`} className={styles.card}>
                     <div className={styles.cardTop}>
-                      <TickerPopup sym={w.sym}>
+                      <PanelTicker sym={w.sym}>
                         <span className={styles.cardSym}>{w.sym}</span>
-                      </TickerPopup>
+                      </PanelTicker>
                       <GradeChip grade={w.grade} />
                     </div>
                     <div className={styles.cardContract}>{contractLine(w)}</div>
@@ -242,11 +262,18 @@ export default function FlowScoreboard({ embedded = false }) {
                 <UIcon name="journal" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />
                 Last {data.recent_picks?.length || 0} picks — the honest tape
               </span>
-              <span className={styles.sectionMeta}>every recent pick, winners and losers alike</span>
+              <span className={styles.sectionMeta}>
+                {mine ? `your names only: ${picks.length} of them` : 'every recent pick, winners and losers alike'}
+              </span>
+              {inPanel && <MineChip on={mine} onToggle={toggleMine} explainer={myNames.explainer} testId="frec-mine" />}
               <BoardFromList syms={tapeSyms} label="FREC picks" testId="frec-board" />
             </div>
+            {mine && picks.length === 0 && (
+              <MineEmpty state={myNames.state === 'empty' ? 'ready' : myNames.state}
+                what={`is among the last ${data.recent_picks?.length || 0} picks`} explainer={myNames.explainer} testId="frec-mine-empty" />
+            )}
             <div className={styles.tableWrap}>
-              <table className={styles.table} aria-label="Recent picks">
+              <table className={`${styles.table} ${styles.tapeTable}`} aria-label="Recent picks">
                 <thead>
                   <tr>
                     <th scope="col">Pick</th>
@@ -259,12 +286,12 @@ export default function FlowScoreboard({ embedded = false }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {(data.recent_picks || []).map((p) => (
+                  {picks.map((p) => (
                     <tr key={`${p.sym}-${p.strike}-${p.exp}-${p.dateSaved}`}>
                       <td className={styles.pickCell}>
-                        <TickerPopup sym={p.sym}>
+                        <PanelTicker sym={p.sym}>
                           <span className={styles.tapeSym}>{p.sym}</span>
-                        </TickerPopup>
+                        </PanelTicker>
                         <span className={styles.tapeContract}> {contractLine(p)}</span>
                       </td>
                       <td><GradeChip grade={p.grade} /></td>
@@ -275,9 +302,11 @@ export default function FlowScoreboard({ embedded = false }) {
                         {fmtPct(p.current_gain_pct)}
                       </td>
                       <td className={styles.num}>
+                        {/* The tick is an icon a screen reader skips; the cell names itself
+                            either way (audit 2026-10-08), never silence for "confirmed". */}
                         {p.oi_confirmed
-                          ? <span className={styles.oiTick} title="OI confirmed"><UIcon name="check" size={12} gold /></span>
-                          : <span className={styles.oiDash}>—</span>}
+                          ? <span className={styles.oiTick} title="OI confirmed" role="img" aria-label="OI confirmed" data-testid="frec-oi-yes"><UIcon name="check" size={12} gold /></span>
+                          : <span className={styles.oiDash} role="img" aria-label="Not OI-confirmed">—</span>}
                       </td>
                     </tr>
                   ))}

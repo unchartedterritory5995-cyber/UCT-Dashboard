@@ -30,6 +30,7 @@
 
 import { excerptRevisitTarget } from './searchNavigation'
 import { SOURCE_WEB, SOURCE_ATTACHMENT } from './searchResultLabel'
+import { citedPassageText } from './askCitation'
 
 export const PASSAGE_GONE = 'That passage is no longer available.'
 export const PASSAGE_UNREADABLE = "Couldn't open that passage — try again."
@@ -255,11 +256,76 @@ export function openDocumentCitation(nav, {
   return legacy ? legacy(nav) : openOwningNote(nav, openNote)
 }
 
+// ⛔⛔ A CITATION FROM THE WHOLE NOTEBOOK LANDS ON ITS PASSAGE, NOT ITS NOTE.
+//
+// ⚰️ fin walk 8.3: "From the whole Notebook a citation opens the cited note,
+// not a passage in it. Inside a note it lands on the passage." The spanning
+// hosts (Research Home, the research workspace) only ever called
+// `openNote({ id })`, and the editor that then mounted knew nothing of what had
+// been cited. The server had located the passage all along (`location`
+// {from, to, fingerprint}); nobody carried it across the page change.
+//
+// ⭐ The passage rides the HISTORY ENTRY'S STATE, beside the `?note=` param the
+// tab already routes on (NotebookTab.openNote → `passageNavigationState`), and
+// NoteEditorPage lands on it with the SAME landing the in-note Ask uses
+// (askCitation.selectResolvedPassage) once its editor holds that note. State,
+// not a param: the needle is prose (up to a block of it), and a URL that
+// carries a paragraph is one a member cannot read, share or come back to.
+//
+// ⛔ ADDRESSED TO ONE NOTE. `passageFromNavigationState` answers only for the
+// note id the passage names, so a state that outlives its entry (a replace, a
+// Back) can never scroll a different note the member then opened.
+
+/** The key under which a cited passage rides a history entry's state. */
+export const PASSAGE_STATE_KEY = 'citedPassage'
+
+/**
+ * The passage a NOTE citation names, for a host that opens the note on another
+ * page and must land once that page's editor exists.
+ *
+ * @returns {{noteId:string, location:object, text:string}|null} null when the
+ *          source names no range to land on -- a note-level source (a thesis
+ *          state; a note whose text held no word of the question): the note
+ *          then opens exactly as before, with nothing to say.
+ */
+export function citedPassage(source) {
+  const nav = source?.navigation
+  const loc = source?.location
+  if (nav?.kind !== 'note' || !nav.note_id || !loc) return null
+  const positioned = Number.isInteger(loc.from) && Number.isInteger(loc.to) && loc.to > loc.from
+  const atom = Boolean(loc.atom) && typeof loc.atom.type === 'string' && loc.atom.id != null && loc.atom.id !== ''
+  if (!positioned && !atom) return null
+  const text = citedPassageText(source)
+  // An atom is verified by identity, never by text; everything else needs a needle.
+  if (!atom && !text.trim()) return null
+  return { noteId: nav.note_id, location: loc, text }
+}
+
+/** The navigate `state` that carries one passage to the note it names. */
+export function passageNavigationState(passage) {
+  return { [PASSAGE_STATE_KEY]: passage }
+}
+
+/**
+ * The passage a history entry's state carries FOR THIS NOTE, else null.
+ * ⛔ The id check is the guard against landing on an unrelated note: a state
+ * can outlive the open it was written for.
+ */
+export function passageFromNavigationState(state, noteId) {
+  const passage = state?.[PASSAGE_STATE_KEY]
+  return passage && noteId && passage.noteId === noteId ? passage : null
+}
+
 /**
  * The citation router for a scope that SPANS notes ("My Notebook", "This
  * research"): an excerpt opens in place, a document page opens by its kind,
- * anything else that names its note opens that note, and a source with none of
- * those says so.
+ * a note citation opens that note AT its passage when it names one, anything
+ * else that names its note opens that note, and a source with none of those
+ * says so.
+ *
+ * `openNote(note, target, { passage })` is NotebookTab's own signature (the
+ * same third argument `?task=` rides); a host whose `openNote` takes only the
+ * note drops the passage and opens the note as before.
  *
  * @returns {Promise<string|null>|string|null} what AskPanel's `onNavigate`
  *          returns -- a sentence when nothing could be opened.
@@ -271,6 +337,13 @@ export function openSpanningCitation(source, { signal, openNote, openDocument, o
   }
   if (nav.kind === 'document') {
     return openDocumentCitation(nav, { signal, openNote, openDocument, openCapturedSource })
+  }
+  if (nav.kind === 'note' && openNote) {
+    const passage = citedPassage(source)
+    if (passage) {
+      openNote({ id: nav.note_id }, null, { passage })
+      return null
+    }
   }
   return openOwningNote(nav, openNote)
 }

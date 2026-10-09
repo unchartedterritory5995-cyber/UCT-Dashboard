@@ -50,18 +50,32 @@ export function summaryFacts(s) {
   ].join(' · ')
 }
 
+// Audit 2026-10-08 (OBT, point 20): the server's reasons and IV note name our data vendor and its
+// request budget ("the vendor request budget ran out", "Massive keeps no historical IV"). That is
+// engineering detail, not member copy; this says the same thing in plain words.
+const PLAIN = [
+  [/the vendor request budget ran out/gi, 'the run reached its data limit'],
+  [/the vendor read failed/gi, 'the data read failed'],
+  [/,? not the vendor's/gi, ', not a data feed\'s'],
+  [/Massive keeps no historical IV\.?/gi, 'Historical IV is not available from our data provider.'],
+]
+export function plainBacktest(s) {
+  if (s == null) return s
+  return PLAIN.reduce((t, [re, to]) => t.replace(re, to), String(s))
+}
+
 /** "3 excluded: 2025-11-21 no contracts listed ...; ..." -- always a sentence, 0 included. */
 export function excludedText(result) {
   const n = result?.excluded_count ?? 0
   if (!n) return 'No expiration was excluded.'
-  const parts = (result.excluded || []).map((e) => `${e.expiry || `print ${e.report_date}`}: ${e.reason}`)
+  const parts = (result.excluded || []).map((e) => `${e.expiry || `print ${e.report_date}`}: ${plainBacktest(e.reason)}`)
   return `${n} expiration${n === 1 ? ' was' : 's were'} excluded and not simulated — ${parts.join('; ')}.`
 }
 
 export function notRunText(result) {
   const n = result?.not_run_count ?? 0
   if (!n) return null
-  const parts = (result.not_run || []).map((e) => `${e.expiry || `print ${e.report_date}`}: ${e.reason}`)
+  const parts = (result.not_run || []).map((e) => `${e.expiry || `print ${e.report_date}`}: ${plainBacktest(e.reason)}`)
   return `${n} expiration${n === 1 ? ' was' : 's were'} not run — ${parts.join('; ')}.`
 }
 

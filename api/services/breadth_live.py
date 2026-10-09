@@ -1537,6 +1537,26 @@ def apply_anchor(metrics: dict, basis: Optional[dict]) -> dict:
 _live_lock = threading.Lock()
 _live_cache: dict = {}
 _LIVE_TTL_SECONDS = 55
+# Perf wave 2 (2026-10-08): /api/breadth-monitor/live measured 4-5 s cold. The per-minute
+# sampler keeps the 55 s cache warm only weekdays 9:00-16:59 ET; outside the regular session
+# every request more than 55 s after the last one re-fetched the WHOLE-market snapshot
+# (~10k tickers) and re-scored the universe on the request thread. With the regular session
+# closed the inputs stop moving, so the window there is _LIVE_TTL_CLOSED_SECONDS; and concurrent
+# cold callers now collapse onto ONE compute (single-flight) instead of each pulling the market.
+_LIVE_TTL_CLOSED_SECONDS = 600
+_live_flight = threading.Lock()
+
+
+def _live_ttl(now_et: Optional[datetime] = None) -> int:
+    """55 s from 9:00 to 16:30 ET on weekdays (the sampler's window, plus the closing prints
+    settling); _LIVE_TTL_CLOSED_SECONDS outside it, when the snapshot's day fields cannot move."""
+    try:
+        n = now_et or _now_et()
+        m = n.hour * 60 + n.minute
+        quiet = n.weekday() >= 5 or m < 9 * 60 or m >= 16 * 60 + 30
+        return _LIVE_TTL_CLOSED_SECONDS if quiet else _LIVE_TTL_SECONDS
+    except Exception:
+        return _LIVE_TTL_SECONDS
 #: How old a payload a `cached_only` reader (chart serves) still accepts — see compute_live.
 CACHED_ONLY_GRACE_SECONDS = 180
 
@@ -1610,6 +1630,32 @@ def enabled() -> bool:
     return os.environ.get("BREADTH_LIVE_ENABLED", "1") != "0"
 
 
+def _apply_nhnl_live(payload: dict, members: dict, highs: dict, lows: dict, tickers) -> None:
+    """New highs / lows on the INTRADAY basis (`breadth_nhnl_intraday`) in the live payload and its
+    drill lists, when that basis is served: the settled session's series value, else today's count
+    from the snapshot's running high/low. Neither available → the family is withheld (None), never
+    a closing-basis count beside intraday history."""
+    try:
+        from api.services import breadth_nhnl_intraday as nhi
+        if not nhi.active():
+            return
+        session = payload.get("session_date")
+        v = nhi.values("uct", session)
+        if v is None:
+            v = nhi.live_counts("uct", highs, lows, tickers, session, lists=True)
+        lists = (v or {}).pop("_lists", None) if v else None
+        for k in nhi.SERVED:
+            payload["metrics"][k] = (v or {}).get(k)
+        for k in nhi.COUNTS:
+            if lists and k in lists:
+                members[k] = lists[k]
+            else:
+                members.pop(k, None)
+        payload["nhnl_basis"] = "intraday"
+    except Exception as e:
+        print(f"[breadth_live] nhnl overlay skipped: {type(e).__name__}: {e}")
+
+
 def compute_live(force: bool = False, cached_only: bool = False) -> dict:
     """Breadth right now: one snapshot compared against cached levels.
 
@@ -1627,10 +1673,11 @@ def compute_live(force: bool = False, cached_only: bool = False) -> dict:
         return {"ok": False, "reason": "breadth live disabled (BREADTH_LIVE_ENABLED=0)"}
     import time as _time
     now = _time.time()
+    ttl = _live_ttl()
     with _live_lock:
         hit = _live_cache.get("payload")
         age = now - _live_cache.get("at", 0)
-        if hit and not force and age < _LIVE_TTL_SECONDS:
+        if hit and not force and age < ttl:
             return hit
         # ⭐ (2026-10-08) A cache-only reader takes a payload up to CACHED_ONLY_GRACE old. The
         # per-minute sampler refreshes a 55 s TTL, so a strict TTL left a few seconds every minute
@@ -1641,6 +1688,18 @@ def compute_live(force: bool = False, cached_only: bool = False) -> dict:
     if cached_only:
         return {"ok": False, "reason": "no warm live cache (cached_only)"}
 
+    with _live_flight:
+        if not force:
+            # A racer may have computed while we queued: take its answer, not a second market pull.
+            with _live_lock:
+                hit = _live_cache.get("payload")
+                if hit and _time.time() - _live_cache.get("at", 0) < ttl:
+                    return hit
+        return _compute_fresh(now)
+
+
+def _compute_fresh(now: float) -> dict:
+    """The uncached live compute (one full-market snapshot); caches its payload at `now`."""
     levels = reference_levels()
     if not levels:
         return {"ok": False, "reason": "reference levels unavailable"}
@@ -1656,6 +1715,8 @@ def compute_live(force: bool = False, cached_only: bool = False) -> dict:
     prices = {t: d["last_price"] for t, d in snap.items() if d.get("last_price")}
     vols = {t: d["today_vol"] for t, d in snap.items() if d.get("today_vol")}
     opens = {t: d["day_open"] for t, d in snap.items() if d.get("day_open")}
+    highs = {t: d["day_high"] for t, d in snap.items() if d.get("day_high")}
+    lows = {t: d["day_low"] for t, d in snap.items() if d.get("day_low")}
 
     # Share of the BREADTH universe that has actually traded today — the
     # holiday tell, and a cheap read on how far into the session we are.
@@ -1708,6 +1769,8 @@ def compute_live(force: bool = False, cached_only: bool = False) -> dict:
         "not_live": list(NOT_LIVE),
     }
 
+    _apply_nhnl_live(payload, members, highs, lows, levels["tickers"])
+
     with _live_lock:
         _live_cache["payload"] = payload
         _live_cache["at"] = now
@@ -1717,6 +1780,8 @@ def compute_live(force: bool = False, cached_only: bool = False) -> dict:
         _live_cache["members"] = members
         _live_cache["prices"] = prices
         _live_cache["vols"] = vols
+        _live_cache["highs"] = highs
+        _live_cache["lows"] = lows
         _live_cache["levels"] = levels
     return payload
 

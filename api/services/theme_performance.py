@@ -69,6 +69,30 @@ _OPEN_PERIOD = "open"
 # rebuilding the ~345KB structure + re-walking the taxonomy on EVERY request
 # (and every 30s SWR poll from every connected client).
 _OVERLAID_KEY = "theme_performance_overlaid"
+
+# Perf wave 2 (2026-10-08): /api/theme-performance measured 7.5 s cold. The live overlay lives
+# 10 s, so outside active polling every request rebuilt it: two Massive batch-snapshot maps
+# over ~2,050 holdings (fetched one AFTER the other) + the taxonomy enrichment. When no US
+# session is printing (weekdays before 4:00 / after 20:05 ET, and weekends) the snapshot does
+# not move, so the live windows there are QUIET_LIVE_TTL long instead of 10 s; and the two maps
+# are now fetched concurrently.
+QUIET_LIVE_TTL = 300
+
+
+def prices_moving(now: Optional[datetime] = None) -> bool:
+    """True while a US equity session (pre, regular or after-hours) can print: weekdays
+    04:00-20:05 ET. Holidays read as moving, which only keeps today's 10 s window."""
+    from zoneinfo import ZoneInfo
+    et = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo("America/New_York"))
+    if et.weekday() >= 5:
+        return False
+    minutes = et.hour * 60 + et.minute
+    return 4 * 60 <= minutes < 20 * 60 + 5
+
+
+def live_ttl(now: Optional[datetime] = None) -> int:
+    """The live-overlay window: 10 s while prices move, QUIET_LIVE_TTL while they cannot."""
+    return _LIVE_1D_TTL if prices_moving(now) else QUIET_LIVE_TTL
 _MAX_WORKERS = 6          # conservative — keeps Railway memory safe
 _BAR_DAYS = 420           # ~14 months → ≥252 trading days for 1Y
 _EXCLUDED = {"TLT", "HYG", "URA", "IBB", "FXI", "MSOS"}
@@ -414,7 +438,7 @@ def _note_live_leg(leg: str, key: str, failures: list | None) -> None:
     else:
         failed = bool(failures)
         if failed:
-            cache.set(key + _LIVE_PARTIAL_SUFFIX, True, ttl=_LIVE_1D_TTL)
+            cache.set(key + _LIVE_PARTIAL_SUFFIX, True, ttl=live_ttl())
         else:
             cache.invalidate(key + _LIVE_PARTIAL_SUFFIX)
     legs = getattr(_live_legs, "failed", None)
@@ -433,7 +457,7 @@ def _fetch_live_1d_map(syms: list[str]) -> dict[str, float]:
     # base (prior-session) 1D — so a pre-market theme reflects only names that actually moved.
     failures: list = []
     live_map = get_etf_snapshots(syms, stale_to_zero=True, failures=failures)
-    cache.set(_LIVE_1D_KEY, live_map, ttl=_LIVE_1D_TTL)
+    cache.set(_LIVE_1D_KEY, live_map, ttl=live_ttl())
     _note_live_leg("1d", _LIVE_1D_KEY, failures)
     return live_map
 
@@ -449,9 +473,36 @@ def _fetch_live_open_map(syms: list[str]) -> dict[str, float]:
     from api.services.massive import get_etf_open_snapshots
     failures: list = []
     open_map = get_etf_open_snapshots(syms, failures=failures)
-    cache.set(_LIVE_OPEN_KEY, open_map, ttl=_LIVE_1D_TTL)
+    cache.set(_LIVE_OPEN_KEY, open_map, ttl=live_ttl())
     _note_live_leg("open", _LIVE_OPEN_KEY, failures)
     return open_map
+
+
+def _fetch_live_maps(syms: list[str]) -> tuple[dict, dict]:
+    """Both live maps CONCURRENTLY (perf wave 2: they were fetched one after the other, ~2
+    rounds of chunked snapshot calls each). The caller's failed-leg set (`_live_legs`, a
+    thread-local) is carried into the worker so a dropped chunk still marks the overlay partial."""
+    legs = getattr(_live_legs, "failed", None)
+
+    def _open():
+        prior = getattr(_live_legs, "failed", None)
+        _live_legs.failed = legs
+        try:
+            return _fetch_live_open_map(syms)
+        finally:
+            _live_legs.failed = prior
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="theme-live-open") as ex:
+        fut = ex.submit(_open)
+        live_map = _fetch_live_1d_map(syms)
+        try:
+            open_map = fut.result()
+        except Exception as e:
+            _logger.warning("[theme-perf] live open map failed: %s", e)
+            open_map = {}
+            if legs is not None:
+                legs.add("open")
+    return live_map, open_map
 
 
 _ALL_PERIODS = ("1d", "1w", "1m", "3m", "1y", "ytd")
@@ -519,12 +570,11 @@ def _apply_live_returns(result: dict) -> dict:
         return result
 
     all_syms = [h["sym"] for theme in themes for h in theme.get("holdings", []) if h.get("sym")]
-    live_map = _fetch_live_1d_map(all_syms)
-    if not live_map:
-        return result
     # "From Open" overlay — each holding's move since today's regular-session open. Same batch
     # endpoint + cadence; a name with no open yet (pre-market) is simply absent from the map.
-    open_map = _fetch_live_open_map(all_syms)
+    live_map, open_map = _fetch_live_maps(all_syms)
+    if not live_map:
+        return result
 
     themes_out = []
     for theme in themes:
@@ -737,6 +787,20 @@ def get_theme_performance() -> dict:
     return build_theme_performance()[0]
 
 
+def _copy_for_overlay(base: dict) -> dict:
+    """Copy the payload, each theme and each holding row (one level deep: the nested
+    returns/ref_prices dicts are only ever replaced, never written into, downstream).
+    Cheaper than a deepcopy of the ~1 MB base."""
+    themes = base.get("themes")
+    if not isinstance(themes, list):
+        return dict(base)
+    return {**base, "themes": [
+        {**t, "holdings": [dict(h) for h in (t.get("holdings") or [])]}
+        if isinstance(t, dict) else t
+        for t in themes
+    ]}
+
+
 def _overlay_and_memoize(base: dict) -> tuple[dict, bool]:
     """Overlay live 1d, enrich, memoize — and say whether the overlay is COMPLETE.
 
@@ -750,15 +814,19 @@ def _overlay_and_memoize(base: dict) -> tuple[dict, bool]:
     prior = getattr(_live_legs, "failed", None)
     failed: set = set()
     _live_legs.failed = failed
+    # The overlay can hand back the base itself (empty live map) or reuse base holding
+    # rows, and the enrich/strip/stamp steps below write into what they get. Work on a
+    # copy of the containers they touch so the cached base is never changed.
+    work = _copy_for_overlay(base)
     try:
-        overlaid = _apply_live_returns(base)
+        overlaid = _apply_live_returns(work)
     finally:
         _live_legs.failed = prior
-    complete = overlaid is not base and not failed
+    complete = overlaid is not work and not failed
     out = _strip_delisted(_enrich_with_taxonomy(overlaid))
     out["live_as_of"] = datetime.now(timezone.utc).isoformat()  # when live prices were applied
     set_by_completeness(_OVERLAID_KEY, out, complete=complete,
-                        ttl_ok=_LIVE_1D_TTL, ttl_partial=_LIVE_1D_TTL)
+                        ttl_ok=live_ttl(), ttl_partial=_LIVE_1D_TTL)
     return out, complete
 
 

@@ -38,6 +38,16 @@ describe('BacktestPanel with FT-011 switched on', () => {
     expect(opts.length).toBe(FX.catalog.strategies.length)
   })
 
+  // Audit 2026-10-08 (OBT, point 20): the anchor control is in words, not "Anchor" / "AMC / BMO".
+  it('the anchor control says what it does in plain words', async () => {
+    wrap(<BacktestPanel sym="SPY" />)
+    const anchor = await screen.findByLabelText('Entry anchor')
+    expect(anchor.closest('label').textContent).toMatch(/^Time entries to/)
+    const opt = [...anchor.querySelectorAll('option')].find((o) => o.value === 'earnings')
+    expect(opt.textContent).toBe('Earnings reports (after the close or before the open)')
+    expect(anchor.closest('label').textContent).not.toMatch(/AMC|BMO/)
+  })
+
   it('by default the earnings anchor is offered ENABLED (report timing is on file since O4)', async () => {
     wrap(<BacktestPanel sym="SPY" />)
     const anchor = await screen.findByLabelText('Entry anchor')

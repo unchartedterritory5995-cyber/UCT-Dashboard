@@ -1960,6 +1960,33 @@ def _days_for_date(ds: str) -> dict | None:
     return (wk or {}).get("days", {}).get(ds)
 
 
+def cached_report_session(sym: str, ds: str) -> str | None:
+    """'bmo' / 'amc' for ``sym`` reporting on ``ds``, read ONLY from calendar data that is
+    already cached (this week's ``calendar_weekly``, or a ``calendar_week_<monday>`` another
+    reader built). Never builds a week and never calls a provider, so a caller on the request
+    path pays a dict lookup at most. ``None`` when the day is not cached, the name is not on
+    that day, or its session is not known (``tbd``). Wave 5: the terminal headline's
+    "earnings Thu Nov 19 AMC" reads this; a miss shows the date alone.
+    """
+    s = (sym or "").upper().strip()
+    try:
+        d = date.fromisoformat(str(ds)[:10])
+    except (ValueError, TypeError):
+        return None
+    if not s:
+        return None
+    monday = _monday_of(d)
+    if monday == _week_dates()[0]:
+        wk = cache.get("calendar_weekly")
+    else:
+        wk = cache.get(f"calendar_week_{monday.isoformat()}")
+    day = ((wk or {}).get("days") or {}).get(d.isoformat()) or {}
+    for t in ("bmo", "amc"):
+        if any((e.get("sym") or "").upper() == s for e in (day.get(t) or []) if isinstance(e, dict)):
+            return t
+    return None
+
+
 _MONTH_CACHE_TTL = 1800  # 30 minutes
 
 
@@ -2058,15 +2085,34 @@ def _weekly_payload_is_good(payload: dict | None) -> bool:
     return any(d.get("bmo") or d.get("amc") or d.get("tbd") for d in days)
 
 
+# Wave 4 (lane C): the full-impact econ used to be fetched on the request path every time
+# its 300 s TTL lapsed -- and the widget polls every 300 s, so nearly every poll paid the
+# FMP round trip. A lapsed TTL is now served from the last good payload (<= this bound)
+# and refreshed behind the caller, the same pattern as the weekly payload above. The
+# re-warm loop keeps the widget's week inside the bound.
+_ECON_FULL_STALE_MAX_AGE = _WEEKLY_STALE_MAX_AGE
+_ECON_FULL_STALE = ServeStale("calendar_econ_full", max_age_seconds=_ECON_FULL_STALE_MAX_AGE,
+                              max_keys=16)
+
+
 def _full_econ_cached(week_start: str, week_end: str) -> dict:
     """Full-impact econ for the week (ALL impacts + ACTUAL prints), for the widget's
-    star filter. FMP is primary — it carries actuals + all impacts and covers any week;
+    star filter. Fresh TTL cache, else the last good payload (refreshed in the
+    background), else a synchronous single-flight build."""
+    ck = f"econ_full::{week_start}"
+    return _ECON_FULL_STALE.serve(
+        week_start,
+        fresh=lambda: cache.get(ck) or None,
+        build=lambda: _build_full_econ(week_start, week_end),
+        good=bool,
+    ) or {}
+
+
+def _build_full_econ(week_start: str, week_end: str) -> dict:
+    """FMP is primary — it carries actuals + all impacts and covers any week;
     ForexFactory include_low is a no-actuals fallback. EMPTY results are NOT cached, so a
     transient provider hiccup can't 'stick' the widget on the curated set for 10 min."""
     ck = f"econ_full::{week_start}"
-    cached = cache.get(ck)
-    if cached:
-        return cached
     data = {}
     try:
         from api.services import econ_calendar_fmp
@@ -2174,6 +2220,65 @@ def _get_calendar_payload(week: str | None = None):
         build=_build_current_week,
         good=_weekly_payload_is_good,
     )
+
+
+# Perf wave 2 (2026-10-08): /api/calendar was 7.2 s cold on prod. The serve-stale slot above only
+# helps while it is <= 30 min old, and nothing refreshed it outside the wire detector's windows
+# (weekday 6-9 / 16 ET + an hourly tick) -- so from :35 to :05 of every off-window hour, and all
+# weekend, the first visitor rebuilt synchronously. This loop asks for the current week every
+# WEEKLY_REWARM_INTERVAL_S, UNDER the stale bound: a lapsed TTL is served from the slot and
+# refreshed in the background (the ordinary serve path), so the slot never ages out and no
+# user builds. Off-window that is ~3 builds an hour instead of ~1 + a user-paid one; inside the
+# detector's windows it adds nothing (the detector already keeps the TTL fresh).
+WEEKLY_REWARM_INTERVAL_S = 20 * 60
+
+
+def rewarm_current_week_once() -> None:
+    """One re-warm tick: the same serve path a request takes (fresh / stale+kick / build)."""
+    _WEEKLY_STALE.serve(
+        "current",
+        fresh=lambda: cache.get("calendar_weekly"),
+        build=_build_current_week,
+        good=_weekly_payload_is_good,
+    )
+
+
+def rewarm_widget_week_once(today: date | None = None) -> None:
+    """Warm what the Calendar WIDGET asks for: `?week=<Monday of the last session
+    day>&full_impact=1` (CalendarWidget.jsx, `mondayOf(lastSessionDay(today))`).
+
+    On a weekday that Monday is the current week, so only the full-impact econ needs
+    warming. On a Saturday or Sunday the calendar's anchor rolls FORWARD to next week
+    while the widget keeps showing the week just finished -- a range-week key the
+    current-week warm never touches -- so the first weekend visitor built it cold."""
+    today = today or _today_et()
+    widget_monday = _monday_of(today)
+    if widget_monday != _current_week_monday(today):
+        _get_or_build_range_week(widget_monday)
+    days = _week_dates_for(widget_monday)
+    _full_econ_cached(days[0].isoformat(), days[-1].isoformat())
+
+
+def start_weekly_rewarm(delay_seconds: float = 120, interval_s: float | None = None) -> threading.Thread:
+    """Daemon loop calling `rewarm_current_week_once` every `interval_s`. Never raises."""
+    every = float(interval_s or WEEKLY_REWARM_INTERVAL_S)
+
+    def _loop():
+        time.sleep(delay_seconds)
+        while True:
+            try:
+                rewarm_current_week_once()
+            except Exception:
+                logging.getLogger(__name__).exception("[calendar-weekly-rewarm] failed")
+            try:
+                rewarm_widget_week_once()
+            except Exception:
+                logging.getLogger(__name__).exception("[calendar-widget-rewarm] failed")
+            time.sleep(every)
+
+    t = threading.Thread(target=_loop, daemon=True, name="calendar-weekly-rewarm")
+    t.start()
+    return t
 
 
 def _build_current_week() -> dict:

@@ -53,6 +53,7 @@ export const SEARCH_DECLINE = Object.freeze({
   IDENTITY: 'identity',  // served a product for a different ticker/source/version
   SCHEMA: 'schema',      // server product shape moved ahead of this client
   ERROR: 'error',
+  WINDOWED: 'windowed',  // a recent-window product the caller did not ask to label
 })
 
 /**
@@ -73,8 +74,25 @@ export const SEARCH_PRODUCT_SCHEMA = 1
  * immediate 503 and the tape starts now, while the server warms the entry in
  * the background so the NEXT search for that ticker is a ~300 ms hit.
  */
-export function searchProductUrl(sym, source) {
-  return `/api/flow/ticker-product/${encodeURIComponent(sym)}?source=${source}&warm_only=1`
+export function searchProductUrl(sym, source, { recent = false } = {}) {
+  return `/api/flow/ticker-product/${encodeURIComponent(sym)}?source=${source}&warm_only=1${recent ? '&recent=1' : ''}`
+}
+
+/**
+ * Wave 5: a head ticker (NVDA, SPY, QQQ) whose full history is over the server's derivation
+ * budget can be served as a RECENT WINDOW: the page's own derivation over the newest sessions
+ * that fit (`X-Flow-Window: recent`). It is a different answer from the full history (the
+ * direction of a print can depend on rows outside the window), so a caller gets one ONLY by
+ * asking with `acceptRecent`, and must then show `recentWindowLabel(window)` beside it.
+ * Without `acceptRecent` the server never sends one, and this module refuses one anyway.
+ */
+export function recentWindowLabel(w) {
+  if (!w) return ''
+  const n = Number.isFinite(w.sessions) ? w.sessions : null
+  const of = Number.isFinite(w.sessionsTotal) && w.sessionsTotal > (n || 0) ? ` of ${w.sessionsTotal}` : ''
+  const span = w.first && w.last ? (w.first === w.last ? ` (${w.first})` : ` (${w.first} – ${w.last})`) : ''
+  const head = n ? `Showing the most recent ${n}${of} session${n === 1 && !of ? '' : 's'}${span}.` : 'Showing the most recent sessions only.'
+  return `${head} The full history for this ticker is too large to work out here, so older prints are not counted.`
 }
 
 /**
@@ -109,7 +127,8 @@ export async function fetchSearchProduct(sym, source, opts = {}) {
   const timer = setTimeout(() => { timedOut = true; if (ctl) ctl.abort() }, deadlineMs)
 
   try {
-    const res = await doFetch(searchProductUrl(symbol, src), {
+    const acceptRecent = Boolean(opts.acceptRecent)
+    const res = await doFetch(searchProductUrl(symbol, src, { recent: acceptRecent }), {
       cache: 'no-store',
       ...(ctl ? { signal: ctl.signal } : {}),
     })
@@ -150,6 +169,25 @@ export async function fetchSearchProduct(sym, source, opts = {}) {
     const stamped = stampSearchProduct(body.product, served)
     if (!searchProductUsable(stamped, { sym: symbol, source: src, version: served.version })) {
       return { ok: false, reason: SEARCH_DECLINE.IDENTITY }
+    }
+    const windowHeader = res.headers && typeof res.headers.get === 'function'
+      ? res.headers.get('X-Flow-Window')
+      : null
+    if (windowHeader) {
+      if (!acceptRecent) return { ok: false, reason: SEARCH_DECLINE.WINDOWED }
+      const dates = Array.isArray(body.window_dates) ? body.window_dates : []
+      const asOf = res.headers.get('X-Flow-Basis-As-Of')
+      return {
+        ok: true, product: stamped, version: served.version,
+        window: {
+          kind: String(windowHeader),
+          sessions: dates.length || null,
+          sessionsTotal: Number.isFinite(body.sessions_total) ? body.sessions_total : null,
+          first: dates[0] || null,
+          last: dates[dates.length - 1] || null,
+          asOf: asOf ? Number(asOf) : null,
+        },
+      }
     }
     return { ok: true, product: stamped, version: served.version }
   } catch {

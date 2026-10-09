@@ -381,6 +381,12 @@ def token() -> str:
         exch = _ea.token()
     except Exception:
         exch = ":exch-error" if (os.environ.get("BREADTH_AUTHORITY_EXCH") or "").strip().lower() == "v1" else ""
+    # ⭐ The intraday new-highs/lows series rides the token too: '' while it is not served.
+    try:
+        from api.services import breadth_nhnl_intraday as _nhi
+        exch += _nhi.token()
+    except Exception:
+        pass
     if not uct_v2 and not us_v2:
         return "v1" + exch
     f = _FROZEN.get("stat")
@@ -467,6 +473,12 @@ def v2_rows(date: str) -> dict:
     if out and ("ratio_5day" not in out or "ratio_10day" not in out):
         for m, v in (_filled_ratios().get(date) or {}).items():
             out.setdefault(m, (v, v, v, v, RATIO_FILL_SOURCE))
+    # ⭐ (2026-10-09) New highs / lows on the INTRADAY basis when it is served (breadth_nhnl_intraday).
+    try:
+        from api.services import breadth_nhnl_intraday as _nhi
+        out = _nhi.override_v2_rows("uct", date, out)
+    except Exception:
+        pass
     return out
 
 

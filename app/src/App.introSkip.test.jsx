@@ -23,7 +23,7 @@ beforeEach(() => {
   // an anonymous visitor); everything else an empty 200 so each public page
   // settles into its "gone" state without an unhandled rejection.
   vi.stubGlobal('fetch', vi.fn((url) => (String(url).includes('/api/auth/me') ? json({}, 401) : json({}))))
-  // IntroAnimation plays once per browser SESSION (introStorage.js) — clear it
+  // IntroAnimation plays once per ET day per browser (introStorage.js) — clear it
   // so an earlier test in this file can't suppress a later one.
   sessionStorage.clear()
   localStorage.clear()

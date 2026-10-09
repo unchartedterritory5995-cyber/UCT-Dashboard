@@ -49,7 +49,7 @@
 import { orderCategories } from './technicalCategories'
 import { Fragment, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
-  readEnabled, indTarget, signTarget, styleInputKeys,
+  readEnabled, indTarget, signTarget, styleInputKeys, hiddenPlotOnlyInputKeys,
 } from './indicatorRegistry'
 // ⭐ THE BREAKPOINT HOOK THE APP ALREADY HAS. The narrow layout is a second
 // VIEW of one state, not a second component, and it needs exactly one bit:
@@ -1944,8 +1944,12 @@ export default function ChartSettingsIndicators({
     // renders exactly when `resolveSignColors` answers, and this hides exactly
     // then — one predicate, so the pair and the singleton can never both appear.
     const signedNow = signHidesColor(row)
+    // ⭐ BATCH 2 — a style input only an undrawn (`hidden: true`) plot reads is a box
+    // with no effect (a colour rule's index column): not offered (`hiddenPlotOnlyInputKeys`).
+    const inertStyle = def ? hiddenPlotOnlyInputKeys(def) : null
     const shown = (row.fields || []).filter((f) => !(f.showIf && !f.showIf(row.values)))
       .filter((f) => !(signedNow && f.type === 'color'))
+      .filter((f) => !(inertStyle && inertStyle.has(f.key)))
 
     // ⚰️⚰️ AN INERT FIELD IS NEVER A CORE FIELD, and that is what finally made
     // the two moving averages read as one product. CORE answers *what does this
@@ -2699,7 +2703,8 @@ export default function ChartSettingsIndicators({
       allowedStyles: srcCap ? srcCap.allowedStyles : null,
     }
     const plots = Array.isArray(def.plots) ? def.plots : []
-    const restyleable = plots.filter((pl) => availableStyles(pl, styleCtx).length > 0)
+    // ⭐ BATCH 2 — a `hidden: true` plot is never drawn, so it has no style to pick.
+    const restyleable = plots.filter((pl) => pl && pl.hidden !== true && availableStyles(pl, styleCtx).length > 0)
     if (!restyleable.length) return null
 
     // ⭐ ONE OUTPUT ⇒ NO OUTPUT NAME. Printing "Value" above a single control,

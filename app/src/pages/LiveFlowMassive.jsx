@@ -1823,7 +1823,11 @@ function Header({ status, loadPending, warming, workerLive,
             : (workerLive ? "● WORKER LIVE" : "○ WORKER IDLE")}
         </span>
         {!loadPending && warming && (
-          <span style={{ color: P.dm, fontSize: 11 }}>syncing…</span>
+          <span style={{ color: P.dm, fontSize: 11 }} data-testid="lfm-warming-note">
+            {status?.restored_from_disk && status?.snapshot_saved_at
+              ? `showing the tape saved at ${new Date(status.snapshot_saved_at).toLocaleTimeString()} while the live feed warms up`
+              : "syncing…"}
+          </span>
         )}
         {!loadPending && lastEvent && (
           <span style={{ color: P.dm, fontSize: 11 }}>
@@ -3798,6 +3802,14 @@ export default function LiveFlowMassive() {
           setWarming(true);
           if (d.status) setStatus(d.status);
           setError(null);
+          // L11: a warming answer can carry the last saved tape (the worker's
+          // last-good snapshot, or one restored from disk after a restart).
+          // Show it, labelled, rather than 0 alerts; an empty stub still keeps
+          // whatever is already on screen.
+          if (Array.isArray(d.alerts) && d.alerts.length > 0) {
+            setAlerts(applyOiEnrichment(d.alerts));
+            setDataArrived(true);
+          }
           return;  // finally-block reschedules the poll
         }
         setWarming(false);

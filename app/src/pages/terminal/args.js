@@ -12,6 +12,7 @@
 import { todayIso } from '../calendar/earningsModalRow'
 import { currentWeekMonday, mondayOf } from '../calendar/weekAnchor'
 import { canonicalCode, isCode } from './functions'
+import { parseAlertPrice } from './alertModel'
 
 /** The chart's timeframe codes (StockChart `tf`), with the spellings a member types. */
 export const TIMEFRAMES = {
@@ -73,6 +74,28 @@ export const ARG_KINDS = {
       return null
     },
     describe: (v) => (v.d ? `day ${v.d}` : `week of ${v.week}`),
+  },
+  /** One past session, Eastern time (CATH's day, wave 4 lane A): `2026-10-01`, or `10/01` / `10/1`
+   *  for the most recent such day — this year's, or last year's when this year's is still ahead.
+   *  A day after today (ET) has no catalyst list yet, so it is not taken. */
+  etDate: {
+    takes: 'a date (YYYY-MM-DD or MM/DD, Eastern time)',
+    parse: (tok, ctx = {}) => {
+      const t = String(tok ?? '').trim()
+      const today = ctx.today || todayIso()
+      const p = (n) => String(n).padStart(2, '0')
+      let iso = null
+      if (/^\d{4}-\d{2}-\d{2}$/.test(t)) iso = t
+      else {
+        const m = t.match(/^(\d{1,2})\/(\d{1,2})$/)
+        if (!m) return null
+        const year = Number(today.slice(0, 4))
+        iso = `${year}-${p(m[1])}-${p(m[2])}`
+        if (iso > today) iso = `${year - 1}-${p(m[1])}-${p(m[2])}`
+      }
+      return isRealIsoDate(iso) && iso <= today ? iso : null
+    },
+    describe: (v) => `day ${v}`,
   },
   code: {
     takes: 'a function code (HELP GP)',
@@ -140,10 +163,44 @@ export const ARG_KINDS = {
     },
     describe: (v) => `theme "${v}"`,
   },
+  // ── my names (lane 9: ALRT and MON) ──
+  /** ALRT's price: `950`, `$950`, `>950` (above) or `<950` (below). The SHELL sets the alert from
+   *  a typed command (alertCommand.js); the panel only lists. Same parser, one spelling. */
+  alertPrice: {
+    takes: 'a price (NVDA ALRT 950, or >950 / <950 to say above or below)',
+    parse: (tok) => {
+      const p = parseAlertPrice(tok)
+      return p ? `${p.direction === 'above' ? '>' : p.direction === 'below' ? '<' : ''}${p.price}` : null
+    },
+    describe: (v) => `price ${v}`,
+  },
+  /** MON's list: its number in the panel's own list order (`MON 2`), a watchlist address
+   *  (`MON W:ab12`) or FLAGGED. The panel resolves it against the lists it reads. */
+  watchlistPick: {
+    takes: 'a list number (MON 2), W:id or FLAGGED',
+    parse: (tok) => {
+      const t = String(tok ?? '').trim()
+      if (/^\d{1,2}$/.test(t) && Number(t) >= 1) return String(Number(t))
+      if (/^W:[A-Za-z0-9_-]{1,40}$/i.test(t)) return `W:${t.slice(2)}`
+      if (/^FLAG(GED|S)?$/i.test(t)) return 'FLAGGED'
+      return null
+    },
+    describe: (v) => (v === 'FLAGGED' ? 'your flagged list' : v.startsWith('W:') ? `watchlist ${v}` : `list ${v}`),
+  },
+  /** "Mine" (wave 3 #6): only the member's own names — the calendar's My Stocks set
+   *  (hooks/useMyTickers). `CAL MINE`, `MOST UP MINE`, `NVDA CN MINE`, `FREC MINE`. The chip a
+   *  panel draws writes this word back into its command, so a reload keeps the filter. */
+  mine: {
+    takes: 'MINE (only your names)',
+    parse: (tok) => (String(tok ?? '').trim().toUpperCase() === MINE_MARKER ? true : null),
+    describe: () => 'only your names',
+  },
 }
 
 /** The word IMOV writes before a hand-picked theme (see `themeName`). */
 export const THEME_MARKER = 'THEME'
+/** The word that filters a panel to the member's own names (see `mine`). */
+export const MINE_MARKER = 'MINE'
 
 /**
  * Pure: what a variant does with the tokens typed after its code.

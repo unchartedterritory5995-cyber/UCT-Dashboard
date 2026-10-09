@@ -328,6 +328,19 @@ const BARE_POLL_SITES = {
   //     while its `useMarketOpen` 60s interval would run per call site for a hook
   //     that exists only while a >120-row list is open.
   'app/src/hooks/useBulkQuotes.js': 1,
+  // ⭐ A POST-CENSUS ROW (040ef3668, corroborated first_trade_date), and the same
+  // shape as `EvidenceTab.jsx` above: a SELF-TERMINATING resolve poll, not a
+  // steady-state tick. `/api/ticker-ipo` answers a cache miss at once with
+  // `first_trade_final: false` while it resolves in the background; the hook asks
+  // again every 65 s ONLY while that flag is false and returns 0 the moment the
+  // final answer lands (a warm/final ticker never polls at all).
+  //   • `useMobileSWR` doubling it would just delay the chart's corrected listing
+  //     statement on a phone — no saving on a poll that lives one or two ticks;
+  //   • the wrapper's `useMarketOpen` 60 s timer is unrelated to an immutable
+  //     listing date, and the call site already sets `revalidateOnFocus: false`;
+  //   • measured, not assumed: `useTickerIpo.test.jsx` "asks again while non-final
+  //     and stops once final" proves both the re-ask and the stop.
+  'app/src/hooks/useTickerIpo.js': 1,
   // ⚠️ 1 → 2 ON 2026-09-20, and it is the SAME decision this row already recorded,
   // not a new one. The hook grew a second branch: a list longer than
   // `snapshot-batch`'s 100-ticker cap reads `/api/watchlists/bulk-meta` instead —
@@ -383,9 +396,10 @@ const BARE_POLL_SITES = {
   'app/src/pages/journal-2-0/hooks/useJ2CommunityTrades.js': 1,
   'app/src/pages/journal-2-0/hooks/useJ2CurrentRegime.js': 1,
   'app/src/pages/journal-2-0/hooks/useJ2DisciplineState.js': 1,
-  // COV-04 Filing changes (2026-10-01): a JOB-STATUS poll, not a background
-  // tick: 5s only while the server says `pending` (an SEC fetch queued), 0 after.
-  'app/src/pages/research/tabs/FilingChangesTab.jsx': 1,
+  // ⚰️ COV-04 Filing changes (2026-10-01) stood here as a bare 5 s `pending` poll. It
+  // LEFT the list 2026-10-08: 7fffaa842 moved its re-ask onto the shared, capped
+  // `usePendingReask` (depth/depthFetch.js), so the call site no longer passes a
+  // `refreshInterval` at all — it is not a polling site any more.
   // COV-09 Filings feed (2026-10-02): the request path is CACHE-ONLY (the server's own poll
   // refreshes the market feed every FILINGS_FEED_POLL_MINUTES, default 5), so this tick reads a
   // cache: 5s only while the server says `pending` (a ticker read queued), else 60s. Bare, not

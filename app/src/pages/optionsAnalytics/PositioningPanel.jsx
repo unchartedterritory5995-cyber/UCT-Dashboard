@@ -17,13 +17,28 @@ import { usePanelFreshness, panelAsOf } from '../../components/terminal/terminal
 
 const enc = encodeURIComponent
 
-function Block({ title, testid, children, failed, retry, what }) {
+// Audit 2026-10-08 (POS #20): NOPE, charm and delta pressure had only the server's method text,
+// which is a formula, not an explanation. `about` is a one-line plain-English "what this tells
+// you", shown under the title and named as the section's accessible description.
+const ABOUT = {
+  nope: 'NOPE asks which way today\'s option buying leans, measured against the stock\'s own volume. '
+    + 'Positive means option traders are net bullish (more call delta), negative net bearish; '
+    + 'the bigger the number, the more option flow could push the stock.',
+  delta: 'Delta pressure shows, at each strike and expiry, how much stock dealers would have to hold '
+    + 'to hedge the options customers own. Big cells mark the strikes where hedging can move the price.',
+  charm: 'Charm shows how those hedges shift overnight from time passing alone, even if the price does '
+    + 'not move. Big cells mark where dealers will need to buy or sell stock as expiry nears.',
+}
+
+function Block({ title, testid, children, failed, retry, what, about }) {
+  const aboutId = about ? `${testid}-about` : undefined
   return (
-    <section className={styles.panel} data-testid={testid}>
+    <section className={styles.panel} data-testid={testid} aria-describedby={aboutId}>
       <div className={styles.head}>
         <span className={styles.title}>{title}</span>
         <span className={styles.badge}>computed</span>
       </div>
+      {about && <p className={styles.note} id={aboutId} data-testid={aboutId}>{about}</p>}
       {failed ? <FailedRead retry={retry} title={`${what} is unavailable right now. That is a failed read, not an empty one.`} /> : children}
     </section>
   )
@@ -66,12 +81,12 @@ function Levels({ sym }) {
 // One strike x expiry grid. FT-049's gamma heatmap, and (lane/o-options-remainders) its delta-pressure
 // and charm siblings: each its OWN route and switch (OPTIONS_DELTA_PRESSURE_ENABLED /
 // OPTIONS_CHARM_HEATMAP_ENABLED), same chain, same cell rule (blank = no computable contract, never 0).
-function Heatmap({ sym, path = 'heatmap', title = 'Gamma exposure by strike and expiry', testid = 'posn-heatmap', what = 'The gamma heatmap' }) {
+function Heatmap({ sym, path = 'heatmap', title = 'Gamma exposure by strike and expiry', testid = 'posn-heatmap', what = 'The gamma heatmap', about }) {
   const { data, hidden, failed, retry } = useDarkSection(`/api/options/positioning/${enc(sym)}/${path}?dte=month`)
   if (hidden || (!data && !failed) || (data && !Array.isArray(data.cells))) return null
   const max = data?.max_abs || 1
   return (
-    <Block title={title} testid={testid} failed={failed} retry={retry} what={what}>
+    <Block title={title} testid={testid} failed={failed} retry={retry} what={what} about={about}>
       {data && (
         <>
           <div className={styles.scroll}>
@@ -131,7 +146,7 @@ function Nope({ sym }) {
   const { data, hidden, failed, retry } = useDarkSection(`/api/options/positioning/${enc(sym)}/nope`)
   if (hidden || (!data && !failed) || (data && !('nope' in data))) return null
   return (
-    <Block title="NOPE" testid="posn-nope" failed={failed} retry={retry} what="NOPE">
+    <Block title="NOPE (net options pricing effect)" testid="posn-nope" failed={failed} retry={retry} what="NOPE" about={ABOUT.nope}>
       {data && (
         <>
           <p className={styles.facts}>
@@ -221,8 +236,8 @@ export default function PositioningPanel({ sym, offNotice = false }) {
       {offNotice && <OffNotice urls={positioningUrls(s)} feature="Options positioning" />}
       <Levels sym={s} />
       <Heatmap sym={s} />
-      <Heatmap sym={s} path="delta-heatmap" title="Delta pressure by strike and expiry" testid="posn-delta-heatmap" what="The delta-pressure heatmap" />
-      <Heatmap sym={s} path="charm-heatmap" title="Charm by strike and expiry" testid="posn-charm-heatmap" what="The charm heatmap" />
+      <Heatmap sym={s} path="delta-heatmap" title="Delta pressure by strike and expiry" testid="posn-delta-heatmap" what="The delta-pressure heatmap" about={ABOUT.delta} />
+      <Heatmap sym={s} path="charm-heatmap" title="Charm by strike and expiry" testid="posn-charm-heatmap" what="The charm heatmap" about={ABOUT.charm} />
       <MaxPain sym={s} />
       <Nope sym={s} />
       <Impact sym={s} />

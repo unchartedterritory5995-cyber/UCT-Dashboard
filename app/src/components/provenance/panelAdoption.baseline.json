@@ -48,6 +48,7 @@
     "app/src/components/screener/MethodologyPanel.jsx": "not-a-result-set: renders the screener's methodology prose from /api/screener/methodology; nothing is evaluated, so there is nothing to count",
     "app/src/components/screener/RunNowButton.jsx": "delegates: hands the finished run to its parent via onResult(toScanResultsPayload(run)); app/src/components/screener/ScanResults.jsx renders that run's four counts",
     "app/src/components/screener/StructureProvenance.jsx": "not-a-result-set: renders the structure-library catalogue from /api/screener/structures (criteria and their sources), not symbols a screen matched",
+    "app/src/components/settings/StandingAlertsPanel.jsx": "not-a-result-set: Settings list of the member's standing spec-alert SUBSCRIPTIONS from /api/screener/spec-alerts (what each watches + a suspend action); it shows no symbols a screen matched",
     "app/src/pages/charts/widgets/ListSubscription.jsx": "not-a-result-set: its /api/screener/saved-screens door lists the member's saved screen DEFINITIONS to pick a list source (COV-10); the subscribed members come from /api/charts/list-sources, not an A9 route",
     "app/src/pages/screener/ScreensManager.jsx": "delegates: its own door lists saved screens and screen alerts; the chosen scan's answer is rendered by app/src/components/screener/ScanResults.jsx, which renders its four counts",
     "app/src/pages/screener/shell/PresetChips.jsx": "not-a-result-set: one-click saved-screen presets via useSavedScreens; it applies a spec and lists no results",

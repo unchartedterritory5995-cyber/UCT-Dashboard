@@ -41,8 +41,8 @@ export default function FinancialsDeep({ sym }) {
     return (
       <div className={styles.wrap} data-testid="fa-deep">
         {warming
-          ? <p className={styles.note} data-testid="fa-warming">{WARMING_UP}</p>
-          : <p className={styles.note}>Loading financials…</p>}
+          ? <p className={styles.note} data-testid="fa-warming" role="status">{WARMING_UP}</p>
+          : <p className={styles.note} role="status">Loading financials…</p>}
       </div>
     )
   }
@@ -58,11 +58,13 @@ export default function FinancialsDeep({ sym }) {
   if (!hasFmp) {
     return (
       <div className={styles.wrap} data-testid="fa-deep" data-source="yfinance">
+        {/* Audit 2026-10-08 (FA, point 20): member words, never a library method name or a
+            vendor endpoint path. */}
         <SourceLine vendor="Yahoo Finance" fallback
-                    activity="yfinance quarterly_income_stmt / income_stmt"
+                    activity="Yahoo Finance quarterly and annual income statements"
                     reason={data?.fmp_unavailable
-                      ? 'FMP statement history could not be read right now; showing yfinance (about 5 years / 5 quarters, calendar-quarter labels).'
-                      : 'FMP holds no statement history for this ticker; showing yfinance (about 5 years / 5 quarters, calendar-quarter labels).'} />
+                      ? 'FMP statement history could not be read right now; showing Yahoo Finance (about 5 years / 5 quarters, calendar-quarter labels).'
+                      : 'FMP holds no statement history for this ticker; showing Yahoo Finance (about 5 years / 5 quarters, calendar-quarter labels).'} />
         <FinancialsTab sym={s} />
       </div>
     )
@@ -71,7 +73,7 @@ export default function FinancialsDeep({ sym }) {
   return (
     <div className={styles.wrap} data-testid="fa-deep" data-source="fmp">
       <SourceLine vendor="FMP"
-                  activity={(src.endpoints || []).join(' · ') || 'FMP statements'}
+                  activity="FMP quarterly and annual financial statements"
                   fetchedAt={src.fetched_at}
                   detail="Fiscal periods · ratios derived from these statements" />
       <StatementTables sym={s} />

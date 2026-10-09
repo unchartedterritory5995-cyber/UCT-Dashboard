@@ -28,3 +28,32 @@ describe('CATH states', () => {
     expect(await screen.findByText('1 row')).toBeInTheDocument()
   })
 })
+
+// Audit 2026-10-08 (lane A): opened on a weekend, CATH showed an empty day.
+describe('CATH default date', () => {
+  afterEach(() => { vi.useRealTimers() })
+  it('on a Saturday opens on Friday\'s session, not an empty day', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-10T16:00:00Z'))   // Saturday, noon ET
+    const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, status: 200, json: async () => ({ rows: [] }) })
+    wrap()
+    await screen.findByText(/No catalysts recorded/)
+    expect(spy.mock.calls[0][0]).toBe('/api/catalysts/by-date/2026-10-09')
+  })
+  it('on a trading day opens on today', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-08T16:00:00Z'))   // Thursday, noon ET
+    const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, status: 200, json: async () => ({ rows: [] }) })
+    wrap()
+    await screen.findByText(/No catalysts recorded/)
+    expect(spy.mock.calls[0][0]).toBe('/api/catalysts/by-date/2026-10-08')
+  })
+  it('a row with no move on file is not painted as a gain', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, status: 200, json: async () => ({ rows: [{ ticker: 'XP', tag: 'Catalyst', thesis_text: 'Beat.', thesis_status: 'ok', gap_pct: null, price: 28 }] }) })
+    const { container } = wrap()
+    await screen.findByText('Beat.')
+    const cell = container.querySelectorAll('tbody td')[2]   // Sym, Price, % Change
+    expect(cell.textContent).toBe('—')
+    expect(cell.className).not.toMatch(/gain/)
+  })
+})

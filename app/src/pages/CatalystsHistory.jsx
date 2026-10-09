@@ -10,14 +10,15 @@ import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import HighlightThesis, { FAILED_SYNTHESIS_NOTE, hasNoWriteup } from '../utils/highlightThesis'
 import { formatET } from '../utils/timeAgo'
-import TickerPopup from '../components/TickerPopup'
+import PanelTicker from '../components/terminal/PanelTicker'
 import UIcon from '../components/ui/UIcon'
 import Input from '../components/ui/Input'
-import { BoardFromList, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../components/terminal'
+import { BoardFromList, PanelSkeleton, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../components/terminal'
 import { formatPercent, formatCurrency, formatNumber } from '../lib/presentation/presentationPrimitives'
 import styles from './CatalystsHistory.module.css'
 import { CATALYST_TAGS, keyedBy } from '../lib/taxonomy/a8Taxonomy'
 import jsonFetcher from '../utils/jsonFetcher'
+import { expectedLatestDailySessionET, isTradingSessionTodayET } from '../utils/marketSession'
 
 // Throws on failure (jsonFetcher). The old `r.ok ? r.json() : { rows: [] }` rendered a failed
 // read as "No catalysts recorded for this date" (quality pass 2026-10-05).
@@ -36,6 +37,12 @@ function ymdNDaysAgo(n) {
   const base = new Date(Date.UTC(y, m - 1, d))
   base.setUTCDate(base.getUTCDate() - n)
   return `${base.getUTCFullYear()}-${String(base.getUTCMonth() + 1).padStart(2, '0')}-${String(base.getUTCDate()).padStart(2, '0')}`
+}
+
+// The date CATH opens on: today on a trading day, else the last session (audit 2026-10-08: on a
+// weekend or a market holiday it opened on an empty day and told the member weekends may be empty).
+export function defaultCatalystDate() {
+  return isTradingSessionTodayET() ? ymdNDaysAgo(0) : expectedLatestDailySessionET()
 }
 
 // Shared formatter; "+" only above zero (a flat 0.00% reads unsigned), em dash when absent.
@@ -71,9 +78,14 @@ function parseSources(raw) {
   }
 }
 
-export default function CatalystsHistory() {
+/** A `YYYY-MM-DD` the page can open on (the terminal's `CATH 2026-10-01`), else null. */
+function openingDate(d) {
+  return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null
+}
+
+export default function CatalystsHistory({ date: askedDate } = {}) {
   const inPanel = useInTerminalPanel()
-  const [date, setDate] = useState(ymdNDaysAgo(0))
+  const [date, setDate] = useState(() => openingDate(askedDate) || defaultCatalystDate())
   const { data, error, isLoading, mutate } = useSWR(
     date ? `/api/catalysts/by-date/${date}` : null,
     fetcher,
@@ -133,7 +145,10 @@ export default function CatalystsHistory() {
       <div className={styles.tile}>
         <div className={styles.tileHeader}>
           <span className={styles.tileTitle}><UIcon name="patterns" size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Top Catalysts · {date || 'pick a date'}</span>
-          <span className={styles.tileMeta}>{rows.length} {rows.length === 1 ? 'row' : 'rows'}</span>
+          {/* Audit wave 2: no "0 rows" while the day is still loading or could not be read. */}
+          {date && !isLoading && !(error && !data) && (
+            <span className={styles.tileMeta} data-testid="cath-count">{rows.length} {rows.length === 1 ? 'row' : 'rows'}</span>
+          )}
           <BoardFromList syms={daySyms} label={`CATH ${date}`} testId="cath-board" />
         </div>
 
@@ -143,14 +158,16 @@ export default function CatalystsHistory() {
           <div className={styles.empty} data-testid="cath-error">
             Catalysts for {date} could not be read right now. That is a gap in what we could read,
             not a finding that the day was quiet.{' '}
-            <button type="button" onClick={() => mutate()}>Retry</button>
+            <button type="button" className={styles.quickBtn} onClick={() => mutate()}>Retry</button>
           </div>
         ) : isLoading ? (
-          <div className={styles.empty}>Loading catalysts for {date}…</div>
+          inPanel
+            ? <PanelSkeleton label={`Loading catalysts for ${date}`} testId="cath-loading" />
+            : <div className={styles.empty} data-testid="cath-loading">Loading catalysts for {date}…</div>
         ) : rows.length === 0 ? (
           <div className={styles.empty}>
-            No catalysts recorded for this date. The engine started persisting on 2026-05-25;
-            earlier dates won't have data. Weekends + holidays may also be empty.
+            No catalysts recorded for this date. Catalyst history begins on May 25, 2026, so
+            earlier dates have none; weekends and market holidays have none either.
           </div>
         ) : (
           <div className={styles.tableWrap}>
@@ -160,7 +177,7 @@ export default function CatalystsHistory() {
                   <th scope="col" className={styles.colSym}>Sym</th>
                   <th scope="col" className={styles.colPrice}>Price</th>
                   <th scope="col" className={styles.colGap}>% Change</th>
-                  <th scope="col" className={styles.colVol}>Vol×</th>
+                  <th scope="col" className={styles.colVol}><abbr title="Volume that day as a multiple of its average daily volume">Rel. vol</abbr></th>
                   <th scope="col" className={styles.colTag}>Tag</th>
                   <th scope="col" className={styles.colThesis}>Catalyst</th>
                   <th scope="col" className={styles.colWhen}>Catalyst Time</th>
@@ -172,12 +189,13 @@ export default function CatalystsHistory() {
                   return (
                     <tr key={r.ticker}>
                       <td className={styles.colSym}>
-                        <TickerPopup sym={r.ticker}>
+                        <PanelTicker sym={r.ticker}>
                           <span className={styles.ticker}>{r.ticker}</span>
-                        </TickerPopup>
+                        </PanelTicker>
                       </td>
                       <td className={styles.colPrice}>{fmtPrice(r.price)}</td>
-                      <td className={`${styles.colGap} ${(r.gap_pct ?? 0) >= 0 ? styles.gain : styles.loss}`}>
+                      {/* No move (or none on file) is not painted as a gain. */}
+                      <td className={`${styles.colGap} ${r.gap_pct > 0 ? styles.gain : r.gap_pct < 0 ? styles.loss : ''}`}>
                         {fmtPct(r.gap_pct)}
                       </td>
                       <td className={styles.colVol}>
@@ -190,7 +208,7 @@ export default function CatalystsHistory() {
                           : <HighlightThesis text={r.thesis_text} />}
                         {sources.length > 0 && (
                           <span className={styles.sourceCount} title={`${sources.length} cited sources`}>
-                            · {sources.length} src
+                            · {sources.length} {sources.length === 1 ? 'source' : 'sources'}
                           </span>
                         )}
                       </td>

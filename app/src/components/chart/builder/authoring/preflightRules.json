@@ -229,6 +229,17 @@
     "unsupported:other-timeframe": "This asks for the {wanted} timeframe, which is finer than this {chart} chart. An indicator can read the chart's own bars or a higher timeframe, never finer bars than the chart's.",
     "unsupported:other-timeframe:ladder": "This asks for the {wanted} timeframe, which UCT can't calculate an indicator on. Higher timeframes it can use: 5, 15, 30 and 60 minutes, daily, weekly and monthly."
   },
+  "chartFunctionWords": {
+    "description": "BATCH 2 - the chart conversation door's member words for the formula functions (callExpansions.js / call_expansions.py). Read by api/services/definition_conversation.py (CHART_LEXICON): each phrase becomes an ordinary planner TERM naming that function, its bucket replacing whatever the shared concept vocabulary holds for the same words - so 'momentum', which the vocabulary refuses for SCREENS (no published threshold), no longer excises a chart clause. The shared vocabulary and the screener's planner are unchanged.",
+    "words": [
+      ["momentum", "mom"],
+      ["linear regression", "linreg"], ["linreg", "linreg"],
+      ["correlation", "correlation"], ["correlation coefficient", "correlation"],
+      ["rate of change", "roc"], ["roc", "roc"],
+      ["vwma", "vwma"], ["volume weighted moving average", "vwma"],
+      ["keltner channel", "kcUpper"], ["keltner channels", "kcUpper"], ["keltner", "kcUpper"]
+    ]
+  },
   "questionShape": {
     "description": "P3 - ONE deterministic question/advisory detector, shared by the pre-flight (a QUESTION is never intercepted) and the server's /converse routing (a question may name things UCT cannot build: the model may DISCUSS them). Per clause (split at sentence punctuation), after a discourse prefix: an AUTHORING request anywhere (an imperative edit verb, a polite 'can you add', 'I want', 'let's') makes the whole message authoring; otherwise a trailing '?' or an interrogative / advisory opener makes it a question. 'compare' as an opener is ADVISORY (the server's routing) but not a QUESTION (the pre-flight still refuses 'compare AAPL to SPY').",
     "clauseSplit": "(?<=[.!?;])\\s+|\\n+",

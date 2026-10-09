@@ -5,7 +5,7 @@ import {
   boardAddress, channelSyms, closePanel, decodePopout, decodeShare, deleteBoard, duplicatePanel, encodeShare,
   findBoard, groupLetter, isGuardedStatus, migrateV1, normalizeLayout, openBoard, panelBeside, panelSym, popoutHref, presetFor,
   readLayout, readLibrary, recentBoards, markOpened, saveBoard, serializeLayout, setCount, setPanelChannel,
-  setPreset, toggleFavorite, undoClose, emptyLibrary,
+  setPreset, toggleFavorite, undoClose, emptyLibrary, defaultLayout, presetsOfBoard, restoreBoard,
 } from './boardModel'
 
 const V1 = { v: 1, count: 4, focus: 1, panels: [
@@ -290,5 +290,35 @@ describe('panelBeside: an "open X" link in a list panel lands beside the list', 
     const l = board(MAX_VISIBLE, ['GP', 'FA', 'DES', 'RRG'])
     expect(panelBeside(l, 1, 'MOVE')).toMatchObject({ index: 2, added: false })
     expect(panelBeside(l, MAX_VISIBLE - 1, 'GP')).toMatchObject({ index: 0, added: false })
+  })
+})
+
+describe('restoreBoard (Undo on a deleted board, lane C audit 2026-10-08)', () => {
+  const make = () => {
+    let lib = emptyLibrary()
+    lib = saveBoard(lib, 'One', defaultLayout(), {}, 1000).library
+    lib = saveBoard(lib, 'Two', defaultLayout(), {}, 2000).library
+    lib = saveBoard(lib, 'Three', defaultLayout(), {}, 3000).library
+    return { ...lib, presets: { NVDA: lib.boards[1].id, '*': lib.boards[0].id } }
+  }
+  it('puts the board back at its old place with the presets that opened it', () => {
+    const lib = make()
+    const two = lib.boards[1]
+    const gone = deleteBoard(lib, two.id)
+    expect(gone.presets.NVDA).toBeUndefined()
+    const res = restoreBoard(gone, two, presetsOfBoard(lib, two.id), 1)
+    expect(res.ok).toBe(true)
+    expect(res.library.boards.map((b) => b.name)).toEqual(['One', 'Two', 'Three'])
+    expect(res.library.presets.NVDA).toBe(two.id)
+    expect(res.library.presets['*']).toBe(lib.boards[0].id)
+  })
+  it('keeps what changed since the delete, and refuses a board that is back already', () => {
+    const lib = make()
+    const two = lib.boards[1]
+    let gone = deleteBoard(lib, two.id)
+    gone = { ...gone, presets: { ...gone.presets, NVDA: lib.boards[2].id } }   // re-pointed since
+    const res = restoreBoard(gone, two, presetsOfBoard(lib, two.id), 1)
+    expect(res.library.presets.NVDA).toBe(lib.boards[2].id)
+    expect(restoreBoard(res.library, two, {}, 1)).toMatchObject({ ok: false, reason: 'exists' })
   })
 })

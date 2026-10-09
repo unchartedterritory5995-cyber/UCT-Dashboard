@@ -108,7 +108,9 @@ def surface_mesh(sym: str) -> dict:
     z = [[(c["iv"] if c else None) for c in r["cells"]] for r in rows]
     filled = sum(1 for r in z for v in r if v is not None)
     return {"symbol": sym, "label": "vendor", "iv_source_text": s.get("iv_source_text"),
-            "basis": s.get("basis"), "spot": s.get("spot"), "side_rule": grid.get("side_rule"),
+            "basis": s.get("basis"), "spot": s.get("spot"),
+            # printed between two sentences on the mesh panel, so it is a sentence of its own
+            "side_rule": f"Each point is the {grid['side_rule']}." if grid.get("side_rule") else None,
             "expirations": [{"expiration": x, "dte": dte.get(x)} for x in exps],
             "strikes": [r["strike"] for r in rows], "z": z,
             "cells_filled": filled, "cells_total": len(rows) * len(exps),

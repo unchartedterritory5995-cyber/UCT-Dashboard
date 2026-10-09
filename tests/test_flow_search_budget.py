@@ -42,10 +42,14 @@ def _isolate(monkeypatch):
     with fr._SEARCH_WARMING_LOCK:
         fr._SEARCH_WARMING.clear()
         fr._WARM_FAILED_UNTIL.clear()
+    with fr._TOO_BIG_LOCK:
+        fr._TOO_BIG_UNTIL.clear()
     yield
     with fr._SEARCH_WARMING_LOCK:
         fr._SEARCH_WARMING.clear()
         fr._WARM_FAILED_UNTIL.clear()
+    with fr._TOO_BIG_LOCK:
+        fr._TOO_BIG_UNTIL.clear()
 
 
 class _FakeDB:
@@ -83,7 +87,7 @@ def test_a_ticker_over_the_BYTE_budget_declines_without_spawning_node(client, mo
 
 
 def test_a_ticker_over_the_TIME_budget_declines(client, monkeypatch):
-    monkeypatch.setattr(fr, "_SEARCH_CSV_DEADLINE_S", 0.0)   # everything overruns
+    monkeypatch.setattr(fr, "_SEARCH_CSV_DEADLINE_S", -1.0)  # everything overruns (0.0 lost to the Windows clock tick)
     monkeypatch.setattr(fr, "db", _FakeDB([b"row\n", b"row\n"]))
     _no_subprocess(monkeypatch)
 
@@ -140,3 +144,44 @@ def test_an_over_budget_WARM_puts_the_ticker_in_cooldown(monkeypatch):
 
     assert "MU" in fr.search_warm_state()["cooling_off"]
     assert fr._spawn_search_warm("MU", "stocks", ("MU", "stocks", "1.0"), "1.0") is False
+
+
+def test_a_KNOWN_too_big_ticker_answers_at_once_without_rereading(client, monkeypatch):
+    """Wave-2 audit 2026-10-08: every request for a head ticker re-ran the whole bounded
+    materialisation on a build lane to reach the same "too big" 503. The verdict is now
+    remembered per (symbol, partition, variant), so the repeat answers without the lane."""
+    monkeypatch.setattr(fr, "_SEARCH_CSV_MAX_BYTES", 1024)
+    fake = _FakeDB([b"x" * 512] * 20)
+    monkeypatch.setattr(fr, "db", fake)
+    _no_subprocess(monkeypatch)
+
+    r1 = client.get("/api/flow/ticker-product/NVDA?source=stocks")
+    assert r1.status_code == 503 and "budget" in r1.json()["error"]
+    streamed = fake.streamed
+    assert streamed > 0
+
+    acquired = []
+    real_acquire = fr._SEARCH_BUILD_LOCK.acquire
+    monkeypatch.setattr(fr._SEARCH_BUILD_LOCK, "acquire",
+                        lambda blocking=False: acquired.append(1) or real_acquire(blocking))
+    r2 = client.get("/api/flow/ticker-product/NVDA?source=stocks")
+    assert r2.status_code == 503 and r2.json()["error"] == r1.json()["error"]
+    assert fake.streamed == streamed, "the repeat re-read the ticker's history"
+    assert acquired == [], "the repeat took a build lane"
+
+    # The memory is per partition: the ETF/index partition of the same name is not refused.
+    r3 = client.get("/api/flow/ticker-product/NVDA?source=indexes")
+    assert r3.status_code == 503 and fake.streamed > streamed
+
+
+def test_CONTROL_the_too_big_memory_expires(client, monkeypatch):
+    monkeypatch.setattr(fr, "_SEARCH_CSV_MAX_BYTES", 1024)
+    monkeypatch.setattr(fr, "_TOO_BIG_TTL_S", 0.0)
+    fake = _FakeDB([b"x" * 512] * 20)
+    monkeypatch.setattr(fr, "db", fake)
+    _no_subprocess(monkeypatch)
+    client.get("/api/flow/ticker-product/MU?source=stocks")
+    first = fake.streamed
+    client.get("/api/flow/ticker-product/MU?source=stocks")
+    assert fake.streamed > first, "an expired verdict must let the build try again"
+

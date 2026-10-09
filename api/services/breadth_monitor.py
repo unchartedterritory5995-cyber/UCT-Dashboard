@@ -576,7 +576,9 @@ def _history_uncached(days: int, end: Optional[str], anchor: str, ck: str) -> li
     # Need oldest-first to compute rolling windows, then reverse back
     result_asc = list(reversed(result))
     _apply_authority(result_asc)
+    _apply_nhnl(result_asc, "counts")
     _derive_ascending(result_asc, adv_decline_seed)
+    _apply_nhnl(result_asc, "derived")
 
     # Return newest-first, dropping the warm-up rows off the OLD end. They were
     # fetched to be looked back at, not to be served.
@@ -651,6 +653,25 @@ def _apply_authority(result_asc: list) -> None:
             ba.overlay_monitor_rows(result_asc, _collector_tail())
     except Exception as e:
         print(f"[breadth_monitor] authority overlay skipped: {type(e).__name__}: {e}")
+
+
+def _apply_nhnl(result_asc: list, part: str) -> None:
+    """New highs / lows on the INTRADAY basis (`breadth_nhnl_intraday`) for every row the series
+    covers — the counts before the derive pass (so anything built on them sees the served basis),
+    the net and hi/lo ratios after it (a V2 row's stored derived fields are restored by the derive
+    pass and must not survive in the old basis). A no-op unless that basis is served."""
+    try:
+        from api.services import breadth_nhnl_intraday as nhi
+        if not nhi.active():
+            return
+        keys = nhi.COUNTS if part == "counts" else ("net_new_high_low", "hi_ratio", "lo_ratio")
+        for row in result_asc:
+            v = nhi.values("uct", row.get("date") or "")
+            if v:
+                for k in keys:
+                    row[k] = v.get(k)
+    except Exception as e:
+        print(f"[breadth_monitor] nhnl overlay skipped: {type(e).__name__}: {e}")
 
 
 def _derive_ascending(result_asc: list, adv_decline_seed: float) -> None:
@@ -983,8 +1004,10 @@ def _history_deep_uncached(days: int, end: Optional[str], anchor: str, ck: str) 
     with _bt.phase('adv_seed'):
         _seed = _adv_decline_seed_before(window[0])
     _apply_authority(result_asc)
+    _apply_nhnl(result_asc, "counts")
     with _bt.phase('derive'):
         _derive_ascending(result_asc, _seed)
+    _apply_nhnl(result_asc, "derived")
 
     out = list(reversed(result_asc))[:days]
     with _bt.phase('cache_set'):

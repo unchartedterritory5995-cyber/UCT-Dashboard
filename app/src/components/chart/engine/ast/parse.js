@@ -28,6 +28,7 @@
 
 import jsep from 'jsep'
 import TABLE_JSON from './closedTable.json'
+import { expandCalls, ExpansionRefusal } from './callExpansions.js'
 
 // --------------------------------------------------------------------------- //
 // the table
@@ -1505,7 +1506,18 @@ export function parseFormula(source) {
     return { ok: false, error: String(err && err.message ? err.message : err), guard: 'parser' }
   }
   try {
-    return { ok: true, ast: canonicalise(tree) }
+    // ⭐ BATCH 2 — the exact-identity functions (`callExpansions.js`: linreg,
+    // correlation, vwma, roc, mom, Keltner bands) become the tree they ARE, here,
+    // once — so every downstream door (budget, lint, interpret, both lanes, the
+    // save gate's source↔tree check) sees only names the table declares.
+    let ast = canonicalise(tree)
+    try {
+      ast = expandCalls(ast, (name) => Object.prototype.hasOwnProperty.call(TABLE.functions, name))
+    } catch (e) {
+      if (e instanceof ExpansionRefusal) return { ok: false, error: e.message, guard: e.guard }
+      throw e
+    }
+    return { ok: true, ast }
   } catch (err) {
     // ⛔ NOT `instanceof`, AND NOT A FALLBACK GUARD — see `classifyThrow`. A
     // crash in the walker comes back as an ENGINE ERROR with no guard, so it can

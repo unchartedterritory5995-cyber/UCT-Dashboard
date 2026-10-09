@@ -1,0 +1,563 @@
+{
+ "started": "2026-10-09T02:50:01",
+ "nvda_version": "2026.2",
+ "base": "https://uctintelligence.com",
+ "nonce": "da9c3b6715d9",
+ "rows": [
+  {
+   "n": 1,
+   "keys": "Tab",
+   "expected": [
+    "Skip to notes list",
+    "link"
+   ],
+   "result": "PASS",
+   "notes": "UCT-NVDA-da9c3b6715d9 - Google Chrome for Testing window / UCT-NVDA-da9c3b6715d9 document / clickable Skip to main content same page link / UCT-NVDA-da9c3b6715d9 / same page link Skip to main content / clickable same page link Skip to notes list / same page link Skip to folder navigation / navigatio",
+   "heard": [
+    "UCT-NVDA-da9c3b6715d9 - Google Chrome for Testing window",
+    "UCT-NVDA-da9c3b6715d9 document",
+    "clickable Skip to main content same page link",
+    "UCT-NVDA-da9c3b6715d9",
+    "same page link Skip to main content",
+    "clickable same page link Skip to notes list",
+    "same page link Skip to folder navigation",
+    "navigation landmark link UCT Intelligence \u2014 go to landing page",
+    "button Search \u2014 Ctrl+K",
+    "link UCT Terminal",
+    "link Charts",
+    "link Morning Wire",
+    "link Dashboard",
+    "link AI Search"
+   ],
+   "dom": null
+  },
+  {
+   "n": 2,
+   "keys": "Enter",
+   "expected": [
+    "All notes",
+    "heading"
+   ],
+   "result": "PASS",
+   "notes": "main landmark clickable Meet Compass Tap the compass buttonto talk to your trading coach \u2014 markets, setups, and your journal, all by voice. Got it button Trade Journal heading level 1 Journal sections navigation landmark Today link Trades link Calendar link Notebook link current page Insights link C",
+   "heard": [
+    "main landmark clickable Meet Compass Tap the compass buttonto talk to your trading coach \u2014 markets, setups, and your journal, all by voice. Got it button Trade Journal heading level 1 Journal sections navigation landmark Today link Trades link Calendar link Notebook link current page Insights link Compass link Log Trade menu button collapsed subMenu Log a trade Show keyboard shortcuts button Keyboard shortcuts (Shift + ?) Default $100,000.00 menu button collapsed opens list Generate report button Generate Report (Ctrl/\u2318+P after) Open Portfolio Settings button Settings (current account) More menu button collapsed subMenu More \u2014 Community, Accounts Notebook complementary landmark Folder navigation heading level 2 Hide folders panel button Hide panel Show folders tab selected Folders Search notes tab Collapse Saved Views button expanded SAVED VIEWS SR view button Rename SR view button Rename view Delete SR view button Delete view Folders tree view level 1 All notes2 button current + New folder button TAGS #srpass1 button Rename srpass button Rename tag   Resize folders panel separator All notes heading level 2 Notes list tools tool bar Sort notes combo box collapsed Recently updated View grouping List view toggle button pressed Table view toggle button not pressed Board view toggle button not pressed Calendar view toggle button not pressed Graph view toggle button not pressed Timeline view toggle button not pressed Tasks view toggle button not pressed out of grouping Save view button Save this view Import button opens dialog Export button opens dialog Today button s daily note (Ctrl+Alt+D)\",  , CharacterModeCommand(True),  , CharacterModeCommand(False),  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  , "
+   ],
+   "dom": null
+  },
+  {
+   "n": 3,
+   "keys": "focus Hide folders panel, Tab",
+   "expected": [
+    "Hide folders panel",
+    "button",
+    "Panel view",
+    "tab"
+   ],
+   "result": "PASS",
+   "notes": "complementary landmark Hide folders panel button Hide panel / Panel view tab control / Show folders tab selected Folders 1 of 2",
+   "heard": [
+    "complementary landmark Hide folders panel button Hide panel",
+    "Panel view tab control",
+    "Show folders tab selected Folders 1 of 2"
+   ],
+   "dom": null
+  },
+  {
+   "n": 4,
+   "keys": "focus the All notes row",
+   "expected": [
+    "All notes",
+    "button"
+   ],
+   "result": "PASS",
+   "notes": "Folders tree view level 1 All notes2 button current",
+   "heard": [
+    "Folders tree view level 1 All notes2 button current"
+   ],
+   "dom": null
+  },
+  {
+   "n": 5,
+   "keys": "on All notes: Down (to SR folder), Right (expand)",
+   "expected": [
+    "SR folder",
+    "collapsed",
+    "expanded"
+   ],
+   "result": "FAIL",
+   "notes": "(script says Tab to the disclosure; the tree is arrow-driven) missing ['SR folder', 'collapsed', 'expanded']; heard: A / notes2",
+   "heard": [
+    "A",
+    "notes2"
+   ],
+   "dom": null
+  },
+  {
+   "n": 6,
+   "keys": "Enter on the SR folder row, then Shift+F10 (its menu), Escape",
+   "expected": [
+    "SR folder",
+    "Rename",
+    "Add subfolder",
+    "Delete"
+   ],
+   "result": "FAIL",
+   "notes": "(script says Tab along the row to Rename/Add subfolder/Delete; those are tabIndex -1 and reached by Shift+F10) NVDA spoke nothing in the window",
+   "heard": [],
+   "dom": null
+  },
+  {
+   "n": 7,
+   "keys": "focus the tag row",
+   "expected": [
+    "srpass",
+    "button"
+   ],
+   "result": "PASS",
+   "notes": "#srpass1 button",
+   "heard": [
+    "#srpass1 button"
+   ],
+   "dom": null
+  },
+  {
+   "n": 8,
+   "keys": "focus the Saved Views disclosure; focus SR view",
+   "expected": [
+    "Saved Views",
+    "button",
+    "SR view"
+   ],
+   "result": "PASS",
+   "notes": "(the section opens expanded, so its disclosure reads Collapse, not Expand) Collapse Saved Views button expanded / SR view button",
+   "heard": [
+    "Collapse Saved Views button expanded",
+    "SR view button"
+   ],
+   "dom": null
+  },
+  {
+   "n": 9,
+   "keys": "Enter on All notes (clears the view); focus Sort notes; Right (List view); Right (Table view); Space",
+   "expected": [
+    "Sort notes",
+    "combo box",
+    "List view",
+    "pressed",
+    "Table view"
+   ],
+   "result": "FAIL",
+   "notes": "(script says Tab to the view switcher; the tool bar is arrow-driven) missing ['List view', 'pressed', 'Table view']; heard: Folders tree view level 1 All notes2 button current / Notes list tools tool bar / Sort notes combo box Recently updated collapsed / Bottom / blank / Bottom / blank / expanded / list / Recently updated 1 of 3",
+   "heard": [
+    "Folders tree view level 1 All notes2 button current",
+    "Notes list tools tool bar",
+    "Sort notes combo box Recently updated collapsed",
+    "Bottom",
+    "blank",
+    "Bottom",
+    "blank",
+    "expanded",
+    "list",
+    "Recently updated 1 of 3"
+   ],
+   "dom": null
+  },
+  {
+   "n": 10,
+   "keys": "Back to List; focus the SR pass card; Enter",
+   "expected": [
+    "SR pass",
+    "heading"
+   ],
+   "result": "PASS",
+   "notes": "View grouping / List view toggle button pressed / Notes grouping SR pass now#srpass button / SR pass heading level 2",
+   "heard": [
+    "View grouping",
+    "List view toggle button pressed",
+    "Notes grouping SR pass now#srpass button",
+    "SR pass heading level 2"
+   ],
+   "dom": null
+  },
+  {
+   "n": 11,
+   "keys": "Tab x14",
+   "expected": [
+    "Subtitle",
+    "Editor toolbar",
+    "Note body"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Note body']; heard: Add to Favorites toggle button not pressed / Ask a question about this note button collapsed / Find in note button Find in this note / Share button collapsed opens dialog Share a link to this note or publish it to the web / Folder combo box Unfiled collapsed / Ticker edit Ticker blank / Writing help",
+   "heard": [
+    "Add to Favorites toggle button not pressed",
+    "Ask a question about this note button collapsed",
+    "Find in note button Find in this note",
+    "Share button collapsed opens dialog Share a link to this note or publish it to the web",
+    "Folder combo box Unfiled collapsed",
+    "Ticker edit Ticker blank",
+    "Writing help button Writing help \u2014 summarize, rewrite, continue or translate",
+    "Outline button collapsed Outline \u2014 every heading in this note",
+    "More note actions button collapsed",
+    "Editor toolbar tool bar",
+    "Font family combo box Default collapsed Font",
+    "Note title edit selected SR pass",
+    "Subtitle edit Subtitle (optional) blank",
+    "Tags grouping s tags\",  ,  ,  , ",
+    "Add a tag to this note combo box collapsed has auto complete editable Add a tag blank"
+   ],
+   "dom": null
+  },
+  {
+   "n": 12,
+   "keys": "Insert+Space (browse mode), H, T, Down, Right",
+   "expected": [
+    "Setup",
+    "heading",
+    "table",
+    "Sym"
+   ],
+   "result": "PASS",
+   "notes": "Note body section multi line editable heading level 2 Setup / table with 3 rows and 3 columns row 1 column 1 Sym / S / column 2 / R",
+   "heard": [
+    "Note body section multi line editable heading level 2 Setup",
+    "table with 3 rows and 3 columns row 1 column 1 Sym",
+    "S",
+    "column 2",
+    "R"
+   ],
+   "dom": null
+  },
+  {
+   "n": "12b",
+   "keys": "Insert+Space (focus mode); Tab, Tab, Alt+F10, Escape",
+   "expected": [
+    "Table",
+    "tool bar"
+   ],
+   "result": "PASS",
+   "notes": "Note body section multi line editable table with 3 rows and 3 columns row 3 Note column 3 late / Table tool bar / Add a row above button / Note body section multi line editable table with 4 rows and 3 columns row 4 R column 2",
+   "heard": [
+    "Note body section multi line editable table with 3 rows and 3 columns row 3 Note column 3 late",
+    "Table tool bar",
+    "Add a row above button",
+    "Note body section multi line editable table with 4 rows and 3 columns row 4 R column 2"
+   ],
+   "dom": null
+  },
+  {
+   "n": 13,
+   "keys": "end of body, Enter, /, Down",
+   "expected": [
+    "Insert block"
+   ],
+   "result": "PASS",
+   "notes": "out of table / slash / Insert block list / Heading 1 Big section heading 1 of 32 / \ufffc",
+   "heard": [
+    "out of table",
+    "slash",
+    "Insert block list",
+    "Heading 1 Big section heading 1 of 32",
+    "\ufffc"
+   ],
+   "dom": null
+  },
+  {
+   "n": 14,
+   "keys": "Escape",
+   "expected": [
+    "Note body"
+   ],
+   "result": "PASS",
+   "notes": "(expects the body's name back, nothing else) main landmark / Note body section multi line editable /",
+   "heard": [
+    "main landmark",
+    "Note body section multi line editable /"
+   ],
+   "dom": null
+  },
+  {
+   "n": 15,
+   "keys": "[ [ (real keys), type SR tar, Down, Enter",
+   "expected": [
+    "Link to a note",
+    "SR target"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Link to a note', 'SR target']; heard: left bracket / left bracket / S / R / space / t / a / r / blank",
+   "heard": [
+    "left bracket",
+    "left bracket",
+    "S",
+    "R",
+    "space",
+    "t",
+    "a",
+    "r",
+    "blank"
+   ],
+   "dom": "DOM after typing: listbox 'Link to a note' x0, options x0, body aria-expanded=None"
+  },
+  {
+   "n": 16,
+   "keys": "Ctrl+F, type stop",
+   "expected": [
+    "Find in note"
+   ],
+   "result": "PASS",
+   "notes": "Find in note search landmark / Find in note edit Find in note blank / s / 1/7  / t / 1/2  / o / 1/1  / p",
+   "heard": [
+    "Find in note search landmark",
+    "Find in note edit Find in note blank",
+    "s",
+    "1/7 ",
+    "t",
+    "1/2 ",
+    "o",
+    "1/1 ",
+    "p"
+   ],
+   "dom": null
+  },
+  {
+   "n": 17,
+   "keys": "Ctrl+H, Tab, Escape",
+   "expected": [
+    "replace",
+    "Note body"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['replace']; heard: Match case toggle button not pressed / UCT-NVDA-da9c3b6715d9 document blank / main landmark / Note body section multi line editable blank",
+   "heard": [
+    "Match case toggle button not pressed",
+    "UCT-NVDA-da9c3b6715d9 document blank",
+    "main landmark",
+    "Note body section multi line editable blank"
+   ],
+   "dom": "DOM after Ctrl+H: 'Hide replace' x1, 'Replace with' x1, 'Show replace' x0"
+  },
+  {
+   "n": 18,
+   "keys": "focus Ask, Enter",
+   "expected": [
+    "Ask a question about this note",
+    "Your question"
+   ],
+   "result": "PASS",
+   "notes": "Ask a question about this note button collapsed / expanded / Ask This note dialog / Ask This note dialog / Your question about This note edit What did I say about\u2026 blank",
+   "heard": [
+    "Ask a question about this note button collapsed",
+    "expanded",
+    "Ask This note dialog",
+    "Ask This note dialog",
+    "Your question about This note edit What did I say about\u2026 blank"
+   ],
+   "dom": null
+  },
+  {
+   "n": 19,
+   "keys": "type a question the note cannot answer, Enter, wait",
+   "expected": [
+    "find",
+    "note"
+   ],
+   "result": "FAIL",
+   "notes": "(the sentence is read from a live region; its exact words are the service's) missing ['find', 'note']; heard: W / h / a / t / space / i / s / space / t / h / e / space / d / i / v / i / d / e / n / d / question / UCT-NVDA-da9c3b6715d9 document blank",
+   "heard": [
+    "W",
+    "h",
+    "a",
+    "t",
+    "space",
+    "i",
+    "s",
+    "space",
+    "t",
+    "h",
+    "e",
+    "space",
+    "d",
+    "i",
+    "v",
+    "i",
+    "d",
+    "e",
+    "n",
+    "d",
+    "question",
+    "UCT-NVDA-da9c3b6715d9 document blank"
+   ],
+   "dom": "DOM: answer present, aria-live='polite', aria-busy='false', text=\"I couldn't find that in this note.\""
+  },
+  {
+   "n": 20,
+   "keys": "focus Close Ask, Enter",
+   "expected": [
+    "Ask a question about this note",
+    "button"
+   ],
+   "result": "PASS",
+   "notes": "Close Ask button / Ask a question about this note button collapsed",
+   "heard": [
+    "Close Ask button",
+    "Ask a question about this note button collapsed"
+   ],
+   "dom": null
+  },
+  {
+   "n": 21,
+   "keys": "list; Graph view; Show as list, Space",
+   "expected": [
+    "Graph view",
+    "Show as list",
+    "pressed"
+   ],
+   "result": "PASS",
+   "notes": "UCT Intelligence \u2014 Coming soon / clickable UCT INTELLIGENCE / Signing you in / main landmark / Notes list tools tool bar / View grouping / Graph view toggle button not pressed / pressed / Show as list toggle button not pressed / pressed",
+   "heard": [
+    "UCT Intelligence \u2014 Coming soon",
+    "clickable UCT INTELLIGENCE",
+    "Signing you in",
+    "main landmark",
+    "Notes list tools tool bar",
+    "View grouping",
+    "Graph view toggle button not pressed",
+    "pressed",
+    "Show as list toggle button not pressed",
+    "pressed"
+   ],
+   "dom": null
+  },
+  {
+   "n": 22,
+   "keys": "Space; focus the canvas; Home; Right",
+   "expected": [
+    "Note graph",
+    "notes",
+    "links"
+   ],
+   "result": "PASS",
+   "notes": "not pressed / Note graph: 2 notes, 0 links Arrow keys move to the nearest note in that direction. Home and End go to the first and last note by title. Enter opens the selected note. Escape clears the selection. Show as list gives the same notes as a table. / Top / blank / Bottom / blank",
+   "heard": [
+    "not pressed",
+    "Note graph: 2 notes, 0 links Arrow keys move to the nearest note in that direction. Home and End go to the first and last note by title. Enter opens the selected note. Escape clears the selection. Show as list gives the same notes as a table.",
+    "Top",
+    "blank",
+    "Bottom",
+    "blank"
+   ],
+   "dom": null
+  },
+  {
+   "n": 23,
+   "keys": "List; Save view, Enter, Escape",
+   "expected": [
+    "Save view",
+    "dialog",
+    "Name"
+   ],
+   "result": "PASS",
+   "notes": "toggle button not pressed Show as list / Notes list tools tool bar / View grouping / List view toggle button not pressed / pressed / Save view button Save this view / Save view dialog / Save view dialog / Name edit e.g. Active Theses blank",
+   "heard": [
+    "toggle button not pressed Show as list",
+    "Notes list tools tool bar",
+    "View grouping",
+    "List view toggle button not pressed",
+    "pressed",
+    "Save view button Save this view",
+    "Save view dialog",
+    "Save view dialog",
+    "Name edit e.g. Active Theses blank"
+   ],
+   "dom": null
+  },
+  {
+   "n": 24,
+   "keys": "open the note; More note actions, Enter; Delete, Enter; confirm Delete",
+   "expected": [
+    "Delete this note",
+    "dialog"
+   ],
+   "result": "PASS",
+   "notes": "(script says Tab to Delete; it sits in the More note actions disclosure) UCT Intelligence \u2014 Coming soon / clickable main landmark More note actions button collapsed / More note actions grouping Version history button See earlier versions of this note and restore one / Delete button / Delete this note? dialog / Cancel button / Delete this note? / button Cancel / button De",
+   "heard": [
+    "UCT Intelligence \u2014 Coming soon",
+    "clickable main landmark More note actions button collapsed",
+    "More note actions grouping Version history button See earlier versions of this note and restore one",
+    "Delete button",
+    "Delete this note? dialog",
+    "Cancel button",
+    "Delete this note?",
+    "button Cancel",
+    "button Delete",
+    "Delete button",
+    "out of grouping blank",
+    "Research home heading level 2"
+   ],
+   "dom": null
+  },
+  {
+   "n": 25,
+   "keys": "no notes: open the Notebook home; focus its heading",
+   "expected": [
+    "Welcome to your Notebook",
+    "heading"
+   ],
+   "result": "PASS",
+   "notes": "UCT Intelligence \u2014 Coming soon / Folders and tags dialog STEP 2 OF 3 Your folders, tags and saved views live here. Choose one to see just those notes. / Folders and tags heading STEP 2 OF 3 level 2 / Folders and tags / heading level 2 Folders and tags / Your folders, tags and saved views live here. ",
+   "heard": [
+    "UCT Intelligence \u2014 Coming soon",
+    "Folders and tags dialog STEP 2 OF 3 Your folders, tags and saved views live here. Choose one to see just those notes.",
+    "Folders and tags heading STEP 2 OF 3 level 2",
+    "Folders and tags",
+    "heading level 2 Folders and tags",
+    "Your folders, tags and saved views live here. Choose one to see just those notes.",
+    "clickable same page link Skip to main content",
+    "main landmark Welcome to your Notebook heading level 2"
+   ],
+   "dom": null
+  },
+  {
+   "n": 26,
+   "keys": "Share, Enter, Tab, Escape",
+   "expected": [
+    "Share this note",
+    "Share link address"
+   ],
+   "result": "NOT RUN",
+   "notes": "left to the owner: the step mints a public share link for a note on the smoke account",
+   "heard": []
+  },
+  {
+   "n": 27,
+   "keys": "? (Shift+/ as a real key) anywhere in the Journal",
+   "expected": [
+    "Keyboard Shortcuts",
+    "dialog"
+   ],
+   "result": "FAIL",
+   "notes": "NVDA spoke nothing in the window",
+   "heard": [],
+   "dom": "DOM after ?: dialogs x1, 'Keyboard Shortcuts' text x0"
+  }
+ ],
+ "made": {
+  "notes": [
+   "dcee2c8fc55449a2bbeb5a34a2439b71",
+   "e60386854a1c47938ba3286a75f4e53a"
+  ],
+  "folders": [
+   "c91329856f3744098bf3fea127aa1a72",
+   "bd3de5d6c43d4cd58c42acb498cfa852"
+  ],
+  "views": [
+   "7dd7d4a256264d279fe3b02e3a56a56e"
+  ]
+ },
+ "aborted": null,
+ "left_active_notes": 0,
+ "left_sr_folders": 0,
+ "left_sr_views": 0,
+ "finished": "2026-10-09T02:52:53"
+}

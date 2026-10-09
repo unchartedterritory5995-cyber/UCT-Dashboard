@@ -25,13 +25,23 @@
 // endpoints never 402 are unaffected by carrying the branch.
 
 export class SectionFetchError extends Error {
-  constructor(message, { status = null, url = null, network = false } = {}) {
+  constructor(message, { status = null, url = null, network = false, retryAfter = null } = {}) {
     super(message)
     this.name = 'SectionFetchError'
     this.status = status
     this.url = url
     this.network = network
+    // Seconds from a `Retry-After` header (a 503 "still working on it" answer), else null.
+    this.retryAfter = retryAfter
   }
+}
+
+/** A numeric `Retry-After` header in seconds, or null (absent, an HTTP-date, or junk). */
+export function retryAfterSeconds(res) {
+  const raw = res?.headers?.get?.('Retry-After')
+  if (raw == null || String(raw).trim() === '') return null
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 0 ? n : null
 }
 
 // The deadline lives in utils/withDeadline.js (one owner; raw-fetch hooks share it).
@@ -57,7 +67,9 @@ async function sectionFetchOnce(url) {
   // Paid gate — a state the section renders, not an error it retries.
   if (res.status === 402) return { paywalled: true }
   if (!res.ok) {
-    throw new SectionFetchError(`Request failed (${res.status})`, { status: res.status, url })
+    throw new SectionFetchError(`Request failed (${res.status})`, {
+      status: res.status, url, retryAfter: retryAfterSeconds(res),
+    })
   }
   try {
     return await res.json()

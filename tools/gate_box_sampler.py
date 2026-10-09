@@ -146,6 +146,39 @@ LOAD_BUSY = "BUSY"
 LOAD_UNREADABLE = "UNREADABLE"
 LOAD_NOT_PROBED = "NOT_PROBED"
 
+# ── Background load: what the MARKER set cannot see, and what moved a measurement ─────────────
+#
+# ⚰ MEASURED 2026-10-02 09:07 (docs/notebook/perf-runs/ty8/README.md, "Tie-break run A4"). The
+# marker probe above said `load: QUIET — 0 marked processes` at BOTH ends of a typing-budget run,
+# and every row of that run was 1.5-2x slower than the same build an hour earlier. Whatever
+# slowed it was load the marker does not mark: a browser with forty renderer processes, a model
+# session, a 6.9 GB `llama-server.exe` (the 2026-09-17 reap found exactly those holding the box,
+# "none of which is in any reap signature"). The scorecard's clause 4d could not be re-read until
+# the quiet marker could SEE that class, so this block is the half it was missing.
+#
+# ⛔ IT DOES NOT CHANGE `state`. QUIET/BUSY stay about the marker set, because every workstream's
+# recorded QUIET reading is a claim about markers and widening the word would retro-invalidate
+# them. The background reading is a SECOND fact beside it: `background.state` is LIGHT, LOADED or
+# UNKNOWN, and a QUIET-but-LOADED box is reported as exactly that.
+#
+# ⛔ UNKNOWN IS NOT LIGHT. A snapshot taken by an older `_PS_SNAPSHOT` (no `cpu_pct`), or one
+# handed in by a test fixture that never measured CPU, must answer UNKNOWN — the same rule as
+# UNREADABLE above: a reading nobody took is not a quiet one.
+BACKGROUND_LIGHT = "LIGHT"
+BACKGROUND_LOADED = "LOADED"
+BACKGROUND_UNKNOWN = "UNKNOWN"
+#: A process at or above this working set is named in the background census whatever it is.
+#: 1 GB is well above anything this repo's own tooling holds at idle (a vitest worker peaks
+#: ~900 MB and is a MARKER anyway) and well below the 4-7 GB holders the reap record names.
+HEAVY_RSS_MB = 1024
+#: Whole-box CPU at or above this is LOADED on its own: a typing-budget keystroke is a ~10 ms
+#: main-thread window, and a box a quarter busy steals from it at every scheduler tick.
+BACKGROUND_CPU_LOADED_PCT = 25
+#: Heavy processes holding at least this much in total are LOADED on their own (the A4 box had
+#: ~16 GB in three unmarked holders): memory pressure is the OOM sweep's precursor and a GC
+#: pause's amplifier, and neither shows in the marker count.
+BACKGROUND_HEAVY_LOADED_GB = 8.0
+
 
 
 def say(text: str = "", *, err: bool = False) -> None:
@@ -245,10 +278,14 @@ def classify_process(name: str, command_line: str, pid: int, *,
 
 _PS_SNAPSHOT = (
     "$os = Get-CimInstance Win32_OperatingSystem;"
+    # ⭐ Whole-box CPU, a one-second hardware average, read in the SAME snapshot as the process
+    # list so the background reading and the marker count describe one instant. Averaged across
+    # sockets; a box with one is the common case.
+    "$cpu = (Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average;"
     "$p = Get-CimInstance Win32_Process |"
     " Select-Object ProcessId,ParentProcessId,Name,"
     "@{n='cl';e={$_.CommandLine}},@{n='mb';e={[math]::Round($_.WorkingSetSize/1MB,0)}};"
-    "@{free_kb=$os.FreePhysicalMemory; total_kb=$os.TotalVisibleMemorySize; procs=@($p)} |"
+    "@{free_kb=$os.FreePhysicalMemory; total_kb=$os.TotalVisibleMemorySize; cpu_pct=$cpu; procs=@($p)} |"
     " ConvertTo-Json -Depth 4 -Compress"
 )
 
@@ -342,6 +379,63 @@ def _descendants(root: int, procs: list[dict]) -> set[int]:
     return out
 
 
+def background_load(snap: dict, *, exclude: frozenset[int] = frozenset(),
+                    marked: frozenset[int] = frozenset()) -> dict:
+    """The box's BACKGROUND, from a snapshot already taken: CPU, and the heavy unmarked processes.
+
+    Pure and injectable, so the controls can hand it the A4-shaped box and a light one and
+    require different answers. `exclude` is the caller's own tree (never a finding); `marked`
+    is every pid the marker set already reported, which stays out of this census so the two
+    readings never double-count one process.
+
+    ⛔ THREE OUTCOMES, AND THE THIRD IS NOT THE FIRST. LIGHT needs a measured CPU figure; a
+    snapshot without `cpu_pct` answers UNKNOWN even when no heavy process is seen, because the
+    CPU half of the question was never asked. Heavy holders alone can still make it LOADED —
+    a positive finding needs no CPU figure to be a finding.
+    """
+    procs = list(snap.get("procs") or [])
+    cpu = snap.get("cpu_pct")
+    cpu_pct = round(float(cpu), 1) if isinstance(cpu, (int, float)) else None
+    by_name: dict[str, dict] = {}
+    for p in procs:
+        pid = p.get("ProcessId")
+        if pid in exclude or pid in marked:
+            continue
+        mb = p.get("mb")
+        if not isinstance(mb, (int, float)) or mb < HEAVY_RSS_MB:
+            continue
+        name = (p.get("Name") or "?").lower()
+        row = by_name.setdefault(name, {"name": name, "count": 0, "rss_mb": 0, "top_pid": pid, "top_mb": 0})
+        row["count"] += 1
+        row["rss_mb"] += int(mb)
+        if mb > row["top_mb"]:
+            row["top_mb"], row["top_pid"] = int(mb), pid
+    heavy = sorted(by_name.values(), key=lambda r: -r["rss_mb"])
+    heavy_gb = round(sum(r["rss_mb"] for r in heavy) / 1024, 2)
+    cpu_loaded = cpu_pct is not None and cpu_pct >= BACKGROUND_CPU_LOADED_PCT
+    mem_loaded = heavy_gb >= BACKGROUND_HEAVY_LOADED_GB
+    if cpu_loaded or mem_loaded:
+        state = BACKGROUND_LOADED
+    elif cpu_pct is None:
+        state = BACKGROUND_UNKNOWN
+    else:
+        state = BACKGROUND_LIGHT
+    return {"state": state, "cpu_pct": cpu_pct, "heavy": heavy, "heavy_gb": heavy_gb,
+            "why": ("cpu" if cpu_loaded else "") + ("+" if cpu_loaded and mem_loaded else "")
+                   + ("memory" if mem_loaded else "") or None}
+
+
+def describe_background(bg: dict | None) -> str:
+    """One line beside the marker line: the state, the CPU figure, the holders by name."""
+    if not bg:
+        return "background: NOT MEASURED — that is not 'light'"
+    cpu = bg.get("cpu_pct")
+    cpu_txt = f"cpu {cpu:.0f}%" if cpu is not None else "cpu not measured"
+    holders = ", ".join(f"{r['name']} x{r['count']} {r['rss_mb'] / 1024:.1f}GB" for r in (bg.get("heavy") or [])[:4])
+    tail = f"; heavy: {holders}" if holders else "; no process at or above 1 GB"
+    return f"background: {bg.get('state')} — {cpu_txt}{tail}"
+
+
 def load_not_probed(why: str) -> dict:
     """The record for "nobody looked" — which is NOT a count of zero, and says so in its state.
 
@@ -351,7 +445,7 @@ def load_not_probed(why: str) -> dict:
     """
     return {"state": LOAD_NOT_PROBED, "readable": False, "at": None, "total": None,
             "counts": None, "processes": [], "free_gb": None, "excluded_tree": None,
-            "error": why}
+            "background": None, "error": why}
 
 
 def box_load(*, exclude_tree: int | None = None, snapshot=None) -> dict:
@@ -384,7 +478,7 @@ def box_load(*, exclude_tree: int | None = None, snapshot=None) -> dict:
     except Exception as e:
         return {"state": LOAD_UNREADABLE, "readable": False, "at": at, "total": None,
                 "counts": None, "processes": [], "free_gb": None,
-                "excluded_tree": exclude_tree,
+                "excluded_tree": exclude_tree, "background": None,
                 "error": f"{type(e).__name__}: {e}"[:300]}
     exclude: set[int] = set()
     if exclude_tree is not None:
@@ -412,6 +506,9 @@ def box_load(*, exclude_tree: int | None = None, snapshot=None) -> dict:
         "processes": seen,
         "free_gb": round(free_kb / 1024 / 1024, 2) if isinstance(free_kb, (int, float)) else None,
         "excluded_tree": exclude_tree,
+        # ⭐ The second fact, from the SAME snapshot: what the markers cannot see.
+        "background": background_load(snap, exclude=frozen,
+                                      marked=frozenset(p["pid"] for p in seen)),
         "error": None,
     }
 
@@ -430,7 +527,10 @@ def describe_load(load: dict | None) -> str:
                 f"(gate {c.get('gate', 0)}, vitest {c.get('vitest', 0)}, "
                 f"pytest {c.get('pytest', 0)}){tail}")
     if state == LOAD_QUIET:
-        return f"load: QUIET — 0 marked processes outside our own tree at {load.get('at')}"
+        # ⛔ "QUIET" is a claim about MARKERS. The background line that follows is the half the
+        # A4 run was missing, and a reader who stops at the first line has read half a fact.
+        return (f"load: QUIET — 0 marked processes outside our own tree at {load.get('at')}\n"
+                f"  {describe_background(load.get('background'))}")
     # ⛔ Both remaining states say WHY, and neither says a number.
     return f"load: {state} — {load.get('error')}"
 
@@ -682,6 +782,40 @@ def self_check() -> int:
          load_not_probed("drill")["state"] == LOAD_NOT_PROBED),
         ("our own tree is not foreign load",
          box_load(exclude_tree=501, snapshot=lambda: _busy_snap)["total"] == 0),
+    ]
+    # ── background: the A4-shaped box, a light one, and a snapshot that never measured CPU ──
+    _a4 = {"free_kb": 4 * 1024 * 1024, "total_kb": 32 * 1024 * 1024, "cpu_pct": 38, "procs": [
+        {"ProcessId": 601, "ParentProcessId": 1, "Name": "llama-server.exe", "mb": 6900, "cl": "llama-server -m x.gguf"},
+        {"ProcessId": 602, "ParentProcessId": 1, "Name": "chrome.exe", "mb": 1500, "cl": "chrome --type=renderer"},
+        {"ProcessId": 603, "ParentProcessId": 1, "Name": "chrome.exe", "mb": 1200, "cl": "chrome --type=renderer"},
+        {"ProcessId": 604, "ParentProcessId": 1, "Name": "claude.exe", "mb": 2300, "cl": "claude"},
+    ]}
+    _light = {"free_kb": 20 * 1024 * 1024, "total_kb": 32 * 1024 * 1024, "cpu_pct": 3, "procs": [
+        {"ProcessId": 701, "ParentProcessId": 1, "Name": "chrome.exe", "mb": 300, "cl": "chrome --type=renderer"},
+    ]}
+    _nocpu = {k: v for k, v in _light.items() if k != "cpu_pct"}
+    _memonly = {**_light, "cpu_pct": 2, "procs": [
+        {"ProcessId": 801, "ParentProcessId": 1, "Name": "llama-server.exe", "mb": 9000, "cl": "llama-server"}]}
+    _bg_a4 = box_load(snapshot=lambda: _a4)
+    check_pairs += [
+        ("⭐ the A4-shaped box is QUIET by markers AND LOADED by background — both facts kept",
+         _bg_a4["state"] == LOAD_QUIET and _bg_a4["background"]["state"] == BACKGROUND_LOADED),
+        ("  ...and names its holders by name, largest first",
+         [r["name"] for r in _bg_a4["background"]["heavy"]][:2] == ["llama-server.exe", "chrome.exe"]),
+        ("⭐ CONTROL: a light box is LIGHT (cpu measured, nothing heavy)",
+         box_load(snapshot=lambda: _light)["background"]["state"] == BACKGROUND_LIGHT),
+        ("⛔ a snapshot that never measured CPU is UNKNOWN, never LIGHT",
+         box_load(snapshot=lambda: _nocpu)["background"]["state"] == BACKGROUND_UNKNOWN),
+        ("heavy holders alone make it LOADED even at idle CPU",
+         box_load(snapshot=lambda: _memonly)["background"]["state"] == BACKGROUND_LOADED),
+        ("a marked process is never counted twice (vitest worker above 1 GB stays a marker)",
+         box_load(snapshot=lambda: {**_light, "procs": [
+             {"ProcessId": 901, "ParentProcessId": 1, "Name": "node.exe", "mb": 1100, "cl": "node vitest.mjs run"}]})
+         ["background"]["heavy"] == []),
+        ("⛔ an UNREADABLE probe carries no background reading at all",
+         box_load(snapshot=_raise_probe)["background"] is None),
+        ("the QUIET line carries the background line under it",
+         "background: LOADED" in describe_load(_bg_a4)),
     ]
     for label, cond in check_pairs:
         ok &= bool(cond)

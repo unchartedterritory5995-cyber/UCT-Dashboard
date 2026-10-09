@@ -334,7 +334,7 @@ def validate_recent(days: int = 3, bucket_min: int = 1) -> dict:
         cmp = {}
         for m in _VALIDATE_METRICS:
             r = recon.get(m)
-            liveohlc = store.history(m).get(D)
+            liveohlc = store._history_stored(m).get(D)
             if not r or not liveohlc:
                 continue
             dh = round(r["h"] - liveohlc["h"], 3)

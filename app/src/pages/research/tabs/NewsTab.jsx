@@ -1,4 +1,14 @@
+import { useState } from 'react'
 import useCompanyNews from '../hooks/useCompanyNews'
+import { useInTerminalPanel, usePanelRerun } from '../../../components/terminal/terminalPanel'
+import MineChip, { mineStyles } from '../../../components/terminal/MineChip'
+import { myNamesExplainer } from '../../../hooks/useMyTickers'
+import MyNewsList from './MyNewsList'
+import useSinceLastVisit, { seenKey } from '../../../components/terminal/useSinceLastVisit'
+import { NewTag, SinceLine } from '../../../components/terminal/SinceLastVisit'
+
+/** The seen key of one company-news item (its own ET date + its id). */
+const newsKey = (it) => seenKey(it.published_at, it.id || it.url || it.headline)
 import Provenance from '../../../components/provenance/Provenance'
 import FreshnessBadge from '../../../components/provenance/FreshnessBadge'
 import { mapAvailability, AVAILABLE } from '../../../components/provenance/availabilityContract'
@@ -8,6 +18,7 @@ import { sessionModel } from '../../../components/dashboard/sessionModel'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import { parseEtTimestamp, ET_ZONE } from '../../../lib/marketClock/etTime'
 import ResearchLoading from '../ResearchLoading'
+import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
 import styles from '../ResearchPage.module.css'
 
 // A8 News/Intelligence Slice 1 (owner-authorized narrow slice,
@@ -73,17 +84,42 @@ export function whenLabel(iso, now = Date.now()) {
   if (hrs < 24) return `${hrs}h ago`
   const days = Math.floor(hrs / 24)
   if (days < 7) return `${days}d ago`
-  const d = new Date(t)
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: ET_ZONE })
+  // A story from an earlier year carries its year (audit 2026-10-08: a 2024 headline read "Aug 9",
+  // indistinguishable from this August's).
+  const year = (ms) => new Date(ms).toLocaleDateString('en-US', { year: 'numeric', timeZone: ET_ZONE })
+  const opts = { month: 'short', day: 'numeric', timeZone: ET_ZONE }
+  if (year(t) !== year(now)) opts.year = 'numeric'
+  return new Date(t).toLocaleDateString(undefined, opts)
 }
 
 function hideBrokenImage(e) {
   e.currentTarget.style.display = 'none'
 }
 
-export default function NewsTab({ sym }) {
-  const { data, isLoading, error, paywalled, mutate } = useCompanyNews(sym)
+// `mine` (terminal `NVDA CN MINE`, wave 3 lane 13): news across ALL the member's own names instead
+// of this one ticker (MyNewsList). Terminal-only; the research page never shows the chip.
+export default function NewsTab({ sym, mine: mineProp = false }) {
+  const inPanel = useInTerminalPanel()
+  const rerun = usePanelRerun()
+  const [mineState, setMine] = useState(!!mineProp)
+  const mine = !!inPanel && mineState
+  const s = (sym || '').toUpperCase().trim()
+  const toggleMine = (next) => { if (rerun) rerun(`${s ? `${s} ` : ''}CN${next ? ' MINE' : ''}`); else setMine(next) }
+  const mineChip = inPanel
+    ? <div className={mineStyles.row}><MineChip on={mine} onToggle={toggleMine} explainer={myNamesExplainer()} testId="news-mine" /></div>
+    : null
+  const { data, isLoading, error, paywalled, mutate } = useCompanyNews(mine ? null : sym)
   const session = useMarketOpen()
+  // Audit wave 2: source + read time in the terminal panel header (the trust strip sits below
+  // the whole list). A no-op outside the terminal.
+  usePanelFreshness(data && !error && !paywalled ? panelAsOf('FMP company news and press releases', data._meta?.sourceObservedAt ?? null) : null)
+  // Wave 3 #7: NEW since this member's last CN visit for this ticker (terminal panels only).
+  const shownItems = !mine && data && !error && !paywalled ? (data.items || []) : null
+  const since = useSinceLastVisit('CN', s, shownItems ? shownItems.map(newsKey) : null, { enabled: !mine })
+
+  if (mine) {
+    return <div className={styles.finWrap}>{mineChip}<MyNewsList whenLabel={whenLabel} /></div>
+  }
 
   if (isLoading) {
     return <ResearchLoading label="Loading news" />
@@ -110,6 +146,7 @@ export default function NewsTab({ sym }) {
 
   return (
     <div className={styles.finWrap}>
+      {mineChip}
       {e.entity && e.entity.status !== 'resolved' && (
         <div className={styles.entityNote} data-testid="entity-unresolved-note">
           This symbol is not yet linked to a company record, so some sources below may not match it.
@@ -119,6 +156,7 @@ export default function NewsTab({ sym }) {
       {!!items.length && (
         <section className={styles.card}>
           <div className={styles.ct}>Company news</div>
+          <SinceLine since={since} noun="story" plural="stories" />
           <ul className={styles.newsList} data-testid="news-list">
             {items.map((it, i) => (
               <li key={`${it.id}-${i}`} className={styles.newsItem} data-panel-row>
@@ -127,6 +165,7 @@ export default function NewsTab({ sym }) {
                 )}
                 <div className={styles.newsBody}>
                   <div className={styles.newsMeta}>
+                    <NewTag since={since} itemKey={newsKey(it)} />
                     <span className={it.kind === 'release' ? styles.newsKindRelease : styles.newsKindWire}>
                       {it.kind === 'release' ? 'PR' : 'NEWS'}
                     </span>

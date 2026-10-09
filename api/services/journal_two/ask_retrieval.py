@@ -449,8 +449,16 @@ def _note_passage(doc, expr: str, title: str = "", *, whole_max: int = NOTE_WHOL
             snippet = nct.member_text(flat, start, end).strip()
         rng = index.pm_range(idx, idx + len(term))
         if rng:
+            # `text` is the canonical text AT the range (fin walk 8.3). A client lands
+            # on a passage only after re-reading the text at [from, to] in the LIVE
+            # note (askCitation.js::resolveNoteCitation) -- and the snippet of this
+            # scope cannot be that needle: it is the whole note, or passages around
+            # several words, while the range is one matched word. "This note"
+            # (`_note_blocks`) never needed this because there each block's snippet
+            # IS the text at its range.
             location = {**rng, "fingerprint": nct.fingerprint(doc),
-                        "snippet_start": idx, "snippet_end": idx + len(term)}
+                        "snippet_start": idx, "snippet_end": idx + len(term),
+                        "text": text[idx:idx + len(term)]}
             atom = index.atom_at(rng)
             if atom:
                 # The term matched inside one atom's placeholder: cite the

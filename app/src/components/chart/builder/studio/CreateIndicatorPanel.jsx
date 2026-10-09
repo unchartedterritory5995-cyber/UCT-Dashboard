@@ -60,7 +60,8 @@ function lookOf(def) {
     if (p.hidden) return { key: p.key, text: `${nameOf(p.key)}: hidden`, color: null }
     if (p.style === 'markers' && p.marker) {
       return { key: p.key, color,
-        text: `${SHAPE_WORDS[p.marker.shape] || p.marker.shape} ${POSITION_WORDS[p.marker.position] || ''}`.trim() }
+        text: `${SHAPE_WORDS[p.marker.shape] || p.marker.shape} ${POSITION_WORDS[p.marker.position] || ''}`.trim()
+          + (Number.isFinite(p.marker.size) && p.marker.size !== 1 ? ` · size ${p.marker.size}` : '') }
     }
     const width = resolveRef(def, p.width)
     return { key: p.key, color, text: `${STYLE_WORDS[p.style || 'line'] || p.style}${Number.isFinite(Number(width)) ? ` · width ${width}` : ''}${colorRuleWords(plotColorRule(def, p, helpers), nameOf)}` }

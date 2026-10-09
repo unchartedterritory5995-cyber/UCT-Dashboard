@@ -227,12 +227,10 @@ def _prune_seen(keys: set, now_ts: float) -> set:
     return out
 
 
-def _live_change(s: str) -> tuple[Optional[float], Optional[float]]:
-    """R18: today's change % and its vendor observation time for `s`, looked up
-    SERVER-SIDE (no client passes `change_pct`, so the price-move fact never
-    fired). The shared live-price cache first; on a miss, one batch read through
-    the same path /api/live-prices uses, written back to that cache. A row that
-    replays a CLOSED session's move is not "today" and is not used."""
+def _live_row(s: str) -> Optional[dict]:
+    """The live-price row for `s`: the shared live-price cache first; on a miss, one
+    batch read through the same path /api/live-prices uses, written back to that
+    cache. None when nothing could be read (the caller degrades, never guesses)."""
     try:
         from api.routers import live_prices as lp
         row = lp.cache.get(lp._px_key(s))
@@ -242,13 +240,43 @@ def _live_change(s: str) -> tuple[Optional[float], Optional[float]]:
             row = got.get(s)
             if row is not None:
                 lp.cache.set(lp._px_key(s), row, ttl=lp._CACHE_TTL)
-        if not row or row.get("market_closed"):
-            return None, None
-        pct = row.get("change_pct")
-        return (float(pct) if isinstance(pct, (int, float)) else None), row.get("observed_at")
+        return row if isinstance(row, dict) else None
     except Exception as exc:  # noqa: BLE001 -- the move fact is optional
-        log.warning("[terminal_grammar] live change lookup failed for %s: %s", s, exc)
+        log.warning("[terminal_grammar] live price lookup failed for %s: %s", s, exc)
+        return None
+
+
+def _change_from_row(row: Optional[dict]) -> tuple[Optional[float], Optional[float]]:
+    """R18: today's change % and its vendor observation time. A row that replays a
+    CLOSED session's move is not "today" and is not used."""
+    if not row or row.get("market_closed"):
         return None, None
+    pct = row.get("change_pct")
+    return (float(pct) if isinstance(pct, (int, float)) else None), row.get("observed_at")
+
+
+def _live_change(s: str) -> tuple[Optional[float], Optional[float]]:
+    """R18: today's change % for `s`, looked up SERVER-SIDE (no client passes
+    `change_pct`, so the price-move fact never fired)."""
+    return _change_from_row(_live_row(s))
+
+
+def _quote_block(row: Optional[dict]) -> Optional[dict]:
+    """Wave 2 (audit 2026-10-08): "why is it moving" must say HOW MUCH it moved. The
+    last price and the day's change from the same live row; `session` says whether
+    it is today's live move or the last completed session's (weekend / overnight)."""
+    if not row:
+        return None
+
+    def num(k):
+        v = row.get(k)
+        return float(v) if isinstance(v, (int, float)) and v == v else None
+    price = num("price")
+    if price is None or price <= 0:
+        return None
+    return {"price": price, "change": num("change"), "change_pct": num("change_pct"),
+            "session": "closed" if row.get("market_closed") else "live",
+            "observed_at": row.get("observed_at")}
 
 
 def why_moving(user_id: str, sym: str, *, include_catalysts: bool,
@@ -263,8 +291,9 @@ def why_moving(user_id: str, sym: str, *, include_catalysts: bool,
 
     intel: dict = {"status": "unavailable", "notable": False, "facts": [], "context": {}}
     observed = None
+    row = _live_row(s)
     if not isinstance(change_pct, (int, float)):
-        change_pct, observed = _live_change(s)
+        change_pct, observed = _change_from_row(row)
     try:
         from api.services.watchlist_intelligence import get_intelligence_for_symbols
         changes = {s: change_pct} if isinstance(change_pct, (int, float)) else None
@@ -312,6 +341,7 @@ def why_moving(user_id: str, sym: str, *, include_catalysts: bool,
                  "new": [k for k in keys_now if k not in seen_before]}
     return {
         "sym": s,
+        "quote": _quote_block(row),
         "intelligence": intel,
         "catalysts": catalysts,
         "catalyst_status": catalyst_status,
@@ -354,3 +384,84 @@ def compare_target(sym: str) -> dict[str, Any]:
         log.warning("[terminal_grammar] fundamentals failed for %s: %s", s, exc)
     etf = sector_etf_for(sector)
     return {"sym": s, "mode": "sector", "sector": sector, "comparator": etf}
+
+
+# ── wave 3 lane 13 (product #7): "new since your last visit" on news, filings and catalysts ──
+#
+# MOVE's since-last-visit, generalised to a per-(member, CODE, ticker) seen record. It reuses
+# `terminal_visits` (no new table): the row key is "<CODE>:<SYM>", which can never collide with a
+# MOVE row (a ticker never contains ':'). The panel sends the keys of the items it SHOWS (each
+# carrying the item's own date, so `_prune_seen` ages them out); the answer is which of them are
+# new since the previous visit, and when that visit was.
+#
+# ⛔ THROTTLED (CLAUDE.md "Performance & Scale": the 524 outage was an unthrottled per-request write
+# on a hot path). A visit is recorded at most once per SEEN_MIN_INTERVAL per (member, code, sym);
+# inside that window the answer is computed from an in-process snapshot of the PRE-visit state
+# with no database read or write at all, so a refresh, a remount or a re-poll costs nothing and
+# the NEW marks stay put instead of vanishing on the next render.
+
+SEEN_CODES = ("CN", "FEED", "CF", "CATS")
+SEEN_MIN_INTERVAL = 60.0          # seconds between recorded visits per (member, code, sym)
+MAX_SEEN_KEYS_PER_CALL = 200
+MAX_SEEN_KEY_LEN = 160
+MAX_SEEN_STORED = 400             # newest keys kept per (member, code, sym)
+_SEEN_SNAPSHOT_CAP = 5000         # in-process snapshots before the cache is dropped wholesale
+_SEEN_SNAPSHOTS: dict[tuple, tuple] = {}   # (user, code, sym) -> (recorded_at, prev_seen|None, prev_last|None)
+_seen_lock = threading.Lock()
+
+
+def _seen_row_key(code: str, sym: str) -> str:
+    return f"{code}:{sym}"
+
+
+def _cap_seen(keys: set) -> list:
+    """Newest MAX_SEEN_STORED keys (by the date each carries; undated last)."""
+    def date_of(k):
+        m = _DATE_IN_KEY.search(k)
+        return m.group(1) if m else ""
+    return sorted(sorted(keys), key=date_of, reverse=True)[:MAX_SEEN_STORED]
+
+
+def seen_since_last_visit(user_id: str, code: str, sym: str, keys: list,
+                          now: Optional[float] = None) -> dict[str, Any]:
+    c = (code or "").strip().upper()
+    if c not in SEEN_CODES:
+        raise ValueError("unsupported code")
+    s = (sym or "").strip().upper()
+    if s and not SYM_RE.match(s):
+        raise ValueError("invalid ticker")
+    clean = []
+    for k in (keys or [])[:MAX_SEEN_KEYS_PER_CALL]:
+        if isinstance(k, str) and 0 < len(k) <= MAX_SEEN_KEY_LEN:
+            clean.append(k)
+    ts = time.time() if now is None else float(now)
+    snap_key = (str(user_id), c, s)
+
+    with _seen_lock:
+        snap = _SEEN_SNAPSHOTS.get(snap_key)
+    if snap is not None and ts - snap[0] < SEEN_MIN_INTERVAL:
+        _recorded_at, prev_seen, prev_last = snap
+        recorded = False
+    else:
+        conn = _conn()
+        try:
+            row = conn.execute("SELECT last_visit_at, seen_json FROM terminal_visits WHERE user_id=? AND sym=?",
+                               (str(user_id), _seen_row_key(c, s))).fetchone()
+            prev_seen = frozenset(json.loads(row["seen_json"])) if row else None
+            prev_last = float(row["last_visit_at"]) if row else None
+            merged = _prune_seen(set(prev_seen or ()) | set(clean), ts)
+            conn.execute("INSERT OR REPLACE INTO terminal_visits (user_id, sym, last_visit_at, seen_json) "
+                         "VALUES (?,?,?,?)", (str(user_id), _seen_row_key(c, s), ts, json.dumps(_cap_seen(merged))))
+            conn.commit()
+        finally:
+            conn.close()
+        with _seen_lock:
+            if len(_SEEN_SNAPSHOTS) >= _SEEN_SNAPSHOT_CAP:
+                _SEEN_SNAPSHOTS.clear()
+            _SEEN_SNAPSHOTS[snap_key] = (ts, prev_seen, prev_last)
+        recorded = True
+
+    if prev_seen is None:
+        return {"code": c, "sym": s, "first_visit": True, "last_visit_at": None, "new": [], "recorded": recorded}
+    return {"code": c, "sym": s, "first_visit": False, "last_visit_at": prev_last,
+            "new": [k for k in clean if k not in prev_seen], "recorded": recorded}

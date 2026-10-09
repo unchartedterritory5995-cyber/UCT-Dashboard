@@ -56,6 +56,9 @@ export function todayEt(now = new Date()) {
 const W = 720
 const H = 200
 const PAD = 28
+// The left gutter carries the y-axis values ("+$1.3M"), so it is wider than the other sides.
+const PAD_L = 64
+const PLOT_W = W - PAD_L - PAD
 
 export function tidePaths(minutes) {
   if (!minutes || minutes.length < 2) return null
@@ -64,17 +67,22 @@ export function tidePaths(minutes) {
   const lo = Math.min(0, ...calls, ...puts)
   const hi = Math.max(0, ...calls, ...puts)
   const span = hi - lo || 1
-  const x = (i) => PAD + (i / (minutes.length - 1)) * (W - 2 * PAD)
+  const x = (i) => PAD_L + (i / (minutes.length - 1)) * PLOT_W
   const y = (v) => H - PAD - ((v - lo) / span) * (H - 2 * PAD)
   const path = (vals) => vals.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
-  return { call: path(calls), put: path(puts), zeroY: y(0) }
+  // Audit 2026-10-08 (TIDE #13/#25): the curve had no scale and no clock. The y-axis names the
+  // top, zero and bottom of the plot in premium; the x-axis names the first, middle and last minute.
+  const yTicks = [...new Set([hi, 0, lo])].map((v) => ({ y: y(v), label: money(v) }))
+  const last = minutes.length - 1
+  const xTicks = [...new Set([0, Math.round(last / 2), last])].map((i) => ({ x: x(i), label: minutes[i]?.t || '' }))
+  return { call: path(calls), put: path(puts), zeroY: y(0), yTicks, xTicks }
 }
 
 /** The minute under a click on the tide chart (the chart's x maps linearly onto `minutes`). */
 export function minuteAt(minutes, fracX) {
   if (!minutes?.length) return null
   const x = fracX * W
-  const i = Math.round(((x - PAD) / (W - 2 * PAD)) * (minutes.length - 1))
+  const i = Math.round(((x - PAD_L) / PLOT_W) * (minutes.length - 1))
   return minutes[Math.max(0, Math.min(minutes.length - 1, i))].t
 }
 
@@ -146,13 +154,22 @@ function TidePanel({ scope, setScope, onPickMinute, quietLoading = false }) {
       )}
       {p && (
         <svg className={`${styles.chart}${onPickMinute ? ` ${styles.clickable}` : ''}`} viewBox={`0 0 ${W} ${H}`} role="img" data-testid="market-tide-chart"
-          aria-label="Cumulative net call premium (green) and net put premium (red) by minute"
+          aria-label={`Cumulative net call premium (green) and net put premium (red) by minute, ${p.xTicks[0].label} to ${p.xTicks[p.xTicks.length - 1].label} ET, from ${p.yTicks[p.yTicks.length - 1].label} to ${p.yTicks[0].label}`}
           onClick={onPickMinute ? (e) => {
             const r = e.currentTarget.getBoundingClientRect()
             const t = minuteAt(data.minutes, r.width ? (e.clientX - r.left) / r.width : 0)
             if (t) onPickMinute(t)
           } : undefined}>
-          <line className={styles.axis} x1={PAD} x2={W - PAD} y1={p.zeroY} y2={p.zeroY} />
+          <line className={styles.axis} x1={PAD_L} x2={W - PAD} y1={p.zeroY} y2={p.zeroY} />
+          <g className={styles.tickText} data-testid="market-tide-y-axis" aria-hidden="true">
+            {p.yTicks.map((k) => <text key={`y${k.y}`} x={PAD_L - 6} y={k.y} textAnchor="end" dominantBaseline="middle">{k.label}</text>)}
+          </g>
+          <g className={styles.tickText} data-testid="market-tide-x-axis" aria-hidden="true">
+            {p.xTicks.map((k, i) => (
+              <text key={`x${k.x}`} x={k.x} y={H - 8}
+                textAnchor={i === 0 ? 'start' : i === p.xTicks.length - 1 ? 'end' : 'middle'}>{k.label ? `${k.label} ET` : ''}</text>
+            ))}
+          </g>
           <path className={styles.lineCall} d={p.call} />
           <path className={styles.linePut} d={p.put} />
         </svg>

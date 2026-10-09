@@ -33,7 +33,7 @@ import ContextPopover from '../../components/mobile/ContextPopover'
 import Sheet from '../../components/mobile/Sheet'
 import FreshnessBadge from '../../components/provenance/FreshnessBadge'
 import Provenance from '../../components/provenance/Provenance'
-import { PanelFreshnessContext, PanelListContext, PanelSkeleton, PanelState, TerminalPanelContext } from '../../components/terminal'
+import { PanelFreshnessContext, PanelListContext, PanelSkeleton, PanelState, SecurityHeadline, TerminalPanelContext } from '../../components/terminal'
 import UIcon from '../../components/ui/UIcon'
 import { useIsPhone } from '../../hooks/useBreakpoint'
 import useDoorParam from '../../hooks/useDoorParam'
@@ -42,22 +42,24 @@ import { registerShortcuts } from '../command/shortcutRegistry'
 import CommandLine from './CommandLine'
 import HelpPanel, { KeysTable } from './panels/HelpPanel'
 import parseCommand, { normalizeInput } from './parseCommand'
-import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, researchHref, variantFor } from './functions'
+import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, researchHref, retiredNote, variantFor } from './functions'
 import { applyArgs, argsEcho } from './args'
+import { planAlert, setAlert } from './alertCommand'
 import { COMMAND_PANELS, FLUSH_PANELS, ROWS_OPEN_BESIDE, panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
 import useTerminalLayout from './useTerminalLayout'
 import useCommandHistory from './commandHistory'
 import {
-  BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
-  closePanel, decodePopout, decodeShare, deleteBoard, duplicatePanel, encodeShare, findBoard, isCompatChannel,
+  BOARD_ADDRESS_RE, CLOSED_MAX, DENSITIES, DENSITY_LABELS, MAX_VISIBLE, PANEL_COUNTS, activeChannelOf, addChannel, applyChannelSym,
+  closePanel, decodePopout, decodeShare, deleteBoard, duplicatePanel, encodeShare, findBoard, isCompatChannel, presetsOfBoard, restoreBoard,
   isLinkable, markOpened, movePanel, nextLinkChannel, reorderPanel, openBoard, panelBeside, panelChannel, panelSym, popoutHref, presetFor,
-  recentSecurities, saveBoard, setCount as countTo,
+  groupStyle, recentSecurities, saveBoard, setCount as countTo,
   setDensity, setKeepCalendar, setPanelChannel, setPopout, setPreset, shareHref, toggleFavorite, undoClose,
 } from './boardModel'
 import { BoardsMenu, RecentsMenu } from './BoardsMenu'
 import { pushFunctionRecent, readFunctionRecents } from './recents'
 import { TERMINAL_CALENDAR_PATH, TERMINAL_PATH } from './terminalGate'
 import L0Strip from './L0Strip'
+import FirstRunCard from './FirstRunCard'
 import {
   BOARD_PAGE, boardCodeRefusal, boardableCodes, buildScanBoard, cleanSymbols, scanBoardName, scanBoardNotice,
   symbolsFromRows,
@@ -99,12 +101,17 @@ export function aliasFailure(cmd, status) {
   return `${cmd.name} was not saved just now; try again.`
 }
 
-/** What a panel shows when the component inside it throws: the rest of the shell lives on. */
-function PanelCrashed({ code }) {
+/** What a panel shows when the component inside it throws: the rest of the shell lives on.
+ *  ⛔ Retry is a BUTTON that remounts the panel body. The copy used to say "run CODE again to
+ *  retry", which did nothing: re-running the same command keeps the panel's identity (same
+ *  code, security and args), so the error boundary — keyed by that identity — stayed tripped
+ *  (audit lane C, 2026-10-08). */
+function PanelCrashed({ code, onRetry }) {
   return (
     <PanelState kind="error" role="alert" testId="terminal-panel-crashed"
-      title={`${code} hit an error and stopped.`}>
-      The other panels are unaffected; run {code} again to retry.
+      title={`${code} hit an error and stopped.`}
+      action={onRetry ? <button type="button" onClick={onRetry} data-testid="terminal-panel-retry">Try again</button> : null}>
+      The other panels are unaffected.
     </PanelState>
   )
 }
@@ -241,7 +248,6 @@ export function Panel({
   const title = [r.sym, panel.code, ...(panel.args || [])].filter(Boolean).join(' ')
   const full = fullHref(r)
   const linkable = isLinkable(panel)
-  const dot = channel?.color || 'var(--border)'
   // Only the FOCUSED panel publishes its numbered rows (row <GO> addresses the focused list),
   // tagged with what it is showing so a list it no longer shows cannot be run.
   const owner = rowsOwner(panel)
@@ -258,7 +264,9 @@ export function Panel({
   // page can drop its own title and page padding (components/terminal/terminalPanel.js).
   const flush = !!(r.name && FLUSH_PANELS.has(r.name))
   const frame = useMemo(() => ({ code: panel.code, density, inset: !flush }), [panel.code, density, flush])
-  const identity = `${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}`
+  // `attempt` is bumped by the crashed state's "Try again": a new key remounts the body.
+  const [attempt, setAttempt] = useState(0)
+  const identity = `${panel.code}:${r.sym || ''}:${(panel.args || []).join(' ')}#${attempt}`
   // A panel's links say WHERE they act from: `next` opens beside this panel, `here` re-runs a
   // command in this panel's own slot. Everything else reaches the shell untouched.
   const runHere = useCallback((text, o) => {
@@ -277,7 +285,16 @@ export function Panel({
     // An embedded list's numbered rows (`usePanelRows`): the same focused-only `onRows` the
     // command panels get as a prop, so row <GO> reaches page/tab lists that are never forked.
     publishRows: rowsProp,
-  } : null), [onList, onBoard, owner, boardCodes, rowsProp])
+    // Wave 2: a click on a symbol in an embedded list runs `$SYM` from this panel
+    // (components/terminal/PanelSymbol), the click twin of typing its row number.
+    run: (text) => runHere(text, { keepFunction: true }),
+    // Wave 3: a row that opens a related function (`NVDA CF`) opens it BESIDE this panel
+    // (components/terminal/PanelCommand), the way a list's row <GO> does.
+    open: (text) => runHere(text, { next: true }),
+    // Wave 3 (lane 13): re-run a command IN THIS PANEL's slot -- an embedded panel's chip writing
+    // its state back into its own command (`FREC MINE`), so a reload keeps it.
+    rerun: (text) => runHere(text, { here: true }),
+  } : null), [onList, onBoard, owner, boardCodes, rowsProp, runHere])
   // On a phone the switcher is an ARIA tablist whose tabs `aria-controls` this section, so it
   // is that tab's tabpanel (a11y audit 2026-10-06); elsewhere it is a labelled region.
   return (
@@ -324,7 +341,7 @@ export function Panel({
           <button
             type="button"
             className={styles.groupDot}
-            style={{ '--dot': dot }}
+            style={groupStyle(channel?.color)}
             onClick={(e) => { e.stopPropagation(); onChannelMenu(e) }}
             aria-label={channel ? `Linked to ${channel.name} — change` : 'Not linked — link to a group'}
             aria-keyshortcuts="Alt+L"
@@ -375,6 +392,9 @@ export function Panel({
           </span>
         )}
       </header>
+      {/* Wave 3 (#2): ONE headline line per one-stock panel — price, % change, volume vs
+          average, next earnings — drawn by the frame so no panel carries its own copy. */}
+      {r.state === 'ready' && r.sym && !panel.popout && <SecurityHeadline sym={r.sym} onRun={(t) => runHere(t)} />}
       <div className={`${styles.panelBody} ${flush && !panel.popout ? styles.panelBodyFlush : ''}`}
         data-inset={flush && !panel.popout ? 'flush' : 'inset'} data-testid={`terminal-body-${index}`}>
         {panel.popout && (
@@ -383,7 +403,7 @@ export function Panel({
             action={<button type="button" className={styles.chip} onClick={onBringBack}>Bring it back</button>} />
         )}
         {Comp && (
-          <ErrorBoundary key={identity} fallback={<div className={styles.panelState}><PanelCrashed code={panel.code} /></div>}>
+          <ErrorBoundary key={identity} fallback={<div className={styles.panelState}><PanelCrashed code={panel.code} onRetry={() => setAttempt((n) => n + 1)} /></div>}>
             {/* V8: a fresh Provider per panel identity (same key as the ErrorBoundary above) so
                 switching security/args clears a stale badge rather than carrying the previous
                 security's freshness into the next one's loading state. */}
@@ -414,7 +434,14 @@ export function Panel({
         {!panel.popout && r.state === 'disabled' && (
           <PanelState kind="locked" title={`${panel.code} is not enabled for your account yet.`} />
         )}
-        {!panel.popout && r.state === 'unknown' && (
+        {/* A saved board or share link naming a code removed from the terminal (functions.js
+            RETIRED) says where it went, not "unknown" (owner decision 2026-10-08). */}
+        {!panel.popout && r.state === 'unknown' && retiredNote(panel.code) && (
+          <PanelState kind="empty" title={retiredNote(panel.code)} testId="terminal-panel-retired">
+            Type <kbd>HELP</kbd> for the list.
+          </PanelState>
+        )}
+        {!panel.popout && r.state === 'unknown' && !retiredNote(panel.code) && (
           <PanelState kind="empty" title={`Unknown function ${panel.code}.`}>
             Type <kbd>HELP</kbd> for the list.
           </PanelState>
@@ -745,6 +772,25 @@ export default function TerminalShell() {
       if (!fromUrl && ROWS_OPEN_BESIDE.has(listName)) return run(target, { next: true, from: focusIdx })
       return run(target, { fromUrl })
     }
+    // ALRT with a price SETS an alert (lane 9, alertCommand.js): ONCE, from a typed command, then
+    // `SYM ALRT` (the list) opens, so no panel ever keeps a command that creates on reload.
+    if (cmd.type === 'function' && cmd.code === 'ALRT' && cmd.args?.length) {
+      if (fromUrl) {
+        setNotice({ kind: 'error', text: 'Price alerts are set from the command line, not from a link. Type the command to set one.' })
+        return null
+      }
+      const plan = planAlert(cmd)
+      if (!plan.ok) { setNotice({ kind: 'error', text: plan.error }); return null }
+      const opened = run(`${cmd.channel ? `@${cmd.channel} ` : ''}${plan.sym} ALRT`, { slot, next: beside, from })
+      setNotice({ kind: 'info', text: `Setting an alert for ${plan.sym}…` })
+      // The answer is ALWAYS said, even if the member typed on: an alert that was (or was not)
+      // set is a fact about their account, not a stale read of the screen.
+      setAlert(plan)
+        .then((r) => setNotice({ kind: 'info', text: r.text }))
+        .catch((err) => setNotice({ kind: 'error',
+          text: err?.memberText || `The alert for ${plan.sym} could not be saved. Nothing was set; try again.` }))
+      return opened
+    }
     countCommand(cmd)
     if (cmd.type === 'ask') {
       go(`/ai-search?q=${encodeURIComponent(cmd.question)}`)
@@ -777,6 +823,20 @@ export default function TerminalShell() {
     // command back where it was, not into whichever panel is focused now. A slot this board
     // no longer shows falls back to the focused panel.
     if (!cmd.channel && Number.isInteger(slot) && slot >= 1 && slot <= cur.count) at = slot - 1
+    // Wave 4 (lane A): a bare ticker typed while the focused panel follows no security (the
+    // calendar, HELP, a market list) loads into an overview ALREADY on screen — the linked
+    // panel — instead of turning the focused panel into a second copy of that overview (the
+    // first-visit board: CAL beside SPY DES). The focused panel keeps its function. With no
+    // overview on screen the focused panel takes it, exactly as before.
+    let overviewFrom = null
+    if (!cmd.channel && !beside && slot == null && isBareTicker(raw, cmd) && !isLinkable(cur.panels[at])) {
+      const own = panelChannel(cur.panels[at])
+      const visible = cur.panels.slice(0, cur.count)
+      const isOverview = (p, j) => j !== at && p.code === 'DES' && isLinkable(p) && !p.popout
+      let i = own ? visible.findIndex((p, j) => isOverview(p, j) && panelChannel(p) === own) : -1
+      if (i < 0) i = visible.findIndex(isOverview)
+      if (i >= 0) { overviewFrom = { index: at, code: cur.panels[at].code }; at = i }
+    }
     // An "Open SYM CODE" link inside a LIST panel (MOST's catalyst story, an RRG row) opens
     // BESIDE the list, never over it: a fresh panel when the board has room, else the next one
     // (boardModel.panelBeside). The provisional layout is only saved if the command opens.
@@ -910,7 +970,8 @@ export default function TerminalShell() {
       ignoredTicker && `${cmd.code} is market-wide; ${cmd.sym} was not applied.`,
       // The function's label, never the panel's internal name (`surfaceScreener`, round 3).
       redirectedFrom && `${BY_CODE[cmd.code].label} is already open in panel ${target + 1}; @${redirectedFrom} was redirected there instead of opening a second copy.`,
-      besideOf && target !== besideOf.src && `Opened ${[scope === 'ticker' ? sym : null, cmd.code].filter(Boolean).join(' ')} in ${besideOf.added ? 'a new ' : ''}panel ${target + 1}; ${besideOf.code} stays in panel ${besideOf.src + 1}.`,
+      overviewFrom && `Loaded ${sym} into the overview in panel ${target + 1}; ${overviewFrom.code} stays in panel ${overviewFrom.index + 1}.`,
+      besideOf && target !== besideOf.src &&`Opened ${[scope === 'ticker' ? sym : null, cmd.code].filter(Boolean).join(' ')} in ${besideOf.added ? 'a new ' : ''}panel ${target + 1}; ${besideOf.code} stays in panel ${besideOf.src + 1}.`,
       echo,
     ].filter(Boolean)
     if (said.length) setNotice({ kind: applied.ignored.length ? 'error' : 'info', text: said.join(' ') })
@@ -1012,7 +1073,14 @@ export default function TerminalShell() {
       pendingNavRef.current = null
     }
     if (pendingRef.current && pendingRef.current !== focusedText) return
+    // Wave 4 (lane A): an arriving command that put nothing in a panel — a door, an AI question,
+    // an address, a refusal — must not be answered in the SAME commit by the focused panel's
+    // command. The door's own navigation is still landing (writing now replaced it, so a
+    // returning member whose focused panel shows a ticker never reached the link's page), and a
+    // refused command stays in the address bar beside the notice that says why.
+    const ranNothing = justRan && pendingRef.current == null
     pendingRef.current = null
+    if (ranNothing) { userRunRef.current = null; return }
     const writeUrl = (mutate, replace) => {
       const p = new URLSearchParams(location.search)
       mutate(p)
@@ -1285,6 +1353,19 @@ export default function TerminalShell() {
     else if (a.id === 'undo-calendar') onUndoCalendar(a)
     else if (a.id === 'revert') revertLayout()
     else if (a.id === 'save-shared') onSaveBoard(a.name)
+    else if (a.id === 'undo-delete' && a.board) {
+      const res = restoreBoard(libraryRef.current, a.board, a.presets, a.index)
+      if (!res.ok) {
+        setNotice({ kind: 'error', text: res.reason === 'full'
+          ? `${a.board.name} could not come back: you have the most saved boards allowed.`
+          : `${a.board.name} could not come back: a board with that name is already saved.` })
+      } else if (!saveLibrary(res.library)) {
+        setNotice({ kind: 'error', text: 'Your saved boards could not be read, so the board was not restored.' })
+      } else {
+        if (a.wasCurrent) setCurrentBoard(a.board.name)
+        setNotice({ kind: 'info', text: `Restored your board ${a.board.name} (B:${a.board.slug}).` })
+      }
+    }
     else if (a.id === 'save-scan') {
       // Saved: keep the page buttons and the way back on the notice that says so.
       const said = onSaveBoard(a.name)
@@ -1645,7 +1726,7 @@ export default function TerminalShell() {
                 aria-pressed={layout.density === d} onClick={() => save(setDensity(layout, d))}
                 title={`${d[0].toUpperCase()}${d.slice(1)} density`} aria-label={`${d[0].toUpperCase()}${d.slice(1)} density`}
                 data-testid={`terminal-density-${d}`}>
-                {d === 'comfortable' ? 'Aa' : d === 'compact' ? 'Ab' : 'ab'}
+                {DENSITY_LABELS[d]}
               </button>
             ))}
           </div>
@@ -1729,6 +1810,7 @@ export default function TerminalShell() {
           )}
         </div>
       )}
+      {!sheet && <FirstRunCard onTry={runTyped} />}
       {!sheet && noticeEl}
       <div className={styles.body}>
         {!isPhone && (
@@ -1836,8 +1918,15 @@ export default function TerminalShell() {
           onSave={onSaveBoard}
           onOpen={(b) => { setSheet(null); openNamed(b) }}
           onDelete={(b) => {
-            saveLibrary(deleteBoard(library, b.id))
-            if (b.name === currentBoard) setCurrentBoard(null)
+            // One click deleted a saved board for good (lane C audit 2026-10-08). The delete
+            // stays one click, and the notice (shown at the top of this sheet) carries an Undo.
+            const index = library.boards.findIndex((x) => x.id === b.id)
+            const presets = presetsOfBoard(library, b.id)
+            if (!saveLibrary(deleteBoard(library, b.id))) return
+            const wasCurrent = b.name === currentBoard
+            if (wasCurrent) setCurrentBoard(null)
+            setNotice({ kind: 'info', text: `Deleted your board ${b.name}.`,
+              actions: [{ label: 'Undo', id: 'undo-delete', board: b, presets, index, wasCurrent }] })
           }}
           onPreset={(sym, id) => saveLibrary(setPreset(library, sym === '*' ? '*' : sym, id))}
           onKeepCalendar={(on) => saveLibrary(setKeepCalendar(library, on))}

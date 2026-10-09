@@ -11,6 +11,7 @@ import useMarketOpen from '../../../hooks/useMarketOpen'
 import { formatCurrency } from '../../../lib/presentation/presentationPrimitives'
 import { signedPct } from '../researchFormat'
 import ResearchLoading from '../ResearchLoading'
+import { usePanelFreshness, panelAsOf } from '../../../components/terminal/terminalPanel'
 import styles from '../ResearchPage.module.css'
 import AnalystRevisions from './AnalystRevisions'
 
@@ -92,10 +93,20 @@ function toRatingChangeRows(actions) {
   }))
 }
 
+/** Pure: the newest `_meta.sourceObservedAt` (epoch seconds) across the three legs, or null. */
+function newestObservedAt(d) {
+  const ts = [d?.consensus?._meta, d?.price_target?._meta, d?.recent_actions?._meta]
+    .map((m) => Number(m?.sourceObservedAt)).filter((n) => Number.isFinite(n) && n > 0)
+  return ts.length ? Math.max(...ts) : null
+}
+
 export default function AnalystRatingsTab({ sym }) {
   const { data, isLoading, error, paywalled, mutate } = useAnalystRatings(sym)
   const session = useMarketOpen()
   const { prices: livePrices } = useLivePrices(sym ? [sym] : [])
+  // Audit wave 2: source + newest read time in the terminal panel header (CF and EEH do; the
+  // per-card trust strips stay). A no-op outside the terminal.
+  usePanelFreshness(data && !error && !paywalled ? panelAsOf('FMP analyst ratings and price targets', newestObservedAt(data)) : null)
 
   if (isLoading) {
     return <ResearchLoading label="Loading analyst ratings" />
@@ -150,7 +161,9 @@ export default function AnalystRatingsTab({ sym }) {
             <span className={`${styles.statBig} ${consensusClass(con.label)}`} data-testid="consensus-label">{con.label || '—'}</span>
             {Number.isFinite(con.total) && <span className={styles.muted}>{con.total} {con.total === 1 ? 'analyst' : 'analysts'}</span>}
           </div>
-          <div className={styles.segBar}>
+          {/* The bar is colour only; a screen reader gets the same split as one sentence. */}
+          <div className={styles.segBar} role="img"
+               aria-label={`Rating split: ${SEG.map(s => `${con[s.key] || 0} ${s.label}`).join(', ')}`}>
             {SEG.map(s => {
               const v = con[s.key] || 0
               const w = con.total ? (v / con.total) * 100 : 0
@@ -182,7 +195,8 @@ export default function AnalystRatingsTab({ sym }) {
             </div>
             {upside != null && (
               <div>
-                <div className={styles.muted}>vs current price</div>
+                {/* Audit wave 2: the live price is the LAST TRADE (after hours, the last print). */}
+                <div className={styles.muted}>vs last trade</div>
                 <div className={upside >= 0 ? styles.up : styles.down}>{signedPct(upside)}</div>
               </div>
             )}

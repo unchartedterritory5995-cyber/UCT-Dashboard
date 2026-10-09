@@ -49,7 +49,8 @@ def test_the_contract_is_unchanged_and_the_new_ops_are_additive():
     # ⭐ PHASE 5 moved this deliberately: 22 -> 24 (set_color_rule,
     # set_calculation_timeframe), contract still uct.authoring.patch/1.
     # OVERNIGHT D: 24 -> 26 (set_table, remove_table); E: -> 28 (set_input, remove_input).
-    assert len(names) == 28 and all(op in names for op in NEW_OPS)
+    # BATCH 2: -> 29 (set_color_states); the contract is still uct.authoring.patch/1.
+    assert len(names) == 29 and all(op in names for op in NEW_OPS)
     style = raw["$defs"]["op_set_style"]
     assert style["properties"]["lineStyle"]["enum"] == ["solid", "dashed", "dotted", "largeDashed"]
     assert "lineStyle" not in style["required"]

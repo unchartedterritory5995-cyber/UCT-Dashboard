@@ -1,0 +1,29 @@
+/* A symbol that loads its name: looks like the text it replaces, says it is clickable on hover
+ * and focus, and reaches the 44px floor on touch. App tokens only. */
+.link {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+.link:hover,
+.link:focus-visible {
+  color: var(--accent);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (max-width: 1024px) {
+  .link {
+    min-height: var(--tap-min);
+  }
+}

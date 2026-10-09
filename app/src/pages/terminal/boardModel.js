@@ -24,7 +24,7 @@
 // `charts_workspace_groups` (one value with /charts and the app focus, owner call
 // 2026-08-14), so their record's `sym` is never read. E and later keep `sym` in the record.
 // `history` is that channel's entity recents (IA §14.2), bounded.
-import { BY_CODE } from './functions'
+import { BY_CODE, canonicalCode } from './functions'
 
 export const LAYOUT_VERSION = 2
 export const LEGACY_LAYOUT_VERSION = 1
@@ -42,6 +42,9 @@ export const MAX_CHANNELS = 12
 export const MAX_BOARDS = 24
 export const FAVORITES_MAX = 16
 export const DENSITIES = ['comfortable', 'compact', 'dense']
+/** The density control's visible words (audit 2026-10-08: the buttons read "Aa / Ab / ab",
+ *  which told a sighted member nothing). Each button's accessible name contains its word. */
+export const DENSITY_LABELS = { comfortable: 'Comfortable', compact: 'Compact', dense: 'Dense' }
 
 /** The /charts colour groups. Their security is `charts_workspace_groups`'. */
 export const COMPAT_CHANNELS = ['A', 'B', 'C', 'D']
@@ -51,6 +54,26 @@ export const LINK_GROUPS = ['A', 'B', 'C', 'D', 'N']
 export const GROUP_DOT = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc', N: '#6b7280' }
 /** Colours for channels beyond D, cycled. Data, not a ceiling. */
 export const CHANNEL_COLORS = ['#f472b6', '#fb923c', '#2dd4bf', '#facc15', '#a3e635', '#38bdf8', '#e879f9', '#f87171']
+
+/** Stored group hex -> the theme-aware DISPLAY token it renders as (tokens.css `--link-group-*`).
+ *  ⛔ RENDER-TIME ONLY: the hex above stays what boards, share links and /charts store and
+ *  compare; nothing is migrated. On the dark default each token IS its stored hex, so dark draws
+ *  exactly what /charts draws; the light theme darkens each one until it reads as text (AA). */
+const GROUP_TOKEN = new Map([
+  ...COMPAT_CHANNELS.map((id) => [GROUP_DOT[id], `--link-group-${id.toLowerCase()}`]),
+  ...CHANNEL_COLORS.map((hex, i) => [hex, `--link-group-${i + 1}`]),
+])
+
+/** The inline style a group dot/swatch takes for a STORED colour: `--dot` (ring / swatch, may
+ *  stay decorative) and `--dot-ink` (letter text, AA on every theme). A valid hex outside the
+ *  palette (an old share link) keeps its own ring and gets NO `--dot-ink`, so its letter falls
+ *  back to `--text` rather than an unmeasured colour. */
+export function groupStyle(color) {
+  if (typeof color !== 'string' || !HEX_RE.test(color)) return {}
+  const token = GROUP_TOKEN.get(color.toLowerCase())
+  if (!token) return { '--dot': color }
+  return { '--dot': `var(${token})`, '--dot-ink': `var(${token})` }
+}
 
 /** `B:<slug>` — a named board's address. Same character class as the server's addresses. */
 export const BOARD_ADDRESS_RE = /^B:([A-Za-z0-9_-]{1,40})$/i
@@ -99,6 +122,21 @@ export function defaultLayout() {
 }
 
 export const DEFAULT_LAYOUT = Object.freeze(defaultLayout())
+
+/** The security a brand-new member's overview panel shows (group A) until they pick one. */
+export const FIRST_VISIT_SYM = 'SPY'
+
+/** A brand-new member's first board (owner decision 2026-10-08, product item #1): the calendar
+ *  beside an overview, i.e. the default board with its first TWO panels showing (CAL, then DES
+ *  on group A). `useTerminalLayout` shows it only for a member with no saved board at all
+ *  (`readLayout` status `absent`, preferences loaded) and fills group A with FIRST_VISIT_SYM
+ *  while the member has none, so the overview reads SPY rather than "needs a ticker". */
+export function firstVisitLayout() {
+  // Focus stays on CAL, as on the one-panel default. Focusing the overview instead made the
+  // shell write `?cmd=SPY DES` into the address bar on open, which overwrote a `?cmd=` deep link
+  // a new member arrived with (TerminalShell.audit2 #2 / #22 went red).
+  return { ...defaultLayout(), count: 2 }
+}
 
 /** Every panel's `group` letter, derived from its channel: the compatibility view. */
 function withCompat(layout) {
@@ -165,7 +203,9 @@ function normalizePanel(p, channelIds, usedIds) {
   const ch = panelChannel(p)
   const out = {
     id,
-    code: p.code.slice(0, 12).toUpperCase(),
+    // A saved board or share link may name a code that became an alias (WIIM → MOVE, BRKE → EE,
+    // owner decision 2026-10-08): it opens the code it now means, under that code's name.
+    code: canonicalCode(p.code.slice(0, 12)),
     channel: ch && channelIds.has(ch) ? ch : null,
     sym: upperSym(p.sym),
     args: Array.isArray(p.args) ? p.args.filter((a) => typeof a === 'string').slice(0, 8) : [],
@@ -522,7 +562,7 @@ export function decodePopout(token) {
   try {
     const v = JSON.parse(b64urlDecode(token))
     if (!isObj(v) || typeof v.c !== 'string') return null
-    return { id: 'popout', code: v.c.toUpperCase().slice(0, 12), channel: null, sym: upperSym(v.s),
+    return { id: 'popout', code: canonicalCode(v.c.slice(0, 12)), channel: null, sym: upperSym(v.s),
       args: Array.isArray(v.a) ? v.a.filter((a) => typeof a === 'string').slice(0, 8) : [], group: 'N' }
   } catch { return null }
 }
@@ -644,7 +684,7 @@ export function normalizeLibrary(v) {
     if (key && ids.has(id)) presets[key] = id
   }
   const favorites = [...new Set((Array.isArray(v.favorites) ? v.favorites : [])
-    .filter((c) => typeof c === 'string' && BY_CODE[c.toUpperCase()]).map((c) => c.toUpperCase()))].slice(0, FAVORITES_MAX)
+    .filter((c) => typeof c === 'string' && BY_CODE[c.toUpperCase()]).map((c) => canonicalCode(c)))].slice(0, FAVORITES_MAX)
   return { v: LIBRARY_VERSION, boards, presets, favorites, keepCalendar: v.keepCalendar === true }
 }
 
@@ -690,6 +730,28 @@ export function renameBoard(library, id, name) {
 export function deleteBoard(library, id) {
   const presets = Object.fromEntries(Object.entries(library.presets).filter(([, v]) => v !== id))
   return { ...library, boards: library.boards.filter((b) => b.id !== id), presets }
+}
+
+/** The ticker presets that open board `id` (what `deleteBoard` drops with it). */
+export function presetsOfBoard(library, id) {
+  return Object.fromEntries(Object.entries(library.presets || {}).filter(([, v]) => v === id))
+}
+
+/** Put a just-deleted board back (the Undo on a delete): at its old place in the list, with the
+ *  presets that opened it. Into the CURRENT library, so anything changed since the delete stays.
+ *  `{ library, ok, reason? }` — refused when a board with that id or name is back already, or
+ *  the library is full. A preset re-pointed at another board since the delete is left alone. */
+export function restoreBoard(library, board, presets = {}, index = null) {
+  if (!board || typeof board.id !== 'string') return { library, ok: false, reason: 'missing' }
+  if (library.boards.some((b) => b.id === board.id || sameBoardName(b.name, board.name))) {
+    return { library, ok: false, reason: 'exists' }
+  }
+  if (library.boards.length >= MAX_BOARDS) return { library, ok: false, reason: 'full' }
+  const restored = { ...board, slug: uniqueSlug(board.slug || slugify(board.name), library.boards, board.id) }
+  const at = Number.isInteger(index) ? Math.max(0, Math.min(index, library.boards.length)) : library.boards.length
+  const boards = [...library.boards.slice(0, at), restored, ...library.boards.slice(at)]
+  const back = Object.fromEntries(Object.entries(presets).filter(([k]) => !(k in library.presets)))
+  return { library: { ...library, boards, presets: { ...library.presets, ...back } }, ok: true }
 }
 
 /** A board by `B:` slug, by bare slug, or by id. */

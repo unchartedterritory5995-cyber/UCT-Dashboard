@@ -135,6 +135,14 @@ def live(monkeypatch, clock):
 
 
 @pytest.fixture(autouse=True)
+def _session_printing(monkeypatch):
+    # Perf wave 2: the live windows are 10 s / 30 s only while a US session can print
+    # (svc.prices_moving); quiet hours are pinned in tests/test_theme_performance_cold_path.py.
+    # These tests pin the in-session behaviour, so they must not depend on the wall clock.
+    monkeypatch.setattr(svc, "prices_moving", lambda now=None: True)
+
+
+@pytest.fixture(autouse=True)
 def _isolate_cache():
     prior_base = cache.get(svc._CACHE_KEY)
     for k in _LIVE_KEYS + (svc._CACHE_KEY,):
@@ -419,7 +427,8 @@ def test_cold_start_builds_once_and_returns_what_it_cached(live, clock):
     service cached it, and the complete build becomes last-good."""
     body, resp = _route()
     assert _tier(resp) == "fetch" and live.recomputes == 1
-    assert body is cache.get(svc._OVERLAID_KEY)
+    # perf wave 2: the route sends the WIRE copy of what the service cached (unread fields dropped)
+    assert body == tp_router.wire_payload(cache.get(svc._OVERLAID_KEY))
     assert _slot_live1d() == 1.5
     assert "live_as_of" in body
 

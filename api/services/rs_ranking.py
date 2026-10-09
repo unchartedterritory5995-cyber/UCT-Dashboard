@@ -294,5 +294,14 @@ def get_rs_for_ticker(ticker: str) -> dict | None:
     ⛔ Delegates to `cached_rank_map` rather than re-walking the list: one reader
     of the cache's shape, so a change to that shape cannot leave two lookups
     disagreeing.
+
+    Dual-class symbols are accepted in either spelling. The universe stores the
+    hyphen form (``BRK-B``), and a member typing the dot form (``BRK.B``, which
+    is how Massive and most brokers write it) used to get a 404.
     """
-    return cached_rank_map().get((ticker or "").upper())
+    sym = (ticker or "").strip().upper()
+    ranks = cached_rank_map()
+    hit = ranks.get(sym)
+    if hit is None and ("." in sym or "/" in sym):
+        hit = ranks.get(sym.replace(".", "-").replace("/", "-"))
+    return hit

@@ -11,9 +11,9 @@
 // Pearson on daily simple returns, each pair over the sessions BOTH traded. A pair with fewer
 // than MIN_CORR_SESSIONS common returns shows "n/a", never a number.
 import { useEffect, useMemo, useState } from 'react'
-import { BoardFromList, PanelSkeleton, PanelState, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
+import { BoardFromList, PanelSkeleton, PanelState, PanelSymbol, usePanelFreshness, usePanelSymbolRows } from '../../../components/terminal'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
-import useCloses, { closesProvenance } from './useCloses'
+import useCloses, { closesProvenance, failedText } from './useCloses'
 import { MIN_CORR_SESSIONS, collectSymbols, correlationMatrix, corrWindow, withArgsKey } from './relativeMath'
 import styles from './comparePanels.module.css'
 
@@ -39,12 +39,45 @@ export function corrTint(r) {
   return `color-mix(in srgb, var(${r >= 0 ? '--accent' : '--info'}) ${pct}%, transparent)`
 }
 
+/** Pure: how a correlation reads in words. A strongly NEGATIVE r is a strong relationship (the
+ *  two move opposite), never "independent" (audit 2026-10-08: `CORR SPY SH` read "SPY and SH move
+ *  mostly independently (r = -0.99)"). */
+export function corrStrength(r) {
+  if (r >= 0.8) return 'move almost as one'
+  if (r >= 0.6) return 'move largely together'
+  if (r >= 0.3) return 'are loosely related'
+  if (r <= -0.8) return 'move almost exactly opposite'
+  if (r <= -0.6) return 'largely move opposite'
+  if (r <= -0.3) return 'lean opposite'
+  return 'move mostly independently'
+}
+
 /** Pure: the plain-language read of the strongest pair. */
 export function corrVerdict(read) {
   if (!read?.most) return null
   const r = read.most.r
-  const strength = r >= 0.8 ? 'move almost as one' : r >= 0.6 ? 'move largely together' : r >= 0.3 ? 'are loosely related' : 'move mostly independently'
-  return `${read.most.a} and ${read.most.b} ${strength} (r = ${formatNumber(r, { decimals: 2 })}).`
+  return `${read.most.a} and ${read.most.b} ${corrStrength(r)} (r = ${formatNumber(r, { decimals: 2 })}).`
+}
+
+/** Pure: the second line under the verdict. "Least related" is the pair CLOSEST TO ZERO; a pair
+ *  at r = -1 is the most opposite pair, not the least related one, so when a clearly negative
+ *  pair exists it is named as that instead. Null when no other pair than the strongest exists. */
+export function corrSecondLine(read) {
+  if (!read?.most || !read.matrix) return null
+  const pairs = []
+  for (let i = 0; i < read.syms.length; i++) {
+    for (let j = i + 1; j < read.syms.length; j++) {
+      const r = read.matrix[i][j]?.r
+      if (r != null) pairs.push({ a: read.syms[i], b: read.syms[j], r })
+    }
+  }
+  const rest = pairs.filter((p) => !(p.a === read.most.a && p.b === read.most.b))
+  if (!rest.length) return null
+  const fmt = (p) => `${p.a} and ${p.b} (r = ${formatNumber(p.r, { decimals: 2 })}).`
+  const opposite = rest.reduce((m, p) => (p.r < m.r ? p : m))
+  if (opposite.r <= -0.3) return `Most opposite: ${fmt(opposite)}`
+  const least = rest.reduce((m, p) => (Math.abs(p.r) < Math.abs(m.r) ? p : m))
+  return `Least related: ${fmt(least)}`
 }
 
 /** Pure: the method note's window, in words. */
@@ -84,8 +117,16 @@ export default function CorrPanel({ sym, lookback, ...props }) {
   }
   if (state.phase !== 'ready') return <PanelSkeleton label={`Loading ${syms.join(', ')}`} testId="terminal-corr-loading" />
   if (!read) {
-    const why = state.failed.length ? `Could not read ${state.failed.join(', ')} just now.` : 'Fewer than two names could be read.'
-    return <PanelState kind="error" title={why} testId="terminal-corr-error">CORR needs at least two names with price history. Run it again to retry.</PanelState>
+    // Audit wave 2: an unknown ticker says "No price history for X: check the ticker" (a 404 is
+    // not "just now"), and Retry is a button — re-running the same command keeps this panel and
+    // reads nothing (same treatment as REL / RRG, via useCloses.retry).
+    const why = failedText(state) || 'Fewer than two names could be read.'
+    return (
+      <PanelState kind="error" title={why} testId="terminal-corr-error"
+        action={<button type="button" onClick={state.retry} data-testid="terminal-corr-retry">Retry</button>}>
+        CORR needs at least two names with price history. Retry, or drop that name.
+      </PanelState>
+    )
   }
   return (
     <div className={styles.wrap} data-testid="terminal-corr">
@@ -101,26 +142,24 @@ export default function CorrPanel({ sym, lookback, ...props }) {
         </p>
       )}
       {corrVerdict(read) && <p className={styles.lede} data-testid="terminal-corr-verdict">{corrVerdict(read)}</p>}
-      {read.least && read.least !== read.most && (
-        <p className={styles.lede} data-testid="terminal-corr-least">
-          Least related: {read.least.a} and {read.least.b} (r = {formatNumber(read.least.r, { decimals: 2 })}).
-        </p>
+      {corrSecondLine(read) && (
+        <p className={styles.lede} data-testid="terminal-corr-least">{corrSecondLine(read)}</p>
       )}
       <div className={styles.tableBox}>
         <table className={styles.table} data-testid="terminal-corr-matrix" aria-label={`Correlation matrix, ${win} of daily returns`}>
           <thead>
-            <tr><th scope="col" aria-label="Symbol" />{read.syms.map((s) => <th key={s} scope="col">{s}</th>)}<th scope="col">Avg r</th></tr>
+            <tr><th scope="col" aria-label="Symbol" />{read.syms.map((s) => <th key={s} scope="col"><PanelSymbol sym={s} /></th>)}<th scope="col">Avg r</th></tr>
           </thead>
           <tbody>
             {read.syms.map((a, i) => (
               <tr key={a}>
-                <th scope="row" className={styles.symCell}>{a}</th>
+                <th scope="row" className={styles.symCell}><PanelSymbol sym={a} /></th>
                 {read.matrix[i].map((c, j) => (
                   <td key={read.syms[j]} data-testid={`corr-${a}-${read.syms[j]}`}
                     className={`${styles.corrCell} ${i === j ? styles.corrDiag : ''} ${c.r == null ? styles.corrNa : ''}`}
                     style={i === j ? undefined : { background: corrTint(c.r) }}
                     title={c.r == null ? `${c.n} common sessions: too few` : `${c.n} common sessions`}>
-                    {i === j ? '1' : c.r == null ? 'n/a' : formatNumber(c.r, { decimals: 2 })}
+                    {i === j ? '1.00' : c.r == null ? 'n/a' : formatNumber(c.r, { decimals: 2 })}
                   </td>
                 ))}
                 <td>{formatNumber(read.avg[i].avg, { decimals: 2 })}</td>
@@ -130,7 +169,10 @@ export default function CorrPanel({ sym, lookback, ...props }) {
         </table>
       </div>
       {state.failed.length > 0 && (
-        <p className={styles.note} role="status" data-testid="terminal-corr-failed">Could not read {state.failed.join(', ')} just now; not in the matrix.</p>
+        <p className={styles.note} role="status" data-testid="terminal-corr-failed">
+          {failedText(state)} Not in the matrix.{' '}
+          <button type="button" className={styles.chip} onClick={state.retry} data-testid="terminal-corr-failed-retry">Retry</button>
+        </p>
       )}
       <p className={styles.muted}>
         Pearson correlation of daily returns {windowPhrase(win)}, each pair on the

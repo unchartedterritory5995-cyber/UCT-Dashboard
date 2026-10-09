@@ -1071,6 +1071,17 @@
       ]
     },
     {
+      "key": "uct_intro_last_et_day",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "state",
+      "label": "Day the intro animation last played",
+      "files": [
+        "app/src/components/intro/introStorage.js"
+      ]
+    },
+    {
       "key": "uct_intro_seen_v1",
       "store": "localStorage",
       "scope": "device-local",

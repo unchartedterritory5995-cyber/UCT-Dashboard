@@ -14,7 +14,7 @@ import {
   describeSampleHold,
 } from './onboarding/sampleNotebook'
 import { precheckNoteBatch } from '../../lib/noteBatch'
-import { openSpanningCitation } from '../../lib/openCitation'
+import { openSpanningCitation, passageNavigationState } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
 import { earningsPrepEnabled } from '../../lib/earningsPrepShared'
 import { passedSetupsEnabled } from '../../lib/researchCapture'
@@ -208,7 +208,14 @@ export default function ResearchHome({
 
   // Whatever a box passes after the note (a drafted review's `{ to: 'collapsed' }`) goes on to
   // the tab unchanged; a box that passes only the note still calls with only the note.
-  const openNote = (note, ...rest) => (onOpenNote ? onOpenNote(note, ...rest) : navigate(notePath(note.id)))
+  // Without a tab, a cited passage (fin walk 8.3; `openNote(note, null, { passage })` from
+  // lib/openCitation.js) still rides the entry's state, the way NotebookTab carries it, so the
+  // editor can land on it; every other open navigates exactly as before.
+  const openNote = (note, ...rest) => {
+    if (onOpenNote) return onOpenNote(note, ...rest)
+    const passage = rest[1]?.passage
+    return navigate(notePath(note.id), passage ? { state: passageNavigationState({ ...passage, noteId: note.id }) } : undefined)
+  }
 
   // ── Wave 8 lane 8C (C3): the sample notebook and the tour's door ──────────────────
   // Both appear only while `notebook_onboarding_enabled` is on; the sample button only
@@ -494,6 +501,25 @@ export default function ResearchHome({
     </Link>
   ) : null
 
+  // Finish program (fin-walk 8.3): a member with notes but nothing surfaced -- the quiet home --
+  // had NO Ask door; it was rendered only by the full home below. Ask reads the whole Notebook,
+  // not the sections, so it belongs in every state that has notes to ask about (the first-run
+  // branch above has none). The same element at the same tree position (fourth child of the
+  // state's container, after the sample notice, Today and Active setups) in the quiet, the
+  // quiet-with-error and the full home, so a flip between them keeps an open panel and its
+  // answer mounted -- the same reasoning as the four boxes above.
+  const askRow = (
+    <div className={styles.askRow}>
+      {/* ⛔ An EXCERPT citation used to be a dead click here: its navigation
+          carries no `note_id`, and this handler knew nothing else. The one
+          shared router opens it in place, and returns a sentence for
+          AskPanel to show when a source cannot be opened. */}
+      <AskPanel scope="notebook" onOpenNote={openNote} onNavigate={(s, _r, { signal } = {}) => openSpanningCitation(s, {
+        signal, openNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
+      })} />
+    </div>
+  )
+
   if (nothingToShow && homeError) {
     return (
       <>
@@ -506,6 +532,7 @@ export default function ResearchHome({
           {sampleNotice}
           {todayBox}
           {setupsLink}
+          {askRow}
           <LoadFailed what="your research home" error={homeError} onRetry={refreshHome} />
         </div>
       </>
@@ -524,6 +551,7 @@ export default function ResearchHome({
           {sampleNotice}
           {todayBox}
           {setupsLink}
+          {askRow}
           <p>Nothing needs your attention right now.</p>
           <p className={styles.quietHint}>Favorite a note or set a thesis to Active to see it here.</p>
         </div>
@@ -545,15 +573,7 @@ export default function ResearchHome({
       {/* ⛔ A CALM ENTRY POINT, NOT AN AI DASHBOARD. Research Home still
           answers "what was I working on, and where do I resume?" -- Ask is
           one affordance on that page, not the page. */}
-      <div className={styles.askRow}>
-        {/* ⛔ An EXCERPT citation used to be a dead click here: its navigation
-            carries no `note_id`, and this handler knew nothing else. The one
-            shared router opens it in place, and returns a sentence for
-            AskPanel to show when a source cannot be opened. */}
-        <AskPanel scope="notebook" onOpenNote={openNote} onNavigate={(s, _r, { signal } = {}) => openSpanningCitation(s, {
-          signal, openNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
-        })} />
-      </div>
+      {askRow}
       <Section title="Continue working" notes={home.continueWorking} onOpen={openNote} viewAllHref="/journal/notebook?view=all" />
       <Section title="Favorites" notes={home.favorites} onOpen={openNote} />
       <Section title="Active theses" notes={home.activeTheses} onOpen={openNote} />

@@ -87,6 +87,26 @@ export function usePanelRows(rows = null) {
 }
 
 /**
+ * Wave 2 (audit 2026-10-08): run a command from inside an embedded panel, the CLICK twin of
+ * `usePanelRows` (a row's `$SYM` typed by number). Returns `run(text)` inside a terminal panel,
+ * `null` everywhere else — so a caller renders plain text outside the shell. `PanelSymbol` is
+ * the one consumer; use it rather than calling this directly.
+ */
+export function usePanelRun() {
+  return useContext(PanelListContext)?.run || null
+}
+
+/**
+ * Wave 3 (lane 13): re-run a command IN THIS PANEL (its own slot), so an embedded panel's chip can
+ * write its state back into its command -- `FREC` -> `FREC MINE` -- and a reload, `?cmd=` and the
+ * history keep it. Returns `rerun(text)` inside a terminal panel, `null` everywhere else (the page
+ * then keeps the choice in component state only).
+ */
+export function usePanelRerun() {
+  return useContext(PanelListContext)?.rerun || null
+}
+
+/**
  * The common case: a list whose rows each name ONE security. Publishes `$SYM` per visible row
  * (duplicates kept — row N is the Nth row on screen) and the de-duplicated names as the panel's
  * list for `BOARD <FUNC>` / the "Board of" control. Returns the de-duplicated names.
@@ -166,4 +186,14 @@ export function panelAsOf(source, at, { dataClass = null } = {}) {
  */
 export function QuietPanelFreshness({ children }) {
   return createElement(PanelFreshnessContext.Provider, { value: null }, children)
+}
+
+/**
+ * Wave 3 (#3): open a RELATED FUNCTION from inside an embedded panel (an EVTS filing opens CF,
+ * a room-attention day opens CN), beside the panel the click came from — the command twin of
+ * `usePanelRun`. Returns `open(text)` inside a terminal panel, `null` everywhere else, so the
+ * caller renders plain text outside the shell. `PanelCommand` is the one consumer.
+ */
+export function usePanelOpen() {
+  return useContext(PanelListContext)?.open || null
 }

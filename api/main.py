@@ -3983,9 +3983,14 @@ async def lifespan(app: FastAPI):
         # registers in the scheduler block instead
         # (tests/test_lifespan_scheduler_binds_before_use.py).
         _start_calendar_enrichment_warm_background()
+        # Perf wave 2: keep the current-week calendar slot inside its serve-stale bound all day,
+        # every day (api/routers/calendar.py::WEEKLY_REWARM_INTERVAL_S).
+        from api.routers.calendar import start_weekly_rewarm as _start_weekly_rewarm
+        _start_weekly_rewarm()
         logging.getLogger(__name__).info(
             "[startup] dashboard warm scheduled (~20s after boot); "
-            "calendar-enrichment re-warm every 240s (under the 300s TTL)")
+            "calendar-enrichment re-warm every 240s (under the 300s TTL); "
+            "calendar week re-warm every 20 min (under the 30-min stale bound)")
     except Exception:
         readiness.mark_done("dashboard")
         logging.getLogger(__name__).exception("[startup] failed to schedule dashboard warm")
@@ -6417,6 +6422,25 @@ async def lifespan(app: FastAPI):
                 id="breadth_putcall_fill_boot", replace_existing=True)
             logging.getLogger(__name__).info(
                 "[startup] breadth put/call fill scheduled (07:05/19:05/22:05 ET + boot)")
+
+            # Intraday-basis new highs/lows: extend the series once each session's daily bar has
+            # settled, re-try in the morning, and resume after a redeploy (after the boot warms).
+            def _breadth_nhnl_extend():
+                try:
+                    from api.services import breadth_nhnl_intraday
+                    breadth_nhnl_intraday.scheduled_extend()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[nhnl-intraday] extend failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_nhnl_extend,
+                trigger=CronTrigger(day_of_week="mon-sat", hour="7,18,20", minute=35, timezone=_ET),
+                id="breadth_nhnl_extend", max_instances=1,
+                coalesce=True, misfire_grace_time=3600, replace_existing=True)
+            _scheduler.add_job(
+                _breadth_nhnl_extend, trigger="date",
+                run_date=_dt.now(_ET) + _td(minutes=12),
+                id="breadth_nhnl_extend_boot", replace_existing=True)
         except Exception:
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth put/call fill")
@@ -9572,6 +9596,8 @@ from api.routers import address_space as address_space_router  # noqa: E402  (TE
 app.include_router(address_space_router.router)
 from api.routers import terminal_grammar as terminal_grammar_router  # noqa: E402  (TERMINAL-NEXT T3, cohort-gated)
 app.include_router(terminal_grammar_router.router)
+from api.routers import terminal_grade as terminal_grade_router  # noqa: E402  (GRADE: Compass verdict, cohort + paid, brain-gated)
+app.include_router(terminal_grade_router.router)
 from api.routers import options_chain as options_chain_router  # noqa: E402  (BRK-01 inc 1, dark)
 app.include_router(options_chain_router.router)
 from api.routers import options_analytics as options_analytics_router  # noqa: E402  (FT-0xx options rows, each dark)

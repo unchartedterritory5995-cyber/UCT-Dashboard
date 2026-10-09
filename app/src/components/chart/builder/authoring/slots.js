@@ -22,6 +22,7 @@
 import { TABLE } from '../../engine/ast/parse'
 import { comparisons } from '../toCondition'
 import { outputTreeOf } from '../../engine/outputType'
+import { recogniseExpansion } from '../../engine/ast/callExpansions'
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 
@@ -98,6 +99,11 @@ export function slotsOfTree(output, tree) {
   const out = []
   const walk = (node, segs, parent, index, negated) => {
     if (!isObj(node)) return
+    // ⛔ BATCH 2 — NO SLOT INSIDE AN EXPANSION. `linreg(close, 50, 0)` is stored as the
+    // tree it IS, where 50 appears four times and `close` twice: a slot on one copy
+    // would edit a quarter of the maths and silently compute something else. The
+    // model sees the call (`compactView`) and changes it by re-sending the tree.
+    if (recogniseExpansion(node)) return
     if (node.type === 'num') {
       const r = roleOf(parent, index)
       out.push(Object.freeze({

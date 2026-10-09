@@ -161,13 +161,17 @@ def _fetch_already_running(response) -> bool:
     return body.get("warming") is True or body.get("error") == "warming"
 
 
-def _no_data_response(ticker: str, tf: str):
+def _no_data_response(ticker: str, tf: str, reason: str = "symbol_not_carried"):
     """200 + an empty series + why it is empty. `no_data` is what makes this
-    distinguishable from a quiet-but-live symbol without inventing a single bar."""
+    distinguishable from a quiet-but-live symbol without inventing a single bar.
+
+    Reasons: `symbol_not_carried` (not in any list we hold, and the fetch found
+    nothing) · `no_provider_data` (a completed cold fetch asked every provider,
+    none faulted, and none had a single bar — `bars_fetch.cold_negative`)."""
     return JSONResponse(
         status_code=200,
         content={"ticker": (ticker or "").upper(), "tf": tf, "bars": [],
-                 "no_data": True, "reason": "symbol_not_carried"},
+                 "no_data": True, "reason": reason},
     )
 
 
@@ -1028,6 +1032,22 @@ def _serve_bars_impl(
             _log.info("[bars] %s tf=%s: no data and not a carried symbol — "
                       "200 no_data instead of a transient 503", ticker, tf)
             response = _no_data_response(ticker, tf)
+
+        # ── WARMING THAT CAN NEVER LAND ─────────────────────────────────────
+        # ⛔ MEASURED ON PRODUCTION 2026-10-08/09: ZZQXV tf=D answered the warming
+        # 503 on EVERY request, indefinitely — each request kicked a new cold fetch
+        # that found nothing and promised "re-poll" again. The exemption above is
+        # right while a fetch MIGHT land; once one has COMPLETED with every provider
+        # answering "nothing" and none faulting, the promise is known to be empty.
+        # Carried or not: a searchable symbol with no bars anywhere spins forever
+        # just the same. A real-but-cold symbol (BFRG/SNGX/GDX) is never in that
+        # cache — its fetch writes rows — so it keeps warming and then serves.
+        if (not crashed and getattr(response, "status_code", 200) == 503
+                and _fetch_already_running(response)
+                and _bars_fetch.cold_negative(ticker, tf)):
+            _log.info("[bars] %s tf=%s: cold fetch found nothing at any provider — "
+                      "200 no_data instead of another warming 503", ticker, tf)
+            response = _no_data_response(ticker, tf, reason="no_provider_data")
 
         # ── SERVER-INCLUDE TODAY'S DEVELOPING DAILY BAR (equity/ETF only) ────
         # The sealed daily history from the fetch/cache paths ends at the last

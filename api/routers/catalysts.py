@@ -262,6 +262,64 @@ _explain_cache: dict[tuple[str, str], tuple[float, dict]] = {}
 _explain_inflight: dict[tuple[str, str], threading.Lock] = {}
 
 
+# Perf wave 2 (2026-10-08): the source pull behind every explain is the SAME for every ticker
+# (collect_all() never looks at the symbol), yet it was cached per (symbol, date), so each
+# new ticker paid the full 9-22 s pull. The pool is now cached ONCE per market date, shared
+# by every ticker, single-flight. Past POOL_TTL_SECONDS a request is answered from the
+# previous pool (age <= POOL_STALE_MAX_SECONDS, same market date) while ONE background
+# refresh runs, so only the first lookup of a market date (or after a deploy) waits.
+POOL_TTL_SECONDS = EXPLAIN_TTL_SECONDS
+POOL_STALE_MAX_SECONDS = 1800
+_pool_lock = threading.Lock()
+_pool_flight = threading.Lock()
+_pool_cache: dict[str, tuple[float, list]] = {}   # md -> (pulled_at, candidates)
+_pool_refreshing: set[str] = set()
+
+
+def _pull_pool(md: str) -> tuple[float, list]:
+    from api.services.catalyst import sources
+    cands = sources.collect_all()
+    at = time.time()
+    with _pool_lock:
+        for k in [k for k in _pool_cache if k != md]:
+            _pool_cache.pop(k, None)
+        _pool_cache[md] = (at, list(cands or []))
+        return _pool_cache[md]
+
+
+def _refresh_pool_bg(md: str) -> None:
+    try:
+        with _pool_flight:
+            _pull_pool(md)
+    except Exception as e:   # a failed refresh keeps the stale pool; the next request retries
+        logger.warning("[catalysts-explain] background pool refresh failed: %s", e)
+    finally:
+        with _pool_lock:
+            _pool_refreshing.discard(md)
+
+
+def _explain_pool(md: str) -> tuple[float, list]:
+    """(pulled_at, candidates) for `md`: fresh, else stale-while-revalidate, else one shared
+    synchronous pull. Callers must copy a candidate before mutating it."""
+    now = time.time()
+    with _pool_lock:
+        hit = _pool_cache.get(md)
+        if hit is not None and now - hit[0] < POOL_TTL_SECONDS:
+            return hit
+        if hit is not None and now - hit[0] < POOL_STALE_MAX_SECONDS:
+            if md not in _pool_refreshing:
+                _pool_refreshing.add(md)
+                threading.Thread(target=_refresh_pool_bg, args=(md,), daemon=True,
+                                 name="catalyst-explain-pool").start()
+            return hit
+    with _pool_flight:
+        with _pool_lock:
+            hit = _pool_cache.get(md)
+            if hit is not None and time.time() - hit[0] < POOL_TTL_SECONDS:
+                return hit
+        return _pull_pool(md)
+
+
 def _explain_cached(sym: str, md: str) -> dict:
     key = (sym, md)
     with _explain_lock:
@@ -275,8 +333,9 @@ def _explain_cached(sym: str, md: str) -> dict:
             if hit is not None and time.time() - hit[0] < EXPLAIN_TTL_SECONDS:
                 return hit[1]
         try:
-            res = dict(_explain_core(sym, md))    # a raise is not cached
-            res["checked_at"] = int(time.time())
+            pulled_at, pool = _explain_pool(md)
+            res = dict(_explain_core(sym, md, pool=pool))    # a raise is not cached
+            res["checked_at"] = int(pulled_at)    # when the pull behind this answer ran
         finally:
             with _explain_lock:
                 _explain_inflight.pop(key, None)
@@ -287,7 +346,9 @@ def _explain_cached(sym: str, md: str) -> dict:
                 _explain_cache.pop(k, None)
             if len(_explain_cache) >= _EXPLAIN_CACHE_MAX:
                 _explain_cache.pop(min(_explain_cache, key=lambda k: _explain_cache[k][0]), None)
-            _explain_cache[key] = (now, res)
+            # Aged from the PULL, not from now: an answer read off a stale pool is never
+            # held for another full TTL.
+            _explain_cache[key] = (res["checked_at"], res)
         return res
 
 
@@ -322,7 +383,7 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
     return out
 
 
-def _explain_core(sym: str, md: str) -> dict:
+def _explain_core(sym: str, md: str, pool: Optional[list] = None) -> dict:
     """The uncached check for `sym` (already normalised), with the list rank
     left to the caller: the verdict here is the one for a name NOT on the
     persisted list, and the route overlays `on_list` from a live lookup."""
@@ -330,7 +391,8 @@ def _explain_core(sym: str, md: str) -> dict:
     listed = False
 
     from api.services.catalyst import sources, scoring, tagging, filters
-    candidates = sources.collect_all()
+    # Copies: the shared pool is read by every ticker, and tagging/scoring write onto candidates.
+    candidates = [dict(c) for c in (pool if pool is not None else sources.collect_all())]
     pool_size = len(candidates)
 
     # Find our ticker first — so we can report a quality-gate exclusion before
