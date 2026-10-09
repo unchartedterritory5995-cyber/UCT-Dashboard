@@ -23,6 +23,7 @@ import { readFormulaSource } from '../engine/ast/pcf'
 import { checkBudget } from '../engine/ast/budget'
 import { ENGINE_ERROR, isRefusal } from '../engine/ast/parse'
 import { sentenceFor } from '../engine/ast/sentence'
+import { describeTree } from './authoring/expansionWords'
 import { lintRepaint } from '../engine/ast/lint'
 import { interpret } from '../engine/ast/interpret'
 import styles from './BuilderSheet.module.css'
@@ -63,6 +64,9 @@ import editorStyles from './editor/CodeEditor.module.css'
  * nothing reads is not a debounce.
  */
 export const FORMULA_DEBOUNCE_MS = 250
+
+/** The legacy formula sheet's read-back option: say formula functions by name (see `evaluateFormula`). */
+export const SHEET = Object.freeze({ nameFunctions: true })
 
 /**
  * A source string → everything the builder knows about it. PURE, and it never
@@ -116,7 +120,7 @@ export const FORMULA_DEBOUNCE_MS = 250
  *            error: string|null, readback: string|null, verdict: object|null,
  *            measured: object|null, dialect: string}}
  */
-export function evaluateFormula(source, inputs = undefined, dialect = 'auto') {
+export function evaluateFormula(source, inputs = undefined, dialect = 'auto', { nameFunctions = false } = {}) {
   // ⛔⛔ THE SCOPE GOES TO THE READ DOOR TOO, NOT ONLY TO THE LINTER AND THE
   // READ-BACK (W1b.5). `readFormulaSource` hands it to `letPrepass.prepareSource`,
   // whose docblock warns that ABSENT IS NOT EMPTY: without it a binding could
@@ -191,9 +195,21 @@ export function evaluateFormula(source, inputs = undefined, dialect = 'auto') {
     return { ...blank, ast, verdict, guard: budget.guard, error: budget.error, measured: budget.measured }
   }
 
+  // ⭐ `nameFunctions` — THE LEGACY FORMULA SHEET ONLY (its FormulaField and its
+  // reopen). A saved `linreg(close, 50)` is stored EXPANDED (sum, wma, a constant),
+  // and `sentenceFor` said that arithmetic back. `describeTree` (the conversational
+  // builder's own read-back) recognises each expansion structurally and says its
+  // name; a tree with none is `sentenceFor`'s sentence byte for byte. `mom` /
+  // `kcMiddle` are only `x − x[n]` / a bare `ema`, so they are named only when the
+  // member WROTE them — the source says so; a hand-written difference stays one.
+  // ⛔ Every other caller (authoring `model.js`, Pine, library intake, member panes)
+  // keeps `sentenceFor` exactly: their saved descriptions do not move.
+  const named = nameFunctions && typeof source === 'string'
+    ? { allowMom: /\bmom\s*\(/.test(source), allowBareEma: /\bkcMiddle\s*\(/.test(source) }
+    : null
   let readback
   try {
-    readback = sentenceFor(ast, inputs)
+    readback = named ? describeTree(ast, inputs, named) : sentenceFor(ast, inputs)
   } catch (err) {
     return {
       ...blank, ast, verdict, measured: budget.measured,
@@ -414,7 +430,7 @@ export default function FormulaField({
     onPendingChangeRef.current?.(true)
     const id = setTimeout(() => {
       onPendingChangeRef.current?.(false)
-      onEvaluatedRef.current?.(evaluateFormula(value, inputs, dialect))
+      onEvaluatedRef.current?.(evaluateFormula(value, inputs, dialect, SHEET))
     }, debounceMs)
     return () => clearTimeout(id)
   }, [value, debounceMs, inputs, dialect])
@@ -422,7 +438,7 @@ export default function FormulaField({
   /** `Mod-Enter`: apply the draft NOW — the settle's own evaluation, without the wait. */
   const applyNow = useCallback(() => {
     onPendingChangeRef.current?.(false)
-    onEvaluatedRef.current?.(evaluateFormula(value, inputs, dialect))
+    onEvaluatedRef.current?.(evaluateFormula(value, inputs, dialect, SHEET))
   }, [value, inputs, dialect])
 
   const handle = useCallback((e) => { onChange?.(e.target.value) }, [onChange])

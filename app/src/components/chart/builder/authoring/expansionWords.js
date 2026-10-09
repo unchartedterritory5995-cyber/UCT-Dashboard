@@ -20,8 +20,8 @@ const numOf = (t) => (t && t.type === 'num' ? t.value
   : (t && t.type === 'op' && t.name === 'u-' && t.args && t.args[0] && t.args[0].type === 'num' ? -t.args[0].value : NaN))
 
 /** The member words for one recognised expansion. */
-function phraseOf(hit, scope) {
-  const say = (t) => describeTree(t, scope)
+function phraseOf(hit, scope, named) {
+  const say = (t) => describeTree(t, scope, named)
   const [a0, a1, a2] = hit.args
   const n = fmt(numOf(a1))
   switch (hit.name) {
@@ -40,12 +40,15 @@ function phraseOf(hit, scope) {
   }
 }
 
-/** `sentenceFor`, with every recognised expansion said by name. Throws as sentenceFor does. */
-export function describeTree(tree, scope = {}) {
+/** `sentenceFor`, with every recognised expansion said by name. Throws as sentenceFor does.
+ *  `named` is `recogniseExpansion`'s options: `mom` and `kcMiddle` are named only by a
+ *  caller that KNOWS the member wrote them (the legacy formula sheet reads its source);
+ *  the default — every conversational caller — keeps a difference a difference. */
+export function describeTree(tree, scope = {}, named = undefined) {
   const subs = []
   const swap = (node) => {
     if (!node || typeof node !== 'object') return node
-    const hit = recogniseExpansion(node)
+    const hit = recogniseExpansion(node, named)
     if (hit) {
       const name = `zzexpansion${subs.length}`
       subs.push({ name, hit })
@@ -61,7 +64,14 @@ export function describeTree(tree, scope = {}) {
   const withPlaceholders = { ...(scope || {}) }
   for (const s of subs) withPlaceholders[s.name] = true
   let text = sentenceFor(swapped, withPlaceholders)
-  for (const s of subs) text = text.split(`the input ${s.name}`).join(phraseOf(s.hit, scope))
+  // ⭐ THE SHEET (`named` given) brackets a phrase that sits INSIDE a larger sentence,
+  // as `sentenceFor` brackets every compound operand — "the 14-bar rate of change of
+  // close, in percent plus …" otherwise reads two ways. A whole-formula phrase stays bare.
+  const embedded = !!named && !(swapped && swapped.type === 'series' && subs.length === 1)
+  for (const s of subs) {
+    const phrase = phraseOf(s.hit, scope, named)
+    text = text.split(`the input ${s.name}`).join(embedded ? `(${phrase})` : phrase)
+  }
   return text
 }
 
