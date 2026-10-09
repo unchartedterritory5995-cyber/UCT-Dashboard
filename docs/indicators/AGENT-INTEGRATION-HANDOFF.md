@@ -226,7 +226,7 @@ Entry: `app/src/agent/capabilities/chart.js` (`chart.applyTemplate` / `chart.res
 
 Verdict: the entry complies with the ownership rules; no change to it.
 
-## 13. M2 APPROVAL CRITERIA (gate owned by Indicators)
+## 13. M2 APPROVAL CRITERIA (gate owned by Indicators) — §14 is the final contract and wins where they differ
 
 M2 = the Agent adds or removes a saved or built-in indicator on one chart. Indicators approves it only
 when ALL of these hold, each with a failing-first test:
@@ -252,3 +252,117 @@ when ALL of these hold, each with a failing-first test:
    Trading untouched in acceptance (fingerprint before/after).
 8. **Regression.** Library add/remove, Create Indicator, Modify, legend chips and the Indicators
    suites unchanged; the agent manifest rails and golden updated.
+
+## 14. M2 MUTATION CONTRACT — FINAL (owner decisions 2026-10-09)
+
+**Status: agreed contract, NOT implemented.** Supersedes §13 where they differ and answers the three
+open questions in `docs/agent/M2-M3-PROPOSALS.md` (Agent branch). Owner decisions:
+
+1. Show/hide is IN M2, through the existing canonical visibility writer.
+2. Exact Undo of a removal requires an **Indicators-owned restore writer**. Original instance identity
+   and every affected reference are preserved; a restore that cannot be guaranteed exact is refused.
+3. The authoritative permission check is exposed as the **first** M2 implementation step, and the Agent
+   **re-checks permission at execution**, never relying on planning-time access alone.
+
+### 14.1 Operations (one chart, one logical indicator per call)
+
+| Agent action | Writer (Indicators-owned, `engine/instanceControls.js`) | Exact inverse |
+|---|---|---|
+| `indicator.add {defId}` | `addInstance(cs, defId, registry)` | `removeInstance` of the instance it created |
+| `indicator.remove {instance}` | `removeInstanceWithRecord(cs, instanceId, registry)` (NEW; same result as `removeInstance`, plus a removal record — 14.5) | `restoreRemoved(cs, record, registry)` (NEW) |
+| `indicator.setVisible {instance, visible}` | `setInstanceHidden(cs, instanceId, !visible, registry)` — the settings eye's writer | the same writer with the prior value |
+
+A **logical indicator is its group**: `removeInstance` and `setInstanceHidden` act on every live member of
+`group.id` (`groupMemberIds`, e.g. the three COT panes). Read-back, receipts and Undo are group-scoped.
+Not in M2: inputs, style, placement, timeframe, duplicate, reorder, definitions, alerts.
+
+### 14.2 Ownership
+
+| Indicators owns | Agent owns |
+|---|---|
+| Every writer above, `restoreRemoved`, the removal record's shape | Routing, capability declarations, proposals, receipts, Undo plumbing |
+| `canManageIndicators()` on the ChartPane handle (the toolbar's own predicate) | Calling the writers inside the chart kind's `.agent.commit` |
+| `instanceFingerprint`, `instancesOf`, a new `groupFingerprint(cs, ids)` | Pinning and comparing them; refusing on mismatch |
+| The door-EIGHT census entry for the Agent file (one entry: add / remove / hide / restore) | No other code that writes `indicatorInstances` or any `INDICATOR_OWNED_TOP_KEYS` key |
+| Validation errors (refusal text) | Showing refusals verbatim, never reworded |
+
+The Agent never calls `/api/user-definitions`, `/converse` or the alert API, never edits a definition and
+never writes the live preview. Main Trading's protected-layout guard applies to every M2 write.
+
+### 14.3 Permission (checked twice)
+
+- **First implementation step (Indicators):** `ChartPane.canManageIndicators() → boolean`, the same
+  predicate the toolbar's Indicators button uses (`chartSettings && onUpdateSettings`), with a rail
+  holding the two equal.
+- **Plan time (Agent `available()` / proposal):** paid + admin-dark Agent gate, `canManageIndicators()`,
+  and for `add` a `defId` that is a built-in or the member's own definition row (`userDefinitionRows`);
+  foreign or unknown ids are refused before any proposal.
+- **Execution time (Agent `apply` and every Undo):** all of the above are **re-read immediately before
+  the write**. Any change (access lost, chart became read-only, definition deleted or no longer the
+  member's) refuses with `permission-changed` and writes nothing.
+
+### 14.4 Stale-state checks
+
+- The proposal pins `instanceFingerprint(cs)`; for remove/hide, `groupFingerprint(cs, ids)` over the
+  target group's instance objects; for a custom add, the definition `version`.
+- **Apply** re-reads the chart's current settings and refuses (`changed-while-working`) unless the target
+  group still has exactly the pinned members and fingerprint, and (custom add) the version is unchanged.
+  A change elsewhere on the chart (theme, timeframe, scale, another indicator) does not refuse.
+- `boardInSync` and the workspace revision CAS (409 → "the board changed elsewhere; nothing was
+  overwritten") apply unchanged; no M2 write bypasses the board save.
+
+### 14.5 Restoration guarantees (remove → Undo)
+
+`removeInstance` changes more than the instance: the group's members become tombstones (same ids); other
+indicators' `@<id>::<plot>` source inputs and the header info values that read them are **severed**
+(visible gravestones); the definition's `indicators[defId].enabled` mirror may clear; the list is
+re-sorted and `preset` becomes `custom`. A re-add through `addInstance` cannot reproduce any of that.
+
+- **Removal record (Indicators):** `removeInstanceWithRecord(cs, instanceId, registry) → { cs, record }`,
+  where `record = { ids, paths: [{ path, before, after }] }` lists every changed path under
+  `INDICATOR_OWNED_TOP_KEYS` (plus `preset`), deep-copied. `removeInstance` is unchanged for its
+  existing callers, and both produce the same `cs`.
+- **`restoreRemoved(cs, record, registry) → { ok: true, cs } | { ok: false, reason }`:** restores **only
+  if every recorded path still equals its `after` value** (compare-and-swap per path), then writes each
+  `before` back. Result: the same instance ids at the same positions, the same inputs, style and
+  placement, every severed source and info value re-attached, and the mirror and `preset` as they were.
+  The recorded paths are byte-identical to the pre-remove settings.
+- **Refused (nothing written)** when any recorded path changed since (`restore-conflict`, for example the
+  member re-pointed a severed source, re-added the indicator or removed a dependent), the record is
+  malformed, or permission fails at execution. The receipt says Undo is no longer exact and nothing changed.
+- Undo of **add** = `removeInstance` of the created id, refused if anything now reads it (a source input
+  or info value) or its group fingerprint changed. Undo of **hide/show** = the prior value, refused if the
+  group membership or its fingerprint changed.
+
+### 14.6 Persistence receipts
+
+1. Write through the chart's one persist path (`ChartWidget` `.agent.commit` → `onOptsChange`).
+2. Wait for the `host.persist()` ACK; **only then** is the change reported as done and Undo offered.
+3. Read back with `instancesOf`: exactly the intended change by `instanceId` (one group added, removed,
+   hidden or shown; after a restore, the original ids live again). Anything else → receipt "did not
+   land" with what was observed, and no Undo.
+4. The stored blob never contains `u_studio-preview` (asserted with the studio open).
+5. A 409 / CAS refusal or persist failure → refusal receipt; no retry that overwrites.
+
+Receipts name the indicator by its legend name (`instancesOf().name`), never by a formula.
+
+### 14.7 Acceptance (failing-first tests, both teams)
+
+§13 criteria 1–5, 7 and 8 stand; 6 is replaced by 14.5. Added:
+- hide/show parity with the settings eye (byte-identical) and group behaviour;
+- `restoreRemoved` round-trip byte-equality for an indicator with dependents and info values, a grouped
+  COT product and a legacy-id built-in;
+- `restore-conflict` after each kind of intervening edit;
+- permission re-check at apply and at Undo (access revoked between plan and apply → no write);
+- Undo-add refused once the instance has gained a dependent.
+
+Then a joint local sandbox pass, then admin-only production acceptance on a scratch chart (never
+`/charts` on the owner account), Main Trading fingerprint before/after, member cohort OFF.
+
+### 14.8 Order of work (after the owner's go-ahead for the M2 build)
+
+1. Indicators: `canManageIndicators()` on the ChartPane handle + rail.
+2. Indicators: `removeInstanceWithRecord`, `restoreRemoved`, `groupFingerprint` + tests; the door-EIGHT
+   entry for the Agent file.
+3. Agent: the `indicatorInstance` kind, the three actions, the permission re-check, receipts, Undo.
+4. Joint sandbox, then production acceptance.
