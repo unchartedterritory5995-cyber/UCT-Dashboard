@@ -474,12 +474,68 @@ def _load_index_series(conn, end_ts: int, start_ts: int) -> dict[str, list[float
     return out
 
 
+#: The newest sessions a pack-backed frame must cover: every level `build_levels` measures
+#: (52-week extremes, the SMA200 shifted 21 bars, the period returns) sits inside these.
+_PACK_MIN_SESSIONS = 260
+_pack_frame_cache: dict = {}
+
+
+def _frame_from_pack(tickers: list[str], dates: list[int]):
+    """(closes, volumes) for `dates` from the published Universe Bars Pack, or None.
+
+    ⭐⭐ WHY (2026-10-09). After a web restart bars.db is cold: the UCT levels and the anchor's
+    prior-close re-pricing came back with ~71% of the universe, the live read was marked
+    `degraded`, and every UCT breadth chart lost today's live bar while the US / NYSE / Nasdaq
+    charts (pack-backed, `breadth_live_universes`) kept theirs. The pack is the same
+    split-adjusted daily close series the charts serve, built every evening for the whole
+    active universe, and reads in ~40 s whatever the volume's state.
+
+    The pack holds 300 sessions; requested columns older than it stay NaN (the frame is
+    ~380 wide only for EMA warm-up), and the pack must cover the newest `_PACK_MIN_SESSIONS`.
+    Small requests (index symbols, a single ticker) stay on bars.db — they are cheap there.
+    """
+    if len(tickers) < 100 or not dates or os.environ.get("BREADTH_LIVE_PACK_FRAME", "1") == "0":
+        return None
+    last_iso = _iso(max(dates))
+    key = (last_iso, len(tickers), hash(tuple(tickers)))
+    if _pack_frame_cache.get("key") != key:
+        try:
+            from api.services import breadth_live_universes as blu
+            got = blu._load_frame_from_pack(list(tickers), last_iso)
+        except Exception as e:
+            print(f"[breadth_live] pack frame unavailable: {type(e).__name__}: {e}")
+            got = None
+        if got is None:
+            return None
+        _pack_frame_cache.clear()
+        _pack_frame_cache.update(key=key, value=got)
+    pdates, pc, pv = _pack_frame_cache["value"]
+    ppos = {d: i for i, d in enumerate(pdates)}
+    newest = sorted(dates)[-_PACK_MIN_SESSIONS:]
+    if any(d not in ppos for d in newest):
+        return None
+    n, m = len(tickers), len(dates)
+    closes = np.full((n, m), np.nan, dtype=np.float64)
+    volumes = np.full((n, m), np.nan, dtype=np.float64)
+    for j, d in enumerate(dates):
+        k = ppos.get(d)
+        if k is not None:
+            closes[:, j] = pc[:, k]
+            volumes[:, j] = pv[:, k]
+    return closes, volumes
+
+
 def _load_frame(conn, tickers: list[str], dates: list[int]) -> tuple[np.ndarray, np.ndarray]:
     """(closes, volumes) as float64 [n_tickers × n_dates], NaN where no bar.
 
     NaN-for-missing mirrors the collector's union-index DataFrame, so the
     "which names are valid for this metric" rule lands the same way.
+
+    ⭐ The published bars pack first (`_frame_from_pack`), bars.db when the pack cannot answer.
     """
+    packed = _frame_from_pack(tickers, dates)
+    if packed is not None:
+        return packed
     pos = {ts: i for i, ts in enumerate(dates)}
     tix = {t: i for i, t in enumerate(tickers)}
     n, m = len(tickers), len(dates)
