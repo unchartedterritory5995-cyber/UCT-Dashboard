@@ -72,13 +72,18 @@ describe('folder delete (FolderSidebar) -- focus goes to the neighbouring folder
     )
   }
 
+  // F3 (screen-reader pass 2026-10-09): the landing is the neighbouring folder's TREEITEM, the
+  // tree's own focus target, never the button inside it (a focused button keeps NVDA in browse
+  // mode). `data-folder-row` stays on the button as the lookup key; the row is its treeitem.
   it('deleting the first folder lands on the NEXT folder row, not <body>', async () => {
     const user = userEvent.setup()
     renderSidebar()
     await screen.findAllByText('Theses')
     await confirmDelete(user, 'Delete Theses', 'Delete folder "Theses"?')
     expect(document.activeElement).not.toBe(document.body)
-    expect(document.activeElement.getAttribute('data-folder-row')).toBe('f2')   // Plans
+    expect(document.activeElement.getAttribute('role')).toBe('treeitem')
+    expect(document.activeElement.getAttribute('data-tree-folder')).toBe('f2')   // Plans
+    expect(document.activeElement.querySelector('[data-folder-row="f2"]')).not.toBeNull()
   })
 
   it('deleting the LAST folder lands on the one before it', async () => {
@@ -87,7 +92,8 @@ describe('folder delete (FolderSidebar) -- focus goes to the neighbouring folder
     await screen.findAllByText('Plans')
     await confirmDelete(user, 'Delete Plans', 'Delete folder "Plans"?')
     expect(document.activeElement).not.toBe(document.body)
-    expect(document.activeElement.getAttribute('data-folder-row')).toBe('f1')   // Theses
+    expect(document.activeElement.getAttribute('role')).toBe('treeitem')
+    expect(document.activeElement.getAttribute('data-tree-folder')).toBe('f1')   // Theses
   })
 })
 

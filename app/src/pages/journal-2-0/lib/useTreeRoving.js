@@ -31,10 +31,27 @@
  * (aria-selected="true"), else the first. A click on a control inside a row makes that row the
  * stop too, so Tab returns to where the member was working. Tabindex only: nothing here
  * changes what a click or a tap does.
+ *
+ * ⛔ THE FOCUSED ELEMENT IS THE TREEITEM, NEVER A BUTTON INSIDE IT (screen-reader pass
+ * 2026-10-09, finding F3). NVDA switches to focus mode by itself for a focused tree view item
+ * (role treeitem, with aria-expanded / aria-selected / aria-level); for a focused BUTTON it
+ * stays in browse mode, the arrows go to its review cursor, and a member who does not know
+ * Insert+Space can never reach a folder's disclosure or its actions. Measured on production:
+ * after Tab into the tree, `document.activeElement` was a button inside the row. The
+ * tabindex contract alone cannot promise where focus lands -- an assistive technology's
+ * `setFocus`, a pointer press, or a page's own "focus the standing row" fallback can each put
+ * focus on a button, which is focusable at tabIndex -1. So `onFocus` moves focus arriving on a
+ * button or link inside a row onto the ROW itself. A field inside a row (rename, new
+ * subfolder) keeps focus: it takes typing. The click still fires on the control under the
+ * pointer (a click is dispatched by hit test, not by focus), so the pointer is unchanged.
  */
 import { useCallback, useLayoutEffect, useRef } from 'react'
 
 const ITEM = '[role="treeitem"]'
+/** A control inside a row whose focus belongs to the ROW (F3). A field is not one. */
+const CONTROL = 'button, a[href]'
+/** Focus inside one of these, even inside a row, is its own: a menu or dialog anchored in a row. */
+const OWN_FOCUS = '[role="menu"], [role="menubar"], [role="dialog"], [role="listbox"]'
 const TYPEAHEAD_MS = 500
 
 export function treeItems(root) {
@@ -95,11 +112,12 @@ export default function useTreeRoving({ onMenu } = {}) {
     const root = ref.current
     const target = e.target
     if (!root || !target || !target.matches || !root.contains(target)) return
-    // The row itself, or a button or link inside a row: a member who CLICKED a folder has
-    // focus on its button, and the arrows must carry on from that row. A field inside a row
-    // (rename, new subfolder) keeps every key.
+    // The row itself, or a button or link inside a row (`onFocus` moves focus from such a
+    // control onto its row, but a key can arrive in the same tick, before that has settled,
+    // and the arrows must carry on from that row either way). A field inside a row (rename,
+    // new subfolder) keeps every key.
     const onRow = target.matches(ITEM)
-    const item = onRow ? target : (target.matches('button, a[href]') ? target.closest(ITEM) : null)
+    const item = onRow ? target : (target.matches(CONTROL) ? target.closest(ITEM) : null)
     if (!item || !root.contains(item)) return
     if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
       if (!onMenu) return
@@ -164,10 +182,20 @@ export default function useTreeRoving({ onMenu } = {}) {
 
   const onFocus = useCallback((e) => {
     const root = ref.current
-    const item = e.target && e.target.closest ? e.target.closest(ITEM) : null
-    if (!item || !root || !root.contains(item) || stopRef.current === item) return
-    stopRef.current = item
-    apply()
+    const target = e.target
+    const item = target && target.closest ? target.closest(ITEM) : null
+    if (!item || !root || !root.contains(item)) return
+    if (stopRef.current !== item) {
+      stopRef.current = item
+      apply()
+    }
+    // F3: focus that arrived on a button or link inside the row lands on the row itself, so
+    // the focused element is the treeitem (what a screen reader keys its mode on). Not for a
+    // field, and not for a menu or dialog that happens to be anchored inside the row.
+    if (target === item || !target.matches || !target.matches(CONTROL)) return
+    const own = target.closest(OWN_FOCUS)
+    if (own && item.contains(own)) return
+    item.focus()
   }, [apply])
 
   // The menu key also makes the browser raise its OWN context menu (a `contextmenu` event,
