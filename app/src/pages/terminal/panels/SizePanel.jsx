@@ -16,6 +16,7 @@
 // labelled in words, and a stop on the wrong side is refused with a sentence, never sized.
 import { useEffect, useId, useMemo, useState } from 'react'
 import useLivePrices from '../../../hooks/useLivePrices'
+import Input from '../../../components/ui/Input'
 import { useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
 import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import { DEFAULT_RISK_PCT, computeSize, parseNum } from './sizeMath'
@@ -78,7 +79,7 @@ export default function SizePanel({ sym }) {
   const field = (key, label, value, set, hint = null, onEdit = null) => (
     <div className={styles.field}>
       <label className={styles.label} htmlFor={`${ids}-${key}`}>{label}</label>
-      <input id={`${ids}-${key}`} className={styles.input} type="text" inputMode="decimal" autoComplete="off"
+      <Input id={`${ids}-${key}`} className={styles.input} type="text" inputMode="decimal" autoComplete="off"
         value={value} onChange={(e) => { set(e.target.value); onEdit?.() }} data-testid={`terminal-size-${key}`} />
       {hint ? <span className={styles.hint}>{hint}</span> : null}
     </div>
