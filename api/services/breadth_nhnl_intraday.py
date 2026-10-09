@@ -131,6 +131,11 @@ class Classifier:
         from api.services import breadth_universes as bu
         self.ref = {canon(k): v for k, v in (ref_map or {}).items()}
         self.venues = {u: frozenset(bu.venues(u) or ()) for u in ("us", "nyse", "nasdaq")}
+        # ⭐ The diaries' US total is NYSE + Nasdaq + NYSE American — NOT Arca / Cboe BZX / IEX,
+        # whose listings are ~all ETFs (StockCharts' US NH−NL −644 on 2026-10-08 ≈ NYSE −231 +
+        # Nasdaq −378 + American −26; with Arca and BZX ours read −781).
+        self.venues_all = {"nyse:all": self.venues["nyse"], "nasdaq:all": self.venues["nasdaq"],
+                           "us:all": self.venues["nyse"] | self.venues["nasdaq"] | {"XASE"}}
         self._uct_last: Optional[set] = None
 
     def classify(self, sym: str, date_iso: str) -> tuple:
@@ -144,7 +149,7 @@ class Classifier:
         ex = (rec.get("primary_exchange") or "").upper()
         if not ex:
             return ()
-        out = [u + ":all" for u in ("us", "nyse", "nasdaq") if ex in self.venues[u]]
+        out = [k for k in ALL_KEYS if ex in self.venues_all[k]]
         if rec.get("type") in bpf.COMMON_TYPES:
             out += [u for u in ("us", "nyse", "nasdaq") if ex in self.venues[u]]
         return tuple(out)

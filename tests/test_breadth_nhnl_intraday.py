@@ -248,6 +248,9 @@ def test_all_issues_population_and_switch(tmpdata, monkeypatch):
     assert set(cls.classify("AAA", "2026-10-08")) == {"us", "nyse", "us:all", "nyse:all"}
     assert set(cls.classify("PRF", "2026-10-08")) == {"us:all", "nyse:all"}
     assert set(cls.classify("QQQ", "2026-10-08")) == {"us:all", "nasdaq:all"}
+    arca = nhi.Classifier({"SPY": rec("ETF", "ARCX"), "XYZ": rec("CS", "ARCX")})
+    assert arca.classify("SPY", "2026-10-08") == ()            # Arca ETFs are in no diary
+    assert set(arca.classify("XYZ", "2026-10-08")) == {"us"}   # …common stock stays in US
     monkeypatch.setenv("BREADTH_NHNL_BASIS", "intraday")
     _install(tmpdata, {"nyse": {"2026-10-08": [29, 96, 1, 1, 1900, 1800, 1, 1]},
                        "nyse:all": {"2026-10-08": [34, 265, 1, 1, 2778, 2700, 1, 1]}})
