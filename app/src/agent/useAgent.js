@@ -15,6 +15,7 @@
 // execution path. Every real outcome (receipt, refusal, undo) is recorded to the
 // conversation, so the model's next turn remembers what UCT DID.
 
+import { protectionRefusal, undoProtectionRefusal } from './protectedLayouts'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fastParse, matchPosition } from './fastPath'
 import { planOps, prepareOps, collectTargets, undoNotesFor } from './executor'
@@ -293,6 +294,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: text, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
       return
     }
+    // PROTECTED LAYOUTS (Main Trading…): checked after planning — so it covers a new request, a
+    // proposal's Apply (which re-plans here) and a composed plan alike — and before anything writes.
+    const guarded = protectionRefusal(host, plan, ops)
+    if (guarded) {
+      const text = `I didn't change anything: ${guarded}`
+      push({ role: 'refusal', text })
+      record({ member, outcome: text, outcomeData: { kind: 'refused-protected', actions }, telemetry: { path, refused: true, actions, voice } })
+      return
+    }
     if (composing && !composed) {
       const pid = nid()
       pendingRef.current = { kind: 'proposal', id: pid, ops: allOps, epoch: boardEpoch(host, allOps) }
@@ -387,6 +397,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const text = 'There is nothing of mine to undo in this session.'
       push({ role: 'outcome', text })
       record({ member, outcome: text, outcomeData: { kind: 'undo-none' }, telemetry: { path: 'fast', undo: true, voice } })
+      return
+    }
+    const guarded = undoProtectionRefusal(host, entry)
+    if (guarded) {
+      const text = `I didn't undo anything: ${guarded}`
+      push({ role: 'refusal', text })
+      record({ member, outcome: text, outcomeData: { kind: 'undo-refused-protected' }, telemetry: { path: 'fast', undo: true, refused: true, voice } })
       return
     }
     if (entry.epoch != null && host?.boardInSync) {
