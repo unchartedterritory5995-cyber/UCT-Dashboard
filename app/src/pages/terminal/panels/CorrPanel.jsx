@@ -39,12 +39,45 @@ export function corrTint(r) {
   return `color-mix(in srgb, var(${r >= 0 ? '--accent' : '--info'}) ${pct}%, transparent)`
 }
 
+/** Pure: how a correlation reads in words. A strongly NEGATIVE r is a strong relationship (the
+ *  two move opposite), never "independent" (audit 2026-10-08: `CORR SPY SH` read "SPY and SH move
+ *  mostly independently (r = -0.99)"). */
+export function corrStrength(r) {
+  if (r >= 0.8) return 'move almost as one'
+  if (r >= 0.6) return 'move largely together'
+  if (r >= 0.3) return 'are loosely related'
+  if (r <= -0.8) return 'move almost exactly opposite'
+  if (r <= -0.6) return 'largely move opposite'
+  if (r <= -0.3) return 'lean opposite'
+  return 'move mostly independently'
+}
+
 /** Pure: the plain-language read of the strongest pair. */
 export function corrVerdict(read) {
   if (!read?.most) return null
   const r = read.most.r
-  const strength = r >= 0.8 ? 'move almost as one' : r >= 0.6 ? 'move largely together' : r >= 0.3 ? 'are loosely related' : 'move mostly independently'
-  return `${read.most.a} and ${read.most.b} ${strength} (r = ${formatNumber(r, { decimals: 2 })}).`
+  return `${read.most.a} and ${read.most.b} ${corrStrength(r)} (r = ${formatNumber(r, { decimals: 2 })}).`
+}
+
+/** Pure: the second line under the verdict. "Least related" is the pair CLOSEST TO ZERO; a pair
+ *  at r = -1 is the most opposite pair, not the least related one, so when a clearly negative
+ *  pair exists it is named as that instead. Null when no other pair than the strongest exists. */
+export function corrSecondLine(read) {
+  if (!read?.most || !read.matrix) return null
+  const pairs = []
+  for (let i = 0; i < read.syms.length; i++) {
+    for (let j = i + 1; j < read.syms.length; j++) {
+      const r = read.matrix[i][j]?.r
+      if (r != null) pairs.push({ a: read.syms[i], b: read.syms[j], r })
+    }
+  }
+  const rest = pairs.filter((p) => !(p.a === read.most.a && p.b === read.most.b))
+  if (!rest.length) return null
+  const fmt = (p) => `${p.a} and ${p.b} (r = ${formatNumber(p.r, { decimals: 2 })}).`
+  const opposite = rest.reduce((m, p) => (p.r < m.r ? p : m))
+  if (opposite.r <= -0.3) return `Most opposite: ${fmt(opposite)}`
+  const least = rest.reduce((m, p) => (Math.abs(p.r) < Math.abs(m.r) ? p : m))
+  return `Least related: ${fmt(least)}`
 }
 
 /** Pure: the method note's window, in words. */
@@ -101,10 +134,8 @@ export default function CorrPanel({ sym, lookback, ...props }) {
         </p>
       )}
       {corrVerdict(read) && <p className={styles.lede} data-testid="terminal-corr-verdict">{corrVerdict(read)}</p>}
-      {read.least && read.least !== read.most && (
-        <p className={styles.lede} data-testid="terminal-corr-least">
-          Least related: {read.least.a} and {read.least.b} (r = {formatNumber(read.least.r, { decimals: 2 })}).
-        </p>
+      {corrSecondLine(read) && (
+        <p className={styles.lede} data-testid="terminal-corr-least">{corrSecondLine(read)}</p>
       )}
       <div className={styles.tableBox}>
         <table className={styles.table} data-testid="terminal-corr-matrix" aria-label={`Correlation matrix, ${win} of daily returns`}>
