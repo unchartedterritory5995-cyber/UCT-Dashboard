@@ -240,3 +240,78 @@ confirmed with a real mouse before anyone fixes it.
   `walk.json` `api_writes`: notes, folders, saved views, the template, the gallery submission, the
   sample notebook, the IBM position, and the docx attachment plus its chip. The note-level projection
   for item 4 ran in a child process under the launcher's sandbox env.
+
+## P2 settled and fixed (follow-up, `1958b48cc8`)
+
+Raw evidence, committed first (`49307ced36`): `docs/notebook/evidence/verify-1009/sbx/grip/before-fix/`
+and `.../after-fix/`. Each is one sandbox boot on port 8143, config `verifygrip` (no model keys), the
+same walker both times, at 1280.
+- `before-fix` served a frontend built from `blockHandle.js` at `27d6289b75`.
+- `after-fix` served one built with the fix.
+- Integrity was CLEAN at all four checkpoints in both. (One earlier after-fix boot was stopped by force
+  without a shutdown checkpoint; it is not committed, and the run was repeated.)
+
+**What the events showed.** The walk injected a listener on the grip, on the editor (capture) and on the
+document. In every case the grip was visible, on top, and beside the block it belonged to.
+- Path (a): `locator.drag_to` from the grip.
+  - `mouseleave` fired on the grip at the drop point before `dragstart`.
+  - At the drop, the `ProseMirror-selectednode` was the TARGET paragraph, not the grabbed block.
+  - The drag therefore carried Paragraph A onto itself, and the stored order did not change. This
+    happened for the chart and for the paragraph control alike.
+- Path (b): pointer down on the grip, then 20 moves.
+  - The first move, about 20 px, left the grip for the gutter at (412, 152) before the browser began
+    the drag.
+  - The grip went `hidden=true`, and no `dragstart` ever fired. Chart and paragraph alike.
+- Path (c): the same as (b), but with a slow start (4 px steps). `dragstart` fired while the pointer was
+  still on the grip, and the block moved (chart and paragraph).
+
+**Root cause.**
+- Between the mouse button going down on the grip and the browser's `dragstart`, mouse events still
+  reached the grip's view:
+  - `onMove` (`app/src/pages/journal-2-0/lib/blockHandle.js:185-192` at `27d6289b75`) re-aimed the grip
+    at whatever block the pointer crossed, so `onDragStart` (`:201-206`) dragged that block.
+  - `onLeave` (`:194-199`) hid the grip when the pointer left it for the gutter, and a hidden drag
+    source never starts a drag.
+- It is not chart-specific. A chart only makes it more likely, because its drop point is far from its
+  grip.
+- `widgetEmbedStopEvent` is not involved: the drop events reached the editor in every recorded case.
+
+**Fix** (`blockHandle.js`):
+- A press on the grip now freezes it. `onGrab` on `mousedown` holds the block, and while it is held
+  `onMove` and `onLeave` do nothing. The hold ends on `mouseup`, or on `dragend` for a drag.
+- The off-screen grip: `gripTop` keeps the grip inside the visible part of a block whose top edge is
+  above the visible top of the editor's scroll area, and below a sticky header pinned over that edge.
+  A block whose top edge is in view keeps the grip at `top + 2`, as before.
+
+| path (1280) | before fix: stored order | after fix: stored order |
+|---|---|---|
+| chart, (a) `drag_to` from the grip | widgetEmbed, A, B (FAIL) | A, widgetEmbed, B (PASS) |
+| chart, (b) pointer, 20 moves | widgetEmbed, A, B (FAIL) | A, widgetEmbed, B (PASS) |
+| chart, (c) pointer, slow start | A, widgetEmbed, B (PASS) | A, widgetEmbed, B (PASS) |
+| paragraph, (a) | One, A, B (FAIL) | A, One, B (PASS) |
+| paragraph, (b) | One, A, B (FAIL) | A, One, B (PASS) |
+| paragraph, (c) | A, One, B (PASS) | A, One, B (PASS) |
+| item 6 D: grip, 30 moves to the end of Paragraph A | widgetEmbed, paragraph, paragraph (FAIL) | paragraph, widgetEmbed, paragraph (PASS) |
+| item 6 E: `drag_to` from the grip | widgetEmbed, paragraph, paragraph (FAIL) | paragraph, widgetEmbed, paragraph (PASS) |
+| grip with the chart's top scrolled above the window | grip at y = -27 | grip at y = 225 (the first visible row below the note's header) |
+
+**Unchanged by this fix, and still unexplained:** a hand-written pointer drag on the chart BODY
+(item 6 A, A2, A3) still does not move it, while `drag_to` from the body does (B, C). That is
+ProseMirror's own node drag, not the grip. A person's mouse on the chart body still needs one check by
+hand.
+
+**Tests** (`blockHandle.test.js`, new "P2" describes):
+- `npx vitest run` over every test file that imports `blockHandle` or `widgetEmbedNode`:
+  `Test Files 6 passed (6)`, `Tests 84 passed (84)`.
+- `NoteEditorPage.wave6.test.jsx` (the other file that names the grip): `Tests 17 passed (17)`.
+- Mutation proofs: each mutation was written from saved bytes, went red, and was then restored and
+  checked by sha256 (`36f826b1...`):
+  - M0, the whole fix removed: 5 red.
+  - M1, `onMove` guard removed: 2 red.
+  - M2, `onLeave` guard removed: 1 red.
+  - M3, no release on `mouseup`: 1 red.
+  - M4, no release on `dragend`: 1 red.
+  - M5, no clamp: 2 red.
+  - M6, no scan below the header: 1 red.
+- An extra copy of the guard in `onDragStart` was removed: M1 showed it made the `onMove` guard
+  unprovable.
