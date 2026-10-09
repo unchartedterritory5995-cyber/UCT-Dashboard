@@ -10,6 +10,7 @@ import FailedRead from './FailedRead'
 import { sideWords, tradeTypeWords, callPutWords } from './flowWords'
 import Select from '../../components/ui/Select'
 import { usePanelFreshness } from '../../components/terminal/terminalPanel'
+import PanelSymbol from '../../components/terminal/PanelSymbol'
 
 // Premium reads on the terminal compact ladder (lib/presentation TERMINAL_COMPACT_TIERS):
 // T/B at two decimals, M at one, K whole -- the tide's own old ladder, now shared.
@@ -257,7 +258,7 @@ export function TideMinute({ scope, minute, setMinute }) {
                 <tbody>
                   {d.prints.map((p, i) => (
                     <tr key={`${p.symbol}-${p.time}-${i}`}>
-                      <th scope="row">{p.symbol}</th><td>{callPutWords(p.type)} {p.strike} {p.expiration}</td><td>{sideWords(p.side)}</td>
+                      <th scope="row"><PanelSymbol sym={p.symbol} /></th><td>{callPutWords(p.type)} {p.strike} {p.expiration}</td><td>{sideWords(p.side)}</td>
                       <td>{money(p.premium)}</td><td>{p.contracts}</td><td>{tradeTypeWords(p.trade_type)}</td>
                     </tr>
                   ))}

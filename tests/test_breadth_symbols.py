@@ -251,3 +251,27 @@ def test_ad_line_today_candle_continues_its_own_level():
          patch.object(bs, "_et_today", return_value="2020-03-11"):
         out = bs._append_today_candle(daily, "adv_decline_cum")
     assert out[-1]["t"] == "2020-03-11" and out[-1]["c"] == 65.0
+
+
+def test_uct_derived_series_fill_their_missing_sessions(monkeypatch):
+    """2026-10-09 audit: UCTR5/R10/PH/PL/HS had all of 2024-2025 missing on the charts."""
+    from api.services import breadth_symbols as bs
+    from api.services import breadth_monitor as bm
+    cal = ["2024-01-0%d" % i for i in range(2, 10)]
+    up = {d: 10.0 for d in cal}
+    dn = {d: 5.0 for d in cal}
+    monkeypatch.setattr(bs, "_uct_closes", lambda m: up if m == "up_4pct_today" else dn)
+    closes = {cal[0]: 9.9, cal[-1]: 9.9}
+    ohlc = {}
+    bs._fill_derived_gaps("ratio_5day", closes, ohlc)
+    assert all(closes[d] == 2.0 for d in cal[1:-1]) and closes[cal[0]] == 9.9
+    seen = []
+
+    def deep(days, end):
+        seen.append((days, end))
+        return [{"date": d, "breadth_score": 61.5, "hi_ratio": 1.25} for d in cal]
+    monkeypatch.setattr(bm, "get_history_deep", deep)
+    closes = {cal[-1]: 50.0}
+    bs._fill_derived_gaps("breadth_score", closes, {})
+    assert closes[cal[0]] == 61.5 and len(closes) == len(cal)
+    assert len(seen) == 1 and seen[0][1] == cal[-2]          # one read for the run

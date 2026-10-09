@@ -21,7 +21,7 @@ import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import useLivePrices from '../../../hooks/useLivePrices'
 import useMarketOpen from '../../../hooks/useMarketOpen'
-import { BoardFromList, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelList } from '../../../components/terminal'
+import { BoardFromList, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelList, usePanelLinkedSym } from '../../../components/terminal'
 import {
   formatCompactTerminal, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -146,6 +146,7 @@ export default function WatchlistPanel({ list: pick = null, onRun, onRows }) {
   usePanelFreshness(asOf ? { freshnessClass: session === 'closed' ? 'end_of_day' : 'real_time', asOf } : null)
 
   const load = (s) => onRun?.(`$${s}`, { keepFunction: true })
+  const linked = usePanelLinkedSym()
   const toggleSort = (key) => setSort((s) => nextSort(s.key === 'order' ? null : s, key, firstDirFor))
 
   const loading = (!lists.data && !lists.error) || (!flagged.data && !flagged.error)
@@ -235,7 +236,7 @@ export default function WatchlistPanel({ list: pick = null, onRun, onRows }) {
                 return (
                   <tr key={r.sym} data-testid={`terminal-watchlist-row-${r.sym}`}>
                     <td>
-                      <button type="button" className={styles.rowBtn} onClick={() => load(r.sym)}
+                      <button type="button" className={styles.rowBtn} onClick={() => load(r.sym)} aria-current={linked === r.sym ? 'true' : undefined}
                         aria-label={`Load ${r.sym} into the linked panels`}>
                         <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                         <span className={styles.sym}>{r.sym}</span>

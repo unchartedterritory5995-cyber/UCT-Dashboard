@@ -405,3 +405,10 @@ def test_uct_dividend_basis_is_budgeted_and_session_consistent(monkeypatch):
     assert b == "applied" and (out == 2).all()
     assert bl._adopt_basis(None)                               # untagged = applied
     bl._session_div.clear()
+
+
+def test_unchanged_is_carried_for_the_exchange_universes():
+    """NYSE:UNCH / NASDAQ:UNCH are built from `unchanged`, which is no library metric — the live
+    rows must still carry it, or both series stop at the last canonical session."""
+    for u in ("nyse", "nasdaq", "us"):
+        assert "unchanged" in blu._published_metrics(u)

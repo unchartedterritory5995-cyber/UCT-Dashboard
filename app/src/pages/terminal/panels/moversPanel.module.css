@@ -227,3 +227,10 @@
     align-items: center;
   }
 }
+
+/* Linked panels: the row whose name the linked panels follow now. Weight, no new colour. */
+.rowBtn[aria-current='true'] .sym,
+.rowBtn[aria-current='true'] .symCell {
+  font-weight: 700;
+  text-decoration: underline;
+}

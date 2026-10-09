@@ -1,12 +1,12 @@
 // BRKO: the breakout-ready list. Rails:
 //   * ONE read: POST /api/screener/scan with the frozen spec (no new route, no per-request scan);
 //   * closest to its pivot first, sortable, aria-sort says which way, a reset returns to that order;
-//   * a ticker opens its DES beside the list; Plan opens PLAN on that name;
+//   * a ticker loads into the linked panels; Plan opens PLAN on that name;
 //   * the as-of date is shown, the empty answer says the scan found nothing today;
 //   * a failed read is an error with Retry, never "nothing today"; a 402 is locked;
 //   * the registry: `BRKO` resolves to this panel, market-only, and is not a ticker in the universe.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
+import { render, screen, fireEvent, cleanup, within, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -32,15 +32,15 @@ const SCAN = {
   ],
 }
 
-function renderPanel({ open = vi.fn(), publishRows = vi.fn() } = {}) {
+function renderPanel({ open = vi.fn(), run = vi.fn(), publishRows = vi.fn() } = {}) {
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
-      <PanelListContext.Provider value={{ open, run: vi.fn(), publish: vi.fn(), publishRows }}>
+      <PanelListContext.Provider value={{ open, run, publish: vi.fn(), publishRows }}>
         <BreakoutPanel />
       </PanelListContext.Provider>
     </SWRConfig>,
   )
-  return { open, publishRows }
+  return { open, run, publishRows }
 }
 const symsInTable = () => within(screen.getByTestId('terminal-brko-table')).getAllByRole('row').slice(1)
   .map((r) => r.getAttribute('data-testid').replace('terminal-brko-row-', ''))
@@ -55,6 +55,33 @@ describe('BRKO model', () => {
     expect(setupLabel(',some_new_thing,')).toBe('Some new thing')
     expect(setupLabel(null, 'Cup')).toBe('Cup')
     expect(setupLabel('', null)).toBe('Pattern')
+  })
+
+  it('drops bearish ids and puts bullish before neutral when the pattern catalog is known', () => {
+    const catalog = {
+      rsi_bearish_divergence: { name: 'RSI Bearish Divergence', direction: 'bearish' },
+      td_sequential_sell: { name: 'TD Sequential Sell', direction: 'bearish' },
+      inside_bar_breakout: { name: 'Inside Bar Breakout', direction: 'neutral' },
+      holy_grail: { name: 'Holy Grail', direction: 'bullish' },
+    }
+    // the live ASST / CEVA rows that showed a bearish word in a bullish list
+    expect(setupLabel(',rsi_bearish_divergence,inside_bar_breakout,', null, catalog)).toBe('Inside Bar Breakout')
+    expect(setupLabel(',td_sequential_sell,inside_bar_breakout,holy_grail,', null, catalog)).toBe('Holy Grail, Inside Bar Breakout')
+    // every id bearish: the base shape (or "Pattern") stands in, never a bearish word
+    expect(setupLabel(',td_sequential_sell,', 'Cup', catalog)).toBe('Cup')
+    // no catalog (failed or loading): nothing is dropped
+    expect(setupLabel(',td_sequential_sell,')).toBe('Td sequential sell')
+  })
+
+  it('reads the catalog in the panel and keeps a bearish id out of the setup column', async () => {
+    jsonFetcher.mockImplementation((url) => Promise.resolve(String(url).includes('/api/patterns/catalog')
+      ? { patterns: { td_sequential_sell: { name: 'TD Sequential Sell', direction: 'bearish' },
+          bull_flag: { name: 'Bull Flag', direction: 'bullish' } } }
+      : { ...SCAN, rows: [{ ...SCAN.rows[0], pattern_engine_ids: ',td_sequential_sell,bull_flag,' }] }))
+    renderPanel()
+    const row = await screen.findByTestId('terminal-brko-row-AMD')
+    await waitFor(() => expect(within(row).queryByText(/sequential/i)).toBeNull())
+    expect(within(row).getByText('Bull flag')).toBeTruthy()
   })
 
   it('derives the pivot from price and distance, and orders closest first', () => {
@@ -92,16 +119,17 @@ describe('BRKO model', () => {
 })
 
 describe('BRKO panel', () => {
-  it('lists closest to pivot first with setup, distance, RS, tightness and as-of; DES and PLAN open', async () => {
+  it('lists closest to pivot first with setup, distance, RS, tightness and as-of; a ticker loads and PLAN opens', async () => {
     jsonFetcher.mockResolvedValue(SCAN)
-    const { open, publishRows } = renderPanel()
+    const { open, run, publishRows } = renderPanel()
     await screen.findByTestId('terminal-brko-table')
     expect(symsInTable()).toEqual(['CRWD', 'NVDA', 'AMD'])
     const nvda = screen.getByTestId('terminal-brko-row-NVDA').textContent
     for (const s of ['VCP, Flat base', '1.5% below', '$203.00', '98', '1.2%', '2026-10-08']) expect(nvda).toContain(s)
     expect(screen.getByTestId('terminal-brko-row-CRWD').textContent).toContain('0.8% through')
-    fireEvent.click(screen.getByTestId('panel-command-NVDA-DES'))
-    expect(open).toHaveBeenCalledWith('NVDA DES')
+    // Linked panels (2026-10-09): a ticker LOADS into the list's group, like its row number.
+    fireEvent.click(screen.getByTestId('panel-symbol-NVDA'))
+    expect(run).toHaveBeenCalledWith('$NVDA')
     fireEvent.click(screen.getByTestId('panel-command-NVDA-PLAN-203.00'))
     expect(open).toHaveBeenCalledWith('NVDA PLAN 203.00')
     expect(publishRows).toHaveBeenLastCalledWith(['$CRWD', '$NVDA', '$AMD'])

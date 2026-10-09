@@ -203,3 +203,20 @@ describe('the written size of an expansion is bounded', () => {
     expect(expandedSize(dag, 50)).toBe(51)
   })
 })
+
+// ─── ⛔ production 10-09: a definition comes back from the store with SORTED keys ──────
+describe('recognition does not depend on key order', () => {
+  const sortKeys = (v) => (Array.isArray(v) ? v.map(sortKeys)
+    : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sortKeys(v[k])])) : v)
+  it('every expansion is recognised after a store round trip (sorted keys)', () => {
+    const S = { type: 'series', name: 'close' }
+    const N = (v) => ({ type: 'num', value: v })
+    for (const [name, args] of [['linreg', [S, N(50)]], ['linreg', [S, N(20), N(3)]],
+      ['correlation', [S, { type: 'sym', value: 'SPY', args: [S] }, N(20)]], ['vwma', [S, N(20)]], ['roc', [S, N(12)]],
+      ['kcUpper', [S, N(20), N(2)]], ['kcLower', [S, N(20), N(1.5)]]]) {
+      const t = expandCalls({ type: 'call', name, args })
+      expect(recogniseExpansion(sortKeys(t)), name).toMatchObject({ name })
+      expect(printFormula(collapseExpansions(sortKeys(t))).startsWith(`${name}(`), name).toBe(true)
+    }
+  })
+})

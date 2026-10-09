@@ -3,7 +3,7 @@
 //     own /api/scatter reads; a name missing either value is counted, never drawn at zero;
 //   * the axis menus are the server's metric catalog; changing an axis re-plots;
 //   * picking a universe reads that universe;
-//   * clicking a dot opens DES for that ticker beside the panel;
+//   * clicking a dot loads that ticker into the linked panels;
 //   * a failed read is an error with Retry, never an empty plot; a 402 says paid plan;
 //   * the registry: `SCAT` resolves to this panel, market-only.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -47,15 +47,15 @@ function serve({ metrics = METRICS, universes = UNIVERSES, sp500 = SP500 } = {})
     return hit
   })
 }
-function renderPanel({ open = vi.fn() } = {}) {
+function renderPanel({ open = vi.fn(), run = vi.fn() } = {}) {
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
-      <PanelListContext.Provider value={{ open, rerun: vi.fn(), run: vi.fn() }}>
+      <PanelListContext.Provider value={{ open, rerun: vi.fn(), run }}>
         <ScatterPanel />
       </PanelListContext.Provider>
     </SWRConfig>,
   )
-  return { open }
+  return { open, run }
 }
 
 beforeEach(() => { jsonFetcher.mockReset(); chart.option = null; chart.onEvents = null })
@@ -97,12 +97,12 @@ describe('SCAT panel', () => {
     expect(jsonFetcher).toHaveBeenCalledWith(dataUrl('index', 'ndx'))
   })
 
-  it('clicking a dot opens DES for that ticker', async () => {
+  it('clicking a dot loads that ticker into the linked panels', async () => {
     serve()
-    const { open } = renderPanel()
+    const { run } = renderPanel()
     await screen.findByTestId('terminal-scat-chart')
     chart.onEvents.click({ value: [-2.5, 97, 'NVDA'], name: 'NVDA' })
-    expect(open).toHaveBeenCalledWith('NVDA DES')
+    expect(run).toHaveBeenCalledWith('$NVDA')
   })
 
   it('a failed read is an error with Retry, never an empty plot; a 402 says paid plan', async () => {

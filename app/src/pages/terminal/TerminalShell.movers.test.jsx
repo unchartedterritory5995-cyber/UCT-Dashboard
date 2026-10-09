@@ -43,6 +43,7 @@ vi.mock('../../hooks/usePreferences', () => {
 
 vi.mock('./panels', async (importOriginal) => {
   const real = await importOriginal()
+  const { default: PanelSymbol } = await import('../../components/terminal/PanelSymbol')
   const stubs = new Map()
   return {
     ...real,
@@ -69,8 +70,21 @@ vi.mock('./panels', async (importOriginal) => {
           }
           : name === 'Rrg'
           ? function RrgStub({ onRows }) {
-            useEffect(() => { onRows?.(['XLK GP', 'XLU GP']) }, [onRows])
+            useEffect(() => { onRows?.(['$XLK', '$XLU']) }, [onRows])
             return <div data-testid="stub-Rrg">Rrg</div>
+          }
+          : name === 'Alerts'
+          ? function AlertsStub({ sym, onRun }) {
+            return (
+              <div data-testid="stub-Alerts" data-sym={sym || ''}>
+                <button type="button" onClick={() => onRun?.('$AMD', { keepFunction: true })}>alert AMD</button>
+              </div>
+            )
+          }
+          : name === 'Peer'
+          ? function PeerStub({ sym }) {
+            // The REAL publisher component, as the embedded lists use it.
+            return <div data-testid="stub-Peer" data-sym={sym || ''}><PanelSymbol sym={sym} /><PanelSymbol sym="AMD" /></div>
           }
           : function Stub({ sym }) { return <div data-testid={`stub-${name}`}>{name}:{sym || '-'}</div> })
       }
@@ -274,5 +288,120 @@ describe('IMOV writes a hand-picked theme into its OWN panel command', () => {
     const saved = JSON.parse(store.prefs.terminal_layout)
     expect(saved.panels[1]).toMatchObject({ code: 'IMOV', args: ['THEME', 'SEMICONDUCTORS'] })
     expect(saved.panels[0]).toMatchObject({ code: 'MOST' })
+  })
+})
+
+// ── Linked panels (2026-10-09): a ticker activated in ANY list row is published to that list's
+// group by the one publisher (TerminalShell `publishSymbol`, boardModel.rowLinkPlan). ──
+const layoutWrites = () => store.writes.filter(([k]) => k === 'terminal_layout').length
+function seed(panels, groups = { A: 'NVDA' }, extra = {}) {
+  store.prefs = {
+    terminal_layout: JSON.stringify({ ...DEFAULT_LAYOUT, count: panels.length, focus: 0, panels, closed: [], ...extra }),
+    charts_workspace_groups: JSON.stringify(groups),
+  }
+}
+
+describe("linked panels: a list row loads its name into the list's group", () => {
+  it('a list on group A beside DES and GP: a click re-points DES and GP, the list keeps its function, the board is written a bounded number of times', async () => {
+    seed([
+      { id: 'p1', code: 'MOST', channel: 'A', sym: null, args: [] },
+      { id: 'p2', code: 'DES', channel: 'A', sym: null, args: [] },
+      { id: 'p3', code: 'GP', channel: 'A', sym: null, args: [] },
+    ], { A: 'NVDA' }, { focus: 2 })
+    renderShell()
+    expect(screen.getByTestId('stub-Chart')).toHaveTextContent('Chart:NVDA')
+    const before = layoutWrites()
+    // No mouseDown first: the publisher reads the panel the row is IN, not the focused one.
+    await act(async () => { fireEvent.click(screen.getByText('row AMD')) })
+    expect([code(0), code(1), code(2)]).toEqual(['MOST', 'DES', 'GP'])
+    expect(screen.getByTestId('stub-Overview')).toHaveTextContent('Overview:AMD')
+    expect(screen.getByTestId('stub-Chart')).toHaveTextContent('Chart:AMD')
+    expect(notice()).toBe('Loaded AMD into Group A: panels 2, 3 kept their functions.')
+    // the shell's live region says the same, so keyboard and screen-reader members hear it
+    expect(screen.getByTestId('terminal-notice-announce').textContent).toContain('Loaded AMD into Group A')
+    // no remount loop: one publish is at most a couple of layout writes, and it settles
+    const after = layoutWrites()
+    expect(after - before).toBeLessThanOrEqual(2)
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(layoutWrites()).toBe(after)
+  })
+
+  it("an UNLINKED list loads into the board's active group (as MOST always did) and does NOT re-point itself", async () => {
+    seed([
+      { id: 'p1', code: 'ALRT', channel: null, sym: null, args: [] },
+      { id: 'p2', code: 'GP', channel: 'A', sym: null, args: [] },
+    ])
+    renderShell()
+    expect(screen.getByTestId('stub-Alerts').getAttribute('data-sym')).toBe('')
+    await act(async () => { fireEvent.click(screen.getByText('alert AMD')) })
+    expect([code(0), code(1)]).toEqual(['ALRT', 'GP'])
+    expect(screen.getByTestId('stub-Chart')).toHaveTextContent('Chart:AMD')
+    // the list still shows every alert (before this, it turned itself into AMD ALRT)
+    expect(screen.getByTestId('stub-Alerts').getAttribute('data-sym')).toBe('')
+    expect(JSON.parse(store.prefs.terminal_layout).panels[0]).toMatchObject({ code: 'ALRT', channel: null, sym: null })
+  })
+
+  it('FALLBACK: nothing on screen follows the group, so the name opens beside the list (a link never dead-ends)', async () => {
+    seed([
+      { id: 'p1', code: 'ALRT', channel: null, sym: null, args: [] },
+      { id: 'p2', code: 'CN', channel: 'B', sym: null, args: [] },
+    ])
+    renderShell()
+    await act(async () => { fireEvent.click(screen.getByText('alert AMD')) })
+    expect([code(0), code(1), code(2)]).toEqual(['ALRT', 'DES', 'CN'])
+    expect(screen.getByTestId('stub-Overview')).toHaveTextContent('Overview:AMD')
+    expect(screen.getByTestId('stub-Alerts').getAttribute('data-sym')).toBe('')
+    expect(notice()).toBe('Opened AMD DES in a new panel 2; ALRT stays in panel 1.')
+  })
+
+  it('a list showing every name only because its group is empty keeps that list: it is unlinked, the others follow', async () => {
+    const channels = [...DEFAULT_LAYOUT.channels, { id: 'E', name: 'Group E', color: '#f472b6', sym: null, history: [] }]
+    seed([
+      { id: 'p1', code: 'ALRT', channel: 'E', sym: null, args: [] },
+      { id: 'p2', code: 'DES', channel: 'E', sym: null, args: [] },
+    ], { A: 'NVDA' }, { channels })
+    renderShell()
+    await act(async () => { fireEvent.click(screen.getByText('alert AMD')) })
+    expect(screen.getByTestId('stub-Overview')).toHaveTextContent('Overview:AMD')
+    expect(screen.getByTestId('stub-Alerts').getAttribute('data-sym')).toBe('')
+    expect(JSON.parse(store.prefs.terminal_layout).panels[0]).toMatchObject({ code: 'ALRT', channel: null })
+    expect(notice()).toBe('Loaded AMD into Group E: panel 2 kept its function. ALRT in panel 1 keeps its full list and is no longer linked.')
+  })
+
+  it('a single-ticker panel (PEER) follows its group: its peer row re-points it and the chart once, no loop; the current name is marked', async () => {
+    seed([
+      { id: 'p1', code: 'PEER', channel: 'A', sym: null, args: [] },
+      { id: 'p2', code: 'GP', channel: 'A', sym: null, args: [] },
+    ])
+    renderShell()
+    expect(screen.getByTestId('stub-Peer').getAttribute('data-sym')).toBe('NVDA')
+    expect(screen.getByTestId('panel-symbol-NVDA').getAttribute('aria-current')).toBe('true')
+    expect(screen.getByTestId('panel-symbol-AMD').getAttribute('aria-current')).toBeNull()
+    const before = layoutWrites()
+    const peerRow = screen.getByTestId('panel-symbol-AMD')
+    peerRow.focus()
+    // keyboard activation of a native button (Enter / Space) is its click event
+    await act(async () => { fireEvent.click(peerRow) })
+    expect(screen.getByTestId('stub-Chart')).toHaveTextContent('Chart:AMD')
+    expect(screen.getByTestId('stub-Peer').getAttribute('data-sym')).toBe('AMD')
+    expect(screen.getAllByTestId('panel-symbol-AMD').map((n) => n.getAttribute('aria-current'))).toEqual(['true', 'true'])
+    expect([code(0), code(1)]).toEqual(['PEER', 'GP'])
+    const after = layoutWrites()
+    expect(after - before).toBeLessThanOrEqual(2)
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(layoutWrites()).toBe(after)
+  })
+
+  it("CONTROL: Shift+Enter keeps its own rule (it loads the FOCUSED panel's group, an unlinked one included)", async () => {
+    seed([
+      { id: 'p1', code: 'DES', channel: null, sym: 'NVDA', args: [] },
+      { id: 'p2', code: 'GP', channel: 'A', sym: null, args: [] },
+    ])
+    renderShell()
+    const input = screen.getByTestId('terminal-command')
+    fireEvent.change(input, { target: { value: 'TSLA' } })
+    await act(async () => { fireEvent.keyDown(input, { key: 'Enter', shiftKey: true }) })
+    expect(screen.getByTestId('stub-Overview')).toHaveTextContent('Overview:TSLA')
+    expect(screen.getByTestId('stub-Chart')).toHaveTextContent('Chart:NVDA')
   })
 })

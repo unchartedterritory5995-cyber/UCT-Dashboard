@@ -1,6 +1,6 @@
 // INS: insider buys. Rails:
 //   * ticker, insider, role, dollar value, date per row, largest first, sortable;
-//   * a ticker opens its DES beside the list; row numbers load the name;
+//   * a ticker loads into the linked panels; row numbers load the name;
 //   * the panel says the feed is not the whole market;
 //   * a failed read is an error with Retry, never "no buys"; a 402 says paid plan;
 //   * the registry: `INS` resolves to this panel, market-only.
@@ -20,15 +20,15 @@ const BUYS = [
   { symbol: 'AMD', name: 'John Roe', title: 'officer: CFO', type: 'buy', shares: 2000, price: 100, amount: 200000, date: '2026-10-08', filing_date: '2026-10-08' },
 ]
 
-function renderPanel({ open = vi.fn(), publishRows = vi.fn() } = {}) {
+function renderPanel({ open = vi.fn(), run = vi.fn(), publishRows = vi.fn() } = {}) {
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-      <PanelListContext.Provider value={{ open, run: vi.fn(), publish: vi.fn(), publishRows }}>
+      <PanelListContext.Provider value={{ open, run, publish: vi.fn(), publishRows }}>
         <InsiderPanel />
       </PanelListContext.Provider>
     </SWRConfig>,
   )
-  return { open, publishRows }
+  return { open, run, publishRows }
 }
 const symsInTable = () => within(screen.getByTestId('terminal-insider-table')).getAllByRole('row').slice(1)
   .map((r) => r.getAttribute('data-testid').replace('terminal-insider-row-', ''))
@@ -37,15 +37,15 @@ beforeEach(() => { jsonFetcher.mockReset() })
 afterEach(cleanup)
 
 describe('INS panel', () => {
-  it('lists the buys largest first with every field, and a ticker opens DES', async () => {
+  it('lists the buys largest first with every field, and a ticker loads into the linked panels', async () => {
     jsonFetcher.mockResolvedValue(BUYS)
-    const { open, publishRows } = renderPanel()
+    const { run, publishRows } = renderPanel()
     await screen.findByTestId('terminal-insider-table')
     expect(symsInTable()).toEqual(['NVDA', 'AMD'])
     const nvda = screen.getByTestId('terminal-insider-row-NVDA').textContent
     for (const s of ['Jane Doe', 'director', '$1.5M', '10,000', '$150.00', '2026-10-06']) expect(nvda).toContain(s)
-    fireEvent.click(screen.getByTestId('panel-command-AMD-DES'))
-    expect(open).toHaveBeenCalledWith('AMD DES')
+    fireEvent.click(screen.getByTestId('panel-symbol-AMD'))
+    expect(run).toHaveBeenCalledWith('$AMD')
     expect(publishRows).toHaveBeenLastCalledWith(['$NVDA', '$AMD'])
     expect(screen.getByTestId('terminal-insider-method').textContent).toContain('not every stock')
     expect(jsonFetcher).toHaveBeenCalledWith(INSIDER_URL)

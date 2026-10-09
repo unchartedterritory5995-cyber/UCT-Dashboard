@@ -26,7 +26,7 @@ import useMarketOpen from '../../../hooks/useMarketOpen'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import Select from '../../../components/ui/Select'
 import { sessionModel } from '../../../components/dashboard/sessionModel'
-import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelLinkedSym } from '../../../components/terminal'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import {
   DEFAULT_WINDOW, IMOV_WINDOWS, INDEX_FUNDS, POLL_MS, THEMES_URL, TOP_N,
@@ -60,6 +60,7 @@ function failureText(err) {
 }
 
 function ContribTable({ title, rows, start, n, sym, onLoad, testId }) {
+  const linked = usePanelLinkedSym()
   if (!rows.length) return null
   return (
     <div className={styles.tableBox}>
@@ -76,7 +77,7 @@ function ContribTable({ title, rows, start, n, sym, onLoad, testId }) {
           {rows.map((r, i) => (
             <tr key={r.sym} data-testid={`terminal-imov-row-${r.sym}`} className={r.sym === sym ? styles.mine : undefined}>
               <td>
-                <button type="button" className={styles.rowBtn} onClick={() => onLoad(r.sym)}
+                <button type="button" className={styles.rowBtn} onClick={() => onLoad(r.sym)} aria-current={linked === r.sym ? 'true' : undefined}
                   title={`Load ${r.sym} into the linked panels`}>
                   <span className={styles.rowNum}>{start + i + 1}</span>
                   <span className={styles.sym}>{r.sym}</span>

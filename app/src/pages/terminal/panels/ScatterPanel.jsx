@@ -11,7 +11,7 @@
 // counted and said, never drawn at zero.
 import { useCallback, useMemo, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
-import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelOpen } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelRun } from '../../../components/terminal'
 import {
   formatCompact, formatCurrency, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -92,7 +92,7 @@ function makeOption({ points, xMeta, yMeta, ink }) {
       backgroundColor: withAlpha(ink.elevated, 0.96),
       borderColor: withAlpha(ink.text, 0.12),
       textStyle: { color: ink.bright, fontSize: 11, fontFamily: CHART_FONT_FAMILY },
-      formatter: (p) => `<b>${p.value[2]}</b><br/>${yMeta.label}: ${fmtMetric(p.value[1], yMeta.unit)}<br/>${xMeta.label}: ${fmtMetric(p.value[0], xMeta.unit)}<br/>Click to open DES`,
+      formatter: (p) => `<b>${p.value[2]}</b><br/>${yMeta.label}: ${fmtMetric(p.value[1], yMeta.unit)}<br/>${xMeta.label}: ${fmtMetric(p.value[0], xMeta.unit)}<br/>Click to load it`,
     },
     xAxis: axis(xMeta),
     yAxis: { ...axis(yMeta), nameGap: 38 },
@@ -107,7 +107,8 @@ function makeOption({ points, xMeta, yMeta, ink }) {
 
 export default function ScatterPanel() {
   const inPanel = useInTerminalPanel()
-  const open = usePanelOpen()
+  // Linked panels (2026-10-09): a dot LOADS its name into this panel's group, like a list row.
+  const run = usePanelRun()
   const [pick, setPick] = useState({ source: DEFAULTS.source, value: DEFAULTS.value, label: 'S&P 500' })
   const [xKey, setXKey] = useState(DEFAULTS.xKey)
   const [yKey, setYKey] = useState(DEFAULTS.yKey)
@@ -125,8 +126,8 @@ export default function ScatterPanel() {
   const option = useMemo(() => makeOption({ points, xMeta, yMeta, ink }), [points, xMeta, yMeta, ink])
   const onPoint = useCallback((p) => {
     const sym = p?.value?.[2] || p?.name
-    if (sym && open) open(`${sym} DES`)
-  }, [open])
+    if (sym && run) run(`$${String(sym).toUpperCase()}`)
+  }, [run])
   usePanelFreshness(points.length ? { source: 'UCT Market Map (nightly metrics and a live snapshot)', asOf: read.receivedAt } : null)
 
   const onUniverse = (e) => {
@@ -205,7 +206,7 @@ export default function ScatterPanel() {
       <p className={styles.muted} data-testid="terminal-scat-method">
         {points.length ? `${points.length} name${points.length === 1 ? '' : 's'} plotted. ` : ''}
         {points.length && missing ? `${missing} left out for a missing value. ` : ''}
-        Green closed up today, red down. Click a dot to open its DES; scroll to zoom.
+        Green closed up today, red down. Click a dot to load it into the linked panels; scroll to zoom.
         {read.receivedAt ? ` Read at ${formatTimeEt(read.receivedAt, { zoneSuffix: 'ET', absent: '' })}.` : ''}
       </p>
     </div>

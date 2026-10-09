@@ -25,7 +25,7 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 import Select from '../../../components/ui/Select'
 import HighlightThesis, { isFailedSynthesis } from '../../../utils/highlightThesis'
 import { sessionModel } from '../../../components/dashboard/sessionModel'
-import { BoardFromList, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { BoardFromList, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelLinkedSym } from '../../../components/terminal'
 import {
   formatCompactTerminal, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -117,6 +117,7 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
   // shell (no onRun) it is plain component state.
   const toggleMine = (next) => { if (onRun) onRun(moversCommand(lens, next), { here: true }); else setMine(next) }
   const load = (sym) => onRun?.(`$${sym}`, { keepFunction: true })
+  const linked = usePanelLinkedSym()
 
   if (!movers.data && !movers.error) {
     return <PanelSkeleton label="Loading today's movers" testId="terminal-movers-loading" />
@@ -225,7 +226,7 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
                   <Fragment key={r.sym}>
                   <tr data-testid={`terminal-movers-row-${r.sym}`} className={open === r.sym ? styles.rowOpen : undefined}>
                     <td>
-                      <button type="button" className={styles.rowBtn} onClick={() => load(r.sym)}
+                      <button type="button" className={styles.rowBtn} onClick={() => load(r.sym)} aria-current={linked === r.sym ? 'true' : undefined}
                         title={`Load ${r.sym} into the linked panels`}>
                         <span className={styles.rowNum}>{i + 1}</span>
                         <span className={styles.sym}>{r.sym}</span>

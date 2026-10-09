@@ -244,6 +244,15 @@ def breadth_nhnl_intraday(request: Request, start: int = 0, rebuild: int = 0,
     return out
 
 
+@router.post("/api/breadth-monitor/carry-not-live")
+def breadth_carry_not_live(request: Request, date: str = Query(...)):
+    """Fill only the missing NOT_LIVE fields of one stored session by carrying the newest earlier
+    print (never re-states a measured value). PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_self_heal as sh
+    return sh.carry_missing_not_live(date)
+
+
 @router.post("/api/breadth-monitor/history/pull-now")
 def pull_breadth_ohlc_now(request: Request):
     """Force an immediate web-side pull + gap-fill merge of the latest breadth OHLC
@@ -376,16 +385,19 @@ def backfill_chain(request: Request, floor: str = Query(...), ceiling: str = Que
 
 @router.post("/api/breadth-monitor/history/sweep")
 def sweep_breadth_history(request: Request, from_date: str = Query(...),
-                          to_date: str = Query(default=""), limit: int = Query(default=0, ge=0, le=6000)):
+                          to_date: str = Query(default=""), limit: int = Query(default=0, ge=0, le=6000),
+                          missing_only: int = Query(default=0, ge=0, le=1)):
     """Backfill close-basis breadth history for a date range into the chart store
     (source 'close_recon'). Loads the deep frame once, recomputes every session. Heavy →
     runs in a BACKGROUND THREAD; poll GET .../history/sweep-status. PUSH_SECRET-gated."""
     _check_auth(request)
     import threading
     from api.services import breadth_history_recon as r
-    threading.Thread(target=r.run_sweep_async, args=(from_date, to_date or None, limit),
+    threading.Thread(target=r.run_sweep_async, args=(from_date, to_date or None, limit,
+                                                     bool(missing_only)),
                      name="breadth-history-sweep", daemon=True).start()
-    return {"ok": True, "started": True, "from": from_date, "to": to_date or "(latest)"}
+    return {"ok": True, "started": True, "from": from_date, "to": to_date or "(latest)",
+            "missing_only": bool(missing_only)}
 
 
 @router.get("/api/breadth-monitor/history/sweep-status")
