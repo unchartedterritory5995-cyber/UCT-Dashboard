@@ -257,6 +257,13 @@ def _published_metrics(universe: str) -> list:
                   "universe_count", "up_4pct_today", "down_4pct_today", "unchanged"):
         if extra not in keys and bm.applies_to(extra, universe):
             keys.append(extra)
+    # ⭐ (2026-10-09) `unchanged` is not a library metric of any universe (`applies_to` is False),
+    # but the exchange universes' canonical store carries it and NYSE:UNCH / NASDAQ:UNCH are built
+    # from it. Without it here the provisional sessions and today's row never carried it, and both
+    # series sat at the last canonical session all day. A universe whose canonical lacks it simply
+    # anchors nothing for it.
+    if "unchanged" not in keys:
+        keys.append("unchanged")
     return keys
 
 

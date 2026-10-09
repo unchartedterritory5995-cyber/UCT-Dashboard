@@ -327,6 +327,38 @@ export function activeChannelOf(layout) {
   return panelChannel(p) || layout.activeChannel || 'A'
 }
 
+/**
+ * Linked panels (2026-10-09, IA §10.3 / §11.1 rule 1): where a ticker ACTIVATED in a row of
+ * visible panel `from` goes. Pure; the shell's one publisher (`publishSymbol`) acts on it.
+ *
+ *   channel    the group the name is published to: the panel's own group when it has one,
+ *              else the board's active group. That second half is what MOST always did (it
+ *              follows no security, so it loads into the active group), and an UNLINKED list
+ *              now does the same instead of re-pointing itself.
+ *   hold       the list follows that group but shows its all-names view only because the
+ *              group is empty (`ALRT` with no security = every alert). Following the new name
+ *              would turn it into a one-name list, so the publisher unlinks it first: the list
+ *              keeps what it shows, the other panels follow.
+ *   followers  the OTHER visible panels that follow `channel`. Empty means nothing on screen
+ *              would show the name, and the publisher opens it beside the list instead (rule 2:
+ *              a link never dead-ends).
+ *
+ * A panel whose function is single-ticker by design (PEER, ETF, TWT, CHK) or a list that is
+ * showing a security's view (`RRG` led by NVDA) FOLLOWS its group, so a row in it re-points it
+ * too: one publish, one re-point, nothing re-publishes. That is a drill, not a loop.
+ */
+export function rowLinkPlan(layout, from, syms) {
+  const visible = layout.panels.slice(0, layout.count)
+  const p = visible[from]
+  const own = panelChannel(p)
+  const channel = own || layout.activeChannel || 'A'
+  const hold = !!own && isLinkable(p) && !panelSym(p, syms) && !!BY_CODE[p.code]?.market
+  const followers = visible
+    .map((q, j) => (j !== from && !q.popout && isLinkable(q) && panelChannel(q) === channel ? j : null))
+    .filter((j) => j != null)
+  return { channel, hold, followers }
+}
+
 // ── channels ──────────────────────────────────────────────────────────────────
 
 export function nextChannelId(channels) {

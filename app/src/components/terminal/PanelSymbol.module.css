@@ -22,6 +22,12 @@
   outline-offset: 1px;
 }
 
+/* The name the linked panels follow now: weight and a solid underline, no new colour. */
+.current {
+  font-weight: 700;
+  text-decoration: underline solid;
+}
+
 @media (max-width: 1024px) {
   .link {
     min-height: var(--tap-min);

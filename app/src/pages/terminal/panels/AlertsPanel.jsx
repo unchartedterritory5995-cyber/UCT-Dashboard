@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import useLivePrices from '../../../hooks/useLivePrices'
-import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelLinkedSym } from '../../../components/terminal'
 import { formatDateTimeEt, formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { money } from '../alertModel'
 import { ALERTS_URL, revalidateAlerts } from '../alertCommand'
@@ -77,6 +77,7 @@ export default function AlertsPanel({ sym = null, onRun, onRows }) {
   usePanelFreshness(data?.receivedAt ? { freshnessClass: 'real_time', asOf: data.receivedAt } : null)
 
   const load = (s) => onRun?.(`$${s}`, { keepFunction: true })
+  const linked = usePanelLinkedSym()
   const remove = async (row) => {
     setBusy(row.id)
     setFailed(null)
@@ -149,7 +150,7 @@ export default function AlertsPanel({ sym = null, onRun, onRows }) {
                 return (
                   <tr key={r.id} data-testid={`terminal-alerts-row-${r.id}`}>
                     <td>
-                      <button type="button" className={styles.rowBtn} onClick={() => load(r.sym)}
+                      <button type="button" className={styles.rowBtn} onClick={() => load(r.sym)} aria-current={linked === r.sym ? 'true' : undefined}
                         aria-label={`Load ${r.sym} into the linked panels`}>
                         <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                         <span className={styles.sym}>{r.sym}</span>

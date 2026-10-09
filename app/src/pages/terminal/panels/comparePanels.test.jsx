@@ -2,7 +2,7 @@
 // series whose answer is known by construction. Nothing on the path under test is mocked except
 // the network (`fetch`).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -41,9 +41,10 @@ describe('RRG', () => {
     expect(screen.getByTestId('terminal-rrg-row-XLK').textContent).toContain('Technology')
     // The rows publish in an effect after the graph paints; under a loaded test run the
     // first (empty) publish can still be the last one when the graph is found.
-    await waitFor(() => expect(onRows).toHaveBeenLastCalledWith(['XLK GP', 'XLU GP']))
-    fireEvent.click(screen.getByTitle('Open XLU GP beside this graph'))
-    expect(onRun).toHaveBeenCalledWith('XLU GP', { next: true })
+    await waitFor(() => expect(onRows).toHaveBeenLastCalledWith(['$XLK', '$XLU']))
+    // Linked panels (2026-10-09): a row loads its name into the graph's group, like every list.
+    fireEvent.click(within(screen.getByTestId('terminal-rrg-row-XLU')).getByRole('button'))
+    expect(onRun).toHaveBeenCalledWith('$XLU', { keepFunction: true })
     expect(screen.getByTestId('terminal-rrg-method').textContent).toContain("not JdK's proprietary formula")
     // a11y (audit 2026-10-06): the graph's name states what it SHOWS, and the table is named
     expect(screen.getByRole('img', { name: /vs SPY.*Leading: XLK\..*Lagging: XLU\./ })).toBeTruthy()

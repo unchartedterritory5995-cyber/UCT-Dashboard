@@ -23,7 +23,7 @@ import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import {
-  PanelCommand, PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
+  PanelCommand, PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
 import { formatCurrency, formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
@@ -237,7 +237,7 @@ export default function BreakoutPanel() {
             {rows.map((x) => (
               <tr key={x.sym} data-testid={`terminal-brko-row-${x.sym}`}>
                 <td className={styles.rowNum}>{x.order + 1}</td>
-                <td><PanelCommand cmd={`${x.sym} DES`} label={`Open ${x.sym} description`} className={styles.sym}>{x.sym}</PanelCommand></td>
+                <td><PanelSymbol sym={x.sym} className={styles.sym} /></td>
                 <td>{x.setup}</td>
                 <td>{pivotText(x.dist)}</td>
                 <td className={styles.phoneHide}>{formatCurrency(x.pivot, { absent: 'n/a' })}</td>

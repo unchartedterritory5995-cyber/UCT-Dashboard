@@ -138,8 +138,8 @@ export const FLUSH_PANELS = new Set(['Chart', 'Calendar'])
  *  neither — they are never forked to accept them. */
 export const COMMAND_PANELS = new Set(['Move', 'Rrg', 'Movers', 'Imov', 'Alerts', 'Watchlist'])
 
-/** List panels whose numbered rows OPEN another function (RRG's `SYM GP`) rather than load a
- *  name: typing the row number opens it BESIDE the list, exactly as clicking the row does, so
- *  the list is never replaced by its own row (boardModel.panelBeside). MOST and IMOV rows LOAD
- *  (`$SYM`) and need no entry here. */
-export const ROWS_OPEN_BESIDE = new Set(['Rrg'])
+/** Linked panels (2026-10-09): every list row LOADS its name into the list's group (`$SYM`,
+ *  boardModel.rowLinkPlan). When no other panel on screen follows that group, the name opens
+ *  BESIDE the list instead (a link never dead-ends) in this function: DES unless named here.
+ *  RRG's rows used to open `SYM GP` beside the graph, so a graph with no follower still does. */
+export const LIST_OPENS = Object.freeze({ Rrg: 'GP' })

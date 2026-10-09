@@ -1,7 +1,7 @@
 // RSL: the RS leaderboard. Rails:
 //   * best RS rank first, capped at TOP_N, with the universe size said out loud;
 //   * sortable within the leaderboard, aria-sort says which way, a reset returns to rank order;
-//   * a ticker opens its DES beside the list; row numbers load the name;
+//   * a ticker loads into the linked panels; row numbers load the name;
 //   * a 503 while the server computes reads "being computed", not empty; other failures are errors;
 //   * the registry: `RSL` resolves to this panel, market-only.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -21,15 +21,15 @@ const RANKS = [
   { ticker: 'XYZ', rs_score: -10, rs_rank: 2, returns: { '1w': -1, '1m': -5, '3m': -20, '6m': null } },
 ]
 
-function renderPanel({ open = vi.fn(), publishRows = vi.fn() } = {}) {
+function renderPanel({ open = vi.fn(), run = vi.fn(), publishRows = vi.fn() } = {}) {
   render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
-      <PanelListContext.Provider value={{ open, run: vi.fn(), publish: vi.fn(), publishRows }}>
+      <PanelListContext.Provider value={{ open, run, publish: vi.fn(), publishRows }}>
         <RsLeadersPanel />
       </PanelListContext.Provider>
     </SWRConfig>,
   )
-  return { open, publishRows }
+  return { open, run, publishRows }
 }
 const symsInTable = () => within(screen.getByTestId('terminal-rsl-table')).getAllByRole('row').slice(1)
   .map((r) => r.getAttribute('data-testid').replace('terminal-rsl-row-', ''))
@@ -38,15 +38,15 @@ beforeEach(() => { jsonFetcher.mockReset() })
 afterEach(cleanup)
 
 describe('RSL panel', () => {
-  it('ranks best first, opens DES on a ticker, and names the universe size', async () => {
+  it('ranks best first, loads a ticker, and names the universe size', async () => {
     jsonFetcher.mockResolvedValue(RANKS)
-    const { open, publishRows } = renderPanel()
+    const { run, publishRows } = renderPanel()
     await screen.findByTestId('terminal-rsl-table')
     expect(symsInTable()).toEqual(['NVDA', 'AMD', 'XYZ'])
     const nvda = screen.getByTestId('terminal-rsl-row-NVDA').textContent
     for (const s of ['99', '55.50', '+3.4%', '+41.0%']) expect(nvda).toContain(s)
-    fireEvent.click(screen.getByTestId('panel-command-NVDA-DES'))
-    expect(open).toHaveBeenCalledWith('NVDA DES')
+    fireEvent.click(screen.getByTestId('panel-symbol-NVDA'))
+    expect(run).toHaveBeenCalledWith('$NVDA')
     expect(publishRows).toHaveBeenLastCalledWith(['$NVDA', '$AMD', '$XYZ'])
     expect(screen.getByTestId('terminal-rsl-method').textContent).toContain('top 3 of 3 names')
     expect(jsonFetcher).toHaveBeenCalledWith(RS_URL)

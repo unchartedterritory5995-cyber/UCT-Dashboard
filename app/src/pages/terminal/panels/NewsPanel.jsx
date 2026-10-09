@@ -8,7 +8,7 @@
 //
 // ⛔ A failed read is an error with Retry, never "no news": an outage and a quiet tape differ.
 import { useMemo } from 'react'
-import { PanelCommand, PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
 import { formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { etWallToIso, failureText, useMarketRead } from './marketRead'
 import styles from './marketPanels.module.css'
@@ -87,7 +87,7 @@ export default function NewsPanel() {
               {r.source ? <span>{r.source}</span> : null}
               <span>{r.category}</span>
               {r.tickers.slice(0, MAX_TICKERS).map((s) => (
-                <PanelCommand key={s} cmd={`${s} DES`} label={`Open ${s} description`} className={styles.sym}>{s}</PanelCommand>
+                <PanelSymbol key={s} sym={s} className={styles.sym} />
               ))}
               {r.pct != null ? (
                 <span className={r.pct > 0 ? styles.up : r.pct < 0 ? styles.down : undefined}>
