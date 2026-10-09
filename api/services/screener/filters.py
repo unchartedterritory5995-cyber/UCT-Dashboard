@@ -1269,6 +1269,8 @@ def _build_shared_filters(dist):
 #: it only changes when the nightly snapshot or a ledger does. The key carries the
 #: distribution basis (the snapshot vintage) and the identity of the builders, so a
 #: test that substitutes one is never handed another test's answer.
+#: Incident record: docs/terminal-research/11-risks-and-open-questions/
+#: 2026-10-09-web-restarts-and-heavy-reads.md
 _SHARED_TTL_S = 600
 _SHARED_CACHE = {}
 _SHARED_LOCK = threading.Lock()
