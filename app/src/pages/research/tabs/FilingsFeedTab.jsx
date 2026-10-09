@@ -2,7 +2,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './ResearchCov.module.css'
-import { memberText } from '../../../lib/presentation/memberCopy'
+import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 
 // COV-09 (roadmap RM-L19) — new SEC filings, live: this ticker, or the whole
@@ -20,6 +20,14 @@ const when = (r) => (r.accepted ? String(r.accepted).replace('T', ' ').slice(0, 
 // read "Unavailable: undefined."), and a read that succeeded but holds none of
 // the filtered form says so about the WINDOW we fetched, never about the
 // company: the feed and the submissions list are both a recent slice.
+/** The note above a feed that answered with rows but was stale or partial: each server clause as
+ *  its own capitalised sentence, through memberText like every other line here (audit 2026-10-08:
+ *  it printed "the last successful poll was 12 minutes ago. these forms could not be read...",
+ *  lowercase, raw, and with a doubled full stop whenever a clause already ended in one). */
+export function partialText(data) {
+  return [data?.reason, data?.partial].filter(Boolean).map(memberSentence).filter(Boolean).join(' ')
+}
+
 export function emptyText(data, form, label) {
   const src = data.source ? ` (${memberText(data.source)})` : ''
   const why = data.reason ? `: ${memberText(data.reason)}` : ''
@@ -86,7 +94,7 @@ export default function FilingsFeedTab({ sym }) {
   } else {
     body = (
       <>
-        {(data.reason || data.partial) && <div className={styles.gap} data-testid="feed-partial">{[data.reason, data.partial].filter(Boolean).join('. ')}.</div>}
+        {partialText(data) && <div className={styles.gap} data-testid="feed-partial">{partialText(data)}</div>}
         <div className={styles.scroll}>
           <table className={styles.grid} data-testid="feed" aria-label={`Filings feed: ${label}`}>
             <thead><tr>
