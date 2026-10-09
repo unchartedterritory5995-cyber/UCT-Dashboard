@@ -6,7 +6,7 @@
 //   * the registry: `NEWS` resolves to this panel, market-only.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
-import { SWRConfig } from 'swr'
+import useSWR, { SWRConfig } from 'swr'
 
 vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 import jsonFetcher from '../../../utils/jsonFetcher'
@@ -83,6 +83,26 @@ describe('NEWS panel', () => {
     renderPanel()
     expect((await screen.findByTestId('terminal-news-error')).textContent).toContain('paid plan')
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+  })
+})
+
+describe('the stamped read shares no SWR cache entry with the raw read', () => {
+  // The Dashboard tile caches the RAW array under '/api/news'. Mounted beside it, the panel must
+  // not hand the tile `{ body, receivedAt }`, nor read the tile's bare array as its own.
+  function RawReader() {
+    const { data } = useSWR(NEWS_URL, jsonFetcher)
+    return <p data-testid="raw-shape">{data === undefined ? 'loading' : Array.isArray(data) ? 'array' : 'other'}</p>
+  }
+  it('both readers get their own shape', async () => {
+    jsonFetcher.mockResolvedValue(ITEMS)
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <RawReader />
+        <PanelListContext.Provider value={{ open: vi.fn() }}><NewsPanel /></PanelListContext.Provider>
+      </SWRConfig>,
+    )
+    expect(await screen.findByTestId('terminal-news-list')).toBeTruthy()
+    expect((await screen.findByText('array')).getAttribute('data-testid')).toBe('raw-shape')
   })
 })
 

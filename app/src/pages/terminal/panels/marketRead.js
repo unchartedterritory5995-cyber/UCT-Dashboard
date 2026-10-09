@@ -9,9 +9,15 @@ import jsonFetcher from '../../../utils/jsonFetcher'
 /** The body plus the instant it arrived (shown as "read at", never as the data's own as-of). */
 export const stampedRead = (url) => jsonFetcher(url).then((body) => ({ body, receivedAt: new Date().toISOString() }))
 
+/** The SWR key. ⛔ Never the bare URL: SWR's cache is app-wide, and the dashboard tiles and the
+ *  UCT 20 page cache the RAW body under these same URLs. A stamped `{ body, receivedAt }` stored
+ *  there would hand them the wrong shape (and them, us), so the stamped read has its own key. */
+export const stampedKey = (url) => (url ? [url, 'terminal-stamped'] : null)
+const stampedFetcher = ([url]) => stampedRead(url)
+
 /** One SWR read: `{ body, receivedAt, error, loading, retry }`. */
 export function useMarketRead(url, { refreshInterval = 0 } = {}) {
-  const r = useSWR(url, stampedRead, { refreshInterval, keepPreviousData: true, revalidateOnFocus: false })
+  const r = useSWR(stampedKey(url), stampedFetcher, { refreshInterval, keepPreviousData: true, revalidateOnFocus: false })
   return {
     body: r.data?.body,
     receivedAt: r.data?.receivedAt || null,
