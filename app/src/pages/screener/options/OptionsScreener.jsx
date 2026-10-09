@@ -4,7 +4,7 @@ import { sectionFetcher } from '../../../components/research/sections/sectionFet
 import CoverageLine from '../../../components/provenance/CoverageLine'
 import { OffLine } from '../../optionsAnalytics/OffNotice'
 import FailedRead from '../../optionsAnalytics/FailedRead'
-import { BoardFromList, useInTerminalPanel, usePanelSymbolRows } from '../../../components/terminal'
+import { BoardFromList, PanelSymbol, useInTerminalPanel, usePanelSymbolRows } from '../../../components/terminal'
 import styles from './OptionsScreener.module.css'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import Input from '../../../components/ui/Input'
@@ -153,7 +153,7 @@ function Screen() {
                   <tr key={r.contract}>
                     <td className={`${styles.session} ${styles.narrowHide}`}>{r.session} EOD</td>
                     <th scope="row" className={`${styles.left} ${styles.pin}`} title={String(r.contract || '').replace(/^O:/, '')} data-testid="opts-contract">{contractLabel(r)}</th>
-                    <td className={`${styles.left} ${styles.narrowHide}`}>{r.underlying}</td><td className={styles.narrowHide}>{typeLabel(r.type)}</td><td className={styles.narrowHide}>{num(r.strike)}</td>
+                    <td className={`${styles.left} ${styles.narrowHide}`}><PanelSymbol sym={r.underlying} /></td><td className={styles.narrowHide}>{typeLabel(r.type)}</td><td className={styles.narrowHide}>{num(r.strike)}</td>
                     <td className={styles.narrowHide}>{r.expiration}</td><td>{r.dte}</td><td>{num(r.otm_pct, 1)}</td><td>{num(r.delta, 3)}</td>
                     <td>{pct(r.iv)}</td><td>{num(r.bid)}</td><td>{num(r.ask)}</td><td>{num(r.spread_pct, 1)}</td>
                     <td>{int(r.open_interest)}</td><td>{int(r.volume)}</td>
@@ -205,7 +205,7 @@ function Volume() {
             {rows.map((r) => (
               <tr key={r.underlying}>
                 <td className={styles.session}>{r.session} EOD</td>
-                <td className={styles.left}>{r.underlying}</td><td>{int(r.volume)}</td>
+                <td className={styles.left}><PanelSymbol sym={r.underlying} /></td><td>{int(r.volume)}</td>
                 <td>{int(r.call_volume)}</td><td>{int(r.put_volume)}</td>
                 <td>{r.average == null ? '—' : int(r.average)}</td>
                 <td data-testid="opts-vol-ratio">{r.ratio != null ? `${num(r.ratio, 2)}× over ${r.n_sessions} sessions` : r.note}</td>
@@ -245,7 +245,7 @@ function Iv() {
               {data.ranked.map((r) => (
                 <tr key={r.underlying}>
                   <td className={styles.session}>{r.session} EOD</td>
-                  <td className={styles.left}>{r.underlying}</td><td>{pct(r.atm_iv)}</td>
+                  <td className={styles.left}><PanelSymbol sym={r.underlying} /></td><td>{pct(r.atm_iv)}</td>
                   <td>{num(r.iv_percentile, 0)}</td><td>{r.bucket}</td><td>{r.n_sessions}</td>
                 </tr>
               ))}

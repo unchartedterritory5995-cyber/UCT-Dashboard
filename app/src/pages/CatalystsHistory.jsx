@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import HighlightThesis, { FAILED_SYNTHESIS_NOTE, hasNoWriteup } from '../utils/highlightThesis'
 import { formatET } from '../utils/timeAgo'
-import TickerPopup from '../components/TickerPopup'
+import PanelTicker from '../components/terminal/PanelTicker'
 import UIcon from '../components/ui/UIcon'
 import Input from '../components/ui/Input'
 import { BoardFromList, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../components/terminal'
@@ -179,9 +179,9 @@ export default function CatalystsHistory() {
                   return (
                     <tr key={r.ticker}>
                       <td className={styles.colSym}>
-                        <TickerPopup sym={r.ticker}>
+                        <PanelTicker sym={r.ticker}>
                           <span className={styles.ticker}>{r.ticker}</span>
-                        </TickerPopup>
+                        </PanelTicker>
                       </td>
                       <td className={styles.colPrice}>{fmtPrice(r.price)}</td>
                       {/* No move (or none on file) is not painted as a gain. */}

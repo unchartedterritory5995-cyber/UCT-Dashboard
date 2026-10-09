@@ -4,6 +4,7 @@ import { sectionFetcher } from '../../../components/research/sections/sectionFet
 import styles from './ResearchCov.module.css'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
+import PanelSymbol from '../../../components/terminal/PanelSymbol'
 
 // COV-09 (roadmap RM-L19) — new SEC filings, live: this ticker, or the whole
 // market. 8-K (with its item codes), 10-Q, 10-K, Form 4, Schedule 13D/G, S-1.
@@ -45,7 +46,7 @@ function Row({ r, showCompany }) {
   return (
     <tr data-testid={`filing-${r.accession}`}>
       <td>{r.form}</td>
-      {showCompany && <td>{r.ticker ? `${r.ticker} · ` : ''}{r.company}{r.filed_by ? ` (filed by ${r.filed_by})` : ''}</td>}
+      {showCompany && <td>{r.ticker ? <><PanelSymbol sym={r.ticker} />{' · '}</> : ''}{r.company}{r.filed_by ? ` (filed by ${r.filed_by})` : ''}</td>}
       <td>
         {r.items
           ? (r.items.length

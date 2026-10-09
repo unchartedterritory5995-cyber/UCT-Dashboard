@@ -4,6 +4,7 @@ import styles from './Depth.module.css'
 import { useDepthChrome, DepthLoading, DepthBadRequest } from './depthChrome'
 import { memberText, memberSentence } from '../../../lib/presentation/memberCopy'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
+import PanelCommand from '../../../components/terminal/PanelCommand'
 import { formatPercentAsSent } from '../../../lib/presentation/presentationPrimitives'
 
 // FT-080 — room attention per ticker, from the /buzz mention store. A research
@@ -56,7 +57,12 @@ export default function MentionSeriesPanel({ sym }) {
             <tbody>
               {recent.map((p) => (
                 <tr key={p.date} data-testid="mentions-row">
-                  <th scope="row">{p.date}</th>
+                  {/* Wave 3 (#3): in a terminal panel a day opens this name's news (CN) beside it. */}
+                  <th scope="row">
+                    {p.state === 'ok' && p.mentions > 0
+                      ? <PanelCommand cmd={`${s} CN`} label={`Open ${s} company news for the ${p.date} spike`}>{p.date}</PanelCommand>
+                      : p.date}
+                  </th>
                   {p.state === 'ok'
                     ? <><td>{p.mentions}</td><td>{p.people}</td><td>{formatPercentAsSent(p.share_pct)}</td></>
                     : <td colSpan={3}>— ({LABEL[p.state] || p.state})</td>}

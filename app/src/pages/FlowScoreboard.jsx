@@ -8,7 +8,7 @@
 //
 // Data: GET /api/flow-scoreboard (public, read-only, 5-min server cache).
 import useSWR from 'swr'
-import TickerPopup from '../components/TickerPopup'
+import PanelTicker from '../components/terminal/PanelTicker'
 import UIcon from '../components/ui/UIcon'
 import { BoardFromList, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows } from '../components/terminal'
 import styles from './FlowScoreboard.module.css'
@@ -215,9 +215,9 @@ export default function FlowScoreboard({ embedded = false }) {
                 {data.recent_winners.map((w) => (
                   <div key={`${w.sym}-${w.strike}-${w.exp}-${w.dateSaved}`} className={styles.card}>
                     <div className={styles.cardTop}>
-                      <TickerPopup sym={w.sym}>
+                      <PanelTicker sym={w.sym}>
                         <span className={styles.cardSym}>{w.sym}</span>
-                      </TickerPopup>
+                      </PanelTicker>
                       <GradeChip grade={w.grade} />
                     </div>
                     <div className={styles.cardContract}>{contractLine(w)}</div>
@@ -262,9 +262,9 @@ export default function FlowScoreboard({ embedded = false }) {
                   {(data.recent_picks || []).map((p) => (
                     <tr key={`${p.sym}-${p.strike}-${p.exp}-${p.dateSaved}`}>
                       <td className={styles.pickCell}>
-                        <TickerPopup sym={p.sym}>
+                        <PanelTicker sym={p.sym}>
                           <span className={styles.tapeSym}>{p.sym}</span>
-                        </TickerPopup>
+                        </PanelTicker>
                         <span className={styles.tapeContract}> {contractLine(p)}</span>
                       </td>
                       <td><GradeChip grade={p.grade} /></td>

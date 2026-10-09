@@ -288,6 +288,9 @@ export function Panel({
     // Wave 2: a click on a symbol in an embedded list runs `$SYM` from this panel
     // (components/terminal/PanelSymbol), the click twin of typing its row number.
     run: (text) => runHere(text, { keepFunction: true }),
+    // Wave 3: a row that opens a related function (`NVDA CF`) opens it BESIDE this panel
+    // (components/terminal/PanelCommand), the way a list's row <GO> does.
+    open: (text) => runHere(text, { next: true }),
   } : null), [onList, onBoard, owner, boardCodes, rowsProp, runHere])
   // On a phone the switcher is an ARIA tablist whose tabs `aria-controls` this section, so it
   // is that tab's tabpanel (a11y audit 2026-10-06); elsewhere it is a labelled region.

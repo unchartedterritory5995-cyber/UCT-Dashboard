@@ -62,3 +62,15 @@ describe('WIRE catalyst rail rows', () => {
     expect(screen.queryByTestId('catalysts-board')).toBeNull()
   })
 })
+
+describe('catalyst rail tickers load the linked panels (wave 3 #3)', () => {
+  it('in a terminal panel a ticker runs `$SYM`; outside one it is the app ticker chip', async () => {
+    const api = { run: vi.fn(), publishRows: vi.fn(), publish: vi.fn(), openBoard: vi.fn(), codes: [], pageSize: 4 }
+    await mount(api)
+    screen.getByRole('button', { name: 'Load AMD' }).click()
+    expect(api.run).toHaveBeenCalledWith('$AMD')
+    cleanup()
+    await mount(null)
+    expect(screen.queryByRole('button', { name: 'Load AMD' })).toBeNull()
+  })
+})

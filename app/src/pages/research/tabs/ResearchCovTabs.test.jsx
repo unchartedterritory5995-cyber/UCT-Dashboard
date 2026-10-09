@@ -218,3 +218,17 @@ describe('FilingsFeedTab (COV-09)', () => {
     expect((await screen.findByTestId('feed-unavailable')).textContent).toMatch(/not a finding about AAPL/)
   })
 })
+
+describe('FilingsFeedTab market view in a terminal panel (wave 3 #3)', () => {
+  it('a market-wide filer\'s ticker loads the linked panels', async () => {
+    const { PanelListContext } = await import('../../../components/terminal')
+    routes['/api/research/filings-feed/AAPL'] = { state: 'ok', ticker: 'AAPL', source: 'SEC EDGAR submissions', rows: [ROW_8K] }
+    routes['/api/research/filings-feed'] = { state: 'ok', source: 'SEC EDGAR latest-filings feed', poll_minutes: 5, rows: [{ ...ROW_8K, ticker: 'MSFT' }], forms: {} }
+    const api = { run: vi.fn() }
+    wrap(<PanelListContext.Provider value={api}><FilingsFeedTab sym="AAPL" /></PanelListContext.Provider>)
+    await screen.findByTestId('feed')
+    fireEvent.click(screen.getByRole('button', { name: 'All market' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Load MSFT' }))
+    expect(api.run).toHaveBeenCalledWith('$MSFT')
+  })
+})
