@@ -254,7 +254,10 @@
 
 /* technical tab: confirmed-setup cards are buttons wearing the research card */
 .verdictList { display: flex; flex-direction: column; gap: var(--space-sm); margin-bottom: var(--space-md); }
-.verdictCard { text-align: left; width: 100%; cursor: pointer; font: inherit; color: var(--text); }
+.verdictCard { text-align: left; width: 100%; cursor: pointer; font: inherit; color: var(--text); position: relative; }
+/* The card's title is its button; ::after stretches the hit area over the whole card. */
+.verdictPick { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; }
+.verdictPick::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
 .verdictOn { border-color: var(--ut-gold); }
 .verdictLine { font-size: var(--text-base); margin-bottom: var(--space-xs); }
 .checkList { list-style: none; margin: var(--space-xs) 0 0; padding: 0; font-size: var(--text-sm); color: var(--text-muted); }
