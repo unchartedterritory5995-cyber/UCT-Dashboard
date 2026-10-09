@@ -70,8 +70,12 @@ export function makeTourGate(load, waitMs = RETRY_WAIT_MS) {
       return () => window.removeEventListener(TOUR_OPEN_EVENT, onOpen)
     }, [enabled, asked])
 
+    // Latched: the member had notes at some point in this visit, so a later count of zero
+    // means they trashed them, not that they are new (tourPref.js, verify-1009 P1).
+    const [hadNotes, setHadNotes] = useState(false)
+    if (notesKnown && hasAnyNotes && !hadNotes) setHadNotes(true)
     const savedState = readTourPref(prefs?.[TOUR_PREF])?.state ?? null
-    const auto = tourIsForThisMember({ enabled, isPaid, notesKnown, hasAnyNotes, loading })
+    const auto = tourIsForThisMember({ enabled, isPaid, notesKnown, hasAnyNotes, loading, hadNotes })
       && !tourFinished(savedState)
     const wanted = enabled && (asked || auto || Boolean(location.state?.startTour))
     // Latched: once the tour is wanted it stays mounted -- it may be open, or recording.
@@ -82,7 +86,7 @@ export function makeTourGate(load, waitMs = RETRY_WAIT_MS) {
     return (
       <TourCatch>
         <Suspense fallback={null}>
-          <NotebookTourLeaf hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} />
+          <NotebookTourLeaf hasAnyNotes={hasAnyNotes} notesKnown={notesKnown} hadNotes={hadNotes} />
         </Suspense>
       </TourCatch>
     )
