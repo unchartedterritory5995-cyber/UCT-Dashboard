@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from 'react'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import HighlightThesis, { isFailedSynthesis } from '../../../utils/highlightThesis'
 import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
+import { formatDateTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import styles from '../TerminalShell.module.css'
 
 /** Pure: the key the server diffs on, so a row can say NEW without a second rule. */
@@ -81,7 +82,8 @@ export default function MovePanel({ sym, onRun, onRows }) {
   const cats = Array.isArray(d.catalysts) ? d.catalysts : []
   const since = d.since_last_visit || {}
   const fresh = new Set(since.new || [])
-  const lastSeen = since.last_visit_at ? new Date(since.last_visit_at * 1000).toLocaleString() : null
+  // The market clock, labelled (audit 2026-10-08): a bare toLocaleString() printed the VIEWER's zone, unlabelled.
+  const lastSeen = formatDateTimeEt(Number(since.last_visit_at))
   return (
     <div className={styles.help} data-testid="terminal-move">
       <p className={styles.helpSyntax} data-testid="terminal-move-since">
