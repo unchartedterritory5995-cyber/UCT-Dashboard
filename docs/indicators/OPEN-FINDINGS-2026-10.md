@@ -122,3 +122,32 @@ The owner's acceptance sentence ("…RSI, trend direction, and relative strength
 benchmark. The Phase 5 backstop refuses a change that reads a symbol the member did not name, so a
 model that assumed SPY produced a hard refusal. Batch 2 adds a system-prompt rule: with no symbol
 named, ask which one (`clarify`). Needs real-model confirmation.
+
+## 12. Read-back says "SPY's the 20-bar rate of change" (Indicators — Batch 2, cosmetic)
+
+Production real model, 10-09: a relative-strength output `roc(close, 20) - sym("SPY", roc(close, 20))`
+reads back as "… minus (SPY's the 20-bar rate of change of close, in percent)". `expansionWords`
+substitutes its phrase where `sentence.js` expects a bare input name, so the possessive lands before
+an article. Meaning is correct; wording is not. Fix direction: drop the leading article when the
+placeholder follows a possessive.
+
+## 13. Three-state candles needed one repair turn in production (Indicators — model)
+
+"Color candles green in an uptrend, yellow in consolidation, and red in a downtrend" applied on the
+second attempt (`attempts: 2`, $0.128): the first envelope was refused by a gate and the model
+repaired it. The result used the firm's own uptrend definition. Cause of the first refusal not
+captured (the client only sees the final envelope); worth a server log read.
+
+## 14. Production 502 for ~2 minutes at 13:04–13:06 UTC (platform — not this release)
+
+A second `web` deployment of the same commit (`18a59272`, 13:03:59, reason `deploy`) was created
+outside the GitHub pipeline — the pipeline deployed `0693b529f` once (`19917290`, 12:46). A same-commit
+deployment is what a Railway variable change or manual redeploy creates; this session changed no
+variable. `/api/health` returned 502 through the swap and recovered at 13:06:40. Worth correlating
+with the session that armed options flags on `web` today (master `c10e0fef32`).
+
+## 15. The breadth drill board is overloaded with scratch indicators (owner)
+
+The admin's drill board carries 30+ indicator instances from acceptance runs since 10-05; the drill
+page became heavy enough that browser tabs stopped responding twice during acceptance. Recommend
+clearing it (owner decision — only the two authorized Batch 1 definitions were deleted).
