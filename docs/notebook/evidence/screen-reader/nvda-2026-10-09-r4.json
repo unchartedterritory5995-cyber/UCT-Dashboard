@@ -1,0 +1,338 @@
+{
+ "started": "2026-10-09T02:55:12",
+ "nvda_version": "2026.2",
+ "base": "https://uctintelligence.com",
+ "nonce": "e5dd3557a6ae",
+ "rows": [
+  {
+   "n": 1,
+   "keys": "Tab",
+   "expected": [
+    "Skip to notes list",
+    "link"
+   ],
+   "result": "PASS",
+   "notes": "UCT-NVDA-e5dd3557a6ae - Google Chrome for Testing window / UCT-NVDA-e5dd3557a6ae document / clickable Skip to main content same page link / UCT-NVDA-e5dd3557a6ae / same page link Skip to main content / clickable same page link Skip to notes list / same page link Skip to folder navigation / navigatio",
+   "heard": [
+    "UCT-NVDA-e5dd3557a6ae - Google Chrome for Testing window",
+    "UCT-NVDA-e5dd3557a6ae document",
+    "clickable Skip to main content same page link",
+    "UCT-NVDA-e5dd3557a6ae",
+    "same page link Skip to main content",
+    "clickable same page link Skip to notes list",
+    "same page link Skip to folder navigation",
+    "navigation landmark link UCT Intelligence \u2014 go to landing page",
+    "button Search \u2014 Ctrl+K",
+    "link UCT Terminal",
+    "link Charts",
+    "link Morning Wire",
+    "link Dashboard",
+    "link AI Search"
+   ],
+   "dom": null
+  },
+  {
+   "n": 2,
+   "keys": "Enter",
+   "expected": [
+    "All notes",
+    "heading"
+   ],
+   "result": "PASS",
+   "notes": "main landmark clickable Meet Compass Tap the compass buttonto talk to your trading coach \u2014 markets, setups, and your journal, all by voice. Got it button Trade Journal heading level 1 Journal sections navigation landmark Today link Trades link Calendar link Notebook link current page Insights link C",
+   "heard": [
+    "main landmark clickable Meet Compass Tap the compass buttonto talk to your trading coach \u2014 markets, setups, and your journal, all by voice. Got it button Trade Journal heading level 1 Journal sections navigation landmark Today link Trades link Calendar link Notebook link current page Insights link Compass link Log Trade menu button collapsed subMenu Log a trade Show keyboard shortcuts button Keyboard shortcuts (Shift + ?) Default $100,000.00 menu button collapsed opens list Generate report button Generate Report (Ctrl/\u2318+P after) Open Portfolio Settings button Settings (current account) More menu button collapsed subMenu More \u2014 Community, Accounts Notebook complementary landmark Folder navigation heading level 2 Hide folders panel button Hide panel Show folders tab selected Folders Search notes tab Collapse Saved Views button expanded SAVED VIEWS SR view button Rename SR view button Rename view Delete SR view button Delete view Folders tree view level 1 All notes2 button current + New folder button TAGS #srpass1 button Rename srpass button Rename tag   Resize folders panel separator All notes heading level 2 Notes list tools tool bar Sort notes combo box collapsed Recently updated View grouping List view toggle button pressed Table view toggle button not pressed Board view toggle button not pressed Calendar view toggle button not pressed Graph view toggle button not pressed Timeline view toggle button not pressed Tasks view toggle button not pressed out of grouping Save view button Save this view Import button opens dialog Export button opens dialog Today button s daily note (Ctrl+Alt+D)\",  , CharacterModeCommand(True),  , CharacterModeCommand(False),  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  ,  , "
+   ],
+   "dom": null
+  },
+  {
+   "n": 3,
+   "keys": "focus Hide folders panel, Tab",
+   "expected": [
+    "Hide folders panel",
+    "button",
+    "Panel view",
+    "tab"
+   ],
+   "result": "PASS",
+   "notes": "complementary landmark Hide folders panel button Hide panel / Panel view tab control / Show folders tab selected Folders 1 of 2",
+   "heard": [
+    "complementary landmark Hide folders panel button Hide panel",
+    "Panel view tab control",
+    "Show folders tab selected Folders 1 of 2"
+   ],
+   "dom": null
+  },
+  {
+   "n": 4,
+   "keys": "focus the All notes row",
+   "expected": [
+    "All notes",
+    "button"
+   ],
+   "result": "PASS",
+   "notes": "Folders tree view level 1 All notes2 button current",
+   "heard": [
+    "Folders tree view level 1 All notes2 button current"
+   ],
+   "dom": null
+  },
+  {
+   "n": 5,
+   "keys": "on All notes: Insert+Space (focus mode), Down (to SR folder), Right (expand)",
+   "expected": [
+    "SR folder",
+    "collapsed",
+    "expanded"
+   ],
+   "result": "FAIL",
+   "notes": "(script says Tab to the disclosure; the tree is arrow-driven, and in r3 the arrows in browse mode never reached it) missing ['SR folder', 'collapsed', 'expanded']; heard: A / notes",
+   "heard": [
+    "A",
+    "notes"
+   ],
+   "dom": null
+  },
+  {
+   "n": 6,
+   "keys": "Enter on the SR folder row, then Shift+F10 (its menu), Escape",
+   "expected": [
+    "SR folder",
+    "Rename",
+    "Add subfolder",
+    "Delete"
+   ],
+   "result": "FAIL",
+   "notes": "(script says Tab along the row to Rename/Add subfolder/Delete; those are tabIndex -1 and reached by Shift+F10) NVDA spoke nothing in the window",
+   "heard": [],
+   "dom": null
+  },
+  {
+   "n": 7,
+   "keys": "focus the tag row",
+   "expected": [
+    "srpass",
+    "button"
+   ],
+   "result": "PASS",
+   "notes": "#srpass 1 button",
+   "heard": [
+    "#srpass 1 button"
+   ],
+   "dom": null
+  },
+  {
+   "n": 8,
+   "keys": "focus the Saved Views disclosure; focus SR view",
+   "expected": [
+    "Saved Views",
+    "button",
+    "SR view"
+   ],
+   "result": "PASS",
+   "notes": "(the section opens expanded, so its disclosure reads Collapse, not Expand) Collapse Saved Views button expanded / SR view button",
+   "heard": [
+    "Collapse Saved Views button expanded",
+    "SR view button"
+   ],
+   "dom": null
+  },
+  {
+   "n": 9,
+   "keys": "Enter on All notes (clears the view); focus Sort notes; Right (List view); Right (Table view); Space",
+   "expected": [
+    "Sort notes",
+    "combo box",
+    "List view",
+    "pressed",
+    "Table view"
+   ],
+   "result": "FAIL",
+   "notes": "(script says Tab to the view switcher; the tool bar is arrow-driven, and in r3 the arrows in browse mode never reached it) missing ['List view', 'Table view']; heard: Folders tree view / All notes 2 button current / Notes list tools tool bar / Sort notes combo box Recently updated collapsed / updated / out of combo box View grouping toggle button pressed List ",
+   "heard": [
+    "Folders tree view",
+    "All notes 2 button current",
+    "Notes list tools tool bar",
+    "Sort notes combo box Recently updated collapsed",
+    "updated",
+    "out of combo box View grouping toggle button pressed List "
+   ],
+   "dom": null
+  },
+  {
+   "n": 10,
+   "keys": "Back to List; focus the SR pass card; Enter",
+   "expected": [
+    "SR pass",
+    "heading"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['heading']; heard: View grouping / List view toggle button pressed / Notes grouping SR pass now#srpass button / alert / Try again button",
+   "heard": [
+    "View grouping",
+    "List view toggle button pressed",
+    "Notes grouping SR pass now#srpass button",
+    "alert",
+    "Try again button"
+   ],
+   "dom": null
+  },
+  {
+   "n": 11,
+   "keys": "Tab x20",
+   "expected": [
+    "Subtitle",
+    "Editor toolbar",
+    "Note body"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Subtitle', 'Editor toolbar', 'Note body']; heard: Try again button / ? button Help & Feedback / Tap to start a conversation button / Train Me \u2014 teach the assistant a preference button Train Me \u2014 teach me a preference or correction / Attach a chart screenshot for vision analysis (or paste from clipboard) button Attach chart for vision analysis \u00b7 pas",
+   "heard": [
+    "Try again button",
+    "? button Help & Feedback",
+    "Tap to start a conversation button",
+    "Train Me \u2014 teach the assistant a preference button Train Me \u2014 teach me a preference or correction",
+    "Attach a chart screenshot for vision analysis (or paste from clipboard) button Attach chart for vision analysis \u00b7 paste from clipboard supported",
+    "Choose a specialist agent button collapsed Choose a specialist (Analyst, Risk Officer, Coach, Scout)",
+    "UCT-NVDA-e5dd3557a6ae - Google Chrome for Testing region",
+    "tool bar",
+    "View site information button Secure",
+    "Address and search bar edit Press tab then enter to ask AI Mode Ctrl+ L selected uctintelligence.com/journal/notebook?note=1cd9a5d8bc074f15bc16a1ccb4298297",
+    "Bookmark this tab button",
+    "UCT-NVDA-e5dd3557a6ae document",
+    "button collapsed Choose a specialist agent",
+    "Skip to main content link",
+    "clickable Skip to note same page link",
+    "Skip to folder navigation link",
+    "navigation landmark UCT Intelligence \u2014 go to landing page link UCT Intelligence \u2014 home",
+    "Search \u2014 Ctrl+K button",
+    "UCT Terminal link",
+    "Charts link",
+    "Morning Wire link",
+    "Dashboard link",
+    "AI Search link",
+    "UCT 20 link"
+   ],
+   "dom": null
+  },
+  {
+   "n": 12,
+   "keys": "Insert+Space (browse mode), H, T, Down, Right",
+   "expected": [
+    "Setup",
+    "heading",
+    "table",
+    "Sym"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Setup', 'heading', 'table', 'Sym']; heard: U / 20",
+   "heard": [
+    "U",
+    "20"
+   ],
+   "dom": null
+  },
+  {
+   "n": "12b",
+   "keys": "Insert+Space (focus mode); Tab, Tab, Alt+F10, Escape",
+   "expected": [
+    "Table",
+    "tool bar"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Table', 'tool bar']; heard: Breadth link / Screener link",
+   "heard": [
+    "Breadth link",
+    "Screener link"
+   ],
+   "dom": null
+  },
+  {
+   "n": 13,
+   "keys": "end of body, Enter, /, Down",
+   "expected": [
+    "Insert block"
+   ],
+   "result": "FAIL",
+   "notes": "driver error: TimeoutError: Locator.focus: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\".ProseMirror\").first\n",
+   "heard": []
+  },
+  {
+   "n": 14,
+   "keys": "Escape",
+   "expected": [
+    "Note body"
+   ],
+   "result": "FAIL",
+   "notes": "(expects the body's name back, nothing else) NVDA spoke nothing in the window",
+   "heard": [],
+   "dom": null
+  },
+  {
+   "n": 15,
+   "keys": "[ [ (real keys), type SR, Down, Enter",
+   "expected": [
+    "Link to a note",
+    "SR target"
+   ],
+   "result": "FAIL",
+   "notes": "driver error: TimeoutError: Locator.get_attribute: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\".ProseMirror\").first\n",
+   "heard": [
+    "main landmark Resize folders panel separator",
+    "no next radio button"
+   ]
+  },
+  {
+   "n": 16,
+   "keys": "Ctrl+F, type stop",
+   "expected": [
+    "Find in note"
+   ],
+   "result": "FAIL",
+   "notes": "missing ['Find in note']; heard: UCT-NVDA-e5dd3557a6ae - Google Chrome for Testing region / Find in page\\n    UCT-NVDA-e5dd3557a6ae region / Find edit F / s / t / o / p / No results",
+   "heard": [
+    "UCT-NVDA-e5dd3557a6ae - Google Chrome for Testing region",
+    "Find in page\\n    UCT-NVDA-e5dd3557a6ae region",
+    "Find edit F",
+    "s",
+    "t",
+    "o",
+    "p",
+    "No results"
+   ],
+   "dom": null
+  },
+  {
+   "n": 17,
+   "keys": "Ctrl+H, Tab x4 (to the replace field), Escape",
+   "expected": [
+    "Replace with",
+    "Note body"
+   ],
+   "result": "INCONCLUSIVE",
+   "notes": "keys withheld mid-row: foreground moved to '' mid-sequence; key withheld",
+   "heard": [
+    "alert",
+    "Got it button 1 of 2"
+   ]
+  }
+ ],
+ "made": {
+  "notes": [
+   "1cd9a5d8bc074f15bc16a1ccb4298297",
+   "0adceec5504843f28e6f8144fa3a380a"
+  ],
+  "folders": [
+   "c7e632c35a7d4fab9f6eedca6f3e5321",
+   "37a48d239fcc4fee99586cc151668577"
+  ],
+  "views": [
+   "ae9f744310544ed6acdfbff33543b297"
+  ]
+ },
+ "aborted": "row 17: foreground moved to '' mid-sequence; key withheld",
+ "left_active_notes": 0,
+ "left_sr_folders": 0,
+ "left_sr_views": 0,
+ "finished": "2026-10-09T02:57:47"
+}
