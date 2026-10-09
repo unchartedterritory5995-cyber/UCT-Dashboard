@@ -9,6 +9,10 @@ import { MineEmpty } from '../../../components/terminal/MineChip'
 import PanelSymbol from '../../../components/terminal/PanelSymbol'
 import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
+import useSinceLastVisit, { seenKey } from '../../../components/terminal/useSinceLastVisit'
+import { NewTag, SinceLine } from '../../../components/terminal/SinceLastVisit'
+
+const storyKey = (it) => seenKey(it.time, it.url || it.headline)
 
 export const MARKET_NEWS_URL = '/api/news'
 const MAX_ITEMS = 60
@@ -27,11 +31,15 @@ export function mineStories(items, syms) {
   return out
 }
 
-export default function MyNewsList({ whenLabel, renderMark = null }) {
+export default function MyNewsList({ whenLabel }) {
   const names = useMyTickers()
   const { data, error, mutate } = useMobileSWR(MARKET_NEWS_URL, jsonFetcher, {
     refreshInterval: 10 * 60 * 1000, revalidateOnFocus: false,
   })
+  const ready = names.state !== 'loading' && !!data
+  const stories = ready ? mineStories(data, names.syms) : null
+  // Wave 3 #7: NEW since the last CN MINE visit (one record across all your names: ticker '').
+  const since = useSinceLastVisit('CN', '', stories ? stories.map(storyKey) : null)
   if (names.state === 'loading' || (!data && !error)) return <ResearchLoading label="Loading news on your names" />
   if (error && !data) {
     return (
@@ -41,8 +49,7 @@ export default function MyNewsList({ whenLabel, renderMark = null }) {
       </div>
     )
   }
-  const stories = mineStories(data, names.syms)
-  if (!stories.length) {
+  if (!stories || !stories.length) {
     return (
       <MineEmpty state={names.state === 'error' ? 'error' : 'ready'} what="is in the news feed right now"
         explainer={names.explainer} testId="mynews-empty" />
@@ -51,12 +58,13 @@ export default function MyNewsList({ whenLabel, renderMark = null }) {
   return (
     <section className={styles.card}>
       <div className={styles.ct}>News on your names</div>
+      <SinceLine since={since} noun="story" plural="stories" />
       <ul className={styles.newsList} data-testid="mynews-list">
         {stories.map((it, i) => (
           <li key={`${it.url || it.headline}-${i}`} className={styles.newsItem} data-panel-row>
             <div className={styles.newsBody}>
               <div className={styles.newsMeta}>
-                {renderMark ? renderMark(it) : null}
+                <NewTag since={since} itemKey={storyKey(it)} />
                 {it.mine.map((s) => <PanelSymbol key={s} sym={s} />)}
                 <span className={styles.newsPub}>{it.source || 'Unknown source'}</span>
                 <span className={styles.newsWhen}>{whenLabel(it.time)}</span>

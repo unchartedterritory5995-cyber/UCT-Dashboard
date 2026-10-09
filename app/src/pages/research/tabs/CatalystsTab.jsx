@@ -7,6 +7,11 @@ import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 import HighlightThesis, { FAILED_SYNTHESIS_NOTE, hasNoWriteup } from '../../../utils/highlightThesis'
 import { CATALYST_TAG, CATALYST_TAGS, keyedBy } from '../../../lib/taxonomy/a8Taxonomy'
+import useSinceLastVisit, { seenKey } from '../../../components/terminal/useSinceLastVisit'
+import { NewTag, SinceLine } from '../../../components/terminal/SinceLastVisit'
+
+/** The seen key of one catalyst entry: its market date + tag (MOVE's own catalyst key shape). */
+const catalystKey = (e) => seenKey(e.market_date, `cat|${e.tag || ''}`)
 
 // Packet G CP1 -- the "what has UCT's own catalyst engine ever flagged about
 // this ticker" tab. Signed by the owner 2026-09-22 (fingerprint 5331c90c2).
@@ -50,6 +55,9 @@ function EntryProvenance({ entry }) {
 
 export default function CatalystsTab({ sym }) {
   const { data, isLoading, error, paywalled, mutate } = useCatalystHistory(sym)
+  // Wave 3 #7: NEW since this member's last CATS visit for this ticker (terminal panels only).
+  const since = useSinceLastVisit('CATS', (sym || '').toUpperCase().trim(),
+    data && !error && !paywalled ? ((data && data.entries) || []).map(catalystKey) : null)
 
   if (isLoading) {
     return <ResearchLoading label="Loading catalyst history" />
@@ -79,11 +87,13 @@ export default function CatalystsTab({ sym }) {
       {!!entries.length && (
         <section className={styles.card}>
           <div className={styles.ct}>Catalyst history</div>
+          <SinceLine since={since} noun="catalyst" />
           <ul className={styles.newsList} data-testid="catalyst-history-list">
             {entries.map((e, i) => (
               <li key={`${e.market_date}-${i}`} className={styles.newsItem} data-panel-row>
                 <div className={styles.rowBody}>
                   <div className={styles.rowHead}>
+                    <NewTag since={since} itemKey={catalystKey(e)} />
                     <span className={TAG_CLASS[e.tag] || styles.muted}>{e.tag || CATALYST_TAG.CATALYST}</span>
                     <span className={styles.muted}>{whenLabel(e.market_date)}</span>
                   </div>

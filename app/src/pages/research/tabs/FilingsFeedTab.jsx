@@ -6,6 +6,11 @@ import { memberText, memberSentence } from '../../../lib/presentation/memberCopy
 import { useInTerminalPanel, usePanelFreshness, usePanelRerun } from '../../../components/terminal/terminalPanel'
 import { MineEmpty } from '../../../components/terminal/MineChip'
 import useMyTickers from '../../../hooks/useMyTickers'
+import useSinceLastVisit, { seenKey } from '../../../components/terminal/useSinceLastVisit'
+import { NewTag, SinceLine } from '../../../components/terminal/SinceLastVisit'
+
+/** The seen key of one filing: its accepted / filed date + its accession number. */
+const filingKey = (r) => seenKey(String(r.accepted || r.filed || ''), r.accession)
 
 // COV-09 (roadmap RM-L19) — new SEC filings, live: this ticker, or the whole
 // market. 8-K (with its item codes), 10-Q, 10-K, Form 4, Schedule 13D/G, S-1.
@@ -43,10 +48,10 @@ export function emptyText(data, form, label) {
   return `Unavailable${why}.${src}`
 }
 
-function Row({ r, showCompany }) {
+function Row({ r, showCompany, since }) {
   return (
     <tr data-testid={`filing-${r.accession}`}>
-      <td>{r.form}</td>
+      <td>{r.form} <NewTag since={since} itemKey={filingKey(r)} /></td>
       {showCompany && <td>{r.ticker ? `${r.ticker} · ` : ''}{r.company}{r.filed_by ? ` (filed by ${r.filed_by})` : ''}</td>}
       <td>
         {r.items
@@ -93,6 +98,11 @@ export default function FilingsFeedTab({ sym, mine = false }) {
 
   const label = scope === 'ticker' ? s : scope === 'mine' ? 'your names' : 'the market'
   const rows = Array.isArray(data?.rows) && scope === 'mine' ? data.rows.filter((r) => myNames.has(r.ticker)) : data?.rows
+  // Wave 3 #7: NEW since this member's last FEED visit -- per ticker, or one record for "Mine".
+  // The whole-market scope is not marked (it is everyone's feed, not a list you follow).
+  const since = useSinceLastVisit('FEED', scope === 'ticker' ? s : '',
+    !error && data && !data.paywalled && Array.isArray(rows) ? rows.map(filingKey) : null,
+    { enabled: scope !== 'market' && (scope !== 'mine' || myNames.state === 'ready') })
   let body
   if (error) {
     body = <div className={styles.note} data-testid="feed-unavailable">
@@ -112,13 +122,14 @@ export default function FilingsFeedTab({ sym, mine = false }) {
     body = (
       <>
         {partialText(data) && <div className={styles.gap} data-testid="feed-partial">{partialText(data)}</div>}
+        <SinceLine since={since} noun="filing" />
         <div className={styles.scroll}>
           <table className={styles.grid} data-testid="feed" aria-label={`Filings feed: ${label}`}>
             <thead><tr>
               <th scope="col">Form</th>{scope !== 'ticker' && <th scope="col">Company</th>}
               <th scope="col">8-K items</th><th scope="col">Accepted (ET)</th><th scope="col">Accession</th><th scope="col">Source</th>
             </tr></thead>
-            <tbody>{rows.map((r) => <Row key={r.accession} r={r} showCompany={scope !== 'ticker'} />)}</tbody>
+            <tbody>{rows.map((r) => <Row key={r.accession} r={r} showCompany={scope !== 'ticker'} since={since} />)}</tbody>
           </table>
         </div>
         <p className={styles.muted} data-testid="feed-source">

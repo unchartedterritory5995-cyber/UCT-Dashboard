@@ -2,6 +2,11 @@ import useFilings from '../../../hooks/useFilings'
 import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
 import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
+import useSinceLastVisit, { seenKey } from '../../../components/terminal/useSinceLastVisit'
+import { NewTag, SinceLine } from '../../../components/terminal/SinceLastVisit'
+
+/** The seen key of one EDGAR filing: its filed date + its accession (or form, when none). */
+const filingKey = (f) => seenKey(f.filed, f.accession || `${f.form}-${f.period || ''}`)
 
 export default function FilingsTab({ sym }) {
   const { data, error, isLoading, mutate } = useFilings(sym)
@@ -12,6 +17,8 @@ export default function FilingsTab({ sym }) {
   const noFiler = error?.kind === 'no_filer'
   // TERM-019: name this panel's source (and its as-of) in the terminal panel header; a no-op elsewhere.
   usePanelFreshness(data && !error ? { source: 'SEC EDGAR', age: { asOfDate: filings[0]?.filed || null } } : null)
+  // Wave 3 #7: NEW since this member's last CF visit for this ticker (terminal panels only).
+  const since = useSinceLastVisit('CF', (sym || '').toUpperCase().trim(), data && !error ? filings.map(filingKey) : null)
 
   return (
     <div className={styles.finWrap}>
@@ -24,11 +31,13 @@ export default function FilingsTab({ sym }) {
       <section className={styles.card}>
         <div className={styles.ct}>SEC filings (EDGAR)</div>
         {isLoading && !filings.length && <ResearchLoading label="Loading filings" />}
+        <SinceLine since={since} noun="filing" />
         {!!filings.length && (
           <div className={styles.rclist}>
             {filings.map((f, i) => (
               <div key={`${f.form}-${f.filed}-${i}`} className={styles.filingRow} data-panel-row>
                 <span className={styles.filingForm}>{f.form || '—'}</span>
+                <NewTag since={since} itemKey={filingKey(f)} />
                 <span className={styles.rcdate}>{f.filed || ''}</span>
                 {f.period && <span className={styles.muted}>for {f.period}</span>}
                 {f.accession && <span className={styles.accession}>{f.accession}</span>}

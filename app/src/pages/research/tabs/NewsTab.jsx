@@ -4,6 +4,11 @@ import { useInTerminalPanel, usePanelRerun } from '../../../components/terminal/
 import MineChip, { mineStyles } from '../../../components/terminal/MineChip'
 import { myNamesExplainer } from '../../../hooks/useMyTickers'
 import MyNewsList from './MyNewsList'
+import useSinceLastVisit, { seenKey } from '../../../components/terminal/useSinceLastVisit'
+import { NewTag, SinceLine } from '../../../components/terminal/SinceLastVisit'
+
+/** The seen key of one company-news item (its own ET date + its id). */
+const newsKey = (it) => seenKey(it.published_at, it.id || it.url || it.headline)
 import Provenance from '../../../components/provenance/Provenance'
 import FreshnessBadge from '../../../components/provenance/FreshnessBadge'
 import { mapAvailability, AVAILABLE } from '../../../components/provenance/availabilityContract'
@@ -104,6 +109,9 @@ export default function NewsTab({ sym, mine: mineProp = false }) {
     : null
   const { data, isLoading, error, paywalled, mutate } = useCompanyNews(mine ? null : sym)
   const session = useMarketOpen()
+  // Wave 3 #7: NEW since this member's last CN visit for this ticker (terminal panels only).
+  const shownItems = !mine && data && !error && !paywalled ? (data.items || []) : null
+  const since = useSinceLastVisit('CN', s, shownItems ? shownItems.map(newsKey) : null, { enabled: !mine })
 
   if (mine) {
     return <div className={styles.finWrap}>{mineChip}<MyNewsList whenLabel={whenLabel} /></div>
@@ -144,6 +152,7 @@ export default function NewsTab({ sym, mine: mineProp = false }) {
       {!!items.length && (
         <section className={styles.card}>
           <div className={styles.ct}>Company news</div>
+          <SinceLine since={since} noun="story" plural="stories" />
           <ul className={styles.newsList} data-testid="news-list">
             {items.map((it, i) => (
               <li key={`${it.id}-${i}`} className={styles.newsItem} data-panel-row>
@@ -152,6 +161,7 @@ export default function NewsTab({ sym, mine: mineProp = false }) {
                 )}
                 <div className={styles.newsBody}>
                   <div className={styles.newsMeta}>
+                    <NewTag since={since} itemKey={newsKey(it)} />
                     <span className={it.kind === 'release' ? styles.newsKindRelease : styles.newsKindWire}>
                       {it.kind === 'release' ? 'PR' : 'NEWS'}
                     </span>
