@@ -58,6 +58,7 @@ import { BoardsMenu, RecentsMenu } from './BoardsMenu'
 import { pushFunctionRecent, readFunctionRecents } from './recents'
 import { TERMINAL_CALENDAR_PATH, TERMINAL_PATH } from './terminalGate'
 import L0Strip from './L0Strip'
+import FirstRunCard from './FirstRunCard'
 import {
   BOARD_PAGE, boardCodeRefusal, boardableCodes, buildScanBoard, cleanSymbols, scanBoardName, scanBoardNotice,
   symbolsFromRows,
@@ -284,7 +285,10 @@ export function Panel({
     // An embedded list's numbered rows (`usePanelRows`): the same focused-only `onRows` the
     // command panels get as a prop, so row <GO> reaches page/tab lists that are never forked.
     publishRows: rowsProp,
-  } : null), [onList, onBoard, owner, boardCodes, rowsProp])
+    // Wave 2: a click on a symbol in an embedded list runs `$SYM` from this panel
+    // (components/terminal/PanelSymbol), the click twin of typing its row number.
+    run: (text) => runHere(text, { keepFunction: true }),
+  } : null), [onList, onBoard, owner, boardCodes, rowsProp, runHere])
   // On a phone the switcher is an ARIA tablist whose tabs `aria-controls` this section, so it
   // is that tab's tabpanel (a11y audit 2026-10-06); elsewhere it is a labelled region.
   return (
@@ -1749,6 +1753,7 @@ export default function TerminalShell() {
           )}
         </div>
       )}
+      {!sheet && <FirstRunCard onTry={runTyped} />}
       {!sheet && noticeEl}
       <div className={styles.body}>
         {!isPhone && (

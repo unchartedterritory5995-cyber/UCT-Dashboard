@@ -139,7 +139,8 @@ def _patch_sources(monkeypatch, facts, catalysts, *, intel_raises=False, status=
         return {t: {"status": status, "notable": bool(facts), "facts": list(facts), "context": {}} for t in tickers}
     monkeypatch.setattr(wi, "get_intelligence_for_symbols", fake_intel)
     monkeypatch.setattr(store, "history_for_ticker", lambda s, limit=50: list(catalysts))
-    monkeypatch.setattr(tg, "_live_change", lambda s: live)
+    row = None if live[0] is None else {"price": 100.0, "change": 1.0, "change_pct": live[0], "observed_at": live[1]}
+    monkeypatch.setattr(tg, "_live_row", lambda s: row)
 
 
 def test_move_says_what_is_new_since_the_members_last_visit(client, monkeypatch):
@@ -222,6 +223,30 @@ def test_R18_live_change_reads_the_shared_cache_and_ignores_a_closed_session(mon
                         if k == lp._px_key("AAA") else {"change_pct": 7.0, "market_closed": True})
     assert tg._live_change("AAA") == (3.5, 9.0)
     assert tg._live_change("BBB") == (None, None)
+
+
+def test_wave2_move_says_how_much_it_moved(client, monkeypatch):
+    c, _ = client
+    _patch_sources(monkeypatch, [], [], live=(3.25, 1_790_000_000))
+    q = c.get("/api/terminal/move/NVDA").json()["quote"]
+    assert q == {"price": 100.0, "change": 1.0, "change_pct": 3.25, "session": "live", "observed_at": 1_790_000_000}
+
+
+def test_wave2_a_closed_session_quote_is_labelled_closed_and_not_fed_to_the_fact(client, monkeypatch):
+    c, _ = client
+    seen = []
+    _patch_sources(monkeypatch, [], [], seen_changes=seen)
+    monkeypatch.setattr(tg, "_live_row", lambda s: {"price": 50.0, "change": -1.0, "change_pct": -2.0,
+                                                     "market_closed": True, "observed_at": None})
+    body = c.get("/api/terminal/move/NVDA").json()
+    assert body["quote"]["session"] == "closed" and body["quote"]["change_pct"] == -2.0
+    assert seen[-1][0] is None
+
+
+def test_wave2_no_price_means_no_quote(client, monkeypatch):
+    c, _ = client
+    _patch_sources(monkeypatch, [], [])
+    assert c.get("/api/terminal/move/NVDA").json()["quote"] is None
 
 
 def test_R17_the_flag_rides_the_auth_payload_only_when_on(monkeypatch):
