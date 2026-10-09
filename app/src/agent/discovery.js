@@ -54,9 +54,9 @@ export const TOPICS = [
   {
     id: 'arrange', title: 'Moving, resizing and arranging widgets',
     words: [/\b(resiz|rearrang|arrang|repositi|reorgani)\w*/, /\bmove (my |the |a |this )?(\w+ )?(widget|chart|panel|watchlist|scanner)s?\b/, /\b(bigger|smaller|wider|taller|narrower|shorter)\b.*\b(widget|chart|panel)s?\b/, /\b(2x2|grid of|side by side|split (the )?screen)\b/, /\blink\w*\b/],
-    caps: ['widget.remove', 'widget.move', 'widget.resize', 'widget.arrange', 'widget.setLink'], productHas: true,
-    canDo: 'remove a widget (Undo puts it back exactly), move one (the others re-tile around it, as when you drag), resize one by an edge (the neighbour gives up the space, as when you drag the edge), make widgets fill the empty space or tile them as a grid, columns or rows, and set link colours (gold, blue, green, purple, or not linked — and red, teal, orange, pink when the extra colours are switched on for your account)',
-    known: () => ['floating, popping out or merging widgets', 'widget tabs on non-chart widgets'],
+    caps: ['widget.remove', 'widget.move', 'widget.resize', 'widget.arrange', 'widget.setLink', 'widget.selectTab', 'widget.renameTab', 'widget.closeTab'], productHas: true,
+    canDo: 'remove a widget (Undo puts it back exactly), move one (the others re-tile around it, as when you drag), resize one by an edge (the neighbour gives up the space, as when you drag the edge), make widgets fill the empty space or tile them as a grid, columns or rows, set link colours (gold, blue, green, purple, or not linked — and red, teal, orange, pink when the extra colours are switched on for your account), and switch, rename or close a widget’s tabs',
+    known: () => ['floating, popping out or merging widgets (moving one widget into another’s tabs)'],
     planned: null,
   },
   {

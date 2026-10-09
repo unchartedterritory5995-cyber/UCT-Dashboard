@@ -5,7 +5,7 @@
 // what ChartsWorkspace's does (remove / set / restore, then clamp).
 import { describe, it, expect } from 'vitest'
 import { registerBuiltins } from './builtins'
-import { getCapability, shapeError } from './capabilities'
+import { getCapability, shapeError, buildContext } from './capabilities'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
@@ -251,3 +251,39 @@ describe('floating / popped-out widgets are not on the grid — the Agent never 
   })
 })
 
+
+describe('widget tabs (the WidgetHost tab strip) — select / rename / close through widgetTabs.js, exact Undo', () => {
+  const tabbedBoard = () => [{ id: 'wl', type: 'watchlist', x: 0, y: 0, w: 12, h: 20, opts: { watchName: 'Momentum' },
+    wtabs: [{ id: 't1', type: 'scanner', color: 'A', opts: { scanName: 'Top gainers' } }, { id: 't2', type: 'news', color: 'A', opts: {} }], activeWtab: 0 },
+  { id: 'c', type: 'chart', x: 12, y: 0, w: 12, h: 20 }]
+  it('the board entry lists each widget tab; select by position or by name', async () => {
+    const host = boardHost(tabbedBoard())
+    const ctx = buildContext(host, CTX).context
+    expect(ctx.board[0].widgets.find(w => w.id === 'wl').widgetTabs.map(t => t.tab)).toEqual(['main', '1', '2'])
+    const { p, env } = await plan(host, [op('widget.selectTab', { widget: 'wl', tab: '2' })])
+    expect(p.ok).toBe(true)
+    await commitPlan(host, p, { env })
+    expect(host.state.widgets.find(w => w.id === 'wl').activeWtab).toBe(2)
+  })
+  it('rename (24-char cap, null = automatic label); close keeps the others and Undo restores the tab with its settings', async () => {
+    const host = boardHost(tabbedBoard())
+    let r = await plan(host, [op('widget.renameTab', { widget: 'wl', tab: 'main', name: 'Leaders' })])
+    await commitPlan(host, r.p, { env: r.env })
+    expect(host.state.widgets.find(w => w.id === 'wl').mainTabName).toBe('Leaders')
+    r = await plan(host, [op('widget.closeTab', { widget: 'wl', tab: '1' })])
+    expect(r.p.lines[0]).toMatch(/^Closed the “Scanner” tab of the Watchlist/)
+    const res = await commitPlan(host, r.p, { env: r.env })
+    expect(host.state.widgets.find(w => w.id === 'wl').wtabs.map(t => t.id)).toEqual(['t2'])
+    expect((await undoEntry(host, res.undo)).ok).toBe(true)
+    expect(host.state.widgets.find(w => w.id === 'wl').wtabs).toEqual(tabbedBoard()[0].wtabs)
+  })
+  it('refusals: the main tab cannot be closed; an unknown tab; a widget without tabs; a 25-char name', async () => {
+    const host = boardHost(tabbedBoard())
+    const why = async (o) => (await plan(host, [o])).p.refusals?.[0]?.reason
+    expect(await why(op('widget.closeTab', { widget: 'wl', tab: 'main' }))).toMatch(/main tab is the widget itself/)
+    expect(await why(op('widget.selectTab', { widget: 'wl', tab: 'Charts' }))).toMatch(/no tab “Charts”/)
+    expect(await why(op('widget.selectTab', { widget: 'c', tab: '1' }))).toMatch(/has no tabs/)
+    expect(await why(op('widget.renameTab', { widget: 'wl', tab: '1', name: 'x'.repeat(25) }))).toMatch(/at most 24/)
+    expect(host.state.writes).toBe(0)
+  })
+})

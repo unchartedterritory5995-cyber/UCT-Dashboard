@@ -2135,6 +2135,94 @@
    "query": false
   },
   {
+   "name": "widget.selectTab",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Switch a widget to one of its tabs (clicking the tab in the widget header).",
+   "hints": "target = the ref of the board entry; widget = its id; tab = \"main\" (the widget's own content), \"1\", \"2\"… or the tab's name, from the board entry's widgetTabs. NOT chart tabs (those are chart.*Tab).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "tab": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget",
+     "tab"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "widget.renameTab",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Rename one of a widget's tabs (double-click the tab), or clear the name back to the automatic label. At most 24 characters.",
+   "hints": "target = the ref of the board entry; widget = its id; tab = \"main\" (the widget's own content), \"1\", \"2\"… or the tab's name, from the board entry's widgetTabs. NOT chart tabs (those are chart.*Tab). name = the new name, or null to go back to the automatic label.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "tab": {
+      "type": "string"
+     },
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
+     }
+    },
+    "required": [
+     "widget",
+     "tab",
+     "name"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "widget.closeTab",
+   "domain": "widget",
+   "target": "board",
+   "summary": "Close one of a widget's extra tabs (its ×); the widget's own main tab cannot be closed. Undo puts the tab back exactly, settings included.",
+   "hints": "target = the ref of the board entry; widget = its id; tab = \"main\" (the widget's own content), \"1\", \"2\"… or the tab's name, from the board entry's widgetTabs. NOT chart tabs (those are chart.*Tab).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "widget": {
+      "type": "string"
+     },
+     "tab": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "widget",
+     "tab"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
    "name": "chart.addTab",
    "domain": "chart",
    "target": "board",

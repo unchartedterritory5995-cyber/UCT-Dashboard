@@ -19,7 +19,7 @@ BY = {c["name"]: c for c in CAPS}
 # Since Batch 6 the CATALOG may exceed one request: the browser routes it (app/src/agent/routing.js)
 # into per-request manifests of whole action GROUPS. The server is checked the same way — every
 # group (with the always-on agent group) is validated, schema-built and prompted on its own.
-_GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layout": "workspace",
+_GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layout": "layouts",
              "watchlist": "lists", "screener": "screener", "alert": "alerts", "stock": "data",
              "news": "data", "settings": "settings", "app": "settings", "agent": "agent",
              "drawing": "drawings"}

@@ -129,7 +129,7 @@ describe('Screener: the real engine, the real catalog', () => {
     for (const c of sc) expect(getCapability(c.name).query).toBe(true)
     expect(m.filter(c => getCapability(c.name).target === 'savedScreens').map(c => c.name).sort())
       .toEqual(['screener.deleteSaved', 'screener.duplicateSaved', 'screener.renameSaved', 'screener.saveAs'])
-    expect(m.length).toBe(74)                    // overnight Batch 8: + drawing.addLevel/style/remove/list. Batch 6: + template, defaults, goToDate, compare, custom tf, resize, 5 tab actions (rail-checked by agentContracts.test.js)
+    expect(m.length).toBe(77)                    // overnight Batch 8: + drawing.addLevel/style/remove/list. Batch 6: + template, defaults, goToDate, compare, custom tf, resize, 5 tab actions (rail-checked by agentContracts.test.js)
   })
   it('no Screener field is hard-coded in the Agent', () => {
     const src = screenerSource

@@ -26,9 +26,13 @@ export const GROUPS = [
     words: [/\bcharts?\b/, /\b(timeframe|daily|weekly|monthly|intraday|\d+ ?(min|minute|hour|hr)s?|1h|4h)\b/, /\b(candles?|candlesticks?|hollow|bars|hlc|line chart|area chart|heikin)\b/,
       /\b(log|logarithmic|percent|linear) scale\b|\bscale\b/, /\b(extended|pre-?market|post-?market|regular hours|rth)\b/, /\b(theme|colou?rs?|background|grid|crosshair|legend|watermark|labels?|markers?|countdown|swing|thin bars|invert|template|defaults?|tabs?|compare|versus|against|overlay|go to|scroll|as it looked|custom (time ?frame|interval))\b/,
       /\bvolume\b/] },
-  { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link) and saved layouts (open, save, create, copy, rename, delete)', domains: ['widget', 'layout'],
-    words: [/\bwidgets?\b/, /\blayouts?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(add|open|close|remove|delete)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
-      /\b(link|unlink|colou?r group)\b/, /\bsave\b.*\b(changes|this|it|layout)\b/] },
+  { id: 'workspace', title: 'Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)', domains: ['widget'],
+    words: [/\bwidgets?\b/, /\bworkspaces?\b/, /\bboard\b/, /\b(add|open|close|remove|delete)\b.*\bcharts?\b/, /\b(move|resize|arrange|rearrange|swap|wider|narrower|taller|shorter|bigger|smaller|fill|side by side|grid of|left|right|top|bottom)\b/,
+      /\b(link|unlink|colou?r group)\b/, /\btabs?\b/] },
+  // Split from 'workspace' (2026-10-09): a whole-group packer packs better with smaller groups, and
+  // saved layouts are their own concept ("open my Swing layout", "save this").
+  { id: 'layouts', title: 'Saved layouts (open, save, create, copy, rename, delete)', domains: ['layout'],
+    words: [/\blayouts?\b/, /\bworkspaces?\b/, /\bsave\b.*\b(changes|this|it|layout|arrangement|board)\b/] },
   { id: 'drawings', title: 'Chart drawings: horizontal price levels (draw, restyle, remove, list)', domains: ['drawing'],
     words: [/\bdraw\w*\b/, /\b(horizontal (line|level)s?|levels?|price lines?|rays?|trend ?lines?|fib\w*|rectangles?|annotat\w+|support|resistance)\b/] },
   { id: 'lists', title: 'Watchlists (show, create, rename, add, remove, clear, delete)', domains: ['watchlist'],

@@ -27,6 +27,7 @@ import { CHART_THEMES, CHART_THEME_BY_ID } from '../../components/chart/chartThe
 import { positionWord } from '../host'
 import { addChartTab, closeChartTab, setActiveChartTab, renameChartTab, patchChartTab, chartTabList, sanitizeChartTabs } from '../../pages/charts/chartTabs'
 import { CHART_TIMEFRAMES } from './chart'
+import { widgetTabList, setActiveWidgetTab, renameWidgetTab, closeWidgetTab, sanitizeWidgetTabs } from '../../pages/charts/widgetTabs'
 
 const LABEL = labelMap('menu')
 const label = (t) => LABEL[t] || t
@@ -38,7 +39,7 @@ const extraOff = (env, color) => (isExtraGroup(color) && env?.target?.extraGroup
   ? `Link colours E–H aren't switched on in UCT for your account — use ${linkGroups(false).join(', ')}.` : null)
 const SCAN_KEYS = PRESET_SCANS.map(s => s.key)
 const GEOM = ['x', 'y', 'w', 'h']
-const FIELDS = ['x', 'y', 'w', 'h', 'color', 'opts', 'wtabs', 'activeWtab']
+const FIELDS = ['x', 'y', 'w', 'h', 'color', 'opts', 'wtabs', 'activeWtab', 'mainTabName']
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 const clone = (o) => JSON.parse(JSON.stringify(o))
 const intOk = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi
@@ -179,6 +180,22 @@ function problemSentence(st, env, board) {
 }
 const notOnBoard = (id) => `There's no widget “${id}” on this board — use an id from the board entry.`
 
+// ── widget tabs (the WidgetHost tab strip's own reducers, pages/charts/widgetTabs.js) ──
+// Any widget may hold extra tabs (`wtabs`); "main" is its own content, extras are "1", "2"… or
+// their label. These are NOT chart tabs (a chart's timeframes / symbols — chart.*Tab).
+function wtabsOf(w) {
+  const { active } = sanitizeWidgetTabs(w)
+  return widgetTabList(w).map((t, i) => ({ key: i === 0 ? 'main' : String(i), id: t.id, label: t.label, type: t.type, index: i, active: i === active }))
+}
+function findWtab(w, tab) {
+  const list = wtabsOf(w)
+  const q = String(tab ?? '').trim().toLowerCase()
+  const byKey = list.find(t => t.key === q)
+  if (byKey) return byKey
+  const named = list.filter(t => t.label.toLowerCase() === q)
+  return named.length === 1 ? named[0] : null
+}
+
 // ── chart tabs (the ChartTabStrip's own reducers, pages/charts/chartTabs.js) ──
 // A tab is addressed as "main" (the widget's own chart), its 1-based position among the extra
 // tabs ("1", "2"…), or its label. Its link colour is the tab's colour group (main = the widget's).
@@ -217,7 +234,8 @@ export function registerBoardCapabilities() {
           x: w.x, y: w.y, w: w.w, h: w.h, link: w.color || null,
           ...(w.type === 'watchlist' ? { shows: w.opts?.watchName || (w.opts?.source ? 'a list chosen by UCT' : null) } : {}),
           ...(w.type === 'scanner' ? { shows: w.opts?.scanName || null } : {}),
-          ...(Array.isArray(w.wtabs) && w.wtabs.length ? { tabs: w.wtabs.length + 1 } : {}),
+          // a widget's own tabs (the WidgetHost tab strip, any widget type): main + extras
+          ...(sanitizeWidgetTabs(w).tabs.length ? { widgetTabs: wtabsOf(w).map(t => ({ tab: t.key, label: t.label, type: label(t.type), ...(t.active ? { active: true } : {}) })) } : {}),
           ...(w.type === 'chart' && sanitizeChartTabs(w.opts).tabs.length ? { chartTabs: tabsOf(w).map(t => ({ tab: t.key, label: t.label, ...(t.active ? { active: true } : {}), link: t.color })) } : {}),
         })),
       }]
@@ -471,6 +489,66 @@ export function registerBoardCapabilities() {
       return `Resized the ${nameOf(t0, b.board)} to ${t1.w}×${t1.h} cells${others ? ` (${others} neighbour${others === 1 ? '' : 's'} gave up the space)` : ''}${short}`
     },
     noop: () => "It can't grow that way — its neighbour is already at its minimum size, or it is at the board's edge",
+  })
+
+  // ── widget tabs (non-chart and chart widgets alike: the tab strip in the widget header) ──
+  const tabbed = (st, widget, tab) => {
+    const t = widgetOf(st, widget)
+    if (!t) return { why: notOnBoard(widget) }
+    if (!sanitizeWidgetTabs(t).tabs.length) return { why: `The ${label(t.type)} has no tabs.` }
+    const x = findWtab(t, tab)
+    if (!x) return { why: `That widget has no tab “${tab}” — use main, 1, 2… or a tab's name from the board entry.` }
+    return { t, x }
+  }
+  const setWidget = (st, t, next) => (same(next, t) ? st : { ...st, board: st.board.map(w => (w.id === t.id ? next : w)) })
+  const wtabArgs = { widget: widgetArg, tab: { type: 'string' } }
+  const wtabHint = 'target = the ref of the board entry; widget = its id; tab = "main" (the widget\'s own content), "1", "2"… or the tab\'s name, from the board entry\'s widgetTabs. NOT chart tabs (those are chart.*Tab).'
+
+  reg({
+    ...common,
+    name: 'widget.selectTab',
+    summary: 'Switch a widget to one of its tabs (clicking the tab in the widget header).',
+    hints: wtabHint,
+    args: { type: 'object', properties: wtabArgs, required: ['widget', 'tab'], additionalProperties: false },
+    check: (st, { widget, tab }) => tabbed(st, widget, tab).why || null,
+    apply(st, { widget, tab }) { const { t, x } = tabbed(st, widget, tab); return setWidget(st, t, setActiveWidgetTab(t, x.index)) },
+    describe(b, a, { widget, tab }) {
+      const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
+      return o && n && !same(o, n) ? `Switched the ${nameOf(o, b.board)} to its “${findWtab(n, tab)?.label || tab}” tab` : null
+    },
+    noop: () => 'That tab is already showing',
+  })
+  reg({
+    ...common,
+    name: 'widget.renameTab',
+    summary: 'Rename one of a widget\'s tabs (double-click the tab), or clear the name back to the automatic label. At most 24 characters.',
+    hints: `${wtabHint} name = the new name, or null to go back to the automatic label.`,
+    args: { type: 'object', properties: { ...wtabArgs, name: { type: ['string', 'null'] } }, required: ['widget', 'tab', 'name'], additionalProperties: false },
+    check: (st, { widget, tab, name }) => tabbed(st, widget, tab).why || (name != null && String(name).trim().length > 24 ? 'Tab names are at most 24 characters.' : null),
+    apply(st, { widget, tab, name }) { const { t, x } = tabbed(st, widget, tab); return setWidget(st, t, renameWidgetTab(t, x.id, name)) },
+    describe(b, a, { widget, tab, name }) {
+      const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
+      if (!o || !n || same(o, n)) return null
+      return name ? `Renamed the ${nameOf(o, b.board)}'s “${findWtab(o, tab)?.label || tab}” tab to “${String(name).trim().slice(0, 24)}”` : `Reset the ${nameOf(o, b.board)}'s tab name to its automatic label`
+    },
+    noop: () => 'That tab already has that name',
+  })
+  reg({
+    ...common,
+    name: 'widget.closeTab',
+    summary: 'Close one of a widget\'s extra tabs (its ×); the widget\'s own main tab cannot be closed. Undo puts the tab back exactly, settings included.',
+    hints: wtabHint,
+    args: { type: 'object', properties: wtabArgs, required: ['widget', 'tab'], additionalProperties: false },
+    check(st, { widget, tab }) {
+      const { x, why } = tabbed(st, widget, tab)
+      if (why) return why
+      return x.key === 'main' ? 'The main tab is the widget itself — remove the widget instead, or close one of its other tabs.' : null
+    },
+    apply(st, { widget, tab }) { const { t, x } = tabbed(st, widget, tab); return setWidget(st, t, closeWidgetTab(t, x.id)) },
+    describe(b, a, { widget, tab }) {
+      const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
+      return o && n && !same(o, n) ? `Closed the “${findWtab(o, tab)?.label || tab}” tab of the ${nameOf(o, b.board)}` : null
+    },
   })
 
   // ── chart tabs ──
