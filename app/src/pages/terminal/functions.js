@@ -57,16 +57,18 @@ export const FUNCTIONS = [
   { code: 'CATS', label: 'Catalyst history', group: 'Security',
     ticker: { panel: 'Catalysts', section: 'catalysts' } },
   // V15 (lane T3): "why is it moving" over the EXISTING watchlist-intelligence + catalyst
-  // services, plus what is new since this member's last MOVE visit. WIIM is its alias code.
+  // services, plus what is new since this member's last MOVE visit. WIIM is an ALIAS of it
+  // (CODE_ALIASES, owner decision 2026-10-08): one function, one panel, one name.
   // Dark at the server (TERMINAL_GRAMMAR_ENABLED): unset, the panel says it is not enabled.
   { code: 'MOVE', label: 'Why is it moving (+ since last visit)', group: 'Security',
-    ticker: { panel: 'Move' } },
-  { code: 'WIIM', label: 'Why is it moving (same as MOVE)', group: 'Security',
     ticker: { panel: 'Move' } },
   { code: 'TECH', label: 'Technical read', group: 'Security',
     ticker: { panel: 'Technical', section: 'technical', flag: 'researchTechnicalTabEnabled' } },
   { code: 'FA', label: 'Financials', group: 'Security',
     ticker: { panel: 'Financials', section: 'financials' } },
+  // EE also carries what BRKE (broker estimates) had that EE did not: the firms acting on the
+  // stock, shown only when that read is switched on and holds real rows (owner decision
+  // 2026-10-08: BRKE is folded into EE and kept as an alias, CODE_ALIASES).
   { code: 'EE', label: 'Earnings estimates', group: 'Security',
     ticker: { panel: 'Estimates', section: 'estimates' } },
   { code: 'EEH', label: 'Estimate history (revisions)', group: 'Security',
@@ -124,8 +126,6 @@ export const FUNCTIONS = [
     ticker: { panel: 'Ftd', section: 'depth', flag: `${DEPTH}.ftd_dataset_enabled` } },
   { code: 'ATTN', label: 'Room attention (mentions)', group: 'Research depth',
     ticker: { panel: 'MentionSeries', section: 'depth', flag: `${DEPTH}.mention_series_enabled` } },
-  { code: 'BRKE', label: 'Broker estimates', group: 'Research depth',
-    ticker: { panel: 'BrokerEstimates', section: 'depth', flag: `${DEPTH}.broker_estimates_enabled` } },
 
   // ── options ──
   { code: 'OMON', label: 'Option chain', group: 'Options',
@@ -191,9 +191,7 @@ export const FUNCTIONS = [
     market: { door: '/dashboard', leavesTerminal: true, why: 'the dashboard is itself a bento of tiles and hosts the hub tile; a board inside a panel is a second shell' } },
   { code: 'CHRT', label: 'Charts workspace', group: 'Market',
     market: { door: '/charts', leavesTerminal: true, why: 'the /charts board is the panel host itself (the panel set refuses it as board-host)' } },
-  { code: 'PMKT', label: 'Post-market', group: 'Market', market: { door: '/post-market', leavesTerminal: true } },
   { code: 'CATH', label: 'Catalysts history', group: 'Market', market: { surface: '/catalysts/history' } },
-  { code: 'SETL', label: 'Setup library', group: 'Market', market: { door: '/setup-library', leavesTerminal: true } },
   { code: 'FORM', label: 'Formula reference', group: 'Market',
     market: { door: '/formulas/reference', leavesTerminal: true, why: 'App.jsx loads it with a bare lazy() and no lazyPage importer to share' } },
   { code: 'DESK', label: 'The Desk', group: 'Market',
@@ -204,8 +202,6 @@ export const FUNCTIONS = [
   { code: 'RISK', label: 'Portfolio risk', group: 'Market', market: { surface: '/portfolio-heat' } },
   { code: 'COMM', label: 'Community', group: 'Market',
     market: { door: '/community', leavesTerminal: true, why: 'threads are routed (/community/:threadId); a panel cannot hold the thread URL' } },
-  { code: 'EXP', label: 'Exports (your data, preferences backup)', group: 'Market',
-    market: { door: '/settings?section=legal', leavesTerminal: true } },
 
   // ── the shell itself ──
   { code: 'HELP', label: 'Function list & syntax', group: 'Shell',
@@ -248,11 +244,29 @@ export const FUNCTIONS = [
  *  never carry two names for one function. Lookups by the typed spelling still resolve (BY_CODE
  *  carries the alias), so nothing that checks a token against the registry can miss it.
  *  Kept outside FUNCTIONS on purpose: an alias is not a second function, so the registry rails,
- *  HELP's numbered list and the ranking see one entry. (WIIM predates this and stays a code of its
- *  own: it has always titled its panel WIIM.) */
+ *  HELP's numbered list and the ranking see one entry. A saved board or share link that still
+ *  names an alias opens its code (boardModel `normalizePanel`). */
 export const CODE_ALIASES = Object.freeze({
   MOVERS: 'MOST',   // the word members type for the movers list (fn2-movers)
+  WIIM: 'MOVE',     // merged into MOVE (owner decision 2026-10-08)
+  BRKE: 'EE',       // folded into EE (owner decision 2026-10-08)
 })
+
+/** Codes REMOVED from the terminal (owner decision 2026-10-08), each with the plain note a member
+ *  gets instead of "unknown function": typed, from a saved board, or from a share link. The pages
+ *  behind them still exist; only the terminal code is gone. Not functions, not suggested, not in
+ *  HELP's list. `$EXP` still loads the ticker EXP. */
+export const RETIRED = Object.freeze({
+  EXP: 'EXP (exports) was removed from the terminal. Your exports are in Settings, under Legal. For the ticker, type $EXP.',
+  PMKT: 'PMKT (post-market) was removed from the terminal. The Post-market page is still in the app at /post-market.',
+  SETL: 'SETL (setup library) was removed from the terminal. The Setup library page is still in the app at /setup-library.',
+})
+
+/** The note for a removed code, or null. */
+export function retiredNote(token) {
+  const t = String(token || '').toUpperCase()
+  return Object.prototype.hasOwnProperty.call(RETIRED, t) ? RETIRED[t] : null
+}
 
 /** `n` comparator-ticker argument slots (`with0` … `with{n-1}`), for the comparison codes. */
 function symbolArgs(n) {

@@ -187,8 +187,9 @@ describe('parseCommand — T3: rows, channels, expressions, ASK, aliases, collis
   // 2026-10-05 collision-list audit: cross-checked against api/data/cap_universe.json.
   // GP/MB/LIVE/DP/COMM were REMOVED (none is a real tracked ticker — a false collision);
   // CAL/TECH/FA/EE/PPL/CMP/NB/EXP were ADDED (each IS a real tracked ticker that was missing
-  // its warning). DASH/CF/FORM/RES stay — all four verified still in the universe.
-  it.each(['DASH', 'CF', 'FORM', 'RES', 'CAL', 'TECH', 'FA', 'EE', 'PPL', 'NB', 'EXP'])(
+  // its warning). DASH/CF/FORM/RES stay — all four verified still in the universe. EXP left with
+  // its code on 2026-10-08 (removed from the terminal; see functions.js RETIRED).
+  it.each(['DASH', 'CF', 'FORM', 'RES', 'CAL', 'TECH', 'FA', 'EE', 'PPL', 'NB'])(
     'V5: bare %s runs the function and is FLAGGED as a ticker collision; $ reads the ticker', (code) => {
       expect(parseCommand(code)).toMatchObject({ ok: true, type: 'function', code, collision: code })
       expect(parseCommand(`$${code}`)).toMatchObject({ code: 'DES', sym: code })

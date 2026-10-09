@@ -24,7 +24,7 @@
 // `charts_workspace_groups` (one value with /charts and the app focus, owner call
 // 2026-08-14), so their record's `sym` is never read. E and later keep `sym` in the record.
 // `history` is that channel's entity recents (IA §14.2), bounded.
-import { BY_CODE } from './functions'
+import { BY_CODE, canonicalCode } from './functions'
 
 export const LAYOUT_VERSION = 2
 export const LEGACY_LAYOUT_VERSION = 1
@@ -168,7 +168,9 @@ function normalizePanel(p, channelIds, usedIds) {
   const ch = panelChannel(p)
   const out = {
     id,
-    code: p.code.slice(0, 12).toUpperCase(),
+    // A saved board or share link may name a code that became an alias (WIIM → MOVE, BRKE → EE,
+    // owner decision 2026-10-08): it opens the code it now means, under that code's name.
+    code: canonicalCode(p.code.slice(0, 12)),
     channel: ch && channelIds.has(ch) ? ch : null,
     sym: upperSym(p.sym),
     args: Array.isArray(p.args) ? p.args.filter((a) => typeof a === 'string').slice(0, 8) : [],
@@ -525,7 +527,7 @@ export function decodePopout(token) {
   try {
     const v = JSON.parse(b64urlDecode(token))
     if (!isObj(v) || typeof v.c !== 'string') return null
-    return { id: 'popout', code: v.c.toUpperCase().slice(0, 12), channel: null, sym: upperSym(v.s),
+    return { id: 'popout', code: canonicalCode(v.c.slice(0, 12)), channel: null, sym: upperSym(v.s),
       args: Array.isArray(v.a) ? v.a.filter((a) => typeof a === 'string').slice(0, 8) : [], group: 'N' }
   } catch { return null }
 }
@@ -647,7 +649,7 @@ export function normalizeLibrary(v) {
     if (key && ids.has(id)) presets[key] = id
   }
   const favorites = [...new Set((Array.isArray(v.favorites) ? v.favorites : [])
-    .filter((c) => typeof c === 'string' && BY_CODE[c.toUpperCase()]).map((c) => c.toUpperCase()))].slice(0, FAVORITES_MAX)
+    .filter((c) => typeof c === 'string' && BY_CODE[c.toUpperCase()]).map((c) => canonicalCode(c)))].slice(0, FAVORITES_MAX)
   return { v: LIBRARY_VERSION, boards, presets, favorites, keepCalendar: v.keepCalendar === true }
 }
 

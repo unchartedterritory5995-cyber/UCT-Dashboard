@@ -42,7 +42,7 @@ import { registerShortcuts } from '../command/shortcutRegistry'
 import CommandLine from './CommandLine'
 import HelpPanel, { KeysTable } from './panels/HelpPanel'
 import parseCommand, { normalizeInput } from './parseCommand'
-import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, researchHref, variantFor } from './functions'
+import { BY_CODE, FUNCTIONS, FUNCTION_GROUPS, depthPanelOf, fillDoor, flagOn, researchHref, retiredNote, variantFor } from './functions'
 import { applyArgs, argsEcho } from './args'
 import { COMMAND_PANELS, FLUSH_PANELS, ROWS_OPEN_BESIDE, panelComponent, panelNameFor, URL_OWNING_PANELS } from './panels'
 import useTerminalLayout from './useTerminalLayout'
@@ -425,7 +425,14 @@ export function Panel({
         {!panel.popout && r.state === 'disabled' && (
           <PanelState kind="locked" title={`${panel.code} is not enabled for your account yet.`} />
         )}
-        {!panel.popout && r.state === 'unknown' && (
+        {/* A saved board or share link naming a code removed from the terminal (functions.js
+            RETIRED) says where it went, not "unknown" (owner decision 2026-10-08). */}
+        {!panel.popout && r.state === 'unknown' && retiredNote(panel.code) && (
+          <PanelState kind="empty" title={retiredNote(panel.code)} testId="terminal-panel-retired">
+            Type <kbd>HELP</kbd> for the list.
+          </PanelState>
+        )}
+        {!panel.popout && r.state === 'unknown' && !retiredNote(panel.code) && (
           <PanelState kind="empty" title={`Unknown function ${panel.code}.`}>
             Type <kbd>HELP</kbd> for the list.
           </PanelState>

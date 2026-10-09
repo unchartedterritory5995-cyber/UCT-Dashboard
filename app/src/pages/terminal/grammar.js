@@ -18,8 +18,10 @@ import { MAX_VISIBLE } from './boardModel'
  *  Cross-checked against `api/data/cap_universe.json` (2026-10-05 collision-list audit):
  *  GP, MB, LIVE, DP and COMM were removed — none is a tracked symbol, so warning on them
  *  was a false collision. CAL, TECH, FA, EE, PPL, CMP, NB and EXP were added — each IS a
- *  tracked symbol (Caleres, Bio-Techne-class tickers, etc.) and was missing a warning. */
-export const TICKER_COLLISIONS = Object.freeze(['DASH', 'CF', 'FORM', 'RES', 'CAL', 'TECH', 'FA', 'EE', 'PPL', 'CMP', 'NB', 'EXP'])
+ *  tracked symbol (Caleres, Bio-Techne-class tickers, etc.) and was missing a warning.
+ *  EXP left with its code (removed from the terminal 2026-10-08): bare EXP is the ticker's note
+ *  now (functions.js RETIRED), and `$EXP` loads Eagle Materials. */
+export const TICKER_COLLISIONS = Object.freeze(['DASH', 'CF', 'FORM', 'RES', 'CAL', 'TECH', 'FA', 'EE', 'PPL', 'CMP', 'NB'])
 
 /** THE RULE, as one sentence HELP prints verbatim. */
 export const COLLISION_RULE = 'A bare word that is a function code runs the function. '

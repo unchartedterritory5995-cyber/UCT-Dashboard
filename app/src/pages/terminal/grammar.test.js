@@ -110,9 +110,9 @@ describe('V6b / V16 / V18 rules', () => {
     expect(describeCommand(bad)).toEqual({ text: bad.error, tone: 'error', shape: null })
     expect(describeCommand(parseCommand(''))).toBeNull()
   })
-  it('MOVE and WIIM are ticker functions with one shape', () => {
+  it('WIIM is an alias of MOVE: it runs, titles and records as MOVE (owner decision 2026-10-08)', () => {
     expect(argShape('MOVE')).toBe('TICKER MOVE')
-    expect(parseCommand('NVDA WIIM')).toMatchObject({ ok: true, code: 'WIIM', sym: 'NVDA' })
+    expect(parseCommand('NVDA WIIM')).toMatchObject({ ok: true, code: 'MOVE', sym: 'NVDA' })
   })
   it('2026-10-05 audit: every door variant that fully navigates away carries leavesTerminal, ' +
      'and the interpreted-parse echo shows the cue for it', () => {
@@ -122,7 +122,7 @@ describe('V6b / V16 / V18 rules', () => {
     expect(echo.text).toContain('(leaves Terminal)')
     // A sampled GROUP of the other newly-flagged doors — each is a `door` with no panel/surface
     // alternative, so it is unconditionally "leaves Terminal" once a security is or isn't present.
-    for (const code of ['GEX', 'LIVE', 'DASH', 'CHRT', 'PMKT', 'SETL', 'FORM', 'DESK', 'JRNL', 'NB', 'COMM', 'EXP']) {
+    for (const code of ['GEX', 'LIVE', 'DASH', 'CHRT', 'FORM', 'DESK', 'JRNL', 'NB', 'COMM']) {
       const variant = BY_CODE[code].market
       expect(variant?.door, code).toBeTruthy()
       expect(variant.leavesTerminal, code).toBe(true)
