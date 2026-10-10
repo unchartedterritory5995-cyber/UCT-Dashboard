@@ -78,3 +78,27 @@ def test_fill_without_keys_writes_nothing(monkeypatch):
     nm._DONE.clear()
     monkeypatch.setattr(bm, "patch_fields", lambda *a: pytest.fail("must not write"))
     assert nm.fill()["ok"] is False
+
+
+def test_web_confirm_is_off_by_default_and_never_posts(monkeypatch):
+    monkeypatch.delenv("BREADTH_NAAIM_WEB_CONFIRM", raising=False)
+    monkeypatch.setenv("PERPLEXITY_API_KEY", "k")
+    assert nm.web_confirm("2026-10-07", post=lambda *a, **k: pytest.fail("posted")) is None
+
+
+def test_web_confirm_when_on_is_capped_per_day(monkeypatch):
+    monkeypatch.setenv("BREADTH_NAAIM_WEB_CONFIRM", "1")
+    monkeypatch.setenv("PERPLEXITY_API_KEY", "k")
+    nm._web_calls.clear()
+    calls = []
+
+    class _R:
+        status_code = 200
+
+        def json(self):
+            return {"choices": [{"message": {"content": "86.76"}}]}
+
+    post = lambda *a, **k: calls.append(1) or _R()
+    got = [nm.web_confirm("2026-10-07", post=post) for _ in range(nm.WEB_CONFIRM_DAILY_CAP + 3)]
+    assert len(calls) == nm.WEB_CONFIRM_DAILY_CAP
+    assert got[0] == 86.76 and got[-1] is None
