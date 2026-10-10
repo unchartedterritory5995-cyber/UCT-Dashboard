@@ -405,6 +405,36 @@
       "where": ["web"],
       "note": "ARMED on web 2026-10-09 (owner-run railway variables --set at 11:37:07Z, one --set for eight options flags; web deploy BUILDING 11:37:07Z, fresh boot seen at 11:39:30Z, /api/health uptime 40). NOT measured: the value in the running process (in-process read not taken) -- read it with os.environ over railway ssh before citing this as verified. FT-075 (lane/o-options-remainders). GET /api/options-screener/sizzle: COV-03's unusual-volume ranking on a 5-session window (today's option volume / the mean of the prior 5 logged sessions), ranked only with 5 prior sessions; below that each row says how many it has. The log began 2026-09-30, so it states n and the first session it becomes available. Shown as its own panel beside the strategy screens on Options Flow > Market Read (StrategyScreensPanel.jsx), dark on its own switch. Plain def route. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
     },
+    "OPTIONS_LEVEL_BASE_RATE_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": ["web", "terminal-next-monitor"],
+      "note": "DARK, built 2026-10-10 by TERMINAL-NEXT finishing lane L3 (branch f-l3). BRK-08 base rate. GET /api/options/positioning/{sym}/base-rate: for Call Wall, Put Wall and Zero Gamma, how often price held vs broke within the next 5 logged closes (tested = a close within 1% or beyond; a rate only from 20 tested instances, below that the sample size in words). Levels history: the terminal-next-monitor job options-levels (weekdays 16:30 ET, after options-screen) rebuilds each logged session's levels from the options-log contracts file into R2 options_log/levels/<YYYY>/<date>.csv.gz (api/services/options_analytics/level_base_rate.py); web mirrors only those small files. Shown beside the vocabulary in the positioning levels block. Arming needs the flag on BOTH terminal-next-monitor (to build history) and web (to serve it). SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its UI renders nothing. Set: paid (402 otherwise). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_TRACE_PROJECTION_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": ["web"],
+      "note": "DARK, built 2026-10-10 by TERMINAL-NEXT finishing lane L3 (branch f-l3). FT-049 forward projection. GET /api/options/positioning/{sym}/projection: projected net GEX on a 21-price x 5-session grid (spot +/-6%), Black-Scholes gamma with sigma recovered from the vendor's delta and gamma, open interest held at today's, expired contracts dropped per session, projected Zero Gamma per session (api/services/options_analytics/trace_projection.py). Same cached chain as the gamma heatmap; built once per key per 60 s (positioning._cached single-flight). Its own block in Research > Options positioning. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its UI renders nothing. Set: paid (402 otherwise). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_TRACE_REFRESH_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": ["web"],
+      "note": "DARK, built 2026-10-10 by TERMINAL-NEXT finishing lane L3 (branch f-l3). FT-049 1-minute refresh. GET /api/options/positioning/refresh-policy: interval_s 60 during the regular session (session_calendar.session_at == rth), none otherwise. The heatmap blocks re-read on that interval (plus up to 10 s client jitter) and say so in the panel. Server side: positioning._cached shares ONE in-flight build per key across concurrent callers and the result cache was sized 256 -> 1024 so open panels do not evict each other. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its UI renders nothing. Set: paid (402 otherwise). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_MULTI_LEG_SCREEN_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": ["web"],
+      "note": "DARK, built 2026-10-10 by TERMINAL-NEXT finishing lane L3 (branch f-l3). FT-073 remainder: multi-leg trades. GET /api/options-screener/multi-leg: today's tape prints typed ML/ (flow-worker types them from OPRA condition codes 232-247, api/build_gap_fill_csv.py MULTI_LEG_CONDITIONS), grouped per symbol and print second, largest premium first, legs seen counted (the tape's 50+ contracts / $10K+ filter can hide small legs). Collected in Market Tide's same tape read (tide_extras.py), no second read. Panel beside the strategy screens on Options Flow. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its UI renders nothing. Set: paid (402 otherwise). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_LEVEL_FILES_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": ["web"],
+      "note": "DARK, built 2026-10-10 by TERMINAL-NEXT finishing lane L3 (branch f-l3). FT-053 level files (licensing cleared by D-011). GET /api/options/positioning/{sym}/level-files?format=pine|thinkscript|csv: the positioning levels (the same cached positioning.levels answer the panel shows) as a TradingView Pine v5 indicator (hline per level), a ThinkorSwim thinkScript study (plot + bubble per level) or a price,label CSV, as an attachment; no format = the list of formats (the panel's probe). Download buttons in the positioning levels block (api/services/options_analytics/level_files.py). SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its UI renders nothing. Set: paid (402 otherwise). Rollback: set 0 (a DELETE does not restart web)."
+    },
     "ANALYST_REVISIONS_ENABLED": {
       "status": "armed",
       "since": "2026-09-30",

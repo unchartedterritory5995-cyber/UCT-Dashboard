@@ -11,7 +11,9 @@ expiry, over the SAME cached chain the gamma heatmap reads (`positioning.chain`)
    delta + 1)), sigma x sqrt(t) = n(d1) / (spot x gamma), d2 = d1 - sigma x sqrt(t), and
    charm = n(d1) x d2 / (2 t) per year. A contract with a delta at 0 or 1, no gamma, or expiring
    today has no defined charm here: its cell is blank and counted, never zero.
-⛔ NOT BUILT: the forward projection and a 1-minute refresh (this reads the 60 s chain cache).
+⛔ The forward projection and the 1-minute refresh are their own surfaces (`trace_projection.py`,
+   OPTIONS_TRACE_PROJECTION_ENABLED / OPTIONS_TRACE_REFRESH_ENABLED); `not_built` names whichever
+   of the two is still switched off.
 """
 from __future__ import annotations
 
@@ -33,6 +35,19 @@ CHARM_METHOD = ("Charm per expiration and strike: the change in delta per calend
                 "delta and gamma because this chain carries no IV. Contracts expiring today, or "
                 "with a delta at 0/1 or no gamma, are left out and counted.")
 NOT_BUILT = "A forward projection and a 1-minute refresh are not built; this reads the 60 s chain cache."
+
+
+def not_built() -> Optional[str]:
+    """What of FT-049's remainder is still off, in words; None once both are switched on."""
+    from api.services.options_analytics import flags
+    proj = flags.is_on("OPTIONS_TRACE_PROJECTION_ENABLED")
+    refresh = flags.is_on("OPTIONS_TRACE_REFRESH_ENABLED")
+    if proj and refresh:
+        return None
+    if not proj and not refresh:
+        return NOT_BUILT
+    return ("A forward projection is not switched on." if not proj else
+            "A 1-minute refresh is not switched on; this re-reads only when the panel opens.")
 
 
 def charm_per_day(cp: str, delta: float, gamma: float, spot: float, days: int) -> Optional[float]:
@@ -82,7 +97,7 @@ def delta_heatmap_from(sym: str, dte: str, ch: dict) -> dict:
     exps, strikes, grid, mx = _grid(cells, spot)
     return {**pos._base(sym, dte, ch, DELTA_METHOD), "measure": "delta", "expirations": exps,
             "strikes": strikes, "cells": grid, "max_abs": mx, "unit": "$ of customer-held delta",
-            "contracts_missing_inputs": missing, "not_built": NOT_BUILT,
+            "contracts_missing_inputs": missing, "not_built": not_built(),
             "note": "A blank cell is a strike with no computable contract at that expiry, never zero."}
 
 
@@ -108,7 +123,7 @@ def charm_heatmap_from(sym: str, dte: str, ch: dict, today: Optional[_dt.date] =
     return {**pos._base(sym, dte, ch, CHARM_METHOD), "measure": "charm", "expirations": exps,
             "strikes": strikes, "cells": grid, "max_abs": mx, "unit": "$ of delta per calendar day",
             "contracts_missing_inputs": missing, "contracts_without_defined_charm": undefined,
-            "not_built": NOT_BUILT,
+            "not_built": not_built(),
             "note": "A blank cell is a strike with no computable contract at that expiry, never zero."}
 
 

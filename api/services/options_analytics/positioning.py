@@ -50,13 +50,16 @@ HEATMAP_MAX_STRIKES = 30
 #: starts to steer a price, so the bands are stated as ours and the raw ratio is always shown.
 IMPACT_BANDS = ((0.02, "low"), (0.08, "moderate"))
 
-_RESULTS = TTLCache(max_size=256)
+#: FT-049 refresh: sized for every open panel's keys at once (8 kinds x 5 windows x ~25 names)
+#: so a minute's refresh never evicts another panel's warm answer and rebuilds it.
+_RESULTS = TTLCache(max_size=1024)
 _ADV = TTLCache(max_size=512)
 
 
 def clear_cache() -> None:
     _RESULTS.clear()
     _ADV.clear()
+    _INFLIGHT.clear()
 
 
 # ── the chain (one per symbol x window) ───────────────────────────────────────
@@ -125,14 +128,37 @@ def _base(sym: str, dte: str, ch: dict, method: str) -> dict:
             "computed_at": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")}
 
 
+_INFLIGHT: dict = {}
+
+
 async def _cached(kind: str, sym: str, dte: str, build) -> dict:
+    """One build per key per RESULT_TTL_S. FT-049 refresh: concurrent misses on the same key share
+    ONE in-flight build (a future), so a room of panels refreshing on the minute cannot herd the
+    chain fetch. A failed build is not cached and is raised to every waiter."""
     key = f"posn::{kind}::{sym}::{dte}"
     hit = _RESULTS.get(key)
     if hit is not None:
         return hit
-    out = await build()
-    _RESULTS.set(key, out, RESULT_TTL_S)
-    return out
+    fut = _INFLIGHT.get(key)
+    if fut is not None and fut.get_loop() is asyncio.get_running_loop():
+        return await asyncio.shield(fut)
+    fut = asyncio.get_running_loop().create_future()
+    _INFLIGHT[key] = fut
+    try:
+        out = await build()
+    except BaseException as e:
+        if not fut.done():
+            fut.set_exception(e)
+            fut.exception()      # retrieved: no "never retrieved" warning when nobody waited
+        raise
+    else:
+        _RESULTS.set(key, out, RESULT_TTL_S)
+        if not fut.done():
+            fut.set_result(out)
+        return out
+    finally:
+        if _INFLIGHT.get(key) is fut:
+            _INFLIGHT.pop(key, None)
 
 
 # ── FT-049 heatmap ────────────────────────────────────────────────────────────

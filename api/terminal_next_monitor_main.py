@@ -302,6 +302,10 @@ SCHEDULE = (
     # this table's order, one after another, so this starts once the log has landed.
     # It also catches up any logged session that has no derived files yet.
     ("options-screen", lambda d: d < 5, 16, 30),  # weekdays 16:30 ET, after options-log
+    # BRK-08 (L3): rebuild each logged session's dealer levels for the base rate. Same minute,
+    # listed after `options-screen` so it reads a contracts file that has landed; catches up any
+    # logged session without a levels file. Dark behind OPTIONS_LEVEL_BASE_RATE_ENABLED.
+    ("options-levels", lambda d: d < 5, 16, 30),  # weekdays 16:30 ET, after options-screen
     # TERM-014: weekdays 09:20 ET (13:20 UTC in EDT, 14:20 UTC in EST), INSIDE the
     # existing cron. Behind RSS_SERIES_ENABLED, the flag that makes web record it.
     ("memory",     lambda d: d < 5, 9, 20),    # weekdays 09:20 ET
@@ -351,6 +355,16 @@ def job_options_screen():
         return ("Options screen: FAILED", f"{type(e).__name__}: {e}", True)
 
 
+def job_options_levels():
+    """BRK-08: build the per-session dealer levels file the base rate reads (see
+    api/services/options_analytics/level_base_rate.py). A failure is an ALERT post."""
+    from api.services.options_analytics import level_base_rate as lbr
+    try:
+        return lbr.receipt_text(lbr.run_catch_up())
+    except Exception as e:  # noqa: BLE001 -- surfaced as an alert, by name
+        return ("Options levels: FAILED", f"{type(e).__name__}: {e}", True)
+
+
 JOBS = {
     "ticking": job_ticking,
     "catalyst": job_catalyst_receipt,
@@ -359,6 +373,7 @@ JOBS = {
     "cadence": job_cadence_rollup,
     "options-log": job_options_log,
     "options-screen": job_options_screen,
+    "options-levels": job_options_levels,
     "memory": job_memory_slope,
 }
 
@@ -373,8 +388,14 @@ def _options_screen_enabled() -> bool:
     return options_screener.is_enabled()
 
 
+def _options_levels_enabled() -> bool:
+    from api.services.options_analytics import level_base_rate
+    return level_base_rate.is_enabled()
+
+
 JOB_GATES = {"cadence": rollup_enabled, "options-log": _options_log_enabled,
-             "options-screen": _options_screen_enabled, "memory": _memory_slope_enabled}
+             "options-screen": _options_screen_enabled, "memory": _memory_slope_enabled,
+             "options-levels": _options_levels_enabled}
 #: Jobs whose channel is the TERM-011 OPS destination rather than the admin read.
 OPS_ROUTED_JOBS = frozenset({"cadence"})
 

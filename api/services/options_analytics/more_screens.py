@@ -10,8 +10,11 @@
   block_trades      over TODAY'S flow tape: the prints the tape itself types BLOCK (Market Tide's
                     read, `market_tide.extras`), largest premium first.
 
-⛔ NOT BUILT: "multi-leg option trades". The tape carries no multi-leg flag; the condition codes
-   that mark a multi-leg print live on flow-worker's raw trades, not on the tape web reads.
+⛔ MULTI-LEG TRADES (L3, its own switch OPTIONS_MULTI_LEG_SCREEN_ENABLED): the tape DOES carry
+   the flag. Flow-worker types a print `ML/` from its OPRA condition codes (232-247) before it
+   reaches the tape (`api/build_gap_fill_csv.py` MULTI_LEG_CONDITIONS), so the screen reads the
+   same tape read as block trades and groups the ML/ prints per symbol and print second.
+   `multi_leg_trades` below; while its switch is off the catalog still names it as not built.
 ⛔ End-of-day screens name their session and say so; the tape screen names its session and the
    tape's filters. Every count of what was read is returned beside what matched.
 """
@@ -36,14 +39,42 @@ MORE = {
     "block_trades": {"label": "Option block trades", "source": "tape", "description":
                      "Today's prints the flow tape types BLOCK, largest premium first."},
 }
-NOT_BUILT = {"multi_leg_trades": ("Multi-leg option trades are not screened: the flow tape carries no "
-                                  "multi-leg flag (the condition codes live on flow-worker's raw trades).")}
+NOT_BUILT = {"multi_leg_trades": "The multi-leg trades screen is not switched on yet."}
+MULTI_LEG_DESCRIPTION = (
+    "Today's prints the flow tape types multi-leg (ML/, from the OPRA multi-leg condition codes), "
+    "grouped into one structure per ticker and print second, largest total premium first. Only "
+    "legs of 50+ contracts and $10K+ premium are on the tape, so a structure can show fewer legs "
+    "than were traded; the legs seen are counted.")
 
 
 def catalog() -> dict:
+    from api.services.options_analytics import flags
     return {"strategies": [{"id": k, "label": v["label"], "source": v["source"],
                             "description": v["description"]} for k, v in MORE.items()],
-            "not_built": NOT_BUILT, "fill": ss.FILL, "data_basis": ss.DATA_BASIS}
+            "not_built": {} if flags.is_on("OPTIONS_MULTI_LEG_SCREEN_ENABLED") else NOT_BUILT,
+            "fill": ss.FILL, "data_basis": ss.DATA_BASIS}
+
+
+def multi_leg_trades(*, underlyings: Optional[list] = None, limit: int = 50) -> dict:
+    """FT-073 remainder: today's multi-leg structures off the tape (Market Tide's same read)."""
+    from api.services.options_analytics import market_tide as mt
+    ex = mt.extras("all")
+    rows = ex.get("multileg") or []
+    if underlyings:
+        want = set(underlyings)
+        rows = [r for r in rows if r["symbol"] in want]
+    unheld = ex.get("multileg_unheld_prints") or 0
+    return {"strategy": "multi_leg_trades", "label": "Multi-leg option trades",
+            "description": MULTI_LEG_DESCRIPTION, "session": ex.get("session"),
+            "data_basis": "today's flow tape", "filters": mt.TAPE_FILTERS, "fill": None,
+            "computed": "grouping only: the prints and their premiums are the tape's own",
+            "prints_read": ex.get("multileg_prints", 0),
+            "structures_found": ex.get("multileg_structures", 0),
+            "structures_cap": len(ex.get("multileg") or []), "matches": len(rows),
+            "note": (f"{unheld} multi-leg prints arrived after the per-session structure cap and "
+                     "are counted, not shown." if unheld else None),
+            "partial": ex.get("partial"), "partial_reasons": ex.get("partial_reasons"),
+            "rows": rows[:max(1, min(MAX_ROWS, limit))]}
 
 
 def _butterflies(con, underlyings, prices: dict) -> tuple:

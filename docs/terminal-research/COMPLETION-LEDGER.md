@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after lane L9): not complete.** 223 of 279 rows are `live` or `moot`; 56 are not (14 `dark`, 34 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after lanes L3, L4, L5): not complete.** 223 of 279 rows are `live` or `moot`; 56 are not (18 `dark`, 30 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,14 +34,14 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 after lane L9:
+Printed 2026-10-10 after lanes L3, L4, L5:
 
 ```
-279 Counter({'live': 183, 'moot': 40, 'building': 34, 'dark': 14, 'owner-blocked': 8})
+279 Counter({'live': 183, 'moot': 40, 'building': 30, 'dark': 18, 'owner-blocked': 8})
 0 duplicate ids
 ```
 
-The same command at master `d95f331bb` (before L9): `279 Counter({'live': 174, 'building': 44, 'moot': 39, 'dark': 13, 'owner-blocked': 9})`, 0 duplicate ids.
+Printed earlier 2026-10-10 at master `d95f331bb`: `279 Counter({'live': 174, 'building': 44, 'moot': 39, 'dark': 13, 'owner-blocked': 9})`, 0 duplicate ids.
 
 Before this reconciliation (same command, the file as committed at `d95f331bb`): `279 Counter({'building': 85, 'live': 77, 'dark': 69, 'moot': 36, 'owner-blocked': 12})`, 0 duplicate ids. (The table that stood here then still carried the pre-sweep 2026-10-03 numbers; the command, not the table, was right.)
 
@@ -52,13 +52,13 @@ The per-section split is the same regex applied to each `## ` section:
 | 1 Programme records + ship | 17 | 11 | 0 | 3 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
 | 3 TERM-001..093 | 93 | 65 | 6 | 13 | 3 | 6 |
-| 4 BRK-01..10 | 10 | 4 | 2 | 3 | 0 | 1 |
+| 4 BRK-01..10 | 10 | 4 | 3 | 2 | 0 | 1 |
 | 5 COV-01..12 | 12 | 5 | 0 | 3 | 1 | 3 |
-| 6 FT-001..080 | 80 | 56 | 2 | 9 | 4 | 9 |
+| 6 FT-001..080 | 80 | 56 | 5 | 6 | 4 | 9 |
 | 7 Untracked promises | 58 | 42 | 4 | 3 | 0 | 9 |
-| **total** | **279** | **183** | **14** | **34** | **8** | **40** |
+| **total** | **279** | **183** | **18** | **30** | **8** | **40** |
 
-`building` by lane: P 9 · O 8 · R 5 · integrator 4 · Notebook 2 · S 2 · D 1 · T2 1 · decided follow-up builds (TERM-043, TERM-045) 2.
+`building` by lane: P 9 · R 5 · O 4 · integrator 4 · Notebook 2 · S 2 · D 1 · T2 1 · decided follow-up builds (TERM-043, TERM-045) 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -208,7 +208,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `BRK-05` | Config-as-citation | `live` | `SCREENER_NL_COMPILE_ENABLED` (`docs/feature_flags.json:1988`) and `SCREENER_LOGIC_ENABLED` (`docs/feature_flags.json:1876`) armed on web 2026-10-04 (`a046f7d9f`); route `api/routers/screener_nl.py:44`. Was `dark`. |
 | `BRK-06` | Programmatic egress | `building (integrator)` | Personal API armed; `DATA_EXPORTS_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:1868`). Remainder as TERM-061: publish `skill.md` now that `RATE_LIMIT_POLICY=enforce` (A4, `12-decisions/2026-10-07-owner-delegated-decisions.md:141`). No MCP (T-16). Was `dark`. |
 | `BRK-07` | Per-surface status disclosure | `live` | `app/src/pages/Support.jsx:1316` (TERM-039). FT-046 is separate. |
-| `BRK-08` | Dealer vocabulary with a base rate | `building (Lane O)` | Vocabulary armed on web 2026-10-04 (`a046f7d9f`) (`OPTIONS_POSITIONING_VOCAB_ENABLED`, `docs/feature_flags.json:201`). The base rate (how often levels held) is still not computed (no base-rate field in `api/routers/options_analytics.py`, grep at `d95f331bb`). |
+| `BRK-08` | Dealer vocabulary with a base rate | `dark` | Vocabulary armed on web 2026-10-04 (`a046f7d9f`) (`OPTIONS_POSITIONING_VOCAB_ENABLED`, `docs/feature_flags.json:201`). Base rate built 2026-10-10 by finishing lane L3 (branch `f-l3`) behind its own flag `OPTIONS_LEVEL_BASE_RATE_ENABLED` (`docs/feature_flags.json:408`, `dark`; `api/services/options_analytics/flags.py:47`): `GET /api/options/positioning/{sym}/base-rate` (`api/routers/options_analytics.py:498`) scores Call Wall / Put Wall / Zero Gamma held vs broke over the next 5 logged closes and shows no rate below 20 tested instances, only the sample size (`api/services/options_analytics/level_base_rate.py:375`, `:405`). History is rebuilt per session from the options-log contracts file by the monitor job `options-levels` (`api/terminal_next_monitor_main.py:308`, `level_base_rate.py:134`). Shown beside the vocabulary (`app/src/pages/optionsAnalytics/PositioningPanel.jsx:92`). Arming needs the flag on terminal-next-monitor (to build history) and web (to serve it). |
 | `BRK-09` | Transcript / filing retrieval depth | `dark` | Boolean / NEAR / synonym operators over transcripts built dark (`lane/s2-finish`, merged `9e69eddd9`): `TRANSCRIPT_OPERATOR_SEARCH_ENABLED` pending (`docs/feature_flags.json:1942`). A transcript backfill would also need the FMP storage / AI-processing rights read: not measured. Was `building (Lane S)`. |
 | `BRK-10` | Implied-move calibration | `live` | `IV_HISTORY_ENABLED` armed on web 2026-10-09 (`c10e0fef3`) and answering 200 live 2026-10-09 (`docs/feature_flags.json:146`). The calibration score is meaningful at ≥4 logged prints per name (log armed 2026-10-02). Was `dark`. |
 
@@ -281,11 +281,11 @@ The per-section split is the same regex applied to each `## ` section:
 | `FT-046` | Per-surface how-to checklist | `owner-blocked (approve the copy in the owner's voice)` | Mechanism built dark (lane/r-research-depth): `HOW_TO_CHECKLISTS_ENABLED` pending; registry `app/src/components/howTo/howToChecklists.js` + `HowToChecklist.jsx` on Research > Depth and /screener. All 8 entries ship `draft-awaiting-owner-voice` and render nothing even when armed; the owner rewrites or approves each (status `approved` + `approved_by` + `approved_on`), then arms. ➜ 2026-10-07: decided: arm the flag; copy approval stays the owner's. F-4; owner actions A9, C5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) Re-checked: `HOW_TO_CHECKLISTS_ENABLED` still `pending` (`docs/feature_flags.json:1848`); C5 has no owner answer in §8b. |
 | `FT-047` | Named dealer vocabulary | `live` | `OPTIONS_POSITIONING_VOCAB_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:201`). Was `dark`. |
 | `FT-048` | HIRO | `live` | `api/gex_router.py:12` (different shape). |
-| `FT-049` | TRACE heatmaps | `building (Lane O)` | Gamma heatmap (`docs/feature_flags.json:169`), delta-pressure (`docs/feature_flags.json:356`) and charm (`docs/feature_flags.json:364`) armed on web 2026-10-04 (`a046f7d9f`). Remainder: forward projection and a 1-minute refresh (the heatmaps read the 60 s chain cache, `lane-o-options-remainders.md:39`). |
+| `FT-049` | TRACE heatmaps | `dark` | Gamma heatmap (`docs/feature_flags.json:169`), delta-pressure (`docs/feature_flags.json:356`) and charm (`docs/feature_flags.json:364`) armed on web 2026-10-04 (`a046f7d9f`). Remainder built 2026-10-10 by finishing lane L3 (branch `f-l3`), each on its own flag: forward projection `OPTIONS_TRACE_PROJECTION_ENABLED` (`docs/feature_flags.json:414`, `dark`; price x session grid of projected net GEX with a projected flip per session, `api/services/options_analytics/trace_projection.py:103`, route `api/routers/options_analytics.py:520`, block `app/src/pages/optionsAnalytics/PositioningPanel.jsx:223`) and the 1-minute refresh `OPTIONS_TRACE_REFRESH_ENABLED` (`docs/feature_flags.json:420`, `dark`; 60 s while `session_at == rth`, `trace_projection.py:161`; panel timer with jitter `PositioningPanel.jsx:145`; server cache single-flight per key and sized 1024, `api/services/options_analytics/positioning.py:134`). |
 | `FT-050` | Options Impact gauge | `live` | `OPTIONS_IMPACT_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:193`). 20-session average. Was `dark`. |
 | `FT-051` | Two positioning models | `live` | `api/gex_router.py:35`. |
 | `FT-052` | Negative OI explained | `live` | `OPTIONS_DEALER_SHORT_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:209`). Was `dark`. |
-| `FT-053` | Level files into other platforms | `building (Lane O)` | Licensing cleared by D-011, so it is now agent-buildable. No lane listed it in the audit, so it is proposed here for Lane O. |
+| `FT-053` | Level files into other platforms | `dark` | Built 2026-10-10 by finishing lane L3 (branch `f-l3`) behind `OPTIONS_LEVEL_FILES_ENABLED` (`docs/feature_flags.json:432`, `dark`), paid. `GET /api/options/positioning/{sym}/level-files?format=` (`pine`, `thinkscript` or `csv`) (`api/routers/options_analytics.py:546`) serves the positioning levels as a TradingView Pine v5 indicator, a ThinkorSwim thinkScript study or a price,label CSV (`api/services/options_analytics/level_files.py:70`); download buttons in the positioning levels block (`app/src/pages/optionsAnalytics/PositioningPanel.jsx:122`). Licensing cleared by D-011. |
 | `FT-054` | "N minutes ago" overlay | `building (Lane O)` | Needs a durable intraday per-strike exposure store on flow-worker. |
 | `FT-055` | Positioning primitives | `live` | `OPTIONS_MAX_PAIN_ENABLED` (`docs/feature_flags.json:177`) and `OPTIONS_NOPE_ENABLED` (`docs/feature_flags.json:185`) armed on web 2026-10-04 (`a046f7d9f`); GEX live. Was `dark`. |
 | `FT-056` | Market Tide | `live` | Market Tide (`docs/feature_flags.json:161`) and per-sector tide (`docs/feature_flags.json:372`) armed on web 2026-10-04 (`a046f7d9f`). Was `building (Lane O)`. |
@@ -305,7 +305,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `FT-070` | Indicator templates | `building (Lane R)` | Coordinate with the indicator programme. |
 | `FT-071` | Broker estimates + drift | `moot (as COV-07)` | Built and armed on web 2026-10-04 (`a046f7d9f`) (`BROKER_ESTIMATES_ENABLED`, `docs/feature_flags.json:2034`); should read COV-07's snapshot instead of a second FMP call. ➜ 2026-10-07: S-2 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-072` | Option / Spread Hacker | `live` | Saved Spread Book: `OPTIONS_SPREAD_BOOK_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:388`). Was `building (Lane O)`. |
-| `FT-073` | Per-strategy option screeners | `building (Lane O)` | Strategy screens (`docs/feature_flags.json:291`) and the remaining screens (call butterflies, by-expiration, block trades; `docs/feature_flags.json:396`) armed on web 2026-10-09 (`c10e0fef3`) and answering 200 live 2026-10-09. Remainder: multi-leg trades (the tape carries no multi-leg flag, `lane-o-options-remainders.md:40`). |
+| `FT-073` | Per-strategy option screeners | `dark` | Strategy screens (`docs/feature_flags.json:291`) and the remaining screens (call butterflies, by-expiration, block trades; `docs/feature_flags.json:396`) armed on web 2026-10-09 (`c10e0fef3`) and answering 200 live 2026-10-09. Multi-leg trades built 2026-10-10 by finishing lane L3 (branch `f-l3`) behind `OPTIONS_MULTI_LEG_SCREEN_ENABLED` (`docs/feature_flags.json:426`, `dark`): the tape does carry the flag (flow-worker types a print `ML/` from OPRA condition codes 232-247, `api/build_gap_fill_csv.py:52`), so `GET /api/options-screener/multi-leg` (`api/routers/options_analytics.py:530`) groups today's ML/ prints per symbol and second from Market Tide's same tape read (`api/services/options_analytics/tide_extras.py:51`, `more_screens.py:58`); panel `app/src/pages/optionsAnalytics/StrategyScreensPanel.jsx:203`. |
 | `FT-074` | Unusual options volume report | `owner-blocked (as COV-03: OPTIONS_SCREENER_TAPE_URL)` | ➜ 2026-10-07: decided: as COV-03. Owner action A6 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-075` | Sizzle Index | `live` | Sizzle 5-day: `OPTIONS_SIZZLE_ENABLED` armed on web 2026-10-09 (`c10e0fef3`) and answering 200 live 2026-10-09 (`docs/feature_flags.json:402`). Ranks only with 5 prior sessions. Was `building (Lane O)`. |
 | `FT-076` | MGMT surface | `building (Lane R)` | As COV-05: `RESEARCH_PEOPLE_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2002`); bios / board need a source (D-008), none wired. Was `dark`. |
