@@ -31,7 +31,12 @@ vi.mock('../hooks/useJ2Notes', () => ({
   }),
 }))
 vi.mock('../components/notebook/FolderSidebar', () => ({
-  default: () => <div data-testid="folder-sidebar" />,
+  // A folder choice goes through the tab's own `onSelectFolder` -- the same door the real panel uses.
+  default: ({ onSelectFolder }) => (
+    <div data-testid="folder-sidebar">
+      <button type="button" onClick={() => onSelectFolder?.('f-swing')}>Pick Swing ideas</button>
+    </div>
+  ),
 }))
 // A card is a button that opens its note through the tab's own `onOpen` (openNote) --
 // the same door the real NoteCard uses.
@@ -214,10 +219,46 @@ const showFoldersBtn = () => screen.queryByRole('button', { name: 'Show folders 
 describe('D-7 -- a content-first view mode gives the view the first screen on a phone (rendered)', () => {
   afterEach(() => setWidth(realWidth))
 
-  it('List, the default landing, never collapses the panel at phone width', () => {
+  // Phone pass 2026-10-10: measured at 390x844, the tree filled the whole first screen on List
+  // and Research Home, so the panel is now a drawer on EVERY phone view (it used to stay open here).
+  it('List, the default landing, folds the panel at phone width too -- the notes get the first screen', () => {
     setWidth(390)
     renderAt('/journal/notebook?view=all')
+    expect(showFoldersBtn()).not.toBeNull()
+  })
+
+  it('Research Home (no folder chosen) folds the panel at phone width', async () => {
+    setWidth(390)
+    renderAt('/journal/notebook')
+    await screen.findByTestId('research-home')
+    expect(showFoldersBtn()).not.toBeNull()
+  })
+
+  it('the SAME landing at 1280px keeps the panel open', () => {
+    setWidth(1280)
+    renderAt('/journal/notebook?view=all')
     expect(showFoldersBtn()).toBeNull()
+  })
+
+  it('the #search door keeps the panel OPEN at phone width (it opens it on purpose for its search box)', () => {
+    setWidth(390)
+    renderAt('/journal/notebook#search')
+    expect(showFoldersBtn()).toBeNull()
+  })
+
+  it('a drawer: opened, then a folder chosen, it folds again so the folder is what the member sees', async () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all')
+    fireEvent.click(showFoldersBtn())
+    expect(showFoldersBtn()).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Pick Swing ideas' }))
+    await waitFor(() => expect(showFoldersBtn()).not.toBeNull())
+  })
+
+  it('the reopen control says what it opens on a phone ("Folders"), keeping its accessible name', () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all')
+    expect(showFoldersBtn().textContent).toContain('Folders')
   })
 
   it('switching to an icon-row mode (Table) at phone width collapses the panel', async () => {

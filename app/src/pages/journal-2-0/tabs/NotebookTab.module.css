@@ -444,9 +444,27 @@
   .viewModeBtn { min-width: var(--tap-min, 44px); }
 }
 
+/* The toggle's word is phone-only: on a wider screen the icon sits beside the panel it opens. */
+.sidebarToggleLabel { display: none; }
+
 @media (max-width: 640px) {
   /* Phones keep normal page scroll — no viewport-locked panels. */
   .wrap { flex-direction: column; height: auto !important; overflow: visible; }
+  /* Phone pass 2026-10-10: the folders panel is a drawer on every phone view, so its door is a
+     labelled button in the page flow (above the view), not an icon floating over the content. */
+  .sidebarToggle {
+    position: static;
+    align-self: flex-start;
+    width: auto;
+    gap: 8px;
+    padding: 0 14px;
+    margin: 8px 16px 0;
+    color: var(--text-bright);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .sidebarToggleLabel { display: inline; }
   /* Wave 10 lane FX (proof walk wk-7bd834b9f, clause 6c): at rest, once the
      page scrolls as far as it goes, `.main`'s own 40px bottom padding left the
      LAST row of content (the view-switcher's "Week"/"List view" tab, the find
