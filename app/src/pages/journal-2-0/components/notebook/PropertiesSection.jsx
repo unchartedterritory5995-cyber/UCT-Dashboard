@@ -17,6 +17,7 @@ import {
 } from '../../lib/propertyAutofill'
 import styles from './PropertiesSection.module.css'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
+import Input from '../../../../components/ui/Input'
 
 const savedViewsFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -555,7 +556,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
                   <RollupEditor value={newRollup} onChange={setNewRollup} defs={propertyDefs} savedViews={savedViews} />
                 )}
                 {isChoiceType && (
-                  <input
+                  <Input aria-label="Property options, comma separated"
                     type="text"
                     className={styles.newPropInput}
                     placeholder="Options, comma separated (e.g. Low, Medium, High)"

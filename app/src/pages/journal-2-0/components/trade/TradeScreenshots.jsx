@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import useSWR from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './TradeScreenshots.module.css'
+import Input from '../../../../components/ui/Input'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { attachments: [] }))
@@ -157,7 +158,7 @@ export default function TradeScreenshots({ tradeId }) {
       className={`${styles.root} ${dragActive ? styles.rootDrag : ''}`}
       {...zoneHandlers}
     >
-      <input
+      <Input aria-label="Add screenshots"
         ref={inputRef}
         type="file"
         accept="image/*"

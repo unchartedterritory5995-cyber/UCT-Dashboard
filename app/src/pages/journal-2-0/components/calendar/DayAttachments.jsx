@@ -6,6 +6,7 @@
 import { useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './DayAttachments.module.css'
+import Input from '../../../../components/ui/Input'
 
 const MAX_ATTACHMENTS = 5
 
@@ -143,7 +144,7 @@ export default function DayAttachments({
       )}
 
       <div className={styles.linkRow}>
-        <input
+        <Input aria-label="Link URL"
           type="text"
           value={linkUrl}
           onChange={(e) => setLinkUrl(e.target.value)}
@@ -151,7 +152,7 @@ export default function DayAttachments({
           className={styles.linkInput}
           disabled={isFull}
         />
-        <input
+        <Input aria-label="Link label"
           type="text"
           value={linkLabel}
           onChange={(e) => setLinkLabel(e.target.value)}
@@ -170,7 +171,7 @@ export default function DayAttachments({
       </div>
 
       <div className={styles.uploadRow}>
-        <input
+        <Input aria-label="Attach an image"
           ref={fileInputRef}
           type="file"
           accept="image/png,image/jpeg,image/gif,image/webp"

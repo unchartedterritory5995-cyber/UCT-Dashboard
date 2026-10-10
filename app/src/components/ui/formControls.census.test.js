@@ -915,7 +915,9 @@ describe('⭐ THE MIGRATED SURFACES STAY FULLY NAMED', () => {
 //   2026-10-03   33  (start of lane/p2-ratchets-b; every remaining site outside
 //                     pages/journal-2-0/ named -> 23, all in journal-2-0, which
 //                     this lane may not touch)
-export const UNNAMED_BASELINE = 23
+//   2026-10-10    0  (lane f-l7: the 23 journal-2-0 sites named, each moved onto the
+//                     components/ui Input / Select / Textarea primitive with an aria-label)
+export const UNNAMED_BASELINE = 0
 export const isUnnamedForBaseline = (s) => s.label === 'unlabelled' || s.label === 'placeholder-only'
 export const unnamedTotal = ({ perFile }) =>
   Object.values(perFile).reduce((n, r) => n + r.sites.filter(isUnnamedForBaseline).length, 0)

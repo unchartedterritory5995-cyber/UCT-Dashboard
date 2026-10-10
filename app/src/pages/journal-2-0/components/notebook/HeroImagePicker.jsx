@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { settleNoteWrite } from '../../lib/offline/settleNoteWrite'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './HeroImagePicker.module.css'
+import Input from '../../../../components/ui/Input'
 
 export default function HeroImagePicker({ noteId, value, onChange }) {
   const inputRef = useRef(null)
@@ -159,7 +160,7 @@ export default function HeroImagePicker({ noteId, value, onChange }) {
           ⭐ `hero` is the door that shipped unsettled BECAUSE no canary could
           reach it. `data-uct-hero-input` is what makes it reachable, and
           `HeroImagePicker.settle.test.jsx` asserts it is still here. */}
-      <input
+      <Input aria-label="Choose a hero image"
         ref={inputRef}
         type="file"
         accept="image/png,image/jpeg,image/gif,image/webp"
