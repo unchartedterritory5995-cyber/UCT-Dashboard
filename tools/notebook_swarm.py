@@ -48,6 +48,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 PW = "SwarmLocal2026!"
+PHONE = [False]   # --phone puts every second browser member at 390 px
 SYMS = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "AMD", "CRWD", "GOOGL", "SPY", "QQQ"]
 
 # ── provisioning, in a child that owns the sandbox env ───────────────────────────────────────
@@ -440,7 +441,7 @@ def browser_lane(base: str, accts: list[dict], k: int, minutes: float, out: Path
             summary[rec["kind"]] += 1
 
     def one(i: int, acct: dict):
-        width, height = (1280, 900) if i % 2 == 0 else (390, 844)
+        width, height = (1280, 900) if (i % 2 == 0 or not PHONE[0]) else (390, 844)
         who = acct["email"].split("@")[0]
         rng = random.Random(9000 + i)
         with sync_playwright() as p:
@@ -462,14 +463,29 @@ def browser_lane(base: str, accts: list[dict], k: int, minutes: float, out: Path
                     where["step"] = "open"
                     pg.goto(base + "/journal/notebook", wait_until="domcontentloaded", timeout=60000)
                     pg.wait_for_timeout(1500)
+                    # the brand intro film plays over every page load first; a member skips it
+                    sk = pg.get_by_role("button", name="Skip intro")
+                    if sk.count() and sk.first.is_visible():
+                        sk.first.click()
+                        pg.wait_for_timeout(900)
                     for _ in range(3):
                         pg.keyboard.press("Escape")
+                    for label in ("Skip tour", "Got it"):
+                        d = pg.get_by_role("button", name=label, exact=True)
+                        if d.count() and d.first.is_visible():
+                            d.first.click()
+                            pg.wait_for_timeout(500)
                     body = pg.locator("body").inner_text(timeout=10000)
                     if "Something went wrong" in body or "This section failed" in body:
                         emit({"kind": "error-screen", "who": who, "w": width, "step": "open", "detail": body[:300]})
                     where["step"] = "new-note"
-                    btn = pg.get_by_role("button", name="New note").first
-                    if btn.count() and btn.is_visible():
+                    btn = None
+                    for label in ("New note", "Start a note", "Write your first note"):
+                        cand = pg.get_by_role("button", name=label, exact=True).first
+                        if cand.count() and cand.is_visible():
+                            btn = cand
+                            break
+                    if btn is not None:
                         btn.click()
                         ed = pg.locator(".ProseMirror").first
                         ed.wait_for(timeout=20000)
@@ -533,7 +549,7 @@ def report(out: Path, rec: Rec, swarm: dict, browser: dict, args) -> int:
     lines = [f"# Notebook swarm, {time.strftime('%Y-%m-%d %H:%M')}",
              "",
              f"- members (API): **{swarm.get('members')}** for {args.minutes} min; notes created **{swarm.get('notes_created')}**; requests **{total_ops}**",
-             f"- browser members: **{args.browsers}** (half 1280 px, half 390 px)",
+             f"- browser members: **{args.browsers}** ({'half 1280 px, half 390 px' if args.phone else 'all 1280 px'})",
              f"- findings: " + (", ".join(f"{k} {v}" for k, v in sorted(kinds.items())) or "none"),
              f"- browser events: " + (", ".join(f"{k} {v}" for k, v in sorted(browser.items())) or "none"),
              "", "## Endpoints", "", "| endpoint | calls | statuses | p50 ms | p95 ms | p99 ms | max ms |", "|---|---|---|---|---|---|---|"]
@@ -563,9 +579,11 @@ def main(argv=None) -> int:
     ap.add_argument("--think-min", type=float, default=0.2)
     ap.add_argument("--think-max", type=float, default=1.5)
     ap.add_argument("--prefix", default="swarm")
+    ap.add_argument("--phone", action="store_true")
     ap.add_argument("--seed", type=int, default=1009)
     ap.add_argument("--out", required=True)
     args = ap.parse_args(argv)
+    PHONE[0] = args.phone
     host = args.base.split("//", 1)[-1].split(":")[0]
     if host not in ("127.0.0.1", "localhost"):
         print("REFUSED: the swarm runs only against a local sandbox")

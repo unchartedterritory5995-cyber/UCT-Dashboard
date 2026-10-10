@@ -166,3 +166,38 @@ describe('a metadata door never queues words the editor never saw', () => {
     expect(store('outbox')).toEqual([])
   })
 })
+
+// Crawl finding, 2026-10-09: an invalid ticker was sent as typed, the 400 escaped as an
+// uncaught page error and the field kept the bad text. lib/noteTicker.js holds the rule.
+describe('the Ticker field checks what was typed before it sends anything', () => {
+  it('a value that is not a ticker sends nothing, says so, and puts the field back', async () => {
+    NOTE = { ...baseNote(), ticker: 'NVDA' }
+    server = { ...NOTE }
+    await renderEditor()
+    const field = screen.getByRole('textbox', { name: 'Ticker' })
+    fireEvent.change(field, { target: { value: 'crawl test 42' } })
+    fireEvent.blur(field)
+    await screen.findByText(/isn't a ticker symbol/)
+    expect(updateMock).not.toHaveBeenCalled()
+    expect(field.value).toBe('NVDA')
+  })
+
+  it('CONTROL — a real symbol, typed loosely, is normalised and saved', async () => {
+    await renderEditor()
+    const field = screen.getByRole('textbox', { name: 'Ticker' })
+    fireEvent.change(field, { target: { value: ' $amd ' } })
+    fireEvent.blur(field)
+    await waitFor(() => expect(updateMock).toHaveBeenCalledWith(expect.objectContaining({ ticker: 'AMD' })))
+    await waitFor(() => expect(field.value).toBe('AMD'))
+  })
+
+  it('a refusal from the server is said, not thrown', async () => {
+    await renderEditor()
+    updateMock.mockImplementationOnce(async () => { const e = new Error('ticker has invalid characters'); e.status = 400; throw e })
+    const field = screen.getByRole('textbox', { name: 'Ticker' })
+    fireEvent.change(field, { target: { value: 'ZZZZ' } })
+    fireEvent.blur(field)
+    await screen.findByText("Couldn't change the ticker. Nothing changed.")
+    expect(field.value).toBe('')
+  })
+})

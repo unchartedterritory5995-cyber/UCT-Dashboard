@@ -46,7 +46,7 @@ ERROR_TEXT = ("Something went wrong", "This section failed", "Unexpected Applica
 
 ENUM_JS = r"""
 (sel) => {
-  const scope = document.querySelector('[role=dialog][aria-modal=true], [role=menu], [role=listbox]') || document;
+  const scope = document.querySelector('[role=dialog][aria-modal=true], [role=menu], [role=listbox]') || document.getElementById('main-content') || document;
   const out = [];
   const seen = new Set();
   for (const el of scope.querySelectorAll(sel)) {
@@ -59,10 +59,11 @@ ENUM_JS = r"""
                   el.getAttribute('placeholder') || '').trim().replace(/\s+/g, ' ').slice(0, 60);
     const role = el.getAttribute('role') || el.tagName.toLowerCase();
     const type = el.getAttribute('type') || '';
-    const sig = role + '|' + type + '|' + name;
+    const sig = role + '|' + type + '|' + name.replace(/[0-9]+/g, '#');
     if (seen.has(sig)) continue;
     seen.add(sig);
-    out.push({sig, name, role, type, tag: el.tagName.toLowerCase(), inDialog: scope !== document});
+    const href = el.getAttribute('href') || '';
+    out.push({sig, name, role, type, href, tag: el.tagName.toLowerCase(), inDialog: scope.id !== 'main-content' && scope !== document});
   }
   return out;
 }
@@ -70,13 +71,14 @@ ENUM_JS = r"""
 
 FIND_JS = r"""
 ([sel, sig]) => {
-  const scope = document.querySelector('[role=dialog][aria-modal=true], [role=menu], [role=listbox]') || document;
+  document.querySelectorAll('[data-crawl-target]').forEach(e => e.removeAttribute('data-crawl-target'));
+  const scope = document.querySelector('[role=dialog][aria-modal=true], [role=menu], [role=listbox]') || document.getElementById('main-content') || document;
   for (const el of scope.querySelectorAll(sel)) {
     const r = el.getBoundingClientRect();
     if (r.width < 2 || r.height < 2) continue;
     const name = (el.getAttribute('aria-label') || el.getAttribute('title') || el.innerText || el.value ||
                   el.getAttribute('placeholder') || '').trim().replace(/\s+/g, ' ').slice(0, 60);
-    const s = (el.getAttribute('role') || el.tagName.toLowerCase()) + '|' + (el.getAttribute('type') || '') + '|' + name;
+    const s = (el.getAttribute('role') || el.tagName.toLowerCase()) + '|' + (el.getAttribute('type') || '') + '|' + name.replace(/[0-9]+/g, '#');
     if (s === sig) { el.setAttribute('data-crawl-target', '1'); return true; }
   }
   return false;
@@ -85,8 +87,18 @@ FIND_JS = r"""
 
 FINGERPRINT_JS = r"""
 () => {
+  const d = document.querySelectorAll('[role=dialog], [role=menu], [role=listbox]').length;
+  return location.pathname + location.search + '|' + d;
+}
+"""
+
+CHANGE_JS = r"""
+() => {
   const d = document.querySelectorAll('[role=dialog], [role=menu], [role=listbox], [role=alert], [role=status]').length;
-  return location.pathname + location.search + '|' + d + '|' + document.body.innerText.length;
+  const m = document.getElementById('main-content');
+  const ex = document.querySelectorAll('[aria-expanded=true], [aria-pressed=true], [aria-selected=true], [aria-checked=true]').length;
+  return location.pathname + location.search + '|' + d + '|' + ex + '|' + document.body.childElementCount + '|' + (m ? m.innerHTML.length : 0)
+    + '|' + (document.activeElement ? document.activeElement.tagName : '');
 }
 """
 
@@ -106,18 +118,63 @@ class Crawl:
         self.pg.on("response", lambda r: r.status >= 500 and self.events.append(f"http {r.status} {r.url}"))
         self.pg.on("dialog", lambda d: d.dismiss())
         self.counts = Counter()
+        self.baseline: dict[str, str] = {}
+        self.dirty = True     # the last action changed something: the next one starts from a reload
 
     def load(self, state: dict):
         self.pg.goto(self.base + state["url"], wait_until="domcontentloaded", timeout=60000)
-        self.pg.wait_for_timeout(1800)
+        try:
+            self.pg.wait_for_load_state("networkidle", timeout=8000)
+        except Exception:  # noqa: BLE001  -- live polling can keep the network busy; fall back to time
+            pass
+        self.pg.wait_for_timeout(1200)
+        sk = self.pg.get_by_role("button", name="Skip intro")
+        if sk.count() and sk.first.is_visible():
+            sk.first.click()
+            self.pg.wait_for_timeout(900)
         for _ in range(2):
             self.pg.keyboard.press("Escape")
+        # First-run surfaces a new member dismisses before working: the guided tour and the
+        # one-time banners. Without this a fresh account crawls the tour popover, not the page.
+        for label in ("Skip tour", "Got it"):
+            for _ in range(3):
+                b = self.pg.get_by_role("button", name=label, exact=True)
+                if not (b.count() and b.first.is_visible()):
+                    break
+                try:
+                    b.first.click(timeout=3000)
+                    self.pg.wait_for_timeout(500)
+                except Exception:  # noqa: BLE001
+                    break
         self.pg.wait_for_timeout(300)
         for step in state.get("then", []):
-            b = self.pg.get_by_role("button", name=step, exact=True).first
-            if b.count():
-                b.click()
-                self.pg.wait_for_timeout(900)
+            hit = None
+            for role in ("button", "treeitem", "link", "tab"):
+                b = self.pg.get_by_role(role, name=re.compile(r"^\s*" + re.escape(step) + r"(\b|$)")).first
+                if b.count() and b.is_visible():
+                    hit = b
+                    break
+            if hit is None:
+                raise RuntimeError(f"state {state['name']}: no control named {step!r} to reach it")
+            hit.click()
+            self.pg.wait_for_timeout(900)
+            try:
+                self.pg.wait_for_load_state("networkidle", timeout=6000)
+            except Exception:  # noqa: BLE001
+                pass
+
+    def ensure(self, state: dict):
+        """Bring the page back to the state's baseline, reloading only when it moved."""
+        for _ in range(2):
+            self.pg.keyboard.press("Escape")
+        try:
+            fp = self.pg.evaluate(FINGERPRINT_JS)
+        except Exception:  # noqa: BLE001
+            fp = None
+        if self.dirty or fp is None or fp != self.baseline.get(state["name"]):
+            self.load(state)
+            self.baseline[state["name"]] = self.pg.evaluate(FINGERPRINT_JS)
+            self.dirty = False
 
     def overflow(self) -> bool:
         return bool(self.pg.evaluate("() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1"))
@@ -130,7 +187,10 @@ class Crawl:
         return next((t for t in ERROR_TEXT if t in txt), "")
 
     def operate(self, state: dict, el: dict, opener: dict | None = None) -> str:
-        self.load(state)
+        href = el.get("href") or ""
+        if el["tag"] == "a" and href and "/journal" not in href and not href.startswith("#"):
+            return self.row(state, el, "left", f"link to {href} (not followed)", opener)
+        self.ensure(state)
         path = []
         if opener:
             if not self.pg.evaluate(FIND_JS, [INTERACTIVE, opener["sig"]]):
@@ -143,7 +203,7 @@ class Crawl:
             return self.row(state, el, "skipped", "account-level destructive control", opener)
         if not self.pg.evaluate(FIND_JS, [INTERACTIVE, el["sig"]]):
             return self.row(state, el, "driver", "the element was not found after reload", opener)
-        before = self.pg.evaluate(FINGERPRINT_JS)
+        before = self.pg.evaluate(CHANGE_JS)
         self.events.clear()
         loc = self.pg.locator("[data-crawl-target]").first
         try:
@@ -152,18 +212,41 @@ class Crawl:
                 if len(opts) > 1:
                     loc.select_option(index=1, timeout=5000)
             elif el["tag"] in ("input", "textarea") and el["type"] not in ("checkbox", "radio", "button", "submit", "file", "color", "range"):
-                loc.fill("crawl test 42", timeout=5000)
+                value = {"number": "42", "date": "2026-10-09", "time": "09:30", "month": "2026-10",
+                         "datetime-local": "2026-10-09T09:30", "email": "crawl@local.dev", "url": "https://example.com"}.get(el["type"], "crawl test 42")
+                loc.fill(value, timeout=5000)
                 self.pg.keyboard.press("Enter")
             elif el["type"] == "file":
                 return self.row(state, el, "skipped", "file picker (exercised by the authored walks)", opener)
             else:
-                loc.click(timeout=5000)
+                try:
+                    loc.click(timeout=5000)
+                except Exception:  # noqa: BLE001  -- something left open covers it: reload once and retry
+                    self.dirty = True
+                    self.ensure(state)
+                    if opener:
+                        if not self.pg.evaluate(FIND_JS, [INTERACTIVE, opener["sig"]]):
+                            return self.row(state, el, "driver", "the opener was not found on retry", opener)
+                        self.pg.locator("[data-crawl-target]").first.click(timeout=5000)
+                        self.pg.wait_for_timeout(700)
+                    if not self.pg.evaluate(FIND_JS, [INTERACTIVE, el["sig"]]):
+                        return self.row(state, el, "driver", "the element was not found on retry", opener)
+                    before = self.pg.evaluate(CHANGE_JS)
+                    self.events.clear()
+                    self.pg.locator("[data-crawl-target]").first.click(timeout=5000)
         except Exception as e:  # noqa: BLE001
+            self.dirty = True
             return self.row(state, el, "driver", f"{type(e).__name__}: {str(e)[:160]}", opener)
         self.pg.wait_for_timeout(900)
         after_url = self.pg.url
-        after = self.pg.evaluate(FINGERPRINT_JS)
-        errs = [e for e in self.events if not e.startswith("console: Failed to load resource: the server responded with a status of 4")]
+        after = self.pg.evaluate(CHANGE_JS)
+        # The sandbox has no broker credentials, so the Journal's background broker sync answers 503
+        # there (and the browser logs one console line for it). Neither is a Notebook fact.
+        broker = any("broker/sync" in e for e in self.events)
+        errs = [e for e in self.events
+                if not e.startswith("console: Failed to load resource: the server responded with a status of 4")
+                and "broker/sync" not in e
+                and not (broker and e.startswith("console: Failed to load resource: the server responded with a status of 503"))]
         se = self.screen_error()
         if se:
             return self.row(state, el, "error-screen", se + (" | " + " || ".join(errs[:3]) if errs else ""), opener)
@@ -177,6 +260,8 @@ class Crawl:
 
     def row(self, state, el, outcome, detail, opener=None) -> str:
         self.counts[outcome] += 1
+        if outcome != "noop":
+            self.dirty = True
         rec = {"w": self.width, "state": state["name"], "opener": (opener or {}).get("name"), "control": el["name"],
                "role": el["role"], "outcome": outcome, "detail": detail}
         self.ledger.write(json.dumps(rec) + "\n")
@@ -185,6 +270,7 @@ class Crawl:
 
     def crawl_state(self, state: dict, max_controls: int):
         self.load(state)
+        self.baseline[state["name"]] = self.pg.evaluate(FINGERPRINT_JS)
         if self.screen_error():
             self.row(state, {"name": "(state load)", "role": "-"}, "error-screen", self.screen_error())
             return
@@ -235,18 +321,23 @@ def main(argv=None) -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--viewports", default="1280,390")
     ap.add_argument("--max-controls", type=int, default=120)
+    ap.add_argument("--states", default="", help="comma list of state names to crawl (default all)")
+    ap.add_argument("--account-prefix", default="crawler")
     args = ap.parse_args(argv)
     if args.base.split("//", 1)[-1].split(":")[0] not in ("127.0.0.1", "localhost"):
         print("REFUSED: local sandbox only")
         return 2
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    acct = sw.provision(args.data_dir, 1, "crawler", out / "provision.log")[0]
+    acct = sw.provision(args.data_dir, 1, args.account_prefix, out / "provision.log")[0]
     s = seed(args.base, acct["token"])
     views = ["List view", "Table view", "Board view", "Calendar view", "Graph view", "Timeline view", "Tasks view"]
     states = ([{"name": "home", "url": "/journal/notebook"}]
-              + [{"name": v, "url": "/journal/notebook", "then": [v]} for v in views[1:]]
+              + [{"name": v, "url": "/journal/notebook", "then": ["All notes", v]} for v in views]
               + [{"name": "editor (rich note)", "url": f"/journal/notebook?note={s['note']}"}])
+    if args.states:
+        want = {x.strip() for x in args.states.split(",")}
+        states = [st for st in states if st["name"] in want]
     from playwright.sync_api import sync_playwright
     ledger = open(out / "ledger.jsonl", "w", encoding="utf-8", newline="\n")
     totals = Counter()
