@@ -260,6 +260,13 @@ export function screenModelOps(host, ops, text, capCtx = {}) {
     const name = (layoutSave && layoutSave.args && layoutSave.args.name) || (draftSave && draftSave.args && draftSave.args.name) || null
     return { ops: [], notes, ask: { text: SAVE_ASK_TEXT, choices: saveChoices(name) } }
   }
+  // R1 — the model's two-op form ("Name it X" turn + Save) becomes ONE "save as X", so the rename is
+  // the specialist's typed renameDraft (never a draft turn that could reach the model)
+  if (out.length === 2 && out[0]?.action === 'indicator.draft' && out[1]?.action === 'indicator.saveDraft'
+    && out[0].target === out[1].target && out[1].args?.name == null) {
+    const m = /^\s*(?:please\s+)?(?:name|call|rename|title)\s+it\s+(?:to\s+|as\s+)?["“]?(.+?)["”]?\s*[.!]?\s*$/i.exec(String(out[0].args?.message || ''))
+    if (m && m[1].trim()) out = [{ ...out[1], args: { ...out[1].args, name: m[1].trim() } }]
+  }
   // M1 — a preview nobody asked for is never part of the plan (the draft itself still runs)
   if (out.some(o => o?.action === 'indicator.previewDraft') && !asksToPreview(words)) {
     out = out.filter(o => o?.action !== 'indicator.previewDraft')
@@ -668,6 +675,9 @@ export function registerIndicatorAuthoringCapabilities() {
       if (st.new) return 'There is no draft to save yet — describe the indicator first.'
       if (name != null && (typeof name !== 'string' || !name.trim() || name.length > 120)) return 'Say the name to save it as.'
       if (name != null && has(st, 'turn')) return 'Name it in the save itself, not as a separate change.'
+      // ⛔ renameDraft is the ONLY rename path: a draft turn (which can reach the model) never rides
+      // inside a Save — change the draft first, or name it with "save it as …"
+      if (has(st, 'turn')) return 'Change the draft first, then ask me to save it — or say “save it as …” to name it as you save.'
       const u = usable(st); if (u) return u
       if (has(st, 'save')) return 'One save at a time.'
       if (!has(st, 'turn') && !st.status.canSave) return refusalSentence({ reason: R.NOT_DIRTY })
