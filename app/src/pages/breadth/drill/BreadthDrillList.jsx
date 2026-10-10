@@ -7,6 +7,8 @@ import { useWorkspace } from '../../charts/WorkspaceContext'
 import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
 import { prefetchListDeep } from '../../../utils/prefetchBars'
 import { useDrillSource } from './DrillSourceContext'
+import { useMemberInterestSurface } from '../../../lib/memberInterest'
+import MemberInterestNotice from '../../../components/memberInterest/MemberInterestNotice'
 import styles from './BreadthDrillList.module.css'
 
 // The breadth cell's constituents, rendered through the REAL watchlist table.
@@ -40,6 +42,9 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
   const drill = useDrillSource()
   const widgetId = useId()
   const items = drill?.items ?? NO_ITEMS
+  // D-9 (UC-1): which drilled names the member already follows. Dark behind
+  // MEMBER_INTEREST_BREADTH_ENABLED; outside an AuthProvider it reads as off.
+  const interestOn = useMemberInterestSurface('member_interest_breadth_enabled')
 
   // Scoped sym context: a row click publishes into THIS widget's colour group so
   // the paired chart follows — identical wiring to ScannerResults/WatchlistWidget.
@@ -215,6 +220,10 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
             setDimension={setDimension}
           />
         </div>
+      )}
+      {interestOn && items.length > 0 && (
+        <MemberInterestNotice enabled={interestOn} where="in this list" testId="member-interest-breadth"
+          syms={items.map(tickerOf)} />
       )}
       <div className={styles.tableWrap}>
         <ChartsSymContext.Provider value={scopedSymContext}>

@@ -172,6 +172,32 @@ function EdgarInsiderSection({ src, rows, sym, onRetry, reaskExhausted }) {
   )
 }
 
+// TERM-045: the SEC Official List of Section 13(f) Securities joined to this ticker's
+// own CUSIP (api/services/sec_13f_list.py, dark server flag). The block is absent while
+// the flag is off, so nothing renders. Every state says what it is: "not on the list"
+// and "we could not check" are different facts.
+export function ThirteenFListLine({ block, sym }) {
+  if (!block || !block.state) return null
+  const q = block.quarter ? ` (${block.quarter})` : ''
+  let text
+  if (block.state === 'ok') {
+    const own = block.security?.description ? `${block.security.description}, CUSIP ${block.cusip}` : `CUSIP ${block.cusip}`
+    const others = (block.issuer_securities || []).filter((s) => s.cusip !== block.cusip).length
+    text = `${sym}'s ${own} is on the SEC's 13(f) list${q}, so 13F filers must report it.`
+      + (block.security?.has_listed_options ? ' Listed options exist on it.' : '')
+      + (others > 0 ? ` ${others} other ${others === 1 ? 'security' : 'securities'} of this issuer ${others === 1 ? 'is' : 'are'} on the list too.` : '')
+  } else if (block.state === 'not_on_list') {
+    text = `CUSIP ${block.cusip} is not on the SEC's 13(f) list${q}, so 13F filers do not report positions in it.`
+  } else {
+    text = `13(f) list check unavailable: ${block.reason || 'the list could not be read'}.`
+  }
+  return (
+    <div className={styles.srcNoteTight} data-testid="thirteenf-list" data-state={block.state}>
+      {text}{' '}Source: {block.source}.
+    </div>
+  )
+}
+
 export default function OwnershipTab({ sym }) {
   const { data, isLoading, error, paywalled, mutate } = useOwnership(sym)
   const session = useMarketOpen()
@@ -346,10 +372,18 @@ export default function OwnershipTab({ sym }) {
               </table>
             </div>
           )}
+          <ThirteenFListLine block={o.thirteen_f_list} sym={o.sym || sym} />
           <TrustStrip meta={tf._meta} sessionContext={sessionContext} />
           {/* 13F filings lag ~45 days by nature — the freshness badge above
               reflects D1's provenance, this states the structural lag itself. */}
           <div className={styles.srcNoteTight}>13F filings lag roughly 45 days after quarter-end.</div>
+        </section>
+      )}
+
+      {!tf && o.thirteen_f_list && (
+        <section className={styles.card}>
+          <div className={styles.ct}>Form 13F</div>
+          <ThirteenFListLine block={o.thirteen_f_list} sym={o.sym || sym} />
         </section>
       )}
 

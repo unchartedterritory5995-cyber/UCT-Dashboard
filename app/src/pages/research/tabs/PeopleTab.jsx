@@ -152,6 +152,54 @@ function InsiderRoles({ part, sym }) {
   )
 }
 
+// COV-05 / FT-076 (dark server flag RESEARCH_PEOPLE_BOARD_ENABLED): directors seen on
+// Form 4 and a link to the proxy statement that carries the biographies. The server sends
+// `board` only when armed, so this renders nothing until then. Link only for bios: no
+// biography text is extracted or written here.
+function Board({ part, sym }) {
+  const bios = part?.bios
+  return (
+    <>
+      {part?.rows?.length
+        ? (
+          <div className={styles.scroll}>
+            <table className={styles.grid} data-testid="people-board" aria-label="Directors (SEC Form 4)">
+              <thead><tr><th scope="col">Director</th><th scope="col">Declared role</th><th scope="col">Latest Form 4</th></tr></thead>
+              <tbody>
+                {part.rows.map((r) => (
+                  <tr key={r.accession + r.name}>
+                    <td>{r.name}</td>
+                    <td>{r.role}</td>
+                    <td>{r.url
+                      ? <a className={styles.link} href={r.url} target="_blank" rel="noopener noreferrer">{r.filing_date}</a>
+                      : r.filing_date}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+        : (
+          <div className={styles.gap} data-testid="people-board-gap">
+            {part?.state === 'none_in_window'
+              ? `No Form 4 filed for ${sym} in the last ${part.window_days} days declared a director.`
+              : `Directors: unavailable right now (${memberText(part?.reason) || 'SEC EDGAR could not be read'}). That is a gap in what we could read, not a finding about ${sym}.`}
+          </div>
+        )}
+      <div className={styles.muted} data-testid="people-board-source">
+        Source: {memberText(part?.source)}. Shows {part?.scope || 'directors seen on Form 4'}.
+      </div>
+      <div className={styles.muted} data-testid="people-bios">
+        {bios?.state === 'ok' && bios.url
+          ? <>Director and officer biographies: <a className={styles.link} href={bios.url} target="_blank" rel="noopener noreferrer">proxy statement filed {bios.filing_date}</a> ({memberText(bios.source)}).</>
+          : bios?.state === 'not_found'
+            ? `Biographies: ${sym} has no proxy statement in its recent SEC filings.`
+            : `Biographies: unavailable right now (${memberText(bios?.reason) || 'SEC EDGAR could not be read'}).`}
+      </div>
+    </>
+  )
+}
+
 export default function PeopleTab({ sym }) {
   const s = (sym || '').toUpperCase().trim()
   const key = s ? `/api/research/people/${encodeURIComponent(s)}` : null
@@ -190,6 +238,9 @@ export default function PeopleTab({ sym }) {
       <div className={styles.card}><h3 className={styles.title}>Compensation (proxy summary table)</h3><Compensation part={data.compensation} sym={s} /></div>
       <div className={styles.card}><h3 className={styles.title}>Insider roles (SEC Form 4)</h3><InsiderRoles part={data.insider_roles} sym={s} />
         <PendingGaveUp exhausted={reask.exhausted} onRetry={reask.retry} what="The Form 4 read" /></div>
+      {data.board && (
+        <div className={styles.card}><h3 className={styles.title}>Board and biographies</h3><Board part={data.board} sym={s} /></div>
+      )}
     </section>
   )
 }

@@ -2155,6 +2155,62 @@
       ],
       "note": "ARMED on web 2026-10-04. D-9 Personalization UC-1 (lane R, owner ruling 2026-10-02): the first consumer of GET /api/member/interest (on master with no caller). Under the Research header, one line says the member already has a view on this ticker and why: 'Yours: in your open positions · on your watchlists · on the UCT 20' from the route's own because[], never re-derived on the client. PRESENCE ONLY: the resolver folds a failing source into an empty set, so the line never says 'not on your watchlist'; it renders nothing when the ticker is not in the answer or the read failed. No new route, no re-ranking; the existing route (paid, 15s per-member cache) is read as-is. Client-only gate (api/services/member_interest_line.is_enabled, read per call) carried on the auth payload as member_interest_line_enabled, present only when on; unset = the line is absent and /api/member/interest is never requested by it. Arm: railway variables --service web --set MEMBER_INTEREST_LINE_ENABLED=1 (owner). Rollback = unset it."
     },
+    "MEMBER_INTEREST_BREADTH_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": [
+        "web"
+      ],
+      "note": "D-9 Personalization UC-1, second consumer of GET /api/member/interest (lane L5, 2026-10-10): in the Breadth drill modal, one line over the drilled list names the tickers in that list the member already follows and why ('On your radar here: NVDA (on your watchlists)'), from the route's own because[]. PRESENCE ONLY (nothing when no ticker matches or the read failed), no re-ordering, no new route. DARK because it is new member-facing copy that has not been looked at on production yet. Client-only gate (api/services/member_interest_breadth.is_enabled, read per call) on the auth payload as member_interest_breadth_enabled, present only when on; unset = the line is absent and the drill never requests /api/member/interest. Arm: railway variables --service web --set MEMBER_INTEREST_BREADTH_ENABLED=1 (owner). Rollback = unset it."
+    },
+    "MEMBER_INTEREST_SCREENER_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": [
+        "web"
+      ],
+      "note": "D-9 Personalization UC-1, consumer of GET /api/member/interest on the Screener (lane L5, 2026-10-10): one line over the loaded result rows names the tickers in them the member already follows and why, from the route's own because[]. PRESENCE ONLY, no re-ordering of the results, no new route. DARK because it is new member-facing copy that has not been looked at on production yet. Client-only gate (api/services/member_interest_screener.is_enabled, read per call) on the auth payload as member_interest_screener_enabled, present only when on; unset = the line is absent and the Screener never requests /api/member/interest. Arm: railway variables --service web --set MEMBER_INTEREST_SCREENER_ENABLED=1 (owner). Rollback = unset it."
+    },
+    "MEMBER_INTEREST_WIRE_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": [
+        "web"
+      ],
+      "note": "D-9 Personalization UC-1, consumer of GET /api/member/interest on the Morning Wire (lane L5, 2026-10-10): one line over the rundown names the Top picks cards (.rd-pick, the same ticker reader as setupFeedback.cardSym) the member already follows and why, from the route's own because[]. PRESENCE ONLY, the rundown HTML is not modified, no new route. DARK because it is new member-facing copy that has not been looked at on production yet. Client-only gate (api/services/member_interest_wire.is_enabled, read per call) on the auth payload as member_interest_wire_enabled, present only when on; unset = the line is absent and the Wire never requests /api/member/interest. Arm: railway variables --service web --set MEMBER_INTEREST_WIRE_ENABLED=1 (owner). Rollback = unset it."
+    },
+    "FIGURE_SOURCE_LINKS_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": [
+        "web"
+      ],
+      "note": "TERM-043 figure-to-source link (lane L5, owner ruling T-13 2026-10-07: link only, from the PIT store). A quarterly statement figure on Research > Financials (FMP, /api/research/financial-history) carries a link to the SEC filing it appears in (accession -> EDGAR filing index) when the point-in-time fundamentals store holds the same line for the same period, matched within rounding (0.5%, or 0.6 cents for diluted EPS) and read from exactly ONE filing; a derived figure (Q4 = year minus nine months) gets no link. The displayed number stays FMP's. api/services/research/figure_sources.py; quarterly basis only; never raises; reads the published PIT artifact (no SEC request). Needs FUNDAMENTALS_PIT_PUBLISH_SOURCES armed on the worker first, or the artifact carries no accessions and nothing is linked. DARK because it is new member-facing behaviour not yet looked at on production. Unset = the financial-history payload is byte-identical. Arm: railway variables --service web --set FIGURE_SOURCE_LINKS_ENABLED=1 (owner). Rollback = unset it."
+    },
+    "FUNDAMENTALS_PIT_PUBLISH_SOURCES": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": [
+        "worker"
+      ],
+      "note": "TERM-043 worker half (lane L5, 2026-10-10): when 1, the PIT publisher adds a 'sources' map to each company artifact (accession list per point, index-aligned, for revenue_q / net_income_q / eps_diluted_q only; api/services/fundamentals_pit/publish.py). Unset = the artifact is byte-identical, so nothing republishes. Arming it changes every artifact once, so every company republishes on the next publish pass (a one-time R2 write cost). DARK because that republish is a production write the owner schedules. Arm: railway variables --service worker --set FUNDAMENTALS_PIT_PUBLISH_SOURCES=1 (owner), then FIGURE_SOURCE_LINKS_ENABLED on web. Rollback = unset it; the next publish drops the key."
+    },
+    "SEC_13F_LIST_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": [
+        "web"
+      ],
+      "note": "TERM-045 13F holders join (lane L5, owner ruling T-14 2026-10-07: the SEC's free Official List of Section 13(f) Securities, no CUSIP master purchase). The job sec_13f_list_refresh (06:25 ET daily, always registered, a no-op while unset) downloads https://www.sec.gov/files/investment/13flist{YYYY}q{N}.txt for the current quarter, falling back up to three quarters, through fundamentals_pit.sec_client (SEC_USER_AGENT, the fair-access limiter, 30 s timeout, 8 MB byte cap; a quarter on disk is never fetched again) into SEC_13F_LIST_PATH (default /data/sec_13f_list). GET /api/research/ownership/{sym} then carries thirteen_f_list: whether the ticker's own CUSIP (local FTD store, else FMP profile cusip, cached 24 h) is on the list, every listed security of its issuer (shares, options, notes), and the list quarter beside the FMP 13F holders quarter; the Ownership tab shows one line. States ok / not_on_list / no_cusip / not_ingested / unavailable. The request path reads disk only. DARK because it adds a scheduled SEC download and new member copy. Arm: railway variables --service web --set SEC_13F_LIST_ENABLED=1 (owner). Rollback = unset it; the files stay, nothing is read."
+    },
+    "RESEARCH_PEOPLE_BOARD_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": [
+        "web"
+      ],
+      "note": "COV-05 / FT-076 board and biographies (lane L5, D-008: a free source already reachable). Research > People gains 'Board and biographies': the reporting owners whose Form 4 declares them a director, from the SAME cached EDGAR Form 4 snapshot the insider-roles section reads (no new SEC request; scope stated: directors seen on Form 4 in the 180-day window), and a LINK to the issuer's newest DEF 14A proxy statement (where the SEC requires director and officer biographies), taken from the same submissions document. Bio text is not extracted (no structured source; FMP's plan has no bio or board endpoint). Needs EDGAR_OWNERSHIP_ENABLED (armed). DARK because it is new member-facing copy not yet looked at on production. Unset = no 'board' key and the section is absent. Arm: railway variables --service web --set RESEARCH_PEOPLE_BOARD_ENABLED=1 (owner). Rollback = unset it."
+    },
     "ENTITY_RENAME_NOTICE_ENABLED": {
       "status": "armed",
       "since": "2026-10-02",

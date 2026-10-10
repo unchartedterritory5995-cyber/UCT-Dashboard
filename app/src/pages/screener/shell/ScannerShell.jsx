@@ -38,6 +38,8 @@ import SaveForkDialog from './SaveForkDialog'
 import PresetChips from './PresetChips'
 import useScreenerHubSection from '../../../hub/sections/screenerSection'
 import SaveToNotebookButton from '../../journal-2-0/components/SaveToNotebookButton'
+import { useMemberInterestSurface } from '../../../lib/memberInterest'
+import MemberInterestNotice from '../../../components/memberInterest/MemberInterestNotice'
 import { buildScreenerCapture } from './notebookCapture'
 import { SkipLinkPortal } from '../../../components/skipLinks'
 import styles from './ScannerShell.module.css'
@@ -125,6 +127,8 @@ export default function ScannerShell({ embedded = false }) {
     useScreenerCount(scanSpec)
 
   const [rows, setRows] = useState([])
+  // D-9 (UC-1) gate; outside an AuthProvider it reads as off, so the shell still renders.
+  const interestOn = useMemberInterestSurface('member_interest_screener_enabled')
   // null until the first scan answers — so the count shows nothing (not a
   // flashed "0 names") before the pool size is known.
   const [total, setTotal] = useState(null)
@@ -479,6 +483,12 @@ export default function ScannerShell({ embedded = false }) {
         {/* TERM-047: the screen's OWN four-count receipt from /api/screener/scan
             (dark: the backend sends none, so this renders nothing). */}
         <CoverageLine coverage={result?.coverage ?? null} />
+        {/* D-9 (UC-1): which loaded rows the member already follows (presence only,
+            the rows are not re-ordered). Dark behind MEMBER_INTEREST_SCREENER_ENABLED. */}
+        {interestOn && displayRows.length > 0 && (
+          <MemberInterestNotice enabled={interestOn} where="in these results" testId="member-interest-screener"
+            syms={displayRows.map(r => r.ticker)} />
+        )}
 
         {error && (
           <div className={styles.scanError} role="alert">

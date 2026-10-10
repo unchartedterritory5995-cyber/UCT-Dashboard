@@ -61,3 +61,17 @@ export function setupAnchor(root, seg) {
   const sym = String(seg).slice('setup:'.length)
   return root.querySelector(`.rd-pick[data-fb-sym="${sym}"] .rd-setup-fb`)
 }
+
+/** D-9: the Top picks cards' tickers in a rundown HTML string, in card order, read
+ *  with the SAME `cardSym` the feedback controls use. Parsed into a detached
+ *  document, so the rendered rundown DOM is never touched. [] when there are none. */
+export function topPickSyms(html) {
+  if (!html || typeof DOMParser === 'undefined') return []
+  const doc = new DOMParser().parseFromString(String(html), 'text/html')
+  const out = []
+  doc.querySelectorAll('.rd-pick').forEach((card) => {
+    const sym = cardSym(card)
+    if (sym && !out.includes(sym)) out.push(sym)
+  })
+  return out
+}

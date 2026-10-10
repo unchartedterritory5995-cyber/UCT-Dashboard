@@ -367,6 +367,33 @@ def list_form4_filings(submissions: dict, *, since: str) -> dict:
     return {"filings": out, "index_short": index_short}
 
 
+def latest_proxy_filing(submissions: dict, cik: str | int) -> Optional[dict]:
+    """COV-05: the newest definitive proxy statement (form DEF 14A) in a submissions
+    document, read from the SAME document the Form 4 listing uses (no extra SEC request).
+    The proxy is where an issuer publishes its director and officer biographies; this is
+    a link to it, never extracted text. None when the recent block lists no DEF 14A."""
+    recent = ((submissions or {}).get("filings") or {}).get("recent") or {}
+    forms = recent.get("form") or []
+    accs = recent.get("accessionNumber") or []
+    dates = recent.get("filingDate") or []
+    docs = recent.get("primaryDocument") or []
+    best = None
+    for i, form in enumerate(forms):
+        if form != "DEF 14A":
+            continue
+        fd = dates[i] if i < len(dates) else None
+        acc = accs[i] if i < len(accs) else None
+        if not fd or not acc:
+            continue
+        if best is None or (fd, acc) > (best["filing_date"], best["accession"]):
+            doc = docs[i] if i < len(docs) else None
+            best = {"form": form, "filing_date": fd, "accession": acc,
+                    "url": (f"{_WWW}/Archives/edgar/data/{int(cik)}/{acc.replace('-', '')}/{doc}"
+                            if doc else filing_index_url(cik, acc)),
+                    "index_url": filing_index_url(cik, acc)}
+    return best
+
+
 def _raw_document(primary_document: Optional[str]) -> Optional[str]:
     """`xslF345X06/form4.xml` is the rendered view; the raw XML is the same
     name without the stylesheet directory. Anything that is not XML (a paper
@@ -474,6 +501,8 @@ def fetch_form4_activity(sym: str, *, today: Optional[date] = None,
         # COV-05: every reporting owner's declared role, from every Form 4 read
         # (not only the P/S rows above), newest filing per owner.
         "owner_roles": merge_owner_roles(owner_roles),
+        # COV-05 (board / bios): the newest DEF 14A, from the same submissions read.
+        "latest_proxy": latest_proxy_filing(submissions, cik),
         "window_days": WINDOW_DAYS,
         "since": since,
         "filings_listed": len(listed),

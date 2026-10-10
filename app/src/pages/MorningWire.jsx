@@ -23,7 +23,9 @@ import { panelAsOf, useInTerminalPanel, usePanelFreshness } from '../components/
 // names the page, and the full-bleed PageHeader bar was a second title (lane C audit 2026-10-08).
 import SurfaceHeader from './SurfaceHeader'
 import { useAuth } from '../context/AuthContext'
-import { injectSetupControls, setupAnchor, missedSymFrom, loggedMisses } from './setupFeedback'
+import { injectSetupControls, setupAnchor, missedSymFrom, loggedMisses, topPickSyms } from './setupFeedback'
+import MemberInterestNotice from '../components/memberInterest/MemberInterestNotice'
+import { useMemberInterestSurface } from '../lib/memberInterest'
 import styles from './MorningWire.module.css'
 import jsonFetcher from '../utils/jsonFetcher'
 import { formatPercent } from '../lib/presentation/presentationPrimitives'
@@ -183,6 +185,9 @@ export default function MorningWire() {
   const { mutate } = useSWRConfig()
   // Per-SETUP feedback is the owner's training signal (setupFeedback.js): admin only.
   const { user } = useAuth()
+  // D-9 (UC-1): which Top picks cards the member already follows. Dark behind
+  // MEMBER_INTEREST_WIRE_ENABLED; off = no /api/member/interest request at all.
+  const interestOn = useMemberInterestSurface('member_interest_wire_enabled')
   const isAdmin = user?.role === 'admin'
   const { data: rundown, error: rundownError, mutate: retryRundown } = useSWR('/api/rundown', rundownFetcher, { refreshInterval: 300000 })
   usePanelFreshness(rundownError ? null : wireProvenance(rundown))
@@ -197,6 +202,7 @@ export default function MorningWire() {
   // below without re-running their effect (its deps are the html/date STRINGS,
   // which a 5-min SWR revalidation leaves unchanged).
   const rundownHtml = useMemo(() => ({ __html: settleLoadingPlaceholders(rundown?.html || '') }), [rundown?.html])
+  const pickSyms = useMemo(() => (interestOn ? topPickSyms(rundown?.html) : []), [interestOn, rundown?.html])
 
   // Follow-along: highlight + scroll to the briefing block being read aloud.
   const rundownRef = useRef(null)
@@ -432,6 +438,10 @@ export default function MorningWire() {
               Read aloud
             </ReadAloudButton>
           </div>
+          {rundown?.html && pickSyms.length > 0 && (
+            <MemberInterestNotice enabled={interestOn} syms={pickSyms}
+              where="in today's Top picks" testId="member-interest-wire" />
+          )}
           {rundown?.html
             ? (
               <div

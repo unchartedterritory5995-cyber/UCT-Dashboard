@@ -8638,6 +8638,19 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-sun", hour=6, minute=10, timezone=_ET),
                 id="ftd_ingest", max_instances=1, replace_existing=True, coalesce=True,
             )
+
+            def _sec_13f_list_job():
+                # TERM-045: the SEC Official List of Section 13(f) Securities; a no-op while unset.
+                from api.services import sec_13f_list as _s13f
+                r = _s13f.refresh()
+                if not r.get("skipped"):
+                    print(f"[scheduler] SEC 13(f) list refresh: {r}")
+
+            _scheduler.add_job(
+                _sec_13f_list_job,
+                trigger=CronTrigger(day_of_week="mon-sun", hour=6, minute=25, timezone=_ET),
+                id="sec_13f_list_refresh", max_instances=1, replace_existing=True, coalesce=True,
+            )
             print("[startup] research depth jobs scheduled (flag-gated per run)")
         except Exception as e:
             print(f"[startup] research depth job registration failed (non-fatal): {e}")

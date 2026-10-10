@@ -127,7 +127,12 @@ export function buildTable(payload, statementKey) {
   for (const [key, label, fmt, kind = null, basis = null] of spec.rows) {
     const values = block[key] || []
     if (!values.some((v) => Number.isFinite(v))) continue
-    rows.push({ key, label, kind, basis, cells: order.map((i) => fmt(values[i], payload?.currency)) })
+    // TERM-043: a cell's SEC filing link, present only when the server matched the figure in
+    // the point-in-time store (source_links, dark server flag). Absent = no link, never a guess.
+    const links = spec.from === 'series' ? payload?.source_links?.[key] : null
+    const row = { key, label, kind, basis, cells: order.map((i) => fmt(values[i], payload?.currency)) }
+    if (Array.isArray(links) && links.some(Boolean)) row.links = order.map((i) => links[i] || null)
+    rows.push(row)
   }
   return { columns: order.map((i) => periods[i]), rows }
 }
