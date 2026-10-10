@@ -435,7 +435,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     for (const { awaitDefinition, ...op } of out?.followUps || []) {
       if (awaitDefinition && !(await definitionListed(awaitDefinition))) {
         const chart = (() => { try { return host.charts.read(String(op.target).replace(/^ixe:/, ''))?.label || 'that chart' } catch { return 'that chart' } })()
-        const text = `It is saved, but your indicator list hasn’t caught up yet, so I didn’t add it to ${chart} — ask me to add it again in a moment.`
+        // refinement B: the SAVED definition is kept (context `lastSaved`) — a retry adds the same one, never a second Save
+        const nm = awaitDefinition.name ? `“${awaitDefinition.name}”` : 'It'
+        const text = `${nm} is saved, but your indicator list hasn’t caught up yet, so I didn’t add it to ${chart} — ask me to add it again in a moment (it won’t be saved twice).`
         push({ role: 'refusal', text })
         record({ member, outcome: text, outcomeData: { kind: 'refused', actions: [op.action] }, telemetry: { path: 'followup', refused: true, voice } })
         continue

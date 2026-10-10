@@ -2697,16 +2697,30 @@
    "domain": "indicator",
    "target": "indicatorDrafts",
    "summary": "Talk to the indicator builder (Create Indicator's engine) about ONE indicator draft: start a new one, ask for advice, answer its questions, or change it (\"highlight candles when the 9 EMA is above the 20 EMA\", \"also require RSI above 50\", \"what would you recommend adding?\"). The builder decides what the turn is; questions and advice change nothing. Never saves.",
-   "hints": "target = the ACTIVE draft's ref to continue it (follow-ups like \"also…\", \"make it…\", \"what would you add?\" go to the active draft); the NEW-draft entry only when the member starts a different indicator. If several drafts could be meant and none is active or named, ask which. message = the member's words, verbatim — never your own formula or interpretation.",
+   "hints": "target = the ACTIVE draft's ref to continue it (follow-ups like \"also…\", \"make it…\", \"what would you add?\" go to the active draft); the NEW-draft entry only when the member starts a different indicator or edits one of yourIndicators (edit = its defId, else null). If several drafts could be meant and none is active or named, ask which. chart = the ref of the chart the member names for it, else null (a draft keeps its own chart). message = the member's words, verbatim — never your own formula or interpretation.",
    "args": {
     "type": "object",
     "properties": {
      "message": {
       "type": "string"
+     },
+     "chart": {
+      "type": [
+       "string",
+       "null"
+      ]
+     },
+     "edit": {
+      "type": [
+       "string",
+       "null"
+      ]
      }
     },
     "required": [
-     "message"
+     "message",
+     "chart",
+     "edit"
     ],
     "additionalProperties": false
    },

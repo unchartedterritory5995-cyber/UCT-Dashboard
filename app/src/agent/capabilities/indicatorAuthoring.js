@@ -36,10 +36,11 @@ const refOf = (key) => `draft:${key}`
 let sources = { access: () => false, rows: () => [], extra: null }
 export function setAuthoringSources(s) { sources = { ...sources, ...(s || {}) } }
 
-/** The context for ONE specialist call, built now: access, own rows, the chart's symbol/tf. */
+/** The context for ONE specialist call, built now: access, own rows, and the symbol/tf of the
+ *  chart the draft belongs to — ⛔ never a substitute: no chart → no symbol (refinement A). */
 export function authoringCtx(host, chartRef = null) {
   const charts = (() => { try { return host?.charts?.list() || [] } catch { return [] } })()
-  const c = (chartRef && charts.find(x => x.ref === chartRef)) || charts[0] || null
+  const c = (chartRef && charts.find(x => x.ref === chartRef)) || null
   let rows = []
   try { rows = [...(sources.rows() || [])] } catch { rows = [] }
   let canAuthor = false
@@ -50,7 +51,6 @@ export function authoringCtx(host, chartRef = null) {
 // ── the ACTIVE draft of this Agent conversation: the opaque draftRef, as the specialist returned it ──
 // per TAB (sessionStorage) — the same lifetime as the specialist's drafts (INDICATORS review N1)
 const ACTIVE_KEY = 'uct.agent.activeDraft'
-const CHART_KEY = 'uct.agent.draftCharts'
 const store = () => globalThis.sessionStorage
 let active = null
 const readActive = () => {
@@ -65,16 +65,30 @@ function setActive(draftRef) {
     else store()?.removeItem(ACTIVE_KEY)
   } catch { /* storage is a convenience: the specialist is the authority */ }
 }
-export function _resetAuthoring() { active = null; pinned.clear(); try { store()?.removeItem(ACTIVE_KEY); store()?.removeItem(CHART_KEY) } catch { /* */ } }
+export function _resetAuthoring() { active = null; pinned.clear(); try { store()?.removeItem(ACTIVE_KEY); store()?.removeItem(LAST_KEY) } catch { /* */ } }
 
-// N2 — the chart a draft was BEGUN on (its symbol/timeframe feed the builder's pre-flight and the
-// model's chart context): remembered per draft key, reused while that chart is on the board.
-function draftCharts() { try { return JSON.parse(store()?.getItem(CHART_KEY) || '{}') || {} } catch { return {} } }
-function rememberChart(draftRef, chartRef) {
-  if (!draftRef || !chartRef) return
-  try { store()?.setItem(CHART_KEY, JSON.stringify({ ...draftCharts(), [draftRef.key]: chartRef })) } catch { /* convenience only */ }
+// ── refinement A: the chart a draft belongs to is the SPECIALIST's association (`status.chartRef`,
+// recorded by openDraft). Used while that chart is on the board; otherwise the member names one. ──
+const boardCharts = (host) => { try { return host?.charts?.list() || [] } catch { return [] } }
+const originOf = (status) => (status && typeof status.chartRef === 'string' ? status.chartRef : null)
+/** The chart for a draft request: {ref} or {ask} (a question — never a silent pick). */
+export function chartForDraft(st, chartArg) {
+  const charts = st.charts || []
+  const on = (r) => charts.some(c => c.ref === r)
+  if (chartArg != null) return on(chartArg) ? { ref: chartArg } : { ask: 'That chart isn’t on the board — which chart is this indicator for?' }
+  if (st.new) {
+    if (charts.length === 1) return { ref: charts[0].ref }
+    return { ask: charts.length ? 'Which chart is this indicator for?' : 'Open a chart first — an indicator is built on a chart.' }
+  }
+  const origin = originOf(st.status)
+  if (origin && on(origin)) return { ref: origin }
+  return { ask: origin ? 'The chart this draft was started on is no longer on the board — which chart should it use?' : 'Which chart is this draft for?' }
 }
-const chartOf = (draftRef) => (draftRef ? draftCharts()[draftRef.key] || null : null)
+// the last definition the Agent SAVED (refinement B): kept so a delayed chart add is retried with the
+// SAME definition — never a second Save
+const LAST_KEY = 'uct.agent.lastSaved'
+export function lastSaved() { try { return JSON.parse(store()?.getItem(LAST_KEY) || 'null') } catch { return null } }
+function rememberSaved(v) { try { store()?.setItem(LAST_KEY, JSON.stringify(v)) } catch { /* convenience only */ } }
 
 // ── ⛔ NEVER A SILENT PICK BETWEEN DRAFTS ──
 // The SELECTED draft of this conversation (`active`) is set only by the member: the Agent made it
@@ -199,8 +213,9 @@ export const indicatorDraftsKind = {
   async commit(host, ref, patch) {
     // ── authoring Undo (from the Agent's Undo stack): the exact step, or refused ──
     if (patch.undo) {
-      const ctx = authoringCtx(host)
-      const st = draftStatus(patch.undo.draftRef, ctx)
+      const st0 = draftStatus(patch.undo.draftRef, authoringCtx(host))
+      const ctx = authoringCtx(host, originOf(st0))
+      const st = st0
       const out = draftUndo(patch.undo.draftRef, { expectedStepId: patch.undo.stepId }, ctx)
       if (!out.ok) throw fail(refusalSentence(out))
       return { lines: [`Undid the last change to ${st?.name ? `“${st.name}”` : 'the draft'} (draft — not saved).`, ...(out.lines || [])] }
@@ -215,14 +230,14 @@ export const indicatorDraftsKind = {
     const followUps = []
     for (const op of patch.ops) {
       if (op.type === 'turn') {
-        const firstChart = (() => { try { return host?.charts?.list()?.[0]?.ref || null } catch { return null } })()
-        const ctx = authoringCtx(host, op.chartRef || chartOf(draftRef) || firstChart)
+        if (!op.chartRef || !boardCharts(host).some(c => c.ref === op.chartRef)) throw fail('That chart is no longer on the board, so nothing was sent — say which chart this indicator is for.')
+        const ctx = authoringCtx(host, op.chartRef)
         if (!draftRef) {
-          const o = openDraft({ create: true, ...(op.chartRef ? { chartRef: op.chartRef } : {}) }, ctx)
+          const o = openDraft(op.edit ? { edit: { defId: op.edit }, chartRef: op.chartRef } : { create: true, chartRef: op.chartRef }, ctx)
           if (!o.ok) throw fail(refusalSentence(o))
           draftRef = o.draftRef
           revision = o.status.revision
-          rememberChart(draftRef, op.chartRef || firstChart)
+          name = o.status.name || name
         }
         setActive(draftRef)
         const out = await draftTurn(draftRef, op.message, { expectedRevision: op.pinRevision ?? revision }, ctx)
@@ -257,7 +272,7 @@ export const indicatorDraftsKind = {
         lines.push(`Showing ${name ? `“${name}”` : 'the draft'} as a preview on ${label(op.chartRef)} — a preview only, not saved${out.movedFrom ? ` (moved from ${label(out.movedFrom)})` : ''}.`)
       } else if (op.type === 'save') {
         pinned.delete(op.pinKey)        // used once: a new ask is a new proposal
-        const ctx = authoringCtx(host)
+        const ctx = authoringCtx(host, originOf(draftStatus(draftRef, authoringCtx(host))))
         const st = draftStatus(draftRef, ctx)
         const keep = lines.length ? { unreverted: true } : {}
         const turn = patch.ops.find(o => o.type === 'turn')
@@ -298,6 +313,7 @@ export const indicatorDraftsKind = {
           throw notSaved(refusalSentence(out))
         }
         setActive(null)
+        rememberSaved({ defId: out.defId, version: out.version, name: out.name || name || null })
         lines.push(`Saved “${out.name || name || 'the indicator'}” (version ${out.version}${out.created ? ', a new indicator' : ''}) — confirmed by reading it back from your saved indicators.`)
         // the specialist's own receipt + outcomes, once each — but NOT its chart outcome: Save never
         // attaches a chart here (§16), so "no chart is open here" would contradict the adds below
@@ -306,7 +322,7 @@ export const indicatorDraftsKind = {
           if (t && !chartTexts.has(t) && !lines.includes(t)) lines.push(t)
         }
         if (!op.addTo?.length) lines.push('It is not on a chart — ask me to add it to one.')
-        for (const c of op.addTo || []) followUps.push({ action: 'indicator.add', target: `ixe:${c}`, args: { defId: out.defId }, awaitDefinition: { defId: out.defId, version: out.version } })
+        for (const c of op.addTo || []) followUps.push({ action: 'indicator.add', target: `ixe:${c}`, args: { defId: out.defId }, awaitDefinition: { defId: out.defId, version: out.version, name: out.name || name || null } })
         if (op.addTo?.length) lines.push(`Next: adding it to ${op.addTo.length === 1 ? 'the chart' : `${op.addTo.length} charts`} — each gets its own receipt.`)
         undoData = null
       }
@@ -338,8 +354,13 @@ export function registerIndicatorAuthoringCapabilities() {
     // every item publishes its `ref` (the server accepts only published refs as targets)
     build: (host, refFor) => {
       const list = indicatorDraftsKind.list(host)
-      return list.map(s => (s.new ? { ref: refFor('indicatorDrafts', s.ref), new: true, label: 'start a NEW indicator draft' }
+      let own = []
+      try { own = (sources.rows() || []).slice(0, 50).map(r => ({ defId: r.def_id, name: r.definition?.meta?.name || null })) } catch { own = [] }
+      const last = lastSaved()
+      const chartLabel = (r) => (s0) => (s0.charts || []).find(c => c.ref === r)?.label || null
+      return list.map(s => (s.new ? { ref: refFor('indicatorDrafts', s.ref), new: true, label: 'start a NEW indicator draft (or edit one of yourIndicators)', yourIndicators: own, ...(last ? { lastSaved: last } : {}) }
         : { ref: refFor('indicatorDrafts', s.ref), name: s.status?.name || null, mode: s.status?.mode || null, active: !!s.active,
+          chart: originOf(s.status) ? chartLabel(originOf(s.status))(s) || 'not on this board' : null,
           ...(s.expired ? { expired: true } : {
             revision: s.status.revision, dirty: s.status.dirty, canSave: s.status.canSave, canUndo: s.status.canUndo,
             needsAcknowledgement: s.status.ackText.length > 0, openQuestions: s.status.questions, openInCreateIndicator: s.status.openInDock,
@@ -355,21 +376,32 @@ export function registerIndicatorAuthoringCapabilities() {
     exclusive: true,
     exclusiveReason: 'Work on one indicator draft at a time, on its own — ask for anything else separately.',
     summary: 'Talk to the indicator builder (Create Indicator\'s engine) about ONE indicator draft: start a new one, ask for advice, answer its questions, or change it ("highlight candles when the 9 EMA is above the 20 EMA", "also require RSI above 50", "what would you recommend adding?"). The builder decides what the turn is; questions and advice change nothing. Never saves.',
-    hints: 'target = the ACTIVE draft\'s ref to continue it (follow-ups like "also…", "make it…", "what would you add?" go to the active draft); the NEW-draft entry only when the member starts a different indicator. If several drafts could be meant and none is active or named, ask which. message = the member\'s words, verbatim — never your own formula or interpretation.',
-    args: { type: 'object', properties: { message: { type: 'string' } }, required: ['message'], additionalProperties: false },
-    check(st, { message }) {
+    hints: 'target = the ACTIVE draft\'s ref to continue it (follow-ups like "also…", "make it…", "what would you add?" go to the active draft); the NEW-draft entry only when the member starts a different indicator or edits one of yourIndicators (edit = its defId, else null). If several drafts could be meant and none is active or named, ask which. chart = the ref of the chart the member names for it, else null (a draft keeps its own chart). message = the member\'s words, verbatim — never your own formula or interpretation.',
+    argRefs: { chart: 'chart' },
+    args: { type: 'object', properties: { message: { type: 'string' }, chart: { type: ['string', 'null'] }, edit: { type: ['string', 'null'] } }, required: ['message', 'chart', 'edit'], additionalProperties: false },
+    check(st, { message, chart, edit }) {
       if (!String(message || '').trim()) return 'Say what the indicator should do.'
       if (!st.new) { const u = usable(st); if (u) return u }
+      if (edit != null) {
+        if (!st.new) return 'To edit one of your saved indicators, start from the new-draft entry.'
+        let own = []
+        try { own = (sources.rows() || []).map(r => r && r.def_id) } catch { own = [] }
+        if (!own.includes(edit)) return refusalSentence({ reason: R.UNKNOWN_DEFINITION })
+      }
+      const c = chartForDraft(st, chart ?? null)
+      if (c.ask) return c.ask
       if (has(st, 'turn')) return 'One message to the indicator builder at a time.'
       if (has(st, 'save') || has(st, 'preview')) return 'Ask for the change first, then preview or save it.'
       return null
     },
-    apply(st, { message }) {
-      return { ...st, ops: [...st.ops, { type: 'turn', message: String(message).trim(), pinRevision: st.status ? st.status.revision : null }] }
+    apply(st, { message, chart, edit }) {
+      const c = chartForDraft(st, chart ?? null)
+      return { ...st, ops: [...st.ops, { type: 'turn', message: String(message).trim(), chartRef: c.ref, edit: edit || null, pinRevision: st.status ? st.status.revision : null }] }
     },
     describe: (b, a) => {
       const op = a.ops.find(o => o.type === 'turn')
-      return op ? `Ask the indicator builder${b.new ? ' (new draft)' : ` about ${nameOf(b)}`}: “${op.message}”` : null
+      const where = (b.charts || []).find(c => c.ref === op?.chartRef)?.label
+      return op ? `Ask the indicator builder${b.new ? (op.edit ? ' (editing your saved indicator)' : ' (new draft)') : ` about ${nameOf(b)}`}${where ? ` on ${where}` : ''}: “${op.message}”` : null
     },
   })
 

@@ -17,7 +17,7 @@ import * as registry from '../components/chart/engine/nativeRegistry'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { parseFormula } from '../components/chart/engine/ast/parse'
 import { storeConversation } from '../components/chart/builder/conversationSave'
-import { _simulateReload, STORAGE_KEY } from '../components/chart/builder/authoring/conversationSessions'
+import { _simulateReload, STORAGE_KEY, holdInDock, releaseDock } from '../components/chart/builder/authoring/conversationSessions'
 import { _resetDraftPreview, AUTHORING_REASONS as AR, saveDraft, draftStatus, discardDraft } from '../components/chart/builder/agentAuthoring'
 
 registerBuiltins()
@@ -107,7 +107,7 @@ function host(specs, { persist = () => ({ ok: true }) } = {}) {
           previews.push({ ref, def, o })
           return { ok: true, movedFrom: from && from !== ref ? from : null }
         },
-        clearAuthoringPreview: () => true,
+        clearAuthoringPreview: () => { h.cleared = (h.cleared || 0) + 1; return true },
       } : null),
     },
     persist: async () => persist(),
@@ -131,7 +131,7 @@ async function run(h, ops) {
 }
 const drafts = (h) => indicatorDraftsKind.list(h).filter(s => !s.new)
 const activeRef = (h) => drafts(h).find(s => s.active)?.ref
-const say = (target, message) => ({ action: 'indicator.draft', target, args: { message } })
+const say = (target, message, { chart = null, edit = null } = {}) => ({ action: 'indicator.draft', target, args: { message, chart, edit } })
 const instancesOn = (h, ref) => (mergeChartSettings(JSON.stringify(h.store[ref])).indicatorInstances || []).filter(i => !i.deleted)
 
 // ── 1. the six-line conversation ─────────────────────────────────────────────────────
@@ -201,7 +201,7 @@ describe('⭐ the six-line conversation — one draft, one lineage, typed outcom
     expect(r6.lines.join(' ')).toMatch(/Saved “Bullish Trend” \(version 1, a new indicator\) — confirmed by reading it back/)
     expect(r6.undo).toBe(null)                                          // a saved version has no Undo (D7)
     expect(r6.lines.join(' ')).not.toMatch(/No chart is open here/)    // Save attaches nothing; the add reports itself
-    expect(r6.followUps).toEqual([{ action: 'indicator.add', target: 'ixe:L', args: { defId: saved.def_id }, awaitDefinition: { defId: saved.def_id, version: 1 } }])
+    expect(r6.followUps).toEqual([{ action: 'indicator.add', target: 'ixe:L', args: { defId: saved.def_id }, awaitDefinition: { defId: saved.def_id, version: 1, name: 'Bullish Trend' } }])
     expect(instancesOn(h, 'L').some(i => i.defId === saved.def_id)).toBe(false)   // Save attaches nothing
     expect(drafts(h)).toEqual([])                                       // the draft ended with the Save
 
@@ -294,7 +294,7 @@ describe('draft references — opaque, several, never guessed', () => {
 describe('preview — only when asked, only on a named chart', () => {
   it('no chart named → asked back; a readonly chart → the specialist’s refusal; moving to another chart says so', async () => {
     const h = host([L, R])
-    await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.')])
+    await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.', { chart: 'L' })])
     const ref = activeRef(h)
     const none = await plan(h, [{ action: 'indicator.previewDraft', target: ref, args: { chart: 'nope' } }])
     expect(none.ok).toBe(false)
@@ -365,7 +365,8 @@ describe('Save — the exact draft and revision the member approved', () => {
   })
   it('Save + two charts, one refused: separate receipts; the Save is never rolled back', async () => {
     const h = host([L, R])
-    const ref = await start(h)
+    await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.', { chart: 'L' })])
+    const ref = activeRef(h)
     const ops = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: ['L', 'R'], name: null } }]
     await plan(h, ops)
     const res = await commitPlan(h, await plan(h, ops), { env: {}, ctx: CTX })
@@ -658,13 +659,180 @@ describe('review follow-ups — per-tab pointer, the draft keeps its chart', () 
     expect(sessionStorage.getItem('uct.agent.activeDraft')).toMatch(/"lineage"/)
     expect(localStorage.getItem('uct.agent.activeDraft')).toBe(null)
   })
-  it('N2: a draft begun on one chart keeps that chart’s symbol for the builder even when the board order changes', async () => {
+  it('A: a NEW draft on a multi-chart board with no chart named → "Which chart is this indicator for?" (never the first chart)', async () => {
+    const h = host([L, R])
+    const p = await plan(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.')])
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0].reason).toBe('Which chart is this indicator for?')
+    expect(calls).toEqual([])
+  })
+  it('A: the draft keeps the chart it was begun on (the specialist’s DraftStatus.chartRef), whatever the board order', async () => {
     const specs = [L, R]
     const h = host(specs)
+    await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.', { chart: 'R' })])
+    const ref = activeRef(h)
+    expect(drafts(h)[0].status.chartRef).toBe('R')
+    specs.reverse()
+    await run(h, [say(ref, 'Okay, also require RSI to be above 50.')])
+    expect(calls.map(c => c.symbol)).toEqual(['AAPL', 'AAPL'])
+  })
+  it('A: the originating chart was removed → asked which chart; naming one continues on it', async () => {
+    const specs = [L, R]
+    const h = host(specs)
+    await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.', { chart: 'R' })])
+    const ref = activeRef(h)
+    specs.splice(specs.indexOf(R), 1)                                            // chart R removed from the board
+    const p = await plan(h, [say(ref, 'Okay, also require RSI to be above 50.')])
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0].reason).toMatch(/no longer on the board — which chart should it use\?/)
+    await run(h, [say(ref, 'Okay, also require RSI to be above 50.', { chart: 'L' })])
+    expect(calls.map(c => c.symbol)).toEqual(['AAPL', 'NVDA'])
+  })
+  it('A: a chart removed between plan and Apply → refused at Apply, nothing sent', async () => {
+    const specs = [L, R]
+    const h = host(specs)
+    const p = await plan(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.', { chart: 'R' })])
+    specs.splice(specs.indexOf(R), 1)
+    const res = await commitPlan(h, p, { env: {}, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(res.failed[0].reason).toMatch(/That chart is no longer on the board, so nothing was sent/)
+    expect(calls).toEqual([])
+  })
+
+})
+
+// ── 11. editing an existing saved indicator; refinement B ─────────────────────────────
+describe('edit an existing saved indicator; a saved definition is never saved twice', () => {
+  const saveNew = async (h) => {
     await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.')])
     const ref = activeRef(h)
-    specs.reverse()                                                                // R (AAPL) is now first on the board
-    await run(h, [say(ref, 'Okay, also require RSI to be above 50.')])
-    expect(calls.map(c => c.symbol)).toEqual(['NVDA', 'NVDA'])
+    const r = await commitPlan(h, await plan(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: 'Trend One' } }]), { env: {}, ctx: CTX })
+    expect(r.ok, JSON.stringify(r.failed)).toBe(true)
+    return [...server.values()][0]
+  }
+  it('edit: the member’s own definition opens as an EDIT draft on the named chart; Save writes version 2 of the SAME id', async () => {
+    const h = host([L])
+    const row = await saveNew(h)
+    expect(row.version).toBe(1)
+    await run(h, [say(NEW, 'Okay, also require RSI to be above 50.', { edit: row.def_id })])
+    const st = drafts(h).find(d => d.active).status
+    expect(st).toMatchObject({ mode: 'edit', defId: row.def_id, baseVersion: 1, chartRef: 'L' })
+    const ref = activeRef(h)
+    const p = await plan(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }])
+    expect(p.lines[0]).toMatch(/^Save a new version of “Trend One”/)
+    const res = await commitPlan(h, await plan(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }]), { env: {}, ctx: CTX })
+    expect(res.ok, JSON.stringify(res.failed)).toBe(true)
+    expect(res.lines[0]).toMatch(/^Saved “Trend One” \(version 2\)/)
+    expect(server.get(row.def_id).version).toBe(2)
+    expect(stored.at(-1)).toMatchObject({ defId: row.def_id, opts: { baseVersion: 1 } })
+  })
+  it('edit: someone else’s / an unknown definition id is refused at plan', async () => {
+    const h = host([L])
+    const p = await plan(h, [say(NEW, 'make it blue', { edit: 'u_ffffffffffff' })])
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0].reason).toMatch(/I don’t know that indicator on your account/)
+  })
+  it('edit: a version conflict (saved elsewhere meanwhile) → nothing overwritten, typed sentence', async () => {
+    const h = host([L])
+    const row = await saveNew(h)
+    await run(h, [say(NEW, 'Okay, also require RSI to be above 50.', { edit: row.def_id })])
+    saveMode = 'conflict'
+    const res = await commitPlan(h, await plan(h, [{ action: 'indicator.saveDraft', target: activeRef(h), args: { addTo: [], name: null } }]), { env: {}, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(res.failed[0].reason).toMatch(/saved elsewhere in the meantime \(now version 9\) — nothing was overwritten/)
+  })
+  it('a mismatched read-back (a different version comes back) → saved-unconfirmed, never "Saved"', async () => {
+    const h = host([L])
+    await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.')])
+    const ref = activeRef(h)
+    setAuthoringSources({ extra: { converse, store: (s0, o) => storeConversation(s0, { ...o, save: fakeSave }), readBack: async (id) => ({ ...server.get(id), version: 99 }) } })
+    const res = await commitPlan(h, await plan(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: ['L'], name: null } }]), { env: {}, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(res.failed[0].reason).toMatch(/could not read it back, so I am not reporting it as saved/)
+    expect(res.followUps).toBeUndefined()
+  })
+  it('B: after a Save the context keeps lastSaved {defId, version, name} so a delayed add is retried with the SAME definition', async () => {
+    const h = host([L])
+    const row = await saveNew(h)
+    const { context } = buildContext(h, CTX)
+    const neu = context.indicatorDrafts.find(e => e.new)
+    expect(neu.lastSaved).toEqual({ defId: row.def_id, version: 1, name: 'Trend One' })
+    expect(neu.yourIndicators).toEqual([{ defId: row.def_id, name: 'Trend One' }])
+    // the retry is an ordinary M2 add of that defId — no Save involved
+    registry.installUserDefinitions([{ ...row.definition, id: row.def_id, version: 1 }])
+    const n = stored.length
+    const a = await run(h, [{ action: 'indicator.add', target: 'ixe:L', args: { defId: neu.lastSaved.defId } }])
+    expect(a.res.ok).toBe(true)
+    expect(stored.length).toBe(n)
+  })
+})
+
+// ── 12. S5 behaviours: consecutive Undo, dock ownership, preview lifecycle, independent add Undo ──
+describe('S5 — Undo chain, dock ownership, preview lifecycle, independent chart receipts', () => {
+  it('consecutive Undo walks the draft back exactly (newest first); each entry is the specialist’s own step', async () => {
+    const h = host([L])
+    const r1 = await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.')])
+    const ref = activeRef(h)
+    const r2 = await run(h, [say(ref, 'Okay, also require RSI to be above 50.')])
+    const s1 = drafts(h)[0].status.lines
+    const u2 = await undoEntry(h, r2.res.undo)
+    expect(u2.ok, u2.reason).toBe(true)
+    const u1 = await undoEntry(h, r1.res.undo)
+    expect(u1.ok, u1.reason).toBe(true)
+    const st = drafts(h)[0].status
+    expect(st.revision).toBe(4)                                                  // 2 turns + 2 undos
+    expect(st.canUndo).toBe(false)
+    expect(s1.join(' ')).toMatch(/rsi/i)
+    expect((await undoEntry(h, r1.res.undo)).ok).toBe(false)                     // a spent step is refused
+  })
+  it('dock ownership: a draft open in Create Indicator is refused at plan and at Apply; released → continues', async () => {
+    const h = host([L])
+    await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.')])
+    const ref = activeRef(h)
+    const key = drafts(h)[0].status.draftRef.key
+    const p = await plan(h, [say(ref, 'Okay, also require RSI to be above 50.')])  // planned while free
+    holdInDock(key)
+    const res = await commitPlan(h, p, { env: {}, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(res.failed[0].reason).toMatch(/open in Create Indicator/)
+    const p2 = await plan(h, [say(ref, 'Okay, also require RSI to be above 50.')])
+    expect(p2.ok).toBe(false)
+    expect(p2.refusals[0].reason).toMatch(/open in Create Indicator/)
+    releaseDock(key)
+    expect((await run(h, [say(ref, 'Okay, also require RSI to be above 50.')])).res.ok).toBe(true)
+  })
+  it('preview: one per tab, replaced across charts, refreshed by a change, taken down by the Save; never persisted', async () => {
+    const h = host([L, R])
+    await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.', { chart: 'L' })])
+    const ref = activeRef(h)
+    const boardBefore = JSON.stringify(h.store)
+    await run(h, [{ action: 'indicator.previewDraft', target: ref, args: { chart: 'L' } }])
+    const mv = await run(h, [{ action: 'indicator.previewDraft', target: ref, args: { chart: 'R' } }])
+    expect(mv.res.lines[0]).toMatch(/moved from Left chart \(NVDA\)/)
+    const n = h.previews.length
+    await run(h, [say(ref, 'Okay, also require RSI to be above 50.')])          // the change redraws the preview
+    expect(h.previews.length).toBe(n + 1)
+    expect(h.previews.at(-1).ref).toBe('R')
+    const cleared = h.cleared || 0
+    const res = await commitPlan(h, await plan(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }]), { env: {}, ctx: CTX })
+    expect(res.ok, JSON.stringify(res.failed)).toBe(true)
+    expect(h.cleared).toBe(cleared + 1)                                           // Save takes the preview down
+    expect(JSON.stringify(h.store)).toBe(boardBefore)                             // no chart was written by any of it
+  })
+  it('partial application: two adds, each its own receipt and Undo — undoing one leaves the other and the Save', async () => {
+    const h = host([L, R])
+    await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.', { chart: 'L' })])
+    const ref = activeRef(h)
+    const res = await commitPlan(h, await plan(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: ['L', 'R'], name: null } }]), { env: {}, ctx: CTX })
+    const saved = [...server.values()][0]
+    registry.installUserDefinitions([{ ...saved.definition, id: saved.def_id, version: 1 }])
+    const adds = []
+    for (const { awaitDefinition: _w, ...op } of res.followUps) adds.push((await run(h, [op])).res)
+    expect(adds.map(a => a.ok)).toEqual([true, true])
+    expect(adds[0].undo.id).not.toBe(adds[1].undo.id)
+    expect((await undoEntry(h, adds[0].undo)).ok).toBe(true)
+    expect(instancesOn(h, 'L').some(i => i.defId === saved.def_id)).toBe(false)
+    expect(instancesOn(h, 'R').some(i => i.defId === saved.def_id)).toBe(true)
+    expect(server.has(saved.def_id)).toBe(true)
   })
 })
