@@ -23,6 +23,7 @@ import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presen
 import { QuietPanelFreshness, usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import { num } from '../../optionsAnalytics/optionsFormat'
 import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
+import useChainStream, { overlayQuote } from './useChainStream'
 
 // BRK-01 increment 1 (roadmap §3.3) — the option chain: calls | strike | puts, with the full
 // greek set, off the licensed Massive chain (api/routers/options_chain.py). DARK behind
@@ -107,6 +108,9 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
 
   const greeks = useDarkSection(s ? `/api/research/options/${encodeURIComponent(s)}/chain-greeks` : null)
   const full = greeks.data && greeks.data.rho ? greeks.data : null
+  // FT-015: Last / Bid / Ask streamed from flow-worker's OPRA feed between the 60 s polls (dark on
+  // OPTIONS_CHAIN_STREAM_ENABLED; probe-first, so a switched-off stream costs one 404 and nothing else).
+  const live = useChainStream(s, chain.data && !chain.data.paywalled && !chain.error ? chain.data.expiration : null)
   const [mode, setMode] = useState('both')
   const isPhone = useIsPhone()
   const [phoneSide, setPhoneSide] = useState('calls')
@@ -147,7 +151,9 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
   const days = daysTo(d.expiration)
   const derive = (q) => (q ? { ...q, mid: midOf(q), vol_oi: volOiOf(q) } : q)
   const aug = (q, type) => (q && full ? { ...q, ...extraGreeks({ ...q, type }, Number(d.spot), days) } : q)
-  const shown = rows.map((r) => ({ ...r, call: derive(aug(r.call, 'call')), put: derive(aug(r.put, 'put')) }))
+  const servedMs = d.served_at ? Date.parse(d.served_at) : NaN
+  const streamed = (q) => (live.on ? overlayQuote(q, live.quotes, servedMs) : q)
+  const shown = rows.map((r) => ({ ...r, call: derive(aug(streamed(r.call), 'call')), put: derive(aug(streamed(r.put), 'put')) }))
   const quoteCell = (type, r, k, l, how) => {
     const q = r[type]
     const text = fmt(q?.[k], how)
@@ -274,6 +280,11 @@ export default function OptionsChainTab({ sym, volSurface = false, backtest = fa
         · refreshed every {d.cache_seconds || 60}s
         {etStamp(d.served_at) ? ` · as of ${etStamp(d.served_at)}` : ''}
       </p>
+      {live.on && (
+        <p className={styles.muted} data-testid="chain-streaming">
+          Streaming from our OPRA feed every 2 seconds. {live.coverage}
+        </p>
+      )}
     </>
   )
 

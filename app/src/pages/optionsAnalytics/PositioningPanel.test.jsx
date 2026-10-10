@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { SWRConfig } from 'swr'
-import PositioningPanel from './PositioningPanel'
+import PositioningPanel, { exposureRows } from './PositioningPanel'
 
 // Bodies are the shapes api/services/options_analytics/positioning.py returns for
 // tests/fixtures/options_analytics/chain_tst_schwab_shape.json (tests/test_options_positioning.py).
@@ -48,8 +48,8 @@ describe('PositioningPanel (FT-047/049/050/052/055)', () => {
   it('every block is dark on its own: all switches off renders no block', async () => {
     stub([])
     mount()
-    // 6 blocks + lane O's delta-pressure and charm heatmaps + L3's projection (each its own dark route)
-    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(9))
+    // 6 blocks + lane O's delta-pressure and charm heatmaps + L3's projection + FT-054's exposure history (each its own dark route)
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(10))
     await new Promise((r) => setTimeout(r, 20))
     expect(screen.getByTestId('positioning').children.length).toBe(0)
   })
@@ -98,5 +98,55 @@ describe('PositioningPanel (FT-047/049/050/052/055)', () => {
       : { status: 404, ok: false, json: () => Promise.resolve({}) })))
     mount()
     expect((await screen.findByTestId('posn-nope')).textContent).toContain('failed read, not an empty one')
+  })
+
+  // FT-054: "N minutes ago". Body is the shape api/flow_exposure_history.py::read_overlay returns.
+  const HISTORY = {
+    symbol: 'TST', label: 'computed', method: 'Exposure method.', settle_note: 'Settle words.', empty: false,
+    strikes: [100, 110],
+    series: [
+      { label: 'now', minutes_ago: 0, as_of: '2026-10-09T11:00:00-04:00', strikes: { '100.0': { dealer_gamma: -12000 }, '110.0': { dealer_gamma: 500 } } },
+      { label: '30 minutes ago', minutes_ago: 30, as_of: '2026-10-09T10:30:00-04:00', strikes: { '100.0': { dealer_gamma: -8000 } } },
+      { label: '60 minutes ago', minutes_ago: 60, as_of: null, strikes: {}, note: 'No snapshot is 60 minutes older than the latest one yet. History starts at 10:00.' },
+    ],
+  }
+  const historyOnly = (body) => vi.stubGlobal('fetch', vi.fn((u) => Promise.resolve(u.includes('/api/flow/exposure-history/')
+    ? { status: 200, ok: true, json: () => Promise.resolve(body) }
+    : { status: 404, ok: false, json: () => Promise.resolve({}) })))
+
+  it('FT-054: shows each strike now vs 30 minutes ago, change coloured by sign', async () => {
+    historyOnly(HISTORY)
+    mount()
+    const row = await screen.findByTestId('posn-exposure-row-100')
+    expect(row.textContent).toContain('-$12K')
+    expect(row.textContent).toContain('-$8K')
+    const cells = row.querySelectorAll('td')
+    expect(cells[2].className).toMatch(/loss/)
+    // a strike with no flow 30 minutes ago reads $0 there, never blank
+    expect(screen.getByTestId('posn-exposure-row-110').querySelectorAll('td')[1].textContent).not.toBe('')
+    expect(screen.getByTestId('posn-exposure-ago-30')).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('FT-054: a comparison older than the history says so in words instead of a column', async () => {
+    historyOnly(HISTORY)
+    mount()
+    await screen.findByTestId('posn-exposure-row-100')
+    fireEvent.click(screen.getByTestId('posn-exposure-ago-60'))
+    expect(screen.getByTestId('posn-exposure-short').textContent).toMatch(/History starts at/)
+    expect(screen.getByTestId('posn-exposure-row-100').querySelectorAll('td').length).toBe(1)
+  })
+
+  it('FT-054: an empty day is a sentence, and the switch off renders nothing', async () => {
+    historyOnly({ ...HISTORY, empty: true })
+    mount()
+    expect((await screen.findByTestId('posn-exposure-empty')).textContent).toContain('No option flow has been recorded for TST today yet.')
+  })
+
+  it('FT-054: exposureRows keeps the largest strikes and orders them by strike', () => {
+    const many = { series: [{ minutes_ago: 0, as_of: 'x', strikes: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [String(i), { dealer_gamma: i }])) }] }
+    const rows = exposureRows(many, 30)
+    expect(rows.length).toBe(20)
+    expect(rows[0].strike).toBe(10)
+    expect(rows.every((r) => r.then === null && r.change === null)).toBe(true)
   })
 })

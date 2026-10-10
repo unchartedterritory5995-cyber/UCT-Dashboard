@@ -237,3 +237,39 @@ describe('OptionsChainTab -- the states that used to say nothing (quality pass 2
     expect(screen.getByTestId('atm-row')).toBeTruthy()
   })
 })
+
+// FT-015 / BRK-01: the streamed overlay reaches the rendered chain (useChainStream.js).
+describe('OptionsChainTab streamed quotes', () => {
+  const C760 = 'O:SPY261023C00760000'
+  const withContract = { ...CHAIN, calls: CHAIN.calls.map((c) => (c.strike === 760 ? { ...c, contract: C760 } : c)) }
+  const served = Date.parse(CHAIN.served_at)
+  const arm = (quotes) => {
+    global.fetch = vi.fn((url) => {
+      const u = String(url)
+      if (u.includes('/expirations')) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ expirations: ['2026-10-23'] }) })
+      if (u.includes('/api/live/massive/chain-quotes/')) {
+        return Promise.resolve(quotes ? { ok: true, status: 200, json: () => Promise.resolve({ quotes, coverage: 'Coverage words.' }) }
+          : { ok: false, status: 404, json: () => Promise.resolve({}) })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(withContract) })
+    })
+  }
+
+  it('armed: a newer streamed quote replaces the polled one and the chain says it is streaming', async () => {
+    arm({ [C760]: { bid: 22.0, ask: 22.4, quote_ts: served + 1000 } })
+    renderTab()
+    expect((await screen.findByTestId('chain-streaming')).textContent).toContain('Coverage words.')
+    expect(screen.getByTestId('atm-row').textContent).toContain('22.40')
+    expect(screen.getByTestId('atm-row').textContent).not.toContain('21.40')
+  })
+
+  it('switched off: the polled chain is untouched and no streaming line appears', async () => {
+    arm(null)
+    renderTab()
+    await screen.findByTestId('options-chain')
+    await new Promise((r) => setTimeout(r, 20))
+    expect(screen.queryByTestId('chain-streaming')).toBeNull()
+    expect(screen.getByTestId('atm-row').textContent).toContain('21.40')
+  })
+})
+

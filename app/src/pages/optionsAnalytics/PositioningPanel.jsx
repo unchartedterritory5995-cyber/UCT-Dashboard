@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import useDarkSection from './useDarkSection'
 import OffNotice from './OffNotice'
 import FailedRead from './FailedRead'
@@ -351,6 +351,90 @@ function DealerShort({ sym }) {
   )
 }
 
+// FT-054 "N minutes ago": per-strike dealer gamma from today's flow, now against how it stood 30 or
+// 60 minutes ago. Served by flow-worker (api/flow_exposure_history.py) through web's flow proxy, dark
+// on FLOW_EXPOSURE_HISTORY_ENABLED. A strike absent from a snapshot had no flow by then, so it reads
+// $0 there; a snapshot that does not exist yet (history too short) is said in words, never drawn.
+export const EXPOSURE_AGO = [30, 60]
+const EXPOSURE_MAX_STRIKES = 20
+
+export function exposureRows(data, ago) {
+  const series = data?.series || []
+  const now = series.find((s) => s.minutes_ago === 0)
+  const then = series.find((s) => s.minutes_ago === ago)
+  if (!now) return []
+  const thenOk = Boolean(then?.as_of)
+  const val = (s, k) => {
+    const v = s?.strikes?.[k]?.dealer_gamma
+    return Number.isFinite(v) ? v : 0
+  }
+  const keys = new Set([...Object.keys(now.strikes || {}), ...(thenOk ? Object.keys(then.strikes || {}) : [])])
+  const rows = [...keys].map((k) => {
+    const n = val(now, k)
+    const t = thenOk ? val(then, k) : null
+    return { strike: Number(k), now: n, then: t, change: t == null ? null : n - t }
+  })
+  const top = rows.sort((a, b) => Math.max(Math.abs(b.now), Math.abs(b.then || 0)) - Math.max(Math.abs(a.now), Math.abs(a.then || 0)))
+    .slice(0, EXPOSURE_MAX_STRIKES)
+  return top.sort((a, b) => a.strike - b.strike)
+}
+
+const etTime = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) : null)
+
+function ExposureHistory({ sym }) {
+  const [ago, setAgo] = useState(EXPOSURE_AGO[0])
+  const { data, hidden, failed, retry } = useDarkSection(`/api/flow/exposure-history/${enc(sym)}?ago=${EXPOSURE_AGO.join(',')}`)
+  if (hidden || (!data && !failed) || (data && !Array.isArray(data.series))) return null
+  const then = data?.series?.find((s) => s.minutes_ago === ago)
+  const rows = data ? exposureRows(data, ago) : []
+  const nowAt = etTime(data?.series?.[0]?.as_of)
+  return (
+    <Block title="Positioning now vs earlier today" testid="posn-exposure-history" failed={failed} retry={retry}
+      what="The intraday exposure history"
+      about="How much gamma dealers took on from today's option prints at each strike, now and as it stood earlier. A strike that grew more negative means dealers sold more options there and will hedge against the move.">
+      {data && (
+        <>
+          <span className={styles.seg} role="group" aria-label="Compare with">
+            {EXPOSURE_AGO.map((m) => (
+              <button key={m} type="button" aria-pressed={ago === m} onClick={() => setAgo(m)} data-testid={`posn-exposure-ago-${m}`}>
+                {m} minutes ago
+              </button>
+            ))}
+          </span>
+          {data.empty ? (
+            <p className={styles.note} data-testid="posn-exposure-empty">No option flow has been recorded for {sym} today yet.</p>
+          ) : (
+            <>
+              {!then?.as_of && <p className={styles.note} data-testid="posn-exposure-short">{then?.note || `No snapshot is ${ago} minutes old yet.`}</p>}
+              <div className={styles.scroll}>
+                <table className={styles.table} aria-label={`Dealer gamma by strike for ${sym}, now and ${ago} minutes ago`}>
+                  <thead><tr>
+                    <th scope="col">Strike</th>
+                    <th scope="col">Now{nowAt ? ` (${nowAt} ET)` : ''}</th>
+                    {then?.as_of && <th scope="col">{ago} minutes ago ({etTime(then.as_of)} ET)</th>}
+                    {then?.as_of && <th scope="col">Change</th>}
+                  </tr></thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.strike} data-testid={`posn-exposure-row-${r.strike}`}>
+                        <th scope="row">{num(r.strike)}</th>
+                        <td>{money(r.now)}</td>
+                        {then?.as_of && <td>{money(r.then)}</td>}
+                        {then?.as_of && <td className={r.change > 0 ? styles.gain : r.change < 0 ? styles.loss : undefined}>{money(r.change)}</td>}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+          <p className={styles.muted}>{data.settle_note} {data.method}</p>
+        </>
+      )}
+    </Block>
+  )
+}
+
 // Every route this panel reads, in render order -- OffNotice asks the SAME keys (SWR shares the
 // request), so it can say "not switched on" exactly when every block above rendered nothing.
 export const positioningUrls = (s) => [
@@ -363,6 +447,7 @@ export const positioningUrls = (s) => [
   `/api/options/positioning/${enc(s)}/nope`,
   `/api/options/positioning/${enc(s)}/impact`,
   `/api/options/positioning/${enc(s)}/dealer-short`,
+  `/api/flow/exposure-history/${enc(s)}?ago=${EXPOSURE_AGO.join(',')}`,
 ]
 
 // `offNotice`: set by the terminal's POS, which opens this panel on its own.
@@ -385,6 +470,7 @@ export default function PositioningPanel({ sym, offNotice = false }) {
       <Nope sym={s} />
       <Impact sym={s} />
       <DealerShort sym={s} />
+      <ExposureHistory sym={s} />
     </div>
   )
 }

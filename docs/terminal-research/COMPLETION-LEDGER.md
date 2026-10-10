@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after lanes L3, L4, L5): not complete.** 223 of 279 rows are `live` or `moot`; 56 are not (18 `dark`, 30 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after lanes L3, L4, L5): not complete.** 223 of 279 rows are `live` or `moot`; 56 are not (20 `dark`, 28 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -37,11 +37,11 @@ python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETI
 Printed 2026-10-10 after lanes L3, L4, L5:
 
 ```
-279 Counter({'live': 183, 'moot': 40, 'building': 30, 'dark': 18, 'owner-blocked': 8})
+279 Counter({'live': 183, 'moot': 40, 'building': 28, 'dark': 20, 'owner-blocked': 8})
 0 duplicate ids
 ```
 
-Printed earlier 2026-10-10 at master `d95f331bb`: `279 Counter({'live': 174, 'building': 44, 'moot': 39, 'dark': 13, 'owner-blocked': 9})`, 0 duplicate ids.
+The count printed earlier the same day at master `d95f331bb`, before lane L4: `279 Counter({'live': 174, 'building': 44, 'moot': 39, 'dark': 13, 'owner-blocked': 9})`.
 
 Before this reconciliation (same command, the file as committed at `d95f331bb`): `279 Counter({'building': 85, 'live': 77, 'dark': 69, 'moot': 36, 'owner-blocked': 12})`, 0 duplicate ids. (The table that stood here then still carried the pre-sweep 2026-10-03 numbers; the command, not the table, was right.)
 
@@ -52,13 +52,13 @@ The per-section split is the same regex applied to each `## ` section:
 | 1 Programme records + ship | 17 | 11 | 0 | 3 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
 | 3 TERM-001..093 | 93 | 65 | 6 | 13 | 3 | 6 |
-| 4 BRK-01..10 | 10 | 4 | 3 | 2 | 0 | 1 |
+| 4 BRK-01..10 | 10 | 4 | 4 | 1 | 0 | 1 |
 | 5 COV-01..12 | 12 | 5 | 0 | 3 | 1 | 3 |
-| 6 FT-001..080 | 80 | 56 | 5 | 6 | 4 | 9 |
+| 6 FT-001..080 | 80 | 56 | 6 | 5 | 4 | 9 |
 | 7 Untracked promises | 58 | 42 | 4 | 3 | 0 | 9 |
-| **total** | **279** | **183** | **18** | **30** | **8** | **40** |
+| **total** | **279** | **183** | **20** | **28** | **8** | **40** |
 
-`building` by lane: P 9 · R 5 · O 4 · integrator 4 · Notebook 2 · S 2 · D 1 · T2 1 · decided follow-up builds (TERM-043, TERM-045) 2.
+`building` by lane: P 9 · R 5 · integrator 4 · Notebook 2 · O 2 · S 2 · D 1 · T2 1 · decided follow-up builds (TERM-043, TERM-045) 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -201,7 +201,7 @@ The per-section split is the same regex applied to each `## ` section:
 
 | id | item | state | note |
 |---|---|---|---|
-| `BRK-01` | Pre-trade options analysis | `building (Lane O)` | Chain, surface and payoff live; backtest armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2178`). The FT-001/011/012/014/018 remainders are now live (rows below). Left: FT-015's streamed chain. |
+| `BRK-01` | Pre-trade options analysis | `dark` | Chain, surface and payoff live; backtest armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2178`). The FT-001/011/012/014/018 remainders are now live (rows below). FT-015's streamed chain is built (lane f-l4, 2026-10-10) and dark on `OPTIONS_CHAIN_STREAM_ENABLED` (flow-worker, `docs/feature_flags.json:415`); see FT-015. Arming needs a flow-worker restart, after hours. Was `building (Lane O)`. |
 | `BRK-02` | Screen universe + expressiveness | `moot (decided 2026-10-07: no second universe)` | Logic built and armed on web 2026-10-04 (`a046f7d9f`) (`SCREENER_LOGIC_ENABLED`, `docs/feature_flags.json:1876`). The second universe is declined: I-10 (`12-decisions/2026-10-07-owner-delegated-decisions.md:38`). |
 | `BRK-03` | Alert authoring grammar | `live` | The typed where-grammar (FT-029 v2: typed subjects, `$AAPL` / `#list` scopes, arithmetic; one parser, `api/services/screener/grammar.py`) is armed on web 2026-10-04 (`a046f7d9f`) (`SCREENER_ALERT_GRAMMAR_ENABLED`, `docs/feature_flags.json:1898`); standing alerts on a filter-list screen ride it (`SCREENER_SPEC_ALERTS_ENABLED`, `docs/feature_flags.json:1948`). Was `building (Lane S)`. |
 | `BRK-04` | Mobile push alert channel | `dark` | D-012. On master (`api/services/web_push.py:101`); `WEB_PUSH_ENABLED` still `pending` (`docs/feature_flags.json:1996`). Arming needs `tools/gen_vapid_keys.py` + 3 VAPID vars on web. |
@@ -247,7 +247,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `FT-012` | Theoretical-value edge ranking | `live` | Edge ranking: `OPTIONS_EDGE_RANKING_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:316`); states its n and does not rank by win rate under 60 sessions. Was `building (Lane O)`. |
 | `FT-013` | Mid-price backtest caveat | `live` | `OPTIONS_BACKTEST_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2178`). Was `dark`. |
 | `FT-014` | Chain + builder + finder | `live` | Chain live; finder `OPTIONS_STRATEGY_FINDER_ENABLED` (`docs/feature_flags.json:324`) and Spread Book (`docs/feature_flags.json:388`) armed on web 2026-10-04 (`a046f7d9f`). Was `building (Lane O)`. |
-| `FT-015` | Full Greek set chain | `building (Lane O)` | Rho / lambda / epsilon and a Calls/Puts mode armed on web 2026-10-04 (`a046f7d9f`) (`OPTIONS_CHAIN_FULL_GREEKS_ENABLED`, `docs/feature_flags.json:332`). Remainder: a streamed chain, which needs a Massive option-quote socket (`lane-o-options-remainders.md:38`); the chain polls every 60 s. |
+| `FT-015` | Full Greek set chain | `dark` | Rho / lambda / epsilon and a Calls/Puts mode armed on web 2026-10-04 (`a046f7d9f`) (`OPTIONS_CHAIN_FULL_GREEKS_ENABLED`, `docs/feature_flags.json:332`). Streamed chain built WITHOUT a new socket (lane f-l4, 2026-10-10): `api/live_chain_stream.py:120` reads the OPRA consumer's own `_RAW_T_HISTORY` (every contract printed today, `T.*`) and `_nbbo_table` (the ~950-contract Q pool) read-only, served at `api/live_chain_stream.py:187` (one read) and `:196` (SSE, 2 s), mounted on flow-worker (`api/flow_router_mount.py:56`), reached from web through the flow proxy's `/api/live/massive` prefix; the chain probes first and overlays only newer values (`app/src/pages/research/tabs/OptionsChainTab.jsx:113`, `useChainStream.js`). `massive_ws_worker.py` untouched. Stated limit: bid/ask stream only for Q-pool contracts; the rest keep the 60 s poll. Dark on `OPTIONS_CHAIN_STREAM_ENABLED` (`docs/feature_flags.json:415`). Was `building (Lane O)`. |
 | `FT-016` | Chain → chart → pricer drill | `live` | `OPTIONS_PRICER_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:267`). Was `dark`. |
 | `FT-017` | OSA what-if fields | `live` | `OPTIONS_PRICER_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:267`). Was `dark`. |
 | `FT-018` | Implied-vol surface | `live` | Surface live; RR/BF tenor table (`docs/feature_flags.json:340`) and 3D view (`docs/feature_flags.json:348`) armed on web 2026-10-04 (`a046f7d9f`). Was `building (Lane O)`. |
@@ -285,8 +285,8 @@ The per-section split is the same regex applied to each `## ` section:
 | `FT-050` | Options Impact gauge | `live` | `OPTIONS_IMPACT_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:193`). 20-session average. Was `dark`. |
 | `FT-051` | Two positioning models | `live` | `api/gex_router.py:35`. |
 | `FT-052` | Negative OI explained | `live` | `OPTIONS_DEALER_SHORT_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:209`). Was `dark`. |
-| `FT-053` | Level files into other platforms | `dark` | Built 2026-10-10 by finishing lane L3 (branch `f-l3`) behind `OPTIONS_LEVEL_FILES_ENABLED` (`docs/feature_flags.json:432`, `dark`), paid. `GET /api/options/positioning/{sym}/level-files?format=` (`pine`, `thinkscript` or `csv`) (`api/routers/options_analytics.py:546`) serves the positioning levels as a TradingView Pine v5 indicator, a ThinkorSwim thinkScript study or a price,label CSV (`api/services/options_analytics/level_files.py:70`); download buttons in the positioning levels block (`app/src/pages/optionsAnalytics/PositioningPanel.jsx:122`). Licensing cleared by D-011. |
-| `FT-054` | "N minutes ago" overlay | `building (Lane O)` | Needs a durable intraday per-strike exposure store on flow-worker. |
+| `FT-053` | Level files into other platforms | `building (Lane O)` | Licensing cleared by D-011, so it is now agent-buildable. No lane listed it in the audit, so it is proposed here for Lane O. |
+| `FT-054` | "N minutes ago" overlay | `dark` | Built (lane f-l4, 2026-10-10): `api/flow_exposure_history.py:242` folds today's settled flow.db prints into per-strike customer nets and dealer gamma and writes changed strikes every 5 min to a bounded SQLite in flow-worker's data dir (today + 1 session); 60 s tick at `api/flow_worker_main.py:843`; read at `api/flow_exposure_history.py:440` (`/api/flow/exposure-history/{sym}`, via web's flow proxy); "now vs 30 / 60 minutes ago" toggle in the positioning panel (`app/src/pages/optionsAnalytics/PositioningPanel.jsx:244`). No new socket. Dark on `FLOW_EXPOSURE_HISTORY_ENABLED` (`docs/feature_flags.json:408`). Arming needs a flow-worker restart, after hours. Was `building (Lane O)`. |
 | `FT-055` | Positioning primitives | `live` | `OPTIONS_MAX_PAIN_ENABLED` (`docs/feature_flags.json:177`) and `OPTIONS_NOPE_ENABLED` (`docs/feature_flags.json:185`) armed on web 2026-10-04 (`a046f7d9f`); GEX live. Was `dark`. |
 | `FT-056` | Market Tide | `live` | Market Tide (`docs/feature_flags.json:161`) and per-sector tide (`docs/feature_flags.json:372`) armed on web 2026-10-04 (`a046f7d9f`). Was `building (Lane O)`. |
 | `FT-057` | Tide → flow-minute jump | `live` | Tide click-through to the flow minute: `OPTIONS_TIDE_CLICKTHROUGH_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:380`). Was `building (Lane O)`. |
