@@ -209,3 +209,16 @@ action** (§8 number, or "—").
 Every decision above is a default, and the owner can overturn any of them with one sentence. The one
 code change (T-12) is a reading: reverting commit `6d2e692bd` removes the `switch` key and nothing
 else.
+
+## 10. Owner ruling, 2026-10-10: the Ravi trial is waived
+
+The owner ruled on 2026-10-10, verbatim: *"no need to wait for ravi on anything we can proceed
+fully with all of those"*.
+
+- **P-11 / C2 (X-14, RM-N05 MVP trial).** Waived. The pre-registered trial
+  (`10-roadmap/2026-09-30-mvp-preregistration-ravi.md`) is not run and nothing waits on it.
+  P-11 above ("keep the pre-registered trial") and C2 ("ask Ravi to start Phase A") are kept as
+  history and no longer bind. Ledger row X-14 moves to `moot`.
+- The terminal shipped to every member without the trial (I-11 graduation,
+  `docs/feature_flags.json` `TERMINAL_NEXT_ENABLED`), so the trial is no longer a gate on anything.
+- Recorded by lane f-l1 on 2026-10-10. Nothing above this section was edited.

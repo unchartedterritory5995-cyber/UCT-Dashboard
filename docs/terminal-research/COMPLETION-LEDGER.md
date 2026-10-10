@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (master `d95f331bb`, 2026-10-09): not complete.** 213 of 279 rows are `live` or `moot`; 66 are not (14 `dark`, 43 `building`, 9 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (branch f-l1 from master `11fa16167`, 2026-10-10): not complete.** 217 of 279 rows are `live` or `moot`; 62 are not (13 `dark`, 41 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,10 +34,10 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 at master `d95f331bb`, re-run after TERM-004 moved `building` → `dark` (lane f-l10, TERM-004b):
+Printed 2026-10-10 on branch f-l1 (from master `11fa16167`), after lane f-l1's edits to X-03, X-04, X-05, X-14, RM-X02 and FB-A3:
 
 ```
-279 Counter({'live': 174, 'building': 43, 'moot': 39, 'dark': 14, 'owner-blocked': 9})
+279 Counter({'live': 177, 'building': 41, 'moot': 40, 'dark': 13, 'owner-blocked': 8})
 0 duplicate ids
 ```
 
@@ -47,16 +47,16 @@ The per-section split is the same regex applied to each `## ` section:
 
 | section | rows | live | dark | building | owner-blocked | moot |
 |---|---|---|---|---|---|---|
-| 1 Programme records + ship | 17 | 7 | 0 | 7 | 1 | 2 |
+| 1 Programme records + ship | 17 | 9 | 0 | 5 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
 | 3 TERM-001..093 | 93 | 65 | 6 | 13 | 3 | 6 |
 | 4 BRK-01..10 | 10 | 4 | 2 | 3 | 0 | 1 |
 | 5 COV-01..12 | 12 | 5 | 0 | 3 | 1 | 3 |
 | 6 FT-001..080 | 80 | 56 | 2 | 9 | 4 | 9 |
-| 7 Untracked promises | 58 | 37 | 4 | 8 | 0 | 9 |
-| **total** | **279** | **174** | **14** | **43** | **9** | **39** |
+| 7 Untracked promises | 58 | 38 | 4 | 7 | 0 | 9 |
+| **total** | **279** | **177** | **13** | **41** | **8** | **40** |
 
-`building` by lane: P 11 · O 8 · R 5 · integrator 4 · D 3 · T1 3 · S 2 · Notebook 2 · T4 2 · T2 1 · decided follow-up builds (TERM-043, TERM-045) 2.
+`building` by lane: P 11 · O 8 · R 5 · integrator 4 · D 1 · T1 3 · S 2 · Notebook 2 · T4 2 · T2 1 · decided follow-up builds (TERM-043, TERM-045) 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -67,9 +67,9 @@ The per-section split is the same regex applied to each `## ` section:
 |---|---|---|---|
 | `X-01` | Merge `integrate/terminal-fixes` to master (77 ahead / 28 behind) | `live` | Landed 2026-10-04: `2e304db42` merge(terminal) X-01. `origin/integrate/terminal-fixes`, `lane/p-platform`, `lane/r-research-depth` and `lane/d-records` are each 0 commits ahead of master (`git rev-list --count HEAD..origin/<lane>` at `d95f331bb`), so no row below is branch-only any more. Was `building (integrator)`. |
 | `X-02` | `TERMINAL_NEXT_ENABLED`: the `/terminal` shell + the `/calendar` redirect | `live` | `TERMINAL_NEXT_ENABLED` armed on web (`docs/feature_flags.json:2415`, recorded `4084cd903`). The nav entry graduated to `/terminal` (`c941080f0`, I-11 `12-decisions/2026-10-07-owner-delegated-decisions.md:39`; `app/src/components/NavBar.jsx:27`) and `/terminal` is measured viewport-locked (`18676e3ec`). V1 is fixed (row V1). Was `dark`. |
-| `X-03` | Charter §49 #18: first vertical slice (`10-roadmap/first-slice.md`) | `building (Lane D)` | **NOT MET**: the file is absent, and the work is not started. Roadmap RM-N16. Re-checked at `d95f331bb`: still absent. |
-| `X-04` | Charter §49 #24: master plan (`13-executive-synthesis/MASTER_PLAN.md`) | `building (Lane D)` | **NOT MET**: the file is absent, and the work is not started. Roadmap RM-N17. Must carry D-005..D-014 and this ledger. Re-checked at `d95f331bb`: still absent. |
-| `X-05` | Charter §49 #26: readiness test | `building (Lane D)` | **NOT RUN.** It needs X-04 as its input. Roadmap RM-N18; the procedure is in `00-program-control/readiness-test.md`. Re-checked at `d95f331bb`: not run (X-04 still absent). |
+| `X-03` | Charter §49 #18: first vertical slice (`10-roadmap/first-slice.md`) | `live` | Done 2026-10-10 by lane f-l1: `10-roadmap/first-slice.md`, written retrospectively since the terminal had shipped. Its slice is `e5f189c56` (the `/terminal` shell, 2026-10-02), on master via `2e304db42`; every Part CCXLIII field cites a commit or a `file:line`. Roadmap RM-N16. Was `building (Lane D)`. |
+| `X-04` | Charter §49 #24: master plan (`13-executive-synthesis/MASTER_PLAN.md`) | `live` | Done 2026-10-10 by lane f-l1: `13-executive-synthesis/MASTER_PLAN.md`, the 42 Part CC sections each with a five-line summary, plus D-005..D-014 and the later rulings (Part A) and this ledger's state (Part B). Roadmap RM-N17. Was `building (Lane D)`. |
+| `X-05` | Charter §49 #26: readiness test | `building (Lane D)` | Input X-04 now exists; the run is recorded in `00-program-control/readiness-test.md`. |
 | `X-06` | Record the 2026-10-02 owner rulings | `live` | Done here: D-005..D-014, DL-026..DL-037. |
 | `X-07` | Retract or annotate NG-10, NG-04/05, NG-15 | `live` | Done here: `05-product-strategy/non-goals.md`. |
 | `X-08` | COV-09 naming conflict | `live` | Resolved by DL-036: COV-09 is the SEC filings feed, congressional trackers are COV-12. |
@@ -78,7 +78,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `X-11` | Five terminal-grade properties re-walked **on `/terminal`** | `building (Lane T1)` | The 2026-09-24 "5/5 PASS" ran on `/charts` and `/screener`, not the shell. The V22 throwing-panel rail now exists (`app/src/pages/terminal/TerminalShell.test.jsx:291`); the five-property walk on `/terminal` itself: not measured. This is V22 below. |
 | `X-12` | `/calendar` retirement (RM-L16, CX-8) | `moot (decided 2026-10-07: /calendar coexists permanently as a URL)` | D-006 places the calendar inside the Terminal but does not choose. If retire: MG-7 at 0 GAP, nav graduation, MG-8 re-census, then the countdown. ➜ 2026-10-07: P-9 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `X-13` | MG-8 consumer re-census at countdown | `moot (no countdown; X-12 decided)` | The live instance is fixed (`api/services/journal_two/db.py:2302-2309`). The gate is unrun because no countdown has started. ➜ 2026-10-07: P-10 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
-| `X-14` | RM-N05 MVP trial (subject Ravi, adjudicator Patrick) | `owner-blocked (Ravi records Phase A: 5 trading days or 10 occasions)` | Pre-registered 2026-09-30, not started. It tests the breadth drill, not the shell. ➜ 2026-10-07: decided: keep the pre-registered trial. Owner action C2 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `X-14` | RM-N05 MVP trial (subject Ravi, adjudicator Patrick) | `moot (owner waived the Ravi trial 2026-10-10)` | Owner ruling 2026-10-10, verbatim: "no need to wait for ravi on anything we can proceed fully with all of those" (`12-decisions/2026-10-07-owner-delegated-decisions.md:213-221`). It supersedes P-11 and C2. Pre-registered 2026-09-30, never started. Was `owner-blocked (Ravi records Phase A: 5 trading days or 10 occasions)`. |
 | `X-15` | RM-N10 bars p95, clause 2 | `building (Lane P)` | Instrument fixed (`tools/bars_warmth_gate.py:115` `MIN_NOWAIT_N`). Needs one valid RTH run with n ≥ `MIN_NOWAIT_N`. No valid run recorded since 2026-10-03: not measured. |
 | `X-16` | Ledger hygiene: `IMPLIED_ENRICHMENT_CUTOVER`, `D5_CP4_DUAL_COMPUTE_SAMPLE_RATE`, `WIRE_SURFACE_LINE_ENABLED` | `live` | Done: the `knobs` section of `docs/feature_flags.json` holds all three on master (`docs/feature_flags.json:2974` `IMPLIED_ENRICHMENT_CUTOVER` pending, `docs/feature_flags.json:2982` `D5_CP4_DUAL_COMPUTE_SAMPLE_RATE` armed, `docs/feature_flags.json:2990` `WIRE_SURFACE_LINE_ENABLED` dark), landed by `e82e6a661` on master via the X-01 landing `2e304db42`; rail `tests/test_flag_ledger_knobs.py`. Flipping `IMPLIED_ENRICHMENT_CUTOVER` is a separate owner call, not this hygiene row. Was `dark` (branch-only). |
 | `X-17` | Settings "Free Plan" copy contradicts D-010 (U-COPY-01) | `building (Lane P)` | `app/src/pages/Settings.jsx:2042-2046` still renders "Free Plan" and lists free-tier pages at `d95f331bb`. Product copy, not this lane. |
@@ -321,7 +321,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `V13` | Doors → panels (26 of 46 codes leave the shell), with one panel vocabulary | `live` | One panel vocabulary: `app/src/pages/terminal/surfacePanels.js:16` imports `SURFACE_PANELS` (TERM-037). 18 of 85 codes still leave the shell, each declaring why in `app/src/pages/terminal/functions.js` (for example `:91`, `:187`, `:220`). Was `building (Lane T1)`. |
 | `V6a` | Honour stored arguments (`ChartPanel.jsx:7` hard-codes `tf="D"`) | `live` | `app/src/pages/terminal/panels/ChartPanel.jsx:7` takes `tf` from the command (`NVDA GP W`); variants declare their args (`app/src/pages/terminal/args.js:6`). Was `building (Lane T1)`. |
 | `V22` | Throwing-panel rail + re-run the five-property walkthrough on `/terminal` | `building (Lane T1)` | Throwing-panel rail built: `app/src/pages/terminal/TerminalShell.test.jsx:291`. Remainder: re-run the five-property walk on `/terminal` (X-11): not measured. |
-| `RM-X02` | `/terminal` in `tools/hub_nav_smoke.py` + a pre-authored rollback branch | `building (Lane T1)` | `tools/hub_nav_smoke.py:188` follows the UCT Terminal entry onto `/terminal` (`alsoActive`). Remainder: a pre-authored terminal rollback branch; none on origin (`git ls-remote --heads origin` lists only Notebook rollback branches). |
+| `RM-X02` | `/terminal` in `tools/hub_nav_smoke.py` + a pre-authored rollback branch | `building (Lane T1)` | `tools/hub_nav_smoke.py:188` follows the UCT Terminal entry onto `/terminal` (`alsoActive`). Rollback branch prepared, push pending: `rollback/terminal-next-off` at `f1c811f4c` (from `origin/master` `11fa16167`, lane f-l1, 2026-10-10). The off switch is the `TERMINAL_NEXT_ENABLED` variable read per request (`api/services/rollout_gate.py:141-155`), not code, so the branch carries only `docs/runbooks/terminal-rollback.md`: the `railway` commands and a three-step verification. Remainder: the integrator pushes the branch. |
 | `V2` | `terminal_layout` onto the versioned TERM-021 store + version restore | `live` | The board is versioned on TERM-021's store (`app/src/pages/terminal/boardModel.js:3-6`, `TERMINAL_PREF_KEYS`) with version restore (`app/src/pages/terminal/TerminalVersions.jsx:4`). Was `building (Lane T2)`. |
 | `V3` | Named, addressable, shareable terminal boards (FB A-2 for the shell) | `live` | Named boards addressed `B:<slug>` (`app/src/pages/terminal/boardModel.js:792`) and shared by link (`encodeShare` `:606`, `/terminal?board=` `:622`). Was `building (Lane T2)`. |
 | `V9` | Panel close + undo, duplicate, pop-out | `live` | Close, undo, duplicate and pop-out (`app/src/pages/terminal/boardModel.js:415`, `undoClose` `:440`); Alt+X / Z / C keys (`af1048a95`). Was `building (Lane T2)`. |
@@ -368,7 +368,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `ARCH-5B8` | Store retention registry visible to `disk_watchdog` | `live` | On master (`e82e6a661`, via X-01): `api/services/store_retention.py` registers the stores and `disk_watchdog` prints each one's retention or `UNDECLARED`; ungated; rail `tests/test_store_retention.py`. Was `dark` (branch-only). |
 | `ENT-UC2` | Watchlist rows keyed by entity id | `dark` | On master (`5d376567e`, via X-01; `api/services/watchlist_entity_keys.py`); `WATCHLIST_ENTITY_KEYS_ENABLED` still `pending` (`docs/feature_flags.json:79`). Arming needs the Entity Master seeded on web; rendering `display_sym` on the Watchlists page is not built. |
 | `CAP-A12` | Merge the two drag-and-drop libraries | `building (Lane P)` | |
-| `FB-A3` | Doc `file:line` citation resolver | `building (Lane P)` | |
+| `FB-A3` | Doc `file:line` citation resolver | `live` | Done 2026-10-10 by lane f-l1: `tools/doc_citation_resolver.py` (backticked `file.ext:N`, `:N-M` and `:N,M` resolved at a git revision; missing files and out-of-range lines reported; `--self-check` with a fixture that must fail), rails `tests/test_doc_citation_resolver.py`. Run over this file and the 2026-10-10 delivery record: 290 citations, 0 broken. Was `building (Lane P)`. |
 | `FB-A1` | Feature-backlog appendix A-1 | `moot (MOOT by the audit, §1b)` | |
 | `PREARM` | Pre-arm "would have fired N" receipt | `moot (dropped by the TERM-062 ruling 2026-09-29)` | |
 | `PP-ROLES` | Shared-instance roles (PP §1 #6) | `moot (deferred to need by its own doc)` | |
