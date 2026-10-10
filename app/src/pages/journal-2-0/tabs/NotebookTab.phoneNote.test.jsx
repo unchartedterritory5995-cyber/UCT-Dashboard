@@ -438,10 +438,16 @@ describe('D-7 -- the phone rule (structural)', () => {
     expect(declaresProp(base, '.sidebarToggle', 'height', /tap-min/)).toBe(true)
   })
 
-  it('the collapsed main column keeps clear of the (now larger) toggle, at every width', () => {
+  it('the collapsed main column keeps clear of the FLOATING toggle on desktop', () => {
     expect(declaresProp(base, '.wrap.collapsed .main', 'padding-left', /^62px$/)).toBe(true)
-    // no phone-specific override left pulling it back down to the old, now-too-small 20px
-    expect(declaresProp(phone, '.wrap.collapsed .main', 'padding-left', /.+/)).toBe(false)
+  })
+
+  // Phone pass 2026-10-10: on a phone the toggle is a labelled button IN THE PAGE FLOW (static),
+  // so the 62px clearance only wasted a sixth of the width (content started at x=86 of 390).
+  // The two declarations travel together: a static toggle with no pad, never a floating one with none.
+  it('on a phone the toggle is in the flow and the main column drops the clearance -- together', () => {
+    expect(declaresProp(phone, '.sidebarToggle', 'position', /^static$/)).toBe(true)
+    expect(declaresProp(phone, '.wrap.collapsed .main', 'padding-left', /^0$/)).toBe(true)
   })
 
   it('⭐ CONTROL -- the parser sees the OLD forced-open declaration when it is there', () => {

@@ -2361,7 +2361,7 @@ export default function NotebookTab() {
               data-tour="import"
             >
               <UIcon name="upload" size={16} gold={false} />
-              Import
+              <span className={styles.actionLabel}>Import</span>
             </button>
             <button
               type="button"
@@ -2370,7 +2370,7 @@ export default function NotebookTab() {
               aria-haspopup="dialog"
             >
               <UIcon name="download" size={16} gold={false} />
-              Export
+              <span className={styles.actionLabel}>Export</span>
             </button>
             <button
               type="button"
@@ -2380,7 +2380,7 @@ export default function NotebookTab() {
               aria-keyshortcuts="Control+Alt+D Meta+Alt+D"
             >
               <UIcon name="sun" size={16} gold={false} />
-              Today
+              <span className={styles.actionLabel}>Today</span>
             </button>
             <button
               type="button"
@@ -2390,7 +2390,8 @@ export default function NotebookTab() {
               aria-haspopup="dialog"
               data-tour="templates"
             >
-              Templates
+              <UIcon name="library" size={16} gold={false} />
+              <span className={styles.actionLabel}>Templates</span>
             </button>
             <button
               type="button"
