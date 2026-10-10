@@ -225,8 +225,10 @@ export function registerIndicatorEditCapabilities() {
   registerCapability({
     ...common,
     name: 'indicator.add',
+    // ⭐ F5: the same add on several charts is proposed once and run once PER CHART (useAgent fan-out)
+    fanOut: true,
     summary: 'Add ONE indicator to ONE chart — exactly what the Indicator Library\'s Add to Chart does. Built-in indicators or the member\'s own saved ones; Undo removes it again.',
-    hints: 'target = the ref of that chart\'s indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings.',
+    hints: 'target = the ref of that chart\'s indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts ("add it to both charts") = one indicator.add per chart the member named, same defId — they are proposed together and applied one chart at a time; if it isn\'t clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings.',
     args: { type: 'object', properties: { defId: { type: 'string' } }, required: ['defId'], additionalProperties: false },
     check(st, { defId }) {
       if (NOT_ADDABLE.test(String(defId || '').trim())) return refusalSentence({ reason: REASONS.UNSUPPORTED_DEFINITION })

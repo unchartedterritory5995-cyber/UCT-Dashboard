@@ -18,8 +18,7 @@ import * as drawingsStore from '../components/chart/drawingsStore'
 
 const refOf = (r) => (r.tabId ? `${r.chartId}~${r.tabId}` : r.chartId)
 
-export function positionWord(w, all) {
-  if (all.length < 2) return ''
+function centreWord(w, all) {
   const cx = w.x + w.w / 2
   const cy = w.y + w.h / 2
   const spreadX = new Set(all.map(o => (o.x + o.w / 2) < 12)).size > 1
@@ -27,6 +26,26 @@ export function positionWord(w, all) {
   const v = spreadY ? (cy < 10 ? 'top' : 'bottom') : ''
   const h = spreadX ? (cx < 12 ? 'left' : 'right') : ''
   return [v, h].filter(Boolean).join('-')
+}
+// S6 nit: a chart that fills the board's whole HEIGHT is neither top nor bottom (a full-height left
+// chart beside a top-right one is "Left", not "Bottom-left" — its centre sat exactly on the row
+// midline); one that fills the whole WIDTH is neither left nor right. Used only when it still tells
+// every chart apart; otherwise the centre rule decides, as before.
+function spanWord(w, all) {
+  const top = Math.min(...all.map(o => o.y))
+  const bottom = Math.max(...all.map(o => o.y + o.h))
+  const left = Math.min(...all.map(o => o.x))
+  const right = Math.max(...all.map(o => o.x + o.w))
+  const fullH = w.y <= top && w.y + w.h >= bottom
+  const fullW = w.x <= left && w.x + w.w >= right
+  const base = centreWord(w, all).split('-').filter(Boolean)
+  return base.filter(p => !((p === 'top' || p === 'bottom') && fullH) && !((p === 'left' || p === 'right') && fullW)).join('-')
+}
+export function positionWord(w, all) {
+  if (all.length < 2) return ''
+  const words = all.map(o => spanWord(o, all))
+  const distinct = words.every(Boolean) && new Set(words).size === words.length
+  return distinct ? spanWord(w, all) : centreWord(w, all)
 }
 
 export function buildChartSource({ chartApiById, getWidgets }) {

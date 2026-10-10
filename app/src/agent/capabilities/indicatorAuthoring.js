@@ -65,7 +65,7 @@ function setActive(draftRef) {
     else store()?.removeItem(ACTIVE_KEY)
   } catch { /* storage is a convenience: the specialist is the authority */ }
 }
-export function _resetAuthoring() { active = null; pinned.clear(); try { store()?.removeItem(ACTIVE_KEY); store()?.removeItem(LAST_KEY) } catch { /* */ } }
+export function _resetAuthoring() { active = null; try { store()?.removeItem(ACTIVE_KEY); store()?.removeItem(LAST_KEY) } catch { /* */ } }
 
 // ── refinement A: the chart a draft belongs to is the SPECIALIST's association (`status.chartRef`,
 // recorded by openDraft). Used while that chart is on the board; otherwise the member names one. ──
@@ -136,6 +136,21 @@ const NEGATION = /\b(don['’]?t|do not|not|no|without|never|neither|nor)\b/i
 export function asksToApply(text) {
   return String(text || '').split(/[.;!?\n]+|,\s*(?:but|then)\b/i).some(c => APPLY_WORDS.test(c) && !NEGATION.test(c))
 }
+/** F5: null when "both / all charts" names exactly the charts the plan adds to; else the question to ask. */
+export function multiChartAmbiguity(host, adds, text) {
+  // every chart on the board (a chart that can't take it is refused by the add itself, by name)
+  const charts = boardCharts(host)
+  const targets = [...new Set(adds.map(o => asChartRef(o.target)))]
+  const both = /\bboth\b/i.test(text)
+  const ask = both ? 'Which two charts should it go on?' : 'Which charts should it go on?'
+  if (targets.length < 2 || !targets.every(t => charts.some(c => c.ref === t))) return ask
+  if (both && targets.length !== 2) return ask
+  // "all charts" = every chart here; "both" on a two-chart board is those two
+  if (targets.length === charts.length) return null
+  // otherwise the member must have named each one (its symbol or its position)
+  const named = (c) => [c.symbol, c.position].filter(Boolean).some(w => new RegExp(`\\b${String(w).replace(/[^A-Za-z0-9]/g, '')}\\b`, 'i').test(text))
+  return targets.every(t => named(charts.find(c => c.ref === t))) ? null : ask
+}
 /**
  * @returns `{ ops, ask?: {text, choices}, notes: string[] }` — ops possibly corrected; `ask` = do not
  *          plan anything, ask this instead (nothing changes).
@@ -166,6 +181,24 @@ export function screenModelOps(host, ops, text, capCtx = {}) {
       choices: [{ label: name ? `Save the indicator draft as ${name}` : 'Save the indicator draft' },
         { label: name ? `Save this workspace as a new layout called ${name}` : 'Save this workspace layout' }],
     } }
+  }
+  // S6 nit — a NEW draft with no chart on a board of several: ask with the charts as choices (the
+  // member's pick fills `chart`; nothing is sent to the builder until then)
+  // ⛔ only for a member who CAN author: without access the op is left alone and refused, never asked about
+  const unplaced = out.find(o => o?.action === 'indicator.draft' && o.target === NEW && o.args?.chart == null)
+  if (canAuthor && unplaced && out.length === 1) {
+    const charts = boardCharts(host)
+    if (charts.length > 1) {
+      return { ops: [], notes, ask: { text: 'Which chart is this indicator for?',
+        choices: charts.map(c => ({ ref: c.ref, label: c.label })), pick: { ops: out, action: 'indicator.draft', arg: 'chart' } } }
+    }
+  }
+  // F5 — "add it to both / all charts": the charts must be unambiguous before anything is proposed
+  const adds = out.filter(o => o?.action === 'indicator.add')
+  const many = /\b(both|all|every|each)\b[^.;!?]*\bcharts?\b/i.test(words)
+  if (adds.length && many) {
+    const why = multiChartAmbiguity(host, adds, words)
+    if (why) return { ops: [], notes, ask: { text: why, choices: [] } }
   }
   // F3 — Save and "add to a chart" are separate intents: an unrequested chart add is dropped
   out = out.map(o => {
@@ -215,22 +248,48 @@ export function refusalSentence(res) {
 
 const nameOf = (s) => (s?.status?.name ? `“${s.status.name}”` : 'the draft')
 
-// ── proposal-time pins: a Save is always proposed, and the proposal's Apply RE-PLANS. The pins
-// (revision, acknowledgement, the builder's summary) must be the ones the member SAW, so the first
-// plan of a Save request keeps them, briefly, per draft + request; Apply uses them, and the
-// specialist refuses (`stale-revision`) if the draft moved since. Dropped once the Save runs. ──
-const PIN_TTL_MS = 10 * 60 * 1000
-const pinned = new Map()
-const pinKey = (st, req) => `${st.draftRef.key}|${st.draftRef.lineage}|${JSON.stringify(req)}`
-function pinFor(st, req) {
-  const key = pinKey(st, req)
-  const hit = pinned.get(key)
-  if (hit && Date.now() - hit.at < PIN_TTL_MS) return { key, ...hit }
-  const p = { revision: st.status.revision, ackShown: st.status.ackText.slice(), lines: (st.status.lines || []).slice(), name: st.status.name || null, at: Date.now() }
-  pinned.set(key, p)
-  return { key, ...p }
+// ── ⛔ F6 — APPROVAL INTEGRITY. A Save is always proposed, and the proposal's Apply RE-PLANS. What
+// the member approved is SEALED when the card is made (`sealSave`, kept by useAgent with the
+// proposal — never in a cache that can lapse into a fresh read): the draft's identity and
+// revision, the operation and requested name, the target definition, the exact acknowledgement,
+// the builder's summary, the charts to add it to, and an expiry. Apply plans FROM the seal and
+// refuses (`validateSaveSeal`) unless the draft is still exactly that — before any rename, turn,
+// Save or chart add. Nothing is ever rebuilt from the draft as it is now. ──
+export const PROPOSAL_TTL_MS = 10 * 60 * 1000
+const sameList = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i])
+const sortedRefs = (xs) => [...new Set((xs || []).map(asChartRef))].sort()
+/** The approval-critical facts of ONE planned Save (the indicatorDrafts plan's after-state). */
+export function sealSave(snap, after, now = Date.now()) {
+  const op = (after?.ops || []).find(o => o.type === 'save')
+  if (!op || !snap?.draftRef || !snap.status) return null
+  const turn = after.ops.find(o => o.type === 'turn')
+  const s = snap.status
+  return Object.freeze({
+    action: 'indicator.saveDraft', ref: snap.ref,
+    draft: { key: snap.draftRef.key, lineage: snap.draftRef.lineage },
+    revision: op.pinRevision, name: op.name, turn: turn ? turn.message : null,
+    target: { mode: s.mode, defId: s.defId ?? null, baseVersion: s.baseVersion ?? null },
+    addTo: sortedRefs(op.addTo),
+    ackShown: op.ackShown.slice(), linesShown: op.linesShown.slice(), nameShown: op.nameShown,
+    issuedAt: now, expiresAt: now + PROPOSAL_TTL_MS,
+  })
 }
-export function _resetSavePins() { pinned.clear() }
+const STALE_SAVE = 'so nothing was saved or added to a chart — ask me to save it again and I’ll show you the current version.'
+/** null when the draft is still EXACTLY what the member approved; else the refusal sentence. */
+export function validateSaveSeal(seal, snap, req, now = Date.now()) {
+  if (!seal || seal.action !== 'indicator.saveDraft') return `I can’t check that approval any more, ${STALE_SAVE}`
+  if (!(now <= seal.expiresAt)) return `That proposal expired (a proposal is good for 10 minutes), ${STALE_SAVE}`
+  const s = snap?.status
+  if (!snap?.draftRef || !s || snap.ref !== seal.ref || snap.draftRef.key !== seal.draft.key || snap.draftRef.lineage !== seal.draft.lineage) return `That proposal was for a different draft, ${STALE_SAVE}`
+  if (s.revision !== seal.revision) return `The draft changed since you approved it (revision ${seal.revision} → ${s.revision}), ${STALE_SAVE}`
+  if (s.mode !== seal.target.mode || (s.defId ?? null) !== seal.target.defId || (s.baseVersion ?? null) !== seal.target.baseVersion) return `The indicator it would save to changed since you approved it, ${STALE_SAVE}`
+  if ((req.name ?? null) !== seal.name || (req.turn ?? null) !== seal.turn) return `That isn’t the save you approved, ${STALE_SAVE}`
+  if (!sameList(sortedRefs(req.addTo), seal.addTo)) return `The charts it would be added to changed since you approved it, ${STALE_SAVE}`
+  if (!sameList(s.ackText, seal.ackShown)) return `The repainting warning changed since you approved it, ${STALE_SAVE}`
+  if (!sameList(s.lines || [], seal.linesShown) || (s.name || null) !== seal.nameShown) return `The draft’s summary changed since you approved it, ${STALE_SAVE}`
+  return null
+}
+const sealFor = (env, ref) => (Array.isArray(env?.approval) ? env.approval.find(x => x && x.ref === ref && x.action === 'indicator.saveDraft') : null) || null
 
 // "Save it as Bullish Trend": a rename is trusted ONLY from the specialist's typed marker
 // `renameOnly === true` (contract §16.1) — from `renameDraft`, or from `draftTurn`'s local
@@ -282,6 +341,15 @@ export const indicatorDraftsKind = {
     }
     const snap = snapshots(host).find(s => s.ref === ref)
     if (!snap) throw fail('that draft is no longer available')
+    // ⛔ F6: an approved Save is re-checked against its seal HERE, before the first op runs (a
+    // rename turn in the same request included) — the planner's check ran a moment ago, this is the
+    // last word before anything is written
+    const sealedSave = patch.ops.find(o => o.type === 'save' && o.seal)
+    if (sealedSave) {
+      const t = patch.ops.find(o => o.type === 'turn')
+      const why = validateSaveSeal(sealedSave.seal, snap, { name: sealedSave.name, turn: t ? t.message : null, addTo: sealedSave.addTo })
+      if (why) throw fail(why)
+    }
     let draftRef = snap.draftRef || null
     let revision = snap.status ? snap.status.revision : null
     let name = snap.status?.name || null
@@ -292,6 +360,7 @@ export const indicatorDraftsKind = {
       if (op.type === 'turn') {
         if (!op.chartRef || !boardCharts(host).some(c => c.ref === op.chartRef)) throw fail('That chart is no longer on the board, so nothing was sent — say which chart this indicator is for.')
         const ctx = authoringCtx(host, op.chartRef)
+        const opened = !draftRef
         if (!draftRef) {
           const o = openDraft(op.edit ? { edit: { defId: op.edit }, chartRef: op.chartRef } : { create: true, chartRef: op.chartRef }, ctx)
           if (!o.ok) throw fail(refusalSentence(o))
@@ -308,7 +377,8 @@ export const indicatorDraftsKind = {
         const st = draftStatus(draftRef, authoringCtx(host))
         name = st?.name || name
         if (out.kind === 'applied') {
-          lines.push(`Updated ${name ? `“${name}”` : 'the draft'} (draft — not saved).`, ...(out.lines || []))
+          // a draft this request opened was STARTED, not updated (S6 wording nit)
+          lines.push(`${opened ? 'Started' : 'Updated'} ${name ? `“${name}”` : 'the draft'} (draft — not saved).`, ...(out.lines || []))
           undoData = { draftRef, stepId: out.stepId }
         } else if (out.kind === 'question') {
           lines.push(...(out.reply ? [out.reply] : []), ...(out.questions || []), 'No change was made to the draft.')
@@ -331,7 +401,6 @@ export const indicatorDraftsKind = {
         }
         lines.push(`Showing ${name ? `“${name}”` : 'the draft'} as a preview on ${label(op.chartRef)} — a preview only, not saved${out.movedFrom ? ` (moved from ${label(out.movedFrom)})` : ''}.`)
       } else if (op.type === 'save') {
-        pinned.delete(op.pinKey)        // used once: a new ask is a new proposal
         const ctx = authoringCtx(host, originOf(draftStatus(draftRef, authoringCtx(host))))
         const st = draftStatus(draftRef, ctx)
         const keep = lines.length ? { unreverted: true } : {}
@@ -390,6 +459,8 @@ export const indicatorDraftsKind = {
     return { lines, ...(undoData ? { undoData } : {}), ...(followUps.length ? { followUps } : {}) }
   },
   landed: () => true,
+  // ⛔ F6: what an approval of this plan binds to (useAgent keeps it with the proposal card)
+  seal: (p) => sealSave(p.snap, p.after),
   // Authoring Undo = the specialist's exact step (stepId); a Save has none (D7); advice/questions none.
   undoPatch: (item) => (item.undoData ? { undo: item.undoData } : null),
   // staleness is the specialist's (expectedRevision / expectedStepId at call time)
@@ -504,7 +575,7 @@ export function registerIndicatorAuthoringCapabilities() {
     summary: 'Save an indicator draft as one of the member\'s indicators (Create Indicator\'s own Save; a new indicator, or a new version of the one being edited) — always shown as a proposal with the builder\'s own summary first. addTo: charts to add the SAVED indicator to afterwards (each added separately, with its own receipt).',
     hints: 'Use when the member saves THE INDICATOR: "save it", "save it as X", "save the indicator/draft" while an indicator draft is active (the active indicatorDrafts entry) — that "it" is the draft, NOT the workspace layout (layout.saveAs is only for an explicit layout/workspace/board). target = the draft\'s ref (usually the active one). name = the name the member gave ("save it as Bullish Trend" → "Bullish Trend"), else null — never a separate indicator.draft op for the name. addTo = [] UNLESS the member asked in this message to add/apply/put it on a chart; then only the charts\' refs from the charts section that they named. Saving and adding to a chart are separate intents. "Save the indicator" with one active draft is that draft — do not ask which.',
     args: { type: 'object', properties: { addTo: { type: 'array', items: { type: 'string' } }, name: { type: ['string', 'null'] } }, required: ['addTo', 'name'], additionalProperties: false },
-    check(st, { addTo, name }) {
+    check(st, { addTo, name }, env) {
       if (st.new) return 'There is no draft to save yet — describe the indicator first.'
       if (name != null && (typeof name !== 'string' || !name.trim() || name.length > 120)) return 'Say the name to save it as.'
       if (name != null && has(st, 'turn')) return 'Name it in the save itself, not as a separate change.'
@@ -516,16 +587,27 @@ export function registerIndicatorAuthoringCapabilities() {
         if (!c) return 'That isn’t a chart on this board, so nothing was saved or added — name the chart (or just say “save it”).'
         if (!c.canAdd) return `Indicators on ${c.label} can’t be changed from here.`
       }
+      // ⛔ F6: an APPROVAL is only of what the card showed — checked before anything is planned
+      if (env?.approved) {
+        const turn = st.ops.find(o => o.type === 'turn')
+        const nm = typeof name === 'string' && name.trim() ? name.trim() : null
+        return validateSaveSeal(sealFor(env, st.ref), st, { name: nm, turn: turn ? turn.message : null, addTo })
+      }
       return null
     },
-    apply(st, { addTo, name }) {
+    apply(st, { addTo, name }, env) {
       const add = [...new Set((addTo || []).map(asChartRef))]
       const nm = typeof name === 'string' && name.trim() ? name.trim() : null
-      const turn = st.ops.find(o => o.type === 'turn')
-      const p = pinFor(st, { addTo: add, name: nm, turn: turn ? turn.message : null })
+      // approved: EXACTLY the sealed values (check() proved the draft still matches them);
+      // proposing: the draft as it is now, which is what the card will show and the seal will keep
+      const seal = env?.approved ? sealFor(env, st.ref) : null
+      const s = st.status
+      const pin = seal
+        ? { revision: seal.revision, ackShown: seal.ackShown.slice(), lines: seal.linesShown.slice(), name: seal.nameShown }
+        : { revision: s.revision, ackShown: s.ackText.slice(), lines: (s.lines || []).slice(), name: s.name || null }
       // a rename in the same request is pinned to the revision the member saw, too
-      const ops = st.ops.map(o => (o.type === 'turn' ? { ...o, pinRevision: p.revision } : o))
-      return { ...st, ops: [...ops, { type: 'save', addTo: add, name: nm, pinKey: p.key, pinRevision: p.revision, ackShown: p.ackShown, linesShown: p.lines, nameShown: p.name }] }
+      const ops = st.ops.map(o => (o.type === 'turn' ? { ...o, pinRevision: pin.revision } : o))
+      return { ...st, ops: [...ops, { type: 'save', addTo: add, name: nm, pinRevision: pin.revision, ackShown: pin.ackShown, linesShown: pin.lines, nameShown: pin.name, ...(seal ? { seal } : {}) }] }
     },
     describe: (b, a) => {
       const op = a.ops.find(o => o.type === 'save')
