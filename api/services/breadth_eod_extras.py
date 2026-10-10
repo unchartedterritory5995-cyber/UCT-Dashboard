@@ -17,7 +17,7 @@ pod already has:
   spy_dist_days, qqq_dist_days      the Morning Wire's `_count_dist`, ported verbatim, over
                                     bars.db SPY/QQQ through the PRIOR session (the wire
                                     computes it the morning of the session)
-  uct_exposure, market_phase        the Morning Wire push for that session (`wire_data`)
+  uct_exposure                      the Morning Wire push for that session (`wire_data`)
   new_ath                           closes at/above their all-time high (bars.db full
                                     history), the collector's 0.999 tolerance
   atr_ext_7                         names > 7 ATR(14) above their 50-day SMA (Jeff Sun)
@@ -45,14 +45,16 @@ _log = logging.getLogger("breadth_eod_extras")
 #: Strings (`market_phase`) are graded by equality.
 TOLERANCE = {
     "sp500_close": {"abs": 0.5},
-    "rsp_close": {"abs": 0.02}, "iwm_close": {"abs": 0.02},
-    "rsp_spy_ratio": {"abs": 0.0005}, "iwm_qqq_ratio": {"abs": 0.0005},
-    "vix": {"abs": 0.05}, "vxn": {"abs": 0.05}, "vxmt": {"abs": 0.05},
-    "avg_10d_vix": {"abs": 0.05}, "avg_10d_vxn": {"abs": 0.05},
-    "vix_term_structure": {"abs": 0.005},
+    # Measured 2026-10-09 against the collector: Cboe's official index close vs Yahoo's
+    # last print, and a closing-auction vs last-trade ETF close, differ by cents.
+    "rsp_close": {"abs": 0.10}, "iwm_close": {"abs": 0.10},
+    "rsp_spy_ratio": {"abs": 0.001}, "iwm_qqq_ratio": {"abs": 0.001},
+    "vix": {"abs": 0.15}, "vxn": {"abs": 0.15}, "vxmt": {"abs": 0.15},
+    "avg_10d_vix": {"abs": 0.10}, "avg_10d_vxn": {"abs": 0.10},
+    "vix_term_structure": {"abs": 0.01},
     "cnn_fear_greed": {"abs": 2.0},
     "spy_dist_days": {"abs": 0}, "qqq_dist_days": {"abs": 0},
-    "uct_exposure": {"abs": 0.1}, "market_phase": {"abs": 0},
+    "uct_exposure": {"abs": 0.1},
     "new_ath": {"abs": 3, "rel": 0.10},
     "atr_ext_7": {"abs": 2, "rel": 0.15},
 }
@@ -325,13 +327,13 @@ def wire_regime(date_iso: str) -> dict:
         return {}
     if str(wd.get("date") or "")[:10] != date_iso:
         return {}
+    # ⚠️ NOT `market_phase`: the collector stores the brain's intraday regime phase
+    # (measured 2026-10-09: stored "Uptrend", the morning wire's "Rally Attempt"), which
+    # the morning push does not carry. It stays the Morning Wire's to supply.
     out = {}
     score = _f((wd.get("exposure") or {}).get("score"))
     if score is not None:
         out["uct_exposure"] = round(score, 1)
-    phase = (wd.get("breadth") or {}).get("market_phase")
-    if isinstance(phase, str) and phase.strip():
-        out["market_phase"] = phase.strip()
     return out
 
 

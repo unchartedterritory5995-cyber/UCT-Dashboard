@@ -357,7 +357,7 @@ def _hash(stored: Optional[dict]) -> Optional[str]:
     return hashlib.sha256(f"{GRADER_VERSION}|{blob}".encode()).hexdigest()[:16]
 
 
-GRADER_VERSION = 2
+GRADER_VERSION = 3
 
 
 def _record(date_iso: str, status: str, reason: Optional[str], stored: Optional[dict],
