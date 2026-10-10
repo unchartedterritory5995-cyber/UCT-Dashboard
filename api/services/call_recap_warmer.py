@@ -332,7 +332,7 @@ def reap_batches(store=None) -> dict[str, Any]:
     def handle(custom_id: str, message, meta: dict) -> None:
         if message is None:
             return                      # errored/expired → the name stays cold
-        sym = (meta.get("symbol") or custom_id.split("|", 1)[0]).upper()
+        sym = (meta.get("symbol") or custom_id.split("_", 1)[0]).upper()
         quarter = meta.get("quarter") or ""
         transcript = meta.get("transcript") or {}
         recap = finish_from_message(sym, transcript, message)
@@ -382,6 +382,7 @@ def submit_batch(queue: list[str], *, fetch_transcript: Callable = None,
 
     requests: list[dict] = []
     meta: dict[str, dict] = {}
+    taken: set = set()
     for sym in queue:
         if len(requests) >= room:
             bump("deferred")
@@ -403,7 +404,9 @@ def submit_batch(queue: list[str], *, fetch_transcript: Callable = None,
         if params is None:
             bump("no_transcript")
             continue
-        cid = f"{sym}|{quarter}"[:64]
+        # `SYM|quarter` broke the batch API's custom_id pattern and every submit
+        # failed (production, 2026-10-10). The id is only a key; reap reads `meta`.
+        cid = llm_batch.custom_id(sym, quarter, taken=taken)
         requests.append({"custom_id": cid, "params": params})
         # the transcript rides the ledger: grounding at reap time MUST use the
         # text the model was actually given, not a re-fetch that may have moved

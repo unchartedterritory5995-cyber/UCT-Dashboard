@@ -12,7 +12,7 @@
 
 import { describe, it, expect } from 'vitest'
 import legacy from '../__fixtures__/legacyCotThreePane.f288540c4.json'
-import { migrateLegacyCotGroups, PANE_TARGET_PREFIX } from '../engine/legacyCotGroups'
+import { migrateLegacyCotGroups, PANE_TARGET_PREFIX } from '../legacyCotGroups'
 import { paneOfTarget, parsePaneOfTarget } from '../engine/sourceRef'
 import { mergeChartSettings } from '../chartDefaults'
 import { mergeSettingsOverride } from '../instanceShape'

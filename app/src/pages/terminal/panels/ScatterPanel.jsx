@@ -18,7 +18,7 @@
 // list cannot be written into a command: it is kept for the open panel, and the panel says so.
 import { useCallback, useMemo, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
-import { PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelRerun, usePanelRun } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelRerun, usePanelRun } from '../../../components/terminal'
 import {
   formatCompact, formatCurrency, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
@@ -209,7 +209,9 @@ export default function ScatterPanel({ universe = null, yKey: yProp = null, xKey
     const sym = p?.value?.[2] || p?.name
     if (sym && run) run(`$${String(sym).toUpperCase()}`)
   }, [run])
-  usePanelFreshness(points.length ? { source: 'UCT Market Map (nightly metrics and a live snapshot)', asOf: read.receivedAt } : null)
+  // panelAsOf, not a bare { source, asOf }: with no freshness class the header badge printed
+  // "UNKNOWN as of ..." (seen live 2026-10-09). panelAsOf states the read time as an age.
+  usePanelFreshness(points.length ? panelAsOf('UCT Market Map (nightly metrics and a live snapshot)', read.receivedAt) : null)
 
   // One door for every pick: the same view is a no-op; a changed one is kept here and, when it can
   // be written, re-run as this panel's command so a reload keeps it.

@@ -20,7 +20,7 @@ vi.mock('echarts-for-react', () => ({
 }))
 vi.mock('../../../utils/jsonFetcher', () => ({ default: vi.fn() }))
 import jsonFetcher from '../../../utils/jsonFetcher'
-import { PanelListContext } from '../../../components/terminal'
+import { PanelFreshnessContext, PanelListContext } from '../../../components/terminal'
 import ScatterPanel, { METRICS_URL, UNIVERSES_URL, dataUrl, fmtMetric, initialView, scatterPoints, universeOptions } from './ScatterPanel'
 import { applyArgs } from '../args'
 import { BY_CODE, variantFor } from '../functions'
@@ -70,6 +70,25 @@ beforeEach(() => { jsonFetcher.mockReset(); chart.option = null; chart.onEvents 
 afterEach(cleanup)
 
 describe('SCAT panel', () => {
+  it('reports its read time as an age, so the header never prints UNKNOWN', async () => {
+    serve()
+    const reports = []
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+        <PanelFreshnessContext.Provider value={(r) => reports.push(r)}>
+          <PanelListContext.Provider value={{ open: vi.fn(), rerun: vi.fn(), run: vi.fn() }}>
+            <ScatterPanel />
+          </PanelListContext.Provider>
+        </PanelFreshnessContext.Provider>
+      </SWRConfig>,
+    )
+    await vi.waitFor(() => expect(reports.filter(Boolean).length).toBeGreaterThan(0))
+    const last = reports.filter(Boolean).at(-1)
+    expect(last.source).toMatch(/Market Map/)
+    // no freshness class and no age is what made FreshnessBadge print UNKNOWN
+    expect(last.age?.asOfDate).toMatch(/ET$/)
+  })
+
   it('plots RS rank against % off the 52-week high, and counts the name it cannot place', async () => {
     serve()
     renderPanel()

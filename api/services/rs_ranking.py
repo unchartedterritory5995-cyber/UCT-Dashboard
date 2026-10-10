@@ -13,8 +13,11 @@ two RS returns 15.7% apart in the first place.
 Cached for 1 hour (3600s). Universe: cap_universe from wire_data ($300M+).
 """
 
+import json
 import logging
+import os
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
@@ -33,6 +36,14 @@ _CACHE_TTL = 3600  # 1 hour
 # is what put two full rebuilds on request threads at 08:08 ET that morning.
 # Two slots: the list is ONE key; nothing else lives here.
 _rs_cache = TTLCache(max_size=2)
+
+#: The last computed ranking, on disk, so a freshly booted web process can answer
+#: /api/rs-rankings while its own ~67 s recompute runs (measured 2026-10-09: 503
+#: "warming" for ~3 minutes after every deploy). Served only while younger than
+#: _SNAPSHOT_MAX_AGE_S, and never stands in for the in-memory cache: a cold memory
+#: cache still starts the rebuild.
+_SNAPSHOT_PATH = os.environ.get("RS_RANKINGS_SNAPSHOT_PATH", "/data/rs_rankings_snapshot.json")
+_SNAPSHOT_MAX_AGE_S = 6 * 3600
 
 
 def _disk_universe() -> list[str]:
@@ -219,6 +230,7 @@ def compute_rs_scores(force: bool = False) -> list[dict]:
     ranked.sort(key=lambda x: x["rs_rank"], reverse=True)
 
     _rs_cache.set(_CACHE_KEY, ranked, ttl=_CACHE_TTL)
+    _write_snapshot(ranked)
     logger.info(f"[rs_ranking] Cached {len(ranked)} RS rankings")
     return ranked
 
@@ -230,6 +242,36 @@ _warm_inflight = False
 def cached_rankings() -> list[dict] | None:
     """The ranked list from the CACHE only; ``None`` when cold. Never computes."""
     return _rs_cache.get(_CACHE_KEY)
+
+
+def _write_snapshot(ranked: list[dict]) -> None:
+    """Atomic (tmp + replace), best-effort: a failure costs the next boot its head start."""
+    tmp = f"{_SNAPSHOT_PATH}.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"computed_at": time.time(), "rankings": ranked}, fh)
+        os.replace(tmp, _SNAPSHOT_PATH)
+    except (OSError, TypeError, ValueError):
+        logger.warning("[rs_ranking] snapshot write failed", exc_info=True)
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+
+
+def snapshot_rankings(now: float | None = None) -> list[dict] | None:
+    """The last ranking written to disk if younger than _SNAPSHOT_MAX_AGE_S, else None.
+    Never raises, never computes."""
+    try:
+        with open(_SNAPSHOT_PATH, encoding="utf-8") as fh:
+            saved = json.load(fh)
+        age = (now if now is not None else time.time()) - float(saved.get("computed_at") or 0)
+        rows = saved.get("rankings")
+        if 0 <= age <= _SNAPSHOT_MAX_AGE_S and isinstance(rows, list) and rows:
+            return rows
+    except (OSError, ValueError, TypeError, AttributeError):
+        pass
+    return None
 
 
 def kick_background_warm() -> bool:

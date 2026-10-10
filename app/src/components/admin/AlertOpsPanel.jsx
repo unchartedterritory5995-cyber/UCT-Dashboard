@@ -12,8 +12,12 @@
 import useSWR from 'swr'
 import styles from '../../pages/Admin.module.css'
 
-// Error-swallowing fetcher -- the panel degrades to absent, never throws.
-const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+// A failed read THROWS, so SWR keeps the last good snapshot on a failed refresh instead
+// of replacing it with null; with nothing loaded yet the panel stays absent (TERM-033).
+const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => {
+  if (!r.ok) throw new Error(`alert ops monitor answered ${r.status}`)
+  return r.json()
+})
 
 const TONE = {
   clean: 'var(--color-success, #4ade80)',

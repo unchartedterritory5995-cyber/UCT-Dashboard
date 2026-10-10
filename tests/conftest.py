@@ -282,6 +282,14 @@ def _reset_signature_serve_stale():
 
 
 @pytest.fixture(autouse=True)
+def _no_live_tbd_session_resolver(monkeypatch):
+    """The calendar's Time-TBD resolver calls Nasdaq and SEC EDGAR over HTTP.
+    Off for every test so a calendar fixture never reaches a live vendor; the
+    resolver's own rails turn it back on with fakes in place."""
+    monkeypatch.setenv("CALENDAR_TBD_RESOLVER", "0")
+
+
+@pytest.fixture(autouse=True)
 def _reset_snapshot_movers_serve_stale():
     """Clear `/api/snapshot`'s and `/api/movers`' serve-stale slots (TERM-082).
 

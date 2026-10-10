@@ -53,6 +53,7 @@ def fmp_adapter_status():
             "get_grades_consensus", "get_grades_historical", "get_price_target_consensus",
             "get_price_target_summary", "get_earnings", "get_transcript_dates",
             "get_transcript_latest_page", "get_transcript_content", "get_insider_trading",
+            "search_insider_purchases",
             "get_income_statement", "get_balance_sheet_statement", "get_cash_flow_statement",
             "get_earnings_calendar",
         ],

@@ -43,7 +43,7 @@ import { fundamentalSource } from './engine/fundamentalGrammar'
 import { economicSource } from './engine/economicGrammar'
 import { econFacts, economicSubtitle } from './economic/econUi'
 import { SERIES_COLORS as COT_SERIES_COLORS } from '../../pages/cot/cotPalette'
-import { GROUP_PANE_HEIGHT, sideBySideBars } from './engine/groupBars'
+import { GROUP_PANE_HEIGHT, sideBySideBars } from './groupBars'
 
 // ─── the vocabulary ─────────────────────────────────────────────────────────
 
@@ -614,9 +614,9 @@ function discoveryTabOf(row) {
 }
 
 // Column geometry + default height for a grouped histogram pane — a leaf module so the
-// read-time legacy normaliser (`engine/legacyCotGroups.js`) can share it without an
+// read-time legacy normaliser (`legacyCotGroups.js`) can share it without an
 // import cycle through this file.
-export { GROUP_BARS_SPAN, GROUP_PANE_HEIGHT, sideBySideBars } from './engine/groupBars'
+export { GROUP_BARS_SPAN, GROUP_PANE_HEIGHT, sideBySideBars } from './groupBars'
 
 /**
  * Colour TOKENS a catalogue row may name for a component → the hex it resolves to.

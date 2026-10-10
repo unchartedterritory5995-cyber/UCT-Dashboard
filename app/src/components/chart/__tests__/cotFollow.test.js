@@ -8,8 +8,8 @@
 
 import { describe, it, expect } from 'vitest'
 import { marketIndicatorResults, createFromResult, tabOf, sideBySideBars, GROUP_PANE_HEIGHT } from '../discoveryCatalog'
-import { cotFollowOf, resolveCotFollow, isCotFollowSource, COT_FOLLOW_DISPLAY } from '../engine/cotFollow'
-import { migrateLegacyCotGroups } from '../engine/legacyCotGroups'
+import { cotFollowOf, resolveCotFollow, isCotFollowSource, COT_FOLLOW_DISPLAY } from '../cotFollow'
+import { migrateLegacyCotGroups } from '../legacyCotGroups'
 import { mergeChartSettings } from '../chartDefaults'
 import { removeInstance, setInstanceHidden, addInstance } from '../engine/instanceControls'
 import { paneOwnKeys, paneOwnerOf } from '../engine/displayTarget'

@@ -1996,7 +1996,11 @@ export default function NotebookTab() {
         </button>
       )}
 
-      <div className={styles.sidebarSlot}>
+      {/* ⛔ Hidden means hidden to every input: the collapsed panel slides off-screen but stays
+          mounted (so reopening loses nothing), and without `inert` Tab and a screen reader still
+          walked its folder tree, All notes and Trash -- controls nobody can see (desktop crawl,
+          2026-10-09). */}
+      <div className={styles.sidebarSlot} inert={!sidebarOpen ? true : undefined}>
         <div className={styles.sidebarInner}>
           <FolderSidebar
             key={folderRefreshKey}

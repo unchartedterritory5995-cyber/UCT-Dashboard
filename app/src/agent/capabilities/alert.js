@@ -304,12 +304,14 @@ export function registerAlertCapabilities() {
     // already reached would go off at once — said instead of created).
     async prepare(ops) {
       const syms = [...new Set(ops.map(o => upper(o.args?.symbol)).filter(s => TICKER.test(s)))]
-      const [unknown, quotes] = await Promise.all([
+      const [unknown, quotes, fresh] = await Promise.all([
         syms.length ? unknownSymbols(syms) : new Set(),
         quotesFor(syms),
-        loadAlerts({ force: true }).catch(() => null),
+        // A failed re-read leaves the last loaded book in place; say so rather than
+        // turning the failure into a null that reads like an empty book (TERM-033).
+        loadAlerts({ force: true }).then(() => true, () => false),
       ])
-      return { unknownSymbols: unknown, alertQuotes: quotes }
+      return { unknownSymbols: unknown, alertQuotes: quotes, alertBookFresh: fresh }
     },
     check(st, { symbol, price, direction }, env) {
       const sym = upper(symbol)

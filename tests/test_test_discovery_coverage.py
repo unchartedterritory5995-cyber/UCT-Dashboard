@@ -52,6 +52,14 @@ NOT_A_SUITE = {
         "it would recurse into a nested suite run",
     "tools/full_chart_diagnostic_test.py":
         "manual diagnostic that fetches from live bar providers",
+    "tools/breadth_exch/live_crash_restart_test.py":
+        "a CLI proof runner (CODE_DIR LAUNCH WORKDIR ...) that hard-kills a live leg "
+        "with os._exit at each crash boundary; argv-driven, not a pytest suite",
+    "docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/landing/test_ab_probe.py":
+        "frozen EVIDENCE: the wave 12-15 rollback A/B probe, run once against two "
+        "checked-out trees; kept as the record, never collected",
+    "docs/notebook/evidence/rollback-rehearsal-2026-10-06-fin/landing/test_concurrent_append_probe.py":
+        "frozen EVIDENCE from the same rollback rehearsal; kept as the record, never collected",
     "tools/snaptrade_smoke_test.py":
         "manual smoke test against the live SnapTrade production account",
     "tools/twitterapi_io_smoke_test.py":

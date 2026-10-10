@@ -22,7 +22,7 @@ import useLivePrices from '../../../hooks/useLivePrices'
 import Input from '../../../components/ui/Input'
 import Select from '../../../components/ui/Select'
 import {
-  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness,
+  PanelCommand, PanelSkeleton, PanelState, PanelSymbol, panelAsOf, useInTerminalPanel, usePanelFreshness,
 } from '../../../components/terminal'
 import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import { canRetry, stampedRead, failureText } from './marketRead'
@@ -256,7 +256,8 @@ export default function CheckPanel({ sym }) {
 
   // As of: the oldest read that has landed, so the panel never claims to be fresher than its parts.
   const stamps = [templates, risk, checklist, perfAll, perfPhase, analogs, mine, journal].map((r) => r.receivedAt).filter(Boolean).sort()
-  usePanelFreshness(stamps.length ? { source: 'UCT intelligence engine (setups, analogs, risk) and your journal', observedAt: stamps[0] } : null)
+  // panelAsOf: a bare { observedAt } read as "undated" in the header (seen live 2026-10-09).
+  usePanelFreshness(stamps.length ? panelAsOf('UCT intelligence engine (setups, analogs, risk) and your journal', stamps[0]) : null)
 
   if (!s) {
     return (
@@ -418,7 +419,7 @@ export default function CheckPanel({ sym }) {
           <>
             <p className={shared.muted} data-testid="terminal-chk-phase">
               Market phase: {risk.body.regime_phase || 'n/a'}.{' '}
-              {num(risk.body.open_position_count) !== null ? `${formatNumber(num(risk.body.open_position_count), { decimals: 0 })} open positions.` : ''}
+              {num(risk.body.open_position_count) !== null ? `${formatNumber(num(risk.body.open_position_count), { decimals: 0 })} open position${num(risk.body.open_position_count) === 1 ? '' : 's'}.` : ''}
               {sizePct === null ? ' Run the checklist to see this trade added.' : ''}
             </p>
             {book.length ? (

@@ -48,6 +48,18 @@ describe('ChartRender ?stats=', () => {
     expect(screen.getByTestId('stock-chart').getAttribute('data-height')).toBe(`${698 - 60 - STATS_STRIP_H}px`)
   })
 
+  it('prints a price over 1,000 in full, never as 1K (sizes still abbreviate)', () => {
+    const stats = { open: 1065.2, high: 1141.9, low: 1060.0, close: 1103.36, day_pct: 5.22, gap_pct: 6.3,
+      hi_52w: 1143.5, lo_52w: 147.81, from_52w_high_pct: -3.5, volume: 5250000, avg_vol_50: 4700000,
+      rvol: 1.11, dollar_vol: 5800000000, adr_pct: 6.1 }
+    mount(`sym=LITE&tf=D&h=698&stats=${b64url(stats)}`)
+    const text = screen.getByTestId('stats-strip').textContent
+    for (const p of ['1065.20', '1141.90', '1060.00', '1103.36', '1143.50 (-3.5%)', '147.81']) expect(text).toContain(p)
+    expect(text).not.toMatch(/1K/)
+    expect(text).toContain('5.3M')
+    expect(text).toContain('5.8B')
+  })
+
   it('labels a WEEKLY strip as the week: "Wk" and the 10-week average, never "Day"', () => {
     // compute_stats(daily, "W") fills the same keys with the WEEK's numbers and says so.
     const stats = { period: 'W', avg_bars: 10, open: 727.89, high: 748.35, low: 727.81, close: 744.5,

@@ -23,7 +23,7 @@
 // accident, and a `const` added to either side at the wrong moment is a TDZ
 // crash in the merge every chart is on.
 import { adoptOverlayAverages } from './maAdoption'
-import { migrateLegacyCotGroups } from './engine/legacyCotGroups'
+import { migrateLegacyCotGroups } from './legacyCotGroups'
 
 // ─── Removing an indicator instance: the tombstone ───────────────────────────
 //

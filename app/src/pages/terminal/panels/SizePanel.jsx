@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import useLivePrices from '../../../hooks/useLivePrices'
 import Input from '../../../components/ui/Input'
-import { useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { useInTerminalPanel, usePanelFreshness, panelAsOf } from '../../../components/terminal'
 import { formatCurrency, formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import { DEFAULT_RISK_PCT, adrFromBars, adrStop, computeSize, parseNum } from './sizeMath'
@@ -112,7 +112,7 @@ export default function SizePanel({ sym }) {
 
   useEffect(() => { saveSizePrefs({ account, riskPct }) }, [account, riskPct])
 
-  usePanelFreshness(prefilledAt ? { source: 'Live price (entry prefill only)', observedAt: prefilledAt } : null)
+  usePanelFreshness(prefilledAt ? panelAsOf('Live price (entry prefill only)', prefilledAt) : null)
 
   const result = useMemo(() => computeSize({ account, riskPct, entry, stop, side }), [account, riskPct, entry, stop, side])
   const blank = [account, entry, stop].some((v) => String(v).trim() === '')

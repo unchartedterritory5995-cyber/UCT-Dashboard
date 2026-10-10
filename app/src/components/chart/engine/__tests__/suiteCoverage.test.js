@@ -182,6 +182,10 @@ const ACKNOWLEDGED_CHART = [
   'src/components/chart/__tests__',
   'src/components/chart/builder',
   'src/components/chart/builder/editor',
+  // Formula authoring (2026-10-09 ack, dir landed 2026-10-09 with the legacy formula
+  // sheet fix a646407dae). Run green (6 files / 147 tests) BEFORE this line was added;
+  // `test:builder` and `test:chart` both cover it.
+  'src/components/chart/builder/authoring',
   // P2 Track B (2026-10-06): Create Indicator — preview seam, panel, dark door.
   // Run green (3 files / 19 tests) BEFORE this line was added.
   'src/components/chart/builder/studio',

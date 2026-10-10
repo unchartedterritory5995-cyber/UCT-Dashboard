@@ -1,4 +1,4 @@
-// app/src/components/chart/engine/cotFollow.js
+// app/src/components/chart/cotFollow.js
 //
 // ─── THE COT INDICATOR THAT FOLLOWS THE CHART SYMBOL (2026-09-30) ───────────
 //

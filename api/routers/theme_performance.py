@@ -56,7 +56,13 @@ router = APIRouter()
 # has other callers (voice tools, theme_index's quotes, rotation signals, the
 # lifespan dashboard warm). They keep their behaviour: a cache hit, else a
 # synchronous build. Never a served-stale overlay.
-THEME_STALE_MAX_AGE = 30
+# 2026-10-09: raised 30 -> 300 s. Measured on prod: past the 30 s bound a request rebuilt the
+# overlay synchronously (7-18 s, ~22 Massive calls), so any member arriving after a 30 s lull
+# in polling waited for it -- all session, not only after a deploy. With 5 min the lone
+# visitor gets the last COMPLETE overlay at once while ONE refresh runs behind them, and the
+# tracker's own 30 s poll then brings the fresh one. `live_as_of` still states the price
+# time. No extra Massive calls: refreshes stay demand-driven and single-flight.
+THEME_STALE_MAX_AGE = 300
 # Perf wave 2: while no US session can print (svc.prices_moving() is False) the snapshot does
 # not move, so the last complete overlay stays servable for 15 min and is refreshed behind the
 # caller; a lone off-hours visitor no longer pays the ~7 s rebuild.

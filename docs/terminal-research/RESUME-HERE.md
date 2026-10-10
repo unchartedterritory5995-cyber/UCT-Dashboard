@@ -18,6 +18,10 @@ pick this up with full context:
 
 ## 1 · The one-sentence status
 
+> ➜ **2026-10-10:** this section describes the 2026-09-24 build week and is superseded for "is the
+> Terminal complete": read `COMPLETION-LEDGER.md` (reconciled against master `d95f331bb`; not complete,
+> 213 of 279 rows `live` or `moot`).
+
 **The build week is functionally done.** Every genuinely buildable item has shipped and
 is live on production; the one live go-live decision this week produced
 (`RESEARCH_FLOW_TAB_ENABLED`) has been made and flipped; everything else still open is

@@ -12,7 +12,10 @@
     "cache",
     "internal"
   ],
-  "notWebStorage": [],
+  "notWebStorage": [
+    "app/src/agent/capabilities/watchlist.js#commit",
+    "app/src/agent/capabilities/watchlist.js#takeBackAdds"
+  ],
   "entries": [
     {
       "key": "aisearch_settings",
@@ -555,6 +558,18 @@
       ]
     },
     {
+      "key": "terminal_command_history",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "UCT Terminal",
+      "kind": "state",
+      "label": "Terminal command history (follows your account)",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/terminal/commandHistory.js"
+      ]
+    },
+    {
       "key": "terminal_layout",
       "store": "server-preference",
       "scope": "cross-device",
@@ -564,6 +579,18 @@
       "serverAllowlisted": true,
       "files": [
         "app/src/pages/terminal/useTerminalLayout.js"
+      ]
+    },
+    {
+      "key": "terminal_orientation_seen",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "UCT Terminal",
+      "kind": "state",
+      "label": "Terminal first-run card dismissed",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/terminal/FirstRunCard.jsx"
       ]
     },
     {
@@ -797,6 +824,17 @@
       "label": "Grouping view",
       "files": [
         "app/src/pages/breadth/grouping/useBreadthGrouping.js"
+      ]
+    },
+    {
+      "key": "calendar.orderBoostOff",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "UCT Terminal",
+      "kind": "setting",
+      "label": "Calendar ordering: personal boost switched off",
+      "files": [
+        "app/src/pages/calendar/depth/OrderExplain.jsx"
       ]
     },
     {
@@ -1359,6 +1397,61 @@
       ]
     },
     {
+      "key": "uct.agent.conversation",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "work",
+      "label": "UCT Agent conversation in this browser",
+      "files": [
+        "app/src/agent/agentFlag.js"
+      ]
+    },
+    {
+      "key": "uct.agent.inflight",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "internal",
+      "label": "UCT Agent change interrupted mid-apply (for recovery)",
+      "files": [
+        "app/src/agent/agentFlag.js"
+      ]
+    },
+    {
+      "key": "uct.agent.open",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "state",
+      "label": "UCT Agent panel open or closed",
+      "files": [
+        "app/src/agent/agentFlag.js"
+      ]
+    },
+    {
+      "key": "uct.agent.protectedLayouts",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "setting",
+      "label": "Layouts the UCT Agent may not change",
+      "files": [
+        "app/src/agent/protectedLayouts.js"
+      ]
+    },
+    {
+      "key": "uct.agent.routing",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "internal",
+      "label": "UCT Agent routing kill switch (diagnostic)",
+      "files": [
+        "app/src/agent/routing.js"
+      ]
+    },
+    {
       "key": "uct.aisearch.deep",
       "store": "localStorage",
       "scope": "device-local",
@@ -1743,6 +1836,28 @@
       "label": "Drawing tip seen",
       "files": [
         "app/src/components/chart/ChartDrawingOverlay.jsx"
+      ]
+    },
+    {
+      "key": "uct.feature.agent",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "setting",
+      "label": "UCT Agent switched on in this browser",
+      "files": [
+        "app/src/agent/agentFlag.js"
+      ]
+    },
+    {
+      "key": "uct.feature.createIndicator",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "setting",
+      "label": "Create Indicator switched on in this browser",
+      "files": [
+        "app/src/components/chart/builder/studio/createIndicatorFlag.js"
       ]
     },
     {
@@ -2328,6 +2443,17 @@
       ]
     },
     {
+      "key": "uct.terminal.focusPanel",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "UCT Terminal",
+      "kind": "state",
+      "label": "Terminal focused panel",
+      "files": [
+        "app/src/pages/terminal/useTerminalLayout.js"
+      ]
+    },
+    {
       "key": "uct.terminal.history",
       "store": "localStorage",
       "scope": "device-local",
@@ -2335,7 +2461,7 @@
       "kind": "state",
       "label": "Terminal command history",
       "files": [
-        "app/src/pages/terminal/CommandLine.jsx"
+        "app/src/pages/terminal/commandHistory.js"
       ]
     },
     {
@@ -2347,6 +2473,17 @@
       "label": "Terminal functions you used recently",
       "files": [
         "app/src/pages/terminal/recents.js"
+      ]
+    },
+    {
+      "key": "uct.terminal.size.v1",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "UCT Terminal",
+      "kind": "setting",
+      "label": "Terminal sizing: account size and risk %",
+      "files": [
+        "app/src/pages/terminal/panels/SizePanel.jsx"
       ]
     },
     {
@@ -2519,6 +2656,17 @@
       ]
     },
     {
+      "key": "uct.authoring.drafts.v1",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "work",
+      "label": "Formula authoring drafts in this tab",
+      "files": [
+        "app/src/components/chart/builder/authoring/conversationSessions.js"
+      ]
+    },
+    {
       "key": "uct.chunk-reload-attempted",
       "store": "sessionStorage",
       "scope": "device-local",
@@ -2560,6 +2708,17 @@
       "label": "Chart review session",
       "files": [
         "app/src/pages/charts/review/reviewSession.js"
+      ]
+    },
+    {
+      "key": "uct.terminal.revertLayout",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": "UCT Terminal",
+      "kind": "state",
+      "label": "Terminal layout to return to after opening a shared board",
+      "files": [
+        "app/src/pages/terminal/TerminalShell.jsx"
       ]
     }
   ]

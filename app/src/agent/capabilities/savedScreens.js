@@ -128,7 +128,8 @@ export function registerSavedScreenCapabilities() {
   registerTargetKind(savedScreensKind)
   registerContextProvider({
     key: 'savedScreenLibrary',
-    refresh: () => loadSaved({ force: true }).catch(() => null),
+    // A failed refresh is caught once, by refreshContextProviders (capabilities.js).
+    refresh: () => loadSaved({ force: true }),
     build: (host, refFor) => {
       const s = snap()
       return [{

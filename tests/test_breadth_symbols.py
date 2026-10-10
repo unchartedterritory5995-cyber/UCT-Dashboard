@@ -275,3 +275,27 @@ def test_uct_derived_series_fill_their_missing_sessions(monkeypatch):
     bs._fill_derived_gaps("breadth_score", closes, {})
     assert closes[cal[0]] == 61.5 and len(closes) == len(cal)
     assert len(seen) == 1 and seen[0][1] == cal[-2]          # one read for the run
+
+
+def test_a_restart_serves_the_persisted_series_without_building(tmp_path, monkeypatch):
+    """2026-10-10: every deploy emptied the in-memory cache and the next viewer of each series
+    paid a 2-10 s build. The last built series is persisted and served at once."""
+    from api.services import breadth_symbols as bs
+    monkeypatch.setenv("BREADTH_SERIES_PERSIST", "1")
+    monkeypatch.setattr(bs, "_SERIES_DIR", str(tmp_path))
+    series = [{"t": "2026-10-08", "o": 1, "h": 2, "l": 1, "c": 2, "v": 0},
+              {"t": "2026-10-09", "o": 2, "h": 3, "l": 2, "c": 3, "v": 0}]
+    builds = []
+    monkeypatch.setattr(bs, "_build_breadth_series",
+                        lambda sym, metric, uni="uct": builds.append(sym) or list(series))
+    monkeypatch.setattr(bs, "_append_today_candle", lambda body, metric: body)
+    bs._breadth_cache.clear()
+    assert bs.build_breadth_bars("UCTA50")["bars"][-1]["c"] == 3 and builds == ["UCTA50"]
+    bs._breadth_cache.clear()                                    # a deploy
+    kicked = []
+    monkeypatch.setattr(bs, "_kick_series_refresh", lambda *a: kicked.append(a))
+    out = bs.build_breadth_bars("UCT:A50")                       # alias → canonical entry
+    assert out["ticker"] == "UCT:A50" and out["bars"][-1]["c"] == 3
+    assert builds == ["UCTA50"] and kicked == []                 # no build; copy is current
+    assert bs._restore_from_disk("UCTA50")
+    bs._breadth_cache.clear()

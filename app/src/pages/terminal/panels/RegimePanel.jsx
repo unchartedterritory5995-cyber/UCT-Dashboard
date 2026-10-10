@@ -10,7 +10,7 @@
 // ⛔ NEVER A GUESSED REGIME. When the classifier could not answer it returns its declared sentinel
 // (`unknown`, with `error`); the panel says the call is not available and shows no band.
 import { useMemo } from 'react'
-import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, panelAsOf } from '../../../components/terminal'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { canRetry, failureText, useMarketRead } from './marketRead'
 import styles from './marketPanels.module.css'
@@ -50,7 +50,7 @@ export default function RegimePanel() {
   const body = read.body
   const known = regimeKnown(body, vocab.body)
   const band = known ? bandFor(vocab.body, body.regime) : null
-  usePanelFreshness(known ? { source: 'UCT regime classifier (breadth and VIX)' } : null)
+  usePanelFreshness(known ? panelAsOf('UCT regime classifier (breadth and VIX)', read.receivedAt) : null)
 
   const s = body?.signals || {}
   const fields = useMemo(() => [

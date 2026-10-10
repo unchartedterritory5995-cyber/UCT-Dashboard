@@ -39,6 +39,12 @@ def _safe(fn, default, *args, **kwargs):
 #: most of the text to finish on a two-word sentence.
 _MIN_SENTENCE_SHARE = 0.4
 
+# The weekly focus is spoken up to the length its loader keeps
+# (`voice_session_context._load_weekly_focus`, 500). It was clipped at 300, and the coach
+# writes it as "one to two asks" (coach_prompts.py): the briefing announced "Two asks for
+# next week" and then read one (verify-1009). It is the briefing's most important line.
+_FOCUS_SPOKEN_LIMIT = 500
+
 
 def clip_spoken(text: Any, limit: int, *, close: bool = True) -> str:
     """`text` shortened to at most `limit` characters WITHOUT cutting a word (fin walk K5).
@@ -191,7 +197,7 @@ def build_briefing(user_id: str) -> dict[str, Any]:
         positions, interventions, focus = [], [], ""
     sections["positions_summary"] = _format_positions(positions)
     sections["interventions_summary"] = _format_interventions(interventions)
-    sections["weekly_focus"] = clip_spoken(speakable(focus), 300)
+    sections["weekly_focus"] = clip_spoken(speakable(focus), _FOCUS_SPOKEN_LIMIT)
 
     # Build the spoken script — 40-60 seconds of voice
     script_parts = ["Good morning. Here's your briefing."]

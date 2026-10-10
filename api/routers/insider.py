@@ -1,6 +1,7 @@
 """Insider activity endpoints.
 
 GET /api/insider/feed         — notable insider buys across the market (last 7 days)
+GET /api/insider/feed?scope=market - open-market purchases market-wide (Form 4, last 7 days)
 GET /api/insider/{ticker}     — insider transactions for a single stock
 GET /api/insider/{ticker}/has-buy — quick boolean check for recent insider buy
 
@@ -16,10 +17,17 @@ around the expensive door.
 
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
-from api.services.insider import get_insider_activity, get_recent_insider_buys, has_recent_insider_buy
+from api.services.insider import (
+    get_insider_activity,
+    get_market_insider_buys,
+    get_recent_insider_buys,
+    has_recent_insider_buy,
+)
 
 router = APIRouter(prefix="/api/insider", tags=["insider"])
 
@@ -40,9 +48,18 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 
 @router.get("/feed")
-def insider_feed(_user: dict = Depends(require_paid)):
-    """Notable insider buys across the market (last 7 days)."""
-    return get_recent_insider_buys()
+def insider_feed(scope: Optional[str] = None, _user: dict = Depends(require_paid)):
+    """Notable insider buys (last 7 days).
+
+    No `scope`: the UCT 20 + large-cap watchlist feed, unchanged (UCT20.jsx
+    reads it). `scope=market`: open-market purchases across the whole market
+    from Form 4 filings (the terminal's INS panel). Anything else is a 400.
+    """
+    if scope is None:
+        return get_recent_insider_buys()
+    if scope == "market":
+        return get_market_insider_buys()
+    raise HTTPException(status_code=400, detail="scope must be 'market' or absent")
 
 
 @router.get("/{ticker}")

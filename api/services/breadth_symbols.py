@@ -22,7 +22,9 @@ from __future__ import annotations
 
 import re
 
+import json
 import logging
+import os
 import math
 import threading
 import time
@@ -1004,7 +1006,11 @@ _RATIO_WINDOW = {"ratio_5day": 5, "ratio_10day": 10}
 def _uct_closes(metric: str) -> dict:
     """{date: close} of a UCT base series exactly as its own chart serves it (sealed)."""
     sym = next((s for s, m, *_ in _ROWS if m == metric), metric)
-    return {b["t"]: b["c"] for b in _build_breadth_series(sym, metric, DEFAULT_UNIVERSE)}
+    hit = _breadth_cache.get(_daily_key(sym))     # the warm copy when there is one
+    series = hit.get("series") if hit else None
+    if not series:
+        series = _build_breadth_series(sym, metric, DEFAULT_UNIVERSE)
+    return {b["t"]: b["c"] for b in series}
 
 
 def _fill_derived_gaps(metric: str, closes_by_date: dict, ohlc_map: dict) -> None:
@@ -1092,9 +1098,75 @@ def _refresh_series(sym: str, metric: str,
     # ⚠️ The dedicated instance is still the right call; the eviction was never a
     # design, it was luck. So the fix is to stop relying on it: a real series keeps the
     # long TTL, an empty one is retried in five minutes.
-    cache.set(_daily_key(sym), {"saved_at": time.time(), "series": series},
+    saved_at = time.time()
+    cache.set(_daily_key(sym), {"saved_at": saved_at, "series": series},
               ttl=(_SEALED_TTL if series else _EMPTY_SERIES_TTL))
+    if series:
+        _disk_save(sym, series, saved_at)
     return series
+
+
+# ── The persisted sealed series (survives every deploy) ──────────────────────
+_SERIES_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "breadth_series_v1")
+
+
+def _disk_path(sym: str) -> str:
+    safe = "".join(ch if ch.isalnum() else "_" for ch in sym.upper())
+    return os.path.join(_SERIES_DIR, safe + ".json.gz")
+
+
+def _persist_on() -> bool:
+    """Persisted series on, except under pytest (whose runs would share one directory) unless a
+    test asks for it explicitly with BREADTH_SERIES_PERSIST=1. BREADTH_SERIES_PERSIST=0 = off."""
+    v = os.environ.get("BREADTH_SERIES_PERSIST")
+    if v is not None:
+        return v != "0"
+    return "PYTEST_CURRENT_TEST" not in os.environ
+
+
+def _disk_save(sym: str, series: list, saved_at: float) -> None:
+    """Persist a built sealed series (gzip JSON, atomic). Best-effort — never breaks a build."""
+    import gzip as _gz
+    if not _persist_on():
+        return
+    try:
+        os.makedirs(_SERIES_DIR, exist_ok=True)
+        path = _disk_path(sym)
+        tmp = path + ".tmp"
+        body = json.dumps({"sym": sym, "key": _daily_key(sym), "saved_at": saved_at,
+                           "series": series}, separators=(",", ":")).encode()
+        with open(tmp, "wb") as fh:
+            fh.write(_gz.compress(body, 5))
+        os.replace(tmp, path)
+    except Exception as e:
+        _log.warning("[breadth_symbols] series persist failed %s: %s", sym, e)
+
+
+def _restore_from_disk(sym: str, latest: Optional[str] = None) -> bool:
+    """Warm `sym` from its persisted series when that copy is CURRENT (same cache key, within
+    the sealed TTL, and — for UCT — holding the latest sealed day). True when restored."""
+    d = _disk_load(sym)
+    if not d or not d.get("series") or d.get("key") != _daily_key(sym):
+        return False
+    if time.time() - d.get("saved_at", 0) > _SEALED_TTL:
+        return False
+    if latest and d["series"][-1].get("t", "") < latest:
+        return False
+    _breadth_cache.set(_daily_key(sym), {"saved_at": d["saved_at"], "series": d["series"]},
+                       ttl=_SEALED_TTL)
+    return True
+
+
+def _disk_load(sym: str) -> Optional[dict]:
+    import gzip as _gz
+    if not _persist_on():
+        return None
+    try:
+        with open(_disk_path(sym), "rb") as fh:
+            d = json.loads(_gz.decompress(fh.read()))
+        return d if d.get("sym") == sym else None
+    except Exception:
+        return None
 
 
 def _kick_series_refresh(sym: str, metric: str,
@@ -1128,6 +1200,7 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
     a cached series exists.
     """
     sym = (sym or "").strip().upper()
+    req_sym = sym
     tf = (tf or "D").upper()
     if tf not in ("D", "W", "M"):
         tf = "D"  # breadth is daily-basis; intraday requests collapse to daily
@@ -1143,6 +1216,9 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
         if not row:
             return {"ticker": sym, "tf": tf, "bars": []}
         metric, universe = row["metric"], row["universe"]
+        # ⭐ ONE CACHE IDENTITY PER SERIES: a typed alias (`UCT:A50`) reads the canonical
+        # symbol's entry (`UCTA50`) — the one the warm loop keeps hot — instead of a cold key.
+        sym = (row.get("symbol") or sym).upper()
 
     cache = _breadth_cache
     now = time.time()
@@ -1156,7 +1232,24 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
             _kick_series_refresh(sym, metric, universe)   # stale → serve + revalidate
             tier = "breadth-cache-stale"
     else:
-        daily = _refresh_series(sym, metric, universe)    # cold miss — the one slow request
+        # ⭐ (2026-10-10) THE DISK COPY FIRST. Every web deploy (~30 a day) emptied this
+        # in-memory cache and the next viewer of each series paid a full build (2-10 s,
+        # owner report). The last built series is persisted per symbol; serve it at once
+        # and revalidate in the background. Only a series never built anywhere builds
+        # inline — once, single-flighted, however many requests arrive together.
+        disk = _disk_load(sym)
+        if disk and disk.get("series"):
+            daily = disk["series"]
+            current = disk.get("key") == _daily_key(sym)
+            cache.set(_daily_key(sym), {"saved_at": disk.get("saved_at", 0) if current else 0,
+                                        "series": daily}, ttl=_SEALED_TTL)
+            if not current or now - disk.get("saved_at", 0) > _SEALED_TTL:
+                _kick_series_refresh(sym, metric, universe)
+            tier = "breadth-disk"
+        else:
+            from api.services import single_flight
+            daily = single_flight.run("breadth-build:" + sym,
+                                      lambda: _refresh_series(sym, metric, universe))
 
     # Serve-time: append the live developing candle (cheap, cache-only) then resample.
     # ⚠️ THE LIVE CANDLE IS UCT'S ALONE. `breadth_live` measures the collector's
@@ -1187,7 +1280,7 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
     out = series or []
     if bars and len(out) > bars:
         out = out[-bars:]
-    return {"ticker": sym, "tf": tf, "bars": out}
+    return {"ticker": req_sym, "tf": tf, "bars": out}
 
 
 # ── Web-side warm loop (keeps the ~40 breadth series hot in the cache) ────────
@@ -1235,12 +1328,22 @@ def warm_breadth() -> dict:
         if fresh and up_to_date:
             stats["fresh"] += 1
             continue
+        if not hit and _restore_from_disk(sym, latest):
+            stats["disk"] = stats.get("disk", 0) + 1    # a deploy: no build, just a read
+            continue
         _refresh_series(sym, metric)
         stats["refreshed"] += 1
         time.sleep(_WARM_GAP)   # yield between cold builds — gentle on the single pod
     pit = _warm_published_pit(cache, stats)
     if pit:
         stats["pit"] = pit
+    # ⭐ (2026-10-10) the McClellan / A-D / ratio indicators too (NYMO, NASI, …): they were never
+    # warmed and recomputed in-request every 15 minutes. Non-essential: never breaks the pass.
+    try:
+        from api.services.market_indicators import producers as _mip
+        stats["indicators"] = _mip.warm_all()
+    except Exception as e:      # noqa: BLE001
+        _log.warning("[breadth_symbols] indicator warm failed: %s", e)
     _log.info("[breadth_symbols] warm pass done: %s", stats)
     return stats
 
@@ -1265,10 +1368,13 @@ def warm_breadth() -> dict:
 # `build_breadth_bars` already answers a cold miss by building inline. Warming is an
 # optimisation, and an optimisation that can break serving is not one.
 
-#: The families worth warming for a PIT universe. Ids from `breadth_metrics`' `group`.
-WARM_FAMILIES = ("ma",)
+#: The families worth warming for a PIT universe — ALL of them (2026-10-10): a member opening
+#: NYSE:NH paid a cold build after every deploy because only the MA family was warmed. The
+#: churn this ceiling guarded against is answered by the persisted series (a restore is a
+#: file read, not a build) and by `WARM_PIT_MAX` now capping REBUILDS per pass, not the list.
+WARM_FAMILIES = None
 
-#: A hard ceiling on cold PIT builds per pass, whatever the catalogue grows to.
+#: A hard ceiling on cold PIT REBUILDS per pass (restores from disk are not counted).
 WARM_PIT_MAX = 24
 
 
@@ -1288,13 +1394,11 @@ def warm_symbols_for_pit() -> list[tuple]:
             continue                      # UCT is the loop above, unchanged
         for row in library_rows([uni]):
             sym = row.get("symbol")
-            if not sym or row["group"] not in WARM_FAMILIES:
+            if not sym or (WARM_FAMILIES is not None and row["group"] not in WARM_FAMILIES):
                 continue
             if not is_published(uni, row["metric"]):
                 continue
             out.append((sym, row["metric"], uni))
-            if len(out) >= WARM_PIT_MAX:
-                return out
     return out
 
 
@@ -1309,7 +1413,8 @@ def _warm_published_pit(cache, stats: dict) -> dict:
     want = warm_symbols_for_pit()
     if not want:
         return {}
-    out = {"refreshed": 0, "fresh": 0, "failed": 0, "symbols": len(want)}
+    out = {"refreshed": 0, "fresh": 0, "disk": 0, "deferred": 0, "failed": 0,
+           "symbols": len(want)}
     now = time.time()
     for sym, metric, uni in want:
         try:
@@ -1317,6 +1422,12 @@ def _warm_published_pit(cache, stats: dict) -> dict:
             if hit and hit.get("series") is not None \
                     and now - hit.get("saved_at", 0) <= _SEALED_TTL:
                 out["fresh"] += 1
+                continue
+            if not hit and _restore_from_disk(sym):
+                out["disk"] += 1
+                continue
+            if out["refreshed"] >= WARM_PIT_MAX:
+                out["deferred"] += 1          # the next pass (90 s) picks it up
                 continue
             _refresh_series(sym, metric, uni)
             out["refreshed"] += 1

@@ -61,6 +61,16 @@ describe('the Notebook\'s skip links always land (walk finding F1)', () => {
     expect(tree().contains(document.activeElement)).toBe(true)
   })
 
+  // Desktop crawl, 2026-10-09: the hidden panel slid off-screen but stayed reachable, so Tab and a
+  // screen reader walked its folder tree, All notes and Trash -- controls nobody could see.
+  it('panel HIDDEN: its controls are out of reach (inert) until it is shown again', async () => {
+    localStorage.setItem(SIDEBAR_KEY, '0')
+    await renderTab()
+    expect(tree().closest('[inert]'), 'the hidden panel is still reachable by Tab and screen readers').not.toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Show folders panel' }))
+    await waitFor(() => expect(tree().closest('[inert]')).toBeNull())
+  })
+
   it('panel in search mode (no tree on screen): the link lands on the panel\'s heading', async () => {
     await renderTab()
     fireEvent.click(screen.getByRole('tab', { name: 'Search notes' }))
