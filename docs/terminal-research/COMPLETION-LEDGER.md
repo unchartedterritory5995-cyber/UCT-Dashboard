@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (master `d95f331bb`, 2026-10-09): not complete.** 213 of 279 rows are `live` or `moot`; 66 are not (13 `dark`, 44 `building`, 9 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (master `d95f331bb`, 2026-10-09): not complete.** 213 of 279 rows are `live` or `moot`; 66 are not (14 `dark`, 43 `building`, 9 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,10 +34,10 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 at master `d95f331bb`:
+Printed 2026-10-10 at master `d95f331bb`, re-run after TERM-004 moved `building` → `dark` (lane f-l10, TERM-004b):
 
 ```
-279 Counter({'live': 174, 'building': 44, 'moot': 39, 'dark': 13, 'owner-blocked': 9})
+279 Counter({'live': 174, 'building': 43, 'moot': 39, 'dark': 14, 'owner-blocked': 9})
 0 duplicate ids
 ```
 
@@ -49,14 +49,14 @@ The per-section split is the same regex applied to each `## ` section:
 |---|---|---|---|---|---|---|
 | 1 Programme records + ship | 17 | 7 | 0 | 7 | 1 | 2 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
-| 3 TERM-001..093 | 93 | 65 | 5 | 14 | 3 | 6 |
+| 3 TERM-001..093 | 93 | 65 | 6 | 13 | 3 | 6 |
 | 4 BRK-01..10 | 10 | 4 | 2 | 3 | 0 | 1 |
 | 5 COV-01..12 | 12 | 5 | 0 | 3 | 1 | 3 |
 | 6 FT-001..080 | 80 | 56 | 2 | 9 | 4 | 9 |
 | 7 Untracked promises | 58 | 37 | 4 | 8 | 0 | 9 |
-| **total** | **279** | **174** | **13** | **44** | **9** | **39** |
+| **total** | **279** | **174** | **14** | **43** | **9** | **39** |
 
-`building` by lane: P 12 · O 8 · R 5 · integrator 4 · D 3 · T1 3 · S 2 · Notebook 2 · T4 2 · T2 1 · decided follow-up builds (TERM-043, TERM-045) 2.
+`building` by lane: P 11 · O 8 · R 5 · integrator 4 · D 3 · T1 3 · S 2 · Notebook 2 · T4 2 · T2 1 · decided follow-up builds (TERM-043, TERM-045) 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -104,7 +104,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-001` | Board-size bound (16) | `live` | `app/src/pages/charts/boardBound.js:21` (`MAX_BOARD_WIDGETS`), on master via the X-01 landing `2e304db42`; re-affirmed T-1 (`12-decisions/2026-10-07-owner-delegated-decisions.md:46`). Ungated. Was `dark` (branch-only). |
 | `TERM-002` | Second OPRA connection | `live (purchased 2026-10-04)` | Licensing settled by D-011. ➜ 2026-10-07: I-9 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-003` | Confluence Radar extend/delete | `moot (ships as Options Flow tab 8; ledger G9 corrected 2026-09-27)` | `app/src/pages/OptionsFlow.jsx:114`. |
-| `TERM-004` | One earnings-date authority | `building (Lane P)` | OQ-14 decided 2026-10-02 (branch-only `555457ae33`). Remainder TERM-004b: engine adapter + parity test (31% disagree), needs a uct-intelligence session; delegated by D-014. |
+| `TERM-004` | One earnings-date authority | `dark` | OQ-14 decided 2026-10-02 (`555457ae33`, on master): `GET /api/calendar` is the authority. TERM-004b is built in the engine repo (uct-intelligence): adapter `uct_intelligence/dashboard_calendar.py` + `api.py::get_catalyst_calendar_context` behind `ENGINE_EARNINGS_SOURCE` = `fmp` (default, byte-identical) / `shadow` / `dashboard` (`8145f55`, `33b9148`, merged to its master `043faec`). Parity measurement `uct_intelligence/earnings_parity.py` + `scripts/earnings_parity_measure.py` (read-only: `mode=ro` DB, temp copy) and `tests/test_earnings_parity_term004b.py` on branch `term-004b` `7b9a95c` (not pushed): fixture at the measured 31% (4/13 disagree before, 3/13 de-staled, **0/13 in dashboard mode**). No dashboard change: `/api/calendar` stays anonymous (`tests/test_open_reads_gate.py:297`). Arming = set `ENGINE_EARNINGS_SOURCE=shadow`, then `dashboard`, on the engine host (the brain's 5 daily runs); live agreement is measured there with the script, because this PC has no engine DB. Not conformed, by scope (they change candidate selection, so owner sign-off first): `scripts/scanner_candidates.py::_fetch_earnings_risk`, `scripts/premarket_scanner.py:118`, `uct_intelligence/screener.py:403` still read FMP forward rows. Live note 2026-10-10: cold range weeks of `/api/calendar` exceeded the adapter's 4 s timeout on first read (warm on retry), which sends a dashboard-mode run to its FMP fallback. |
 | `TERM-005` | Second screener universe | `moot (decided 2026-10-07: no purchase)` | ➜ 2026-10-07: I-10 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-006` | Freshness authority in time units | `live` | `app/src/components/provenance/freshnessAge.js:285`, on master via the X-01 landing `2e304db42`; the terminal's panel freshness badges read it (V8, `f26bbee7d`). Was `dark` (branch-only). |
 | `TERM-007` | Quiet measurement window | `building (Lane P)` | Window fixed under delegation: Wed 2026-10-14 09:00–11:00 ET, then every Wednesday (B1, `12-decisions/2026-10-07-owner-delegated-decisions.md:200`, recorded `99ee519b7`); the owner is not asked to post it. Remainder: take the reading inside that window (not yet held on 2026-10-10). Was `owner-blocked`. |
