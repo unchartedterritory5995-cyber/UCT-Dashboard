@@ -453,6 +453,16 @@ def get_insider_trading(ticker: str, *, timeout: Optional[int] = None) -> _pe.Pr
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
+def get_latest_insider_trading(page: int, limit: int = 100, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """The newest Form 4 filings MARKET-WIDE, newest first, one page at a
+    time (live-verified 2026-10-09: 100 rows a page, the same row keys as
+    `get_insider_trading`). Sends no symbol. Feeds the terminal's INS panel
+    via `insider.get_market_insider_buys`."""
+    return _fetch("/stable/insider-trading/latest", {"page": int(page), "limit": int(limit)},
+                   source_activity="fmp_client.get_latest_insider_trading", data_class="insider",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
+
+
 def get_shares_float(ticker: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
     """Float + shares-outstanding — added for the Ownership tab's D1
     migration (2026-09-03). Share counts move slowly (a company action, not

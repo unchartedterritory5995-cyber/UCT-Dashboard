@@ -11,6 +11,10 @@ net, not a dead branch.
 
 Feed: aggregate notable insider buys across UCT20 + broad market watchlist.
 
+Market feed (`get_market_insider_buys`, the terminal's INS panel): open-market
+purchases across the WHOLE market from FMP `stable/insider-trading/latest`,
+paged newest-first back to a 7-day cutoff.
+
 ── Sign derivation (the highest-risk part of this migration) ───────────────
 Finnhub's `transactionCode` is a single letter (`"P"`=purchase,
 `"S"`=sale, ...); FMP's `transactionType` is a hyphenated code
@@ -39,6 +43,7 @@ direction.
 from __future__ import annotations
 
 import logging
+import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
@@ -144,24 +149,9 @@ def get_insider_activity(ticker: str) -> list[dict]:
     # Normalize to a clean shape, most recent first
     txns = []
     for r in raw_rows:
-        if not isinstance(r, dict):
-            continue
-        txn_type = _classify_txn(r)
-        if txn_type is None:
-            continue
-        shares, price = _row_shares_price(r)
-        if shares is None:
-            continue
-        txns.append({
-            "name": _row_name(r),
-            "title": _clean_title(r),
-            "type": txn_type,        # "buy" or "sell"
-            "shares": abs(int(shares)),
-            "price": round(price, 2),
-            "amount": round(abs(shares * price), 2),
-            "date": r.get("transactionDate", ""),
-            "filing_date": r.get("filingDate", ""),
-        })
+        t = _normalize_row(r)
+        if t is not None:
+            txns.append(t)
 
     # Sort by transaction date descending
     txns.sort(key=lambda t: t["date"], reverse=True)
@@ -228,6 +218,113 @@ def get_recent_insider_buys() -> list[dict]:
     return result
 
 
+# ── Market-wide feed (terminal INS panel) ────────────────────────────────────
+#
+# The feed above only scans the UCT 20 plus ~40 large caps, and large-cap
+# insiders almost only SELL, so it is routinely empty. Insider BUYING
+# clusters in small and mid caps. FMP's `stable/insider-trading/latest`
+# returns the newest Form 4 filings across the whole market, newest first,
+# 100 a page; this pages back until the filings are older than the window.
+
+_MARKET_FEED_KEY = "insider_feed_market"
+_MARKET_MAX_PAGES = 12            # hard bound on outbound calls per rebuild
+_MARKET_PAGE_LIMIT = 100
+_MARKET_PAGE_TIMEOUT = 10         # seconds, every page
+_MARKET_WINDOW_DAYS = 7
+_MARKET_CAP = 50                  # same cap as the old feed
+_SYMBOL_OK = re.compile(r"^[A-Z][A-Z0-9.\-]{0,9}$")
+
+
+def _market_symbol(r: dict) -> str | None:
+    """The row's ticker, upper-cased, or None when blank or odd."""
+    sym = str(r.get("symbol") or "").strip().upper()
+    if not sym or not _SYMBOL_OK.match(sym):
+        return None
+    return sym
+
+
+def get_market_insider_buys() -> list[dict]:
+    """Open-market insider PURCHASES across the whole market in the last 7
+    days, from Form 4 filings, largest dollar amount first, capped at 50.
+
+    Rows have the same shape as `get_recent_insider_buys` (name, title,
+    type, shares, price, amount, date, filing_date, symbol). Never raises:
+    a page that fails ends the paging and whatever was gathered is cached
+    at the short TTL; a total failure returns [] cached short."""
+    hit = cache.get(_MARKET_FEED_KEY)
+    if hit is not None:
+        return hit
+
+    try:
+        from api.services import fmp_client
+        from api.services.fmp_client import FMPNotFound
+    except Exception as exc:  # pragma: no cover - import guard
+        _logger.warning("insider market feed: fmp_client import failed: %s", exc)
+        cache.set(_MARKET_FEED_KEY, [], _FEED_FAIL_TTL)
+        return []
+
+    cutoff = (datetime.utcnow() - timedelta(days=_MARKET_WINDOW_DAYS)).strftime("%Y-%m-%d")
+    complete = True
+    pages_ok = 0
+    buys: list[dict] = []
+    seen: set[tuple] = set()
+
+    for page in range(_MARKET_MAX_PAGES):
+        try:
+            result = fmp_client.get_latest_insider_trading(
+                page, _MARKET_PAGE_LIMIT, timeout=_MARKET_PAGE_TIMEOUT)
+        except FMPNotFound:
+            pages_ok += 1
+            break  # FMP answered: no more filings
+        except Exception as exc:
+            _logger.warning("insider market feed: page %d failed: %s", page, exc)
+            complete = False
+            break
+        if getattr(result, "degraded", None) is not None or not isinstance(getattr(result, "value", None), list):
+            complete = False
+            break
+        pages_ok += 1
+        rows = result.value
+        oldest_filing = None
+        for r in rows:
+            if not isinstance(r, dict):
+                continue
+            fd = str(r.get("filingDate") or "")[:10]
+            if fd and (oldest_filing is None or fd < oldest_filing):
+                oldest_filing = fd
+            sym = _market_symbol(r)
+            if sym is None:
+                continue
+            t = _normalize_row(r)
+            if t is None or t["type"] != "buy":
+                continue
+            if str(t["date"] or "")[:10] < cutoff:
+                continue
+            key = (sym, t["name"], t["date"], t["shares"], t["price"])
+            if key in seen:
+                continue
+            seen.add(key)
+            buys.append({**t, "symbol": sym})
+        if len(rows) < _MARKET_PAGE_LIMIT:
+            break  # a short page is the last page
+        if oldest_filing is not None and oldest_filing < cutoff:
+            break  # this page already reaches past the window
+
+    if pages_ok == 0:
+        cache.set(_MARKET_FEED_KEY, [], _FEED_FAIL_TTL)
+        return []
+
+    buys.sort(key=lambda b: b["amount"], reverse=True)
+    result_rows = buys[:_MARKET_CAP]
+    set_by_completeness(
+        _MARKET_FEED_KEY, result_rows,
+        complete=complete,
+        ttl_ok=_FEED_TTL,
+        ttl_partial=_FEED_FAIL_TTL,
+    )
+    return result_rows
+
+
 def has_recent_insider_buy(ticker: str, days: int = 30) -> bool:
     """Quick check: did any insider buy this ticker in the last N days?"""
     cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
@@ -236,6 +333,31 @@ def has_recent_insider_buy(ticker: str, days: int = 30) -> bool:
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
+
+def _normalize_row(r) -> dict | None:
+    """One raw insider row (FMP or Finnhub shape) -> the clean transaction
+    dict, or None when it is not an open-market buy/sell or is unparseable.
+    `_classify_txn` stays the only buy/sell authority. Shared by the
+    per-ticker path and the market-wide feed."""
+    if not isinstance(r, dict):
+        return None
+    txn_type = _classify_txn(r)
+    if txn_type is None:
+        return None
+    shares, price = _row_shares_price(r)
+    if shares is None:
+        return None
+    return {
+        "name": _row_name(r),
+        "title": _clean_title(r),
+        "type": txn_type,        # "buy" or "sell"
+        "shares": abs(int(shares)),
+        "price": round(price, 2),
+        "amount": round(abs(shares * price), 2),
+        "date": r.get("transactionDate", ""),
+        "filing_date": r.get("filingDate", ""),
+    }
 
 
 def _row_shares_price(r: dict) -> tuple[float, float] | tuple[None, None]:
