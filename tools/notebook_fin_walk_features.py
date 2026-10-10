@@ -128,6 +128,20 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             C.step(pg, inst, name, "driver exception (the step did not finish)", "FAIL",
                    error=f"{type(e).__name__}: {str(e)[:600]}", traceback=traceback.format_exc()[-1600:])
 
+    def unfold(pg_, name_re):
+        """Open a folded control the way a member would (UX pass 2026-10-10 folded the welcome's
+        capability preview, Research Home's quieter boxes and the note's details). A no-op when it
+        is already open or absent; returns whether it pressed."""
+        btn = pg_.locator("button[aria-expanded='false']").filter(has_text=re.compile(name_re, re.I))
+        try:
+            if btn.count() and btn.first.is_visible():
+                btn.first.click()
+                pg_.wait_for_timeout(400)
+                return True
+        except Exception:  # noqa: BLE001 -- the step that needed it records what it then saw
+            pass
+        return False
+
     def home():
         C.goto(pg, base, "/journal/notebook")
         pg.wait_for_timeout(1500)
@@ -142,6 +156,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         welcome = C.vis_loc(pg_.get_by_role("heading", name="Welcome to your Notebook", level=2), 30000)
         seen = C.settle_first_run(pg_)
         pg_.wait_for_timeout(1500)
+        unfold(pg_, r"^\s*See what it can do")
         preview = C.vis_loc(pg_.get_by_role("heading", name="What your Notebook can do"), 10000)
         lines = pg_.evaluate("""() => { const hd = [...document.querySelectorAll('h3')].find(e => e.textContent.trim() === 'What your Notebook can do');
             const sec = hd && hd.closest('section'); return sec ? [...sec.querySelectorAll('li')].map(li => li.textContent.trim().replace(/\\s+/g, ' ')) : [] }""")
@@ -272,6 +287,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         g_txt = pg.locator('[data-passed-symbol="GOOGL"]').first.inner_text().replace("\n", " ")[:200] if googl else None
         C.step(pg, inst, "sample examples", "passed setups: the GOOGL example is listed with how it moved since",
                "PASS" if googl else "FAIL", row_text=g_txt, scope=["[data-passed-setups]"])
+        unfold(pg, r"^\s*Reporting soon")
         rs = pg.locator("[data-reporting-soon]")
         rs_ok = C.vis_loc(rs, 20000)
         rs_txt = rs.first.inner_text()[:300] if rs_ok else None
@@ -506,6 +522,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         C.goto(pg, base, f"/journal/notebook?note={nid}", ".ProseMirror")
 
         def new_prop():
+            unfold(pg, r"details")
             pg.get_by_role("button", name="Add property").filter(visible=True).first.click()
             pg.get_by_role("button", name="+ New property…").filter(visible=True).first.click()
             pg.get_by_role("textbox", name="Property name").wait_for(state="visible", timeout=8000)

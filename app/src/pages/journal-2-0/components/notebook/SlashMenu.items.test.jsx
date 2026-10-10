@@ -4,7 +4,7 @@
 // prefix match (completion, nothing to eat); with args/prose = exact name.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Editor } from '@tiptap/core'
-import { widgetItems, factItems, consensusFactItems, ITEMS, groupedSlashItems, blockItemGroup } from './SlashMenu'
+import { widgetItems, factItems, consensusFactItems, ITEMS, groupedSlashItems, blockItemGroup, rankedBlockItems } from './SlashMenu'
 import { buildExtensions } from '../../lib/tiptap'
 
 const titles = (q) => widgetItems(q).map((i) => i.title)
@@ -356,5 +356,36 @@ describe('bare slash menu groups (trading first)', () => {
     expect(blockItemGroup(byTitle('Heading 1'))).toBe('basics')
     expect(blockItemGroup(byTitle('Heading 4'))).toBe('more')
     expect(blockItemGroup(byTitle('Trade-plan canvas'))).toBe('trading')
+  })
+})
+
+describe('a typed query ranks title matches above keyword-only matches', () => {
+  const titles = (q) => rankedBlockItems(ITEMS, q).map((it) => it.title)
+
+  it('⛔ /transcript puts Transcript passage above Voice note (Enter takes the top row)', () => {
+    const t = titles('transcript')
+    expect(t, 'non-vacuity: both items answer "transcript"').toEqual(expect.arrayContaining(['Transcript passage', 'Voice note']))
+    expect(t.indexOf('Transcript passage')).toBeLessThan(t.indexOf('Voice note'))
+    expect(t[0]).toBe('Transcript passage')
+  })
+
+  it('title-prefix, then title-contains, then keyword; menu order inside each tier', () => {
+    const q = 'list'
+    const got = rankedBlockItems(ITEMS, q)
+    const tier = (it) => (it.title.toLowerCase().startsWith(q) ? 0 : it.title.toLowerCase().includes(q) ? 1 : 2)
+    const tiers = got.map(tier)
+    expect([...tiers].sort((a, b) => a - b)).toEqual(tiers)
+    for (const t of [0, 1, 2]) {
+      const inTier = got.filter((it) => tier(it) === t)
+      const menuOrder = ITEMS.filter((it) => inTier.includes(it))
+      expect(inTier).toEqual(menuOrder)
+    }
+  })
+
+  it('the same items as the plain match, only reordered; a bare query is untouched', () => {
+    const q = 'call'
+    const plain = ITEMS.filter((it) => it.title.toLowerCase().includes(q) || (it.keywords || []).some((k) => k.includes(q)))
+    expect(new Set(rankedBlockItems(ITEMS, q))).toEqual(new Set(plain))
+    expect(rankedBlockItems(ITEMS, '')).toBe(ITEMS)
   })
 })

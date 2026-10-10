@@ -16,7 +16,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 
 const NOTES = [
@@ -35,6 +35,8 @@ vi.mock('../components/notebook/FolderSidebar', () => ({
   default: ({ onSelectFolder }) => (
     <div data-testid="folder-sidebar">
       <button type="button" onClick={() => onSelectFolder?.('f-swing')}>Pick Swing ideas</button>
+      {/* the real panel's search anchor (FolderSidebar.jsx data-tour="search") */}
+      <input aria-label="Search notes" data-tour="search" />
     </div>
   ),
 }))
@@ -82,6 +84,7 @@ vi.mock('../components/notebook/NoteTasksView', () => ({
 }))
 
 import NotebookTab from './NotebookTab'
+import { requestReveal, TOUR_REVEAL_EVENT } from '../components/notebook/onboarding/tourAnchorVisibility'
 
 function Where() {
   const loc = useLocation()
@@ -238,6 +241,27 @@ describe('D-7 -- a content-first view mode gives the view the first screen on a 
     setWidth(1280)
     renderAt('/journal/notebook?view=all')
     expect(showFoldersBtn()).toBeNull()
+  })
+
+  // Phone pass follow-up (fin walk, 2026-10-10): Search by meaning starts in the panel, so on a
+  // phone the drawer hid its first anchor and the tour could not open at all.
+  it('a walkthrough that needs the panel opens the drawer (requestReveal), for this visit only', () => {
+    setWidth(390)
+    try { localStorage.setItem('uct.j2.nb.sidebarOpen', '1') } catch { /* private mode */ }
+    renderAt('/journal/notebook?view=all')
+    expect(showFoldersBtn(), 'non-vacuity: folded on arrival').not.toBeNull()
+    let asked
+    act(() => { asked = requestReveal('search') })
+    expect(asked).toBe(true)
+    expect(showFoldersBtn()).toBeNull()
+    expect(localStorage.getItem('uct.j2.nb.sidebarOpen')).toBe('1')
+  })
+
+  it('a reveal for some OTHER region leaves the drawer folded', () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all')
+    act(() => { window.dispatchEvent(new CustomEvent(TOUR_REVEAL_EVENT, { detail: { region: 'elsewhere' } })) })
+    expect(showFoldersBtn()).not.toBeNull()
   })
 
   it('the #search door keeps the panel OPEN at phone width (it opens it on purpose for its search box)', () => {

@@ -720,14 +720,20 @@
      Measured before/after: docs/notebook/proof/d3p-*. */
   .formatToggle { display: inline-flex; align-items: center; gap: 6px; }
   .toolbarRow:not([data-format-open]) .formatRun { display: none; }
-  /* Notebook phone pass (2026-10-10): the header is ONE compact row -- Star, Share and "More
-     note actions" (plus a linked-trade chip or a status when there is one). Ask, Find, Writing
-     help, Outline and the folder select are not displayed here; the More panel carries each one
+  /* Notebook phone pass (2026-10-10): the header is ONE compact row -- Star, Writing help (its
+     icon), Share and "More note actions" (plus a linked-trade chip or a status when there is
+     one). Ask, Find, Outline and the folder select are not displayed here; the More panel carries each one
      on a phone, calling the same handler (NoteEditorPage `phoneTools`). Measured at 390x844
      before: the title's top sat ~550 CSS px down, under a three-row header and a two-row
      formatting toolbar. */
   .phoneInMore { display: none; }
   .askSlot [data-ask-toggle] { display: none; }
+  /* Writing help stays in the row as its icon (its walkthrough opens on it); the word is
+     visually hidden, the button keeps its accessible name from aria-label. */
+  .phoneIconLabel {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
   /* ...and the formatting toolbar is ONE row that scrolls sideways: never wraps (a wrapped row
      is what pushed the title down), never widens the page (the row is the scroller, not the
      page). Undo / Redo stay first, every control keeps the 44 px floor above. */

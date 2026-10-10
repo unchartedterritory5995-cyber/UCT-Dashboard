@@ -7,8 +7,9 @@ import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/note
 // Notebook phone pass (2026-10-10). Measured at 390x844: the note's title started ~550 CSS px
 // down, under a header that wrapped to three rows (Star, Ask, Find, Share / the folder select,
 // Writing help / Outline, More) and a formatting toolbar wrapping to two. On a phone the header
-// is now ONE row -- Star, Share, More -- and Ask, Find, Writing help, Outline and the folder
-// move into "More note actions".
+// is now ONE row -- Star, Writing help (as its icon), Share, More -- and Ask, Find, Outline and
+// the folder move into "More note actions". Writing help stays because its walkthrough opens on
+// that button (follow-up the same day, found by the fin walk).
 //
 // ⛔ WHAT THIS FILE CAN SAY. jsdom applies no stylesheet, so "not displayed on a phone" is a CSS
 // fact railed structurally in NoteEditorPage.phoneChrome.test.js. What a rendered test CAN hold,
@@ -97,7 +98,7 @@ const more = () => screen.getByRole('button', { name: 'More note actions' })
 const panel = () => document.getElementById(more().getAttribute('aria-controls'))
 const openMore = () => { fireEvent.click(more()); return within(panel()) }
 
-const PHONE_ITEMS = ['Ask about this note', 'Find in note', 'Writing help', 'Outline']
+const PHONE_ITEMS = ['Ask about this note', 'Find in note', 'Outline']
 
 describe('opened on a DESKTOP, the More panel is exactly what it was', () => {
   it('none of the phone items, and the first action (where focus lands) is still History', async () => {
@@ -141,9 +142,9 @@ describe('opened on a PHONE, More carries the header actions the phone hides', (
     // The controls the phone block hides: `.phoneInMore`, plus the Ask toggle inside `.askSlot`.
     const hidden = [...header().querySelectorAll('[class*="phoneInMore"]')]
     const ask = header().querySelector('[class*="askSlot"] [data-ask-toggle]')
-    expect(hidden.length, 'non-vacuity: the phone-hidden controls were found').toBeGreaterThanOrEqual(4)
+    expect(hidden.length, 'non-vacuity: the phone-hidden controls were found').toBeGreaterThanOrEqual(3)
     expect(ask, 'non-vacuity: the Ask toggle sits in its slot').toBeTruthy()
-    const COUNTERPART = { 'Find in note': 'Find in note', 'Writing help': 'Writing help', Outline: 'Outline', Folder: 'Move to folder' }
+    const COUNTERPART = { 'Find in note': 'Find in note', Outline: 'Outline', Folder: 'Move to folder' }
     const p = openMore()
     for (const el of hidden) {
       const name = el.getAttribute('aria-label')
@@ -193,10 +194,13 @@ describe('opened on a PHONE, More carries the header actions the phone hides', (
     expect(document.activeElement).toBe(item)
   })
 
-  it('Writing help: the item opens the same panel as the header button', async () => {
+  it('Writing help STAYS in the row (its walkthrough opens on it), not in More', async () => {
     await renderEditor()
-    const p = openMore()
-    fireEvent.click(p.getByRole('button', { name: 'Writing help' }))
+    const btn = within(header()).getByRole('button', { name: 'Writing help' })
+    expect(btn.className).not.toMatch(/phoneInMore/)
+    expect(btn).toHaveAttribute('data-tour', 'writing-help')
+    expect(openMore().queryByRole('button', { name: 'Writing help' })).toBeNull()
+    fireEvent.click(btn)
     expect(await screen.findByRole('dialog', { name: 'Writing help' })).toBeTruthy()
   })
 
@@ -214,9 +218,10 @@ describe('opened on a PHONE, More carries the header actions the phone hides', (
     expect(fromHeader).toEqual({ folderId: 'f2' })
   })
 
-  it('a LOCKED note: no Writing help in More either (the one condition both doors read)', async () => {
+  it('a LOCKED note: no Writing help in the row or in More (the one condition)', async () => {
     NOTE = { ...baseNote(), locked: true }
     await renderEditor()
+    expect(within(header()).queryByRole('button', { name: 'Writing help' })).toBeNull()
     const p = openMore()
     expect(p.queryByRole('button', { name: 'Writing help' })).toBeNull()
     expect(p.getByRole('button', { name: 'Ask about this note' })).toBeTruthy()

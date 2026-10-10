@@ -4176,17 +4176,6 @@ export default function NoteEditorPage({
           Find in note
         </button>
       )}
-      {showWritingHelp && (
-        <button
-          type="button"
-          className={styles.chromeBtn}
-          onClick={openWritingHelp}
-          aria-label="Writing help"
-        >
-          <UIcon name="sparkle" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-          Writing help
-        </button>
-      )}
       {editor && (
         <button
           type="button"
@@ -4435,10 +4424,13 @@ export default function NoteEditorPage({
           {/* Wave 10 lane K2 (D-3): Writing help and Outline moved up from the formatting row
               so the formatting row fits ONE line at 1200 px. Both keep their names, their
               `onMouseDown` / `aria-expanded` behaviour and their keyboard doors. */}
+          {/* Phone pass follow-up (2026-10-10): Writing help STAYS in the phone row, as an icon
+              (`.phoneIconLabel` hides the word, the aria-label keeps the name). Moving it into More
+              left its walkthrough pointing at nothing: the Writing help tour opens on this button. */}
           {showWritingHelp && (
             <button
               type="button"
-              className={`${styles.chromeBtn} ${styles.phoneInMore}`}
+              className={styles.chromeBtn}
               onMouseDown={(e) => e.preventDefault()}
               onClick={openWritingHelp}
               aria-label="Writing help"
@@ -4446,7 +4438,7 @@ export default function NoteEditorPage({
               title="Writing help — summarize, rewrite, continue or translate"
             >
               <UIcon name="sparkle" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-              Writing help
+              <span className={styles.phoneIconLabel}>Writing help</span>
             </button>
           )}
           {/* Wave 5: the note's outline (every heading, click to jump) -- a

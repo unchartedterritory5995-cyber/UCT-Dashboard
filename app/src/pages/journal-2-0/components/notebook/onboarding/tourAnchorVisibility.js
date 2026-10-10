@@ -46,6 +46,28 @@ export function isOnScreen(el) {
   return true
 }
 
+/** Fired on `window` when a tour needs an anchor that is on the page but not on screen
+ *  because a region that can be opened hides it -- today the Notebook's folders panel, which
+ *  is a closed drawer on a phone. `detail: { region, anchor }`; the region's owner listens
+ *  (NotebookTab opens the drawer). Phone pass follow-up (2026-10-10): before the drawer, a
+ *  tour that starts in the panel (Search by meaning) could not open on a phone at all. */
+export const TOUR_REVEAL_EVENT = 'uct:tour-reveal'
+
+/** Ask the region hiding `anchor` to open. Only for an anchor that EXISTS but is not on
+ *  screen, inside an element marked `data-tour-reveal="<region>"`. Returns whether it asked.
+ *  Never called from render: the engine calls it from its bounded wait loops. */
+export function requestReveal(anchor) {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return false
+  if (anchorFor(anchor)) return false
+  const el = document.querySelector(`[data-tour="${anchor}"]`)
+  const region = el?.closest('[data-tour-reveal]')
+  if (!region) return false
+  window.dispatchEvent(new CustomEvent(TOUR_REVEAL_EVENT, {
+    detail: { region: region.getAttribute('data-tour-reveal'), anchor },
+  }))
+  return true
+}
+
 /** The on-screen element for an anchor, or null. Explicitly hidden elements do not count,
  *  and nor does one the member cannot see (M-7: a collapsed sidebar's anchors). */
 export function anchorFor(anchor) {

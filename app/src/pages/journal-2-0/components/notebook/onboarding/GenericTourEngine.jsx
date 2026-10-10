@@ -39,7 +39,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import usePreferences from '../../../../../hooks/usePreferences'
 import { trapTabKey } from '../../../../../components/mobile/useFocusTrap'
 import { claimFirstRunStage } from '../../../../../components/firstRun/firstRunStage'
-import { anchorFor } from './tourAnchorVisibility'
+import { anchorFor, requestReveal } from './tourAnchorVisibility'
 import { TOURS_PREF, TOUR_STATES, readToursPref, recordTourState } from './tourSeenState'
 import { UNREACHABLE_COPY, atStart, resolveStart } from './tourStart'
 import { cardIsTopmost, dialogHost } from './tourLayers'
@@ -207,6 +207,7 @@ export default function GenericTourEngine({
     }
     const tick = () => {
       if (anchorFor(steps[0].anchor)) { open(0); return true }
+      requestReveal(steps[0].anchor)
       if (Date.now() - began < startWaitMs) return false
       const at = presentFrom(steps, 0, 1)
       if (at >= 0) open(at)
@@ -255,11 +256,13 @@ export default function GenericTourEngine({
     const target = index + 1
     if (target >= steps.length) { close(TOUR_STATES.done); return }
     if (anchorFor(steps[target].anchor)) { goTo(target); return }
+    requestReveal(steps[target].anchor)
     setMoving(true)
     const began = Date.now()
     stopMove()
     moveTimerRef.current = setInterval(() => {
       if (anchorFor(steps[target].anchor)) { stopMove(); goTo(target); return }
+      requestReveal(steps[target].anchor)
       if (Date.now() - began < stepWaitMs) return
       stopMove()
       const later = presentFrom(steps, target + 1, 1)
@@ -283,7 +286,14 @@ export default function GenericTourEngine({
     if (!step?.waitFor || moving) return undefined
     let seenAbsent = !anchorFor(step.waitFor)
     const timer = setInterval(() => {
-      if (!anchorFor(step.waitFor)) { seenAbsent = true; return }
+      if (!anchorFor(step.waitFor)) {
+        seenAbsent = true
+        // The member did the thing (this step's own anchor has gone, e.g. they tapped Back)
+        // and what comes next is hidden in a region that opens: ask it to open. Never while
+        // this step's anchor is still on screen, or the drawer would open over the step.
+        if (!anchorFor(step.anchor)) requestReveal(step.waitFor)
+        return
+      }
       if (!seenAbsent) return
       clearInterval(timer)
       const owner = steps.findIndex((s, j) => j > index && s.anchor === step.waitFor)
