@@ -237,9 +237,10 @@ describe('DataPipelineHealthPanel — flagged states', () => {
     await waitFor(() => expect(screen.getByText('breaker OPEN')).toBeTruthy())
   })
 
-  it('degrades every row to a no-data placeholder, never a crash, when all 12 fetches fail', async () => {
+  it('degrades every row to a "not loaded" badge, never a crash and never "no data", when all 12 fetches fail (TERM-033)', async () => {
     mockFetch(Object.fromEntries(Object.keys(CLEAN).map((k) => [k, null])))
     render(<DataPipelineHealthPanel />)
-    await waitFor(() => expect(screen.getAllByText('no data').length).toBe(12))
+    await waitFor(() => expect(screen.getAllByText('not loaded').length).toBe(12))
+    expect(screen.queryByText('no data')).toBeNull()
   })
 })

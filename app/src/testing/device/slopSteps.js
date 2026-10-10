@@ -252,12 +252,19 @@ export function buildSlopSteps({ frame, cred }) {
          * geometry would still be the dragged one. */
         const w = frame.contentWindow
         w.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true }))
-        const back = await until('the undo to land', () => {
-          const g = geom(byId(frame, ctx.id))
-          return g === ctx.base ? g : null
-        }, { timeout: 6000 }).catch(() => null)
+        // TERM-033: a timed-out wait is recorded IN THE EVIDENCE, never folded into a null.
+        let back = null
+        let undoWait = 'landed'
+        try {
+          back = await until('the undo to land', () => {
+            const g = geom(byId(frame, ctx.id))
+            return g === ctx.base ? g : null
+          }, { timeout: 6000 })
+        } catch (err) {
+          undoWait = `did not land: ${err?.message || err}`
+        }
         const still = byId(frame, ctx.id)
-        return expect({ afterUndo: geom(still), expected: ctx.base, present: !!still },
+        return expect({ afterUndo: geom(still), expected: ctx.base, present: !!still, undoWait },
           !!back && !!still,
           'the original geometry, drawing still present',
           'exactly one history entry for the drag, none for the taps')

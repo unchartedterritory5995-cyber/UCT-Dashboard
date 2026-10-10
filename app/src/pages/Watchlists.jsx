@@ -107,6 +107,7 @@ import { chordById, matchesChord } from './command/chords.js'
 // its `{detail}` body is truthy, so every `!data` loading guard below is
 // skipped and the consumer throws on an error object. See utils/jsonFetcher.js.
 import fetcher from '../utils/jsonFetcher'
+import { readSuccessBody } from '../lib/responseBody'
 
 // S2 CP4 — resolved ONCE at module scope: a lookup inside the handler would
 // re-scan the table on every keystroke, and a miss would silently disable
@@ -1821,9 +1822,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       body: JSON.stringify({ sym: clean, notes: '' }),
     })
     if (!res.ok) throw new Error(`add failed: ${res.status}`)
-    const item = await res.json().catch(() => null)
+    // TERM-033: the body of an already-SUCCESSFUL add, read as a tagged outcome. The add
+    // landed either way; an unreadable body answers with the symbol it added, and the
+    // revalidation reads the row itself.
+    const read = await readSuccessBody(res)
     mutateMine()
-    return item
+    return read.ok ? read.body : { sym: clean }
   }
 
   // `handleAddItem` THROWS on a non-ok POST. Every inline add row goes through this

@@ -4,8 +4,17 @@ import styles from './PositionDetailPage.module.css'
 
 const MAX_ITEMS = 8
 
-export default function NewsSection({ items }) {
+export default function NewsSection({ items, failed = false }) {
   const news = (items || []).slice(0, MAX_ITEMS)
+  // TERM-033: a FAILED read is stated, never hidden like an empty one.
+  if (!news.length && failed) {
+    return (
+      <section className={styles.section} aria-label="News">
+        <h2 className={styles.sectionTitle}>News</h2>
+        <p role="alert">News could not be loaded. This is not a statement that there is none.</p>
+      </section>
+    )
+  }
   if (!news.length) return null
   return (
     <section className={styles.section} aria-label="News">

@@ -19,6 +19,9 @@
 // its own (e.g. a single large-holdings ETF panel) even when no individual caller
 // asked for more than the cap.
 const _MAX_TICKERS_PER_REQUEST = 250
+// TERM-033: a chunk that failed (network, abort, non-OK). Its tickers keep last-good.
+const CHUNK_FAILED = Object.freeze({ ok: false })
+const chunkFailed = () => CHUNK_FAILED
 
 const _refcounts = new Map() // ticker -> number of live subscribers
 let _prices = {} // latest { SYM: { price, change_pct, day_open, ... } }
@@ -108,14 +111,17 @@ async function _poll() {
             _unauthorizedFired = true
             _onUnauthorized?.()
           }
-          return r.ok ? r.json() : null
+          if (!r.ok) return CHUNK_FAILED
+          return r.json().then((body) => ({ ok: true, body }))
         })
-        .catch(() => null),
+        .catch(chunkFailed),
     ))
-    if (parts.every((p) => p == null)) return // every chunk failed — keep last prices, retry next tick
+    // TERM-033: each chunk is a TAGGED outcome, never a null that looks like an empty
+    // answer. Every chunk failed → keep last prices, retry next tick.
+    if (parts.every((p) => !p.ok)) return
     const next = {}
     for (const part of parts) {
-      if (part && typeof part === 'object') Object.assign(next, part)
+      if (part.ok && part.body && typeof part.body === 'object') Object.assign(next, part.body)
     }
     // MERGE, don't wholesale-replace. A poll that momentarily omits a ticker
     // (Massive timeout / partial batch) or returns a degraded entry (no real

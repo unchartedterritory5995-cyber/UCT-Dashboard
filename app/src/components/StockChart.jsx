@@ -843,6 +843,7 @@ import { withPrimaryEconomic, stripPrimaryEconomic, keepOnEconomicPrimary } from
 import { sourceCapabilityOf } from './chart/engine/sourceCapability'
 import { observationReadout, economicStatusLine } from './chart/economic/econUi'
 import { runtimePaneEnabled } from './chart/engine/runtimePaneGate'
+import { readSuccessBody } from '../lib/responseBody'
 
 // ⭐ RT1 — HOW A SAVED RUNTIME-LANE DOCUMENT GETS ITS LANE on a chart that never
 // opened the member door. The registry asks this loader only when it meets a
@@ -6309,7 +6310,10 @@ export default function StockChart({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      const created = res.ok ? await res.json().catch(() => null) : null
+      // TERM-033: the body of an already-SUCCESSFUL create, as a tagged outcome. An
+      // unreadable one skips the optimistic prepend; the revalidation below reads the truth.
+      const read = res.ok ? await readSuccessBody(res) : null
+      const created = read?.ok ? read.body : null
       // Instant: prepend into the Alerts widget's SWR cache, then revalidate every
       // watchlist-alerts cache so the new alert shows immediately (no 30s poll wait).
       if (created?.id) {
@@ -9887,8 +9891,14 @@ export default function StockChart({
     comparisonsKey ? ['comparison-meta', comparisonsKey] : null,
     async () => {
       const syms = enabledComparisons.map(c => String(c.sym).toUpperCase())
+      // TERM-033: a failed read REJECTS and allSettled records it as such. The legend's
+      // "Name · Exchange" is decoration: a rejected name is omitted (the symbol still shows),
+      // never shown as a different company.
       const res = await Promise.allSettled(
-        syms.map(s => fetch(`/api/ticker-meta/${encodeURIComponent(s)}`).then(r => (r.ok ? r.json() : null)).catch(() => null)),
+        syms.map(s => fetch(`/api/ticker-meta/${encodeURIComponent(s)}`).then((r) => {
+          if (!r.ok) throw new Error(`Request failed (${r.status})`)
+          return r.json()
+        })),
       )
       const out = {}
       res.forEach((r, i) => { out[syms[i]] = r.status === 'fulfilled' ? r.value : null })

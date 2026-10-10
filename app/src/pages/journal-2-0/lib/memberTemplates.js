@@ -11,6 +11,7 @@
  * once, when the member picks it.
  */
 import useSWR, { mutate as globalMutate } from 'swr'
+import { failureDetail } from '../../../lib/responseBody'
 
 export const MEMBER_TEMPLATES_KEY = '/api/j2/note-templates'
 
@@ -21,8 +22,9 @@ async function call(url, init = {}) {
     ...init,
   })
   if (!res.ok) {
-    const detail = await res.json().then((b) => b?.detail).catch(() => null)
-    const err = new Error(detail ? String(detail) : `request failed (${res.status})`)
+    // TERM-033: the failure is the status; the body only explains it, when it can.
+    const detail = await failureDetail(res)
+    const err = new Error(detail || `request failed (${res.status})`)
     err.status = res.status
     throw err
   }

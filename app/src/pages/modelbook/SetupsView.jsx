@@ -12,6 +12,7 @@ import { SETUP_CATALOG, SETUP_CATEGORIES, SETUP_FAMILIES, DIRECTION_META } from 
 import { SETUP_PLAYBOOKS } from './setupPlaybooks'
 import { parseBarsCsv, resampleWeekly, resampleMonthly } from '../../utils/barsCsv'
 import styles from './SetupsView.module.css'
+import { readSuccessBody } from '../../lib/responseBody'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
 
@@ -918,7 +919,10 @@ function DetailStage({ setup, scrollReq, onLearn, onOpenBuilder }) {
         body: JSON.stringify({ setup_name: setup.name }),
       })
       if (!r.ok) throw new Error(String(r.status))
-      const j = await r.json().catch(() => null)
+      // TERM-033: the clone LANDED (status above); its body only names where. An unreadable
+      // body is a stated outcome: done, with no deep link to the new entry.
+      const read = await readSuccessBody(r)
+      const j = read.ok ? read.body : null
       setCloneTarget({ sectionId: j?.section?.id || null, entryId: j?.entry?.id || null })
       setCloneState('done')
     } catch {

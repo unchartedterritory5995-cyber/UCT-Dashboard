@@ -5,6 +5,7 @@ import { WorkspaceContext, WORKSPACE_FALLBACK } from './charts/WorkspaceContext'
 import styles from './AiSearchPage.module.css'
 import Textarea from '../components/ui/Textarea'
 import useDoorParam from '../hooks/useDoorParam'
+import { failureDetail, readSuccessBody } from '../lib/responseBody'
 
 /**
  * Deep Research rail — async multi-step reports (plan → desk data + house KB +
@@ -50,9 +51,10 @@ function DeepResearchPanel({ onTicker }) {
         body: JSON.stringify({ query }),
       }))
         .then(async (r) => {
-          const d = await r.json().catch(() => null)
-          if (r?.ok) { setQ(''); refresh() }
-          else setNotice(d?.detail || 'Could not start the report.')
+          if (r?.ok) { setQ(''); refresh(); return }
+          // TERM-033: the server's reason on a refusal, read explicitly; an unreadable
+          // body falls back to the generic sentence (the status already said no).
+          setNotice((await failureDetail(r)) || 'Could not start the report.')
         })
         .catch(() => setNotice('Could not start the report.'))
         .finally(() => setSubmitting(false))
@@ -201,9 +203,16 @@ function BriefingsRail() {
       ))
         // the toggle endpoint answers 200 with {ok:false, reason} on a cap
         // refusal (resume re-check) — dropping the body made Resume look
-        // like a dead button (2026-08-28 review)
-        .then((r) => r?.json?.().catch(() => null))
-        .then((d) => { if (d && d.ok === false && d.reason) setNotice(d.reason) })
+        // like a dead button (2026-08-28 review). TERM-033: a non-OK answer is
+        // now said too, instead of being parsed into a null and dropped.
+        .then(async (r) => {
+          if (!r?.ok) {
+            setNotice((await failureDetail(r)) || 'Could not change this briefing.')
+            return
+          }
+          const read = await readSuccessBody(r)
+          if (read.ok && read.body?.ok === false && read.body.reason) setNotice(read.body.reason)
+        })
         .then(() => refresh()).catch(() => {})
     } catch { /* noop */ }
   }

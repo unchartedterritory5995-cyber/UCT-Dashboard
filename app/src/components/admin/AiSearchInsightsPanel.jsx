@@ -9,9 +9,8 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import styles from '../../pages/Admin.module.css'
 import UIcon from '../ui/UIcon'
-
-// Error-swallowing fetcher — the panel must degrade to empty, never throw.
-const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+import { adminFetcher as fetcher } from './adminFetcher'
+import PanelReadError from './PanelReadError'
 
 const pct = (v) => `${Math.round((v || 0) * 100)}%`
 const FRESH_COLORS = { evergreen: '#c9a84c', time_sensitive: '#5b9bd5' }
@@ -47,8 +46,8 @@ function BarList({ rows, labelKey, valKey, max, color }) {
 export default function AiSearchInsightsPanel() {
   const [days, setDays] = useState(7)
   const [showRows, setShowRows] = useState(false)
-  const { data: live } = useSWR('/api/ai-search/admin/stats', fetcher, { refreshInterval: 60000 })
-  const { data: log, mutate } = useSWR(`/api/ai-search/admin/log?days=${days}&limit=40`, fetcher, { refreshInterval: 120000 })
+  const { data: live, error: liveError, mutate: retryLive } = useSWR('/api/ai-search/admin/stats', fetcher, { refreshInterval: 60000 })
+  const { data: log, error: logError, mutate } = useSWR(`/api/ai-search/admin/log?days=${days}&limit=40`, fetcher, { refreshInterval: 120000 })
 
   // Pin (curate into future house knowledge) / exclude (never reuse) an answer.
   // Optimistic: flip the row locally, POST the signal, reconcile from the server.
@@ -90,6 +89,7 @@ export default function AiSearchInsightsPanel() {
 
       {/* Lane 1 — Today · live (in-memory usage) */}
       <div className={styles.analyticsBarLabel} style={{ margin: '4px 0 8px', opacity: 0.7 }}>Today · live</div>
+      <PanelReadError error={!live && liveError} what="today's live figures" onRetry={retryLive} />
       <div className={styles.statsGrid}>
         <Stat n={live?.requests ?? '—'} label="Requests" />
         <Stat n={live?.active_users ?? '—'} label="Active users" />
@@ -110,6 +110,7 @@ export default function AiSearchInsightsPanel() {
         ))}
         {log?.enabled === false && <span style={{ color: '#f87171' }}>· capture disabled</span>}
       </div>
+      <PanelReadError error={!log && logError} what="the question log" onRetry={mutate} />
 
       <div className={styles.statsGrid}>
         <Stat n={log?.window_count ?? '—'} label="Questions" />
@@ -129,7 +130,7 @@ export default function AiSearchInsightsPanel() {
       <div style={{ display: 'flex', height: 22, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--border)' }}>
         {freshTotal === 0 ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 11, color: 'var(--text-muted)' }}>No data yet</div>
+            fontSize: 11, color: 'var(--text-muted)' }}>{!log && logError ? 'Not loaded' : 'No data yet'}</div>
         ) : (
           <>
             <div title={`Evergreen ${fresh.evergreen || 0}`}
@@ -151,7 +152,7 @@ export default function AiSearchInsightsPanel() {
         Grounding coverage (desk-grounded = a real proprietary source beyond ambient regime/recency)
       </div>
       {gcTotal === 0 && (
-        <div className={styles.analyticsBarLabel} style={{ opacity: 0.6, marginBottom: 6 }}>No data yet</div>
+        <div className={styles.analyticsBarLabel} style={{ opacity: 0.6, marginBottom: 6 }}>{!log && logError ? 'Not loaded' : 'No data yet'}</div>
       )}
       <div className={styles.statsGrid}>
         <Stat n={log ? deskGrounded : '—'} label="Desk-grounded" />

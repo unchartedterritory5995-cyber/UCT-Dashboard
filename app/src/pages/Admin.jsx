@@ -666,6 +666,20 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
   const [noteLoading, setNoteLoading] = useState(false)
   const [customTagInput, setCustomTagInput] = useState('')
 
+  // TERM-033: the drawer's re-read after an action. A failed re-read is said out loud.
+  // It used to be `.then(r => r.json()).catch(() => null)`: a network failure left the
+  // drawer showing pre-action state as if current, and a non-OK answer's error body was
+  // set AS the user.
+  async function refreshUser() {
+    try {
+      const r = await fetch(`/api/auth/admin/users/${userId}`)
+      if (!r.ok) throw new Error(`Request failed (${r.status})`)
+      setUser(await r.json())
+    } catch {
+      setError('The change was sent, but this drawer could not reload the user, so what it shows may be out of date. Close and reopen it.')
+    }
+  }
+
   async function handleAddTag(tag) {
     try {
       await fetch(`/api/auth/admin/users/${userId}/tags`, {
@@ -673,8 +687,7 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tag }),
       })
-      const refreshed = await fetch(`/api/auth/admin/users/${userId}`).then(r => r.json()).catch(() => null)
-      if (refreshed) setUser(refreshed)
+      await refreshUser()
       if (onAction) onAction()
     } catch { /* silent */ }
   }
@@ -682,8 +695,7 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
   async function handleRemoveTag(tag) {
     try {
       await fetch(`/api/auth/admin/users/${userId}/tags/${encodeURIComponent(tag)}`, { method: 'DELETE' })
-      const refreshed = await fetch(`/api/auth/admin/users/${userId}`).then(r => r.json()).catch(() => null)
-      if (refreshed) setUser(refreshed)
+      await refreshUser()
       if (onAction) onAction()
     } catch { /* silent */ }
   }
@@ -736,8 +748,7 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
         setError(err.detail || 'Action failed')
       } else {
         // Refresh drawer data + parent
-        const refreshed = await fetch(`/api/auth/admin/users/${userId}`).then(r => r.json()).catch(() => null)
-        if (refreshed) setUser(refreshed)
+        await refreshUser()
         if (onAction) onAction()
       }
     } catch {
@@ -768,8 +779,7 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
       if (res.ok) {
         setNoteText('')
         // Refresh drawer
-        const refreshed = await fetch(`/api/auth/admin/users/${userId}`).then(r => r.json()).catch(() => null)
-        if (refreshed) setUser(refreshed)
+        await refreshUser()
       }
     } catch { /* silent */ }
     finally { setNoteLoading(false) }
