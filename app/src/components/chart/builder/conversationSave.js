@@ -31,6 +31,7 @@ import { signalAlertRequest, policyLabel, numericAlertRequest, numericAlertWords
 import { infoValueRefFor, requestInfoValue, addedInstanceId } from './infoValueDoor'
 import { chromeInputKeys } from './builderInputs'
 import { outputNamer } from './authoring/readback'
+import { ackRequiredText } from './authoring/repaintWarning'
 
 /**
  * Validate and store. One call to `saveUserDefinition` at most.
@@ -43,7 +44,8 @@ export async function storeConversation(state, { previewAcked = false, draftId =
     return { ok: false, stage: 'validate', error: prep.errors.join('\n') || 'The registry refused this definition.' }
   }
   if (prep.needsAck.length && !previewAcked) {
-    return { ok: false, stage: 'ack', error: `Tick the acknowledgement first: ${prep.needsAck.join(', ')} reads a bar ahead and is not final until it closes.` }
+    // ⭐ S6 — the warning's window is the measured one (`repaintWarning.js`), never "a bar"
+    return { ok: false, stage: 'ack', error: ackRequiredText(prep.ack), ack: prep.ack }
   }
   // ⭐ PHASE 4 — an EDIT is revision-aware: the store refuses (409) when the
   // definition moved on after this conversation opened it, instead of overwriting.

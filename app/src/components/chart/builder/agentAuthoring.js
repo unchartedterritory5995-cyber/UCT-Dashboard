@@ -83,12 +83,15 @@ function draftRefOf(key, state) {
   return Object.freeze({ contract: AUTHORING_CONTRACT, key, lineage: state.lineage })
 }
 
-/** The repaint acknowledgement sentences a Save needs approved, verbatim (§15.4). */
+/** The repaint acknowledgement sentences a Save needs approved, verbatim (§15.4) — the readback's
+ *  own items (`authoring/repaintWarning.js`), one per output, with the measured look-ahead window. */
 function ackTextOf(rb) {
-  const keys = rb.needsAck || []
-  if (!keys.length) return []
-  return (rb.lines || []).filter((l) => /confirm below before saving$/.test(l))
+  return (rb.ack || []).map((a) => a.sentence)
 }
+
+/** ⭐ S6/F6 — the approval-bound acknowledgement: `shown` (what the approval displayed) must be the
+ *  draft's acknowledgement NOW, sentence for sentence. */
+const sameAck = (shown, now) => Array.isArray(shown) && shown.length === now.length && shown.every((t, i) => t === now[i])
 
 function statusOf(key, snap, ctx = {}) {
   const st = snap.state
@@ -428,6 +431,10 @@ function readBackMatches(row, storedDoc) {
  * Explicit member approval is the Agent's (risk confirm); `acknowledged: true` only from the
  * approval that showed `ackText` verbatim. No chart is attached here (add it with M2), and
  * requested alerts are not armed here (each is reported).
+ * ⭐ S6/F6 — `opts.ackText` (optional, additive): the acknowledgement sentences the approval
+ * DISPLAYED. When given, the Save goes ahead only if they are exactly the draft's `ackText` now;
+ * otherwise `needs-ack` with the current `detail.ackText` (ask again) — so an approval can never
+ * carry a warning the member did not see. Omitted, behaviour is unchanged.
  * ⛔ SUCCESS ONLY AFTER THE STORED ROW IS READ BACK: same id, version and maths identity.
  * @param ctx `{canAuthor, definitionRows, sym, tf, store?, readBack?}`
  * @returns `{ok:true, defId, version, created, name, receipt, outcomes}`
@@ -444,7 +451,9 @@ export async function saveDraft(draftRef, opts = {}, ctx = {}) {
   }
   if (!st.working || !isDirty(st)) return refuse(R.NOT_DIRTY)
   const rb = readback(st.working, st, gateCtxOf(ctx))
-  if ((rb.needsAck || []).length && opts.acknowledged !== true) return refuse(R.NEEDS_ACK, { ackText: ackTextOf(rb) })
+  const ackNow = ackTextOf(rb)
+  if ((rb.needsAck || []).length && opts.acknowledged !== true) return refuse(R.NEEDS_ACK, { ackText: ackNow })
+  if (opts.ackText !== undefined && !sameAck(opts.ackText, ackNow)) return refuse(R.NEEDS_ACK, { ackText: ackNow, changed: true })
   const out = await saveConversation(st, { acked: opts.acknowledged === true, settings: null, onChange: null, arm: false,
     sym: ctx.sym || null, tf: ctx.tf || null, ...(ctx.store ? { store: ctx.store } : {}) })
   if (!out.ok) {
