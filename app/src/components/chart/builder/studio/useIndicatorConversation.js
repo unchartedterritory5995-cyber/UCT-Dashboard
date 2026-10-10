@@ -29,80 +29,20 @@
 // a new file so Track A's files stay untouched while that track is live.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { newAuthoringState, applyTurn, undo as undoState, readback, isDirty } from '../authoring'
-import { openAuthoringState } from '../authoring/authoringState'
-import { converseTurn, transcriptSnippets, distinctNotUnderstood } from '../authoring/converseClient'
-import { classifyTurn, OUTCOMES } from '../authoring/turnOutcome'
-import { preflight } from '../authoring/preflight'
-import { readSession, writeSession, clearSession } from '../authoring/conversationSessions'
-import { storeConversation, attachConversation, armConversationAlerts } from '../conversationSave'
-import { stampSemantics } from '../../engine/definitionSemantics'
-import { OUTPUT_TYPES } from '../../engine/outputType'
-import { STUDIO_PREVIEW_DEF_ID } from './chartPreview'
-import { memberError, memberSaveError, memberRefusal } from '../authoring/memberWords'
-import { logStudioAction, definitionKinds, clientFailureOf } from '../authoring/studioTelemetry'
-import { outputNamer, slotWords } from '../authoring/readback'
-import { soleCueName } from '../authoring/derivedName'
-import { renamePatch, withMemberName } from '../authoring/memberNamePatch'
-import { validateUserDefinitions } from '../../engine/nativeRegistry'
-import { saveReceipt } from './saveOutcomeReceipt'
+import { readback, isDirty } from '../authoring'
+import { converseTurn, transcriptSnippets } from '../authoring/converseClient'
+import { writeSession, clearSession, holdInDock, releaseDock } from '../authoring/conversationSessions'
+import { logStudioAction } from '../authoring/studioTelemetry'
+// ⭐ M3 S1 — the turn / Undo / Save / restore steps live in `authoring/authoringSession.js`
+// (moved verbatim) so the dock and UCT Agent run ONE pipeline. This hook is the React
+// wrapper: it holds the state, numbers the transcript entries and keeps the session.
+import {
+  restoreConversation, initialConversationState, initialTranscript, hasSomethingToKeep,
+  localTurn, modelTurn, undoTurn, saveConversation, noteDiscarded, previewDefinitionOf,
+} from '../authoring/authoringSession'
 
-/** The member-facing type word for an output, keyed by the P1 type authority's own values. */
-const TYPE_WORDS = Object.freeze({
-  [OUTPUT_TYPES.SERIES]: 'Line', [OUTPUT_TYPES.CONDITION]: 'Condition',
-  [OUTPUT_TYPES.EVENTS]: 'Events', [OUTPUT_TYPES.SCALAR]: 'Value',
-})
-export const typeWord = (t) => TYPE_WORDS[t] || 'Output'
-
-/** The engine's own disclosures, in member words. Deterministic. */
-function changeWords(c) {
-  switch (c.kind) {
-    case 'type-changed': return `${c.output} is now a ${typeWord(c.to).toLowerCase()} (was ${typeWord(c.from).toLowerCase()}).`
-    case 'refused-on-chart': return `${c.output} can't be drawn here: ${c.text}`
-    case 'requests-cleared': return `Requests on ${c.output} were cancelled with it.`
-    case 'intent-cleared': return `The signal choice on ${c.output} was cleared with it.`
-    case 'paint-removed': return c.text ? `${c.output}: ${c.text}` : null
-    default: return null
-  }
-}
-
-/** A refused engine error, without engine jargon (P3 UX: the ONE mapping,
- *  `memberError`). The code and the engine's message stay on the entry. */
-const errorWords = (e, working = null) => memberError(e, { nameOf: working ? outputNamer(working) : null }).text
-
-/**
- * The deterministic lines a UCT reply carries after a successful turn: what each
- * output now computes, then anything assumed THIS turn.
- */
-export function replyLines(rb, state, changes = []) {
-  const lines = []
-  for (const c of changes) { const w = changeWords(c); if (w) lines.push(w) }
-  for (const o of rb.outputs || []) {
-    if (o.phrase) lines.push(`${o.name || o.label} — ${o.phrase}`)
-    else if (o.sentence) lines.push(o.sentence)
-  }
-  for (const a of state.assumptions || []) {
-    if (a.revision !== state.revision) continue
-    if (a.label !== undefined) lines.push(`Using ${slotWords(a.label)} ${a.value}.`)
-    else if (a.source === 'engine') lines.push(`Default: ${a.text}.`)
-  }
-  return lines
-}
-
-const NOTHING_CHANGED = 'Nothing on the chart changed.'
-
-/** ⭐ PHASE 4 — the first line of an opened definition's conversation. */
-function openedEntry(open) {
-  const def = open.def
-  const name = (def && def.meta && def.meta.name) || open.defId
-  const st = openAuthoringState(def, { defId: open.defId, version: open.version })
-  const rb = readback(st.working, st, {})
-  return {
-    id: 0, role: 'uct', kind: 'opened',
-    lines: [`Opened “${name}” (saved version ${open.version}). Describe a change — nothing is saved until you choose Save.`,
-      ...(rb.outputs || []).map((o) => (o.phrase ? `${o.name || o.label} — ${o.phrase}` : o.sentence)).filter(Boolean)],
-  }
-}
+// Re-exported for existing importers (the functions moved with the pipeline).
+export { typeWord, replyLines } from '../authoring/authoringSession'
 
 /**
  * @param {object} p
@@ -124,27 +64,11 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   // OPENS: its working definition must still pass the registry's own validation, and
   // an edit's base version must still be the stored one. Otherwise it is dropped —
   // never opened over a newer saved definition — and the member is told why.
-  const [{ initial, dropped }] = useState(() => {
-    const kept = readSession(sessionKey)
-    if (!kept) return { initial: null, dropped: null }
-    const st = kept.state
-    if (open && !(st && st.defId === open.defId && st.baseVersion === open.version)) {
-      clearSession(sessionKey)
-      return { initial: null, dropped: kept.recovered || (st && isDirty(st))
-        ? { reason: 'stale', from: st && st.baseVersion, now: open.version } : null }
-    }
-    if (kept.recovered && st && st.working && validateUserDefinitions([st.working]).errors.length) {
-      clearSession(sessionKey)
-      return { initial: null, dropped: { reason: 'invalid' } }
-    }
-    return { initial: kept, dropped: null }
-  })
-  const [state, setState] = useState(() => (initial && initial.state)
-    || (open && open.def ? openAuthoringState(open.def, { defId: open.defId, version: open.version }) : newAuthoringState()))
+  const [{ initial, dropped }] = useState(() => restoreConversation(sessionKey, open))
+  const [state, setState] = useState(() => initialConversationState(initial, open))
   const stateRef = useRef(state)
   const commit = useCallback((next) => { stateRef.current = next; setState(next) }, [])
-  const [transcript, setTranscript] = useState(() => (initial && initial.transcript)
-    || (open && open.def ? [openedEntry(open)] : []))
+  const [transcript, setTranscript] = useState(() => initialTranscript(initial, open))
   const transcriptRef = useRef(transcript)
   const [busy, setBusy] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -164,12 +88,19 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   const ended = useRef(false)
   useEffect(() => {
     if (!sessionKey || ended.current) return
-    if (!transcript.length && !state.working) return
-    if (open && !isDirty(state) && transcript.length <= 1) return
+    if (!hasSomethingToKeep({ state, transcript, open })) return
     // ⭐ BATCH 1 — mirrored into this tab's sessionStorage, so a reload keeps it too
     // (an answer-only conversation included).
     writeSession(sessionKey, { state, transcript, acked }, { persist: true })
   }, [sessionKey, state, transcript, acked, open])
+
+  // ⭐ M3 (D6) — while this dock is open on `sessionKey` it OWNS that draft: UCT Agent's
+  // writes on the same draft are refused until it closes.
+  useEffect(() => {
+    if (!sessionKey) return undefined
+    holdInDock(sessionKey)
+    return () => releaseDock(sessionKey)
+  }, [sessionKey])
 
   const say = useCallback((entry) => {
     setTranscript((t) => {
@@ -185,6 +116,14 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
 
   const rb = useMemo(() => readback(state.working, state, gateCtx), [state, gateCtx])
 
+  /** One outcome of the shared pipeline, applied to this hook's React state. */
+  const take = useCallback((out) => {
+    if (out.state) commit(out.state)
+    if (out.changed) { setAcked(false); setChangeSeq((n) => n + 1) }
+    for (const e of out.entries) say(e)
+    return out.ok
+  }, [commit, say])
+
   const send = useCallback(async (text) => {
     const words = String(text || '').trim()
     if (!words || busy) return false
@@ -192,107 +131,25 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     // ⭐ P3: the assistant's own replies (answer AND change) ride along as context.
     const snippets = transcriptSnippets(transcriptRef.current)
     say({ role: 'member', text: words })
-
-    // ⭐ SLICE 2 PRE-FLIGHT — an explicit other-symbol / other-timeframe request is
-    // answered here: no request leaves the browser, so no model call, no cost.
-    // (A latency shortcut: the server runs the same rules on every turn.)
-    const caught = preflight(words, { sym, tf })
-    if (caught) {
-      say({ role: 'uct', kind: 'unsupported', preflight: true, gate: caught.gate, lines: [caught.reason, NOTHING_CHANGED] })
-      return false
-    }
-
-    // ⭐ BATCH 1 — A MESSAGE THAT ONLY NAMES IT ("Call it Swing Line", any turn) is
-    // applied here as the ordinary `rename_definition` op: deterministic, no model
-    // call, same lineage, one revision, one undo step.
-    const soleName = before.working ? soleCueName(words) : null
-    if (soleName) {
-      const out = applyTurn(before, renamePatch(before, soleName), { gateCtx, memberWords: words })
-      if (out.result.status === 'refused') {
-        say({ role: 'uct', kind: 'refusal', codes: (out.result.errors || []).map((e) => e.code),
-          lines: [...(out.result.errors || []).map((e) => errorWords(e, before.working)), NOTHING_CHANGED] })
-        return false
-      }
-      commit(out.state)
-      setAcked(false)
-      setChangeSeq((n) => n + 1)
-      say({ role: 'uct', kind: 'patched', revision: out.state.revision, updated: true,
-        lines: [`Renamed to “${out.readback.name || soleName}”.`] })
-      return true
-    }
-
+    // the local half (pre-flight, a name-only message) — no request leaves the browser
+    const local = localTurn(before, words, { sym, tf, gateCtx })
+    if (local) return take(local)
     setBusy(true)
     try {
-      const res = await converse({ message: words, state: before, gateCtx, snippets })
-      const gaps = [
-        ...distinctNotUnderstood(res).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`),
-        ...((res && res.unavailable) || []).map((n) => `${n.column || n.name || 'That'} isn't available yet${n.reason ? ` — ${n.reason}` : ''}.`),
-      ]
-      const turn = classifyTurn(res)
-      // ⛔ ANSWER / UNSUPPORTED / REFUSED: the assistant's words, and NOTHING else.
-      // `state` is not touched — not even replaced with an equal copy.
-      if (turn.outcome === OUTCOMES.ANSWER) {
-        say({ role: 'uct', kind: 'answer', reply: turn.reply, lines: [turn.reply, ...gaps] })
-        return true
-      }
-      if (turn.outcome === OUTCOMES.UNSUPPORTED) {
-        say({ role: 'uct', kind: 'unsupported', preflight: !!turn.preflight, gate: turn.gate || null,
-          lines: [turn.reply || memberRefusal(turn.gate, turn.reason), ...gaps, NOTHING_CHANGED] })
-        return false
-      }
-      if (turn.outcome === OUTCOMES.REFUSED) {
-        const failure = clientFailureOf(turn.gate)
-        if (failure) logStudioAction(before.lineage, 'turn_failed', { surface: 'studio', failure })
-        say({ role: 'uct', kind: 'refusal', gate: turn.gate,
-          lines: [memberRefusal(turn.gate, turn.reason), ...gaps, NOTHING_CHANGED] })
-        return false
-      }
-      // ⛔ CLARIFY / CHANGE: THE ENGINE DECIDES. A stale or invalid patch is refused
-      // atomically and the working definition is untouched (`applyTurn` returns
-      // the same state).
-      // ⭐ BATCH 1 — a name the member gave in the same message rides in this envelope.
-      const envelope = turn.outcome === OUTCOMES.CHANGE ? withMemberName(turn.envelope, words) : turn.envelope
-      const out = applyTurn(stateRef.current, envelope, { gateCtx, memberWords: words })
-      const { result } = out
-      if (result.status === 'refused') {
-        say({ role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),
-          details: (result.errors || []).map((e) => memberError(e).detail),
-          lines: [...(result.errors || []).map((e) => errorWords(e, stateRef.current.working)), ...gaps, NOTHING_CHANGED] })
-        return false
-      }
-      if (result.status === 'question') {
-        commit(out.state)
-        say({ role: 'uct', kind: 'question', questions: out.state.questions, reply: turn.reply || '',
-          lines: [...(turn.reply ? [turn.reply] : []), ...gaps, ...out.state.questions.map((q) => q.text)] })
-        return true
-      }
-      commit(out.state)
-      setAcked(false)
-      setChangeSeq((n) => n + 1)
-      logStudioAction(out.state.lineage, 'preview', { surface: 'studio' })
-      // ⛔ P3S: a CHANGE shows the deterministic readback of the RESULT and nothing the
-      // model wrote. Its prose is not the authority on applied state (P3R, real model:
-      // "Its name still says 'EMA 20'" beside a readback of EMA 50), so it is not shown
-      // and -- not being on the entry -- never rides back to the model as context.
-      say({ role: 'uct', kind: before.working ? 'patched' : 'created', revision: out.state.revision, updated: true,
-        lines: [...replyLines(out.readback, out.state, result.changes), ...gaps] })
-      return true
+      return take(await modelTurn(before, () => stateRef.current, words, { snippets, gateCtx, converse }))
     } finally {
       setBusy(false)
     }
-  }, [busy, converse, gateCtx, sym, tf, commit, say])
+  }, [busy, converse, gateCtx, sym, tf, say, take])
 
   const undo = useCallback(() => {
     const cur = stateRef.current
     if (!cur.history.length || busy || saving) return false
-    const next = undoState(cur)
-    commit(next)
+    const out = undoTurn(cur, gateCtx)
+    commit(out.state)
     setAcked(false)
     setChangeSeq((n) => n + 1)
-    const after = readback(next.working, next, gateCtx)
-    say({ role: 'uct', kind: 'undo', lines: next.working
-      ? ['Undid the last change.', ...(after.outputs || []).map((o) => (o.phrase ? `${o.name || o.label} — ${o.phrase}` : o.sentence)).filter(Boolean)]
-      : ['Undid the last change. The chart preview is cleared.'] })
+    say(out.entry)
     return true
   }, [busy, saving, commit, gateCtx, say])
 
@@ -308,44 +165,15 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     if (!cur.working || saving || busy) return { ok: false }
     setSaving(true)
     try {
-      const stored = await storeConversation(cur, { previewAcked: acked })
-      if (!stored.ok) {
-        logStudioAction(cur.lineage, 'save_failed', { surface: 'studio' })
-        const m = memberSaveError(stored)
-        say({ role: 'uct', kind: 'refusal', codes: [m.code], details: [m.detail], lines: ['Not saved.', m.text] })
-        return { ok: false, error: stored.error }
-      }
-      logStudioAction(cur.lineage, 'saved', { surface: 'studio', created: !!stored.created, origin: 'native',
-        kinds: definitionKinds(stored.storedDoc, stored.requests) })
-      // ⛔ BATCH 1 — FROM HERE THE DEFINITION IS SAVED, WHATEVER FOLLOWS. A step after
-      // the store (drawing it, adding it to the chart, arming an alert) that throws is
-      // an outcome that failed, never a save that "did not happen": the receipt says
-      // saved + what did not complete, and the draft ends (the store holds it now).
-      if (typeof beforeAttach === 'function') { try { beforeAttach() } catch { /* the preview teardown */ } }
-      let attached
-      try {
-        attached = attachConversation({ storedDoc: stored.storedDoc, created: stored.created, requests: stored.requests, settings, base: cur.base })
-        if (settings && onChange && attached.settings !== settings) onChange(attached.settings)
-      } catch {
-        attached = { settings, instanceId: null, installed: false,
-          outcomes: [{ kind: 'chart', ok: false, text: 'Saved, but it could not be added to the chart. Add it from Indicators.' }] }
-      }
-      let alerts = []
-      try {
-        alerts = await armConversationAlerts({ storedDoc: stored.storedDoc, requests: stored.requests, sym, tf, instanceId: attached.instanceId })
-      } catch {
-        alerts = ((stored.requests && stored.requests.alerts) || []).map((a) => ({ kind: 'alert', plotKey: a.plotKey, ok: false,
-          text: 'Alert: not created — the alert service could not be reached. Create it from the chart’s alert menu.' }))
-      }
-      const outcomes = [...attached.outcomes, ...alerts]
-      const receipt = saveReceipt({ storedDoc: stored.storedDoc, created: stored.created, outcomes })
-      say({ role: 'uct', kind: 'saved', lines: [receipt.title, ...receipt.items.map((o) => o.text)], outcomes, receipt })
+      const out = await saveConversation(cur, { acked, settings, onChange, beforeAttach, sym, tf })
+      say(out.entry)
+      if (!out.ok) return { ok: false, error: out.error }
       // Creation is complete (the dock closes on it): this context's session ends,
       // so the next Create Indicator starts a new definition. ⭐ PHASE 4 — an edit
       // ends the same way: the store's row is the authority again.
       ended.current = true
       clearSession(sessionKey)
-      return { ok: true, storedDoc: stored.storedDoc, instanceId: attached.instanceId, outcomes, receipt }
+      return { ok: true, storedDoc: out.storedDoc, instanceId: out.instanceId, outcomes: out.outcomes, receipt: out.receipt }
     } finally {
       setSaving(false)
     }
@@ -353,7 +181,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
 
   /** Discard: the member threw this draft away on purpose. */
   const discard = useCallback(() => {
-    if (stateRef.current.working) logStudioAction(stateRef.current.lineage, 'discarded', { surface: 'studio' })
+    noteDiscarded(stateRef.current)
     ended.current = true
     clearSession(sessionKey)
   }, [sessionKey])
@@ -363,13 +191,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
    *  ⭐ Re-installing it under the same id after a patch DOES replace the copy:
    *  the registry's install key includes `compute.fn`, the tree's sha256
    *  (pinned in `chartPreview.test.js`). */
-  const previewDefinition = useMemo(() => {
-    if (!state.working) return null
-    // ⭐ PHASE 4 — an edit previews under the store's rule for an EDIT (prior = the
-    // stored definition): an unchanged-maths edit keeps its semantics, a Pine import
-    // keeps Pine's.
-    return stampSemantics({ ...state.working, id: STUDIO_PREVIEW_DEF_ID }, { prior: state.base || null })
-  }, [state.working, state.base])
+  const previewDefinition = useMemo(() => previewDefinitionOf({ working: state.working, base: state.base }), [state.working, state.base])
 
   // ⭐ BATCH 1 — the OPEN questions are the state's (`applyTurn` clears them when a
   // change lands; undo restores them), not the last transcript entry's: a question

@@ -817,6 +817,10 @@ function ChartPane({
     // shown / hidden?" (the Indicators button's own predicate). Agent passes it as
     // `ctx.canManage` to `builder/agentMutations.js` at plan, at apply and at every Undo.
     canManageIndicators: () => { try { return !!paneToolbarApi.current?.canManageIndicators?.() } catch { return false } },
+    // ⭐ AGENT M3 (S3) — the tab's ONE live authoring preview on this chart (`previewChannel`):
+    // `{ok, movedFrom}` | `{ok:false, reason:'readonly'|'busy'|'invalid'}`; never persisted.
+    showAuthoringPreview: (definition, opts = {}) => { try { return paneToolbarApi.current?.showAuthoringPreview?.(definition, opts) ?? { ok: false, reason: 'readonly' } } catch { return { ok: false, reason: 'readonly' } } },
+    clearAuthoringPreview: () => { try { return !!paneToolbarApi.current?.clearAuthoringPreview?.() } catch { return false } },
   }), [openSettings, updateChartSettings, handleSymbolChange])
 
   // Docked = the chart section gives up `studioDockW` on the right. Below

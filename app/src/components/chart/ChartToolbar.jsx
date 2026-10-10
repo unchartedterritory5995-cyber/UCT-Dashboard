@@ -61,6 +61,8 @@ import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
 import { ENGINE_OWNED } from './engine/flipState'
 import { isIndicatorEnabled } from './engine/instanceControls'
 import * as engineRegistry from './engine/nativeRegistry'
+import { claimPreview, releasePreview, holdsPreview, previewHolder, installPreview, removePreview } from './builder/studio/previewChannel'
+import { STUDIO_PREVIEW_DEF_ID } from './builder/studio/chartPreview'
 import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
 // A moving average the member REMOVED keeps its slot (the merge is positional)
 // and must not be listed; `averageSlotView` answers null for it (and for an
@@ -1213,6 +1215,15 @@ function ChartToolbar({
   // does, so the chord and the button cannot disagree about where the library is
   // available. `StockChart` calls it; it does not own the state.
   const canManageIndicators = !!(chartSettings && onUpdateSettings)
+  // ⭐ AGENT M3 (S3) — this chart's token for a preview UCT Agent asked for (the tab has ONE
+  // preview, `previewChannel`). A chart that unmounts while holding it takes it down.
+  const [agentPreviewToken] = useState(() => ({ surface: 'agent', chartId }))
+  useEffect(() => () => {
+    if (holdsPreview(agentPreviewToken)) {
+      engineRegistry.uninstallUserDefinition(STUDIO_PREVIEW_DEF_ID)
+      releasePreview(agentPreviewToken)
+    }
+  }, [agentPreviewToken])
   useImperativeHandle(ref, () => ({
     openSettings: () => {
       setShowColors(false)
@@ -1337,6 +1348,32 @@ function ChartToolbar({
      *  The Indicators button's own predicate (`canManageIndicators` above). UCT Agent
      *  asks it at plan time AND again before every write and every Undo. */
     canManageIndicators: () => canManageIndicators,
+    /** ⭐ AGENT M3 (S3) — show a DRAFT's working definition (already under the preview id,
+     *  semantics-stamped — `agentAuthoring.showDraftPreview` builds it) as this chart's preview,
+     *  through the dock's own install step. The tab's one preview moves here (`movedFrom`).
+     *  `busy` while a Create Indicator dock holds the preview (the dock wins).
+     *  @returns `{ok:true, movedFrom: chartRef|null}` | `{ok:false, reason:'readonly'|'busy'|'invalid'}` */
+    showAuthoringPreview: (definition, opts = {}) => {
+      if (!canManageIndicators || typeof onStudioPreview !== 'function') return { ok: false, reason: 'readonly' }
+      const held = previewHolder()
+      if (createOpen || (held && held.kind === 'dock')) return { ok: false, reason: 'busy' }
+      if (!definition || definition.id !== STUDIO_PREVIEW_DEF_ID) return { ok: false, reason: 'invalid' }
+      const token = agentPreviewToken
+      const { movedFrom } = claimPreview(token, chartId, () => removePreview(engineRegistry, onStudioPreview), 'agent')
+      const drawn = installPreview({ definition, edit: opts.replaces ? { defId: opts.replaces } : null, base: opts.base || null,
+        calcTf: opts.calcTf || null, settings: chartSettings, registry: engineRegistry, onPreview: onStudioPreview,
+        shapeEdit: typeof opts.shapeEdit === 'function' ? opts.shapeEdit : null })
+      if (!drawn) { releasePreview(token); return { ok: false, reason: 'invalid' } }
+      return { ok: true, movedFrom }
+    },
+    /** ⭐ AGENT M3 (S3) — take this chart's Agent preview down (no-op when it holds none). */
+    clearAuthoringPreview: () => {
+      const token = agentPreviewToken
+      if (!holdsPreview(token)) return false
+      removePreview(engineRegistry, onStudioPreview)
+      releasePreview(token)
+      return true
+    },
     /** ⭐ PHASE 4 — may this member open "Modify with UCT Intelligence"? */
     canModifyWithIntelligence: () => !!(canModifyWithIntelligence && canManageIndicators && typeof onStudioPreview === 'function'),
     // ⭐ chart-UX-walls TASK 4 — the legend chip's "Add alert…" row, and the
@@ -1351,7 +1388,7 @@ function ChartToolbar({
       setAlertPopoverOpen(true)
       return true
     },
-  }), [canManageIndicators, currentSym, openBuilder, onStudioPreview, rowFor, chartSettings, onUpdateSettings, canModifyWithIntelligence, createOpen, createEditRow, studioScope])
+  }), [canManageIndicators, currentSym, openBuilder, onStudioPreview, rowFor, chartSettings, onUpdateSettings, canModifyWithIntelligence, createOpen, createEditRow, studioScope, chartId, agentPreviewToken])
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings
@@ -1864,6 +1901,7 @@ function ChartToolbar({
               onDocked={onStudioDockChange}
               sessionKey={createEditRow ? editKey(createEditRow.def_id) : createKey(studioScope)}
               onPreview={onStudioPreview}
+              previewChartRef={chartId}
               onOpenBuilder={(mode) => { setCreateOpen(false); openBuilder(mode) }}
               onOpenLibrary={onOpenLibrary ? () => { setCreateOpen(false); onOpenLibrary() } : null}
             />
