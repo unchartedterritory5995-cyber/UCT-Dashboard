@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after lanes L3, L4, L5): not complete.** 223 of 279 rows are `live` or `moot`; 56 are not (26 `dark`, 22 `building`, 8 `owner-blocked`). (Recounted 2026-10-10 after lane L5 moved TERM-043, TERM-045, COV-05, FT-076 and D-9 from `building` to `dark`.) It is complete when every row below is `live` or `moot`.
+**The answer today (master `d95f331bb`, 2026-10-09): not complete.** 215 of 279 rows are `live` or `moot`; 64 are not (13 `dark`, 42 `building`, 9 `owner-blocked`) (re-derived 2026-10-10 after lane f-l7's TERM-033/065/067/COV-10 pass). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,17 +34,10 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 after lanes L3, L4, L5:
+Printed 2026-10-10 after lanes L7 and L8:
 
 ```
-279 Counter({'live': 183, 'moot': 40, 'dark': 26, 'building': 22, 'owner-blocked': 8})
-0 duplicate ids
-```
-
-Re-printed 2026-10-10 on branch `f-l5` (lane L5: TERM-043, TERM-045, COV-05, FT-076, D-9 built behind dark flags, `building` to `dark`):
-
-```
-279 Counter({'live': 174, 'building': 39, 'moot': 39, 'dark': 18, 'owner-blocked': 9})
+279 Counter({'live': 185, 'moot': 40, 'dark': 26, 'building': 20, 'owner-blocked': 8})
 0 duplicate ids
 ```
 
@@ -56,14 +49,14 @@ The per-section split is the same regex applied to each `## ` section:
 |---|---|---|---|---|---|---|
 | 1 Programme records + ship | 17 | 11 | 0 | 3 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
-| 3 TERM-001..093 | 93 | 65 | 8 | 11 | 3 | 6 |
+| 3 TERM-001..093 | 93 | 66 | 8 | 10 | 3 | 6 |
 | 4 BRK-01..10 | 10 | 4 | 4 | 1 | 0 | 1 |
-| 5 COV-01..12 | 12 | 5 | 1 | 2 | 1 | 3 |
+| 5 COV-01..12 | 12 | 6 | 1 | 1 | 1 | 3 |
 | 6 FT-001..080 | 80 | 56 | 8 | 3 | 4 | 9 |
 | 7 Untracked promises | 58 | 42 | 5 | 2 | 0 | 9 |
-| **total** | **279** | **183** | **26** | **22** | **8** | **40** |
+| **total** | **279** | **185** | **26** | **20** | **8** | **40** |
 
-`building` by lane: P 9 · integrator 4 · Notebook 2 · R 2 · S 2 · D 1 · O 1 · T2 1.
+`building` by lane: P 8 · integrator 4 · Notebook 2 · R 2 · S 2 · D 1 · O 1.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -140,7 +133,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-030` | Calendar reader schema assertion | `live` | `api/services/calendar_week_contract.py:107`. |
 | `TERM-031` | Derived Fed-speaker list | `live` | `api/routers/calendar.py:2370`. |
 | `TERM-032` | "coverage n=0" for transcripts | `moot (RG-15 refuted, RG-15a)` | |
-| `TERM-033` | `.catch(()=>null)` migration | `building (Lane P)` | Census rail live; `app/src/lib/swallowedFetch.baseline.json:18` reads `total: 37` (was 77 on 2026-10-03; drained by `383825c00`, `d30317b78` and others). Draining the 37 is the remainder. |
+| `TERM-033` | `.catch(()=>null)` migration | `building (Lane P)` | Drained 37 -> 2 by lane f-l7 (`4b18a1a58`): `app/src/lib/swallowedFetch.baseline.json:14` reads `total: 2`. Every other site now fails explicitly (a throwing fetcher, `app/src/lib/responseBody.js` tagged body reads, or a named sentinel). The 2 left are partner-owned (Ravi), never edited without the partner: `pages/DarkPool.jsx` (mktcap batch) and `pages/OptionsFlow.jsx` (ER-badge weeks). Was 37. |
 | `TERM-034` | I1 spec as rails | `live` | `app/src/pages/research/i1S8Boundary.test.js:562`. |
 | `TERM-035` | Market clock as code | `live` | `app/src/lib/marketClock/marketClock.js:194`. The L0 strip is V7, not this. |
 | `TERM-036` | Dividends onto Massive | `live` | `api/services/reference_corp_actions.py:62`. |
@@ -172,9 +165,9 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-062` | Publish cooldowns | `live` | `api/services/alert_taxonomy/cooldowns.py`. |
 | `TERM-063` | Keyboard registry | `live` | `app/src/pages/command/shortcutRegistry.js:50`. |
 | `TERM-064` | One ticker resolver | `live` | On master (`6854c3350`, via X-01): `app/src/lib/tickerResolver.js`, consumed by `app/src/floor2/Composer.jsx`; tweet ingest delegates. Ungated. Was `dark` (branch-only). |
-| `TERM-065` | DataGrid seed extraction | `building (Lane P)` | Seed live; `app/src/lib/presentation/dataGrid/dataGridSeed.rail.test.js:185` BASELINE holds 9 hand-rolled grids (was 14). Draining the 9 is the remainder. |
+| `TERM-065` | DataGrid seed extraction | `building (Lane P)` | Seed live; `app/src/lib/presentation/dataGrid/dataGridSeed.rail.test.js:188` BASELINE holds 3 hand-rolled grids (was 9): lane f-l7 (`ab70b21ac`) moved CalendarDayTable, Shelf, HoldingsList, LiveFlowMassive, ThemeTrackerPage and Watchlists onto the seed (parity: `pageGrids2.seedParity.test.js`). The 3 left are partner-owned: DarkPool, OptionsFlow, OptionsFlow_admin. |
 | `TERM-066` | One format module | `building (Lane P)` | Module live; `app/src/lib/presentation/handRolledFormatters.baseline.json:12` lists 150 sites in 28 files (read 2026-10-10; not reconciled with the 60 / 46 counts quoted earlier, which may have used a narrower census). `lane/p2-ratchets-a` is superseded. Draining is the remainder. |
-| `TERM-067` | Form-control layer | `building (Lane P)` | `Radio` primitive shipped (`1b391f926`); `app/src/components/ui/formControls.census.test.js:918` `UNNAMED_BASELINE = 23` (was 33). Naming the 23 is the remainder. |
+| `TERM-067` | Form-control layer | `live` | `Radio` primitive shipped (`1b391f926`); `app/src/components/ui/formControls.census.test.js:920` `UNNAMED_BASELINE = 0` (was 23): lane f-l7 (`0df595b83`) named the last 23 journal-2-0 sites through the ui Input / Select / Textarea primitives. Was `building (Lane P)`. |
 | `TERM-068` | Cohort store + kill switch | `live` | `api/services/rollout_gate.py:21`. |
 | `TERM-069` | Retire the yfinance/BS chain leg | `live` | `tests/test_term069_chain_leg_retired.py:74`. |
 | `TERM-070` | market-narrative 20.8 s | `live` | `api/services/market_narrative_swr.py`. |
@@ -230,7 +223,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `COV-07` | Broker estimates + consensus drift | `moot (decided 2026-10-07: no FMP upgrade now; drift accrues from our snapshots)` | Drift built and armed on web 2026-10-04 (`a046f7d9f`) (`ESTIMATE_HISTORY_ENABLED`, `docs/feature_flags.json:2010`), accumulating from 2026-10-02. NG-15 retracted (D-008). ➜ 2026-10-07: S-2 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `COV-08` | Depth of book / L2 / T&S | `moot (decided 2026-10-07: no L2 purchase)` | In scope by D-008. ➜ 2026-10-07: S-1 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `COV-09` | SEC filings feed (re-id DL-036) | `live` | `FILINGS_FEED_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2018`); `api/services/filings_feed.py`. Was `dark`. |
-| `COV-10` | Monitor groups / list subscriptions | `building (Lane T2)` | List-subscribe (`docs/feature_flags.json:1832`) and groups E-H (`docs/feature_flags.json:1840`) armed on web. Remainder (handoff to Lane T2, V10): the rail still carries literal `COLORS` / `COLOR_HEX` (`app/src/pages/charts/WidgetHeader.jsx:19`, `app/src/pages/charts/PeriodSortPanel.jsx:23`); retarget them to `colorGroups.js`, then delete them. Community lists stay on /watchlists via TERM-077. Was `dark`. |
+| `COV-10` | Monitor groups / list subscriptions | `live` | List-subscribe (`docs/feature_flags.json:1832`) and groups E-H (`docs/feature_flags.json:1840`) armed on web. The literal `COLORS` / `COLOR_HEX` copies are deleted (lane f-l7, `6c187ca6c`): `app/src/pages/terminal/functions.rail.test.js:450` now walks `charts/colorGroups.js`' own dot cycle and `:460` compares its `GROUP_HEX`; `app/src/pages/charts/colorGroups.test.js:71` keeps the copies gone. Community lists stay on /watchlists via TERM-077. Was `building (Lane T2)`. |
 | `COV-11` | Indicator templates object | `building (Lane R)` | Same as FT-070; coordinate with the indicator programme. |
 | `COV-12` | Congressional / political-disclosure trackers (was COV-09) | `moot (decided 2026-10-07: not pursued, no scraping fallback)` | ➜ 2026-10-07: S-6 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 
