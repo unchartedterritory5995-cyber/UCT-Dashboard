@@ -21,7 +21,7 @@ import { reportError } from '../../../../../lib/errorBeacon'
 import { getTourEntry, tourLive } from './tourRegistry'
 import {
   REGISTRY_TOUR_OPEN_EVENT, announceRegistryTourClosed, hasPendingRegistryTourOpen,
-  stripTourState, takePendingRegistryTourOpenAny,
+  publishRegistryTourWanted, stripTourState, takePendingRegistryTourOpenAny,
 } from './tourRegistryControl'
 
 /** The one sentence a member reads when a walkthrough they asked for could not be shown. */
@@ -136,6 +136,13 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
     const entry = wantedId ? getTourEntry(wantedId, tours) : null
     // tourLive: own flag, `requires`, and the wave-14 onboarding switch (tourRegistry.js)
     const allowed = tourLive(entry, notebookFlag)
+    // Research Home opens its folded boxes while a tour runs, so the tour's anchors are on
+    // screen (tourRegistryControl.js). Only a tour that may actually run is published.
+    const running = allowed ? wantedId : null
+    useEffect(() => {
+      publishRegistryTourWanted(running)
+      return () => publishRegistryTourWanted(null)
+    }, [running])
     // A request for a tour whose capability is off is dropped, not held: the slot is one
     // tour wide, so a held request would block every later one (W14-C1).
     useEffect(() => { if (wantedId && !allowed) close({ opened: false }) }, [wantedId, allowed, close])

@@ -1,14 +1,21 @@
-import { Suspense, useEffect, useId, useRef, useState } from 'react'
+import { Suspense, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import lazyChunk, { importWithOneRetry } from '../../lib/lazyChunk'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
 import usePreferences from '../../../../hooks/usePreferences'
 import { useIsPaid } from '../../../../context/AuthContext'
+import { claimFirstRunStage } from '../../../../components/firstRun/firstRunStage'
 import useNotebookHome from '../../hooks/useNotebookHome'
+import useJ2Notes from '../../hooks/useJ2Notes'
 import useJ2SelectedAccount from '../../hooks/useJ2SelectedAccount'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
+import { NOTEBOOK_SEARCH_HASH } from '../../lib/notebookSearchDoor'
+import { NOTEBOOK_PREP_HASH } from '../../lib/notebookDoors'
+import CollapsibleSection from '../CollapsibleSection'
 import { openNotebookTour } from './onboarding/tourControl'
+import { getRegistryTourWanted, subscribeRegistryTourWanted } from './onboarding/tourRegistryControl'
+import LearnMenu from './onboarding/LearnMenu'
 import {
   SAMPLE_URL, SAMPLE_PREF, SAMPLE_COPY, readSamplePref, addSampleNotebook, removeSampleNotebook, removedMessage, isNotebookKey,
   describeSampleHold,
@@ -16,8 +23,8 @@ import {
 import { precheckNoteBatch } from '../../lib/noteBatch'
 import { openSpanningCitation, passageNavigationState } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
-import { earningsPrepEnabled } from '../../lib/earningsPrepShared'
-import { passedSetupsEnabled } from '../../lib/researchCapture'
+import { SOON_URL, earningsPrepEnabled, fetchReportingSoon } from '../../lib/earningsPrepShared'
+import { PASSED_URL, fetchPassedSetups, passedSetupsEnabled } from '../../lib/researchCapture'
 import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
 import { setupsBoardEnabled, SETUPS_BOARD_PATH } from '../../lib/setupsBoardLink'
 import GettingStartedChecklist from './GettingStartedChecklist'
@@ -86,7 +93,10 @@ function NoteRow({ note, onOpen, reason }) {
 // Wave 13 lane 13F: one small, self-contained door on Home -- "Reviews that write
 // themselves". Renders nothing (and calls nothing) while notebook_review_drafts_enabled
 // is off, the same contract as the other Home boxes below (aiBox/prepBox/passedBox).
-export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '' }) {
+// Notebook UX pass: on Research Home the box sits in a collapsible section whose header already
+// names it, so `titleHidden` keeps its heading for screen readers and the skip link below while
+// it is not drawn a second time.
+export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '', titleHidden = false }) {
   const [busy, setBusy] = useState(null)
   const [error, setError] = useState(null)
   const headingRef = useRef(null)
@@ -132,7 +142,8 @@ export function ReviewDraftsHomeBox({ onOpenNote, skipLinkClassName = '' }) {
         </SkipLinkPortal>
       )}
       <div className={styles.sectionHeader}>
-        <h3 id="nb-home-reviews" ref={headingRef} tabIndex={-1} className={styles.sectionTitle}>Reviews that write themselves</h3>
+        <h3 id="nb-home-reviews" ref={headingRef} tabIndex={-1}
+          className={titleHidden ? 'sr-only' : styles.sectionTitle}>Reviews that write themselves</h3>
       </div>
       <div className={styles.rows} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '4px 0' }}>
         <button type="button" className="btn btn-ghost" disabled={Boolean(busy)} data-tour="review-drafts-daily"
@@ -172,6 +183,84 @@ function Section({ title, notes, onOpen, viewAllHref, emptyReason }) {
   )
 }
 
+/** How many recent notes the top of Home lists (the home read carries at most five). */
+export const RECENT_NOTES_SHOWN = 5
+
+// Notebook UX pass (2026-10-10): the top of Home for a member with notes is THEIR NOTES -- a
+// search box and their recent notes -- before any dashboard box. A member with 25 notes landed
+// on a page that showed none of them.
+//
+// ⛔ THE SEARCH BOX IS A DOOR, NOT A SECOND SEARCH. It opens the Notebook's one search (the
+// folders panel's, FolderSidebar.jsx) through the door the command palette already uses: the
+// Notebook reads `#search`, shows the panel and puts the cursor in its box
+// (lib/notebookSearchDoor.js). Nothing here queries notes.
+export function HomeSearch() {
+  const navigate = useNavigate()
+  return (
+    <button type="button" className={styles.searchBox} data-home-search=""
+      onClick={() => navigate(`/journal/notebook${NOTEBOOK_SEARCH_HASH}`)}>
+      <UIcon name="search" size={14} gold={false} />
+      <span className={styles.searchText}>Search your notes</span>
+    </button>
+  )
+}
+
+// ⛔ RECENT NOTES ARE THE HOME READ'S OWN `continueWorking` (the notes the member opened
+// last). A member who has never opened a note (an import, the first visit after a move) has
+// none there, so the list falls back to their most recently EDITED notes from the Notebook's
+// own list read (`useJ2Notes`, the All notes endpoint) -- asked for only in that case.
+function RecentNotes({ opened, edited, onOpen }) {
+  const notes = (opened.length ? opened : edited).slice(0, RECENT_NOTES_SHOWN)
+  if (notes.length === 0) return null
+  return (
+    <div className={styles.section} data-recent-notes="">
+      <div className={styles.sectionHeader}>
+        <h3 className={styles.sectionTitle}>Recent notes</h3>
+        <Link className={styles.viewAll} to="/journal/notebook?view=all" aria-label="View all notes">
+          All notes
+        </Link>
+      </div>
+      <div className={styles.rows}>
+        {notes.map((n) => <NoteRow key={n.id} note={n} onOpen={onOpen} />)}
+      </div>
+    </div>
+  )
+}
+
+// A dashboard box on Home, folded or unfolded (Notebook UX pass). It is the Analytics tab's
+// CollapsibleSection, reused: the member's own open/closed choice is kept per box in
+// localStorage, and a folded box's content is UNMOUNTED (so it costs nothing while folded).
+//   * `defaultOpen` -- a box with something to show starts open; an EMPTY one starts folded to
+//     its one-line header, whose `meta` says why ("None saved yet"). Until the box's own read
+//     has answered, the default is not known: it starts folded ("Checking…") and is mounted
+//     again with the real default the moment it is (`known` keys the section). A choice the
+//     member made wins either way.
+//   * `openSignal` -- a walkthrough running now, or a door aimed inside the box, unfolds it
+//     (never persisted: being sent somewhere once is not a change of mind).
+//   * The box's own heading stays in the page for screen readers and its own doors, but is
+//     not drawn under the section header that already names it (`.boxBody`).
+function HomeBox({ id, title, meta, defaultOpen, known = true, openSignal, children }) {
+  return (
+    <div className={styles.homeBox} data-home-box={id}>
+      <CollapsibleSection key={known ? 'known' : 'checking'} id={id} title={title} meta={meta}
+        defaultOpen={known ? defaultOpen : false} openSignal={openSignal}>
+        <div className={styles.boxBody}>{children}</div>
+      </CollapsibleSection>
+    </div>
+  )
+}
+
+/** A box's one-line answer from its read: null while unknown, else what the header says. */
+function boxState({ on, data, error, count, some, none, failed }) {
+  if (!on) return { known: true, open: false, meta: null }
+  if (error) return { known: true, open: true, meta: failed }
+  if (!data) return { known: false, open: false, meta: 'Checking…' }
+  const n = count(data)
+  return { known: true, open: n > 0, meta: n > 0 ? some(n, data) : none(data) }
+}
+
+const SWR_ONCE = Object.freeze({ revalidateOnFocus: false, shouldRetryOnError: false })
+
 // Wave 10 F7 (Part A, 5d): a failed status read THROWS -- `null` on a 500 hid the sample's
 // remove strip without a word, as if the sample were gone.
 const fetchStatus = (url) => fetch(url, { credentials: 'include' }).then((r) => {
@@ -186,6 +275,17 @@ const fetchStatus = (url) => fetch(url, { credentials: 'include' }).then((r) => 
  * independently collapsing when empty (checkpoint decision 13) -- no
  * dashboard grid of dead cards. "Upcoming Catalysts" and "Recent Captures"
  * are deliberately absent (checkpoint decision 12).
+ *
+ * Notebook UX pass (2026-10-10, "easy and simple to use but has tons of cool stuff"):
+ *   * a member with notes meets THEIR NOTES first: a search box (a door into the Notebook's
+ *     one search) and their recent notes, with the Learn menu on the same row;
+ *   * the dashboard boxes (Reporting soon, Passed setups, Reviews that write themselves) fold,
+ *     and an empty one starts folded to its one-line header (HomeBox);
+ *   * a new member gets ONE short welcome: one sentence, one primary action, two secondary
+ *     ones, the Learn menu, and "See what it can do" folded away. The welcome holds the
+ *     first-run stage while it shows, so the tour offer and the "Meet Compass" card wait
+ *     behind it instead of stacking on it. With the wave-14 switch off, both screens stay as
+ *     they were before wave 14.
  */
 export default function ResearchHome({
   onOpenNote, onCreateNote, onCreateThesis, onImport, hasAnyNotes,
@@ -246,6 +346,48 @@ export default function ResearchHome({
   const { data: sampleStatus, error: sampleStatusError, mutate: refreshSampleStatus } = useSWR(
     wantStatus ? SAMPLE_URL : null, fetchStatus, { revalidateOnFocus: false, shouldRetryOnError: false })
   const showStrip = wantStatus && Array.isArray(sampleStatus?.activeIds) && sampleStatus.activeIds.length > 0
+
+  // ── Notebook UX pass: the new welcome, the top of Home, and the folding boxes ────────────
+  // "See what it can do" -- the capability preview, folded away until asked for.
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const previewId = useId()
+  // The welcome is ONE nudge at a time (see the docblock): it holds the first-run stage while
+  // it shows, exactly as a tour card does, so the offer and the Compass card wait for it.
+  const welcomeShowing = welcomeExtras && !isLoading && !hasAnyNotes
+  useEffect(() => (welcomeShowing ? claimFirstRunStage() : undefined), [welcomeShowing])
+  // Recent notes: the home read's own recents, or -- only when it has none -- the member's most
+  // recently edited notes from the Notebook's list read.
+  const opened = Array.isArray(home?.continueWorking) ? home.continueWorking : []
+  const { notes: editedNotes } = useJ2Notes({
+    sort: 'updated', limit: RECENT_NOTES_SHOWN,
+    enabled: Boolean(hasAnyNotes) && !isLoading && opened.length === 0,
+  })
+  // The boxes' own reads, under the SAME keys and fetchers the boxes use (SWR shares one
+  // answer), so Home can tell an empty box from a full one without a second request.
+  const prepOn = earningsPrepEnabled()
+  const passedOn = passedSetupsEnabled()
+  const soon = useSWR(hasAnyNotes && prepOn ? SOON_URL : null, () => fetchReportingSoon(), SWR_ONCE)
+  const passed = useSWR(hasAnyNotes && passedOn ? PASSED_URL : null, () => fetchPassedSetups(), SWR_ONCE)
+  const prepState = boxState({
+    on: prepOn, data: soon.data, error: soon.error,
+    count: (d) => (Array.isArray(d?.items) ? d.items.length : 0),
+    some: (n) => `${n} reporting in the next ${soon.data?.windowDays ?? 7} days`,
+    none: (d) => `None of your names in the next ${d?.windowDays ?? 7} days`,
+    failed: 'Could not check the calendar',
+  })
+  const passedState = boxState({
+    on: passedOn, data: passed.data, error: passed.error,
+    count: (d) => (Array.isArray(d?.items) ? d.items.length : 0),
+    some: (n) => `${n} saved`,
+    none: () => 'None saved yet',
+    failed: 'Could not load',
+  })
+  // A walkthrough running now unfolds every box, so its anchors are on screen
+  // (tourRegistryControl.js); the palette's "Earnings prep" (`#prep`) unfolds Reporting soon.
+  const tourWanted = useSyncExternalStore(subscribeRegistryTourWanted, getRegistryTourWanted, () => null)
+  const location = useLocation()
+  const tourSignal = tourWanted ? `tour:${tourWanted}` : null
+  const prepSignal = location.hash === NOTEBOOK_PREP_HASH ? `prep:${location.key}` : null
 
   const addSample = async () => {
     if (adding) return
@@ -380,56 +522,122 @@ export default function ResearchHome({
   }
 
   if (!hasAnyNotes) {
-    // Wave 14 lane W14-A (plan 4.1, default D1): today's buttons stay exactly as they are,
-    // first. Under them, a short text preview of what the Notebook can do (only the
-    // capabilities armed for this member) and the sample notebook's promotion. Both ride
-    // `welcomeExtras` (onboarding AND the checklist's own flag; integration ruling).
     const canAddSample = onboarding && isPaid && !sample
-    return (
-      <div className={styles.firstRun}>
-        {/* W14-keys: with the wave-14 switch on, the heading is where focus lands when the
-            auto-started base tour closes with nothing to hand focus back to (NotebookTour.jsx),
-            so the next Tab is "Start a note". Script-focusable only; off, it is the old heading. */}
-        <h2 className={styles.firstRunTitle}
-          {...(welcomeExtras ? { tabIndex: -1, [FIRST_RUN_HEADING_ATTR]: '' } : {})}>
-          Welcome to your Notebook
-        </h2>
-        <p className={styles.firstRunHint}>
-          This is where your research lives — theses, company notes, captured facts, and everything
-          connected to your trades. It fills in as you use it.
-        </p>
-        <div className={styles.firstRunActions} data-tour="first-run">
+    // Notebook UX pass (2026-10-10): with the wave-14 switch on (`welcomeExtras`), ONE short
+    // welcome -- a sentence, ONE primary action ("Start a note"), two secondary ones (the
+    // sample, where it can be had, and Import), the Learn menu beside the title, and the
+    // capability preview folded into "See what it can do". "Create a thesis" and "Today" stay
+    // as quiet text links (the base tour's first step still names a thesis), and "Take the
+    // tour" is the Learn menu's first item. The sample button points at the preview's
+    // promotion only while the preview is open (an aria-describedby must name something that
+    // is there).
+    // Off, it is the pre-wave-14 screen, unchanged: the six buttons, nothing wave 14 added.
+    // ⛔ ONE first-run tour anchor element for both screens (the base tour's first step;
+    // tourAnchors.test.js holds the attribute to exactly one occurrence in this file).
+    const actions = welcomeExtras ? (
+      <>
+        <div className={styles.firstRunActions}>
           <button type="button" className="btn btn-primary" onClick={onCreateNote}>
             <UIcon name="plus" size={14} gold={false} /> Start a note
           </button>
-          <button type="button" className="btn btn-ghost" onClick={onCreateThesis}>
-            <UIcon name="compass" size={14} gold={false} /> Create a thesis
-          </button>
-          <button type="button" className="btn btn-ghost" onClick={onImport}>
-            <UIcon name="upload" size={14} gold={false} /> Import notes
-          </button>
-          {onOpenToday && (
-            <button type="button" className="btn btn-ghost" onClick={onOpenToday} title="Open today's daily note (Ctrl+Alt+D)">
-              <UIcon name="sun" size={14} gold={false} /> Today
-            </button>
-          )}
           {canAddSample && (
             <button type="button" className="btn btn-ghost" onClick={addSample} disabled={adding}
-              aria-describedby={welcomeExtras ? samplePromoId : undefined}>
+              aria-describedby={previewOpen ? samplePromoId : undefined}>
               <UIcon name="book" size={14} gold={false} /> {adding ? SAMPLE_COPY.adding : SAMPLE_COPY.add}
             </button>
           )}
-          {onboarding && (
-            <button type="button" className="btn btn-ghost" onClick={openNotebookTour}>
-              <UIcon name="sparkle" size={14} gold={false} /> {SAMPLE_COPY.tour}
-            </button>
+          <button type="button" className="btn btn-ghost" onClick={onImport}>
+            <UIcon name="upload" size={14} gold={false} /> Import notes
+          </button>
+        </div>
+        <p className={styles.welcomeLinks}>
+          <span>Or</span>
+          <button type="button" className={styles.textLink} onClick={onCreateThesis}>create a thesis</button>
+          {onOpenToday && (
+            <>
+              <span aria-hidden="true">·</span>
+              <button type="button" className={styles.textLink} onClick={onOpenToday}
+                title="Open today's daily note (Ctrl+Alt+D)">
+                open today&apos;s note
+              </button>
+            </>
           )}
+        </p>
+      </>
+    ) : (
+      <>
+        <button type="button" className="btn btn-primary" onClick={onCreateNote}>
+          <UIcon name="plus" size={14} gold={false} /> Start a note
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={onCreateThesis}>
+          <UIcon name="compass" size={14} gold={false} /> Create a thesis
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={onImport}>
+          <UIcon name="upload" size={14} gold={false} /> Import notes
+        </button>
+        {onOpenToday && (
+          <button type="button" className="btn btn-ghost" onClick={onOpenToday} title="Open today's daily note (Ctrl+Alt+D)">
+            <UIcon name="sun" size={14} gold={false} /> Today
+          </button>
+        )}
+        {canAddSample && (
+          <button type="button" className="btn btn-ghost" onClick={addSample} disabled={adding}>
+            <UIcon name="book" size={14} gold={false} /> {adding ? SAMPLE_COPY.adding : SAMPLE_COPY.add}
+          </button>
+        )}
+        {onboarding && (
+          <button type="button" className="btn btn-ghost" onClick={openNotebookTour}>
+            <UIcon name="sparkle" size={14} gold={false} /> {SAMPLE_COPY.tour}
+          </button>
+        )}
+      </>
+    )
+    return (
+      <div className={welcomeExtras ? `${styles.firstRun} ${styles.welcome}` : styles.firstRun}>
+        {welcomeExtras ? (
+          <div className={styles.welcomeHeader}>
+            {/* W14-keys: the heading is where focus lands when the auto-started base tour closes
+                with nothing to hand focus back to (NotebookTour.jsx), so the next Tab is the
+                Learn button, then "Start a note". Script-focusable only. */}
+            <h2 className={styles.firstRunTitle} tabIndex={-1} {...{ [FIRST_RUN_HEADING_ATTR]: '' }}>
+              Welcome to your Notebook
+            </h2>
+            <LearnMenu />
+          </div>
+        ) : (
+          <h2 className={styles.firstRunTitle}>
+            Welcome to your Notebook
+          </h2>
+        )}
+        {welcomeExtras ? (
+          <p className={styles.firstRunHint}>
+            Your research lives here: theses, company notes and everything tied to your trades.
+          </p>
+        ) : (
+          <p className={styles.firstRunHint}>
+            This is where your research lives — theses, company notes, captured facts, and everything
+            connected to your trades. It fills in as you use it.
+          </p>
+        )}
+        <div className={welcomeExtras ? styles.welcomeActions : styles.firstRunActions} data-tour="first-run">
+          {actions}
         </div>
         {addError && <p className={styles.sampleError} role="alert">{addError}</p>}
         {welcomeExtras && (
-          <Suspense fallback={null}>
-            <CapabilityPreview canAddSample={canAddSample} promoId={samplePromoId} />
-          </Suspense>
+          <div className={styles.previewDisclosure}>
+            <button type="button" className={styles.previewToggle} aria-expanded={previewOpen}
+              aria-controls={previewOpen ? previewId : undefined} onClick={() => setPreviewOpen((o) => !o)}>
+              <UIcon name={previewOpen ? 'chevronUp' : 'chevronDown'} size={12} gold={false} />
+              See what it can do
+            </button>
+            {previewOpen && (
+              <div id={previewId}>
+                <Suspense fallback={null}>
+                  <CapabilityPreview canAddSample={canAddSample} promoId={samplePromoId} />
+                </Suspense>
+              </div>
+            )}
+          </div>
         )}
         {gettingStartedSlot}
         {sampleNotice}
@@ -440,6 +648,20 @@ export default function ResearchHome({
   const nothingToShow = [
     home.continueWorking, home.favorites, home.activeTheses, home.openPositionResearch, home.needsReview,
   ].every((s) => !s || s.length === 0)
+
+  // Notebook UX pass: THE TOP OF HOME is the member's notes -- the search door and the Learn
+  // menu on one row, then their recent notes. It is the FIRST child of the same fragment in
+  // every return below, so the boxes after it keep their positions (and their state) when the
+  // home flips between quiet and full, exactly as before.
+  const homeTop = (
+    <div className={styles.homeTop} data-export-exclude>
+      <div className={styles.homeHeader}>
+        <HomeSearch />
+        <LearnMenu />
+      </div>
+      <RecentNotes opened={opened} edited={Array.isArray(editedNotes) ? editedNotes : []} onOpen={openNote} />
+    </div>
+  )
 
   // Wave 10 F7 (Part A, 5d): a FAILED read is not a quiet day. "Nothing needs your attention"
   // after a failed load told a member there was nothing, when we could not look.
@@ -461,19 +683,32 @@ export default function ResearchHome({
   // as the box above: a home that flips between quiet and full must not remount it mid-draft.
   // Wave 14 perf lane: loaded on demand, and only while its flag is on (the box itself still
   // checks the flag too). Same element type at the same position, so a flip keeps its state.
-  const prepBox = earningsPrepEnabled()
-    ? <Suspense fallback={null}><ReportingSoon onOpenNote={openNote} /></Suspense>
-    : null
+  // Notebook UX pass: each box below folds (HomeBox), and an empty one starts folded.
+  const prepBox = prepOn ? (
+    <HomeBox id="nb-home-reporting-soon" title="Reporting soon" meta={prepState.meta}
+      known={prepState.known} defaultOpen={prepState.open} openSignal={tourSignal || prepSignal}>
+      <Suspense fallback={null}><ReportingSoon onOpenNote={openNote} /></Suspense>
+    </HomeBox>
+  ) : null
   // Wave 13 lane 13G-1: "Passed setups" -- nothing (and no fetch) while
   // notebook_passed_setups_enabled is off. The THIRD child of the same fragment in every
   // return below, for the same reason as the two boxes above.
-  const passedBox = passedSetupsEnabled()
-    ? <Suspense fallback={null}><PassedSetups /></Suspense>
-    : null
+  const passedBox = passedOn ? (
+    <HomeBox id="nb-home-passed-setups" title="Passed setups" meta={passedState.meta}
+      known={passedState.known} defaultOpen={passedState.open} openSignal={tourSignal}>
+      <Suspense fallback={null}><PassedSetups /></Suspense>
+    </HomeBox>
+  ) : null
   // Wave 13 lane 13F: "Reviews that write themselves" -- the FOURTH child of the same
   // fragment in every return below, for the same reason as the three boxes above (a
-  // home that flips between quiet and full must not remount it mid-draft).
-  const reviewBox = <ReviewDraftsHomeBox onOpenNote={openNote} skipLinkClassName={skipLinkClassName} />
+  // home that flips between quiet and full must not remount it mid-draft). Its three drafts
+  // are always there to press, so it starts open.
+  const reviewBox = reviewDraftsEnabled() ? (
+    <HomeBox id="nb-home-reviews" title="Reviews that write themselves" meta="Daily, weekly and monthly"
+      defaultOpen openSignal={tourSignal}>
+      <ReviewDraftsHomeBox onOpenNote={openNote} skipLinkClassName={skipLinkClassName} titleHidden />
+    </HomeBox>
+  ) : null
   // Wave 13 lane 13Q-3 (click-budget fix, Q5): same "one authority" reasoning as the three
   // boxes above -- rendered in EVERY non-first-run, non-loading state (quiet-with-error,
   // quiet, and the full home) so a member landing on bare-root Research Home always has a
@@ -523,6 +758,7 @@ export default function ResearchHome({
   if (nothingToShow && homeError) {
     return (
       <>
+        {homeTop}
         {aiBox}
         {prepBox}
         {passedBox}
@@ -542,6 +778,7 @@ export default function ResearchHome({
   if (nothingToShow) {
     return (
       <>
+        {homeTop}
         {aiBox}
         {prepBox}
         {passedBox}
@@ -561,6 +798,7 @@ export default function ResearchHome({
 
   return (
     <>
+    {homeTop}
     {aiBox}
     {prepBox}
     {passedBox}
@@ -574,7 +812,7 @@ export default function ResearchHome({
           answers "what was I working on, and where do I resume?" -- Ask is
           one affordance on that page, not the page. */}
       {askRow}
-      <Section title="Continue working" notes={home.continueWorking} onOpen={openNote} viewAllHref="/journal/notebook?view=all" />
+      {/* "Continue working" is the top of Home now (Recent notes, homeTop). */}
       <Section title="Favorites" notes={home.favorites} onOpen={openNote} />
       <Section title="Active theses" notes={home.activeTheses} onOpen={openNote} />
       <Section

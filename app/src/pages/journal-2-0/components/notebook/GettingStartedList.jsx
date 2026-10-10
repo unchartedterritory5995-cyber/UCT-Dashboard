@@ -7,13 +7,14 @@
 // renders the answer.
 //
 //   * WHAT IT LISTS -- derived, never restated: write a note, start one from a template,
-//     the sample notebook (only where it can be had), then one step per registered,
-//     replayable tour whose capability flag is armed (`tourRegistry.js` + `notebookFlag`).
-//   * WHAT TICKS A STEP -- the member's real action or that tour's own seen-state, never
+//     the sample notebook (only where it can be had), then the Notebook basics tour while
+//     it is live (`deriveChecklistItems`, at most `CHECKLIST_MAX_ITEMS`). Every OTHER tour
+//     is in Research Home's "Learn" menu (onboarding/LearnMenu.jsx), not here.
+//   * WHAT TICKS A STEP -- the member's real action or the tour's own seen-state, never
 //     a click here. A click only opens the door: the Notebook's own create, Research
 //     Home's own sample add (passed in, so there is one authority for that write), the
-//     template picker, or the tour's own open door (`openNotebookTour` /
-//     `openRegistryTour`).
+//     template picker, or the tour's own open door (`startTour`, learnTours.js -- the same
+//     door the Learn menu uses).
 //   * WHEN IT SHOWS -- while BOTH `notebook_onboarding_enabled` (the flag the base tour
 //     and the sample door ride) and its own dark gate `notebook_getting_started_enabled`
 //     are on, once the preferences have loaded (a dismissed list must never flash),
@@ -23,8 +24,7 @@
 //     as `done`, once. Every write is a setPrefMerged, each bounded by a ref guard (the
 //     render-loop class usePreferences.js's settle note describes).
 //   * D4 -- closed stays closed. A capability that arms later adds its tour to the
-//     derivation, but a closed list never reopens for it; Help > Walkthroughs lists
-//     every registered tour instead.
+//     Learn menu and Help > Walkthroughs, never to this list.
 //   * THE FIRST-RUN STAGE (components/firstRun/firstRunStage.js, plan 5.6) -- this list
 //     is page content in normal flow, never portaled, never fixed. It does NOT claim the
 //     stage: claiming is for a floating first-run card, and a list that can stay on
@@ -38,9 +38,7 @@ import useRovingTabIndex from '../../../../hooks/useRovingTabIndex'
 import usePreferences from '../../../../hooks/usePreferences'
 import useNotebookHome from '../../hooks/useNotebookHome'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
-import { openNotebookTour } from './onboarding/tourControl'
-import { openRegistryTour } from './onboarding/tourRegistryControl'
-import { BASE_TOUR_ID } from './onboarding/tourRegistry'
+import { startTour } from './onboarding/learnTours'
 import {
   CHECKLIST_PREF, CHECKLIST_STATES, CHECKLIST_COPY, checklistClosed, checklistEnabled,
   closedAs, deriveChecklistItems, recordedDone, withDone,
@@ -167,7 +165,7 @@ export default function GettingStartedList({ hasAnyNotes = false, onCreateNote =
       onClick = addSample
       if (adding) label = CHECKLIST_COPY.sampleAdding
     } else if (item.kind === 'tour') {
-      onClick = item.tourId === BASE_TOUR_ID ? () => openNotebookTour() : () => openRegistryTour(item.tourId)
+      onClick = () => startTour(item.tourId)
     }
     if (typeof onClick !== 'function') return <span className={styles.label}>{label}</span>
     return (

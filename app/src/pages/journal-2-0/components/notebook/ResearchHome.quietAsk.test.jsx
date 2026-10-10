@@ -78,11 +78,11 @@ describe('Research Home offers Ask in every state that has notes', () => {
     expect(screen.getByText('Nothing needs your attention right now.')).toBeInTheDocument()
     fireEvent.change(screen.getByRole('textbox', { name: 'ask stand-in' }), { target: { value: 'what did I write about NVDA?' } })
     hookResult = {
-      home: { ...EMPTY, continueWorking: [{ id: 'n1', title: 'NVDA thesis', updatedAt: new Date().toISOString() }] },
+      home: { ...EMPTY, favorites: [{ id: 'n1', title: 'NVDA thesis', updatedAt: new Date().toISOString() }] },
       isLoading: false, error: null, refresh: vi.fn(),
     }
     rerender(tree())
-    expect(screen.getByText('Continue working')).toBeInTheDocument()   // the layout DID flip
+    expect(screen.getByText('Favorites')).toBeInTheDocument()   // the layout DID flip
     expect(screen.getByRole('textbox', { name: 'ask stand-in' })).toHaveValue('what did I write about NVDA?')
   })
 })

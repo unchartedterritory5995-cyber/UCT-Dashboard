@@ -15,9 +15,11 @@
 //   * it waits while the slot already carries another card (the Compass card shows
 //     without claiming, so the slot's children are the only signal; a MutationObserver
 //     keeps that live);
-//   * it waits while the base first-run tour is still due for this member, while the
-//     "get started" checklist is open (that list already offers every armed tour), and
-//     while a note is open (R4: never while a member is editing).
+//   * it waits while the base first-run tour is still due for this member, while a member
+//     with no notes has the "get started" checklist open (the first-run screen shows ONE
+//     nudge at a time: the welcome and its list first), and while a note is open (R4:
+//     never while a member is editing). Research Home's first-run screen also claims the
+//     stage while it shows, so the offer and the "Meet Compass" card both wait behind it.
 // Waiting is never dismissing: nothing is recorded, and the offer returns when the
 // reason goes. It is NOT a modal: no focus is moved to it, nothing traps Tab.
 import { Component, Suspense, useCallback, useEffect, useState } from 'react'
@@ -108,7 +110,13 @@ export function makeTourOfferGate(load, waitMs = RETRY_WAIT_MS) {
     const onboarding = notebookFlag('notebook_onboarding_enabled') === true
     const baseTourPending = tourIsForThisMember({ enabled: onboarding, isPaid, notesKnown, hasAnyNotes, loading })
       && !tourFinished(readTourPref(prefs?.[TOUR_PREF])?.state ?? null)
+    // Fewer nudges on first run (Notebook UX pass): a member with NO notes sees the welcome and
+    // the get-started list, and the offer waits behind them until the member has a note or
+    // closes the list. It no longer waits on an open list for a member who has notes: the list
+    // now names only the base tour, every other tour is in the Learn menu, and an offer held
+    // back for as long as a list stays open would never reach that member at all.
     const checklistOpen = checklistEnabled(notebookFlag) && !checklistClosed(prefs?.[CHECKLIST_PREF])
+      && !hasAnyNotes
     const blocked = entry ? offerBlockedBy({
       prefsLoading: loading,
       notesKnown,

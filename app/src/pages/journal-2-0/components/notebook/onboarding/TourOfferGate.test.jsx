@@ -81,7 +81,8 @@ beforeEach(() => {
   __resetOfferSession()
   // W14-C1 ruling: every registry tour also needs the wave-14 switch (onboarding AND
   // getting-started). With it on the checklist is open by default, and an open checklist
-  // holds the offer back, so these cases start from a checklist the member already closed.
+  // holds the offer back for a member with no notes, so these cases start from a checklist
+  // the member already closed.
   latchNotebookFlags({ ...WAVE14_ON, [FLAG_A]: true, [FLAG_B]: true })
   server = { prefs: { ...CHECKLIST_CLOSED } }
   installFetch()
@@ -257,18 +258,30 @@ describe('it never stacks -- it waits', () => {
     expect(screen.queryByRole('region')).toBeNull()
   })
 
-  it('while the get-started checklist is open (it already lists every armed tour)', async () => {
+  // Notebook UX pass: ONE nudge at a time on first run. A member with no notes sees the
+  // welcome and its get-started list; the offer waits until they have a note or close the list.
+  it('while a member with NO notes has the get-started checklist open', async () => {
     __resetNotebookFlags()
     latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [FLAG_A]: true, [FLAG_B]: true })
-    server.prefs = {}                                    // the checklist has not been closed
+    // the base tour is finished, so only the checklist can hold the offer back
+    const BASE_DONE = { notebook_tour: JSON.stringify({ v: 1, state: 'done', step: null }) }
+    server.prefs = { ...BASE_DONE }                      // the checklist has not been closed
     const G = Gate()
-    const { unmount } = render(<Page Gate={G} />)
+    const { unmount } = render(<Page Gate={G} gate={{ hasAnyNotes: false }} />)
     await flush()
     expect(screen.queryByRole('region')).toBeNull()
     unmount()
     registerFirstRunSlot(null)
-    server.prefs = { notebook_getting_started: JSON.stringify({ v: 1, state: 'dismissed' }) }
-    render(<Page Gate={G} />)
+    // the same member, list closed: offered
+    server.prefs = { ...BASE_DONE, notebook_getting_started: JSON.stringify({ v: 1, state: 'dismissed' }) }
+    const second = render(<Page Gate={G} gate={{ hasAnyNotes: false }} />)
+    expect(await card()).toBeInTheDocument()
+    second.unmount()
+    registerFirstRunSlot(null)
+    // list still open, but the member now has a note: offered (the list names only the base
+    // tour now, so holding the offer back while it stays open would hide every other tour)
+    server.prefs = { ...BASE_DONE }
+    render(<Page Gate={G} gate={{ hasAnyNotes: true }} />)
     expect(await card()).toBeInTheDocument()
   })
 

@@ -1,0 +1,69 @@
+/* Research Home's "Learn" menu (Notebook UX pass, 2026-10-10). The same popover idiom as the
+   editor's Export menu (NoteExportControls.module.css), with existing tokens only.
+   ⛔ The touch tier is <=1024px (phone AND tablet): the button and every row get the 44px floor
+   there (tapFloor.test.js). The list can be long (one row per live walkthrough), so it scrolls
+   inside the popover rather than running off the page. */
+.wrap {
+  position: relative;
+  display: inline-flex;
+}
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 280px;
+  max-width: calc(100vw - 32px);
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-popover);
+  text-align: left;
+}
+.item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-bright);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.item:hover,
+.item:focus-visible {
+  background: var(--bg-hover);
+}
+.item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ut-gold);
+}
+.helpItem {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  color: var(--text-muted);
+}
+
+@media (max-width: 1024px) {
+  .trigger,
+  .item {
+    min-height: var(--tap-min);
+  }
+}

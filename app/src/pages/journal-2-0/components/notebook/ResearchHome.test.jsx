@@ -116,14 +116,18 @@ describe('ResearchHome', () => {
     expect(screen.getByText('Open position')).toBeTruthy()
   })
 
-  it('the Continue Working section has a View all link to the All Notes grid', () => {
+  it('Recent notes (the notes the member opened last) have an All notes link to the All Notes grid', () => {
     hookResult = {
       home: { ...EMPTY, continueWorking: [{ id: 'n1', title: 'Recent note', updatedAt: '2026-09-01T00:00:00Z' }] },
       isLoading: false, error: null, refresh: vi.fn(),
     }
     renderHome()
-    const link = screen.getByRole('link', { name: /view all continue working/i })
+    expect(screen.getByRole('heading', { name: 'Recent notes' })).toBeInTheDocument()
+    const link = screen.getByRole('link', { name: 'View all notes' })
     expect(link.getAttribute('href')).toBe('/journal/notebook?view=all')
+    // "Continue working" is not a second list of the same notes further down
+    expect(screen.queryByText('Continue working')).toBeNull()
+    expect(screen.getAllByText('Recent note')).toHaveLength(1)
   })
 })
 

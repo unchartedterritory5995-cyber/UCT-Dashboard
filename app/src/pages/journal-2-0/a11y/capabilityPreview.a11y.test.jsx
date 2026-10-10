@@ -5,11 +5,12 @@
 // the state it is about rendered before axe runs, so an empty screen can never pass as a clean
 // one:
 //   * capability-preview  -- every line armed, with the sample promotion, on its own;
-//   * first-run-welcome   -- inside the real first-run screen (the preview is a lazy chunk
-//                            there), with the sample button described by the promotion.
+//   * first-run-welcome   -- inside the real first-run screen, with "See what it can do"
+//                            opened (the preview is folded and a lazy chunk there), the sample
+//                            button described by the promotion, and the Learn menu open.
 // OUTSIDE_POPULATION_SURFACES (notebookSurfaces.js) names this file for CapabilityPreview.jsx.
 import { describe, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { Providers } from './fixtures'
 import { axeSurface } from './surface'
 import CapabilityPreview from '../components/notebook/onboarding/CapabilityPreview'
@@ -48,9 +49,13 @@ describe('capability preview -- axe', () => {
         </main>
       </Providers>,
     )
+    fireEvent.click(screen.getByRole('button', { name: 'See what it can do' }))
     expect(await screen.findByRole('list', { name: PREVIEW_COPY.heading })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add a sample notebook' }))
       .toHaveAccessibleDescription(new RegExp(PREVIEW_COPY.sampleLead.replace('?', '\\?')))
+    // the Learn menu, open, is part of the same screen
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    expect(screen.getByRole('menu', { name: 'Learn: walkthroughs' })).toBeInTheDocument()
     return { root: container }
   })
 })
