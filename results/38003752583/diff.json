@@ -1,0 +1,1858 @@
+{
+  "verdict": "COVERAGE_LOST",
+  "counts": {
+    "new": 81,
+    "fixed": 17,
+    "unchanged": 184,
+    "missing": 2,
+    "baseline": 203,
+    "current": 266,
+    "current_ran": 42276,
+    "new_flaky": 1,
+    "flaky_size": 11,
+    "flaky_new": 1,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 2,
+    "new_ours": 0,
+    "new_others": 42,
+    "new_unattributed": 39
+  },
+  "arithmetic": "baseline 203 = unchanged 184 + fixed 17 + missing 2  |  current 266 = unchanged 184 + new 81 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "37703530663",
+  "current_run_id": "38003752583",
+  "baseline_sha": "18676e3eceb6cbeb2ec71550478f7782d29db45c",
+  "current_sha": "f792113299189d1e3270cb2f3ae7191606c160b6",
+  "commit_range": "18676e3eceb6cbeb2ec71550478f7782d29db45c..f792113299189d1e3270cb2f3ae7191606c160b6",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_alert_destination|test_the_importers_of_this_module_are_EXACTLY_the_converted_roster",
+    "pytest|tests.test_compute_graph|test_a_client_may_not_widen_its_own_bounds",
+    "pytest|tests.test_compute_graph|test_a_detached_graph_locator_reports_detached_rather_than_refusing",
+    "pytest|tests.test_compute_graph|test_a_disagreeing_inlining_is_refused",
+    "pytest|tests.test_compute_graph|test_a_graph_parameter_reconciles_attached",
+    "pytest|tests.test_compute_graph|test_a_mixed_locator_shape_is_refused",
+    "pytest|tests.test_compute_graph|test_a_parameter_with_no_locators_is_legal_and_reports_detached",
+    "pytest|tests.test_compute_graph|test_a_read_modify_write_round_trip_stays_small",
+    "pytest|tests.test_compute_graph|test_a_single_root_graph_is_refused",
+    "pytest|tests.test_compute_graph|test_a_v1_document_is_untouched",
+    "pytest|tests.test_compute_graph|test_a_v1_document_saves_edits_and_reopens",
+    "pytest|tests.test_compute_graph|test_a_v1_locator_that_cannot_be_re_expressed_reports_detached",
+    "pytest|tests.test_compute_graph|test_an_edit_may_not_mint_a_new_parameter_identity",
+    "pytest|tests.test_compute_graph|test_an_unplaceable_parameter_still_cannot_be_edited",
+    "pytest|tests.test_compute_graph|test_attack_a_path_that_walks_off_the_node",
+    "pytest|tests.test_compute_graph|test_attack_altered_bounds_in_both_directions",
+    "pytest|tests.test_compute_graph|test_attack_altered_type",
+    "pytest|tests.test_compute_graph|test_attack_forged_locator_is_not_bounds_checked_it_is_DISCARDED",
+    "pytest|tests.test_compute_graph|test_attack_invented_parameter_id",
+    "pytest|tests.test_compute_graph|test_attack_mismatched_ownership_two_parameters_one_node",
+    "pytest|tests.test_compute_graph|test_attack_stale_manifest_against_a_moved_graph",
+    "pytest|tests.test_compute_graph|test_attack_transplanted_parameter_from_another_definition",
+    "pytest|tests.test_compute_graph|test_one_locator_moves_every_plot_that_shares_the_node",
+    "pytest|tests.test_compute_graph|test_source_text_may_not_ride_on_a_graph_document",
+    "pytest|tests.test_compute_graph|test_the_declared_bounds_are_enforced_at_the_graph_locator",
+    "pytest|tests.test_compute_graph|test_the_graph_document_is_smaller",
+    "pytest|tests.test_compute_graph|test_the_graph_is_the_program",
+    "pytest|tests.test_compute_graph|test_the_identity_does_not_move",
+    "pytest|tests.test_compute_graph|test_the_migration_cannot_be_used_to_widen_a_bound",
+    "pytest|tests.test_compute_graph|test_two_rosters_over_one_tree_are_refused",
+    "pytest|tests.test_compute_graph|test_v1_then_v2_keeps_the_parameter_attached",
+    "pytest|tests.test_compute_graph|test_v1_then_v2_then_edit_then_reopen",
+    "pytest|tests.test_graph_wire_size|test_the_bomb_is_still_refused_on_the_write_path",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_names_a_later_commit_that_merged_clean_on_the_landings_files",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_refuses_what_is_not_a_landing_there",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_reverts_a_pending_landing_and_keeps_the_keep_list",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_says_when_the_landing_has_not_merged_the_base",
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_stops_on_a_product_conflict_and_never_uses_a_recorded_rule",
+    "pytest|tests.test_notebook_rollback_chain|test_the_landing_keep_list_applies_at_its_own_chain_step_and_at_no_other",
+    "pytest|tests.test_notebook_rollback_chain|test_under_wave_11_the_chain_differs_from_what_R1h_rehearsed_only_where_it_must",
+    "pytest|tests.test_param_manifest|test_10_a_parameter_change_produces_a_new_ast_hash_for_scan_keying",
+    "pytest|tests.test_param_manifest|test_11_one_input_feeding_two_trees_updates_both_bindings_atomically",
+    "pytest|tests.test_param_manifest|test_12_one_of_two_locators_disappearing_is_PARTIALLY_DETACHED_not_a_half_working_slider",
+    "pytest|tests.test_param_manifest|test_13_two_locators_that_disagree_across_trees_is_CONFLICTED",
+    "pytest|tests.test_param_manifest|test_14_a_crafted_manifest_widening_an_existing_parameters_bound_is_defeated",
+    "pytest|tests.test_param_manifest|test_14b_a_crafted_manifest_changing_type_or_frozen_status_is_ignored",
+    "pytest|tests.test_param_manifest|test_14c_a_genuinely_new_parameter_on_a_FRESH_creation_is_legitimately_trusted",
+    "pytest|tests.test_param_manifest|test_15_a_crafted_PUT_cannot_invent_a_new_trusted_parameter_on_an_existing_definition",
+    "pytest|tests.test_param_manifest|test_15b_a_second_definition_may_legitimately_have_its_own_fresh_parameter",
+    "pytest|tests.test_param_manifest|test_16_a_bool_parameter_accepts_0_and_1_and_toggles_cleanly",
+    "pytest|tests.test_param_manifest|test_17_a_bool_parameter_REJECTS_anything_outside_0_or_1_no_coercion",
+    "pytest|tests.test_param_manifest|test_17b_a_bool_bound_to_a_JSON_true_literal_is_refused_even_earlier_than_param_manifest",
+    "pytest|tests.test_param_manifest|test_18_a_crafted_manifest_swapping_bool_for_int_type_is_ignored",
+    "pytest|tests.test_param_manifest|test_1_one_numeric_parameter_imports_adjustable_and_overrides_cleanly",
+    "pytest|tests.test_param_manifest|test_2_two_independent_parameters_change_without_disturbing_each_other",
+    "pytest|tests.test_param_manifest|test_3_one_parameter_at_multiple_locations_updates_all_locators_atomically",
+    "pytest|tests.test_param_manifest|test_3b_multiple_locators_that_DISAGREE_are_conflicted_not_silently_resolved",
+    "pytest|tests.test_param_manifest|test_4_offset_window_case_the_literal_survives_a_parameter_change",
+    "pytest|tests.test_param_manifest|test_5_manual_edit_of_the_binding_value_is_the_same_path_as_a_UI_edit",
+    "pytest|tests.test_param_manifest|test_6_a_deleted_binding_DETACHES_and_does_not_block_the_save",
+    "pytest|tests.test_param_manifest|test_6b_a_binding_rewritten_to_a_non_literal_is_NON_LITERAL_not_a_crash",
+    "pytest|tests.test_param_manifest|test_7_a_lookback_increasing_change_is_accepted_and_reflected",
+    "pytest|tests.test_param_manifest|test_8_an_out_of_range_override_is_REJECTED_not_clamped",
+    "pytest|tests.test_param_manifest|test_8b_the_boundary_values_are_inclusive_not_an_off_by_one",
+    "pytest|tests.test_param_manifest|test_9_forget_still_fires_on_every_save_that_carries_a_paramManifest",
+    "pytest|tests.test_param_repaste_c46|test_a_control_WITHOUT_the_carry_the_same_paste_is_refused",
+    "pytest|tests.test_param_repaste_c46|test_a_the_same_pine_pasted_over_the_pre_c46_document_SAVES_with_the_same_ids_and_values",
+    "pytest|tests.test_param_repaste_c46|test_b_an_input_ADDED_on_an_edit_is_refused_by_condition_15_and_nothing_is_stored",
+    "pytest|tests.test_param_repaste_c46|test_base_record_an_ADDED_input_was_refused_at_base_too",
+    "pytest|tests.test_param_repaste_c46|test_base_record_the_RENAMED_paste_sends_what_base_sent",
+    "pytest|tests.test_param_repaste_c46|test_c2_a_rename_beside_an_ADDED_input_is_refused_for_the_added_one_only",
+    "pytest|tests.test_param_repaste_c46|test_c3_two_inputs_SWAPPED_in_the_source_save_under_their_own_ids",
+    "pytest|tests.test_param_repaste_c46|test_c4_a_rename_with_a_changed_KIND_is_a_new_identity_and_is_refused",
+    "pytest|tests.test_param_repaste_c46|test_c5_two_renames_at_once_save_under_both_saved_ids",
+    "pytest|tests.test_param_repaste_c46|test_c_a_RENAMED_input_keeps_its_saved_id_and_SAVES",
+    "pytest|tests.test_param_repaste_c46|test_d_a_FRESH_paste_into_a_new_definition_saves_with_source_ids",
+    "pytest|tests.test_scan_evaluator_off_request_path|test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes",
+    "pytest|tests.test_skill_whitelist|test_the_committed_whitelist_is_exactly_what_the_route_table_generates",
+    "pytest|tests.test_terminal_next_kill_switch|test_every_frontend_gate_answers_from_the_payload_the_switch_empties",
+    "pytest|tests.test_terminal_seen|test_route_answers_and_is_gated",
+    "pytest|tests.test_workspace_doc_terminal_board|test_the_terminal_key_set_is_exactly_what_the_shell_persists"
+  ],
+  "missing": [
+    "pytest|tests.test_notebook_bench_uct|test_every_selector_the_runner_uses_is_in_the_product[app/src/components/CommandPalette.jsx-e.key.toLowerCase() === 'k']",
+    "pytest|tests.test_notebook_trade_canvas|test_the_ledger_declares_the_gate_dark_with_a_reason"
+  ],
+  "fixed": [
+    "pytest|tests.test_auth_surface_reads|test_the_SERVED_app_has_no_UNRECORDED_open_read_and_no_stale_entry",
+    "pytest|tests.test_canonical_address_book|test_the_book_agrees_with_breadth_metrics_py_about_each_SENTENCE",
+    "pytest|tests.test_canonical_address_book|test_the_checked_in_book_IS_what_the_declarations_derive",
+    "pytest|tests.test_discord_render_observe|test_no_module_in_the_v2_package_calls_log_exception",
+    "pytest|tests.test_earnings_window_single_walk|test_both_consumers_agree_across_the_window",
+    "pytest|tests.test_feature_flag_ledger|test_every_off_by_default_gate_is_declared",
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_notebook_bridges_pin_the_root|test_every_notebook_tool_that_imports_api_applies_the_census_first",
+    "pytest|tests.test_notebook_route_security_census|test_every_notebook_route_on_the_real_app_is_classified_and_agrees",
+    "pytest|tests.test_notebook_switch_rehearsal|test_every_notebook_gate_is_rehearsed_or_carries_a_reason",
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_document_excerpt]",
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_financial_fact]",
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_widget_embed]",
+    "pytest|tests.test_open_reads_gate|test_v_the_census_reflects_the_gating",
+    "pytest|tests.test_term018_every_guard_can_fire|test_the_pytest_collection_probe_can_answer_NO",
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/research/sections/CatalystsSection.test.jsx|CatalystsSection > shows the finding state while catalysts generate and lands on its own (polls)",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing",
+    "vitest|src/pages/journal-2-0/components/notebook/CaptureHost.test.jsx|capture preserves the member context (\u00a75/\u00a720) > closing returns the dialog to nothing",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [
+    "pytest|tests.test_notebook_bench_uct|test_every_selector_the_runner_uses_is_in_the_product[app/src/components/CommandPalette.jsx-e.key.toLowerCase() === 'k']",
+    "pytest|tests.test_notebook_trade_canvas|test_the_ledger_declares_the_gate_dark_with_a_reason"
+  ],
+  "missing_buckets": {
+    "pytest|tests.test_notebook_bench_uct|test_every_selector_the_runner_uses_is_in_the_product[app/src/components/CommandPalette.jsx-e.key.toLowerCase() === 'k']": [
+      "DE-COLLECTED",
+      "tests/test_notebook_bench_uct.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ],
+    "pytest|tests.test_notebook_trade_canvas|test_the_ledger_declares_the_gate_dark_with_a_reason": [
+      "DE-COLLECTED",
+      "tests/test_notebook_trade_canvas.py still exists and was neither deleted nor renamed in the diff \u2014 it stopped being COLLECTED"
+    ]
+  },
+  "attribution": {
+    "pytest|tests.test_alert_destination|test_the_importers_of_this_module_are_EXACTLY_the_converted_roster": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_alert_destination.py or anything it imports"
+    },
+    "pytest|tests.test_compute_graph|test_a_client_may_not_widen_its_own_bounds": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_a_detached_graph_locator_reports_detached_rather_than_refusing": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_a_disagreeing_inlining_is_refused": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_a_graph_parameter_reconciles_attached": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_a_mixed_locator_shape_is_refused": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_a_parameter_with_no_locators_is_legal_and_reports_detached": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_a_read_modify_write_round_trip_stays_small": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_a_single_root_graph_is_refused": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_a_v1_document_is_untouched": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_a_v1_document_saves_edits_and_reopens": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_a_v1_locator_that_cannot_be_re_expressed_reports_detached": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_an_edit_may_not_mint_a_new_parameter_identity": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_an_unplaceable_parameter_still_cannot_be_edited": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_attack_a_path_that_walks_off_the_node": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_attack_altered_bounds_in_both_directions": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_attack_altered_type": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_attack_forged_locator_is_not_bounds_checked_it_is_DISCARDED": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_attack_invented_parameter_id": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_attack_mismatched_ownership_two_parameters_one_node": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_attack_stale_manifest_against_a_moved_graph": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_attack_transplanted_parameter_from_another_definition": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_one_locator_moves_every_plot_that_shares_the_node": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_source_text_may_not_ride_on_a_graph_document": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_the_declared_bounds_are_enforced_at_the_graph_locator": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_the_graph_document_is_smaller": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_the_graph_is_the_program": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_the_identity_does_not_move": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_the_migration_cannot_be_used_to_widen_a_bound": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_two_rosters_over_one_tree_are_refused": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_v1_then_v2_keeps_the_parameter_attached": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_compute_graph|test_v1_then_v2_then_edit_then_reopen": {
+      "class": "imported-file-change",
+      "commits": [
+        "1a097a789",
+        "4b9796e96"
+      ],
+      "workstreams": [
+        {
+          "commit": "1a097a789",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "4b9796e96",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_graph_wire_size|test_the_bomb_is_still_refused_on_the_write_path": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_graph_wire_size.py or anything it imports"
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_names_a_later_commit_that_merged_clean_on_the_landings_files": {
+      "class": "test-file-change",
+      "commits": [
+        "2265f4ac3"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_refuses_what_is_not_a_landing_there": {
+      "class": "test-file-change",
+      "commits": [
+        "2265f4ac3"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_reverts_a_pending_landing_and_keeps_the_keep_list": {
+      "class": "test-file-change",
+      "commits": [
+        "2265f4ac3"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_says_when_the_landing_has_not_merged_the_base": {
+      "class": "test-file-change",
+      "commits": [
+        "2265f4ac3"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_landing_mode_stops_on_a_product_conflict_and_never_uses_a_recorded_rule": {
+      "class": "test-file-change",
+      "commits": [
+        "2265f4ac3"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_the_landing_keep_list_applies_at_its_own_chain_step_and_at_no_other": {
+      "class": "test-file-change",
+      "commits": [
+        "2265f4ac3"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_under_wave_11_the_chain_differs_from_what_R1h_rehearsed_only_where_it_must": {
+      "class": "test-file-change",
+      "commits": [
+        "2265f4ac3"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_param_manifest|test_10_a_parameter_change_produces_a_new_ast_hash_for_scan_keying": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_11_one_input_feeding_two_trees_updates_both_bindings_atomically": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_12_one_of_two_locators_disappearing_is_PARTIALLY_DETACHED_not_a_half_working_slider": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_13_two_locators_that_disagree_across_trees_is_CONFLICTED": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_14_a_crafted_manifest_widening_an_existing_parameters_bound_is_defeated": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_14b_a_crafted_manifest_changing_type_or_frozen_status_is_ignored": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_14c_a_genuinely_new_parameter_on_a_FRESH_creation_is_legitimately_trusted": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_15_a_crafted_PUT_cannot_invent_a_new_trusted_parameter_on_an_existing_definition": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_15b_a_second_definition_may_legitimately_have_its_own_fresh_parameter": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_16_a_bool_parameter_accepts_0_and_1_and_toggles_cleanly": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_17_a_bool_parameter_REJECTS_anything_outside_0_or_1_no_coercion": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_17b_a_bool_bound_to_a_JSON_true_literal_is_refused_even_earlier_than_param_manifest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_18_a_crafted_manifest_swapping_bool_for_int_type_is_ignored": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_1_one_numeric_parameter_imports_adjustable_and_overrides_cleanly": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_2_two_independent_parameters_change_without_disturbing_each_other": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_3_one_parameter_at_multiple_locations_updates_all_locators_atomically": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_3b_multiple_locators_that_DISAGREE_are_conflicted_not_silently_resolved": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_4_offset_window_case_the_literal_survives_a_parameter_change": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_5_manual_edit_of_the_binding_value_is_the_same_path_as_a_UI_edit": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_6_a_deleted_binding_DETACHES_and_does_not_block_the_save": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_6b_a_binding_rewritten_to_a_non_literal_is_NON_LITERAL_not_a_crash": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_7_a_lookback_increasing_change_is_accepted_and_reflected": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_8_an_out_of_range_override_is_REJECTED_not_clamped": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_8b_the_boundary_values_are_inclusive_not_an_off_by_one": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_manifest|test_9_forget_still_fires_on_every_save_that_carries_a_paramManifest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_manifest.py or anything it imports"
+    },
+    "pytest|tests.test_param_repaste_c46|test_a_control_WITHOUT_the_carry_the_same_paste_is_refused": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_repaste_c46.py or anything it imports"
+    },
+    "pytest|tests.test_param_repaste_c46|test_a_the_same_pine_pasted_over_the_pre_c46_document_SAVES_with_the_same_ids_and_values": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_repaste_c46.py or anything it imports"
+    },
+    "pytest|tests.test_param_repaste_c46|test_b_an_input_ADDED_on_an_edit_is_refused_by_condition_15_and_nothing_is_stored": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_repaste_c46.py or anything it imports"
+    },
+    "pytest|tests.test_param_repaste_c46|test_base_record_an_ADDED_input_was_refused_at_base_too": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_repaste_c46.py or anything it imports"
+    },
+    "pytest|tests.test_param_repaste_c46|test_base_record_the_RENAMED_paste_sends_what_base_sent": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_repaste_c46.py or anything it imports"
+    },
+    "pytest|tests.test_param_repaste_c46|test_c2_a_rename_beside_an_ADDED_input_is_refused_for_the_added_one_only": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_repaste_c46.py or anything it imports"
+    },
+    "pytest|tests.test_param_repaste_c46|test_c3_two_inputs_SWAPPED_in_the_source_save_under_their_own_ids": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_repaste_c46.py or anything it imports"
+    },
+    "pytest|tests.test_param_repaste_c46|test_c4_a_rename_with_a_changed_KIND_is_a_new_identity_and_is_refused": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_repaste_c46.py or anything it imports"
+    },
+    "pytest|tests.test_param_repaste_c46|test_c5_two_renames_at_once_save_under_both_saved_ids": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_repaste_c46.py or anything it imports"
+    },
+    "pytest|tests.test_param_repaste_c46|test_c_a_RENAMED_input_keeps_its_saved_id_and_SAVES": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_repaste_c46.py or anything it imports"
+    },
+    "pytest|tests.test_param_repaste_c46|test_d_a_FRESH_paste_into_a_new_definition_saves_with_source_ids": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_param_repaste_c46.py or anything it imports"
+    },
+    "pytest|tests.test_scan_evaluator_off_request_path|test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes": {
+      "class": "imported-file-change",
+      "commits": [
+        "2265f4ac3",
+        "fe239d471",
+        "0fa46471f",
+        "acaa19019",
+        "718482b10",
+        "931132c40",
+        "bd865b78a",
+        "5400abda2",
+        "edf36e51d",
+        "bdaa5ebf4",
+        "3ba421547"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "fe239d471",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0fa46471f",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "acaa19019",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "718482b10",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "931132c40",
+          "workstream": "wave3/au-c",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "bd865b78a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "5400abda2",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "edf36e51d",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "bdaa5ebf4",
+          "workstream": "revert",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3ba421547",
+          "workstream": "feat/uct-agent-m1",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_skill_whitelist|test_the_committed_whitelist_is_exactly_what_the_route_table_generates": {
+      "class": "imported-file-change",
+      "commits": [
+        "2265f4ac3",
+        "fe239d471",
+        "0fa46471f",
+        "acaa19019",
+        "718482b10",
+        "931132c40",
+        "bd865b78a",
+        "5400abda2",
+        "edf36e51d",
+        "bdaa5ebf4",
+        "3ba421547"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "fe239d471",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0fa46471f",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "acaa19019",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "718482b10",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "931132c40",
+          "workstream": "wave3/au-c",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "bd865b78a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "5400abda2",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "edf36e51d",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "bdaa5ebf4",
+          "workstream": "revert",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3ba421547",
+          "workstream": "feat/uct-agent-m1",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_terminal_next_kill_switch|test_every_frontend_gate_answers_from_the_payload_the_switch_empties": {
+      "class": "test-file-change",
+      "commits": [
+        "718482b10",
+        "dd873b0f1",
+        "086a841de",
+        "34eba9a2e",
+        "3440cff19"
+      ],
+      "workstreams": [
+        {
+          "commit": "718482b10",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "dd873b0f1",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "086a841de",
+          "workstream": "wave3/au-e",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "34eba9a2e",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3440cff19",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_terminal_seen|test_route_answers_and_is_gated": {
+      "class": "test-file-change",
+      "commits": [
+        "dd873b0f1"
+      ],
+      "workstreams": [
+        {
+          "commit": "dd873b0f1",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_workspace_doc_terminal_board|test_the_terminal_key_set_is_exactly_what_the_shell_persists": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_workspace_doc_terminal_board.py or anything it imports"
+    },
+    "pytest|tests.test_auth_surface_reads|test_the_SERVED_app_has_no_UNRECORDED_open_read_and_no_stale_entry": {
+      "class": "imported-file-change",
+      "commits": [
+        "2265f4ac3",
+        "fe239d471",
+        "0fa46471f",
+        "acaa19019",
+        "718482b10",
+        "931132c40",
+        "bd865b78a",
+        "5400abda2",
+        "edf36e51d",
+        "bdaa5ebf4",
+        "3ba421547"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "fe239d471",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0fa46471f",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "acaa19019",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "718482b10",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "931132c40",
+          "workstream": "wave3/au-c",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "bd865b78a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "5400abda2",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "edf36e51d",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "bdaa5ebf4",
+          "workstream": "revert",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3ba421547",
+          "workstream": "feat/uct-agent-m1",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_canonical_address_book|test_the_book_agrees_with_breadth_metrics_py_about_each_SENTENCE": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_canonical_address_book.py or anything it imports"
+    },
+    "pytest|tests.test_canonical_address_book|test_the_checked_in_book_IS_what_the_declarations_derive": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_canonical_address_book.py or anything it imports"
+    },
+    "pytest|tests.test_discord_render_observe|test_no_module_in_the_v2_package_calls_log_exception": {
+      "class": "test-file-change",
+      "commits": [
+        "e61233f58"
+      ],
+      "workstreams": [
+        {
+          "commit": "e61233f58",
+          "workstream": "discord_render",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_earnings_window_single_walk|test_both_consumers_agree_across_the_window": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_earnings_window_single_walk.py or anything it imports"
+    },
+    "pytest|tests.test_feature_flag_ledger|test_every_off_by_default_gate_is_declared": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_feature_flag_ledger.py or anything it imports"
+    },
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped": {
+      "class": "imported-file-change",
+      "commits": [
+        "2265f4ac3",
+        "fe239d471",
+        "0fa46471f",
+        "acaa19019",
+        "718482b10",
+        "931132c40",
+        "bd865b78a",
+        "5400abda2",
+        "edf36e51d",
+        "bdaa5ebf4",
+        "3ba421547",
+        "2ff7422ff",
+        "b48e158a5"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "fe239d471",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0fa46471f",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "acaa19019",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "718482b10",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "931132c40",
+          "workstream": "wave3/au-c",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "bd865b78a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "5400abda2",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "edf36e51d",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "bdaa5ebf4",
+          "workstream": "revert",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3ba421547",
+          "workstream": "feat/uct-agent-m1",
+          "confidence": "nearest-merge",
+          "ours": false
+        },
+        {
+          "commit": "2ff7422ff",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b48e158a5",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_notebook_bridges_pin_the_root|test_every_notebook_tool_that_imports_api_applies_the_census_first": {
+      "class": "test-file-change",
+      "commits": [
+        "2265f4ac3"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_route_security_census|test_every_notebook_route_on_the_real_app_is_classified_and_agrees": {
+      "class": "imported-file-change",
+      "commits": [
+        "2265f4ac3",
+        "fe239d471",
+        "0fa46471f",
+        "acaa19019",
+        "718482b10",
+        "931132c40",
+        "bd865b78a",
+        "5400abda2",
+        "edf36e51d",
+        "bdaa5ebf4",
+        "3ba421547"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "fe239d471",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0fa46471f",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "acaa19019",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "718482b10",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "931132c40",
+          "workstream": "wave3/au-c",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "bd865b78a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "5400abda2",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "edf36e51d",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "bdaa5ebf4",
+          "workstream": "revert",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3ba421547",
+          "workstream": "feat/uct-agent-m1",
+          "confidence": "nearest-merge",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_switch_rehearsal|test_every_notebook_gate_is_rehearsed_or_carries_a_reason": {
+      "class": "test-file-change",
+      "commits": [
+        "2265f4ac3"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_document_excerpt]": {
+      "class": "test-file-change",
+      "commits": [
+        "2265f4ac3"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_financial_fact]": {
+      "class": "test-file-change",
+      "commits": [
+        "2265f4ac3"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_widget_embed]": {
+      "class": "test-file-change",
+      "commits": [
+        "2265f4ac3"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_open_reads_gate|test_v_the_census_reflects_the_gating": {
+      "class": "imported-file-change",
+      "commits": [
+        "2265f4ac3",
+        "fe239d471",
+        "0fa46471f",
+        "acaa19019",
+        "718482b10",
+        "931132c40",
+        "bd865b78a",
+        "5400abda2",
+        "edf36e51d",
+        "bdaa5ebf4",
+        "3ba421547",
+        "c3fda2011"
+      ],
+      "workstreams": [
+        {
+          "commit": "2265f4ac3",
+          "workstream": "Notebook waves 12 to 15",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "fe239d471",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "0fa46471f",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "acaa19019",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "718482b10",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "931132c40",
+          "workstream": "wave3/au-c",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "bd865b78a",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "5400abda2",
+          "workstream": "perf",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "edf36e51d",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "bdaa5ebf4",
+          "workstream": "revert",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "3ba421547",
+          "workstream": "feat/uct-agent-m1",
+          "confidence": "nearest-merge",
+          "ours": false
+        },
+        {
+          "commit": "c3fda2011",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_term018_every_guard_can_fire|test_the_pytest_collection_probe_can_answer_NO": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_term018_every_guard_can_fire.py or anything it imports"
+    },
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 18676e3ec..f79211329 touched tests/test_theme_index_watchlist.py or anything it imports"
+    }
+  }
+}
