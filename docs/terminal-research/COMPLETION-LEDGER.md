@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after X-05 and lane P2): not complete.** 234 of 279 rows are `live` or `moot`; 45 are not (28 `dark`, 8 `building`, 9 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after lane N): not complete.** 234 of 279 rows are `live` or `moot`; 45 are not (30 `dark`, 6 `building`, 9 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,10 +34,10 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 after X-05 and lane P2:
+Printed 2026-10-10 after lane N:
 
 ```
-279 Counter({'live': 194, 'moot': 40, 'dark': 28, 'owner-blocked': 9, 'building': 8})
+279 Counter({'live': 194, 'moot': 40, 'dark': 30, 'owner-blocked': 9, 'building': 6})
 0 duplicate ids
 ```
 
@@ -51,14 +51,14 @@ The per-section split is the same regex applied to each `## ` section:
 |---|---|---|---|---|---|---|
 | 1 Programme records + ship | 17 | 13 | 0 | 1 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
-| 3 TERM-001..093 | 93 | 69 | 9 | 5 | 4 | 6 |
+| 3 TERM-001..093 | 93 | 69 | 11 | 3 | 4 | 6 |
 | 4 BRK-01..10 | 10 | 5 | 4 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 6 | 1 | 1 | 1 | 3 |
 | 6 FT-001..080 | 80 | 57 | 9 | 1 | 4 | 9 |
 | 7 Untracked promises | 58 | 44 | 5 | 0 | 0 | 9 |
-| **total** | **279** | **194** | **28** | **8** | **9** | **40** |
+| **total** | **279** | **194** | **30** | **6** | **9** | **40** |
 
-`building` by lane: P 4 · Notebook 2 · R 2.
+`building` by lane: P 4 · R 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -152,13 +152,13 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-047` | CoverageLine on result surfaces | `dark` | `lane/s2-finish` merged dark (`9e69eddd9`, 2026-10-07): receipts on scans, the six preset scans, volume-scan and `/api/screener/scan`, behind `COVERAGE_RECEIPTS_SCANS_ENABLED` (pending, `docs/feature_flags.json`). Lane f-l6 (`5a16a10e9`, branch-only until merged): the `components/screener/CoverageLine.jsx` shim is retired (`EvidenceTab.jsx` and `ScanResults.jsx` import `components/provenance/CoverageLine` directly) and the terminal `MOST RVOL` lens renders the volume scan's receipt (`app/src/pages/terminal/panels/MoversPanel.jsx`). Arm: `COVERAGE_RECEIPTS_SCANS_ENABLED=1` on web, no prerequisite (`12-decisions/2026-10-10-arming-list.md`). Was `building (Lane S)`. |
 | `TERM-048` | Watchlist alerts onto S7 | `live` | `api/services/alert_taxonomy/watchlist_price_alerts.py:80`. |
 | `TERM-049` | Per-ticker history join | `live` | `api/services/ticker_history.py:43`; LANES2 armed 10-02. |
-| `TERM-050` | One provenance renderer | `building (Notebook)` | Notebook Ask still imports `documentProvenance` (`app/src/pages/journal-2-0/components/notebook/AskPanel.jsx:17`). The terminal's Ask-AI doors are on the I1/S8 rail (`cb8fa7e0c`). |
+| `TERM-050` | One provenance renderer | `dark` | Built 2026-10-10 (lane N, branch `f-n`, `428caa2cf`), ungated, branch-only until merged (live on merge). Notebook Ask no longer imports `documentProvenance`: its Sources rows compose S8's `<Provenance>` (`app/src/pages/journal-2-0/components/notebook/AskPanel.jsx:18`, `:447`) through a small adapter (`app/src/components/provenance/documentOrigin.js:30`), with two additive props on the renderer (`origin` chip and `className`, `app/src/components/provenance/Provenance.jsx:120`); same visible text and accessible name (`AskPanel.test.jsx` scanned-text cases). `documentProvenance` stays (Search, the status line and the scanned-text panel still import it as the one vocabulary). Rails: `app/src/pages/research/i1S8Boundary.test.js:807` (the Ask panel derived from `data-testid="ask-sources"`, a module-import half the element detector could not see, the panel's other findings recorded with reasons at `:798`, a verbatim pre-TERM-050 control that goes red by name; mutation-proved) and the adoption ratchet baseline (AskPanel added, `app/src/components/provenance/panelAdoption.baseline.json`). The terminal's Ask-AI doors were already on the rail (`cb8fa7e0c`). Was `building (Notebook)`. |
 | `TERM-051` | Workspace version history restore | `live` | `app/src/pages/charts/ChartsWorkspace.jsx:2461`. |
 | `TERM-052` | Three personalization publications | `live` | `app/src/components/chart/chartCeilings.js`. |
 | `TERM-053` | Close six dependency-less routes | `live` | `api/open_reads_gate.py:480`. |
 | `TERM-054` | Emit `id:` on streams | `live` | `api/routers/stream.py:91`. |
 | `TERM-055` | Adjustment as labelled policy | `dark` | Intraday split label shipped (`1464023a7`, merged 2026-10-06). The raw "As traded" view is built (`api/services/raw_price_view.py`) behind `RAW_PRICE_VIEW_ENABLED`, still `dark` (`docs/feature_flags.json:2270`). Decided: arm (I-1, `12-decisions/2026-10-07-owner-delegated-decisions.md:29`), the integrator's step. Was `building (Lane P)`. |
-| `TERM-056` | Command-string interchange | `building (Notebook)` | Note-address half in the Notebook editor (`api/services/address_space.py:387`). |
+| `TERM-056` | Command-string interchange | `dark` | Built 2026-10-10 (lane N, branch `f-n`). Both directions: (1) a terminal command pasted into a note (`NVDA GRADE`, `B:<slug>`, `N:42`) becomes a link to `/terminal?cmd=<command>`, the shell's existing run-on-arrival door. Whether a line IS a command is the terminal's one parser's call (`app/src/pages/terminal/commandInterchange.js:56`), loaded lazily only while the gate is on (`app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx:1635`, paste at `:2405`, `app/src/pages/journal-2-0/lib/terminalCommandPaste.js:12`); the schema keeps the href (`lib/tiptap.js:269`) and Ctrl/Cmd+click (plain click read-only) opens it (`lib/linkClickOpen.js:80`). (2) a note address typed in the command line opens the note: the address space resolves `N:<id>` (`app/src/pages/terminal/TerminalShell.jsx:824`), now pinned typed and as `?cmd=` (`TerminalShell.audit2.test.jsx`). Behind `NOTEBOOK_TERMINAL_LINKS_ENABLED` (`pending`, `docs/feature_flags.json:1637`; payload row `api/routers/auth.py:256`); half (2) rides `ADDRESS_SPACE_ENABLED` (armed). Arm: `NOTEBOOK_TERMINAL_LINKS_ENABLED=1` on web after merge. Tests: `commandInterchange.test.js`, `lib/terminalCommandPaste.test.js`. The Floor half was built 2026-09-29 (`api/services/address_space.py:278`). Was `building (Notebook)`. |
 | `TERM-057` | "Why isn't X here" receipt | `live` | `app/src/components/provenance/AbsenceReceipt.jsx:7`. |
 | `TERM-058` | Authoring-time live match count | `live` | `api/routers/screener.py:258`. |
 | `TERM-059` | Label stale / proxied values | `live` | On master (`6854c3350`, via X-01): AAII as-of labels (`app/src/pages/breadth/sentimentAge.js`), NAAIM (`naaimAge.js`), carried-print labels from `breadth_self_heal`; ungated (`10-roadmap/backlog-status-2026-10-06.md:106`). Was `dark` (branch-only). |
