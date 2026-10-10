@@ -195,8 +195,9 @@ def test_uct_display_tickers_are_the_namespaced_alias_and_identity_is_unchanged(
     display spelling is the existing explicit alias, so it resolves to the same row."""
     dm = bs.display_symbols()
     assert set(dm) == set(bs.SYMBOLS), "every shipped UCT symbol has a UCT: display ticker"
-    for canon, shown in (("UCTA5", "UCT:A5"), ("UCTA50", "UCT:A50"), ("UCTA200", "UCT:A200"),
-                         ("UCTU4", "UCT:U4"), ("UCTD4", "UCT:D4"), ("UCTAAII", "UCT:AAII")):
+    # (2026-10-10) shown with a hair space before the colon — the T kerned it into the colon
+    for canon, shown in (("UCTA5", "UCT :A5"), ("UCTA50", "UCT :A50"), ("UCTA200", "UCT :A200"),
+                         ("UCTU4", "UCT :U4"), ("UCTD4", "UCT :D4"), ("UCTAAII", "UCT :AAII")):
         assert dm[canon] == shown and bs.display_symbol(canon) == shown
         assert bs.resolve(shown)["symbol"] == canon
         assert bs.is_breadth_symbol(canon) and bs.is_breadth_symbol(shown)
@@ -208,7 +209,7 @@ def test_uct_display_tickers_are_the_namespaced_alias_and_identity_is_unchanged(
 
 def test_search_finds_the_uct_display_ticker_and_submits_the_canonical_one():
     hits = bs.search("UCT:A50")
-    assert hits[0]["ticker"] == "UCTA50" and hits[0]["display_ticker"] == "UCT:A50"
+    assert hits[0]["ticker"] == "UCTA50" and hits[0]["display_ticker"] == "UCT :A50"
     assert hits[0]["symbol_hit"] is True
     pref = [h["ticker"] for h in bs.search("UCT:A") if h["symbol_hit"]]
     assert {"UCTA5", "UCTA10", "UCTA50", "UCTA200"} <= set(pref)
@@ -219,7 +220,7 @@ def test_search_finds_the_uct_display_ticker_and_submits_the_canonical_one():
 def test_breadth_symbols_endpoint_carries_display_map_beside_unchanged_symbols():
     from api.routers.breadth_monitor import get_breadth_symbols
     out = get_breadth_symbols(_access={})
-    assert out["display_symbols"]["UCTA50"] == "UCT:A50"
+    assert out["display_symbols"]["UCTA50"] == "UCT :A50"
     assert all("display_symbol" not in r for r in out["symbols"])
 
 
@@ -299,3 +300,25 @@ def test_a_restart_serves_the_persisted_series_without_building(tmp_path, monkey
     assert builds == ["UCTA50"] and kicked == []                 # no build; copy is current
     assert bs._restore_from_disk("UCTA50")
     bs._breadth_cache.clear()
+
+
+def test_breadth_search_keywords_and_colon_free_spellings(monkeypatch):
+    """2026-10-10 owner: `NASDAQA50` / `NASDAQ A50` find NASDAQ:A50; `NASDAQ %` and `% of nasdaq
+    stocks` find the Nasdaq % series; `USNA` (a stock) is never re-mapped to US:NA."""
+    from api.services import breadth_symbols as bs
+    rows = [{"symbol": "NASDAQ:A50", "name": "% of Stocks Above 50-Day MA", "group_label": "MA",
+             "universe_label": "Nasdaq"},
+            {"symbol": "NYSE:A50", "name": "% of Stocks Above 50-Day MA", "group_label": "MA",
+             "universe_label": "NYSE"},
+            {"symbol": "US:NA", "name": "Net Advances", "group_label": "Mom", "universe_label": "US"},
+            {"symbol": "UCTA50", "name": "% of Stocks Above 50-Day MA", "group_label": "MA"}]
+    monkeypatch.setattr(bs, "list_breadth_symbols", lambda: rows)
+    for q in ("NASDAQA50", "nasdaq a50", "NASDAQ;A50", "NASDAQ:A50"):
+        out = bs.search(q)
+        assert out and out[0]["ticker"] == "NASDAQ:A50" and out[0]["symbol_hit"], q
+    for q in ("NASDAQ %", "nasdaq%", "% of nasdaq stocks"):
+        assert [r["ticker"] for r in bs.search(q)] == ["NASDAQ:A50"], q
+    assert {r["ticker"] for r in bs.search("UCT %")} == {"UCTA50"}
+    assert not any(r["ticker"] == "US:NA" and r["symbol_hit"] for r in bs.search("USNA"))
+    assert bs.display_symbol("UCTA50") == "UCT\u200a:A50"
+    assert bs.search("UCT:A50")[0]["ticker"] == "UCTA50"

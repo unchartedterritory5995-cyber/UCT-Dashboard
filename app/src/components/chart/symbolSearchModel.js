@@ -86,7 +86,17 @@ export const matchQ = (r, q) => {
   const qu = q.toUpperCase()
   if (String(r.ticker || '').includes(qu) || String(r.name || '').toUpperCase().includes(qu)) return true
   if (r.display_ticker && String(r.display_ticker).toUpperCase().includes(qu)) return true
-  return Array.isArray(r.aliases) && r.aliases.some((a) => String(a || '').toUpperCase() === qu)
+  if (Array.isArray(r.aliases) && r.aliases.some((a) => String(a || '').toUpperCase() === qu)) return true
+  // ⭐ (2026-10-10, owner) KEYWORDS, IN ANY ORDER: every word typed must appear somewhere in the
+  // row — its ticker (with or without the colon), what it shows, its name, its group or an alias.
+  // `NASDAQ %` and `% of nasdaq stocks` find NASDAQ:A50; `NASDAQA50` finds it too.
+  const hay = [r.ticker, r.display_ticker, r.name, r.group_label, ...(Array.isArray(r.aliases) ? r.aliases : [])]
+    .filter(Boolean).map((x) => String(x).toUpperCase()).join(' | ')
+  const hayNorm = hay.replace(/[^A-Z0-9%]/g, '')
+  const words = qu.replace(/%/g, ' % ').split(/\s+/).filter(Boolean)   // `NASDAQ%` = NASDAQ + %
+  if (words.length > 1 && words.every((w) => hay.includes(w) || hayNorm.includes(w.replace(/[^A-Z0-9%]/g, '')))) return true
+  const qn = qu.replace(/[^A-Z0-9]/g, '')
+  return qn.length >= 4 && [r.ticker, r.display_ticker].some((x) => x && String(x).toUpperCase().replace(/[^A-Z0-9]/g, '') === qn)
 }
 
 /** The ticker a row SHOWS. ⭐ `ticker` stays the canonical identity the row submits
@@ -189,11 +199,29 @@ export function breadthChipRows(symbols, displayMap, indicators) {
  * on a spelling the client's breadth family map does not hold. Anything else is returned
  * unchanged — this never invents an identity.
  */
+// A ticker reduced to its letters and digits — `NASDAQ A50`, `NASDAQ:A50`, `nasdaq;a50` and
+// `NASDAQA50` are one ticker (2026-10-10, owner); also absorbs the display hair space in `UCT:A50`.
+const _normTicker = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '')
+
 export function canonicalTicker(typed, breadthRows) {
   const t = String(typed || '').trim().toUpperCase()
   if (!t) return t
   for (const r of Array.isArray(breadthRows) ? breadthRows : []) {
     if (r && r.display_ticker && String(r.display_ticker).toUpperCase() === t) return r.ticker
+  }
+  // ⭐ Typed without the colon / with a space: match a breadth row's display or canonical ticker
+  // on letters+digits alone. Only breadth rows are consulted, so a stock symbol is never re-mapped.
+  const tn = _normTicker(t)
+  // ⛔ ONLY WITH A SEPARATOR OR AN EXCHANGE PREFIX: `USNA` is USANA Health Sciences, not US:NA.
+  const _loose = /[\s:;]/.test(t) || /^(NASDAQ|NYSE)/.test(tn)
+  if (tn && _loose) {
+    for (const r of Array.isArray(breadthRows) ? breadthRows : []) {
+      if (!r || !r.ticker) continue
+      if (_normTicker(r.display_ticker) === tn || _normTicker(r.ticker) === tn) {
+        // never shadow an exact non-breadth spelling: only when the canonical differs from t
+        if (String(r.ticker).toUpperCase() !== t) return r.ticker
+      }
+    }
   }
   // ⭐ A vendor spelling (`NASI`, `$NASI`) of a breadth series submits its canonical id too.
   for (const r of Array.isArray(breadthRows) ? breadthRows : []) {

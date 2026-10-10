@@ -216,10 +216,38 @@ def display_symbols() -> dict:
     """
     global _DISPLAY_SYMBOLS
     if _DISPLAY_SYMBOLS is None:
-        _DISPLAY_SYMBOLS = {target.upper(): alias.upper()
+        # ⭐ (2026-10-10, owner) a HAIR SPACE before the colon: the T's crossbar kerns the colon
+        # into it ("UCT:A5" read as touching, "US:A5" did not). Presentation only — every
+        # matcher (`search`, the client's `canonicalTicker`) ignores spaces and colons.
+        _DISPLAY_SYMBOLS = {target.upper(): alias.upper().replace("UCT:", DISPLAY_UCT_PREFIX, 1)
                             for alias, target in library_aliases().items()
                             if target.upper() in SYMBOLS}
     return _DISPLAY_SYMBOLS
+
+
+#: How UCT's display tickers begin: `UCT`, a hair space (U+200A), the colon.
+DISPLAY_UCT_PREFIX = "UCT\u200a:"
+
+
+def _keywords_match(qq: str, rec: dict, shown: str) -> bool:
+    """Every word of a multi-word query appears somewhere in the row — ticker (with or without
+    its colon), display ticker, name, group, universe. (2026-10-10, owner: `NASDAQ %`,
+    `% of nasdaq stocks` must find the Nasdaq "% of Stocks Above …" series.)"""
+    words = [w for w in qq.replace("%", " % ").split() if w]     # `NASDAQ%` = NASDAQ + %
+    if len(words) < 2:
+        return False
+    hay = " | ".join(str(x).upper() for x in (rec.get("symbol"), shown, rec.get("name"),
+                                              rec.get("group_label"), rec.get("universe_label"))
+                     if x)
+    hay_norm = "".join(ch for ch in hay if ch.isalnum() or ch == "%")
+    return all(w in hay or "".join(ch for ch in w if ch.isalnum() or ch == "%") in hay_norm
+               for w in words)
+
+
+def norm_ticker(s: str) -> str:
+    """A ticker as a member might type it, reduced to its letters and digits: `NASDAQ A50`,
+    `NASDAQ:A50`, `nasdaq;a50` and `NASDAQA50` are one ticker (2026-10-10, owner)."""
+    return "".join(ch for ch in (s or "").upper() if ch.isalnum())
 
 
 def display_symbol(sym: str) -> str:
@@ -242,7 +270,7 @@ def resolve(sym: str, published_only: bool = True) -> Optional[dict]:
     from api.services import breadth_universes as _bu
     if not sym:
         return None
-    row = _library_index().get(str(sym).strip().upper())
+    row = _library_index().get(str(sym).replace(" ", "").strip().upper())
     if row is None:
         return None
     # ⛔ ONE PREDICATE. This used to test the universe flag alone, which made a
@@ -505,16 +533,21 @@ def search(qq: str, limit: int = 20) -> list[dict]:
     qq = (qq or "").strip().upper()
     if not qq:
         return []
+    # ⭐ (2026-10-10) punctuation and spaces never matter: `NASDAQA50` / `NASDAQ A50` find
+    # `NASDAQ:A50` exactly as `UCTA50` finds `UCT:A50`.
+    # ⛔ only with a separator or an exchange prefix: `USNA` is USANA Health Sciences, not US:NA.
+    qn = norm_ticker(qq) if (any(c in qq for c in " :;") or qq.startswith(("NASDAQ", "NYSE"))) else ""
     exact, prefix, namesub = [], [], []
     for rec in list_breadth_symbols():
         sym, name = rec["symbol"], rec["name"]
         # ⭐ The member-facing `UCT:A50` matches exactly like the canonical `UCTA50`.
         shown = display_symbol(sym)
-        if qq in (sym, shown):
+        sn, hn = norm_ticker(sym), norm_ticker(shown)
+        if qq in (sym, shown) or (qn and qn in (sn, hn)):
             exact.append((rec, True))
-        elif sym.startswith(qq) or shown.startswith(qq):
+        elif sym.startswith(qq) or shown.startswith(qq) or (qn and (sn.startswith(qn) or hn.startswith(qn))):
             prefix.append((rec, True))
-        elif qq in sym or qq in shown or qq in name.upper():
+        elif qq in sym or qq in shown or qq in name.upper() or _keywords_match(qq, rec, shown):
             namesub.append((rec, False))
     out = []
     for rec, symbol_hit in (exact + prefix + namesub)[:limit]:
