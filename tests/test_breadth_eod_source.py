@@ -60,8 +60,14 @@ def env(tmp_path, monkeypatch):
     """A temp breadth store, a temp shadow store and a synthetic bars.db whose last
     session (2026-09-25) is priced for 142 of 150 names (coverage 0.947 < 0.95)
     unless `full=True` is asked for via `env.rebuild(full=True)`."""
-    for k in ("BREADTH_EOD_SOURCE", "BREADTH_EOD_SERVER_FROM", "BREADTH_DIVIDEND_BASIS"):
+    for k in ("BREADTH_EOD_SOURCE", "BREADTH_EOD_SERVER_FROM", "BREADTH_DIVIDEND_BASIS",
+              "BREADTH_EOD_UNIVERSE"):
         monkeypatch.delenv(k, raising=False)
+    # The server-built universe needs the provider's grouped frame and the reference
+    # map (network). Off here by default: these cases rail the collector-list path;
+    # the server-universe cases below install their own list.
+    monkeypatch.setattr(eod, "server_universe_for",
+                        lambda d: ([], "server universe unavailable: not in tests"))
     monkeypatch.setattr(bm, "_db_path", lambda: str(tmp_path / "bm.db"))
     monkeypatch.setenv("BREADTH_EOD_SHADOW_DB", str(tmp_path / "shadow.db"))
     import api.services.cache as cache_mod
@@ -395,10 +401,14 @@ def test_a_tick_computes_at_most_its_budget(env, monkeypatch):
     monkeypatch.setenv("BREADTH_EOD_SOURCE", "shadow")
     calls = []
     monkeypatch.setattr(eod, "shadow_date",
-                        lambda d: calls.append(d) or {"date": d, "computed": True})
+                        lambda d: calls.append(("c", d)) or {"date": d, "computed": True})
+    # (2026-10-10) the server-universe run shares the same budget
+    monkeypatch.setattr(eod, "shadow_server_universe",
+                        lambda d: calls.append(("s", d)) or {"date": d, "computed": True})
     last = date.fromisoformat(env.last)
     out = eod.tick(datetime(last.year, last.month, last.day, 22, 0, tzinfo=_ET))
     assert out["ran"] and len(calls) == eod._MAX_PER_TICK
+    assert calls[0][0] == "c" and calls[1] == ("s", calls[0][1])
 
 
 def test_the_status_route_needs_the_push_secret(env, monkeypatch):
@@ -475,7 +485,80 @@ def test_a_failed_or_ungraded_session_BREAKS_the_run_it_is_never_skipped():
 
 
 def test_the_parity_report_carries_the_switch_reading(env, monkeypatch):
-    monkeypatch.setattr(eod, "shadow_records", lambda limit=60: [_rec("2026-10-02")])
+    monkeypatch.setattr(eod, "shadow_records", lambda limit=60, table=None: [_rec("2026-10-02")])
     rep = eod.parity_report()
     assert rep["switch"]["required_consecutive_clean"] == 10
     assert rep["switch"]["consecutive_clean"] == 1 and rep["switch"]["ready"] is False
+
+
+# -- (2026-10-10) the SERVER-built universe: the run that retires the PC --
+
+def test_the_server_universe_run_grades_and_compares_the_lists(env, monkeypatch):
+    res = eod.compute(env.last)
+    bm.store_snapshot(env.last, _collector_row_from(res))
+    server_list = list(env.tickers[:140]) + ["NEWCO"]
+    monkeypatch.setattr(eod, "server_universe_for", lambda d: (server_list, "server:x"))
+    out = eod.shadow_server_universe(env.last)
+    assert out["computed"] and out["run"] == "server_universe"
+    rec = eod.shadow_records(5, eod.TABLE_SERVER_UNIVERSE)[0]
+    assert rec["universe_from"] == "server:x" and rec["universe_size"] == 141
+    cmp_ = rec["report"]["universe_compare"]
+    assert cmp_["both"] == 140 and cmp_["only_server"] == ["NEWCO"]
+    assert cmp_["only_collector_n"] == len(res["members"]["universe_count"]) - 140
+    # its own table: the collector-universe run is untouched
+    assert eod.shadow_records(5) == []
+    # current until the stored row changes
+    assert eod.shadow_server_universe(env.last)["status"] == "current"
+    rep = eod.parity_report(60, eod.TABLE_SERVER_UNIVERSE)
+    assert rep["universe_compare"][0]["date"] == env.last
+
+
+def test_an_unbuildable_server_universe_is_recorded_not_graded(env):
+    res = eod.compute(env.last)
+    bm.store_snapshot(env.last, _collector_row_from(res))
+    out = eod.shadow_server_universe(env.last)          # fixture: unavailable
+    assert out["status"] == "unavailable" and "not in tests" in out["reason"]
+    rec = eod.shadow_records(5, eod.TABLE_SERVER_UNIVERSE)[0]
+    assert rec["status"] == "unavailable"
+
+
+def test_server_mode_measures_over_the_server_universe_first(env, monkeypatch):
+    monkeypatch.setenv("BREADTH_EOD_SOURCE", "server")
+    monkeypatch.setenv("BREADTH_EOD_SERVER_FROM", env.last)
+    monkeypatch.setattr(eod, "server_universe_for",
+                        lambda d: (list(env.tickers), "server:2026-09-24"))
+    assert eod.write_server_row(env.last)["status"] == "written"
+    detail = bm.raw_row(env.last)["_source_detail"]
+    assert detail["universe_from"] == "server:2026-09-24"
+
+
+def test_server_mode_falls_back_to_the_collector_list(env, monkeypatch):
+    monkeypatch.setenv("BREADTH_EOD_SOURCE", "server")
+    monkeypatch.setenv("BREADTH_EOD_SERVER_FROM", env.last)
+    assert eod.write_server_row(env.last)["status"] == "written"   # fixture: unavailable
+    assert bm.raw_row(env.last)["_source_detail"]["universe_from"] == env.prior
+
+
+def test_the_universe_switch_can_pin_the_collector_list(env, monkeypatch):
+    monkeypatch.setenv("BREADTH_EOD_SOURCE", "server")
+    monkeypatch.setenv("BREADTH_EOD_SERVER_FROM", env.last)
+    monkeypatch.setenv("BREADTH_EOD_UNIVERSE", "collector")
+    called = []
+    monkeypatch.setattr(eod, "server_universe_for",
+                        lambda d: called.append(d) or (list(env.tickers), "server:x"))
+    assert eod.write_server_row(env.last)["status"] == "written"
+    assert called == [] and bm.raw_row(env.last)["_source_detail"]["universe_from"] == env.prior
+
+
+def test_the_status_route_carries_both_parity_runs(env, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import breadth_monitor as router
+    monkeypatch.setenv("PUSH_SECRET", "s3cret")
+    app = FastAPI()
+    app.include_router(router.router)
+    r = TestClient(app).get("/api/breadth-monitor/eod-source",
+                            headers={"Authorization": "Bearer s3cret"})
+    body = r.json()
+    assert "parity_server_universe" in body
+    assert body["parity_server_universe"]["universe_compare"] == []

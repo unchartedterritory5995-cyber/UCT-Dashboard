@@ -1434,7 +1434,8 @@ def breadth_eod_source_status(limit: int = Query(default=60, ge=1, le=400),
     reconciliation's own tiers; failures by session date). Reads the shadow store
     only — it computes nothing on the request path."""
     from api.services import breadth_eod_source as eod
-    return {**eod.status(), "parity": eod.parity_report(limit)}
+    return {**eod.status(), "parity": eod.parity_report(limit),
+            "parity_server_universe": eod.parity_report(limit, eod.TABLE_SERVER_UNIVERSE)}
 
 
 @router.get("/api/admin/breadth-eod-source")
@@ -1444,7 +1445,8 @@ def breadth_eod_source_status_admin(limit: int = Query(default=60, ge=1, le=400)
     ADMIN session instead of the worker's PUSH_SECRET bearer, so the parity report
     can be read without handing the worker credential to a person. Read-only."""
     from api.services import breadth_eod_source as eod
-    return {**eod.status(), "parity": eod.parity_report(limit)}
+    return {**eod.status(), "parity": eod.parity_report(limit),
+            "parity_server_universe": eod.parity_report(limit, eod.TABLE_SERVER_UNIVERSE)}
 
 
 @router.get("/api/breadth-monitor/live/dividends")

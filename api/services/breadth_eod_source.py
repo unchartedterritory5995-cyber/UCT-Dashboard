@@ -114,6 +114,17 @@ def server_from() -> Optional[str]:
         return None
 
 
+UNIVERSE_ENV = "BREADTH_EOD_UNIVERSE"
+
+
+def universe_source() -> str:
+    """Which list a `server`-mode write measures over: `server` (default — the
+    server-built list, collector list as fallback) or `collector` (the newest
+    collector list only, the original behaviour). Shadow always runs both."""
+    raw = (os.environ.get(UNIVERSE_ENV) or "").strip().lower()
+    return "collector" if raw == "collector" else "server"
+
+
 def server_writes(date_iso: str) -> bool:
     """True only when `server` mode is armed AND the session is on/after FROM."""
     frm = server_from()
@@ -173,8 +184,24 @@ def _collector_universe_before(date_iso: str) -> tuple:
     return [], None
 
 
-def compute(date_iso: str, conn=None) -> dict:
-    """The server-computed row for one completed session. Never writes."""
+def server_universe_for(date_iso: str) -> tuple:
+    """(tickers, from_label) — the SERVER-built list for this session
+    (`breadth_server_universe`), or ([], reason) when it cannot be built."""
+    try:
+        from api.services import breadth_server_universe as bsu
+        res = bsu.build(date_iso)
+    except Exception as e:                        # noqa: BLE001
+        return [], f"server universe failed: {type(e).__name__}: {e}"
+    if not res.get("ok"):
+        return [], f"server universe unavailable: {res.get('reason')}"
+    return list(res["tickers"]), f"server:{res.get('basis_date')}"
+
+
+def compute(date_iso: str, conn=None, universe: Optional[tuple] = None) -> dict:
+    """The server-computed row for one completed session. Never writes.
+
+    `universe` = `(tickers, from_label)` measures over that list; omitted, the
+    COLLECTOR's newest list before the session (the original behaviour)."""
     from api.services import breadth_live as bl
     try:
         conn = conn or bl._bars_conn()
@@ -183,10 +210,15 @@ def compute(date_iso: str, conn=None) -> dict:
                             (ts,)).fetchone():
             return {"ok": False, "date": date_iso,
                     "reason": "no SPY daily bar for this session in bars.db"}
-        tickers, uni_from = _collector_universe_before(date_iso)
-        if not tickers:
-            return {"ok": False, "date": date_iso,
-                    "reason": "no collector universe_list before this session"}
+        if universe is not None:
+            tickers, uni_from = universe
+            if not tickers:
+                return {"ok": False, "date": date_iso, "reason": uni_from or "empty universe"}
+        else:
+            tickers, uni_from = _collector_universe_before(date_iso)
+            if not tickers:
+                return {"ok": False, "date": date_iso,
+                        "reason": "no collector universe_list before this session"}
         members, capture = {}, {}
         metrics = bl._metrics_at_close(conn, tickers, ts, members=members, capture=capture)
     except Exception as e:                        # noqa: BLE001
@@ -267,9 +299,20 @@ def _shadow_path() -> str:
     return os.path.join(os.path.dirname(bm._db_path()), "breadth_eod_shadow.db")
 
 
-def _shadow_conn() -> sqlite3.Connection:
+#: The two parallel runs: `eod_shadow` measures over the COLLECTOR's universe (the
+#: original parity run); `eod_shadow_su` over the SERVER-built universe
+#: (`breadth_server_universe`) — the run that decides whether the PC can be retired
+#: (2026-10-10, owner: "not rely on my PC").
+TABLE_COLLECTOR_UNIVERSE = "eod_shadow"
+TABLE_SERVER_UNIVERSE = "eod_shadow_su"
+_TABLES = (TABLE_COLLECTOR_UNIVERSE, TABLE_SERVER_UNIVERSE)
+
+
+def _shadow_conn(table: str = TABLE_COLLECTOR_UNIVERSE) -> sqlite3.Connection:
+    if table not in _TABLES:
+        raise ValueError(f"unknown shadow table {table!r}")
     c = sqlite3.connect(_shadow_path(), timeout=5)
-    c.execute("""CREATE TABLE IF NOT EXISTS eod_shadow (
+    c.execute(f"""CREATE TABLE IF NOT EXISTS {table} (
         date TEXT PRIMARY KEY, computed_at REAL NOT NULL, status TEXT NOT NULL,
         reason TEXT, stored_hash TEXT, coverage REAL, universe_size INTEGER,
         universe_from TEXT, dividend_basis INTEGER, report TEXT NOT NULL)""")
@@ -285,14 +328,14 @@ def _hash(stored: Optional[dict]) -> Optional[str]:
 
 
 def _record(date_iso: str, status: str, reason: Optional[str], stored: Optional[dict],
-            result: dict, report: dict) -> dict:
+            result: dict, report: dict, table: str = TABLE_COLLECTOR_UNIVERSE) -> dict:
     rec = {"date": date_iso, "computed_at": time.time(), "status": status, "reason": reason,
            "stored_hash": _hash(stored), "coverage": result.get("coverage"),
            "universe_size": result.get("universe_size"),
            "universe_from": result.get("universe_from"),
            "dividend_basis": int(bool(result.get("dividend_basis"))), "report": report}
-    with closing(_shadow_conn()) as c:
-        c.execute("INSERT OR REPLACE INTO eod_shadow VALUES (?,?,?,?,?,?,?,?,?,?)",
+    with closing(_shadow_conn(table)) as c:
+        c.execute(f"INSERT OR REPLACE INTO {table} VALUES (?,?,?,?,?,?,?,?,?,?)",
                   (rec["date"], rec["computed_at"], status, reason, rec["stored_hash"],
                    rec["coverage"], rec["universe_size"], rec["universe_from"],
                    rec["dividend_basis"], json.dumps(report, default=str)))
@@ -300,12 +343,12 @@ def _record(date_iso: str, status: str, reason: Optional[str], stored: Optional[
     return rec
 
 
-def shadow_records(limit: int = 60) -> list:
+def shadow_records(limit: int = 60, table: str = TABLE_COLLECTOR_UNIVERSE) -> list:
     try:
-        with closing(_shadow_conn()) as c:
+        with closing(_shadow_conn(table)) as c:
             rows = c.execute(
                 "SELECT date, computed_at, status, reason, stored_hash, coverage, "
-                "universe_size, universe_from, dividend_basis, report FROM eod_shadow "
+                f"universe_size, universe_from, dividend_basis, report FROM {table} "
                 "ORDER BY date DESC LIMIT ?", (int(limit),)).fetchall()
     except Exception:
         return []
@@ -319,35 +362,41 @@ def shadow_records(limit: int = 60) -> list:
     return out
 
 
-def _shadow_current(date_iso: str, stored: dict) -> bool:
+def _shadow_current(date_iso: str, stored: dict,
+                    table: str = TABLE_COLLECTOR_UNIVERSE) -> bool:
     """True when the stored row already has an up-to-date shadow record: same
     stored-row hash (a re-push or a heal re-grades it), and a low-coverage
     attempt only counts as current for `_RETRY_LOW_COVERAGE_S`."""
     try:
-        with closing(_shadow_conn()) as c:
-            row = c.execute("SELECT stored_hash, status, computed_at FROM eod_shadow "
+        with closing(_shadow_conn(table)) as c:
+            row = c.execute(f"SELECT stored_hash, status, computed_at FROM {table} "
                             "WHERE date = ?", (date_iso,)).fetchone()
     except Exception:
         return False
     if row is None or row[0] != _hash(stored):
         return False
-    if row[1] == "insufficient_coverage":
+    if row[1] in ("insufficient_coverage", "unavailable"):
         return time.time() - float(row[2]) < _RETRY_LOW_COVERAGE_S
     return True
 
 
-def grade_and_record(date_iso: str, stored: dict, result: dict) -> dict:
-    """Grade a computed result against a stored collector row and record it."""
+def grade_and_record(date_iso: str, stored: dict, result: dict,
+                     table: str = TABLE_COLLECTOR_UNIVERSE,
+                     extra: Optional[dict] = None) -> dict:
+    """Grade a computed result against a stored collector row and record it.
+    `extra` rides in the report (the server-universe run's list comparison)."""
+    extra = dict(extra or {})
     why = not_comparable_reason(stored)
     if why:
-        return _record(date_iso, "not_comparable", why, stored, result, {})
+        return _record(date_iso, "not_comparable", why, stored, result, extra, table)
     if not result.get("coverage_ok"):
         return _record(date_iso, "insufficient_coverage",
                        f"bars.db priced {result.get('coverage')} of the universe "
-                       f"(floor {_min_coverage()})", stored, result, {})
+                       f"(floor {_min_coverage()})", stored, result, extra, table)
     report = grade_row(result["metrics"], stored, _recent_before(date_iso))
     report["server_metrics"] = {k: result["metrics"][k] for k in owned_keys(result["metrics"])}
-    return _record(date_iso, "graded", None, stored, result, report)
+    report.update(extra)
+    return _record(date_iso, "graded", None, stored, result, report, table)
 
 
 def _min_coverage() -> float:
@@ -370,6 +419,36 @@ def shadow_date(date_iso: str) -> dict:
                 "reason": result.get("reason")}
     rec = grade_and_record(date_iso, stored, result)
     return {"date": date_iso, "computed": True, "status": rec["status"],
+            "failed": (rec["report"] or {}).get("failed")}
+
+
+def _stored_universe(stored: dict) -> list:
+    return sorted({str(i.get("t")).upper() for i in (stored.get("universe_list") or [])
+                   if isinstance(i, dict) and i.get("t")})
+
+
+def shadow_server_universe(date_iso: str) -> dict:
+    """The second parallel run: the same session measured over the SERVER-built
+    universe, graded against the collector row, the two lists compared by name.
+    Writes the shadow store only."""
+    from api.services import breadth_monitor as bm
+    from api.services import breadth_server_universe as bsu
+    run = "server_universe"
+    stored = bm.raw_row(date_iso)
+    if stored is None:
+        return {"date": date_iso, "computed": False, "status": "no_collector_row", "run": run}
+    if _shadow_current(date_iso, stored, TABLE_SERVER_UNIVERSE):
+        return {"date": date_iso, "computed": False, "status": "current", "run": run}
+    uni = server_universe_for(date_iso)
+    extra = {"universe_compare": bsu.compare(uni[0], _stored_universe(stored))}
+    result = compute(date_iso, universe=uni)
+    if not result.get("ok"):
+        _record(date_iso, "unavailable", result.get("reason"), stored, result, extra,
+                TABLE_SERVER_UNIVERSE)
+        return {"date": date_iso, "computed": True, "status": "unavailable",
+                "reason": result.get("reason"), "run": run}
+    rec = grade_and_record(date_iso, stored, result, TABLE_SERVER_UNIVERSE, extra)
+    return {"date": date_iso, "computed": True, "status": rec["status"], "run": run,
             "failed": (rec["report"] or {}).get("failed")}
 
 
@@ -416,7 +495,15 @@ def write_server_row(date_iso: str) -> dict:
     existing = bm.raw_row(date_iso)
     if existing and existing.get("_source") == "server":
         return {"date": date_iso, "computed": False, "status": "current"}
-    result = compute(date_iso)
+    # ⭐ (2026-10-10) the SERVER-built universe first, so a session the PC never pushed
+    # still has its own population; the collector's newest list is the fallback.
+    result = {"ok": False}
+    if universe_source() == "server":
+        uni = server_universe_for(date_iso)
+        if uni[0]:
+            result = compute(date_iso, universe=uni)
+    if not result.get("ok"):
+        result = compute(date_iso)
     if not result.get("ok"):
         return {"date": date_iso, "computed": True, "status": "unavailable",
                 "reason": result.get("reason")}
@@ -512,12 +599,24 @@ def switch_readiness(recs: list, required: int = SWITCH_CLEAN_SESSIONS) -> dict:
                          f"Not yet: {run} of {required} consecutive clean sessions.")}
 
 
-def parity_report(limit: int = 60) -> dict:
+def parity_report(limit: int = 60, table: str = TABLE_COLLECTOR_UNIVERSE) -> dict:
     """Per metric across every GRADED session: n, passes, the failing sessions by
     DATE, and the worst delta. Sessions that could not be graded are listed by
     name with their reason. `switch` carries the decided bar
-    (`SWITCH_CLEAN_SESSIONS` consecutive clean sessions) as a reading, never an act."""
-    recs = shadow_records(max(int(limit), SWITCH_CLEAN_SESSIONS))
+    (`SWITCH_CLEAN_SESSIONS` consecutive clean sessions) as a reading, never an act.
+    The server-universe run also lists each session's universe comparison."""
+    recs = shadow_records(max(int(limit), SWITCH_CLEAN_SESSIONS), table)
+    if table == TABLE_SERVER_UNIVERSE:
+        out = parity_report_rows(recs)
+        out["universe_compare"] = [{"date": r["date"], **((r["report"] or {})
+                                                          .get("universe_compare") or {})}
+                                   for r in recs]
+        return out
+    return parity_report_rows(recs)
+
+
+def parity_report_rows(recs: list) -> dict:
+    """`parity_report`'s body over already-read shadow records."""
     graded = [r for r in recs if r["status"] == "graded"]
     per: dict = {}
     for r in graded:
@@ -595,6 +694,16 @@ def tick(now: Optional[datetime] = None) -> dict:
             if res.get("computed"):
                 budget -= 1
             results.append(res)
+            if budget > 0 and not server_writes(d):
+                # the server-universe parallel run (graded the same way)
+                try:
+                    res2 = shadow_server_universe(d)
+                except Exception as e:            # noqa: BLE001 - never stops the main run
+                    res2 = {"date": d, "run": "server_universe", "status": "error",
+                            "reason": f"{type(e).__name__}: {e}"}
+                if res2.get("computed"):
+                    budget -= 1
+                results.append(res2)
         _status.update(last_tick=time.time(), last_results=results)
         return {"mode": m, "ran": True, "results": results}
     finally:
