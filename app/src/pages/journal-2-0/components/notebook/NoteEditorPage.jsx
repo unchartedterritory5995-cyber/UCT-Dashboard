@@ -866,6 +866,10 @@ export default function NoteEditorPage({
   // hides the app and Ctrl+H is ProseMirror's delete-backward). The platform
   // test is lib/platform.js -- the Notebook's ONE answer to "is this a Mac?".
   const [findWithReplace, setFindWithReplace] = useState(false)
+  // The visible Find door (the header button, and on a phone the More panel's item).
+  const openFind = () => setFindOpen(true)
+  // The More panel's "Move to folder" select on a phone (its label's target).
+  const moveFolderId = useId()
   const onPageKeyDown = (e) => {
     const key = e.key.toLowerCase()
     if (isReplaceChord(e)) {
@@ -1000,6 +1004,15 @@ export default function NoteEditorPage({
   // Wave 5: the note outline panel / sheet, toggled from the toolbar row.
   const [outlineOpen, setOutlineOpen] = useState(false)
   const outlineToggleRef = useRef(null)
+  // Notebook phone pass (2026-10-10): the control that opened the outline -- the header button,
+  // or the More panel's Outline on a phone -- so closing it hands focus back to THAT one (the
+  // header button is not displayed on a phone). Both doors call `toggleOutline`.
+  const outlineOpenerRef = useRef(null)
+  const toggleOutline = (opener) => {
+    outlineOpenerRef.current = opener || outlineToggleRef.current
+    setPaletteOpen(false)
+    setOutlineOpen((o) => !o)
+  }
   // The sticky chrome's MEASURED height, published as --uct-chrome-h on the
   // page root: the watch rails' sticky offset reads it (a literal there goes
   // stale the moment the header wraps — review finding).
@@ -1080,8 +1093,27 @@ export default function NoteEditorPage({
    *  Closing the panel unmounts what held focus, so focus goes back there.
    *  M-6: found by the hook AskPanel puts on its own toggle, never by its
    *  label -- a wording change must not silently break the way back. */
+  // Notebook phone pass (2026-10-10): on a phone the Ask toggle is not displayed (the header
+  // keeps Star, Share and More; Ask lives in More there), so focus goes back to whatever opened
+  // the panel -- the More item when that was the door -- and, if that cannot take focus, the
+  // toggle, then the More door. `focus()` on an element that is not rendered is a silent no-op
+  // in a browser, so each candidate is CHECKED by where focus actually landed.
+  const askOpenerRef = useRef(null)
   const focusAskToggle = () => {
-    askRowRef.current?.querySelector('[data-ask-toggle]')?.focus()
+    const opener = askOpenerRef.current
+    askOpenerRef.current = null
+    const row = askRowRef.current
+    for (const el of [opener, row?.querySelector('[data-ask-toggle]'), row?.querySelector('[data-more-trigger]')]) {
+      if (!el?.isConnected || el.closest('[hidden]')) continue
+      el.focus()
+      if (document.activeElement === el) return
+    }
+  }
+  /** The ONE Ask door outside AskPanel: it presses the header's own toggle, so the panel opens
+   *  exactly as that button opens it (no second implementation). */
+  const openAskFrom = (opener) => {
+    askOpenerRef.current = opener || null
+    askRowRef.current?.querySelector('[data-ask-toggle]')?.click()
   }
   useEffect(() => {
     const chrome = chromeRef.current
@@ -4111,6 +4143,77 @@ export default function NoteEditorPage({
     return out
   })()
 
+  // Writing help's ONE visibility condition: the header button and, on a phone, the More
+  // panel's item both read it, so the two doors can never disagree about when it exists.
+  const showWritingHelp = Boolean(editor && !locked && writingHelpOn && editor.isEditable && !isCanvas)
+
+  // Notebook phone pass (2026-10-10): on a phone the note header keeps Star, Share and More;
+  // these are the header actions More carries there (NoteMoreMenu renders them only when it was
+  // opened on a phone). Each calls the SAME handler as its header control -- `openAskFrom`
+  // presses Ask's own toggle, `openFind`, `openWritingHelp`, `toggleOutline`, `onFolderChange`
+  // -- so there is no second implementation of any of them. Ask, Writing help and Outline open
+  // their own sheets (the panel stays open behind them, like Delete's question, and focus comes
+  // back to the item); Find puts the member back on the note, so it closes the panel.
+  const phoneTools = ({ close }) => (
+    <div className={styles.phoneTools}>
+      <button
+        type="button"
+        className={styles.chromeBtn}
+        onClick={(e) => openAskFrom(e.currentTarget)}
+        aria-label="Ask about this note"
+      >
+        <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+        Ask about this note
+      </button>
+      {!isCanvas && (
+        <button
+          type="button"
+          className={styles.chromeBtn}
+          onClick={() => { openFind(); close() }}
+          aria-label="Find in note"
+        >
+          <UIcon name="search" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+          Find in note
+        </button>
+      )}
+      {showWritingHelp && (
+        <button
+          type="button"
+          className={styles.chromeBtn}
+          onClick={openWritingHelp}
+          aria-label="Writing help"
+        >
+          <UIcon name="sparkle" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+          Writing help
+        </button>
+      )}
+      {editor && (
+        <button
+          type="button"
+          className={`${styles.chromeBtn} ${outlineOpen ? styles.toolBtnActive : ''}`}
+          onClick={(e) => toggleOutline(e.currentTarget)}
+          aria-expanded={outlineOpen}
+          aria-label="Outline"
+        >
+          <UIcon name="rows" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+          Outline
+        </button>
+      )}
+      <label className={styles.phoneFolder} htmlFor={moveFolderId}>Move to folder</label>
+      <select
+        id={moveFolderId}
+        className={styles.headerSelect}
+        value={note.folderId || ''}
+        onChange={(e) => onFolderChange(e.target.value)}
+      >
+        <option value="">Unfiled</option>
+        {folders.map((f) => (
+          <option key={f.id} value={f.id}>{f.name}</option>
+        ))}
+      </select>
+    </div>
+  )
+
   return (
     <div className={styles.page} ref={pageRef} onKeyDown={onPageKeyDown}>
       {/* Final-review fix I-1: where an existing note's open puts focus. A
@@ -4269,6 +4372,10 @@ export default function NoteEditorPage({
             <UIcon name={isFavorite ? 'star-fill' : 'star'} size={15} gold={isFavorite} />
           </button>
           <NoteLinkedTradeChips noteId={noteId} />
+          {/* Notebook phone pass (2026-10-10): `.askSlot` lays out as if it were not there; on a
+              phone it hides ONLY the toggle (the panel is a Sheet there and must still open,
+              from More's "Ask about this note"). */}
+          <div className={styles.askSlot}>
           <AskPanel
             scope="note"
             target={noteId}
@@ -4280,6 +4387,7 @@ export default function NoteEditorPage({
             onInsert={askInsertHere}
             onClose={focusAskToggle}
           />
+          </div>
           {/*
             ⛔ FIND HAD NO VISIBLE ENTRY POINT -- Cmd/Ctrl+F was the ONLY door
             (grepped the whole file for setFindOpen(true): one call site, the
@@ -4288,11 +4396,13 @@ export default function NoteEditorPage({
             2026-09-22. NoteFindBar's own Escape/Enter handling is untouched
             by this -- purely a missing entry point, not new find logic.
           */}
+          {/* Notebook phone pass (2026-10-10): `.phoneInMore` -- not displayed on a phone, where
+              the same action is the More panel's "Find in note" (`phoneTools` below). */}
           {!isCanvas && (
             <button
               type="button"
-              className={styles.chromeBtn}
-              onClick={() => setFindOpen(true)}
+              className={`${styles.chromeBtn} ${styles.phoneInMore}`}
+              onClick={openFind}
               title="Find in this note"
               aria-label="Find in note"
             >
@@ -4304,7 +4414,7 @@ export default function NoteEditorPage({
           {/* Wave 8 (8A): the header's select and inputs carry names -- a
               placeholder vanishes once there is a value, and a select has none. */}
           <select
-            className={styles.headerSelect}
+            className={`${styles.headerSelect} ${styles.phoneInMore}`}
             value={note.folderId || ''}
             onChange={(e) => onFolderChange(e.target.value)}
             aria-label="Folder"
@@ -4325,10 +4435,10 @@ export default function NoteEditorPage({
           {/* Wave 10 lane K2 (D-3): Writing help and Outline moved up from the formatting row
               so the formatting row fits ONE line at 1200 px. Both keep their names, their
               `onMouseDown` / `aria-expanded` behaviour and their keyboard doors. */}
-          {editor && !locked && writingHelpOn && editor.isEditable && !isCanvas && (
+          {showWritingHelp && (
             <button
               type="button"
-              className={styles.chromeBtn}
+              className={`${styles.chromeBtn} ${styles.phoneInMore}`}
               onMouseDown={(e) => e.preventDefault()}
               onClick={openWritingHelp}
               aria-label="Writing help"
@@ -4346,8 +4456,8 @@ export default function NoteEditorPage({
             <button
               ref={outlineToggleRef}
               type="button"
-              className={`${styles.chromeBtn} ${outlineOpen ? styles.toolBtnActive : ''}`}
-              onClick={() => { setPaletteOpen(false); setOutlineOpen((o) => !o) }}
+              className={`${styles.chromeBtn} ${styles.phoneInMore} ${outlineOpen ? styles.toolBtnActive : ''}`}
+              onClick={() => toggleOutline(outlineToggleRef.current)}
               aria-expanded={outlineOpen}
               aria-label="Outline"
               title="Outline — every heading in this note"
@@ -4364,7 +4474,7 @@ export default function NoteEditorPage({
               (NoteMoreMenu.jsx; rails: NoteEditorPage.moreMenu.test.jsx). */}
           {/* The tour's Export step points here now: the file doors are inside. */}
           <span className={styles.tourWrap} data-tour="note-export">
-          <NoteMoreMenu buttonClassName={styles.chromeBtn}>
+          <NoteMoreMenu buttonClassName={styles.chromeBtn} phoneItems={phoneTools}>
             <button
               type="button"
               className={styles.chromeBtn}
@@ -4736,7 +4846,7 @@ export default function NoteEditorPage({
         <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} />
       )}
       {outlineOpen && editor && (
-        <NoteOutline editor={editor} onClose={() => setOutlineOpen(false)} toggleRef={outlineToggleRef} />
+        <NoteOutline editor={editor} onClose={() => setOutlineOpen(false)} toggleRef={outlineOpenerRef} />
       )}
       </div>
 

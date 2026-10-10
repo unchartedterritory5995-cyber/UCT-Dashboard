@@ -33,9 +33,20 @@
  * render while open (a reflow moves the door) and on a resize, the panel is measured and shifted
  * so it sits wholly inside a 16 px gutter (`onScreenShift`). Measured before/after:
  * docs/notebook/evidence/d3-controls-2026-09-28/more-panel-*.json.
+ *
+ * ⛔ PHONE ITEMS ARE RENDERED ON A PHONE ONLY, DECIDED WHEN THE PANEL OPENS (Notebook phone
+ * pass, 2026-10-10). On a phone the note header keeps Star, Share and this door; Ask, Find,
+ * Writing help, Outline and the folder move here (`phoneItems`, first in the panel). They
+ * are NOT rendered-and-hidden-by-CSS on a desktop: the panel's keyboard contract
+ * (useDisclosureFocus) puts focus on the FIRST focusable child and wraps Tab between the
+ * first and last, and `focusableWithin` cannot see a stylesheet's `display: none` -- a hidden
+ * first item would leave focus on the door and break the wrap. Opening is a CLICK, so this is
+ * the sanctioned JS breakpoint read (CLAUDE.md: useMediaQuery is stale at first paint; a
+ * click-triggered decision reads the query at the click). A width change while open re-reads.
  */
 import { createContext, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
+import { MQ } from '../../../../styles/breakpoints'
 import useDisclosureFocus from '../../lib/useDisclosureFocus'
 import styles from './NoteMoreMenu.module.css'
 
@@ -54,16 +65,37 @@ export function onScreenShift(left, right, viewport, gutter = PANEL_GUTTER) {
   return 0
 }
 
-export default function NoteMoreMenu({ children, buttonClassName = '' }) {
+/** Is the viewport the phone tier right now? Read at a click, never at render. */
+function readIsPhone() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return Boolean(window.matchMedia(MQ.phone)?.matches)
+}
+
+/**
+ * @param phoneItems  `({ close }) => ReactNode` -- the actions the note header moves into this
+ *   panel on a phone. Rendered first, then a separator, ONLY when the panel was opened on a
+ *   phone (see the header comment). `close()` closes the panel, for an action that puts the
+ *   member back on the note (Find) rather than opening a dialog of its own.
+ */
+export default function NoteMoreMenu({ children, buttonClassName = '', phoneItems = null }) {
   const [open, setOpen] = useState(false)
+  const [onPhone, setOnPhone] = useState(false)
   const panelId = useId()
   const triggerRef = useRef(null)
   const panelRef = useRef(null)
   const close = useCallback(() => setOpen(false), [])
-  const openPanel = useCallback(() => setOpen(true), [])
+  const openPanel = useCallback(() => { setOnPhone(readIsPhone()); setOpen(true) }, [])
   const { disclosureProps } = useDisclosureFocus({
     open, containerRef: panelRef, onClose: close, openerRef: triggerRef,
   })
+  // A rotated phone or a resized window while the panel is open: the phone items follow.
+  useEffect(() => {
+    if (!open || typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined
+    const mq = window.matchMedia(MQ.phone)
+    const onChange = (e) => setOnPhone(Boolean(e.matches))
+    mq?.addEventListener?.('change', onChange)
+    return () => mq?.removeEventListener?.('change', onChange)
+  }, [open])
 
   useEffect(() => {
     if (!open) return undefined
@@ -110,7 +142,11 @@ export default function NoteMoreMenu({ children, buttonClassName = '' }) {
         aria-expanded={open}
         aria-controls={panelId}
         title={MORE_NOTE_ACTIONS}
-        onClick={() => setOpen((v) => !v)}
+        data-more-trigger=""
+        onClick={() => {
+          if (!open) setOnPhone(readIsPhone())
+          setOpen(!open)
+        }}
       >
         <UIcon name="more" size={15} gold={false} />
       </button>
@@ -124,6 +160,12 @@ export default function NoteMoreMenu({ children, buttonClassName = '' }) {
         data-export-exclude
         {...disclosureProps}
       >
+        {onPhone && phoneItems && (
+          <>
+            {phoneItems({ close })}
+            <div className={styles.sep} role="separator" />
+          </>
+        )}
         <MoreMenuOpenContext.Provider value={openPanel}>{children}</MoreMenuOpenContext.Provider>
       </div>
     </span>

@@ -181,6 +181,63 @@ describe('D3P: the phone formatting disclosure lives ONLY inside the 640 query (
   })
 })
 
+// Notebook phone pass (2026-10-10). Measured at 390x844 before: the note's title sat ~550 CSS px
+// down, under a header wrapping to three rows and the formatting row wrapping to two. On a phone
+// the header keeps Star, Share and More (Ask, Find, Writing help, Outline and the folder are
+// carried by the More panel, rendered there only when it opens on a phone --
+// NoteEditorPage.phoneHeader.test.jsx), and the formatting row is ONE row that scrolls sideways.
+// This holds WHERE that lives: inside the canonical phone query and nowhere else, so a desktop or
+// tablet header and toolbar are the ones they were.
+const PHONE_HIDE = ['.phoneInMore', '.askSlot [data-ask-toggle]']
+describe('phone pass: header actions move to More, the toolbar is one scrolling row (NoteEditorPage.module.css)', () => {
+  const rules = rulesWithMedia(read(join(NB, 'NoteEditorPage.module.css')))
+
+  it('base (every width): the Ask slot lays out as if it were not there', () => {
+    expect(lastDecl(rules, '.askSlot', 'display')).toBe('contents')
+  })
+
+  it('phone: the moved header controls and the Ask toggle are not displayed', () => {
+    for (const sel of PHONE_HIDE) expect(lastDecl(rules, sel, 'display', PHONE), sel).toBe('none')
+  })
+
+  it('phone: the toolbar never wraps, scrolls sideways inside itself, and no control shrinks or wraps its label', () => {
+    expect(lastDecl(rules, '.toolbarRow', 'flex-wrap', PHONE)).toBe('nowrap')
+    expect(lastDecl(rules, '.toolbarRow', 'overflow-x', PHONE)).toBe('auto')
+    expect(lastDecl(rules, '.toolbarRow', 'max-width', PHONE)).toBe('100%')
+    for (const sel of ['.toolbarRow button', '.toolbarRow select']) {
+      expect(lastDecl(rules, sel, 'flex-shrink', PHONE), sel).toBe('0')
+      expect(lastDecl(rules, sel, 'white-space', PHONE), sel).toBe('nowrap')
+    }
+  })
+
+  it('the 44 px floor still holds for the row\'s controls and the More items (touch tier)', () => {
+    for (const sel of ['.toolBtn', '.chromeBtn']) {
+      expect(lastDecl(rules, sel, 'min-height', TOUCH), sel).toBe('var(--tap-min, 44px)')
+      expect(lastDecl(rules, sel, 'min-width', TOUCH), sel).toBe('var(--tap-min, 44px)')
+    }
+    expect(lastDecl(rules, '.fontSelect', 'min-height', TOUCH)).toBe('var(--tap-min, 44px)')
+  })
+
+  it('NOTHING outside the phone query hides a header control or stops the toolbar wrapping', () => {
+    const leaks = rules.filter((r) => r.media !== PHONE && (
+      (PHONE_HIDE.includes(r.selector) && r.decls.get('display') === 'none')
+      || (r.selector === '.toolbarRow' && (r.decls.get('flex-wrap') === 'nowrap' || r.decls.has('overflow-x')))))
+    expect(leaks.map((r) => `${r.media || 'base'} ${r.selector}`)).toEqual([])
+    // ...and the desktop/tablet row still wraps
+    expect(lastDecl(rules, '.toolbarRow', 'flex-wrap')).toBe('wrap')
+  })
+
+  it('CONTROL: the hide or the no-wrap moved out to every width is caught', () => {
+    const bad = rulesWithMedia(`.phoneInMore { display: none; } .toolbarRow { flex-wrap: nowrap; }
+      @media (max-width: 640px) { .askSlot [data-ask-toggle] { display: none; } }`)
+    const leaks = bad.filter((r) => r.media !== PHONE && (
+      (PHONE_HIDE.includes(r.selector) && r.decls.get('display') === 'none')
+      || (r.selector === '.toolbarRow' && r.decls.get('flex-wrap') === 'nowrap')))
+    expect(leaks).toHaveLength(2)
+    expect(lastDecl(bad, '.askSlot [data-ask-toggle]', 'display', PHONE)).toBe('none')
+  })
+})
+
 // Wave 10 lane D3P (design re-check N-3): at 390 px the open "More note actions" panel hung
 // ~13 rows down from its door, under the Log FAB ("Print"), the orb cluster and below the fold
 // (Delete). On a phone it is pinned to the viewport ABOVE the bottom band and scrolls inside
