@@ -112,7 +112,7 @@ derived by the command in its §0, never typed.
     second copy of the rule.
   - *Scope of the server check.* It guards only the `/charts` key `charts_workspace_layout`
     (`api/services/board_bound.py:31`), through `auth.enforce_board_bound` on
-    `POST /api/auth/preferences` (`api/routers/auth.py:3022`) and `POST /api/workspace/doc/apply` (`api/routers/workspace_doc.py:37`, `api/routers/workspace_doc.py:160-177`). The terminal's own
+    `POST /api/auth/preferences` (`api/routers/auth.py:3047`), `POST /api/workspace/doc/apply` (`api/routers/workspace_doc.py:37`, `api/routers/workspace_doc.py:175-183`) and, since `97876df0f`, `POST /api/workspace/doc/restore` (`api/routers/workspace_doc.py:132-139`). The terminal's own
     `terminal_layout` / `terminal_boards` keys have separate caps in
     `app/src/pages/terminal/boardModel.js:41-46` and are not TERM-001's bound.
   - *Remaining item 1, saved-layout sizes.* Never measured. The census is the PH-1 aggregate over
@@ -191,7 +191,9 @@ derived by the command in its §0, never typed.
     apply door uses the same function (`:142`). Client, `app/src/pages/charts/boardBound.test.js`
     (`:15-62`) and `app/src/pages/charts/ChartsWorkspace.test.jsx:1153-1230` (room, full board in
     words, `?ensure=` door, over-bound board loads whole, saved layout over the bound refused).
-    All three shipped criteria are already covered; the lane is verification plus the gap below.
+    All three shipped criteria are already covered. The restore door has its own case since
+    `97876df0f`: `test_a_restore_cannot_grow_a_board_past_the_bound`
+    (`tests/test_workspace_doc_router.py:169-189`).
   - *`widget_count` contract.* Takes the raw text or an already-parsed value; returns the length
     of `widgets` when the value is a dict holding a `widgets` list, otherwise `None` (absent,
     empty, unparseable, or no list). It never raises
@@ -200,14 +202,47 @@ derived by the command in its §0, never typed.
     (`layout.kind === 'multichart'`). The workspace's own picker excludes exactly the grids
     (`app/src/pages/charts/ChartsWorkspace.jsx:2634-2635`); no third kind is read anywhere in
     `app/src`. Chart-settings templates are a different store.
-  - *A door the bound does not guard (finding).* `POST /api/workspace/doc/restore` writes restored
-    values, including `charts_workspace_layout` (`api/services/workspace_doc_store.py:105`),
-    through `_write_back`, which calls `set_user_preference` without `enforce_board_bound`
-    (`api/routers/workspace_doc.py:71-84`, `api/routers/workspace_doc.py:129-142`). A restored
-    version can only be a size the member once held, but it is still an unguarded write. TERM-001's
-    remaining work therefore includes: a failing test that restores a 17-widget version over a
-    16-widget board, then calling `enforce_board_bound` per key in `_write_back` and reporting a
-    refused key in `prefs_failed` (never deleting it).
+  - *The restore door (finding from run 3, DONE).* `POST /api/workspace/doc/restore` used to write
+    the restored board without the bound. Fixed on master by `97876df0f`: before anything is
+    written, the route reads the target version and calls `enforce_board_bound` for each of its
+    keys (`api/routers/workspace_doc.py:132-139`). It shipped as a whole-request refusal, not the
+    per-key `prefs_failed` report this brief first proposed: one key over the bound refuses the
+    entire restore with a 400 and the bound's sentence, and neither store changes. The test restores
+    a version 3 widgets over the bound onto an empty board and asserts the 400, the sentence, the
+    unchanged board and the unchanged head (`tests/test_workspace_doc_router.py:169-189`). This
+    TERM-001 remainder is closed; the census is the only item left.
+  - *(Added after readiness run 4, answered from the code.)* *`enforce_board_bound`'s contract.*
+    `enforce_board_bound(user_id, key, value)` returns `None` when the write may land and raises
+    `HTTPException(400, detail=<sentence>)` when it would grow a board past the bound
+    (`api/routers/auth.py:3009-3017`). It never returns a refusal value to inspect. The rule
+    underneath is `board_bound.check(key, value, stored_reader)`, which returns `None` or the
+    sentence and reads the stored board only when the new value is over the bound
+    (`api/services/board_bound.py:71-87`). A key other than `charts_workspace_layout` always passes.
+  - *Restore's `prefs_failed` and `_write_back`.* The restore answer carries `prefs_written`,
+    `prefs_unchanged`, `prefs_failed` (each a sorted list of preference key names),
+    `left_untouched`, and `complete` (true when `prefs_failed` is empty)
+    (`api/routers/workspace_doc.py:153-163`). `_write_back` does continue past a failed key: each
+    `set_user_preference` is in its own try, a failure is logged and added to `failed`, and the loop
+    goes on to the next key (`api/routers/workspace_doc.py:71-87`). A bound refusal never reaches
+    `_write_back`; it is raised before the document write.
+  - *Flow-worker.* None of `api/routers/workspace_doc.py`, `api/routers/auth.py`,
+    `api/services/board_bound.py` or `api/services/workspace_doc_store.py` is on flow-worker's
+    watch list (`api/flow_worker_main.py:31-35`), and none is in its import closure (checked with
+    `tools/flow_worker_watch_coverage.py`'s own `reachable_paths`). A change to them deploys web
+    only, at any hour.
+  - *Rollback for a flag-less guard.* TERM-001's rollback tier is `tier 4 pref / 3`: a pre-authored
+    rollback branch if one exists, otherwise a plain revert-and-push
+    (`docs/terminal-research/10-roadmap/backlog.md:98`). The rule that requires a pre-authored
+    branch first applies before a member-facing flag flip
+    (`docs/terminal-research/10-roadmap/rollout-rollback.md:737-738`); this guard has no flag, so
+    nothing has to exist before shipping. Rollback is `git revert 97876df0f` through the normal gate.
+  - *Client restore UI.* The Version History panel shows `prefs_failed` when a restore succeeds in
+    part: "Version N was restored except ..., which kept the current value. Try the restore again."
+    (`app/src/pages/charts/ChartsWorkspace.jsx:2588-2591`). A bound refusal is a 400, which the
+    panel does not single out: it shows its general failure line, "The restore did not go through.
+    Try again in a moment." (`app/src/pages/charts/VersionHistory.jsx:134`,
+    `app/src/pages/charts/VersionHistory.jsx:215-227`). The bound's own sentence is in the response
+    but not shown. That is a wording follow-up, not a TERM-001 blocker.
   - *Test baseline.* Frontend: `docs/plans/joystick/gate-baseline.json` (adopted 2026-09-24 at
     master `73a4286d0`); neither `boardBound.test.js` nor `ChartsWorkspace.test.jsx` is in it, so
     any red in them is new. Backend: `docs/test-baseline/python-failures.md` and `.json`.
