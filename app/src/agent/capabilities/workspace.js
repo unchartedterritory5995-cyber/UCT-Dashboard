@@ -50,6 +50,27 @@ const TF_ADJ = { 1: '1-minute', 5: '5-minute', 15: '15-minute', 30: '30-minute',
 const TYPE_ENUM = CHART_TYPE_IDS
 const TYPE_WORD = { candles: 'candles', hollow: 'hollow candles', bars: 'bars', hlc: 'HLC bars', line: 'line', area: 'area' }
 const TICKER = /^[A-Z0-9.$:^_\-/]{1,24}$/
+// ⛔ S6 F4 — "Open a QQQ chart": a NEW chart the member gave a ticker is BORN on it, not linked
+// (widget.addCharts → handleAddWidget's unlinkedSymbol). A plain widget.add would join link group A
+// (the workspace's default for new widgets) and show A's ticker, and the follow-up "change it to
+// QQQ" would then change group A's symbol for every widget that follows A. The ticker must be
+// written in capitals (as the member typed it), so ordinary words never read as tickers.
+const NEW_CHART_TICKER = /^(?:please\s+)?(?:open|add|create|make|start|pull up|bring up|give me)(?:\s+me)?\s+(?:(?:a|an|another|one more)\s+)?(?:new\s+)?(?:(?:chart|graph)\s+(?:of|for|on|with)\s+\$?([A-Za-z][A-Za-z0-9.]{0,9})|\$?([A-Za-z][A-Za-z0-9.]{0,9})\s+(?:chart|graph))\s*(?:,?\s*please)?[.!]?$/i
+/** The ticker of a "new <TICKER> chart" request, or null. */
+export function newChartTicker(raw) {
+  const m = NEW_CHART_TICKER.exec(String(raw || '').trim())
+  const t = m ? (m[1] || m[2]) : null
+  return t && /^[A-Z][A-Z0-9.]{0,9}$/.test(t) && !/^(?:A|AN|NEW|MY|THE)$/.test(t) ? t : null
+}
+/** F4 (model path): a plan that adds ONE chart for a named ticker but drops the ticker is corrected to
+ *  the born-on-its-ticker form. Anything else is left exactly as planned. */
+export function screenNewChart(ops, text) {
+  const t = newChartTicker(text)
+  if (!t || !Array.isArray(ops)) return { ops, corrected: false }
+  const adds = ops.filter(o => o?.action === 'widget.add' && o.args?.type === 'chart')
+  if (adds.length !== 1 || ops.length !== 1) return { ops, corrected: false }
+  return { ops: [{ action: 'widget.addCharts', target: adds[0].target, args: { symbols: [t], timeframe: null, chart_type: null, exact: null } }], corrected: true }
+}
 const andList = (xs) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
 const chartsPhrase = (n, tf, type) => {
   const adj = tf ? `${TF_ADJ[tf] || tf} ` : ''
@@ -180,6 +201,7 @@ export function registerWorkspaceCapabilities() {
       + '(a new chart\'s symbol, timeframe, …), set "as" to a short unique name (new1, new2, …) and use exactly that name as those ops\' target '
       + '— a later op may not target a new widget whose "as" is null. Otherwise "as" is null. '
       + 'Example: "add 2 charts on SPY and QQQ" → widget.add{type:chart, as:"new1"}, widget.add{type:chart, as:"new2"}, chart.setSymbol@new1{SPY}, chart.setSymbol@new2{QQQ}. '
+      + 'Never drop a ticker the member named ("open a QQQ chart" needs its chart.setSymbol). '
       + `Types: ${WORKSPACE_MENU_TYPES.map(t => `${t} (${label(t)})`).join(', ')}.`,
     args: {
       type: 'object',
@@ -249,6 +271,11 @@ export function registerWorkspaceCapabilities() {
       required: ['symbols', 'timeframe', 'chart_type', 'exact'], additionalProperties: false,
     },
     inputs: { symbols: SYMBOLS },
+    // F4: "Open a QQQ chart" → one new chart born on QQQ, not linked
+    fast: ({ raw }) => {
+      const t = newChartTicker(raw)
+      return t ? { symbols: [t], timeframe: null, chart_type: null, exact: null } : null
+    },
     // Only ever PLANNED while its symbols are a pending reference (literal tickers
     // are expanded before planning). The check is the capacity gate the member sees
     // in the proposal; it runs again on the expanded ops before the first write.

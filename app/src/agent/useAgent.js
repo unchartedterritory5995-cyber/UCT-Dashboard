@@ -22,8 +22,9 @@ import { useCreateIndicatorAccess } from '../components/chart/builder/studio/cre
 import { useUserDefinitions, USER_DEFINITIONS_KEY } from '../hooks/useUserDefinitions'
 import { mutate } from 'swr'
 import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
-import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps } from './capabilities/indicatorAuthoring'
+import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
+import { screenNewChart } from './capabilities/workspace'
 import { planOps, prepareOps, collectTargets, undoNotesFor } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
@@ -58,6 +59,24 @@ const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.targ
 const epochOf = (host) => (typeof host?.epoch === 'function' ? host.epoch() : null)
 // A proposal is pinned to the board only if it touches something ON the board.
 const boardEpoch = (host, ops) => (kindsOf(ops).some(k => getTargetKind(k)?.boardScoped !== false) ? epochOf(host) : null)
+// ⛔ F6 — what an approval binds to: each target kind may SEAL its planned change (the M3 Save
+// does: draft, revision, name, target definition, acknowledgement, summary, charts, expiry).
+// The seals and the exact card lines are kept with the proposal; Apply plans from them.
+const sealsOf = (plan) => (plan?.plans || []).map(p => { try { return getTargetKind(p.kind)?.seal?.(p) || null } catch { return null } }).filter(Boolean)
+const sameLines = (a, b) => JSON.stringify(a || []) === JSON.stringify(b || [])
+const STALE_PROPOSAL = 'so nothing was changed — ask again and I’ll show you the current version.'
+// ⭐ F5 — the SAME change on several charts ("add this indicator to both charts"): a capability that
+// declares `fanOut` is run once per target, each as its own ordinary execution (own plan,
+// permission check, persistence, receipt and Undo) — never a second engine, never one write.
+function fanOutOf(ops) {
+  if (!Array.isArray(ops) || ops.length < 2) return null
+  const cap = getCapability(ops[0]?.action)
+  if (!cap?.fanOut) return null
+  const args = JSON.stringify(ops[0].args ?? null)
+  if (!ops.every(o => o?.action === ops[0].action && JSON.stringify(o.args ?? null) === args)) return null
+  if (new Set(ops.map(o => o.target)).size !== ops.length) return null
+  return ops
+}
 
 // ⛔ A RECEIPT CLAIMS ONLY WHAT IS PROVEN. A change to the board is on screen the moment it
 // lands, but it is SAVED only when the server accepts the workspace write (which a newer change
@@ -216,7 +235,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice }) => {
+  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null }) => {
     let allOps = opsIn
     // ⛔ Another window/device may have changed this member's board (one shared,
     // last-write-wins preference): never write over it (host.boardInSync).
@@ -316,7 +335,42 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     }
     const ops = allOps.filter(o => !getCapability(o?.action)?.query)
     if (!ops.length) return
-    const env = await prepareOps(ops)
+    // ── F5: one change, several charts — each target planned (and refused) ON ITS OWN, all of them
+    // before anything is proposed or written; the Apply re-checks all again, then runs them one by one
+    const fan = fanOutOf(ops)
+    if (fan) {
+      const actions = fan.map(o => o.action)
+      const lines = []
+      for (const o of fan) {
+        const one = planOps(collectTargets(host, kindsOf([o])), [o], await prepareOps([o]), capCtx)
+        const guard = one.ok ? protectionRefusal(host, one, [o]) : null
+        const why = !one.ok ? refusalText(one.refusals) : (guard ? `I didn't change anything: ${guard}` : null)
+        if (why) {
+          push({ role: 'refusal', text: why })
+          record({ member, outcome: why, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
+          return
+        }
+        lines.push(...(one.lines.length ? one.lines : one.noops))
+      }
+      const plines = pendingWording([...lines, 'Each chart is changed separately, with its own receipt and Undo.'])
+      if (suggested === 'approved') {
+        // only the charts and the change the member approved — else nothing runs
+        if (!card || !sameLines(card, plines)) {
+          const text = `Something on those charts changed since you approved it, ${STALE_PROPOSAL}`
+          push({ role: 'refusal', text })
+          record({ member, outcome: text, outcomeData: { kind: 'refused-stale-proposal', actions }, telemetry: { path, refused: true, actions, voice } })
+          return
+        }
+        return { followUps: fan }
+      }
+      const pid = nid()
+      pendingRef.current = { kind: 'proposal', id: pid, ops: fan, epoch: boardEpoch(host, fan), card: plines, expiresAt: Date.now() + PROPOSAL_TTL_MS }
+      push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
+      record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
+      return
+    }
+    // ⛔ F6: an Apply plans from what was approved (the seals), never from a fresh read
+    const env = { ...(await prepareOps(ops)), ...(suggested === 'approved' ? { approved: true, approval: approval || [] } : {}) }
     mark('prepared')
     const plan = planOps(targets, ops, env, capCtx)
     mark('planned')
@@ -334,6 +388,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const text = `I didn't change anything: ${guarded}`
       push({ role: 'refusal', text })
       record({ member, outcome: text, outcomeData: { kind: 'refused-protected', actions }, telemetry: { path, refused: true, actions, voice } })
+      return
+    }
+    // ⛔ F6: a sealed approval runs only if the plan still reads EXACTLY as the card the member approved
+    if (suggested === 'approved' && card && !sameLines(card, pendingWording(plan.lines.length ? plan.lines : plan.noops))) {
+      const text = `That proposal no longer matches what you approved, ${STALE_PROPOSAL}`
+      push({ role: 'refusal', text })
+      record({ member, outcome: text, outcomeData: { kind: 'refused-stale-proposal', actions }, telemetry: { path, refused: true, actions, voice } })
       return
     }
     if (composing && !composed) {
@@ -363,8 +424,10 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const pid = nid()
       // The proposal keeps the UNEXPANDED request: Apply expands it again from scratch.
       const keep = expansion ? opsIn.filter(o => !getCapability(o?.action)?.query) : ops
-      pendingRef.current = { kind: 'proposal', id: pid, ops: keep, epoch: boardEpoch(host, keep) }
       const plines = pendingWording(wholly ? expansion.proposal : (plan.lines.length ? plan.lines : plan.noops))
+      const seals = sealsOf(plan)
+      pendingRef.current = { kind: 'proposal', id: pid, ops: keep, epoch: boardEpoch(host, keep),
+        ...(seals.length ? { seals, card: plines, expiresAt: Math.min(...seals.map(x => x.expiresAt)) } : {}) }
       push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
       record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
@@ -418,7 +481,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [host, push, record, capCtx])
 
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null }) => {
     // ⛔ M3: with several indicator drafts open, a request on one the member has not selected is
     // never planned — they are shown the drafts and pick one (chooseTarget), nothing changes.
     const amb = chosen ? null : draftAmbiguity(host, opsIn)
@@ -441,7 +504,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     traceStart(`${path}:${suggested || 'apply'}`)
     let out
     try {
-      out = await executeInner(opsIn, { path, mode: suggested, member, voice })
+      out = await executeInner(opsIn, { path, mode: suggested, member, voice, approval, card })
     } finally { traceEnd('done') }
     // ⭐ M3: the confirmed Save's chart adds — ONE execution per op, each planned, permission-checked,
     // persisted, confirmed and receipted on its own (a failure never undoes another chart or the Save)
@@ -526,9 +589,23 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: text, outcomeData: { kind: 'refused-stale' }, telemetry: { path: 'approved', refused: true, voice } })
       return
     }
+    // ⛔ F6: an expired proposal is never applied — the member asks again and approves the current version
+    if (p.expiresAt != null && !(Date.now() <= p.expiresAt)) {
+      patchItem(p.id, { status: 'expired' })
+      const text = `That proposal expired (a proposal is good for 10 minutes), ${STALE_PROPOSAL}`
+      push({ role: 'refusal', text })
+      record({ member, outcome: text, outcomeData: { kind: 'refused-expired', actions: p.ops.map(o => o?.action) }, telemetry: { path: 'approved', refused: true, voice } })
+      return
+    }
+    // a sealed or fanned-out proposal is approved whole (its parts were approved together)
+    if (count && p.card) {
+      pendingRef.current = p
+      push({ role: 'refusal', text: 'That proposal can only be applied as a whole — say “do it”, or dismiss it.' })
+      return
+    }
     patchItem(p.id, { status: 'approved' })
     const ops = count ? p.ops.slice(0, count) : p.ops
-    await execute(ops, { path: 'approved', mode: 'approved', member, voice })
+    await execute(ops, { path: 'approved', mode: 'approved', member, voice, approval: p.seals || null, card: p.card || null })
   }, [execute, patchItem, push, record, host])
 
   const dismiss = useCallback(({ member } = {}) => {
@@ -548,6 +625,11 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     push({ role: 'member', text: label })
     if (!p.draft && p.epoch !== epochOf(host)) {
       push({ role: 'refusal', text: "A different layout is open now, so I didn't change anything. Ask again." })
+      return
+    }
+    if (p.pickArg) {
+      const { action, arg } = p.pickArg
+      await execute(p.ops.map(o => (o.action === action ? { ...o, args: { ...o.args, [arg]: ref } } : o)), { path: p.path, mode: p.mode === 'propose' ? 'propose' : 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice })
       return
     }
     if (p.draft) {
@@ -695,12 +777,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // ⛔ S6 F1–F3: the model's plan is checked against the member's own words before anything runs
       const screened = screenModelOps(host, bound, text, capCtx)
       if (screened.ask) {
+        // a pick that fills one argument of the planned ops (a new draft's chart): chooseTarget runs them with it
+        if (screened.ask.pick) pendingRef.current = { kind: 'target', ops: screened.ask.pick.ops, path: 'model', mode: env.disposition, member: text, voice, epoch: epochOf(host), pickArg: screened.ask.pick }
         push({ role: 'question', text: screened.ask.text, choices: screened.ask.choices, local: true })
         record({ member: null, outcome: screened.ask.text, outcomeData: { kind: 'clarify-save-target', actions: bound.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
         return
       }
       for (const n of screened.notes) push({ role: 'agent', text: n })
-      const ops = screened.ops
+      // S6 F4: a new chart for a named ticker is born on it (not linked), even if the plan dropped the ticker
+      const ops = screenNewChart(screened.ops, text).ops
       lastActionsRef.current = ops.map(o => o.action)
       await execute(ops, { path: 'model', mode: env.disposition, member: null, voice })
     } finally {

@@ -5,7 +5,7 @@
 // the model reply (/converse) and the definitions server are stand-ins.
 import { describe, it, expect, beforeEach } from 'vitest'
 import { registerBuiltins } from './builtins'
-import { buildContext, getCapability } from './capabilities'
+import { buildContext, getCapability, getTargetKind } from './capabilities'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { commitPlan, undoEntry } from './runtime'
 import { selectGroups } from './routing'
@@ -129,6 +129,21 @@ async function run(h, ops) {
   expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
   return { p, res: await commitPlan(h, p, { env: {}, ctx: CTX }) }
 }
+// ⛔ F6 — exactly what useAgent does: the card's SEAL is kept with the proposal, and Apply plans FROM
+// it (env.approved + env.approval). An Apply never re-reads the draft as if it were a new proposal.
+const KINDS = ['indicatorDrafts', 'indicatorEdits', 'indicators', 'chart']
+async function propose(h, ops) {
+  const p = await plan(h, ops)
+  expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
+  return { ops, plan: p, card: p.lines, seals: p.plans.map(x => getTargetKind(x.kind)?.seal?.(x)).filter(Boolean) }
+}
+async function approve(h, prop) {
+  buildContext(h, CTX)
+  const env = { ...(await prepareOps(prop.ops)), approved: true, approval: prop.seals }
+  const p = planOps(collectTargets(h, KINDS), prop.ops, env, CTX)
+  if (!p.ok) return { ok: false, refusedAtPlan: true, lines: [], failed: p.refusals.map(r => ({ reason: r.reason })) }
+  return commitPlan(h, p, { env, ctx: CTX })
+}
 const drafts = (h) => indicatorDraftsKind.list(h).filter(s => !s.new)
 const activeRef = (h) => drafts(h).find(s => s.active)?.ref
 const say = (target, message, { chart = null, edit = null } = {}) => ({ action: 'indicator.draft', target, args: { message, chart, edit } })
@@ -142,7 +157,7 @@ describe('⭐ the six-line conversation — one draft, one lineage, typed outcom
     // 1 — "Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA."
     const r1 = await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.')])
     expect(r1.res.ok).toBe(true)
-    expect(r1.res.lines[0]).toMatch(/^Updated .* \(draft — not saved\)\.$/)
+    expect(r1.res.lines[0]).toMatch(/^Started .* \(draft — not saved\)\.$/)      // a NEW draft is started, not "updated"
     expect(r1.res.undo).toBeTruthy()                                    // an applied change has the exact Undo
     const ref = activeRef(h)
     expect(ref).toMatch(/^draft:create:/)
@@ -185,15 +200,14 @@ describe('⭐ the six-line conversation — one draft, one lineage, typed outcom
     // 6 — "Save it as Bullish Trend and add it to my chart."  (a PROPOSAL: rename + Save, then the add separately)
     const ops6 = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: ['L'], name: 'Bullish Trend' } }]
     expect(getCapability('indicator.saveDraft').risk).toBe('confirm')
-    const proposal = await plan(h, ops6)
-    expect(proposal.ok, JSON.stringify(proposal.refusals)).toBe(true)
+    const sealed = await propose(h, ops6)
+    const proposal = sealed.plan
     const shown = proposal.lines.join(' | ')
     expect(shown).toMatch(/Save .* as a new indicator as “Bullish Trend” \(renamed first — a name-only step\) \(draft revision 3\) — then add it to Left chart \(NVDA\), each separately/)
     expect(shown).toMatch(/The builder's summary: /)
     expect(stored).toEqual([])                                          // proposing writes nothing
-    // Apply re-plans (as useAgent's approve does) — with the pins the member SAW
-    const approved = await plan(h, ops6)
-    const r6 = await commitPlan(h, approved, { env: {}, ctx: CTX })
+    // Apply re-plans (as useAgent's approve does) — FROM the seal of what the member SAW
+    const r6 = await approve(h, sealed)
     expect(r6.ok, JSON.stringify(r6.failed)).toBe(true)
     expect(stored).toHaveLength(1)
     const saved = [...server.values()][0]
@@ -327,12 +341,12 @@ describe('Save — the exact draft and revision the member approved', () => {
     const h = host([L])
     const ref = await start(h)
     const ops = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }]
-    const proposal = await plan(h, ops)
-    expect(proposal.lines[0]).toMatch(/\(draft revision 1\)/)
+    const proposal = await propose(h, ops)
+    expect(proposal.card[0]).toMatch(/\(draft revision 1\)/)
     await run(h, [say(ref, 'Okay, also require RSI to be above 50.')])      // revision 2 now
-    const res = await commitPlan(h, await plan(h, ops), { env: {}, ctx: CTX })
+    const res = await approve(h, proposal)
     expect(res.ok).toBe(false)
-    expect(res.failed[0].reason).toMatch(/The draft changed since I planned this/)
+    expect(res.failed[0].reason).toMatch(/The draft changed since you approved it \(revision 1 → 2\)/)
     expect(stored).toEqual([])
     // asked again → a NEW proposal on the current revision
     const again = await plan(h, ops)
@@ -455,7 +469,7 @@ describe('⭐ repaint acknowledgement — exact text, exact revision, approved, 
     const st = drafts(h)[0].status
     expect(st.needsAck).toEqual(['ph'])
     expect(st.ackText).toHaveLength(1)
-    expect(st.ackText[0]).toMatch(/reads a bar ahead, so it can change until that bar closes — confirm below before saving$/)
+    expect(st.ackText[0]).toMatch(/ reads .+ ahead, so .+ — confirm below before saving$/)        // the specialist's wording (Indicators-owned)
     // the specialist itself refuses an unacknowledged Save (the contract the Agent relies on)
     const direct = await saveDraft(st.draftRef, { expectedRevision: st.revision, acknowledged: false }, { canAuthor: true, definitionRows: [], store: () => { throw new Error('must not store') } })
     expect(direct).toMatchObject({ ok: false, reason: AR.NEEDS_ACK, detail: { ackText: st.ackText } })
@@ -475,10 +489,10 @@ describe('⭐ repaint acknowledgement — exact text, exact revision, approved, 
   it('the revision changes before Apply → refused: no Save, no success receipt, no chart add', async () => {
     const h = host([L])
     const ref = await pivots(h)
-    await plan(h, saveOp(ref, ['L']))                                             // proposal at revision 1
+    const proposal = await propose(h, saveOp(ref, ['L']))                         // proposal at revision 1
     await run(h, [say(ref, 'Name it Pivot Watch')])                               // revision 2 (a local rename)
     expect(drafts(h)[0].status.revision).toBe(2)
-    const res = await commitPlan(h, await plan(h, saveOp(ref, ['L'])), { env: {}, ctx: CTX })
+    const res = await approve(h, proposal)
     expect(res.ok).toBe(false)
     expect(res.lines).toEqual([])
     expect(res.followUps).toBeUndefined()
@@ -489,14 +503,14 @@ describe('⭐ repaint acknowledgement — exact text, exact revision, approved, 
     const h = host([L])
     await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.')])
     const ref = activeRef(h)
-    const proposal = await plan(h, saveOp(ref, ['L']))                            // no acknowledgement shown
-    expect(proposal.lines[0]).not.toContain('acknowledging')
+    const proposal = await propose(h, saveOp(ref, ['L']))                         // no acknowledgement shown
+    expect(proposal.card[0]).not.toContain('acknowledging')
     await run(h, [say(ref, 'also mark pivot highs')])                             // now it needs one
     const now = drafts(h)[0].status
     expect(now.ackText).toHaveLength(1)
-    const res = await commitPlan(h, await plan(h, saveOp(ref, ['L'])), { env: {}, ctx: CTX })
+    const res = await approve(h, proposal)
     expect(res.ok).toBe(false)
-    expect(res.failed[0].reason).toContain(`Saving it needs your acknowledgement first: ${now.ackText[0]}`)
+    expect(res.failed[0].reason).toMatch(/changed since you approved it.*so nothing was saved or added to a chart/)
     expect(res.followUps).toBeUndefined()
     expect(stored).toEqual([])
     // asked again → a NEW proposal that shows the new acknowledgement and revision
@@ -511,11 +525,11 @@ describe('⭐ repaint acknowledgement — exact text, exact revision, approved, 
     await plan(h, ops)
     const res = await commitPlan(h, await plan(h, ops), { env: {}, ctx: CTX })
     expect(res.ok).toBe(false)
-    expect(res.failed[0].reason).toMatch(/needs your acknowledgement first: Pivot Watch reads a bar ahead/)
+    expect(res.failed[0].reason).toMatch(/needs your acknowledgement first: Pivot Watch reads /)
     expect(stored).toEqual([])
     expect(drafts(h)[0].status.name).toBe('Pivot Watch')                          // renamed (draft), not saved
     const again = await plan(h, saveOp(ref))
-    expect(again.lines[0]).toContain('You are also acknowledging: Pivot Watch reads a bar ahead')
+    expect(again.lines[0]).toContain('You are also acknowledging: Pivot Watch reads ')
     const ok = await commitPlan(h, await plan(h, saveOp(ref)), { env: {}, ctx: CTX })
     expect(ok.ok).toBe(true)
     expect(stored).toHaveLength(1)
@@ -613,11 +627,11 @@ describe('⭐ typed rename — the specialist’s renameOnly marker is the only 
   it('the draft moved after the proposal → renameDraft refuses (stale-revision): nothing renamed or saved', async () => {
     const h = host([L])
     const ref = await start(h)
-    await plan(h, saveAs(ref, 'Bullish Trend'))
+    const proposal = await propose(h, saveAs(ref, 'Bullish Trend'))
     await run(h, [say(ref, 'Okay, also require RSI to be above 50.')])
-    const res = await commitPlan(h, await plan(h, saveAs(ref, 'Bullish Trend')), { env: {}, ctx: CTX })
+    const res = await approve(h, proposal)
     expect(res.ok).toBe(false)
-    expect(res.failed[0].reason).toMatch(/The draft changed since I planned this.*Nothing was renamed or saved\./)
+    expect(res.failed[0].reason).toMatch(/The draft changed since you approved it .*so nothing was saved/)
     expect(drafts(h)[0].status.name).not.toBe('Bullish Trend')
     expect(stored).toEqual([])
   })
@@ -628,10 +642,10 @@ describe('⭐ typed rename — the specialist’s renameOnly marker is the only 
     await plan(h, saveAs(ref, 'Swing Highs'))
     const res = await commitPlan(h, await plan(h, saveAs(ref, 'Swing Highs')), { env: {}, ctx: CTX })
     expect(res.ok).toBe(false)
-    expect(res.failed[0].reason).toMatch(/^failed \(Renamed it to “Swing Highs” \(draft — not saved\), but didn’t save it: Saving it needs your acknowledgement first: Swing Highs reads a bar ahead/)
+    expect(res.failed[0].reason).toMatch(/^failed \(Renamed it to “Swing Highs” \(draft — not saved\), but didn’t save it: Saving it needs your acknowledgement first: Swing Highs reads /)
     expect(stored).toEqual([])
     const again = await plan(h, saveAs(ref, null))
-    expect(again.lines[0]).toContain('You are also acknowledging: Swing Highs reads a bar ahead')
+    expect(again.lines[0]).toContain('You are also acknowledging: Swing Highs reads ')
     expect((await commitPlan(h, await plan(h, saveAs(ref, null)), { env: {}, ctx: CTX })).ok).toBe(true)
   })
   it('the same name → name-unchanged is not an error: it simply saves', async () => {

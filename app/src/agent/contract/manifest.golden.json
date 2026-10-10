@@ -538,7 +538,7 @@
    "domain": "widget",
    "target": "workspace",
    "summary": "Add ONE widget of a given type to the Charts workspace, placed automatically in empty space. Use one op per widget.",
-   "hints": "target = the ref of the workspace entry. \"as\" NAMES THE NEW WIDGET: if any later op in this plan changes the new widget (a new chart's symbol, timeframe, …), set \"as\" to a short unique name (new1, new2, …) and use exactly that name as those ops' target — a later op may not target a new widget whose \"as\" is null. Otherwise \"as\" is null. Example: \"add 2 charts on SPY and QQQ\" → widget.add{type:chart, as:\"new1\"}, widget.add{type:chart, as:\"new2\"}, chart.setSymbol@new1{SPY}, chart.setSymbol@new2{QQQ}. Types: chart (Chart), watchlist (Watchlist), themes (Theme Tracker), scanner (Scanner), fundamentals (Fundamentals), breadth (Breadth), aisearch (AI Search), news (News & Catalysts), notebook (Notebook), profile (Stock Profile), alerts (Alerts), calendar (UCT Terminal), optionsflow (Options Flow), nhnl (New Highs / Lows), nhnlPulse (H/L Pulse), volumescan (Volume Surge), scatter (Market Map).",
+   "hints": "target = the ref of the workspace entry. \"as\" NAMES THE NEW WIDGET: if any later op in this plan changes the new widget (a new chart's symbol, timeframe, …), set \"as\" to a short unique name (new1, new2, …) and use exactly that name as those ops' target — a later op may not target a new widget whose \"as\" is null. Otherwise \"as\" is null. Example: \"add 2 charts on SPY and QQQ\" → widget.add{type:chart, as:\"new1\"}, widget.add{type:chart, as:\"new2\"}, chart.setSymbol@new1{SPY}, chart.setSymbol@new2{QQQ}. Never drop a ticker the member named (\"open a QQQ chart\" needs its chart.setSymbol). Types: chart (Chart), watchlist (Watchlist), themes (Theme Tracker), scanner (Scanner), fundamentals (Fundamentals), breadth (Breadth), aisearch (AI Search), news (News & Catalysts), notebook (Notebook), profile (Stock Profile), alerts (Alerts), calendar (UCT Terminal), optionsflow (Options Flow), nhnl (New Highs / Lows), nhnlPulse (H/L Pulse), volumescan (Volume Surge), scatter (Market Map).",
    "args": {
     "type": "object",
     "properties": {
@@ -2605,7 +2605,7 @@
    "domain": "indicator",
    "target": "indicatorEdits",
    "summary": "Add ONE indicator to ONE chart — exactly what the Indicator Library's Add to Chart does. Built-in indicators or the member's own saved ones; Undo removes it again.",
-   "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings.",
+   "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts (\"add it to both charts\") = one indicator.add per chart the member named, same defId — they are proposed together and applied one chart at a time; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings.",
    "args": {
     "type": "object",
     "properties": {

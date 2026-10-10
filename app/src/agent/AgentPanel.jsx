@@ -93,7 +93,7 @@ function Item({ it, agent }) {
               <button type="button" className={styles.primary} onClick={agent.approve} disabled={agent.busy}>Apply</button>
               <button type="button" className={styles.ghost} onClick={agent.dismiss} disabled={agent.busy}>Dismiss</button>
             </div>
-          ) : <div className={styles.cardMeta}>{it.status === 'approved' ? 'Approved' : it.status === 'replaced' ? 'Replaced' : 'Dismissed'}</div>}
+          ) : <div className={styles.cardMeta}>{it.status === 'approved' ? 'Approved' : it.status === 'replaced' ? 'Replaced' : it.status === 'expired' ? 'Expired — ask again' : 'Dismissed'}</div>}
         </div>
       )
     case 'receipt':
