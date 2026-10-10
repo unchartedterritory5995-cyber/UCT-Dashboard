@@ -6457,6 +6457,19 @@ async def lifespan(app: FastAPI):
                     breadth_putcall_backfill.fill()
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[putcall-backfill] failed: %s", _e)
+                # (2026-10-10) AAII and NAAIM read on the server, on the same clock: the
+                # PC collector's AAII reader broke with AAII's 2026-09 redesign, and the
+                # owner wants the breadth row independent of the PC.
+                try:
+                    from api.services import breadth_aaii
+                    breadth_aaii.fill()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[aaii] fill failed: %s", _e)
+                try:
+                    from api.services import breadth_naaim
+                    breadth_naaim.fill()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[naaim] fill failed: %s", _e)
 
             _scheduler.add_job(
                 _breadth_putcall_fill,
