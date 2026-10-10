@@ -317,6 +317,38 @@ describe('R1 — "save it as X": rename first (its own step), then a Save card t
   })
 })
 
+describe('R1 — renameDraft is the ONLY rename path', () => {
+  it('the model\'s "Name it X" + Save shape is screened into ONE "save as X" (then split into renameDraft + the Save card)', async () => {
+    const h = host([L])
+    const ref = await emaDraft(h)
+    const ops = [{ action: 'indicator.draft', target: ref, args: { message: 'Name it “Trend Watch”.', chart: null, edit: null } }, { action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }]
+    const s = screenModelOps(h, ops, 'Name it Trend Watch and save it.', CTX)
+    expect(s.ops).toEqual([{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: 'Trend Watch' } }])
+    // a real maths change + Save is NOT rewritten: it stays two ops, and the planner refuses it
+    const maths = [{ action: 'indicator.draft', target: ref, args: { message: 'make the slow line 50', chart: null, edit: null } }, ops[1]]
+    expect(screenModelOps(h, maths, 'make the slow line 50 and save it', CTX).ops).toHaveLength(2)
+  })
+  it('end to end: the model plans the two-op form → one rename receipt (renameDraft, no model call) + one Save card on the renamed draft', async () => {
+    const h = host([L])
+    await emaDraft(h)
+    const n = calls.length
+    const send = mount(h)
+    envelopes.push(b => {
+      const d = b.context.indicatorDrafts.find(e => e.active).ref
+      return { disposition: 'apply', reply: '', question: null, unsupported_category: null, ops: [
+        { action: 'indicator.draft', target: d, args: { message: 'Name it Trend Watch', chart: null, edit: null } },
+        { action: 'indicator.saveDraft', target: d, args: { addTo: [], name: null } },
+      ] }
+    })
+    send('Call it Trend Watch and save it.')
+    await waitFor(() => expect(cards()).toHaveLength(1), { timeout: 4000 })
+    expect(transcript()).toMatch(/Renamed the draft to “Trend Watch” \(draft — not saved\)\./)
+    expect(cards()[0]).toMatch(/Save “Trend Watch” as a new indicator/)
+    expect(calls.length).toBe(n)
+    expect(stored).toEqual([])
+  })
+})
+
 // ── M1 ─────────────────────────────────────────────────────────────────────────────────
 describe('M1 — no unrequested preview in indicator creation; asked-for previews still work', () => {
   const draftOp = { action: 'indicator.draft', target: NEW, args: { message: 'x', chart: 'L', edit: null } }

@@ -405,7 +405,7 @@ describe('Save — the exact draft and revision the member approved', () => {
     const h = host([L])
     const ref = await start(h)
     saveMode = 'conflict'
-    const ops = [say(ref, 'Name it Bullish Trend'), { action: 'indicator.saveDraft', target: ref, args: { addTo: ['L'], name: null } }]
+    const ops = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: ['L'], name: 'Bullish Trend' } }]   // renameDraft path
     await plan(h, ops)
     const res = await commitPlan(h, await plan(h, ops), { env: {}, ctx: CTX })
     expect(res.ok).toBe(false)
@@ -413,14 +413,16 @@ describe('Save — the exact draft and revision the member approved', () => {
     expect(res.followUps).toBeUndefined()
     expect(drafts(h)[0].status.name).toBe('Bullish Trend')
   })
-  it('two-op form: a MODEL turn is never trusted as a rename (no renameOnly marker) — not saved', async () => {
+  it('two-op form (a draft turn + a Save in one request) is refused at plan — renameDraft is the only rename path; nothing sent, nothing stored', async () => {
     const h = host([L])
     const ref = await start(h)
-    const ops = [say(ref, 'make the slow line 50'), { action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }]
-    await plan(h, ops)
-    const res = await commitPlan(h, await plan(h, ops), { env: {}, ctx: CTX })
-    expect(res.ok).toBe(false)
-    expect(res.failed[0].reason).toMatch(/Renamed it to “.*” \(draft — not saved\), but didn’t save it: that wasn’t only a rename/)
+    const n = calls.length
+    for (const msg of ['make the slow line 50', 'Name it Bullish Trend']) {
+      const p = await plan(h, [say(ref, msg), { action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }])
+      expect(p.ok).toBe(false)
+      expect(p.refusals[0].reason).toMatch(/Change the draft first, then ask me to save it/)
+    }
+    expect(calls.length).toBe(n)
     expect(stored).toEqual([])
   })
 })
@@ -521,7 +523,7 @@ describe('⭐ repaint acknowledgement — exact text, exact revision, approved, 
   it('"Save it as X" on a repainting draft: the rename changes the acknowledgement text, so it is refused and re-proposed', async () => {
     const h = host([L])
     const ref = await pivots(h)
-    const ops = [say(ref, 'Name it Pivot Watch'), ...saveOp(ref)]
+    const ops = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: 'Pivot Watch' } }]   // renameDraft path
     await plan(h, ops)
     const res = await commitPlan(h, await plan(h, ops), { env: {}, ctx: CTX })
     expect(res.ok).toBe(false)

@@ -265,17 +265,19 @@ describe('⛔ F6 — a Save applies only what its card showed', () => {
     expect((await approve(h, prop, { seals: [] })).failed[0].reason).toMatch(/^I can’t check that approval any more/)
     nothingChanged(h, before)
   })
-  it('12. zero writes on every refusal — even with a rename turn in the same request (the two-op form)', async () => {
+  it('12. zero writes on every refusal — a stale "save it as X" (renameDraft inside the Save) never renames; a draft turn never rides in a Save', async () => {
     const h = host([L])
     const ref = await emaDraft(h)
-    const ops = [{ action: 'indicator.draft', target: ref, args: { message: 'Name it Turned', chart: null, edit: null } }, ...save(ref)]
-    const prop = await propose(h, ops)
+    const prop = await propose(h, save(ref, { name: 'Turned' }))
     await run(h, [say(ref, 'also add an EMA 50')])
     const before = snapshot(h)
     const res = await approve(h, prop)
     expect(res.ok).toBe(false)
-    nothingChanged(h, before)                                              // the turn never ran: no model call, no rename
+    nothingChanged(h, before)                                              // refused before renameDraft: no rename, no model call
     expect(drafts(h)[0].status.name).not.toBe('Turned')
+    const { p } = await plan(h, [{ action: 'indicator.draft', target: ref, args: { message: 'Name it Turned', chart: null, edit: null } }, ...save(ref)])
+    expect(p.ok).toBe(false)                                               // the two-op form is refused at plan
+    nothingChanged(h, before)
   })
   it('13. after a refusal, asking again makes a NEW proposal that applies (a fresh seal, a fresh window)', async () => {
     const T = 1_800_000_000_000
