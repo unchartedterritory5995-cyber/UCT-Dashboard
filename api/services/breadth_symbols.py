@@ -1344,6 +1344,12 @@ def warm_breadth() -> dict:
         stats["indicators"] = _mip.warm_all()
     except Exception as e:      # noqa: BLE001
         _log.warning("[breadth_symbols] indicator warm failed: %s", e)
+    # ⭐ the browser Breadth Pack from the series just warmed (a no-op when nothing changed)
+    try:
+        from api.services import breadth_pack as _bp
+        stats["pack"] = _bp.refresh()
+    except Exception as e:      # noqa: BLE001
+        _log.warning("[breadth_symbols] breadth pack refresh failed: %s", e)
     _log.info("[breadth_symbols] warm pass done: %s", stats)
     return stats
 
