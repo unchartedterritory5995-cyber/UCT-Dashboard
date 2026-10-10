@@ -106,9 +106,25 @@ def briefing(monkeypatch):
 
 
 def test_the_script_no_longer_ends_the_focus_inside_a_word(briefing):
-    script = briefing()["script"]
-    assert " Af Tap me" not in script
-    assert "a month of unlabeled ones. Tap me when you're ready to dig in." in script
+    # Past the 500-character focus limit, the cut still lands on a sentence end.
+    long_focus = FOCUS + " " + ("Keep the journal open at the close. " * 5)
+    assert len(long_focus) > vb._FOCUS_SPOKEN_LIMIT
+    script = briefing(focus=long_focus)["script"]
+    focus_said = script.split("This week's focus: ")[1].split(" Tap me")[0]
+    assert len(focus_said) <= vb._FOCUS_SPOKEN_LIMIT and long_focus.startswith(focus_said)
+    assert focus_said.endswith(("for now.", "at the close.")), focus_said[-40:]
+
+
+def test_a_two_ask_focus_is_spoken_whole(briefing):
+    """verify-1009: "Two asks for next week" was announced and one was read (300 clip)."""
+    two_asks = ("Two asks for next week. First, label every trade the day it closes, with the "
+                "setup name and whether you followed the plan, so Sunday's review has real data "
+                "to work from instead of guesses. Second, size down on Fridays until the last "
+                "three Friday losses are reviewed; the stop distance was fine, the size was the "
+                "problem, and one smaller week will show whether that holds.")
+    assert 300 < len(two_asks) <= vb._FOCUS_SPOKEN_LIMIT
+    script = briefing(focus=two_asks)["script"]
+    assert f"This week's focus: {two_asks} Tap me" in script
 
 
 def test_every_clipped_part_of_the_script_ends_a_sentence(briefing):
@@ -116,7 +132,7 @@ def test_every_clipped_part_of_the_script_ends_a_sentence(briefing):
     long_regime = "Uptrend under pressure with distribution building in the leaders this week. " * 8
     out = briefing(news=long_news, regime=long_regime)
     s = out["sections"]
-    assert len(s["regime"]) <= 300 and len(s["news"]) <= 600 and len(s["weekly_focus"]) <= 300
+    assert len(s["regime"]) <= 300 and len(s["news"]) <= 600 and len(s["weekly_focus"]) <= vb._FOCUS_SPOKEN_LIMIT
     for part in (s["regime"], s["news"], s["weekly_focus"]):
         assert part[-1] in ".!?", part[-30:]
     script = out["script"]

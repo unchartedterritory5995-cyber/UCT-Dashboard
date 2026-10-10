@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 
 from api.services.auth_db import get_connection, execute_with_retry
+from api.services.activity_retention import _STORED_FORMAT as _SQLITE_TS
 
 
 # Displayed Pro price used for the admin MRR estimate. Keep in sync with the
@@ -1048,12 +1049,23 @@ def delete_admin_todo(todo_id: str) -> bool:
         conn.close()
 
 
+def _page_views_cutoff(delta: timedelta) -> str:
+    """A cutoff in the text form ``page_views.created_at`` is stored in.
+
+    The column defaults to SQLite's CURRENT_TIMESTAMP, ``YYYY-MM-DD HH:MM:SS`` (a space).
+    An ISO cutoff (``...T...+00:00``) sorts ABOVE every same-day stored value because
+    ``' ' < 'T'``, so a "last 60 seconds" or "last 5 minutes" window matched nothing:
+    the page-view dedup never fired and the admin "active now" list was always empty.
+    """
+    return (datetime.now(timezone.utc) - delta).strftime(_SQLITE_TS)
+
+
 def log_page_view(user_id: str, page: str):
     """Insert a page view with 60-second dedup per user+page."""
     conn = get_connection()
     try:
         # Check if same page was logged within last 60 seconds
-        cutoff = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
+        cutoff = _page_views_cutoff(timedelta(seconds=60))
         existing = conn.execute(
             "SELECT id FROM page_views WHERE user_id = ? AND page = ? AND created_at > ?",
             (user_id, page, cutoff),
@@ -1076,7 +1088,7 @@ def get_page_analytics(days: int = 7) -> list[dict]:
     """Return top pages by view count with unique user counts."""
     conn = get_connection()
     try:
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        cutoff = _page_views_cutoff(timedelta(days=days))
         rows = conn.execute(
             "SELECT page, COUNT(*) as views, COUNT(DISTINCT user_id) as unique_users "
             "FROM page_views WHERE created_at > ? "
@@ -1366,7 +1378,7 @@ def get_active_now(minutes: int = 5) -> dict:
     """Return users active in the last N minutes based on page_views."""
     conn = get_connection()
     try:
-        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+        cutoff = _page_views_cutoff(timedelta(minutes=minutes))
         rows = conn.execute(
             "SELECT pv.user_id, u.email, pv.page, MAX(pv.created_at) as last_seen "
             "FROM page_views pv JOIN users u ON pv.user_id = u.id "
