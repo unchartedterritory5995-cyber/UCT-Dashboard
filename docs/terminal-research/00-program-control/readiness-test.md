@@ -14,11 +14,13 @@
 | 1 | 2026-10-10 | `MASTER_PLAN.md` at `5a905e30e` + `10-roadmap/backlog.md` | 7 | NOT READY (more than three) | Part C of `MASTER_PLAN.md`, commit `92c440478` |
 | 2 | 2026-10-10 | `MASTER_PLAN.md` at `92c440478` + `10-roadmap/backlog.md` | 7 | NOT READY (more than three) | Part C, commit `906c11039` |
 | 3 | 2026-10-10 | `MASTER_PLAN.md` at `906c11039` + `10-roadmap/backlog.md` | 7 | NOT READY (more than three) | Part C, commit `4fcaafc60` |
-| 4 | 2026-10-10 | `MASTER_PLAN.md` at `4fcaafc60` + `10-roadmap/backlog.md` | 5 | NOT READY (more than three) | not folded in; listed below |
+| 4 | 2026-10-10 | `MASTER_PLAN.md` at `4fcaafc60` + `10-roadmap/backlog.md` | 5 | NOT READY (more than three) | Part C, commit `2e8cbe5f1` |
+| 5 | 2026-10-10 | `MASTER_PLAN.md` at `2e8cbe5f1` + `10-roadmap/backlog.md` | 5 | NOT READY (more than three) | Part C, commit `2c7f8a520` |
+| 6 | 2026-10-10 | `MASTER_PLAN.md` at `2c7f8a520` + `10-roadmap/backlog.md` | 3 | **PASS** (three or fewer) | Part C, this commit |
 
-Both runs dispatched by lane f-l1: a fresh agent (model `fable`, no prior context), Read tool only,
-on the two inputs. TERM-001 was the package in both; both agents found it already built and
-planned the remainder.
+Runs 1-4 dispatched by lane f-l1, runs 5-6 by lane f-x05: each a fresh agent (model `fable`, no
+prior context), Read tool only, on the two inputs. TERM-001 was the package every time; every agent
+found it already built and planned the remainder.
 
 **Run 1 questions** (answered into Part C by `92c440478`): (1) which commit merged
 `lane/term-001-006`; (2) TERM-001's acceptance criteria; (3) which test files cover it; (4) whether
@@ -47,16 +49,29 @@ found a real gap: `POST /api/workspace/doc/restore` writes the board through `_w
 `enforce_board_bound` (`api/routers/workspace_doc.py:71-84`). It is now part of TERM-001's
 remaining work in Part C.
 
-**Run 4 questions** (open): (1) `enforce_board_bound`'s calling contract (arguments; raise or
+**Run 4 questions** (answered into Part C by `2e8cbe5f1`, from the code; the restore-door gap itself
+was fixed on master by `97876df0f`): (1) `enforce_board_bound`'s calling contract (arguments; raise or
 return); (2) the restore response's `prefs_failed` shape and whether `_write_back` continues past
 a failed key; (3) whether `api/routers/workspace_doc.py` is on flow-worker's watch list; (4)
 whether a flag-less server guard needs the pre-authored tier-4 rollback branch before shipping;
 (5) whether the client restore UI renders `prefs_failed`. All five are about the restore-door
 fix that run 3's answer added, not about the shipped bound.
 
-**Verdict: NOT READY.** Gate item 26 is not passed after four runs (7, 7, 7, 5 questions
-against a bar of three). Each run's questions were answered, and each next run went one level
-deeper into TERM-001's remainder; the count fell to 5 on run 4. The package under test is already
-`live`, so the open questions are about its leftover work (the census and the restore-door
-guard), not about building it. The coordinator's limit was two runs beyond run 2, so testing
-stopped here. Next: answer run 4's five into Part C and run a fifth fresh agent.
+**Run 5 questions** (answered into Part C by `2c7f8a520`): (1) whether the census script reaches
+the pod with a deploy or by hand; (2) whether `charts_layouts` holds deleted rows to exclude; (3) the
+vitest worker cap; (4) who uses the 2026-10-14 window and whether the panel curve may share it; (5)
+the panel-curve run parameters. All five were about the census and the optional panel curve, the
+remainder after the restore door closed.
+
+**Run 6 questions** (answered into Part C the same day, this commit): (1) the server-side name of
+the bound value (`board_bound.MAX_BOARD_WIDGETS`, `api/services/board_bound.py:50`); (2) how a test
+builds a `charts_layouts` fixture from the service's own schema (`_DB_PATH` patched, then
+`_init_db()`, `api/services/charts_layout_service.py:81-87`); (3) what census result could re-open
+the bound (none in code: 16 rests on cost, and only an owner sentence overrides it,
+`12-decisions/2026-10-02-term-001-006-board-bound-and-freshness.md:3-4`).
+
+**Verdict: PASS.** Gate item 26 passed on run 6 with three discovery questions against a bar of
+three (runs 1-6: 7, 7, 7, 5, 5, 3). The three were answered into Part C of `MASTER_PLAN.md` the same
+day, as step 4 requires. The questions narrowed with each run: from facts about the shipped bound,
+to the restore door, to the census, to test seams. X-05 is `live` in the completion ledger on the
+strength of this record.

@@ -278,6 +278,27 @@ derived by the command in its §0, never typed.
     A browser run has no tool that writes `deployments_sampled`: list web's deployments before the
     first N and after the last, and record the count of distinct deployments seen. Only a count
     of 1 makes the 16 readings one series.
+  - *(Added after readiness run 6, answered from the code.)* *The bound, server side.* Import
+    `board_bound.MAX_BOARD_WIDGETS` (`api/services/board_bound.py:50`). It is read from
+    `boardBound.json`'s `maxWidgets` at import, the same value `boardBound.js:21` exports, so the
+    census compares against it and never types 16.
+  - *A `charts_layouts` fixture.* Use the service's own schema: point
+    `charts_layout_service._DB_PATH` at a temp file with `monkeypatch.setattr`, then call
+    `charts_layout_service._init_db()`, which creates the directory and runs the schema
+    (`api/services/charts_layout_service.py:81-87`). This is the existing tests' pattern
+    (`tests/test_charts_layout_service.py:16-19`). Setting the `CHARTS_LAYOUTS_DB_PATH` environment
+    variable is not enough inside a test: it is read once, at import
+    (`api/services/charts_layout_service.py:28`).
+  - *What the census result can change.* Nothing in code. The 16 rests on cost: it is the largest
+    board ever measured, and a bound above it would go past every measurement
+    (`docs/terminal-research/12-decisions/2026-10-02-term-001-006-board-bound-and-freshness.md:24-26`).
+    Saved layouts over 16 are not lost data and do not, by themselves, justify a higher bound;
+    raising it would need a cost measurement above 16 first. Record the result, report any row over
+    16 to the owner, and leave the bound alone. Only an owner sentence overrides the delegated
+    decision
+    (`docs/terminal-research/12-decisions/2026-10-02-term-001-006-board-bound-and-freshness.md:3-4`),
+    and its reversal is one edit to `maxWidgets`
+    (`docs/terminal-research/12-decisions/2026-10-02-term-001-006-board-bound-and-freshness.md:59-61`).
   - *Test baseline.* Frontend: `docs/plans/joystick/gate-baseline.json` (adopted 2026-09-24 at
     master `73a4286d0`); neither `boardBound.test.js` nor `ChartsWorkspace.test.jsx` is in it, so
     any red in them is new. Backend: `docs/test-baseline/python-failures.md` and `.json`.

@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after X-10): not complete.** 232 of 279 rows are `live` or `moot`; 47 are not (28 `dark`, 11 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after X-05 and lane P2): not complete.** 233 of 279 rows are `live` or `moot`; 46 are not (28 `dark`, 10 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,10 +34,10 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 after X-10:
+Printed 2026-10-10 after X-05 and lane P2:
 
 ```
-279 Counter({'live': 192, 'moot': 40, 'dark': 28, 'building': 11, 'owner-blocked': 8})
+279 Counter({'live': 193, 'moot': 40, 'dark': 28, 'building': 10, 'owner-blocked': 8})
 0 duplicate ids
 ```
 
@@ -49,16 +49,16 @@ The per-section split is the same regex applied to each `## ` section:
 
 | section | rows | live | dark | building | owner-blocked | moot |
 |---|---|---|---|---|---|---|
-| 1 Programme records + ship | 17 | 12 | 0 | 2 | 0 | 3 |
+| 1 Programme records + ship | 17 | 13 | 0 | 1 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
 | 3 TERM-001..093 | 93 | 68 | 9 | 7 | 3 | 6 |
 | 4 BRK-01..10 | 10 | 5 | 4 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 6 | 1 | 1 | 1 | 3 |
 | 6 FT-001..080 | 80 | 57 | 9 | 1 | 4 | 9 |
 | 7 Untracked promises | 58 | 44 | 5 | 0 | 0 | 9 |
-| **total** | **279** | **192** | **28** | **11** | **8** | **40** |
+| **total** | **279** | **193** | **28** | **10** | **8** | **40** |
 
-`building` by lane: P 6 · Notebook 2 · R 2 · D 1.
+`building` by lane: P 6 · Notebook 2 · R 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -71,7 +71,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `X-02` | `TERMINAL_NEXT_ENABLED`: the `/terminal` shell + the `/calendar` redirect | `live` | `TERMINAL_NEXT_ENABLED` armed on web (`docs/feature_flags.json:2415`, recorded `4084cd903`). The nav entry graduated to `/terminal` (`c941080f0`, I-11 `12-decisions/2026-10-07-owner-delegated-decisions.md:39`; `app/src/components/NavBar.jsx:27`) and `/terminal` is measured viewport-locked (`18676e3ec`). V1 is fixed (row V1). Was `dark`. |
 | `X-03` | Charter §49 #18: first vertical slice (`10-roadmap/first-slice.md`) | `live` | Done 2026-10-10 by lane f-l1: `10-roadmap/first-slice.md`, written retrospectively since the terminal had shipped. Its slice is `e5f189c56` (the `/terminal` shell, 2026-10-02), on master via `2e304db42`; every Part CCXLIII field cites a commit or a `file:line`. Roadmap RM-N16. Was `building (Lane D)`. |
 | `X-04` | Charter §49 #24: master plan (`13-executive-synthesis/MASTER_PLAN.md`) | `live` | Done 2026-10-10 by lane f-l1: `13-executive-synthesis/MASTER_PLAN.md`, the 42 Part CC sections each with a five-line summary, plus D-005..D-014 and the later rulings (Part A) and this ledger's state (Part B). Roadmap RM-N17. Was `building (Lane D)`. |
-| `X-05` | Charter §49 #26: readiness test | `building (Lane D)` | **RUN FOUR TIMES, NOT PASSED** (2026-10-10, lane f-l1): 7, 7, 7 and 5 discovery questions against a pass bar of three (`00-program-control/readiness-test.md`). Runs 1-3 were answered into `13-executive-synthesis/MASTER_PLAN.md` Part C (`92c440478`, `906c11039`, `4fcaafc60`); run 4's five are open and concern the restore-door gap run 3 surfaced (`api/routers/workspace_doc.py:71-84`). Remainder: answer them and run a fifth fresh agent. Roadmap RM-N18. |
+| `X-05` | Charter §49 #26: readiness test | `live` | **PASSED on run 6** (2026-10-10, lane f-x05): 3 discovery questions against a pass bar of three. Runs 1-6 asked 7, 7, 7, 5, 5, 3, and every run's questions are answered in `13-executive-synthesis/MASTER_PLAN.md` Part C (`92c440478`, `906c11039`, `4fcaafc60`, `2e8cbe5f1`, `2c7f8a520`, and the commit recording run 6). The restore-door gap run 3 surfaced is fixed on master (`97876df0f`, `api/routers/workspace_doc.py:132-139`). Run record and verdict: `00-program-control/readiness-test.md`. Roadmap RM-N18. |
 | `X-06` | Record the 2026-10-02 owner rulings | `live` | Done here: D-005..D-014, DL-026..DL-037. |
 | `X-07` | Retract or annotate NG-10, NG-04/05, NG-15 | `live` | Done here: `05-product-strategy/non-goals.md`. |
 | `X-08` | COV-09 naming conflict | `live` | Resolved by DL-036: COV-09 is the SEC filings feed, congressional trackers are COV-12. |
