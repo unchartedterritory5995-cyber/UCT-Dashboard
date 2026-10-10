@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (branch f-l1 from master `11fa16167`, 2026-10-10): not complete.** 217 of 279 rows are `live` or `moot`; 62 are not (13 `dark`, 41 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (branch f-l1 rebased on master `3ca4c1605`, 2026-10-10): not complete.** 218 of 279 rows are `live` or `moot`; 61 are not (14 `dark`, 39 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,10 +34,10 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 on branch f-l1 (from master `11fa16167`), after lane f-l1's edits to X-03, X-04, X-05, X-14, RM-X02 and FB-A3:
+Printed 2026-10-10 on branch f-l1 rebased on master `3ca4c1605` (which moved TERM-004 to `dark`), after lane f-l1's edits to X-03, X-04, X-05, X-14, RM-X02 and FB-A3:
 
 ```
-279 Counter({'live': 177, 'building': 41, 'moot': 40, 'dark': 13, 'owner-blocked': 8})
+279 Counter({'live': 178, 'moot': 40, 'building': 39, 'dark': 14, 'owner-blocked': 8})
 0 duplicate ids
 ```
 
@@ -53,10 +53,10 @@ The per-section split is the same regex applied to each `## ` section:
 | 4 BRK-01..10 | 10 | 4 | 2 | 3 | 0 | 1 |
 | 5 COV-01..12 | 12 | 5 | 0 | 3 | 1 | 3 |
 | 6 FT-001..080 | 80 | 56 | 2 | 9 | 4 | 9 |
-| 7 Untracked promises | 58 | 38 | 4 | 7 | 0 | 9 |
-| **total** | **279** | **177** | **13** | **41** | **8** | **40** |
+| 7 Untracked promises | 58 | 39 | 4 | 6 | 0 | 9 |
+| **total** | **279** | **178** | **14** | **39** | **8** | **40** |
 
-`building` by lane: P 11 · O 8 · R 5 · integrator 4 · D 1 · T1 3 · S 2 · Notebook 2 · T4 2 · T2 1 · decided follow-up builds (TERM-043, TERM-045) 2.
+`building` by lane: P 10 · O 8 · R 5 · integrator 4 · D 1 · T1 2 · S 2 · Notebook 2 · T4 2 · T2 1 · decided follow-up builds (TERM-043, TERM-045) 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -69,7 +69,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `X-02` | `TERMINAL_NEXT_ENABLED`: the `/terminal` shell + the `/calendar` redirect | `live` | `TERMINAL_NEXT_ENABLED` armed on web (`docs/feature_flags.json:2415`, recorded `4084cd903`). The nav entry graduated to `/terminal` (`c941080f0`, I-11 `12-decisions/2026-10-07-owner-delegated-decisions.md:39`; `app/src/components/NavBar.jsx:27`) and `/terminal` is measured viewport-locked (`18676e3ec`). V1 is fixed (row V1). Was `dark`. |
 | `X-03` | Charter §49 #18: first vertical slice (`10-roadmap/first-slice.md`) | `live` | Done 2026-10-10 by lane f-l1: `10-roadmap/first-slice.md`, written retrospectively since the terminal had shipped. Its slice is `e5f189c56` (the `/terminal` shell, 2026-10-02), on master via `2e304db42`; every Part CCXLIII field cites a commit or a `file:line`. Roadmap RM-N16. Was `building (Lane D)`. |
 | `X-04` | Charter §49 #24: master plan (`13-executive-synthesis/MASTER_PLAN.md`) | `live` | Done 2026-10-10 by lane f-l1: `13-executive-synthesis/MASTER_PLAN.md`, the 42 Part CC sections each with a five-line summary, plus D-005..D-014 and the later rulings (Part A) and this ledger's state (Part B). Roadmap RM-N17. Was `building (Lane D)`. |
-| `X-05` | Charter §49 #26: readiness test | `building (Lane D)` | **RUN, NOT PASSED** (2026-10-10, lane f-l1): two runs, 7 discovery questions each, against a pass bar of three (`00-program-control/readiness-test.md`). Run 1's seven were answered into `13-executive-synthesis/MASTER_PLAN.md` Part C (`c085c3714`); run 2's seven are open. Remainder: answer them and run a third fresh agent. Roadmap RM-N18. |
+| `X-05` | Charter §49 #26: readiness test | `building (Lane D)` | **RUN FOUR TIMES, NOT PASSED** (2026-10-10, lane f-l1): 7, 7, 7 and 5 discovery questions against a pass bar of three (`00-program-control/readiness-test.md`). Runs 1-3 were answered into `13-executive-synthesis/MASTER_PLAN.md` Part C (`92c440478`, `906c11039`, `4fcaafc60`); run 4's five are open and concern the restore-door gap run 3 surfaced (`api/routers/workspace_doc.py:71-84`). Remainder: answer them and run a fifth fresh agent. Roadmap RM-N18. |
 | `X-06` | Record the 2026-10-02 owner rulings | `live` | Done here: D-005..D-014, DL-026..DL-037. |
 | `X-07` | Retract or annotate NG-10, NG-04/05, NG-15 | `live` | Done here: `05-product-strategy/non-goals.md`. |
 | `X-08` | COV-09 naming conflict | `live` | Resolved by DL-036: COV-09 is the SEC filings feed, congressional trackers are COV-12. |
@@ -321,7 +321,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `V13` | Doors → panels (26 of 46 codes leave the shell), with one panel vocabulary | `live` | One panel vocabulary: `app/src/pages/terminal/surfacePanels.js:16` imports `SURFACE_PANELS` (TERM-037). 18 of 85 codes still leave the shell, each declaring why in `app/src/pages/terminal/functions.js` (for example `:91`, `:187`, `:220`). Was `building (Lane T1)`. |
 | `V6a` | Honour stored arguments (`ChartPanel.jsx:7` hard-codes `tf="D"`) | `live` | `app/src/pages/terminal/panels/ChartPanel.jsx:7` takes `tf` from the command (`NVDA GP W`); variants declare their args (`app/src/pages/terminal/args.js:6`). Was `building (Lane T1)`. |
 | `V22` | Throwing-panel rail + re-run the five-property walkthrough on `/terminal` | `building (Lane T1)` | Throwing-panel rail built: `app/src/pages/terminal/TerminalShell.test.jsx:291`. Remainder: re-run the five-property walk on `/terminal` (X-11): not measured. |
-| `RM-X02` | `/terminal` in `tools/hub_nav_smoke.py` + a pre-authored rollback branch | `building (Lane T1)` | `tools/hub_nav_smoke.py:188` follows the UCT Terminal entry onto `/terminal` (`alsoActive`). Rollback branch prepared, push pending: `rollback/terminal-next-off` at `f1c811f4c` (from `origin/master` `11fa16167`, lane f-l1, 2026-10-10). The off switch is the `TERMINAL_NEXT_ENABLED` variable read per request (`api/services/rollout_gate.py:141-155`), not code, so the branch carries only `docs/runbooks/terminal-rollback.md`: the `railway` commands and a three-step verification. Remainder: the integrator pushes the branch. |
+| `RM-X02` | `/terminal` in `tools/hub_nav_smoke.py` + a pre-authored rollback branch | `live` | `tools/hub_nav_smoke.py:188` follows the UCT Terminal entry onto `/terminal` (`alsoActive`). Rollback branch `rollback/terminal-next-off` at `f1c811f4c` is on origin (pushed by the integrator 2026-10-10; `git ls-remote --heads origin rollback/terminal-next-off`). The off switch is the `TERMINAL_NEXT_ENABLED` variable read per request (`api/services/rollout_gate.py:141-155`), so the branch carries only `docs/runbooks/terminal-rollback.md`: the `railway` commands and a three-step verification. Was `building (Lane T1)`. |
 | `V2` | `terminal_layout` onto the versioned TERM-021 store + version restore | `live` | The board is versioned on TERM-021's store (`app/src/pages/terminal/boardModel.js:3-6`, `TERMINAL_PREF_KEYS`) with version restore (`app/src/pages/terminal/TerminalVersions.jsx:4`). Was `building (Lane T2)`. |
 | `V3` | Named, addressable, shareable terminal boards (FB A-2 for the shell) | `live` | Named boards addressed `B:<slug>` (`app/src/pages/terminal/boardModel.js:792`) and shared by link (`encodeShare` `:606`, `/terminal?board=` `:622`). Was `building (Lane T2)`. |
 | `V9` | Panel close + undo, duplicate, pop-out | `live` | Close, undo, duplicate and pop-out (`app/src/pages/terminal/boardModel.js:415`, `undoClose` `:440`); Alt+X / Z / C keys (`af1048a95`). Was `building (Lane T2)`. |

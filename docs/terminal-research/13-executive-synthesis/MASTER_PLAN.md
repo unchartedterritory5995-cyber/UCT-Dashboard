@@ -4,7 +4,7 @@ title: UCT TERMINAL — INSTITUTIONAL PRODUCT & ENGINEERING MASTER PLAN
 role: Charter Document B §49 gate item 24 ("Master plan assembled per Part CC",
   `13-executive-synthesis/MASTER_PLAN.md`). Ledger row X-04, roadmap row RM-N17. The input to the
   readiness test (gate item 26, `00-program-control/readiness-test.md`).
-as_of: master 11fa16167 (2026-10-10)
+as_of: master 3ca4c1605 (2026-10-10)
 status: assembled 2026-10-10 by lane f-l1, after the terminal shipped. It summarises and points; the
   per-item authority is `COMPLETION-LEDGER.md`, and the rulings' authority is
   `00-program-control/OWNER_DECISIONS.md` plus `12-decisions/`.
@@ -68,10 +68,11 @@ row per item, one state per row (`live`, `dark`, `building`, `owner-blocked`, `m
 derived by the command in its §0, never typed.
 
 - **The answer today: not complete.** It is complete when every row is `live` or `moot`.
-- **Counts after this lane's edits** (the §0 command, run 2026-10-10 on branch f-l1):
-  `279 Counter({'live': 177, 'building': 41, 'moot': 40, 'dark': 13, 'owner-blocked': 8})`, 0 duplicate ids. So 217 of 279 rows are `live` or `moot` and 62 are not (`docs/terminal-research/COMPLETION-LEDGER.md` §0).
-- Before this lane (the same command, master `11fa16167`): 279 rows, 174 live, 44 building, 39 moot,
-  13 dark, 9 owner-blocked (`docs/terminal-research/COMPLETION-LEDGER.md:40` as committed there).
+- **Counts after this lane's edits** (the §0 command, run 2026-10-10 on branch f-l1 rebased on
+  master `3ca4c1605`):
+  `279 Counter({'live': 178, 'moot': 40, 'building': 39, 'dark': 14, 'owner-blocked': 8})`, 0 duplicate ids. So 218 of 279 rows are `live` or `moot` and 61 are not (`docs/terminal-research/COMPLETION-LEDGER.md` §0).
+- Before this lane (the same command, master `3ca4c1605`): 279 rows, 174 live, 43 building, 39 moot,
+  14 dark, 9 owner-blocked (`docs/terminal-research/COMPLETION-LEDGER.md` §0 as committed there).
 - What only the owner can do is grouped in the ledger's §8
   (`docs/terminal-research/COMPLETION-LEDGER.md:378`).
 - What shipped in the final push (waves 5-9, 2026-10-08 to 10-10), with live verification, is in
