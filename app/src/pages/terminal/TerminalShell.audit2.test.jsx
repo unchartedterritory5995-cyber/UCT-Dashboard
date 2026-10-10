@@ -370,6 +370,26 @@ describe('🟠 async answers', () => {
     expect(where()).toMatch(/^\/terminal/)
   })
 
+  // TERM-056: the interchange's terminal half. A note's address typed in the command line opens
+  // that note (the address space resolves it to the note's door), and so does the same address
+  // arriving as `?cmd=` (the URL a Notebook terminal link carries).
+  it('TERM-056: a note address typed in the command line opens that note', async () => {
+    const asked = []
+    routeFetch({ '/api/address/resolve': (u) => { asked.push(u); return json(200, { to: '/journal/notebook?note=42' }) } })
+    renderAt(['/terminal'])
+    await type('n:42')
+    await settle()
+    expect(asked).toEqual(['/api/address/resolve?a=N%3A42'])
+    expect(where()).toBe('/journal/notebook?note=42')
+  })
+
+  it('TERM-056: the same address arriving as ?cmd= (a note\'s terminal link) opens it too', async () => {
+    routeFetch({ '/api/address/resolve': json(200, { to: '/journal/notebook?note=42' }) })
+    renderAt([`/terminal?cmd=${encodeURIComponent('N:42')}`])
+    await settle()
+    expect(where()).toBe('/journal/notebook?note=42')
+  })
+
   it('#13: CMP SECTOR tells "not enabled" (404) from "lookup failed" from "none known"', async () => {
     renderAt(['/terminal'])
     routeFetch({})

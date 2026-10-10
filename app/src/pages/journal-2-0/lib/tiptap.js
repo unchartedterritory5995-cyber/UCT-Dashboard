@@ -264,7 +264,10 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
       // is the TEMPORARY placeholder the import pipeline round-trips through generateJSON
       // before rewriteBody resolves it. Without this allowance the Link mark is stripped
       // at parse time and every wiki-link import silently dies.
-      isAllowedUri: (url, ctx) => url.startsWith('/journal') || url.startsWith('import-link://') || ctx.defaultValidate(url),
+      // '/terminal?cmd=' is TERM-056's terminal command link (lib/linkClickOpen.js). Allowed
+      // whatever the gate says: the schema must never strip a link a note already holds.
+      isAllowedUri: (url, ctx) => url.startsWith('/journal') || url.startsWith('/terminal?cmd=')
+        || url.startsWith('import-link://') || ctx.defaultValidate(url),
       HTMLAttributes: { rel: 'noreferrer', target: '_blank' },
     }),
     // Ruling 165: Ctrl/Cmd+click opens a link (new tab, noopener/noreferrer);

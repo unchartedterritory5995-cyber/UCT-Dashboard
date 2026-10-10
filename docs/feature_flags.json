@@ -1642,6 +1642,17 @@
       ],
       "note": "Wave 7 lane H, 2026-09-25. Enablement gate for meaning-search over a member's notes (note_semantic.py: OpenAI text-embedding-3-small through voice_embeddings_service, j2_note_embeddings, a scheduled sweep, query-shape routing into GET /notes). Unset means OFF and that is the decision: nothing is embedded, nothing is sent to the vendor, the sweep is a no-op. Was held for OpenAI zero-retention terms in writing; that hold was released by the owner on 2026-10-09 (see the end of this note). Read per call; a flip needs no restart. Armed, the query embed is bounded per member (ruling D-H6): one in flight, a 256-entry / 10-minute query-vector cache keyed by member, 200 embeds a day on the durable counter; each bound fails open to the lexical page. The append is opt-in per request (`meaning=1`, ruling D-H9): only the Notebook search box asks. Wave 14 lane W14-C1, 2026-10-04: now ALSO a row of NOTEBOOK_FLAGS in api/routers/auth.py, so the auth payload carries notebook_semantic_search_enabled (unset means OFF, the same answer as note_semantic.semantic_enabled, which now reads through notebook_flags.flag_on). The key only lets the client open this capability's walkthrough (tour meaning-search). ARMED on web 2026-10-09 by owner ruling (published vendor terms are enough; VENDOR-TERMS-2026-09-23.md section 2): `railway variables --set` at 19:36:23Z, together with NOTEBOOK_VOICE_NOTES_ENABLED, one boot (deploy eaf5b80a created 19:36:27Z, SUCCESS); read True in-process from the smoke account's auth payload, then the app-wide click-through. The Privacy page naming this flow was live first (#307, 19:34Z)."
     },
+    "NOTEBOOK_TERMINAL_LINKS_ENABLED": {
+      "member_facing": {
+        "label": "Terminal commands in notes",
+        "where": "Notebook"
+      },
+      "status": "pending",
+      "since": "2026-10-10",
+      "where": ["web"],
+      "owner": "TERMINAL-NEXT lane N (TERM-056)",
+      "note": "TERM-056 command-string interchange, Notebook half, built dark 2026-10-10. Enablement gate: when on, pasting a line that is unmistakably a terminal command (NVDA GRADE, GP SPY, B:<board slug>, or a saved-item address such as N:42) into a note inserts it as a link to /terminal?cmd=<command>, the shell's existing door that runs a command on arrival; Ctrl/Cmd+click (or a plain click on a read-only note) opens it. The decision whether a line IS a command is made by the terminal's one parser (app/src/pages/terminal/commandInterchange.js), loaded lazily only while this gate is on, so nothing rides the Notebook's first-open bytes while it is off. The other half (typing a note address N:<id> into the terminal opens that note) needs no gate of its own: it is the address space's resolve path, under ADDRESS_SPACE_ENABLED. Client-only, no route: rides the auth payload as notebook_terminal_links_enabled (a row of NOTEBOOK_FLAGS in api/routers/auth.py), read per request, latched per tab. Off: a paste is exactly as before, and a stored terminal link is an inert link that does not open. Unset means OFF; no decision yet. Rollback: unset or 0 on web."
+    },
     "NOTEBOOK_TASK_REMINDERS_ENABLED": {
       "status": "armed",
       "where": [
