@@ -8,6 +8,7 @@ import "./LiveFlowMassive.mobile.css";
 import Checkbox from '../components/ui/Checkbox'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
+import { ASC, DESC, nextSort } from '../lib/presentation/dataGrid'
 
 /**
  * LiveFlowMassive — the PRODUCTION Live Flow page (nav "Live Flow").
@@ -221,6 +222,23 @@ const COLUMNS = [
   { key: "pl",        label: "P/L",      align: "center", dir: "desc" },
   { key: "tier",      label: "ALERT",    align: "left",   dir: "asc"  },
 ];
+
+// ── TERM-065: both tables' header decisions come from the DataGrid seed ───────
+// The comparators (blanks last, newest-first tiebreak, CONTRACT_SORT_KEYS) stay in
+// this file; the seed decides which way a click turns the sort. Parity with the
+// hand-rolled updaters: lib/presentation/dataGrid/pageGrids2.seedParity.test.js
+const massiveColFirstDir = (key) => COLUMNS.find(c => c.key === key)?.dir || DESC;
+/** Alert table: 1st click → the column's first direction, 2nd → flip, 3rd → back to
+ *  the natural time-descending tape order. */
+export function nextMassiveColSort(prev, key) {
+  if (prev.key === key && prev.dir !== massiveColFirstDir(key)) return { key: "time", dir: DESC };
+  return nextSort(prev, key, massiveColFirstDir);
+}
+const contractFirstDir = (col) => (col === "TICKER" || col === "EXP" ? ASC : DESC);
+/** By-Contract table: the same column flips; a new column takes its first direction. */
+export function nextContractSort(prev, col) {
+  return nextSort(prev, col, contractFirstDir);
+}
 
 // Turn an M/D/YYYY expiration into a sortable YYYYMMDD-ish integer.
 function _expSortVal(exp) {
@@ -3319,12 +3337,10 @@ export default function LiveFlowMassive() {
   // presets to that and flips to the contract view. "Still open only" hides
   // contracts whose fetched OI says closed (exited) — a live still-open filter.
   const [stillOpenOnly, setStillOpenOnly] = useState(false);
-  const [cSortCol, setCSortCol] = useState(null);   // By-Contract column click-sort
-  const [cSortDir, setCSortDir] = useState("desc");
-  const onContractSort = (col) => {
-    if (cSortCol === col) setCSortDir(d => (d === "desc" ? "asc" : "desc"));
-    else { setCSortCol(col); setCSortDir(col === "TICKER" || col === "EXP" ? "asc" : "desc"); }
-  };
+  const [cSort, setCSort] = useState({ key: null, dir: DESC });   // By-Contract column click-sort
+  const cSortCol = cSort.key;
+  const cSortDir = cSort.dir;
+  const onContractSort = (col) => setCSort(prev => nextContractSort(prev, col));
   // Min prints for a contract to appear in By-Contract. Default 3 = accumulation
   // focus; set to 1 to see EVERY contract (single big Alpha Gold prints, held or
   // not — "doesn't have to be accumulating").
@@ -3379,14 +3395,14 @@ export default function LiveFlowMassive() {
   // page's prior always-time-descending behavior. `sortBy` above still selects
   // WHICH alerts the backend returns (recent/conviction/premium top-N); this
   // controls the DISPLAY order of that set, so the two are orthogonal.
-  const [sortCol, setSortCol] = useState(() => {
-    try { const s = JSON.parse(localStorage.getItem(LS_KEY_COLSORT) || ""); return s?.c || "time"; }
-    catch { return "time"; }
+  const [colSort, setColSort] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem(LS_KEY_COLSORT) || "");
+      return { key: s?.c || "time", dir: s?.d || DESC };
+    } catch { return { key: "time", dir: DESC }; }
   });
-  const [sortDir, setSortDir] = useState(() => {
-    try { const s = JSON.parse(localStorage.getItem(LS_KEY_COLSORT) || ""); return s?.d || "desc"; }
-    catch { return "desc"; }
-  });
+  const sortCol = colSort.key;
+  const sortDir = colSort.dir;
   // How many recent alerts to keep in the feed. Defaults to 500 (~8-15 min
   // of market-open activity); user can bump to 1000 or "All" (full day). The
   // BULL/BEAR cards are always day-scoped and unaffected by this setting.
@@ -4412,18 +4428,7 @@ export default function LiveFlowMassive() {
 
   // Column-header click: 1st → column's default dir, 2nd → flip, 3rd → reset
   // to the natural time-descending tape order.
-  const handleSortColumn = (key) => {
-    const def = COLUMNS.find(c => c.key === key)?.dir || "desc";
-    if (sortCol !== key) {
-      setSortCol(key);
-      setSortDir(def);
-    } else if (sortDir === def) {
-      setSortDir(def === "desc" ? "asc" : "desc");
-    } else {
-      setSortCol("time");
-      setSortDir("desc");
-    }
-  };
+  const handleSortColumn = (key) => setColSort(prev => nextMassiveColSort(prev, key));
 
   // Tier badge / alert-name click inside a row: isolate that tier (mirrors the
   // FilterChips toggle — clicking the already-isolated tier restores all).

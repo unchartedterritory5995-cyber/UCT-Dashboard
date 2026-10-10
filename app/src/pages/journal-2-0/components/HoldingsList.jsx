@@ -18,6 +18,14 @@ import { money, percent } from '../../../lib/journal-2-0'
 import { thesisChipsEnabled } from '../lib/thesisChips'
 import ThesisChip from './notebook/ThesisChip'
 import styles from './HoldingsList.module.css'
+import { DESC, ariaSortFor, nextSort } from '../../../lib/presentation/dataGrid'
+
+// TERM-065: the direction button asks the DataGrid seed which way the sort turns
+// (the same key flips) and how to say it. The sort-by select, the persisted pref
+// and the comparator (lib/holdingsRows.sortRows) are unchanged. Parity:
+// lib/presentation/dataGrid/pageGrids2.seedParity.test.js
+export const flipHoldingsSort = (sort) => nextSort(sort, sort.key)
+export const holdingsSortWords = (sort) => ariaSortFor(sort, sort.key)
 
 const SORT_STORAGE_KEY = 'uct.j2.holdings.sort'
 const DEFAULT_SORT = { key: 'marketValue', dir: 'desc' }
@@ -124,11 +132,11 @@ export default function HoldingsList({ positions = [], optionStrategies = [], pr
               <button
                 type="button"
                 className={styles.dirBtn}
-                aria-label={`Sort direction: ${sort.dir === 'desc' ? 'descending' : 'ascending'}`}
-                onClick={() => saveSort({ ...sort, dir: sort.dir === 'desc' ? 'asc' : 'desc' })}
+                aria-label={`Sort direction: ${holdingsSortWords(sort)}`}
+                onClick={() => saveSort(flipHoldingsSort(sort))}
               >
                 <svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
-                  {sort.dir === 'desc'
+                  {sort.dir === DESC
                     ? <path d="M2 4l4 5 4-5z" fill="currentColor" />
                     : <path d="M2 8l4-5 4 5z" fill="currentColor" />}
                 </svg>

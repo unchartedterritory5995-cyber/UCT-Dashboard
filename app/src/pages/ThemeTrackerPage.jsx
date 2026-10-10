@@ -31,6 +31,16 @@ import CaptureMenu from './journal-2-0/components/CaptureMenu'
 import { useThemeSets, getSetDef, putSetDef } from '../hooks/useThemeSets'
 import { AuthContext } from '../context/AuthContext'
 import { chordById, matchesChord } from './command/chords.js'
+import { DESC, nextSort, sortCaretFor } from '../lib/presentation/dataGrid'
+
+// ── TERM-065: the period tabs and the column sort button ask the DataGrid seed ──
+// The sort is ONE {key: period tab, dir} object: clicking the active tab (or the
+// column's sort button) flips it, another tab starts high → low. The comparators
+// (blanks sink by direction, group-return order) stay here. Parity with the
+// hand-rolled toggles: lib/presentation/dataGrid/pageGrids2.seedParity.test.js
+const themeTabFirstDir = () => DESC
+export const nextThemeTabSort = (prev, tab) => nextSort(prev, tab, themeTabFirstDir)
+export const flipThemeSort = (prev) => nextSort(prev, prev.key, themeTabFirstDir)
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
@@ -544,7 +554,10 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     return Math.round(16 * scale)
   }, [ttSettings.fontSize])
 
-  const [activeTab, setActiveTab] = useState('Today')  // always open on Today (not persisted → resets every load)
+  // always open on Today, high → low (not persisted → resets every load)
+  const [tabSort, setTabSort] = useState({ key: 'Today', dir: DESC })
+  const activeTab = tabSort.key
+  const sortDir = tabSort.dir
   // Today basis: 'close' = vs previous close (includes the overnight gap, the classic "today");
   // 'open' = vs today's regular-session open (gap excluded). Only affects the Today column.
   // Seeded from + persisted to per-widget opts.
@@ -900,7 +913,6 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // symbol (else navigating a duplicate jumps to the other theme's copy).
   const [selectedNavKey, setSelectedNavKey] = useState(null)
   const [selectedName, setSelectedName] = useState('')
-  const [sortDir, setSortDir] = useState('desc')
   // Accordion: at most ONE theme open at a time (null = none) — `openTheme` state is
   // declared higher up (near the editor state) so the edit ops can jump to a new theme.
   // chartPeriod is declared up here (not later in the file) because
@@ -935,12 +947,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   const rowRefs = useRef({})
 
   function handleTabClick(tab) {
-    if (tab === activeTab) {
-      setSortDir(d => d === 'desc' ? 'asc' : 'desc')
-    } else {
-      setActiveTab(tab)
-      setSortDir('desc')
-    }
+    setTabSort(prev => nextThemeTabSort(prev, tab))
   }
 
   function toggleTheme(ticker) {
@@ -1435,22 +1442,22 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               <button
                 type="button"
                 className={`${styles.colLabel} ${styles.colLabelActive} ${styles.sortBtn}`}
-                onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+                onClick={() => setTabSort(flipThemeSort)}
                 title={sortDir === 'desc' ? 'Sorted high → low (click for low → high)' : 'Sorted low → high (click for high → low)'}
               >
                 1D
-                <span className={styles.sortCaret}>{sortDir === 'desc' ? '▼' : '▲'}</span>
+                <span className={styles.sortCaret}>{sortCaretFor(tabSort, activeTab)}</span>
               </button>
             </span>
           ) : (
             <button
               type="button"
               className={`${styles.colLabel} ${styles.colLabelActive} ${styles.sortBtn}`}
-              onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+              onClick={() => setTabSort(flipThemeSort)}
               title={sortDir === 'desc' ? 'Sorted high → low (click for low → high)' : 'Sorted low → high (click for high → low)'}
             >
               {PERIOD_LABELS[activeKey]}
-              <span className={styles.sortCaret}>{sortDir === 'desc' ? '▼' : '▲'}</span>
+              <span className={styles.sortCaret}>{sortCaretFor(tabSort, activeTab)}</span>
             </button>
           )}
         </div>

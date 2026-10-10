@@ -182,16 +182,13 @@ export function handRolledGrids(tree = treeSources()) {
 // the same commit (the "drop it" test below enforces that); adding a line to
 // admit a new grid is exactly what this rail exists to refuse.
 const PARTNER = 'partner-owned (OptionsFlow and what it owns) — never migrated without the partner'
+//   2026-10-10 (lane f-l7): 9 -> 3. CalendarDayTable, Shelf, HoldingsList,
+//   LiveFlowMassive, ThemeTrackerPage and Watchlists moved onto the seed (MIGRATED
+//   below; parity in pageGrids2.seedParity.test.js). What remains is partner-owned.
 export const BASELINE = new Map([
-  ['app/src/pages/calendar/CalendarDayTable.jsx', 'tri-state sort (third click restores importance order) inside session groups — needs a tri-state mode on the seed first'],
-  ['app/src/pages/DarkPool.jsx', 'three grids in one 3.6k-line page'],
-  ['app/src/pages/desk/Shelf.jsx', 'the Desk shelf expanded-grid sort (direction only, no column)'],
-  ['app/src/pages/journal-2-0/components/HoldingsList.jsx', 'sort-by select + direction button, persisted under uct.j2.holdings.sort — not a header grid'],
-  ['app/src/pages/LiveFlowMassive.jsx', 'live flow (Massive) tables'],
+  ['app/src/pages/DarkPool.jsx', 'three grids in one 3.6k-line page; partner-owned (like OptionsFlow) — never migrated without the partner'],
   ['app/src/pages/OptionsFlow.jsx', PARTNER],
   ['app/src/pages/OptionsFlow_admin.jsx', 'admin copy of OptionsFlow — follows the partner file, not migrated independently'],
-  ['app/src/pages/ThemeTrackerPage.jsx', 'theme tracker tab sort'],
-  ['app/src/pages/Watchlists.jsx', 'the watchlist grid — itself shared by five widgets (Scanner/EtfHoldings/PeriodSort/BreadthDrill/Watchlist); persisted under uct.watchlist.cols'],
 ])
 
 /** Grids already moved onto the seed. They must import it and hand-roll nothing. */
@@ -208,6 +205,14 @@ export const MIGRATED = [
   'app/src/pages/LiveFlow.jsx',
   'app/src/pages/ModelBook.jsx',
   'app/src/pages/UCT20.jsx',
+  // 2026-10-10 (lane f-l7), header decisions onto the seed, comparators kept (the
+  // Shelf's Newest/Oldest order runs on sortRows); parity in pageGrids2.seedParity.test.js
+  'app/src/pages/calendar/CalendarDayTable.jsx',
+  'app/src/pages/desk/Shelf.jsx',
+  'app/src/pages/journal-2-0/components/HoldingsList.jsx',
+  'app/src/pages/LiveFlowMassive.jsx',
+  'app/src/pages/ThemeTrackerPage.jsx',
+  'app/src/pages/Watchlists.jsx',
 ]
 
 const fmt = (sigs) => sigs.map((s) => `${s.signal}@${s.line}`).join(', ')
