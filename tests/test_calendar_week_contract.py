@@ -180,8 +180,16 @@ def _drive_ai_adapter(payload, monkeypatch):
     return ea._cross_check_live_window("AAPL", DAY)
 
 
+def _drive_calendar_audit(payload, monkeypatch):
+    from datetime import date
+    from api.services import earnings_calendar_audit as audit
+    monkeypatch.setattr("api.routers.calendar.get_calendar", lambda *a, **k: payload)
+    return audit.rows_of(audit._get_week(date(2026, 10, 12)))
+
+
 DRIVERS = {
     "api.services.calendar_week_poster.build_payloads": _drive_week_poster,
+    "api.services.earnings_calendar_audit._get_week": _drive_calendar_audit,
     "api.routers.calendar._collect_reporters_for_ics": _drive_ics,
     "api.services.wire.detector.todays_reporters": _drive_wire_detector,
     "api.services.earnings_preview_warm._rank": _drive_preview_warm,

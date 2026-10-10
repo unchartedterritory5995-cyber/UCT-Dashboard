@@ -7473,6 +7473,27 @@ async def lifespan(app: FastAPI):
                 id="calendar_week_post", max_instances=1, replace_existing=True)
             print("[scheduler] weekly calendar Discord post registered (Sat 4:30 AM ET)")
 
+        # -- Earnings calendar accuracy: snapshot, audit, source health ----
+        # Sun 18:00 ET freeze the upcoming week as members see it; Sat 10:00 ET
+        # grade the week that just ended against what actually happened; weekdays
+        # 18:30 ET one line per verification source. All post to the private
+        # System Alerts channel (DISCORD_ALERT_WEBHOOK). Kill switch
+        # CALENDAR_ACCURACY_AUDIT_ENABLED=0 (unset = on), read per call.
+        from api.services import earnings_calendar_audit as _cal_audit
+        _scheduler.add_job(
+            _cal_audit.snapshot_upcoming_week,
+            trigger=CronTrigger(day_of_week="sun", hour=18, minute=0, timezone=_ET),
+            id="earnings_calendar_snapshot", max_instances=1, replace_existing=True)
+        _scheduler.add_job(
+            _cal_audit.audit_week,
+            trigger=CronTrigger(day_of_week="sat", hour=10, minute=0, timezone=_ET),
+            id="earnings_calendar_audit", max_instances=1, replace_existing=True)
+        _scheduler.add_job(
+            _cal_audit.post_health,
+            trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=30, timezone=_ET),
+            id="earnings_source_health", max_instances=1, replace_existing=True)
+        print("[scheduler] earnings calendar snapshot/audit/health registered")
+
         # -- Pre-report Earnings Alerts (Phase E1) -------------------------
         # Gated on CALENDAR_ALERTS_ENABLED=1. Fires two windows:
         #   - Evening ~6 PM ET -- alert for tomorrow's BMO reporters

@@ -842,6 +842,14 @@
       ],
       "note": "TERM-015 / FB-OBS-04. Gates ONLY the daily dead-man roll-up job on terminal-next-monitor (api/terminal_next_monitor_main.py, SCHEDULE row 'cadence', daily 16:20 ET incl. weekends, inside the existing Railway cron). Dark because it posts to humans every day, healthy or not -- that is its purpose (its ABSENCE is the alarm), so it ships off and arming it is a person's act. Set it to 1 on terminal-next-monitor ONLY; it means nothing on web. Read per run in rollup_enabled(), never at import; unset or 0 = the job reads nothing and posts nothing, so rollback is blanking it. The roll-up resolves its channel through the TERM-011 resolver (alert_destination.ops_webhook), i.e. DISCORD_OPS_WEBHOOK_URL falling back to DISCORD_WEBHOOK_URL. The cadence MARKERS it reads (api/services/cadence_heartbeat.py, written on web's volume under $DATA_DIR/cadence) are NOT gated by this flag: writing a heartbeat pages nobody. SET TO 1 ON terminal-next-monitor 2026-09-29 ~01:50Z by the owner (railway variables --set). NOT yet verified in-process: it is a cron service, so the proof is the first 16:20 ET roll-up post arriving."
     },
+    "CALENDAR_ACCURACY_AUDIT_ENABLED": {
+      "status": "armed",
+      "since": "2026-10-10",
+      "where": [
+        "web"
+      ],
+      "note": "KILL SWITCH, default ON (unset = on; 0/false/no/off stops it), read per call in api/services/earnings_calendar_audit.py::is_enabled(). SERVICE: web. Three scheduler jobs registered unconditionally in api/main.py, each a no-op when this is off: earnings_calendar_snapshot (Sun 18:00 ET, freezes the upcoming week to /data/calendar_snapshots/<monday>.json), earnings_calendar_audit (Sat 10:00 ET, grades the week that ended against the rebuilt week + the companies' own Item 2.02 8-Ks), earnings_source_health (weekdays 18:30 ET, one line per verification source). All post to DISCORD_ALERT_WEBHOOK (UCT System Alerts, private); blank that to silence without stopping the snapshots. Owner request 2026-10-10: make the week-ahead earnings card reliable and measured."
+    },
     "CALENDAR_ALERTS_ENABLED": {
       "status": "armed",
       "where": [

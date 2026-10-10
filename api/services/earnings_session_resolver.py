@@ -109,6 +109,107 @@ _SAME_QUARTER_DAYS = 1    # |filingDate - report date| that counts as THIS repor
 _cache: dict[tuple[str, str], tuple[float, object]] = {}
 _cache_lock = threading.Lock()
 
+# ── source health ──────────────────────────────────────────────────────────
+# Every real fetch (not a cache hit) is counted per source, per ET day, and
+# persisted so a pod restart does not erase the day. The daily health post and
+# each payload's `earnings_quality` read it: a source that quietly breaks makes
+# the card WORSE without anything erroring, so its failure has to be counted.
+_HEALTH_PATH = os.environ.get("CALENDAR_SOURCE_HEALTH_PATH", "/data/calendar_source_health.json")
+_HEALTH_KEEP_DAYS = 14
+_health: dict[str, dict[str, dict]] = {}
+_health_lock = threading.Lock()
+_LAST_RUN: dict = {"sources_failed": [], "stats": {}}
+
+
+def _et_day() -> str:
+    return datetime.now(_ET).date().isoformat()
+
+
+def _note(kind: str, ok: bool, err: str = "") -> None:
+    with _health_lock:
+        day = _health.setdefault(_et_day(), {})
+        h = day.setdefault(kind, {"ok": 0, "fail": 0, "last_error": ""})
+        h["ok" if ok else "fail"] += 1
+        if not ok:
+            h["last_error"] = err[:200]
+
+
+def _health_counts() -> dict[str, tuple[int, int]]:
+    with _health_lock:
+        return {k: (v["ok"], v["fail"]) for k, v in _health.get(_et_day(), {}).items()}
+
+
+def load_health() -> dict:
+    """{ET day: {source: {ok, fail, last_error}}} merged from disk and memory."""
+    try:
+        with open(_HEALTH_PATH, encoding="utf-8") as f:
+            disk = json.load(f)
+    except (OSError, ValueError):
+        disk = {}
+    with _health_lock:
+        for day, kinds in _health.items():
+            for k, v in kinds.items():
+                cur = disk.setdefault(day, {}).setdefault(k, {"ok": 0, "fail": 0, "last_error": ""})
+                cur["ok"] = max(cur.get("ok", 0), v["ok"])
+                cur["fail"] = max(cur.get("fail", 0), v["fail"])
+                cur["last_error"] = v["last_error"] or cur.get("last_error", "")
+    return disk
+
+
+def _persist_health() -> None:
+    try:
+        merged = load_health()
+        for day in sorted(merged)[:-_HEALTH_KEEP_DAYS]:
+            merged.pop(day, None)
+        d = os.path.dirname(_HEALTH_PATH) or "."
+        os.makedirs(d, exist_ok=True)
+        tmp = _HEALTH_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(merged, f)
+        os.replace(tmp, _HEALTH_PATH)
+    except Exception as exc:          # noqa: BLE001
+        _logger.info("session resolver: health persist failed: %s", exc)
+
+
+def last_run_failures() -> list[str]:
+    return list(_LAST_RUN.get("sources_failed") or [])
+
+
+def quality(days: dict, source: str = "") -> dict:
+    """The honest state of one built week, for readers that must not ship a
+    degraded card (Sunday Scans, the event-calendar poster).
+
+    `tbd`          rows whose time is genuinely unknown (during-market rows
+                   carry a known time and are counted separately)
+    `unconfirmed`  rows still on an unconfirmed (`date_est`) date
+    `degraded`     the build is missing a primary provider, a resolver source
+                   failed outright, or more than 3 times are unknown"""
+    tbd = dmh = unconf = 0
+    for day in (days or {}).values():
+        if not isinstance(day, dict):
+            continue
+        for b in ("bmo", "amc", "tbd"):
+            for e in day.get(b) or []:
+                if e.get("date_est"):
+                    unconf += 1
+                if b == "tbd":
+                    if e.get("session_note"):
+                        dmh += 1
+                    else:
+                        tbd += 1
+    failed = last_run_failures()
+    reasons = []
+    if str(source).startswith("range_error"):
+        reasons.append("both primary calendars failed")
+    elif source == "range_fmp":
+        reasons.append("Finnhub missing from the build")
+    if failed:
+        reasons.append("source failed: " + ", ".join(failed))
+    if tbd > 3:
+        reasons.append(f"{tbd} unknown times")
+    return {"degraded": bool(reasons), "reasons": reasons, "tbd": tbd,
+            "during_market": dmh, "unconfirmed": unconf, "sources_failed": failed}
+
 
 def is_enabled() -> bool:
     """Read PER CALL. Unset means ON."""
@@ -123,9 +224,11 @@ def _cached(kind: str, key: str, fetch):
             return hit[1]
     try:
         val, ttl = fetch(), _OK_TTL[kind]
+        _note(kind, True)
     except Exception as exc:          # noqa: BLE001
         _logger.info("session resolver: %s %s failed: %s", kind, key, exc)
         val, ttl = None, _FAIL_TTL
+        _note(kind, False, f"{type(exc).__name__}: {exc}")
     with _cache_lock:
         _cache[(kind, key)] = (now + ttl, val)
     return val
@@ -453,8 +556,24 @@ def resolve_tbd_sessions(days: dict, today_str: str | None = None, *,
     """Verify every unconfirmed row in `days`. Mutates `days`; returns per-
     outcome counts. Never raises."""
     stats = Counter()
+    _LAST_RUN.update(sources_failed=[], stats={})
     if not is_enabled():
         return stats
+    before = _health_counts()
+    try:
+        stats = _resolve(days, today_str, budget_s)
+    finally:
+        after = _health_counts()
+        failed = sorted(k for k, (ok, fail) in after.items()
+                        if fail > before.get(k, (0, 0))[1] and ok == before.get(k, (0, 0))[0])
+        _LAST_RUN.update(sources_failed=failed, stats=dict(stats))
+        if after != before:
+            _persist_health()
+    return stats
+
+
+def _resolve(days: dict, today_str: str | None, budget_s: float) -> Counter:
+    stats = Counter()
     try:
         today_str = today_str or datetime.now(_ET).date().isoformat()
         deadline = time.monotonic() + budget_s

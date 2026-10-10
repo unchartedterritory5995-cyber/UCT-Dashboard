@@ -35,6 +35,7 @@ from api.middleware.auth_middleware import (
 )
 from api.services import calendar_personalization as _cp
 from api.services.earnings_session_resolver import resolve_tbd_sessions as _resolve_tbd_sessions
+from api.services.earnings_session_resolver import quality as _earnings_quality
 from api.services.research.entity_resolution import resolve_entity
 
 _logger = logging.getLogger(__name__)
@@ -78,6 +79,7 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 _CACHE_TTL = 600  # 10 min — shorter to pick up reported actuals faster
 _CACHE_FAIL_TTL = 60  # a week that fails `_weekly_payload_is_good` self-heals in 1 min, not 10
+_CACHE_DEGRADED_TTL = 180  # a good week whose earnings build is degraded retries in 3 min
 
 # EarningsWhispers connection-drops rapid/parallel bursts, so the per-day live
 # fetch is PACED sequentially with a short delay + retry instead of 5 parallel
@@ -1573,6 +1575,7 @@ def _attach_entities(days: dict) -> None:
 
 _RANGE_WEEK_TTL_FUTURE = 3600       # 1 h — forward schedules move
 _RANGE_WEEK_TTL_PAST   = 6 * 3600   # 6 h — history is near-immutable
+_RANGE_WEEK_TTL_DEGRADED = 300      # 5 min — a degraded forward week retries soon
 _US_SYM_RE = None  # lazy-compiled
 
 _range_week_locks: dict[str, threading.Lock] = {}
@@ -1890,6 +1893,10 @@ def _build_range_week(monday: date) -> dict:
         "week_end":        week_end,
         "days":            days,
         "source":          source,
+        # The honest state of this build's earnings rows (unknown times,
+        # unconfirmed dates, failed sources) — Sunday Scans refuses to ship a
+        # card off a degraded one, and a degraded one is cached briefly.
+        "earnings_quality": _earnings_quality(days, source),
         # `is_current_week` means "the default anchored payload", NOT "contains
         # today" — see the note at its `True` emission in `_build_current_week`.
         "is_current_week": False,
@@ -1939,6 +1946,12 @@ def _get_or_build_range_week(monday: date) -> dict | None:
             cache.set(ck, payload, ttl=120)
             return payload
         is_past = _week_dates_for(monday)[-1] < _today_et()
+        if (payload.get("earnings_quality") or {}).get("degraded") and not is_past:
+            # A Finnhub outage or a failed resolver source used to hold the
+            # degraded week for the full hour (2026-10-09: 53 of 53 rows in
+            # Time TBD). Short TTL: the next build retries the providers.
+            cache.set(ck, payload, ttl=_RANGE_WEEK_TTL_DEGRADED)
+            return payload
         cache.set(ck, payload,
                   ttl=_RANGE_WEEK_TTL_PAST if is_past else _RANGE_WEEK_TTL_FUTURE)
         return payload
@@ -2408,6 +2421,7 @@ def _build_current_week() -> dict:
         # real here too — `_curate_econ_events` runs identically either way.
         "earnings_provenance": None,
         "econ_provenance":     econ_meta,
+        "earnings_quality":    _earnings_quality(days, source),
         # ⛔ `is_current_week` REPORTS "THIS IS THE DEFAULT ANCHORED PAYLOAD",
         # NOT "this week contains today". ⭐ THIS COMMENT IS THE FIELD'S ONE
         # OWNER; the three `False` emissions point here rather than restating it.
@@ -2459,12 +2473,19 @@ def _build_current_week() -> dict:
     # the next `_CACHE_TTL` (10 min), even though `_weekly_payload_is_good`
     # exists specifically to keep a bad build out of the stale slot. Apply
     # the SAME predicate to the raw cache write so both paths agree.
+    good = _weekly_payload_is_good(result)
     set_by_completeness(
         "calendar_weekly", result,
-        complete=_weekly_payload_is_good(result),
+        complete=good,
         ttl_ok=_CACHE_TTL,
         ttl_partial=_CACHE_FAIL_TTL,
     )
+    if good and result["earnings_quality"]["degraded"]:
+        # Served, but retried in 3 min instead of held 10. Not the 60 s partial
+        # TTL: a source down for hours would rebuild the whole multi-provider
+        # week every minute and rate-limit Finnhub (which is how 2026-10-09's
+        # degraded build happened in the first place).
+        cache.set("calendar_weekly", result, _CACHE_DEGRADED_TTL)
     return result
 
 
