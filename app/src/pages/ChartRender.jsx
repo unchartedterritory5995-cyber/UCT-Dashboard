@@ -93,6 +93,9 @@ const fmtNum = (v) => {
   if (a >= 1e3) return `${(x / 1e3).toFixed(0)}K`
   return x.toFixed(2)
 }
+// A PRICE always prints in full (1103.36). fmtNum is for sizes: through it a stock over 1,000
+// read "O 1K  H 1K  L 1K  C 1K" (LITE, MU, SNDK on every bot and Scans chart, found 2026-10-09).
+const fmtPrice = (v) => (v == null || !Number.isFinite(Number(v))) ? '—' : Number(v).toFixed(2)
 const fmtPct = (v) => (v == null || !Number.isFinite(Number(v))) ? '—' : `${Number(v) >= 0 ? '+' : ''}${Number(v).toFixed(1)}%`
 const dirColor = (v, fallback) => (v == null || !Number.isFinite(Number(v))) ? fallback : (Number(v) >= 0 ? '#22c55e' : '#ef4444')
 
@@ -132,14 +135,14 @@ function StatsStrip({ stats, bg, text }) {
   const avgVol = stats.avg_vol ?? stats.avg_vol_50
   return (
     <div data-testid="stats-strip" style={{ height: STATS_STRIP_H, background: bg, display: 'flex', alignItems: 'center', padding: '0 16px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-      <Cell label="O" value={fmtNum(stats.open)} />
-      <Cell label="H" value={fmtNum(stats.high)} />
-      <Cell label="L" value={fmtNum(stats.low)} />
-      <Cell label="C" value={fmtNum(stats.close)} />
+      <Cell label="O" value={fmtPrice(stats.open)} />
+      <Cell label="H" value={fmtPrice(stats.high)} />
+      <Cell label="L" value={fmtPrice(stats.low)} />
+      <Cell label="C" value={fmtPrice(stats.close)} />
       <Cell label={weekly ? 'Wk' : 'Day'} value={fmtPct(stats.day_pct)} color={dirColor(stats.day_pct, text)} />
       <Cell label="Gap" value={fmtPct(stats.gap_pct)} color={dirColor(stats.gap_pct, text)} />
-      <Cell label="52w H" value={`${fmtNum(stats.hi_52w)} (${fmtPct(stats.from_52w_high_pct)})`} />
-      <Cell label="52w L" value={fmtNum(stats.lo_52w)} />
+      <Cell label="52w H" value={`${fmtPrice(stats.hi_52w)} (${fmtPct(stats.from_52w_high_pct)})`} />
+      <Cell label="52w L" value={fmtPrice(stats.lo_52w)} />
       <Cell label="Vol" value={fmtNum(stats.volume)} />
       <Cell label={`Avg${avgBars}${weekly ? 'w' : ''}`} value={fmtNum(avgVol)} />
       <Cell label="RVOL" value={rvol == null ? '—' : `${Number(rvol).toFixed(2)}x`} color={rvol != null && Number(rvol) >= 1.5 ? '#c9a84c' : undefined} />
