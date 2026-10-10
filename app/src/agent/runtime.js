@@ -83,11 +83,14 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   const aliases = {}
   const born = {}                 // alias → what a creator set at birth (verified without mounting)
   // `dirty`: the failing step itself left something behind it could not take back.
-  const fail = async (label, reason, { dirty = false } = {}) => {
+  // `note`: the failing step says itself what it kept (e.g. a draft rename that stays) — never
+  // "nothing was left changed" over a change that was deliberately kept
+  const fail = async (label, reason, { dirty = false, note = null } = {}) => {
     const restored = (await compensate(host, landed)) && !dirty
+    const tail = note ? ` — ${note}` : (restored ? ' — nothing was left changed' : ' — and some changes could not be reversed')
     return {
-      ok: false, lines: [], undo: null, compensated: restored,
-      failed: [{ label, reason: restored ? `${reason} — nothing was left changed` : `${reason} — and some changes could not be reversed` }],
+      ok: false, lines: [], undo: null, compensated: restored && !note,
+      failed: [{ label, reason: `${reason}${tail}` }],
     }
   }
 
@@ -102,7 +105,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
       if (e?.created && Object.keys(e.created).length) {
         landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: [], before: p.snap, after: kind.read(host, p.ref), patch: p.patch, partial: e.created })
       }
-      return fail(p.snap.label, `failed (${e?.message || 'error'})`, { dirty: !!e?.unreverted })
+      return fail(p.snap.label, `failed (${e?.message || 'error'})`, { dirty: !!e?.unreverted, note: e?.keptNote || null })
     }
     if (res && res.created) Object.assign(aliases, res.created)
     if (res && res.born) Object.assign(born, res.born)
@@ -180,6 +183,21 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
 }
 
 /** All-or-nothing: if ANY target changed since the Agent wrote it, nothing is restored. */
+/**
+ * An Undo entry for a change a kind made OUTSIDE a plan (M3 R1: the specialist's typed rename before
+ * a Save card) — the same fingerprint and undoPatch rules commitPlan's entries follow, so undoEntry
+ * treats it exactly like any other. null when the kind can't undo it.
+ */
+export function undoEntryFor(host, { kind: kindName, ref, label, lines, undoData }) {
+  const kind = getTargetKind(kindName)
+  const cur = kind && kind.read(host, ref)
+  const it = { ref, kind: kindName, label, lines, undoData, after: cur }
+  if (!cur || kind.undoPatch(it) == null) return null
+  const boardBound = kind.boardScoped !== false
+  return { id: `u${Date.now().toString(36)}${(_seq++).toString(36)}`, at: Date.now(), lines, items: [{ ...it, afterFp: fpOf(kind, host, cur, it) }],
+    epoch: boardBound && typeof host.epoch === 'function' ? host.epoch() : null }
+}
+
 export async function undoEntry(host, entry) {
   if (!entry) return { ok: false, lines: [], reason: 'There is nothing of mine to undo.' }
   // Never across a board change: after a layout switch the same refs can name

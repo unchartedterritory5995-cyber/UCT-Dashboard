@@ -136,6 +136,43 @@ const NEGATION = /\b(don['’]?t|do not|not|no|without|never|neither|nor)\b/i
 export function asksToApply(text) {
   return String(text || '').split(/[.;!?\n]+|,\s*(?:but|then)\b/i).some(c => APPLY_WORDS.test(c) && !NEGATION.test(c))
 }
+// ⛔ F2b — WHAT "SAVE IT" MEANS. One deterministic rule, shared by the fast path (layout.js and
+// indicator.saveDraft's own phrase) and the model path (useAgent): with an indicator draft open, a
+// generic "save it / save this / save it as X" is NEVER a layout save.
+//   explicit layout / workspace / board wording → not decided here (the layout capabilities)
+//   no usable draft                              → not decided here (unchanged behaviour)
+//   the SELECTED draft is usable                 → that draft (a Save proposal, as always)
+//   drafts open, none selected                   → ask: the indicator, or the workspace?
+const GENERIC_SAVE = /^(?:please\s+|ok(?:ay)?,?\s+|now\s+)?save\s+(?:it|this|that|this one|my work|the changes|my changes|these changes)?\s*(?:as\s+(?:a\s+)?(?:new\s+)?(?:indicator\s+)?(?:called\s+|named\s+)?["“]?(.+?)["”]?)?\s*(?:,?\s*please)?[.!]?$/i
+const INDICATOR_SAVE = /^(?:please\s+)?save\s+(?:the|this|my)\s+(?:indicator|draft|indicator draft)(?:\s+draft)?\s*(?:as\s+(?:a\s+)?(?:new\s+)?(?:called\s+|named\s+)?["“]?(.+?)["”]?)?\s*[.!]?$/i
+export const SAVE_ASK_TEXT = 'Do you want to save the indicator you’re building, or this workspace as a layout?'
+const saveChoices = (name) => [{ label: name ? `Save the indicator draft as ${name}` : 'Save the indicator draft' },
+  { label: name ? `Save this workspace as a new layout called ${name}` : 'Save this workspace layout' }]
+/** @returns null (not this rule's to decide) | {kind:'draft', target, name} | {kind:'ask', text, choices} */
+export function saveReferent(host, raw) {
+  const t = String(raw || '').trim()
+  if (LAYOUT_WORDS.test(t)) return null
+  const g = GENERIC_SAVE.exec(t)
+  const i = g ? null : INDICATOR_SAVE.exec(t)
+  if (!g && !i) return null
+  const name = ((g ? g[1] : i[1]) || '').trim() || null
+  if (g && !/\b(it|this|that|work|changes)\b/i.test(t) && !name) return null      // a bare "save" is not this rule's
+  let snaps
+  try { snaps = snapshots(host).filter(x => !x.new && !x.expired) } catch { return null }
+  if (!snaps.length) return null
+  const active = snaps.find(x => x.active)
+  if (active) return { kind: 'draft', target: active.ref, name }
+  // "save the indicator" with exactly one draft open IS that draft; anything vaguer asks
+  if (i && snaps.length === 1) return { kind: 'draft', target: snaps[0].ref, name }
+  return { kind: 'ask', text: SAVE_ASK_TEXT, choices: saveChoices(name) }
+}
+
+// ⛔ M1 — a preview is shown only when the member asks for one in THIS message
+const PREVIEW_WORDS = /\b(preview|previewing|show (?:me )?(?:it|the (?:draft|preview|indicator)|what it looks like|how it looks)|let me see|see (?:it|the draft|how it looks|what it looks like)|display it)\b/i
+export function asksToPreview(text) {
+  return String(text || '').split(/[.;!?\n]+|,\s*(?:but|then)\b/i).some(c => PREVIEW_WORDS.test(c) && !/\b(no|don['’]?t|do not|without|never|skip)\b[^.;!?]*\bpreview/i.test(c))
+}
+
 /** F5: null when "both / all charts" names exactly the charts the plan adds to; else the question to ask. */
 export function multiChartAmbiguity(host, adds, text) {
   // every chart on the board (a chart that can't take it is refused by the add itself, by name)
@@ -150,6 +187,51 @@ export function multiChartAmbiguity(host, adds, text) {
   // otherwise the member must have named each one (its symbol or its position)
   const named = (c) => [c.symbol, c.position].filter(Boolean).some(w => new RegExp(`\\b${String(w).replace(/[^A-Za-z0-9]/g, '')}\\b`, 'i').test(text))
   return targets.every(t => named(charts.find(c => c.ref === t))) ? null : ask
+}
+// ⭐ R1 — "Save it as X": the rename is the specialist's own name-only draft step (local, undoable,
+// receipted like any draft change), done FIRST; the Save is then proposed on the RENAMED draft, so the
+// card shows the final name and that name's exact acknowledgement (a rename can relabel an output,
+// and with it the warning). The approval (F6 seal) is of what the member will actually save.
+/** @returns null, or `{ rename: op, save: op }` — run the rename, then plan the save (name null). */
+export function splitSaveAs(host, ops) {
+  if (!Array.isArray(ops) || ops.length !== 1) return null
+  const o = ops[0]
+  if (o?.action !== 'indicator.saveDraft' || typeof o.args?.name !== 'string' || !o.args.name.trim()) return null
+  let snap
+  try { snap = snapshots(host).find(x => x.ref === o.target) } catch { return null }
+  if (!snap || snap.new || snap.expired || !snap.status) return null
+  const name = o.args.name.trim()
+  if ((snap.status.name || '') === name) return { rename: null, save: { ...o, args: { ...o.args, name: null } } }
+  return {
+    // the specialist's TYPED rename (renameDraft: name-only by construction, never a model call —
+    // INDICATORS review: a "Name it X" draft turn can fall through to the model on an unusual name)
+    rename: { target: o.target, name },
+    save: { ...o, args: { ...o.args, name: null } },
+  }
+}
+/**
+ * R1 step 1 — rename the draft with `renameDraft`, pinned to its current revision. Refusals stop the
+ * Save (never a proposal over them); `name-unchanged` just skips to the Save. The engine may clip a
+ * long name: `to` is the name it actually got (the card then shows it).
+ * @returns `{ok:true, skipped:true}` | `{ok:true, to, line, undoData}` | `{ok:false, text, undoData?}`
+ */
+export function renameBeforeSave(host, ref, name) {
+  let snap
+  try { snap = snapshots(host).find(x => x.ref === ref) } catch { snap = null }
+  if (!snap || !snap.draftRef || !snap.status) return { ok: false, text: 'That draft is no longer available, so nothing was renamed or saved.' }
+  const u = usable(snap); if (u) return { ok: false, text: u }
+  const ctx = authoringCtx(host, originOf(snap.status))
+  const r = renameDraft(snap.draftRef, name, { expectedRevision: snap.status.revision }, ctx)
+  if (!r.ok) {
+    if (r.reason === R.NAME_UNCHANGED) return { ok: true, skipped: true }
+    return { ok: false, text: `${refusalSentence(r)} Nothing was renamed or saved.` }
+  }
+  const undoData = r.stepId ? { draftRef: snap.draftRef, stepId: r.stepId } : null
+  // defence in depth: renameDraft is name-only by construction (its typed marker says so)
+  if (r.renameOnly !== true) return { ok: false, undoData, text: 'That wasn’t only a rename, so I didn’t propose saving it — check the draft (Undo puts it back), then ask me to save it again.' }
+  setActive(snap.draftRef)
+  const to = (r.rename && r.rename.to) || name
+  return { ok: true, to, undoData, line: `Renamed the draft to “${to}” (draft — not saved).` }
 }
 /**
  * @returns `{ ops, ask?: {text, choices}, notes: string[] }` — ops possibly corrected; `ask` = do not
@@ -176,11 +258,13 @@ export function screenModelOps(host, ops, text, capCtx = {}) {
   const explicitIndicator = INDICATOR_WORDS.test(words)
   if ((layoutSave && usable && !explicitLayout) || (draftSave && explicitLayout && !explicitIndicator)) {
     const name = (layoutSave && layoutSave.args && layoutSave.args.name) || (draftSave && draftSave.args && draftSave.args.name) || null
-    return { ops: [], notes, ask: {
-      text: 'Do you want to save the indicator you’re building, or this workspace as a layout?',
-      choices: [{ label: name ? `Save the indicator draft as ${name}` : 'Save the indicator draft' },
-        { label: name ? `Save this workspace as a new layout called ${name}` : 'Save this workspace layout' }],
-    } }
+    return { ops: [], notes, ask: { text: SAVE_ASK_TEXT, choices: saveChoices(name) } }
+  }
+  // M1 — a preview nobody asked for is never part of the plan (the draft itself still runs)
+  if (out.some(o => o?.action === 'indicator.previewDraft') && !asksToPreview(words)) {
+    out = out.filter(o => o?.action !== 'indicator.previewDraft')
+    notes.push('I won’t show a preview unless you ask for one.')
+    if (!out.length) return { ops: [], notes }
   }
   // S6 nit — a NEW draft with no chart on a board of several: ask with the charts as choices (the
   // member's pick fills `chart`; nothing is sent to the builder until then)
@@ -408,7 +492,7 @@ export const indicatorDraftsKind = {
         let renamedTo = null
         // a refusal AFTER a rename landed (dock opened, access lost, conflict…) says so plainly
         const notSaved = (m) => (renamedTo || (turn && turn.outcome === 'applied')
-          ? fail(`Renamed it to “${renamedTo || (st && st.name) || name || 'the new name'}” (draft — not saved), but didn’t save it: ${m}`, keep)
+          ? fail(`Renamed it to “${renamedTo || (st && st.name) || name || 'the new name'}” (draft — not saved), but didn’t save it: ${m}`, { ...keep, keptNote: 'the draft keeps its new name; nothing was saved' })
           : fail(m, keep))
         if (!st || !st.draftRef) throw notSaved(refusalSentence(st))
         let pin = op.pinRevision
@@ -507,7 +591,7 @@ export function registerIndicatorAuthoringCapabilities() {
     exclusive: true,
     exclusiveReason: 'Work on one indicator draft at a time, on its own — ask for anything else separately.',
     summary: 'THE DEFAULT for building a custom indicator: build it WITH the member right here in this chat ("build/make me an indicator that…", "also require RSI above 50", "what would you add?") — one draft, through Create Indicator\'s own engine. Questions and advice change nothing. Never saves (indicator.saveDraft does).',
-    hints: 'target = the ACTIVE draft\'s ref to continue it (follow-ups like "also…", "make it…", "what would you add?" go to the active draft); the NEW-draft entry only when the member starts a different indicator or edits one of yourIndicators (edit = its defId, else null). With an active draft, "this indicator" / "the indicator" / "it" means that draft — do not ask which. If several drafts could be meant and none is active or named, ask which. chart = the ref of the chart the member names for it, else null (a draft keeps its own chart). message = the member\'s words, verbatim — never your own formula or interpretation.',
+    hints: 'target = the ACTIVE draft\'s ref to continue it (follow-ups like "also…", "make it…", "what would you add?" go to the active draft); the NEW-draft entry only when the member starts a different indicator or edits one of yourIndicators (edit = its defId, else null). With an active draft, "this indicator" / "the indicator" / "it" means that draft — do not ask which. If several drafts could be meant and none is active or named, ask which. chart = the ref of the chart the member names for it, else null (a draft keeps its own chart). message = the member\'s words, verbatim — never your own formula or interpretation. NEVER add indicator.previewDraft unless the member asked in this message to see/preview it.',
     argRefs: { chart: ['chart', 'indicators', 'indicatorEdits'] },
     args: { type: 'object', properties: { message: { type: 'string' }, chart: { type: ['string', 'null'] }, edit: { type: ['string', 'null'] } }, required: ['message', 'chart', 'edit'], additionalProperties: false },
     check(st, { message, chart, edit }) {
@@ -572,6 +656,11 @@ export function registerIndicatorAuthoringCapabilities() {
     exclusive: true,
     exclusiveReason: 'Save the indicator on its own — ask for anything else separately.',
     argRefs: { addTo: ['chart', 'indicators', 'indicatorEdits'] },
+    // ⛔ F2b: "save it / save this / save it as X" with the SELECTED draft usable = that draft (a proposal)
+    fast: ({ raw, host }) => {
+      const r = saveReferent(host, raw)
+      return r && r.kind === 'draft' ? { addTo: [], name: r.name, __target: r.target } : null
+    },
     summary: 'Save an indicator draft as one of the member\'s indicators (Create Indicator\'s own Save; a new indicator, or a new version of the one being edited) — always shown as a proposal with the builder\'s own summary first. addTo: charts to add the SAVED indicator to afterwards (each added separately, with its own receipt).',
     hints: 'Use when the member saves THE INDICATOR: "save it", "save it as X", "save the indicator/draft" while an indicator draft is active (the active indicatorDrafts entry) — that "it" is the draft, NOT the workspace layout (layout.saveAs is only for an explicit layout/workspace/board). target = the draft\'s ref (usually the active one). name = the name the member gave ("save it as Bullish Trend" → "Bullish Trend"), else null — never a separate indicator.draft op for the name. addTo = [] UNLESS the member asked in this message to add/apply/put it on a chart; then only the charts\' refs from the charts section that they named. Saving and adding to a chart are separate intents. "Save the indicator" with one active draft is that draft — do not ask which.',
     args: { type: 'object', properties: { addTo: { type: 'array', items: { type: 'string' } }, name: { type: ['string', 'null'] } }, required: ['addTo', 'name'], additionalProperties: false },

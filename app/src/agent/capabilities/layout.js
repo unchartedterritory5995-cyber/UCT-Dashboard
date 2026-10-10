@@ -360,7 +360,14 @@ export function registerLayoutCapabilities() {
     hints: 'target = the ref of the layouts entry. Use for "save these changes to my layout". For a NEW layout use layout.saveAs.',
     args: { type: 'object', properties: {}, required: [], additionalProperties: false },
     fastWhole: true,
-    fast: ({ raw }) => (/^(?:please )?save (?:these |the |my |this |all )?(?:changes|arrangement|layout|workspace|board|it)(?: (?:to|into|in|on) (?:my |the |this )?(?:current |open )?(?:layout|workspace))?[.!]?$/i.test(String(raw).trim()) ? {} : null),
+    fast: ({ raw, host }) => {
+      if (!/^(?:please )?save (?:these |the |my |this |all )?(?:changes|arrangement|layout|workspace|board|it)(?: (?:to|into|in|on) (?:my |the |this )?(?:current |open )?(?:layout|workspace))?[.!]?$/i.test(String(raw).trim())) return null
+      // ⛔ S6 F2b: "save it" / "save the changes" name no layout. With an indicator draft open the
+      // indicator rule decides (saveReferent: the selected draft, or a question) — only explicit
+      // layout / workspace / board wording still means this layout's Save.
+      if (!/\b(layout|workspace|board|setup|arrangement)\b/i.test(String(raw)) && hasUsableDraft(host)) return null
+      return {}
+    },
     check(st) {
       const busy = oneAtATime(st)
       if (busy) return busy
