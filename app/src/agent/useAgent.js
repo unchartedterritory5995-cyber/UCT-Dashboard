@@ -22,12 +22,12 @@ import { useCreateIndicatorAccess } from '../components/chart/builder/studio/cre
 import { useUserDefinitions, USER_DEFINITIONS_KEY } from '../hooks/useUserDefinitions'
 import { mutate } from 'swr'
 import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
-import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS } from './capabilities/indicatorAuthoring'
+import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart } from './capabilities/workspace'
 import { planOps, prepareOps, collectTargets, undoNotesFor } from './executor'
 import { decideMode } from './policy'
-import { commitPlan, undoEntry } from './runtime'
+import { commitPlan, undoEntry, undoEntryFor } from './runtime'
 import { pendingLines as pendingWording } from './proposalWording'
 import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
 import { traceStart, mark, traceEnd } from './trace'
@@ -501,6 +501,27 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       record({ member, outcome: text, outcomeData: { kind: 'refused', actions: opsIn.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
       return undefined
     }
+    // ⭐ R1: "save it as X" — the rename is its own draft step FIRST (own receipt + Undo); the Save is
+    // then proposed on the renamed draft, so the card shows the final name and its exact warning
+    const split = suggested === 'approved' ? null : splitSaveAs(host, opsIn)
+    if (split) {
+      if (split.rename) {
+        const r = renameBeforeSave(host, split.rename.target, split.rename.name)
+        const entry = r.undoData ? undoEntryFor(host, { kind: 'indicatorDrafts', ref: split.rename.target, label: 'the draft', lines: [r.line || 'Renamed the draft'], undoData: r.undoData }) : null
+        if (entry) undoRef.current = [...undoRef.current, entry].slice(-UNDO_MAX)
+        if (!r.ok) {
+          // refused, or (defence in depth) more than a rename: never a Save proposal over it
+          push({ role: 'refusal', text: r.text, undoId: entry?.id || null })
+          record({ member, outcome: r.text, outcomeData: { kind: 'refused', actions: ['indicator.saveDraft'] }, telemetry: { path, refused: true, voice } })
+          return undefined
+        }
+        if (!r.skipped) {
+          push({ role: 'receipt', lines: [r.line], undoId: entry?.id || null })
+          record({ member, outcome: r.line, outcomeData: { kind: 'applied', actions: ['indicator.renameDraft'], lines: [r.line] }, telemetry: { path, disposition: 'apply', voice } })
+        }
+      }
+      opsIn = [split.save]
+    }
     traceStart(`${path}:${suggested || 'apply'}`)
     let out
     try {
@@ -711,6 +732,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         return await execute(fast.ops.map(o => ({ ...o, target: candidates[0].ref })), { path: 'fast', mode: 'apply', member: text, voice })
       }
 
+      // ⛔ F2b: "save it" with indicator drafts open but none selected — ask what to save (no model call)
+      const ref = answering ? null : saveReferent(host, text)
+      if (ref && ref.kind === 'ask') {
+        push({ role: 'question', text: ref.text, choices: ref.choices, local: true })
+        record({ member: text, outcome: ref.text, outcomeData: { kind: 'clarify-save-target' }, telemetry: { path: 'fast', disposition: 'clarify', voice } })
+        return
+      }
       // ── model path ──
       // Context from every registered provider; actions from every AVAILABLE
       // capability's manifest. Nothing here names a feature. Data that can change outside

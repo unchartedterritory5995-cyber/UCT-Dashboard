@@ -367,7 +367,9 @@ describe('⛔ F6 in the real panel', () => {
     await screen.findByText(/^That proposal expired \(a proposal is good for 10 minutes\), so nothing was changed/)
     expect(screen.getByText('Expired — ask again')).toBeTruthy()
     expect(stored).toEqual([])
-    expect(drafts(h)[0].status.name).not.toBe('Late Save')
+    // R1: the rename was its OWN draft step before the card (so the card showed the final name); the Save never ran
+    expect(drafts(h)[0].status.name).toBe('Late Save')
+    expect(screen.getByTestId('agent-transcript').textContent).toMatch(/Renamed the draft to “Late Save” \(draft — not saved\)\./)
     // asked again → a new card → applies
     envelopes.push(saveEnv)
     send('Save it as Late Save.')
