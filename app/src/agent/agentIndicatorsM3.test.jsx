@@ -387,6 +387,18 @@ describe('Save — the exact draft and revision the member approved', () => {
     expect(instancesOn(h, 'L').some(i => i.defId === saved.def_id)).toBe(true)
     expect(instancesOn(h, 'R').some(i => i.defId === saved.def_id)).toBe(false)
   })
+  it('a refusal AFTER the rename landed (here: a store conflict) says "renamed, not saved" (INDICATORS review Q3)', async () => {
+    const h = host([L])
+    const ref = await start(h)
+    saveMode = 'conflict'
+    const ops = [say(ref, 'Name it Bullish Trend'), { action: 'indicator.saveDraft', target: ref, args: { addTo: ['L'] } }]
+    await plan(h, ops)
+    const res = await commitPlan(h, await plan(h, ops), { env: {}, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(res.failed[0].reason).toMatch(/Renamed it to “Bullish Trend” \(draft — not saved\), but didn’t save it: That indicator was saved elsewhere/)
+    expect(res.followUps).toBeUndefined()
+    expect(drafts(h)[0].status.name).toBe('Bullish Trend')
+  })
   it('the rename turn must change ONLY the name — else renamed, not saved', async () => {
     const h = host([L])
     const ref = await start(h)
@@ -394,7 +406,7 @@ describe('Save — the exact draft and revision the member approved', () => {
     await plan(h, ops)
     const res = await commitPlan(h, await plan(h, ops), { env: {}, ctx: CTX })
     expect(res.ok).toBe(false)
-    expect(res.failed[0].reason).toMatch(/changed more than the name, so I didn’t save it/)
+    expect(res.failed[0].reason).toMatch(/Renamed it to “.*” \(draft — not saved\), but didn’t save it: the builder changed more than the name/)
     expect(stored).toEqual([])
   })
 })

@@ -257,27 +257,31 @@ export const indicatorDraftsKind = {
         const ctx = authoringCtx(host)
         const st = draftStatus(draftRef, ctx)
         const keep = lines.length ? { unreverted: true } : {}
-        if (!st || !st.draftRef) throw fail(refusalSentence(st), keep)
         // "Save it as …": the approved rename must have APPLIED, as exactly one step on the approved
         // revision, and changed nothing but the name — else the draft is renamed and NOT saved.
         const turn = patch.ops.find(o => o.type === 'turn')
+        // a refusal AFTER the rename landed (dock opened, access lost, conflict…) says so plainly
+        const notSaved = (m) => (turn && turn.outcome === 'applied'
+          ? fail(`Renamed it to “${(st && st.name) || name || 'the new name'}” (draft — not saved), but didn’t save it: ${m}`, keep)
+          : fail(m, keep))
+        if (!st || !st.draftRef) throw notSaved(refusalSentence(st))
         let pin = op.pinRevision
         if (turn) {
           if (turn.outcome !== 'applied') throw fail('The builder didn’t rename it, so I didn’t save it — say the name again, then ask me to save.', keep)
-          if (st.revision !== op.pinRevision + 1) throw fail(refusalSentence({ reason: R.STALE_REVISION }), keep)
+          if (st.revision !== op.pinRevision + 1) throw notSaved(refusalSentence({ reason: R.STALE_REVISION }))
           if (!sameButName({ lines: op.linesShown, outputs: op.outputsShown, name: op.nameShown }, st)) {
-            throw fail('The builder changed more than the name, so I didn’t save it — check the draft, then ask me to save it again.', keep)
+            throw notSaved('the builder changed more than the name — check the draft, then ask me to save it again.')
           }
           pin = st.revision
         }
         // ⛔ acknowledged only if the approval showed EXACTLY the acknowledgement the draft needs now
         const shown = op.ackShown || []
         const acknowledged = !st.ackText.length || (st.ackText.length === shown.length && st.ackText.every((t, i) => t === shown[i]))
-        if (!acknowledged) throw fail(refusalSentence({ reason: R.NEEDS_ACK, detail: { ackText: st.ackText } }), keep)
+        if (!acknowledged) throw notSaved(refusalSentence({ reason: R.NEEDS_ACK, detail: { ackText: st.ackText } }))
         const out = await saveDraft(draftRef, { expectedRevision: pin, acknowledged: st.ackText.length > 0 }, ctx)
         if (!out.ok) {
           if (out.reason === R.SAVED_UNCONFIRMED) setActive(null)
-          throw fail(refusalSentence(out), keep)
+          throw notSaved(refusalSentence(out))
         }
         setActive(null)
         lines.push(`Saved “${out.name || name || 'the indicator'}” (version ${out.version}${out.created ? ', a new indicator' : ''}) — confirmed by reading it back from your saved indicators.`)
