@@ -186,7 +186,10 @@ RECORD_PATH = ROOT / "docs" / "terminal-research" / "12-decisions" / "gates" / \
 #: 26baca999: G-05..G-08, G-11, G-12, G-24, G-25, G-26) and five whose proofs were
 #: already on this history but never recorded (G-22/G-23 7811f4b34; G-14, G-46 and
 #: `_page_discord` 48ef6b471). The six left each name their blocker in the record.
-DECLARED_UNOBSERVED_CEILING = 6
+#: 6 -> 5 (2026-10-10, lane f-l6): G-31 (the extraction reap page) fired through
+#: the wisdom job table (proof 64f32fec6). G-30 was fired and proved too but cannot be
+#: recorded (its JobSpecs carry no literal id); G-21 needs a route wire kind. See their rows.
+DECLARED_UNOBSERVED_CEILING = 5
 
 #: Every file whose AST could not be read during the population sweep. A silent
 #: `except SyntaxError: continue` would let a guard hide in an unparseable file.

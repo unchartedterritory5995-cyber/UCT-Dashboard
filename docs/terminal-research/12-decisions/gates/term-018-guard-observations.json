@@ -940,6 +940,64 @@
         ],
         "note": "LoopWatch.record calls note for every loop sample; main.py starts the watcher above the render-v2 gate. No flag state is asserted here."
       }
+    },
+    {
+      "guard": "api/services/wisdom/extract/batch.py::_page::<computed>::critical",
+      "in_population": true,
+      "audit_rows": [
+        "G-31"
+      ],
+      "what_the_guard_decides": "Whether the scheduled extraction reap pages at `critical` when it requeues an extraction request no batch carries (past the 6 h give-up window); a younger orphan only waits and pages nobody.",
+      "predicate": {
+        "file": "api/services/wisdom/extract/batch.py",
+        "scope": "_page",
+        "pinned": "chart_health_alerts.emit(key, \"critical\", message, metadata)",
+        "mutation": "chart_health_alerts.emit(key, \"warning\", message, metadata)"
+      },
+      "observed_by": [
+        "tests/test_term018_wisdom_guards.py::test_the_reap_job_pages_critical_when_it_requeues_an_orphan_no_batch_carries",
+        "tests/test_term018_wisdom_guards.py::test_CONTROL_a_young_orphan_waits_and_pages_nobody",
+        "tests/test_wisdom_extract_batch.py::test_orphans_with_no_batch_are_requeued_only_after_the_give_up_window"
+      ],
+      "proof": {
+        "commit": "64f32fec6",
+        "quote": "G-31 extraction page demoted to warning (1 red: test_the_reap_job_pages_critical_when_it_requeues_an_orphan_no_batch_carries)"
+      },
+      "wire": {
+        "kind": "table",
+        "hops": [
+          {
+            "file": "api/services/wisdom/extract/batch.py",
+            "call": "adopt_orphans"
+          },
+          {
+            "file": "api/services/wisdom/extract/jobs.py",
+            "call": "batch.reap"
+          },
+          {
+            "file": "api/services/wisdom/extract/jobs.py",
+            "call": "registry.JobSpec",
+            "arg": "fn",
+            "id_kw": "job_id",
+            "job_id": "wisdom_extract_reap"
+          }
+        ],
+        "dispatcher": {
+          "file": "api/services/wisdom/registry.py",
+          "scope": "run_job"
+        },
+        "dispatcher_hops": [
+          {
+            "file": "api/services/wisdom/registry.py",
+            "call": "add_job"
+          },
+          {
+            "file": "api/main.py",
+            "call": "_wisdom_registry_jobs.register_jobs"
+          }
+        ],
+        "unfollowable": "registry.job_specs() imports api.services.wisdom.<pkg>.jobs through an f-string over PACKAGES and reads that module's JOBS list, and run_job reaches an entry's fn by looking its job id up in that list. Both halves are proved; the lookup between them is a runtime string match by design."
+      }
     }
   ],
   "declared_unobserved": [
@@ -959,7 +1017,7 @@
         "G-21"
       ],
       "audit_class": "PROVEN",
-      "why": "The predicate is satisfiable (tests/theme_engine/test_propagation.py) but NOTHING in this repo writes taxonomy_version into a push payload, so the production input is out of reach here."
+      "why": "The predicate is satisfiable (tests/theme_engine/test_propagation.py) but NOTHING in this repo writes taxonomy_version into a push payload, so the production input is out of reach here. RE-CHECKED 2026-10-10 (lane f-l6): a test CAN build the input with no production change (a payload carrying a taxonomy_version that differs from the seeded one, or a POST to /api/push with PUSH_SECRET), so red-before-green is takeable. What blocks the record is clause 7: the guard is reached only from the /api/push route handler, and a FastAPI route is mounted by include_router and dispatched by the framework, which none of the closed WIRE_KINDS (chain, table, sink, cli) can express. Recording it needs a ruling to add a route wire kind to the rail, not more tests."
     },
     {
       "guard": "api/services/perplexity_search.py::_notify_auth_failure::perplexity_auth_failure::critical",
@@ -983,15 +1041,7 @@
         "G-30"
       ],
       "audit_class": "FIREABLE",
-      "why": "classify/should_page are pure and unit-covered; no assertion of the emit itself was found."
-    },
-    {
-      "guard": "api/services/wisdom/extract/batch.py::_page::<computed>::critical",
-      "audit_rows": [
-        "G-31"
-      ],
-      "audit_class": "FIREABLE",
-      "why": "No assertion found."
+      "why": "classify/should_page are pure and unit-covered; no assertion of the emit itself was found. FIRED AND MUTATION-PROVED 2026-10-10 (lane f-l6, proof 64f32fec6: registry.run_job(wisdom_capture_eod) through the job table; the page demoted to warning reds 3, tests/test_term018_wisdom_guards.py and tests/test_wisdom_capture_runner.py), but NOT recordable: clause 7 wants a table entry named by a literal id at a JobSpec call whose fn is a plain name, and capture/jobs.py builds its six JobSpecs through _cron(families.JOB_*, ...) with fn=_slot(job_id). Recording needs either capture/jobs.py to declare its entries literally (which would restate the families constants) or the rail to follow _cron; a lane call, not a test."
     }
   ]
 }
