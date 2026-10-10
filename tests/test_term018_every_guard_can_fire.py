@@ -1040,7 +1040,7 @@ def test_the_planted_guards_observation_clauses_also_discriminate(tmp_path):
 
 #: The three ways an observation may say its guard is reached. CLOSED on purpose: a
 #: free-text reason is the escape hatch every hard case would take.
-WIRE_KINDS = ("chain", "table", "sink", "cli")
+WIRE_KINDS = ("chain", "table", "sink", "cli", "route")
 
 #: What a cut wire's name becomes. Nothing in the repo binds it.
 WIRE_CUT = "__term018_wire_cut__"
@@ -1255,14 +1255,19 @@ def verify_chain(root: Path, pred: dict, hops: list[dict], entries: set[str],
     for i, hop in enumerate(hops, 1):
         if not (root / hop["file"]).is_file():
             return f"hop {i}: {hop['file']} does not exist", carried
-        cands = wire_calls_in(srcs(hop["file"]), hop["call"], hop.get("job_id"),
-                              hop.get("id_kw", "id"))
+        factory = hop.get("job_arg") is not None
+        cands = wire_calls_in(srcs(hop["file"]), hop["call"],
+                              None if factory else hop.get("job_id"), hop.get("id_kw", "id"))
+        if factory:
+            cands = [n for n in cands if len(n.args) > hop["job_arg"] and resolve_str_constant(
+                root, hop["file"], n.args[hop["job_arg"]], srcs) == hop.get("job_id")]
         if not cands:
             jid = f" with id={hop['job_id']!r}" if hop.get("job_id") else ""
             return f"hop {i}: no call to `{hop['call']}`{jid} in {hop['file']}", carried
         faults: list[str] = []
         for node in cands:
-            why = hop_edge_fault(node, hop, anchor_file, anchor_scope, srcs)
+            why = (factory_edge_fault(node, hop, anchor_file, anchor_scope, srcs) if factory
+                   else hop_edge_fault(node, hop, anchor_file, anchor_scope, srcs))
             if why is None:
                 carried.append((hop, node))
                 break
@@ -1312,6 +1317,181 @@ def _has_main_guard(src: str) -> bool:
             if {"__name__", "__main__"} <= names:
                 return True
     return False
+
+
+def _module_file(root: Path, dotted: str) -> str | None:
+    """Repo-relative path of an importable module or package, or None."""
+    base = dotted.replace(".", "/")
+    for rel in (f"{base}.py", f"{base}/__init__.py"):
+        if (root / rel).is_file():
+            return rel
+    return None
+
+
+def _module_level_str(tree: ast.AST, name: str) -> str | None:
+    for n in getattr(tree, "body", []):
+        targets = n.targets if isinstance(n, ast.Assign) else (
+            [n.target] if isinstance(n, ast.AnnAssign) else [])
+        if any(isinstance(t, ast.Name) and t.id == name for t in targets) \
+                and isinstance(n.value, ast.Constant) and isinstance(n.value.value, str):
+            return n.value.value
+    return None
+
+
+def resolve_str_constant(root: Path, rel: str, node: ast.AST, srcs) -> str | None:
+    """A job id as written - a literal, a module-level NAME, or `module.NAME` - resolved
+    to its string by AST through the import that binds it. Anything else is None, never
+    a guess."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    tree, _ = _parsed(srcs(rel))
+
+    def _in_module(dotted: str, name: str) -> str | None:
+        target = _module_file(root, dotted)
+        return _module_level_str(_parsed(srcs(target))[0], name) if target else None
+
+    if isinstance(node, ast.Name):
+        own = _module_level_str(tree, node.id)
+        if own is not None:
+            return own
+        for imp in ast.walk(tree):
+            if isinstance(imp, ast.ImportFrom):
+                for a in imp.names:
+                    if (a.asname or a.name) == node.id:
+                        return _in_module(imp.module or "", a.name)
+        return None
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+        base = node.value.id
+        for imp in ast.walk(tree):
+            if isinstance(imp, ast.Import):
+                for a in imp.names:
+                    if (a.asname or a.name.split(".")[0]) == base:
+                        return _in_module(a.name if a.asname else a.name.split(".")[0], node.attr)
+            elif isinstance(imp, ast.ImportFrom):
+                for a in imp.names:
+                    if (a.asname or a.name) == base:
+                        return _in_module(f"{imp.module}.{a.name}", node.attr)
+    return None
+
+
+def factory_edge_fault(node: ast.Call, hop: dict, anchor_file: str, anchor_scope: str,
+                       srcs) -> str | None:
+    """A table entry built by a FACTORY: `_cron(families.JOB_X, ...)` whose body builds
+    `JobSpec(fn=_slot(job_id))`, where `_slot` returns its nested `run`.
+
+    ⛔ Every link is resolved, none is trusted: the call must be a module-level def of
+    this file, its body must hand `<factory_kw>=` exactly one call to a module-level
+    factory, that factory must RETURN a def nested in it, and that returned def must be
+    the anchor the previous hop landed in. A factory returning a different function, or
+    a builder handing `fn=` something else, breaks the wire."""
+    if hop["file"] != anchor_file:
+        return "a factory hop sits in the file that holds the slot it builds"
+    tree, _ = _parsed(srcs(hop["file"]))
+    name = _dotted(node.func)
+    if not name or "." in name:
+        return f"`{name}` is not a module-level builder of this file"
+    defs = {n.name: n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    builder = defs.get(name)
+    if builder is None:
+        return f"`{name}` is not defined at module level in {hop['file']}"
+    kw = hop.get("factory_kw", "fn")
+    made = [k.value for n in ast.walk(builder) if isinstance(n, ast.Call)
+            for k in n.keywords if k.arg == kw]
+    if len(made) != 1 or not isinstance(made[0], ast.Call) \
+            or not isinstance(made[0].func, ast.Name):
+        return f"`{name}` does not hand `{kw}=` exactly one factory call"
+    fac = defs.get(made[0].func.id)
+    if fac is None:
+        return f"`{made[0].func.id}` is not a module-level factory in {hop['file']}"
+    nested = {n.name for n in fac.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    returned = [r.value.id for r in ast.walk(fac) if isinstance(r, ast.Return)
+                and isinstance(r.value, ast.Name) and r.value.id in nested]
+    if not returned or f"{fac.name}.{returned[0]}" != anchor_scope:
+        return (f"`{fac.name}` returns {returned or 'no nested def'}, not the anchor "
+                f"`{anchor_scope}`")
+    return None
+
+
+def _route_decorations(fn: ast.AST, router: str) -> list[tuple[str, str, ast.AST]]:
+    out = []
+    for d in getattr(fn, "decorator_list", []):
+        if isinstance(d, ast.Call) and isinstance(d.func, ast.Attribute) \
+                and isinstance(d.func.value, ast.Name) and d.func.value.id == router \
+                and d.args and isinstance(d.args[0], ast.Constant) and isinstance(d.args[0].value, str):
+            out.append((d.func.attr.upper(), d.args[0].value, d.func))
+    return out
+
+
+def _kw_str(call: ast.Call, name: str) -> str:
+    for k in call.keywords:
+        if k.arg == name and isinstance(k.value, ast.Constant) and isinstance(k.value.value, str):
+            return k.value.value
+    return ""
+
+
+def verify_route(root: Path, pred: dict, wire: dict, entries: set[str],
+                 overrides: dict[str, str] | None = None) -> tuple[str | None, list]:
+    """`(fault or None, [(file, node that can be cut)])` for a `route` wire.
+
+    A route is the one shape the scheduler kinds cannot express: a handler the
+    framework dispatches. So every static half is proved: the router is an
+    `APIRouter(...)` bound at module level, the handler is decorated
+    `@<router>.<method>("<path>")` with that exact method and path (its prefix
+    included), the handler reaches the guard, and a booted module includes THAT router
+    - bound to the route file's module by an import - with any include prefix applied.
+    The framework's dispatch from a request to the handler is the one edge nothing
+    static follows; the firing test drives it."""
+    overrides = overrides or {}
+
+    def srcs(rel: str) -> str:
+        return overrides[rel] if rel in overrides else (root / rel).read_text(encoding="utf-8")
+
+    rel = wire.get("file", "")
+    if not (root / rel).is_file():
+        return f"{rel} does not exist", []
+    tree, _ = _parsed(srcs(rel))
+    router = wire.get("router", "router")
+    rprefix = None
+    for n in tree.body:
+        if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == router for t in n.targets) \
+                and isinstance(n.value, ast.Call) and (_dotted(n.value.func) or "").endswith("APIRouter"):
+            rprefix = _kw_str(n.value, "prefix")
+    if rprefix is None:
+        return f"`{router}` is not an APIRouter bound at module level in {rel}", []
+    handler = next((n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and n.name == wire.get("handler")), None)
+    if handler is None:
+        return f"no module-level handler `{wire.get('handler')}` in {rel}", []
+    method = str(wire.get("method", "")).upper()
+    decs = [(p, node) for m, p, node in _route_decorations(handler, router) if m == method]
+    if not decs:
+        return f"`{handler.name}` is not decorated @{router}.{method.lower()}(...)", []
+    if pred["file"] != rel:
+        return "a route's guard must live in the router's own file", []
+    if handler.name not in refs_reach(srcs(rel), pred["scope"]):
+        return f"`{handler.name}` does not call or reference `{pred['scope']}`", []
+    mod = _module_of(rel)
+    for entry in sorted(entries):
+        if not (root / entry).is_file():
+            continue
+        mtree, _ = _parsed(srcs(entry))
+        mods = sink_aliases_in(mtree, mod)
+        objs = sink_aliases_in(mtree, f"{mod}.{router}")
+        for call in wire_calls_in(srcs(entry), "include_router"):
+            if not call.args:
+                continue
+            a = call.args[0]
+            bound = (isinstance(a, ast.Attribute) and isinstance(a.value, ast.Name)
+                     and a.value.id in mods and a.attr == router) \
+                or (isinstance(a, ast.Name) and a.id in objs)
+            if not bound:
+                continue
+            for path, dnode in decs:
+                if _kw_str(call, "prefix") + rprefix + path == wire.get("path"):
+                    return None, [(rel, dnode), (entry, a)]
+        # fall through: this entry does not mount it
+    return (f"no booted module includes `{mod}.{router}` serving {method} {wire.get('path')} "
+            f"(boots: {sorted(entries)})"), []
 
 
 ENTRIES = service_entry_modules(ROOT)
@@ -1375,6 +1555,10 @@ def test_every_observation_declares_its_wire():
             return bool(hs) and all(isinstance(h, dict) and h.get("file") and h.get("call")
                                     for h in hs)
 
+        if wire["kind"] == "route":
+            if not all(wire.get(k) for k in ("method", "path", "file", "handler")):
+                bad.append(f"{rec['guard']}: a route names its method, path, file and handler")
+            continue
         if wire["kind"] in ("chain", "table"):
             if not _hops_ok(hops):
                 bad.append(f"{rec['guard']}: a {wire['kind']} needs hops of "
@@ -1421,6 +1605,9 @@ def test_clause7_the_wire_carries_the_guard_into_a_booted_process(rec):
         emits = [g for g in _POPULATION if not g.startswith(SINK_REL + "::")]
         assert len(emits) >= POP_SPEC["emit_site_count_floor"], (
             "a sink's wire IS its producers, and the derivation found too few")
+    elif kind == "route":
+        fault, _ = verify_route(ROOT, pred, wire, ENTRIES)
+        assert fault is None, f"THE ROUTE TO {rec['guard']} IS BROKEN: {fault}"
     elif kind == "cli":
         assert not pred["file"].startswith("api/"), (
             f"{pred['file']} is service code; a service guard declares its chain")
@@ -1447,6 +1634,8 @@ def test_clause7_CUTTING_any_hop_breaks_the_chain(rec):
         for hop, node in carried:
             src = (ROOT / hop["file"]).read_text(encoding="utf-8")
             cuts = [node.func]
+            if hop.get("job_arg") is not None:
+                cuts.append(node.args[hop["job_arg"]])
             if _is_registration(hop):
                 cuts.append(_wire_target(node, hop["call"], hop.get("arg")))
             for cut in cuts:
@@ -1676,7 +1865,7 @@ def _seam_scope(rec: dict) -> set[str] | None:
     return refs_reach(src, pred["scope"]) | _nested_defs(tree, parents, pred["scope"])
 
 
-_MONITOR_KINDS = ("chain", "table", "sink")
+_MONITOR_KINDS = ("chain", "table", "sink", "route")
 
 
 def _monitor_params():
@@ -1726,3 +1915,111 @@ def test_the_seam_detector_can_answer_YES_and_NO():
     assert sorted(b.split(" line")[0] for b in bad) == [
         "f(clock=time.time)", "f(fallback=helper)", "f(probe_fn=probe)"], bad
     assert import_bound_defaults(src, {"g"}) == ([], 1)             # ← scoped, and clean
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  G. THE FACTORY HOP AND THE ROUTE KIND (2026-10-10, lane f-l6, integrator ruling)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _plant_files(root: Path, files: dict[str, str]) -> None:
+    for rel, text in files.items():
+        p = root / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(text, encoding="utf-8")
+
+
+_FACTORY_JOBS = (
+    "from api import fam\n"
+    "def guard():\n    return 1\n"
+    "def _slot(job_id):\n"
+    "    def run(ctx):\n        return guard()\n"
+    "    def spare(ctx):\n        return 0\n"
+    "    return run\n"
+    "def _other(job_id):\n    def run(ctx):\n        return 0\n    return run\n"
+    "def _cron(job_id, trigger):\n    return JobSpec(job_id=job_id, fn=_slot(job_id))\n"
+    "JOBS = [_cron(fam.JOB_A, {})]\n"
+)
+_FACTORY_PRED = {"file": "api/jobs.py", "scope": "guard"}
+_FACTORY_HOPS = [{"file": "api/jobs.py", "call": "guard"},
+                 {"file": "api/jobs.py", "call": "_cron", "job_id": "wisdom_a", "job_arg": 0,
+                  "factory_kw": "fn"}]
+
+
+def _factory_fault(tmp_path, jobs=_FACTORY_JOBS, fam='JOB_A = "wisdom_a"\n'):
+    _plant_files(tmp_path, {"api/fam.py": fam, "api/jobs.py": jobs})
+    fault, _ = verify_chain(tmp_path, _FACTORY_PRED, _FACTORY_HOPS, set(), require_entry=False)
+    return fault
+
+
+def test_a_FACTORY_hop_resolves_the_constant_and_the_function_the_factory_returns(tmp_path):
+    assert _factory_fault(tmp_path) is None
+    # a `from module import NAME` binding resolves too
+    named = _FACTORY_JOBS.replace("from api import fam\n", "from api.fam import JOB_A\n") \
+        .replace("_cron(fam.JOB_A, {})", "_cron(JOB_A, {})")
+    assert _factory_fault(tmp_path, jobs=named) is None
+
+
+def test_CONTROL_a_FACTORY_hop_fails_when_the_wiring_is_wrong(tmp_path):
+    """Each line is a different wrong wiring, and each must break the chain."""
+    assert "no call to `_cron`" in _factory_fault(tmp_path, fam='JOB_A = "wisdom_b"\n')
+    assert "_other" in _factory_fault(tmp_path, jobs=_FACTORY_JOBS.replace(
+        "fn=_slot(job_id)", "fn=_other(job_id)"))
+    assert "['spare']" in _factory_fault(tmp_path, jobs=_FACTORY_JOBS.replace(
+        "    return run\ndef _other", "    return spare\ndef _other"))
+    assert "exactly one factory call" in _factory_fault(tmp_path, jobs=_FACTORY_JOBS.replace(
+        "fn=_slot(job_id)", "fn=None"))
+
+
+_ROUTER = (
+    "from fastapi import APIRouter\n"
+    "router = APIRouter(prefix=\"/api\")\n"
+    "def guard():\n    return 1\n"
+    "@router.post(\"/x\")\ndef h():\n    return guard()\n"
+    "@router.get(\"/y\")\ndef quiet():\n    return 0\n"
+)
+_ROUTE_PRED = {"file": "api/routers/r.py", "scope": "guard"}
+_ROUTE = {"kind": "route", "method": "POST", "path": "/api/x", "file": "api/routers/r.py",
+          "handler": "h", "router": "router"}
+_MOUNTED = "from api.routers import r\napp.include_router(r.router)\n"
+
+
+def _route_fault(tmp_path, wire=_ROUTE, main=_MOUNTED, router=_ROUTER):
+    _plant_files(tmp_path, {"api/routers/r.py": router, "api/routers/other.py": router,
+                            "api/main.py": main})
+    fault, _ = verify_route(tmp_path, _ROUTE_PRED, wire, {"api/main.py"})
+    return fault
+
+
+def test_a_ROUTE_wire_resolves_method_path_prefix_handler_and_mount(tmp_path):
+    assert _route_fault(tmp_path) is None
+    alias = "from api.routers.r import router as r_router\napp.include_router(r_router)\n"
+    assert _route_fault(tmp_path, main=alias) is None
+
+
+def test_CONTROL_a_ROUTE_that_does_not_exist_or_is_not_mounted_fails(tmp_path):
+    assert "no booted module" in _route_fault(tmp_path, wire={**_ROUTE, "path": "/api/nope"})
+    assert "not decorated" in _route_fault(tmp_path, wire={**_ROUTE, "method": "GET"})
+    assert "no booted module" in _route_fault(tmp_path, main="from api.routers import r\n")
+    assert "no booted module" in _route_fault(
+        tmp_path, main="from api.routers import other\napp.include_router(other.router)\n")
+    assert "does not call or reference" in _route_fault(tmp_path, wire={**_ROUTE, "handler": "quiet",
+                                                                      "method": "GET", "path": "/api/y"})
+    assert "not an APIRouter" in _route_fault(tmp_path, router=_ROUTER.replace("APIRouter(prefix", "dict(prefix"))
+
+
+def _route_params():
+    return [pytest.param(r, id=r["guard"]) for r in OBSERVED
+            if (r.get("wire") or {}).get("kind") == "route"]
+
+
+@pytest.mark.parametrize("rec", _route_params())
+def test_clause7_CUTTING_a_route_breaks_it(rec):
+    """The decorator and the mount are each cut in memory; either cut must break it."""
+    fault, carried = verify_route(ROOT, rec["predicate"], rec["wire"], ENTRIES)
+    assert fault is None, fault
+    assert len(carried) == 2
+    for rel, node in carried:
+        src = (ROOT / rel).read_text(encoding="utf-8")
+        fault2, _ = verify_route(ROOT, rec["predicate"], rec["wire"], ENTRIES,
+                                 overrides={rel: cut_name(src, node)})
+        assert fault2 is not None, f"cutting {rel}:{node.lineno} left the route intact"
