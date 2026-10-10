@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
@@ -60,6 +60,11 @@ async function mount() {
   await waitFor(() => {
     if (!document.querySelector('.ProseMirror')?.editor) throw new Error('editor not mounted')
   })
+  // Notebook UX pass (2026-10-10): the properties sit behind the one "Details" line, collapsed
+  // by default. Opened here so "not offered" below means NOT RENDERED, never merely hidden (a
+  // hidden button would pass every `queryByRole(...) === null` vacuously).
+  const details = screen.getByRole('button', { name: /^(add )?details$/i })
+  if (details.getAttribute('aria-expanded') !== 'true') fireEvent.click(details)
   // the Properties section has loaded its list once "Add property" is on screen
   await screen.findByRole('button', { name: /Add property/ })
 }

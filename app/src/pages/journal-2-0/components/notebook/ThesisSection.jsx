@@ -31,7 +31,10 @@ const THESIS_RESEARCH_TYPES = new Set(['long_thesis', 'short_thesis'])
  *  "showing N most recent" line cannot drift away from what arrives. */
 const CANDIDATE_PAGE = 50
 
-function isThesisShaped(note, evidence, changelog) {
+// Exported for the editor's one-line details summary (NoteDetailsLine): it says
+// "Not reviewed" only for a note this section would actually render, so the two
+// can never disagree about whether the note is a thesis.
+export function isThesisShaped(note, evidence, changelog) {
   if (!note) return false
   const researchType = note.propertiesJson?.['builtin:research_type']
   if (THESIS_RESEARCH_TYPES.has(researchType)) return true

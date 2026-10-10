@@ -68,6 +68,10 @@ async function renderEditor() {
   const NoteEditorPage = (await import('./NoteEditorPage')).default
   render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={vi.fn()} /></MemoryRouter>)
   await screen.findByPlaceholderText('Title')
+  // Notebook UX pass (2026-10-10): the tags, the Ticker field and the properties sit behind the
+  // one "Details" line under the title, collapsed by default. A member opens it first; so does this.
+  const details = screen.getByRole('button', { name: /^(add )?details$/i })
+  if (details.getAttribute('aria-expanded') !== 'true') fireEvent.click(details)
 }
 const addTag = (value) => {
   const input = screen.getByRole('combobox', { name: 'Add a tag to this note' })

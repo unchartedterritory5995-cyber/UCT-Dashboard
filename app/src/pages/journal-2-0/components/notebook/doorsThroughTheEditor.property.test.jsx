@@ -254,7 +254,9 @@ async function settle(ms = 1200, n = 8) {
 /** The three metadata doors, driven through the DOM the member actually uses. */
 const doors = {
   folder: () => fireEvent.change(screen.getByDisplayValue('Unfiled'), { target: { value: 'f1' } }),
-  ticker: () => fireEvent.blur(screen.getByPlaceholderText('Ticker'), { target: { value: 'NVDA' } }),
+  // Notebook UX pass (2026-10-10): the ONE Ticker field lives in the note's details (labelled
+  // "Ticker", placeholder "e.g. NVDA") -- the same input on the same door, found by its name.
+  ticker: () => fireEvent.blur(screen.getByLabelText('Ticker'), { target: { value: 'NVDA' } }),
   // Wave 6 items 9 + 12: the tag door is an ADD (a delta applied to the
   // server's list), through the tag field's own form.
   tags: () => {

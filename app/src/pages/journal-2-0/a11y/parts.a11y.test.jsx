@@ -218,6 +218,9 @@ describe('editor side sections', () => {
     ])
     render(<Providers route="/journal/notebook?note=n1"><NoteEditorPage noteId="n1" onBack={() => {}} showBack={false} /></Providers>)
     await screen.findByPlaceholderText('Title')
+    // Notebook UX pass (2026-10-10): the properties and the thesis sections sit behind the one
+    // "Details" line under the title, collapsed by default -- open it so they are what axe checks.
+    fireEvent.click(screen.getByRole('button', { name: /^(add )?details$/i }))
     // The three footer sections are collapsed by default: open each, so the
     // rows (the part a member reads) are what axe checks.
     for (const name of [/Linked from \(1\)/, /Related from \(1\)/, /Unlinked mentions \(1\)/]) {

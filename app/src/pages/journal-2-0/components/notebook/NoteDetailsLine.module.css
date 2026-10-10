@@ -1,0 +1,77 @@
+/* The note's details, folded into one quiet line under the title (NoteDetailsLine.jsx). */
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin: 0 0 14px;
+  min-width: 0;
+}
+.summary {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 0;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.part {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.sep {
+  padding: 0 7px;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+.item {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.itemTag { color: var(--text-muted); }
+.itemTicker {
+  color: var(--text-bright);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.itemMeta { color: var(--text-muted); }
+.itemStatus { color: var(--text-muted); font-style: italic; }
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 4px 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.toggle:hover { color: var(--ut-gold); }
+.toggle:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 2px;
+}
+.toggleQuiet { opacity: 0.85; }
+.chevron {
+  flex: 0 0 auto;
+  transform: rotate(-90deg);
+  transition: transform 0.18s ease;
+}
+.chevronOpen { transform: rotate(0deg); }
+@media (prefers-reduced-motion: reduce) {
+  .chevron { transition: none; }
+}
+
+/* The touch tier is <= 1024 px (phone AND tablet): the toggle is a finger target there. */
+@media (max-width: 1024px) {
+  .toggle {
+    min-height: var(--tap-min, 44px);
+    padding: 4px 8px;
+  }
+}
