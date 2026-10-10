@@ -101,6 +101,9 @@ def refresh() -> dict:
             continue
         cols = {k: [b.get(k) for b in bars] for k in ("t", "o", "h", "l", "c")}
         cols["v"] = [0] * len(bars)
+        # the per-bar observed-OHLC mark, so a packed bar is byte-identical to /api/bars'
+        if any(b.get("ohlc") == 1 for b in bars):
+            cols["ohlc"] = [1 if b.get("ohlc") == 1 else 0 for b in bars]
         shards[uni if uni in shards else "us"][sym] = {"D": cols}
         sig.append((sym, len(bars), bars[-1]["t"], bars[-1].get("c")))
     if not sig:

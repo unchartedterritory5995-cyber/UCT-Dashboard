@@ -405,6 +405,11 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // enable/input/disable blobs are untouched, Session VWAP's new `bands` enum
       // included (an enum is not the `int` this corpus exercises).
       // (Prior value: c731ccbbfb1024c2b9520ce5746545c514817409e159cca5fe925bb622778611)
-      .toBe('8469f829356dab8ef6448a35ecac1ad59eb8c69686c0a7ec686652d13b2ddbd5')
+      // 2026-10-10: re-pinned for `CHART_DEFAULTS.breadthChartType` (the breadth chart type,
+      // separate from `chartType`). ⛔ INVESTIGATED BY MEASUREMENT: with chartDefaults.js alone
+      // reverted the corpus digests to the previous pin; the corpus spreads CHART_DEFAULTS, so
+      // the one moving part is the new default key on every base — no door moved.
+      // (Prior value: 8469f829356dab8ef6448a35ecac1ad59eb8c69686c0a7ec686652d13b2ddbd5)
+      .toBe('6f7743de23fdad1681d202f328898691c2d7151c59787de818b125cbb1fd45be')
   })
 })

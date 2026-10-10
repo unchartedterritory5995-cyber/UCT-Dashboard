@@ -65,10 +65,9 @@ def scalar_to_bars(points: list[dict]) -> list[dict]:
     ⛔⛔ THE BODY SPANS YESTERDAY'S VALUE TO TODAY'S AND THE RANGE IS DERIVED FROM THE
     PAIR — there is no observed high or low, because a derived indicator has one value
     per session. This is the same synthetic shape `breadth_symbols.build_breadth_bars`
-    produces and it is honest ONLY because the capability gate refuses to draw it as a
-    candlestick: `registry.Series.ohlc_capable` is False for every source type but
-    security and volatility, so a member sees a line. Remove that gate and this shape
-    becomes a lie a member cannot detect by looking.
+    produces. (2026-10-10, owner ruling) the chart now lets a member draw breadth and
+    breadth-derived series as candles/bars too, knowing these are close-to-close bodies;
+    surveys stay a line.
     """
     out = []
     prev = None

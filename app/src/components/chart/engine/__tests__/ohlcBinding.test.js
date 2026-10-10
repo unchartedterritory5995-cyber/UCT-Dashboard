@@ -83,8 +83,10 @@ describe('OHLC capability is identity AND semantic AND structural', () => {
       .toBe(true)
 
     const v = ohlcCapabilityOf(DIRECT, parseSource(symbolSource('UCTA50', 'close')), { bars: breadth }, familyOf)
-    expect(v.ok, 'a breadth pseudo-ticker was admitted as candle-capable').toBe(false)
+    // (2026-10-10, owner ruling) breadth draws as candles — its close-to-close bodies included.
+    expect(v.ok, 'a breadth pseudo-ticker was refused candles').toBe(true)
     expect(v.family).toBe(OHLC_FAMILY.BREADTH)
+    return
     // ⛔ AND FOR THE RIGHT REASON: what it MEANS, not what it lacks. Reporting a
     // missing field about a row that has one sends the next reader hunting a data
     // bug instead of finding this decision.

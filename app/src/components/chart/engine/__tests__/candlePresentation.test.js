@@ -53,12 +53,12 @@ describe('the capability gate — two claims, both required', () => {
     expect(capOf(DIRECT, symbolSource('QQQ', 'close'), { bars: bars(20, 700) }).ok).toBe(true)
   })
 
-  it('⛔⛔ BREADTH DOES NOT QUALIFY, THOUGH ITS BARS CARRY o/h/l/c', () => {
+  it('BREADTH QUALIFIES (2026-10-10 owner ruling: its close-to-close bodies draw as candles)', () => {
     // The bars route serves breadth as close-to-close candles, so the PAYLOAD
     // looks identical. What differs is what the four numbers MEAN: a count of
     // advancing issues has no open, and no auction happened.
     const v = capOf(DIRECT, symbolSource('UCTA50', 'close'), { bars: bars(20, 50) })
-    expect(v.ok, 'a breadth pseudo-ticker was admitted as candle-capable').toBe(false)
+    expect(v.ok, 'a breadth pseudo-ticker was refused candles').toBe(true)
   })
 
   it('⛔⛔ AN UNCLASSIFIED SYMBOL FAILS CLOSED — "not yet" is never "security"', () => {
@@ -262,10 +262,10 @@ describe('the binder draws a candlestick, carrying the instrument\'s own bars', 
     expect(vals).toEqual(sec.map((b) => b.c))
   })
 
-  it('⛔⛔ BREADTH ASKING FOR CANDLES GETS A LINE — the gate is the family', () => {
+  it('BREADTH ASKING FOR CANDLES GETS CANDLES (2026-10-10 owner ruling)', () => {
     const { created } = draw([seriesInst('b1', 'UCTA50', 'candles')], 'UCTA50', bars(20, 50))
     expect(created).toHaveLength(1)
-    expect(created[0].ctor, 'a breadth measure was drawn as an auction').toBe('LineSeries')
+    expect(created[0].ctor, 'a breadth measure asking for candles drew something else').toBe('CandlestickSeries')
   })
 
   it('⛔⛔ AND SO DOES AN UNCLASSIFIED SYMBOL — fail closed while loading', () => {

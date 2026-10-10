@@ -341,6 +341,7 @@ export function decodeShardPayload(obj) {
       const bars = new Array(n)
       for (let i = 0; i < n; i++) {
         bars[i] = { t: cols.t[i], o: cols.o[i], h: cols.h[i], l: cols.l[i], c: cols.c[i], v: cols.v[i] }
+        if (cols.ohlc && cols.ohlc[i] === 1) bars[i].ohlc = 1   // breadth's observed-OHLC mark
       }
       out.push({ sym, tf, bars })
     }

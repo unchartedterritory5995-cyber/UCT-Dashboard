@@ -99,8 +99,14 @@ export function outputIsSource(def) {
  * quarter — is refused until somebody decides what its bars MEAN. Denying only
  * `breadth` would silently admit the next synthetic family the day it appears.
  */
+// ⭐ (2026-10-10, owner ruling) BREADTH AND INDICATOR SERIES DRAW AS CANDLES/BARS TOO. Their
+// bars are served as close-to-close bodies (o = previous close, range = the pair) where no
+// intraday path was observed; the owner wants every chart type available on every breadth chart
+// and pane, bodies included. SURVEY (one weekly scalar held across days) stays refused.
 const OHLC_FAMILIES = Object.freeze(new Set([OHLC_FAMILY.SECURITY,
-                                             OHLC_FAMILY.VOLATILITY]))
+                                             OHLC_FAMILY.VOLATILITY,
+                                             OHLC_FAMILY.BREADTH,
+                                             OHLC_FAMILY.INDICATOR]))
 
 /** Is `v` a real number we could draw? */
 const num = (v) => typeof v === 'number' && Number.isFinite(v)
@@ -147,7 +153,8 @@ export function barsCarryOhlc(bars) {
 //
 // ⚠️ AN ALLOW LIST, LIKE `OHLC_FAMILIES`. A new family is refused until somebody
 // decides what its bars mean; joining this list is that decision, made per bar.
-const ATTESTED_OHLC_FAMILIES = Object.freeze(new Set([OHLC_FAMILY.BREADTH]))
+// (2026-10-10) empty: breadth is in `OHLC_FAMILIES` — its unobserved bars draw as their bodies.
+const ATTESTED_OHLC_FAMILIES = Object.freeze(new Set([]))
 
 /** The per-bar attestation key `breadth_symbols.OHLC_OBSERVED_KEY` writes. */
 export const OHLC_OBSERVED_KEY = 'ohlc'

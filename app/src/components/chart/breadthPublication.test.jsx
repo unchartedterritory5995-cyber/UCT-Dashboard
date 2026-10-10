@@ -87,11 +87,12 @@ describe('TEST-ONLY US publication', () => {
     expect(familyOf('AAPL')).toBe(OHLC_FAMILY.SECURITY)
   })
 
-  it('⛔⛔ and it is REFUSED candles — for what it MEANS, not for what it lacks', () => {
+  it('and it may draw candles (2026-10-10 owner ruling: bodies accepted)', () => {
     const parsed = parseSource(symbolSource('US:A50', 'close'))
     const cap = ohlcCapabilityOf(DATA_SERIES, parsed, breadthBars(), familyOf)
-    expect(cap.ok).toBe(false)
+    expect(cap.ok).toBe(true)
     expect(cap.family).toBe(OHLC_FAMILY.BREADTH)
+    return
     // the refusal names the FAMILY, not a missing field — the bars have all four
     expect(cap.reason).toBe(OHLC_REFUSAL.FAMILY_NOT_OHLC)
     expect(cap.reason).not.toBe(OHLC_REFUSAL.FIELDS_MISSING)

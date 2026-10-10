@@ -124,7 +124,7 @@ const ELIGIBLE = [
 // ── specialized: an Agent capability with its own rules already owns the write ──
 const S = (id, cap) => ({ id, agent: `specialized:${cap}` })
 const SPECIALIZED = [
-  S('chartType', 'chart.setType'),
+  S('chartType', 'chart.setType'), S('breadthChartType', 'chart.setType'),
   S('logScale', 'chart.setScale'), S('percentScale', 'chart.setScale'),
   S('extendedHoursShading', 'chart.setSession'), S('sessionView', 'chart.setSession'),
   S('background', 'chart.setBackground'), S('bgMode', 'chart.setBackground'),
