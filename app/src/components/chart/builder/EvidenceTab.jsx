@@ -66,7 +66,7 @@
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import UIcon from '../../ui/UIcon'
-import CoverageLine from '../../screener/CoverageLine'
+import CoverageLine from '../../provenance/CoverageLine'
 import styles from './EvidenceTab.module.css'
 
 export const BACKTEST_ENDPOINT = '/api/screener/backtest'

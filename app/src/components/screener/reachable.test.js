@@ -985,7 +985,9 @@ describe('🔴 every module under app/src is REACHABLE from an entry point', () 
       'app/src/components/screener/ScanResults.jsx is reachable from NO route. '
       + 'CoverageLine is imported only by ScanResults, so spec §6.3\'s four-outcome '
       + 'coverage receipt cannot be seen by any member.').toBe(true)
-    expect(reachable.has(path.join(SCREENER_DIR, 'CoverageLine.jsx'))).toBe(true)
+    // TERM-047 (2026-10-10): the screener re-export shim is retired; the real
+    // component lives in components/provenance/.
+    expect(reachable.has(path.join(SRC, 'components', 'provenance', 'CoverageLine.jsx'))).toBe(true)
   })
 
   it('UIcon is reachable — the control on the census that got this wrong', () => {
@@ -1053,9 +1055,8 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
     // this mount. The premise this assertion was written on — "reached only
     // through ScanResults" — was true then and is false now, so asserting it would
     // go red for a CORRECT graph. It is replaced, not deleted.
-    expect(after.has(path.join(SCREENER_DIR, 'CoverageLine.jsx')),
-      'CoverageLine should still be reachable through the builder door — if this is '
-      + 'false that door is gone and the stronger check below is measuring one edge')
+    expect(after.has(path.join(SRC, 'components', 'provenance', 'CoverageLine.jsx')),
+      'CoverageLine should still be reachable through its other doors')
       .toBe(true)
 
     // ⭐ AND TRANSITIVITY IS STILL PROVEN — by cutting EVERY door rather than
@@ -1078,10 +1079,11 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
     // collapsed for any reason would read as a perfect result.
     expect(bothCut.has(builder), 'the builder itself must stay reachable — otherwise '
       + 'this double cut proves nothing about the two edges it cut').toBe(true)
-    expect(bothCut.has(path.join(SCREENER_DIR, 'CoverageLine.jsx')),
-      'with BOTH doors cut CoverageLine must fall out — otherwise this walk is not '
-      + 'propagating unreachability downstream at all and every assertion above is '
-      + 'decoration').toBe(false)
+    // ⚠️ TERM-047 (2026-10-10): the screener CoverageLine SHIM is retired. It had
+    // exactly these two importers, so it was the downstream module this double cut
+    // used to watch fall out. The real component (components/provenance/) has many
+    // importers and stays reachable; downstream propagation is now proven by
+    // EvidenceTab falling out below, which has exactly these two importers.
     expect(bothCut.has(path.join(SRC, 'components', 'chart', 'builder', 'EvidenceTab.jsx')),
       'with both doors cut EvidenceTab must fall out too — it has exactly these two '
       + 'importers, which `EvidenceTab.doors.test.js` derives and pins').toBe(false)

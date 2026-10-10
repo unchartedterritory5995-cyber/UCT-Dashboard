@@ -196,4 +196,22 @@ describe('MOST', () => {
     renderPanel()
     expect(screen.getByTestId('terminal-movers-loading')).toBeTruthy()
   })
+
+  it('TERM-047: MOST RVOL shows the volume scan\'s own four-count receipt when it is served, and nothing while dark', async () => {
+    const coverage = { evaluated: 10, answered: 8, dropped: 0, not_computable: 2, dropped_symbols: [] }
+    ok({ [VOLUME_URL]: { ...VOLUME, coverage } })
+    renderPanel({ lens: 'volume' })
+    await screen.findByTestId('terminal-movers-table')
+    expect(await screen.findByTestId('coverage-line')).toBeTruthy()
+    // The receipt belongs to the volume scan only: the All lens does not show it.
+    fireEvent.click(screen.getByTestId('terminal-movers-lens-all'))
+    expect(screen.queryByTestId('coverage-line')).toBeNull()
+  })
+
+  it('TERM-047: dark (no coverage key) the RVOL lens renders no receipt', async () => {
+    ok()
+    renderPanel({ lens: 'volume' })
+    await screen.findByTestId('terminal-movers-table')
+    expect(screen.queryByTestId('coverage-line')).toBeNull()
+  })
 })

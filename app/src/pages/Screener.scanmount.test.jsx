@@ -592,8 +592,9 @@ describe('the controls that keep the rail honest', () => {
     // its old path is now a re-export SHIM (`export { default } from
     // '../provenance/CoverageLine'`) and writes no markup of its own, so it is
     // correctly ABSENT from `owners` below — the shim is a door, not an owner.
-    const owners = ['app/src/components/screener/CoverageLine.jsx',
-      'app/src/components/provenance/CoverageLine.jsx',
+    // TERM-047 (2026-10-10): the shim is RETIRED; both importers now name
+    // `components/provenance/CoverageLine` directly.
+    const owners = ['app/src/components/provenance/CoverageLine.jsx',
       'app/src/components/screener/ScanResults.jsx',
       'app/src/pages/screener/ScreensManager.jsx',
       'app/src/pages/Screener.jsx']

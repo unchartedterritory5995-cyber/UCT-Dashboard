@@ -204,6 +204,9 @@
 // its importers as non-adopting — so a quarter of this population exists only
 // because the alias set is DERIVED. `every adopter that reaches no primitive
 // directly reaches one through a DERIVED alias` is that fact as an assertion.
+// ⚰️ TERM-047 (2026-10-10): that shim is RETIRED and both importers name
+// `provenance/CoverageLine` directly, so the derived alias set is empty today.
+// The derivation stays: a second shim would be covered the day it appears.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -1460,10 +1463,11 @@ describe('TERM-047 — CoverageLine on every result surface', () => {
     const importOnly = "import CoverageLine from '../../../components/provenance/CoverageLine'\n"
       + "const u = '/api/scans/x'\nexport default () => <ul data-u={u} />\n"
     expect(coverageRouting(from, importOnly)).toBe(null)
-    // The SHIM counts, because the alias set is derived — the screener imports it that way.
+    // TERM-047 (2026-10-10): the screener re-export shim is RETIRED, so an import
+    // through its old path resolves to nothing and must NOT count as a render.
     const viaShim = "import CoverageLine from '../../../components/screener/CoverageLine'\n"
       + 'export default () => <CoverageLine coverage={null} />\n'
-    expect(coverageRouting(from, viaShim)).toBe('direct')
+    expect(coverageRouting(from, viaShim)).toBe(null)
   })
 
   it('the verdict can FAIL both ways — table cases, with a discriminator', () => {

@@ -58,6 +58,7 @@
 // Notebook's Ask panel) are not roots of either section.
 
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { Parser } from 'acorn'
@@ -489,16 +490,22 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
   })
 
   it('THE RE-EXPORT HOP IS LOAD-BEARING: cut it and the shim stops counting as S8', () => {
-    // `components/screener/CoverageLine.jsx` re-exports S8's CoverageLine.
-    // Importing it is compliant — but only because `followReexport` follows the
-    // hop, and an unproven hop is an assumption.
-    const shim = path.join(SRC, 'components', 'screener', 'CoverageLine.jsx')
-    expect(fs.existsSync(shim), 'the screener CoverageLine shim moved — this control '
-      + 'cannot measure the hop').toBe(true)
-    expect(followReexport(shim).startsWith(PROVENANCE_DIR + path.sep),
-      'the shim did not resolve into components/provenance/ — the hop is not being '
-      + 'followed and an importer of S8\'s own component would be called a violation')
-      .toBe(true)
+    // TERM-047 (2026-10-10): the real shim (`components/screener/CoverageLine.jsx`)
+    // is RETIRED, so this control plants a SYNTHETIC one in a temp directory. A
+    // pure re-export is compliant only because `followReexport` follows the hop,
+    // and an unproven hop is an assumption.
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'i1s8-shim-'))
+    const shim = path.join(dir, 'CoverageLine.jsx')
+    const rel = path.relative(dir, path.join(PROVENANCE_DIR, 'CoverageLine')).split(path.sep).join('/')
+    fs.writeFileSync(shim, `export { default } from '${rel}'\n`)
+    try {
+      expect(followReexport(shim).startsWith(PROVENANCE_DIR + path.sep),
+        'the shim did not resolve into components/provenance/ (the hop is not being '
+        + 'followed and an importer of S8\'s own component would be called a violation)')
+        .toBe(true)
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
     // The negative: a module that is NOT a pure re-export must not be followed
     // anywhere, or the hop would launder any import into compliance.
     const real = path.join(PROVENANCE_DIR, 'CoverageLine.jsx')

@@ -30,6 +30,7 @@ import {
   formatCompactTerminal, formatNumber, formatPercent, formatTimeEt,
 } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor } from '../../../lib/presentation/dataGrid'
+import CoverageLine from '../../../components/provenance/CoverageLine'
 import {
   CATALYSTS_URL, LENSES, MAX_ROWS, MOVERS_URL, POLL_MS, PRICE_FLOORS, SESSION_COPY, VOLUME_FLOORS, VOLUME_URL,
   buildRows, defaultSort, filterRows, firstDirFor, liveSymbols, sessionOf, sortRows,
@@ -275,6 +276,11 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
           </table>
         </div>
       )}
+
+      {/* TERM-047: `MOST RVOL` is the Volume Surge scan's result set, so it carries that scan's own
+          four-count receipt (`coverage` on /api/volume-scan/live, served while
+          COVERAGE_RECEIPTS_SCANS_ENABLED is on). Dark, the key is absent and this renders nothing. */}
+      {lens === 'volume' ? <CoverageLine coverage={volume.data?.coverage ?? null} density="widget" /> : null}
 
       <p className={styles.muted} data-testid="terminal-movers-method">
         Sources: the movers list (names gapping 3% or more), today&apos;s catalyst board and the Volume Surge
