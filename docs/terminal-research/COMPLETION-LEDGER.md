@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after lanes L3, L4, L5): not complete.** 223 of 279 rows are `live` or `moot`; 56 are not (20 `dark`, 28 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after lanes L3, L4, L5): not complete.** 223 of 279 rows are `live` or `moot`; 56 are not (25 `dark`, 23 `building`, 8 `owner-blocked`). (Recounted 2026-10-10 after lane L5 moved TERM-043, TERM-045, COV-05, FT-076 and D-9 from `building` to `dark`.) It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -37,11 +37,16 @@ python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETI
 Printed 2026-10-10 after lanes L3, L4, L5:
 
 ```
-279 Counter({'live': 183, 'moot': 40, 'building': 28, 'dark': 20, 'owner-blocked': 8})
+279 Counter({'live': 183, 'moot': 40, 'dark': 25, 'building': 23, 'owner-blocked': 8})
 0 duplicate ids
 ```
 
-The count printed earlier the same day at master `d95f331bb`, before lane L4: `279 Counter({'live': 174, 'building': 44, 'moot': 39, 'dark': 13, 'owner-blocked': 9})`.
+Re-printed 2026-10-10 on branch `f-l5` (lane L5: TERM-043, TERM-045, COV-05, FT-076, D-9 built behind dark flags, `building` to `dark`):
+
+```
+279 Counter({'live': 174, 'building': 39, 'moot': 39, 'dark': 18, 'owner-blocked': 9})
+0 duplicate ids
+```
 
 Before this reconciliation (same command, the file as committed at `d95f331bb`): `279 Counter({'building': 85, 'live': 77, 'dark': 69, 'moot': 36, 'owner-blocked': 12})`, 0 duplicate ids. (The table that stood here then still carried the pre-sweep 2026-10-03 numbers; the command, not the table, was right.)
 
@@ -51,14 +56,14 @@ The per-section split is the same regex applied to each `## ` section:
 |---|---|---|---|---|---|---|
 | 1 Programme records + ship | 17 | 11 | 0 | 3 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
-| 3 TERM-001..093 | 93 | 65 | 6 | 13 | 3 | 6 |
+| 3 TERM-001..093 | 93 | 65 | 8 | 11 | 3 | 6 |
 | 4 BRK-01..10 | 10 | 4 | 4 | 1 | 0 | 1 |
-| 5 COV-01..12 | 12 | 5 | 0 | 3 | 1 | 3 |
-| 6 FT-001..080 | 80 | 56 | 6 | 5 | 4 | 9 |
-| 7 Untracked promises | 58 | 42 | 4 | 3 | 0 | 9 |
-| **total** | **279** | **183** | **20** | **28** | **8** | **40** |
+| 5 COV-01..12 | 12 | 5 | 1 | 2 | 1 | 3 |
+| 6 FT-001..080 | 80 | 56 | 7 | 4 | 4 | 9 |
+| 7 Untracked promises | 58 | 42 | 5 | 2 | 0 | 9 |
+| **total** | **279** | **183** | **25** | **23** | **8** | **40** |
 
-`building` by lane: P 9 · R 5 · integrator 4 · Notebook 2 · O 2 · S 2 · D 1 · T2 1 · decided follow-up builds (TERM-043, TERM-045) 2.
+`building` by lane: P 9 · integrator 4 · Notebook 2 · O 2 · R 2 · S 2 · D 1 · T2 1.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -145,9 +150,9 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-040` | Warm cold-pack shards | `moot (no server cache; shared-stall diagnosis instead)` | |
 | `TERM-041` | Published regime vocabulary | `live` | `api/routers/regime.py:73`. |
 | `TERM-042` | Re-source the EOD breadth row | `owner-blocked (set BREADTH_EOD_SOURCE=server when parity.switch.ready — the bar is 10 clean sessions)` | Armed in `shadow` (`api/services/breadth_eod_source.py:102`). ➜ 2026-10-07: T-12, built `6d2e692bd`; owner action A7 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
-| `TERM-043` | Figure-to-source-page link | `building (decided 2026-10-07: link only, from the PIT store; follow-up build)` | `FUNDAMENTALS_PIT_ENABLED` is armed, so the "dark store" premise is stale. ➜ 2026-10-07: T-13 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) Not built at `d95f331bb` (no accession link in the fundamentals services, grep). |
+| `TERM-043` | Figure-to-source-page link | `dark` | Built 2026-10-10 (lane L5, branch `f-l5`) per T-13, link only, from the PIT store: the PIT artifact carries an accession list per point for `revenue_q` / `net_income_q` / `eps_diluted_q` behind `FUNDAMENTALS_PIT_PUBLISH_SOURCES` (worker; `api/services/fundamentals_pit/publish.py`, `read_series_sources`; frozen `store.py` untouched), and `/api/research/financial-history` adds `source_links` (EDGAR filing index per cell) behind `FIGURE_SOURCE_LINKS_ENABLED` (web; `api/services/research/figure_sources.py:69,103`, wired `api/routers/research.py:252-254`) only where the PIT value matches the shown FMP figure within rounding and came from ONE filing (Q4 = FY minus 9M gets no link); the statement table renders the cell as a link (`app/src/components/research/fmpDepth/StatementTables.jsx:70`). Both flags `dark` in `docs/feature_flags.json`. Arming: worker flag first (every artifact republishes once), then the web flag. Tests: `tests/fundamentals_pit/test_figure_sources.py`, `FigureSourceLinks.test.jsx`. Was `building`. |
 | `TERM-044` | Span-anchored recap citation | `live` | `app/src/components/calendar/CallRecapSection.jsx:202`. |
-| `TERM-045` | EDGAR Form 4 / 13F | `building (decided 2026-10-07: 13F join via the SEC Official List of Section 13(f) Securities; no purchase)` | Form 4 live (`api/routers/research.py:267`). ➜ 2026-10-07: T-14 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) Not built at `d95f331bb` (no reader of the SEC 13(f) list under `api/services`, grep). |
+| `TERM-045` | EDGAR Form 4 / 13F | `dark` | Form 4 live (`api/routers/research.py:267`). 13F join built 2026-10-10 (lane L5) per T-14: `api/services/sec_13f_list.py` downloads the SEC Official List of Section 13(f) Securities (`/files/investment/13flist{YYYY}q{N}.txt`, falls back up to 3 quarters, via `sec_client` with SEC_USER_AGENT, 30 s timeout, 8 MB cap, cached under `SEC_13F_LIST_PATH`) from the job `sec_13f_list_refresh` (`api/main.py:8642`); `/api/research/ownership/{sym}` carries `thirteen_f_list` (ticker CUSIP from the FTD store or FMP profile, its 13(f) status, every listed security of the issuer, list quarter beside the FMP 13F holders quarter; `sec_13f_list.py:298`, `research.py:390-392`) and the Ownership tab shows one line (`OwnershipTab.jsx:179`); `annotate_positions` joins Form 13F information-table positions by CUSIP. Behind `SEC_13F_LIST_ENABLED`, `dark`. No purchase. Tests: `tests/test_sec_13f_list.py`, `OwnershipTab.thirteenfList.test.jsx`. Was `building`. |
 | `TERM-046` | Short-interest history | `live` | `SHORT_INTEREST_SOURCE=finviz` armed (`api/services/short_interest.py:99`). |
 | `TERM-047` | CoverageLine on result surfaces | `building (Lane S)` | `lane/s2-finish` merged dark (`9e69eddd9`, 2026-10-07): receipts on scans, the six preset scans, volume-scan and `/api/screener/scan`, behind `COVERAGE_RECEIPTS_SCANS_ENABLED` (pending, `docs/feature_flags.json:1936`). Remainder: retire the `CoverageLine` shim (dropped from that merge: it needs an edit to `components/chart/builder/EvidenceTab.jsx`), then arm. |
 | `TERM-048` | Watchlist alerts onto S7 | `live` | `api/services/alert_taxonomy/watchlist_price_alerts.py:80`. |
@@ -220,7 +225,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `COV-02` | Options screening | `live` | `OPTIONS_SCREENER_ENABLED` (`docs/feature_flags.json:152`) and the strategy screens (`docs/feature_flags.json:291`) armed on web 2026-10-09 (`c10e0fef3`) and answering 200 live 2026-10-09. Ranks need ≥10 / 20 logged sessions. Was `dark`. |
 | `COV-03` | IV percentile / unusual volume | `owner-blocked (set OPTIONS_SCREENER_TAPE_URL on terminal-next-monitor)` | Decided: set the tape URL (S-11 `12-decisions/2026-10-07-owner-delegated-decisions.md:97`; A6 `12-decisions/2026-10-07-owner-delegated-decisions.md:146`). No record that `OPTIONS_SCREENER_TAPE_URL` was set on terminal-next-monitor (`docs/feature_flags.json:159` still names it as needed). The screener itself is armed (COV-02). IV ranks also need ≥20 sessions. |
 | `COV-04` | Filing blackline | `live` | `api/routers/filing_blackline.py:42`; armed 10-02. |
-| `COV-05` | People / executive intelligence | `building (Lane R)` | People tab armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2002`): officers (FMP key-executives), compensation, Form 4 roles. Remainder: bios and board, which need a source (D-008); none is wired at `d95f331bb`. Was `dark`. |
+| `COV-05` | People / executive intelligence | `dark` | People tab armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2002`): officers (FMP key-executives), compensation, Form 4 roles. Remainder built 2026-10-10 (lane L5) behind `RESEARCH_PEOPLE_BOARD_ENABLED` (`dark`): board = reporting owners whose Form 4 declares a director, from the same cached EDGAR snapshot (`api/services/research_people.py:238`), and biographies = a LINK to the newest DEF 14A proxy found in the same submissions read (`api/services/edgar_ownership.py:370`; `PeopleTab.jsx:159`). Source search (D-008): FMP's plan returns no bio or board field (`fmp_client.get_key_executives` carries name, title, pay, year born; `get_executive_compensation` is the pay table), and the DEF 14A has no structured bio field, so bio TEXT is `moot (no source; D-008)` and is not extracted. Tests: `tests/test_research_people_board.py`, `PeopleTab.board.test.jsx`. Was `building`. |
 | `COV-06` | Version history on user artefacts | `live` | `api/services/artifact_versions.py:81` (all four kinds). |
 | `COV-07` | Broker estimates + consensus drift | `moot (decided 2026-10-07: no FMP upgrade now; drift accrues from our snapshots)` | Drift built and armed on web 2026-10-04 (`a046f7d9f`) (`ESTIMATE_HISTORY_ENABLED`, `docs/feature_flags.json:2010`), accumulating from 2026-10-02. NG-15 retracted (D-008). ➜ 2026-10-07: S-2 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `COV-08` | Depth of book / L2 / T&S | `moot (decided 2026-10-07: no L2 purchase)` | In scope by D-008. ➜ 2026-10-07: S-1 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
@@ -308,7 +313,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `FT-073` | Per-strategy option screeners | `dark` | Strategy screens (`docs/feature_flags.json:291`) and the remaining screens (call butterflies, by-expiration, block trades; `docs/feature_flags.json:396`) armed on web 2026-10-09 (`c10e0fef3`) and answering 200 live 2026-10-09. Multi-leg trades built 2026-10-10 by finishing lane L3 (branch `f-l3`) behind `OPTIONS_MULTI_LEG_SCREEN_ENABLED` (`docs/feature_flags.json:426`, `dark`): the tape does carry the flag (flow-worker types a print `ML/` from OPRA condition codes 232-247, `api/build_gap_fill_csv.py:52`), so `GET /api/options-screener/multi-leg` (`api/routers/options_analytics.py:530`) groups today's ML/ prints per symbol and second from Market Tide's same tape read (`api/services/options_analytics/tide_extras.py:51`, `more_screens.py:58`); panel `app/src/pages/optionsAnalytics/StrategyScreensPanel.jsx:203`. |
 | `FT-074` | Unusual options volume report | `owner-blocked (as COV-03: OPTIONS_SCREENER_TAPE_URL)` | ➜ 2026-10-07: decided: as COV-03. Owner action A6 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-075` | Sizzle Index | `live` | Sizzle 5-day: `OPTIONS_SIZZLE_ENABLED` armed on web 2026-10-09 (`c10e0fef3`) and answering 200 live 2026-10-09 (`docs/feature_flags.json:402`). Ranks only with 5 prior sessions. Was `building (Lane O)`. |
-| `FT-076` | MGMT surface | `building (Lane R)` | As COV-05: `RESEARCH_PEOPLE_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2002`); bios / board need a source (D-008), none wired. Was `dark`. |
+| `FT-076` | MGMT surface | `dark` | As COV-05: `RESEARCH_PEOPLE_ENABLED` armed on web 2026-10-04 (`a046f7d9f`); board (Form 4 directors) and biographies (DEF 14A proxy link) built 2026-10-10 behind `RESEARCH_PEOPLE_BOARD_ENABLED` (`dark`; `api/services/research_people.py:238`, `PeopleTab.jsx:159`). Bio text has no free structured source (D-008), so it is linked, not extracted. Was `building`. |
 | `FT-077` | Level II / T&S | `moot (as COV-08)` | ➜ 2026-10-07: S-1 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-078` | Candlestick pattern detection | `moot (decided 2026-10-07: toggle stays off; Pattern-Lab pause stands)` | Overlay mounted (`app/src/components/StockChart.jsx:19753`), but the toolbar toggle is dead code (`app/src/components/chart/ChartToolbar.jsx:1431`, `{false && …}`). ➜ 2026-10-07: F-5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-079` | Chart-pattern auto-labelling | `moot (as FT-078)` | Fibonacci patterns would be agent-buildable afterwards. ➜ 2026-10-07: F-5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
@@ -362,7 +367,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `D-6` | Story versioning and retraction | `moot (decided 2026-10-07: no retraction feed)` | Versioning built and armed on web 2026-10-04 (`a046f7d9f`) (`NEWS_STORY_VERSIONS_ENABLED`, `docs/feature_flags.json:2082`); versions accrue from arming. No paid source sends a retraction field, and the payload says so. ➜ 2026-10-07: S-10 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `D-7` | Coarse news importance label | `live` | `NEWS_IMPORTANCE_LABEL_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2090`). Each label carries its rule; no model. Was `dark`. |
 | `D-8` | Read / unread on news | `live` | `NEWS_READ_STATE_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2098`). Was `dark`. |
-| `D-9` | Personalization UC-1: consumers of `/api/member/interest` | `building (Lane R)` | First consumer armed on web 2026-10-04 (`a046f7d9f`) (`MEMBER_INTEREST_LINE_ENABLED`, `docs/feature_flags.json:2106`; `app/src/pages/research/notices/ResearchNotices.jsx:37`). Remainder: the other UC-1 consumers (Breadth drill, Screener rows, Wire Top-5); no other frontend caller of `/api/member/interest` at `d95f331bb` (grep). |
+| `D-9` | Personalization UC-1: consumers of `/api/member/interest` | `dark` | First consumer armed on web 2026-10-04 (`a046f7d9f`) (`MEMBER_INTEREST_LINE_ENABLED`; `ResearchNotices.jsx`). The other three built 2026-10-10 (lane L5) on one shared reader (`app/src/lib/memberInterest.js`, `components/memberInterest/MemberInterestNotice.jsx`), each behind its own `dark` flag carried on the auth payload (`api/routers/auth.py:451-458`): Breadth drill (`MEMBER_INTEREST_BREADTH_ENABLED`, `BreadthDrillList.jsx:225`), Screener rows (`MEMBER_INTEREST_SCREENER_ENABLED`, `ScannerShell.jsx:489`), Wire Top picks (`MEMBER_INTEREST_WIRE_ENABLED`, `MorningWire.jsx:442`). Presence only, no re-ordering; a surface with its flag off never requests the route. Tests: `tests/test_member_interest_surfaces.py` + the three `*.memberInterest.test.jsx`. Was `building`. |
 | `D-10` | Personalization UC-3: explain list order | `live` | `CALENDAR_ORDER_EXPLAIN_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2162`). Was `dark`. |
 | `D-11` | Entity UC-1: "formerly / now trades as" notice | `live` | `ENTITY_RENAME_NOTICE_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2114`). Was `dark`. |
 | `D-12` | Canonical UC-5: show when two computations of one metric disagree | `live` | `METRIC_DISAGREEMENT_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2122`). Was `dark`. |
