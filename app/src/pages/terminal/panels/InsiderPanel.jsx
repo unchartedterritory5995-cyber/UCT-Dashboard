@@ -1,9 +1,10 @@
-// INS: notable insider BUYS from the last 7 days (wave 7, lane C).
+// INS: market-wide insider BUYS from the last 7 days (wave 7, lane C; market-wide 2026-10-10).
 //
-// ⭐ NO NEW ROUTE. `GET /api/insider/feed` (api/services/insider.py `get_recent_insider_buys`) is the
-// read the UCT 20 page already makes: open-market buys from Form 4 filings, largest dollar value
-// first, capped at 50. ⚠️ It is NOT the whole market: the server scans the UCT 20 plus about 40
-// large caps, and the panel says so rather than letting a short list read as a quiet tape.
+// `GET /api/insider/feed?scope=market` (api/services/insider.py `get_market_insider_buys`): open-market
+// purchases from Form 4 filings across the whole market, from FMP's newest-filings feed, largest
+// dollar value first, capped at 50. The default `/api/insider/feed` (no scope) is the UCT 20 page's
+// read (UCT 20 plus about 40 large caps); large-cap insiders almost only sell, so that list was
+// routinely empty here. This panel's SWR key is the stamped market URL, distinct from that page's.
 //
 // A ticker opens its DES beside the list; typing a row number loads the name into the linked group.
 // ⛔ A failed read is an error with Retry, never "no insider buys".
@@ -16,7 +17,7 @@ import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/pres
 import { canRetry, failureText, useMarketRead } from './marketRead'
 import styles from './marketPanels.module.css'
 
-export const INSIDER_URL = '/api/insider/feed'
+export const INSIDER_URL = '/api/insider/feed?scope=market'
 const POLL_MS = 30 * 60 * 1000
 
 const num = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v))
@@ -69,7 +70,7 @@ export default function InsiderPanel() {
   const [sort, setSort] = useState({ key: 'amount', dir: 'desc' })
   const rows = useMemo(() => sortRows(base, sort, { valueOf, isNumeric, tiebreak: byOrder }), [base, sort])
   const asOf = newestFiling(base)
-  usePanelFreshness(base.length ? panelAsOf('SEC Form 4 filings (FMP, Finnhub)', asOf) : null)
+  usePanelFreshness(base.length ? panelAsOf('SEC Form 4 filings (FMP)', asOf) : null)
   usePanelSymbolRows(rows.map((r) => r.sym), 'insider buys')
 
   if (read.loading) return <PanelSkeleton label="Loading insider buys" testId="terminal-insider-loading" />
@@ -84,8 +85,8 @@ export default function InsiderPanel() {
   }
   if (!base.length) {
     return (
-      <PanelState kind="empty" title="No notable insider buys in the last 7 days." testId="terminal-insider-empty">
-        The feed covers the UCT 20 and about 40 large caps.
+      <PanelState kind="empty" title="No market-wide insider purchases in the last 7 days." testId="terminal-insider-empty">
+        The feed covers open-market purchases in Form 4 filings across the whole market.
       </PanelState>
     )
   }
@@ -128,8 +129,8 @@ export default function InsiderPanel() {
         </table>
       </div>
       <p className={styles.muted} data-testid="terminal-insider-method">
-        Open-market buys from Form 4 filings in the last 7 days, largest first, up to 50. The feed covers the UCT 20 and
-        about 40 large caps, not every stock. Click a symbol to open its DES; type a row number to load it into the linked panels.
+        Market-wide open-market purchases from Form 4 filings in the last 7 days, largest first, up to 50. Click a symbol
+        to open its DES; type a row number to load it into the linked panels.
         {asOf ? ` Newest filing ${asOf}.` : ''}
       </p>
     </div>

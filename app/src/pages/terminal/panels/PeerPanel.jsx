@@ -17,7 +17,7 @@ import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import useLivePrices from '../../../hooks/useLivePrices'
 import {
-  PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
+  PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, panelAsOf,
 } from '../../../components/terminal'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import styles from './myNamesPanel.module.css'
@@ -95,7 +95,7 @@ export default function PeerPanel({ sym }) {
   const body = peers.data?.body
   const asOf = peers.data?.receivedAt || null
   usePanelFreshness(asOf && all.length
-    ? { source: 'UCT peer groups (themes, industry), live prices, daily closes', observedAt: asOf }
+    ? panelAsOf('UCT peer groups (themes, industry), live prices, daily closes', asOf)
     : null)
 
   if (!s) {

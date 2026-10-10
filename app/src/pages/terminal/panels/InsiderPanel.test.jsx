@@ -1,7 +1,7 @@
 // INS: insider buys. Rails:
 //   * ticker, insider, role, dollar value, date per row, largest first, sortable;
 //   * a ticker loads into the linked panels; row numbers load the name;
-//   * the panel says the feed is not the whole market;
+//   * the panel reads the MARKET-WIDE feed (scope=market) and says it is market-wide Form 4 purchases;
 //   * a failed read is an error with Retry, never "no buys"; a 402 says paid plan;
 //   * the registry: `INS` resolves to this panel, market-only.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -14,6 +14,7 @@ import { PanelListContext } from '../../../components/terminal'
 import InsiderPanel, { INSIDER_URL, insiderRows, newestFiling } from './InsiderPanel'
 import { BY_CODE, variantFor } from '../functions'
 import { PANEL_IMPORTERS } from '../panels'
+import { stampedKey } from './marketRead'
 
 const BUYS = [
   { symbol: 'NVDA', name: 'Jane Doe', title: 'director', type: 'buy', shares: 10000, price: 150, amount: 1500000, date: '2026-10-06', filing_date: '2026-10-07' },
@@ -47,8 +48,13 @@ describe('INS panel', () => {
     fireEvent.click(screen.getByTestId('panel-symbol-AMD'))
     expect(run).toHaveBeenCalledWith('$AMD')
     expect(publishRows).toHaveBeenLastCalledWith(['$NVDA', '$AMD'])
-    expect(screen.getByTestId('terminal-insider-method').textContent).toContain('not every stock')
-    expect(jsonFetcher).toHaveBeenCalledWith(INSIDER_URL)
+    const method = screen.getByTestId('terminal-insider-method').textContent
+    expect(method).toContain('Market-wide open-market purchases from Form 4 filings in the last 7 days')
+    expect(method).not.toContain('UCT 20')
+    expect(INSIDER_URL).toBe('/api/insider/feed?scope=market')
+    expect(jsonFetcher).toHaveBeenCalledWith('/api/insider/feed?scope=market')
+    // its own SWR key: the stamped market URL, never the UCT 20 page's raw '/api/insider/feed' key
+    expect(stampedKey(INSIDER_URL)).toEqual(['/api/insider/feed?scope=market', 'terminal-stamped'])
   })
 
   it('sorts by a column, and says which way', async () => {
@@ -67,7 +73,10 @@ describe('INS panel', () => {
   it('an empty week says so and names what the feed covers', async () => {
     jsonFetcher.mockResolvedValue([])
     renderPanel()
-    expect((await screen.findByTestId('terminal-insider-empty')).textContent).toContain('UCT 20')
+    const empty = (await screen.findByTestId('terminal-insider-empty')).textContent
+    expect(empty).toContain('No market-wide insider purchases in the last 7 days.')
+    expect(empty).toContain('across the whole market')
+    expect(empty).not.toContain('UCT 20')
   })
 
   it('a failed read is an error with Retry; a 402 says paid plan', async () => {
@@ -93,6 +102,7 @@ describe('INS panel', () => {
 describe('INS in the registry', () => {
   it('INS opens the insider buys panel, market-only', async () => {
     expect(BY_CODE.INS.group).toBe('Market')
+    expect(BY_CODE.INS.label).toBe('Insider buying (market-wide, last 7 days)')
     expect(variantFor('INS', false).variant.panel).toBe('InsiderBuys')
     expect(BY_CODE.INS.ticker).toBeUndefined()
     expect((await PANEL_IMPORTERS.InsiderBuys()).default).toBe(InsiderPanel)

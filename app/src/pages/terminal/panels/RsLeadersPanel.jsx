@@ -10,7 +10,7 @@
 // without that body is an outage (error with Retry); a 402 or a switched-off route has no Retry.
 import { useMemo, useState } from 'react'
 import {
-  PanelSkeleton, PanelSymbol, PanelState, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
+  PanelSkeleton, PanelSymbol, PanelState, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, panelAsOf,
 } from '../../../components/terminal'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
@@ -67,7 +67,7 @@ export default function RsLeadersPanel() {
   const board = useMemo(() => rsLeaders(read.body), [read.body])
   const [sort, setSort] = useState({ key: 'order', dir: 'asc' })
   const rows = useMemo(() => sortRows(board.rows, sort, { valueOf, isNumeric, tiebreak: byOrder }), [board.rows, sort])
-  usePanelFreshness(board.rows.length ? { source: 'UCT RS ranking (daily closes)' } : null)
+  usePanelFreshness(board.rows.length ? panelAsOf('UCT RS ranking (daily closes)', read.receivedAt) : null)
   usePanelSymbolRows(rows.map((r) => r.sym), 'RS leaders', { total: board.total })
 
   if (read.loading) return <PanelSkeleton label="Loading RS rankings" testId="terminal-rsl-loading" />

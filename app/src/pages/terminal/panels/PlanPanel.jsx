@@ -17,7 +17,7 @@ import { Link } from 'react-router-dom'
 import Input from '../../../components/ui/Input'
 import useLivePrices from '../../../hooks/useLivePrices'
 import jsonFetcher from '../../../utils/jsonFetcher'
-import { PanelCommand, PanelState, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { PanelCommand, PanelState, useInTerminalPanel, usePanelFreshness, panelAsOf } from '../../../components/terminal'
 import { formatCurrency } from '../../../lib/presentation/presentationPrimitives'
 import { setAlert } from '../alertCommand'
 import { parseAlertPrice } from '../alertModel'
@@ -83,7 +83,7 @@ export default function PlanPanel({ sym, buy: buyArg = null, stop: stopArg = nul
   const live = s ? parseNum(prices?.[s]?.price) : null
   const liveKnown = live != null
   const liveAt = useMemo(() => (liveKnown ? new Date().toISOString() : null), [liveKnown])
-  usePanelFreshness(liveAt ? { source: 'Live price (reference only)', observedAt: liveAt } : null)
+  usePanelFreshness(liveAt ? panelAsOf('Live price (reference only)', liveAt) : null)
 
   const plan = useMemo(() => readPlan({ buy, stop, target, account, riskPct }), [buy, stop, target, account, riskPct])
   const sig = plan.ok ? JSON.stringify([s, plan.buy, plan.stop, plan.target, plan.size?.shares ?? null]) : null

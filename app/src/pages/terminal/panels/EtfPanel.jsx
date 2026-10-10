@@ -17,7 +17,7 @@ import { useId, useMemo } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import {
-  PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
+  PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, panelAsOf,
 } from '../../../components/terminal'
 import { formatCompactTerminal, formatNumberMax, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import styles from './myNamesPanel.module.css'
@@ -68,7 +68,7 @@ export default function EtfPanel({ sym }) {
   usePanelSymbolRows([...fam.map((r) => r.ticker), ...shown.map((h) => h.sym)], `ETF exposure of ${s}`)
   const asOf = holdings.data?.receivedAt || family.data?.receivedAt || null
   usePanelFreshness(asOf && (held.length || fam.length)
-    ? { source: 'FMP ETF holdings, UCT single-stock ETF map', observedAt: asOf }
+    ? panelAsOf('FMP ETF holdings, UCT single-stock ETF map', asOf)
     : null)
 
   if (!s) {
@@ -100,12 +100,16 @@ export default function EtfPanel({ sym }) {
     <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-etf">
       <section aria-labelledby={`${hid}-family`}>
         <h3 id={`${hid}-family`} className={styles.lede}>
-          {leveragedEtf ? `${s} is a leveraged ETF on ${underlying}. The ${underlying} family:` : `Leveraged and inverse ETFs on ${s}`}
+          {leveragedEtf ? `${s} is a leveraged ETF on ${underlying}. The ${underlying} family:` : `Single-stock leveraged and inverse ETFs on ${s}`}
         </h3>
         {family.error ? (
           <p className={styles.note} role="status" data-testid="terminal-etf-family-error">{familyNote(family.error)}</p>
         ) : familyEmpty ? (
-          <p className={styles.muted} data-testid="terminal-etf-family-empty">No leveraged or inverse ETFs track {s}.</p>
+          <p className={styles.muted} data-testid="terminal-etf-family-empty">
+            {isEtf
+              ? `${s} is a fund. This list covers leveraged ETFs on single stocks, so index products are not in it.`
+              : `No single-stock leveraged or inverse ETFs track ${s}.`}
+          </p>
         ) : (
           <div className={styles.tableBox}>
             <table className={styles.table} data-testid="terminal-etf-family" aria-label={`Leveraged and inverse ETFs on ${leveragedEtf ? underlying : s}`}>
