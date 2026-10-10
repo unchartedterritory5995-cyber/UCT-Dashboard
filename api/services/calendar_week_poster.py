@@ -154,7 +154,7 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
     path doesn't carry."""
     from api.routers.calendar import get_calendar, get_day_metrics, _week_dates
     from api.services import ticker_logos as _logos
-    from api.services.calendar_week_png import MAX_PER_SESSION, MAX_TBD
+    from api.services.calendar_week_png import MAX_PER_SESSION, MAX_TBD, is_dmh
 
     cur_monday = _week_dates()[0]
     from api.services.calendar_week_contract import week_days
@@ -230,7 +230,13 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
                 if mc is None:
                     mc = (metrics.get(sym) or {}).get("mc_b")
                 rows.append({"sym": sym, "mc_b": mc,
-                             "ew": int(e.get("ew") or 0)})
+                             "ew": int(e.get("ew") or 0),
+                             # Honesty marks the card draws per chip: an
+                             # unconfirmed date ("est.") and a during-market
+                             # release ("MKT"). Passed through, never derived.
+                             "date_est": e.get("date_est"),
+                             "date_confirmed": e.get("date_confirmed"),
+                             "session_note": e.get("session_note")})
             # Unknown cap sinks below known caps rather than sorting as zero-ish
             rows.sort(key=lambda r: (r["mc_b"] is not None, r["mc_b"] or 0),
                       reverse=True)
@@ -283,6 +289,9 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
             "bmo_n": len(day.get("bmo") or []),
             "amc_n": len(day.get("amc") or []),
             "tbd_n": tbd_n,
+            # Counted over the SAME raw list as `tbd_n`, so the TBD section
+            # reads "DURING MARKET" only when every one of them is.
+            "tbd_dmh_n": sum(1 for e in day.get("tbd") or [] if is_dmh(e)),
             "overflow": max(0, total - shown),
         })
 
