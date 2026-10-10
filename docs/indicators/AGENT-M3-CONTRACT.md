@@ -398,3 +398,17 @@ history step (undoable).
   `turn-refused` (`detail.codes`).
 - **Save after a rename:** `saveDraft` re-reads the acknowledgement (it may name the renamed output)
   and confirms the stored NAME by read-back (name, id, version, maths) — `saved-unconfirmed` otherwise.
+
+### 16.2 S5 refinements (owner, 2026-10-10)
+
+- **A — originating chart.** `DraftStatus.chartRef` is the chart a draft was started for, exactly as
+  `openDraft({create|edit, chartRef})` was given it — kept on the draft's own snapshot (the existing
+  store; no new one) and unchanged by turns, renames, Undo and reloads. `null` when unknown (a
+  dock-started draft, or one opened without a chart). The Agent uses it when the member names no
+  other chart; when it is `null`, the chart is gone, or more than one could be meant, the Agent asks —
+  it never substitutes the first chart.
+- **B — delayed definition.** A confirmed Save's `{defId, version}` is final. When an M2 `add` of it is
+  refused because the member's definition rows do not list it yet (`unknown-definition`), that chart's
+  outcome is a truthful, RETRYABLE application failure carrying the same `defId`; a retry is a plain M2
+  `add` of that `defId`. Never a second Save, never a new definition. (No Indicators change: M2 refuses
+  truthfully today; the retry classification is the Agent's.)

@@ -116,6 +116,11 @@ function statusOf(key, snap, ctx = {}) {
     recovered: !!snap.recovered,
     openInDock: isHeldInDock(key),
     origin: (snap.meta && snap.meta.origin) || 'dock',
+    // ⭐ S5 refinement A — the chart the draft was STARTED for, exactly as the opener gave it
+    // (`openDraft({..., chartRef})`, kept on the draft's own snapshot). null = not known (a draft
+    // the dock started, or one opened without a chart): the Agent must ASK for a target chart,
+    // never substitute another one.
+    chartRef: (snap.meta && typeof snap.meta.chartRef === 'string') ? snap.meta.chartRef : null,
   })
 }
 
@@ -200,6 +205,7 @@ export function openDraft(request, ctx) {
     writeSession(key, snap)
     return { ok: true, draftRef: draftRefOf(key, state), status: statusOf(key, snap, ctx) }
   }
+  // an edit may name the chart it was asked for too (`{edit: {defId}, chartRef}`)
   if (isObj(req.edit) && typeof req.edit.defId === 'string') {
     const row = rowFor(ctx, req.edit.defId)
     if (!row || !isObj(row.definition) || !Number.isInteger(row.version)) return refuse(R.UNKNOWN_DEFINITION)
@@ -213,7 +219,8 @@ export function openDraft(request, ctx) {
     const { initial } = restoreConversation(key, open)
     const snap = initial
       ? { ...initial, meta: initial.meta || { origin: 'dock' } }
-      : { state: initialConversationState(null, open), transcript: initialTranscript(null, open), acked: false, meta: { origin: 'agent' } }
+      : { state: initialConversationState(null, open), transcript: initialTranscript(null, open), acked: false,
+        meta: { origin: 'agent', ...(typeof req.chartRef === 'string' ? { chartRef: req.chartRef } : {}) } }
     if (!initial) writeSession(key, snap)
     return { ok: true, draftRef: draftRefOf(key, snap.state), status: statusOf(key, snap, ctx) }
   }

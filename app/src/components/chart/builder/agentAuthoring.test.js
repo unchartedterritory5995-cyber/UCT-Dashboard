@@ -423,3 +423,32 @@ describe('⭐ typed rename (renameDraft) — rename-only by construction, machin
     expect((await saveDraft(ref, { expectedRevision: 2, acknowledged: true }, ctxOf())).ok).toBe(true)
   })
 })
+
+describe('S5 refinement A — the draft’s originating chart, from the draft itself', () => {
+  it('a draft opened for a chart reports it on every status — through turns, a rename, Undo and a reload', async () => {
+    const ref = openDraft({ create: true, chartRef: 'w-amd' }, ctxOf()).draftRef
+    expect(draftStatus(ref, ctxOf()).chartRef).toBe('w-amd')
+    const t = await draftTurn(ref, 'Create RSI 28.', { expectedRevision: 0 }, ctxOf())
+    renameDraft(ref, 'Bullish Trend', { expectedRevision: 1 }, ctxOf())
+    draftUndo(ref, { expectedStepId: draftStatus(ref, ctxOf()).undoStepId }, ctxOf())
+    expect(t.ok).toBe(true)
+    _simulateReload()
+    expect(draftStatus(ref, ctxOf())).toMatchObject({ recovered: true, chartRef: 'w-amd' })
+    expect(listDrafts(ctxOf())[0].chartRef).toBe('w-amd')
+  })
+  it('unknown → null (no chart given, or a dock-started draft): never another chart', async () => {
+    const none = openDraft({ create: true }, ctxOf()).draftRef
+    expect(draftStatus(none, ctxOf()).chartRef).toBeNull()
+    const ref = openDraft({ create: true }, ctxOf()).draftRef
+    await draftTurn(ref, 'Create RSI 28.', { expectedRevision: 0 }, ctxOf())
+    const saved = await saveDraft(ref, { expectedRevision: 1 }, ctxOf())
+    const e = openDraft({ edit: { defId: saved.defId }, chartRef: 'w-nvda' }, ctxOf())
+    expect(e.status.chartRef).toBe('w-nvda')
+    // a dock-started draft (no meta) has no originating chart the Agent may assume
+    const dockKey = 'create:c_00000001'
+    writeSession(dockKey, { state: readSession(e.draftRef.key).state, transcript: [{ id: 0, role: 'member', text: 'x' }], acked: false })
+    const dock = listDrafts(ctxOf()).find((d) => d.draftRef.key === dockKey)
+    expect(dock).toBeTruthy()
+    expect(dock.chartRef).toBeNull()
+  })
+})
