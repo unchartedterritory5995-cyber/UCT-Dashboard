@@ -64,6 +64,32 @@ function setActive(draftRef) {
 }
 export function _resetAuthoring() { active = null; pinned.clear(); try { globalThis.localStorage?.removeItem(ACTIVE_KEY) } catch { /* */ } }
 
+// ── ⛔ NEVER A SILENT PICK BETWEEN DRAFTS ──
+// The SELECTED draft of this conversation (`active`) is set only by the member: the Agent made it
+// for them (a new-draft request), they chose it from the "which one?" list, or they acted on it
+// while it was the only one. With two or more usable drafts, a request on any OTHER draft (or with
+// none selected) is not planned: the member is shown the drafts and picks one. Unrelated Agent
+// actions never touch the selection.
+const DRAFT_ACTIONS = new Set(['indicator.draft', 'indicator.previewDraft', 'indicator.saveDraft', 'indicator.undoDraft'])
+const labelOf = (s) => (s.status?.name ? `“${s.status.name}” (draft)` : 'Untitled draft')
+export function draftAmbiguity(host, ops) {
+  const on = (ops || []).filter(o => o && DRAFT_ACTIONS.has(o.action) && o.target !== NEW)
+  if (!on.length) return null
+  let snaps
+  try { snaps = snapshots(host) } catch { return null }
+  const usable = snaps.filter(s => !s.new && !s.expired)
+  if (usable.length < 2) return null
+  if (on.every(o => snaps.some(s => s.ref === o.target && s.active && !s.expired))) return null
+  return { text: `You have ${usable.length} indicator drafts open — which one do you mean?`, choices: usable.map(s => ({ ref: s.ref, label: labelOf(s) })) }
+}
+/** The member chose this draft (from the "which one?" list). */
+export function selectDraft(host, ref) {
+  const s = snapshots(host).find(x => x.ref === ref && x.draftRef && !x.expired)
+  if (s) setActive(s.draftRef)
+  return !!s
+}
+export const isDraftAction = (name) => DRAFT_ACTIONS.has(name)
+
 // ── what the member is told when the specialist refuses (every reason in §10/§16) ──
 export function refusalSentence(res) {
   const r = res && res.reason
@@ -77,7 +103,7 @@ export function refusalSentence(res) {
     case R.STALE_STEP: return 'The draft changed since that step, so it can’t be undone exactly — nothing was undone.'
     case R.NOTHING_TO_UNDO: return 'There is no change to undo in that draft.'
     case R.NOT_DIRTY: return 'There is nothing new to save in that draft.'
-    case R.NEEDS_ACK: return `Saving it needs your acknowledgement first: ${(res?.detail?.ackText || []).join(' ')} Ask me to save it again and approve that.`
+    case R.NEEDS_ACK: return `Saving it needs your acknowledgement first: ${(res?.detail?.ackText || []).map(t => (/[.!?]$/.test(t) ? t : `${t}.`)).join(' ')} Ask me to save it again and approve that.`
     case R.VALIDATION: return `UCT refused to save it — it isn’t valid yet${res?.detail?.error ? `: ${res.detail.error}` : ''}.`
     case R.SAVE_CONFLICT: return `That indicator was saved elsewhere in the meantime${res?.detail?.conflict?.currentVersion ? ` (now version ${res.detail.conflict.currentVersion})` : ''} — nothing was overwritten.`
     case R.SAVE_REFUSED: return `UCT refused to save it${res?.detail?.error ? `: ${res.detail.error}` : ''}.`
@@ -217,6 +243,7 @@ export const indicatorDraftsKind = {
         if (!ph) throw fail('that chart can’t show a preview')
         const out = showDraftPreview(draftRef, { host: ph, chartRef: op.chartRef }, ctx)
         if (!out.ok) throw fail(refusalSentence(out))
+        setActive(draftRef)
         // movedFrom is the preview channel's chart id (a widget id); Agent refs are `<id>` / `<id>~<tab>`
         const label = (c) => {
           try {
@@ -426,7 +453,9 @@ indicatorDraftsKind.commit = async function commit(host, ref, patch) {
   if (step) {
     const snap = snapshots(host).find(s => s.ref === ref)
     if (!snap?.draftRef) throw fail('that draft is no longer available')
-    return _commit.call(this, host, ref, { undo: { draftRef: snap.draftRef, stepId: step.stepId } })
+    const res = await _commit.call(this, host, ref, { undo: { draftRef: snap.draftRef, stepId: step.stepId } })
+    setActive(snap.draftRef)
+    return res
   }
   return _commit.call(this, host, ref, patch)
 }

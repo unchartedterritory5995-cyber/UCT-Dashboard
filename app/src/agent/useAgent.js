@@ -22,7 +22,7 @@ import { useCreateIndicatorAccess } from '../components/chart/builder/studio/cre
 import { useUserDefinitions, USER_DEFINITIONS_KEY } from '../hooks/useUserDefinitions'
 import { mutate } from 'swr'
 import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
-import { setAuthoringSources } from './capabilities/indicatorAuthoring'
+import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { planOps, prepareOps, collectTargets, undoNotesFor } from './executor'
 import { decideMode } from './policy'
@@ -415,7 +415,16 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [host, push, record, capCtx])
 
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
-  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice }) => {
+  const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false }) => {
+    // ⛔ M3: with several indicator drafts open, a request on one the member has not selected is
+    // never planned — they are shown the drafts and pick one (chooseTarget), nothing changes.
+    const amb = chosen ? null : draftAmbiguity(host, opsIn)
+    if (amb) {
+      pendingRef.current = { kind: 'target', ops: opsIn, path, mode: suggested, member, voice, epoch: epochOf(host), draft: true }
+      push({ role: 'question', text: amb.text, choices: amb.choices, local: true })
+      record({ member, outcome: amb.text, outcomeData: { kind: 'clarify-draft', actions: opsIn.map(o => o?.action) }, telemetry: { path, disposition: 'clarify', voice } })
+      return undefined
+    }
     traceStart(`${path}:${suggested || 'apply'}`)
     let out
     try {
@@ -429,7 +438,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       try { await executeInner([op], { path: 'followup', mode: 'apply', member, voice }) } finally { traceEnd('done') }
     }
     return undefined
-  }, [executeInner, definitionListed])
+  }, [executeInner, definitionListed, host, push, record])
 
   const doUndo = useCallback(async (undoId, { member, voice } = {}) => {
     const stack = undoRef.current
@@ -516,8 +525,14 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (!p || p.kind !== 'target') return
     pendingRef.current = null
     push({ role: 'member', text: label })
-    if (p.epoch !== epochOf(host)) {
+    if (!p.draft && p.epoch !== epochOf(host)) {
       push({ role: 'refusal', text: "A different layout is open now, so I didn't change anything. Ask again." })
+      return
+    }
+    if (p.draft) {
+      // the member picked a draft: it becomes the selected one; only the draft ops are re-aimed
+      if (!selectDraft(host, ref)) { push({ role: 'refusal', text: 'That draft is no longer available, so nothing changed.' }); return }
+      await execute(p.ops.map(o => (isDraftAction(o.action) ? { ...o, target: ref } : o)), { path: p.path, mode: p.mode === 'propose' ? 'propose' : 'apply', member: `${p.member || ''} → ${label}`, voice: p.voice, chosen: true })
       return
     }
     await execute(p.ops.map(o => ({ ...o, target: ref })), { path: p.path, mode: 'apply', member: `${p.member} → ${label}`, voice: p.voice })

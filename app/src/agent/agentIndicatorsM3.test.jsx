@@ -12,13 +12,13 @@ import { selectGroups } from './routing'
 import { protectionRefusal } from './protectedLayouts'
 import { fastParse } from './fastPath'
 import { setOwnedDefinitionSource, _resetProposedPlans } from './capabilities/indicatorEdits'
-import { setAuthoringSources, _resetAuthoring, indicatorDraftsKind } from './capabilities/indicatorAuthoring'
+import { setAuthoringSources, _resetAuthoring, indicatorDraftsKind, draftAmbiguity, selectDraft } from './capabilities/indicatorAuthoring'
 import * as registry from '../components/chart/engine/nativeRegistry'
 import { mergeChartSettings } from '../components/chart/chartDefaults'
 import { parseFormula } from '../components/chart/engine/ast/parse'
 import { storeConversation } from '../components/chart/builder/conversationSave'
 import { _simulateReload, STORAGE_KEY } from '../components/chart/builder/authoring/conversationSessions'
-import { _resetDraftPreview, AUTHORING_REASONS as AR } from '../components/chart/builder/agentAuthoring'
+import { _resetDraftPreview, AUTHORING_REASONS as AR, saveDraft, draftStatus, discardDraft } from '../components/chart/builder/agentAuthoring'
 
 registerBuiltins()
 
@@ -44,6 +44,10 @@ function converse({ message, state }) {
   if (m.includes('require rsi to be above 50')) {
     return env([{ op: 'set_color_states', channel: 'barcolor', states: [{ when: P(TREND_RSI), color: '#00c853' }], otherwise: '#787b86' }])
   }
+  if (m.startsWith('mark pivot highs')) {
+    return env([{ op: 'create', name: 'Pivot highs', placement: 'price', outputs: [{ key: 'ph', label: 'Pivot high', tree: P('pivothigh(high, 2, 2)') }] }])
+  }
+  if (m.startsWith('also mark pivot highs')) return env([{ op: 'add_output', key: 'ph', label: 'Pivot high', tree: P('pivothigh(high, 2, 2)') }])
   if (m.startsWith('which')) return { ok: true, disposition: 'clarify', turn: 'question', reply: '',
     envelope: { contract: PATCH, baseRevision: state.revision, ops: [], assumptions: [], disposition: 'clarify', questions: [{ id: 'q1', text: 'Which EMA lengths?' }] } }
   if (m.startsWith('spend')) return { ok: false, gate: 'cost:user', reason: "you have used up today's allowance" }
@@ -426,5 +430,154 @@ describe('Undo and routing', () => {
   })
   it('AR reason codes used are the documented ones', () => {
     for (const k of ['ACCESS', 'DRAFT_EXPIRED', 'STALE_REVISION', 'STALE_STEP', 'NEEDS_ACK', 'SAVED_UNCONFIRMED', 'TURN_REFUSED', 'PREVIEW_READONLY', 'PREVIEW_BUSY']) expect(typeof AR[k]).toBe('string')
+  })
+})
+
+// ── 7. repaint acknowledgement — the Indicators-owned contract (status.ackText / needs-ack) ─────
+describe('⭐ repaint acknowledgement — exact text, exact revision, approved, rechecked at Apply', () => {
+  const pivots = async (h) => { await run(h, [say(NEW, 'mark pivot highs')]); return activeRef(h) }
+  const saveOp = (ref, addTo = []) => [{ action: 'indicator.saveDraft', target: ref, args: { addTo } }]
+  it('the proposal shows the specialist’s acknowledgement VERBATIM and the revision; Save only after approval', async () => {
+    const h = host([L])
+    const ref = await pivots(h)
+    const st = drafts(h)[0].status
+    expect(st.needsAck).toEqual(['ph'])
+    expect(st.ackText).toHaveLength(1)
+    expect(st.ackText[0]).toMatch(/reads a bar ahead, so it can change until that bar closes — confirm below before saving$/)
+    // the specialist itself refuses an unacknowledged Save (the contract the Agent relies on)
+    const direct = await saveDraft(st.draftRef, { expectedRevision: st.revision, acknowledged: false }, { canAuthor: true, definitionRows: [], store: () => { throw new Error('must not store') } })
+    expect(direct).toMatchObject({ ok: false, reason: AR.NEEDS_ACK, detail: { ackText: st.ackText } })
+    const proposal = await plan(h, saveOp(ref, ['L']))
+    expect(proposal.ok).toBe(true)
+    expect(getCapability('indicator.saveDraft').risk).toBe('confirm')            // never applied unapproved
+    expect(proposal.lines[0]).toContain('(draft revision 1)')
+    expect(proposal.lines[0]).toContain(`You are also acknowledging: ${st.ackText[0]}`)
+    expect(stored).toEqual([])
+    const res = await commitPlan(h, await plan(h, saveOp(ref, ['L'])), { env: {}, ctx: CTX })   // Apply = approval
+    expect(res.ok, JSON.stringify(res.failed)).toBe(true)
+    expect(stored).toHaveLength(1)
+    expect(stored[0].opts).toMatchObject({ previewAcked: true })                 // the store got the acknowledgement
+    expect(res.lines[0]).toMatch(/^Saved “.*” \(version 1, a new indicator\)/)
+    expect(res.followUps).toHaveLength(1)
+  })
+  it('the revision changes before Apply → refused: no Save, no success receipt, no chart add', async () => {
+    const h = host([L])
+    const ref = await pivots(h)
+    await plan(h, saveOp(ref, ['L']))                                             // proposal at revision 1
+    await run(h, [say(ref, 'Name it Pivot Watch')])                               // revision 2 (a local rename)
+    expect(drafts(h)[0].status.revision).toBe(2)
+    const res = await commitPlan(h, await plan(h, saveOp(ref, ['L'])), { env: {}, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(res.lines).toEqual([])
+    expect(res.followUps).toBeUndefined()
+    expect(stored).toEqual([])
+    expect(instancesOn(h, 'L').filter(i => String(i.defId).startsWith('u_'))).toEqual([])
+  })
+  it('the acknowledgement changes before Apply (a repainting output added) → refused with the NEW text; nothing saved', async () => {
+    const h = host([L])
+    await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.')])
+    const ref = activeRef(h)
+    const proposal = await plan(h, saveOp(ref, ['L']))                            // no acknowledgement shown
+    expect(proposal.lines[0]).not.toContain('acknowledging')
+    await run(h, [say(ref, 'also mark pivot highs')])                             // now it needs one
+    const now = drafts(h)[0].status
+    expect(now.ackText).toHaveLength(1)
+    const res = await commitPlan(h, await plan(h, saveOp(ref, ['L'])), { env: {}, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(res.failed[0].reason).toContain(`Saving it needs your acknowledgement first: ${now.ackText[0]}`)
+    expect(res.followUps).toBeUndefined()
+    expect(stored).toEqual([])
+    // asked again → a NEW proposal that shows the new acknowledgement and revision
+    const again = await plan(h, saveOp(ref, ['L']))
+    expect(again.lines[0]).toContain(`(draft revision ${now.revision})`)
+    expect(again.lines[0]).toContain(now.ackText[0])
+  })
+  it('"Save it as X" on a repainting draft: the rename changes the acknowledgement text, so it is refused and re-proposed', async () => {
+    const h = host([L])
+    const ref = await pivots(h)
+    const ops = [say(ref, 'Name it Pivot Watch'), ...saveOp(ref)]
+    await plan(h, ops)
+    const res = await commitPlan(h, await plan(h, ops), { env: {}, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(res.failed[0].reason).toMatch(/needs your acknowledgement first: Pivot Watch reads a bar ahead/)
+    expect(stored).toEqual([])
+    expect(drafts(h)[0].status.name).toBe('Pivot Watch')                          // renamed (draft), not saved
+    const again = await plan(h, saveOp(ref))
+    expect(again.lines[0]).toContain('You are also acknowledging: Pivot Watch reads a bar ahead')
+    const ok = await commitPlan(h, await plan(h, saveOp(ref)), { env: {}, ctx: CTX })
+    expect(ok.ok).toBe(true)
+    expect(stored).toHaveLength(1)
+  })
+})
+
+// ── 8. several drafts — never a silent pick ─────────────────────────────────────────
+describe('⭐ several drafts — the member chooses; nothing is picked for them', () => {
+  const two = async (h) => {
+    await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.')])
+    const a = activeRef(h)
+    await run(h, [say(NEW, 'mark pivot highs')])
+    const b = activeRef(h)
+    return { a, b }
+  }
+  const rev = (h, ref) => drafts(h).find(s => s.ref === ref).status.revision
+  it('a request on the draft the member did NOT select → "which one?" with every draft; the selected one passes', async () => {
+    const h = host([L])
+    const { a, b } = await two(h)
+    expect(draftAmbiguity(h, [say(b, 'which lengths are best?')])).toBe(null)    // b: just made, selected
+    const amb = draftAmbiguity(h, [say(a, 'Okay, also require RSI to be above 50.')])
+    expect(amb.text).toBe('You have 2 indicator drafts open — which one do you mean?')
+    expect(amb.choices.map(c => c.ref).sort()).toEqual([a, b].sort())
+    expect(amb.choices.map(c => c.label)).toEqual(expect.arrayContaining(['“EMA 9 · EMA 20” (draft)']))
+    for (const action of ['indicator.previewDraft', 'indicator.saveDraft', 'indicator.undoDraft']) {
+      expect(draftAmbiguity(h, [{ action, target: a, args: {} }]), action).not.toBe(null)
+    }
+    expect(draftAmbiguity(h, [say(NEW, 'something new')])).toBe(null)           // a NEW draft is never ambiguous
+  })
+  it('no draft selected (a reload) with two open → every draft request asks', async () => {
+    const h = host([L])
+    const { a, b } = await two(h)
+    _resetAuthoring()                                                            // the selection is gone, the drafts are not
+    expect(draftAmbiguity(h, [say(a, 'x')])).not.toBe(null)
+    expect(draftAmbiguity(h, [say(b, 'x')])).not.toBe(null)
+  })
+  it('choosing a draft continues THAT draft only; the other is untouched', async () => {
+    const h = host([L])
+    const { a, b } = await two(h)
+    const before = { a: rev(h, a), b: rev(h, b) }
+    expect(selectDraft(h, a)).toBe(true)
+    expect(draftAmbiguity(h, [say(a, 'Okay, also require RSI to be above 50.')])).toBe(null)
+    await run(h, [say(a, 'Okay, also require RSI to be above 50.')])
+    expect({ a: rev(h, a), b: rev(h, b) }).toEqual({ a: before.a + 1, b: before.b })
+    expect(draftAmbiguity(h, [say(b, 'x')])).not.toBe(null)                      // b is now the unselected one
+  })
+  it('unrelated Agent actions never change which draft is selected', async () => {
+    const h = host([L])
+    const { a, b } = await two(h)
+    await run(h, [{ action: 'indicator.add', target: 'ixe:L', args: { defId: 'rsi' } }])   // an M2 chart change
+    expect(drafts(h).find(s => s.active).ref).toBe(b)
+    expect(draftAmbiguity(h, [say(a, 'x')])).not.toBe(null)
+  })
+  it('an expired draft is refused safely, and leaves a single usable draft unambiguous', async () => {
+    const h = host([L])
+    const { a, b } = await two(h)
+    const st = drafts(h).find(s => s.ref === b).status
+    expect(discardDraft(st.draftRef, { expectedRevision: st.revision }, { canAuthor: true, definitionRows: [] })).toEqual({ ok: true })
+    const p = await plan(h, [say(b, 'which lengths are best?')])
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0].reason).toMatch(/That draft has expired/)
+    expect(draftAmbiguity(h, [say(a, 'x')])).toBe(null)                          // one usable draft left
+    expect(draftStatus(st.draftRef, { canAuthor: true, definitionRows: [] })).toMatchObject({ ok: false, reason: AR.DRAFT_EXPIRED })
+  })
+  it('inaccessible (Create Indicator access revoked) → the specialist refuses at Apply, nothing changes', async () => {
+    const h = host([L])
+    const { b } = await two(h)
+    const before = rev(h, b)
+    const p = await plan(h, [say(b, 'Okay, also require RSI to be above 50.')])
+    access = false
+    const res = await commitPlan(h, p, { env: {}, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(res.failed[0].reason).toMatch(/Create Indicator isn’t available for your account/)
+    access = true
+    expect(rev(h, b)).toBe(before)
   })
 })
