@@ -22,11 +22,12 @@ import { useCreateIndicatorAccess } from '../components/chart/builder/studio/cre
 import { useUserDefinitions, USER_DEFINITIONS_KEY } from '../hooks/useUserDefinitions'
 import { mutate } from 'swr'
 import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
-import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved } from './capabilities/indicatorAuthoring'
+import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { planOps, prepareOps, collectTargets, undoNotesFor } from './executor'
 import { decideMode } from './policy'
 import { commitPlan, undoEntry } from './runtime'
+import { pendingLines as pendingWording } from './proposalWording'
 import { refsOf, checkRefs, consumedProducers, pendingLines, resolveRefs, expandOps, bindSourceRefs } from './compose'
 import { traceStart, mark, traceEnd } from './trace'
 import { buildContext, refreshContext, manifestFor, getCapability, getTargetKind, runWarmups, MANIFEST_VERSION, MANIFEST_CONTRACT } from './capabilities'
@@ -337,7 +338,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (composing && !composed) {
       const pid = nid()
       pendingRef.current = { kind: 'proposal', id: pid, ops: allOps, epoch: boardEpoch(host, allOps) }
-      const lines = [...pendingLines(allOps, host), ...plan.lines]
+      // a proposal says what WILL happen (proposalWording.js), never a success not yet written
+      const lines = pendingWording([...pendingLines(allOps, host), ...plan.lines])
       push({ id: pid, role: 'proposal', lines, status: 'pending' })
       record({ member, outcome: `Proposed: ${lines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
@@ -361,7 +363,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // The proposal keeps the UNEXPANDED request: Apply expands it again from scratch.
       const keep = expansion ? opsIn.filter(o => !getCapability(o?.action)?.query) : ops
       pendingRef.current = { kind: 'proposal', id: pid, ops: keep, epoch: boardEpoch(host, keep) }
-      const plines = wholly ? expansion.proposal : (plan.lines.length ? plan.lines : plan.noops)
+      const plines = pendingWording(wholly ? expansion.proposal : (plan.lines.length ? plan.lines : plan.noops))
       push({ id: pid, role: 'proposal', lines: plines, status: 'pending' })
       record({ member, outcome: `Proposed: ${plines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
@@ -688,7 +690,16 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
-      const ops = bindSourceRefs(env.ops, refMap, { host, message: text }).map(o => ({ ...o, target: refMap[o.target]?.ref || o.target, args: argRefsBack(o, refMap) }))
+      const bound = bindSourceRefs(env.ops, refMap, { host, message: text }).map(o => ({ ...o, target: refMap[o.target]?.ref || o.target, args: argRefsBack(o, refMap) }))
+      // ⛔ S6 F1–F3: the model's plan is checked against the member's own words before anything runs
+      const screened = screenModelOps(host, bound, text)
+      if (screened.ask) {
+        push({ role: 'question', text: screened.ask.text, choices: screened.ask.choices, local: true })
+        record({ member: null, outcome: screened.ask.text, outcomeData: { kind: 'clarify-save-target', actions: bound.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+        return
+      }
+      for (const n of screened.notes) push({ role: 'agent', text: n })
+      const ops = screened.ops
       lastActionsRef.current = ops.map(o => o.action)
       await execute(ops, { path: 'model', mode: env.disposition, member: null, voice })
     } finally {

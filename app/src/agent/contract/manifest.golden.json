@@ -734,7 +734,7 @@
    "domain": "layout",
    "target": "layouts",
    "summary": "Save the current Charts workspace as a NEW named layout (it becomes the open layout). Never replaces an existing layout.",
-   "hints": "target = the ref of the layouts entry; name = the exact name the member gave. If that name is already in the layouts list, do not use this — tell the member instead.",
+   "hints": "target = the ref of the layouts entry; name = the exact name the member gave. If that name is already in the layouts list, do not use this — tell the member instead. ONLY for saving the WORKSPACE/LAYOUT/BOARD: while an indicator draft is active (indicatorDrafts), \"save it as X\" means the indicator (indicator.saveDraft) unless the member says layout/workspace/board; if you cannot tell, ask.",
    "args": {
     "type": "object",
     "properties": {
@@ -2571,8 +2571,8 @@
    "name": "indicator.openCreate",
    "domain": "indicator",
    "target": "indicators",
-   "summary": "Open Create Indicator (the indicator builder) on one chart, with the member's indicator request typed into its box for them to review and send. It does NOT build, preview, add or save anything — the member presses Send there. With defId, opens Modify on one of their own saved custom indicators on that chart.",
-   "hints": "target = the indicators entry for the chart. request = the member's description of the indicator, in their words (≤ 600 characters), or null to just open it. defId = a custom indicator's defId from that chart's list (only to modify it), else null — never a name. Use for \"open Create Indicator\", \"help me build/write an indicator that…\". Adding, removing or changing indicators directly is not available yet.",
+   "summary": "Open the Create Indicator PANEL (the visual builder) on one chart — ONLY when the member asks for the panel by name (\"open Create Indicator\"), or to Modify a saved custom indicator there. Their request is typed into its box; nothing is built or saved. To BUILD an indicator with the member in this chat, use indicator.draft.",
+   "hints": "target = the indicators entry for the chart. request = the member's description of the indicator, in their words (≤ 600 characters), or null to just open it. defId = a custom indicator's defId from that chart's list (only to modify it), else null — never a name. Use ONLY for an explicit request to open the panel (\"open Create Indicator\", \"open the indicator builder/editor\") or to modify a saved custom indicator there. \"Build/make/create/write me an indicator…\" is indicator.draft (built right here in the chat), not this. Adding, removing, showing or hiding indicators on a chart is indicator.add/remove/show/hide.",
    "args": {
     "type": "object",
     "properties": {
@@ -2696,7 +2696,7 @@
    "name": "indicator.draft",
    "domain": "indicator",
    "target": "indicatorDrafts",
-   "summary": "Talk to the indicator builder (Create Indicator's engine) about ONE indicator draft: start a new one, ask for advice, answer its questions, or change it (\"highlight candles when the 9 EMA is above the 20 EMA\", \"also require RSI above 50\", \"what would you recommend adding?\"). The builder decides what the turn is; questions and advice change nothing. Never saves.",
+   "summary": "THE DEFAULT for building a custom indicator: build it WITH the member right here in this chat (\"build/make me an indicator that…\", \"also require RSI above 50\", \"what would you add?\") — one draft, through Create Indicator's own engine. Questions and advice change nothing. Never saves (indicator.saveDraft does).",
    "hints": "target = the ACTIVE draft's ref to continue it (follow-ups like \"also…\", \"make it…\", \"what would you add?\" go to the active draft); the NEW-draft entry only when the member starts a different indicator or edits one of yourIndicators (edit = its defId, else null). If several drafts could be meant and none is active or named, ask which. chart = the ref of the chart the member names for it, else null (a draft keeps its own chart). message = the member's words, verbatim — never your own formula or interpretation.",
    "args": {
     "type": "object",
@@ -2757,7 +2757,7 @@
    "domain": "indicator",
    "target": "indicatorDrafts",
    "summary": "Save an indicator draft as one of the member's indicators (Create Indicator's own Save; a new indicator, or a new version of the one being edited) — always shown as a proposal with the builder's own summary first. addTo: charts to add the SAVED indicator to afterwards (each added separately, with its own receipt).",
-   "hints": "target = the draft's ref (usually the active one). addTo = refs of the charts to add it to after it is saved ([] for none) — only charts the member asked for. name = the name the member gave (\"save it as Bullish Trend\" → \"Bullish Trend\"), else null — never a separate indicator.draft op for the name.",
+   "hints": "Use when the member saves THE INDICATOR: \"save it\", \"save it as X\", \"save the indicator/draft\" while an indicator draft is active (the active indicatorDrafts entry) — that \"it\" is the draft, NOT the workspace layout (layout.saveAs is only for an explicit layout/workspace/board). target = the draft's ref (usually the active one). name = the name the member gave (\"save it as Bullish Trend\" → \"Bullish Trend\"), else null — never a separate indicator.draft op for the name. addTo = [] UNLESS the member asked in this message to add/apply/put it on a chart; then only the charts' refs from the charts section that they named. Saving and adding to a chart are separate intents.",
    "args": {
     "type": "object",
     "properties": {

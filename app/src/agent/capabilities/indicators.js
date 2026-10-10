@@ -171,9 +171,9 @@ export function registerIndicatorCapabilities() {
     // The member's own access — the Create Indicator button's rule (admin + this browser's flag,
     // or the server cohort). Not offered at all without it.
     available: (ctx) => ctx.surface === 'charts' && ctx.createIndicator === true,
-    summary: 'Open Create Indicator (the indicator builder) on one chart, with the member\'s indicator request typed into its box for them to review and send. It does NOT build, preview, add or save anything — the member presses Send there. With defId, opens Modify on one of their own saved custom indicators on that chart.',
+    summary: 'Open the Create Indicator PANEL (the visual builder) on one chart — ONLY when the member asks for the panel by name ("open Create Indicator"), or to Modify a saved custom indicator there. Their request is typed into its box; nothing is built or saved. To BUILD an indicator with the member in this chat, use indicator.draft.',
     hints: `target = the indicators entry for the chart. request = the member's description of the indicator, in their words (≤ ${SEED_MAX} characters), or null to just open it. defId = a custom indicator's defId from that chart's list (only to modify it), else null — never a name. `
-      + 'Use for "open Create Indicator", "help me build/write an indicator that…". Adding, removing or changing indicators directly is not available yet.',
+      + 'Use ONLY for an explicit request to open the panel ("open Create Indicator", "open the indicator builder/editor") or to modify a saved custom indicator there. "Build/make/create/write me an indicator…" is indicator.draft (built right here in the chat), not this. Adding, removing, showing or hiding indicators on a chart is indicator.add/remove/show/hide.',
     args: {
       type: 'object',
       properties: { request: { type: ['string', 'null'] }, defId: { type: ['string', 'null'] } },

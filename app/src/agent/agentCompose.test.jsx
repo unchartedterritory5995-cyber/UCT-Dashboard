@@ -67,7 +67,8 @@ describe('Screener → Watchlist: one interpretation, deterministic apply', () =
     say('Find stocks with ADR above 5% and price above $10, then put the top 20 in a watchlist called High ADR.')
     const card = await screen.findByTestId('agent-proposal')
     expect(card.textContent).toContain('Screen for ADR % > 5% · Price > $10 — run fresh when you apply')
-    expect(card.textContent).toContain('Created the watchlist “High ADR”')
+    expect(card.textContent).toContain('Create the watchlist “High ADR”')     // pending wording on the card
+    expect(card.textContent).not.toContain('Created the watchlist')
     expect(card.textContent).toContain('Add the top 20 of its results to “High ADR”')
     expect(card.textContent).not.toMatch(/T\d\d/)                                        // no guessed symbols
     expect(scans()).toHaveLength(0)
