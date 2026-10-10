@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 import threading
 import time
 from dataclasses import dataclass
@@ -44,6 +45,34 @@ def _overlay(universe: str, metric: str) -> dict:
     if not ov:
         return {}
     return ((ov.get(universe) or {}).get(metric)) or {}
+
+
+_HIST_TTL = 900
+_hist_memo: dict = {}
+_hist_lock = threading.Lock()
+
+
+def _stored_history(metric: str, limit: int, universe: str) -> dict:
+    """`breadth_daily_ohlc.history`, memoised per (metric, universe, limit, authority token).
+
+    ⭐ (2026-10-10) The live overlay (`build_with_overlay`) re-derives a whole indicator about
+    once a minute in session; every one of those re-read thousands of rows from SQLite. The
+    stored history only changes when the token does, so it is read once and the overlay is
+    applied on top. ⛔ Callers must not mutate the returned dict (`_with_overlay` copies)."""
+    from api.services import breadth_daily_ohlc as store
+    # the reader's identity is part of the key: a swapped reader (tests) never sees another's rows
+    key = (metric, universe, int(limit), _authority_suffix(), id(store.history))
+    now = time.time()
+    with _hist_lock:
+        hit = _hist_memo.get(key)
+        if hit and now - hit[0] <= _HIST_TTL:
+            return hit[1]
+    rows = store.history(metric, limit=limit, universe=universe) or {}
+    with _hist_lock:
+        if len(_hist_memo) > 256:
+            _hist_memo.clear()
+        _hist_memo[key] = (now, rows)
+    return rows
 
 
 def _with_overlay(rows: dict, universe: str, metric: str) -> dict:
@@ -104,9 +133,7 @@ def load_metric_closes(metric: str, universe: str,
     ⚠️ `history()` RETURNS NEWEST-FIRST AND UNSORTED AS A DICT, so the ascending sort is
     not cosmetic — an EMA fed in the wrong order is silently, plausibly wrong.
     """
-    from api.services import breadth_daily_ohlc as store
-    rows = _with_overlay(store.history(metric, limit=limit, universe=universe) or {},
-                         universe, metric)
+    rows = _with_overlay(_stored_history(metric, limit, universe), universe, metric)
     dates = sorted(rows.keys())
     return dates, [rows[d].get("c") for d in dates]
 
@@ -121,11 +148,8 @@ def load_pair(metric_a: str, metric_b: str, universe: str,
     bar. The value becomes `None` and the engine treats it as a hole, which is what a
     hole is.
     """
-    from api.services import breadth_daily_ohlc as store
-    a = _with_overlay(store.history(metric_a, limit=limit, universe=universe) or {},
-                      universe, metric_a)
-    b = _with_overlay(store.history(metric_b, limit=limit, universe=universe) or {},
-                      universe, metric_b)
+    a = _with_overlay(_stored_history(metric_a, limit, universe), universe, metric_a)
+    b = _with_overlay(_stored_history(metric_b, limit, universe), universe, metric_b)
     dates = sorted(set(a) | set(b))
     return (dates,
             [(a.get(d) or {}).get("c") for d in dates],
@@ -538,9 +562,137 @@ def build_with_overlay(series_id: str, overlay: dict) -> Optional["DerivedSeries
 
 
 def build(series_id: str):
-    """`registry` id → `DerivedSeries`, or None. The one door the serving layer uses."""
+    """`registry` id → `DerivedSeries`, or None. The one door the serving layer uses.
+
+    ⭐ (2026-10-10) NEVER A BUILD WHILE A MEMBER WAITS, once one has ever been made: a fresh
+    in-memory value is served; a stale one is served while ONE background rebuild runs; after a
+    deploy (memory empty) the last persisted series is served the same way. Only a series never
+    built anywhere is computed inline — single-flighted."""
     sid = (series_id or "").strip().upper()
-    return _cached(f"derived::{sid}{_authority_suffix()}", lambda: _build_uncached(sid))
+    key = f"derived::{sid}{_authority_suffix()}"
+    now = time.time()
+    with _cache_lock:
+        hit = _cache.get(key)
+    if hit and now - hit[0] <= _CACHE_TTL:
+        return hit[1]
+    if hit:
+        _kick_rebuild(sid, key)
+        return hit[1]
+    disk = _disk_load(sid)
+    if disk is not None:
+        saved_at, disk_key, value = disk
+        with _cache_lock:
+            _cache[key] = (saved_at if disk_key == key else 0.0, value)
+        if disk_key != key or now - saved_at > _CACHE_TTL:
+            _kick_rebuild(sid, key)
+        return value
+    from api.services import single_flight
+    return single_flight.run("mi-build:" + key, lambda: _rebuild(sid, key))
+
+
+def _rebuild(sid: str, key: str):
+    value = _build_uncached(sid)
+    now = time.time()
+    with _cache_lock:
+        _cache[key] = (now, value)
+    if value is not None:
+        _disk_save(sid, key, now, value)
+    return value
+
+
+_rebuild_inflight: set = set()
+
+
+def _kick_rebuild(sid: str, key: str) -> None:
+    with _cache_lock:
+        if key in _rebuild_inflight or len(_rebuild_inflight) >= 4:
+            return
+        _rebuild_inflight.add(key)
+
+    def run():
+        try:
+            _rebuild(sid, key)
+        except Exception as e:
+            _log.warning("[market_indicators] background rebuild %s failed: %s", sid, e)
+        finally:
+            with _cache_lock:
+                _rebuild_inflight.discard(key)
+    threading.Thread(target=run, name=f"mi-rebuild-{sid}", daemon=True).start()
+
+
+def _series_dir() -> str:
+    return os.path.join(os.environ.get("DATA_DIR", "/data"), "market_indicator_series_v1")
+
+
+def _persist_on() -> bool:
+    v = os.environ.get("BREADTH_SERIES_PERSIST")
+    if v is not None:
+        return v != "0"
+    return "PYTEST_CURRENT_TEST" not in os.environ
+
+
+def _disk_path(sid: str) -> str:
+    return os.path.join(_series_dir(), "".join(c if c.isalnum() else "_" for c in sid) + ".pkl")
+
+
+def _disk_save(sid: str, key: str, saved_at: float, value) -> None:
+    if not _persist_on():
+        return
+    import pickle
+    try:
+        os.makedirs(_series_dir(), exist_ok=True)
+        path = _disk_path(sid)
+        with open(path + ".tmp", "wb") as fh:
+            pickle.dump({"sid": sid, "key": key, "saved_at": saved_at, "value": value}, fh,
+                        protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(path + ".tmp", path)
+    except Exception as e:
+        _log.warning("[market_indicators] persist %s failed: %s", sid, e)
+
+
+def _disk_load(sid: str):
+    if not _persist_on():
+        return None
+    import pickle
+    try:
+        with open(_disk_path(sid), "rb") as fh:
+            d = pickle.load(fh)
+        if d.get("sid") != sid:
+            return None
+        return d["saved_at"], d["key"], d["value"]
+    except Exception:
+        return None
+
+
+def warm_all(max_rebuilds: int = 6) -> dict:
+    """Keep every breadth-derived indicator warm: restore from disk after a deploy, rebuild in
+    the background when stale. At most `max_rebuilds` inline builds per pass."""
+    from api.services.market_indicators import registry as reg
+    out = {"fresh": 0, "restored": 0, "rebuilt": 0, "deferred": 0}
+    for row in reg.all_rows() if hasattr(reg, "all_rows") else []:
+        if row.source_type != reg.SRC_BREADTH_DERIVED:
+            continue
+        sid = row.id.upper()
+        key = f"derived::{sid}{_authority_suffix()}"
+        with _cache_lock:
+            hit = _cache.get(key)
+        if hit and time.time() - hit[0] <= _CACHE_TTL:
+            out["fresh"] += 1
+            continue
+        if not hit and _disk_load(sid) is not None:
+            build(sid)
+            out["restored"] += 1
+            continue
+        if out["rebuilt"] >= max_rebuilds:
+            out["deferred"] += 1
+            continue
+        try:
+            _rebuild(sid, key)
+            out["rebuilt"] += 1
+        except Exception:
+            pass
+        time.sleep(0.3)
+    return out
 
 
 def _authority_suffix() -> str:
