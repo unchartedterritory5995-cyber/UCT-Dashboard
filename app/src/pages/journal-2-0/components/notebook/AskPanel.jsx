@@ -13,8 +13,11 @@ import {
   citedPassageText,
 } from '../../lib/askCitation'
 import { styledParts } from '../../lib/askEmphasis'
-import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
-  from '../../lib/documentProvenance'
+// TERM-050: the Sources rows render provenance through S8's one renderer,
+// adapted from the Notebook's document vocabulary (rail: i1S8Boundary.test.js).
+import Provenance from '../../../../components/provenance/Provenance'
+import { documentOriginLabel, documentSourceProvenance }
+  from '../../../../components/provenance/documentOrigin'
 import { buildAskInsertNode } from '../../lib/askInsert'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { trackNotebookEvent, NOTEBOOK_EVENTS } from '../../lib/notebookTelemetry'
@@ -433,20 +436,15 @@ export default function AskPanel({
                      the accessible name carries it too. Colour and hover can
                      never be the only channel. */
                   aria-label={`Open source ${s.n}: ${s.label}`
-                    + (isScannedText(s) ? `, ${SCANNED_TEXT_LABEL}` : '')}
+                    + (documentOriginLabel(s) ? `, ${documentOriginLabel(s)}` : '')}
                 >
                   <span className={styles.sourceNum}>{s.n}</span>
-                  <span className={styles.sourceLabel}>{s.label}</span>
                   {/* ⛔ WAVE P3 §35 — QUIET, NOT A WARNING BANNER. The citation
-                      is a good one; this only tells the member the words were
-                      READ OFF AN IMAGE, so a figure deserves a look at the
-                      page. Same treatment and same words as Search, from the
-                      same module, so the two surfaces cannot drift. */}
-                  {isScannedText(s) && (
-                    <span className={styles.sourceScanned} title={SCANNED_TEXT_HINT}>
-                      {SCANNED_TEXT_LABEL}
-                    </span>
-                  )}
+                      is a good one; the origin chip only tells the member the
+                      words were READ OFF AN IMAGE, so a figure deserves a look
+                      at the page. TERM-050: drawn by S8's <Provenance>, not
+                      here, with the same words as Search (one vocabulary). */}
+                  <Provenance className={styles.sourceProvenance} {...documentSourceProvenance(s)} />
                   {/* Degradation is stated in WORDS, never by colour alone.
                       G-064 fix round 1 (Finding F5): reads the SAME export an
                       askCitation chip reads (lib/askCitation.js) -- one fact,

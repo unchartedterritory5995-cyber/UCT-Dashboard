@@ -63,3 +63,16 @@
 }
 
 .detailRow { color: var(--text-muted); }
+
+/* TERM-050: the origin chip (e.g. "Scanned text"). Quiet, not a warning:
+   the same treatment the Notebook's Ask sources drew locally before. */
+.origin {
+  flex: none;
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}

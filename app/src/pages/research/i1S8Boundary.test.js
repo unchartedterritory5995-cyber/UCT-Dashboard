@@ -661,8 +661,8 @@ describe('TERM-034 — the boundary, over EVERY Ask-AI door the research pages m
 // name says Ask-AI there; a `PANEL_IMPORTERS` key that says it here). Extended, not rewritten:
 // the detector, the vocabulary and both sections above are untouched.
 //
-// ⚠️ Still outside, and not this rail's to reach: the Notebook's Ask panel
-// (`pages/journal-2-0/**`, another workstream's files) — TERM-050's one remaining surface.
+// ⚰️ This said the Notebook's Ask panel was still outside and not this rail's to reach. Its
+// own block is at the foot of this file (TERM-050, lane N).
 
 const TERMINAL_PANELS = path.join(SRC, 'pages', 'terminal', 'panels.jsx')
 const isAskAiName = (name) => String(name || '').toLowerCase().replace(/[^a-z]/g, '').includes('askai')
@@ -729,5 +729,141 @@ describe('TERM-050 — the boundary, over every Ask-AI door the TERMINAL mounts'
       '',
     ].join('\n')
     expect(boundaryFindings(door, local).map((f) => f.what)).toEqual(['explainCitations'])
+  })
+})
+
+// ─── TERM-050 — THE NOTEBOOK'S ASK PANEL: ONE PROVENANCE RENDERER, AND IT CANNOT COME BACK ──
+//
+// The block above left the Notebook's Ask panel outside every surface (another workstream's
+// files). TERM-050's last piece: its Sources rows drew "where these words came from" locally,
+// straight off `pages/journal-2-0/lib/documentProvenance` (a chip with its own class). They
+// now compose S8's <Provenance>, adapted by `components/provenance/documentOrigin.js`.
+//
+// ⚠️ The detector above cannot see that violation by itself: the old chip's class was
+// `sourceScanned`, which names no concept. What named the concept was the MODULE the panel
+// imported its words from. So this block adds the module half: a panel may not import a module
+// whose NAME claims a provenance concept from outside components/provenance/. A control below
+// rebuilds the pre-TERM-050 block verbatim and watches it go red by name.
+//
+// ⛔ NOT the transitive surface. The panel reaches ~630 modules (the whole Notebook and the chart
+// engine through it), so a transitive run reports the app. The rail is the panel FILE itself,
+// found by the one thing that makes it the Ask panel: it renders `data-testid="ask-sources"`.
+//
+// ⭐ ITS OTHER FINDINGS ARE RECORDED, NOT HIDDEN. The [n] citation chips and the coverage notice
+// are the panel's own (the same call AskAiTab made for its [E#] mark: a footnote number is not a
+// provenance render). They are listed below with a reason each, the list must equal the live
+// findings EXACTLY (a new one is red, a fixed one must be deleted), and no entry may name the
+// provenance concept itself.
+
+const NOTEBOOK_DIR = path.join(SRC, 'pages', 'journal-2-0', 'components', 'notebook')
+
+/** The Notebook file(s) rendering the Ask Sources block — parsed, never typed. */
+export function notebookAskPanels(dir = NOTEBOOK_DIR) {
+  const out = []
+  for (const f of fs.readdirSync(dir)) {
+    if (!/\.jsx$/.test(f) || /\.(test|spec)\.jsx$/.test(f)) continue
+    const abs = path.join(dir, f)
+    let hit = false
+    walk(parse(read(abs)), (n) => {
+      if (n.type === 'JSXAttribute' && n.name?.name === 'data-testid'
+        && n.value?.type === 'Literal' && n.value.value === 'ask-sources') hit = true
+    })
+    if (hit) out.push(abs)
+  }
+  return out
+}
+
+/** A local module this file imports whose NAME claims a concept, from outside S8. */
+export function conceptModuleImports(file, src = read(file)) {
+  const out = []
+  for (const r of localImports(file, src)) {
+    const target = followReexport(r)
+    if (!target || target.startsWith(PROVENANCE_DIR + path.sep)) continue
+    const stem = path.basename(target).replace(/\.[^.]+$/, '')
+    if (namesAConcept(stem)) {
+      out.push({ file: key(file), what: `module:${key(target)}`, id: `${key(file)}::module:${key(target)}` })
+    }
+  }
+  return out
+}
+
+const ASK_PANELS = notebookAskPanels()
+const ASK_PANEL = ASK_PANELS[0]
+const askPanelFindings = (src) => [
+  ...boundaryFindings(ASK_PANEL, src), ...conceptModuleImports(ASK_PANEL, src),
+]
+
+/** The Ask panel's own findings that are NOT a second provenance renderer, each with why. */
+const R = 'app/src/pages/journal-2-0/components/notebook/AskPanel.jsx'
+export const NOTEBOOK_ASK_RECORDED = {
+  [`${R}::import:citedSources`]: 'citation VALIDATION (which [n] the answer really cites), renders nothing',
+  [`${R}::import:resolveNoteCitation`]: 'resolves a [n] to its note location for navigation, renders nothing',
+  [`${R}::import:citedPassageText`]: 'the passage text handed to the insert picker, renders nothing',
+  [`${R}::citationChip`]: 'the [n] footnote mark inside the answer: the AskAiTab [E#] decision, kept local',
+  [`${R}::coverage`]: "the panel's quiet coverage notice (what it searched); a CoverageLine adoption is a separate, member-visible change",
+  [`${R}::module:app/src/pages/journal-2-0/lib/askCitation.js`]: 'the citation contract module (G-064): validation and precision words, no provenance render',
+}
+
+describe('TERM-050 — the Notebook Ask panel composes S8, and a second renderer cannot come back', () => {
+  it('the panel is derived, once, from the Sources block it renders', () => {
+    // eslint-disable-next-line no-console
+    console.log(`[i1-rail:s8-boundary] notebook ask: ${ASK_PANELS.map(key).join(', ')}, `
+      + `${askPanelFindings(read(ASK_PANEL)).length} findings, `
+      + `${Object.keys(NOTEBOOK_ASK_RECORDED).length} recorded`)
+    expect(ASK_PANELS.map(key)).toEqual([R])
+  })
+
+  it('⭐ its Sources rows render provenance through <Provenance> from components/provenance/', () => {
+    const src = read(ASK_PANEL)
+    const bindings = importBindings(ASK_PANEL, src)
+    expect(bindings.get('Provenance'), "AskPanel stopped importing S8's <Provenance>")
+      .toBe(path.join(PROVENANCE_DIR, 'Provenance.jsx'))
+    let inSources = false
+    walk(parse(src), (n) => {
+      if (n.type !== 'JSXElement') return
+      const isSources = (n.openingElement.attributes || []).some((a) => a.type === 'JSXAttribute'
+        && a.name?.name === 'data-testid' && a.value?.value === 'ask-sources')
+      if (!isSources) return
+      walk(n, (m) => { if (m.type === 'JSXOpeningElement' && jsxElementName(m) === 'Provenance') inSources = true })
+    })
+    expect(inSources, 'the ask-sources block no longer composes <Provenance>').toBe(true)
+  })
+
+  it('⭐ it imports no provenance-named module from outside S8 (documentProvenance is gone)', () => {
+    const live = conceptModuleImports(ASK_PANEL).map((f) => f.what)
+    expect(live.filter((w) => /provenance/i.test(w)),
+      "the Ask panel imports a provenance module that is not S8's: a second renderer").toEqual([])
+  })
+
+  it('its remaining findings are EXACTLY the recorded ones, and none is a provenance render', () => {
+    const live = [...new Set(askPanelFindings(read(ASK_PANEL)).map((f) => f.id))].sort()
+    expect(live).toEqual(Object.keys(NOTEBOOK_ASK_RECORDED).sort())
+    for (const id of Object.keys(NOTEBOOK_ASK_RECORDED)) expect(id).not.toMatch(/provenance|origin/i)
+  })
+
+  it('CONTROL: the pre-TERM-050 Sources chip is RED, by name, through the module it imported', () => {
+    const preTerm050 = [
+      "import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT } from '../../lib/documentProvenance'",
+      "import styles from './AskPanel.module.css'",
+      'export default ({ s }) => (',
+      '  <div data-testid="ask-sources">',
+      '    {isScannedText(s) && (',
+      '      <span className={styles.sourceScanned} title={SCANNED_TEXT_HINT}>{SCANNED_TEXT_LABEL}</span>',
+      '    )}',
+      '  </div>',
+      ')',
+      '',
+    ].join('\n')
+    expect(askPanelFindings(preTerm050).map((f) => f.what))
+      .toEqual(['module:app/src/pages/journal-2-0/lib/documentProvenance.js'])
+    // and the element detector alone is blind to it, which is why the module half exists
+    expect(boundaryFindings(ASK_PANEL, preTerm050)).toEqual([])
+  })
+
+  it('CONTROL: the S8 adapter is NOT a finding, though its name says provenance', () => {
+    const viaS8 = "import { documentSourceProvenance } from '../../../../components/provenance/documentOrigin'\n"
+    expect(askPanelFindings(viaS8)).toEqual([])
+    const local = "import { documentSourceProvenance } from '../../lib/documentProvenance'\n"
+    expect(askPanelFindings(local).map((f) => f.what)).toContain('import:documentSourceProvenance')
   })
 })
