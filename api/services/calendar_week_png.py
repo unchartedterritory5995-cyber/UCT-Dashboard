@@ -40,6 +40,14 @@ MAX_PER_SESSION = GRID_COLS * GRID_ROWS
 MAX_TBD = GRID_COLS
 MAX_ECON_PER_DAY = 7
 
+# A during-market release is NOT an unknown session: the company reports while
+# the tape is open (WABC ~11am ET). The calendar files it in `tbd` because it is
+# neither BMO nor AMC, and tags it with exactly this note — so the card names
+# it instead of letting it read as "time unknown".
+DMH_NOTE = "during market hours"
+DMH = (104, 196, 160)           # green-teal — distinct from BMO gold / AMC blue / TBD grey
+_TAG_BG = (16, 18, 24)          # chip-tag plate, the panel's own near-black
+
 _MARGIN = 40
 _GUTTER = 16
 _COLS = 5
@@ -132,6 +140,51 @@ def _logo_cell(img, dr, x: int, y: int, entry: dict) -> None:
     tw = dr.textlength(label, font=tf)
     dr.text((x + (_CELL_W - tw) / 2, y + _TILE + 7), label, font=tf,
             fill=GOLD if marquee else INK)
+    _chip_marks(dr, lx, y, entry)
+
+
+def is_dmh(entry: dict) -> bool:
+    return (entry.get("session_note") or "") == DMH_NOTE
+
+
+def is_est(entry: dict) -> bool:
+    """The DATE is the company's estimate, not its confirmation. A row the
+    resolver confirmed (`date_confirmed`) is never marked, whatever `date_est`
+    still says."""
+    return bool(entry.get("date_est")) and not entry.get("date_confirmed")
+
+
+def _corner_tag(dr, right: float, top: float, text: str, color) -> None:
+    """A small pill straddling a tile corner — secondary to the ticker, but a
+    real glyph, not a dot, so it reads at the size Discord shows the card."""
+    tf = font(BOLD, 10)
+    tw = dr.textlength(text, font=tf)
+    w, h = tw + 8, 14
+    dr.rounded_rectangle([right - w, top, right, top + h], radius=5,
+                         fill=_TAG_BG + (240,), outline=color + (170,), width=1)
+    dr.text((right - w + 4, top + 1), text, font=tf, fill=color)
+
+
+def _chip_marks(dr, lx: int, y: int, entry: dict) -> None:
+    """Honesty marks on a chip: `MKT` top-right for a during-market release,
+    `est.` bottom-right for a date the company has not confirmed."""
+    if is_dmh(entry):
+        _corner_tag(dr, lx + _TILE + 5, y - 5, "MKT", DMH)
+    if is_est(entry):
+        _corner_tag(dr, lx + _TILE + 5, y + _TILE - 9, "est.", DIM)
+
+
+def tbd_label(day: dict) -> str:
+    """`DURING MARKET` only when EVERY tbd reporter that day is a during-market
+    release — judged on the day's true count (`tbd_dmh_n` vs `tbd_n`), not the
+    drawn row, so a hidden genuinely-unknown name keeps the section honest."""
+    n = day.get("tbd_n")
+    if n is None:
+        n = len(day.get("tbd") or [])
+    dmh_n = day.get("tbd_dmh_n")
+    if dmh_n is None:
+        dmh_n = sum(1 for e in day.get("tbd") or [] if is_dmh(e))
+    return "DURING MARKET" if n and dmh_n == n else "TIME TBD"
 
 
 def _more_box(dr, x: int, y: int, n: int) -> None:
@@ -147,7 +200,9 @@ def _more_box(dr, x: int, y: int, n: int) -> None:
 def render_earnings_week_png(week_label: str, days: list[dict]) -> bytes:
     """days: the weekdays to render, each
     {label: 'MON 3', total: int|None, bmo: [entry], amc: [entry], overflow: int}
-    entry: {sym, mc_b (float|None), logo_path (str|None)}.
+    entry: {sym, mc_b (float|None), logo_path (str|None), marquee,
+            date_est, date_confirmed, session_note}.
+    A day may also carry `tbd_n` / `tbd_dmh_n` (true counts) for the TBD label.
     Only the first MAX_PER_SESSION of each session are drawn — the caller ranks
     them and computes `overflow` for the rest.
     """
@@ -209,7 +264,9 @@ def render_earnings_week_png(week_label: str, days: list[dict]) -> bytes:
             n_tbd = day.get("tbd_n")
             if n_tbd is None:
                 n_tbd = len(day.get("tbd") or [])
-            y = _session_head(dr, x, y, "TIME TBD", TBD, n_tbd)
+            t_label = tbd_label(day)
+            y = _session_head(dr, x, y, t_label,
+                              DMH if t_label == "DURING MARKET" else TBD, n_tbd)
             if not tbd:
                 dr.text((x + _PAD, y + 4), "—", font=font(REG, 15), fill=DIM)
             for idx, e in enumerate(tbd):

@@ -679,3 +679,136 @@ def test_a_refetch_that_comes_back_worse_keeps_the_better_read(_isolated_state):
         out = poster.post_week(target="live", monday=MON)
     assert out["ok"] is True
     post_m.assert_called_once()
+
+
+# ── Honesty marks: "est." (unconfirmed date) and "MKT" (during market) ───────
+# Owner ask 2026-10-10. A date the company has not confirmed is an estimate and
+# says so on its chip; a during-market release (WABC ~11am ET) sits in `tbd` but
+# is NOT an unknown session, so its chip says MKT and an all-during-market TBD
+# section is labelled DURING MARKET. Everything else on the card is unchanged.
+
+from api.services.calendar_week_png import DMH_NOTE, is_est, tbd_label  # noqa: E402
+
+
+def _build_day(bmo=(), amc=(), tbd=(), metrics=None):
+    from datetime import date as _d
+    mon = _d(2026, 8, 3)
+    days = {mon.isoformat(): {"bmo": list(bmo), "amc": list(amc), "tbd": list(tbd)}}
+    for i in range(1, 5):
+        days[(mon + timedelta(days=i)).isoformat()] = {"bmo": [], "amc": [], "tbd": []}
+    with mock.patch("api.routers.calendar.get_calendar", return_value={"days": days}), \
+         mock.patch("api.routers.calendar.get_day_metrics", return_value=metrics or {}), \
+         mock.patch("api.routers.calendar._week_dates", return_value=[mon]), \
+         mock.patch("api.services.ticker_logos.get_logo_path", return_value=None):
+        earn, _ = poster.build_payloads(mon)
+    return earn[0]
+
+
+def _dmh(sym, mc=5.0, **kw):
+    return {"sym": sym, "mc_b": mc, "ew": 0, "session_note": DMH_NOTE, **kw}
+
+
+def _one_day(tbd, **day_kw):
+    return [{"label": "THU 15", "total": len(tbd), "overflow": 0,
+             "bmo": [], "amc": [], "tbd": tbd, **day_kw}]
+
+
+def test_build_payloads_passes_the_honesty_fields_through():
+    day = _build_day(
+        bmo=[{"sym": "NRIX", "mc_b": 2.0, "ew": 0, "date_est": True},
+             {"sym": "JPM", "mc_b": 800.0, "ew": 0, "date_est": True,
+              "date_confirmed": True}],
+        tbd=[_dmh("WABC", date_est=True)])
+    bmo = {e["sym"]: e for e in day["bmo"]}
+    assert bmo["NRIX"]["date_est"] is True and not bmo["NRIX"]["date_confirmed"]
+    assert bmo["JPM"]["date_confirmed"] is True
+    wabc = day["tbd"][0]
+    assert wabc["sym"] == "WABC"
+    assert wabc["session_note"] == DMH_NOTE and wabc["date_est"] is True
+
+
+def test_the_honesty_marks_do_not_move_any_count():
+    """bmo_n / amc_n / tbd_n / total / overflow are identical with and without
+    the new fields — the marks annotate chips, they never re-bucket a name."""
+    bmo = [{"sym": f"B{i}", "mc_b": 5.0 + i, "ew": 0, "date_est": i % 2 == 0}
+           for i in range(15)]
+    tbd = [_dmh(f"T{i}", date_est=True) for i in range(6)]
+    marked = _build_day(bmo=bmo, tbd=tbd)
+    plain = _build_day(
+        bmo=[{k: v for k, v in e.items() if k != "date_est"} for e in bmo],
+        tbd=[{k: v for k, v in e.items() if k not in ("date_est", "session_note")}
+             for e in tbd])
+    for k in ("total", "bmo_n", "amc_n", "tbd_n", "overflow"):
+        assert marked[k] == plain[k], k
+    assert [e["sym"] for e in marked["bmo"]] == [e["sym"] for e in plain["bmo"]]
+    assert marked["tbd_dmh_n"] == 6 and plain["tbd_dmh_n"] == 0
+
+
+def test_tbd_dmh_count_is_over_the_raw_list_not_the_drawn_row():
+    """A dropped (sub-$1B, unwatched) genuinely-unknown name still counts: the
+    section must not claim DURING MARKET while hiding an unknown one."""
+    day = _build_day(tbd=[_dmh("WABC"),
+                          {"sym": "CZWI", "mc_b": 0.2, "ew": 0}])
+    assert [e["sym"] for e in day["tbd"]] == ["WABC"]
+    assert day["tbd_n"] == 2 and day["tbd_dmh_n"] == 1
+    assert tbd_label(day) == "TIME TBD"
+    # ...and a dropped during-market shell still counts toward DURING MARKET.
+    day = _build_day(tbd=[_dmh("WABC"), _dmh("SHEL", mc=0.2)])
+    assert [e["sym"] for e in day["tbd"]] == ["WABC"]
+    assert day["tbd_n"] == 2 and day["tbd_dmh_n"] == 2
+    assert tbd_label(day) == "DURING MARKET"
+
+
+def test_during_market_label_only_when_every_tbd_row_is_dmh():
+    assert tbd_label({"tbd": [_dmh("A")], "tbd_n": 1, "tbd_dmh_n": 1}) == "DURING MARKET"
+    assert tbd_label({"tbd": [_dmh("A"), _dmh("B")], "tbd_n": 2,
+                      "tbd_dmh_n": 2}) == "DURING MARKET"
+    assert tbd_label({"tbd": [_dmh("A"), _ent("B")], "tbd_n": 2,
+                      "tbd_dmh_n": 1}) == "TIME TBD"
+    assert tbd_label({"tbd": [_ent("B")], "tbd_n": 1, "tbd_dmh_n": 0}) == "TIME TBD"
+    # An empty TBD section is not "during market".
+    assert tbd_label({"tbd": [], "tbd_n": 0, "tbd_dmh_n": 0}) == "TIME TBD"
+    # Without the true counts, the drawn list decides.
+    assert tbd_label({"tbd": [_dmh("A")]}) == "DURING MARKET"
+    assert tbd_label({"tbd": [_dmh("A"), _ent("B")]}) == "TIME TBD"
+
+
+def test_the_renderer_draws_the_during_market_label():
+    """Same chips, same badge count — only the label inputs differ, so a render
+    difference IS the label."""
+    rows = [_dmh("WABC")]
+    dm = render_earnings_week_png("W", _one_day(rows, tbd_n=2, tbd_dmh_n=2))
+    tb = render_earnings_week_png("W", _one_day(rows, tbd_n=2, tbd_dmh_n=1))
+    assert dm != tb
+
+
+def test_est_mark_only_for_an_unconfirmed_date():
+    assert is_est({"date_est": True})
+    assert not is_est({"date_est": True, "date_confirmed": True})
+    assert not is_est({"date_est": False})
+    assert not is_est({})
+    plain = render_earnings_week_png("W", _one_day([_ent("NRIX")], tbd_n=1, tbd_dmh_n=0))
+    est = render_earnings_week_png(
+        "W", _one_day([{**_ent("NRIX"), "date_est": True}], tbd_n=1, tbd_dmh_n=0))
+    confirmed = render_earnings_week_png(
+        "W", _one_day([{**_ent("NRIX"), "date_est": True, "date_confirmed": True}],
+                      tbd_n=1, tbd_dmh_n=0))
+    assert est != plain, "an estimated date must mark its chip"
+    assert confirmed == plain, "a confirmed date carries no mark at all"
+
+
+def test_mkt_chip_tag_even_when_the_section_is_mixed():
+    """Mixed section keeps TIME TBD, but the during-market chip is still tagged."""
+    kw = dict(tbd_n=2, tbd_dmh_n=1)
+    tagged = render_earnings_week_png("W", _one_day([_dmh("WABC"), _ent("X")], **kw))
+    untagged = render_earnings_week_png("W", _one_day([_ent("WABC"), _ent("X")], **kw))
+    assert tagged != untagged
+
+
+def test_unmarked_rows_render_byte_identical_to_before_the_marks():
+    """A row with no honesty fields must not change at all: pinned against the
+    pre-change renderer's bytes (sha256 of the same input on master bda17ea4ce)."""
+    import hashlib
+    week = [_day(f"D{i}", n_bmo=5, n_amc=3, n_tbd=2) for i in range(5)]
+    got = hashlib.sha256(render_earnings_week_png("Week of Aug 3-7, 2026", week)).hexdigest()
+    assert got == "b34d84a1187e3f2238d1338e40749a4cab966768e5077ee596c2eef649f6e58d"
