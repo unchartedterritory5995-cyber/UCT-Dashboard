@@ -364,15 +364,21 @@ function fmtMoneyness(pct, label) {
 
 // Volume / OI as compact counts. Massive contracts hit 6-digit volume on
 // busy days; raw integers get unreadable. 1234 → "1.2K", 12345 → "12.3K".
-// TERM-066: M one decimal, K none from 10K up (1K-10K keeps its one decimal, below) — the ladder this grammar already had.
+// TERM-066: M one decimal; K one decimal below 10K and none from 10K up — the
+// ladder this grammar already had. Never promoted: the old text is pinned.
 const COUNT_TIERS = Object.freeze([
   Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
-  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: (a) => (a >= 1e4 ? 0 : 1) }),
 ])
+// Fixed-unit premium text: "$0.40M" / "$950K" all the way down. `absent` echoes
+// the old text for a non-finite sum ("NaNM").
+const FIXED_M2 = Object.freeze([Object.freeze({ at: 1e6, suffix: 'M', decimals: 2 })])
+const FIXED_M1 = Object.freeze([Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 })])
+const FIXED_K0 = Object.freeze([Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 })])
+const fixedUnit = (n, tiers, suffix) => formatCompact(+n, { tiers, fixedUnit: true, absent: `${+n}${suffix}` })
 function fmtCount(n) {
   if (n == null) return "—";
-  if (n >= 10_000) return formatCompact(n, { tiers: COUNT_TIERS });
-  if (n >= 1000) return (n / 1000).toFixed(1) + "K";
+  if (n >= 1000) return formatCompact(+n, { tiers: COUNT_TIERS, promote: false, absent: `${+n}M` });
   return String(n);
 }
 
@@ -431,8 +437,8 @@ function MarketReadCard({ stats }) {
   const topBear = (stats.top_bear || []).slice(0, 3);
   const dteBuckets = stats.by_dte || [];
 
-  const fmtM = (n) => `$${(n / 1e6).toFixed(2)}M`;
-  const fmtMShort = (n) => n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : `$${(n/1e3).toFixed(0)}K`;
+  const fmtM = (n) => `$${fixedUnit(n, FIXED_M2, "M")}`;
+  const fmtMShort = (n) => n >= 1e6 ? `$${fixedUnit(n, FIXED_M1, "M")}` : `$${fixedUnit(n, FIXED_K0, "K")}`;
 
   return (
     <div style={{

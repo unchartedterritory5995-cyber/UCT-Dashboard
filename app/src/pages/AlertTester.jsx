@@ -18,6 +18,10 @@ import Select from '../components/ui/Select'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
 
 // TERM-066: the ladder fmt$ already had (M two decimals, K none), passed to the one formatter.
+// TERM-066: the combo copy always prints millions at two decimals ("$0.25M").
+// `absent` echoes the old text for a missing value ("NaNM").
+const FIXED_M2 = Object.freeze([Object.freeze({ at: 1e6, suffix: 'M', decimals: 2 })])
+const fixedM2 = (v) => formatCompact(+v, { tiers: FIXED_M2, fixedUnit: true, absent: `${+v}M` })
 const PREMIUM_TIERS = Object.freeze([
   Object.freeze({ at: 1e6, suffix: 'M', decimals: 2 }),
   Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
@@ -616,7 +620,7 @@ export default function AlertTester() {
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(2, 1fr)", gap:10 }}>
             <NumField label="Combo min combined premium ($)" value={comboMinPremium} onChange={setComboMinPremium} step={250000}
-              hint={comboMinPremium===0?"0 = OFF. Set to e.g. 2500000 to fire Alpha Gold when a SWEEP + BLOCK on the same contract combine to ≥$2.5M":`When ≥$${(comboMinPremium/1e6).toFixed(2)}M combined of sweeps+blocks hit one contract within window → emit COMBO alert`}/>
+              hint={comboMinPremium===0?"0 = OFF. Set to e.g. 2500000 to fire Alpha Gold when a SWEEP + BLOCK on the same contract combine to ≥$2.5M":`When ≥$${fixedM2(comboMinPremium)} combined of sweeps+blocks hit one contract within window → emit COMBO alert`}/>
             <NumField label="Combo window (sec)" value={comboWindowSec} onChange={setComboWindowSec}
               hint="Time window in which sweep and block must both occur. 900s = 15 min."/>
           </div>
@@ -976,7 +980,7 @@ export default function AlertTester() {
                     <td style={{ padding:"3px 6px", color:P.dim }}>{a.exp}</td>
                     <td style={{ padding:"3px 6px", textAlign:"right", color:P.dim }}>{a.dte}d</td>
                     <td style={{ padding:"3px 6px", textAlign:"right", color:P.ac, fontWeight:700 }}
-                        title={a.combo_upgrade ? `Sweep $${(a.combo_sweep_premium/1e6).toFixed(2)}M + Block $${(a.combo_block_premium/1e6).toFixed(2)}M combined` : undefined}>
+                        title={a.combo_upgrade ? `Sweep $${fixedM2(a.combo_sweep_premium)} + Block $${fixedM2(a.combo_block_premium)} combined` : undefined}>
                       {fmt$(a.premium)}{a.combo_upgrade ? "*" : ""}
                     </td>
                     <td style={{ padding:"3px 6px", color: a.combo_upgrade ? P.ac : P.dim, fontWeight: a.combo_upgrade ? 800 : 600 }}>
@@ -986,7 +990,7 @@ export default function AlertTester() {
                     <td style={{ padding:"3px 6px", textAlign:"center" }}>
                       {a.combo_upgrade ? (
                         <span style={{ color:P.ac, fontWeight:800, padding:"1px 4px", borderRadius:3, background:P.ac+"22", border:"1px solid "+P.ac+"55", fontSize:8 }}
-                              title={`Sweep+Block combo: $${(a.combo_sweep_premium/1e6).toFixed(2)}M sweep + $${(a.combo_block_premium/1e6).toFixed(2)}M block (${a.combo_trade_count} trades)`}>
+                              title={`Sweep+Block combo: $${fixedM2(a.combo_sweep_premium)} sweep + $${fixedM2(a.combo_block_premium)} block (${a.combo_trade_count} trades)`}>
                           ⚡COMBO
                         </span>
                       ) : (a.repeat_fires||1)>=2 ? (

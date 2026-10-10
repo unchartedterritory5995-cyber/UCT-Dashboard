@@ -10,15 +10,10 @@
     "asserts these bytes are exactly what its writer produces."
   ],
   "sites": {
-    "app/src/components/chart/signatureData.js": 2,
-    "app/src/pages/AlertTester.jsx": 5,
     "app/src/pages/DarkPool.jsx": 10,
     "app/src/pages/LiveFlow.jsx": 2,
-    "app/src/pages/LiveFlowMassive.jsx": 4,
     "app/src/pages/LiveFlow_admin.jsx": 2,
     "app/src/pages/OptionsFlow.jsx": 18,
-    "app/src/pages/OptionsFlow_admin.jsx": 39,
-    "app/src/pages/optionsFlow/flowCompute.js": 1,
-    "app/src/pages/screener/shell/FilterBand.jsx": 4
+    "app/src/pages/OptionsFlow_admin.jsx": 39
   }
 }
