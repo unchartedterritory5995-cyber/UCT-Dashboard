@@ -2193,6 +2193,12 @@
       "where": [
         "worker"
       ],
+      "exposure": "internal",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
       "note": "TERM-043 worker half (lane L5, 2026-10-10): when 1, the PIT publisher adds a 'sources' map to each company artifact (accession list per point, index-aligned, for revenue_q / net_income_q / eps_diluted_q only; api/services/fundamentals_pit/publish.py). Unset = the artifact is byte-identical, so nothing republishes. Arming it changes every artifact once, so every company republishes on the next publish pass (a one-time R2 write cost). DARK because that republish is a production write the owner schedules. Arm: railway variables --service worker --set FUNDAMENTALS_PIT_PUBLISH_SOURCES=1 (owner), then FIGURE_SOURCE_LINKS_ENABLED on web. Rollback = unset it; the next publish drops the key."
     },
     "SEC_13F_LIST_ENABLED": {
