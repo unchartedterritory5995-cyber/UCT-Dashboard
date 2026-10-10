@@ -12,6 +12,8 @@
 // ("why is it moving?", news) are NOT here — that is the research path.
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
+import { formatCompact, TERMINAL_COMPACT_TIERS } from '../../lib/presentation/presentationPrimitives'
+const BIG_TIERS = TERMINAL_COMPACT_TIERS.filter((t) => t.at >= 1e6)
 
 const TICKER = /^[A-Z][A-Z0-9.-]{0,9}$/
 const upper = (s) => String(s || '').trim().toUpperCase().replace(/^\$/, '')
@@ -31,7 +33,8 @@ const money = (v, d = 2) => (num(v) == null ? null : `$${v.toLocaleString('en-US
 const big = (v) => {
   if (num(v) == null) return typeof v === 'string' && v ? v : null
   const a = Math.abs(v)
-  return a >= 1e12 ? `$${(v / 1e12).toFixed(2)}T` : a >= 1e9 ? `$${(v / 1e9).toFixed(2)}B` : a >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : money(v)
+  // T / B at two decimals, M at one: the terminal money ladder without its K tier (TERM-066).
+  return a >= 1e6 ? formatCompact(v, { tiers: BIG_TIERS, prefix: '$', absent: null }) : money(v)
 }
 const pct = (v, d = 1) => (num(v) == null ? null : `${v > 0 ? '+' : ''}${v.toFixed(d)}%`)
 const fix = (v, d = 2) => (num(v) == null ? null : v.toFixed(d))

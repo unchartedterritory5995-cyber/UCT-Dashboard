@@ -160,6 +160,15 @@ const HAND_TYPED_BASELINE = [
   // same shape: `?sym=&tf=&w=` choose the fixture ChartWidget, in page state only.
   // Railed out of the bundle by testing/createIndicator/createIndicatorHarnessAbsent.test.js.
   'testing/createIndicator/createIndicatorHarness.jsx',
+  // The dev-only market-cap authority harness (`marketcap-harness.html`), the same
+  // shape: `?sym=` picks which LOCAL fixture the real ChartWidget mounts. Not a member
+  // deep link, and it cannot ship — railed by testing/marketcap/marketCapHarnessAbsent.test.js.
+  'testing/marketcap/marketCapHarness.jsx',
+  // The UCT Terminal's `SYM DP` function opens Dark Pool at `/dark-pool?ticker=SYM`
+  // (`linkTickerFrom`), the same class as the GEX door in App.jsx above: Dark Pool's own
+  // initial search query, validated against a ticker pattern and dropped otherwise,
+  // never a `/charts` deep link and never a second source of truth for a chart symbol.
+  'pages/DarkPool.jsx',
 ]
 
 describe('S4 CP2 — the deep-link ruling has a derived rail behind it', () => {
