@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after lane L6): not complete.** 230 of 279 rows are `live` or `moot`; 49 are not (28 `dark`, 13 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after lane L6): not complete.** 231 of 279 rows are `live` or `moot`; 48 are not (28 `dark`, 12 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -37,7 +37,7 @@ python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETI
 Printed 2026-10-10 after lane L6:
 
 ```
-279 Counter({'live': 190, 'moot': 40, 'dark': 28, 'building': 13, 'owner-blocked': 8})
+279 Counter({'live': 191, 'moot': 40, 'dark': 28, 'building': 12, 'owner-blocked': 8})
 0 duplicate ids
 ```
 
@@ -55,10 +55,10 @@ The per-section split is the same regex applied to each `## ` section:
 | 4 BRK-01..10 | 10 | 5 | 4 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 6 | 1 | 1 | 1 | 3 |
 | 6 FT-001..080 | 80 | 57 | 9 | 1 | 4 | 9 |
-| 7 Untracked promises | 58 | 43 | 5 | 1 | 0 | 9 |
-| **total** | **279** | **190** | **28** | **13** | **8** | **40** |
+| 7 Untracked promises | 58 | 44 | 5 | 0 | 0 | 9 |
+| **total** | **279** | **191** | **28** | **12** | **8** | **40** |
 
-`building` by lane: P 6 · Notebook 2 · R 2 · integrator 2 · D 1.
+`building` by lane: P 6 · Notebook 2 · R 2 · D 1 · integrator 1.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -120,7 +120,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-015` | Cadence heartbeat roll-up | `live` | `api/terminal_next_monitor_main.py:208`. |
 | `TERM-016` | Durable alert cooldowns | `live` | `api/services/chart_health_alerts.py:130`. |
 | `TERM-017` | Loop-lag distribution | `building (Lane P)` | Histogram built (`api/event_loop_watchdog.py:221`). Read `lag_histogram` inside the 2026-10-14 09:00–11:00 ET window fixed by B1 (`12-decisions/2026-10-07-owner-delegated-decisions.md:200`); an agent step after the window (`12-decisions/2026-10-07-owner-delegated-decisions.md:160`). Was `owner-blocked`. |
-| `TERM-018` | Every guard can fire | `building (Lane P)` | CI live (`.github/workflows/term018-guards.yml`). `12-decisions/gates/term-018-guard-observations.json`: 29 `observed`, 3 `declared_unobserved` (was 12 / 20; the ceiling went 20 -> 3, `tests/test_term018_every_guard_can_fire.py` `DECLARED_UNOBSERVED_CEILING`). Lane f-l6, 2026-10-10: nine newly mutation-proved (proof `26baca999`: G-05..G-08, G-11, G-12, G-24, G-25, G-26), G-30/G-31 fired through the wisdom job table (proof `64f32fec6`), G-21 fired through its route (proof `08cc500da`), and five whose proofs were already on master but never recorded (G-22/G-23 `7811f4b34`; G-14, G-46, `_page_discord` `48ef6b471`); recorded in `9e099427a`, `74deefa87`, `f26cf6d4e`. Clause 7 learned a factory hop and a `route` wire kind, each with a planted control (`08cc500da`, integrator ruling). Remainder, each blocker named in its row: G-10 and G-15 (no single wire clause 7 can follow), G-18..G-20 (computed key and severity, clock-gated to about 2027-07). |
+| `TERM-018` | Every guard can fire | `building (Lane P)` | CI live (`.github/workflows/term018-guards.yml`). `12-decisions/gates/term-018-guard-observations.json`: 29 `observed`, 3 `declared_unobserved` (was 12 / 20; the ceiling went 20 -> 3, `tests/test_term018_every_guard_can_fire.py` `DECLARED_UNOBSERVED_CEILING`). Lane f-l6, 2026-10-10: nine newly mutation-proved (proof `46eb8f231`: G-05..G-08, G-11, G-12, G-24, G-25, G-26), G-30/G-31 fired through the wisdom job table (proof `28530927c`), G-21 fired through its route (proof `5085d5d42`), and five whose proofs were already on master but never recorded (G-22/G-23 `7811f4b34`; G-14, G-46, `_page_discord` `48ef6b471`); recorded in `9e099427a`, `74deefa87`, `f26cf6d4e`. Clause 7 learned a factory hop and a `route` wire kind, each with a planted control (`5085d5d42`, integrator ruling). Remainder, each blocker named in its row: G-10 and G-15 (no single wire clause 7 can follow), G-18..G-20 (computed key and severity, clock-gated to about 2027-07). |
 | `TERM-019` | Provenance set + adoption rail | `live` | `app/src/components/provenance/panelAdoption.ratchet.test.js`; adoption is a shrink-only ratchet. |
 | `TERM-020` | Canonical resolver (CP3) | `live` | `api/services/canonical/resolver.py:453`; caller `api/routers/breadth_monitor.py:1061`. |
 | `TERM-021` | Versioned workspace document | `live` | `api/services/workspace_doc_store.py:231`. |
@@ -369,7 +369,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `D-13` | FDA / PDUFA dates on the events calendar | `moot (decided 2026-10-07: no PDUFA source purchase)` | ➜ 2026-10-07: S-7 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `ARCH-5B8` | Store retention registry visible to `disk_watchdog` | `live` | On master (`e82e6a661`, via X-01): `api/services/store_retention.py` registers the stores and `disk_watchdog` prints each one's retention or `UNDECLARED`; ungated; rail `tests/test_store_retention.py`. Was `dark` (branch-only). |
 | `ENT-UC2` | Watchlist rows keyed by entity id | `dark` | On master (`5d376567e`, via X-01; `api/services/watchlist_entity_keys.py`); `WATCHLIST_ENTITY_KEYS_ENABLED` still `pending` (`docs/feature_flags.json:79`). Arming needs the Entity Master seeded on web; rendering `display_sym` on the Watchlists page is not built. |
-| `CAP-A12` | Merge the two drag-and-drop libraries | `building (integrator)` | Built on `f-l8` (`a0eba9493`); the remainder is the landing. Measured: `@dnd-kit` had ONE consumer (`pages/journal-2-0/components/ColumnsPicker.jsx`), native HTML5 drag is used in 32 non-test files incl. the terminal grip (`pages/terminal/TerminalShell.jsx:349`). ColumnsPicker moved to HTML5 drag (↑/↓ kept as the touch + keyboard door); `@dnd-kit/{core,sortable,utilities}` removed from `app/package.json` + lock (133,557 B unminified ESM, ~30.0 KB gzip; dist carries none). Rails: `ColumnsPicker.dnd.test.jsx` (9 tests, incl. no-`@dnd-kit` import/dep rail). `react-grid-layout` (/charts) is a layout engine with internal drag, untouched. |
+| `CAP-A12` | Merge the two drag-and-drop libraries | `live` | Landed on master 2026-10-10 (`594273c83`, deployed with `df9af5f48`). Measured: `@dnd-kit` had ONE consumer (`pages/journal-2-0/components/ColumnsPicker.jsx`), native HTML5 drag is used in 32 non-test files incl. the terminal grip (`pages/terminal/TerminalShell.jsx:349`). ColumnsPicker moved to HTML5 drag (↑/↓ kept as the touch + keyboard door); `@dnd-kit/{core,sortable,utilities}` removed from `app/package.json` + lock (133,557 B unminified ESM, ~30.0 KB gzip; dist carries none). Rails: `ColumnsPicker.dnd.test.jsx` (9 tests, incl. no-`@dnd-kit` import/dep rail). `react-grid-layout` (/charts) is a layout engine with internal drag, untouched. |
 | `FB-A3` | Doc `file:line` citation resolver | `live` | Done 2026-10-10 by lane f-l1: `tools/doc_citation_resolver.py` (backticked `file.ext:N`, `:N-M` and `:N,M` resolved at a git revision; missing files and out-of-range lines reported; `--self-check` with a fixture that must fail), rails `tests/test_doc_citation_resolver.py`. Run over this file and the 2026-10-10 delivery record: 290 citations, 0 broken. Was `building (Lane P)`. |
 | `FB-A1` | Feature-backlog appendix A-1 | `moot (MOOT by the audit, §1b)` | |
 | `PREARM` | Pre-arm "would have fired N" receipt | `moot (dropped by the TERM-062 ruling 2026-09-29)` | |

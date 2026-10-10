@@ -183,15 +183,15 @@ RECORD_PATH = ROOT / "docs" / "terminal-research" / "12-decisions" / "gates" / \
 #: monitor's two guards, observed two-sided (tests/test_term018_wire_coverage_guards.py,
 #: proof 21e1467c5d) and moved to `observed`.
 #: 20 -> 6 (2026-10-10, TERMINAL-NEXT lane f-l6): nine guards newly observed (proof
-#: 26baca999: G-05..G-08, G-11, G-12, G-24, G-25, G-26) and five whose proofs were
+#: 46eb8f231: G-05..G-08, G-11, G-12, G-24, G-25, G-26) and five whose proofs were
 #: already on this history but never recorded (G-22/G-23 7811f4b34; G-14, G-46 and
 #: `_page_discord` 48ef6b471). The six left each name their blocker in the record.
 #: 6 -> 5 (2026-10-10, lane f-l6): G-31 (the extraction reap page) fired through
-#: the wisdom job table (proof 64f32fec6). G-30 was fired and proved too but cannot be
+#: the wisdom job table (proof 28530927c). G-30 was fired and proved too but cannot be
 #: recorded (its JobSpecs carry no literal id); G-21 needs a route wire kind. See their rows.
 #: 5 -> 3 (2026-10-10, lane f-l6, integrator ruling): the rail learned the factory hop
-#: and the `route` wire kind (08cc500da), so G-30 (proof 64f32fec6) and G-21 (proof
-#: 08cc500da) are recorded. Left: G-10, G-15, G-18..G-20, each with its blocker.
+#: and the `route` wire kind (5085d5d42), so G-30 (proof 28530927c) and G-21 (proof
+#: 5085d5d42) are recorded. Left: G-10, G-15, G-18..G-20, each with its blocker.
 DECLARED_UNOBSERVED_CEILING = 3
 
 #: Every file whose AST could not be read during the population sweep. A silent

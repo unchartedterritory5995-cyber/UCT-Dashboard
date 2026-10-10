@@ -565,7 +565,7 @@
         "tests/test_term018_buzz_slot_guard.py::test_buzz_CONTROL_before_the_first_checkpoint_nothing_pages"
       ],
       "proof": {
-        "commit": "26baca999",
+        "commit": "46eb8f231",
         "quote": "G-24 missed-checkpoint page demoted to warning (2 red: test_buzz_a_checkpoint_missed_past_the_window_pages_critical, test_buzz_a_written_off_checkpoint_pages_once)"
       },
       "wire": {
@@ -600,7 +600,7 @@
         "tests/test_desk_session_insights.py::test_control_zooms_own_duration_makes_it_measurable_again"
       ],
       "proof": {
-        "commit": "26baca999",
+        "commit": "46eb8f231",
         "quote": "G-26 transcript-coverage page demoted to warning (4 red: test_summary_only_expired_wait_stores_zoom_insights_and_keeps_the_recording, test_the_guard_keeps_the_recording_while_coverage_is_below_98_percent, test_an_unmeasurable_coverage_refuses_the_trash, test_the_new_gap_rule_does_not_loosen_the_zoom_delete_gate)"
       },
       "wire": {
@@ -638,7 +638,7 @@
         "tests/test_term018_monitor_guards.py::test_fundamentals_CONTROL_an_upstream_hole_is_recorded_never_paged"
       ],
       "proof": {
-        "commit": "26baca999",
+        "commit": "46eb8f231",
         "quote": "G-12 fundamentals regression page demoted to warning (2 red: test_fundamentals_a_regression_that_survives_the_heal_pages_critical, test_fundamentals_CONTROL_a_clean_cycle_and_a_standing_defect_never_page)"
       },
       "wire": {
@@ -671,7 +671,7 @@
         "tests/test_term018_monitor_guards.py::test_provider_coverage_CONTROL_a_standing_breach_pages_once"
       ],
       "proof": {
-        "commit": "26baca999",
+        "commit": "46eb8f231",
         "quote": "G-11 provider coverage page demoted to warning (1 red: test_provider_coverage_a_newly_breached_field_pages_critical)"
       },
       "wire": {
@@ -742,7 +742,7 @@
         "tests/test_term018_bars_audit_guards.py::test_CONTROL_a_healthy_quiet_store_raises_nothing"
       ],
       "proof": {
-        "commit": "26baca999",
+        "commit": "46eb8f231",
         "quote": "G-05 unhealthy-store page demoted to warning (1 red: test_an_unhealthy_store_pages_critical_and_stops)"
       },
       "wire": {
@@ -775,7 +775,7 @@
         "tests/test_term018_bars_audit_guards.py::test_CONTROL_a_daily_store_that_is_not_stale_raises_nothing"
       ],
       "proof": {
-        "commit": "26baca999",
+        "commit": "46eb8f231",
         "quote": "G-06 stale daily store page demoted to warning (1 red: test_a_stale_daily_store_pages_critical)"
       },
       "wire": {
@@ -808,7 +808,7 @@
         "tests/test_term018_bars_audit_guards.py::test_CONTROL_a_fully_stale_hot_set_is_one_page_not_a_page_and_a_warning"
       ],
       "proof": {
-        "commit": "26baca999",
+        "commit": "46eb8f231",
         "quote": "G-07 hot-set critical threshold moved from 0.20 to 0.25 (1 red: test_a_fifth_of_the_hot_set_stale_pages_critical)"
       },
       "wire": {
@@ -840,7 +840,7 @@
         "tests/test_term018_bars_audit_guards.py::test_CONTROL_just_under_eight_percent_raises_nothing"
       ],
       "proof": {
-        "commit": "26baca999",
+        "commit": "46eb8f231",
         "quote": "G-08 hot-set warning threshold moved from 0.08 to 0.10 (1 red: test_eight_percent_of_the_hot_set_stale_is_a_warning)"
       },
       "wire": {
@@ -923,7 +923,7 @@
         "tests/test_stall_record.py::test_a_block_just_under_the_ack_budget_is_recorded_and_not_paged"
       ],
       "proof": {
-        "commit": "26baca999",
+        "commit": "46eb8f231",
         "quote": "G-25 loop-stall page demoted to warning (1 red: test_the_severity_is_critical)"
       },
       "wire": {
@@ -960,7 +960,7 @@
         "tests/test_wisdom_extract_batch.py::test_orphans_with_no_batch_are_requeued_only_after_the_give_up_window"
       ],
       "proof": {
-        "commit": "64f32fec6",
+        "commit": "28530927c",
         "quote": "G-31 extraction page demoted to warning (1 red: test_the_reap_job_pages_critical_when_it_requeues_an_orphan_no_batch_carries)"
       },
       "wire": {
@@ -1019,7 +1019,7 @@
         "tests/test_wisdom_capture_runner.py::test_zero_on_a_trading_day_pages_and_a_holiday_does_not"
       ],
       "proof": {
-        "commit": "64f32fec6",
+        "commit": "28530927c",
         "quote": "G-30 capture page demoted to warning (3 red: test_a_capture_slot_that_reads_zero_rows_on_a_trading_day_pages_critical, test_a_zero_row_capture_writes_no_object_and_moves_no_watermark, test_zero_on_a_trading_day_pages_and_a_holiday_does_not)"
       },
       "wire": {
@@ -1079,7 +1079,7 @@
         "tests/test_term018_push_handshake_guard.py::test_CONTROL_a_rejected_secret_never_reaches_the_handshake"
       ],
       "proof": {
-        "commit": "08cc500da",
+        "commit": "5085d5d42",
         "quote": "G-21 taxonomy mismatch promoted to critical (1 red: test_a_push_on_a_different_taxonomy_raises_one_warning_and_still_lands)"
       },
       "wire": {
