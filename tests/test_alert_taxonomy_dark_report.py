@@ -45,11 +45,12 @@ def test_every_declared_type_resolves_to_a_module_with_a_real_report_function():
         assert table.endswith("_comparison_spans")
 
 
-def test_seven_types_declared_matching_the_seven_S7_alert_types():
+def test_eight_types_declared_the_seven_S7_shadow_types_plus_rating_change():
+    # FT-034 (2026-10-10): rating-change joined in shadow mode.
     assert set(_dr.known_types()) == {
         "price-level", "event-proximity", "position-risk",
         "scan-membership-change", "catalyst-match", "regime-change",
-        "indicator-condition",
+        "indicator-condition", "rating-change",
     }
 
 

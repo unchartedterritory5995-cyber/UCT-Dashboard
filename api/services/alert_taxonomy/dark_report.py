@@ -32,6 +32,9 @@ _TYPES: dict[str, tuple[str, str]] = {
     "catalyst-match": ("catalyst_match_comparison_spans", "catalyst_match_compare"),
     "regime-change": ("regime_change_comparison_spans", "regime_change_compare"),
     "indicator-condition": ("indicator_condition_comparison_spans", "indicator_condition_compare"),
+    # FT-034 shadow mode (2026-10-10): no legacy twin; judged against the next read
+    # of the feed the member is sent to (rating_change_compare's header).
+    "rating-change": ("rating_change_comparison_spans", "rating_change_compare"),
 }
 
 

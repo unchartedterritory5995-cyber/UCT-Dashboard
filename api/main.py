@@ -7736,6 +7736,27 @@ async def lifespan(app: FastAPI):
             max_instances=1, replace_existing=True,
         )
 
+        # FT-034 SHADOW MODE -- the rating-change dark log (rating_change_compare):
+        # spans + heartbeat only, no fire, no delivery. Registered only while
+        # ALERT_TAXONOMY_RATING_CHANGE_DARK_ENABLED=1, like the other dark crons;
+        # tools/alert_type_readiness.py reads what it writes.
+        if os.environ.get("ALERT_TAXONOMY_RATING_CHANGE_DARK_ENABLED", "0") == "1":
+            def _alert_rating_change_dark_job():
+                try:
+                    from api.services.alert_taxonomy import rating_change_compare as _rcc
+                    r = _rcc.run_dark_sweep()
+                    print(f"[rating_change_dark] {r}")
+                except Exception as e:
+                    print(f"[rating_change_dark] sweep failed: {type(e).__name__}: {e}")
+
+            _scheduler.add_job(
+                _alert_rating_change_dark_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="7-19",
+                                    minute="15-59/30", timezone=_ET),
+                id="alert_taxonomy_rating_change_dark",
+                max_instances=1, replace_existing=True,
+            )
+
         # GATE-S7-PRICE-LEVEL CP3 -- the DARK forward-only comparison sweep.
         # Owner approval line 2 (2026-09-12): the harness runs against the
         # projected predicates, ADMIN-ROLE COHORT ONLY, five full trading
