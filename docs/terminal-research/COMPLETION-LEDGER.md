@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after lanes L3, L4, L5): not complete.** 223 of 279 rows are `live` or `moot`; 56 are not (25 `dark`, 23 `building`, 8 `owner-blocked`). (Recounted 2026-10-10 after lane L5 moved TERM-043, TERM-045, COV-05, FT-076 and D-9 from `building` to `dark`.) It is complete when every row below is `live` or `moot`.
+**The answer today (after lanes L3, L4, L5): not complete.** 223 of 279 rows are `live` or `moot`; 56 are not (26 `dark`, 22 `building`, 8 `owner-blocked`). (Recounted 2026-10-10 after lane L5 moved TERM-043, TERM-045, COV-05, FT-076 and D-9 from `building` to `dark`.) It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -37,7 +37,7 @@ python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETI
 Printed 2026-10-10 after lanes L3, L4, L5:
 
 ```
-279 Counter({'live': 183, 'moot': 40, 'dark': 25, 'building': 23, 'owner-blocked': 8})
+279 Counter({'live': 183, 'moot': 40, 'dark': 26, 'building': 22, 'owner-blocked': 8})
 0 duplicate ids
 ```
 
@@ -59,11 +59,11 @@ The per-section split is the same regex applied to each `## ` section:
 | 3 TERM-001..093 | 93 | 65 | 8 | 11 | 3 | 6 |
 | 4 BRK-01..10 | 10 | 4 | 4 | 1 | 0 | 1 |
 | 5 COV-01..12 | 12 | 5 | 1 | 2 | 1 | 3 |
-| 6 FT-001..080 | 80 | 56 | 7 | 4 | 4 | 9 |
+| 6 FT-001..080 | 80 | 56 | 8 | 3 | 4 | 9 |
 | 7 Untracked promises | 58 | 42 | 5 | 2 | 0 | 9 |
-| **total** | **279** | **183** | **25** | **23** | **8** | **40** |
+| **total** | **279** | **183** | **26** | **22** | **8** | **40** |
 
-`building` by lane: P 9 · integrator 4 · Notebook 2 · O 2 · R 2 · S 2 · D 1 · T2 1.
+`building` by lane: P 9 · integrator 4 · Notebook 2 · R 2 · S 2 · D 1 · O 1 · T2 1.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -290,7 +290,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `FT-050` | Options Impact gauge | `live` | `OPTIONS_IMPACT_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:193`). 20-session average. Was `dark`. |
 | `FT-051` | Two positioning models | `live` | `api/gex_router.py:35`. |
 | `FT-052` | Negative OI explained | `live` | `OPTIONS_DEALER_SHORT_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:209`). Was `dark`. |
-| `FT-053` | Level files into other platforms | `building (Lane O)` | Licensing cleared by D-011, so it is now agent-buildable. No lane listed it in the audit, so it is proposed here for Lane O. |
+| `FT-053` | Level files into other platforms | `dark` | Built 2026-10-10 by finishing lane L3 (branch `f-l3`) behind `OPTIONS_LEVEL_FILES_ENABLED` (`docs/feature_flags.json:432`, `dark`), paid. `GET /api/options/positioning/{sym}/level-files?format=` (`pine`, `thinkscript` or `csv`) (`api/routers/options_analytics.py:546`) serves the positioning levels as a TradingView Pine v5 indicator, a ThinkorSwim thinkScript study or a price,label CSV (`api/services/options_analytics/level_files.py:70`); download buttons in the positioning levels block (`app/src/pages/optionsAnalytics/PositioningPanel.jsx:122`). Licensing cleared by D-011. |
 | `FT-054` | "N minutes ago" overlay | `dark` | Built (lane f-l4, 2026-10-10): `api/flow_exposure_history.py:242` folds today's settled flow.db prints into per-strike customer nets and dealer gamma and writes changed strikes every 5 min to a bounded SQLite in flow-worker's data dir (today + 1 session); 60 s tick at `api/flow_worker_main.py:843`; read at `api/flow_exposure_history.py:440` (`/api/flow/exposure-history/{sym}`, via web's flow proxy); "now vs 30 / 60 minutes ago" toggle in the positioning panel (`app/src/pages/optionsAnalytics/PositioningPanel.jsx:244`). No new socket. Dark on `FLOW_EXPOSURE_HISTORY_ENABLED` (`docs/feature_flags.json:408`). Arming needs a flow-worker restart, after hours. Was `building (Lane O)`. |
 | `FT-055` | Positioning primitives | `live` | `OPTIONS_MAX_PAIN_ENABLED` (`docs/feature_flags.json:177`) and `OPTIONS_NOPE_ENABLED` (`docs/feature_flags.json:185`) armed on web 2026-10-04 (`a046f7d9f`); GEX live. Was `dark`. |
 | `FT-056` | Market Tide | `live` | Market Tide (`docs/feature_flags.json:161`) and per-sector tide (`docs/feature_flags.json:372`) armed on web 2026-10-04 (`a046f7d9f`). Was `building (Lane O)`. |
