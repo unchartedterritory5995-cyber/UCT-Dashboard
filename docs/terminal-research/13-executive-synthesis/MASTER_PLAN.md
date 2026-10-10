@@ -243,6 +243,41 @@ derived by the command in its §0, never typed.
     Try again in a moment." (`app/src/pages/charts/VersionHistory.jsx:134`,
     `app/src/pages/charts/VersionHistory.jsx:215-227`). The bound's own sentence is in the response
     but not shown. That is a wording follow-up, not a TERM-001 blocker.
+  - *(Added after readiness run 5, answered from the code.)* *How the census script reaches the
+    pod.* There is no Dockerfile and no `.dockerignore`; the web service builds with nixpacks
+    (`nixpacks.toml:1-19`) and the runtime image carries the whole repository tree
+    (`api/services/board_bound.py:4-5`), so a script under `tools/` is on the pod once its commit
+    has deployed to web. The sequence is therefore: land the script on master, wait for the web
+    deploy to reach SUCCESS, then run it over `railway ssh` from the repo root with
+    `/opt/venv/bin/python`. Nothing is pasted in by hand. The script must not import `conftest`.
+  - *Deleted rows in `charts_layouts`.* There are none to exclude. Deleting a layout is a hard
+    `DELETE` of its row (`api/services/charts_layout_service.py:254-262`); the undo history lives in
+    a separate store through `artifact_versions.record_delete`
+    (`api/services/artifact_versions.py:300-306`), not as a tombstone row in this table. Every row
+    in `charts_layouts` is a live saved layout, so the census counts all of them, minus the
+    Multi-Chart grids.
+  - *Vitest worker cap.* The config sets `maxWorkers: '50%'` (`app/vite.config.js:308`). On this
+    machine run it lower, scoped to the directory: from `app/`,
+    `npx vitest run src/pages/charts --maxWorkers=2`. The command-line value is honoured over the
+    config (measured, `docs/terminal-research/10-roadmap/testing-plan.md:305-309`). Read the
+    `Test Files` and `Tests` totals lines before the exit code.
+  - *Who uses the 2026-10-14 window.* The window was declared for the server-side readings: the
+    TERM-014 memory slope and the TERM-017 loop-lag histogram
+    (`docs/terminal-research/12-decisions/2026-10-07-owner-delegated-decisions.md:49`,
+    `docs/terminal-research/12-decisions/2026-10-07-owner-delegated-decisions.md:54`). The
+    measurement window is sole-occupancy (`docs/terminal-research/10-roadmap/backlog.md:725-726`).
+    A panel-curve run loads 1 to 16 charts on the same single web process, so it would disturb
+    those readings and does not share the 2026-10-14 window. It is optional; if taken, it goes in
+    a later standing Wednesday window (every Wednesday 09:00 to 11:00 ET, same decision row) that
+    carries no server reading.
+  - *Panel-curve run parameters.* Match the 2026-09-26 run: `?gridspike=N&tf=D`, the owner's own
+    Chrome signed in as the owner (an admin account; the harness is admin-only), identity checked
+    first through `/api/auth/me`, a visible foreground tab, viewport 2291 x 1248 at DPR 1
+    (`docs/terminal-research/10-roadmap/evidence/2026-09-26-protocol-c-and-gridspike/results.md:7-19`,
+    record format at `docs/terminal-research/10-roadmap/evidence/2026-09-26-protocol-c-and-gridspike/results.md:23-34`).
+    A browser run has no tool that writes `deployments_sampled`: list web's deployments before the
+    first N and after the last, and record the count of distinct deployments seen. Only a count
+    of 1 makes the 16 readings one series.
   - *Test baseline.* Frontend: `docs/plans/joystick/gate-baseline.json` (adopted 2026-09-24 at
     master `73a4286d0`); neither `boardBound.test.js` nor `ChartsWorkspace.test.jsx` is in it, so
     any red in them is new. Backend: `docs/test-baseline/python-failures.md` and `.json`.
