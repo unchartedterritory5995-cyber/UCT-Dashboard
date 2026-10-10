@@ -526,3 +526,74 @@ describe('formatPercentAsSent (completeness audit 2026-10-07)', () => {
     expect(formatPercentAsSent(Infinity, { absent: null })).toBe(null)
   })
 })
+
+describe('formatCompact options (TERM-066 round 2) — each defaults to the old behaviour', () => {
+  const M2 = [{ at: 1e6, suffix: 'M', decimals: 2 }]
+  const MK = [{ at: 1e6, suffix: 'M', decimals: 1 }, { at: 1e3, suffix: 'K', decimals: 0 }]
+
+  it('fixedUnit: the smallest tier covers every value below it', () => {
+    expect(formatCompact(400_000, { tiers: M2, fixedUnit: true })).toBe('0.40M')
+    expect(formatCompact(0, { tiers: M2, fixedUnit: true })).toBe('0.00M')
+    expect(formatCompact(-12_345, { tiers: M2, fixedUnit: true })).toBe('-0.01M')
+    expect(formatCompact(250, { tiers: MK, fixedUnit: true, prefix: '$' })).toBe('$0K')
+    // default unchanged: below the smallest tier is a bare integer
+    expect(formatCompact(400_000, { tiers: M2 })).toBe('400000')
+  })
+
+  it('trim: drops trailing zeros from a toFixed body, never from a round body', () => {
+    const B1 = [{ at: 1e9, suffix: 'B', decimals: 1 }, { at: 1e6, suffix: 'M', decimals: 'round' }]
+    expect(formatCompact(1e9, { tiers: B1, prefix: '$', trim: true })).toBe('$1B')
+    expect(formatCompact(2.54e9, { tiers: B1, prefix: '$', trim: true })).toBe('$2.5B')
+    expect(formatCompact(120e6, { tiers: B1, prefix: '$', trim: true })).toBe('$120M')
+    expect(formatCompact(1e9, { tiers: B1, prefix: '$' })).toBe('$1.0B') // default unchanged
+  })
+
+  it('decimals as a function of the magnitude: per-magnitude decimals in one tier', () => {
+    const tiers = [{ at: 1e6, suffix: 'M', decimals: (a) => (a >= 1e7 ? 0 : 1) }]
+    expect(formatCompact(2_340_000, { tiers })).toBe('2.3M')
+    expect(formatCompact(45_600_000, { tiers })).toBe('46M')
+    expect(formatCompact(-45_600_000, { tiers })).toBe('-46M') // chosen on |value|
+    const roundFn = [{ at: 1e3, suffix: 'K', decimals: () => 'round' }]
+    expect(formatCompact(2500, { tiers: roundFn })).toBe('3K')
+  })
+
+  it('promote: false keeps the tier the magnitude chose', () => {
+    expect(formatCompact(999_950, { tiers: MK })).toBe('1.0M') // default promotes
+    expect(formatCompact(999_950, { tiers: MK, promote: false })).toBe('1000K')
+    expect(formatCompact(999.6, { tiers: MK })).toBe('1K')
+    expect(formatCompact(999.6, { tiers: MK, promote: false })).toBe('1000')
+  })
+
+  it('a caller passing no new option renders exactly what the pre-option body rendered', () => {
+    // FROZEN ORACLE: formatCompact's body before these options existed, run in-process.
+    const sign = (prefix, body) => {
+      const t = String(body)
+      return !prefix || !t.startsWith('-') ? `${prefix}${t}` : `-${prefix}${t.slice(1)}`
+    }
+    const oracle = (value, { tiers, prefix = '' }) => {
+      if (!Number.isFinite(value)) return '—'
+      const n = Number(value); const magnitude = Math.abs(n)
+      const render = (i) => {
+        const { at, suffix, decimals } = tiers[i]
+        const body = decimals === 'round' ? Math.round(n / at) : (n / at).toFixed(decimals)
+        return { text: `${sign(prefix, body)}${suffix}`, rounded: Math.abs(Number(body)) * at }
+      }
+      const promote = (i, cur) => (i > 0 && cur.rounded >= tiers[i - 1].at ? render(i - 1).text : cur.text)
+      for (let i = 0; i < tiers.length; i++) if (magnitude >= tiers[i].at) return promote(i, render(i))
+      const whole = Math.round(n)
+      if (tiers.length && Math.abs(whole) >= tiers[tiers.length - 1].at) return render(tiers.length - 1).text
+      return sign(prefix, whole)
+    }
+    const ladders = [MK, M2, TERMINAL_COMPACT_TIERS,
+      [{ at: 1e9, suffix: 'B', decimals: 2 }, { at: 1e6, suffix: 'M', decimals: 'round' }]]
+    let seed = 11
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+    for (let i = 0; i < 20000; i++) {
+      let v = Math.pow(10, rnd() * 14) * (rnd() < 0.3 ? -1 : 1)
+      if (rnd() < 0.3) v = Math.round(v)
+      const tiers = ladders[i % ladders.length]
+      const prefix = i % 2 ? '$' : ''
+      expect(formatCompact(v, { tiers, prefix })).toBe(oracle(v, { tiers, prefix }))
+    }
+  })
+})

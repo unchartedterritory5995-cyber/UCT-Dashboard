@@ -5,18 +5,23 @@
  *   diversity · Today's return · Total return; the Stats list is CLOSED;
  *   analyst buckets: Buy = strongBuy+buy, Sell = sell+strongSell.
  */
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 import { currentPriceFor, todayReferenceFor, positionPnlDollar, money } from '../../../lib/journal-2-0'
 
 const fin = (v) => (Number.isFinite(v) ? v : null)
 const DASH = '—'
 
+// TERM-066: the ladder this grammar already had, passed to the one formatter.
+const VOLUME_TIERS = Object.freeze([
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 2 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 2 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 2 }),
+])
 /** Volume display: 950 · 12.50K · 2.00M · 3.10B. Null → —. */
 export function fmtVolume(v) {
   if (!Number.isFinite(v)) return DASH
   const abs = Math.abs(v)
-  if (abs >= 1e9) return `${(v / 1e9).toFixed(2)}B`
-  if (abs >= 1e6) return `${(v / 1e6).toFixed(2)}M`
-  if (abs >= 1e3) return `${(v / 1e3).toFixed(2)}K`
+  if (abs >= 1e3) return formatCompact(v, { tiers: VOLUME_TIERS })
   return String(Math.round(v))
 }
 

@@ -25,6 +25,7 @@
 import { useState, useRef, useEffect, useId } from 'react'
 import CompanyLogo from '../../../components/CompanyLogo'
 import styles from './SecuritySymbolInput.module.css'
+import Input from '../../../components/ui/Input'
 
 const DEBOUNCE_MS = 200
 const MAX_SUGGESTIONS = 8
@@ -44,6 +45,9 @@ export default function SecuritySymbolInput({
   autoFocus = false,
   className,
   id,
+  // TERM-067: the field's own accessible name. Both callers wrap it in a visible
+  // "Symbol *" label too; this keeps the combobox named wherever it is mounted.
+  'aria-label': ariaLabel = 'Symbol',
 }) {
   const [open, setOpen] = useState(false)
   const [suggestions, setSuggestions] = useState([])
@@ -172,7 +176,7 @@ export default function SecuritySymbolInput({
 
   return (
     <div ref={wrapRef} className={styles.wrap}>
-      <input
+      <Input aria-label={ariaLabel}
         ref={inputRef}
         id={inputId}
         type="text"

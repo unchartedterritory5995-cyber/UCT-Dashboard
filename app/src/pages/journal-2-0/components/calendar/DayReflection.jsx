@@ -14,6 +14,7 @@ import styles from './DayReflection.module.css'
 import VoiceInputButton from '../VoiceInputButton'
 import CompassAssistButton from '../../../../components/voice/CompassAssistButton'
 import UIcon from '../../../../components/ui/UIcon'
+import Textarea from '../../../../components/ui/Textarea'
 
 const AUTOSAVE_DEBOUNCE_MS = 1500
 
@@ -186,7 +187,7 @@ function Section({
               </button>
             )}
           </div>
-          <textarea
+          <Textarea aria-label={label}
             className={styles.textarea}
             value={text}
             onChange={handleChange}

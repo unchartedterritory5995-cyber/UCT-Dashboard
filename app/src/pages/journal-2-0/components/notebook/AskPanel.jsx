@@ -20,6 +20,7 @@ import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { trackNotebookEvent, NOTEBOOK_EVENTS } from '../../lib/notebookTelemetry'
 import AskInsertPicker from './AskInsertPicker'
 import styles from './AskPanel.module.css'
+import { failureDetail } from '../../../../lib/responseBody'
 
 // Wave K Slice 6 — THE Ask surface. One panel, four scopes.
 //
@@ -219,8 +220,8 @@ export default function AskPanel({
         signal: controller.signal,
       })
       if (r.status === 429) {
-        const d = await r.json().catch(() => null)
-        setStatus('limit'); setErrorMsg(d?.detail || RATE_LIMIT_MSG); return
+        // TERM-033: the 429's own reason, read explicitly; none readable → the stock sentence.
+        setStatus('limit'); setErrorMsg((await failureDetail(r)) || RATE_LIMIT_MSG); return
       }
       if (r.status === 402) { setStatus('limit'); setErrorMsg(PAID_MSG); return }
       if (r.status === 404) {

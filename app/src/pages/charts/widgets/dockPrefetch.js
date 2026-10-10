@@ -54,6 +54,12 @@ export function newsKey(sym, { limit = 25 } = {}) {
 
 const newsInflight = new Map()
 
+/** TERM-033: what a FAILED news head start resolves to. It means "the head start did not
+ *  arrive", never an answer: DockNews reads it by issuing its own request, and only that
+ *  request's failure is shown ("News is temporarily unavailable" + Retry). */
+export const NO_HEAD_START = null
+const noHeadStart = () => NO_HEAD_START
+
 /** Take a prefetched news response, if one is waiting for this exact URL. */
 export function takeNewsPrefetch(url) {
   const p = newsInflight.get(url)
@@ -86,10 +92,8 @@ export function prefetchPanel(sym, { fetcher = json } = {}) {
     try {
       // Kept as the RAW response promise: DockNews needs the status code to
       // tell a membership gate (402) from an outage, which a parsed body loses.
-      // TERM-033, SOFT ON PURPOSE: `null` here is a sentinel meaning "the head start did
-      // not arrive", never an answer. DockNews treats it by issuing its own request, whose
-      // failure renders "News is temporarily unavailable" with a Retry.
-      const p = fetch(nk).catch(() => null)
+      // TERM-033: a failed head start resolves to the named NO_HEAD_START sentinel above.
+      const p = fetch(nk).catch(noHeadStart)
       newsInflight.set(nk, p)
     } catch {
       /* ignore */

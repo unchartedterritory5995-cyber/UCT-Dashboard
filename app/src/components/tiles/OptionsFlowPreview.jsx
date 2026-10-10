@@ -2,6 +2,7 @@
 // Dashboard preview of the Options Flow conviction board — top 10 tickers by
 // net option premium, laid out as two rows of five. The whole tile links
 // through to the full /options-flow page (per-card and header).
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 import { Link } from 'react-router-dom'
 import useMobileSWR from '../../hooks/useMobileSWR'
 import TileCard from '../TileCard'
@@ -11,10 +12,14 @@ import styles from './OptionsFlowPreview.module.css'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
+// TERM-066: the ladder this grammar already had, passed to the one formatter.
+const PREMIUM_TIERS = Object.freeze([
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
 const fmt = (n) => {
   const a = Math.abs(n || 0)
-  if (a >= 1e6) return '$' + (a / 1e6).toFixed(1) + 'M'
-  if (a >= 1e3) return '$' + (a / 1e3).toFixed(0) + 'K'
+  if (a >= 1e3) return formatCompact(a, { tiers: PREMIUM_TIERS, prefix: '$' })
   return '$' + a.toFixed(0)
 }
 

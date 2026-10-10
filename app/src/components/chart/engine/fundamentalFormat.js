@@ -42,12 +42,18 @@ function marketIndicatorFormatOf(src) {
 // Barrels always read in millions (a stock of crude is never "0.4B" or "426,398K").
 const MBBL_TIERS = Object.freeze([Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 })])
 
+// TERM-066: T/B/M at the caller's `digits`, K always one decimal — the ladder
+// this grammar already had, passed to the one formatter.
+const compactTiers = (digits) => [
+  { at: 1e12, suffix: 'T', decimals: digits },
+  { at: 1e9, suffix: 'B', decimals: digits },
+  { at: 1e6, suffix: 'M', decimals: digits },
+  { at: 1e3, suffix: 'K', decimals: 1 },
+]
+
 function compact(v, digits = 2) {
   const n = Math.abs(v)
-  if (n >= 1e12) return `${(v / 1e12).toFixed(digits)}T`
-  if (n >= 1e9) return `${(v / 1e9).toFixed(digits)}B`
-  if (n >= 1e6) return `${(v / 1e6).toFixed(digits)}M`
-  if (n >= 1e3) return `${(v / 1e3).toFixed(1)}K`
+  if (n >= 1e3) return formatCompact(v, { tiers: compactTiers(digits) })
   return v.toFixed(0)
 }
 

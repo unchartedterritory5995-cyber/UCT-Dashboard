@@ -3,7 +3,7 @@
 // Packet Y CP3 (signed 2026-09-23, fingerprint 4007862bd) — admin-only
 // visibility panel for the Theme Membership Engine (api/routers/theme_engine.py
 // GET /status), which had zero frontend callers before this. Same
-// AiSearchInsightsPanel.jsx idiom: error-swallowing fetcher, one useSWR,
+// AiSearchInsightsPanel.jsx idiom: a throwing fetcher (TERM-033), one useSWR,
 // Admin.module.css classes only, no new stylesheet.
 //
 // Read-only. Does NOT wire /rollback, /dry-run, /suppress/.../dismiss or
@@ -13,12 +13,11 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import styles from '../../pages/Admin.module.css'
 import UIcon from '../ui/UIcon'
-
-// Error-swallowing fetcher — the panel must degrade to empty, never throw.
-// /api/theme-engine/status is require_admin-gated, so credentials:'include'
-// is load-bearing here (unlike a no-auth CP2 monitor, where it merely costs
-// nothing).
-const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read throws and is named on screen, never drawn as "No data yet".
+// /api/theme-engine/status is require_admin-gated; the read is same-origin, so the
+// session cookie rides it with fetch's default credentials.
+import { adminFetcher as fetcher } from './adminFetcher'
+import PanelReadError from './PanelReadError'
 
 // THEME_ENGINE_DAILY_COST_CAP's current default (api/services/theme_engine/orphans.py:177).
 // The /status endpoint does not publish the cap itself — keep this literal in
@@ -76,7 +75,7 @@ function runBadge(run) {
 }
 
 export default function ThemeEngineHealthPanel() {
-  const { data } = useSWR('/api/theme-engine/status', fetcher, { refreshInterval: 60000 })
+  const { data, error, mutate } = useSWR('/api/theme-engine/status', fetcher, { refreshInterval: 60000 })
   const [showAll, setShowAll] = useState(false)
 
   const dayCost = data?.day_cost_usd
@@ -111,7 +110,8 @@ export default function ThemeEngineHealthPanel() {
         )}
       </div>
 
-      {!data && <div className={styles.analyticsBarLabel} style={{ opacity: 0.6 }}>No data yet</div>}
+      <PanelReadError error={!data && error} what="the Theme Engine status" onRetry={mutate} />
+      {!data && !error && <div className={styles.analyticsBarLabel} style={{ opacity: 0.6 }}>No data yet</div>}
       {data && runs.length === 0 && (
         <div className={styles.analyticsBarLabel} style={{ opacity: 0.6 }}>No runs recorded yet</div>
       )}

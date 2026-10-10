@@ -1,4 +1,5 @@
 import styles from './FilterBand.module.css'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 /* FilterBand — the measured universe distribution, ON SCREEN, under the control
  * a member is about to set a threshold on.
@@ -58,13 +59,19 @@ import styles from './FilterBand.module.css'
 // value rides in `title` on every cell. Nearest-rank guarantees each of these
 // is a value some symbol actually holds, so rounding is a display choice about
 // a real number, not an invented one.
+// TERM-066: each tier drops its decimal once the value reaches ten of its units
+// (12.5M, 45M); K starts at 10K. Never promoted: the old text is pinned.
+const tenOf = (unit) => (a) => (a >= 10 * unit ? 0 : 1)
+const BAND_TIERS = Object.freeze([
+  Object.freeze({ at: 1e12, suffix: 'T', decimals: tenOf(1e12) }),
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: tenOf(1e9) }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: tenOf(1e6) }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: tenOf(1e4) }),
+])
 const compact = v => {
   if (typeof v !== 'number' || !Number.isFinite(v)) return '—'
   const a = Math.abs(v)
-  if (a >= 1e12) return `${(v / 1e12).toFixed(a >= 1e13 ? 0 : 1)}T`
-  if (a >= 1e9) return `${(v / 1e9).toFixed(a >= 1e10 ? 0 : 1)}B`
-  if (a >= 1e6) return `${(v / 1e6).toFixed(a >= 1e7 ? 0 : 1)}M`
-  if (a >= 1e4) return `${(v / 1e3).toFixed(a >= 1e5 ? 0 : 1)}K`
+  if (a >= 1e4) return formatCompact(v, { tiers: BAND_TIERS, promote: false })
   if (a >= 100) return v.toFixed(a >= 1000 ? 0 : 1)
   if (a >= 1) return v.toFixed(2)
   if (a === 0) return '0'

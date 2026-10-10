@@ -21,8 +21,9 @@ function countIn(src) {
   return (stripComments(src).match(SWALLOW_RE) || []).length
 }
 
-function census(root) {
+function census(root, stats = {}) {
   const out = {}
+  stats.scanned = 0
   const walk = (dir) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       if (e.name === 'node_modules' || e.name.startsWith('.')) continue
@@ -30,6 +31,7 @@ function census(root) {
       if (e.isDirectory()) { walk(p); continue }
       if (!/\.(jsx?|mjs)$/.test(e.name) || /\.test\.(jsx?|mjs)$/.test(e.name)) continue
       if (/__tests__/.test(p)) continue
+      stats.scanned += 1
       const n = countIn(fs.readFileSync(p, 'utf8'))
       if (n) out[path.relative(root, p).split(path.sep).join('/')] = n
     }
@@ -41,10 +43,18 @@ function census(root) {
 const SRC = path.resolve(__dirname, '..')
 
 describe('TERM-033: `.catch(() => null)` is a shrink-only census', () => {
-  const now = census(SRC)
+  const stats = {}
+  const now = census(SRC, stats)
 
+  // ⭐ The population control used to be "more than 20 FILES carry a site". The drain
+  // (lane f-l7, 37 -> 2) made that unsatisfiable by succeeding, so the control now asks
+  // what it always meant: did the walk actually read app/src (a broken walk reads nothing
+  // and passes everything), and does it still SEE the sites it keeps?
   it('the scan sees the population (a broken walk would pass everything)', () => {
-    expect(Object.keys(now).length).toBeGreaterThan(20)
+    expect(stats.scanned, 'source files read by the walk').toBeGreaterThan(1000)
+    for (const f of Object.keys(baseline.files)) {
+      expect(now[f] || 0, `${f} is on the baseline; the walk must see its sites`).toBeGreaterThan(0)
+    }
   })
 
   it('no file gains a site, and no new file adopts the idiom', () => {

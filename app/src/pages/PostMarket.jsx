@@ -1,3 +1,4 @@
+import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import useMobileSWR from '../hooks/useMobileSWR'
 import TickerPopup from '../components/TickerPopup'
 import styles from './PostMarket.module.css'
@@ -10,10 +11,14 @@ const SESSION_LABELS = {
   regular:     'Market Open',
 }
 
+// TERM-066: the ladder this grammar already had, passed to the one formatter.
+const VOLUME_TIERS = Object.freeze([
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
 function formatVolume(v) {
   if (!v) return '—'
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
-  if (v >= 1_000) return `${(v / 1_000).toFixed(0)}K`
+  if (v >= 1_000) return formatCompact(v, { tiers: VOLUME_TIERS })
   return String(v)
 }
 

@@ -9,6 +9,7 @@ import useSWR, { useSWRConfig } from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
 import { money, moneySigned } from '../../../../lib/journal-2-0'
 import styles from './GoalProgress.module.css'
+import Input from '../../../../components/ui/Input'
 
 const PERIODS = [
   { key: 'daily',   label: 'Daily',   defaultTarget: 95.24 },
@@ -109,7 +110,7 @@ export default function GoalProgress({ account, progress: progressProp = null })
                 {editing === p.key ? (
                   <span className={styles.editCtrls}>
                     <span className={styles.dollarSign}>$</span>
-                    <input
+                    <Input aria-label={`${p.label} target`}
                       type="number"
                       value={editVal}
                       onChange={(e) => setEditVal(e.target.value)}

@@ -18,6 +18,13 @@
  * fail at runtime, inside the worker, where it is easy to miss.
  */
 
+import { formatCompact } from '../../lib/presentation/presentationPrimitives';
+
+// TERM-066: the LEAPS name chips always print millions at one decimal ("$0.4M"),
+// so the one tier also covers everything below it. `absent` echoes the old
+// text for a non-finite sum ("NaNM"), keeping this mirror byte-identical.
+const LEAPS_M1 = Object.freeze([Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 })]);
+
 // ─── Color Palette ─────────────────────────────────────────────────────────────
 // ⛔ THESE ARE MIRRORS OF `app/src/styles/tokens.css`, NOT INDEPENDENT CHOICES.
 //
@@ -633,7 +640,7 @@ function _buildCharts(cc) {
   const LEAPS_EXPS = Object.values(leapsExpMap).sort((a,b)=>b.p-a.p).slice(0,6)
     .map(e => ({ exp:e.exp, p:e.p, n:e.n, dte:e.dte+"d",
       names: Object.entries(e.syms).sort((a,b)=>b[1]-a[1]).slice(0,3)
-        .map(([s,p])=>s+" $"+(p/1e6).toFixed(1)+"M").join(", ") }));
+        .map(([s,p])=>s+" $"+formatCompact(+p, { tiers: LEAPS_M1, fixedUnit: true, absent: `${+p}M` })).join(", ") }));
   const allCons = {}; const consTrades = {};
   cc.forEach(t => {
     const k = t.S+"|"+t.CP+"|"+t.K+"|"+t.E;

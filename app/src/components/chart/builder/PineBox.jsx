@@ -583,8 +583,12 @@ function memberSettings(settings) {
  *  for the same chunk: this is an inline enhancement of a box that already
  *  works, and a hard reload would throw away a member's draft. */
 function loadEditor() {
-  return import('./editor/CodeEditor').then((m) => m.default).catch(() => null)
+  return import('./editor/CodeEditor').then((m) => m.default).catch(() => TEXTAREA_FALLBACK)
 }
+
+/** TERM-033: what a failed chunk load resolves to, by name: no editor, so the textarea
+ *  (already mounted and already the value carrier) stays the box. Never a reload. */
+const TEXTAREA_FALLBACK = null
 
 function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry }) {
   const inspect = useCallback(

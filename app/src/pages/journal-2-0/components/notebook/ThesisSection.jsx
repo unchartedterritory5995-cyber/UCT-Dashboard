@@ -16,6 +16,7 @@ import { searchResultTitle } from '../../lib/searchResultLabel'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './ThesisSection.module.css'
+import Input from '../../../../components/ui/Input'
 
 const THESIS_RESEARCH_TYPES = new Set(['long_thesis', 'short_thesis'])
 
@@ -487,7 +488,7 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource,
                 </div>
               ) : (
                 <>
-                  <input
+                  <Input aria-label="Search notes"
                     type="text"
                     className={styles.searchInput}
                     placeholder="Search notes…"
@@ -542,7 +543,7 @@ export default function ThesisSection({ noteId, note, onOpenExcerptSource,
               )
             )}
 
-            <input
+            <Input aria-label="Why this matters"
               type="text"
               className={styles.searchInput}
               placeholder="Why this matters (optional)"

@@ -1,3 +1,4 @@
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './EarningsMarkerPopover.module.css'
@@ -16,15 +17,19 @@ function fmtNum(v, dp = 2) {
 }
 
 // Revenue / large notional: $23.86B, $412.0M, $1.2T.
+// TERM-066: the ladder fmtBig already had, passed to the one formatter.
+const BIG_TIERS = Object.freeze([
+  Object.freeze({ at: 1e12, suffix: 'T', decimals: 2 }),
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 2 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 1 }),
+])
 function fmtBig(v) {
   if (v == null || !Number.isFinite(+v)) return '—'
   const n = +v
   const a = Math.abs(n)
   const sign = n < 0 ? '-' : ''
-  if (a >= 1e12) return `${sign}${(a / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `${sign}${(a / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${sign}${(a / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `${sign}${(a / 1e3).toFixed(1)}K`
+  if (a >= 1e3) return formatCompact(n, { tiers: BIG_TIERS })
   return `${sign}${a.toFixed(0)}`
 }
 

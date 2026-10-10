@@ -439,3 +439,22 @@ def test_recorded_session_draws_as_an_observed_candle(tmp_path, monkeypatch):
     assert blu._intraday_path("2026-10-12", "nyse", "pct_above_50sma") == (30.0, 35.4, 27.2)
     assert blu._intraday_path("2026-10-12", "us", "pct_above_50sma") is None
     blu._intra.clear(); blu._intra_loaded["done"] = False
+
+
+def test_live_members_follow_the_authoritys_list_plus_new_listings(monkeypatch):
+    """2026-10-10: the provider list carried untraded shells the authority does not count
+    (Nasdaq drift 4.3% vs the 5% guard). Live members = authority list + names listed since."""
+    rec = lambda ex, ld="2020-01-01": [{"type": "CS", "primary_exchange": ex, "list_date": ld, "delisted_utc": None}]
+    ref = {"AAPL": rec("XNAS"), "SHELL": rec("XNAS"), "IPO": rec("XNAS", "2026-10-09"),
+           "IBM": rec("XNYS"), "BRK.B": rec("XNYS")}
+    monkeypatch.setattr(blu, "_active_reference", lambda: ref)
+    monkeypatch.setattr(blu, "official_members", lambda session=None: {
+        "session": "2026-10-08", "us": ["AAPL", "IBM", "BRK.B"], "nasdaq": ["AAPL"], "nyse": ["IBM", "BRK.B"]})
+    blu._members_cache.clear()
+    m = blu.members("2026-10-09")
+    assert m["nasdaq"] == ["AAPL", "IPO"]                 # SHELL dropped, the new listing kept
+    assert m["nyse"] == ["BRK.B", "IBM"] and "SHELL" not in m["us"]
+    blu._members_cache.clear()
+    monkeypatch.setattr(blu, "official_members", lambda session=None: None)
+    assert "SHELL" in blu.members("2026-10-09")["nasdaq"]   # fallback: the provider list
+    blu._members_cache.clear()

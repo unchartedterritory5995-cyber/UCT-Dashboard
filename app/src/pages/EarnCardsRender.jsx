@@ -10,6 +10,7 @@
 // exists wire-side at build time; the wire stays the single source of truth.
 // Public route (no AuthGuard); ?token= checked against VITE_CHART_RENDER_TOKEN.
 
+import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import uctLogo from '../components/intro/assets/compass-mark.png'
@@ -22,10 +23,13 @@ const SESS = {
   TBD: { label: 'TIME TBD', color: '#9aa08f', bg: 'rgba(180,180,180,0.10)' },
 }
 
+// TERM-066: revenue arrives in MILLIONS, so the B tier sits at 1,000 (one decimal);
+// below it the value prints as whole millions, as it always has.
+const REV_B_TIERS = Object.freeze([Object.freeze({ at: 1000, suffix: 'B', decimals: 1 })])
 const revB = (m) => {
   const v = Number(m)
   if (!Number.isFinite(v) || v <= 0) return '—'
-  return v >= 1000 ? `$${(v / 1000).toFixed(1)}B` : `$${v.toFixed(0)}M`
+  return v >= 1000 ? formatCompact(v, { tiers: REV_B_TIERS, prefix: '$' }) : `$${v.toFixed(0)}M`
 }
 // Sign BEFORE the dollar: "-$5.34", never "$-5.34" (owner ruling 2026-09-29).
 // null/'' are "no figure" (Number(null) is 0 and would print "$0.00").

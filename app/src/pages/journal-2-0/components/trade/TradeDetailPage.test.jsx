@@ -150,9 +150,16 @@ const swrData = {
   '/api/j2/trades/missing': null,
 }
 
+// TERM-033: keys whose read FAILED (the fetcher throws; SWR reports `error`).
+const swrErrors = {
+  '/api/j2/trades/broken': Object.assign(new Error('Request failed (500)'), { status: 500 }),
+  '/api/j2/trades/gone': Object.assign(new Error('Request failed (404)'), { status: 404 }),
+}
+
 vi.mock('swr', () => ({
   default: (key) => ({
     data: key ? (swrData[key] ?? null) : null,
+    error: key ? swrErrors[key] : undefined,
     isLoading: false,
     mutate: vi.fn(),
   }),
@@ -260,6 +267,19 @@ describe('TradeDetailPage', () => {
   it('renders the missing state for an unknown / option id', () => {
     renderPage('missing')
     expect(screen.getByText(/isn’t available/)).toBeInTheDocument()
+  })
+
+  it('TERM-033: a failed read says it failed, never "may have been deleted"', () => {
+    renderPage('broken')
+    expect(screen.getByRole('alert').textContent).toMatch(/could not be loaded/)
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    expect(screen.queryByText(/isn’t available/)).toBeNull()
+  })
+
+  it('TERM-033 control: a 404 is still the honest "isn’t available"', () => {
+    renderPage('gone')
+    expect(screen.getByText(/isn’t available/)).toBeInTheDocument()
+    expect(screen.queryByText(/could not be loaded/)).toBeNull()
   })
 })
 

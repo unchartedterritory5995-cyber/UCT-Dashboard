@@ -15,6 +15,7 @@ import UnlimitedBadge from './UnlimitedBadge'
 import { VoiceContext } from '../../../context/VoiceContext'
 import useRealtimeSession from '../../../hooks/useRealtimeSession'
 import styles from './CompassChat.module.css'
+import Textarea from '../../../components/ui/Textarea'
 
 const SUGGESTED_PROMPTS = [
   'How am I doing this week?',
@@ -315,7 +316,7 @@ export default function CompassChat({ accountId }) {
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
           <UnlimitedBadge />
         </div>
-        <textarea
+        <Textarea aria-label="Message Compass"
           rows={2}
           className={styles.composerInput}
           value={input}

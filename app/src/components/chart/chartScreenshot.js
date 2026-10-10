@@ -1,4 +1,5 @@
 // app/src/components/chart/chartScreenshot.js
+import { formatCompact } from '../../lib/presentation/presentationPrimitives';
 import compassSrc from '../intro/assets/compass-mark.png';
 
 // Load the compass mark once (cached promise). Resolves null on failure so a
@@ -17,15 +18,19 @@ function loadCompass() {
 }
 
 // Compact formatters for the redrawn legend / volume text.
+// TERM-066: the ladder _fmtVol already had, passed to the one formatter.
+const VOL_TIERS = Object.freeze([
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 2 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 1 }),
+])
 function _fmtNum(v) {
   return (v != null && Number.isFinite(+v)) ? (+v).toFixed(2) : '—';
 }
 function _fmtVol(v) {
   if (v == null || !Number.isFinite(+v)) return '—';
   const n = Math.abs(+v);
-  if (n >= 1e9) return `${(+v / 1e9).toFixed(2)}B`;
-  if (n >= 1e6) return `${(+v / 1e6).toFixed(1)}M`;
-  if (n >= 1e3) return `${(+v / 1e3).toFixed(1)}K`;
+  if (n >= 1e3) return formatCompact(+v, { tiers: VOL_TIERS });
   return `${+v}`;
 }
 /* ⚰️ `_fmtNotional` STOOD HERE and had exactly one caller — the `$ Vol` chip this

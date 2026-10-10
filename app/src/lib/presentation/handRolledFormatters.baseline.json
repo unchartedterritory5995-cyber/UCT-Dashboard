@@ -10,33 +10,10 @@
     "asserts these bytes are exactly what its writer produces."
   ],
   "sites": {
-    "app/src/components/StockChart.jsx": 5,
-    "app/src/components/chart/EarningsMarkerPopover.jsx": 4,
-    "app/src/components/chart/chartScreenshot.js": 3,
-    "app/src/components/chart/darkPoolCluster.js": 3,
-    "app/src/components/chart/engine/fundamentalFormat.js": 4,
-    "app/src/components/chart/engine/readout.js": 4,
-    "app/src/components/chart/headerFields.js": 7,
-    "app/src/components/chart/signatureData.js": 2,
-    "app/src/components/tiles/CatalystFlow.jsx": 1,
-    "app/src/components/tiles/OptionsFlowPreview.jsx": 2,
-    "app/src/pages/AlertTester.jsx": 7,
-    "app/src/pages/ChartRender.jsx": 3,
-    "app/src/pages/Confluence.jsx": 3,
     "app/src/pages/DarkPool.jsx": 10,
-    "app/src/pages/EarnCardsRender.jsx": 1,
-    "app/src/pages/EarnResultsRender.jsx": 1,
     "app/src/pages/LiveFlow.jsx": 2,
-    "app/src/pages/LiveFlowMassive.jsx": 8,
     "app/src/pages/LiveFlow_admin.jsx": 2,
-    "app/src/pages/ModelBook.jsx": 6,
-    "app/src/pages/OpenFlow.jsx": 2,
     "app/src/pages/OptionsFlow.jsx": 18,
-    "app/src/pages/OptionsFlow_admin.jsx": 39,
-    "app/src/pages/PostMarket.jsx": 2,
-    "app/src/pages/charts/widgets/DockFundamentals.jsx": 3,
-    "app/src/pages/journal-2-0/lib/positionDetail.js": 3,
-    "app/src/pages/optionsFlow/flowCompute.js": 1,
-    "app/src/pages/screener/shell/FilterBand.jsx": 4
+    "app/src/pages/OptionsFlow_admin.jsx": 39
   }
 }

@@ -4,9 +4,18 @@
  * parallel), then sums cash + Σ(close × signedShares) + option market value at
  * each timestamp via the pure buildIntradayEquitySeries. Options are flat (no
  * intraday quote). Only runs when `enabled` (i.e. the 1D range is selected).
+ *
+ * TERM-033: a holding whose bars could not be READ is not a holding that did not
+ * move. The builder forward-fills a symbol with no bars at its previous close, so a
+ * swallowed failure drew that holding flat all session and the curve's shape was made
+ * up. A failed read now withholds the reconstruction (series null, `failedSymbols`
+ * names them) rather than draw a curve that is partly invented.
  */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { buildIntradayEquitySeries } from '../lib/intradayEquity'
+
+// TERM-033: the marker a FAILED bars read resolves to (never an empty session).
+const BARS_FAILED = Symbol('bars read failed')
 
 const etDateOf = (epochSeconds) =>
   new Date(epochSeconds * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
@@ -20,6 +29,7 @@ export default function useIntradayEquityCurve({
 }) {
   const [series, setSeries] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [failedSymbols, setFailedSymbols] = useState([])
 
   const symbols = useMemo(
     () => positions.filter((p) => p && !p.isOption && Number.isFinite(p.shares)).map((p) => p.symbol),
@@ -39,6 +49,7 @@ export default function useIntradayEquityCurve({
   useEffect(() => {
     if (!enabled || !symbols.length) {
       setSeries(null)
+      setFailedSymbols([])
       return undefined
     }
     let cancelled = false
@@ -48,17 +59,29 @@ export default function useIntradayEquityCurve({
     Promise.all(
       symbols.map((sym) =>
         fetch(`/api/bars/${encodeURIComponent(sym)}?tf=5&bars=160`, { credentials: 'include' })
-          .then((r) => (r.ok ? r.json() : null))
-          .catch(() => null)
-          .then((d) => {
-            const bars = (d?.bars || []).filter(
-              (b) => typeof b?.t === 'number' && etDateOf(b.t) === todayET,
-            )
-            return [sym, bars]
-          }),
+          .then((r) => {
+            if (!r.ok) throw new Error(`Request failed (${r.status})`)
+            return r.json()
+          })
+          .then(
+            (d) => {
+              const bars = (d?.bars || []).filter(
+                (b) => typeof b?.t === 'number' && etDateOf(b.t) === todayET,
+              )
+              return [sym, bars]
+            },
+            () => [sym, BARS_FAILED],
+          ),
       ),
     ).then((pairs) => {
       if (cancelled) return
+      const failed = pairs.filter(([, bars]) => bars === BARS_FAILED).map(([sym]) => sym)
+      setFailedSymbols(failed)
+      if (failed.length) {
+        setSeries(null)
+        setLoading(false)
+        return
+      }
       const barsBySymbol = Object.fromEntries(pairs)
       const prevCloseBySymbol = {}
       const latestPrices = pricesRef.current
@@ -81,5 +104,5 @@ export default function useIntradayEquityCurve({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, symKey, prevKey, cash, optionMarketValue])
 
-  return { series, loading }
+  return { series, loading, failedSymbols }
 }

@@ -276,29 +276,54 @@ export function formatCompactTerminal(value, { money = false, absent = ABSENT } 
  * `+v`) or gate (`n <= 0 → '—'`) keep doing so at their own boundary, where
  * the unit and the missing-value rule are known.
  *
+ * ── OPTIONS FOR THE GRAMMARS THE LADDER ALONE COULD NOT CARRY (TERM-066) ──
+ * Every one defaults to the behaviour above, so a caller that passes none of
+ * them renders byte-for-byte what it did before these options existed.
+ *
+ *   • `decimals` may also be a FUNCTION of the magnitude (`Math.abs(value)`)
+ *     returning a number or `'round'` — per-magnitude decimals inside one tier
+ *     (the screener band's "12.5M" below 10M, "45M" above it).
+ *   • `trim: true` drops trailing zeros from a `toFixed` body ("$1B", not
+ *     "$1.0B"; "2.5", not "2.50") — `String(parseFloat(body))`, the grammar
+ *     the signature levels already used. `'round'` bodies are unaffected.
+ *   • `fixedUnit: true` — the SMALLEST tier also covers every value below it,
+ *     so a ladder of one tier is a fixed unit ("0.40M", never "400000"), and a
+ *     two-tier ladder never falls through to a bare integer ("$0K").
+ *   • `promote: false` — keep the tier the magnitude chose even when rounding
+ *     reaches the next tier's threshold ("1000K", "$1000M"). For grammars
+ *     whose existing output is pinned exactly; new callers should leave it on.
+ *
  * @param {*} value
- * @param {{tiers?: Array<{at:number, suffix:string, decimals:number|'round'}>,
- *          prefix?: string, absent?: *}} [options]
+ * @param {{tiers?: Array<{at:number, suffix:string,
+ *            decimals:number|'round'|((magnitude:number)=>number|'round')}>,
+ *          prefix?: string, absent?: *, trim?: boolean, fixedUnit?: boolean,
+ *          promote?: boolean}} [options]
  */
-export function formatCompact(value, { tiers = COMPACT_TIERS, prefix = '', absent = ABSENT } = {}) {
+export function formatCompact(value, {
+  tiers = COMPACT_TIERS, prefix = '', absent = ABSENT,
+  trim = false, fixedUnit = false, promote = true,
+} = {}) {
   if (!Number.isFinite(value)) return absent
   const n = Number(value)
   const magnitude = Math.abs(n)
   const render = (i) => {
-    const { at, suffix, decimals } = tiers[i]
+    const { at, suffix } = tiers[i]
+    const decimals = typeof tiers[i].decimals === 'function' ? tiers[i].decimals(magnitude) : tiers[i].decimals
     const scaled = n / at
-    const body = decimals === 'round' ? Math.round(scaled) : scaled.toFixed(decimals)
+    let body = decimals === 'round' ? Math.round(scaled) : scaled.toFixed(decimals)
+    if (trim && decimals !== 'round') body = String(parseFloat(body))
     return { text: `${signOutside(prefix, body)}${suffix}`, rounded: Math.abs(Number(body)) * at }
   }
   // ⛔ A value that ROUNDS up to the next tier's threshold prints in the next tier: 999,999 on
   // the terminal ladder is "1.0M", not "1000K" (accuracy audit 2026-10-06, design note 2). The
   // tier is chosen on the magnitude first, then promoted once if rounding carried it over.
-  const promote = (i, cur) => (i > 0 && cur.rounded >= tiers[i - 1].at ? render(i - 1).text : cur.text)
+  const promoted = (i, cur) => (promote && i > 0 && cur.rounded >= tiers[i - 1].at ? render(i - 1).text : cur.text)
   for (let i = 0; i < tiers.length; i++) {
-    if (magnitude >= tiers[i].at) return promote(i, render(i))
+    if (magnitude >= tiers[i].at) return promoted(i, render(i))
   }
+  if (fixedUnit && tiers.length) return render(tiers.length - 1).text
   const whole = Math.round(n)
-  if (tiers.length && Math.abs(whole) >= tiers[tiers.length - 1].at) return render(tiers.length - 1).text
+  if (promote && tiers.length && Math.abs(whole) >= tiers[tiers.length - 1].at) return render(tiers.length - 1).text
   return signOutside(prefix, whole)
 }
 

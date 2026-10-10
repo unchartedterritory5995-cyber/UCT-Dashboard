@@ -1,7 +1,12 @@
 import useSWR from 'swr'
 import styles from './RsBadge.module.css'
+import { sectionFetcher } from './research/sections/sectionFetch'
 
-const fetcher = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS, so SWR keeps the last good rank through a failed
+// hourly refresh instead of replacing it with null. With no rank to stand on, the chip
+// renders nothing: an absent chip claims no rank, so it states nothing false. A 402 is
+// an absent rank too.
+const fetcher = (u) => sectionFetcher(u).then((d) => (d?.paywalled ? null : d))
 
 function tierClass(r) {
   if (r >= 80) return styles.lead     // leadership

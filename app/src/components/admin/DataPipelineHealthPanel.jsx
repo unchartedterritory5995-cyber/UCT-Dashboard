@@ -4,7 +4,7 @@
 // visibility panel over the 12 no-auth, read-only, self-documented data
 // pipeline health monitors (see the packet's SHAPE A table), every one of
 // which had zero frontend callers before this. Modeled directly on
-// AiSearchInsightsPanel.jsx's idiom: error-swallowing fetcher, one useSWR per
+// AiSearchInsightsPanel.jsx's idiom: a throwing fetcher (TERM-033), one useSWR per
 // monitor, Admin.module.css classes only, no new stylesheet.
 //
 // Field mapping is read from each route's ACTUAL response shape (verified
@@ -14,11 +14,9 @@
 import useSWR from 'swr'
 import styles from '../../pages/Admin.module.css'
 import UIcon from '../ui/UIcon'
-
-// Error-swallowing fetcher — the panel must degrade to empty, never throw.
-// credentials:'include' costs nothing on these no-auth routes and keeps the
-// fetcher byte-identical to every other admin panel in this file.
-const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read throws (the shared admin fetcher). A row whose read failed
+// says "not loaded", never "no data": for a health monitor the failure IS the finding.
+import { adminFetcher as fetcher } from './adminFetcher'
 
 const REFRESH_MS = 60000
 
@@ -41,10 +39,11 @@ function Badge({ tone, children }) {
 
 // One compact row: name / last-run value / one headline number / a
 // flagged-or-clean badge, per the packet's CP2 field-mapping table.
-function MonitorRow({ name, data, view }) {
+function MonitorRow({ name, read, view }) {
   // `view(data)` returns { lastRun, headline, tone, label } for a real
-  // payload; a null/undefined `data` (fetch still pending or failed) renders
-  // as an em-dash row without calling into per-monitor field logic.
+  // payload; a pending or failed read renders as an em-dash row without
+  // calling into per-monitor field logic, and a failed one is badged as such.
+  const { data, error } = read
   const v = data ? view(data) : null
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
   return (
@@ -56,7 +55,7 @@ function MonitorRow({ name, data, view }) {
       <span style={{ flex: 1, fontSize: 12, color: 'var(--text)' }}>
         {v ? v.headline : '—'}
       </span>
-      <Badge tone={v ? v.tone : 'info'}>{v ? v.label : 'no data'}</Badge>
+      <Badge tone={v ? v.tone : error ? 'flagged' : 'info'}>{v ? v.label : error ? 'not loaded' : 'no data'}</Badge>
     </div>
   )
 }
@@ -200,18 +199,18 @@ function viewYfinanceGuard(d) {
 
 export default function DataPipelineHealthPanel() {
   const opts = { refreshInterval: REFRESH_MS }
-  const { data: fundamentals } = useSWR('/api/admin/fundamentals-health', fetcher, opts)
-  const { data: reconciliation } = useSWR('/api/admin/reconciliation-status', fetcher, opts)
-  const { data: barsStream } = useSWR('/api/admin/bars-stream-status', fetcher, opts)
-  const { data: warmUniverse } = useSWR('/api/admin/warm-universe-status', fetcher, opts)
-  const { data: providerCoverage } = useSWR('/api/admin/provider-coverage', fetcher, opts)
-  const { data: calendarDateIntegrity } = useSWR('/api/admin/calendar-date-integrity', fetcher, opts)
-  const { data: calendarCoverage } = useSWR('/api/admin/calendar-coverage-status', fetcher, opts)
-  const { data: calendarEnrichment } = useSWR('/api/admin/calendar-enrichment-status', fetcher, opts)
-  const { data: impliedSweep } = useSWR('/api/admin/implied-sweep-status', fetcher, opts)
-  const { data: callRecap } = useSWR('/api/admin/call-recap-status', fetcher, opts)
-  const { data: transcriptIndex } = useSWR('/api/admin/transcript-index-status', fetcher, opts)
-  const { data: yfinanceGuard } = useSWR('/api/admin/yfinance-guard', fetcher, opts)
+  const fundamentals = useSWR('/api/admin/fundamentals-health', fetcher, opts)
+  const reconciliation = useSWR('/api/admin/reconciliation-status', fetcher, opts)
+  const barsStream = useSWR('/api/admin/bars-stream-status', fetcher, opts)
+  const warmUniverse = useSWR('/api/admin/warm-universe-status', fetcher, opts)
+  const providerCoverage = useSWR('/api/admin/provider-coverage', fetcher, opts)
+  const calendarDateIntegrity = useSWR('/api/admin/calendar-date-integrity', fetcher, opts)
+  const calendarCoverage = useSWR('/api/admin/calendar-coverage-status', fetcher, opts)
+  const calendarEnrichment = useSWR('/api/admin/calendar-enrichment-status', fetcher, opts)
+  const impliedSweep = useSWR('/api/admin/implied-sweep-status', fetcher, opts)
+  const callRecap = useSWR('/api/admin/call-recap-status', fetcher, opts)
+  const transcriptIndex = useSWR('/api/admin/transcript-index-status', fetcher, opts)
+  const yfinanceGuard = useSWR('/api/admin/yfinance-guard', fetcher, opts)
 
   return (
     <div className={styles.healthSection}>
@@ -225,18 +224,18 @@ export default function DataPipelineHealthPanel() {
       </div>
 
       <div className={styles.activityList} style={{ maxHeight: 'none' }}>
-        <MonitorRow name="Fundamentals Accuracy" data={fundamentals} view={viewFundamentals} />
-        <MonitorRow name="Bars Reconciliation" data={reconciliation} view={viewReconciliation} />
-        <MonitorRow name="Bars Push Feed" data={barsStream} view={viewBarsStream} />
-        <MonitorRow name="Warm Universe" data={warmUniverse} view={viewWarmUniverse} />
-        <MonitorRow name="Provider Coverage" data={providerCoverage} view={viewProviderCoverage} />
-        <MonitorRow name="Calendar Date Integrity" data={calendarDateIntegrity} view={viewCalendarDateIntegrity} />
-        <MonitorRow name="Calendar Coverage" data={calendarCoverage} view={viewCalendarCoverage} />
-        <MonitorRow name="Calendar Enrichment" data={calendarEnrichment} view={viewCalendarEnrichment} />
-        <MonitorRow name="Implied Sweep" data={impliedSweep} view={viewImpliedSweep} />
-        <MonitorRow name="Call Recap" data={callRecap} view={viewCallRecap} />
-        <MonitorRow name="Transcript Index" data={transcriptIndex} view={viewTranscriptIndex} />
-        <MonitorRow name="yfinance Guard" data={yfinanceGuard} view={viewYfinanceGuard} />
+        <MonitorRow name="Fundamentals Accuracy" read={fundamentals} view={viewFundamentals} />
+        <MonitorRow name="Bars Reconciliation" read={reconciliation} view={viewReconciliation} />
+        <MonitorRow name="Bars Push Feed" read={barsStream} view={viewBarsStream} />
+        <MonitorRow name="Warm Universe" read={warmUniverse} view={viewWarmUniverse} />
+        <MonitorRow name="Provider Coverage" read={providerCoverage} view={viewProviderCoverage} />
+        <MonitorRow name="Calendar Date Integrity" read={calendarDateIntegrity} view={viewCalendarDateIntegrity} />
+        <MonitorRow name="Calendar Coverage" read={calendarCoverage} view={viewCalendarCoverage} />
+        <MonitorRow name="Calendar Enrichment" read={calendarEnrichment} view={viewCalendarEnrichment} />
+        <MonitorRow name="Implied Sweep" read={impliedSweep} view={viewImpliedSweep} />
+        <MonitorRow name="Call Recap" read={callRecap} view={viewCallRecap} />
+        <MonitorRow name="Transcript Index" read={transcriptIndex} view={viewTranscriptIndex} />
+        <MonitorRow name="yfinance Guard" read={yfinanceGuard} view={viewYfinanceGuard} />
       </div>
     </div>
   )

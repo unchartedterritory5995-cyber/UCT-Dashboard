@@ -12,9 +12,8 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import styles from '../../pages/Admin.module.css'
 import UIcon from '../ui/UIcon'
-
-// Error-swallowing fetcher -- the panel must degrade to empty, never throw.
-const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+import { adminFetcher as fetcher } from './adminFetcher'
+import PanelReadError from './PanelReadError'
 
 const pct = (v) => `${((v || 0) * 100).toFixed(1)}%`
 
@@ -47,7 +46,7 @@ function BarList({ rows, labelKey, valKey, max, color }) {
 
 export default function CompassHealthPanel() {
   const [days, setDays] = useState(7)
-  const { data } = useSWR(`/api/j2/compass-health?days=${days}`, fetcher, { refreshInterval: 60000 })
+  const { data, error, mutate } = useSWR(`/api/j2/compass-health?days=${days}`, fetcher, { refreshInterval: 60000 })
 
   const maxFail = Math.max(1, ...(data?.top_failing_tools || []).map((t) => t.failures))
   const cost = data?.cost_today || {}
@@ -71,6 +70,7 @@ export default function CompassHealthPanel() {
         ))}
       </div>
 
+      <PanelReadError error={!data && error} what="Compass health" onRetry={mutate} />
       <div className={styles.statsGrid}>
         <Stat n={data?.chat_turns ?? '—'} label="Chat turns" />
         <Stat n={data?.active_users ?? '—'} label="Active users" />

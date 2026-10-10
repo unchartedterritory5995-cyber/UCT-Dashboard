@@ -16,6 +16,7 @@ import { resolveGlobalPrefSettings, tagAppTheme } from '../../../components/char
 import styles from './AiSearchWidget.module.css'
 import Provenance from '../../../components/provenance/Provenance'
 import { resolveCashtags } from '../../../lib/tickerResolver'
+import { failureDetail, readSuccessBody } from '../../../lib/responseBody'
 
 // TERM-087: the editable-object card (and, behind it, the builder) load only when
 // an answer actually carries a `scan_object`.
@@ -123,18 +124,28 @@ const _sparkCache = new Map()
 async function fetchSparkCloses(sym) {
   if (_sparkCache.has(sym)) return _sparkCache.get(sym)
   const p = fetch(`/api/bars/${encodeURIComponent(sym)}?tf=D&bars=30`, { credentials: 'include' })
-    .then((r) => (r.ok ? r.json() : null))
+    .then((r) => {
+      if (!r.ok) throw new Error(`Request failed (${r.status})`)
+      return r.json()
+    })
     .then((d) => {
       const bars = Array.isArray(d?.bars) ? d.bars : (Array.isArray(d) ? d : [])
       const closes = bars.map((b) => Number(b?.c ?? b?.close)).filter(Number.isFinite)
       return closes.length >= 2 ? closes : null
     })
-    .catch(() => null)
+    // TERM-033, handled on purpose: a sparkline is decoration under an answer, and a
+    // missing one claims nothing. A failed read draws no sparkline and is not cached
+    // (below), so the next answer that mentions this ticker asks again.
+    .catch(sparklineUnavailable)
   _sparkCache.set(sym, p)
   // Cache successes only: a transient failure (deploy-swap 502, network blip)
   // must not suppress this ticker's sparkline for the whole browser session.
   p.then((res) => { if (res == null) _sparkCache.delete(sym) })
   return p
+}
+
+function sparklineUnavailable() {
+  return null
 }
 
 function Sparkline({ closes }) {
@@ -348,8 +359,7 @@ function ProposalChip({ proposal }) {
           }
           // the server's 422 reason is actionable ("capped at 3 — pause one
           // first") — a bare Retry that can never succeed is a dead end
-          const d = await r?.json?.().catch(() => null)
-          setDetail(d?.detail || null)
+          setDetail(await failureDetail(r))
           setState('error')
         })
         .catch(() => setState('error'))
@@ -745,8 +755,7 @@ export default function AiSearchWidget({
       })
     }
     if (r.status === 429) {
-      const d = await r.json().catch(() => null)
-      setLimitMsg(d?.detail || "You've hit today's research limit — it resets at midnight ET.")
+      setLimitMsg((await failureDetail(r)) || "You've hit today's research limit — it resets at midnight ET.")
       return 'limit'
     }
     if (!r.ok || !r.body?.getReader) return null
@@ -842,13 +851,15 @@ export default function AiSearchWidget({
         if (stoppedRef.current) { setQuery(question); return }
         r = await singleShot()
       }
-      const d = await r.json().catch(() => null)
       if (r.status === 429) {
-        setLimitMsg(d?.detail || "You've hit today's research limit — it resets at midnight ET.")
+        setLimitMsg((await failureDetail(r)) || "You've hit today's research limit — it resets at midnight ET.")
         setQuery(question)   // give the question back so it isn't lost
         return
       }
-      if (!r.ok) throw new Error(d?.detail || `Request failed (${r.status})`)
+      if (!r.ok) throw new Error((await failureDetail(r)) || `Request failed (${r.status})`)
+      // TERM-033: an unreadable 200 is a failed answer, never an empty one.
+      const read = await readSuccessBody(r)
+      const d = read.ok ? read.body : null
       if (!d || d.error) throw new Error(d?.error || 'No answer')
       applyFinal(question, d)
     } catch (e) {

@@ -60,6 +60,7 @@ import {
   DEFAULT_EXPORT_FORMAT, EXPORT_FORMATS, saveResponse,
 } from '../components/notebook/export/exportFormats'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from './notebookTelemetry'
+import { failureDetail } from '../../../lib/responseBody'
 
 /** Ops that write the note row — refused for a blocked note. Favourites live
  *  in their own table and never touch the note, so they are allowed. So are
@@ -193,14 +194,15 @@ export async function runNoteBatch({
       body: JSON.stringify({ ids: send, op, args }),
     })
     if (!res.ok) {
-      const detail = await res.json().then((b) => b?.detail).catch(() => null)
-      const err = new Error(detail ? String(detail) : `That did not go through (server answered ${res.status}). Nothing was changed.`)
+      // TERM-033: the failure is the status; the body only explains it, when it can.
+      const detail = await failureDetail(res)
+      const err = new Error(detail || `That did not go through (server answered ${res.status}). Nothing was changed.`)
       // ⭐ J7 (wave 7 lane J): the parts, not only the sentence -- a caller that
       // has ALREADY changed notes (a chunked rename's later chunk) must say why
       // without the sentence's "Nothing was changed", which is only true of a
       // single batch. `describeUnsentRename` reads these.
       err.status = res.status
-      err.detail = detail ? String(detail) : null
+      err.detail = detail
       throw err
     }
     body = await res.json()
@@ -569,8 +571,8 @@ export async function exportSelectedNotes(ids, format = DEFAULT_EXPORT_FORMAT) {
     if (res.status === 429) {
       throw new Error('An export is already running for your account. Please wait a moment and try again.')
     }
-    const detail = await res.json().then((b) => b?.detail).catch(() => null)
-    throw new Error(detail ? String(detail) : `The export could not be prepared (server answered ${res.status}).`)
+    const detail = await failureDetail(res)
+    throw new Error(detail || `The export could not be prepared (server answered ${res.status}).`)
   }
   await saveResponse(res, 'notebook-selection.zip')
   const count = Number(res.headers.get('x-export-count') ?? ids.length)
