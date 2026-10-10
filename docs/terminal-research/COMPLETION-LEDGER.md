@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after lane L6): not complete.** 231 of 279 rows are `live` or `moot`; 48 are not (28 `dark`, 12 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after X-10): not complete.** 232 of 279 rows are `live` or `moot`; 47 are not (28 `dark`, 11 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,10 +34,10 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 after lane L6:
+Printed 2026-10-10 after X-10:
 
 ```
-279 Counter({'live': 191, 'moot': 40, 'dark': 28, 'building': 12, 'owner-blocked': 8})
+279 Counter({'live': 192, 'moot': 40, 'dark': 28, 'building': 11, 'owner-blocked': 8})
 0 duplicate ids
 ```
 
@@ -49,16 +49,16 @@ The per-section split is the same regex applied to each `## ` section:
 
 | section | rows | live | dark | building | owner-blocked | moot |
 |---|---|---|---|---|---|---|
-| 1 Programme records + ship | 17 | 11 | 0 | 3 | 0 | 3 |
+| 1 Programme records + ship | 17 | 12 | 0 | 2 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
 | 3 TERM-001..093 | 93 | 68 | 9 | 7 | 3 | 6 |
 | 4 BRK-01..10 | 10 | 5 | 4 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 6 | 1 | 1 | 1 | 3 |
 | 6 FT-001..080 | 80 | 57 | 9 | 1 | 4 | 9 |
 | 7 Untracked promises | 58 | 44 | 5 | 0 | 0 | 9 |
-| **total** | **279** | **191** | **28** | **12** | **8** | **40** |
+| **total** | **279** | **192** | **28** | **11** | **8** | **40** |
 
-`building` by lane: P 6 · Notebook 2 · R 2 · D 1 · integrator 1.
+`building` by lane: P 6 · Notebook 2 · R 2 · D 1.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -76,7 +76,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `X-07` | Retract or annotate NG-10, NG-04/05, NG-15 | `live` | Done here: `05-product-strategy/non-goals.md`. |
 | `X-08` | COV-09 naming conflict | `live` | Resolved by DL-036: COV-09 is the SEC filings feed, congressional trackers are COV-12. |
 | `X-09` | `OPTIONS_UNIVERSE_LOG_ENABLED` armed on terminal-next-monitor | `live` | Measured 2026-10-03 02:39Z (key names only): flag=1, `MASSIVE_API_KEY` + `DATA_SYNC_*` present. ⚠️ The first run's receipt and its `complete:true` manifest: not measured. Massive sells no chain history, so every session before arming is lost. The front-straddle summary columns BRK-10 reads (`f92239a2d9`) are on master since X-01 (`2e304db42`); whether terminal-next-monitor has redeployed with them: not measured. The full contracts file is stored, so `resummarize()` can backfill earlier nights. |
-| `X-10` | Reconcile `CLAUDE.md`'s 3-agent cap with D-013 (cap 6) | `building (integrator)` | `CLAUDE.md:1927`, `:2263`. A records lane does not edit `CLAUDE.md`. Re-checked at `d95f331bb`: `CLAUDE.md:1937` still reads "MAXIMUM 3 AGENTS PLUS THE INTEGRATOR". |
+| `X-10` | Reconcile `CLAUDE.md`'s 3-agent cap with D-013 (cap 6) | `live` | Reconciled 2026-10-10 by the integrator: a dated note above the 2026-09-13 ruling in `CLAUDE.md` (AGENT CONCURRENCY section) records D-013's cap of 6 for TERMINAL-NEXT lanes only, keeps the free-memory check, and records the 2026-10-10 low-memory reap that a 10-agent wave caused. |
 | `X-11` | Five terminal-grade properties re-walked **on `/terminal`** | `live` | Walked 2026-10-10 (lane f-l9): 5 of 5 hold on the real `TerminalShell`, the roadmap §5 action for each, as an automated jsdom suite (`app/src/pages/terminal/TerminalShell.fiveProperties.test.jsx`: one context :187, provenance :210, addressable :236, keyboard-fast :290, resilient panels :323; 9/9). Record with every proxy named: `10-roadmap/evidence/2026-10-10-terminal-five-properties/results.md`. Mutation-proved (removing `PanelProvenance` reds property 2). Not measured: pixels, real focus, real network (no Playwright run on `/terminal`). Was `building (Lane T1)`. |
 | `X-12` | `/calendar` retirement (RM-L16, CX-8) | `moot (decided 2026-10-07: /calendar coexists permanently as a URL)` | D-006 places the calendar inside the Terminal but does not choose. If retire: MG-7 at 0 GAP, nav graduation, MG-8 re-census, then the countdown. ➜ 2026-10-07: P-9 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `X-13` | MG-8 consumer re-census at countdown | `moot (no countdown; X-12 decided)` | The live instance is fixed (`api/services/journal_two/db.py:2302-2309`). The gate is unrun because no countdown has started. ➜ 2026-10-07: P-10 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |

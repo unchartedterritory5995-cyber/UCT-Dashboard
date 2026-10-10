@@ -1941,6 +1941,13 @@ ARE here; nothing Wisdom-specific was, and this section is the pointer that was 
 > branch in its OWN session before accepting it — an agent's "done" without a gate run in the
 > integrator's session is not done.**
 
+> **Reconciled 2026-10-10 (X-10) with D-013.** The owner raised the cap to **6 agents** for the
+> UCT Terminal (TERMINAL-NEXT) build lanes on 2026-10-02 (`docs/terminal-research/00-program-control/OWNER_DECISIONS.md`
+> D-013). That ruling is newer and applies to that programme only; everywhere else the cap below
+> stands. The memory check is not relaxed by it: on 2026-10-10 a 10-agent terminal wave ran this
+> box low enough that Claude Code reaped background test runs. Print free memory before every
+> launch and stay at 3 when it is under ~4 GB, whatever the cap.
+
 Owner ruling, 2026-09-13, from two measured losses in one session of the discord-render programme:
 
 | What happened | Cost |
