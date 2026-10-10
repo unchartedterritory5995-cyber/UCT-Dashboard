@@ -169,6 +169,47 @@ derived by the command in its §0, never typed.
     tasks; the 2026-09-26 run is
     `docs/terminal-research/10-roadmap/evidence/2026-09-26-protocol-c-and-gridspike/results.md:29`.
     A curve is that harness at N = 1..16 in a visible tab inside the quiet window.
+  - *(Added after readiness run 3.)* *The sentences, verbatim.* All three live only in
+    `app/src/pages/charts/boardBound.json:3-5`, with `{max}` and `{count}` placeholders filled by
+    `boardBound.js` (client) and `board_bound.refusal_sentence` (server):
+    refusal "A board holds at most {max} widgets, and this one would hold {count}. Close a widget
+    before adding another."; layout refusal "That layout holds {count} widgets, more than the {max}
+    a board can hold, so it was not opened. It is still saved exactly as it was."; over-bound
+    "This board holds {count} widgets, more than the {max} a board can hold. Nothing was removed:
+    it stays as it is, and it can take a new widget once you close enough to bring it under {max}."
+    Tests assert the filled sentence by importing the template, never by retyping it.
+  - *Which store the census covers.* Only `charts_layouts` (named saved layouts). Working boards
+    (`user_preferences`, key `charts_workspace_layout`, in auth.db) were already measured as PH-1;
+    the open item is the saved layouts alone
+    (`docs/terminal-research/12-decisions/2026-10-02-term-001-006-board-bound-and-freshness.md:32-35`).
+  - *Existing test cases, by name.* Server, `tests/test_board_bound.py`: the shared file is read by
+    both runtimes (`:49`), headroom over the census (`:60`), within-bound saves (`:70`), growth
+    refused in words (`:76`), over-bound stays editable and the same size (`:83`), an over-bound
+    write cannot replace an unreadable or absent board (`:90`), other keys ignored (`:95`), the
+    preferences route refuses growth (`:122`) and keeps an over-bound board whole (`:130`), the
+    apply door uses the same function (`:142`). Client, `app/src/pages/charts/boardBound.test.js`
+    (`:15-62`) and `app/src/pages/charts/ChartsWorkspace.test.jsx:1153-1230` (room, full board in
+    words, `?ensure=` door, over-bound board loads whole, saved layout over the bound refused).
+    All three shipped criteria are already covered; the lane is verification plus the gap below.
+  - *`widget_count` contract.* Takes the raw text or an already-parsed value; returns the length
+    of `widgets` when the value is a dict holding a `widgets` list, otherwise `None` (absent,
+    empty, unparseable, or no list). It never raises
+    (`api/services/board_bound.py:58-69`). The census counts `None` as unreadable.
+  - *Row kinds in `charts_layouts`.* Two: board layouts and Multi-Chart grids
+    (`layout.kind === 'multichart'`). The workspace's own picker excludes exactly the grids
+    (`app/src/pages/charts/ChartsWorkspace.jsx:2634-2635`); no third kind is read anywhere in
+    `app/src`. Chart-settings templates are a different store.
+  - *A door the bound does not guard (finding).* `POST /api/workspace/doc/restore` writes restored
+    values, including `charts_workspace_layout` (`api/services/workspace_doc_store.py:105`),
+    through `_write_back`, which calls `set_user_preference` without `enforce_board_bound`
+    (`api/routers/workspace_doc.py:71-84`, `api/routers/workspace_doc.py:129-142`). A restored
+    version can only be a size the member once held, but it is still an unguarded write. TERM-001's
+    remaining work therefore includes: a failing test that restores a 17-widget version over a
+    16-widget board, then calling `enforce_board_bound` per key in `_write_back` and reporting a
+    refused key in `prefs_failed` (never deleting it).
+  - *Test baseline.* Frontend: `docs/plans/joystick/gate-baseline.json` (adopted 2026-09-24 at
+    master `73a4286d0`); neither `boardBound.test.js` nor `ChartsWorkspace.test.jsx` is in it, so
+    any red in them is new. Backend: `docs/test-baseline/python-failures.md` and `.json`.
 - **Tests.** Backend pytest is always scoped to named files, never the whole tree
   (`CLAUDE.md:2003-2004`). Frontend vitest runs scoped to directories with a worker cap. A run
   without a totals line is not a run. The gate is "no new failures against a dated baseline", not
