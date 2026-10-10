@@ -10,7 +10,7 @@ import { readSession, writeSession, holdInDock, releaseDock, _simulateReload, ST
 import { applyTurn } from './authoring'
 import {
   AUTHORING_CONTRACT, AUTHORING_REASONS as R, openDraft, draftTurn, draftUndo, draftStatus, listDrafts,
-  discardDraft, saveDraft,
+  discardDraft, saveDraft, renameDraft,
 } from './agentAuthoring'
 import { planIndicatorMutation, applyIndicatorMutation, confirmIndicatorMutation } from './agentMutations'
 
@@ -336,5 +336,90 @@ describe('the real dock hook holds its draft while it is open (D6)', () => {
     h.unmount()
     expect(isHeldInDock(ref.key)).toBe(false)
     expect(await draftTurn(ref, 'Make the RSI line blue.', { expectedRevision: 1 }, ctxOf())).toMatchObject({ ok: true, kind: 'applied' })
+  })
+})
+
+describe('⭐ typed rename (renameDraft) — rename-only by construction, machine-readable', () => {
+  const drafted = async () => {
+    const ref = openDraft({ create: true }, ctxOf()).draftRef
+    await draftTurn(ref, 'Create RSI 28.', { expectedRevision: 0 }, ctxOf())
+    return ref
+  }
+  it('renames, one revision, one history step, no model call; maths and outputs untouched', async () => {
+    const ref = await drafted()
+    const before = draftStatus(ref, ctxOf())
+    const n = calls.length
+    const r = renameDraft(ref, 'Bullish Trend', { expectedRevision: 1 }, ctxOf())
+    expect(r).toMatchObject({ ok: true, kind: 'applied', renameOnly: true, rename: { from: 'RSI 28', to: 'Bullish Trend' },
+      revision: 2, stepId: `${ref.lineage}:r2` })
+    expect(r.changes.map((c) => c.kind)).toEqual(['renamed'])
+    expect(calls.length).toBe(n)                                              // no model call
+    const after = draftStatus(ref, ctxOf())
+    expect(after).toMatchObject({ revision: 2, name: 'Bullish Trend', undoStepId: r.stepId, draftRef: { lineage: ref.lineage } })
+    const maths = (s) => s.readback.outputs.map((o) => [o.key, o.type, o.mode, o.words])
+    expect(maths(after)).toEqual(maths(before))
+    const tree = (k) => JSON.stringify(readSession(k).state.working.plots || readSession(k).state.working.compute)
+    expect(tree(ref.key)).toBe(tree(ref.key))
+  })
+  it('unchanged name, empty name, no definition yet, stale revision → typed refusals, nothing written', async () => {
+    const ref = await drafted()
+    expect(renameDraft(ref, 'RSI 28', { expectedRevision: 1 }, ctxOf())).toMatchObject({ ok: false, reason: R.NAME_UNCHANGED })
+    expect(renameDraft(ref, '   ', { expectedRevision: 1 }, ctxOf())).toMatchObject({ ok: false, reason: R.BAD_REQUEST })
+    expect(renameDraft(ref, 'X', { expectedRevision: 0 }, ctxOf())).toMatchObject({ ok: false, reason: R.STALE_REVISION, detail: { revision: 1 } })
+    const empty = openDraft({ create: true }, ctxOf()).draftRef
+    expect(renameDraft(empty, 'X', { expectedRevision: 0 }, ctxOf())).toMatchObject({ ok: false, reason: R.NOTHING_TO_RENAME })
+    expect(draftStatus(ref, ctxOf()).revision).toBe(1)
+  })
+  it('permission loss and an open dock refuse; Undo restores the old name exactly', async () => {
+    const ref = await drafted()
+    expect(renameDraft(ref, 'X', { expectedRevision: 1 }, ctxOf({ canAuthor: false }))).toMatchObject({ ok: false, reason: R.ACCESS })
+    holdInDock(ref.key)
+    expect(renameDraft(ref, 'X', { expectedRevision: 1 }, ctxOf())).toMatchObject({ ok: false, reason: R.DRAFT_OPEN_IN_DOCK })
+    releaseDock(ref.key)
+    const r = renameDraft(ref, 'Bullish Trend', { expectedRevision: 1 }, ctxOf())
+    const u = draftUndo(ref, { expectedStepId: r.stepId }, ctxOf())
+    expect(u).toMatchObject({ ok: true, undid: r.stepId, revision: 3 })
+    expect(draftStatus(ref, ctxOf()).name).toBe('RSI 28')
+  })
+  it('the conversational name-only path carries the same marker; a MODEL turn that renames never does', async () => {
+    const ref = await drafted()
+    const local = await draftTurn(ref, 'Call it Swing RSI', { expectedRevision: 1 }, ctxOf())
+    expect(local).toMatchObject({ ok: true, kind: 'applied', renameOnly: true, rename: { to: 'Swing RSI' } })
+    // a model envelope that renames AND changes the maths (set_slot records no change entry)
+    const sneaky = async ({ state }) => ({ ok: true, disposition: 'change', turn: 'patch', reply: '',
+      envelope: { contract: PATCH, baseRevision: state.revision, assumptions: [], disposition: 'change',
+        ops: [{ op: 'rename_definition', name: 'Still RSI' }, { op: 'set_output_tree', output: 'rsi', tree: call('rsi', close, num(14)) }] } })
+    const m = await draftTurn(ref, 'make it 14 and tidy the name', { expectedRevision: 2 }, ctxOf({ converse: sneaky }))
+    expect(m.ok).toBe(true)
+    expect(m.renameOnly).toBeUndefined()                                      // ⛔ never marked rename-only
+    expect(m.rename).toBeUndefined()
+  })
+  it('Save after a rename: the acknowledgement is re-read, and the saved NAME is confirmed by read-back', async () => {
+    const ref = await drafted()
+    const r = renameDraft(ref, 'Bullish Trend', { expectedRevision: 1 }, ctxOf())
+    const wrongName = await saveDraft(ref, { expectedRevision: r.revision }, ctxOf({ readBack: async (id) => {
+      const row = server.get(id); return { ...row, definition: { ...row.definition, meta: { ...row.definition.meta, name: 'RSI 28' } } } } }))
+    expect(wrongName).toMatchObject({ ok: false, reason: R.SAVED_UNCONFIRMED })
+    const ref2 = await drafted()
+    const r2 = renameDraft(ref2, 'Bullish Trend', { expectedRevision: 1 }, ctxOf())
+    const ok = await saveDraft(ref2, { expectedRevision: r2.revision }, ctxOf())
+    expect(ok).toMatchObject({ ok: true, name: 'Bullish Trend' })
+  })
+  it('a repainting draft: the acknowledgement follows the new name and Save needs it re-approved', async () => {
+    const pivot = async ({ state }) => ({ ok: true, disposition: 'change', turn: 'patch', reply: '',
+      envelope: { contract: PATCH, baseRevision: state.revision, assumptions: [], disposition: 'change',
+        ops: [{ op: 'create', name: 'Pivot', placement: 'price', outputs: [{ key: 'ph', tree: call('pivothigh', { type: 'series', name: 'high' }, num(2), num(2)) }] }] } })
+    const ref = openDraft({ create: true }, ctxOf()).draftRef
+    const t = await draftTurn(ref, 'pivot highs', { expectedRevision: 0 }, ctxOf({ converse: pivot }))
+    expect(t.ok, JSON.stringify(t)).toBe(true)
+    const before = draftStatus(ref, ctxOf()).ackText
+    expect(before.length).toBeGreaterThan(0)
+    const r = renameDraft(ref, 'Swing Highs', { expectedRevision: 1 }, ctxOf())
+    expect(r.ok).toBe(true)
+    const after = draftStatus(ref, ctxOf()).ackText
+    expect(after).not.toEqual(before)                     // it names the output, which follows the new name
+    expect(after[0]).toMatch(/^Swing Highs reads a bar ahead/)
+    expect(await saveDraft(ref, { expectedRevision: 2 }, ctxOf())).toMatchObject({ ok: false, reason: R.NEEDS_ACK, detail: { ackText: after } })
+    expect((await saveDraft(ref, { expectedRevision: 2, acknowledged: true }, ctxOf())).ok).toBe(true)
   })
 })

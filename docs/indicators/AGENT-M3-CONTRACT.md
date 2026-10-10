@@ -374,3 +374,27 @@ proposed, all narrower or more explicit:
    (`holdInDock` / `releaseDock` / `isHeldInDock`); the dock hook holds its key while mounted.
    `listDrafts` covers `create:` / `edit:` keys only (not the Builder's `new:` sheet).
 7. Telemetry from Agent-driven turns is logged by the shared pipeline under the studio surface.
+
+### 16.1 Typed rename (owner-approved 2026-10-10)
+
+`renameDraft(draftRef, name, { expectedRevision }, ctx)` — renames the draft and nothing else,
+through the shared pipeline's ONE name-only step (`authoringSession.renameTurn`, the same step the
+dock runs for "Call it X"). No model call, no allowance spent; same lineage; one revision; one
+history step (undoable).
+
+- **Success:** `{ ok: true, kind: 'applied', renameOnly: true, rename: { from, to }, revision, stepId,
+  changes: [{ kind: 'renamed', from, to, op }], lines, readback }` (`to` may be clipped to the
+  engine's name limit). Only the deterministic name-only path ever sets `renameOnly` / `rename` —
+  `draftTurn` sets them when the member's message was name-only (the local path), never for a
+  model-applied turn.
+- **⛔ `changes` alone is NOT a rename-only proof:** `set_slot`, `set_output_tree`, `set_input`,
+  `add_clause` and `remove_clause` record no change entry, so a model turn could rename AND change
+  maths while reporting only `[renamed]`. Rely on `renameOnly: true` (or `renameDraft`'s success).
+- **What a rename changes:** `meta.name`, `meta.shortName`, display labels derived from the name
+  (an unlabelled first output; acknowledgement sentences that name it). Never keys, trees, inputs,
+  placement, style, requests or repaint mode.
+- **Refusals:** `bad-request` (no name), `name-unchanged`, `nothing-to-rename`, `stale-revision`,
+  `access`, `draft-open-in-dock`, `draft-expired`, `draft-stale`, `unknown-definition`,
+  `turn-refused` (`detail.codes`).
+- **Save after a rename:** `saveDraft` re-reads the acknowledgement (it may name the renamed output)
+  and confirms the stored NAME by read-back (name, id, version, maths) — `saved-unconfirmed` otherwise.
