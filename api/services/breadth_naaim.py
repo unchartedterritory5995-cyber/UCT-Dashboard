@@ -119,9 +119,36 @@ def consensus(tweets: list, min_accounts: int = MIN_ACCOUNTS, prior: Optional[fl
     return value, sorted(accounts), note
 
 
+#: ⛔ A MODEL CALL (Perplexity sonar-pro) — registered as an AI door in
+#: `api/services/ai_doors.py`. OFF unless `BREADTH_NAAIM_WEB_CONFIRM=1` (2026-10-10,
+#: owner gate): without it NAAIM still resolves from >= 2 accounts or a trusted one,
+#: and simply waits longer on a single-poster week. When on, at most
+#: `WEB_CONFIRM_DAILY_CAP` calls per UTC day (in-process; a restart resets it, and the
+#: per-survey-week search throttle in `fill` bounds the rest).
+WEB_CONFIRM_ENV = "BREADTH_NAAIM_WEB_CONFIRM"
+WEB_CONFIRM_DAILY_CAP = 6
+_web_calls: dict = {}
+
+
+def web_confirm_enabled() -> bool:
+    return (os.environ.get(WEB_CONFIRM_ENV) or "").strip() == "1"
+
+
+def _take_web_slot() -> bool:
+    day = datetime.now(timezone.utc).date().isoformat()
+    n = _web_calls.get(day, 0)
+    if n >= WEB_CONFIRM_DAILY_CAP:
+        return False
+    _web_calls.clear()
+    _web_calls[day] = n + 1
+    return True
+
+
 def web_confirm(survey_week: str, post: Optional[Callable] = None) -> Optional[float]:
+    if not web_confirm_enabled():
+        return None
     key = os.environ.get("PERPLEXITY_API_KEY")
-    if not key:
+    if not key or not _take_web_slot():
         return None
     q = (f"What was the NAAIM Exposure Index reading for the survey week of {survey_week}? "
          "Reply with ONLY the number to two decimals, nothing else. If you are not certain "

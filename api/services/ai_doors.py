@@ -73,6 +73,14 @@ DOORS: dict[str, Door] = {
     "api/services/ai_search_briefings.py": Door(
         "background", "scheduled pre/post-market briefings",
         "Perplexity global 500/day"),
+    # ── Breadth (2026-10-10) ─────────────────────────────────────────────────
+    "api/services/breadth_naaim.py": Door(
+        "background", "breadth fill job (api/main.py, 07:05/19:05/22:05 ET mon-sat + boot) "
+        "-> breadth_naaim.fill -> web_confirm (Perplexity sonar-pro), only when the X "
+        "chatter gives no consensus",
+        "OFF unless BREADTH_NAAIM_WEB_CONFIRM=1 (default OFF); when on, <= 6 calls per UTC "
+        "day (in-process WEB_CONFIRM_DAILY_CAP) and one chatter search per survey week "
+        "per 6 h (`fill`'s _DONE throttle)"),
     "api/services/brain_kb_service.py": Door(
         "member", "embeddings inside AI Search, Compass voice/chat tools, community ask",
         "none of its own; bounded by each calling door's cap",

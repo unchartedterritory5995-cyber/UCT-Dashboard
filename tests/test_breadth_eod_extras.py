@@ -115,8 +115,7 @@ def test_wire_regime_answers_only_for_its_own_date(monkeypatch):
     monkeypatch.setattr(engine, "_load_wire_data", lambda: {
         "date": "2026-10-09", "exposure": {"score": 72.5},
         "breadth": {"market_phase": "Confirmed Uptrend"}})
-    assert bee.wire_regime("2026-10-09") == {"uct_exposure": 72.5,
-                                             "market_phase": "Confirmed Uptrend"}
+    assert bee.wire_regime("2026-10-09") == {"uct_exposure": 72.5}   # never market_phase
     assert bee.wire_regime("2026-10-08") == {}
 
 
@@ -158,6 +157,7 @@ def test_one_failed_source_never_costs_the_others(conn, monkeypatch):
 def test_the_grader_tolerances_and_strings():
     assert bee.grade("vix", 17.24, 17.2)["pass"]
     assert not bee.grade("vix", 17.4, 17.2)["pass"]
+    assert "market_phase" not in bee.TOLERANCE
     assert bee.grade("market_phase", "Uptrend", "uptrend ")["pass"]
     assert not bee.grade("market_phase", "Correction", "Uptrend")["pass"]
     assert bee.grade("new_ath", 30, 33)["pass"] and not bee.grade("new_ath", 20, 33)["pass"]

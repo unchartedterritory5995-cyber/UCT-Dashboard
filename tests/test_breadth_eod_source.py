@@ -570,19 +570,19 @@ def test_the_status_route_carries_both_parity_runs(env, monkeypatch):
 
 def test_extras_ride_the_server_row_and_are_graded(env, monkeypatch):
     monkeypatch.setattr(eod, "extras_for", lambda d, t, c=None: {
-        "vix": 17.2, "cnn_fear_greed": 44.0, "market_phase": "Uptrend",
+        "vix": 17.2, "cnn_fear_greed": 44.0, "uct_exposure": 72.5,
         "new_ath": 9, "universe_count": -1, "_extras_errors": {"x": "y"}})
     res = eod.compute(env.last)
     m = res["metrics"]
-    assert m["vix"] == 17.2 and m["market_phase"] == "Uptrend" and m["new_ath"] == 9
+    assert m["vix"] == 17.2 and m["uct_exposure"] == 72.5 and m["new_ath"] == 9
     assert m["universe_count"] != -1                     # a price metric is never overridden
     owned = eod.owned_keys(m)
-    assert {"vix", "cnn_fear_greed", "market_phase", "new_ath"} <= set(owned)
+    assert {"vix", "cnn_fear_greed", "uct_exposure", "new_ath"} <= set(owned)
     assert "_extras_errors" not in owned
-    stored = _collector_row_from(res, vix=17.21, cnn_fear_greed=55, market_phase="uptrend",
+    stored = _collector_row_from(res, vix=17.21, cnn_fear_greed=55, uct_exposure=72.5,
                                  new_ath=9)
     rep = eod.grade_row(m, stored, [])
-    assert rep["fields"]["vix"]["pass"] and rep["fields"]["market_phase"]["pass"]
+    assert rep["fields"]["vix"]["pass"] and rep["fields"]["uct_exposure"]["pass"]
     assert rep["fields"]["cnn_fear_greed"]["pass"] is False      # 44 vs 55
     assert "cnn_fear_greed" in rep["failed"]
     assert rep["fields"]["vix"]["accuracy"] == "extras"
