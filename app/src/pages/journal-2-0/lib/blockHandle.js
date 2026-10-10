@@ -94,6 +94,22 @@ export function moveBlock(editor, dir) {
   return true
 }
 
+/**
+ * The top of the visible area the editor scrolls in (viewport px): the nearest
+ * ancestor that clips its content, or the window. Used only to keep the grip
+ * inside the visible part of a block whose top edge is scrolled above it.
+ */
+function visibleTopFor(el) {
+  for (let n = el?.parentElement; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
+    let oy = ''
+    try { oy = getComputedStyle(n).overflowY } catch { oy = '' }
+    if (oy === 'auto' || oy === 'scroll' || oy === 'hidden' || oy === 'clip') {
+      return Math.max(0, n.getBoundingClientRect().top)
+    }
+  }
+  return 0
+}
+
 const isTouch = () => {
   try {
     return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
@@ -135,12 +151,16 @@ class BlockHandleView {
     this.onPress = this.onPress.bind(this)
     this.onPressCancel = () => this.releasePress(true)
     this.onScroll = () => this.place()
+    this.onGrab = this.onGrab.bind(this)
+    this.onRelease = this.onRelease.bind(this)
     this.pressed = false
     this.pressTimer = null
+    this.grabbed = null // desktop: the block the mouse button went down on the grip for
 
     view.dom.addEventListener('mousemove', this.onMove)
     view.dom.addEventListener('mouseleave', this.onLeave)
     handle.addEventListener('mouseleave', this.onLeave)
+    handle.addEventListener('mousedown', this.onGrab)
     handle.addEventListener('dragstart', this.onDragStart)
     handle.addEventListener('dragend', this.onDragEnd)
     handle.addEventListener('click', this.onClick)
@@ -179,11 +199,65 @@ class BlockHandleView {
     if (!rect) return
     const w = this.handle.offsetWidth || 24
     this.handle.style.left = `${Math.max(0, Math.round(rect.left - w - 6))}px`
-    this.handle.style.top = `${Math.round(rect.top + 2)}px`
+    this.handle.style.top = `${Math.round(this.gripTop(dom, rect))}px`
+  }
+
+  /**
+   * ⛔ P2 (verify-1009): the grip stands beside a block's TOP edge — which, for a
+   * block taller than the window (a chart), can be scrolled above the visible
+   * area while the pointer is on the block's middle: the grip was placed at
+   * y = -27, off screen. When the top edge is above the visible top of the
+   * editor's scroll area, the grip is kept inside the visible part of the block
+   * instead (and below anything pinned over that edge, such as the note's
+   * sticky header). A block whose top edge is in view keeps the grip exactly
+   * where it always stood.
+   */
+  gripTop(dom, rect) {
+    const natural = rect.top + 2
+    const floor = visibleTopFor(this.view.dom)
+    if (rect.top >= floor) return natural
+    const h = this.handle.offsetHeight || 22
+    const last = rect.bottom - h - 2
+    let top = Math.min(floor + 2, last)
+    if (typeof document.elementFromPoint === 'function') {
+      const x = rect.left + Math.min(12, rect.width / 2)
+      for (let y = top; y <= last; y += 8) {
+        const hit = document.elementFromPoint(x, y + h / 2)
+        if (hit && dom.contains(hit)) { top = y; break }
+      }
+    }
+    return top
+  }
+
+  /**
+   * ⛔⛔ P2 (verify-1009): A PRESS ON THE GRIP FREEZES WHICH BLOCK IT HOLDS.
+   *
+   * The browser starts an HTML5 drag a few pixels AFTER the button goes down,
+   * and every mouse event between the two still reaches this view. Measured in
+   * a real browser (docs/notebook/evidence/verify-1009/sbx/grip/): a quick
+   * first motion off the grip either (a) crossed another block, and `onMove`
+   * re-aimed the grip at THAT block, so dragstart dragged the block under the
+   * pointer instead of the one the member grabbed — or (b) left the grip into
+   * the gutter, and `onLeave` hid the grip, and a hidden drag source never
+   * starts a drag. Not chart-specific: a paragraph failed the same two ways,
+   * and only a slow first motion (the drag beginning while the pointer was
+   * still on the grip) worked for either. A chart is simply the block whose
+   * drop point is furthest from its grip. While the button is down on the grip
+   * (until mouseup, or dragend for a drag) neither may act.
+   */
+  onGrab(e) {
+    if (isTouch() || (e && e.button !== 0) || !this.block) return
+    this.grabbed = this.block
+    document.addEventListener('mouseup', this.onRelease, true)
+  }
+
+  onRelease() {
+    this.grabbed = null
+    document.removeEventListener('mouseup', this.onRelease, true)
   }
 
   onMove(e) {
-    if (isTouch() || !this.editable) return
+    if (isTouch() || !this.editable || this.grabbed) return
     let found = null
     try { found = this.view.posAtCoords({ left: e.clientX, top: e.clientY }) } catch { found = null }
     if (!found) return
@@ -192,7 +266,7 @@ class BlockHandleView {
   }
 
   onLeave(e) {
-    if (isTouch() || this.menu) return
+    if (isTouch() || this.menu || this.grabbed) return
     const to = e.relatedTarget
     if (to && (this.handle.contains(to) || this.view.dom.contains(to))) return
     this.hide()
@@ -226,6 +300,7 @@ class BlockHandleView {
     // its own dragend handler does.
     const d = this.dragging
     this.dragging = null
+    this.onRelease() // a drag swallows the mouseup: the press ends here
     setTimeout(() => { if (this.view.dragging === d) this.view.dragging = null }, 50)
   }
 
@@ -361,6 +436,7 @@ class BlockHandleView {
 
   destroy() {
     clearTimeout(this.pressTimer)
+    this.onRelease()
     this.closeMenu()
     this.view.dom.removeEventListener('mousemove', this.onMove)
     this.view.dom.removeEventListener('mouseleave', this.onLeave)

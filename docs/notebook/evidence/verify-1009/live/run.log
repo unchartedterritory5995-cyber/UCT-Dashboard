@@ -1,0 +1,15 @@
+  login_1280: {"status": 200, "me": 200, "synthetic": true, "t": 1.4}
+  login_390: {"status": 200, "me": 200, "synthetic": true, "t": 2.8}
+  inventory_before: {"active": 0, "trash": 70, "t": 3.2}
+  note_created: {"title": "Smoke verify 1009: Bedtime rule", "status": 200, "id_present": true, "t": 3.5}
+  note_created: {"title": "Smoke verify 1009: Copper inventories", "status": 200, "id_present": true, "t": 3.9}
+  note_created: {"title": "Smoke verify 1009: Position sizing table", "status": 200, "id_present": true, "t": 4.2}
+  note_created: {"title": "Smoke verify 1009: PLTR deep dive", "status": 200, "id_present": true, "t": 4.5}
+  asked_long-ask-1280: {"t": 10.5}
+  long_note_ask_1280: {"intro_gone": true, "alert": "", "sources": 1, "found": {"entry": true, "stop": true, "risk_budget": true, "risk_sbc": true, "rule": true}, "refusal": false, "citation_opened_note": true, "pass": true, "t": 17.4}
+  asked_long-ask-390: {"t": 22.0}
+  long_note_ask_390: {"intro_gone": true, "alert": "", "sources": 1, "found": {"entry": true, "stop": true, "risk_budget": true, "risk_sbc": true, "rule": true}, "refusal": false, "citation_opened_note": true, "pass": true, "t": 27.7}
+  voice_note: {"status_door": {"status": 200, "body": "{\"limits\":{\"maxSeconds\":3600,\"maxBytes\":94371840,\"chunkSeconds\":300,\"extensions\":[\".m4a\",\".mp3\",\".wav\",\".webm\",\".ogg\",\".mp4\",\".aac\"],\"jobTtlSeconds\":7200},\"cap\":{\"usedSeconds\":0,\"capSeconds\":3600,\"remainingSeconds\":3600,\"unlimited\":true},\"summariesLeft\":20}"}, "audio_doors": ["Voice note", "Upload recording", "From a De
+  meaning_search: {"indexed": true, "last_poll": {"status": 200, "rows": [{"title": "Smoke verify 1009: Bedtime rule", "matchKind": "meaning"}], "age_s": 314}, "indexed_after_s": 314, "plain_search_titles": [], "reason": null, "1280": {"labelled": true}, "390": {"labelled": true}, "pass": true, "t": 325.0}
+  cleanup: {"removed": 5, "created": 5, "inventory_after": {"active": 0, "trash": 75}, "t": 328.4}
+FAIL: FAILED: voice_note

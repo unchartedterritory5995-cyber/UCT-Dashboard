@@ -18,9 +18,17 @@ export function readTourPref(raw) {
 }
 
 /** The preconditions for the tour to start on its own: the gate is on, the member is paid,
- *  the note count is KNOWN and is zero, and the preferences have loaded. */
-export function tourIsForThisMember({ enabled, isPaid, notesKnown, hasAnyNotes, loading }) {
-  return Boolean(enabled && isPaid && notesKnown && !hasAnyNotes && !loading)
+ *  the note count is KNOWN and is zero, the preferences have loaded, and the member has not
+ *  had notes earlier in this visit (`hadNotes`).
+ *
+ *  ⚰️ `hadNotes` (verify-1009 P1, 2026-10-09): "zero notes" alone cannot tell a new member
+ *  from one who just trashed their last notes. For the second, the tour opened as a modal
+ *  over the "Moved N notes to the Trash" notice and covered its Undo, at 1280 and at 390,
+ *  until Skip tour (`docs/notebook/verify-1009-sandbox.md`, item 1). A member who had notes
+ *  a moment ago is not new; the explicit doors ("Take the tour", the help link) still open
+ *  it whatever this says. */
+export function tourIsForThisMember({ enabled, isPaid, notesKnown, hasAnyNotes, loading, hadNotes = false }) {
+  return Boolean(enabled && isPaid && notesKnown && !hasAnyNotes && !hadNotes && !loading)
 }
 
 /** A tour the member finished or dismissed never starts on its own again. */

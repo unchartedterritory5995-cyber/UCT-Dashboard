@@ -1,0 +1,41 @@
+{
+ "buttons": [
+  {
+   "label": "\u00d7",
+   "w": 44,
+   "h": 44
+  },
+  {
+   "label": "Record",
+   "w": 88.9,
+   "h": 44
+  },
+  {
+   "label": "Upload a file",
+   "w": 119.3,
+   "h": 44
+  },
+  {
+   "label": "Desk session",
+   "w": 124.3,
+   "h": 44
+  },
+  {
+   "label": "",
+   "w": 303,
+   "h": 44
+  },
+  {
+   "label": "Cancel",
+   "w": 70.5,
+   "h": 44
+  }
+ ],
+ "file_input": {
+  "x": 30,
+  "y": 701.6690673828125,
+  "width": 303,
+  "height": 44
+ },
+ "under_44": []
+}
