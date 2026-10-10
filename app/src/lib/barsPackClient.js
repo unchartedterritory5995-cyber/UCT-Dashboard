@@ -58,6 +58,16 @@ const PACK_DAILY = {
 // mid-session the first time it's enabled — so it ingests in SMALL, YIELDING batches so
 // the readwrite train never write-locks the 'bars' store long enough to stall a ticker
 // switch's idbGet. Daily keeps its fast 250-batch path (already-ingested for returners).
+// ⭐ (2026-10-10) THE BREADTH PACK: the newest 600 daily bars of every breadth series (UCT,
+// US/NYSE/Nasdaq library rows, McClellan / A-D / ratio indicators), so a breadth chart or
+// indicator pane paints from IDB on its FIRST view too. Small (~1 MB), versioned by content,
+// built by the web pod's warm loop (`api/services/breadth_pack.py`). `replaceIfNewer`: breadth
+// has no live tick, so a fresher pack tail must replace a deeper stale local entry.
+const PACK_BREADTH = {
+  base: '/api/breadthpack', versionKey: 'breadthpack.version', seedKey: 'breadthpack.seed',
+  ingestBatchSize: 20, ingestYield: true, replaceIfNewer: true,
+  presenceSuffix: '_D',
+}
 const PACK_INTRADAY = {
   base: '/api/intradaypack', versionKey: 'intradaypack.version', seedKey: 'intradaypack.seed',
   ingestBatchSize: 30, ingestYield: true,
@@ -87,6 +97,7 @@ export function initBarsPack() {
   // the origin was the bandage.
   _ingestHotPack(PACK_DAILY).catch(() => {})
   _whenIdle(() => { _run(PACK_DAILY).catch(() => {}) })
+  _whenIdle(() => { _run(PACK_BREADTH).catch(() => {}) })
   // Intraday pack RE-ENABLED (2026-08-19). An offline Playwright harness
   // (tools/intraday_repro.py) proved the client path is sound: the prior-session pack
   // paints in ~200ms (render cap slices any bloat to 3k), the since-fetch fills today,
@@ -127,7 +138,7 @@ export async function _ingestHotPack(cfg) {
   if (!entries.length) return
 
   try {
-    const res = await idbImportPack(entries, { batchSize: cfg.ingestBatchSize, yieldBetween: cfg.ingestYield })
+    const res = await idbImportPack(entries, { batchSize: cfg.ingestBatchSize, yieldBetween: cfg.ingestYield, replaceIfNewer: !!cfg.replaceIfNewer })
     if (!res.aborted) {
       try { localStorage.setItem(cfg.hotVersionKey, manifest.version) } catch { /* ignore */ }
     }
@@ -248,7 +259,7 @@ export async function _ingestFull(cfg, version, shards) {
       // for a complete ingest (the bug that stamped a dead pack during a shard outage).
       if (!entries.length) { shardFailures++; continue }
       try {
-        const res = await idbImportPack(entries, { batchSize: cfg.ingestBatchSize, yieldBetween: cfg.ingestYield })
+        const res = await idbImportPack(entries, { batchSize: cfg.ingestBatchSize, yieldBetween: cfg.ingestYield, replaceIfNewer: !!cfg.replaceIfNewer })
         totalWritten += (res.written || 0)
         if (res.aborted) aborted = true
       } catch { shardFailures++ }
@@ -330,6 +341,7 @@ export function decodeShardPayload(obj) {
       const bars = new Array(n)
       for (let i = 0; i < n; i++) {
         bars[i] = { t: cols.t[i], o: cols.o[i], h: cols.h[i], l: cols.l[i], c: cols.c[i], v: cols.v[i] }
+        if (cols.ohlc && cols.ohlc[i] === 1) bars[i].ohlc = 1   // breadth's observed-OHLC mark
       }
       out.push({ sym, tf, bars })
     }

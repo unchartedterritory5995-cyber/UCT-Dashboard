@@ -2724,7 +2724,9 @@ export default function StockChart({
       ? canonicalSourceCapability(sym, false)
       : fam === 'unknown'
         ? null
-        : canonicalSourceCapability(sym, fam === 'security' || fam === 'volatility')
+        // (2026-10-10) breadth + indicator series may draw every chart type (owner ruling;
+        // their bodies are close-to-close). Surveys / economic / products stay scalar.
+        : canonicalSourceCapability(sym, ['security', 'volatility', 'breadth', 'indicator'].includes(fam))
     const ct = primaryChartTypeFor(csMerged.chartType, cap)
     const typed = ct === csMerged.chartType ? csMerged : { ...csMerged, chartType: ct }
     // ⭐⭐ A PRODUCT IDENTITY BRINGS ITS OTHER COMPONENTS WITH IT. The price slot
@@ -5764,9 +5766,9 @@ export default function StockChart({
         ? canonicalSourceCapability(sym, false)
         : _ctFam === 'unknown'
           ? null
-          : canonicalSourceCapability(sym, _ctFam === 'security' || _ctFam === 'volatility'),
+          : canonicalSourceCapability(sym, ['security', 'volatility', 'breadth', 'indicator'].includes(_ctFam)),
     )
-    const CT_OPTS = [['candles', 'Candles'], ['hollow', 'Hollow'], ['bars', 'Bars'], ['line', 'Line'], ['area', 'Area']]
+    const CT_OPTS = [['candles', 'Candles'], ['hollow', 'Hollow'], ['hlc', 'HLC Bars'], ['bars', 'Bars'], ['line', 'Line'], ['area', 'Area']]
       .filter(([val]) => _ctAllowed.includes(val))
     const tfSection = typeof onTfChange === 'function' ? {
       id: 'tf', title: 'Timeframe',

@@ -117,19 +117,20 @@ describe('the pool — an OHLC bar is its own series type, built like the primar
   })
 })
 
-describe('breadth is an ATTESTED family — per bar, by the server\'s mark', () => {
+// ⭐ (2026-10-10, owner ruling) breadth draws as candles/bars WHETHER OR NOT a bar carries the
+// observed-OHLC mark: an unobserved bar draws as its close-to-close body. The mark still exists
+// on the wire (it is what tells a reader a wick was observed) but it no longer gates drawing.
+describe('breadth draws OHLC with or without the server\'s per-bar mark', () => {
   it('⭐⭐ breadth with observed bars is capable', () => {
     expect(capOf('UCTA5', { bars: breadthBars(10, () => true) }).ok).toBe(true)
     expect(capOf('UCTA5', { bars: breadthBars(10, (i) => i === 9) }).ok).toBe(true)
   })
-  it('⛔⛔ breadth with NO observed bar is refused for what it means — every US series today', () => {
-    const v = capOf('US:A5', { bars: breadthBars(10, () => false) })
-    expect(v.ok).toBe(false)
-    expect(v.reason).toBe(OHLC_REFUSAL.FAMILY_NOT_OHLC)
+  it('breadth with NO observed bar is capable too (its bodies draw)', () => {
+    expect(capOf('US:A5', { bars: breadthBars(10, () => false) }).ok).toBe(true)
   })
-  it('⛔⛔ a mark that is not exactly 1 is not a mark', () => {
+  it('a mark that is not exactly 1 is still not an attestation', () => {
     const bars = breadthBars(5, () => false).map((b) => ({ ...b, ohlc: true }))
-    expect(capOf('UCTA5', { bars }).ok).toBe(false)
+    expect(bars.some(barIsAttestedOhlc)).toBe(false)
   })
   it('⛔ a marked bar missing a field is not attested', () => {
     expect(barIsAttestedOhlc({ t: 'x', o: 1, h: 2, l: null, c: 1.5, ohlc: 1 })).toBe(false)
@@ -145,11 +146,9 @@ describe('breadth is an ATTESTED family — per bar, by the server\'s mark', () 
   it('⭐ a security needs no mark (its bars are an auction as served)', () => {
     expect(capOf('SPY', { bars: secBars(5) }).ok).toBe(true)
   })
-  it('⭐⭐ drawableOhlcBars: an unobserved breadth bar keeps time + close and loses O/H/L', () => {
+  it('drawableOhlcBars: breadth bars draw as served (bodies included)', () => {
     const bars = breadthBars(4, (i) => i % 2 === 0)
-    const out = drawableOhlcBars(bars, OHLC_FAMILY.BREADTH)
-    expect(out[0]).toBe(bars[0])
-    expect(out[1]).toEqual({ t: bars[1].t, c: bars[1].c })
+    expect(drawableOhlcBars(bars, OHLC_FAMILY.BREADTH)).toBe(bars)
     expect(drawableOhlcBars(bars, OHLC_FAMILY.SECURITY)).toBe(bars)
   })
 })
@@ -220,7 +219,7 @@ describe('the binder draws Bars with the instrument\'s own four fields', () => {
     expect(h.live()[0].options.openVisible).toBe(true)
   })
 
-  it('⭐⭐ UCTA5 as Candles → observed bars draw, unobserved bars are WHITESPACE, never a body', () => {
+  it('UCTA5 as Candles → every bar draws, observed or body', () => {
     const h = harness()
     const binder = createBinder({ chart: h.chart, LWC: h.LWC })
     const b = breadthBars(20, (i) => i < 18)            // the last two: provisional + developing
@@ -228,30 +227,28 @@ describe('the binder draws Bars with the instrument\'s own four fields', () => {
     const s = h.live()[0]
     expect(s.ctor).toBe('CandlestickSeries')
     const drawn = s.__data.filter((p) => Number.isFinite(p.open))
-    expect(drawn).toHaveLength(18)
+    expect(drawn).toHaveLength(20)
     expect(drawn[5]).toEqual({ time: b[5].t, open: b[5].o, high: b[5].h, low: b[5].l, close: b[5].c })
-    expect(s.__data[18]).toEqual({ time: b[18].t })
-    expect(s.__data[19]).toEqual({ time: b[19].t })
+    expect(s.__data[19]).toEqual({ time: b[19].t, open: b[19].o, high: b[19].h, low: b[19].l, close: b[19].c })
   })
 
-  it('⭐ UCTA5 as Bars — the same per-bar rule, the BarSeries renderer', () => {
+  it('UCTA5 as Bars — every bar, the BarSeries renderer', () => {
     const h = harness()
     const binder = createBinder({ chart: h.chart, LWC: h.LWC })
     const b = breadthBars(20, (i) => i !== 7)
     syncOnce(binder, [seriesInst('u', 'UCTA5', 'bars')], new Map([['UCTA5', { bars: b, status: 'ok' }]]))
     const s = h.live()[0]
     expect(s.ctor).toBe('BarSeries')
-    expect(s.__data[7]).toEqual({ time: b[7].t })
-    expect(s.__data.filter((p) => Number.isFinite(p.open))).toHaveLength(19)
+    expect(s.__data.filter((p) => Number.isFinite(p.open))).toHaveLength(20)
   })
 
-  it('⛔⛔ a US (unmarked) breadth series asking for Bars gets a LINE of its close', () => {
+  it('a US (unmarked) breadth series asking for Bars gets Bars (its bodies)', () => {
     const h = harness()
     const binder = createBinder({ chart: h.chart, LWC: h.LWC })
     const b = breadthBars(20, () => false)
     syncOnce(binder, [seriesInst('u', 'US:A5', 'bars')], new Map([['US:A5', { bars: b, status: 'ok' }]]))
-    expect(h.live()[0].ctor).toBe('LineSeries')
-    expect(h.live()[0].__data.map((p) => p.value)).toEqual(b.map((x) => x.c))
+    expect(h.live()[0].ctor).toBe('BarSeries')
+    expect(h.live()[0].__data.map((p) => p.close)).toEqual(b.map((x) => x.c))
   })
 
   it('⭐ a Line over observed breadth still reads the close — scalar semantics unchanged', () => {
@@ -281,7 +278,7 @@ describe('switching Line → Candles → Bars → Area → Candles → Bars: one
         expect(live[0].__data.map((p) => p.value)).toEqual(b.map((x) => x.c))
       } else {
         const drawn = live[0].__data.filter((p) => Number.isFinite(p.close))
-        expect(drawn.map((p) => p.close)).toEqual(b.slice(0, 19).map((x) => x.c))
+        expect(drawn.map((p) => p.close)).toEqual(b.map((x) => x.c))   // bodies draw too (2026-10-10)
       }
     }
     expect(b.every((x) => x.v === 0)).toBe(true)        // the source was never mutated

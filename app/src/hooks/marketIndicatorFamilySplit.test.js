@@ -80,10 +80,11 @@ describe('⭐ the MI registry HAS landed', () => {
     expect(capability('VIX9D', canonicalFamily).ok).toBe(true)
   })
 
-  it('⛔⛔ a CLOSE-ONLY Cboe series is identified and MAY NOT use candles', () => {
+  it('a CLOSE-ONLY Cboe series is identified as INDICATOR — and may draw candles (bodies)', () => {
+    // (2026-10-10, owner ruling) breadth + indicator series may draw candles/bars — close-to-close bodies are accepted.
     for (const sym of ['VVIX', 'SKEW']) {
       expect(canonicalFamily(sym)).toBe(OHLC_FAMILY.INDICATOR)
-      expect(capability(sym, canonicalFamily).ok).toBe(false)
+      expect(capability(sym, canonicalFamily).ok).toBe(true)
     }
   })
 
@@ -110,9 +111,10 @@ describe('⭐ a BREADTH series is classified exactly as it always was', () => {
     }
   })
 
-  it('⛔ and a breadth series still may not draw candles', () => {
+  it('and a breadth series may draw candles', () => {
+    // (2026-10-10, owner ruling) breadth + indicator series may draw candles/bars — close-to-close bodies are accepted.
     __setMarketIndicatorsForTest(REGISTRY)
-    expect(capability('UCTA50', canonicalFamily).ok).toBe(false)
+    expect(capability('UCTA50', canonicalFamily).ok).toBe(true)
   })
 
   it('⚠️ a breadth symbol is NOT shadowed by an MI row of the same name', () => {

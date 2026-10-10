@@ -333,26 +333,33 @@ function ChartPane({
   // ticker (NVDA) instantly restores their real candlestick settings. The choice is
   // remembered globally (localStorage) and sticks across breadth tickers + refreshes,
   // but only ever takes effect while a breadth symbol is charted.
-  const [breadthLineOn, setBreadthLineOn] = useState(() => {
-    try { return localStorage.getItem('uct.charts.breadthLine') === '1' } catch { return false }
-  })
+  // ⭐ (2026-10-10) THE BREADTH CHART TYPE IS A SURFACE SETTING (`breadthChartType`), not a
+  // device-global line flag: Candles / Hollow / HLC / OHLC / Line / Area, chosen with the header
+  // button or Settings → Type while a breadth/indicator series is charted, remembered with the
+  // workspace, and never touching the surface's stock `chartType`. New surfaces: candles. A
+  // surface saved before this inherits the old device line flag once (line if it was on).
+  const _rawSurface = stored || ownChartSource || null
+  const _savedBreadthType = _rawSurface && _rawSurface.breadthChartType
+  const breadthChartType = _savedBreadthType
+    ? (chartCs.breadthChartType || 'candles')
+    : ((() => { try { return localStorage.getItem('uct.charts.breadthLine') === '1' } catch { return false } })()
+        ? 'line' : (chartCs.breadthChartType || 'candles'))
+  const breadthIsLine = breadthChartType === 'line' || breadthChartType === 'area'
+  const setBreadthChartType = useCallback((type) => {
+    writeActiveSettings({ ...chartCs, breadthChartType: type, preset: 'custom' })
+    try { localStorage.setItem('uct.charts.breadthLine', type === 'line' ? '1' : '0') } catch { /* private mode */ }
+  }, [chartCs, writeActiveSettings])
   const toggleBreadthLine = useCallback(() => {
-    setBreadthLineOn(prev => {
-      const next = !prev
-      try { localStorage.setItem('uct.charts.breadthLine', next ? '1' : '0') } catch { /* private mode */ }
-      return next
-    })
-  }, [])
-  // ⚠️ An indicator series has no OHLC at all (registry `ohlc_capable: false`), so it is always
-  // a line; the member toggle stays a breadth-symbol affordance.
-  const breadthLineActive = (isBreadth && breadthLineOn) || isIndicatorSeries
-  // Merge the forced line TYPE onto the surface's own override blob (never a second
-  // settingsOverride — ChartPane already passes one). Identity-stable so StockChart's
-  // memo dep doesn't churn. null when inactive = byte-identical to the prior behavior.
-  const baseSettingsOverride = stored || ownChartSource || null
+    setBreadthChartType(breadthIsLine ? 'candles' : 'line')
+  }, [breadthIsLine, setBreadthChartType])
+  // The line ink (one canvas-contrasting colour) only while a breadth series draws as a line.
+  const breadthLineActive = isBreadthLike && breadthChartType === 'line'
+  // The breadth TYPE rides the surface's own override blob (never a second settingsOverride —
+  // ChartPane already passes one). Identity-stable so StockChart's memo dep doesn't churn.
+  const baseSettingsOverride = _rawSurface
   const effSettingsOverride = useMemo(
-    () => (breadthLineActive ? { ...(baseSettingsOverride || {}), chartType: 'line' } : baseSettingsOverride),
-    [baseSettingsOverride, breadthLineActive],
+    () => (isBreadthLike ? { ...(baseSettingsOverride || {}), chartType: breadthChartType } : baseSettingsOverride),
+    [baseSettingsOverride, isBreadthLike, breadthChartType],
   )
   // Reconcile the breadth line-toggle with the settings gear so NEITHER control is ever
   // silently disabled. Every StockChart write spreads the overridden `cs` (chartType=
@@ -368,19 +375,17 @@ function ChartPane({
   //     computed WITHOUT this override) so a later regular ticker on this surface — NVDA —
   //     never loads as a line. The toggle stays on; the chart keeps showing line.
   // No-op entirely when the toggle isn't active.
+  // ⭐ (2026-10-10) While a breadth/indicator series is charted, a write's `chartType` IS the
+  // breadth type (StockChart spreads the overridden cs; its right-click "Chart type" sets it):
+  // route it into `breadthChartType` and keep the surface's real stock `chartType`.
   const persistActiveSettings = useCallback((next) => {
-    if (breadthLineActive && next && next.chartType) {
-      if (next.chartType !== 'line') {
-        setBreadthLineOn(false)
-        try { localStorage.setItem('uct.charts.breadthLine', '0') } catch { /* private mode */ }
-        writeActiveSettings(next)
-        return
-      }
-      writeActiveSettings({ ...next, chartType: chartCs.chartType || 'candles' })
+    if (isBreadthLike && next && next.chartType) {
+      writeActiveSettings({ ...next, breadthChartType: next.chartType,
+                            chartType: chartCs.chartType || 'candles' })
       return
     }
     writeActiveSettings(next)
-  }, [breadthLineActive, writeActiveSettings, chartCs.chartType])
+  }, [isBreadthLike, writeActiveSettings, chartCs.chartType])
 
   // ── Responsive header fit ──────────────────────────────────────────────────
   // Measure the pane's own width so the header degrades gracefully as the widget
@@ -593,8 +598,14 @@ function ChartPane({
     setSettingsOpen(true)
   }, [])
   const updateChartSettings = useCallback((next) => {
+    // Settings → Type on a breadth chart sets the BREADTH type (see persistActiveSettings).
+    if (isBreadthLike && next && next.chartType) {
+      writeActiveSettings({ ...next, breadthChartType: next.chartType,
+                            chartType: chartCs.chartType || 'candles' })
+      return
+    }
     writeActiveSettings(next)
-  }, [writeActiveSettings])
+  }, [isBreadthLike, writeActiveSettings, chartCs.chartType])
 
   // ─── THE TOOLBAR'S IMPERATIVE API, HELD BY THE PANE ───────────────────────
   //
@@ -906,16 +917,16 @@ function ChartPane({
                 pill's exact seat: the same margin-right + the same trailing
                 [+ / gear / share], so its right edge lands on the leverage pill's
                 right edge, and the + (new chart tab) sits after it next to the gear. */}
-            {isBreadth && !mini && (
+            {isBreadthLike && !mini && (
               <button
                 type="button"
                 className={styles.breadthLineBtn}
                 onClick={toggleBreadthLine}
-                title={breadthLineOn ? 'Switch to candlesticks' : 'Switch to line chart'}
-                aria-pressed={breadthLineOn}
+                title={breadthIsLine ? 'Switch to candlesticks' : 'Switch to line chart'}
+                aria-pressed={breadthIsLine}
               >
-                <UIcon name={breadthLineOn ? 'chart' : 'wave'} size={12} gold={false} />
-                {breadthLineOn ? 'Candles' : 'Line'}
+                <UIcon name={breadthIsLine ? 'chart' : 'wave'} size={12} gold={false} />
+                {breadthIsLine ? 'Candles' : 'Line'}
               </button>
             )}
             {slots?.tfBarRight}
@@ -1133,7 +1144,7 @@ function ChartPane({
         chartTf={(isBreadthLike || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
         onClose={() => setSettingsOpen(false)}
         scrollTo={settingsOpen ? settingsTarget : null}
-        settings={chartCs}
+        settings={isBreadthLike ? { ...chartCs, chartType: breadthChartType } : chartCs}
         /* ⭐ THE SAME VOLUME TRUTH THE CHART GETS. This pane passes
            `volumeSeparatePane` to `StockChart` unconditionally, so on the main
            chart the renderer allocates a real volume pane; without these inputs

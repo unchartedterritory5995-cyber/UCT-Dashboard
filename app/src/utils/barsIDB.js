@@ -352,13 +352,13 @@ export async function idbCountKeys(suffix = '') {
   })
 }
 
-export async function idbImportPack(entries, { batchSize = 250, yieldBetween = false } = {}) {
+export async function idbImportPack(entries, { batchSize = 250, yieldBetween = false, replaceIfNewer = false } = {}) {
   if (!entries?.length) return { written: 0, skipped: 0, aborted: false }
   let db
   try { db = await _open() } catch { return { written: 0, skipped: 0, aborted: true } }
   let written = 0, skipped = 0, aborted = false
   for (let i = 0; i < entries.length && !aborted; i += batchSize) {
-    const res = await _importBatch(db, entries.slice(i, i + batchSize))
+    const res = await _importBatch(db, entries.slice(i, i + batchSize), replaceIfNewer)
     written += res.written
     skipped += res.skipped
     if (res.aborted) aborted = true  // quota / tx failure — keep prior batches, stop
@@ -398,7 +398,7 @@ export function _closeMismatch(a, b) {
   return Math.abs(ac - bc) / Math.abs(bc) > 0.02    // >2% at a shared CLOSED session = stale/wrong scale
 }
 
-function _importBatch(db, batch) {
+function _importBatch(db, batch, replaceIfNewer = false) {
   return new Promise((resolve) => {
     let written = 0, skipped = 0
     let tx
@@ -426,7 +426,11 @@ function _importBatch(db, batch) {
         // skip would preserve it — and its wrong DEEP history — forever. On a material
         // close mismatch at the shared session, fall through and REPLACE with the
         // sanitized pack (the discarded deep history re-warms on demand).
-        if (cur && cur.v === CACHE_LOGIC_VERSION
+        // `replaceIfNewer` (the Breadth Pack): a deeper local entry whose tail is OLDER than the
+        // pack's is replaced — breadth has no live tick to keep a cached tail current, so a deep
+        // but stale entry would otherwise win forever and the instant paint would be refused.
+        const packNewer = replaceIfNewer && String(bars[bars.length - 1]?.t || '') > String(cur?.lastT || '')
+        if (cur && cur.v === CACHE_LOGIC_VERSION && !packNewer
             && (cur.bars?.length || 0) >= bars.length
             && !_closeMismatch(_findRecentBarByT(cur.bars, bars[bars.length - 1]?.t), bars[bars.length - 1])) {
           skipped++

@@ -82,18 +82,19 @@ describe('useMarketIndicators — the second registry, client side', () => {
     __setMarketIndicatorsForTest(PAYLOAD)
     setBreadth(true)
     expect(canonicalFamily('VVIX')).toBe(OHLC_FAMILY.INDICATOR)
-    expect(ohlcCapabilityOf(PASSTHROUGH, SYM('VVIX'), BARS, canonicalFamily).ok).toBe(false)
+    // (2026-10-10, owner ruling) breadth + indicator series may draw candles/bars — close-to-close bodies are accepted.
+    expect(ohlcCapabilityOf(PASSTHROUGH, SYM('VVIX'), BARS, canonicalFamily).ok).toBe(true)
     expect(ohlcCapabilityOf(PASSTHROUGH, SYM('VIX9D'), BARS, canonicalFamily).ok).toBe(true)
   })
 
-  it('refuses candles for a derived indicator and for a survey', () => {
+  it('admits candles for a derived indicator, refuses them for a survey', () => {
+    // (2026-10-10, owner ruling) breadth + indicator series may draw candles/bars — close-to-close bodies are accepted.
     __setMarketIndicatorsForTest(PAYLOAD)
     setBreadth(true)
-    for (const sym of ['US:MCO', 'NAAIM']) {
-      const cap = ohlcCapabilityOf(PASSTHROUGH, SYM(sym), BARS, canonicalFamily)
-      expect(cap.ok).toBe(false)
-      expect(cap.reason).toBe(OHLC_REFUSAL.FAMILY_NOT_OHLC)
-    }
+    expect(ohlcCapabilityOf(PASSTHROUGH, SYM('US:MCO'), BARS, canonicalFamily).ok).toBe(true)
+    const cap = ohlcCapabilityOf(PASSTHROUGH, SYM('NAAIM'), BARS, canonicalFamily)
+    expect(cap.ok).toBe(false)
+    expect(cap.reason).toBe(OHLC_REFUSAL.FAMILY_NOT_OHLC)
   })
 
   it('resolves a series by id, member symbol and alias alike', () => {

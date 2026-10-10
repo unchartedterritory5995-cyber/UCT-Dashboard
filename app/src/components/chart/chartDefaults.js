@@ -344,6 +344,10 @@ export const CHART_DEFAULTS = {
   // whether a whole render path runs.
   hideDrawings: false,  // hide all drawings without deleting them
   extendedHoursShading: true,  // "Extended hours" toggle — ON shows pre/post-market price data + shading on intraday; OFF = regular session only (9:30–4:00 ET) with overnight gaps
+  // ⭐ (2026-10-10) The chart type a BREADTH / indicator series draws with on this surface —
+  // separate from `chartType`, so the Candles/Line button and Settings → Type on a breadth chart
+  // never change how this surface draws stocks. New surfaces open breadth as candles.
+  breadthChartType: 'candles',
   sessionView: 'regular',      // D/W/M "Regular Hours" vs "Include pre/post-market" preview candle — PERSISTED so the user's choice sticks across refreshes/sessions
   volumeOverlayIndicators: [],   // oscillator keys rendered inside the volume pane (left axis)
 
@@ -744,6 +748,8 @@ function mergeChartSettingsRaw(userSettings) {
     // the flag and stay green forever.
     hideDrawings: parsed.hideDrawings ?? CHART_DEFAULTS.hideDrawings,
     extendedHoursShading: parsed.extendedHoursShading ?? CHART_DEFAULTS.extendedHoursShading,
+    breadthChartType: ['candles', 'hollow', 'hlc', 'bars', 'line', 'area'].includes(parsed.breadthChartType)
+      ? parsed.breadthChartType : CHART_DEFAULTS.breadthChartType,
     sessionView: parsed.sessionView === 'extended' ? 'extended' : CHART_DEFAULTS.sessionView,
     volumeOverlayIndicators: Array.isArray(parsed.volumeOverlayIndicators)
       ? parsed.volumeOverlayIndicators
