@@ -2693,6 +2693,95 @@
    "query": false
   },
   {
+   "name": "indicator.draft",
+   "domain": "indicator",
+   "target": "indicatorDrafts",
+   "summary": "Talk to the indicator builder (Create Indicator's engine) about ONE indicator draft: start a new one, ask for advice, answer its questions, or change it (\"highlight candles when the 9 EMA is above the 20 EMA\", \"also require RSI above 50\", \"what would you recommend adding?\"). The builder decides what the turn is; questions and advice change nothing. Never saves.",
+   "hints": "target = the ACTIVE draft's ref to continue it (follow-ups like \"also…\", \"make it…\", \"what would you add?\" go to the active draft); the NEW-draft entry only when the member starts a different indicator. If several drafts could be meant and none is active or named, ask which. message = the member's words, verbatim — never your own formula or interpretation.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "message": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "message"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "indicator.previewDraft",
+   "domain": "indicator",
+   "target": "indicatorDrafts",
+   "summary": "Show an indicator draft as this tab's ONE live preview on a chart (not saved; moves off any other chart). Only when the member asks to see it.",
+   "hints": "target = the draft's ref (usually the active one). chart = the ref of the chart to preview on — the one the member names, or the only chart; if several charts and none named, ask which. Never preview unasked.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "chart": {
+      "type": "string"
+     }
+    },
+    "required": [
+     "chart"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false
+  },
+  {
+   "name": "indicator.saveDraft",
+   "domain": "indicator",
+   "target": "indicatorDrafts",
+   "summary": "Save an indicator draft as one of the member's indicators (Create Indicator's own Save; a new indicator, or a new version of the one being edited) — always shown as a proposal with the builder's own summary first. addTo: charts to add the SAVED indicator to afterwards (each added separately, with its own receipt).",
+   "hints": "target = the draft's ref (usually the active one). addTo = refs of the charts to add it to after it is saved ([] for none) — only charts the member asked for. To name it (\"save it as Bullish Trend\"), put an indicator.draft op \"Name it Bullish Trend\" on the SAME draft before this op.",
+   "args": {
+    "type": "object",
+    "properties": {
+     "addTo": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     }
+    },
+    "required": [
+     "addTo"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "confirm",
+   "reversible": false,
+   "undo": "none",
+   "query": false
+  },
+  {
+   "name": "indicator.undoDraft",
+   "domain": "indicator",
+   "target": "indicatorDrafts",
+   "summary": "Undo the last change in an indicator draft, exactly, when there is nothing of mine to Undo (e.g. after a reload). Never touches a chart or a saved indicator.",
+   "hints": "target = the draft's ref. Only for \"undo the last change to my draft\" when the normal Undo has nothing.",
+   "args": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": false
+  },
+  {
    "name": "agent.capabilities",
    "domain": "agent",
    "target": "about",

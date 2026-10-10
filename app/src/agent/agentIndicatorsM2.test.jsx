@@ -212,7 +212,8 @@ describe('M2 permission — at plan, at Apply, at Undo', () => {
     const h = host([L()], { access: { L: false } })
     expect((await plan(h, [op('indicator.hide', 'L', { instance: 'inst:rsi:1' })])).refusals[0].reason).toMatch(/can't be changed from here/)
     const names = (ctx) => manifestFor(ctx).map(c => c.name).filter(n => n.startsWith('indicator.'))
-    expect(names({ ...CTX, manageIndicators: false })).toEqual(['indicator.list', 'indicator.openCreate'])
+    // M3 authoring talks to the draft, not a chart: still offered; its preview/add targets are checked per chart
+    expect(names({ ...CTX, manageIndicators: false })).toEqual(['indicator.list', 'indicator.openCreate', 'indicator.draft', 'indicator.previewDraft', 'indicator.saveDraft', 'indicator.undoDraft'])
     expect(names({ ...CTX, manageIndicators: true })).toEqual(expect.arrayContaining(['indicator.add', 'indicator.remove', 'indicator.show', 'indicator.hide']))
   })
   it('access lost between plan and Apply → refused at Apply ("permission … changed"), nothing written', async () => {
@@ -386,9 +387,9 @@ describe('M2 safety, routing and budget', () => {
     for (const m of ['Add RSI to this chart', 'Hide MACD', 'Show RSI', 'Remove this indicator', 'hide the 9 EMA']) expect(g(m), m).toContain('indicators')
     for (const m of ['make the grid blue', 'turn on earnings markers', 'compare AAPL to SPY', 'colour the candles green']) expect(g(m), m).not.toContain('indicators')
   })
-  it('budget: the indicators group is 6 actions and every routed request stays ≤ 55', () => {
+  it('budget: the indicators group is 10 actions (M3 +4) and every routed request stays ≤ 55', () => {
     const FULL = manifestFor({ ...CTX, manageIndicators: true })
-    expect(FULL.filter(c => groupOfAction(c.name) === 'indicators')).toHaveLength(6)
+    expect(FULL.filter(c => groupOfAction(c.name) === 'indicators')).toHaveLength(10)
     const opts = { limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
     for (const m of ['Add RSI to this chart and put NVDA on a new chart and add it to my watchlist', 'hide MACD, draw a line at 200, alert me when it crosses 150, switch to weekly', 'remove this indicator then save the layout']) {
       expect(routeManifest(FULL, m, opts).manifest.length, m).toBeLessThanOrEqual(55)

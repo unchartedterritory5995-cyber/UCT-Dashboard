@@ -200,6 +200,6 @@ describe('release audit: every registered action is reachable through routing', 
       for (const n of mine) covered.add(n)
     }
     expect(FULL.filter(c => !covered.has(c.name)).map(c => c.name)).toEqual([])
-    expect(FULL.length).toBe(83)              // M2: + indicator.add / remove / show / hide
+    expect(FULL.length).toBe(87)              // M2: + indicator.add / remove / show / hide; M3: + draft / previewDraft / saveDraft / undoDraft
   })
 })

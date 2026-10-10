@@ -78,10 +78,10 @@ export const TOPICS = [
   {
     id: 'customIndicator', title: 'Creating a custom indicator',
     words: [/\b(custom|my own|new|build|write|author)\b.*\b(indicator|formula|study|script)s?\b/, /\b(indicator|formula)s? (from|in) (plain |natural )?(english|words|language)\b/, /\bcreate indicator\b/, /\bpine ?script\b/],
-    caps: ['indicator.openCreate'], productHas: true,
-    canDo: 'open Create Indicator on a chart with your request typed into its box, or open Modify on one of your own custom indicators — you review it and press Send there; I don’t build, preview, add or save the indicator. Only when Create Indicator is available to your account (admins and a rollout group today)',
-    known: () => ['building, previewing and saving the indicator (that is Create Indicator’s own flow — you approve it there)'],
-    planned: { when: 'Batch 7', what: 'a direct hand-off of your request to the indicator builder, designed with the Indicator team (M3)' },
+    caps: ['indicator.openCreate', 'indicator.draft', 'indicator.previewDraft', 'indicator.saveDraft', 'indicator.undoDraft'], productHas: true,
+    canDo: 'build a custom indicator with you through Create Indicator’s own builder — describe it, ask what to add, change it, undo a change, preview it on a chart you name, then save it (always shown to you first) and add it to the charts you choose, each with its own receipt; or open Create Indicator on a chart with your request typed in. Only when Create Indicator is available to your account (admins and a rollout group today)',
+    known: () => ['editing one of your saved indicators through me (open Modify in Create Indicator)', 'alerts on a new indicator (set them in Create Indicator)'],
+    planned: null,
   },
   {
     id: 'indicators', title: 'Indicators',

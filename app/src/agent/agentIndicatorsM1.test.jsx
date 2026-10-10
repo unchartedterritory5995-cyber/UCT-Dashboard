@@ -287,7 +287,7 @@ describe('M1 routing — the indicators group', () => {
   })
   it('the indicators group packs under the routed budget beside every other group', () => {
     const budget = { limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
-    expect(FULL.filter(c => groupOfAction(c.name) === 'indicators').map(c => c.name).sort()).toEqual(['indicator.add', 'indicator.hide', 'indicator.list', 'indicator.openCreate', 'indicator.remove', 'indicator.show'])
+    expect(FULL.filter(c => groupOfAction(c.name) === 'indicators').map(c => c.name).sort()).toEqual(['indicator.add', 'indicator.draft', 'indicator.hide', 'indicator.list', 'indicator.openCreate', 'indicator.previewDraft', 'indicator.remove', 'indicator.saveDraft', 'indicator.show', 'indicator.undoDraft'])
     for (const msg of ['colour the candles when RSI is above 70 and add a watchlist widget', 'what indicators are on the left chart, then switch it to weekly', 'add an rsi and draw a line at 200 and alert me when NVDA crosses 150']) {
       const r = routeManifest(FULL, msg, budget)
       expect(r.manifest.length, msg).toBeLessThanOrEqual(MANIFEST_CONTRACT.routingThreshold)

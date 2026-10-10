@@ -18,6 +18,7 @@ import { registerBoardCapabilities } from './capabilities/board'
 import { registerDrawingCapabilities } from './capabilities/drawings'
 import { registerIndicatorCapabilities } from './capabilities/indicators'
 import { registerIndicatorEditCapabilities } from './capabilities/indicatorEdits'
+import { registerIndicatorAuthoringCapabilities } from './capabilities/indicatorAuthoring'
 
 let done = false
 export function registerBuiltins() {
@@ -39,5 +40,6 @@ export function registerBuiltins() {
   registerDrawingCapabilities()
   registerIndicatorCapabilities()
   registerIndicatorEditCapabilities()
+  registerIndicatorAuthoringCapabilities()
   registerAboutCapabilities()
 }

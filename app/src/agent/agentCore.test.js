@@ -56,7 +56,8 @@ describe('capability registry', () => {
     for (const n of names) expect(n).not.toMatch(/^pane\./)
     // M1 reads + the Create Indicator door; M2 writes — every writer on the `indicatorEdits` kind
     // (the Indicators mutation interface), none elsewhere
-    expect(names.filter(n => n.startsWith('indicator.')).sort()).toEqual(['indicator.add', 'indicator.hide', 'indicator.list', 'indicator.openCreate', 'indicator.remove', 'indicator.show'])
+    expect(names.filter(n => n.startsWith('indicator.')).sort()).toEqual(['indicator.add', 'indicator.draft', 'indicator.hide', 'indicator.list', 'indicator.openCreate', 'indicator.previewDraft', 'indicator.remove', 'indicator.saveDraft', 'indicator.show', 'indicator.undoDraft'])
+    for (const n of ['indicator.draft', 'indicator.previewDraft', 'indicator.saveDraft', 'indicator.undoDraft']) expect(getCapability(n).target, n).toBe('indicatorDrafts')   // M3: the draft kind, never a chart writer
     for (const n of ['indicator.add', 'indicator.remove', 'indicator.show', 'indicator.hide']) expect(getCapability(n).target, n).toBe('indicatorEdits')
   })
   it('the manifest is metadata only, gated by surface', () => {

@@ -195,7 +195,9 @@ describe('capability questions — deterministic, truthful, never future-as-pres
     const a = answerFor('customIndicator')
     expect(a.status).toBe('partial')
     expect(a.text).toMatch(/Create Indicator/)
-    expect(a.text).toMatch(/don’t build, preview, add or save/)
+    // M3: the Agent builds through Create Indicator's own builder and always proposes the Save
+    expect(a.text).toMatch(/build a custom indicator with you through Create Indicator’s own builder/)
+    expect(a.text).toMatch(/save it \(always shown to you first\)/)
   })
   it('"What can you do with saved screeners?" → partial, listing only REGISTERED abilities', () => {
     expect(ask('What can you do with saved screeners?').args.topic).toBe('savedScreens')
