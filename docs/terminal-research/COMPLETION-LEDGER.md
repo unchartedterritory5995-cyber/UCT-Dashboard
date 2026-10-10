@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after X-05 and lane P2): not complete.** 233 of 279 rows are `live` or `moot`; 46 are not (28 `dark`, 10 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after X-05 and lane P2): not complete.** 234 of 279 rows are `live` or `moot`; 45 are not (28 `dark`, 8 `building`, 9 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -37,7 +37,7 @@ python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETI
 Printed 2026-10-10 after X-05 and lane P2:
 
 ```
-279 Counter({'live': 193, 'moot': 40, 'dark': 28, 'building': 10, 'owner-blocked': 8})
+279 Counter({'live': 194, 'moot': 40, 'dark': 28, 'owner-blocked': 9, 'building': 8})
 0 duplicate ids
 ```
 
@@ -51,14 +51,14 @@ The per-section split is the same regex applied to each `## ` section:
 |---|---|---|---|---|---|---|
 | 1 Programme records + ship | 17 | 13 | 0 | 1 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
-| 3 TERM-001..093 | 93 | 68 | 9 | 7 | 3 | 6 |
+| 3 TERM-001..093 | 93 | 69 | 9 | 5 | 4 | 6 |
 | 4 BRK-01..10 | 10 | 5 | 4 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 6 | 1 | 1 | 1 | 3 |
 | 6 FT-001..080 | 80 | 57 | 9 | 1 | 4 | 9 |
 | 7 Untracked promises | 58 | 44 | 5 | 0 | 0 | 9 |
-| **total** | **279** | **193** | **28** | **10** | **8** | **40** |
+| **total** | **279** | **194** | **28** | **8** | **9** | **40** |
 
-`building` by lane: P 6 · Notebook 2 · R 2.
+`building` by lane: P 4 · Notebook 2 · R 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -135,7 +135,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-030` | Calendar reader schema assertion | `live` | `api/services/calendar_week_contract.py:107`. |
 | `TERM-031` | Derived Fed-speaker list | `live` | `api/routers/calendar.py:2370`. |
 | `TERM-032` | "coverage n=0" for transcripts | `moot (RG-15 refuted, RG-15a)` | |
-| `TERM-033` | `.catch(()=>null)` migration | `building (Lane P)` | Drained 37 -> 2 by lane f-l7 (`4b18a1a58`): `app/src/lib/swallowedFetch.baseline.json:14` reads `total: 2`. Every other site now fails explicitly (a throwing fetcher, `app/src/lib/responseBody.js` tagged body reads, or a named sentinel). The 2 left are partner-owned (Ravi), never edited without the partner: `pages/DarkPool.jsx` (mktcap batch) and `pages/OptionsFlow.jsx` (ER-badge weeks). Was 37. |
+| `TERM-033` | `.catch(()=>null)` migration | `live` | Drained to 0: `app/src/lib/swallowedFetch.baseline.json` reads `total: 0`, `files: {}`, and the census (`swallowedFetch.census.test.js`) is now a pure ratchet at zero. Lane f-l7 (`4b18a1a58`) took it 37 -> 2; lane P2 (2026-10-10, owner ruling "proceed fully") moved the two partner-owned sites onto named sentinels through one-line rebase-safe hooks: `pages/DarkPool.jsx` mktcap batch -> `pages/darkPool/mktcapBatchRead.js` (`MKTCAP_BATCH_FAILED`; a failed batch's symbols are handed back so the next data load re-asks, where before they stayed blank for the page's life) and `pages/OptionsFlow.jsx` ER-badge weeks -> `pages/optionsFlow/erWeekRead.js` (`ER_WEEK_FAILED`, logged with its cause). Hooks railed by `pages/optionsFlow/p2Hooks.wiring.test.js`. Was `building (Lane P)`. |
 | `TERM-034` | I1 spec as rails | `live` | `app/src/pages/research/i1S8Boundary.test.js:562`. |
 | `TERM-035` | Market clock as code | `live` | `app/src/lib/marketClock/marketClock.js:194`. The L0 strip is V7, not this. |
 | `TERM-036` | Dividends onto Massive | `live` | `api/services/reference_corp_actions.py:62`. |
@@ -167,7 +167,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-062` | Publish cooldowns | `live` | `api/services/alert_taxonomy/cooldowns.py`. |
 | `TERM-063` | Keyboard registry | `live` | `app/src/pages/command/shortcutRegistry.js:50`. |
 | `TERM-064` | One ticker resolver | `live` | On master (`6854c3350`, via X-01): `app/src/lib/tickerResolver.js`, consumed by `app/src/floor2/Composer.jsx`; tweet ingest delegates. Ungated. Was `dark` (branch-only). |
-| `TERM-065` | DataGrid seed extraction | `building (Lane P)` | Seed live; `app/src/lib/presentation/dataGrid/dataGridSeed.rail.test.js:188` BASELINE holds 3 hand-rolled grids (was 9): lane f-l7 (`ab70b21ac`) moved CalendarDayTable, Shelf, HoldingsList, LiveFlowMassive, ThemeTrackerPage and Watchlists onto the seed (parity: `pageGrids2.seedParity.test.js`). The 3 left are partner-owned: DarkPool, OptionsFlow, OptionsFlow_admin. |
+| `TERM-065` | DataGrid seed extraction | `owner-blocked (partner: retire or migrate the OptionsFlow_admin.jsx artifact copy)` | Seed live; `app/src/lib/presentation/dataGrid/dataGridSeed.rail.test.js` BASELINE holds 1 hand-rolled grid (was 3, was 9). Lane f-l7 (`ab70b21ac`) moved six pages; lane P2 (2026-10-10) moved DarkPool's three panels and OptionsFlow's four header toggles onto the seed through one-line hooks into `pages/optionsFlow/flowGridSort.js` (on MIGRATED), comparators untouched; parity with every hand-rolled toggle copied verbatim, unexpected direction values included: `pages/optionsFlow/flowGridSort.seedParity.test.js`. The 1 left, `pages/OptionsFlow_admin.jsx`, cannot take a hook: it is a self-contained Claude-artifact copy that imports only react and recharts by design (its header: the artifact cannot import local files) and has zero importers in `app/src`, so any import would break its one use. Was `building (Lane P)`. |
 | `TERM-066` | One format module | `live` | Drained on `f-l8` (live once landed): `80080e7ac` moved 63 magnitude-suffix sites in 20 files onto `formatCompact`; `dd326973b` added the options the remaining grammars needed (per-magnitude `decimals`, `trim`, `fixedUnit`, `promote: false`, each defaulting to the old behaviour, pinned by a frozen-oracle sweep in `presentationPrimitives.test.js`) and migrated the last 16 non-partner sites byte-identically (200k values + 32 specials per grammar, 0 diffs). Baseline `app/src/lib/presentation/handRolledFormatters.baseline.json`: 150 sites / 28 files -> **71 / 5**, every one in a partner-owned file that belongs to its owner and stays listed by design: `pages/OptionsFlow.jsx` 18, `pages/OptionsFlow_admin.jsx` 39, `pages/DarkPool.jsx` 10, `pages/LiveFlow.jsx` 2, `pages/LiveFlow_admin.jsx` 2 (`components/screener/reachable.test.js:575,587-588`). `app/src/agent/**` is not in the baseline (`agent/capabilities/stock.js` formats through `formatCompact`, `d30317b78`). Was `building (Lane P)`. |
 | `TERM-067` | Form-control layer | `live` | `Radio` primitive shipped (`1b391f926`); `app/src/components/ui/formControls.census.test.js:920` `UNNAMED_BASELINE = 0` (was 23): lane f-l7 (`0df595b83`) named the last 23 journal-2-0 sites through the ui Input / Select / Textarea primitives. Was `building (Lane P)`. |
 | `TERM-068` | Cohort store + kill switch | `live` | `api/services/rollout_gate.py:21`. |
@@ -348,7 +348,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `P14a` | Phone shell: stored-panel switcher + panel-count control | `live` | Phone panel switcher + touch panel-count control (`3456eb0f8`; rail `app/src/pages/terminal/phoneSwitcher.test.jsx`). Was `building (Lane T4)`. |
 | `P14b` | `/charts` phone: Multi-Chart grid, compare, version-history door | `live` | Measured 2026-10-10 (lane f-l9): Multi-Chart door shipped (`2fd16ae9f`); per-layout version history was already on the phone Layouts sheet (COV-06); Compare and BOARD version history (TERM-051) had no phone door. Built both as Tools-sheet rows (`app/src/pages/charts/mobile/MobileMoreSheet.jsx:105`, `:113`): the phone chart now registers the same compare API ChartWidget does (`mobile/MobileChartsApp.jsx:208`) so the desktop `CompareSymbolsPanel` works unchanged, and `ChartsWorkspace.jsx:3097` hands the phone shell `openVersionHistory` and mounts `VersionHistoryPanel` there (row hidden while the store is dark). Rail: `app/src/pages/charts/mobile/phoneCompareHistory.doors.test.jsx` (7 tests). Was `building (Lane T4)`. |
 | `NAV` | Nav graduation `to:'/terminal'` + the fresh viewport-lock measurement | `live` | Graduated: `app/src/components/NavBar.jsx:27` is `to: '/terminal'` (`c941080f0`, I-11 `12-decisions/2026-10-07-owner-delegated-decisions.md:39`); `/terminal` measured viewport-locked (`18676e3ec`). Was `building (Lane T4)`. |
-| `EXPORT-FLOW` | Options-flow export from flow-worker | `live` | `GET /api/exports/flow/{symbol}` (`api/routers/data_exports.py:120`): paid, behind `DATA_EXPORTS_ENABLED` (armed on web 2026-10-04, `docs/feature_flags.json:1868`), metered like the other exports. The rows are a server-side read of flow-worker's `/api/flow/ticker/{symbol}` sent the way web's other flow reads are (straight to `WORKER_INTERNAL_URL` when the read proxy is on, PUSH_SECRET service credential, never the member's cookie; `api/services/data_exports.py:335`), one session per file (`:352`). No flow-worker file changed, so no flow-worker deploy and the OPRA tape is untouched. Rails `tests/test_data_exports_flow.py`. There is no button on the partner-owned Options Flow page yet; the door is the URL and the skill whitelist. Lands with branch `f-l2`. Was `building (Lane O)`, which cited `reports/lane-o-options-remainders.md:37`. |
+| `EXPORT-FLOW` | Options-flow export from flow-worker | `live` | `GET /api/exports/flow/{symbol}` (`api/routers/data_exports.py:120`): paid, behind `DATA_EXPORTS_ENABLED` (armed on web 2026-10-04, `docs/feature_flags.json:1868`), metered like the other exports. The rows are a server-side read of flow-worker's `/api/flow/ticker/{symbol}` sent the way web's other flow reads are (straight to `WORKER_INTERNAL_URL` when the read proxy is on, PUSH_SECRET service credential, never the member's cookie; `api/services/data_exports.py:335`), one session per file (`:352`). No flow-worker file changed, so no flow-worker deploy and the OPRA tape is untouched. Rails `tests/test_data_exports_flow.py`. The member door on Options Flow landed in lane P2 (2026-10-10): an Export button in the Search view (`pages/optionsFlow/FlowExportButton.jsx`, mounted by one line in `OptionsFlow.jsx`), rendered only when `exportQuota()` answers (the same server-decides rule as the Screener and Watchlists buttons: dark or free plan = no button), downloading the ticker's latest session as CSV and printing the server's sentence on a refusal. Rails `FlowExportButton.test.jsx` + `p2Hooks.wiring.test.js`. Lands with branch `f-l2`. Was `building (Lane O)`, which cited `reports/lane-o-options-remainders.md:37`. |
 | `SCR-URL` | Grouped logic carried in the screener URL | `live` | The grouped `logic` node rides the screener URL (`app/src/pages/screener/shell/useScreenSpec.js:31`, `:84`); `SCREENER_LOGIC_ENABLED` armed on web 2026-10-04 (`a046f7d9f`). Was `building (Lane S)`. |
 | `AC-2` | One channel registry instead of per-alert webhook names | `dark` | Built dark (`lane/s2-finish`, `9e69eddd9`): `ALERT_CHANNEL_REGISTRY_ENABLED` pending. Arming checked 2026-10-10 (lane f-l6): read site `api/services/alert_taxonomy/channels.py:38`, consumer `api/services/alerts.py:148`, no prerequisite (`12-decisions/2026-10-10-arming-list.md`). Was `building (Lane S)`. |
 | `AC-4` | Per-trigger-type queue caps with a reserve | `dark` | Built dark (`9e69eddd9`): `ALERT_QUEUE_CAPS_ENABLED` pending. Arming checked 2026-10-10 (lane f-l6): read site `api/services/alert_taxonomy/queue_caps.py:63`, consumer `api/services/alert_taxonomy/delivery.py:69`, no prerequisite (`12-decisions/2026-10-10-arming-list.md`). Was `building (Lane S)`. |

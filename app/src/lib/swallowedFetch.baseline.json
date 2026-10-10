@@ -7,13 +7,14 @@
     "(sectionFetcher / adminFetcher, SWR keeps the last good answer), a tagged body read (lib/responseBody.js:",
     "failureDetail for a refusal's reason, readSuccessBody for an already-successful write's body), or a NAMED",
     "sentinel whose meaning is documented where it is defined (NO_HEAD_START, TEXTAREA_FALLBACK, NO_SPARKLINE,",
-    "CHUNK_FAILED, BARS_FAILED). The two that remain are in PARTNER-OWNED files (Ravi), which this lane may not edit:",
-    "  pages/DarkPool.jsx: the mktcap-batch read (a failed batch drops its market caps from the merge).",
-    "  pages/OptionsFlow.jsx: the next two calendar weeks' ER-badge read (a failed week contributes no badges)."
+    "CHUNK_FAILED, BARS_FAILED).",
+    "TERM-033 close (lane P2, 2026-10-10, owner ruling 'proceed fully'): 2 -> 0. The two partner-owned sites moved",
+    "onto named sentinels through one-line rebase-safe hooks:",
+    "  pages/DarkPool.jsx mktcap batch -> pages/darkPool/mktcapBatchRead.js (MKTCAP_BATCH_FAILED; a failed batch's",
+    "    symbols are handed back so the next data load asks again).",
+    "  pages/OptionsFlow.jsx ER-badge weeks -> pages/optionsFlow/erWeekRead.js (ER_WEEK_FAILED; logged with its cause).",
+    "The census is now a pure ratchet at zero: any new site fails by name."
   ],
-  "total": 2,
-  "files": {
-    "pages/DarkPool.jsx": 1,
-    "pages/OptionsFlow.jsx": 1
-  }
+  "total": 0,
+  "files": {}
 }

@@ -75,5 +75,5 @@ every page), and panel headers that state a time (`panelHeaderTime.rail.test.js`
 | AAII values in the breadth data unchanged since 2026-09-24 while the survey date advances | breadth data collector |
 | Screener serves the 2026-10-07 snapshot; the 10-08 nightly build was incomplete | screener nightly build |
 | Market-hours speed check, Wed 2026-10-14, 9-11 AM ET | owner |
-| Options Flow `recent=1` wiring (3 lines in `OptionsFlow.jsx`) | Ravi |
+| ~~Options Flow `recent=1` wiring (3 lines in `OptionsFlow.jsx`)~~ Done in lane P2 (2026-10-10, owner ruling "no need to wait for ravi"): the page's Search import now comes from `pages/optionsFlow/flowRecentWindow.js`, which asks with `acceptRecent` (so `&recent=1`), and `FlowRecentWindowNote` labels a windowed product ("Showing the most recent N of M sessions"); 3 lines in `OptionsFlow.jsx`, railed by `p2Hooks.wiring.test.js`. Live once `VITE_FLOW_SERVER_SEARCH` is built on (it already is on web) | done |
 | Known reds on master not from the terminal: `handRolledFormatters.census` (agent), `reachable.test.js` expired parking note (chart engine), `test_require_paid_is_defined_PER_ROUTER` (screener routers) | their owners |

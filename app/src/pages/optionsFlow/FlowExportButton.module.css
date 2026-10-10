@@ -1,0 +1,42 @@
+/* EXPORT-FLOW: the Search view's Export door. 44px touch floor; status text uses the ink tokens. */
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.btn {
+  min-height: var(--tap-min, 44px);
+  min-width: var(--tap-min, 44px);
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.btn:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.ok {
+  color: var(--success-ink);
+  font-size: 11px;
+}
+
+.err {
+  color: var(--danger-ink);
+  font-size: 11px;
+}

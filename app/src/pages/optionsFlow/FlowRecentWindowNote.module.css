@@ -1,0 +1,11 @@
+/* Wave 5: the "showing the most recent N sessions" label on a partial Search answer. */
+.note {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}

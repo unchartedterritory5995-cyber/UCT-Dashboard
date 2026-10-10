@@ -181,14 +181,16 @@ export function handRolledGrids(tree = treeSources()) {
 // ⛔ It may only SHRINK. Migrating a grid onto the seed removes its line here in
 // the same commit (the "drop it" test below enforces that); adding a line to
 // admit a new grid is exactly what this rail exists to refuse.
-const PARTNER = 'partner-owned (OptionsFlow and what it owns) — never migrated without the partner'
 //   2026-10-10 (lane f-l7): 9 -> 3. CalendarDayTable, Shelf, HoldingsList,
 //   LiveFlowMassive, ThemeTrackerPage and Watchlists moved onto the seed (MIGRATED
 //   below; parity in pageGrids2.seedParity.test.js). What remains is partner-owned.
+//   2026-10-10 (lane P2, owner ruling "proceed fully"): 3 -> 1. DarkPool's three panels
+//   and OptionsFlow's four header toggles now call pages/optionsFlow/flowGridSort.js
+//   (one line per site, the rebase-safe hook), which asks the seed's nextSort; their
+//   comparators are untouched. Parity, every hand-rolled toggle copied verbatim:
+//   pages/optionsFlow/flowGridSort.seedParity.test.js.
 export const BASELINE = new Map([
-  ['app/src/pages/DarkPool.jsx', 'three grids in one 3.6k-line page; partner-owned (like OptionsFlow) — never migrated without the partner'],
-  ['app/src/pages/OptionsFlow.jsx', PARTNER],
-  ['app/src/pages/OptionsFlow_admin.jsx', 'admin copy of OptionsFlow — follows the partner file, not migrated independently'],
+  ['app/src/pages/OptionsFlow_admin.jsx', 'a hook cannot carry it: the file is a self-contained Claude-artifact copy of OptionsFlow that imports only react and recharts BY DESIGN (its own header says the artifact cannot import local files; it stubs TickerPopup and StockChart for that reason), and it has zero importers in app/src (reachable.test.js allowlist). An import of flowGridSort or the seed would break the one way it is used. Leaves when the partner retires the artifact copy or migrates it onto the real modules.'],
 ])
 
 /** Grids already moved onto the seed. They must import it and hand-roll nothing. */
@@ -213,6 +215,9 @@ export const MIGRATED = [
   'app/src/pages/LiveFlowMassive.jsx',
   'app/src/pages/ThemeTrackerPage.jsx',
   'app/src/pages/Watchlists.jsx',
+  // 2026-10-10 (lane P2): the shared header decisions for DarkPool + OptionsFlow; parity in
+  // pages/optionsFlow/flowGridSort.seedParity.test.js
+  'app/src/pages/optionsFlow/flowGridSort.js',
 ]
 
 const fmt = (sigs) => sigs.map((s) => `${s.signal}@${s.line}`).join(', ')

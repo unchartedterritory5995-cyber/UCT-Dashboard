@@ -48,7 +48,7 @@ import { planDelta, adoptVersion, snapshotKey, getErCache, setErCache, baseFetch
 import { fetchPrehydrate } from "./optionsFlow/flowPrehydrate";
 import { fetchPartsBundle, SERVER_TOPPICKS_PARTS, TOP_PICK_RAW_PARTS, INTERACTION_PARTS } from "./optionsFlow/flowParts";
 import { topPicksUsable, topPickVariant, reviveTopPickVariant } from "./optionsFlow/flowTopPicksProduct";
-import { fetchSearchProduct } from "./optionsFlow/flowSearchFetch";
+import { fetchSearchProduct } from "./optionsFlow/flowRecentWindow";  // wave 5: asks for a labelled recent window
 import { traceDataset, markFirstContent } from "./optionsFlow/flowKeyTrace";
 import { applyErOverlay } from "./optionsFlow/flowSearchProduct";
 import FlowIcon from "./optionsFlow/FlowIcon";
@@ -59,6 +59,11 @@ import FlowExplainButton from "./optionsFlow/FlowExplainButton";
 // Additive only -- this import and two <GexAssumptionNote/> mounts; every string,
 // style and ruling lives in optionsFlow/GexAssumptionNote.jsx + gexAssumption.js.
 import GexAssumptionNote from "./optionsFlow/GexAssumptionNote";
+// Lane P2 (2026-10-10): rebase-safe hooks. Each import is called from one line; the logic lives in the module named.
+import FlowRecentWindowNote from "./optionsFlow/FlowRecentWindowNote";
+import FlowExportButton from "./optionsFlow/FlowExportButton";
+import { readErWeek } from "./optionsFlow/erWeekRead";
+import { clickPairSort, nextColSort, nextTwoLevelSort, tickerAscFirst } from "./optionsFlow/flowGridSort";
 import { parseExpiry as _explainParseExpiry, computeDTE as _explainComputeDTE } from "./optionsFlow/flowCompute";
 import {
   P,
@@ -942,8 +947,7 @@ export default function OptionsFlowDashboard({ initialMode = null, initialGexTic
         const weeks = [];
         for (let k = 1; k <= 2 && ws; k++) {
           const nm = new Date(ws + "T00:00:00Z"); nm.setUTCDate(nm.getUTCDate() + 7 * k);
-          weeks.push(fetch(`/api/calendar?week=${nm.toISOString().slice(0, 10)}`)
-            .then(r => r.ok ? r.json() : null).catch(() => null));
+          weeks.push(readErWeek(nm.toISOString().slice(0, 10)));
         }
         for (const p of await Promise.all(weeks)) if (p) flatten(p, map);
         const now = new Date();
@@ -7201,11 +7205,7 @@ export default function OptionsFlowDashboard({ initialMode = null, initialGexTic
                     {["#","Ticker","Exp","Strike","C/P","Side","Dir","Grade","Hits","Premium","Entry","Now","P&L","Peak","Cap","DTE"].map(h => {
                       const isSortable = h !== "#";
                       const isActive = tfSort.col === h;
-                      const onClick = isSortable ? () => setTfSort(prev =>
-                        prev.col === h
-                          ? { col: h, dir: prev.dir === "asc" ? "desc" : "asc" }
-                          : { col: h, dir: "desc" }  // first click defaults to descending
-                      ) : undefined;
+                      const onClick = isSortable ? () => setTfSort(prev => nextColSort(prev, h)) : undefined;
                       return (
                         <th key={h} onClick={onClick}
                           style={{ padding:"5px 5px", textAlign:"left",
@@ -7903,8 +7903,7 @@ export default function OptionsFlowDashboard({ initialMode = null, initialGexTic
                           const active = batchSort===sk;
                           const arrow = active ? (batchSortDir==="desc"?" ▼":" ▲") : "";
                           return <th key={h||sk||Math.random()} onClick={sortable?()=>{
-                            if(batchSort===sk) setBatchSortDir(d=>d==="desc"?"asc":"desc");
-                            else { setBatchSort(sk); setBatchSortDir(sk==="ticker"?"asc":"desc"); }
+                            clickPairSort(batchSort, sk, setBatchSort, setBatchSortDir, tickerAscFirst);
                           }:undefined}
                             style={{ padding:"4px 5px", textAlign:"center", color:active?P.ac:P.mt, fontSize:10, fontWeight:active?800:600,
                               cursor:sortable?"pointer":"default", userSelect:"none" }}
@@ -8487,6 +8486,7 @@ export default function OptionsFlowDashboard({ initialMode = null, initialGexTic
               };
               return (
                 <>
+                  <FlowRecentWindowNote sym={selectedTicker.s} searchFull={searchFull} /><FlowExportButton sym={selectedTicker.s} source={dataMode === "index" ? "indexes" : "stocks"} />
                   <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
                     {[
                       {k:"All", label:"All", count:ccAll.length},
@@ -8862,10 +8862,7 @@ export default function OptionsFlowDashboard({ initialMode = null, initialGexTic
                 const av2 = getVal(a, oiSort.col2), bv2 = getVal(b, oiSort.col2);
                 return oiSort.col2==="sym" ? av2.localeCompare(bv2)*d2 : (av2-bv2)*d2;
               });
-              const toggleSort = (col) => setOiSort(prev => {
-                if (prev.col===col) return {...prev, dir:prev.dir==="desc"?"asc":"desc"};
-                return {col, dir:"desc", col2:prev.col, dir2:prev.dir};
-              });
+              const toggleSort = (col) => setOiSort(prev => nextTwoLevelSort(prev, col));
               const sortIcon = (col) => {
                 if (oiSort.col===col) return oiSort.dir==="desc"?" ▼":" ▲";
                 if (oiSort.col2===col) return oiSort.dir2==="desc"?" ▽":" △";
@@ -8986,7 +8983,7 @@ export default function OptionsFlowDashboard({ initialMode = null, initialGexTic
             const av2=trkGetVal(a,trkSort.col2), bv2=trkGetVal(b,trkSort.col2);
             return trkSort.col2==="ticker"?av2.localeCompare(bv2)*d2:(av2-bv2)*d2;
           };
-          const trkToggle = (col) => setTrkSort(prev => prev.col===col?{...prev,dir:prev.dir==="desc"?"asc":"desc"}:{col,dir:"desc",col2:prev.col,dir2:prev.dir});
+          const trkToggle = (col) => setTrkSort(prev => nextTwoLevelSort(prev, col));
           const trkIcon = (col) => trkSort.col===col?(trkSort.dir==="desc"?" ▼":" ▲"):trkSort.col2===col?(trkSort.dir2==="desc"?" ▽":" △"):"";
           const trkColor = (col) => trkSort.col===col?P.ac:trkSort.col2===col?P.ye:P.mt;
           const sortedActive = [...filteredActive].sort(sortFn);

@@ -4,6 +4,9 @@ import UIcon from "../components/ui/UIcon";
 import { clusterDarkPoolPrints } from "../components/chart/darkPoolCluster";
 import "./DarkPool.mobile.css";
 import Input from '../components/ui/Input'
+// Lane P2 (2026-10-10): rebase-safe hooks. Sort decisions (TERM-065) and the mktcap batch read (TERM-033) live in these modules.
+import { usePairSort, tickerAscFirst } from "./optionsFlow/flowGridSort";
+import { readMktcapBatch } from "./darkPool/mktcapBatchRead";
 
 // The SAME chart the /charts workspace renders — identity row, session
 // toggle, market clock, timeframe bar, market-cap/earnings/UCT-rating meta,
@@ -484,8 +487,7 @@ function CatBadge({cat}){
 
 // ── Notable Activity panel (sortable, cap badges) ────────────────────────────
 function NotableActivityPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading}){
-  const [sortKey,setSortKey]=useState("signals");
-  const [sortDir,setSortDir]=useState("desc");
+  const {sortKey,sortDir,toggleSort}=usePairSort("signals");
   const [hov,setHov]=useState(null);
   // Track which ticker (if any) is expanded to show the per-ticker dark
   // pool chart inline. Same pattern as FlowTable / PhantomPane / OptionsPane.
@@ -512,10 +514,6 @@ function NotableActivityPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoadi
     }).slice(0,15);
   },[universe,sortKey,sortDir,mktcapData]);
 
-  function toggleSort(key){
-    if(sortKey===key) setSortDir(d=>d==="desc"?"asc":"desc");
-    else { setSortKey(key); setSortDir("desc"); }
-  }
   const hdr=(key,label,minW)=>{
     const active=sortKey===key;
     const arrow=active?(sortDir==="asc"?" ▲":" ▼"):"";
@@ -616,8 +614,7 @@ function NotableActivityPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoadi
 
 // ── Top Biggest Prints panel (tabbed, sortable, %AvgVol) ─────────────────────
 function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading}){
-  const [sortKey,setSortKey]=useState("bigPrintN");
-  const [sortDir,setSortDir]=useState("desc");
+  const {sortKey,sortDir,toggleSort}=usePairSort("bigPrintN");
   const [hov,setHov]=useState(null);
   const [expandedTicker,setExpandedTicker]=useState(null);
 
@@ -645,10 +642,6 @@ function BiggestPrintsPanel({filterByCat, mktcapData, fetchMktCap, mktcapLoading
 
   const maxBigN = Math.max(1, ...filtered.map(x=>x.bigPrintN||0));
 
-  function toggleSort(key){
-    if(sortKey===key) setSortDir(d=>d==="desc"?"asc":"desc");
-    else { setSortKey(key); setSortDir("desc"); }
-  }
   const hdr=(key,label,minW)=>{
     const active=sortKey===key;
     const arrow=active?(sortDir==="asc"?" ▲":" ▼"):"";
@@ -2330,8 +2323,7 @@ function RecordsPane({mktcapData={}, fetchMktCap}){
   const [rows,setRows]=useState(null);
   const [err,setErr]=useState(null);
   const [q,setQ]=useState("");
-  const [sortKey,setSortKey]=useState("notional");
-  const [sortDir,setSortDir]=useState("desc");
+  const {sortKey,sortDir,toggleSort}=usePairSort("notional",tickerAscFirst);
   const [limit,setLimit]=useState(100);
   const [cap,setCap]=useState("All");
 
@@ -2357,10 +2349,6 @@ function RecordsPane({mktcapData={}, fetchMktCap}){
     ...INDEXES,...SECTOR_ETFS,...BOND_ETFS,...INTL_EM_ETFS,...COMMODITY_ETFS,...BROAD_ETFS
   ]),[]);
 
-  function toggleSort(key){
-    if(sortKey===key) setSortDir(d=>d==="desc"?"asc":"desc");
-    else { setSortKey(key); setSortDir(key==="ticker"?"asc":"desc"); }
-  }
 
   // Band counts (over the whole loaded set, ignoring search) for the pill labels.
   const bandCounts=useMemo(()=>{
@@ -3192,9 +3180,7 @@ export default function DarkPool({embedded}){
       }
       const responses = await Promise.all(
         batches.map(batch =>
-          fetch(`${base}/api/schwab/mktcap-batch?symbols=${batch.join(",")}`)
-            .then(r => (r.ok ? r.json() : null))
-            .catch(() => null)
+          readMktcapBatch(base, batch, mktcapAttemptedRef.current)
         )
       );
       const merged = {};
