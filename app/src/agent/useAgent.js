@@ -22,7 +22,7 @@ import { useCreateIndicatorAccess } from '../components/chart/builder/studio/cre
 import { useUserDefinitions, USER_DEFINITIONS_KEY } from '../hooks/useUserDefinitions'
 import { mutate } from 'swr'
 import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
-import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction } from './capabilities/indicatorAuthoring'
+import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { planOps, prepareOps, collectTargets, undoNotesFor } from './executor'
 import { decideMode } from './policy'
@@ -423,6 +423,16 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       pendingRef.current = { kind: 'target', ops: opsIn, path, mode: suggested, member, voice, epoch: epochOf(host), draft: true }
       push({ role: 'question', text: amb.text, choices: amb.choices, local: true })
       record({ member, outcome: amb.text, outcomeData: { kind: 'clarify-draft', actions: opsIn.map(o => o?.action) }, telemetry: { path, disposition: 'clarify', voice } })
+      return undefined
+    }
+    // refinement B: retrying the add of the definition the Agent just SAVED — refresh the member's
+    // list first (bounded); if it still lags, say so truthfully. Never a second Save.
+    const ls = lastSaved()
+    const retry = ls && opsIn.find(o => o?.action === 'indicator.add' && o.args?.defId === ls.defId)
+    if (retry && !(await definitionListed({ defId: ls.defId, version: ls.version }))) {
+      const text = `${ls.name ? `“${ls.name}”` : 'It'} is saved, but your indicator list still hasn’t caught up, so I didn’t add it — try again in a moment (it won’t be saved twice).`
+      push({ role: 'refusal', text })
+      record({ member, outcome: text, outcomeData: { kind: 'refused', actions: opsIn.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
       return undefined
     }
     traceStart(`${path}:${suggested || 'apply'}`)
