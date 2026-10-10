@@ -19,8 +19,10 @@ import { protectionRefusal, undoProtectionRefusal } from './protectedLayouts'
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../context/AuthContext'
 import { useCreateIndicatorAccess } from '../components/chart/builder/studio/createIndicatorFlag'
-import { useUserDefinitions } from '../hooks/useUserDefinitions'
+import { useUserDefinitions, USER_DEFINITIONS_KEY } from '../hooks/useUserDefinitions'
+import { mutate } from 'swr'
 import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
+import { setAuthoringSources } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { planOps, prepareOps, collectTargets, undoNotesFor } from './executor'
 import { decideMode } from './policy'
@@ -44,8 +46,8 @@ function argRefsBack(op, refMap) {
   if (!decl || !op.args || typeof op.args !== 'object') return op.args
   const args = { ...op.args }
   for (const [arg, kind] of Object.entries(decl)) {
-    const hit = typeof args[arg] === 'string' ? refMap[args[arg]] : null
-    if (hit && hit.kind === kind) args[arg] = hit.ref
+    const back = (v) => { const hit = typeof v === 'string' ? refMap[v] : null; return hit && hit.kind === kind ? hit.ref : v }
+    args[arg] = Array.isArray(args[arg]) ? args[arg].map(back) : back(args[arg])
   }
   return args
 }
@@ -117,6 +119,21 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const ownedRowsRef = useRef(ownedDefinitionRows)
   ownedRowsRef.current = ownedDefinitionRows
   useEffect(() => { setOwnedDefinitionSource(() => (ownedRowsRef.current || []).map(r => r && r.def_id).filter(Boolean)) }, [])
+  // INDICATORS M3 — read at every specialist call (never captured when the conversation began)
+  const accessRef = useRef(createIndicator)
+  accessRef.current = createIndicator
+  useEffect(() => { setAuthoringSources({ access: () => accessRef.current === true, rows: () => ownedRowsRef.current || [] }) }, [])
+  // M3: a just-saved indicator is added only once the member's own list carries it (the store's
+  // list, refreshed now) — bounded; if it never shows, the add refuses with M2's own sentence.
+  const definitionListed = useCallback(async ({ defId, version }, ms = 8000) => {
+    const has = () => (ownedRowsRef.current || []).some(r => r && r.def_id === defId && r.version >= version)
+    if (has()) return true
+    try { mutate(USER_DEFINITIONS_KEY) } catch { /* the wait below is the check */ }
+    const until = Date.now() + ms
+    while (!has() && Date.now() < until) await new Promise(r => setTimeout(r, 100))
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+    return has()
+  }, [])
   const [items, setItems] = useState([])
   const [busy, setBusy] = useState(false)
   // ⛔ ONE thing at a time: a send, an Apply, an Undo or a choice. A ref (not the
@@ -388,6 +405,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: [...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
+      if (Array.isArray(res.followUps) && res.followUps.length) return { followUps: res.followUps }
     } else {
       const text = `Some of that didn't take effect: ${res.failed.map(f => `${f.label} ${f.reason}`).join('; ')}.`
       if (res.lines.length) push({ role: 'receipt', lines: res.lines, undoId: res.undo?.id || null })
@@ -399,10 +417,19 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   // Every execution is traced (agent/trace.js): phase timestamps, memory only.
   const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice }) => {
     traceStart(`${path}:${suggested || 'apply'}`)
+    let out
     try {
-      return await executeInner(opsIn, { path, mode: suggested, member, voice })
+      out = await executeInner(opsIn, { path, mode: suggested, member, voice })
     } finally { traceEnd('done') }
-  }, [executeInner])
+    // ⭐ M3: the confirmed Save's chart adds — ONE execution per op, each planned, permission-checked,
+    // persisted, confirmed and receipted on its own (a failure never undoes another chart or the Save)
+    for (const { awaitDefinition, ...op } of out?.followUps || []) {
+      if (awaitDefinition) await definitionListed(awaitDefinition)
+      traceStart('followup:apply')
+      try { await executeInner([op], { path: 'followup', mode: 'apply', member, voice }) } finally { traceEnd('done') }
+    }
+    return undefined
+  }, [executeInner, definitionListed])
 
   const doUndo = useCallback(async (undoId, { member, voice } = {}) => {
     const stack = undoRef.current

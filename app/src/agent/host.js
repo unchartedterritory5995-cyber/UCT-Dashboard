@@ -84,6 +84,13 @@ export function buildChartSource({ chartApiById, getWidgets }) {
       const e = entries().find(x => x.ref === ref)
       try { return !!e?.api.agent.canManageIndicators?.() } catch { return false }
     },
+    // INDICATORS M3 — the chart's preview handles, as the host object agentAuthoring expects
+    // (null when the chart is not on the board or has no handle).
+    previewHost: (ref) => {
+      const e = entries().find(x => x.ref === ref)
+      if (!e?.api.agent.showAuthoringPreview || !e?.api.agent.clearAuthoringPreview) return null
+      return { showAuthoringPreview: (def, o) => e.api.agent.showAuthoringPreview(def, o), clearAuthoringPreview: () => e.api.agent.clearAuthoringPreview() }
+    },
     openCreateIndicator: (ref, opts) => {
       const e = entries().find(x => x.ref === ref)
       return e?.api.agent.openCreateIndicator ? e.api.agent.openCreateIndicator(opts) : null

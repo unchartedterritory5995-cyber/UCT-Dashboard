@@ -118,7 +118,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
     }
     // A kind whose commit reports what ACTUALLY happened (`res.lines` — e.g. the Create Indicator
     // opener: prefilled, or a draft restored instead) is receipted from that, not from the plan.
-    landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: Array.isArray(res?.lines) && res.lines.length ? res.lines : p.lines, before: p.snap, after: snap, patch: p.patch, created: res?.created || null, ...(res && res.undoData ? { undoData: res.undoData } : {}) })
+    landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: Array.isArray(res?.lines) && res.lines.length ? res.lines : p.lines, before: p.snap, after: snap, patch: p.patch, created: res?.created || null, ...(res && res.undoData ? { undoData: res.undoData } : {}), ...(res && Array.isArray(res.followUps) ? { followUps: res.followUps } : {}) })
   }
 
   // 2 — created targets: resolve the alias, re-plan on the REAL target, commit
@@ -173,7 +173,10 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   const boardBound = items.some(it => getTargetKind(it.kind).boardScoped !== false)
   const epoch = boardBound && typeof host.epoch === 'function' ? host.epoch() : null
   const undo = undoable ? { id: `u${Date.now().toString(36)}${(_seq++).toString(36)}`, at: Date.now(), lines, items, epoch } : null
-  return { ok: true, lines, failed: [], undo }
+  // Follow-up ops a kind asked for once its own change was confirmed (M3: the M2 adds after a
+  // Save) — run by the orchestrator as SEPARATE executions, each with its own receipt and Undo.
+  const followUps = landed.flatMap(it => it.followUps || [])
+  return { ok: true, lines, failed: [], undo, ...(followUps.length ? { followUps } : {}) }
 }
 
 /** All-or-nothing: if ANY target changed since the Agent wrote it, nothing is restored. */

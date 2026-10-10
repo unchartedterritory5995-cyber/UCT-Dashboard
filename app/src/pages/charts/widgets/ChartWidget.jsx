@@ -331,6 +331,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         canCreateIndicator: () => !!paneRef.current?.canCreateIndicator?.(),
         // INDICATORS M2 (AGENT-INTEGRATION-HANDOFF §15.6): the Indicators button's own predicate.
         canManageIndicators: () => !!paneRef.current?.canManageIndicators?.(),
+        // INDICATORS M3 (AGENT-M3-CONTRACT §3.3): the tab's one authoring preview on THIS chart.
+        showAuthoringPreview: (def, o) => paneRef.current?.showAuthoringPreview?.(def, o) ?? { ok: false, reason: 'readonly' },
+        clearAuthoringPreview: () => !!paneRef.current?.clearAuthoringPreview?.(),
         // ONE onOptsChange for settings + tf; the ticker through the colour group.
         // `settings` present (even null) means "store exactly this blob".
         commit: (patch) => {
