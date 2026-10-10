@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
-from api.services.rs_ranking import cached_rankings, get_rs_for_ticker, kick_background_warm
+from api.services.rs_ranking import cached_rankings, get_rs_for_ticker, kick_background_warm, snapshot_rankings
 
 router = APIRouter()
 
@@ -45,7 +45,11 @@ def rs_rankings(_user: dict = Depends(require_paid)):
     try:
         data = cached_rankings()
         if not data:
+            # Memory is cold (a fresh boot): rebuild in the background, and answer from the
+            # last ranking on disk while it runs, if that one is recent enough.
             kick_background_warm()
+            data = snapshot_rankings()
+        if not data:
             return JSONResponse(status_code=503, headers={"Retry-After": "30"},
                                 content={"status": "warming",
                                          "error": "RS rankings are being computed; retry shortly"})
