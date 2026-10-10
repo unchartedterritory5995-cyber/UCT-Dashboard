@@ -544,6 +544,19 @@ def _resolve_universe():
         return [], None
 
 
+def _any_session_before(floor_iso: str, coverage_first_iso: str) -> bool:
+    """Whether an NYSE session falls in [floor, coverage_first). Stops at the first one."""
+    from datetime import date as _date, timedelta as _td
+    from api.services.session_calendar import is_trading_day
+    d = _date.fromisoformat(floor_iso)
+    end = _date.fromisoformat(coverage_first_iso)
+    while d < end:
+        if is_trading_day(d):
+            return True
+        d += _td(days=1)
+    return False
+
+
 def backfill_tick(chunk_days: int = 548, limit: int = 0) -> dict:
     """ONE restart-safe step: if a floor is set and coverage hasn't reached it, sweep the
     next chunk just BELOW the current coverage floor. Idempotent + resumable — reads where it
@@ -558,8 +571,12 @@ def backfill_tick(chunk_days: int = 548, limit: int = 0) -> dict:
         from datetime import date as _date, timedelta as _td
         from api.services import breadth_daily_ohlc, breadth_live as bl
         cur_first = (breadth_daily_ohlc.stats() or {}).get("first") or "2024-01-01"
-        if cur_first <= floor:
-            set_backfill_floor(None)   # reached the floor — stop the scheduler
+        if cur_first <= floor or not _any_session_before(floor, cur_first):
+            # Reached the floor — stop the scheduler. "Reached" means no NYSE session is
+            # left in [floor, coverage): a floor on a holiday or weekend (2008-01-01) can
+            # never be <= coverage, whose first row is the next SESSION (2008-01-02), and
+            # the done grind re-ran every idle period on the worker (log, 2026-10-10).
+            set_backfill_floor(None)
             return {"ok": True, "complete": True, "floor": floor, "coverage_first": cur_first}
         hi = _date.fromisoformat(cur_first) - _td(days=1)
         lo = max(_date.fromisoformat(floor), hi - _td(days=chunk_days - 1))

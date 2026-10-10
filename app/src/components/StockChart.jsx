@@ -136,7 +136,7 @@ import {
 // valued half, so there is still exactly one formatting pipeline.
 import { legendChips, siblingSuffixes, resolvedInputsOf, paneReadoutLabel, chipValueText } from './chart/engine/readout'
 import { rendererPaneIndexOf, paneGroupOf } from './chart/engine/paneReadoutPlacement'
-import { cotFollowOf, resolveCotFollow } from './chart/engine/cotFollow'
+import { cotFollowOf, resolveCotFollow } from './chart/cotFollow'
 // ⭐ P2 Track B — Create Indicator's ephemeral live-chart preview (a READ VIEW).
 import { withPreviewInstance, stripPreview } from './chart/builder/studio/chartPreview'
 import * as engineRegistry from './chart/engine/nativeRegistry'
@@ -6564,7 +6564,7 @@ export default function StockChart({
   // instrument the member did configure, against a first paint that would
   // otherwise draw nothing.
   //
-  // ⭐⭐ …AND THE COT INDICATOR FOLLOWS THE CHART SYMBOL (`engine/cotFollow.js`).
+  // ⭐⭐ …AND THE COT INDICATOR FOLLOWS THE CHART SYMBOL (`chart/cotFollow.js`).
   // `csView` is `cs` with every stored `sym:COT:AUTO:*` source resolved to the market
   // this symbol maps to — or those instances REMOVED when it maps to none (AAPL):
   // no pane, no legend, no request. ⛔ A READ VIEW ONLY: every write keeps using `cs`,

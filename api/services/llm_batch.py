@@ -33,6 +33,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
 import time
 from typing import Any, Callable, Optional
@@ -94,12 +95,50 @@ def _client():
     return _get_anthropic_client()
 
 
+# The Message Batches API refuses the WHOLE batch when any custom_id falls outside this
+# pattern (400 invalid_request_error). Measured in production 2026-10-10: the call-recap
+# warm built `SYM|quarter` ids and every submit failed, so no recap was ever pre-warmed.
+CUSTOM_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
+_CUSTOM_ID_UNSAFE = re.compile(r"[^a-zA-Z0-9_-]+")
+
+
+def custom_id(*parts: Any, taken: Optional[set] = None) -> str:
+    """A custom_id the batch API accepts, built from readable parts.
+
+    Unsafe characters become '-', parts join with '_', and the result is cut to 64.
+    `taken` (the ids already in this batch) makes it unique: two inputs that
+    sanitise alike (`BRK.B` and `BRK-B`) get a numeric suffix rather than
+    colliding, because results are keyed strictly by custom_id. Consumers must
+    read their state from the submit `meta`, never parse the id back.
+    """
+    base = "_".join(_CUSTOM_ID_UNSAFE.sub("-", str(p)).strip("-") or "x" for p in parts) or "x"
+    base = base[:64]
+    if taken is None or base not in taken:
+        if taken is not None:
+            taken.add(base)
+        return base
+    n = 2
+    while True:
+        suffix = f"_{n}"
+        cand = base[:64 - len(suffix)] + suffix
+        if cand not in taken:
+            taken.add(cand)
+            return cand
+        n += 1
+
+
 def submit(surface: str, requests: list[dict], meta: dict[str, dict]) -> Optional[str]:
     """Submit one batch and ledger it. `requests` is the SDK shape
     ([{custom_id, params}]); `meta` carries per-custom_id state the consumer
     will need at reap time. Returns the batch id, or None (caller falls back
     to its synchronous path)."""
     if not enabled() or not requests:
+        return None
+    bad = [r.get("custom_id") for r in requests if not CUSTOM_ID_PATTERN.match(str(r.get("custom_id") or ""))]
+    if bad:
+        # Refuse before the network: the API would reject the whole batch anyway.
+        _log.warning("[llm_batch] %s: %d custom_id(s) the batch API rejects, e.g. %r",
+                     surface, len(bad), bad[0])
         return None
     try:
         client = _client()

@@ -384,6 +384,19 @@ GATE_READ_PATHS = (
     "api/services/journal_two/sample_examples.py",
     "tests/test_sample_notebook_examples.py",
     "tests/test_typing_burst_rail.py",
+    # 2026-10-09 sweep: Python sources the terminal and agent rails readFileSync to pin
+    # a client list against the server's (grammar, rollout cohort, scatter args, RRG
+    # sectors, workspace-doc keys), the agent roadmap, the Notebook door-enumeration
+    # rail's ai_actions evidence, and the terminal parity generator it imports.
+    "api/services/address_space.py",
+    "api/services/journal_two/ai_actions.py",
+    "api/services/rollout_gate.py",
+    "api/services/scatter.py",
+    "api/services/sector_strength.py",
+    "api/services/workspace_doc_store.py",
+    "docs/agent/ROADMAP.md",
+    "tests/test_notebook_ai_actions.py",
+    "tools/terminal_parity_matrix.mjs",
     # generators the rails execute, and the artifacts they byte-compare
     "tools/hub_surface_matrix.mjs",
     "tools/chart_parity_cases.json",

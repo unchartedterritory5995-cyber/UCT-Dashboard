@@ -789,7 +789,14 @@ const PARKING_EXPIRES = {
   // `textLayout.js`, are named in `docs/pine/PARITY-ROOT-CAUSE.md` as the next
   // seams where a house concept stands in for a Pine one with nothing measuring
   // the difference. They are the same shape as the defect that cost this.
-  'WAVE 2 IN FLIGHT — THE RENDERER PRIMITIVES AND TWO INSTRUMENTS': '2026-10-06',
+  // ⚰️ IT LAPSED AGAIN ON 2026-10-06, and is renewed ONCE more, SHORT, on
+  // 2026-10-09 by the Notebook session sweeping master's red rails. Wave 2 merged
+  // 2026-09-19 (`e855f62cdb`) without the per-module decision this block promises,
+  // so the decision is still owed, and it is the Pine workstream's (owner veto per
+  // module), not a sweeper's. Deleting was not done because `zorder.js` is still
+  // being edited on the in-flight `pine/s1-strategy-broker` branch (34da5eb926,
+  // 2026-10-05). Next lapse: WIRE or DELETE each module; do not renew again.
+  'WAVE 2 IN FLIGHT — THE RENDERER PRIMITIVES AND TWO INSTRUMENTS': '2026-10-23',
   'THE DASHBOARD COCKPIT RETIREMENT (2026-08-30)': '2026-10-31',
   'SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11)': '2026-11-30',
   'The Community surface itself: 15 files, one coherent feature': '2026-11-30',

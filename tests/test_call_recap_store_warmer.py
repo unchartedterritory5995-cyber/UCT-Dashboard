@@ -587,11 +587,11 @@ class TestBatchLane:
         out = batch_warmer.submit_batch(
             ["DIS", "AAPL"], fetch_transcript=self._transcript, store=store)
         assert out["batch_id"] == "batch_abc" and out["queued"] == 2
-        assert [r["custom_id"] for r in sent["requests"]] == ["DIS|Q3 2026", "AAPL|Q3 2026"]
+        assert [r["custom_id"] for r in sent["requests"]] == ["DIS_Q3-2026", "AAPL_Q3-2026"]
         # the transcript the model was GIVEN rides the ledger — grounding at
         # reap time against a re-fetch could drop quotes that were really said
-        assert sent["meta"]["DIS|Q3 2026"]["transcript"]["segments"]
-        assert sent["meta"]["DIS|Q3 2026"]["quarter"] == "Q3 2026"
+        assert sent["meta"]["DIS_Q3-2026"]["transcript"]["segments"]
+        assert sent["meta"]["DIS_Q3-2026"]["quarter"] == "Q3 2026"
         # and the params are the SAME grammar the live lane sends
         from api.services.call_recap_grounded import build_params
         assert sent["requests"][0]["params"] == build_params("DIS", self._transcript("DIS"))
@@ -622,7 +622,7 @@ class TestBatchLane:
             usage = type("U", (), {"input_tokens": 18000, "output_tokens": 3500})()
 
         def fake_reap(surface, handle):
-            handle("DIS|Q3 2026", _Msg(),
+            handle("DIS_Q3-2026", _Msg(),
                    {"symbol": "DIS", "quarter": "Q3 2026", "transcript": transcript})
             return {"batches": 1, "succeeded": 1, "errored": 0,
                     "pending": 0, "abandoned": 0}
@@ -642,7 +642,7 @@ class TestBatchLane:
         wrong or half-written one."""
         import api.services.llm_batch as lb
         monkeypatch.setattr(lb, "reap", lambda surface, handle: (
-            handle("DIS|Q3 2026", None, {"symbol": "DIS", "quarter": "Q3 2026",
+            handle("DIS_Q3-2026", None, {"symbol": "DIS", "quarter": "Q3 2026",
                                          "transcript": self._transcript("DIS")}),
             {"batches": 1, "succeeded": 0, "errored": 1})[1])
         batch_warmer.reap_batches(store=store)

@@ -122,6 +122,7 @@ import { createTradeCanvasNote, tradeCanvasEnabled } from '../../lib/tradeCanvas
 import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { TranscriptInsertHost } from './TranscriptDoors'
+import { normalizeNoteTicker } from '../../lib/noteTicker'
 
 // Wave 7 lane H1 — the toolbar mic. LAZY: the recorder (MediaRecorder, the Web
 // Speech fallback, the Whisper upload) is not needed to open a note, and a
@@ -884,6 +885,7 @@ export default function NoteEditorPage({
   // Rail: a11y/silentFailures.test.jsx ("one write's success never erases the other's failure").
   const [favoriteFailure, setFavoriteFailure] = useState(null)
   const [tagWriteFailure, setTagWriteFailure] = useState(null)
+  const [tickerFailure, setTickerFailure] = useState(null)
   useEffect(() => { setFavoriteFailure(null); setTagWriteFailure(null) }, [noteId])
   const onToggleFavorite = async () => {
     if (favoriteBusy) return
@@ -3586,8 +3588,30 @@ export default function NoteEditorPage({
   const onFolderChange = async (folderId) => {
     await settleMetadataRevision(await update({ folderId: folderId || null }))
   }
-  const onTickerChange = async (ticker) => {
-    await settleMetadataRevision(await update({ ticker: ticker || null }))
+  // The Ticker field is checked against the server's rule BEFORE it is sent, and a refusal is
+  // said in a SaveFailed sentence with the field put back -- see lib/noteTicker.js for the
+  // uncaught 400 this replaced.
+  const onTickerChange = async (raw) => {
+    const saved = note?.ticker || ''
+    const restore = () => { if (tickerInputRef.current) tickerInputRef.current.value = saved }
+    const { ticker, error } = normalizeNoteTicker(raw)
+    if (error) {
+      setTickerFailure(error)
+      restore()
+      return
+    }
+    if ((ticker || '') === saved) {
+      if (tickerInputRef.current) tickerInputRef.current.value = saved
+      return
+    }
+    try {
+      setTickerFailure(null)
+      await settleMetadataRevision(await update({ ticker }))
+      if (tickerInputRef.current) tickerInputRef.current.value = ticker || ''
+    } catch {
+      setTickerFailure("Couldn't change the ticker. Nothing changed.")
+      restore()
+    }
   }
   // Wave 6 items 9 + 12: a tag change is the member's DELTA, applied to the
   // list the SERVER holds -- never a list this page loaded earlier, which would
@@ -4198,6 +4222,7 @@ export default function NoteEditorPage({
             onBlur={(e) => onTickerChange(e.target.value)}
             style={{ width: 84 }}
           />
+          <SaveFailed message={tickerFailure} onDismiss={() => setTickerFailure(null)} />
           <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} />
           <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} />
           <SaveFailed message={trashFailure} onDismiss={() => setTrashFailure(null)} />

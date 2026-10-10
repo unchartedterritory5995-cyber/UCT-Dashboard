@@ -72,3 +72,35 @@ passed; the one failure (`test_gate_shards` read-set coverage) fails the same wa
 
 After merging the 8 commits master gained during the run (chart agent only, no shared files), the
 changed areas were re-run on the final tree: 55 files, 687 tests, all passed.
+
+## 4. The red-rail and error sweep (branch `notebook-rails-1009`)
+
+The owner asked for the remaining failures and any other errors to be fixed too. Every item was
+reproduced on master first, fixed at its source where the source could be changed safely, and
+tested both ways (the new test fails on the old code).
+
+| item | what was wrong | fix |
+|---|---|---|
+| `entryExcludesChartEngine` | chart-engine modules on every first load and the Notebook route, via `usePreferences → instanceShape → engine/legacyCotGroups` and `SymbolSearch → useMarketIndicators → engine/ohlcCapability` | the three pure COT helpers move out of `engine/`; the registry half of `useMarketIndicators` becomes `hooks/marketIndicatorRegistry.js` (re-exported, no import changed) — `7954f4b9da` |
+| `reachable.test` | the Wave 2 renderer-primitives parking note lapsed 10-06 | renewed once, short (10-23); the wire/delete call is the Pine owner's and `zorder.js` is still being edited on `pine/s1-strategy-broker` |
+| swallowed-fetch census | three new `.catch(() => null)` | a redundant catch removed, an explicit `alertBookFresh` flag, a throwing admin fetcher |
+| formatter census | `stock.js` hand-rolled `$1.23B` | `formatCompact` on the terminal ladder |
+| symbol-link rail | DarkPool `?ticker=` and the market-cap harness | recorded as separate doors, with reasons |
+| persistence manifest | 14 undeclared keys | declared and named for members; the agent watchlist undo's server calls marked not-web-storage |
+| suite coverage | `chart/builder/authoring` unacknowledged | acknowledged after a green run (147 tests) |
+| `GATE_READ_PATHS` | nine read paths missing | added |
+| test discovery | three scripts outside testpaths (two are this program's rollback evidence) | recorded as not-a-suite |
+| page views (prod) | ISO cutoff vs SQLite's space-separated stamp: the 60 s dedup never fired and admin "active now" was always empty | cutoff in the stored form — `1710b51539` |
+| briefing (verify-1009 finding) | "Two asks for next week" then one read (300-char clip) | focus spoken up to its loader's 500 |
+| call-recap batch warm (prod log) | `SYM|quarter` custom_id refused by the batch API on every submit | `llm_batch.custom_id()` + a local guard — `74189ba066` |
+| breadth backfill (worker log) | floor on a holiday never "reached"; the done grind re-ran every idle period | completion is session-aware — `253cb09b7e` |
+
+The polling-rail red was fixed by another session (`418dcb2409`) during the sweep and was left alone.
+
+**Settled, no change:** a plain mouse drag on a chart embed's body pans the chart (the live chart
+owns that gesture); the block moves by its grip, which P2 fixed. Only Draw mode keeps the editor
+out of the body.
+
+**Noticed, not changed:** the admin stats' 7- and 30-day windows (`users`, `subscriptions`) use
+the same ISO-cutoff form; on columns written as CURRENT_TIMESTAMP that only miscounts rows on the
+boundary day, and those queries belong to the admin dashboard, so it is left as a note.

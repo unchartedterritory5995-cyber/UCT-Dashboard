@@ -23,6 +23,28 @@ from api.services.auth_db import get_connection
 from api.services.journal_two import db as j2_db
 from api.services.journal_two import sample_marker
 from api.services.journal_two.notebook_schema import check_body_write
+
+
+def _begin_immediate(conn, tries: int = 2, backoff: float = 0.15) -> None:
+    """Take the write lock, retrying ONCE on a transient "database is locked".
+
+    Measured 2026-10-09 (tools/notebook_swarm.py, 24 concurrent members on one
+    sandbox): two note saves 34 ms apart each waited past the connection's 3 s
+    busy timeout at this BEGIN and answered 500. A BEGIN that raised has written
+    nothing, so trying again is safe. One retry, as `auth_db.execute_with_retry`
+    does for preference saves and for the same reason: the busy timeout stays
+    short so a pile-up cannot hold the request threadpool.
+    """
+    import time as _time
+    for attempt in range(tries):
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            return
+        except sqlite3.OperationalError as e:
+            if "locked" in str(e).lower() and attempt < tries - 1:
+                _time.sleep(backoff)
+                continue
+            raise
 from api.services import buzz_extract
 from api.services.journal_two.note_trade_links import is_valid_trade_ref_type
 
@@ -3546,7 +3568,7 @@ def restore_note_version(
         # compare-and-set is update_note's, and it runs inside this lock, so a
         # writer racing the restore waits and then sees the restored revision.
         if not conn.in_transaction:
-            conn.execute("BEGIN IMMEDIATE")
+            _begin_immediate(conn)
             began = True
         version = get_note_version(user_id, note_id, version_id, conn=conn)
         if version is None:
@@ -3624,7 +3646,7 @@ def update_note(
         # personal API, `patch_note_tags`) holds the lock itself.
         # Rail: tests/test_notes_cas_is_atomic.py.
         if not conn.in_transaction:
-            conn.execute("BEGIN IMMEDIATE")
+            _begin_immediate(conn)
             began = True
         # Wave 0 trash: a soft-deleted note reads as 404 here too — editing
         # a trashed note directly (without restoring it first) must not
@@ -3827,7 +3849,7 @@ def append_widget_embed(
         # waits, then sees this revision and 409s (and merges the append).
         began = not conn.in_transaction
         if began:
-            conn.execute("BEGIN IMMEDIATE")
+            _begin_immediate(conn)
         row = conn.execute(
             "SELECT body_json, locked FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (note_id, user_id),
@@ -3893,7 +3915,7 @@ def append_financial_fact(
         # waits, then sees this revision and 409s (and merges the append).
         began = not conn.in_transaction
         if began:
-            conn.execute("BEGIN IMMEDIATE")
+            _begin_immediate(conn)
         row = conn.execute(
             "SELECT body_json, locked FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (note_id, user_id),
@@ -3960,7 +3982,7 @@ def append_document_excerpt(
         # waits, then sees this revision and 409s (and merges the append).
         began = not conn.in_transaction
         if began:
-            conn.execute("BEGIN IMMEDIATE")
+            _begin_immediate(conn)
         row = conn.execute(
             "SELECT body_json, locked FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (note_id, user_id),
@@ -5159,7 +5181,7 @@ def patch_note_tags(
     owned = conn is None
     conn = conn or get_connection()
     try:
-        conn.execute("BEGIN IMMEDIATE")
+        _begin_immediate(conn)
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (note_id, user_id),
@@ -5485,7 +5507,7 @@ def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str 
             name = (raw or "").strip()[:80] or "Untitled"
             row = existing(pid, name)
             if row is None and not conn.in_transaction:
-                conn.execute("BEGIN IMMEDIATE")
+                _begin_immediate(conn)
                 row = existing(pid, name)
             if row:
                 pid = row["id"]

@@ -5,7 +5,7 @@ import CompanyLogo from '../CompanyLogo'
 import uctMark from '../intro/assets/compass-mark.png'
 import styles from './SymbolSearch.module.css'
 import { POPULAR_RESULTS, CHIPS, INDICES_PRESET, TYPE_LABEL, matchQ, rowIdentity, shownTicker, isBreadthRow, breadthChipRows, canonicalTicker } from './symbolSearchModel'
-import useMarketIndicators from '../../hooks/useMarketIndicators'
+import useMarketIndicators from '../../hooks/marketIndicatorRegistry'
 // Re-exported: `POPULAR_RESULTS` has existing importers that reach for it here.
 export { POPULAR_RESULTS }
 
