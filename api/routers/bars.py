@@ -1360,8 +1360,12 @@ async def get_bars_history(
             return await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
         except Exception:
             pass  # worker unreachable/slow → fall back to the web's own shallow history
-    return serve_bars_history(ticker, tf, bars, v, d,
-                              if_none_match=request.headers.get("if-none-match", ""))
+    # ⛔ (2026-10-10) OFF THE EVENT LOOP. This handler is `async`, and `serve_bars_history` is
+    # synchronous: a breadth / market-indicator build here (seconds, cold) froze every request
+    # on the single web pod for its whole duration. Same threadpool `/api/bars` uses.
+    from starlette.concurrency import run_in_threadpool
+    return await run_in_threadpool(serve_bars_history, ticker, tf, bars, v, d,
+                                   if_none_match=request.headers.get("if-none-match", ""))
 
 
 @router.post("/api/admin/warm-universe")

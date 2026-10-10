@@ -26,7 +26,7 @@ import {
 } from './authoring/conversationSessions'
 import {
   restoreConversation, initialConversationState, initialTranscript, hasSomethingToKeep,
-  localTurn, modelTurn, undoTurn, saveConversation, noteDiscarded, previewDefinitionOf,
+  localTurn, modelTurn, renameTurn, undoTurn, saveConversation, noteDiscarded, previewDefinitionOf,
 } from './authoring/authoringSession'
 import { withPendingInputs } from './studio/editPreview'
 
@@ -55,6 +55,8 @@ export const AUTHORING_REASONS = Object.freeze({
   PREVIEW_READONLY: 'readonly',             // that chart cannot show a preview
   PREVIEW_BUSY: 'busy',                     // a Create Indicator dock holds the tab's preview
   PREVIEW_INVALID: 'invalid',               // the registry refused the working definition
+  NAME_UNCHANGED: 'name-unchanged',         // renameDraft: the draft already has that name
+  NOTHING_TO_RENAME: 'nothing-to-rename',   // renameDraft: the draft has no definition yet
 })
 const R = AUTHORING_REASONS
 
@@ -250,7 +252,10 @@ function outcomeOf(out, snapBefore, snapAfter) {
   const base = { revision: st.revision, lines: entry.lines ? entry.lines.slice() : [], readback: rb }
   if (out.ok && out.changed) {
     return { ok: true, kind: 'applied', ...base, stepId: stepIdOf(st.lineage, st.revision), reply: null, questions: [],
-      changes: (out.changes || []).map((c) => ({ ...c })) }
+      changes: (out.changes || []).map((c) => ({ ...c })),
+      // ⭐ M3 typed rename — ONLY the deterministic name-only path sets these (`renameTurn`);
+      // a model-applied turn never does, even when its changes include a 'renamed' entry
+      ...(out.renameOnly ? { renameOnly: true, rename: out.rename ? { ...out.rename } : null } : {}) }
   }
   if (out.ok && kind === 'question') return { ok: true, kind: 'question', ...base, reply: entry.reply || null, questions: (st.questions || []).map((q) => q.text), changes: [] }
   if (out.ok && kind === 'answer') return { ok: true, kind: 'answer', ...base, reply: entry.reply || null, questions: [], changes: [] }
@@ -331,6 +336,48 @@ export function draftUndo(draftRef, opts = {}, ctx = {}) {
     lines: out.entry.lines.slice(), readback: readback(out.state.working, out.state, gateCtxOf(ctx)), ...(pv ? { preview: pv } : {}) }
 }
 
+/**
+ * ⭐ M3 TYPED RENAME — rename the draft and NOTHING else: the ordinary `rename_definition` op
+ * through the shared pipeline's one name-only step (`renameTurn`), with no model call (no
+ * allowance spent). Same lineage, one revision, one history step (undoable like any turn).
+ * The display labels derived from the name follow it (meta.name / shortName / an unlabelled
+ * first output); keys, trees, inputs, placement, style, requests and repaint mode cannot move.
+ * @param name     the member's name (trimmed; clipped to the engine's name limit — see `rename.to`)
+ * @param opts     `{expectedRevision}` — must equal the draft's revision
+ * @returns `{ok:true, kind:'applied', renameOnly:true, rename:{from, to}, revision, stepId,
+ *            changes:[{kind:'renamed', from, to, op}], lines, readback}`
+ *        | refusal: `bad-request` (no name), `name-unchanged`, `nothing-to-rename`, `stale-revision`,
+ *          `access`, `draft-open-in-dock`, `draft-expired`, `draft-stale`, `unknown-definition`,
+ *          `turn-refused` (the engine refused it; `detail.codes`)
+ */
+export function renameDraft(draftRef, name, opts = {}, ctx = {}) {
+  const w = writable(draftRef, ctx)
+  if (!w.ok) return w
+  const { key, snap } = w
+  const st = snap.state
+  if (!Number.isInteger(opts.expectedRevision) || opts.expectedRevision !== st.revision) {
+    return refuse(R.STALE_REVISION, { revision: st.revision })
+  }
+  const wanted = typeof name === 'string' ? name.trim() : ''
+  if (!wanted) return refuse(R.BAD_REQUEST)
+  if (!st.working) return refuse(R.NOTHING_TO_RENAME)
+  const current = (st.working.meta && st.working.meta.name) || ''
+  if (current === wanted) return refuse(R.NAME_UNCHANGED, { name: current })
+  const out = renameTurn(st, wanted, { gateCtx: gateCtxOf(ctx) })
+  if (!out.ok) {
+    return refuse(R.TURN_REFUSED, { codes: (out.errors || []).map((e) => e.code) })
+  }
+  // the engine may clip a long name: a clipped name equal to the current one changed nothing
+  if (out.rename && out.rename.to === current) return refuse(R.NAME_UNCHANGED, { name: current })
+  const next = { ...snap, state: out.state, transcript: append(snap.transcript, [{ role: 'member', text: `Name it ${wanted}` }, ...out.entries]), acked: false }
+  delete next.recovered
+  keep(key, next)
+  const outcome = outcomeOf(out, snap, next)
+  const pv = refreshPreview(key, next.state)
+  if (pv) outcome.preview = pv
+  return outcome
+}
+
 /** Throw the draft away. @returns `{ok:true}` | refusal */
 export function discardDraft(draftRef, opts = {}, ctx = {}) {
   const w = writable(draftRef, ctx)
@@ -360,6 +407,10 @@ export async function readStoredDefinition(defId, fetchImpl = (typeof fetch === 
 function readBackMatches(row, storedDoc) {
   if (!isObj(row) || !isObj(storedDoc)) return false
   if (row.def_id !== storedDoc.id || row.version !== storedDoc.version) return false
+  // ⭐ the name the member approved is the name the store holds (a saved rename is confirmed here)
+  const storedName = row.definition && row.definition.meta && row.definition.meta.name
+  const sentName = storedDoc.meta && storedDoc.meta.name
+  if (typeof storedName === 'string' && typeof sentName === 'string' && storedName !== sentName) return false
   const a = row.definition && row.definition.compute && row.definition.compute.fn
   const b = storedDoc.compute && storedDoc.compute.fn
   return !(typeof a === 'string' && typeof b === 'string' && a !== b)

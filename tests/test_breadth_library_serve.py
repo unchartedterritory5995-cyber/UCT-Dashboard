@@ -192,9 +192,10 @@ def test_the_warm_loop_warms_uct_plus_the_participation_family(monkeypatch):
     assert set(legacy) == set(bs.SYMBOLS)
     # and every namespaced series is participation, for a published universe
     assert namespaced, "a published PIT universe was not warmed at all"
-    assert len(namespaced) == 21, namespaced          # 3 universes x 7 participation
-    codes = {x.split(":", 1)[1] for x in namespaced}
-    assert codes == {"A5", "A10", "A20", "A40", "A50", "A100", "A200"}, codes
+    # (2026-10-10) every family is warmed now; a pass REBUILDS at most WARM_PIT_MAX of them
+    # (the rest wait for the next pass, or are restored from their persisted series)
+    assert len(namespaced) == bs.WARM_PIT_MAX, namespaced
+    assert len(bs.warm_symbols_for_pit()) > bs.WARM_PIT_MAX
 
 
 def test_the_warm_loop_is_INERT_while_the_library_is_dark(monkeypatch):
@@ -213,10 +214,10 @@ def test_warming_never_exceeds_its_ceiling_or_leaves_its_families(monkeypatch):
     monkeypatch.setenv("BREADTH_LIBRARY_UNIVERSES", "*")
     monkeypatch.setenv("BREADTH_LIBRARY_METRICS", "*")   # publish EVERYTHING
     want = bs.warm_symbols_for_pit()
-    assert len(want) <= bs.WARM_PIT_MAX
-    from api.services import breadth_metrics as bm
-    for _sym, metric, _uni in want:
-        assert bm.METRICS[metric]["group"] in bs.WARM_FAMILIES
+    # (2026-10-10) every family of every published universe is warmed; the ceiling now caps
+    # REBUILDS per pass (restores from the persisted series are file reads)
+    assert bs.WARM_FAMILIES is None
+    assert len(want) == len({w[0] for w in want}) and len(want) > bs.WARM_PIT_MAX
 
 
 def test_a_failing_pit_warm_cannot_break_the_pass(monkeypatch):
@@ -231,7 +232,7 @@ def test_a_failing_pit_warm_cannot_break_the_pass(monkeypatch):
     monkeypatch.setattr(bs, "_refresh_series", _boom)
     stats = bs.warm_breadth()                      # must NOT raise
     assert stats["refreshed"] == len(bs.SYMBOLS)   # UCT still warmed
-    assert stats["pit"]["failed"] == 7 and stats["pit"]["refreshed"] == 0
+    assert stats["pit"]["failed"] == stats["pit"]["symbols"] and stats["pit"]["refreshed"] == 0
 
 
 # ── BL-033 · an empty build must not PIN ──────────────────────────────────────

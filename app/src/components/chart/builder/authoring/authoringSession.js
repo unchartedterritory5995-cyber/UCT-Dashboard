@@ -152,15 +152,30 @@ export function localTurn(before, words, { sym = null, tf = null, gateCtx = {} }
   }
   const soleName = before.working ? soleCueName(words) : null
   if (!soleName) return null
-  const out = applyTurn(before, renamePatch(before, soleName), { gateCtx, memberWords: words })
+  return renameTurn(before, soleName, { gateCtx, memberWords: words })
+}
+
+/**
+ * ⭐ THE ONE NAME-ONLY RENAME — the ordinary `rename_definition` op, applied by the engine with
+ * no model call (same lineage, one revision, one undo step). `localTurn` runs it for a message
+ * that only names the indicator; ⭐ M3 `agentAuthoring.renameDraft` runs it directly.
+ * RENAME-ONLY BY CONSTRUCTION: the patch carries that one op, which changes only the name (and
+ * the labels derived from it) — `renameOnly: true` marks exactly this path.
+ * @returns `{ok, state: next|null, changed, entries, changes?, rename?: {from, to}, renameOnly?}`
+ */
+export function renameTurn(before, name, { gateCtx = {}, memberWords = null } = {}) {
+  const out = applyTurn(before, renamePatch(before, name), { gateCtx, memberWords: memberWords ?? name })
   if (out.result.status === 'refused') {
-    return { ok: false, state: null, changed: false,
+    return { ok: false, state: null, changed: false, errors: out.result.errors || [],
       entries: [{ role: 'uct', kind: 'refusal', codes: (out.result.errors || []).map((e) => e.code),
         lines: [...(out.result.errors || []).map((e) => errorWords(e, before.working)), NOTHING_CHANGED] }] }
   }
-  return { ok: true, state: out.state, changed: true,
+  const changes = (out.result.changes || []).map((c) => ({ ...c }))
+  const renamed = changes.find((c) => c.kind === 'renamed')
+  return { ok: true, state: out.state, changed: true, changes, renameOnly: true,
+    ...(renamed ? { rename: { from: renamed.from ?? null, to: renamed.to } } : {}),
     entries: [{ role: 'uct', kind: 'patched', revision: out.state.revision, updated: true,
-      lines: [`Renamed to “${out.readback.name || soleName}”.`] }] }
+      lines: [`Renamed to “${out.readback.name || name}”.`] }] }
 }
 
 /**

@@ -377,6 +377,15 @@ export function fetchSecondaryBars(symbol, tf, bars, fetcher) {
       // the same amplification as the denial above, from the other half of the
       // `.catch`. The ledger says when; until then `ensure` answers ERROR
       // without asking.
+      // ⭐ (2026-10-10) A SWITCH-ABORT IS NOT A FAILURE. The chart's fetcher tags a fetch the
+      // member scanned past `canceled`; arming the backoff for it left a breadth/indicator
+      // pane blank for 2 s+ (doubling) after every quick ticker switch. Forget it and let the
+      // next ensure ask again at once.
+      if (err && err.canceled) {
+        _cache.delete(url)
+        _clearRetry(url)
+        return { bars: [], status: SOURCE_STATUS.LOADING }
+      }
       _cache.delete(url)
       return _armRetry(url, err)
     })

@@ -2392,6 +2392,7 @@ export default function StockChart({
   hideLastValue = false,    // hide the last-price axis tag on the price series
   volumeLastValue = false,  // show the current-volume axis tag on the volume pane's right scale (like the price tag on the main chart). Opt-in so Model Book (which deliberately hides it) is unaffected.
   volumeSeparatePane = false, // force volume into its own draggable bottom pane
+  breadthSeries = false,      // a breadth pseudo-ticker / market-indicator series (ChartPane): daily-only, no live tick, no today-seed
   blankVolume = false,        // reserve an EMPTY, labeled volume pane (TC2000-style). For symbols with no volume (UCT breadth indicators): the pane still occupies its space + shows a "Volume" label, but renders no bars/line and no axis values (the vol series is fed whitespace, so the price scale has nothing to label). Implies a separate volume pane.
   breadthLine = false,        // UCT breadth line-chart mode: paint the price LINE a single canvas-contrasting ink (black on a light canvas, white on a dark one), ignoring the user's candle/net-change colors. The 'line' chart TYPE itself is forced by the surface via settingsOverride={{chartType:'line'}}; this flag only governs that one auto-color. No-op unless the chart type is already 'line'.
   priceScaleBottomMargin = null, // small gap below price (above a separate vol pane)
@@ -7034,6 +7035,16 @@ export default function StockChart({
   // is what the harness reads, so a refusal can never be mistaken for a missing paint).
   const _dailyCacheVerdict = (tailISO, savedAtMs) => {
     if (resolvedTf !== 'D' || typeof tailISO !== 'string' || tailISO.length < 10) return 'ok'
+    // ⭐ (2026-10-10) BREADTH PAINTS ITS CACHED HISTORY AT ONCE. A breadth series has no live
+    // tick and no today-seed (neither the live-price store nor the today-pack carries it), so
+    // the rules below refused every cached breadth tail all session and after the close —
+    // every open waited for the network (2-10 s, owner report). Its history is sealed and its
+    // developing bar is one point; paint what we hold now and let the fetch add/refresh the
+    // right edge. A tail more than one session behind still repairs first.
+    if (breadthSeries) {
+      const g = dailyMissingSessionsForPaint(tailISO, DAILY_PAINT_MAX_GAP + 1).length
+      return g > Math.max(1, DAILY_PAINT_MAX_GAP) ? 'too-far-behind' : 'ok'
+    }
     if (isDailyTodayCloseProvisionalForPaint(tailISO)) return 'provisional-close'
     const gap = dailyMissingSessionsForPaint(tailISO, DAILY_PAINT_MAX_GAP + 1).length
     // Missing MORE than the current session: the older missing sessions exist only on
@@ -7528,7 +7539,9 @@ export default function StockChart({
   // reached it was a cold fetch = the "only 5min lags" report.)
   useEffect(() => {
     if (!sym || !backgroundWarm) return
-    const ORDER = ['D', '5', '60', '30', '15', 'W', 'M', '1']
+    // ⭐ (2026-10-10) a breadth series is D/W/M only — the server collapses every intraday tf
+    // to D, so warming '5'..'1' was ~5 extra full-history requests per open for nothing.
+    const ORDER = breadthSeries ? ['D', 'W', 'M'] : ['D', '5', '60', '30', '15', 'W', 'M', '1']
     const tfs   = ORDER.filter(t => t !== resolvedTf)
     let cancelled = false
     // Rapid-switch flood fix (Phase 3', gated): each switch speculatively warms ALL other TFs
