@@ -10,6 +10,13 @@ SERVED as percent numbers (catalog.PERCENT_SERIES); the store keeps fractions.
      "input_hash": "...", "built_at": 1790000000.0, "split_status": "verified",
      "metrics": {"net_margin_ttm": [[t_eff, value, "period_end", "method"], ...]}}
 
+SOURCES (TERM-043, owner ruling T-13: figure-to-source link only). When
+FUNDAMENTALS_PIT_PUBLISH_SOURCES=1 the artifact also carries
+    "sources": {"revenue_q": [["0000320193-24-000123"], ...], ...}
+for SOURCE_LINK_METRICS only: one accession list per point, index-aligned with
+"metrics". Unset (the default) the artifact is byte-identical to before, so no
+company republishes until the worker is armed.
+
 TARGETS
   * local directory  (dev, tests, the ChartWidget harness)
   * R2 via the existing data_sync client -- DRY-RUN unless
@@ -30,6 +37,15 @@ from .derive import DERIVATION_VERSION
 
 ARTIFACT_FORMAT = 1
 
+#: The standalone quarterly statement lines a figure-to-source link is offered for.
+SOURCE_LINK_METRICS = ("revenue_q", "net_income_q", "eps_diluted_q")
+SOURCES_ENV = "FUNDAMENTALS_PIT_PUBLISH_SOURCES"
+
+
+def sources_enabled() -> bool:
+    """Read PER CALL. Unset means OFF (the artifact carries no `sources`)."""
+    return os.environ.get(SOURCES_ENV, "0").strip() == "1"
+
 
 def key_for(cik: int, version: int = DERIVATION_VERSION) -> str:
     return f"fundamentals_pit/v{version}/cik/{cik}.json"
@@ -39,18 +55,35 @@ def index_key(version: int = DERIVATION_VERSION) -> str:
     return f"fundamentals_pit/v{version}/tickers.json"
 
 
+def read_series_sources(conn, cik: int, version: int, metrics: list[str]) -> dict[str, list[list[str]]]:
+    """TERM-043: {metric: [[accession, ...] per point]} in the SAME (metric, t_eff) order as
+    store.read_series, so index i here is point i there. Raw provenance only. Kept here, not
+    in store.py, because store.py is a frozen methodology file (v5_prod.METHODOLOGY_FILES)."""
+    out: dict[str, list[list[str]]] = {}
+    if not metrics:
+        return out
+    q = ",".join("?" * len(metrics))
+    for m, src in conn.execute(f"SELECT metric, sources FROM series_point WHERE cik=? AND derivation_version=? "
+                               f"AND metric IN ({q}) ORDER BY metric, t_eff", (cik, version, *metrics)):
+        out.setdefault(m, []).append([s for s in (src or "").split(",") if s])
+    return out
+
+
 def artifact(conn, cik: int, version: int = DERIVATION_VERSION) -> dict | None:
     info = S.build_info(conn, cik, version)
     sec = S.security(conn, cik)
     if info is None or sec is None:
         return None
     series = S.read_series(conn, cik, version)
-    return {"v": ARTIFACT_FORMAT, "cik": cik, "tickers": sec["tickers"], "name": sec["name"],
+    doc = {"v": ARTIFACT_FORMAT, "cik": cik, "tickers": sec["tickers"], "name": sec["name"],
             "derivation_version": version, "input_hash": info["input_hash"], "built_at": info["built_at"],
             "split_status": info["detail"].get("split_verification", {}).get("status"),
             "withheld_split_sensitive": info["detail"].get("withheld_split_sensitive", False),
             "metrics": {m: [[t, (v * 100.0 if (v is not None and m in PERCENT_SERIES) else v), pe, meth] for t, v, pe, meth in pts]
                         for m, pts in series.items()}}
+    if sources_enabled():
+        doc["sources"] = read_series_sources(conn, cik, version, list(SOURCE_LINK_METRICS))
+    return doc
 
 
 def encode(doc: dict) -> tuple[bytes, str]:

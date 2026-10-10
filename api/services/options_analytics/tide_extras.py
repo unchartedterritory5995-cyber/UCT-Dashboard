@@ -5,6 +5,11 @@
            at MINUTE_CAP and counted), so a click on the tide can open THAT minute's tape.
   blocks   FT-073 -- the session's prints the tape itself types BLOCK (largest premium first,
            capped at BLOCK_CAP and counted).
+  multileg FT-073 remainder -- the session's prints the tape types ML/ (multi-leg: the OPRA
+           condition codes 232-247, classified on flow-worker before the print reaches the tape,
+           `build_gap_fill_csv.py` MULTI_LEG_CONDITIONS), grouped into one structure per symbol
+           and print second. Only the legs that cleared the tape's own filters are on it, so a
+           structure can show fewer legs than were traded; the count of legs seen is stated.
 
 Fed row by row from `market_tide.build` beside its own accumulator, so arming these surfaces adds
 no second read of the tape. Held per session; `result` answers for the session the tide answers.
@@ -21,9 +26,12 @@ from api.services.options_analytics import market_tide as mt
 
 MINUTE_CAP = 15
 BLOCK_CAP = 200
+MULTILEG_CAP = 100          # structures returned, largest total premium first
+MULTILEG_LEGS = 8           # legs shown per structure (the count seen is always stated)
+MULTILEG_GROUP_CAP = 20000  # structures held per session while reading; beyond it new ones are counted, not held
 UNCLASSIFIED = "Unclassified"
 _FIELDS = ("Symbol", "CallPut", "Strike", "ExpirationDate", "Side", "Premium", "Volume", "Price",
-           "Type", "CreatedTime", "Sector", "Spot")
+           "Type", "CreatedTime", "Sector", "Spot", "OI")
 
 
 def _print(r: dict, prem: float) -> tuple:
@@ -36,7 +44,12 @@ def _as_dict(p: tuple) -> dict:
     return {"symbol": d["Symbol"], "type": (d["CallPut"] or "").lower(), "strike": mt._f(d["Strike"]),
             "expiration": d["ExpirationDate"], "side": d["Side"], "premium": round(prem),
             "contracts": mt._f(d["Volume"]), "price": mt._f(d["Price"]), "trade_type": d["Type"],
-            "time": d["CreatedTime"], "sector": d["Sector"] or UNCLASSIFIED, "spot": mt._f(d["Spot"])}
+            "time": d["CreatedTime"], "sector": d["Sector"] or UNCLASSIFIED, "spot": mt._f(d["Spot"]),
+            "open_interest": mt._f(d.get("OI"))}
+
+
+def is_multileg(r: dict) -> bool:
+    return (r.get("Type") or "").strip().upper().startswith("ML")
 
 
 def _push(heap: list, item: tuple, cap: int, seq: int) -> None:
@@ -53,7 +66,19 @@ class TideExtras:
         self._seq = 0
 
     def _sess(self, session: str) -> dict:
-        return self._s.setdefault(session, {"sectors": {}, "minutes": {}, "blocks": [], "blocks_n": 0})
+        return self._s.setdefault(session, {"sectors": {}, "minutes": {}, "blocks": [], "blocks_n": 0,
+                                            "ml": {}, "ml_n": 0, "ml_dropped": 0})
+
+    @staticmethod
+    def _ml_add(s: dict, key: tuple, p: tuple, n_prints: int = 1) -> None:
+        g = s["ml"].get(key)
+        if g is None:
+            if len(s["ml"]) >= MULTILEG_GROUP_CAP:
+                s["ml_dropped"] += n_prints
+                return
+            g = s["ml"][key] = {"premium": 0.0, "legs": []}
+        g["premium"] += p[0]
+        g["legs"].append(p)
 
     def add(self, r: dict) -> None:
         session = mt._date_iso(r.get("CreatedDate"))
@@ -81,6 +106,9 @@ class TideExtras:
         if (r.get("Type") or "").strip().upper() in ("BLOCK", "BLK"):
             s["blocks_n"] += 1
             _push(s["blocks"], p, BLOCK_CAP, self._seq)
+        if is_multileg(r):
+            s["ml_n"] += 1
+            self._ml_add(s, ((r.get("Symbol") or "").strip(), (r.get("CreatedTime") or "").strip()), p)
 
     def merge(self, other: "TideExtras") -> None:
         for session, o in other._s.items():
@@ -103,9 +131,15 @@ class TideExtras:
             for prem, seq, item in o["blocks"]:
                 self._seq += 1
                 _push(s["blocks"], item, BLOCK_CAP, self._seq)
+            s["ml_n"] += o.get("ml_n", 0)
+            s["ml_dropped"] += o.get("ml_dropped", 0)
+            for key, g in (o.get("ml") or {}).items():
+                for leg in g["legs"]:
+                    self._ml_add(s, key, leg)
 
     def result(self, session) -> dict:
-        s = self._s.get(session) or {"sectors": {}, "minutes": {}, "blocks": [], "blocks_n": 0}
+        s = self._s.get(session) or {"sectors": {}, "minutes": {}, "blocks": [], "blocks_n": 0,
+                                     "ml": {}, "ml_n": 0, "ml_dropped": 0}
         sectors = []
         for name, sec in s["sectors"].items():
             cc = cp = 0.0
@@ -124,5 +158,15 @@ class TideExtras:
                         "prints": [_as_dict(it) for _, _, it in sorted(m["heap"], key=lambda e: (-e[0], e[1]))]}
                    for mn, m in s["minutes"].items()}
         blocks = [_as_dict(it) for _, _, it in sorted(s["blocks"], key=lambda e: (-e[0], e[1]))]
+        structures = []
+        for (sym, t), g in sorted(s["ml"].items(), key=lambda kv: (-kv[1]["premium"], kv[0])):
+            if len(structures) >= MULTILEG_CAP:
+                break
+            legs = [_as_dict(p) for p in sorted(g["legs"], key=lambda p: -p[0])]
+            structures.append({"symbol": sym, "time": t, "premium": round(g["premium"]),
+                               "legs_seen": len(legs), "legs": legs[:MULTILEG_LEGS],
+                               "expirations": sorted({x["expiration"] for x in legs if x["expiration"]})})
         return {"session": session, "sectors": sectors, "minutes": minutes,
-                "blocks": blocks, "blocks_count": s["blocks_n"]}
+                "blocks": blocks, "blocks_count": s["blocks_n"],
+                "multileg": structures, "multileg_prints": s["ml_n"],
+                "multileg_structures": len(s["ml"]), "multileg_unheld_prints": s["ml_dropped"]}

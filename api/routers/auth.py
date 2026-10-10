@@ -445,6 +445,30 @@ def _research_notice_flags() -> dict:
     return out
 
 
+# D-9 (Personalization UC-1): the remaining consumers of GET /api/member/interest outside
+# the Research page, each behind its OWN gate. Mirrored in app/src/lib/memberInterest.js
+# (MEMBER_INTEREST_SURFACE_KEYS), whose rail reads THIS tuple rather than restating it.
+_MEMBER_INTEREST_SURFACES = (
+    ("member_interest_breadth_enabled", "member_interest_breadth"),
+    ("member_interest_screener_enabled", "member_interest_screener"),
+    ("member_interest_wire_enabled", "member_interest_wire"),
+)
+
+
+def _member_interest_flags() -> dict:
+    """Same form as `_research_notice_flags`: keys present ONLY when on, so every surface
+    unset => the payload is byte-identical to before. Never raises."""
+    import importlib
+    out = {}
+    for key, mod in _MEMBER_INTEREST_SURFACES:
+        try:
+            if importlib.import_module(f"api.services.{mod}").is_enabled():
+                out[key] = True
+        except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+            continue
+    return out
+
+
 # Calendar depth (Lane R): payload key -> the service module whose `is_enabled()` is
 # that surface's ONE gate. ⛔ Mirrored by `app/src/pages/calendar/depth/calendarDepthFlags.js`,
 # whose rail reads THIS tuple rather than restating it.
@@ -814,6 +838,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         **_options_panel_flags(),
         **_research_depth_flags(),
         **_research_notice_flags(),
+        **_member_interest_flags(),
         **_calendar_depth_flags(),
         **_charts_list_subscribe_flag(),
         # ── GT (D1) — the per-bar runtime pane, RESOLVED FOR THIS MEMBER ────

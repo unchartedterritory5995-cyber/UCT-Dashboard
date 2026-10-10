@@ -69,3 +69,7 @@
 @media (max-width: 1024px) {
   .segBtn { min-height: var(--tap-min); min-width: var(--tap-min); padding: 0 14px; }
 }
+
+/* TERM-043: a figure that links to its SEC filing keeps the cell ink; only the underline says "link". */
+.sourceLink { color: inherit; text-decoration: underline dotted; text-underline-offset: 2px; }
+.sourceLink:hover, .sourceLink:focus-visible { text-decoration-style: solid; }

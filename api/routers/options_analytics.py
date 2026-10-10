@@ -490,3 +490,74 @@ def options_sizzle(_user: dict = Depends(require_paid)):
     except Exception as e:  # noqa: BLE001 -- surfaced by name, never as an empty ranking
         raise HTTPException(status_code=503,
                             detail=f"The options log is unavailable: {type(e).__name__}") from e
+
+
+# ── TERMINAL-NEXT finishing lane L3: BRK-08 base rate · FT-049 projection + refresh · FT-073
+#    multi-leg trades · FT-053 level files. Each behind its OWN switch (flags.py).
+
+@router.get("/api/options/positioning/{sym}/base-rate",
+            dependencies=[Depends(_switch("OPTIONS_LEVEL_BASE_RATE_ENABLED"))])
+def positioning_base_rate(sym: str, _user: dict = Depends(require_paid)):
+    """BRK-08: how often each level type held, from our stored levels history. Plain `def`: the
+    R2 mirror listing and the gzip reads block."""
+    from api.services.options_analytics import level_base_rate as lbr
+    s = _sym(sym)
+    try:
+        return lbr.base_rate(s)
+    except Exception as e:  # noqa: BLE001 -- surfaced by name, never as an empty history
+        detail = str(e) if isinstance(e, RuntimeError) else type(e).__name__
+        raise HTTPException(status_code=503, detail=f"The levels history is unavailable: {detail}") from e
+
+
+@router.get("/api/options/positioning/refresh-policy",
+            dependencies=[Depends(_switch("OPTIONS_TRACE_REFRESH_ENABLED"))])
+def positioning_refresh_policy(_user: dict = Depends(require_paid)):
+    """FT-049: the heatmaps' refresh interval while the regular session is open (60 s)."""
+    from api.services.options_analytics import trace_projection
+    return trace_projection.refresh_policy()
+
+
+@router.get("/api/options/positioning/{sym}/projection",
+            dependencies=[Depends(_switch("OPTIONS_TRACE_PROJECTION_ENABLED"))])
+async def positioning_projection(sym: str, dte: str = Query("month", pattern=_DTE),
+                                 _user: dict = Depends(require_paid)):
+    """FT-049: projected net GEX by price and session. Awaits the cached chain; the grid is
+    computed in a thread."""
+    from api.services.options_analytics import trace_projection
+    return await _positioning(trace_projection.projection, _sym(sym), dte)
+
+
+@router.get("/api/options-screener/multi-leg",
+            dependencies=[Depends(_switch("OPTIONS_MULTI_LEG_SCREEN_ENABLED"))])
+def options_multi_leg_screen(underlyings: str = Query("", max_length=600),
+                             limit: int = Query(50, ge=1, le=100), _user: dict = Depends(require_paid)):
+    """FT-073 remainder: today's multi-leg structures off the tape. Plain `def`: the tape read."""
+    from api.services.options_analytics import more_screens
+    syms = [s for s in (u.strip() for u in underlyings.split(",")) if s]
+    if len(syms) > 50:
+        raise HTTPException(status_code=422, detail="at most 50 underlyings per screen")
+    syms = [_sym(s) for s in syms]
+    try:
+        return more_screens.multi_leg_trades(underlyings=syms or None, limit=limit)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=f"The flow tape is unavailable: {e}") from e
+
+
+@router.get("/api/options/positioning/{sym}/level-files",
+            dependencies=[Depends(_switch("OPTIONS_LEVEL_FILES_ENABLED"))])
+async def positioning_level_files(sym: str, format: str = Query("", pattern="^(|pine|thinkscript|csv)$"),
+                                  dte: str = Query("month", pattern=_DTE),
+                                  _user: dict = Depends(require_paid)):
+    """FT-053: the positioning levels as a TradingView / ThinkorSwim / CSV file. No `format`: the
+    list of formats (the panel's probe). With one: the file, as a download."""
+    from fastapi.responses import Response
+    from api.services.options_analytics import level_files, positioning
+    s = _sym(sym)
+    if not format:
+        return level_files.manifest(s)
+    lv = await _positioning(positioning.levels, s, dte)
+    body = level_files.render(format, s, lv)
+    ctype = level_files.FORMATS[format][0]
+    return Response(content=body, media_type=ctype, headers={
+        "Content-Disposition": f'attachment; filename="{level_files.filename(format, s, lv)}"',
+        "Cache-Control": "no-store"})

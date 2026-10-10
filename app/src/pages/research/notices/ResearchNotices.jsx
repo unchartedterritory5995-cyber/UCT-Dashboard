@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { depthFetcher } from '../depth/depthFetch'
 import styles from './Notices.module.css'
 import { formatCompact, formatNumber } from '../../../lib/presentation/presentationPrimitives'
+import { interestReasons, useMemberInterest } from '../../../lib/memberInterest'
 
 // Research notices under the header (lane R). A container only: each notice is its
 // own surface behind its own server flag (researchNoticeFlags.js); a notice whose
@@ -17,27 +18,18 @@ const SWR_OPTS = { revalidateOnFocus: false }
 
 // ── D-9: the member's own signal reaches a surface that did not compute it ──
 
-// The resolver's source vocabulary (api/services/member_interest.SOURCES), in words.
-// A source this list does not know is shown by its own name, never dropped.
-const BECAUSE = {
-  positions: 'in your open Journal positions',
-  flagged: 'flagged by you',
-  watchlist: 'on your watchlists',
-  uct20: 'on the UCT 20',
-}
-
-export function interestReasons(entities, sym) {
-  const e = entities?.[sym]
-  if (!e || !Array.isArray(e.because) || e.because.length === 0) return []
-  return e.because.map((b) => BECAUSE[b] || b)
-}
+// The source vocabulary in words (BECAUSE), interestReasons and the shared SWR key live
+// in lib/memberInterest.js, the one reader every UC-1 consumer shares (Breadth drill,
+// Screener, Morning Wire). Re-exported so existing importers keep working.
+export { BECAUSE, interestReasons } from '../../../lib/memberInterest'
 
 function MemberInterestLine({ sym }) {
   // One shared key per member: every surface asking shares the server's 15s cache.
-  const { data } = useSWR('/api/member/interest', depthFetcher, SWR_OPTS)
+  // useMemberInterest returns null for a paywalled answer or a failed read.
+  const data = useMemberInterest(true)
   // ⛔ PRESENCE ONLY. The resolver folds a failing source into "nothing", so the
   // absence of a reason is never rendered as "not on your watchlist".
-  if (!data || data.paywalled) return null
+  if (!data) return null
   const reasons = interestReasons(data.entities, sym)
   if (reasons.length === 0) return null
   return (

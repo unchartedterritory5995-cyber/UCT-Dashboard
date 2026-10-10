@@ -405,6 +405,50 @@
       "where": ["web"],
       "note": "ARMED on web 2026-10-09 (owner-run railway variables --set at 11:37:07Z, one --set for eight options flags; web deploy BUILDING 11:37:07Z, fresh boot seen at 11:39:30Z, /api/health uptime 40). NOT measured: the value in the running process (in-process read not taken) -- read it with os.environ over railway ssh before citing this as verified. FT-075 (lane/o-options-remainders). GET /api/options-screener/sizzle: COV-03's unusual-volume ranking on a 5-session window (today's option volume / the mean of the prior 5 logged sessions), ranked only with 5 prior sessions; below that each row says how many it has. The log began 2026-09-30, so it states n and the first session it becomes available. Shown as its own panel beside the strategy screens on Options Flow > Market Read (StrategyScreensPanel.jsx), dark on its own switch. Plain def route. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py. Unset: 404 before identity is read and the surface renders nothing. Set (paid). Rollback: set 0 (a DELETE does not restart web)."
     },
+    "OPTIONS_LEVEL_BASE_RATE_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": ["web", "terminal-next-monitor"],
+      "note": "DARK, built 2026-10-10 by TERMINAL-NEXT finishing lane L3 (branch f-l3). BRK-08 base rate. GET /api/options/positioning/{sym}/base-rate: for Call Wall, Put Wall and Zero Gamma, how often price held vs broke within the next 5 logged closes (tested = a close within 1% or beyond; a rate only from 20 tested instances, below that the sample size in words). Levels history: the terminal-next-monitor job options-levels (weekdays 16:30 ET, after options-screen) rebuilds each logged session's levels from the options-log contracts file into R2 options_log/levels/<YYYY>/<date>.csv.gz (api/services/options_analytics/level_base_rate.py); web mirrors only those small files. Shown beside the vocabulary in the positioning levels block. Arming needs the flag on BOTH terminal-next-monitor (to build history) and web (to serve it). SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its UI renders nothing. Set: paid (402 otherwise). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_TRACE_PROJECTION_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": ["web"],
+      "note": "DARK, built 2026-10-10 by TERMINAL-NEXT finishing lane L3 (branch f-l3). FT-049 forward projection. GET /api/options/positioning/{sym}/projection: projected net GEX on a 21-price x 5-session grid (spot +/-6%), Black-Scholes gamma with sigma recovered from the vendor's delta and gamma, open interest held at today's, expired contracts dropped per session, projected Zero Gamma per session (api/services/options_analytics/trace_projection.py). Same cached chain as the gamma heatmap; built once per key per 60 s (positioning._cached single-flight). Its own block in Research > Options positioning. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its UI renders nothing. Set: paid (402 otherwise). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_TRACE_REFRESH_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": ["web"],
+      "note": "DARK, built 2026-10-10 by TERMINAL-NEXT finishing lane L3 (branch f-l3). FT-049 1-minute refresh. GET /api/options/positioning/refresh-policy: interval_s 60 during the regular session (session_calendar.session_at == rth), none otherwise. The heatmap blocks re-read on that interval (plus up to 10 s client jitter) and say so in the panel. Server side: positioning._cached shares ONE in-flight build per key across concurrent callers and the result cache was sized 256 -> 1024 so open panels do not evict each other. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its UI renders nothing. Set: paid (402 otherwise). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_MULTI_LEG_SCREEN_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": ["web"],
+      "note": "DARK, built 2026-10-10 by TERMINAL-NEXT finishing lane L3 (branch f-l3). FT-073 remainder: multi-leg trades. GET /api/options-screener/multi-leg: today's tape prints typed ML/ (flow-worker types them from OPRA condition codes 232-247, api/build_gap_fill_csv.py MULTI_LEG_CONDITIONS), grouped per symbol and print second, largest premium first, legs seen counted (the tape's 50+ contracts / $10K+ filter can hide small legs). Collected in Market Tide's same tape read (tide_extras.py), no second read. Panel beside the strategy screens on Options Flow. SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its UI renders nothing. Set: paid (402 otherwise). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "OPTIONS_LEVEL_FILES_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": ["web"],
+      "note": "DARK, built 2026-10-10 by TERMINAL-NEXT finishing lane L3 (branch f-l3). FT-053 level files (licensing cleared by D-011). GET /api/options/positioning/{sym}/level-files?format=pine|thinkscript|csv: the positioning levels (the same cached positioning.levels answer the panel shows) as a TradingView Pine v5 indicator (hline per level), a ThinkorSwim thinkScript study (plot + bubble per level) or a price,label CSV, as an attachment; no format = the list of formats (the panel's probe). Download buttons in the positioning levels block (api/services/options_analytics/level_files.py). SERVICE: web. ENABLEMENT GATE, default OFF, read per request via api/services/options_analytics/flags.py (OPTIONS_ANALYTICS_FLAGS table). Unset: the route answers the FastAPI 404 before identity is read and its UI renders nothing. Set: paid (402 otherwise). Rollback: set 0 (a DELETE does not restart web)."
+    },
+    "FLOW_EXPOSURE_HISTORY_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": ["flow-worker"],
+      "owner": "f-l4 (UCT Terminal finishing lane L4)",
+      "note": "FT-054 'N minutes ago' overlay. api/flow_exposure_history.py. ENABLEMENT GATE, default OFF, read per call. SERVICE: flow-worker (where flow.db lives). Set: a 60 s tick (registered in flow_worker_main._start_flow_schedulers only when set at boot) folds today's SETTLED flow.db rows (120 s old, past the consumer's side reclassify window) into per-strike customer-signed contracts and dealer gamma dollars, and every FLOW_EXPOSURE_HISTORY_INTERVAL_MIN (default 5) writes the strikes that moved to a bounded SQLite file (FLOW_EXPOSURE_HISTORY_DB_PATH, default /data/flow_exposure_history.db; today + 1 session kept, 2M rows/session ceiling). GET /api/flow/exposure-history/{sym}?ago=30,60 (paid, reached from web through the flow proxy's /api/flow prefix) serves now vs N minutes ago; the GEX/positioning panel shows it as a toggle. Opens no socket and does not touch massive_ws_worker.py. Unset: the route answers 404 before identity is read, the tick does nothing, the panel renders nothing. Arming needs a flow-worker restart (a watched file), so after hours only. Rollback: unset."
+    },
+    "OPTIONS_CHAIN_STREAM_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": ["flow-worker"],
+      "owner": "f-l4 (UCT Terminal finishing lane L4)",
+      "note": "FT-015 / BRK-01 streamed option chain. api/live_chain_stream.py. ENABLEMENT GATE, default OFF, read per request. SERVICE: flow-worker. Set: GET /api/live/massive/chain-quotes/{sym}?expiration= (one read) and GET /api/live/massive/chain-stream/{sym}?expiration= (SSE, every 2 s, changed contracts only; at most OPTIONS_CHAIN_STREAM_MAX_SUBSCRIBERS=200 streams) push Last for every contract the OPRA feed has printed today and Bid/Ask for contracts in the consumer's Q pool, both READ from massive_ws_worker's in-process tables (_RAW_T_HISTORY, _nbbo_table) without editing that partner file and without any new subscription. Web reaches both through the flow proxy (/api/live/massive prefix, SSE passthrough). The Research > Options chain probes chain-quotes first and opens the stream only on 200; a streamed value replaces the polled one only when it is newer than the chain read. Unset: 404 before identity is read and the chain keeps its 60 s poll. Rollback: unset."
+    },
     "ANALYST_REVISIONS_ENABLED": {
       "status": "armed",
       "since": "2026-09-30",
@@ -2110,6 +2154,68 @@
         "web"
       ],
       "note": "ARMED on web 2026-10-04. D-9 Personalization UC-1 (lane R, owner ruling 2026-10-02): the first consumer of GET /api/member/interest (on master with no caller). Under the Research header, one line says the member already has a view on this ticker and why: 'Yours: in your open positions · on your watchlists · on the UCT 20' from the route's own because[], never re-derived on the client. PRESENCE ONLY: the resolver folds a failing source into an empty set, so the line never says 'not on your watchlist'; it renders nothing when the ticker is not in the answer or the read failed. No new route, no re-ranking; the existing route (paid, 15s per-member cache) is read as-is. Client-only gate (api/services/member_interest_line.is_enabled, read per call) carried on the auth payload as member_interest_line_enabled, present only when on; unset = the line is absent and /api/member/interest is never requested by it. Arm: railway variables --service web --set MEMBER_INTEREST_LINE_ENABLED=1 (owner). Rollback = unset it."
+    },
+    "MEMBER_INTEREST_BREADTH_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": [
+        "web"
+      ],
+      "note": "D-9 Personalization UC-1, second consumer of GET /api/member/interest (lane L5, 2026-10-10): in the Breadth drill modal, one line over the drilled list names the tickers in that list the member already follows and why ('On your radar here: NVDA (on your watchlists)'), from the route's own because[]. PRESENCE ONLY (nothing when no ticker matches or the read failed), no re-ordering, no new route. DARK because it is new member-facing copy that has not been looked at on production yet. Client-only gate (api/services/member_interest_breadth.is_enabled, read per call) on the auth payload as member_interest_breadth_enabled, present only when on; unset = the line is absent and the drill never requests /api/member/interest. Arm: railway variables --service web --set MEMBER_INTEREST_BREADTH_ENABLED=1 (owner). Rollback = unset it."
+    },
+    "MEMBER_INTEREST_SCREENER_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": [
+        "web"
+      ],
+      "note": "D-9 Personalization UC-1, consumer of GET /api/member/interest on the Screener (lane L5, 2026-10-10): one line over the loaded result rows names the tickers in them the member already follows and why, from the route's own because[]. PRESENCE ONLY, no re-ordering of the results, no new route. DARK because it is new member-facing copy that has not been looked at on production yet. Client-only gate (api/services/member_interest_screener.is_enabled, read per call) on the auth payload as member_interest_screener_enabled, present only when on; unset = the line is absent and the Screener never requests /api/member/interest. Arm: railway variables --service web --set MEMBER_INTEREST_SCREENER_ENABLED=1 (owner). Rollback = unset it."
+    },
+    "MEMBER_INTEREST_WIRE_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": [
+        "web"
+      ],
+      "note": "D-9 Personalization UC-1, consumer of GET /api/member/interest on the Morning Wire (lane L5, 2026-10-10): one line over the rundown names the Top picks cards (.rd-pick, the same ticker reader as setupFeedback.cardSym) the member already follows and why, from the route's own because[]. PRESENCE ONLY, the rundown HTML is not modified, no new route. DARK because it is new member-facing copy that has not been looked at on production yet. Client-only gate (api/services/member_interest_wire.is_enabled, read per call) on the auth payload as member_interest_wire_enabled, present only when on; unset = the line is absent and the Wire never requests /api/member/interest. Arm: railway variables --service web --set MEMBER_INTEREST_WIRE_ENABLED=1 (owner). Rollback = unset it."
+    },
+    "FIGURE_SOURCE_LINKS_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": [
+        "web"
+      ],
+      "note": "TERM-043 figure-to-source link (lane L5, owner ruling T-13 2026-10-07: link only, from the PIT store). A quarterly statement figure on Research > Financials (FMP, /api/research/financial-history) carries a link to the SEC filing it appears in (accession -> EDGAR filing index) when the point-in-time fundamentals store holds the same line for the same period, matched within rounding (0.5%, or 0.6 cents for diluted EPS) and read from exactly ONE filing; a derived figure (Q4 = year minus nine months) gets no link. The displayed number stays FMP's. api/services/research/figure_sources.py; quarterly basis only; never raises; reads the published PIT artifact (no SEC request). Needs FUNDAMENTALS_PIT_PUBLISH_SOURCES armed on the worker first, or the artifact carries no accessions and nothing is linked. DARK because it is new member-facing behaviour not yet looked at on production. Unset = the financial-history payload is byte-identical. Arm: railway variables --service web --set FIGURE_SOURCE_LINKS_ENABLED=1 (owner). Rollback = unset it."
+    },
+    "FUNDAMENTALS_PIT_PUBLISH_SOURCES": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": [
+        "worker"
+      ],
+      "exposure": "internal",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "TERM-043 worker half (lane L5, 2026-10-10): when 1, the PIT publisher adds a 'sources' map to each company artifact (accession list per point, index-aligned, for revenue_q / net_income_q / eps_diluted_q only; api/services/fundamentals_pit/publish.py). Unset = the artifact is byte-identical, so nothing republishes. Arming it changes every artifact once, so every company republishes on the next publish pass (a one-time R2 write cost). DARK because that republish is a production write the owner schedules. Arm: railway variables --service worker --set FUNDAMENTALS_PIT_PUBLISH_SOURCES=1 (owner), then FIGURE_SOURCE_LINKS_ENABLED on web. Rollback = unset it; the next publish drops the key."
+    },
+    "SEC_13F_LIST_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": [
+        "web"
+      ],
+      "note": "TERM-045 13F holders join (lane L5, owner ruling T-14 2026-10-07: the SEC's free Official List of Section 13(f) Securities, no CUSIP master purchase). The job sec_13f_list_refresh (06:25 ET daily, always registered, a no-op while unset) downloads https://www.sec.gov/files/investment/13flist{YYYY}q{N}.txt for the current quarter, falling back up to three quarters, through fundamentals_pit.sec_client (SEC_USER_AGENT, the fair-access limiter, 30 s timeout, 8 MB byte cap; a quarter on disk is never fetched again) into SEC_13F_LIST_PATH (default /data/sec_13f_list). GET /api/research/ownership/{sym} then carries thirteen_f_list: whether the ticker's own CUSIP (local FTD store, else FMP profile cusip, cached 24 h) is on the list, every listed security of its issuer (shares, options, notes), and the list quarter beside the FMP 13F holders quarter; the Ownership tab shows one line. States ok / not_on_list / no_cusip / not_ingested / unavailable. The request path reads disk only. DARK because it adds a scheduled SEC download and new member copy. Arm: railway variables --service web --set SEC_13F_LIST_ENABLED=1 (owner). Rollback = unset it; the files stay, nothing is read."
+    },
+    "RESEARCH_PEOPLE_BOARD_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-10",
+      "where": [
+        "web"
+      ],
+      "note": "COV-05 / FT-076 board and biographies (lane L5, D-008: a free source already reachable). Research > People gains 'Board and biographies': the reporting owners whose Form 4 declares them a director, from the SAME cached EDGAR Form 4 snapshot the insider-roles section reads (no new SEC request; scope stated: directors seen on Form 4 in the 180-day window), and a LINK to the issuer's newest DEF 14A proxy statement (where the SEC requires director and officer biographies), taken from the same submissions document. Bio text is not extracted (no structured source; FMP's plan has no bio or board endpoint). Needs EDGAR_OWNERSHIP_ENABLED (armed). DARK because it is new member-facing copy not yet looked at on production. Unset = no 'board' key and the section is absent. Arm: railway variables --service web --set RESEARCH_PEOPLE_BOARD_ENABLED=1 (owner). Rollback = unset it."
     },
     "ENTITY_RENAME_NOTICE_ENABLED": {
       "status": "armed",

@@ -198,6 +198,55 @@ export function MoreStrategyScreens() {
   )
 }
 
+// ── FT-073 remainder: multi-leg trades (L3, OPTIONS_MULTI_LEG_SCREEN_ENABLED) ────
+
+export function MultiLegScreen() {
+  const [syms, setSyms] = useState('')
+  const q = useUnderlyingsQuery(syms)
+  const { data, hidden, failed, loading, retry } = useDarkSection(`/api/options-screener/multi-leg${q}`)
+  if (hidden) return null
+  if (!data && !failed) return null
+  return (
+    <section className={styles.panel} data-testid="multi-leg-screen">
+      <div className={styles.head}>
+        <span className={styles.title}>Multi-leg option trades</span>
+        <span className={styles.badge}>{"today's tape"}</span>
+        <Input className={styles.input} aria-label="Limit multi-leg trades to tickers" placeholder="All tickers" value={syms} onChange={(e) => setSyms(e.target.value)} />
+      </div>
+      {failed && <FailedRead testId="multi-leg-unavailable" retry={retry} title={'This screen is unavailable right now. That is not "nothing matched".'} />}
+      {loading && <p className={styles.note}>Loading the screen…</p>}
+      {data && Array.isArray(data.rows) && (
+        <>
+          <p className={styles.muted} data-testid="multi-leg-basis">
+            {data.description} Session {data.session || 'not named'}. {count(data.structures_found)} structure{data.structures_found === 1 ? '' : 's'} from {count(data.prints_read)} multi-leg print{data.prints_read === 1 ? '' : 's'}. {data.filters}
+          </p>
+          {data.note && <p className={styles.note}>{data.note}</p>}
+          {data.rows.length > 0 ? (
+            <div className={styles.scroll}>
+              <table className={styles.table} data-testid="multi-leg-rows" aria-label="Multi-leg option trades">
+                <thead><tr><th scope="col">Ticker</th><th scope="col">Time</th><th scope="col">Legs</th><th scope="col">Premium</th></tr></thead>
+                <tbody>
+                  {data.rows.map((r) => (
+                    <tr key={`${r.symbol}-${r.time}`}>
+                      <th scope="row"><PanelSymbol sym={r.symbol} /></th>
+                      <td>{r.time}</td>
+                      <td>
+                        {r.legs.map((l, i) => <span key={i}>{i ? ' + ' : ''}{sideWords(l.side)} {l.contracts} {callPutWords(l.type)} {num(l.strike)} {l.expiration}</span>)}
+                        {r.legs_seen > r.legs.length ? ` (+${r.legs_seen - r.legs.length} more)` : ''}
+                      </td>
+                      <td>{dollars(r.premium)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : <p className={styles.note}>No multi-leg trade on {data.session || "today's"} tape passed this screen.</p>}
+        </>
+      )}
+    </section>
+  )
+}
+
 // ── FT-075 Sizzle ──────────────────────────────────────────────────────────────
 
 export function SizzlePanel() {
@@ -248,8 +297,8 @@ export default function StrategyScreensPanel({ offNotice = false }) {
   return (
     <>
       {offNotice && <OffNotice feature="Options strategy screens"
-        urls={['/api/options-screener/strategies', '/api/options-screener/more-strategies', '/api/options-screener/sizzle']} />}
-      <FirstScreens /><MoreStrategyScreens /><SizzlePanel />
+        urls={['/api/options-screener/strategies', '/api/options-screener/more-strategies', '/api/options-screener/multi-leg', '/api/options-screener/sizzle']} />}
+      <FirstScreens /><MoreStrategyScreens /><MultiLegScreen /><SizzlePanel />
     </>
   )
 }

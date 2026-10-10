@@ -43,6 +43,12 @@ OPTIONS_ANALYTICS_FLAGS = {
     "OPTIONS_SPREAD_BOOK_ENABLED": "",             # FT-072 saved Spread Book
     "OPTIONS_MORE_STRATEGY_SCREENS_ENABLED": "",   # FT-073 butterflies / by-expiration / blocks
     "OPTIONS_SIZZLE_ENABLED": "",                  # FT-075 Sizzle, 5-day window
+    # TERMINAL-NEXT finishing lane L3: one per surface.
+    "OPTIONS_LEVEL_BASE_RATE_ENABLED": "",         # BRK-08 how often each level type held (+ monitor job)
+    "OPTIONS_TRACE_PROJECTION_ENABLED": "",        # FT-049 forward projection (price x session)
+    "OPTIONS_TRACE_REFRESH_ENABLED": "",           # FT-049 1-minute heatmap refresh while open
+    "OPTIONS_MULTI_LEG_SCREEN_ENABLED": "",        # FT-073 multi-leg trades off the tape's ML/ type
+    "OPTIONS_LEVEL_FILES_ENABLED": "",             # FT-053 key levels as TradingView / ThinkorSwim files
 }
 
 _TRUE = ("1", "true", "yes", "on")

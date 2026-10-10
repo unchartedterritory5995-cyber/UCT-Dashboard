@@ -48,6 +48,12 @@ def mount_flow_routers(app) -> None:
         # Instant-tape SSE: the proxy forwards /api/live/massive/stream here.
         # Route self-gates (503 enabled:false) unless MASSIVE_STREAM_ENABLED=1.
         ("massive_stream", "api.routers.massive_stream_router", "router"),
+        # FT-054 exposure history (/api/flow/exposure-history/*) and FT-015 chain stream
+        # (/api/live/massive/chain-*): both read data this pod already holds; each answers
+        # 404 until its own switch is set (FLOW_EXPOSURE_HISTORY_ENABLED /
+        # OPTIONS_CHAIN_STREAM_ENABLED).
+        ("flow_exposure_history", "api.flow_exposure_history", "router"),
+        ("live_chain_stream", "api.live_chain_stream", "router"),
     )
     for _desc, _mod, _attr in _MOUNTS:
         _try(_desc, lambda m=_mod, a=_attr: app.include_router(

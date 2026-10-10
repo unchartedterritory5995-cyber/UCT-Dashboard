@@ -7,6 +7,7 @@ import { setUnauthorizedHandler } from '../hooks/livePriceStore'
 import { readFeatureStatus } from '../components/featureStatus/featureStatus'
 import { readResearchDepth } from '../pages/research/depth/researchDepthFlags'
 import { readResearchNotices } from '../pages/research/notices/researchNoticeFlags'
+import { readMemberInterestSurfaces } from '../lib/memberInterest'
 import { readCalendarDepth } from '../pages/calendar/depth/calendarDepthFlags'
 
 export const AuthContext = createContext(null)
@@ -58,6 +59,8 @@ export function AuthProvider({ children }) {
   const [researchDepth, setResearchDepth] = useState(() => readResearchDepth(null))
   // Research notices under the header (lane R: D-9/D-11/D-12): one boolean per surface.
   const [researchNotices, setResearchNotices] = useState(() => readResearchNotices(null))
+  // D-9 UC-1 consumers outside Research (Breadth drill, Screener, Wire): one boolean each.
+  const [memberInterestSurfaces, setMemberInterestSurfaces] = useState(() => readMemberInterestSurfaces(null))
   // Calendar depth (Lane R): one boolean per surface, all false until the payload says otherwise.
   const [calendarDepth, setCalendarDepth] = useState(() => readCalendarDepth(null))
   const [cohortsWithdrawn, setCohortsWithdrawn] = useState([])
@@ -149,6 +152,8 @@ export function AuthProvider({ children }) {
     ['research_depth', readResearchDepth, setResearchDepth],
     // Research notices: several keys, each present only when on (researchNoticeFlags.js).
     ['research_notices', readResearchNotices, setResearchNotices],
+    // D-9 member-interest consumers: same form (lib/memberInterest.js).
+    ['member_interest_surfaces', readMemberInterestSurfaces, setMemberInterestSurfaces],
     // Calendar depth (Lane R): same form (calendarDepthFlags.js).
     ['calendar_depth', readCalendarDepth, setCalendarDepth],
     ['cohorts_withdrawn', (d) => (Array.isArray(d.cohorts_withdrawn) ? d.cohorts_withdrawn : []), setCohortsWithdrawn],
@@ -368,7 +373,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

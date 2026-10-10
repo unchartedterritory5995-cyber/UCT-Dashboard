@@ -25,6 +25,18 @@ touches the network on a request; a miss answers `pending` (and queues one
 refresh only when EDGAR_OWNERSHIP_ENABLED is armed -- that module's own gate).
 
 DARK behind RESEARCH_PEOPLE_ENABLED (unset = the route 404s, the tab is absent).
+
+BOARD AND BIOGRAPHIES (COV-05 / FT-076 remainder, D-008: a source must be free and
+already reachable). DARK behind RESEARCH_PEOPLE_BOARD_ENABLED (unset = no `board` key).
+  * Board: the reporting owners whose Form 4 declares them a DIRECTOR, from the SAME
+    cached EDGAR snapshot as `insider_roles` (no new read). Scope stated, not hidden: a
+    director who filed no Form 4 in the window is not listed, so the list is "directors
+    seen on Form 4", never "the board".
+  * Biographies: a LINK to the issuer's newest DEF 14A (proxy statement), where the SEC
+    requires director and officer biographies, found in the same submissions document.
+    Bio TEXT is not extracted: the proxy is free-form HTML with no structured bio field,
+    and FMP's plan has no bio or board endpoint (key-executives carries name, title, pay,
+    year born only), so extracted text would be a guess. Link only.
 """
 from __future__ import annotations
 
@@ -39,6 +51,9 @@ from api.services.cache import cache
 _logger = logging.getLogger(__name__)
 
 ENABLED_ENV = "RESEARCH_PEOPLE_ENABLED"
+BOARD_ENV = "RESEARCH_PEOPLE_BOARD_ENABLED"
+SRC_BOARD = "SEC EDGAR Form 4 (reporting owners who declare a director role)"
+SRC_PROXY = "SEC EDGAR DEF 14A (definitive proxy statement)"
 _CACHE_PREFIX = "research_people::"
 _TTL_OK = 24 * 3600
 _TTL_FAIL = 600
@@ -53,6 +68,10 @@ _HONORIFICS = {"mr", "mrs", "ms", "dr", "jr", "sr", "ii", "iii", "iv", "esq", "c
 
 def is_enabled() -> bool:
     return os.environ.get(ENABLED_ENV, "").strip() == "1"
+
+
+def board_enabled() -> bool:
+    return os.environ.get(BOARD_ENV, "").strip() == "1"
 
 
 def _today() -> str:
@@ -216,6 +235,44 @@ def _insider_roles(sym: str, snapshot_fn: Optional[Callable[[str], dict]] = None
     return {**base, "state": "unavailable", "reason": f"SEC EDGAR could not be read ({snap.get('detail') or 'unknown'})"}
 
 
+def board_part(roles: dict, snapshot: dict) -> dict:
+    """Directors seen on Form 4 + the proxy link for biographies. Pure over the cached
+    snapshot and the already-shaped `insider_roles` part. Never raises."""
+    from api.services import edgar_ownership as eo
+    base = {"source": SRC_BOARD, "window_days": eo.WINDOW_DAYS, "rows": None,
+            "scope": f"directors who filed a Form 4 in the last {eo.WINDOW_DAYS} days; "
+                     "a director who filed none is not listed"}
+    rows = roles.get("rows")
+    if rows is None:
+        out = {**base, "state": roles.get("state") or "unavailable"}
+        if roles.get("reason"):
+            out["reason"] = roles["reason"]
+    else:
+        directors = [{k: r.get(k) for k in ("name", "role", "officer_title", "is_officer",
+                                              "filing_date", "accession", "url")}
+                     for r in rows if r.get("is_director")]
+        out = {**base, "state": "ok" if directors else "none_in_window", "since": roles.get("since"),
+               "rows": directors or None}
+        if not directors:
+            out["reason"] = f"no Form 4 in the last {eo.WINDOW_DAYS} days declared a director"
+    snap = snapshot or {}
+    if snap.get("state") in eo.READABLE_STATES:
+        proxy = snap.get("latest_proxy")
+        if proxy:
+            bios = {"state": "ok", "source": SRC_PROXY, **proxy}
+        elif "latest_proxy" in snap:
+            bios = {"state": "not_found", "source": SRC_PROXY,
+                    "reason": "the issuer's recent SEC filings list no DEF 14A proxy statement"}
+        else:
+            bios = {"state": "unavailable", "source": SRC_PROXY,
+                    "reason": "the cached EDGAR read predates proxy capture; it refreshes within 4 hours"}
+    else:
+        bios = {"state": roles.get("state") or "unavailable", "source": SRC_PROXY,
+                "reason": roles.get("reason") or "SEC EDGAR has not been read for this symbol yet"}
+    out["bios"] = bios
+    return out
+
+
 # ── the payload ─────────────────────────────────────────────────────────────
 
 def people(sym: str, *, snapshot_fn: Optional[Callable[[str], dict]] = None) -> dict:
@@ -236,7 +293,17 @@ def people(sym: str, *, snapshot_fn: Optional[Callable[[str], dict]] = None) -> 
     fmp_part = _fmp_part(sym)
     execs = dict(fmp_part["executives"])
     comp = fmp_part["compensation"]
-    roles = _insider_roles(sym, snapshot_fn)
+    if snapshot_fn is None:
+        from api.services import edgar_ownership as _eo
+        snapshot_fn = _eo.form4_snapshot
+    snap_cache: dict = {}
+
+    def _snap_once(s: str) -> dict:          # one snapshot read serves roles AND board
+        if "v" not in snap_cache:
+            snap_cache["v"] = snapshot_fn(s) or {}
+        return snap_cache["v"]
+
+    roles = _insider_roles(sym, _snap_once)
 
     if execs.get("rows"):
         linked = []
@@ -251,4 +318,12 @@ def people(sym: str, *, snapshot_fn: Optional[Callable[[str], dict]] = None) -> 
             e["insider_accession"] = r["accession"] if r else None
             linked.append(e)
         execs["rows"] = linked
-    return {"ticker": sym, "executives": execs, "compensation": comp, "insider_roles": roles}
+    out = {"ticker": sym, "executives": execs, "compensation": comp, "insider_roles": roles}
+    if board_enabled():
+        try:
+            out["board"] = board_part(roles, _snap_once(sym))
+        except Exception as exc:  # noqa: BLE001 -- a section that fails says so
+            _logger.warning("research_people board failed for %s: %s", sym, exc)
+            out["board"] = {"state": "unavailable", "source": SRC_BOARD, "rows": None,
+                            "reason": "the board section could not be built"}
+    return out

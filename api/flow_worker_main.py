@@ -832,6 +832,20 @@ def _start_flow_schedulers():
                 log.info("[startup] Massive-OI capture disabled (set OI_MASSIVE_ENABLED=1)")
         except Exception as e:  # noqa: BLE001
             log.warning("Massive-OI capture scheduling failed: %s", e)
+        try:
+            # FT-054 (2026-10-10): the intraday per-strike exposure store. Reads only the
+            # settled rows this pod already writes to flow.db; opens no socket. Dark until
+            # FLOW_EXPOSURE_HISTORY_ENABLED=1 (the tick also re-reads the switch per call).
+            from api import flow_exposure_history as _feh
+            if _feh.is_enabled():
+                from apscheduler.triggers.interval import IntervalTrigger as _FEHEvery
+                sched.add_job(_feh.run_tick, trigger=_FEHEvery(seconds=60),
+                              id="flow_exposure_history", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] exposure-history tick registered (60 s)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("exposure-history scheduling failed: %s", e)
 
         if n:
             sched.start()

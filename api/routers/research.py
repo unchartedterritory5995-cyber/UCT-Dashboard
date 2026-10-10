@@ -249,7 +249,9 @@ def research_financial_history(sym: str = Depends(sym_path), period: str = "quar
     """
     try:
         from api.services.research.financial_history import get_history
-        return _fund_marked(get_history(sym, period=period), sym, _FA_FUND_WHY)
+        from api.services.research import figure_sources
+        # TERM-043, DARK (FIGURE_SOURCE_LINKS_ENABLED): unset, attach() returns the payload as is.
+        return _fund_marked(figure_sources.attach(get_history(sym, period=period)), sym, _FA_FUND_WHY)
     except Exception as exc:
         _logger.warning("financial history failed for %s: %s", sym, exc)
         # `fmp_unavailable`: the read FAILED. Without it the panel said "FMP holds no statement
@@ -382,7 +384,12 @@ def research_ownership(sym: str = Depends(sym_path)):
         # worker). Unset, this branch is never entered and the response is
         # exactly what get_ownership returned.
         if edgar_ownership.is_enabled() and isinstance(result, dict) and result:
-            return edgar_ownership.overlay_insider(result, sym)
+            result = edgar_ownership.overlay_insider(result, sym)
+        # TERM-045, DARK (SEC_13F_LIST_ENABLED): the SEC 13(f) list joined to the
+        # 13F holders. Unset, overlay() returns the payload unchanged; it never fetches.
+        from api.services import sec_13f_list
+        if isinstance(result, dict) and result:
+            result = sec_13f_list.overlay(result, sym)
         return result
     except Exception as exc:
         _read_failed("ownership", sym, exc)

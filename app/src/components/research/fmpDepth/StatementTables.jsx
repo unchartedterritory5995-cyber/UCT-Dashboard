@@ -65,7 +65,10 @@ export default function StatementTables({ sym }) {
                 <th scope="row" className={styles.rowHead}>
                   {rowLabel(r.label, r.basis, shownPeriod)}
                 </th>
-                {r.cells.map((c, i) => <td key={i}>{c}</td>)}
+                {r.cells.map((c, i) => <td key={i}>{r.links?.[i]
+                  ? <a className={styles.sourceLink} href={r.links[i]} target="_blank" rel="noopener noreferrer"
+                       title="Open the SEC filing this figure appears in" data-testid="figure-source-link">{c}</a>
+                  : c}</td>)}
               </tr>
             ))}
           </tbody>
@@ -85,6 +88,11 @@ export default function StatementTables({ sym }) {
       </div>
       {currencyNote && <p className={styles.note} data-testid="fa-currency" data-currency={data.currency ?? 'unknown'}>{currencyNote}</p>}
       {body}
+      {hasFigures && table.rows.some((r) => r.links) && (
+        <p className={styles.note} data-testid="figure-source-note">
+          Underlined figures link to the SEC filing they appear in. The figure shown is FMP's; the link is added only where our SEC record matches it.
+        </p>
+      )}
     </section>
   )
 }
