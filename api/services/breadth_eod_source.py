@@ -138,12 +138,23 @@ def owned_keys(computed: dict) -> list:
     reconciliation grades (`_ACCURACY`) or an index field, minus diagnostics and
     the live-only internals. Derived from the grader's own table, never typed."""
     from api.services import breadth_live as bl
-    graded = set(bl._ACCURACY)
+    from api.services import breadth_eod_extras as bee
+    graded = set(bl._ACCURACY) | set(bee.KEYS)
     return sorted(
         k for k, v in (computed or {}).items()
         if v is not None and not k.startswith("_") and k not in LIVE_ONLY
         and (k in graded or bl._is_index_field(k))
     )
+
+
+def _grade(key: str, server, stored) -> tuple:
+    """(grade, accuracy, tolerance) — an extras key under its own tolerance
+    (`breadth_eod_extras.TOLERANCE`), every other key under the reconciliation's."""
+    from api.services import breadth_live as bl
+    from api.services import breadth_eod_extras as bee
+    if key in bee.TOLERANCE:
+        return bee.grade(key, server, stored), "extras", bee.TOLERANCE[key]
+    return bl.grade(server, stored, key), bl.accuracy_of(key), bl._tolerance_for(key)
 
 
 def list_key(metric: str) -> str:
@@ -197,6 +208,15 @@ def server_universe_for(date_iso: str) -> tuple:
     return list(res["tickers"]), f"server:{res.get('basis_date')}"
 
 
+def extras_for(date_iso: str, tickers: list, conn=None) -> dict:
+    """The non-price keys for the session (`breadth_eod_extras`). Never raises."""
+    try:
+        from api.services import breadth_eod_extras as bee
+        return bee.compute_extras(date_iso, tickers, conn)
+    except Exception as e:                        # noqa: BLE001
+        return {"_extras_errors": {"import": f"{type(e).__name__}: {e}"}}
+
+
 def compute(date_iso: str, conn=None, universe: Optional[tuple] = None) -> dict:
     """The server-computed row for one completed session. Never writes.
 
@@ -226,6 +246,12 @@ def compute(date_iso: str, conn=None, universe: Optional[tuple] = None) -> dict:
     if not metrics:
         return {"ok": False, "date": date_iso,
                 "reason": "bars.db cannot support this session (history or prices missing)"}
+    # ⭐ (2026-10-10) the rest of the collector's push — indices, volatility, Fear & Greed,
+    # distribution days, exposure/phase, all-time highs, ATR extension — produced here
+    # (`breadth_eod_extras`). A price metric the engine computed is never overridden.
+    for k, v in (extras_for(date_iso, tickers, conn) or {}).items():
+        if metrics.get(k) is None:
+            metrics[k] = v
     priced = int(metrics.get("universe_count") or 0)
     coverage = priced / len(tickers)
     return {"ok": True, "date": date_iso, "metrics": metrics, "members": members,
@@ -253,13 +279,13 @@ def grade_row(server: dict, stored: dict, recent: Optional[list] = None) -> dict
     owned = owned_keys(server)
     fields, passed, failed, server_only = {}, [], [], []
     for k in owned:
-        g = bl.grade(server.get(k), stored.get(k), k)
+        g, accuracy, tolerance = _grade(k, server.get(k), stored.get(k))
         if g is None:
             server_only.append(k)
             continue
         fields[k] = {"stored": stored.get(k), "server": server.get(k), "delta": g["delta"],
                      "rel_pct": g["rel_pct"], "pass": g["pass"],
-                     "accuracy": bl.accuracy_of(k), "tolerance": bl._tolerance_for(k)}
+                     "accuracy": accuracy, "tolerance": tolerance}
         (passed if g["pass"] else failed).append(k)
     collector_only = sorted(
         k for k, v in stored.items()
@@ -269,7 +295,8 @@ def grade_row(server: dict, stored: dict, recent: Optional[list] = None) -> dict
     base = bm.numeric_of(stored)
     try:
         s_col = bm.derive_live_row(base, recent).get("breadth_score")
-        s_srv = bm.derive_live_row({**base, **{k: server[k] for k in owned}},
+        s_srv = bm.derive_live_row({**base, **{k: server[k] for k in owned
+                                               if not isinstance(server[k], str)}},
                                    recent).get("breadth_score")
     except Exception:                             # noqa: BLE001
         s_col = s_srv = None
@@ -324,7 +351,13 @@ def _hash(stored: Optional[dict]) -> Optional[str]:
         return None
     from api.services import breadth_monitor as bm
     blob = json.dumps(bm.numeric_of(stored), sort_keys=True, default=str)
-    return hashlib.sha256(blob.encode()).hexdigest()[:16]
+    # GRADER_VERSION rides in the hash so a change to WHAT is graded (2: the extras
+    # keys, 2026-10-10) re-grades every recent session once instead of keeping the
+    # old report as "current".
+    return hashlib.sha256(f"{GRADER_VERSION}|{blob}".encode()).hexdigest()[:16]
+
+
+GRADER_VERSION = 2
 
 
 def _record(date_iso: str, status: str, reason: Optional[str], stored: Optional[dict],

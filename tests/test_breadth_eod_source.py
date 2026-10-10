@@ -68,6 +68,9 @@ def env(tmp_path, monkeypatch):
     # the server-universe cases below install their own list.
     monkeypatch.setattr(eod, "server_universe_for",
                         lambda d: ([], "server universe unavailable: not in tests"))
+    # The extras reach Cboe, yfinance and CNN (network) — off here; railed in the
+    # extras cases below and in tests/test_breadth_eod_extras.py.
+    monkeypatch.setattr(eod, "extras_for", lambda d, t, c=None: {})
     monkeypatch.setattr(bm, "_db_path", lambda: str(tmp_path / "bm.db"))
     monkeypatch.setenv("BREADTH_EOD_SHADOW_DB", str(tmp_path / "shadow.db"))
     import api.services.cache as cache_mod
@@ -562,3 +565,33 @@ def test_the_status_route_carries_both_parity_runs(env, monkeypatch):
     body = r.json()
     assert "parity_server_universe" in body
     assert body["parity_server_universe"]["universe_compare"] == []
+
+# -- (2026-10-10) the collector's other keys, produced on the server --
+
+def test_extras_ride_the_server_row_and_are_graded(env, monkeypatch):
+    monkeypatch.setattr(eod, "extras_for", lambda d, t, c=None: {
+        "vix": 17.2, "cnn_fear_greed": 44.0, "market_phase": "Uptrend",
+        "new_ath": 9, "universe_count": -1, "_extras_errors": {"x": "y"}})
+    res = eod.compute(env.last)
+    m = res["metrics"]
+    assert m["vix"] == 17.2 and m["market_phase"] == "Uptrend" and m["new_ath"] == 9
+    assert m["universe_count"] != -1                     # a price metric is never overridden
+    owned = eod.owned_keys(m)
+    assert {"vix", "cnn_fear_greed", "market_phase", "new_ath"} <= set(owned)
+    assert "_extras_errors" not in owned
+    stored = _collector_row_from(res, vix=17.21, cnn_fear_greed=55, market_phase="uptrend",
+                                 new_ath=9)
+    rep = eod.grade_row(m, stored, [])
+    assert rep["fields"]["vix"]["pass"] and rep["fields"]["market_phase"]["pass"]
+    assert rep["fields"]["cnn_fear_greed"]["pass"] is False      # 44 vs 55
+    assert "cnn_fear_greed" in rep["failed"]
+    assert rep["fields"]["vix"]["accuracy"] == "extras"
+
+
+def test_a_grader_change_regrades_a_current_session(env, monkeypatch):
+    res = eod.compute(env.last)
+    bm.store_snapshot(env.last, _collector_row_from(res))
+    assert eod.shadow_date(env.last)["computed"]
+    assert eod.shadow_date(env.last)["status"] == "current"
+    monkeypatch.setattr(eod, "GRADER_VERSION", eod.GRADER_VERSION + 1)
+    assert eod.shadow_date(env.last)["computed"]
