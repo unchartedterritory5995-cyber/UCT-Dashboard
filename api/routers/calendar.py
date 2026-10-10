@@ -34,6 +34,7 @@ from api.middleware.auth_middleware import (
     get_current_user_with_plan, is_paid_user, require_admin,
 )
 from api.services import calendar_personalization as _cp
+from api.services.earnings_session_resolver import resolve_tbd_sessions as _resolve_tbd_sessions
 from api.services.research.entity_resolution import resolve_entity
 
 _logger = logging.getLogger(__name__)
@@ -1871,6 +1872,10 @@ def _build_range_week(monday: date) -> dict:
             ))
             day[bucket] = day[bucket][:cap]
 
+    # After the caps, so moving a row out of Time TBD can never push a real
+    # reporter past a session cap and get it cut.
+    _resolve_tbd_sessions(days)
+
     # Called for EVERY week now. `_curate_econ_events` owns the source decision:
     # it skips the (slow, this-week-only) ForexFactory fetches for far weeks and
     # goes straight to FMP, which serves any range. The old guard here predated
@@ -2368,6 +2373,10 @@ def _build_current_week() -> dict:
     # ── 4. Finnhub actuals patch for today's pending reporters ───────────────
     #    Catches companies that report BMO after the 7:35 AM wire run.
     _patch_today_actuals(days, today.isoformat())
+    # Give Time TBD rows a session wherever one is knowable (Nasdaq, then the
+    # 8-K record). BEFORE the roster harvest, so the remembered session is the
+    # resolved one; after `_supplement_live_days`' caps, so nothing is cut.
+    _resolve_tbd_sessions(days)
     # Re-add reporters a degraded past-day rebuild dropped (yesterday loses its
     # roster when EW rolls it forward and the provider backfill lags a day) —
     # BEFORE sticky actuals so a restored name still gets its printed numbers.
