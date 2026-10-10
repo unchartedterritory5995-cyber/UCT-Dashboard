@@ -111,7 +111,7 @@ derived by the command in its §0, never typed.
     second copy of the rule.
   - *Scope of the server check.* It guards only the `/charts` key `charts_workspace_layout`
     (`api/services/board_bound.py:31`), through `auth.enforce_board_bound` on
-    `POST /api/auth/preferences` and `POST /api/workspace-doc/apply`. The terminal's own
+    `POST /api/auth/preferences` (`api/routers/auth.py:3022`) and `POST /api/workspace/doc/apply` (`api/routers/workspace_doc.py:37`, `api/routers/workspace_doc.py:160-177`). The terminal's own
     `terminal_layout` / `terminal_boards` keys have separate caps in
     `app/src/pages/terminal/boardModel.js:41-46` and are not TERM-001's bound.
   - *Remaining item 1, saved-layout sizes.* Never measured. The census is the PH-1 aggregate over
@@ -128,6 +128,47 @@ derived by the command in its §0, never typed.
   - *Push window.* `python tools/flow_worker_watch_coverage.py` reports whether a diff reaches
     flow-worker. `api/services/**` is not on flow-worker's watch list, so a `board_bound.py`
     change deploys web only.
+  - *(Added after readiness run 2.)* *The apply route* is `POST /api/workspace/doc/apply` (with a
+    slash): the router prefix is `/api/workspace/doc` (`api/routers/workspace_doc.py:37`) and the
+    handler is `@router.post("/apply")`, which calls `enforce_board_bound`
+    (`api/routers/workspace_doc.py:160-177`). The hyphenated spelling in the 2026-10-02 decision
+    record and in a docstring at `api/routers/auth.py:2988` is a typo for the same route.
+  - *Schema and counting rule.* Table `charts_layouts` in `/data/charts_layouts.db`, one row per
+    saved layout: `scope` (`global` for admin prebuilts, `user` for a member's own), `user_id`,
+    `name`, `layout_json` = `{widgets: [...], cols: N}` (`api/services/charts_layout_service.py:36-48`).
+    A widget is one element of `layout_json.widgets`, counted exactly as the server counts it,
+    `board_bound.widget_count` (`api/services/board_bound.py:58-69`); reuse that function, never a
+    second rule. Rows whose `layout_json.kind` is `multichart` are Multi-Chart grids, not boards
+    (`app/src/pages/charts/grid/MultiChartMenu.jsx:42-43`); they store `widgets: []` and are
+    excluded. Report `global` and `user` rows separately.
+  - *Census tool.* None exists to reuse: the PH-1 figure (17 boards, max 5) was a one-off
+    read-only aggregate over `user_preferences`
+    (`docs/terminal-research/12-decisions/2026-10-02-term-001-006-board-bound-and-freshness.md:20`).
+    Write a small read-only script that imports `board_bound.widget_count` and prints n, the
+    histogram, max, count over 16 and count unreadable, with a totals line.
+  - *How the copy is handled.* The copy never leaves the pod. The owner or integrator runs, over
+    `railway ssh` on web with `/opt/venv/bin/python`: `VACUUM INTO
+    '/data/backups/charts_layouts-<date>.db'` against the live file, then the script against that
+    copy opened as `file:...?mode=ro`, and pastes back only the printed aggregate (no names, no
+    layout bodies). The printed copy path and `mode=ro` in the output are the proof it was the copy.
+  - *Opening a saved layout over 16.* Refused, in words, only when it would grow a smaller board:
+    `applyTemplate` calls `boardMayBecome` and shows the layout refusal sentence
+    (`app/src/pages/charts/ChartsWorkspace.jsx:2030-2037`, rule at
+    `app/src/pages/charts/boardBound.js:36-39`), and the server refuses the same write. The saved
+    layout stays in its store, untouched. So a census row over 16 means "a layout that can be
+    opened only onto a board at least that large", not lost data.
+  - *Settings Limits card.* It does not publish the board bound today: its list holds only
+    `MAX_COMPARISONS` and `MAX_CHART_TEMPLATES` (`app/src/lib/persistence/personalization.js:17`,
+    `app/src/lib/persistence/personalization.js:22-44`). Adding `MAX_BOARD_WIDGETS` there is a
+    TERM-052 follow-up, imported from `boardBound.js` per that file's own rule; it is not a
+    TERM-001 blocker.
+  - *Panel-curve instrument (optional item).* The 16-cell figure came from the admin-only
+    `?gridspike=N` harness on `/charts` grid mode (`app/src/pages/charts/grid/gridSpike.js:1-20`,
+    wired at `app/src/pages/charts/grid/MultiChartGrid.jsx:46-50`). It prints one
+    `[gridspike:done] {json}` line with `allFramedMs`, per-cell median and p95, heap and idle long
+    tasks; the 2026-09-26 run is
+    `docs/terminal-research/10-roadmap/evidence/2026-09-26-protocol-c-and-gridspike/results.md:29`.
+    A curve is that harness at N = 1..16 in a visible tab inside the quiet window.
 - **Tests.** Backend pytest is always scoped to named files, never the whole tree
   (`CLAUDE.md:2003-2004`). Frontend vitest runs scoped to directories with a worker cap. A run
   without a totals line is not a run. The gate is "no new failures against a dated baseline", not
