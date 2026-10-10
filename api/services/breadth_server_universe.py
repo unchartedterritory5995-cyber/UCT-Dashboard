@@ -192,6 +192,28 @@ def build(date_iso: str, force: bool = False) -> dict:
     return {"ok": True, **entry}
 
 
+def explain(date_iso: str, names: list) -> dict:
+    """Why each name is in or out of the server list for a session: its reference type,
+    the basis day's close and volume, its screener market cap, and the exclude set.
+    A diagnostic for the parity run's list differences (push-secret route only)."""
+    from api.services import massive
+    from api.services import breadth_pit_frame as bpf
+    basis = previous_session(date_iso)
+    frame = (massive.get_grouped_daily_frame(basis, adjusted=False) or {}).get("rows") or {} \
+        if basis else {}
+    ref = bpf.reference_map()
+    caps = market_caps()
+    ex = excluded()
+    out = {}
+    for n in names or []:
+        sym = str(n).upper()
+        rec = bpf.resolve(ref.get(sym), basis) if basis else None
+        r = frame.get(sym) or {}
+        out[sym] = {"type": (rec or {}).get("type"), "close": r.get("c"), "volume": r.get("v"),
+                    "cap": caps.get(sym), "excluded": sym in ex}
+    return {"basis_date": basis, "names": out}
+
+
 def compare(server: list, collector: list) -> dict:
     """Overlap of two lists, names by example — for the parity report."""
     s, c = set(server or ()), set(collector or ())

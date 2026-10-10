@@ -1438,6 +1438,31 @@ def breadth_eod_source_status(limit: int = Query(default=60, ge=1, le=400),
             "parity_server_universe": eod.parity_report(limit, eod.TABLE_SERVER_UNIVERSE)}
 
 
+@router.get("/api/breadth-monitor/eod-source/detail")
+def breadth_eod_source_detail(date: str = Query(...), run: str = Query(default="server"),
+                              _: None = Depends(require_push_secret)):
+    """(2026-10-10) One session's parity record in full — every graded field with both
+    values — and, for the server-universe run, WHY each differing name is in or out
+    (type, basis close/volume, screener cap, exclude set). Diagnostic; push-secret only."""
+    from api.services import breadth_eod_source as eod
+    from api.services import breadth_monitor as bm
+    from api.services import breadth_server_universe as bsu
+    table = eod.TABLE_SERVER_UNIVERSE if run == "server" else eod.TABLE_COLLECTOR_UNIVERSE
+    rec = next((r for r in eod.shadow_records(400, table) if r["date"] == date), None)
+    out = {"date": date, "run": run, "record": rec}
+    if run == "server":
+        built = bsu.build(date)
+        stored = bm.raw_row(date) or {}
+        server_list = set(built.get("tickers") or [])
+        collector_list = set(eod._stored_universe(stored))
+        diff = sorted((server_list - collector_list) | (collector_list - server_list))
+        out["universe"] = {"only_server": sorted(server_list - collector_list),
+                           "only_collector": sorted(collector_list - server_list),
+                           "explain": bsu.explain(date, diff),
+                           "counts": built.get("counts")}
+    return out
+
+
 @router.get("/api/admin/breadth-eod-source")
 def breadth_eod_source_status_admin(limit: int = Query(default=60, ge=1, le=400),
                                     _user: dict = Depends(require_admin)):
