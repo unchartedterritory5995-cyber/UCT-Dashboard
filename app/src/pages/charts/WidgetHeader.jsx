@@ -11,12 +11,8 @@ import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 // 'N' = grey "not linked": the widget syncs its ticker with nothing. The cycle
 // (A B C D [E F G H] N) comes from colorGroups.js — E-H only while
 // CHARTS_EXTRA_GROUPS_ENABLED is on (COV-10 remainder).
-
-// The OFF cycle as a literal. app/src/pages/terminal/functions.rail.test.js reads THIS
-// declaration to prove the shell's link groups are /charts' (a file this lane may not
-// edit); colorGroups.test.js proves it equals groupCycle(false), so it cannot drift.
-// HANDOFF (Lane T2, audit V10): retarget that rail at colorGroups.js, then delete this.
-export const COLORS = ['A', 'B', 'C', 'D', 'N']
+// ⚰️ COV-10: the OFF cycle used to be retyped here as `COLORS` so the terminal rail could
+// read it; that rail now reads colorGroups.js itself, and the literal is gone.
 
 export default function WidgetHeader({
   label, color, onColorChange, onRemove, onPopOut, atBottom = false, style,

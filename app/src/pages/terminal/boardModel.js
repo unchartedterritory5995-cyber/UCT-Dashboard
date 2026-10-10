@@ -52,9 +52,11 @@ export const DENSITY_LABELS = { comfortable: 'Comfortable', compact: 'Compact', 
 
 /** The /charts colour groups. Their security is `charts_workspace_groups`'. */
 export const COMPAT_CHANNELS = ['A', 'B', 'C', 'D']
-/** The /charts colour-group vocabulary (WidgetHeader.jsx `COLORS`); pinned by test. */
+/** The /charts colour-group vocabulary (charts/colorGroups.js `groupCycle(false)`); pinned
+ *  against it by functions.rail.test.js, which walks the /charts dot's own click cycle. */
 export const LINK_GROUPS = ['A', 'B', 'C', 'D', 'N']
-/** The /charts group dot colours (PeriodSortPanel.jsx `COLOR_HEX`); pinned by test. */
+/** The /charts group dot colours (charts/colorGroups.js `GROUP_HEX`); pinned against it by
+ *  functions.rail.test.js, and to the stored hex by a11y/linkGroupColours.test.js. */
 export const GROUP_DOT = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc', N: '#6b7280' }
 /** Colours for channels beyond D, cycled. Data, not a ceiling. */
 export const CHANNEL_COLORS = ['#f472b6', '#fb923c', '#2dd4bf', '#facc15', '#a3e635', '#38bdf8', '#e879f9', '#f87171']
