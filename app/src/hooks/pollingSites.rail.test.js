@@ -442,6 +442,19 @@ const BARE_POLL_SITES = {
   // `revalidateOnFocus` back on (re-reading a terminal job on every focus), and its
   // `useMarketOpen` timer is irrelevant: the job runs on the server's clock, open or closed.
   'app/src/pages/research/tabs/BacktestPanel.jsx': 1,
+  // ⭐ UCT Terminal panels (2026-10-09, waves 7-9). Bare `useSWR`, decided: a trader flips
+  // between a chart window and a 2-4 panel board all session, and `useMobileSWR` turns
+  // `revalidateOnFocus` back on, so every focus would re-read every visible panel at once (the
+  // herd the 2026-07-01 global setting exists to stop). The ticks are already slow (30 s alerts,
+  // 60 s lists, 5-30 min scans and posts), the phone shell shows ONE panel at a time, and each
+  // site would add its own `useMarketOpen` 60 s timer. `marketRead.js` is the shared reader of
+  // ~10 market panels, so its one site carries this decision for all of them. swr 2.4 already
+  // skips ticks while the tab is hidden (fact 1 in the header).
+  'app/src/pages/terminal/panels/AlertsPanel.jsx': 1,
+  'app/src/pages/terminal/panels/BreakoutPanel.jsx': 1,
+  'app/src/pages/terminal/panels/marketRead.js': 1,
+  'app/src/pages/terminal/panels/TwtPanel.jsx': 1,
+  'app/src/pages/terminal/panels/WatchlistPanel.jsx': 3,
 }
 
 function census() {
