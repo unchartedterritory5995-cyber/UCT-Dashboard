@@ -5,7 +5,7 @@
 > (imports, `setPref` keys, URL params) and from the route table. `parityMatrix.test.js` fails when
 > this file and the derivation disagree, or when a row is GAP without a named owner (MG-7).
 
-**Rows: 37 · CARRIED 34 · UNAFFECTED 2 · GAP 1.**
+**Rows: 37 · CARRIED 35 · UNAFFECTED 2 · GAP 0.**
 
 Vocabulary (coexistence.md §3.1, inward): **CARRIED** = a member can do this inside the shell, so the
 old page is not needed for it. **UNAFFECTED** = not part of the `/calendar` page; the shell changes
@@ -23,6 +23,7 @@ nothing about it. **GAP** = a member must leave the shell for it; each GAP names
 | `mystocksRoute` | yes |
 | `renderRoute` | yes |
 | `dashboardDoor` | yes |
+| `hubCalendarAlias` | yes |
 
 ## The matrix
 
@@ -64,7 +65,7 @@ nothing about it. **GAP** = a member must leave the shell for it; each GAP names
 | 34 | Adjacent | `/calendar/mystocks` hub (row D1, DEAD/retire-candidate) | **UNAFFECTED** | its own route, untouched |
 | 35 | Adjacent | `/r/calendar` screenshot contract (row D4) | **UNAFFECTED** | headless route, not inside the shell |
 | 36 | Adjacent | Zone D "On deck" door key `calendar` -> `/calendar` (row D6) | **CARRIED** | `/calendar` link still resolves (redirect for cohort members) |
-| 37 | Adjacent | Joystick hub `calendar` mode (row D9) | **GAP** | Joystick hub `calendar` mode is route-bound to `/calendar` (hub/registry.js). A cohort member is redirected to `/terminal/calendar`, so the hub does not resolve its calendar mode there. Needs a `/terminal` mode or route alias in `app/src/hub/**` — OUT OF THIS LANE (brief: STOP and report). |
+| 37 | Adjacent | Joystick hub `calendar` mode (row D9) | **CARRIED** | hub/registry.js `calendar` mode declares `routeAliases: ['/terminal/calendar']` and `hubRoutes.routeToModeId` resolves aliases, so the mode resolves inside the shell |
 
 ## What this matrix is not
 

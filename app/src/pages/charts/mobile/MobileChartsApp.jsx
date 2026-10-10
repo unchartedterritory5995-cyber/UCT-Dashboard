@@ -19,6 +19,8 @@ import MobileAlertSheet from './MobileAlertSheet'
 import MobileMoreSheet from './MobileMoreSheet'
 import MobileLayoutsSheet from './MobileLayoutsSheet'
 import MobileBoardsSheet from './MobileBoardsSheet'
+import CompareSymbolsPanel from '../CompareSymbolsPanel'
+import { useVersionHistoryAvailable } from '../VersionHistory'
 // The ACTIVE board's name for the Tools row's subtitle. Read here rather than
 // inside the row so the sheet stays the only thing that mounts the manager.
 import useTracings from '../../../components/chart/useTracings'
@@ -71,8 +73,12 @@ export default function MobileChartsApp({
   onApplyLayout, onApplyUctDefault, onSaveLayout, onSaveLayoutAs, onDeleteLayout,
   onLayoutRestored,   // COV-06: ChartsWorkspace's handleDockRestored (version history / undelete)
   onEnterMultiChart,  // P14b: ChartsWorkspace's `() => mc.enterGrid()` — row hidden when absent
+  onOpenVersionHistory, // P14b: ChartsWorkspace's openVersionHistory (TERM-051 board versions)
 }) {
-  const { groupSyms, setGroupSym, chartsTheme } = useWorkspace()
+  const { groupSyms, setGroupSym, chartsTheme, chartApiById, activeChartRef } = useWorkspace()
+  // P14b: the Compare Symbols panel, opened from the Tools sheet (see the chart-API
+  // registration below for how it reaches this chart).
+  const [compareOpen, setCompareOpen] = useState(false)
 
   // null | 'symbol' | 'tf' | 'type' | 'indicators' | 'alert' | 'more' | 'layouts'
   const [sheet, setSheet] = useState(null)
@@ -81,6 +87,9 @@ export default function MobileChartsApp({
   // so the next plain ƒx open starts at the list, not a stale editor.
   const [sheetEditing, setSheetEditing] = useState(null)
   const closeSheet = useCallback(() => { setSheet(null); setSheetEditing(null) }, [])
+  // P14b: the board version-history row is offered only while the store answers (the same
+  // probe the desktop VersionHistoryMenuItem runs), asked when the Tools sheet opens.
+  const versionHistoryAvailable = useVersionHistoryAvailable(sheet === 'more' && !!onOpenVersionHistory)
   const legendStudyTap = useCallback((target) => {
     setSheetEditing(target)
     setSheet('indicators')
@@ -180,6 +189,32 @@ export default function MobileChartsApp({
   // Resolved settings for the sheets (chart type, MA slots). Same memoized
   // resolution ChartPane runs internally — the duplicate call costs nothing.
   const { cs, write } = useChartSurfaceSettings({ stored, onStore: handleStore, chartsTheme })
+
+  // ── P14b: the compare door's chart API ───────────────────────────────────
+  // CompareSymbolsPanel finds its chart through the workspace's `chartApiById`, which on
+  // desktop is filled by each ChartWidget. The phone composes ChartPane directly (never
+  // ChartWidget), so nothing registered and the panel could never reach a phone chart. This
+  // registers the SAME compare surface ChartWidget does (get/set comparison, percent scale,
+  // group-only), written through this shell's own settings sink, so the panel works unchanged.
+  // No `agent` field: the AI host skips entries without one, exactly as before.
+  const csRef = useRef(cs)
+  csRef.current = cs
+  const writeRef = useRef(write)
+  writeRef.current = write
+  const chartWidgetId = chartWidget?.id || null
+  useEffect(() => {
+    if (!chartApiById || !chartWidgetId) return undefined
+    const persist = (patch) => writeRef.current({ ...csRef.current, ...patch, preset: 'custom' })
+    chartApiById.current.set(chartWidgetId, {
+      getComparison: () => (Array.isArray(csRef.current?.comparisonSymbols) ? csRef.current.comparisonSymbols : []),
+      setComparison: (arr) => persist({ comparisonSymbols: arr }),
+      getPercentScale: () => !!csRef.current?.percentScale,
+      setPercentScale: (on) => persist({ percentScale: !!on, logScale: false }),
+      getHideBase: () => !!csRef.current?.compareHideBase,
+      setHideBase: (on) => persist({ compareHideBase: !!on }),
+    })
+    return () => { chartApiById.current.delete(chartWidgetId) }
+  }, [chartApiById, chartWidgetId])
 
   const handleTf = useCallback((code) => {
     if (!chartWidget || code === tf) return
@@ -574,8 +609,17 @@ export default function MobileChartsApp({
         onShareSnapshot={handleShareSnapshot}
         onDrawOnChart={drawOnChart}
         onEnterMultiChart={onEnterMultiChart}
+        onOpenCompare={chartWidget && chartApiById ? () => setCompareOpen(true) : undefined}
+        onOpenVersionHistory={versionHistoryAvailable ? onOpenVersionHistory : undefined}
         className={sheetTheme}
       />
+      {compareOpen && (
+        <CompareSymbolsPanel
+          chartApiById={chartApiById}
+          activeChartRef={activeChartRef}
+          onClose={() => setCompareOpen(false)}
+        />
+      )}
       <MobileBoardsSheet
         open={sheet === 'boards'}
         onClose={closeSheet}

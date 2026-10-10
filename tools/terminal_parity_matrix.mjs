@@ -55,11 +55,11 @@ const OWN = (spec) => spec.startsWith('./calendar/') || spec.includes('/research
   || spec.includes('/hub/sections/calendarSection')
 
 /** GAP rows must be named here, with who closes them. A new uncovered row fails the rail. */
-export const KNOWN_GAPS = {
-  'adjacent:hub-calendar-mode': 'Joystick hub `calendar` mode is route-bound to `/calendar` (hub/registry.js). '
-    + 'A cohort member is redirected to `/terminal/calendar`, so the hub does not resolve its calendar mode there. '
-    + 'Needs a `/terminal` mode or route alias in `app/src/hub/**` — OUT OF THIS LANE (brief: STOP and report).',
-}
+// ⚰️ `adjacent:hub-calendar-mode` stood here until 2026-10-10 (V20): the hub `calendar` mode was
+// route-bound to `/calendar`, so a cohort member redirected to `/terminal/calendar` lost it. The
+// registry now declares `routeAliases: ['/terminal/calendar']` on that mode and
+// `hubRoutes.routeToModeId` resolves it; the row's verdict is computed from that (`hubCalendarAlias`).
+export const KNOWN_GAPS = {}
 
 /** The sources the derivation reads, relative to `app/src`. One list for the tool and the rail. */
 export const SOURCE_FILES = {
@@ -71,6 +71,24 @@ export const SOURCE_FILES = {
   doorsSrc: 'pages/dashboard/doors.js',
   routesSrc: 'pages/terminal/TerminalRoutes.jsx',
   gateSrc: 'pages/terminal/terminalGate.js',
+  hubRegistrySrc: 'hub/registry.js',
+  hubRoutesSrc: 'hub/hubRoutes.js',
+}
+
+/** Does hub/registry.js declare `/terminal/calendar` as a route alias of the `calendar` mode
+ *  whose primary route is `/calendar`? Read by AST: the object literal, not a nearby comment. */
+function registryAliasesCalendar(registrySrc) {
+  let found = false
+  walk(parse(registrySrc), (n) => {
+    if (found || n.type !== 'ObjectExpression') return
+    const prop = (k) => n.properties.find((p) => p.type === 'Property' && (p.key?.name === k || p.key?.value === k))
+    const lit = (k) => prop(k)?.value?.type === 'Literal' ? prop(k).value.value : undefined
+    if (lit('id') !== 'calendar' || lit('route') !== '/calendar') return
+    const aliases = prop('routeAliases')?.value
+    found = aliases?.type === 'ArrayExpression'
+      && aliases.elements.some((e) => e?.type === 'Literal' && e.value === '/terminal/calendar')
+  })
+  return found
 }
 
 export const DOC_PATH = 'docs/terminal-research/10-roadmap/coexistence-parity-matrix.md'
@@ -145,8 +163,9 @@ export function deriveRows(src) {
     facts.renderRoute, 'headless route, not inside the shell')
   adj('dashboard-door', 'Zone D "On deck" door key `calendar` -> `/calendar` (row D6)', 'CARRIED',
     facts.dashboardDoor, '`/calendar` link still resolves (redirect for cohort members)')
-  adj('hub-calendar-mode', 'Joystick hub `calendar` mode (row D9)', 'CARRIED', false,
-    KNOWN_GAPS['adjacent:hub-calendar-mode'])
+  adj('hub-calendar-mode', 'Joystick hub `calendar` mode (row D9)', 'CARRIED', facts.hubCalendarAlias,
+    'hub/registry.js `calendar` mode declares `routeAliases: [\'/terminal/calendar\']` and '
+    + '`hubRoutes.routeToModeId` resolves aliases, so the mode resolves inside the shell')
 
   return { rows, facts }
 }
@@ -176,6 +195,8 @@ export function deriveFacts(src) {
     mystocksRoute: /<Route path="\/calendar\/mystocks"/.test(src.appSrc),
     renderRoute: /<Route path="\/r\/calendar"/.test(src.appSrc),
     dashboardDoor: /key: 'calendar',[^}]*to: '\/calendar'/.test(src.doorsSrc),
+    hubCalendarAlias: registryAliasesCalendar(src.hubRegistrySrc || '')
+      && /return SECTION_ROUTES\[pathname\] \?\? ROUTE_ALIASES\[pathname\]/.test(src.hubRoutesSrc || ''),
   }
 }
 

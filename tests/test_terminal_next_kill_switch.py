@@ -643,6 +643,9 @@ ACKNOWLEDGED_FRONTEND_GATES = {
     "app/src/pages/terminal/TerminalShell.trim.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/terminal/TerminalShell.headlineRun.test.jsx": "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/terminal/TerminalShell.wave4.test.jsx": "TEST: fakes `cohorts` to drive the gate",
+    # 2026-10-10 X-11 / V22: the five terminal-grade properties walked on /terminal.
+    "app/src/pages/terminal/TerminalShell.fiveProperties.test.jsx":
+        "TEST: fakes `cohorts` to drive the gate",
     "app/src/pages/breadth/drill/BreadthDrillModal.withdrawal.test.jsx":
         "TEST: fakes `cohorts_withdrawn` to drive the drill withdrawal block",
 }

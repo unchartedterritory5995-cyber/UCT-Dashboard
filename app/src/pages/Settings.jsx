@@ -7,6 +7,7 @@ import JoystickSettingsCard from './settings/JoystickSettingsCard'
 // TERM-078: member-visible AI meters (read-only; GET /api/ai-search/meters).
 import AiMetersCard from './settings/AiMetersCard'
 import DeviceSyncCard from './settings/DeviceSyncCard'
+import PlanAccess from './settings/PlanAccess'
 import ColorPicker from '../components/chart/ColorPicker'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart/chartDefaults'
 import { averageSlotView, writeAverageSlot } from '../components/chart/maAdoption'
@@ -1694,7 +1695,7 @@ const SEARCH_INDEX = [
 
 // ── Main Settings Page ──
 export default function Settings() {
-  const { user, plan, subscription, logout, startCheckout, openPortal, refetch } = useAuth()
+  const { user, plan, subscription, trial, logout, startCheckout, openPortal, refetch } = useAuth()
   const { prefs, setPref: setPrefRaw } = usePreferences()
   const toast = useSaveToast()
   // Wrap setPref so every preference write flashes a small "Saved" toast.
@@ -2036,26 +2037,9 @@ export default function Settings() {
                 )}
               </>
             ) : (
-              <>
-                <div className={styles.planHeader}>
-                  <span className={styles.freeDot} />
-                  <span className={styles.planTitle}>Free Plan</span>
-                </div>
-                <p className={styles.hint} style={{ margin: '8px 0 10px' }}>
-                  You have Dashboard, Breadth, Charts, Options Flow, Journal &amp; Model Book.
-                  Pro unlocks the full intelligence layer:
-                </p>
-                <ul className={styles.proList}>
-                  <li>Morning Wire — daily pre-market brief &amp; top picks</li>
-                  <li>Screener &amp; Patterns — the setup scanner + pattern engine</li>
-                  <li>UCT 20 leadership, Theme Tracker &amp; UCT Terminal</li>
-                  <li>Research dossiers — fundamentals, analyst &amp; ownership depth</li>
-                  <li>Compass — AI coaching, voice &amp; pre-trade verdicts</li>
-                </ul>
-                <button className={styles.btnPro} onClick={() => startCheckout()}>
-                  Upgrade to Pro — $200/mo
-                </button>
-              </>
+              // X-17: no "Free Plan" here. There is no free tier (D-010, FREE_PAGES = []); the
+              // card says which kind of access this account actually has (settings/PlanAccess).
+              <PlanAccess user={user} plan={plan} trial={trial} onSubscribe={() => startCheckout()} />
             )}
           </div>
         </TileCard>

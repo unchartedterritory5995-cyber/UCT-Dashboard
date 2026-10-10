@@ -52,7 +52,10 @@
  * @property {string}  label
  * @property {string}  color         A --hub-mode-* token.
  * @property {string} [route]        Omitted for in-place modes (catalysts lives on /dashboard).
- * @property {string}  tapHint       What the chip says tap does, e.g. 'tap: next result'.
+ * @property {string[]} [routeAliases] Further pathnames that RESOLVE to this mode (hubRoutes
+ *                                   `routeToModeId`). Navigation still goes to `route`; an alias
+ *                                   is never a destination, only a place the mode is recognised.
+ * @property {string}  tapHint      What the chip says tap does, e.g. 'tap: next result'.
  * @property {{listId: string}} [cursor]
  * @property {Function}[onTap]
  * @property {Function}[onDoubleTap]
@@ -615,6 +618,11 @@ export const modes = [
     label: 'Calendar',
     color: '--hub-mode-calendar',
     route: '/calendar',
+    // V20 / MG-7: a member the `terminal-next` cohort admits is redirected from `/calendar` into
+    // the UCT Terminal shell at `/terminal/calendar`, where the CAL panel mounts the same Calendar
+    // page (and so the same calendarSection controller). The alias lets the hub recognise its
+    // calendar mode there. Navigation still targets `/calendar`, which redirects as before.
+    routeAliases: ['/terminal/calendar'],
     tapHint: 'tap: next day',
     cursor: { listId: 'calendar' },
     fan: [
@@ -1163,6 +1171,32 @@ export function validateRegistry(list = modes, opts = {}) {
       if ('tier' in action) {
         problems.push(`${action.id}: 'tier' was removed — there are no tiers (deferred.md D-23)`);
       }
+    }
+  }
+
+  // V20 (2026-10-10): a route alias is a second pathname that resolves to a mode, never a second
+  // place to navigate to. It needs a primary `route` to alias, and no pathname may name two modes.
+  const pathOwner = new Map();
+  for (const mode of list) {
+    if (mode.route) pathOwner.set(mode.route, pathOwner.has(mode.route) ? '(dup)' : mode.id);
+  }
+  for (const mode of list) {
+    if (mode.routeAliases === undefined) continue;
+    if (!Array.isArray(mode.routeAliases)) {
+      problems.push(`${mode.id}: routeAliases must be an array of pathnames`);
+      continue;
+    }
+    if (!mode.route) problems.push(`${mode.id}: routeAliases needs a primary route to alias`);
+    for (const alias of mode.routeAliases) {
+      if (typeof alias !== 'string' || !alias.startsWith('/')) {
+        problems.push(`${mode.id}: route alias "${alias}" must be a pathname starting with /`);
+        continue;
+      }
+      if (pathOwner.has(alias)) {
+        problems.push(`${mode.id}: route alias "${alias}" is already a route of ${pathOwner.get(alias)}`);
+        continue;
+      }
+      pathOwner.set(alias, mode.id);
     }
   }
 

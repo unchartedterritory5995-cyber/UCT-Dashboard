@@ -3091,6 +3091,17 @@ export default function ChartsWorkspace() {
                tap enters the default preset; the grid itself (and its own Exit
                button) is the `gridMode` branch just above this one. */
             onEnterMultiChart={() => mc.enterGrid()}
+            /* P14b — the phone's door to the board's version history (TERM-051): the SAME
+               open handler and panel the desktop Layouts menu uses. The panel's own CSS
+               already lays it out as a bottom sheet at <=640px. */
+            onOpenVersionHistory={openVersionHistory}
+          />
+        )}
+        {historyOpen && (
+          <VersionHistoryPanel
+            onClose={closeVersionHistory}
+            onRestored={handleVersionRestored}
+            onUnavailable={closeVersionHistory}
           />
         )}
         {noticeHost}

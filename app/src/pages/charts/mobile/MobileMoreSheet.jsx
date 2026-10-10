@@ -25,6 +25,8 @@ export default function MobileMoreSheet({
   onShareSnapshot,         // chart PNG → native share sheet (row hidden when absent)
   onDrawOnChart,           // expands the collapsed drawing toolbar (row hidden when absent)
   onEnterMultiChart,       // P14b — enters Multi-Chart grid mode (row hidden when absent)
+  onOpenCompare,           // P14b — the desktop Tools → Compare Symbols panel (row hidden when absent)
+  onOpenVersionHistory,    // P14b — the board's version history (row hidden when absent / store dark)
   className = '',
 }) {
   const { isFlagged, toggle: toggleFlag } = useFlagged()
@@ -90,6 +92,28 @@ export default function MobileMoreSheet({
           <button type="button" className={styles.row} aria-label="Multi Chart" onClick={() => { haptics.tap(); onClose(); onEnterMultiChart() }}>
             <span className={styles.rowIcon}><UIcon name="columns" size={17} gold={false} /></span>
             <span className={styles.rowLabel}>▦ Multi Chart</span>
+            <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
+          </button>
+        )}
+
+        {/* P14b (2026-10-10) — the phone's doors into two desktop-only tools. Compare opens
+            the SAME CompareSymbolsPanel the desktop Tools menu does, writing the same
+            `comparisonSymbols` into this chart's settings. Version history opens the SAME
+            VersionHistoryPanel (TERM-051) as the desktop Layouts menu; the host passes the
+            handler only while the store answers, so a dark store shows no row. */}
+        {onOpenCompare && (
+          <button type="button" className={styles.row} aria-label="Compare symbols"
+            onClick={() => { haptics.tap(); onClose(); onOpenCompare() }}>
+            <span className={styles.rowIcon}><UIcon name="graph" size={17} gold={false} /></span>
+            <span className={styles.rowLabel}>Compare symbols</span>
+            <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
+          </button>
+        )}
+        {onOpenVersionHistory && (
+          <button type="button" className={styles.row} aria-label="Board version history"
+            onClick={() => { haptics.tap(); onClose(); onOpenVersionHistory() }}>
+            <span className={styles.rowIcon}><UIcon name="clock" size={17} gold={false} /></span>
+            <span className={styles.rowLabel}>Board version history</span>
             <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
           </button>
         )}

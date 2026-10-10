@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (branch f-l1 rebased on master `3ca4c1605`, 2026-10-10): not complete.** 218 of 279 rows are `live` or `moot`; 61 are not (14 `dark`, 39 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after lane L9): not complete.** 223 of 279 rows are `live` or `moot`; 56 are not (14 `dark`, 34 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,12 +34,14 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 on branch f-l1 rebased on master `3ca4c1605` (which moved TERM-004 to `dark`), after lane f-l1's edits to X-03, X-04, X-05, X-14, RM-X02 and FB-A3:
+Printed 2026-10-10 after lane L9:
 
 ```
-279 Counter({'live': 178, 'moot': 40, 'building': 39, 'dark': 14, 'owner-blocked': 8})
+279 Counter({'live': 183, 'moot': 40, 'building': 34, 'dark': 14, 'owner-blocked': 8})
 0 duplicate ids
 ```
+
+The same command at master `d95f331bb` (before L9): `279 Counter({'live': 174, 'building': 44, 'moot': 39, 'dark': 13, 'owner-blocked': 9})`, 0 duplicate ids.
 
 Before this reconciliation (same command, the file as committed at `d95f331bb`): `279 Counter({'building': 85, 'live': 77, 'dark': 69, 'moot': 36, 'owner-blocked': 12})`, 0 duplicate ids. (The table that stood here then still carried the pre-sweep 2026-10-03 numbers; the command, not the table, was right.)
 
@@ -47,16 +49,16 @@ The per-section split is the same regex applied to each `## ` section:
 
 | section | rows | live | dark | building | owner-blocked | moot |
 |---|---|---|---|---|---|---|
-| 1 Programme records + ship | 17 | 9 | 0 | 5 | 0 | 3 |
+| 1 Programme records + ship | 17 | 11 | 0 | 3 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
 | 3 TERM-001..093 | 93 | 65 | 6 | 13 | 3 | 6 |
 | 4 BRK-01..10 | 10 | 4 | 2 | 3 | 0 | 1 |
 | 5 COV-01..12 | 12 | 5 | 0 | 3 | 1 | 3 |
 | 6 FT-001..080 | 80 | 56 | 2 | 9 | 4 | 9 |
-| 7 Untracked promises | 58 | 39 | 4 | 6 | 0 | 9 |
-| **total** | **279** | **178** | **14** | **39** | **8** | **40** |
+| 7 Untracked promises | 58 | 42 | 4 | 3 | 0 | 9 |
+| **total** | **279** | **183** | **14** | **34** | **8** | **40** |
 
-`building` by lane: P 10 · O 8 · R 5 · integrator 4 · D 1 · T1 2 · S 2 · Notebook 2 · T4 2 · T2 1 · decided follow-up builds (TERM-043, TERM-045) 2.
+`building` by lane: P 9 · O 8 · R 5 · integrator 4 · Notebook 2 · S 2 · D 1 · T2 1 · decided follow-up builds (TERM-043, TERM-045) 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -75,13 +77,13 @@ The per-section split is the same regex applied to each `## ` section:
 | `X-08` | COV-09 naming conflict | `live` | Resolved by DL-036: COV-09 is the SEC filings feed, congressional trackers are COV-12. |
 | `X-09` | `OPTIONS_UNIVERSE_LOG_ENABLED` armed on terminal-next-monitor | `live` | Measured 2026-10-03 02:39Z (key names only): flag=1, `MASSIVE_API_KEY` + `DATA_SYNC_*` present. ⚠️ The first run's receipt and its `complete:true` manifest: not measured. Massive sells no chain history, so every session before arming is lost. The front-straddle summary columns BRK-10 reads (`f92239a2d9`) are on master since X-01 (`2e304db42`); whether terminal-next-monitor has redeployed with them: not measured. The full contracts file is stored, so `resummarize()` can backfill earlier nights. |
 | `X-10` | Reconcile `CLAUDE.md`'s 3-agent cap with D-013 (cap 6) | `building (integrator)` | `CLAUDE.md:1927`, `:2263`. A records lane does not edit `CLAUDE.md`. Re-checked at `d95f331bb`: `CLAUDE.md:1937` still reads "MAXIMUM 3 AGENTS PLUS THE INTEGRATOR". |
-| `X-11` | Five terminal-grade properties re-walked **on `/terminal`** | `building (Lane T1)` | The 2026-09-24 "5/5 PASS" ran on `/charts` and `/screener`, not the shell. The V22 throwing-panel rail now exists (`app/src/pages/terminal/TerminalShell.test.jsx:291`); the five-property walk on `/terminal` itself: not measured. This is V22 below. |
+| `X-11` | Five terminal-grade properties re-walked **on `/terminal`** | `live` | Walked 2026-10-10 (lane f-l9): 5 of 5 hold on the real `TerminalShell`, the roadmap §5 action for each, as an automated jsdom suite (`app/src/pages/terminal/TerminalShell.fiveProperties.test.jsx`: one context :187, provenance :210, addressable :236, keyboard-fast :290, resilient panels :323; 9/9). Record with every proxy named: `10-roadmap/evidence/2026-10-10-terminal-five-properties/results.md`. Mutation-proved (removing `PanelProvenance` reds property 2). Not measured: pixels, real focus, real network (no Playwright run on `/terminal`). Was `building (Lane T1)`. |
 | `X-12` | `/calendar` retirement (RM-L16, CX-8) | `moot (decided 2026-10-07: /calendar coexists permanently as a URL)` | D-006 places the calendar inside the Terminal but does not choose. If retire: MG-7 at 0 GAP, nav graduation, MG-8 re-census, then the countdown. ➜ 2026-10-07: P-9 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `X-13` | MG-8 consumer re-census at countdown | `moot (no countdown; X-12 decided)` | The live instance is fixed (`api/services/journal_two/db.py:2302-2309`). The gate is unrun because no countdown has started. ➜ 2026-10-07: P-10 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `X-14` | RM-N05 MVP trial (subject Ravi, adjudicator Patrick) | `moot (owner waived the Ravi trial 2026-10-10)` | Owner ruling 2026-10-10, verbatim: "no need to wait for ravi on anything we can proceed fully with all of those" (`12-decisions/2026-10-07-owner-delegated-decisions.md:213-221`). It supersedes P-11 and C2. Pre-registered 2026-09-30, never started. Was `owner-blocked (Ravi records Phase A: 5 trading days or 10 occasions)`. |
 | `X-15` | RM-N10 bars p95, clause 2 | `building (Lane P)` | Instrument fixed (`tools/bars_warmth_gate.py:115` `MIN_NOWAIT_N`). Needs one valid RTH run with n ≥ `MIN_NOWAIT_N`. No valid run recorded since 2026-10-03: not measured. |
 | `X-16` | Ledger hygiene: `IMPLIED_ENRICHMENT_CUTOVER`, `D5_CP4_DUAL_COMPUTE_SAMPLE_RATE`, `WIRE_SURFACE_LINE_ENABLED` | `live` | Done: the `knobs` section of `docs/feature_flags.json` holds all three on master (`docs/feature_flags.json:2974` `IMPLIED_ENRICHMENT_CUTOVER` pending, `docs/feature_flags.json:2982` `D5_CP4_DUAL_COMPUTE_SAMPLE_RATE` armed, `docs/feature_flags.json:2990` `WIRE_SURFACE_LINE_ENABLED` dark), landed by `e82e6a661` on master via the X-01 landing `2e304db42`; rail `tests/test_flag_ledger_knobs.py`. Flipping `IMPLIED_ENRICHMENT_CUTOVER` is a separate owner call, not this hygiene row. Was `dark` (branch-only). |
-| `X-17` | Settings "Free Plan" copy contradicts D-010 (U-COPY-01) | `building (Lane P)` | `app/src/pages/Settings.jsx:2042-2046` still renders "Free Plan" and lists free-tier pages at `d95f331bb`. Product copy, not this lane. |
+| `X-17` | Settings "Free Plan" copy contradicts D-010 (U-COPY-01) | `live` | Fixed 2026-10-10 (lane f-l9): the non-Pro branch of the billing card is `app/src/pages/settings/PlanAccess.jsx` (`Settings.jsx:2042`), which names the real case (full-access trial with days left, premium, lifetime, admin, or no plan) and says there is no free tier; no "Free Plan", no free-page list (`FREE_PAGES = []`, `constants/freePages.js`). Rail: `app/src/pages/settings/PlanAccess.test.jsx` (8 tests). Was `building (Lane P)`. |
 
 ## 2. Owner decisions still open
 
@@ -320,7 +322,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `V1b` | Codes for the built-but-uncoded Research sections + Depth panels, IV history, Tide, strategy screens, Notebook, Exports | `live` | Codes on master: `DPTH` (`app/src/pages/terminal/functions.js:142`), `IVH` (`:169`), `TIDE` (`:193`), `STRS` (`:195`), `NB` (`:233`). `EXP` was later dropped from the list on purpose (`cb60717b2`, the function-list trim). Was `building (Lane T1)`. |
 | `V13` | Doors → panels (26 of 46 codes leave the shell), with one panel vocabulary | `live` | One panel vocabulary: `app/src/pages/terminal/surfacePanels.js:16` imports `SURFACE_PANELS` (TERM-037). 18 of 85 codes still leave the shell, each declaring why in `app/src/pages/terminal/functions.js` (for example `:91`, `:187`, `:220`). Was `building (Lane T1)`. |
 | `V6a` | Honour stored arguments (`ChartPanel.jsx:7` hard-codes `tf="D"`) | `live` | `app/src/pages/terminal/panels/ChartPanel.jsx:7` takes `tf` from the command (`NVDA GP W`); variants declare their args (`app/src/pages/terminal/args.js:6`). Was `building (Lane T1)`. |
-| `V22` | Throwing-panel rail + re-run the five-property walkthrough on `/terminal` | `building (Lane T1)` | Throwing-panel rail built: `app/src/pages/terminal/TerminalShell.test.jsx:291`. Remainder: re-run the five-property walk on `/terminal` (X-11): not measured. |
+| `V22` | Throwing-panel rail + re-run the five-property walkthrough on `/terminal` | `live` | Throwing-panel rail: `app/src/pages/terminal/TerminalShell.test.jsx:291`. Walk re-run on `/terminal` 2026-10-10: 5/5 (X-11; `app/src/pages/terminal/TerminalShell.fiveProperties.test.jsx`, `10-roadmap/evidence/2026-10-10-terminal-five-properties/results.md`); property 5 there forces a 500 on one real GRADE panel AND a render throw on another on the same board. Was `building (Lane T1)`. |
 | `RM-X02` | `/terminal` in `tools/hub_nav_smoke.py` + a pre-authored rollback branch | `live` | `tools/hub_nav_smoke.py:188` follows the UCT Terminal entry onto `/terminal` (`alsoActive`). Rollback branch `rollback/terminal-next-off` at `f1c811f4c` is on origin (pushed by the integrator 2026-10-10; `git ls-remote --heads origin rollback/terminal-next-off`). The off switch is the `TERMINAL_NEXT_ENABLED` variable read per request (`api/services/rollout_gate.py:141-155`), so the branch carries only `docs/runbooks/terminal-rollback.md`: the `railway` commands and a three-step verification. Was `building (Lane T1)`. |
 | `V2` | `terminal_layout` onto the versioned TERM-021 store + version restore | `live` | The board is versioned on TERM-021's store (`app/src/pages/terminal/boardModel.js:3-6`, `TERMINAL_PREF_KEYS`) with version restore (`app/src/pages/terminal/TerminalVersions.jsx:4`). Was `building (Lane T2)`. |
 | `V3` | Named, addressable, shareable terminal boards (FB A-2 for the shell) | `live` | Named boards addressed `B:<slug>` (`app/src/pages/terminal/boardModel.js:792`) and shared by link (`encodeShare` `:606`, `/terminal?board=` `:622`). Was `building (Lane T2)`. |
@@ -342,9 +344,9 @@ The per-section split is the same regex applied to each `## ` section:
 | `HELP` | One-page address space + row-number `<GO>` | `live` | Numbered function list with row `<GO>` (`app/src/pages/terminal/panels/HelpPanel.jsx:3`); examples and plain-word search (`65013e0c2`). Was `building (Lane T3)`. |
 | `V7` | L0 strip (clock, regime, alert inbox, channel), desktop and phone | `live` | `app/src/pages/terminal/L0Strip.jsx:4`: ET clock, regime chip, alert inbox, channel (`a5a76d001`); a phone layout in `app/src/pages/terminal/L0Strip.module.css:107`. Was `building (Lane T4)`. |
 | `V8` | Panel freshness / as-of wired to TERM-006 | `live` | `FreshnessBadge` in the shell (`app/src/pages/terminal/TerminalShell.jsx:34`), wired to TERM-006 (`f26bbee7d`); panel headers state their time (`8877704d1`). Was `building (Lane T4)`. |
-| `V20` | MG-7: the hub `calendar` mode resolves under `/terminal/calendar` (the only GAP of 31) | `building (Lane T4)` | Still the one GAP: `10-roadmap/coexistence-parity-matrix.md:67` (the hub `calendar` mode is route-bound to `/calendar`; it needs a `/terminal` mode or alias in `app/src/hub/**`). The hub is a separate workstream (stage-2 PATRICK-MERGE, H14), so coordinate rather than land blind. |
+| `V20` | MG-7: the hub `calendar` mode resolves under `/terminal/calendar` (the only GAP of 31) | `live` | Closed 2026-10-10 (lane f-l9): `app/src/hub/registry.js:625` declares `routeAliases: ['/terminal/calendar']` on the `calendar` mode and `app/src/hub/hubRoutes.js:56` resolves aliases (navigation and section order still use `/calendar`). `node tools/terminal_parity_matrix.mjs`: 37 rows, CARRIED 35, UNAFFECTED 2, **GAP 0** (`10-roadmap/coexistence-parity-matrix.md:68`, fact `hubCalendarAlias`). Rails: `app/src/hub/routeAliases.test.js`, `parityMatrix.test.js` (V20 control). Hub artifacts regenerated byte-identical; `src/hub` 89 files / 1174 tests green. Was `building (Lane T4)`. |
 | `P14a` | Phone shell: stored-panel switcher + panel-count control | `live` | Phone panel switcher + touch panel-count control (`3456eb0f8`; rail `app/src/pages/terminal/phoneSwitcher.test.jsx`). Was `building (Lane T4)`. |
-| `P14b` | `/charts` phone: Multi-Chart grid, compare, version-history door | `building (Lane T4)` | Phone door into Multi-Chart grid mode shipped (`2fd16ae9f`). The phone compare and version-history doors: not measured. |
+| `P14b` | `/charts` phone: Multi-Chart grid, compare, version-history door | `live` | Measured 2026-10-10 (lane f-l9): Multi-Chart door shipped (`2fd16ae9f`); per-layout version history was already on the phone Layouts sheet (COV-06); Compare and BOARD version history (TERM-051) had no phone door. Built both as Tools-sheet rows (`app/src/pages/charts/mobile/MobileMoreSheet.jsx:105`, `:113`): the phone chart now registers the same compare API ChartWidget does (`mobile/MobileChartsApp.jsx:208`) so the desktop `CompareSymbolsPanel` works unchanged, and `ChartsWorkspace.jsx:3097` hands the phone shell `openVersionHistory` and mounts `VersionHistoryPanel` there (row hidden while the store is dark). Rail: `app/src/pages/charts/mobile/phoneCompareHistory.doors.test.jsx` (7 tests). Was `building (Lane T4)`. |
 | `NAV` | Nav graduation `to:'/terminal'` + the fresh viewport-lock measurement | `live` | Graduated: `app/src/components/NavBar.jsx:27` is `to: '/terminal'` (`c941080f0`, I-11 `12-decisions/2026-10-07-owner-delegated-decisions.md:39`); `/terminal` measured viewport-locked (`18676e3ec`). Was `building (Lane T4)`. |
 | `EXPORT-FLOW` | Options-flow export from flow-worker | `building (Lane O)` | Still open: options-flow export is served from flow-worker (`docs/terminal-research/reports/lane-o-options-remainders.md:37`). |
 | `SCR-URL` | Grouped logic carried in the screener URL | `live` | The grouped `logic` node rides the screener URL (`app/src/pages/screener/shell/useScreenSpec.js:31`, `:84`); `SCREENER_LOGIC_ENABLED` armed on web 2026-10-04 (`a046f7d9f`). Was `building (Lane S)`. |

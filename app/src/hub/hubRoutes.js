@@ -21,6 +21,20 @@ export const SECTION_ROUTES = Object.freeze(
 )
 
 /**
+ * Pathnames that RESOLVE to a mode without being its navigation target (`routeAliases` in the
+ * registry). Kept OUT of `SECTION_ROUTES` on purpose: that table is also the declared section
+ * ORDER (`homeSection.DECLARED_SECTION_ORDER`), and an alias there would list a mode twice.
+ *
+ * V20 (2026-10-10): `/terminal/calendar` resolves to `calendar`, so the hub keeps its calendar
+ * mode for a member the UCT Terminal cohort redirects off `/calendar`.
+ * @type {Readonly<Record<string, string>>}
+ */
+export const ROUTE_ALIASES = Object.freeze(
+  Object.fromEntries(modes.flatMap((m) => (m.route && Array.isArray(m.routeAliases)
+    ? m.routeAliases.map((alias) => [alias, m.id]) : []))),
+)
+
+/**
  * Resolve a pathname to a hub mode id, EXACT match only.
  *
  * ⛔ Not a prefix match. `/journal` has nine sibling sub-routes and only two of
@@ -39,7 +53,7 @@ export const SECTION_ROUTES = Object.freeze(
  * @returns {string|null} a mode id, or null when the route isn't registered.
  */
 export function routeToModeId(pathname) {
-  return SECTION_ROUTES[pathname] ?? null
+  return SECTION_ROUTES[pathname] ?? ROUTE_ALIASES[pathname] ?? null
 }
 
 /**
@@ -52,6 +66,6 @@ export function routeToModeId(pathname) {
  * @returns {boolean}
  */
 export function isSectionRoute(pathname) {
-  const id = SECTION_ROUTES[pathname]
+  const id = SECTION_ROUTES[pathname] ?? ROUTE_ALIASES[pathname]
   return Boolean(id) && id !== HOME_MODE_ID
 }

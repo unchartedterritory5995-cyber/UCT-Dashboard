@@ -50,4 +50,14 @@ describe('MG-7 — the /calendar parity matrix', () => {
     expect(unembedded.facts.embedsSameModule).toBe(false)
     expect(unembedded.rows.filter((r) => r.id.startsWith('module:')).every((r) => r.verdict === 'GAP')).toBe(true)
   })
+
+  it('V20 control: without the hub alias the calendar-mode row is a GAP again', () => {
+    const hubRow = (d) => d.rows.find((r) => r.id === 'adjacent:hub-calendar-mode')
+    expect(hubRow(derived).verdict).toBe('CARRIED')
+    const noAlias = deriveRows({ ...src, hubRegistrySrc: src.hubRegistrySrc.replace("routeAliases: ['/terminal/calendar']", 'routeAliases: []') })
+    expect(noAlias.facts.hubCalendarAlias).toBe(false)
+    expect(hubRow(noAlias).verdict).toBe('GAP')
+    const notResolved = deriveRows({ ...src, hubRoutesSrc: src.hubRoutesSrc.replace(' ?? ROUTE_ALIASES[pathname] ?? null', ' ?? null') })
+    expect(hubRow(notResolved).verdict).toBe('GAP')
+  })
 })
