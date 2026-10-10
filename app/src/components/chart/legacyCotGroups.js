@@ -1,4 +1,4 @@
-// app/src/components/chart/engine/legacyCotGroups.js
+// app/src/components/chart/legacyCotGroups.js
 //
 // ─── ONE-TIME NORMALISATION: THE THREE-PANE COT GROUP → THE ONE-PANE GROUP ──
 //

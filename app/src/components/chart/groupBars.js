@@ -1,4 +1,4 @@
-// app/src/components/chart/engine/groupBars.js — leaf module (no imports).
+// app/src/components/chart/groupBars.js — leaf module (no imports).
 
 /**
  * Column geometry for N histograms sharing one pane — `{width, offset}` per series,
