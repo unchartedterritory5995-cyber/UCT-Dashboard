@@ -4313,6 +4313,22 @@
       "tier": "paid"
     },
     {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/skill.md",
+      "rate_limit_family": "docs",
+      "tier": "member"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/skill/whitelist",
+      "rate_limit_family": "docs",
+      "tier": "member"
+    },
+    {
       "limit": "1200/minute",
       "method": "GET",
       "params": "",

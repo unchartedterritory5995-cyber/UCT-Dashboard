@@ -3,6 +3,9 @@
 Built on a MINIMAL app (the real personal-API and Browser Capture routers, the skill router,
 and two stand-in reads), never `api.main`, so the rails run in seconds.
 
+The skill routes themselves are member-only (the endpoint map is not public), so they are read
+through a client holding a real session, while the enforced-set probe stays anonymous.
+
 The load-bearing rail is `test_the_published_list_IS_the_enforced_set`: it does not compare the
 whitelist to a typed list. It MEASURES the enforced set on the wire, by sending a real personal
 token to every route of the app, and requires the served whitelist to equal it exactly.
@@ -84,7 +87,28 @@ def app(db_path):
 
 @pytest.fixture
 def client(app):
+    """Anonymous: carries no session. The enforced-set probe needs exactly that."""
     return TestClient(app, raise_server_exceptions=False)
+
+
+@pytest.fixture
+def member(app):
+    """A second client for the same app, signed in as a real member (a real session row, not
+    a dependency override, so the anonymous probe on `client` stays anonymous)."""
+    import uuid
+    from api.services import auth_db
+    from api.services.auth_service import create_session
+    uid = uuid.uuid4().hex
+    conn = auth_db.get_connection()
+    try:
+        conn.execute("INSERT INTO users (id, email, password_hash, created_at)"
+                     " VALUES (?,?,?,datetime('now'))", (uid, f"{uid}@t.local", "x"))
+        conn.commit()
+    finally:
+        conn.close()
+    c = TestClient(app, raise_server_exceptions=False)
+    c.cookies.set("uct_session", create_session(uid))
+    return c
 
 
 def _token(user_id: str = "u-skill-1") -> str:
@@ -120,30 +144,43 @@ def _enforced_set(app, client, token) -> set[tuple[str, str]]:
     return out
 
 
-def test_the_skill_md_route_serves_markdown_with_a_cache_header(client):
-    r = client.get("/api/skill.md")
+def test_an_anonymous_request_gets_401_and_no_endpoint_map(client):
+    for path in ("/api/skill.md", "/api/skill/whitelist"):
+        r = client.get(path)
+        assert r.status_code == 401, (path, r.status_code)
+        assert "/api/j2/personal" not in r.text
+
+
+def test_a_personal_token_alone_does_not_open_the_skill_file(client):
+    auth = {"Authorization": f"Bearer {_token()}"}
+    assert client.get("/api/skill.md", headers=auth).status_code == 401
+    assert client.get("/api/skill/whitelist", headers=auth).status_code == 401
+
+
+def test_the_skill_md_route_serves_markdown_with_a_cache_header(member):
+    r = member.get("/api/skill.md")
     assert r.status_code == 200, r.text
     assert r.headers["content-type"].startswith("text/markdown")
-    assert "max-age=300" in r.headers["cache-control"]
+    assert r.headers["cache-control"] == "private, max-age=300"
     assert r.text.startswith("# UCT Intelligence: skill file")
     assert "Authorization: Bearer <token>" in r.text
     assert "/api/j2/personal/daily/append" in r.text
     assert "There is no MCP server." in r.text
 
 
-def test_the_skill_md_states_the_limits_the_code_enforces(client):
+def test_the_skill_md_states_the_limits_the_code_enforces(member):
     from api import rate_limit_policy as rlp
     from api.routers import notebook_personal_api as papi_router
-    text = client.get("/api/skill.md").text
+    text = member.get("/api/skill.md").text
     assert f"{papi_router._RATE} per token" in text
     # the stand-in paid read is in the screener family; its limit is read from FAMILIES
     assert f"| screener | {rlp.FAMILIES['screener'].limit} |" in text
 
 
-def test_the_published_list_IS_the_enforced_set(app, client):
+def test_the_published_list_IS_the_enforced_set(app, client, member):
     token = _token()
     measured = _enforced_set(app, client, token)
-    served = client.get("/api/skill/whitelist").json()["personal_token"]
+    served = member.get("/api/skill/whitelist").json()["personal_token"]
     listed = {(e["method"], e["path"]) for e in served}
     assert measured, "non-vacuity: the token must be accepted somewhere, or the probe is broken"
     assert listed == measured, {"listed_only": listed - measured, "measured_only": measured - listed}
@@ -154,9 +191,9 @@ def test_the_published_list_IS_the_enforced_set(app, client):
     }
 
 
-def test_an_unlisted_endpoint_refuses_a_personal_token(client):
+def test_an_unlisted_endpoint_refuses_a_personal_token(client, member):
     auth = {"Authorization": f"Bearer {_token()}"}
-    listed = {e["path"] for e in client.get("/api/skill/whitelist").json()["personal_token"]}
+    listed = {e["path"] for e in member.get("/api/skill/whitelist").json()["personal_token"]}
     assert "/api/watchlists/demo-read" not in listed
     assert client.get("/api/watchlists/demo-read", headers=auth).status_code == 401
     assert "/api/j2/capture/destinations" not in listed
@@ -168,9 +205,9 @@ def test_an_unlisted_endpoint_refuses_a_personal_token(client):
     assert ok.status_code == 200, ok.text
 
 
-def test_session_reads_are_listed_with_tier_family_limit_and_params(client):
+def test_session_reads_are_listed_with_tier_family_limit_and_params(member):
     from api import rate_limit_policy as rlp
-    data = client.get("/api/skill/whitelist").json()
+    data = member.get("/api/skill/whitelist").json()
     by_path = {e["path"]: e for e in data["entries"]}
     assert by_path["/api/watchlists/demo-read"]["tier"] == "member"
     paid = by_path["/api/screener/demo-paid/{sym}"]
@@ -178,8 +215,9 @@ def test_session_reads_are_listed_with_tier_family_limit_and_params(client):
     assert paid["limit"] == rlp.FAMILIES[paid["rate_limit_family"]].limit
     assert paid["params"] == "{sym}, tf=D"
     assert "/api/screener/demo-admin" not in by_path
-    # the skill routes themselves are open and never list themselves as member reads
-    assert "/api/skill.md" not in by_path and "/api/skill/whitelist" not in by_path
+    # the skill routes are member-gated reads too, so they are listed like any other
+    assert by_path["/api/skill.md"]["tier"] == "member"
+    assert by_path["/api/skill/whitelist"]["tier"] == "member"
 
 
 def test_every_personal_door_has_its_documentation_and_nothing_else_does(app):
@@ -190,9 +228,9 @@ def test_every_personal_door_has_its_documentation_and_nothing_else_does(app):
         "a personal door was added or removed: document it in PERSONAL_DOOR_DOCS")
 
 
-def test_the_served_documents_are_built_from_the_requesting_app(client, app):
+def test_the_served_documents_are_built_from_the_requesting_app(member, app):
     from api.routers import skill_file
     from api.services import skill_whitelist as sw
-    assert client.get("/api/skill/whitelist").json() == sw.build(app)
-    assert client.get("/api/skill.md").text == sw.to_skill_md(sw.build(app))
+    assert member.get("/api/skill/whitelist").json() == sw.build(app)
+    assert member.get("/api/skill.md").text == sw.to_skill_md(sw.build(app))
     assert len(skill_file._cache) == 1
