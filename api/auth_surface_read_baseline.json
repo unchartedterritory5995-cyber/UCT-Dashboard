@@ -505,6 +505,18 @@
   },
   {
    "method": "GET",
+   "path": "/api/skill.md",
+   "kind": "public",
+   "reason": "TERM-061 agent skill file (owner ruling T-16): paths, tiers and limits only, no data; an agent reads it before it holds a credential. Rate-limited under the docs family."
+  },
+  {
+   "method": "GET",
+   "path": "/api/skill/whitelist",
+   "kind": "public",
+   "reason": "TERM-061 endpoint whitelist as JSON, the same lists as /api/skill.md, derived from the route table. No data."
+  },
+  {
+   "method": "GET",
    "path": "/api/stream/prices",
    "kind": "open",
    "reason": "NOT GATED - BLOCKED: the live price SSE is opened, with no session, by the Discord Activity (/r/activity -> ChartDayGain.jsx:28 -> lib/priceStreamManager.js:144), and by paid pages (hub/HubContext.jsx:278; TickerPopup.jsx:126). Until 2026-10-02 the FREE page (/morning-wire) opened it too; the 'everything is paywall' ruling removed that reader. A member-tier or paid gate still blanks the Activity's day-gain. Needs an owner call on the Activity (or an Activity token) first."

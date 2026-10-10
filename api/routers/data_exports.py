@@ -117,6 +117,19 @@ def export_option_chain(sym: str,
     return _export(user, format, lambda: svc.chain_rows(sym, expiration, strikes))
 
 
+@router.get("/api/exports/flow/{symbol}", dependencies=[Depends(_armed)])
+def export_options_flow(symbol: str,
+                        source: str = Query("stocks", pattern=r"^(stocks|indexes)$"),
+                        date: str = Query("", max_length=10, pattern=r"^(\d{4}-\d{2}-\d{2})?$"),
+                        format: str = Query("csv"),
+                        user: dict = Depends(require_paid)):
+    """EXPORT-FLOW: one session of one ticker's options flow as a file. The rows
+    are read from flow-worker by `svc.flow_rows` (a server-side read of
+    `/api/flow/ticker/{symbol}` with the service credential), never from web's
+    frozen flow.db. Blank `date` is the newest session for the ticker."""
+    return _export(user, format, lambda: svc.flow_rows(symbol, source, date))
+
+
 @router.get("/api/exports/news", dependencies=[Depends(_armed)])
 def export_news(format: str = Query("csv"), user: dict = Depends(require_paid)):
     return _export(user, format, svc.news_rows)

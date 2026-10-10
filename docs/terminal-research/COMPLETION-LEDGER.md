@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (master `d95f331bb`, 2026-10-09): not complete.** 215 of 279 rows are `live` or `moot`; 64 are not (13 `dark`, 42 `building`, 9 `owner-blocked`) (re-derived 2026-10-10 after lane f-l7's TERM-033/065/067/COV-10 pass). It is complete when every row below is `live` or `moot`.
+**The answer today (after lanes L7, L8 and L2): not complete.** 230 of 279 rows are `live` or `moot`; 49 are not (26 `dark`, 15 `building`, 8 `owner-blocked`). (Recounted 2026-10-10 after lane L2 moved TERM-061, BRK-06, FT-040 and EXPORT-FLOW to `live`; those land with branch `f-l2`.) It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,14 +34,14 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 after lanes L7 and L8:
+Printed 2026-10-10 after lanes L7, L8 and L2:
 
 ```
-279 Counter({'live': 186, 'moot': 40, 'dark': 26, 'building': 19, 'owner-blocked': 8})
+279 Counter({'live': 190, 'moot': 40, 'dark': 26, 'building': 15, 'owner-blocked': 8})
 0 duplicate ids
 ```
 
-Re-run 2026-10-10 on `f-l8` after the TERM-066 drain (`80080e7ac`, `dd326973b`) and CAP-A12 (`a0eba9493`): `279 Counter({'live': 175, 'building': 43, 'moot': 39, 'dark': 13, 'owner-blocked': 9})`, 0 duplicate ids (TERM-066 building -> live; CAP-A12 moved within `building`, Lane P -> integrator).
+Printed 2026-10-10 at master `d95f331bb`, before L2: `279 Counter({'live': 174, 'building': 44, 'moot': 39, 'dark': 13, 'owner-blocked': 9})`, 0 duplicate ids.
 
 Before this reconciliation (same command, the file as committed at `d95f331bb`): `279 Counter({'building': 85, 'live': 77, 'dark': 69, 'moot': 36, 'owner-blocked': 12})`, 0 duplicate ids. (The table that stood here then still carried the pre-sweep 2026-10-03 numbers; the command, not the table, was right.)
 
@@ -51,14 +51,14 @@ The per-section split is the same regex applied to each `## ` section:
 |---|---|---|---|---|---|---|
 | 1 Programme records + ship | 17 | 11 | 0 | 3 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
-| 3 TERM-001..093 | 93 | 67 | 8 | 9 | 3 | 6 |
-| 4 BRK-01..10 | 10 | 4 | 4 | 1 | 0 | 1 |
+| 3 TERM-001..093 | 93 | 68 | 8 | 8 | 3 | 6 |
+| 4 BRK-01..10 | 10 | 5 | 4 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 6 | 1 | 1 | 1 | 3 |
-| 6 FT-001..080 | 80 | 56 | 8 | 3 | 4 | 9 |
-| 7 Untracked promises | 58 | 42 | 5 | 2 | 0 | 9 |
-| **total** | **279** | **186** | **26** | **19** | **8** | **40** |
+| 6 FT-001..080 | 80 | 57 | 8 | 2 | 4 | 9 |
+| 7 Untracked promises | 58 | 43 | 5 | 1 | 0 | 9 |
+| **total** | **279** | **190** | **26** | **15** | **8** | **40** |
 
-`building` by lane: P 6 · integrator 5 · Notebook 2 · R 2 · S 2 · D 1 · O 1.
+`building` by lane: P 6 · Notebook 2 · R 2 · S 2 · integrator 2 · D 1.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -163,7 +163,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-058` | Authoring-time live match count | `live` | `api/routers/screener.py:258`. |
 | `TERM-059` | Label stale / proxied values | `live` | On master (`6854c3350`, via X-01): AAII as-of labels (`app/src/pages/breadth/sentimentAge.js`), NAAIM (`naaimAge.js`), carried-print labels from `breadth_self_heal`; ungated (`10-roadmap/backlog-status-2026-10-06.md:106`). Was `dark` (branch-only). |
 | `TERM-060` | Machine-checkable citation pointer | `live` | `api/services/canonical/claims.py:149`. |
-| `TERM-061` | Skill file, whitelist, MCP | `building (integrator)` | Decided T-16 (`12-decisions/2026-10-07-owner-delegated-decisions.md:61`): publish `docs/api/skill.md` + the whitelist once `RATE_LIMIT_POLICY=enforce`, no MCP. That precondition holds (read live on web 2026-10-07, A4 `12-decisions/2026-10-07-owner-delegated-decisions.md:141`). Remainder: publish it; no route under `api/` serves `docs/api/skill.md` at `d95f331bb` (grep). Was `dark`. |
+| `TERM-061` | Skill file, whitelist, MCP | `live` | Published per T-16 (`12-decisions/2026-10-07-owner-delegated-decisions.md:61`) now that `RATE_LIMIT_POLICY=enforce` (read live 2026-10-07, A4, same file :141). `GET /api/skill.md` and `GET /api/skill/whitelist` (`api/routers/skill_file.py:57`, `:64`; mounted `api/main.py:9691`; public, `docs` rate family `api/rate_limit_policy.py:291`) serve what `api/services/skill_whitelist.py:178` generates from the running app's own routes: the Personal API token doors, derived from the same scope markers the token check enforces (`skill_whitelist.py:132`), and the member-session read whitelist with tier, family limit and params. Committed copy `docs/api/skill.md`. Rails: `tests/test_skill_file_route.py` (the served list equals the set measured on the wire; an unlisted endpoint refuses a personal token) and `tests/test_skill_whitelist.py`. No MCP (T-16). Lands with branch `f-l2`. Was `building (integrator)`. |
 | `TERM-062` | Publish cooldowns | `live` | `api/services/alert_taxonomy/cooldowns.py`. |
 | `TERM-063` | Keyboard registry | `live` | `app/src/pages/command/shortcutRegistry.js:50`. |
 | `TERM-064` | One ticker resolver | `live` | On master (`6854c3350`, via X-01): `app/src/lib/tickerResolver.js`, consumed by `app/src/floor2/Composer.jsx`; tweet ingest delegates. Ungated. Was `dark` (branch-only). |
@@ -206,7 +206,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `BRK-03` | Alert authoring grammar | `live` | The typed where-grammar (FT-029 v2: typed subjects, `$AAPL` / `#list` scopes, arithmetic; one parser, `api/services/screener/grammar.py`) is armed on web 2026-10-04 (`a046f7d9f`) (`SCREENER_ALERT_GRAMMAR_ENABLED`, `docs/feature_flags.json:1898`); standing alerts on a filter-list screen ride it (`SCREENER_SPEC_ALERTS_ENABLED`, `docs/feature_flags.json:1948`). Was `building (Lane S)`. |
 | `BRK-04` | Mobile push alert channel | `dark` | D-012. On master (`api/services/web_push.py:101`); `WEB_PUSH_ENABLED` still `pending` (`docs/feature_flags.json:1996`). Arming needs `tools/gen_vapid_keys.py` + 3 VAPID vars on web. |
 | `BRK-05` | Config-as-citation | `live` | `SCREENER_NL_COMPILE_ENABLED` (`docs/feature_flags.json:1988`) and `SCREENER_LOGIC_ENABLED` (`docs/feature_flags.json:1876`) armed on web 2026-10-04 (`a046f7d9f`); route `api/routers/screener_nl.py:44`. Was `dark`. |
-| `BRK-06` | Programmatic egress | `building (integrator)` | Personal API armed; `DATA_EXPORTS_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:1868`). Remainder as TERM-061: publish `skill.md` now that `RATE_LIMIT_POLICY=enforce` (A4, `12-decisions/2026-10-07-owner-delegated-decisions.md:141`). No MCP (T-16). Was `dark`. |
+| `BRK-06` | Programmatic egress | `live` | Personal API armed; `DATA_EXPORTS_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:1868`). The skill file and whitelist are published as TERM-061 (`api/routers/skill_file.py:57`); exports joined a rate family so they are listed (`api/rate_limit_policy.py:215`), and the options-flow export exists (EXPORT-FLOW). No MCP (T-16). Lands with branch `f-l2`. Was `building (integrator)`. |
 | `BRK-07` | Per-surface status disclosure | `live` | `app/src/pages/Support.jsx:1316` (TERM-039). FT-046 is separate. |
 | `BRK-08` | Dealer vocabulary with a base rate | `dark` | Vocabulary armed on web 2026-10-04 (`a046f7d9f`) (`OPTIONS_POSITIONING_VOCAB_ENABLED`, `docs/feature_flags.json:201`). Base rate built 2026-10-10 by finishing lane L3 (branch `f-l3`) behind its own flag `OPTIONS_LEVEL_BASE_RATE_ENABLED` (`docs/feature_flags.json:408`, `dark`; `api/services/options_analytics/flags.py:47`): `GET /api/options/positioning/{sym}/base-rate` (`api/routers/options_analytics.py:498`) scores Call Wall / Put Wall / Zero Gamma held vs broke over the next 5 logged closes and shows no rate below 20 tested instances, only the sample size (`api/services/options_analytics/level_base_rate.py:375`, `:405`). History is rebuilt per session from the options-log contracts file by the monitor job `options-levels` (`api/terminal_next_monitor_main.py:308`, `level_base_rate.py:134`). Shown beside the vocabulary (`app/src/pages/optionsAnalytics/PositioningPanel.jsx:92`). Arming needs the flag on terminal-next-monitor (to build history) and web (to serve it). |
 | `BRK-09` | Transcript / filing retrieval depth | `dark` | Boolean / NEAR / synonym operators over transcripts built dark (`lane/s2-finish`, merged `9e69eddd9`): `TRANSCRIPT_OPERATOR_SEARCH_ENABLED` pending (`docs/feature_flags.json:1942`). A transcript backfill would also need the FMP storage / AI-processing rights read: not measured. Was `building (Lane S)`. |
@@ -272,7 +272,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `FT-037` | Four channels incl. SMS / push | `moot (decided 2026-10-07: no SMS; email, in-app and push cover it)` | Email/in-app live; push dark (BRK-04). ➜ 2026-10-07: S-3 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-038` | Push topics + Telegram bot | `moot (decided 2026-10-07: no Telegram)` | Chat-linking is agent-buildable afterwards. ➜ 2026-10-07: S-4 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-039` | Option-stance fit score | `live` | `OPTIONS_STANCE_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:283`). iv_regime is blank under 20 sessions. Was `dark`. |
-| `FT-040` | MCP + skill.md | `building (integrator)` | As TERM-061: publish `skill.md` now that `RATE_LIMIT_POLICY=enforce` (A4, `12-decisions/2026-10-07-owner-delegated-decisions.md:141`); no MCP (T-16, `12-decisions/2026-10-07-owner-delegated-decisions.md:61`). Was `dark`. |
+| `FT-040` | MCP + skill.md | `live` | `skill.md` + whitelist published as TERM-061 (`GET /api/skill.md`, `api/routers/skill_file.py:57`; generator `api/services/skill_whitelist.py:178`), after `RATE_LIMIT_POLICY=enforce` (A4, `12-decisions/2026-10-07-owner-delegated-decisions.md:141`). The MCP half is excluded by ruling T-16 (`12-decisions/2026-10-07-owner-delegated-decisions.md:61`). Lands with branch `f-l2`. Was `building (integrator)`. |
 | `FT-041` | Excel export + API | `live` | `DATA_EXPORTS_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:1868`). Was `dark`. |
 | `FT-042` | Metered CSV / Excel | `live` | `DATA_EXPORTS_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:1868`). A protective cap, NG-06. Was `dark`. |
 | `FT-043` | Chart data CSV | `live` | `DATA_EXPORTS_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:1868`). Was `dark`. |
@@ -348,7 +348,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `P14a` | Phone shell: stored-panel switcher + panel-count control | `live` | Phone panel switcher + touch panel-count control (`3456eb0f8`; rail `app/src/pages/terminal/phoneSwitcher.test.jsx`). Was `building (Lane T4)`. |
 | `P14b` | `/charts` phone: Multi-Chart grid, compare, version-history door | `live` | Measured 2026-10-10 (lane f-l9): Multi-Chart door shipped (`2fd16ae9f`); per-layout version history was already on the phone Layouts sheet (COV-06); Compare and BOARD version history (TERM-051) had no phone door. Built both as Tools-sheet rows (`app/src/pages/charts/mobile/MobileMoreSheet.jsx:105`, `:113`): the phone chart now registers the same compare API ChartWidget does (`mobile/MobileChartsApp.jsx:208`) so the desktop `CompareSymbolsPanel` works unchanged, and `ChartsWorkspace.jsx:3097` hands the phone shell `openVersionHistory` and mounts `VersionHistoryPanel` there (row hidden while the store is dark). Rail: `app/src/pages/charts/mobile/phoneCompareHistory.doors.test.jsx` (7 tests). Was `building (Lane T4)`. |
 | `NAV` | Nav graduation `to:'/terminal'` + the fresh viewport-lock measurement | `live` | Graduated: `app/src/components/NavBar.jsx:27` is `to: '/terminal'` (`c941080f0`, I-11 `12-decisions/2026-10-07-owner-delegated-decisions.md:39`); `/terminal` measured viewport-locked (`18676e3ec`). Was `building (Lane T4)`. |
-| `EXPORT-FLOW` | Options-flow export from flow-worker | `building (Lane O)` | Still open: options-flow export is served from flow-worker (`docs/terminal-research/reports/lane-o-options-remainders.md:37`). |
+| `EXPORT-FLOW` | Options-flow export from flow-worker | `live` | `GET /api/exports/flow/{symbol}` (`api/routers/data_exports.py:120`): paid, behind `DATA_EXPORTS_ENABLED` (armed on web 2026-10-04, `docs/feature_flags.json:1868`), metered like the other exports. The rows are a server-side read of flow-worker's `/api/flow/ticker/{symbol}` sent the way web's other flow reads are (straight to `WORKER_INTERNAL_URL` when the read proxy is on, PUSH_SECRET service credential, never the member's cookie; `api/services/data_exports.py:335`), one session per file (`:352`). No flow-worker file changed, so no flow-worker deploy and the OPRA tape is untouched. Rails `tests/test_data_exports_flow.py`. There is no button on the partner-owned Options Flow page yet; the door is the URL and the skill whitelist. Lands with branch `f-l2`. Was `building (Lane O)`, which cited `reports/lane-o-options-remainders.md:37`. |
 | `SCR-URL` | Grouped logic carried in the screener URL | `live` | The grouped `logic` node rides the screener URL (`app/src/pages/screener/shell/useScreenSpec.js:31`, `:84`); `SCREENER_LOGIC_ENABLED` armed on web 2026-10-04 (`a046f7d9f`). Was `building (Lane S)`. |
 | `AC-2` | One channel registry instead of per-alert webhook names | `dark` | Built dark (`lane/s2-finish`, `9e69eddd9`): `ALERT_CHANNEL_REGISTRY_ENABLED` pending (`docs/feature_flags.json:1912`). Was `building (Lane S)`. |
 | `AC-4` | Per-trigger-type queue caps with a reserve | `dark` | Built dark (`9e69eddd9`): `ALERT_QUEUE_CAPS_ENABLED` pending (`docs/feature_flags.json:1906`). Was `building (Lane S)`. |

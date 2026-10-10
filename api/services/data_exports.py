@@ -290,6 +290,120 @@ def news_rows() -> tuple[list[str], list[dict], str]:
     return NEWS_COLUMNS, rows, "news"
 
 
+# ── options flow (EXPORT-FLOW) ──────────────────────────────────────────────
+# The tape lives in flow.db on FLOW-WORKER (P5 cutover, 2026-07-13); web's own
+# copy is frozen. So this builder never opens a database: it is a SERVER-SIDE
+# read of the same route the Options Flow page's Search tab reads,
+# `GET /api/flow/ticker/{symbol}`, sent the way every other web-side flow read
+# is sent (`signature._read_flow_source`, `ai_search`, `market_tide`): straight
+# to WORKER_INTERNAL_URL when the read proxy is on, with the PUSH_SECRET service
+# credential from `flow_proxy.internal_read_headers()` and never the member's
+# cookie. No flow-worker file changes for this, so a flow-worker deploy is not
+# needed and the OPRA tape is never touched.
+#
+# One SESSION per file: the per-ticker stream is the WHOLE uncapped history
+# (SPY/indexes measured at 349,203 rows), so the builder keeps only the
+# requested session, or the newest one, while it streams. Rows arrive grouped
+# by session (`flow_db.store_date_order`), so at most one session is held.
+
+FLOW_SOURCES = ("stocks", "indexes")
+#: Rows per file. A session for the busiest names can exceed this; the file is
+#: then the session's first FLOW_MAX_ROWS prints in tape order, and
+#: `X-Export-Rows` says how many were written.
+FLOW_MAX_ROWS = 20000
+FLOW_READ_TIMEOUT_S = 60.0
+
+
+def _flow_read_base() -> str:
+    """Where `/api/flow/ticker` lives, per call: the worker directly when the
+    read proxy is on, else this app on $PORT. The same resolution as
+    `api/routers/ai_search._flow_base_url` and `signature._flow_base_url`."""
+    from api import flow_proxy
+    if flow_proxy.PROXY_ENABLED and flow_proxy.WORKER_INTERNAL_URL:
+        return flow_proxy.WORKER_INTERNAL_URL
+    return f"http://127.0.0.1:{os.environ.get('PORT', '8000')}"
+
+
+def _mdy_to_iso(mdy: str) -> str | None:
+    try:
+        m, d, y = (mdy or "").strip().split("/")
+        return f"{int(y):04d}-{int(m):02d}-{int(d):02d}"
+    except (ValueError, AttributeError):
+        return None
+
+
+def _flow_lines(sym: str, source: str):
+    """Yield the decoded CSV lines of one ticker's flow from flow-worker.
+    Raises RuntimeError (a sentence) on any failed read."""
+    import httpx
+    from api import flow_proxy
+    url = f"{_flow_read_base()}/api/flow/ticker/{sym}"
+    try:
+        with httpx.stream("GET", url, params={"source": source},
+                          headers=flow_proxy.internal_read_headers(),
+                          timeout=FLOW_READ_TIMEOUT_S) as resp:
+            if resp.status_code != 200:
+                raise RuntimeError("Options flow is unavailable right now. Try again shortly.")
+            yield from resp.iter_lines()
+    except httpx.HTTPError as e:
+        raise RuntimeError("Options flow is unavailable right now. Try again shortly.") from e
+
+
+def flow_rows(symbol: str, source: str = "stocks", date: str = "",
+              lines=None) -> tuple[list[str], list[dict], str] | None:
+    """One session of one ticker's options flow, in the columns the flow route
+    serves to a member. `date` is ISO (YYYY-MM-DD); blank means the newest
+    session the tape holds for this ticker. None when there are no rows.
+
+    `lines` is the CSV line source (injected by tests); default is the live
+    flow-worker read."""
+    sym = (symbol or "").strip().upper()
+    if not re.fullmatch(r"[A-Z0-9.\-]{1,12}", sym):
+        raise ValueError("Send a ticker symbol, for example NVDA.")
+    src = (source or "stocks").strip().lower()
+    if src not in FLOW_SOURCES:
+        raise ValueError("source must be stocks or indexes")
+    want = (date or "").strip()
+    if want and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", want):
+        raise ValueError("date must be YYYY-MM-DD")
+
+    it = iter(lines if lines is not None else _flow_lines(sym, src))
+    header = next((ln for ln in it if ln.strip()), None)
+    if header is None:
+        return None
+    columns = next(csv.reader([header]))
+    if "CreatedDate" not in columns:
+        raise RuntimeError("Options flow came back in an unexpected shape.")
+    date_i = columns.index("CreatedDate")
+
+    best_iso, kept = None, []
+    for row in csv.reader(ln for ln in it if ln.strip()):
+        if len(row) != len(columns):
+            continue
+        iso = _mdy_to_iso(row[date_i])
+        if iso is None:
+            continue
+        if want:
+            if iso != want:
+                continue
+        elif best_iso is None or iso > best_iso:
+            best_iso, kept = iso, []
+        elif iso != best_iso:
+            continue
+        if len(kept) < FLOW_MAX_ROWS:
+            kept.append(row)
+    if not kept:
+        return None
+    rows = [dict(zip(columns, r)) for r in kept]
+    for r in rows:
+        for k, v in r.items():
+            try:
+                r[k] = float(v) if "." in v or "e" in v.lower() else int(v)
+            except (TypeError, ValueError):
+                pass
+    return list(columns), rows, f"flow_{sym}_{want or best_iso}"
+
+
 BAR_PREFERRED = ("time", "t", "open", "o", "high", "h", "low", "l", "close", "c",
                  "volume", "v")
 

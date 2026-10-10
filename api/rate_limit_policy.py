@@ -209,9 +209,10 @@ FAMILIES: dict[str, Family] = {
     ),
     "screener": Family(
         TIER_STANDARD,
-        "Screener, scans, patterns, backtests, user definitions and indicator "
-        "alerts -- member-driven, one request per action.",
-        ("/api/screener", "/api/scanner", "/api/scans", "/api/patterns",
+        "Screener, scans, patterns, backtests, user definitions, indicator "
+        "alerts and the member data exports (which add their own per-member "
+        "burst and daily cap) -- member-driven, one request per action.",
+        ("/api/screener", "/api/scanner", "/api/scans", "/api/patterns", "/api/exports",
          "/api/backtest", "/api/user-definitions", "/api/setup-templates",
          "/api/setup-performance", "/api/model-examples", "/api/indicator-alerts",
          "/api/indicator-telemetry"),
@@ -285,8 +286,9 @@ FAMILIES: dict[str, Family] = {
     ),
     "docs": Family(
         TIER_STANDARD,
-        "FastAPI's schema and docs pages, re-served behind OPEN_READS_GATE.",
-        ("/openapi.json", "/docs", "/redoc"),
+        "FastAPI's schema and docs pages, re-served behind OPEN_READS_GATE, and the "
+        "public agent skill file + its whitelist (TERM-061, owner ruling T-16).",
+        ("/openapi.json", "/docs", "/redoc", "/api/skill.md", "/api/skill"),
     ),
 }
 
