@@ -96,6 +96,38 @@ derived by the command in its §0, never typed.
   re-affirmed as T-1 (`docs/terminal-research/12-decisions/2026-10-07-owner-delegated-decisions.md:46`).
   Work left on it: none in the ledger; saved-layout sizes were never measured (backlog note on the
   TERM-001 row).
+- **TERM-001 facts an implementer needs** (added after readiness run 1, which asked for them):
+  - *Merge.* Built in `e509700b2` (2026-10-02) on `lane/term-001-006`, merged into
+    `integrate/terminal-fixes` by `daf658088`, and on master through the X-01 landing `2e304db42`
+    (`git merge-base --is-ancestor e509700b2 origin/master` succeeds). The backlog register cell
+    that still says "not merged" predates the landing.
+  - *Acceptance criteria.* Band 0 has no Part CCI package. The agreed behaviour is the decision
+    record's "Decision" and "Where it is enforced" paragraphs
+    (`docs/terminal-research/12-decisions/2026-10-02-term-001-006-board-bound-and-freshness.md:11-58`):
+    grow refused past 16 with the bound's sentence; an over-16 board is never truncated, stays
+    editable, cannot grow; an over-16 write cannot replace a stored board of unknown size.
+  - *Existing tests.* `tests/test_board_bound.py` (server), `app/src/pages/charts/boardBound.test.js`
+    and `app/src/pages/charts/ChartsWorkspace.test.jsx` (client). Extend these; do not add a
+    second copy of the rule.
+  - *Scope of the server check.* It guards only the `/charts` key `charts_workspace_layout`
+    (`api/services/board_bound.py:31`), through `auth.enforce_board_bound` on
+    `POST /api/auth/preferences` and `POST /api/workspace-doc/apply`. The terminal's own
+    `terminal_layout` / `terminal_boards` keys have separate caps in
+    `app/src/pages/terminal/boardModel.js:41-46` and are not TERM-001's bound.
+  - *Remaining item 1, saved-layout sizes.* Never measured. The census is the PH-1 aggregate over
+    `charts_layouts.layout_json`, read-only, against a copy
+    (`docs/terminal-research/12-decisions/2026-10-02-term-001-006-board-bound-and-freshness.md:32-35`).
+    Agents do not read production stores; the owner or the integrator takes the copy
+    (`VACUUM INTO` over `railway ssh`) and the agent runs the aggregate on it.
+  - *Remaining item 2, "its own panel curve".* The backlog names it
+    (`docs/terminal-research/10-roadmap/backlog.md:1998`) but no file defines it. The bound was
+    decided without it, on the 16-cell production spike
+    (`docs/terminal-research/12-decisions/2026-10-02-term-001-006-board-bound-and-freshness.md:21-29`),
+    so it is optional evidence, not a blocker. If taken, it is cost against widget count 1..16 in
+    the 2026-10-14 quiet window, recorded with `deployments_sampled`.
+  - *Push window.* `python tools/flow_worker_watch_coverage.py` reports whether a diff reaches
+    flow-worker. `api/services/**` is not on flow-worker's watch list, so a `board_bound.py`
+    change deploys web only.
 - **Tests.** Backend pytest is always scoped to named files, never the whole tree
   (`CLAUDE.md:2003-2004`). Frontend vitest runs scoped to directories with a worker cap. A run
   without a totals line is not a run. The gate is "no new failures against a dated baseline", not
