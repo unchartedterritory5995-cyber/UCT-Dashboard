@@ -256,6 +256,36 @@ export const ITEMS = [
   },
 ]
 
+// A bare `/` offers three groups, trading first: this is a trading notebook, and the chart, price
+// and plan blocks are what a member reaches for most (UX pass 2026-10-10). Typing narrows the list
+// exactly as before; the groups only order and label it. A block item not named here is "more".
+export const SLASH_GROUPS = [
+  { id: 'trading', label: 'Trading' },
+  { id: 'basics', label: 'Basics' },
+  { id: 'more', label: 'More' },
+]
+const BASICS = new Set([
+  'Heading 1', 'Heading 2', 'Heading 3', 'Bullet list', 'Numbered list', 'Checklist', 'Quote',
+  'Divider', 'Table', 'Callout', 'Toggle', 'Image',
+])
+const TRADING_BLOCKS = new Set(['Trade-plan canvas', 'Transcript passage'])
+
+/** Which group a block item belongs to. Widget and fact captures are always trading. */
+export function blockItemGroup(item) {
+  if (TRADING_BLOCKS.has(item.title)) return 'trading'
+  return BASICS.has(item.title) ? 'basics' : 'more'
+}
+
+/** The bare-`/` list: trading, then basics, then more, each item tagged with its group. */
+export function groupedSlashItems(blocks, captures) {
+  const tag = (it, group) => ({ ...it, group })
+  const trading = [...captures.map((it) => tag(it, 'trading')),
+    ...blocks.filter((it) => blockItemGroup(it) === 'trading').map((it) => tag(it, 'trading'))]
+  const basics = blocks.filter((it) => blockItemGroup(it) === 'basics').map((it) => tag(it, 'basics'))
+  const more = blocks.filter((it) => blockItemGroup(it) === 'more').map((it) => tag(it, 'more'))
+  return [...trading, ...basics, ...more]
+}
+
 /** Does a block item answer the typed query (its title, or one of its keywords)? */
 export function blockItemMatches(item, q) {
   if (!q) return true
@@ -616,21 +646,28 @@ const SlashList = forwardRef((props, ref) => {
 
   return (
     <div className={styles.menu} role="listbox" id={menuId} aria-label="Insert block">
-      {items.map((item, i) => (
-        <button
-          key={item.title}
-          type="button"
-          role="option"
-          id={`${menuId}-opt-${i}`}
-          aria-selected={i === selectedIndex}
-          className={`${styles.item} ${i === selectedIndex ? styles.itemActive : ''}`}
-          onMouseDown={(e) => { e.preventDefault(); props.command(item) }}
-          onMouseEnter={() => setSelectedIndex(i)}
-        >
-          <div className={styles.itemTitle}>{item.title}</div>
-          <div className={styles.itemDesc}>{item.description}</div>
-        </button>
-      ))}
+      {items.map((item, i) => {
+        // A group label is visual only (aria-hidden): the options keep their own names, and the
+        // listbox's children stay options for assistive tech.
+        const label = item.group && item.group !== items[i - 1]?.group
+          ? SLASH_GROUPS.find((g) => g.id === item.group)?.label : null
+        return [
+          label ? <div key={`g-${item.group}`} className={styles.groupLabel} aria-hidden="true">{label}</div> : null,
+          <button
+            key={item.title}
+            type="button"
+            role="option"
+            id={`${menuId}-opt-${i}`}
+            aria-selected={i === selectedIndex}
+            className={`${styles.item} ${i === selectedIndex ? styles.itemActive : ''}`}
+            onMouseDown={(e) => { e.preventDefault(); props.command(item) }}
+            onMouseEnter={() => setSelectedIndex(i)}
+          >
+            <div className={styles.itemTitle}>{item.title}</div>
+            <div className={styles.itemDesc}>{item.description}</div>
+          </button>,
+        ]
+      })}
     </div>
   )
 })
@@ -661,7 +698,7 @@ export const SlashMenuExtension = Extension.create({
           // today only columns, never inside a column (they do not nest). A
           // table of contents is an ordinary block and is offered anywhere.
           const here = blockItemsAvailable(editor)
-          if (!q) return [...here, ...widgets, ...factCaptures, ...consensusCaptures]
+          if (!q) return groupedSlashItems(here, [...widgets, ...factCaptures, ...consensusCaptures])
           // Widget/fact items match on their own tokenized rules (args after
           // the type name would defeat a plain substring filter).
           return [...here.filter((it) => blockItemMatches(it, q)), ...widgets, ...factCaptures, ...consensusCaptures]
