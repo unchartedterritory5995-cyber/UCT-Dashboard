@@ -31,7 +31,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { readback, isDirty } from '../authoring'
 import { converseTurn, transcriptSnippets } from '../authoring/converseClient'
-import { writeSession, clearSession } from '../authoring/conversationSessions'
+import { writeSession, clearSession, holdInDock, releaseDock } from '../authoring/conversationSessions'
 import { logStudioAction } from '../authoring/studioTelemetry'
 // ⭐ M3 S1 — the turn / Undo / Save / restore steps live in `authoring/authoringSession.js`
 // (moved verbatim) so the dock and UCT Agent run ONE pipeline. This hook is the React
@@ -93,6 +93,14 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     // (an answer-only conversation included).
     writeSession(sessionKey, { state, transcript, acked }, { persist: true })
   }, [sessionKey, state, transcript, acked, open])
+
+  // ⭐ M3 (D6) — while this dock is open on `sessionKey` it OWNS that draft: UCT Agent's
+  // writes on the same draft are refused until it closes.
+  useEffect(() => {
+    if (!sessionKey) return undefined
+    holdInDock(sessionKey)
+    return () => releaseDock(sessionKey)
+  }, [sessionKey])
 
   const say = useCallback((entry) => {
     setTranscript((t) => {

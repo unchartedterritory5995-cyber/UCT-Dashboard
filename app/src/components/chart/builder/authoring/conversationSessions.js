@@ -204,8 +204,30 @@ export function clearSession(key) {
   forgetPersisted(key)
 }
 
+/** ⭐ M3 — every key a conversation is kept under in this tab (the map and the unexpired
+ *  mirror), most recently written last. Read-only. */
+export function sessionKeys() {
+  const out = [...sessions.keys()]
+  for (const [key] of readMirror()) if (!out.includes(key) && readPersisted(key)) out.push(key)
+  return out
+}
+
+// ─── ⭐ M3 (AGENT-M3-CONTRACT D6) — which drafts an OPEN Create Indicator dock holds ──────
+//
+// NOT a draft store: only "is a dock showing this key right now?". While it is, the dock
+// owns the draft — UCT Agent's writes on it are refused (`draft-open-in-dock`) at call
+// time, so two writers never race on one snapshot. In-memory: a reload closes every dock.
+const dockHolds = new Map()
+export function holdInDock(key) { if (key) dockHolds.set(key, (dockHolds.get(key) || 0) + 1) }
+export function releaseDock(key) {
+  if (!key || !dockHolds.has(key)) return
+  const n = dockHolds.get(key) - 1
+  if (n > 0) dockHolds.set(key, n); else dockHolds.delete(key)
+}
+export function isHeldInDock(key) { return !!key && dockHolds.has(key) }
+
 /** Tests only — a page RELOAD: the in-memory map is gone, the tab's storage is not. */
-export function _simulateReload() { sessions.clear() }
+export function _simulateReload() { sessions.clear(); dockHolds.clear() }
 
 /** Tests only. */
 export function _resetSessions() {
