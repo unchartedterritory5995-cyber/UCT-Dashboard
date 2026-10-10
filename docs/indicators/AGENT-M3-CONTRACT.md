@@ -122,7 +122,7 @@ type TurnOutcome = { ok: true; kind: 'applied' | 'question' | 'answer' | 'unsupp
 
 openDraft({ create: true, chartRef? } | { edit: { defId } }, ctx) → { ok, draftRef, status } | refusal
 draftTurn(draftRef, message, { expectedRevision }, ctx) → Promise<TurnOutcome>
-draftUndo(draftRef, { expectedRevision }, ctx) → TurnOutcome
+draftUndo(draftRef, { expectedStepId }, ctx) → TurnOutcome   // §15.1
 draftStatus(draftRef) → DraftStatus | { ok:false, reason:'draft-expired' }
 listDrafts(ctx) → DraftStatus[]                                    // newest first
 discardDraft(draftRef, { expectedRevision }) → { ok } | refusal     // clearSession
@@ -311,3 +311,40 @@ Save and chart application are separate, ordered steps with separate receipts:
 - **D5** — Edit drafts: new version of the same definition only (recommended); forks stay manual.
 - **D6** — Dock/Agent same-draft rule: dock wins, Agent refused `draft-open-in-dock` (recommended).
 - **D7** — Undo of Save not offered (recommended).
+
+---
+
+## 15. Agent team review (2026-10-10) — reconciled
+
+Agent review of `ab6dbb2720`: architecture AGREED (S1 extraction, one draft store, Agent holds only
+`draftRef`, never `/converse`); D1–D7 no objection. Changes adopted:
+
+1. **Stable step identity (Agent objection, ADOPTED).** `undo()` moves the revision forward, so an Undo
+   entry pinned to a revision would fail on the second consecutive "undo". Each applied turn gets
+   `stepId = "<lineage>:r<revision it produced>"` — derived from the existing history (a snapshot stores
+   the revision *before* its turn; revisions only increase, so produced revisions are unique). **No
+   engine change.** `TurnOutcome.stepId` (applied only); `DraftStatus.undoStepId` = the step `draftUndo`
+   would revert (`history.at(-1).revision + 1`) or null. `draftUndo(draftRef, { expectedStepId })`
+   replaces `expectedRevision` and refuses `stale-step` unless the top of history IS that step — so
+   stacked Agent Undo stays exact, and a dock edit in between refuses cleanly. After a reload the Agent
+   offers authoring Undo only from `draftStatus().undoStepId` ("undo the last change to <name>"), never
+   from a stale stack entry.
+2. **D6 enforced inside every write (CONFIRMED).** `draftTurn`, `draftUndo`, `saveDraft`,
+   `discardDraft` and `showDraftPreview` themselves refuse `draft-open-in-dock`, checked at call time;
+   `DraftStatus.openInDock` is informational only.
+3. **Preview defaults (ADOPTED).** `showAuthoringPreview` returns `{ ok, movedFrom: chartRef | null }`.
+   An existing preview of the draft is refreshed automatically after every applied turn / Undo. The
+   Agent never shows a preview unasked — only when the member asks or names a chart for the draft.
+4. **Acknowledgement text (ADOPTED).** `DraftStatus.ackText: string[]` — the exact repaint
+   acknowledgement sentences from `readback` (`needsAck` lines). The Save proposal shows them verbatim;
+   `acknowledged: true` is sent only from that approval.
+5. **Partial success (Agent-side note).** After Save, each chart's M2 add is a SEPARATE commit with its
+   own receipt and M2 Undo token — never one compensating multi-target plan (that would undo the chart
+   that succeeded).
+6. **Resume after reload.** The Agent may store the opaque `draftRef` with its conversation; on resume it
+   calls `draftStatus` — `draft-expired` when the tab's draft store no longer has it (new tab/session, §4).
+7. **Open (owner):** the "12 contract questions" / "M3 Architecture Coordination Review" source — the
+   Agent team did not author it and has no copy; this contract answers the 12 items as given in the
+   owner's brief (§13). Owner to confirm the source.
+
+Reasons added: `stale-step`. (`stale-revision` remains for `draftTurn`, `saveDraft`, `discardDraft`.)
