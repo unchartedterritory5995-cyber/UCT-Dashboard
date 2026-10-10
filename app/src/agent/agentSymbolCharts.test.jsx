@@ -427,7 +427,8 @@ describe('literal tickers and typed references', () => {
     expect(getCapability('watchlist.show').produces).toBe('symbols')
     const m = manifestFor({ surface: 'charts' })
     expect(m.find(c => c.name === 'widget.addCharts')).toBeTruthy()
-    expect(m.filter(c => c.name.startsWith('indicator.')).every(c => c.query)).toBe(true)   // M1: no indicator WRITER is ever offered
+    // M2: indicator WRITERS exist only on the Indicators mutation interface's kind
+    expect(m.filter(c => c.name.startsWith('indicator.') && !c.query).every(c => ['indicatorEdits', 'indicators'].includes(c.target))).toBe(true)
   })
 })
 

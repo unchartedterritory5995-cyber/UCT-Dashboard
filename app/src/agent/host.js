@@ -78,6 +78,12 @@ export function buildChartSource({ chartApiById, getWidgets }) {
       const e = entries().find(x => x.ref === ref)
       try { return !!e?.api.agent.canCreateIndicator?.() } catch { return false }
     },
+    // INDICATORS M2 — may this chart's indicators be added / removed / shown / hidden? Asked
+    // fresh at plan, at apply and at every Undo (agentMutations ctx.canManage).
+    canManageIndicators: (ref) => {
+      const e = entries().find(x => x.ref === ref)
+      try { return !!e?.api.agent.canManageIndicators?.() } catch { return false }
+    },
     openCreateIndicator: (ref, opts) => {
       const e = entries().find(x => x.ref === ref)
       return e?.api.agent.openCreateIndicator ? e.api.agent.openCreateIndicator(opts) : null

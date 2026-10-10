@@ -54,7 +54,10 @@ describe('capability registry', () => {
     expect(names).toEqual(expect.arrayContaining(['chart.setType', 'chart.setTimeframe', 'chart.setSymbol', 'chart.setSession',
       'chart.applyTheme', 'chart.setBackground', 'chart.setCandleColors', 'volume.setState', 'chart.setScale']))
     for (const n of names) expect(n).not.toMatch(/^pane\./)
-    expect(names.filter(n => n.startsWith('indicator.')).sort()).toEqual(['indicator.list', 'indicator.openCreate'])
+    // M1 reads + the Create Indicator door; M2 writes — every writer on the `indicatorEdits` kind
+    // (the Indicators mutation interface), none elsewhere
+    expect(names.filter(n => n.startsWith('indicator.')).sort()).toEqual(['indicator.add', 'indicator.hide', 'indicator.list', 'indicator.openCreate', 'indicator.remove', 'indicator.show'])
+    for (const n of ['indicator.add', 'indicator.remove', 'indicator.show', 'indicator.hide']) expect(getCapability(n).target, n).toBe('indicatorEdits')
   })
   it('the manifest is metadata only, gated by surface', () => {
     const m = manifestFor(CTX)
@@ -76,7 +79,7 @@ describe('capability registry', () => {
       check() {}, apply() {}, describe() {} })).toThrow(/closed/)
   })
   it('shape check refuses unknown / unavailable actions, extra keys, bad enums, wrong types', () => {
-    expect(shapeError('indicator.add', {}, CTX)).toMatch(/can't/)
+    expect(shapeError('indicator.setInputs', {}, CTX)).toMatch(/can't/)          // not a capability (inputs are not Agent-editable)
     expect(shapeError('chart.setType', { type: 'bars' }, { surface: 'journal' })).toMatch(/can't/)
     expect(shapeError('chart.setType', { type: 'bars', extra: 1 }, CTX)).toMatch(/Unexpected/)
     expect(shapeError('chart.setType', { type: 'renko' }, CTX)).toMatch(/isn't an option/)

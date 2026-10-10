@@ -158,11 +158,11 @@ describe('context and routing', () => {
 })
 
 describe('an action UCT Agent does not have', () => {
-  it('"Add RSI 14": indicator.add is refused as an action the Agent cannot do — never as a missing target', async () => {
+  it('"Change RSI to 21": indicator.setInputs is refused as an action the Agent cannot do — never as a missing target', async () => {
     const h = host()
-    const { p } = await plan(h, [{ action: 'indicator.add', target: 'c1', args: { name: 'RSI', length: 14 } }])
+    const { p } = await plan(h, [{ action: 'indicator.setInputs', target: 'c1', args: { name: 'RSI', length: 14 } }])
     expect(p.ok).toBe(false)
-    expect(p.refusals[0].reason).toMatch(/UCT Agent can't “indicator\.add” here/)
+    expect(p.refusals[0].reason).toMatch(/UCT Agent can't “indicator\.setInputs” here/)
   })
 })
 

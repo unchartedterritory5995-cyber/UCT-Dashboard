@@ -118,7 +118,7 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
     }
     // A kind whose commit reports what ACTUALLY happened (`res.lines` — e.g. the Create Indicator
     // opener: prefilled, or a draft restored instead) is receipted from that, not from the plan.
-    landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: Array.isArray(res?.lines) && res.lines.length ? res.lines : p.lines, before: p.snap, after: snap, patch: p.patch, created: res?.created || null })
+    landed.push({ ref: p.ref, kind: p.kind, label: p.snap.label, lines: Array.isArray(res?.lines) && res.lines.length ? res.lines : p.lines, before: p.snap, after: snap, patch: p.patch, created: res?.created || null, ...(res && res.undoData ? { undoData: res.undoData } : {}) })
   }
 
   // 2 — created targets: resolve the alias, re-plan on the REAL target, commit
@@ -196,8 +196,9 @@ export async function undoEntry(host, entry) {
   for (const it of [...entry.items].reverse()) {
     const kind = getTargetKind(it.kind)
     const patch = kind.undoPatch(it)
+    let res
     try {
-      await kind.commit(host, it.ref, patch)
+      res = await kind.commit(host, it.ref, patch)
     } catch (e) {
       // Say exactly what was and was not restored — never reject silently.
       const done = restores.map(r => r.it.label)
@@ -206,11 +207,14 @@ export async function undoEntry(host, entry) {
         reason: `${it.label} could not be undone (${e?.message || 'error'}).${done.length ? ` Already restored: ${done.join(', ')}.` : ' Nothing was undone.'}`,
       }
     }
-    restores.push({ it, kind, patch })
+    restores.push({ it, kind, patch, lines: Array.isArray(res?.lines) ? res.lines : null })
   }
   await nextFrame()
   for (const { it, kind, patch } of restores) {
     if (!kind.landed(kind.read(host, it.ref), patch)) return { ok: false, lines: [], reason: `${it.label} did not return to its previous state.` }
   }
+  // A kind whose Undo reports what it actually restored (the indicator revive) is receipted from that.
+  const told = restores.flatMap(r => r.lines || [])
+  if (told.length) return { ok: true, lines: told }
   return { ok: true, lines: entry.lines.length ? [`Undid: ${entry.lines.join(' · ')}`] : ['Undid my last change'] }
 }

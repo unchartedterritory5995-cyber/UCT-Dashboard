@@ -329,6 +329,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         // INDICATORS M1 (AGENT-INTEGRATION-HANDOFF §11): the chart's own Create Indicator door.
         openCreateIndicator: (o) => paneRef.current?.openCreateIndicatorFor?.(o) ?? { ok: false, reason: 'unavailable', prefilled: false, draft: false, editing: false },
         canCreateIndicator: () => !!paneRef.current?.canCreateIndicator?.(),
+        // INDICATORS M2 (AGENT-INTEGRATION-HANDOFF §15.6): the Indicators button's own predicate.
+        canManageIndicators: () => !!paneRef.current?.canManageIndicators?.(),
         // ONE onOptsChange for settings + tf; the ticker through the colour group.
         // `settings` present (even null) means "store exactly this blob".
         commit: (patch) => {
