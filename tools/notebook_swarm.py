@@ -37,6 +37,7 @@ import asyncio
 import json
 import os
 import random
+import re
 import statistics
 import subprocess
 import sys
@@ -479,12 +480,13 @@ def browser_lane(base: str, accts: list[dict], k: int, minutes: float, out: Path
                     if "Something went wrong" in body or "This section failed" in body:
                         emit({"kind": "error-screen", "who": who, "w": width, "step": "open", "detail": body[:300]})
                     where["step"] = "new-note"
-                    btn = None
-                    for label in ("New note", "Start a note", "Write your first note"):
-                        cand = pg.get_by_role("button", name=label, exact=True).first
-                        if cand.count() and cand.is_visible():
-                            btn = cand
-                            break
+                    # WAIT for the button, never sample once: under load the Notebook draws later
+                    # than 1.5 s, and a single check read "no button" while the page was loading.
+                    btn = pg.get_by_role("button", name=re.compile(r"^(New note|Start a note|Write your first note)$")).first
+                    try:
+                        btn.wait_for(state="visible", timeout=20000)
+                    except Exception:  # noqa: BLE001
+                        btn = None
                     if btn is not None:
                         btn.click()
                         ed = pg.locator(".ProseMirror").first
