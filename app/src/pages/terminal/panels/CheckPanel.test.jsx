@@ -92,6 +92,16 @@ beforeEach(() => { jsonFetcher.mockReset(); live.prices = {} })
 afterEach(cleanup)
 
 describe('CHK panel', () => {
+  it('counts one open position in the singular, and more in the plural', async () => {
+    serve({ [RISK_URL]: { ...RISK, open_position_count: 1 } })
+    renderPanel()
+    expect((await screen.findByTestId('terminal-chk-phase')).textContent).toMatch(/1 open position\./)
+    cleanup()
+    serve()
+    renderPanel()
+    expect((await screen.findByTestId('terminal-chk-phase')).textContent).toMatch(/3 open positions\./)
+  })
+
   it('runs the whole check: checklist, win rate, past trades and the book with this trade added', async () => {
     serve()
     renderPanel()
