@@ -183,13 +183,12 @@ describe('⭐ the six-line conversation — one draft, one lineage, typed outcom
     expect(stored).toEqual([])                                          // a preview never saves
 
     // 6 — "Save it as Bullish Trend and add it to my chart."  (a PROPOSAL: rename + Save, then the add separately)
-    const ops6 = [say(ref, 'Name it Bullish Trend'), { action: 'indicator.saveDraft', target: ref, args: { addTo: ['L'] } }]
+    const ops6 = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: ['L'], name: 'Bullish Trend' } }]
     expect(getCapability('indicator.saveDraft').risk).toBe('confirm')
     const proposal = await plan(h, ops6)
     expect(proposal.ok, JSON.stringify(proposal.refusals)).toBe(true)
     const shown = proposal.lines.join(' | ')
-    expect(shown).toMatch(/Ask the indicator builder about .*: “Name it Bullish Trend”/)
-    expect(shown).toMatch(/Save .* as a new indicator \(draft revision 3, after that rename only\) — then add it to Left chart \(NVDA\), each separately/)
+    expect(shown).toMatch(/Save .* as a new indicator as “Bullish Trend” \(renamed first — a name-only step\) \(draft revision 3\) — then add it to Left chart \(NVDA\), each separately/)
     expect(shown).toMatch(/The builder's summary: /)
     expect(stored).toEqual([])                                          // proposing writes nothing
     // Apply re-plans (as useAgent's approve does) — with the pins the member SAW
@@ -327,7 +326,7 @@ describe('Save — the exact draft and revision the member approved', () => {
   it('the draft changed after the proposal → Apply refuses (stale-revision), nothing stored', async () => {
     const h = host([L])
     const ref = await start(h)
-    const ops = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [] } }]
+    const ops = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }]
     const proposal = await plan(h, ops)
     expect(proposal.lines[0]).toMatch(/\(draft revision 1\)/)
     await run(h, [say(ref, 'Okay, also require RSI to be above 50.')])      // revision 2 now
@@ -343,7 +342,7 @@ describe('Save — the exact draft and revision the member approved', () => {
     const h = host([L])
     const ref = await start(h)
     saveMode = 'lost'
-    const res = await commitPlan(h, await plan(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: ['L'] } }]), { env: {}, ctx: CTX })
+    const res = await commitPlan(h, await plan(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: ['L'], name: null } }]), { env: {}, ctx: CTX })
     expect(res.ok).toBe(false)
     expect(res.failed[0].reason).toMatch(/could not read it back, so I am not reporting it as saved/)
     expect(res.followUps).toBeUndefined()                                // no chart add without a confirmed Save
@@ -352,7 +351,7 @@ describe('Save — the exact draft and revision the member approved', () => {
     const h = host([L])
     const ref = await start(h)
     saveMode = 'conflict'
-    const res = await commitPlan(h, await plan(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [] } }]), { env: {}, ctx: CTX })
+    const res = await commitPlan(h, await plan(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }]), { env: {}, ctx: CTX })
     expect(res.ok).toBe(false)
     expect(res.failed[0].reason).toMatch(/saved elsewhere in the meantime/)
   })
@@ -360,14 +359,14 @@ describe('Save — the exact draft and revision the member approved', () => {
     const h = host([L])
     await run(h, [say(NEW, 'which lengths are best?')])                  // a draft with no change
     const ref = activeRef(h)
-    const p = await plan(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [] } }])
+    const p = await plan(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }])
     expect(p.ok).toBe(false)
     expect(p.refusals[0].reason).toMatch(/nothing new to save/)
   })
   it('Save + two charts, one refused: separate receipts; the Save is never rolled back', async () => {
     const h = host([L, R])
     const ref = await start(h)
-    const ops = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: ['L', 'R'] } }]
+    const ops = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: ['L', 'R'], name: null } }]
     await plan(h, ops)
     const res = await commitPlan(h, await plan(h, ops), { env: {}, ctx: CTX })
     expect(res.ok).toBe(true)
@@ -391,7 +390,7 @@ describe('Save — the exact draft and revision the member approved', () => {
     const h = host([L])
     const ref = await start(h)
     saveMode = 'conflict'
-    const ops = [say(ref, 'Name it Bullish Trend'), { action: 'indicator.saveDraft', target: ref, args: { addTo: ['L'] } }]
+    const ops = [say(ref, 'Name it Bullish Trend'), { action: 'indicator.saveDraft', target: ref, args: { addTo: ['L'], name: null } }]
     await plan(h, ops)
     const res = await commitPlan(h, await plan(h, ops), { env: {}, ctx: CTX })
     expect(res.ok).toBe(false)
@@ -399,14 +398,14 @@ describe('Save — the exact draft and revision the member approved', () => {
     expect(res.followUps).toBeUndefined()
     expect(drafts(h)[0].status.name).toBe('Bullish Trend')
   })
-  it('the rename turn must change ONLY the name — else renamed, not saved', async () => {
+  it('two-op form: a MODEL turn is never trusted as a rename (no renameOnly marker) — not saved', async () => {
     const h = host([L])
     const ref = await start(h)
-    const ops = [say(ref, 'make the slow line 50'), { action: 'indicator.saveDraft', target: ref, args: { addTo: [] } }]
+    const ops = [say(ref, 'make the slow line 50'), { action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: null } }]
     await plan(h, ops)
     const res = await commitPlan(h, await plan(h, ops), { env: {}, ctx: CTX })
     expect(res.ok).toBe(false)
-    expect(res.failed[0].reason).toMatch(/Renamed it to “.*” \(draft — not saved\), but didn’t save it: the builder changed more than the name/)
+    expect(res.failed[0].reason).toMatch(/Renamed it to “.*” \(draft — not saved\), but didn’t save it: that wasn’t only a rename/)
     expect(stored).toEqual([])
   })
 })
@@ -448,7 +447,7 @@ describe('Undo and routing', () => {
 // ── 7. repaint acknowledgement — the Indicators-owned contract (status.ackText / needs-ack) ─────
 describe('⭐ repaint acknowledgement — exact text, exact revision, approved, rechecked at Apply', () => {
   const pivots = async (h) => { await run(h, [say(NEW, 'mark pivot highs')]); return activeRef(h) }
-  const saveOp = (ref, addTo = []) => [{ action: 'indicator.saveDraft', target: ref, args: { addTo } }]
+  const saveOp = (ref, addTo = []) => [{ action: 'indicator.saveDraft', target: ref, args: { addTo, name: null } }]
   it('the proposal shows the specialist’s acknowledgement VERBATIM and the revision; Save only after approval', async () => {
     const h = host([L])
     const ref = await pivots(h)
@@ -591,5 +590,62 @@ describe('⭐ several drafts — the member chooses; nothing is picked for them'
     expect(res.failed[0].reason).toMatch(/Create Indicator isn’t available for your account/)
     access = true
     expect(rev(h, b)).toBe(before)
+  })
+})
+
+// ── 9. typed rename (contract §16.1): renameDraft + renameOnly, consumed — never inferred ──────────
+describe('⭐ typed rename — the specialist’s renameOnly marker is the only proof', () => {
+  const start = async (h) => { await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.')]); return activeRef(h) }
+  const saveAs = (ref, name, addTo = []) => [{ action: 'indicator.saveDraft', target: ref, args: { addTo, name } }]
+  it('"Save it as X": renameDraft (no model call) on the pinned revision, then Save at +1; the saved name is X', async () => {
+    const h = host([L])
+    const ref = await start(h)
+    const n = calls.length
+    await plan(h, saveAs(ref, 'Bullish Trend'))
+    const res = await commitPlan(h, await plan(h, saveAs(ref, 'Bullish Trend')), { env: {}, ctx: CTX })
+    expect(res.ok, JSON.stringify(res.failed)).toBe(true)
+    expect(calls.length).toBe(n)                                                  // no model call for the name
+    expect(res.lines[0]).toBe('Renamed it to “Bullish Trend” (draft).')
+    expect(res.lines[1]).toMatch(/^Saved “Bullish Trend” \(version 1, a new indicator\)/)
+    expect([...server.values()][0].definition.meta.name).toBe('Bullish Trend')
+  })
+  it('the draft moved after the proposal → renameDraft refuses (stale-revision): nothing renamed or saved', async () => {
+    const h = host([L])
+    const ref = await start(h)
+    await plan(h, saveAs(ref, 'Bullish Trend'))
+    await run(h, [say(ref, 'Okay, also require RSI to be above 50.')])
+    const res = await commitPlan(h, await plan(h, saveAs(ref, 'Bullish Trend')), { env: {}, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(res.failed[0].reason).toMatch(/The draft changed since I planned this.*Nothing was renamed or saved\./)
+    expect(drafts(h)[0].status.name).not.toBe('Bullish Trend')
+    expect(stored).toEqual([])
+  })
+  it('a repainting draft: the rename moves the ack text → "renamed, not saved"; the next proposal shows the new text', async () => {
+    const h = host([L])
+    await run(h, [say(NEW, 'mark pivot highs')])
+    const ref = activeRef(h)
+    await plan(h, saveAs(ref, 'Swing Highs'))
+    const res = await commitPlan(h, await plan(h, saveAs(ref, 'Swing Highs')), { env: {}, ctx: CTX })
+    expect(res.ok).toBe(false)
+    expect(res.failed[0].reason).toMatch(/^failed \(Renamed it to “Swing Highs” \(draft — not saved\), but didn’t save it: Saving it needs your acknowledgement first: Swing Highs reads a bar ahead/)
+    expect(stored).toEqual([])
+    const again = await plan(h, saveAs(ref, null))
+    expect(again.lines[0]).toContain('You are also acknowledging: Swing Highs reads a bar ahead')
+    expect((await commitPlan(h, await plan(h, saveAs(ref, null)), { env: {}, ctx: CTX })).ok).toBe(true)
+  })
+  it('the same name → name-unchanged is not an error: it simply saves', async () => {
+    const h = host([L])
+    const ref = await start(h)
+    const cur = drafts(h)[0].status.name
+    const res = await commitPlan(h, await plan(h, saveAs(ref, cur)), { env: {}, ctx: CTX })
+    expect(res.ok, JSON.stringify(res.failed)).toBe(true)
+    expect(res.lines[0]).toMatch(/^Saved /)
+  })
+  it('a name AND a separate rename turn in one request is refused (name it in the save itself)', async () => {
+    const h = host([L])
+    const ref = await start(h)
+    const p = await plan(h, [say(ref, 'Name it A'), ...saveAs(ref, 'B')])
+    expect(p.ok).toBe(false)
+    expect(p.refusals[0].reason).toMatch(/Name it in the save itself/)
   })
 })

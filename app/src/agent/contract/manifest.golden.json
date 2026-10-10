@@ -2743,7 +2743,7 @@
    "domain": "indicator",
    "target": "indicatorDrafts",
    "summary": "Save an indicator draft as one of the member's indicators (Create Indicator's own Save; a new indicator, or a new version of the one being edited) — always shown as a proposal with the builder's own summary first. addTo: charts to add the SAVED indicator to afterwards (each added separately, with its own receipt).",
-   "hints": "target = the draft's ref (usually the active one). addTo = refs of the charts to add it to after it is saved ([] for none) — only charts the member asked for. To name it (\"save it as Bullish Trend\"), put an indicator.draft op \"Name it Bullish Trend\" on the SAME draft before this op.",
+   "hints": "target = the draft's ref (usually the active one). addTo = refs of the charts to add it to after it is saved ([] for none) — only charts the member asked for. name = the name the member gave (\"save it as Bullish Trend\" → \"Bullish Trend\"), else null — never a separate indicator.draft op for the name.",
    "args": {
     "type": "object",
     "properties": {
@@ -2752,10 +2752,17 @@
       "items": {
        "type": "string"
       }
+     },
+     "name": {
+      "type": [
+       "string",
+       "null"
+      ]
      }
     },
     "required": [
-     "addTo"
+     "addTo",
+     "name"
     ],
     "additionalProperties": false
    },

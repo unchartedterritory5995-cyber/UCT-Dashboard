@@ -25,7 +25,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
 import {
   AUTHORING_CONTRACT, AUTHORING_REASONS as R, openDraft, draftTurn, draftUndo, draftStatus, listDrafts,
-  saveDraft, showDraftPreview,
+  saveDraft, showDraftPreview, renameDraft,
 } from '../../components/chart/builder/agentAuthoring'
 
 const NEW = 'draft:new'
@@ -108,6 +108,8 @@ export function refusalSentence(res) {
     case R.SAVE_CONFLICT: return `That indicator was saved elsewhere in the meantime${res?.detail?.conflict?.currentVersion ? ` (now version ${res.detail.conflict.currentVersion})` : ''} — nothing was overwritten.`
     case R.SAVE_REFUSED: return `UCT refused to save it${res?.detail?.error ? `: ${res.detail.error}` : ''}.`
     case R.SAVED_UNCONFIRMED: return 'It was sent to the store, but UCT could not read it back, so I am not reporting it as saved. The draft is closed — check your indicators before saving again.'
+    case R.NAME_UNCHANGED: return 'It already has that name.'
+    case R.NOTHING_TO_RENAME: return 'The draft has nothing to name yet — describe the indicator first.'
     case R.NOTHING_TO_PREVIEW: return 'The draft has nothing to preview yet.'
     case R.PREVIEW_READONLY: return 'That chart can’t show a preview.'
     case R.PREVIEW_BUSY: return 'Create Indicator is open and holds this tab’s preview — close it first.'
@@ -138,30 +140,16 @@ function pinFor(st, req) {
   const key = pinKey(st, req)
   const hit = pinned.get(key)
   if (hit && Date.now() - hit.at < PIN_TTL_MS) return { key, ...hit }
-  const p = { revision: st.status.revision, ackShown: st.status.ackText.slice(), lines: (st.status.lines || []).slice(), outputs: mathsOf(st.status), name: st.status.name || null, at: Date.now() }
+  const p = { revision: st.status.revision, ackShown: st.status.ackText.slice(), lines: (st.status.lines || []).slice(), name: st.status.name || null, at: Date.now() }
   pinned.set(key, p)
   return { key, ...p }
 }
 export function _resetSavePins() { pinned.clear() }
 
-// "Save it as Bullish Trend": the rename turn may change ONLY names. Judged from the builder's
-// own documented readback (never the tree): every output's key, type, maths-in-words and repaint
-// mode identical, and the summary lines identical once every name — the indicator's and each
-// output's (a rename can re-derive an output's label) — is blanked out.
-const mathsOf = (status) => ((status && status.readback && status.readback.outputs) || [])
-  .map(o => ({ key: o.key, type: o.type || null, sentence: o.sentence || null, mode: o.mode || null, name: o.name || null }))
-function sameButName(before, st) {
-  const after = mathsOf(st)
-  const was = before.outputs || []
-  const strip = (o) => JSON.stringify({ ...o, name: null })
-  if (was.length !== after.length || was.some((o, i) => strip(o) !== strip(after[i]))) return false
-  const names = [before.name, st.name, ...was.map(o => o.name), ...after.map(o => o.name)]
-    .filter(Boolean).sort((x, y) => y.length - x.length)
-  const blank = (l) => names.reduce((s, n) => s.split(n).join('⁣'), String(l))
-  const a = before.lines || []
-  const b = st.lines || []
-  return a.length === b.length && a.every((l, i) => blank(l) === blank(b[i]))
-}
+// "Save it as Bullish Trend": a rename is trusted ONLY from the specialist's typed marker
+// `renameOnly === true` (contract §16.1) — from `renameDraft`, or from `draftTurn`'s local
+// name-only path. ⛔ NEVER from `changes` containing 'renamed': a model turn can rename AND change
+// the maths while reporting only that (the specialist's own test proves it).
 const fail = (msg, extra = {}) => Object.assign(new Error(msg), extra)
 
 // ── target kind: one snapshot per draft in this tab, plus the "new draft" entry ──
@@ -227,6 +215,7 @@ export const indicatorDraftsKind = {
         if (!out.ok) throw fail(refusalSentence(out), lines.length ? { unreverted: true } : {})
         revision = out.revision
         op.outcome = out.kind
+        op.renameOnly = out.ok && out.kind === 'applied' && out.renameOnly === true
         const st = draftStatus(draftRef, authoringCtx(host))
         name = st?.name || name
         if (out.kind === 'applied') {
@@ -257,28 +246,39 @@ export const indicatorDraftsKind = {
         const ctx = authoringCtx(host)
         const st = draftStatus(draftRef, ctx)
         const keep = lines.length ? { unreverted: true } : {}
-        // "Save it as …": the approved rename must have APPLIED, as exactly one step on the approved
-        // revision, and changed nothing but the name — else the draft is renamed and NOT saved.
         const turn = patch.ops.find(o => o.type === 'turn')
-        // a refusal AFTER the rename landed (dock opened, access lost, conflict…) says so plainly
-        const notSaved = (m) => (turn && turn.outcome === 'applied'
-          ? fail(`Renamed it to “${(st && st.name) || name || 'the new name'}” (draft — not saved), but didn’t save it: ${m}`, keep)
+        let renamedTo = null
+        // a refusal AFTER a rename landed (dock opened, access lost, conflict…) says so plainly
+        const notSaved = (m) => (renamedTo || (turn && turn.outcome === 'applied')
+          ? fail(`Renamed it to “${renamedTo || (st && st.name) || name || 'the new name'}” (draft — not saved), but didn’t save it: ${m}`, keep)
           : fail(m, keep))
         if (!st || !st.draftRef) throw notSaved(refusalSentence(st))
         let pin = op.pinRevision
         if (turn) {
+          // the two-op form ("Name it X" turn, then Save): only the typed rename-only marker counts
           if (turn.outcome !== 'applied') throw fail('The builder didn’t rename it, so I didn’t save it — say the name again, then ask me to save.', keep)
           if (st.revision !== op.pinRevision + 1) throw notSaved(refusalSentence({ reason: R.STALE_REVISION }))
-          if (!sameButName({ lines: op.linesShown, outputs: op.outputsShown, name: op.nameShown }, st)) {
-            throw notSaved('the builder changed more than the name — check the draft, then ask me to save it again.')
-          }
+          if (turn.renameOnly !== true) throw notSaved('that wasn’t only a rename — check the draft, then ask me to save it again.')
           pin = st.revision
+        } else if (op.name) {
+          // "Save it as X": the specialist's own name-only step (no model call), pinned to the approved revision
+          const r = renameDraft(draftRef, op.name, { expectedRevision: pin }, ctx)
+          if (!r.ok && r.reason !== R.NAME_UNCHANGED) throw fail(`${refusalSentence(r)} Nothing was renamed or saved.`, keep)
+          if (r.ok) {
+            if (r.renameOnly !== true || r.revision !== pin + 1) throw fail('That wasn’t a rename only, so I didn’t save it — check the draft, then ask me to save it again.', keep)
+            renamedTo = (r.rename && r.rename.to) || op.name
+            lines.push(`Renamed it to “${renamedTo}” (draft).`)
+            pin = r.revision
+          }
         }
+        const now = renamedTo ? draftStatus(draftRef, ctx) : st
+        if (!now || !now.draftRef) throw notSaved(refusalSentence(now))
         // ⛔ acknowledged only if the approval showed EXACTLY the acknowledgement the draft needs now
         const shown = op.ackShown || []
-        const acknowledged = !st.ackText.length || (st.ackText.length === shown.length && st.ackText.every((t, i) => t === shown[i]))
-        if (!acknowledged) throw notSaved(refusalSentence({ reason: R.NEEDS_ACK, detail: { ackText: st.ackText } }))
-        const out = await saveDraft(draftRef, { expectedRevision: pin, acknowledged: st.ackText.length > 0 }, ctx)
+        const ackNow = now === st ? st.ackText : now.ackText
+        const acknowledged = !ackNow.length || (ackNow.length === shown.length && ackNow.every((t, i) => t === shown[i]))
+        if (!acknowledged) throw notSaved(refusalSentence({ reason: R.NEEDS_ACK, detail: { ackText: ackNow } }))
+        const out = await saveDraft(draftRef, { expectedRevision: pin, acknowledged: ackNow.length > 0 }, ctx)
         if (!out.ok) {
           if (out.reason === R.SAVED_UNCONFIRMED) setActive(null)
           throw notSaved(refusalSentence(out))
@@ -396,10 +396,12 @@ export function registerIndicatorAuthoringCapabilities() {
     exclusiveReason: 'Save the indicator on its own — ask for anything else separately.',
     argRefs: { addTo: 'chart' },
     summary: 'Save an indicator draft as one of the member\'s indicators (Create Indicator\'s own Save; a new indicator, or a new version of the one being edited) — always shown as a proposal with the builder\'s own summary first. addTo: charts to add the SAVED indicator to afterwards (each added separately, with its own receipt).',
-    hints: 'target = the draft\'s ref (usually the active one). addTo = refs of the charts to add it to after it is saved ([] for none) — only charts the member asked for. To name it ("save it as Bullish Trend"), put an indicator.draft op "Name it Bullish Trend" on the SAME draft before this op.',
-    args: { type: 'object', properties: { addTo: { type: 'array', items: { type: 'string' } } }, required: ['addTo'], additionalProperties: false },
-    check(st, { addTo }) {
+    hints: 'target = the draft\'s ref (usually the active one). addTo = refs of the charts to add it to after it is saved ([] for none) — only charts the member asked for. name = the name the member gave ("save it as Bullish Trend" → "Bullish Trend"), else null — never a separate indicator.draft op for the name.',
+    args: { type: 'object', properties: { addTo: { type: 'array', items: { type: 'string' } }, name: { type: ['string', 'null'] } }, required: ['addTo', 'name'], additionalProperties: false },
+    check(st, { addTo, name }) {
       if (st.new) return 'There is no draft to save yet — describe the indicator first.'
+      if (name != null && (typeof name !== 'string' || !name.trim() || name.length > 120)) return 'Say the name to save it as.'
+      if (name != null && has(st, 'turn')) return 'Name it in the save itself, not as a separate change.'
       const u = usable(st); if (u) return u
       if (has(st, 'save')) return 'One save at a time.'
       if (!has(st, 'turn') && !st.status.canSave) return refusalSentence({ reason: R.NOT_DIRTY })
@@ -410,13 +412,14 @@ export function registerIndicatorAuthoringCapabilities() {
       }
       return null
     },
-    apply(st, { addTo }) {
+    apply(st, { addTo, name }) {
       const add = [...new Set(addTo || [])]
+      const nm = typeof name === 'string' && name.trim() ? name.trim() : null
       const turn = st.ops.find(o => o.type === 'turn')
-      const p = pinFor(st, { addTo: add, turn: turn ? turn.message : null })
+      const p = pinFor(st, { addTo: add, name: nm, turn: turn ? turn.message : null })
       // a rename in the same request is pinned to the revision the member saw, too
       const ops = st.ops.map(o => (o.type === 'turn' ? { ...o, pinRevision: p.revision } : o))
-      return { ...st, ops: [...ops, { type: 'save', addTo: add, pinKey: p.key, pinRevision: p.revision, ackShown: p.ackShown, linesShown: p.lines, outputsShown: p.outputs, nameShown: p.name }] }
+      return { ...st, ops: [...ops, { type: 'save', addTo: add, name: nm, pinKey: p.key, pinRevision: p.revision, ackShown: p.ackShown, linesShown: p.lines, nameShown: p.name }] }
     },
     describe: (b, a) => {
       const op = a.ops.find(o => o.type === 'save')
@@ -427,7 +430,8 @@ export function registerIndicatorAuthoringCapabilities() {
       const after = op.addTo.length ? ` — then add it to ${op.addTo.map(r => b.charts.find(c => c.ref === r)?.label || r).join(', ')}, each separately` : ''
       const summary = op.linesShown.length ? ` · The builder's summary: ${op.linesShown.join(' / ')}` : ''
       const ack = op.ackShown.length ? ` · You are also acknowledging: ${op.ackShown.join(' ')}` : ''
-      return `Save ${what} (draft revision ${op.pinRevision}${turn ? ', after that rename only' : ''})${after}${summary}${ack}`
+      const as = op.name ? ` as “${op.name}” (renamed first — a name-only step)` : ''
+      return `Save ${what}${as} (draft revision ${op.pinRevision}${turn ? ', after that rename only' : ''})${after}${summary}${ack}`
     },
   })
 
