@@ -1,0 +1,1 @@
+ZERO — no <failure>/<error> entries in the vitest junit report
