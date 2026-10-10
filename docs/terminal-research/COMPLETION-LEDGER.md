@@ -41,6 +41,8 @@ Printed 2026-10-10 after lanes L7 and L8:
 0 duplicate ids
 ```
 
+Re-run 2026-10-10 on `f-l8` after the TERM-066 drain (`80080e7ac`) and CAP-A12 (`a0eba9493`): identical output (CAP-A12 moved within `building`, Lane P -> integrator; the lane line below reflects it).
+
 Before this reconciliation (same command, the file as committed at `d95f331bb`): `279 Counter({'building': 85, 'live': 77, 'dark': 69, 'moot': 36, 'owner-blocked': 12})`, 0 duplicate ids. (The table that stood here then still carried the pre-sweep 2026-10-03 numbers; the command, not the table, was right.)
 
 The per-section split is the same regex applied to each `## ` section:
@@ -56,7 +58,7 @@ The per-section split is the same regex applied to each `## ` section:
 | 7 Untracked promises | 58 | 42 | 5 | 2 | 0 | 9 |
 | **total** | **279** | **185** | **26** | **20** | **8** | **40** |
 
-`building` by lane: P 8 · integrator 4 · Notebook 2 · R 2 · S 2 · D 1 · O 1.
+`building` by lane: P 7 · integrator 5 · Notebook 2 · R 2 · S 2 · D 1 · O 1.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -166,7 +168,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-063` | Keyboard registry | `live` | `app/src/pages/command/shortcutRegistry.js:50`. |
 | `TERM-064` | One ticker resolver | `live` | On master (`6854c3350`, via X-01): `app/src/lib/tickerResolver.js`, consumed by `app/src/floor2/Composer.jsx`; tweet ingest delegates. Ungated. Was `dark` (branch-only). |
 | `TERM-065` | DataGrid seed extraction | `building (Lane P)` | Seed live; `app/src/lib/presentation/dataGrid/dataGridSeed.rail.test.js:188` BASELINE holds 3 hand-rolled grids (was 9): lane f-l7 (`ab70b21ac`) moved CalendarDayTable, Shelf, HoldingsList, LiveFlowMassive, ThemeTrackerPage and Watchlists onto the seed (parity: `pageGrids2.seedParity.test.js`). The 3 left are partner-owned: DarkPool, OptionsFlow, OptionsFlow_admin. |
-| `TERM-066` | One format module | `building (Lane P)` | Module live; `app/src/lib/presentation/handRolledFormatters.baseline.json:12` lists 150 sites in 28 files (read 2026-10-10; not reconciled with the 60 / 46 counts quoted earlier, which may have used a narrower census). `lane/p2-ratchets-a` is superseded. Draining is the remainder. |
+| `TERM-066` | One format module | `building (Lane P)` | Module live. Lane L8 (`f-l8`, `80080e7ac`) drained 63 magnitude-suffix sites in 20 files onto `formatCompact`, each passing its own ladder (oracle-checked, 200k values per grammar: only the documented 999,950 -> "1.0M" promotion boundary moves). Baseline banked 150 sites / 28 files -> **87 / 10** (`app/src/lib/presentation/handRolledFormatters.baseline.json`). Left listed: partner-owned `OptionsFlow.jsx` 18, `DarkPool.jsx` 10, `OptionsFlow_admin.jsx` 39, `LiveFlow.jsx` 2, `LiveFlow_admin.jsx` 2 (`components/screener/reachable.test.js:575,587-588`); grammars the primitive cannot express yet: `optionsFlow/flowCompute.js` 1 (always-M, partner parity mirror), `chart/signatureData.js` 2 (parseFloat trim), `screener/shell/FilterBand.jsx` 4 (magnitude-dependent decimals), `AlertTester.jsx` 5 (always-M), `LiveFlowMassive.jsx` 4 (always-M + 1K-10K one-decimal). `app/src/agent/**` is not in the baseline: `agent/capabilities/stock.js` already formats through `formatCompact` (`d30317b78`), so the rail was green on master `11fa16167`. Remainder: the 16 non-partner sites need a primitive option (fixed unit, trim, per-magnitude decimals). |
 | `TERM-067` | Form-control layer | `live` | `Radio` primitive shipped (`1b391f926`); `app/src/components/ui/formControls.census.test.js:920` `UNNAMED_BASELINE = 0` (was 23): lane f-l7 (`0df595b83`) named the last 23 journal-2-0 sites through the ui Input / Select / Textarea primitives. Was `building (Lane P)`. |
 | `TERM-068` | Cohort store + kill switch | `live` | `api/services/rollout_gate.py:21`. |
 | `TERM-069` | Retire the yfinance/BS chain leg | `live` | `tests/test_term069_chain_leg_retired.py:74`. |
@@ -367,7 +369,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `D-13` | FDA / PDUFA dates on the events calendar | `moot (decided 2026-10-07: no PDUFA source purchase)` | ➜ 2026-10-07: S-7 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `ARCH-5B8` | Store retention registry visible to `disk_watchdog` | `live` | On master (`e82e6a661`, via X-01): `api/services/store_retention.py` registers the stores and `disk_watchdog` prints each one's retention or `UNDECLARED`; ungated; rail `tests/test_store_retention.py`. Was `dark` (branch-only). |
 | `ENT-UC2` | Watchlist rows keyed by entity id | `dark` | On master (`5d376567e`, via X-01; `api/services/watchlist_entity_keys.py`); `WATCHLIST_ENTITY_KEYS_ENABLED` still `pending` (`docs/feature_flags.json:79`). Arming needs the Entity Master seeded on web; rendering `display_sym` on the Watchlists page is not built. |
-| `CAP-A12` | Merge the two drag-and-drop libraries | `building (Lane P)` | |
+| `CAP-A12` | Merge the two drag-and-drop libraries | `building (integrator)` | Built on `f-l8` (`a0eba9493`); the remainder is the landing. Measured: `@dnd-kit` had ONE consumer (`pages/journal-2-0/components/ColumnsPicker.jsx`), native HTML5 drag is used in 32 non-test files incl. the terminal grip (`pages/terminal/TerminalShell.jsx:349`). ColumnsPicker moved to HTML5 drag (↑/↓ kept as the touch + keyboard door); `@dnd-kit/{core,sortable,utilities}` removed from `app/package.json` + lock (133,557 B unminified ESM, ~30.0 KB gzip; dist carries none). Rails: `ColumnsPicker.dnd.test.jsx` (9 tests, incl. no-`@dnd-kit` import/dep rail). `react-grid-layout` (/charts) is a layout engine with internal drag, untouched. |
 | `FB-A3` | Doc `file:line` citation resolver | `live` | Done 2026-10-10 by lane f-l1: `tools/doc_citation_resolver.py` (backticked `file.ext:N`, `:N-M` and `:N,M` resolved at a git revision; missing files and out-of-range lines reported; `--self-check` with a fixture that must fail), rails `tests/test_doc_citation_resolver.py`. Run over this file and the 2026-10-10 delivery record: 290 citations, 0 broken. Was `building (Lane P)`. |
 | `FB-A1` | Feature-backlog appendix A-1 | `moot (MOOT by the audit, §1b)` | |
 | `PREARM` | Pre-arm "would have fired N" receipt | `moot (dropped by the TERM-062 ruling 2026-09-29)` | |
