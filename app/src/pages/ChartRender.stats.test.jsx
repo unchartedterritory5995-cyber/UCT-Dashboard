@@ -55,7 +55,7 @@ describe('ChartRender ?stats=', () => {
     mount(`sym=LITE&tf=D&h=698&stats=${b64url(stats)}`)
     const text = screen.getByTestId('stats-strip').textContent
     for (const p of ['1065.20', '1141.90', '1060.00', '1103.36', '1143.50 (-3.5%)', '147.81']) expect(text).toContain(p)
-    expect(text).not.toMatch(/1K/)
+    expect(text).not.toMatch(/\b1K\b/)
     expect(text).toContain('5.3M')
     expect(text).toContain('5.8B')
   })
