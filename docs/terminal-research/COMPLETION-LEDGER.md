@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after lanes L7, L8 and L2): not complete.** 230 of 279 rows are `live` or `moot`; 49 are not (26 `dark`, 15 `building`, 8 `owner-blocked`). (Recounted 2026-10-10 after lane L2 moved TERM-061, BRK-06, FT-040 and EXPORT-FLOW to `live`; those land with branch `f-l2`.) It is complete when every row below is `live` or `moot`.
+**The answer today (after lane L6): not complete.** 230 of 279 rows are `live` or `moot`; 49 are not (28 `dark`, 13 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,14 +34,14 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 after lanes L7, L8 and L2:
+Printed 2026-10-10 after lane L6:
 
 ```
-279 Counter({'live': 190, 'moot': 40, 'dark': 26, 'building': 15, 'owner-blocked': 8})
+279 Counter({'live': 190, 'moot': 40, 'dark': 28, 'building': 13, 'owner-blocked': 8})
 0 duplicate ids
 ```
 
-Printed 2026-10-10 at master `d95f331bb`, before L2: `279 Counter({'live': 174, 'building': 44, 'moot': 39, 'dark': 13, 'owner-blocked': 9})`, 0 duplicate ids.
+The previous print, at master `d95f331bb` the same day: `279 Counter({'live': 174, 'building': 44, 'moot': 39, 'dark': 13, 'owner-blocked': 9})`.
 
 Before this reconciliation (same command, the file as committed at `d95f331bb`): `279 Counter({'building': 85, 'live': 77, 'dark': 69, 'moot': 36, 'owner-blocked': 12})`, 0 duplicate ids. (The table that stood here then still carried the pre-sweep 2026-10-03 numbers; the command, not the table, was right.)
 
@@ -51,14 +51,14 @@ The per-section split is the same regex applied to each `## ` section:
 |---|---|---|---|---|---|---|
 | 1 Programme records + ship | 17 | 11 | 0 | 3 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
-| 3 TERM-001..093 | 93 | 68 | 8 | 8 | 3 | 6 |
+| 3 TERM-001..093 | 93 | 68 | 9 | 7 | 3 | 6 |
 | 4 BRK-01..10 | 10 | 5 | 4 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 6 | 1 | 1 | 1 | 3 |
-| 6 FT-001..080 | 80 | 57 | 8 | 2 | 4 | 9 |
+| 6 FT-001..080 | 80 | 57 | 9 | 1 | 4 | 9 |
 | 7 Untracked promises | 58 | 43 | 5 | 1 | 0 | 9 |
-| **total** | **279** | **190** | **26** | **15** | **8** | **40** |
+| **total** | **279** | **190** | **28** | **13** | **8** | **40** |
 
-`building` by lane: P 6 · Notebook 2 · R 2 · S 2 · integrator 2 · D 1.
+`building` by lane: P 6 · Notebook 2 · R 2 · integrator 2 · D 1.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -120,14 +120,14 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-015` | Cadence heartbeat roll-up | `live` | `api/terminal_next_monitor_main.py:208`. |
 | `TERM-016` | Durable alert cooldowns | `live` | `api/services/chart_health_alerts.py:130`. |
 | `TERM-017` | Loop-lag distribution | `building (Lane P)` | Histogram built (`api/event_loop_watchdog.py:221`). Read `lag_histogram` inside the 2026-10-14 09:00–11:00 ET window fixed by B1 (`12-decisions/2026-10-07-owner-delegated-decisions.md:200`); an agent step after the window (`12-decisions/2026-10-07-owner-delegated-decisions.md:160`). Was `owner-blocked`. |
-| `TERM-018` | Every guard can fire | `building (Lane P)` | CI live (`.github/workflows/term018-guards.yml`). `12-decisions/gates/term-018-guard-observations.json`: 12 `observed`, 20 `declared_unobserved` (was 22). Observing the 20 is the remainder. |
+| `TERM-018` | Every guard can fire | `building (Lane P)` | CI live (`.github/workflows/term018-guards.yml`). `12-decisions/gates/term-018-guard-observations.json`: 26 `observed`, 6 `declared_unobserved` (was 12 / 20; the ceiling went 20 -> 6, `tests/test_term018_every_guard_can_fire.py` `DECLARED_UNOBSERVED_CEILING`). Lane f-l6, 2026-10-10: nine newly mutation-proved (proof `26baca999`: G-05..G-08, G-11, G-12, G-24, G-25, G-26) and five whose proofs were already on master but never recorded (G-22/G-23 `7811f4b34`; G-14, G-46, `_page_discord` `48ef6b471`), recorded in `9e099427a`. Remainder, each blocker named in its row: G-10 and G-15 (no single wire clause 7 can follow: many request-path callers; lambda jobs behind aliased imports), G-18..G-20 (computed key and severity, clock-gated to about 2027-07), G-21 (request path, and no producer writes the input), G-30/G-31 (wisdom table wire, not attempted this pass). |
 | `TERM-019` | Provenance set + adoption rail | `live` | `app/src/components/provenance/panelAdoption.ratchet.test.js`; adoption is a shrink-only ratchet. |
 | `TERM-020` | Canonical resolver (CP3) | `live` | `api/services/canonical/resolver.py:453`; caller `api/routers/breadth_monitor.py:1061`. |
 | `TERM-021` | Versioned workspace document | `live` | `api/services/workspace_doc_store.py:231`. |
 | `TERM-022` | Massive adapter + retirement queue | `live` | `api/services/massive_adapter.py:63`. Partner-file ack is moot (fully open since 9/29). |
 | `TERM-023` | Entity master member path | `live` | `api/services/entity_master/member_resolve.py:50`; armed 10-02 (this branch's ledger). |
 | `TERM-024` | Panel declares a need | `live` | `app/src/lib/panelContract.js:126`. |
-| `TERM-025` | Seven more trigger types | `owner-blocked (set each type's flip when its shadow log meets ADR-0036 over ≥10 sessions)` | 8/8 registered (`api/services/alert_taxonomy/registry.py:16`). ➜ 2026-10-07: T-11; owner action A8 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `TERM-025` | Seven more trigger types | `owner-blocked (run tools/alert_type_readiness.py on web; flip each type it prints READY TO FLIP)` | 8/8 registered (`api/services/alert_taxonomy/registry.py:16`). The readiness tool exists (`fbe983304`, lane f-l6): it reads every shadow type's log through `api/services/alert_taxonomy/dark_report.py` and applies ADR-0036 clause v3 plus T-11's >= 10 consecutive trading sessions; it flips nothing. The command is in `12-decisions/2026-10-10-arming-list.md`. ➜ 2026-10-07: T-11; owner action A8 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-026` | Auditor denominator | `live` | `api/auth_surface_check.py:393`. |
 | `TERM-027` | Header inside error boundary | `live` | `app/src/pages/charts/WidgetHost.jsx:315`. |
 | `TERM-028` | Honest blank for futures | `moot (futures removed 2026-07-27; BTC/VIX on yfinance is D-004)` | |
@@ -149,7 +149,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-044` | Span-anchored recap citation | `live` | `app/src/components/calendar/CallRecapSection.jsx:202`. |
 | `TERM-045` | EDGAR Form 4 / 13F | `dark` | Form 4 live (`api/routers/research.py:267`). 13F join built 2026-10-10 (lane L5) per T-14: `api/services/sec_13f_list.py` downloads the SEC Official List of Section 13(f) Securities (`/files/investment/13flist{YYYY}q{N}.txt`, falls back up to 3 quarters, via `sec_client` with SEC_USER_AGENT, 30 s timeout, 8 MB cap, cached under `SEC_13F_LIST_PATH`) from the job `sec_13f_list_refresh` (`api/main.py:8642`); `/api/research/ownership/{sym}` carries `thirteen_f_list` (ticker CUSIP from the FTD store or FMP profile, its 13(f) status, every listed security of the issuer, list quarter beside the FMP 13F holders quarter; `sec_13f_list.py:298`, `research.py:390-392`) and the Ownership tab shows one line (`OwnershipTab.jsx:179`); `annotate_positions` joins Form 13F information-table positions by CUSIP. Behind `SEC_13F_LIST_ENABLED`, `dark`. No purchase. Tests: `tests/test_sec_13f_list.py`, `OwnershipTab.thirteenfList.test.jsx`. Was `building`. |
 | `TERM-046` | Short-interest history | `live` | `SHORT_INTEREST_SOURCE=finviz` armed (`api/services/short_interest.py:99`). |
-| `TERM-047` | CoverageLine on result surfaces | `building (Lane S)` | `lane/s2-finish` merged dark (`9e69eddd9`, 2026-10-07): receipts on scans, the six preset scans, volume-scan and `/api/screener/scan`, behind `COVERAGE_RECEIPTS_SCANS_ENABLED` (pending, `docs/feature_flags.json:1936`). Remainder: retire the `CoverageLine` shim (dropped from that merge: it needs an edit to `components/chart/builder/EvidenceTab.jsx`), then arm. |
+| `TERM-047` | CoverageLine on result surfaces | `dark` | `lane/s2-finish` merged dark (`9e69eddd9`, 2026-10-07): receipts on scans, the six preset scans, volume-scan and `/api/screener/scan`, behind `COVERAGE_RECEIPTS_SCANS_ENABLED` (pending, `docs/feature_flags.json`). Lane f-l6 (`5a16a10e9`, branch-only until merged): the `components/screener/CoverageLine.jsx` shim is retired (`EvidenceTab.jsx` and `ScanResults.jsx` import `components/provenance/CoverageLine` directly) and the terminal `MOST RVOL` lens renders the volume scan's receipt (`app/src/pages/terminal/panels/MoversPanel.jsx`). Arm: `COVERAGE_RECEIPTS_SCANS_ENABLED=1` on web, no prerequisite (`12-decisions/2026-10-10-arming-list.md`). Was `building (Lane S)`. |
 | `TERM-048` | Watchlist alerts onto S7 | `live` | `api/services/alert_taxonomy/watchlist_price_alerts.py:80`. |
 | `TERM-049` | Per-ticker history join | `live` | `api/services/ticker_history.py:43`; LANES2 armed 10-02. |
 | `TERM-050` | One provenance renderer | `building (Notebook)` | Notebook Ask still imports `documentProvenance` (`app/src/pages/journal-2-0/components/notebook/AskPanel.jsx:17`). The terminal's Ask-AI doors are on the I1/S8 rail (`cb8fa7e0c`). |
@@ -264,10 +264,10 @@ The per-section split is the same regex applied to each `## ` section:
 | `FT-029` | `where` grammar | `live` | Typed subjects, `$AAPL` / `#list` scopes and arithmetic in the one where-grammar: `SCREENER_ALERT_GRAMMAR_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:1898`). Was `building (Lane S)`. |
 | `FT-030` | English → grammar compiler | `live` | `SCREENER_NL_COMPILE_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:1988`). Was `dark`. |
 | `FT-031` | Three alert kinds | `live` | `api/services/alert_conditions.py:44`. |
-| `FT-032` | Alert on the position drawing | `building (Lane S)` | Line-drawing alerts live; `alertKindFor` still returns null for the position drawing (`app/src/components/chart/drawingAlertAnchors.js:35-40`). |
-| `FT-033` | Outbound webhook alerts | `dark` | `ALERT_WEBHOOKS_ENABLED` still `pending` (`docs/feature_flags.json:1884`); on master. |
-| `FT-034` | Six trigger source types | `owner-blocked (as TERM-025)` | A rating-change type is agent-buildable (Lane S) once ruled. ➜ 2026-10-07: T-11 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
-| `FT-035` | Per-alert lifecycle | `dark` | Expiry armed on web 2026-10-04 (`a046f7d9f`) (`ALERT_LIFECYCLE_ENABLED`, `docs/feature_flags.json:1980`). Remind built dark (`lane/s2-finish`, `9e69eddd9`): `ALERT_REMIND_ENABLED` pending (`docs/feature_flags.json:1930`). Reverse still waits on the price_level flip (TERM-025). Was `building (Lane S)`. |
+| `FT-032` | Alert on the position drawing | `dark` | Built on lane f-l6 (`47013a182`, branch-only until merged; no flag, so it is live once merged): `alertKindFor('position')` returns `line` (`app/src/components/chart/drawingAlertAnchors.js`); entry, stop and target are bound line alerts keyed by point index (`<id>#1` is the stop), so the existing resync moves and deletes them; the menu offers Entry, Stop, Target and All three (`positionAlerts` in `drawingSettingsSchema.js`, `ChartDrawingOverlay.jsx`), and the entry's side comes from the last close (`StockChart.jsx`). Tests: `drawingPositionAlert.test.jsx`. Was `building (Lane S)`. |
+| `FT-033` | Outbound webhook alerts | `dark` | `ALERT_WEBHOOKS_ENABLED` still `pending` (`docs/feature_flags.json`); on master. Arming checked 2026-10-10 (lane f-l6): read site `api/services/alert_taxonomy/outbound_webhooks.py:102`, drain job `alert_webhooks_drain`; prerequisite `BROKER_ENCRYPTION_KEY` on web (`outbound_webhooks.py:219` refuses to mint a signing secret without it). `12-decisions/2026-10-10-arming-list.md`. |
+| `FT-034` | Six trigger source types | `owner-blocked (as TERM-025: arm ALERT_TAXONOMY_RATING_CHANGE_DARK_ENABLED on web, then flip rating-change when the readiness tool prints it READY)` | The rating-change type is built dark (`api/services/alert_taxonomy/rating_change.py`, `ALERT_RATING_CHANGE_ENABLED` pending). Lane f-l6 (`fbe983304`) adds its shadow log (`rating_change_compare.py`, behind `ALERT_TAXONOMY_RATING_CHANGE_DARK_ENABLED`, spans and a heartbeat only), read by `tools/alert_type_readiness.py` like the other seven. ➜ 2026-10-07: T-11 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `FT-035` | Per-alert lifecycle | `dark` | Expiry armed on web 2026-10-04 (`a046f7d9f`) (`ALERT_LIFECYCLE_ENABLED`). Remind built dark (`lane/s2-finish`, `9e69eddd9`): `ALERT_REMIND_ENABLED` pending; arming checked 2026-10-10 (lane f-l6): read site `api/services/alert_taxonomy/remind.py:63`, job `alert_remind`, no prerequisite (`12-decisions/2026-10-10-arming-list.md`). Reverse still waits on the price_level flip (TERM-025). Was `building (Lane S)`. |
 | `FT-036` | Routing rule + suspend | `live` | `ALERT_ROUTING_RULE_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:1890`); the rule governs the TERM-048 bridge too (`937b3d9e5`). Was `building (Lane S)`. |
 | `FT-037` | Four channels incl. SMS / push | `moot (decided 2026-10-07: no SMS; email, in-app and push cover it)` | Email/in-app live; push dark (BRK-04). ➜ 2026-10-07: S-3 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-038` | Push topics + Telegram bot | `moot (decided 2026-10-07: no Telegram)` | Chat-linking is agent-buildable afterwards. ➜ 2026-10-07: S-4 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
@@ -350,9 +350,9 @@ The per-section split is the same regex applied to each `## ` section:
 | `NAV` | Nav graduation `to:'/terminal'` + the fresh viewport-lock measurement | `live` | Graduated: `app/src/components/NavBar.jsx:27` is `to: '/terminal'` (`c941080f0`, I-11 `12-decisions/2026-10-07-owner-delegated-decisions.md:39`); `/terminal` measured viewport-locked (`18676e3ec`). Was `building (Lane T4)`. |
 | `EXPORT-FLOW` | Options-flow export from flow-worker | `live` | `GET /api/exports/flow/{symbol}` (`api/routers/data_exports.py:120`): paid, behind `DATA_EXPORTS_ENABLED` (armed on web 2026-10-04, `docs/feature_flags.json:1868`), metered like the other exports. The rows are a server-side read of flow-worker's `/api/flow/ticker/{symbol}` sent the way web's other flow reads are (straight to `WORKER_INTERNAL_URL` when the read proxy is on, PUSH_SECRET service credential, never the member's cookie; `api/services/data_exports.py:335`), one session per file (`:352`). No flow-worker file changed, so no flow-worker deploy and the OPRA tape is untouched. Rails `tests/test_data_exports_flow.py`. There is no button on the partner-owned Options Flow page yet; the door is the URL and the skill whitelist. Lands with branch `f-l2`. Was `building (Lane O)`, which cited `reports/lane-o-options-remainders.md:37`. |
 | `SCR-URL` | Grouped logic carried in the screener URL | `live` | The grouped `logic` node rides the screener URL (`app/src/pages/screener/shell/useScreenSpec.js:31`, `:84`); `SCREENER_LOGIC_ENABLED` armed on web 2026-10-04 (`a046f7d9f`). Was `building (Lane S)`. |
-| `AC-2` | One channel registry instead of per-alert webhook names | `dark` | Built dark (`lane/s2-finish`, `9e69eddd9`): `ALERT_CHANNEL_REGISTRY_ENABLED` pending (`docs/feature_flags.json:1912`). Was `building (Lane S)`. |
-| `AC-4` | Per-trigger-type queue caps with a reserve | `dark` | Built dark (`9e69eddd9`): `ALERT_QUEUE_CAPS_ENABLED` pending (`docs/feature_flags.json:1906`). Was `building (Lane S)`. |
-| `AC-7` | Per-trigger ops monitor + channel-health view | `dark` | Built dark (`9e69eddd9`): `ALERT_OPS_MONITOR_ENABLED` pending (`docs/feature_flags.json:1918`). Was `building (Lane S)`. |
+| `AC-2` | One channel registry instead of per-alert webhook names | `dark` | Built dark (`lane/s2-finish`, `9e69eddd9`): `ALERT_CHANNEL_REGISTRY_ENABLED` pending. Arming checked 2026-10-10 (lane f-l6): read site `api/services/alert_taxonomy/channels.py:38`, consumer `api/services/alerts.py:148`, no prerequisite (`12-decisions/2026-10-10-arming-list.md`). Was `building (Lane S)`. |
+| `AC-4` | Per-trigger-type queue caps with a reserve | `dark` | Built dark (`9e69eddd9`): `ALERT_QUEUE_CAPS_ENABLED` pending. Arming checked 2026-10-10 (lane f-l6): read site `api/services/alert_taxonomy/queue_caps.py:63`, consumer `api/services/alert_taxonomy/delivery.py:69`, no prerequisite (`12-decisions/2026-10-10-arming-list.md`). Was `building (Lane S)`. |
+| `AC-7` | Per-trigger ops monitor + channel-health view | `dark` | Built dark (`9e69eddd9`): `ALERT_OPS_MONITOR_ENABLED` pending. Arming checked 2026-10-10 (lane f-l6): read site `api/services/alert_taxonomy/ops_monitor.py:55`, route `api/routers/alert_taxonomy.py:225`, panel `app/src/pages/Admin.jsx:2061`, no prerequisite (`12-decisions/2026-10-10-arming-list.md`). Was `building (Lane S)`. |
 | `AC-11` | Save-time fork: frozen list / re-runnable definition / standing alert (UC-4) | `live` | Save-time fork (`dea677762`): `SCREENER_SAVE_FORK_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:1956`). Was `building (Lane S)`. |
 | `D-1` | Three-state earnings-date status with timestamps | `live` | `EARNINGS_DATE_STATUS_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2146`); `api/services/earnings_date_status.py`, `GET /api/calendar/date-status`. "Company-signaled" stays unavailable (no provider carries it). Was `dark`. |
 | `D-2` | "First confirmed" timestamp on `calendar_date_history` | `live` | Same flag, armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2146`); timestamps are first seen by UCT, accumulating from merge. Was `dark`. |
