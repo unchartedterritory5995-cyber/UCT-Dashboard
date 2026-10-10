@@ -700,6 +700,7 @@ def warm_all(max_rebuilds: int = 6) -> dict:
             continue
         if not hit and _disk_load(sid) is not None:
             build(sid)
+            _prime_overlay_inputs(sid)
             out["restored"] += 1
             continue
         if out["rebuilt"] >= max_rebuilds:
@@ -707,6 +708,7 @@ def warm_all(max_rebuilds: int = 6) -> dict:
             continue
         try:
             _rebuild(sid, key)
+            _prime_overlay_inputs(sid)
             out["rebuilt"] += 1
         except Exception:
             pass
