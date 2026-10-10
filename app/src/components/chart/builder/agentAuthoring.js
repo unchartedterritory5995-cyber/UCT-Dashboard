@@ -26,8 +26,9 @@ import {
 } from './authoring/conversationSessions'
 import {
   restoreConversation, initialConversationState, initialTranscript, hasSomethingToKeep,
-  localTurn, modelTurn, undoTurn, saveConversation, noteDiscarded,
+  localTurn, modelTurn, undoTurn, saveConversation, noteDiscarded, previewDefinitionOf,
 } from './authoring/authoringSession'
+import { withPendingInputs } from './studio/editPreview'
 
 export const AUTHORING_CONTRACT = 'uct.indicators.authoring/1'
 
@@ -50,6 +51,10 @@ export const AUTHORING_REASONS = Object.freeze({
   SAVE_REFUSED: 'save-refused',
   SAVED_UNCONFIRMED: 'saved-unconfirmed',
   TURN_REFUSED: 'turn-refused',             // the server or the engine refused the turn (detail)
+  NOTHING_TO_PREVIEW: 'nothing-to-preview', // the draft has no working definition yet
+  PREVIEW_READONLY: 'readonly',             // that chart cannot show a preview
+  PREVIEW_BUSY: 'busy',                     // a Create Indicator dock holds the tab's preview
+  PREVIEW_INVALID: 'invalid',               // the registry refused the working definition
 })
 const R = AUTHORING_REASONS
 
@@ -117,7 +122,10 @@ function resolve(draftRef, ctx = {}) {
   if (!isObj(draftRef) || draftRef.contract !== AUTHORING_CONTRACT || typeof draftRef.key !== 'string'
     || !KEY_RE.test(draftRef.key) || typeof draftRef.lineage !== 'string') return refuse(R.BAD_REQUEST)
   const snap = readSession(draftRef.key)
-  if (!snap || !snap.state || snap.state.lineage !== draftRef.lineage) return refuse(R.DRAFT_EXPIRED)
+  if (!snap || !snap.state || snap.state.lineage !== draftRef.lineage) {
+    if (previewing && previewing.key === draftRef.key && previewing.lineage === draftRef.lineage) dropPreview(draftRef.key)
+    return refuse(R.DRAFT_EXPIRED)
+  }
   const st = snap.state
   if (st.defId && Number.isInteger(st.baseVersion)) {
     const row = rowFor(ctx, st.defId)
@@ -139,6 +147,34 @@ function writable(draftRef, ctx) {
 function keep(key, snap) {
   if (hasSomethingToKeep({ state: snap.state, transcript: snap.transcript })) writeSession(key, snap, { persist: true })
   else writeSession(key, snap)
+}
+
+// ─── the draft preview (S3): which draft the Agent is previewing, on which chart host ─────
+// One per tab (the preview channel enforces it); refreshed after every applied change and
+// Undo of THAT draft; taken down on Save, Discard and expiry.
+let previewing = null // { key, lineage, host, chartRef }
+
+function previewOptsOf(state) {
+  const editing = !!(state.defId && Number.isInteger(state.baseVersion))
+  return { ...(editing ? { replaces: state.defId, base: state.base || null, shapeEdit: withPendingInputs } : {}),
+    calcTf: (state.requests && state.requests.calculationTimeframe) || null }
+}
+function dropPreview(key) {
+  if (!previewing || previewing.key !== key) return false
+  const p = previewing
+  previewing = null
+  try { p.host.clearAuthoringPreview() } catch { /* the chart is gone */ }
+  return true
+}
+/** After a change or Undo of `key`'s draft: redraw the preview it has (if any). */
+function refreshPreview(key, state) {
+  if (!previewing || previewing.key !== key) return null
+  const def = previewDefinitionOf(state)
+  if (!def) { dropPreview(key); return { refreshed: false, cleared: true } }
+  let res
+  try { res = previewing.host.showAuthoringPreview(def, previewOptsOf(state)) } catch { res = { ok: false } }
+  if (!res || !res.ok) { previewing = null; return { refreshed: false, cleared: true } }
+  return { refreshed: true, chartRef: previewing.chartRef }
 }
 
 // ─── open / status / list ────────────────────────────────────────────────────
@@ -266,7 +302,12 @@ export async function draftTurn(draftRef, message, opts = {}, ctx = {}) {
   const next = { ...snap, state: out.state || snap.state, transcript: append(withMember, out.entries), acked: out.changed ? false : snap.acked }
   delete next.recovered
   keep(key, next)
-  return outcomeOf(out, snap, next)
+  const outcome = outcomeOf(out, snap, next)
+  if (out.state && out.changed) {
+    const pv = refreshPreview(key, next.state)
+    if (pv) outcome.preview = pv
+  }
+  return outcome
 }
 
 /**
@@ -285,8 +326,9 @@ export function draftUndo(draftRef, opts = {}, ctx = {}) {
   const next = { ...snap, state: out.state, transcript: append(snap.transcript, [out.entry]), acked: false }
   delete next.recovered
   keep(key, next)
+  const pv = refreshPreview(key, out.state)
   return { ok: true, kind: 'undone', undid: top, revision: out.state.revision, undoStepId: undoStepIdOf(out.state),
-    lines: out.entry.lines.slice(), readback: readback(out.state.working, out.state, gateCtxOf(ctx)) }
+    lines: out.entry.lines.slice(), readback: readback(out.state.working, out.state, gateCtxOf(ctx)), ...(pv ? { preview: pv } : {}) }
 }
 
 /** Throw the draft away. @returns `{ok:true}` | refusal */
@@ -297,6 +339,7 @@ export function discardDraft(draftRef, opts = {}, ctx = {}) {
     return refuse(R.STALE_REVISION, { revision: w.snap.state.revision })
   }
   noteDiscarded(w.snap.state)
+  dropPreview(w.key)
   clearSession(w.key)
   return { ok: true }
 }
@@ -352,7 +395,9 @@ export async function saveDraft(draftRef, opts = {}, ctx = {}) {
       : s.stage === 'validate' ? R.VALIDATION : R.SAVE_REFUSED
     return refuse(reason, { error: out.error || null, ...(s.refusal ? { refusal: s.refusal } : {}), ...(s.conflictInfo ? { conflict: s.conflictInfo } : {}) })
   }
-  // the store accepted it: the draft ends either way (a retry would create a second definition)
+  // the store accepted it: the draft ends either way (a retry would create a second definition),
+  // and its preview goes (the saved indicator is added to charts through M2)
+  dropPreview(key)
   clearSession(key)
   const doc = out.storedDoc
   const row = await (ctx.readBack || readStoredDefinition)(doc.id)
@@ -364,3 +409,36 @@ export async function saveDraft(draftRef, opts = {}, ctx = {}) {
     receipt: { title: out.receipt.title, items: out.receipt.items.map((i) => i.text) },
     outcomes: out.outcomes.map((o) => ({ ...o })) }
 }
+
+// ─── preview (S3) ────────────────────────────────────────────────────────────
+
+/**
+ * Show the draft's working definition as the tab's ONE live preview on a chart — only when
+ * the member asked, or named a chart for the draft (§15.3). `host` is that chart's
+ * ChartPane handle (`showAuthoringPreview` / `clearAuthoringPreview`); `chartRef` is the
+ * Agent's ref for it (receipts). The preview is refreshed after every applied change and
+ * Undo of this draft and taken down on Save / Discard / expiry; it is never persisted.
+ * @returns `{ok:true, chartRef, movedFrom}` | refusal (`nothing-to-preview`, `readonly`,
+ *          `busy` — a dock holds the preview, `invalid`, `draft-open-in-dock`, `access`, …)
+ */
+export function showDraftPreview(draftRef, { host, chartRef = null } = {}, ctx = {}) {
+  const w = writable(draftRef, ctx)
+  if (!w.ok) return w
+  if (!host || typeof host.showAuthoringPreview !== 'function' || typeof host.clearAuthoringPreview !== 'function') return refuse(R.BAD_REQUEST)
+  const def = previewDefinitionOf(w.snap.state)
+  if (!def) return refuse(R.NOTHING_TO_PREVIEW)
+  let res
+  try { res = host.showAuthoringPreview(def, previewOptsOf(w.snap.state)) } catch { res = { ok: false, reason: 'readonly' } }
+  if (!res || !res.ok) return refuse((res && res.reason) || R.PREVIEW_READONLY)
+  previewing = { key: w.key, lineage: w.snap.state.lineage, host, chartRef }
+  return { ok: true, chartRef, movedFrom: res.movedFrom ?? null }
+}
+
+/** Take the draft's preview down (no-op when it has none). @returns `{ok:true, cleared}` */
+export function clearDraftPreview(draftRef) {
+  if (!isObj(draftRef) || typeof draftRef.key !== 'string') return refuse(R.BAD_REQUEST)
+  return { ok: true, cleared: dropPreview(draftRef.key) }
+}
+
+/** Tests only. */
+export function _resetDraftPreview() { previewing = null }

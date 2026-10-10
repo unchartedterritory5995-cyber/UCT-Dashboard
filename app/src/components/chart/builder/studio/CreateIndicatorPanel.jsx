@@ -25,7 +25,7 @@ import { colorRuleWords, outputNamer } from '../authoring/readback'
 import { helpersOfDefinition, plotColorRule } from '../authoring/colorRules'
 import { converseTurn } from '../authoring/converseClient'
 import useIndicatorConversation, { typeWord } from './useIndicatorConversation'
-import { STUDIO_PREVIEW_DEF_ID, previewInstanceFor, previewInstanceLike, withCalcFrame } from './chartPreview'
+import { claimPreview, releasePreview, installPreview, removePreview } from './previewChannel'
 import { withPendingInputs } from './editPreview'
 import { conversationEditability, CARRIED_NOTE } from '../authoring/memberWords'
 import styles from './CreateIndicatorPanel.module.css'
@@ -150,7 +150,7 @@ export default function CreateIndicatorPanel({
   onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null,
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
   dockHost = null, onDocked = null, sessionKey = null, editRow = null, onEditFormula = null,
-  seed = null,
+  seed = null, previewChartRef = null,
 }) {
   // ⭐ PHASE 4 — held once: the row this studio was opened on (a later list refresh
   // must not re-open it under the member's feet).
@@ -194,36 +194,28 @@ export default function CreateIndicatorPanel({
   // `installUserDefinitions` is the shipped install door AND the validation door:
   // a working definition it refuses draws nothing (and takes the previous preview
   // with it), exactly as the Builder's PreviewPane behaves.
+  // ⭐ M3 S3 — the install-and-show step lives in `previewChannel.installPreview` (moved, the
+  // SAME steps), and the dock CLAIMS the tab's one preview (D3): a preview UCT Agent showed on
+  // another chart is cleared first, so the one registry id is never shared by two charts.
+  const [previewToken] = useState(() => ({ surface: 'dock' }))
   useEffect(() => {
     if (!previewDefinition) {
-      engineRegistry.uninstallUserDefinition(STUDIO_PREVIEW_DEF_ID)
-      onPreviewRef.current?.(null)
+      removePreview(engineRegistry, onPreviewRef.current)
+      releasePreview(previewToken)
       return
     }
-    const { installed } = engineRegistry.installUserDefinitions([previewDefinition])
-    if (installed.length === 1) {
-      // ⭐ PHASE 4 — an edit previews IN PLACE of the saved drawing, shaped like it.
-      // ⭐ PHASE 5 — and on the calculation timeframe the conversation asked for, so the
-      // preview is computed exactly as Save will compute it.
-      // ⭐ BATCH 1 — and with the setting values Save will write to this chart's
-      // instance (`editPreview.withPendingInputs`, the same rule as Save).
-      if (open) {
-        const like = withPendingInputs(previewInstanceLike(settingsRef.current, open.defId, engineRegistry),
-          { base: previewBase, working: previewDefinition, settings: settingsRef.current, registry: engineRegistry })
-        onPreviewRef.current?.(withCalcFrame(like, previewCalcTf), { replaces: open.defId })
-      } else onPreviewRef.current?.(withCalcFrame(previewInstanceFor(settingsRef.current, engineRegistry), previewCalcTf))
-    } else {
-      engineRegistry.uninstallUserDefinition(STUDIO_PREVIEW_DEF_ID)
-      onPreviewRef.current?.(null)
-    }
-  }, [previewDefinition, previewBase, open, previewCalcTf])
+    claimPreview(previewToken, previewChartRef, () => removePreview(engineRegistry, onPreviewRef.current), 'dock')
+    installPreview({ definition: previewDefinition, edit: open ? { defId: open.defId } : null, base: previewBase,
+      calcTf: previewCalcTf, settings: settingsRef.current, registry: engineRegistry, onPreview: onPreviewRef.current,
+      shapeEdit: withPendingInputs })
+  }, [previewDefinition, previewBase, open, previewCalcTf, previewChartRef, previewToken])
 
   // ⛔ THE TEARDOWN IS NOT OPTIONAL — Cancel, ✕, Save, a symbol-less remount and
   // an unmount of the chart itself all end here: no registry entry, no instance.
   const clearPreview = useCallback(() => {
-    engineRegistry.uninstallUserDefinition(STUDIO_PREVIEW_DEF_ID)
-    onPreviewRef.current?.(null)
-  }, [])
+    removePreview(engineRegistry, onPreviewRef.current)
+    releasePreview(previewToken)
+  }, [previewToken])
   useEffect(() => clearPreview, [clearPreview])
 
   // ⛔ NOT `scrollIntoView` — that scrolls every ancestor, the page included.

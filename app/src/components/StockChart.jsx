@@ -5268,6 +5268,13 @@ export default function StockChart({
       canManageIndicators: () => {
         try { return !!toolbarRef.current?.canManageIndicators?.() } catch { return false }
       },
+      // ⭐ AGENT M3 (S3) — the tab's one authoring preview, shown on / cleared from THIS chart
+      showAuthoringPreview: (definition, opts = {}) => {
+        try { return toolbarRef.current?.showAuthoringPreview?.(definition, opts) ?? { ok: false, reason: 'readonly' } } catch { return { ok: false, reason: 'readonly' } }
+      },
+      clearAuthoringPreview: () => {
+        try { return !!toolbarRef.current?.clearAuthoringPreview?.() } catch { return false }
+      },
       openAlerts: (initialFor = null) => {
         try { return toolbarRef.current?.openAlerts?.(initialFor) ?? false } catch { return false }
       },
