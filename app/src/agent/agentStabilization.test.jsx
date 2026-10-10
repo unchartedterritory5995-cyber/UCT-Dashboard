@@ -262,6 +262,25 @@ describe('R1 — "save it as X": rename first (its own step), then a Save card t
     await waitFor(() => expect(transcript()).toMatch(/Undid the last change to/), { timeout: 4000 })
     expect(stored).toEqual([])
   })
+  it('Undo of the rename reverses ONLY the rename: an earlier maths edit on the same draft stays', async () => {
+    const h = host([L])
+    const ref = await pivotDraft(h)                                              // rev 1: pivots
+    const before = drafts(h)[0].status
+    const send = mount(h)
+    send('Save it as Swing Watch.')
+    await waitFor(() => expect(cards()).toHaveLength(1), { timeout: 4000 })
+    const renamed = drafts(h)[0].status
+    expect(renamed.revision).toBe(before.revision + 1)
+    send('cancel')
+    await waitFor(() => expect(transcript()).toContain('Okay — nothing changed.'))
+    send('undo')
+    await waitFor(() => expect(drafts(h)[0].status.name).toBe(before.name), { timeout: 4000 })
+    const after = drafts(h)[0].status
+    expect(after.lines).toEqual(before.lines)                                    // the maths (pivot output) is untouched
+    expect(after.ackText).toEqual(before.ackText)                                // and its warning is the pre-rename one again
+    expect(drafts(h).map(d => d.ref)).toEqual([ref])                             // same draft, not a new one
+    expect(stored).toEqual([])
+  })
   it('a refused rename (the draft is open in Create Indicator) → no Save card at all', async () => {
     const h = host([L])
     await emaDraft(h)
