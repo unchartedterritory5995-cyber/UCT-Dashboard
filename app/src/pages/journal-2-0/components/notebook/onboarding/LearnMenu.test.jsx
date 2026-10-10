@@ -181,3 +181,35 @@ describe('keyboard and screen reader -- the menu button pattern', () => {
     expect(screen.queryByRole('menu')).toBeNull()
   })
 })
+
+// Integrator, measured in a browser at 390 px: the menu hung from the button's right edge and
+// started 30 px off the left of the screen. It is shifted back inside a 16 px gutter on open.
+describe('the open menu stays on screen', () => {
+  const rectOf = (left, width) => () => ({ left, right: left + width, top: 0, bottom: 420, width, height: 420, x: left, y: 0 })
+
+  it('shifts right when it would start off the left edge', () => {
+    latchNotebookFlags(WAVE14)
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      return this.getAttribute('role') === 'menu' ? rectOf(-30, 280)() : rectOf(0, 0)()
+    })
+    renderMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    expect(screen.getByRole('menu').style.transform).toBe('translateX(46px)')
+  })
+
+  it('shifts left when it would run off the right edge, and leaves a menu that fits alone', () => {
+    latchNotebookFlags(WAVE14)
+    const vw = window.innerWidth
+    let left = vw - 100
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      return this.getAttribute('role') === 'menu' ? rectOf(left, 280)() : rectOf(0, 0)()
+    })
+    renderMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    expect(screen.getByRole('menu').style.transform).toBe(`translateX(${(vw - 16) - (left + 280)}px)`)
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))   // close
+    left = 100
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    expect(screen.getByRole('menu').style.transform).toBe('')
+  })
+})

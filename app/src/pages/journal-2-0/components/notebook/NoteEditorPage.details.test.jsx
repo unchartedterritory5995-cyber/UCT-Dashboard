@@ -21,6 +21,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { NOTE_DETAILS_PREF_KEY } from './NoteDetailsLine'
+import { publishRegistryTourWanted, __resetRegistryTourControl } from './onboarding/tourRegistryControl'
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -260,5 +261,26 @@ describe('keyboard order: title, then the details toggle, then the body', () => 
     expect(stops.indexOf(title)).toBeGreaterThanOrEqual(0)
     expect(stops.indexOf(body)).toBeGreaterThan(stops.indexOf(title))
     expect(between).toEqual([toggle()])
+  })
+})
+
+// Integrator: a registered tour may point at a control inside the details (e.g. "Add property");
+// a tour step whose anchor is hidden closes the tour. Every start path goes through the gate,
+// which publishes what it runs -- the editor opens the details for as long as one runs.
+describe('a running tour opens the details (any start path)', () => {
+  afterEach(() => { __resetRegistryTourControl() })
+
+  it('opens while a tour runs and stays open for this visit, without touching the preference', async () => {
+    NOTE = thesisNote()
+    PROPERTIES = NVDA_PROPERTIES
+    await renderEditor()
+    expect(region().hidden).toBe(true)
+    publishRegistryTourWanted('formulas')
+    await waitFor(() => expect(region().hidden).toBe(false))
+    expect(toggle().getAttribute('aria-expanded')).toBe('true')
+    publishRegistryTourWanted(null)
+    await new Promise((r) => setTimeout(r, 20))
+    expect(region().hidden).toBe(false)          // like a review link: revealed for this visit
+    expect(localStorage.getItem(NOTE_DETAILS_PREF_KEY)).toBeNull()
   })
 })

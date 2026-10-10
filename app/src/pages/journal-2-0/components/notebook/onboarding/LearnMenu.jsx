@@ -16,7 +16,7 @@
 // (`useDisclosureFocus`), a press outside closes it. A choice also hands focus back to the
 // button before the tour starts, so focus is never dropped on <body> if the tour cannot open
 // here; a tour that does open takes focus itself.
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import UIcon from '../../../../../components/ui/UIcon'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
@@ -41,6 +41,23 @@ export default function LearnMenu({ className = '' }) {
   const { disclosureProps } = useDisclosureFocus({
     open, containerRef: menuRef, onClose: closeOnly, openerRef: triggerRef, focusOnOpen: false,
   })
+
+  // Keep the open menu on screen. It hangs from the button's right edge, and on a phone the
+  // button can sit centred (the welcome) or at the right (Home's search row), so no one CSS
+  // anchor fits: measured at 390 px it started 30 px off the left edge. Shift it back inside a
+  // 16 px gutter after layout, before paint.
+  useLayoutEffect(() => {
+    const el = menuRef.current
+    if (!open || !el) return
+    el.style.transform = ''
+    const r = el.getBoundingClientRect()
+    const vw = window.innerWidth || document.documentElement.clientWidth || 0
+    const gutter = 16
+    let dx = 0
+    if (r.left < gutter) dx = gutter - r.left
+    else if (vw && r.right > vw - gutter) dx = (vw - gutter) - r.right
+    if (dx) el.style.transform = `translateX(${Math.round(dx)}px)`
+  }, [open])
 
   // The first item takes focus when the menu opens.
   useEffect(() => {

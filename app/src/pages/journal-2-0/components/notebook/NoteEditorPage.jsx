@@ -1,6 +1,7 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import {
   Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState,
+  useSyncExternalStore,
 } from 'react'
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
@@ -98,7 +99,9 @@ import NoteDetailsLine, {
 import useNoteProperties from '../../hooks/useNoteProperties'
 import useThesisReviews from '../../hooks/useThesisReviews'
 import { templateRevealFor } from '../../lib/templatePropertyDefs'
-import { REGISTRY_TOUR_OPEN_EVENT } from './onboarding/tourRegistryControl'
+import {
+  REGISTRY_TOUR_OPEN_EVENT, getRegistryTourWanted, subscribeRegistryTourWanted,
+} from './onboarding/tourRegistryControl'
 import { createNoteViaApi } from '../../lib/noteCreation'
 import { refreshEvidenceCandidates } from '../../hooks/useEvidenceCandidates'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
@@ -1822,7 +1825,11 @@ export default function NoteEditorPage({
   // for its ticker focuses the Ticker field -- a hidden element can take neither. Derived here
   // (not only set in an effect) because the focus effect runs in the same commit; the effect
   // makes the reveal outlast the request (`onOpenFocused` clears `openFocus` right after).
-  const detailsMustShow = openFocus === 'ticker' || Boolean(reviewAnchor?.reviewId)
+  // A registered tour running now (any start path: the Learn menu, Help > Replay, a carried
+  // request) may point at a control in the details region (e.g. "Add property"), and a tour step
+  // whose anchor is hidden closes the tour. The gate publishes what it runs; open while it runs.
+  const tourRunning = useSyncExternalStore(subscribeRegistryTourWanted, getRegistryTourWanted) != null
+  const detailsMustShow = openFocus === 'ticker' || Boolean(reviewAnchor?.reviewId) || tourRunning
   useEffect(() => { if (detailsMustShow) setDetailsRevealed(true) }, [detailsMustShow])
   const detailsOpen = detailsPref || detailsRevealed || detailsMustShow
   const toggleDetails = () => {
