@@ -53,6 +53,7 @@ import useGridRoving from '../lib/useGridRoving'
 import { useIsDesktop } from '../../../hooks/useBreakpoint'
 import { NotePaneContext, SIDE_PARAM, SplitViewContext } from '../lib/splitView'
 import { NOTEBOOK_SEARCH_HASH } from '../lib/notebookSearchDoor'
+import { TOUR_REVEAL_EVENT } from '../components/notebook/onboarding/tourAnchorVisibility'
 import { NOTEBOOK_LIST_HASH, NOTEBOOK_TEMPLATES_HASH } from '../lib/notebookDoors'
 import {
   checkUnsentWork, describeBatch, describeExport, describeUnchecked, describeUnsentRename, exportSelectedNotes,
@@ -449,6 +450,16 @@ export default function NotebookTab() {
     setSidebarOpen(true)
     setSearchRequest((n) => n + 1)
   }, [location.hash, location.key])
+
+  // Phone pass follow-up (2026-10-10): a walkthrough that points into the folders panel asks
+  // for it (tourAnchorVisibility.requestReveal) when the drawer hides its anchor -- Search by
+  // meaning starts there, and the image import tour ends there. For this visit only, like the
+  // `#search` door: the member's stored choice is not rewritten.
+  useEffect(() => {
+    const onReveal = (e) => { if (e.detail?.region === 'notebook-sidebar') setSidebarOpen(true) }
+    window.addEventListener(TOUR_REVEAL_EVENT, onReveal)
+    return () => window.removeEventListener(TOUR_REVEAL_EVENT, onReveal)
+  }, [])
 
   // Lane KEYS3 (Q2): the command palette's "New note from a template" arrives on the notes
   // list with `#templates` (lib/notebookDoors.js). The New note sheet opens, exactly as the
@@ -2002,7 +2013,7 @@ export default function NotebookTab() {
           mounted (so reopening loses nothing), and without `inert` Tab and a screen reader still
           walked its folder tree, All notes and Trash -- controls nobody can see (desktop crawl,
           2026-10-09). */}
-      <div className={styles.sidebarSlot} inert={!sidebarOpen ? true : undefined}>
+      <div className={styles.sidebarSlot} inert={!sidebarOpen ? true : undefined} data-tour-reveal="notebook-sidebar">
         <div className={styles.sidebarInner}>
           <FolderSidebar
             key={folderRefreshKey}

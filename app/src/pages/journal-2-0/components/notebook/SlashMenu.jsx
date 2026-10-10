@@ -293,6 +293,26 @@ export function blockItemMatches(item, q) {
     || (Array.isArray(item.keywords) && item.keywords.some((k) => k.includes(q)))
 }
 
+/** The block items that answer a typed query, BEST FIRST: a title that starts with the query,
+ *  then a title that contains it, then a keyword-only match -- each tier in menu order. Enter
+ *  takes the top row, so `/transcript` must put "Transcript passage" above "Voice note", which
+ *  only lists "transcript" as a keyword (found by the fin walk 2026-10-10: the Transcript
+ *  passages tour tells the member to type /transcript, and Enter opened the voice recorder). */
+export function rankedBlockItems(items, q) {
+  if (!q) return items
+  const tier = (it) => {
+    const t = it.title.toLowerCase()
+    if (t.startsWith(q)) return 0
+    if (t.includes(q)) return 1
+    return 2
+  }
+  return items
+    .filter((it) => blockItemMatches(it, q))
+    .map((it, i) => ({ it, i, t: tier(it) }))
+    .sort((a, b) => a.t - b.t || a.i - b.i)
+    .map((x) => x.it)
+}
+
 /** The block items offered where the caret is now (an item's `available`). */
 export function blockItemsAvailable(editor) {
   return ITEMS.filter((it) => {
@@ -701,7 +721,7 @@ export const SlashMenuExtension = Extension.create({
           if (!q) return groupedSlashItems(here, [...widgets, ...factCaptures, ...consensusCaptures])
           // Widget/fact items match on their own tokenized rules (args after
           // the type name would defeat a plain substring filter).
-          return [...here.filter((it) => blockItemMatches(it, q)), ...widgets, ...factCaptures, ...consensusCaptures]
+          return [...rankedBlockItems(here, q), ...widgets, ...factCaptures, ...consensusCaptures]
         },
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of

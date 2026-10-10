@@ -132,3 +132,37 @@ connection. py-spy put most samples on that line, but those samples were request
 the write lock behind the swarm's own stall. Same runs with and without it: POST notes p99 934
 vs 984 ms. Not shipped.
 
+## 6. The full walk after the UX and phone passes (2026-10-10)
+
+Instrument: `tools/notebook_fin_walk.py --config c2`: a fresh member, every feature's main path and
+every walkthrough at 1280, 820 and 390. Raw records:
+`docs/notebook/evidence/fin-walk/<sha>/c2/walk.json`. Sandbox integrity CLEAN at every checkpoint,
+shutdown included, on both runs.
+
+| tree | PASS | FAIL | against the 10/07 walk (`af0b7ffeea`) |
+|---|---:|---:|---|
+| master after #311 and #312 (`3ec81aba15`) | 171 | 14 | **9 regressions** |
+| `fix/notebook-tours-1010` (`e0102557f4`, #314) | 178 | 7 | **0 regressions**, 1 more pass |
+
+The nine, read from the product's own answer, not the walk's verdict:
+
+- **Product, fixed in #314.** The Transcript passages tour told the member to type `/transcript`
+  and press Enter, and Enter opened Voice note (it lists "transcript" as a keyword and sits first
+  in menu order; voice notes were armed 10/09, after the 10/07 walk). A typed slash query now
+  ranks title matches above keyword-only ones. On a phone the Writing help tour pointed at a
+  button #312 moved into More (it stays in the row as its icon now), and Search by meaning and
+  the image import tour pointed into the folders panel, which #312 made a closed drawer: the
+  engine now asks a region hiding an off-screen anchor to open (`requestReveal`).
+- **Instrument, fixed in the walk.** The welcome's capability preview is behind "See what it can
+  do", Reporting soon folds when empty, and properties sit behind Details (all #311, on
+  purpose). The walk now unfolds them the way a member would. The formulas tour's 1-of-5 on
+  master was downstream of that: the walk's formulas step never made a formula.
+
+The seven that remain all failed on 10/07 too: thesis chips (the chips route answers the app's
+HTML), find similar on an example card, the formulas tour's last step (its anchor is present but
+off screen), the entry-context note not saving in the walk, and remove-sample's own-folder
+create answering 400. They predate this work and are not claimed here.
+
+The 503s in every step's console are the sandbox's switched-off broker sync and bar stream (137
+passing steps carry the same lines).
+
