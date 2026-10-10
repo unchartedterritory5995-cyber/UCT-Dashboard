@@ -111,3 +111,24 @@ def test_provider_coverage_CONTROL_a_healthy_cycle_never_pages(tmp_path, monkeyp
     out = pcm.run_cycle()
     assert out["newly_alerted"] == 0
     assert pages == []
+
+
+def test_fundamentals_CONTROL_an_upstream_hole_is_recorded_never_paged(tmp_path, monkeypatch, pages):
+    """A forward strip with a hole is a provider fact our code reproduces, not a regression
+    in our pipeline: it is flagged for the health endpoint and pages nobody."""
+    fm = _fm(tmp_path, monkeypatch)
+    hole = {"ticker": "GAP", "annual": [], "quarterly": [
+        {"label": "2026 Q2", "reported": True},
+        {"label": "2026 Q4", "reported": False, "period_end": "2026-12-31"}]}
+    monkeypatch.setattr(fm, "get_earnings_table", lambda s, now=None: hole)
+    monkeypatch.setattr(fm, "_sample_tickers", lambda n: ["GAP"])
+    out = fm.run_cycle()
+    assert out["flagged"] == 1 and out["paged"] == 0
+    assert pages == []
+
+
+def test_provider_coverage_CONTROL_a_standing_breach_pages_once(tmp_path, monkeypatch, pages):
+    pcm = _pcm(tmp_path, monkeypatch, intel_blank=True)
+    pcm.run_cycle()
+    pcm.run_cycle()
+    assert pages == [("provider_coverage_regression", "critical")]

@@ -93,3 +93,13 @@ def test_eight_percent_of_the_hot_set_stale_is_a_warning(check):
 
 def test_CONTROL_just_under_eight_percent_raises_nothing(check):
     assert check(hot_n=100, cold_n=7) == []
+
+
+def test_CONTROL_a_daily_store_that_is_not_stale_raises_nothing(check, monkeypatch):
+    monkeypatch.setattr(bars_prewarm, "daily_freshness_report",
+                        lambda *a, **k: {"stale": False, "days_behind": 0})
+    assert check(hot_n=10, cold_n=0) == []
+
+
+def test_CONTROL_a_fully_stale_hot_set_is_one_page_not_a_page_and_a_warning(check):
+    assert check(hot_n=50, cold_n=50) == [("intraday_hotset_stale", "critical")]

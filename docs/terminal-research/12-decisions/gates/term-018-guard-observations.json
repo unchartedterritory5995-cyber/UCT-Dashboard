@@ -476,25 +476,473 @@
         ],
         "note": "Every vintage build (a normal tick or a retry) ends in _prune_vintages; tick() runs in the producer loop of api/breadth_v2_producer_main.py, which railway.json boots when BREADTH_V2_PRODUCER_ENABLED=1 (the breadth-v2-runner service)."
       }
-    }
-  ],
-  "declared_unobserved": [
+    },
     {
       "guard": "api/cream_card.py::_alert_missed::<computed>::critical",
+      "in_population": true,
       "audit_rows": [
         "G-22"
       ],
-      "audit_class": "PROVEN",
-      "why": "tests/test_cream_eod_catchup.py drives the firing path with an injected input. No mutation was ever taken, so nothing shows the guard can say NO."
+      "what_the_guard_decides": "Whether an EOD Top Flow card that missed its slot by more than the catch-up window pages the operator at `critical` (the only severity that pages) instead of vanishing with a log line, while a late but still honest catch-up pages nobody.",
+      "predicate": {
+        "file": "api/cream_card.py",
+        "scope": "_alert_missed",
+        "pinned": "f\"cream_eod_missed:{day}\", \"critical\",",
+        "mutation": "f\"cream_eod_missed:{day}\", \"warning\","
+      },
+      "observed_by": [
+        "tests/test_term018_missed_slot_guards.py::test_cream_a_slot_missed_past_its_window_PAGES_critical",
+        "tests/test_term018_missed_slot_guards.py::test_cream_CONTROL_a_late_slot_inside_its_window_pages_NOBODY",
+        "tests/test_term018_missed_slot_guards.py::test_cream_a_missed_slot_pages_ONCE_per_day"
+      ],
+      "proof": {
+        "commit": "7811f4b34",
+        "quote": "cream page demoted to warning, re-taken (1 red: test_cream_a_slot_missed_past_its_window_PAGES_critical)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/flow_worker_main.py",
+            "call": "add_job",
+            "job_id": "cream_eod_catchup"
+          }
+        ],
+        "note": "flow-worker, 60 s catch-up registered beside the 16:10 ET cron; catch_up self-gates on CREAM_EOD_ENABLED. No flag state is asserted here."
+      }
     },
     {
       "guard": "api/oi_morning.py::_alert_missed::<computed>::critical",
+      "in_population": true,
       "audit_rows": [
         "G-23"
       ],
-      "audit_class": "PROVEN",
-      "why": "tests/test_oi_morning_catchup.py, same shape as G-22. One-sided."
+      "what_the_guard_decides": "Whether a morning OI card that missed its slot past the catch-up window pages `critical`, once per day, while a late but honest catch-up pages nobody.",
+      "predicate": {
+        "file": "api/oi_morning.py",
+        "scope": "_alert_missed",
+        "pinned": "f\"oi_morning_missed:{day}\", \"critical\",",
+        "mutation": "f\"oi_morning_missed:{day}\", \"warning\","
+      },
+      "observed_by": [
+        "tests/test_term018_missed_slot_guards.py::test_oi_a_slot_missed_past_its_window_PAGES_critical",
+        "tests/test_term018_missed_slot_guards.py::test_oi_CONTROL_a_late_slot_inside_its_window_pages_NOBODY",
+        "tests/test_term018_missed_slot_guards.py::test_oi_a_missed_slot_pages_ONCE_per_day"
+      ],
+      "proof": {
+        "commit": "7811f4b34",
+        "quote": "oi page demoted to warning, re-taken (1 red: test_oi_a_slot_missed_past_its_window_PAGES_critical)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/flow_worker_main.py",
+            "call": "add_job",
+            "job_id": "oi_morning_catchup"
+          }
+        ],
+        "note": "flow-worker, registered only while OI_MORNING_ENABLED=1 (the cron and its catch-up together). No flag state is asserted here."
+      }
     },
+    {
+      "guard": "api/services/discord_buzz_digest.py::_alert_missed::<computed>::critical",
+      "in_population": true,
+      "audit_rows": [
+        "G-24"
+      ],
+      "what_the_guard_decides": "Whether a /buzz checkpoint the scheduler never fired, and that is past the 20-minute honesty window, pages `critical` per slot (once) instead of being written off silently, while a checkpoint inside the window is posted and pages nobody.",
+      "predicate": {
+        "file": "api/services/discord_buzz_digest.py",
+        "scope": "_alert_missed",
+        "pinned": "f\"buzz_slot_missed:{label}\", \"critical\",",
+        "mutation": "f\"buzz_slot_missed:{label}\", \"warning\","
+      },
+      "observed_by": [
+        "tests/test_term018_buzz_slot_guard.py::test_buzz_a_checkpoint_missed_past_the_window_pages_critical",
+        "tests/test_term018_buzz_slot_guard.py::test_buzz_a_written_off_checkpoint_pages_once",
+        "tests/test_term018_buzz_slot_guard.py::test_buzz_CONTROL_a_checkpoint_inside_the_window_never_pages",
+        "tests/test_term018_buzz_slot_guard.py::test_buzz_CONTROL_before_the_first_checkpoint_nothing_pages"
+      ],
+      "proof": {
+        "commit": "26baca999",
+        "quote": "G-24 missed-checkpoint page demoted to warning (2 red: test_buzz_a_checkpoint_missed_past_the_window_pages_critical, test_buzz_a_written_off_checkpoint_pages_once)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "discord_buzz_digest.catch_up"
+          }
+        ],
+        "note": "Rides the 60 s buzz ingest poll in api/main.py; catch_up self-gates on BUZZ_DIGEST_ENABLED. No flag state is asserted here."
+      }
+    },
+    {
+      "guard": "api/services/desk_session_insights.py::_emit_coverage_alert::<computed>::critical",
+      "in_population": true,
+      "audit_rows": [
+        "G-26"
+      ],
+      "what_the_guard_decides": "Whether a Zoom recording KEPT because its stored transcript covers under 98% (or cannot be measured) pages the operator at `critical` so it is repaired before the recording is trashed; a measurable, complete transcript pages nobody.",
+      "predicate": {
+        "file": "api/services/desk_session_insights.py",
+        "scope": "_emit_coverage_alert",
+        "pinned": "f\"desk_transcript_coverage:{vid}\", \"critical\",",
+        "mutation": "f\"desk_transcript_coverage:{vid}\", \"warning\","
+      },
+      "observed_by": [
+        "tests/test_desk_session_insights.py::test_the_guard_keeps_the_recording_while_coverage_is_below_98_percent",
+        "tests/test_desk_session_insights.py::test_an_unmeasurable_coverage_refuses_the_trash",
+        "tests/test_desk_session_insights.py::test_summary_only_expired_wait_stores_zoom_insights_and_keeps_the_recording",
+        "tests/test_desk_session_insights.py::test_the_new_gap_rule_does_not_loosen_the_zoom_delete_gate",
+        "tests/test_desk_session_insights.py::test_control_zooms_own_duration_makes_it_measurable_again"
+      ],
+      "proof": {
+        "commit": "26baca999",
+        "quote": "G-26 transcript-coverage page demoted to warning (4 red: test_summary_only_expired_wait_stores_zoom_insights_and_keeps_the_recording, test_the_guard_keeps_the_recording_while_coverage_is_below_98_percent, test_an_unmeasurable_coverage_refuses_the_trash, test_the_new_gap_rule_does_not_loosen_the_zoom_delete_gate)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "_dsi.process_pending_session_insights"
+          },
+          {
+            "file": "api/main.py",
+            "call": "add_job",
+            "job_id": "desk_session_insights"
+          }
+        ],
+        "note": "Every 15 min (minute 7/15 ET) inside the desk-session block of api/main.py; the pass self-gates on DESK_SESSION_CHAPTERS_ENABLED. No flag state is asserted here."
+      }
+    },
+    {
+      "guard": "api/services/fundamentals_monitor.py::_alert::fundamentals_regression::critical",
+      "in_population": true,
+      "audit_rows": [
+        "G-12"
+      ],
+      "what_the_guard_decides": "Whether a fundamentals invariant that our own code enforces, failing AFTER the self-heal, pages `critical` once (newly seen) instead of landing in the in-memory deque nobody reads; a clean cycle and a standing defect page nothing.",
+      "predicate": {
+        "file": "api/services/fundamentals_monitor.py",
+        "scope": "_alert",
+        "pinned": "\"fundamentals_regression\", \"critical\",",
+        "mutation": "\"fundamentals_regression\", \"warning\","
+      },
+      "observed_by": [
+        "tests/test_term018_monitor_guards.py::test_fundamentals_a_regression_that_survives_the_heal_pages_critical",
+        "tests/test_term018_monitor_guards.py::test_fundamentals_CONTROL_a_clean_cycle_and_a_standing_defect_never_page",
+        "tests/test_term018_monitor_guards.py::test_fundamentals_CONTROL_an_upstream_hole_is_recorded_never_paged"
+      ],
+      "proof": {
+        "commit": "26baca999",
+        "quote": "G-12 fundamentals regression page demoted to warning (2 red: test_fundamentals_a_regression_that_survives_the_heal_pages_critical, test_fundamentals_CONTROL_a_clean_cycle_and_a_standing_defect_never_page)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "fundamentals_monitor.start"
+          }
+        ],
+        "note": "start() spawns the daemon whose loop calls run_cycle; it self-gates on FUNDAMENTALS_MONITOR_ENABLED. No flag state is asserted here."
+      }
+    },
+    {
+      "guard": "api/services/provider_coverage_monitor.py::_alert::provider_coverage_regression::critical",
+      "in_population": true,
+      "audit_rows": [
+        "G-11"
+      ],
+      "what_the_guard_decides": "Whether a provider coverage field that newly drops under its floor pages `critical`, and a healthy cycle pages nothing.",
+      "predicate": {
+        "file": "api/services/provider_coverage_monitor.py",
+        "scope": "_alert",
+        "pinned": "\"provider_coverage_regression\", \"critical\",",
+        "mutation": "\"provider_coverage_regression\", \"warning\","
+      },
+      "observed_by": [
+        "tests/test_term018_monitor_guards.py::test_provider_coverage_a_newly_breached_field_pages_critical",
+        "tests/test_term018_monitor_guards.py::test_provider_coverage_CONTROL_a_healthy_cycle_never_pages",
+        "tests/test_term018_monitor_guards.py::test_provider_coverage_CONTROL_a_standing_breach_pages_once"
+      ],
+      "proof": {
+        "commit": "26baca999",
+        "quote": "G-11 provider coverage page demoted to warning (1 red: test_provider_coverage_a_newly_breached_field_pages_critical)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "provider_coverage_monitor.start"
+          }
+        ],
+        "note": "start() spawns the daemon whose loop calls run_cycle; it self-gates on PROVIDER_COVERAGE_MONITOR_ENABLED. No flag state is asserted here."
+      }
+    },
+    {
+      "guard": "api/services/single_stock_etfs.py::_finish::ssetf_rebuild_refused::warning",
+      "in_population": true,
+      "audit_rows": [
+        "G-14"
+      ],
+      "what_the_guard_decides": "Whether the single-stock ETF rebuild raises ONE `warning` on the transition to two consecutive refusals, never on one, never again on the third and later, and re-arms after a success.",
+      "predicate": {
+        "file": "api/services/single_stock_etfs.py",
+        "scope": "_finish",
+        "pinned": "if n == 2:",
+        "mutation": "if n >= 2:"
+      },
+      "observed_by": [
+        "tests/test_term018_ssetf_refusal_guard.py::test_the_second_consecutive_refusal_alerts_once_as_a_warning",
+        "tests/test_single_stock_etfs.py::test_two_consecutive_refusals_emit_one_alert",
+        "tests/test_term018_ssetf_refusal_guard.py::test_CONTROL_one_refusal_alerts_nobody",
+        "tests/test_term018_ssetf_refusal_guard.py::test_a_success_rearms_the_transition"
+      ],
+      "proof": {
+        "commit": "48ef6b471",
+        "quote": "refusal alert on every refusal past 2, `n >= 2` (2 red: alerts_once_as_a_warning, two_consecutive_refusals_emit_one_alert)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "_ss.rebuild"
+          },
+          {
+            "file": "api/main.py",
+            "call": "add_job",
+            "job_id": "ssetf_nightly_rebuild"
+          }
+        ],
+        "note": "Weekdays 20:30 ET; the job self-gates on SINGLE_STOCK_ETFS_ENABLED (default on). No flag state is asserted here."
+      }
+    },
+    {
+      "guard": "api/services/bars_continuous_audit.py::_run_5min_check::bars_store_unhealthy::critical",
+      "in_population": true,
+      "audit_rows": [
+        "G-05"
+      ],
+      "what_the_guard_decides": "Whether a bars store that cannot serve (missing table, empty store) pages `critical` and stops, instead of reading as nothing to check.",
+      "predicate": {
+        "file": "api/services/bars_continuous_audit.py",
+        "scope": "_run_5min_check",
+        "pinned": "\"bars_store_unhealthy\", \"critical\",",
+        "mutation": "\"bars_store_unhealthy\", \"warning\","
+      },
+      "observed_by": [
+        "tests/test_term018_bars_audit_guards.py::test_an_unhealthy_store_pages_critical_and_stops",
+        "tests/test_term018_bars_audit_guards.py::test_CONTROL_a_healthy_quiet_store_raises_nothing"
+      ],
+      "proof": {
+        "commit": "26baca999",
+        "quote": "G-05 unhealthy-store page demoted to warning (1 red: test_an_unhealthy_store_pages_critical_and_stops)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "bars_continuous_audit.start"
+          }
+        ],
+        "note": "start() runs the audit loop on the web pod; _run_5min_check runs every 5 minutes. No flag state is asserted here."
+      }
+    },
+    {
+      "guard": "api/services/bars_continuous_audit.py::_run_5min_check::bars_daily_store_stale::critical",
+      "in_population": true,
+      "audit_rows": [
+        "G-06"
+      ],
+      "what_the_guard_decides": "Whether a DAILY store that is a session or more behind pages `critical` from the web pod's own freshness read.",
+      "predicate": {
+        "file": "api/services/bars_continuous_audit.py",
+        "scope": "_run_5min_check",
+        "pinned": "\"bars_daily_store_stale\", \"critical\",",
+        "mutation": "\"bars_daily_store_stale\", \"warning\","
+      },
+      "observed_by": [
+        "tests/test_term018_bars_audit_guards.py::test_a_stale_daily_store_pages_critical",
+        "tests/test_term018_bars_audit_guards.py::test_CONTROL_a_healthy_quiet_store_raises_nothing",
+        "tests/test_term018_bars_audit_guards.py::test_CONTROL_a_daily_store_that_is_not_stale_raises_nothing"
+      ],
+      "proof": {
+        "commit": "26baca999",
+        "quote": "G-06 stale daily store page demoted to warning (1 red: test_a_stale_daily_store_pages_critical)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "bars_continuous_audit.start"
+          }
+        ],
+        "note": "start() runs the audit loop on the web pod; _run_5min_check runs every 5 minutes. No flag state is asserted here."
+      }
+    },
+    {
+      "guard": "api/services/bars_continuous_audit.py::_run_5min_check::intraday_hotset_stale::critical",
+      "in_population": true,
+      "audit_rows": [
+        "G-07"
+      ],
+      "what_the_guard_decides": "Whether 20% or more of the actively viewed intraday charts being a whole session behind pages `critical`; 19% is a warning, not a page.",
+      "predicate": {
+        "file": "api/services/bars_continuous_audit.py",
+        "scope": "_run_5min_check",
+        "pinned": "if hot_ratio >= 0.20:",
+        "mutation": "if hot_ratio >= 0.25:"
+      },
+      "observed_by": [
+        "tests/test_term018_bars_audit_guards.py::test_a_fifth_of_the_hot_set_stale_pages_critical",
+        "tests/test_term018_bars_audit_guards.py::test_just_under_a_fifth_is_a_warning_not_a_page",
+        "tests/test_term018_bars_audit_guards.py::test_CONTROL_a_fully_stale_hot_set_is_one_page_not_a_page_and_a_warning"
+      ],
+      "proof": {
+        "commit": "26baca999",
+        "quote": "G-07 hot-set critical threshold moved from 0.20 to 0.25 (1 red: test_a_fifth_of_the_hot_set_stale_pages_critical)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "bars_continuous_audit.start"
+          }
+        ],
+        "note": "start() runs the audit loop on the web pod; _run_5min_check runs every 5 minutes. No flag state is asserted here."
+      }
+    },
+    {
+      "guard": "api/services/bars_continuous_audit.py::_run_5min_check::intraday_hotset_stale::warning",
+      "in_population": true,
+      "audit_rows": [
+        "G-08"
+      ],
+      "what_the_guard_decides": "Whether 8% to under 20% of the actively viewed intraday charts being a session behind raises a `warning`; 7% raises nothing.",
+      "predicate": {
+        "file": "api/services/bars_continuous_audit.py",
+        "scope": "_run_5min_check",
+        "pinned": "elif hot_ratio >= 0.08:",
+        "mutation": "elif hot_ratio >= 0.10:"
+      },
+      "observed_by": [
+        "tests/test_term018_bars_audit_guards.py::test_eight_percent_of_the_hot_set_stale_is_a_warning",
+        "tests/test_term018_bars_audit_guards.py::test_CONTROL_just_under_eight_percent_raises_nothing"
+      ],
+      "proof": {
+        "commit": "26baca999",
+        "quote": "G-08 hot-set warning threshold moved from 0.08 to 0.10 (1 red: test_eight_percent_of_the_hot_set_stale_is_a_warning)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "bars_continuous_audit.start"
+          }
+        ],
+        "note": "start() runs the audit loop on the web pod; _run_5min_check runs every 5 minutes. No flag state is asserted here."
+      }
+    },
+    {
+      "guard": "api/services/chart_health_alerts.py::_should_page_discord",
+      "in_population": true,
+      "audit_rows": [
+        "G-46"
+      ],
+      "what_the_guard_decides": "Whether an alert pages Discord at all: only a CRITICAL, with the channel configured, the kill switch on, and outside the per-key cooldown.",
+      "predicate": {
+        "file": "api/services/chart_health_alerts.py",
+        "scope": "_should_page_discord",
+        "pinned": "if severity != \"critical\" or not webhook_present or not enabled:",
+        "mutation": "if not webhook_present or not enabled:"
+      },
+      "observed_by": [
+        "tests/test_chart_health_discord.py::test_only_critical_pages",
+        "tests/test_chart_health_escalation.py::test_a_critical_pages_even_when_a_warning_fired_inside_the_throttle_window",
+        "tests/test_chart_health_discord.py::test_config_gates"
+      ],
+      "proof": {
+        "commit": "48ef6b471",
+        "quote": "severity check dropped from the gate (2 red: only_critical_pages, critical_pages_even_when_a_warning_fired)"
+      },
+      "wire": {
+        "kind": "sink"
+      }
+    },
+    {
+      "guard": "api/services/chart_health_alerts.py::_page_discord",
+      "in_population": true,
+      "audit_rows": [],
+      "what_the_guard_decides": "Whether the transport itself sends nothing when no channel is configured (blank or unset), and posts exactly once when one is. On the emit path this suppression is shadowed by `_should_page_discord`, so it is observed by calling the transport directly.",
+      "predicate": {
+        "file": "api/services/chart_health_alerts.py",
+        "scope": "_page_discord",
+        "pinned": "if not webhook: return",
+        "mutation": "if webhook is None: return"
+      },
+      "observed_by": [
+        "tests/test_term018_page_discord_guard.py::test_a_BLANK_channel_posts_nothing_from_the_transport_itself",
+        "tests/test_term018_page_discord_guard.py::test_an_UNSET_channel_posts_nothing_from_the_transport_itself",
+        "tests/test_term018_page_discord_guard.py::test_CONTROL_a_configured_channel_posts_exactly_once"
+      ],
+      "proof": {
+        "commit": "48ef6b471",
+        "quote": "blank-webhook suppression weakened to `is None` (2 red: BLANK_channel, UNSET_channel)"
+      },
+      "wire": {
+        "kind": "sink"
+      }
+    },
+    {
+      "guard": "api/services/discord_render/stall_record.py::note::<computed>::critical",
+      "in_population": true,
+      "audit_rows": [
+        "G-25"
+      ],
+      "what_the_guard_decides": "Whether an event-loop stall past the Discord ack budget pages `critical` (anything lower is recorded and never paged), while a stall just under the budget is recorded and pages nobody.",
+      "predicate": {
+        "file": "api/services/discord_render/stall_record.py",
+        "scope": "note",
+        "pinned": "emitted = chart_health_alerts.emit(ALERT_KEY, \"critical\", msg,",
+        "mutation": "emitted = chart_health_alerts.emit(ALERT_KEY, \"warning\", msg,"
+      },
+      "observed_by": [
+        "tests/test_stall_record.py::test_the_severity_is_critical",
+        "tests/test_stall_record.py::test_tier1_pages_at_any_uptime",
+        "tests/test_stall_record.py::test_a_block_just_under_the_ack_budget_is_recorded_and_not_paged"
+      ],
+      "proof": {
+        "commit": "26baca999",
+        "quote": "G-25 loop-stall page demoted to warning (1 red: test_the_severity_is_critical)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/services/discord_render/loopwatch.py",
+            "call": "stall_record.note"
+          },
+          {
+            "file": "api/main.py",
+            "call": "_v2_loopwatch.start"
+          }
+        ],
+        "note": "LoopWatch.record calls note for every loop sample; main.py starts the watcher above the render-v2 gate. No flag state is asserted here."
+      }
+    }
+  ],
+  "declared_unobserved": [
     {
       "guard": "api/routers/market_calendar.py::_announce::<computed>::<computed>",
       "audit_rows": [
@@ -514,92 +962,12 @@
       "why": "The predicate is satisfiable (tests/theme_engine/test_propagation.py) but NOTHING in this repo writes taxonomy_version into a push payload, so the production input is out of reach here."
     },
     {
-      "guard": "api/services/bars_continuous_audit.py::_run_5min_check::bars_daily_store_stale::critical",
-      "audit_rows": [
-        "G-06"
-      ],
-      "audit_class": "FIREABLE",
-      "why": "Split proof only: one test proves the INPUT reports stale, another proves the key pages. Nothing drives this emit."
-    },
-    {
-      "guard": "api/services/bars_continuous_audit.py::_run_5min_check::bars_store_unhealthy::critical",
-      "audit_rows": [
-        "G-05"
-      ],
-      "audit_class": "PROVEN",
-      "why": "The audit's ONLY row with an AST-over-source rail (tests/test_bars_store_health_monitor.py). Still no recorded mutation."
-    },
-    {
-      "guard": "api/services/bars_continuous_audit.py::_run_5min_check::intraday_hotset_stale::critical",
-      "audit_rows": [
-        "G-07"
-      ],
-      "audit_class": "FIREABLE",
-      "why": "No test drives the 0.20 threshold. Its PAGE path is now observed via the sink's throttle, but this predicate is not."
-    },
-    {
-      "guard": "api/services/bars_continuous_audit.py::_run_5min_check::intraday_hotset_stale::warning",
-      "audit_rows": [
-        "G-08"
-      ],
-      "audit_class": "FIREABLE",
-      "why": "No test drives the 0.08 threshold."
-    },
-    {
-      "guard": "api/services/desk_session_insights.py::_emit_coverage_alert::<computed>::critical",
-      "audit_rows": [
-        "G-26"
-      ],
-      "audit_class": "PROVEN",
-      "why": "Three tests assert the key and severity with injected inputs. One-sided."
-    },
-    {
-      "guard": "api/services/discord_buzz_digest.py::_alert_missed::<computed>::critical",
-      "audit_rows": [
-        "G-24"
-      ],
-      "audit_class": "PROVEN",
-      "why": "One of the audit's four rows that carries a CONTROL (a posted slot raises nothing). Still no mutation."
-    },
-    {
-      "guard": "api/services/discord_render/stall_record.py::note::<computed>::critical",
-      "audit_rows": [
-        "G-25"
-      ],
-      "audit_class": "PROVEN",
-      "why": "tests/test_stall_record.py drives emit twice. No mutation."
-    },
-    {
-      "guard": "api/services/fundamentals_monitor.py::_alert::fundamentals_regression::critical",
-      "audit_rows": [
-        "G-12"
-      ],
-      "audit_class": "UNKNOWN",
-      "why": "No test names the key at all. Whether the predicate has ever been satisfiable is a data question; the cheapest read is GET /api/admin/fundamentals-health."
-    },
-    {
       "guard": "api/services/perplexity_search.py::_notify_auth_failure::perplexity_auth_failure::critical",
       "audit_rows": [
         "G-15"
       ],
       "audit_class": "PROVEN",
-      "why": "tests/test_ai_search_resilience.py asserts key and severity. One-sided."
-    },
-    {
-      "guard": "api/services/provider_coverage_monitor.py::_alert::provider_coverage_regression::critical",
-      "audit_rows": [
-        "G-11"
-      ],
-      "audit_class": "PROVEN",
-      "why": "The audit's ONE row with a recorded PRODUCTION firing (2026-08-18, quoted in tests/test_provider_coverage_em_refusals.py). A production firing is stronger evidence than a mutation, and is not the same artifact - it is not red-before-green and cannot regress-detect."
-    },
-    {
-      "guard": "api/services/single_stock_etfs.py::_finish::ssetf_rebuild_refused::warning",
-      "audit_rows": [
-        "G-14"
-      ],
-      "audit_class": "PROVEN",
-      "why": "tests/test_single_stock_etfs.py asserts exactly one call across three refusals - close to a control, but no mutation."
+      "why": "tests/test_ai_search_resilience.py asserts key and severity. One-sided. WIRE (checked 2026-10-10, lane f-l6): every scheduled caller registers a LAMBDA (`add_job(lambda: _ais_brief_run(...))`, api/main.py ai_search_briefings jobs) through an ALIASED from-import, and the request-path callers end at `include_router`; clause 7 can follow neither, so a red-before-green test alone could not be recorded."
     },
     {
       "guard": "api/services/source_circuit_breaker.py::state::<computed>::warning",
@@ -607,7 +975,7 @@
         "G-10"
       ],
       "audit_class": "FIREABLE",
-      "why": "No test names the key."
+      "why": "No test names the key. WIRE (checked 2026-10-10, lane f-l6): reached from bars_fetch on the request path and by many callers, so no single hop carries it and a cut of any one call would leave the chain intact (clause 7)."
     },
     {
       "guard": "api/services/wisdom/capture/health.py::page::<computed>::critical",
@@ -624,20 +992,6 @@
       ],
       "audit_class": "FIREABLE",
       "why": "No assertion found."
-    },
-    {
-      "guard": "api/services/chart_health_alerts.py::_should_page_discord",
-      "audit_rows": [
-        "G-46"
-      ],
-      "audit_class": "PROVEN",
-      "why": "tests/test_chart_health_discord.py drives page -> suppressed -> page, which IS a two-sided behavioural proof. It is still not a mutation: nothing shows the suite goes red if the gate is deleted."
-    },
-    {
-      "guard": "api/services/chart_health_alerts.py::_page_discord",
-      "audit_rows": [],
-      "audit_class": "NOT IN THE AUDIT",
-      "why": "The transport, not a threshold - but it carries a real suppression (`if not webhook: return`) and the derivation cannot tell a transport guard from a threshold guard. Recorded as debt rather than excluded by hand, because an exclusion rule written by hand is the defect this programme documents."
     }
   ]
 }
