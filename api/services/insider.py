@@ -12,7 +12,7 @@ net, not a dead branch.
 Feed: aggregate notable insider buys across UCT20 + broad market watchlist.
 
 Market feed (`get_market_insider_buys`, the terminal's INS panel): open-market
-purchases across the WHOLE market from FMP `stable/insider-trading/latest`,
+purchases across the WHOLE market from FMP `stable/insider-trading/search?transactionType=P-Purchase`,
 paged newest-first back to a 7-day cutoff.
 
 ── Sign derivation (the highest-risk part of this migration) ───────────────
@@ -222,12 +222,12 @@ def get_recent_insider_buys() -> list[dict]:
 #
 # The feed above only scans the UCT 20 plus ~40 large caps, and large-cap
 # insiders almost only SELL, so it is routinely empty. Insider BUYING
-# clusters in small and mid caps. FMP's `stable/insider-trading/latest`
+# clusters in small and mid caps. FMP's `stable/insider-trading/search?transactionType=P-Purchase`
 # returns the newest Form 4 filings across the whole market, newest first,
 # 100 a page; this pages back until the filings are older than the window.
 
 _MARKET_FEED_KEY = "insider_feed_market"
-_MARKET_MAX_PAGES = 12            # hard bound on outbound calls per rebuild
+_MARKET_MAX_PAGES = 15            # hard bound on outbound calls per rebuild (~7 pages cover 7 days of purchases)
 _MARKET_PAGE_LIMIT = 100
 _MARKET_PAGE_TIMEOUT = 10         # seconds, every page
 _MARKET_WINDOW_DAYS = 7
@@ -271,7 +271,7 @@ def get_market_insider_buys() -> list[dict]:
 
     for page in range(_MARKET_MAX_PAGES):
         try:
-            result = fmp_client.get_latest_insider_trading(
+            result = fmp_client.search_insider_purchases(
                 page, _MARKET_PAGE_LIMIT, timeout=_MARKET_PAGE_TIMEOUT)
         except FMPNotFound:
             pages_ok += 1

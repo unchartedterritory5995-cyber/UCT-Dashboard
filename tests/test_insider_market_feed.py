@@ -1,6 +1,6 @@
 """The terminal INS panel's market-wide insider feed.
 
-`fmp_client.get_latest_insider_trading` (the request it builds),
+`fmp_client.search_insider_purchases` (the request it builds),
 `insider.get_market_insider_buys` (paging, purchase-only, window, dedupe,
 sort, cap, cache TTLs, failure), and `GET /api/insider/feed?scope=` (default
 unchanged, market, a bad scope is a 400). FMP is never called for real.
@@ -53,13 +53,13 @@ def _ok(rows):
     return provider_errors.ProviderResult(
         value=rows,
         provenance=provider_errors.ProvenanceRecord(
-            vendor="fmp", source_activity="fmp_client.get_latest_insider_trading"),
+            vendor="fmp", source_activity="fmp_client.search_insider_purchases"),
         licensing_class="R",
     )
 
 
 class _Pages:
-    """A fake `get_latest_insider_trading`: serves `pages[i]` for page i, a
+    """A fake `search_insider_purchases`: serves `pages[i]` for page i, a
     callable/exception per page, and records every call."""
 
     def __init__(self, pages):
@@ -92,7 +92,7 @@ def _clean_cache():
     cache.invalidate(insider._MARKET_FEED_KEY)
 
 
-# ── fmp_client.get_latest_insider_trading ─────────────────────────────────
+# ── fmp_client.search_insider_purchases ─────────────────────────────────
 
 class TestClientFunction:
     @pytest.fixture(autouse=True)
@@ -100,7 +100,7 @@ class TestClientFunction:
         monkeypatch.setenv("FMP_API_KEY", "test-key")
         fmp_client._bucket_tokens = fmp_client._FMP_RATE_LIMIT_PER_MIN
         fmp_client._bucket_updated = time.monotonic()
-        cache.invalidate("fmp_forbidden_/stable/insider-trading/latest")
+        cache.invalidate("fmp_forbidden_/stable/insider-trading/search")
 
     def _session(self, monkeypatch, value):
         resp = MagicMock()
@@ -111,23 +111,24 @@ class TestClientFunction:
         monkeypatch.setattr(fmp_client._session, "get", get)
         return get
 
-    def test_builds_the_latest_path_with_page_and_limit_and_no_symbol(self, monkeypatch):
+    def test_builds_the_purchase_search_with_page_and_limit_and_no_symbol(self, monkeypatch):
         get = self._session(monkeypatch, [_row()])
-        result = fmp_client.get_latest_insider_trading(3, 100, timeout=7)
+        result = fmp_client.search_insider_purchases(3, 100, timeout=7)
         assert get.call_count == 1
         url = get.call_args[0][0]
-        assert url == fmp_client._BASE_URL + "/stable/insider-trading/latest"
+        assert url == fmp_client._BASE_URL + "/stable/insider-trading/search"
         params = dict(get.call_args[1]["params"])
         assert params["page"] == 3 and params["limit"] == 100
+        assert params["transactionType"] == "P-Purchase"
         assert "symbol" not in params
         assert result.value[0]["symbol"] == "ZBUY"
-        assert result.provenance.source_activity == "fmp_client.get_latest_insider_trading"
+        assert result.provenance.source_activity == "fmp_client.search_insider_purchases"
         assert result.freshness == "end_of_day"
 
     def test_empty_page_is_not_found(self, monkeypatch):
         self._session(monkeypatch, [])
         with pytest.raises(fmp_client.FMPNotFound):
-            fmp_client.get_latest_insider_trading(0)
+            fmp_client.search_insider_purchases(0)
 
 
 # ── insider.get_market_insider_buys ───────────────────────────────────────
@@ -143,7 +144,7 @@ class TestMarketFeed:
             _row(symbol="FFF", transactionType=""),
         ]
         fake = _Pages([_ok(rows)])
-        monkeypatch.setattr(fmp_client, "get_latest_insider_trading", fake)
+        monkeypatch.setattr(fmp_client, "search_insider_purchases", fake)
         out = insider.get_market_insider_buys()
         assert [r["symbol"] for r in out] == ["AAA"]
         r = out[0]
@@ -158,13 +159,13 @@ class TestMarketFeed:
         monkeypatch.setattr(insider, "_classify_txn", lambda r: "buy")
         fake = _Pages([_ok([_row(symbol="SSS", transactionType="S-Sale",
                                  acquisitionOrDisposition="D")])])
-        monkeypatch.setattr(fmp_client, "get_latest_insider_trading", fake)
+        monkeypatch.setattr(fmp_client, "search_insider_purchases", fake)
         assert [r["symbol"] for r in insider.get_market_insider_buys()] == ["SSS"]
 
     def test_seven_day_window_on_transaction_date(self, monkeypatch):
         rows = [_row(symbol="NEW", transactionDate=_day(2)),
                 _row(symbol="OLD", transactionDate=_day(20))]
-        monkeypatch.setattr(fmp_client, "get_latest_insider_trading", _Pages([_ok(rows)]))
+        monkeypatch.setattr(fmp_client, "search_insider_purchases", _Pages([_ok(rows)]))
         assert [r["symbol"] for r in insider.get_market_insider_buys()] == ["NEW"]
 
     def test_paging_stops_once_a_page_reaches_past_the_cutoff(self, monkeypatch):
@@ -172,7 +173,7 @@ class TestMarketFeed:
         p1 = _ok(_full([_row(symbol="P1", filingDate=_day(10), transactionDate=_day(2))]))
         p2 = _ok(_full([_row(symbol="P2")]))
         fake = _Pages([p0, p1, p2])
-        monkeypatch.setattr(fmp_client, "get_latest_insider_trading", fake)
+        monkeypatch.setattr(fmp_client, "search_insider_purchases", fake)
         out = insider.get_market_insider_buys()
         assert [c[0] for c in fake.calls] == [0, 1]
         assert {r["symbol"] for r in out} == {"P0", "P1"}
@@ -180,33 +181,33 @@ class TestMarketFeed:
     def test_paging_is_bounded_by_max_pages(self, monkeypatch):
         monkeypatch.setattr(insider, "_MARKET_MAX_PAGES", 3)
         fake = _Pages([_ok(_full([_row(symbol=f"Q{i}")])) for i in range(10)])
-        monkeypatch.setattr(fmp_client, "get_latest_insider_trading", fake)
+        monkeypatch.setattr(fmp_client, "search_insider_purchases", fake)
         insider.get_market_insider_buys()
         assert [c[0] for c in fake.calls] == [0, 1, 2]
 
     def test_short_page_ends_paging(self, monkeypatch):
         fake = _Pages([_ok([_row()]), _ok([_row(symbol="NOPE")])])
-        monkeypatch.setattr(fmp_client, "get_latest_insider_trading", fake)
+        monkeypatch.setattr(fmp_client, "search_insider_purchases", fake)
         insider.get_market_insider_buys()
         assert [c[0] for c in fake.calls] == [0]
 
     def test_skips_blank_and_odd_symbols(self, monkeypatch):
         rows = [_row(symbol=""), _row(symbol=None), _row(symbol="0001234567"),
                 _row(symbol="bad sym"), _row(symbol="brk.b")]
-        monkeypatch.setattr(fmp_client, "get_latest_insider_trading", _Pages([_ok(rows)]))
+        monkeypatch.setattr(fmp_client, "search_insider_purchases", _Pages([_ok(rows)]))
         assert [r["symbol"] for r in insider.get_market_insider_buys()] == ["BRK.B"]
 
     def test_dedupes_identical_rows_across_pages(self, monkeypatch):
         dup = _row(symbol="DUP")
         p0 = _ok(_full([dup, dict(dup)]))
         p1 = _ok([dict(dup), _row(symbol="DUP", securitiesTransacted=2000)])
-        monkeypatch.setattr(fmp_client, "get_latest_insider_trading", _Pages([p0, p1]))
+        monkeypatch.setattr(fmp_client, "search_insider_purchases", _Pages([p0, p1]))
         out = insider.get_market_insider_buys()
         assert sorted(r["shares"] for r in out) == [1000, 2000]
 
     def test_sorted_by_amount_desc_and_capped_at_50(self, monkeypatch):
         rows = [_row(symbol=f"S{i}", securitiesTransacted=i + 1) for i in range(80)]
-        monkeypatch.setattr(fmp_client, "get_latest_insider_trading", _Pages([_ok(rows)]))
+        monkeypatch.setattr(fmp_client, "search_insider_purchases", _Pages([_ok(rows)]))
         out = insider.get_market_insider_buys()
         assert len(out) == 50
         amounts = [r["amount"] for r in out]
@@ -214,14 +215,14 @@ class TestMarketFeed:
         assert out[0]["symbol"] == "S79"
 
     def test_complete_run_gets_the_success_ttl(self, monkeypatch):
-        monkeypatch.setattr(fmp_client, "get_latest_insider_trading", _Pages([_ok([_row()])]))
+        monkeypatch.setattr(fmp_client, "search_insider_purchases", _Pages([_ok([_row()])]))
         insider.get_market_insider_buys()
         assert _ttl_remaining(insider._MARKET_FEED_KEY) > insider._FEED_TTL - 5
 
     def test_partial_failure_serves_rows_at_the_short_ttl(self, monkeypatch):
         fake = _Pages([_ok(_full([_row(symbol="KEEP")])),
                        fmp_client.FMPTransient("boom", vendor="fmp")])
-        monkeypatch.setattr(fmp_client, "get_latest_insider_trading", fake)
+        monkeypatch.setattr(fmp_client, "search_insider_purchases", fake)
         out = insider.get_market_insider_buys()
         assert [r["symbol"] for r in out] == ["KEEP"]
         rem = _ttl_remaining(insider._MARKET_FEED_KEY)
@@ -233,20 +234,20 @@ class TestMarketFeed:
             provenance=provider_errors.ProvenanceRecord(vendor="fmp", source_activity="x"),
             licensing_class="R", degraded="cached_forbidden")
         fake = _Pages([_ok(_full([_row(symbol="KEEP")])), degraded])
-        monkeypatch.setattr(fmp_client, "get_latest_insider_trading", fake)
+        monkeypatch.setattr(fmp_client, "search_insider_purchases", fake)
         assert [r["symbol"] for r in insider.get_market_insider_buys()] == ["KEEP"]
         assert _ttl_remaining(insider._MARKET_FEED_KEY) <= insider._FEED_FAIL_TTL + 5
 
     def test_total_failure_returns_empty_cached_short_and_never_raises(self, monkeypatch):
         fake = _Pages([RuntimeError("network down")])
-        monkeypatch.setattr(fmp_client, "get_latest_insider_trading", fake)
+        monkeypatch.setattr(fmp_client, "search_insider_purchases", fake)
         assert insider.get_market_insider_buys() == []
         assert _ttl_remaining(insider._MARKET_FEED_KEY) <= insider._FEED_FAIL_TTL + 5
 
     def test_cache_hit_makes_no_call(self, monkeypatch):
         cache.set(insider._MARKET_FEED_KEY, [{"symbol": "HIT"}], 60)
         fake = _Pages([])
-        monkeypatch.setattr(fmp_client, "get_latest_insider_trading", fake)
+        monkeypatch.setattr(fmp_client, "search_insider_purchases", fake)
         assert insider.get_market_insider_buys() == [{"symbol": "HIT"}]
         assert fake.calls == []
 

@@ -453,13 +453,18 @@ def get_insider_trading(ticker: str, *, timeout: Optional[int] = None) -> _pe.Pr
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
-def get_latest_insider_trading(page: int, limit: int = 100, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
-    """The newest Form 4 filings MARKET-WIDE, newest first, one page at a
-    time (live-verified 2026-10-09: 100 rows a page, the same row keys as
-    `get_insider_trading`). Sends no symbol. Feeds the terminal's INS panel
-    via `insider.get_market_insider_buys`."""
-    return _fetch("/stable/insider-trading/latest", {"page": int(page), "limit": int(limit)},
-                   source_activity="fmp_client.get_latest_insider_trading", data_class="insider",
+def search_insider_purchases(page: int, limit: int = 100, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Open-market PURCHASES (Form 4 code P) MARKET-WIDE, newest filing first,
+    one page at a time. Sends no symbol. Feeds the terminal's INS panel via
+    `insider.get_market_insider_buys`.
+
+    Live-verified 2026-10-09: 100 rows a page, every row 'P-Purchase', page 0
+    filed Oct 8-9 and page 1 Oct 7-8, 0.3 s each. The unfiltered
+    `stable/insider-trading/latest` was tried first and dropped: 12 pages of
+    all filings reached back only two days, so a 7-day window needed 40+."""
+    return _fetch("/stable/insider-trading/search",
+                   {"transactionType": "P-Purchase", "page": int(page), "limit": int(limit)},
+                   source_activity="fmp_client.search_insider_purchases", data_class="insider",
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
