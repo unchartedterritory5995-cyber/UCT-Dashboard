@@ -348,3 +348,29 @@ Agent review of `ab6dbb2720`: architecture AGREED (S1 extraction, one draft stor
    owner's brief (§13). Owner to confirm the source.
 
 Reasons added: `stale-step`. (`stale-revision` remains for `draftTurn`, `saveDraft`, `discardDraft`.)
+
+---
+
+## 16. Indicators implementation notes (S1–S3, branch `feat/indicator-agent-m3`, NOT deployed)
+
+Implemented: `builder/authoring/authoringSession.js` (S1), `builder/agentAuthoring.js` (S2+S3),
+`builder/studio/previewChannel.js` (S3); ChartToolbar → StockChart → ChartPane handles
+`showAuthoringPreview(definition, opts)` / `clearAuthoringPreview()`. Deviations from §3/§10 as
+proposed, all narrower or more explicit:
+
+1. **Refusal shape.** A turn the server or engine refuses is `{ok:false, reason:'turn-refused',
+   detail:{gate?, codes?}}` — server gates (`rate:busy`, `cost:user`, `cost:global`, `http:429`,
+   `envelope:*`, `network` …) pass through verbatim in `detail.gate` rather than each being a reason.
+2. **Unsupported is a reply.** A pre-flighted or `unsupported` turn is `{ok:true, kind:'unsupported',
+   gate?, preflight?}` (nothing changed — the dock shows it as an assistant reply too).
+3. **Undo outcome** is `{ok:true, kind:'undone', undid, revision, undoStepId, lines, readback, preview?}`.
+4. **Save** never attaches to a chart and never arms alerts (requested alerts are reported in
+   `outcomes`); charts are added through M2. The draft ends once the store accepts it — success
+   is reported only after the read-back (`saved-unconfirmed` otherwise).
+5. **Preview** `busy` also when this chart's own dock is open; `invalid` when the registry refuses
+   the working definition. Edit previews take their pending-input shaping as an injected
+   function, so the eagerly-loaded toolbar has no import cycle into the save module.
+6. **Draft store additions** (no second store): `sessionKeys()` and the in-memory dock hold
+   (`holdInDock` / `releaseDock` / `isHeldInDock`); the dock hook holds its key while mounted.
+   `listDrafts` covers `create:` / `edit:` keys only (not the Builder's `new:` sheet).
+7. Telemetry from Agent-driven turns is logged by the shared pipeline under the studio surface.
