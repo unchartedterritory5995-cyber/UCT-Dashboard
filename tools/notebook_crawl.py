@@ -147,6 +147,16 @@ class Crawl:
                 except Exception:  # noqa: BLE001
                     break
         self.pg.wait_for_timeout(300)
+        # An earlier press of "Hide folders panel" is SAVED to the account; every state starts
+        # with the panel open, as a member who wants to reach All notes would put it back.
+        sf = self.pg.get_by_role("button", name="Show folders", exact=True)
+        an = self.pg.get_by_role("button", name=re.compile(r"^\s*All notes"))
+        if sf.count() and sf.first.is_visible() and not (an.count() and an.first.is_visible()):
+            try:
+                sf.first.click(timeout=3000)
+                self.pg.wait_for_timeout(500)
+            except Exception:  # noqa: BLE001
+                pass
         for step in state.get("then", []):
             hit = None
             for role in ("button", "treeitem", "link", "tab"):
