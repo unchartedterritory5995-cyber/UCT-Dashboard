@@ -959,6 +959,9 @@ function ChartPane({
             // with the indicator's full name beneath it, mirroring a stock's ticker +
             // company name.
             liveUpdates: false,
+            // a breadth / indicator series: daily-only, no intraday feed (StockChart
+            // paints its cached history at once and skips intraday prefetches)
+            breadthSeries: true,
             watermark: breadthLikeSym,
             watermarkName: breadthLikeName,
             // UCT pseudo-ticker — its watermark logo is the UCT compass brand mark,
