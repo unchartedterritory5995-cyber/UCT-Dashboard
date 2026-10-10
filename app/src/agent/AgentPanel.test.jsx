@@ -145,7 +145,9 @@ describe('UCT Agent panel', () => {
     render(<AgentPanel host={host} onClose={() => {}} />)
     type('make this chart look cleaner')
     const card = await screen.findByTestId('agent-proposal')
-    expect(card.textContent).toContain('Applied the Cream chart theme')
+    // a PROPOSAL says what will happen (proposalWording.js) — never a success not yet written
+    expect(card.textContent).toContain('Apply the Cream chart theme')
+    expect(card.textContent).not.toContain('Applied the Cream chart theme')
     expect(host.commits).toHaveLength(0)
     const before = turnBodies.length
     type('do it')
@@ -302,8 +304,9 @@ describe('UCT Agent panel', () => {
     render(<AgentPanel host={host} onClose={() => {}} />)
     type('Add 4 charts. Make them all 5-minute. Put SPY, QQQ, NVDA, and TSLA in them.')
     const card = await screen.findByTestId('agent-proposal')
-    expect(card.textContent).toContain('Added 4 Charts')
-    expect(card.textContent).toContain('New chart 4: Changed symbol to TSLA')
+    expect(card.textContent).toContain('Add 4 Charts')
+    expect(card.textContent).not.toMatch(/Added 4 Charts|Switched timeframe/)
+    expect(card.textContent).toContain('New chart 4: Change symbol to TSLA')
     expect(state.widgets).toHaveLength(0)
     expect(turnBodies[0].context.workspace[0]).toMatchObject({ ref: 'w1', widgetCount: 0 })
     type('never mind')

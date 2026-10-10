@@ -93,7 +93,7 @@ _LOAD_CALENDAR_DAYS = 600      # ~380 sessions with room for holidays
 
 # Windows whose SMA some metric needs. 150 is stage-only; the rest are the
 # pct_above_* family plus the 10SMA that gates the volume-high metric.
-_SMA_WINDOWS = (5, 10, 40, 50, 100, 150, 200)
+_SMA_WINDOWS = (5, 10, 20, 40, 50, 100, 150, 200)
 
 # `bars` argument to count_period_return, keyed by the metric pair it feeds.
 _PERIOD_RETURNS = (
@@ -184,8 +184,8 @@ _ANCHOR_MIN_LOOKBACK = 21
 
 _METRIC_LOOKBACK = {
     "pct_above_5sma": 5, "pct_above_10sma": 10, "pct_above_20ema": 20,
-    "pct_above_40sma": 40, "pct_above_50sma": 50,
-    "pct_above_100sma": 100, "pct_above_200sma": 200,
+    "pct_above_20sma": 20, "pct_above_40sma": 40, "pct_above_50sma": 50,
+    "pct_above_100sma": 100, "pct_above_150sma": 150, "pct_above_200sma": 200,
     "up_4pct_today": 1, "down_4pct_today": 1,
     "up_20pct_5d": 5, "down_20pct_5d": 5,
     "up_25pct_month": 21, "down_25pct_month": 21,
@@ -341,6 +341,7 @@ _ACCURACY: dict[str, str] = {
     "pct_above_20ema": "point", "pct_above_40sma": "point",
     "pct_above_50sma": "point", "pct_above_100sma": "point",
     "pct_above_200sma": "point",
+    "pct_above_20sma": "point", "pct_above_150sma": "point",
     # identical to the stored value on every session replayed
     "spy_close": "exact", "qqq_close": "exact",
     # 0.6-1.7% mean
@@ -851,9 +852,10 @@ def compute_metrics(levels: dict, prices: dict[str, float],
     _keep("universe_count", have)
 
     # ── pct above moving averages ────────────────────────────────────────────
-    for w, key in ((5, "pct_above_5sma"), (10, "pct_above_10sma"),
+    for w, key in ((5, "pct_above_5sma"), (10, "pct_above_10sma"), (20, "pct_above_20sma"),
                    (40, "pct_above_40sma"), (50, "pct_above_50sma"),
-                   (100, "pct_above_100sma"), (200, "pct_above_200sma")):
+                   (100, "pct_above_100sma"), (150, "pct_above_150sma"),
+                   (200, "pct_above_200sma")):
         sma = (levels["sma_prev_sum"][w] + px) / w
         valid = have & levels["sma_ok"][w] & ~np.isnan(sma)
         with np.errstate(invalid="ignore"):

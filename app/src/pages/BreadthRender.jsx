@@ -33,7 +33,7 @@ const TIER_BG = {
 const PART_KEYS = {
   1: ['up_4pct_today', 'down_4pct_today', 'ratio_5day', 'up_20pct_5d', 'down_20pct_5d',
       'up_25pct_quarter', 'down_25pct_quarter', 'up_25pct_month', 'down_25pct_month'],
-  2: ['pct_above_5sma', 'pct_above_20ema', 'pct_above_40sma', 'pct_above_50sma', 'pct_above_200sma',
+  2: ['pct_above_5sma', 'pct_above_20sma', 'pct_above_40sma', 'pct_above_50sma', 'pct_above_200sma',
       'sp500_close', 'qqq_close', 'vix', 'hvc_52w', 'atr_ext_7'],
 }
 const ALL_KEYS = [...PART_KEYS[1], ...PART_KEYS[2]]

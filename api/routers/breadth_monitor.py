@@ -211,12 +211,19 @@ def breadth_live_universes_reconcile(request: Request, sessions: int = 10, start
 
 @router.get("/api/breadth-monitor/nhnl-intraday")
 def breadth_nhnl_intraday(request: Request, start: int = 0, rebuild: int = 0,
-                          max_sessions: int = 0, date: str = "", population: int = 0):
+                          max_sessions: int = 0, date: str = "", population: int = 0,
+                          ma: int = 0):
     """Intraday-basis new highs/lows series (`breadth_nhnl_intraday`): status, or `start=1` to
     extend it in a background job (`rebuild=1` sweeps from scratch). `date=YYYY-MM-DD` adds the
     series' values for that session beside the stored (closing-basis) counts. PUSH_SECRET-gated."""
     _check_auth(request)
     from api.services import breadth_nhnl_intraday as nhi
+    if ma:   # the 20/150-day SMA history series (breadth_ma_extra) — same controls
+        from api.services import breadth_ma_extra as mae
+        res = {"status": mae.status()}
+        if start:
+            res["job"] = mae.start_sweep(rebuild=bool(rebuild), max_sessions=max_sessions or None)
+        return res
     out = {"status": nhi.status()}
     if population:
         out["population"] = nhi.diagnose_population()

@@ -1047,9 +1047,16 @@ def history(metric: str, limit: int = 6000,
     out = _history_stored(metric, limit, universe, with_source)
     try:
         from api.services import breadth_nhnl_intraday as _nhi
-        return _nhi.override_history(metric, universe, out, with_source=with_source)
+        out = _nhi.override_history(metric, universe, out, with_source=with_source)
     except Exception:
-        return out
+        pass
+    # ⭐ (2026-10-10) the 20/150-day SMA family the canonical artifacts never stored (US/NYSE/Nasdaq)
+    try:
+        from api.services import breadth_ma_extra as _mae
+        out = _mae.override_history(metric, universe, out, with_source=with_source)
+    except Exception:
+        pass
+    return out
 
 
 def _history_stored(metric: str, limit: int = 6000,

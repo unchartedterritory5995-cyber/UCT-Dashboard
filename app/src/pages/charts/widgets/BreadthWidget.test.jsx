@@ -16,7 +16,7 @@ const row = (date, score) => ({
   uct_exposure: 95,
   up_4pct_today: 120, down_4pct_today: 40,
   ratio_5day: 1.7, ratio_10day: 1.4,
-  pct_above_5sma: 55, pct_above_10sma: 58, pct_above_20ema: 60,
+  pct_above_5sma: 55, pct_above_10sma: 58, pct_above_20sma: 60,
   pct_above_40sma: 57, pct_above_50sma: 61, pct_above_100sma: 59, pct_above_200sma: 52,
   spy_above_10sma: 1, spy_above_20sma: 1, spy_above_50sma: 1, spy_above_200sma: 1,
   qqq_above_10sma: 1, qqq_above_20sma: 1, qqq_above_50sma: 1, qqq_above_200sma: 0,

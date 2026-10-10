@@ -395,7 +395,7 @@ describe('M1 in the real panel (scripted model)', () => {
     say('which indicators are hidden on the left chart')
     await screen.findByText(/^1 indicator hidden on Left chart \(NVDA\)\./)
   })
-  it('model path: the request routes the indicators group; openCreate opens with the seed; NO /converse, NO definition write, no board write', async () => {
+  it('model path: an EXPLICIT "open Create Indicator" request routes the indicators group; openCreate opens with the seed; NO /converse, NO definition write, no board write', async () => {
     const { say, opened, board } = mountPanel()
     const before = JSON.stringify(board.state.widgets)
     envelopes.push((b) => {
@@ -404,10 +404,23 @@ describe('M1 in the real panel (scripted model)', () => {
       const ref = b.context.indicators.find(e => e.position === 'left').ref
       return env('apply', [{ action: 'indicator.openCreate', target: ref, args: { request: 'highlight candles when the 9 EMA is above the 20 EMA', defId: null } }])
     })
-    say('Help me build an indicator that highlights candles when the 9 EMA is above the 20 EMA on the left chart')
+    say('Open Create Indicator on the left chart for an indicator that highlights candles when the 9 EMA is above the 20 EMA')
     await screen.findByText(/press Send when you’re ready/)
     expect(opened).toEqual([['L', { seed: 'highlight candles when the 9 EMA is above the 20 EMA' }]])
     expect(converse()).toEqual([])
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+  })
+  it('S6 F1: a plain "help me build an indicator" is built HERE — the model\'s openCreate is turned into an indicator draft; the panel does not open', async () => {
+    const { say, opened, board } = mountPanel()
+    const before = JSON.stringify(board.state.widgets)
+    envelopes.push((b) => {
+      const ref = b.context.indicators.find(e => e.position === 'left').ref
+      return env('apply', [{ action: 'indicator.openCreate', target: ref, args: { request: 'highlight candles when the 9 EMA is above the 20 EMA', defId: null } }])
+    })
+    say('Help me build an indicator that highlights candles when the 9 EMA is above the 20 EMA on the left chart')
+    await screen.findByText(/Building it with you here in the chat/)
+    await waitFor(() => expect(converse().length).toBe(1))          // the indicator builder got the member's words
+    expect(opened).toEqual([])                                        // the Create Indicator panel did NOT open
     expect(JSON.stringify(board.state.widgets)).toBe(before)
   })
   it('a member WITHOUT access: the manifest the model gets has no openCreate, and an op naming it is refused', async () => {

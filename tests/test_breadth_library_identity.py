@@ -79,13 +79,13 @@ def test_a_typo_in_the_flag_cannot_take_the_shipped_symbols_off_the_air(monkeypa
 
 def test_every_shipped_uct_symbol_still_resolves_exactly_as_before(monkeypatch):
     monkeypatch.delenv("BREADTH_LIBRARY_UNIVERSES", raising=False)
-    assert len(bs.SYMBOLS) == 44
+    assert len(bs.SYMBOLS) == 45   # +UCTA150 (2026-10-10)
     for sym, rec in bs.SYMBOLS.items():
         assert bs.is_breadth_symbol(sym) is True, sym
         assert bs._METRIC_OF[sym] == rec["metric"]
     # and the public catalogue endpoint's payload is unchanged
     listed = bs.list_breadth_symbols()
-    assert len(listed) == 44
+    assert len(listed) == 45
     assert all(":" not in r["symbol"] for r in listed)
 
 

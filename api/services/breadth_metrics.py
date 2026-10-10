@@ -123,10 +123,15 @@ _ROWS = [
     # ── MA breadth — proportions, the most trustworthy family ────────────────
     ("pct_above_5sma",    "A5",   "% of Stocks Above 5-Day MA",   "A5",   "ma", UNIT_PERCENT, DOMAIN_PCT, PRES_LINE, PORTABLE),
     ("pct_above_10sma",   "A10",  "% of Stocks Above 10-Day MA",  "A10",  "ma", UNIT_PERCENT, DOMAIN_PCT, PRES_LINE, PORTABLE),
-    ("pct_above_20ema",   "A20",  "% of Stocks Above 20-Day EMA", "A20",  "ma", UNIT_PERCENT, DOMAIN_PCT, PRES_LINE, PORTABLE),
+    # ⭐ (2026-10-10, owner) the 20-day is the SIMPLE average like every other row and like
+    # StockCharts ($NYA20R) / Barchart ($MMTW); it takes the A20 code. The EMA stays registered
+    # (the stored artifacts carry it) under A20E and is published nowhere.
+    ("pct_above_20sma",   "A20",  "% of Stocks Above 20-Day MA",  "A20",  "ma", UNIT_PERCENT, DOMAIN_PCT, PRES_LINE, PORTABLE),
+    ("pct_above_20ema",   "A20E", "% of Stocks Above 20-Day EMA", "A20E", "ma", UNIT_PERCENT, DOMAIN_PCT, PRES_LINE, PORTABLE),
     ("pct_above_40sma",   "A40",  "% of Stocks Above 40-Day MA",  "A40",  "ma", UNIT_PERCENT, DOMAIN_PCT, PRES_LINE, PORTABLE),
     ("pct_above_50sma",   "A50",  "% of Stocks Above 50-Day MA",  "A50",  "ma", UNIT_PERCENT, DOMAIN_PCT, PRES_LINE, PORTABLE),
     ("pct_above_100sma",  "A100", "% of Stocks Above 100-Day MA", "A100", "ma", UNIT_PERCENT, DOMAIN_PCT, PRES_LINE, PORTABLE),
+    ("pct_above_150sma",  "A150", "% of Stocks Above 150-Day MA", "A150", "ma", UNIT_PERCENT, DOMAIN_PCT, PRES_LINE, PORTABLE),
     ("pct_above_200sma",  "A200", "% of Stocks Above 200-Day MA", "A200", "ma", UNIT_PERCENT, DOMAIN_PCT, PRES_LINE, PORTABLE),
 
     # ── Momentum / primary breadth — counts, plus two ratios ─────────────────
@@ -347,8 +352,8 @@ def signed_metrics() -> list[str]:
 #: The accepted V1 set (owner, 2026-09-15). 18 metrics. Order is catalogue order.
 V1_METRICS = (
     # Participation — percent, universe-size invariant, the most trustworthy family
-    "pct_above_5sma", "pct_above_10sma", "pct_above_20ema", "pct_above_40sma",
-    "pct_above_50sma", "pct_above_100sma", "pct_above_200sma",
+    "pct_above_5sma", "pct_above_10sma", "pct_above_20sma", "pct_above_40sma",
+    "pct_above_50sma", "pct_above_100sma", "pct_above_150sma", "pct_above_200sma",
     # Highs / Lows — the two counts, their signed net, and the two percentages
     "new_52w_highs", "new_52w_lows", "net_new_high_low", "hi_ratio", "lo_ratio",
     # Momentum — the 4% movers and the two ratios built from them
@@ -387,6 +392,9 @@ V1_1_CLASSIFICATION = {
     # D — withheld by the US V2 authority itself (`breadth_authority.US_WITHHELD`): the only
     #     population they exist in is V1's, which is the defective one. Not stored by Exchange V1.
     "up_on_volume": "D", "down_on_volume": "D", "hvc_52w": "D", "up_vol_ratio": "D",
+    # B — retired 2026-10-10 (owner): the 20-day SIMPLE average replaced it everywhere members
+    #     look; the EMA stays in the stored artifacts and is published nowhere.
+    "pct_above_20ema": "B",
 }
 
 #: Named publication sets. `*` is not a set — see `publication_set_name`.

@@ -102,7 +102,7 @@ def test_NOTHING_PUBLIC_has_learned_about_namespaced_symbols():
 
     # the public catalogue endpoint's payload is unchanged
     listed = bs.list_breadth_symbols()
-    assert len(listed) == len(bs.SYMBOLS) == 44
+    assert len(listed) == len(bs.SYMBOLS) == 45
     assert all(":" not in r["symbol"] for r in listed)
 
     # and search cannot surface one

@@ -23,7 +23,7 @@ const ROWS = Array.from({ length: 30 }, (_, i) => ({
   breadth_score: 60 + i,
   uct_exposure: 50 + i,
   pct_above_10sma: 40 + i,
-  pct_above_20ema: 42 + i,
+  pct_above_20sma: 42 + i,
   pct_above_50sma: 45 + i,
   pct_above_200sma: 50 + i,
   up_4pct_today: 100 + i * 5,

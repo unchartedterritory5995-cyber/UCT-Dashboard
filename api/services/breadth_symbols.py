@@ -54,10 +54,12 @@ _ROWS = [
     # ── MA Breadth ──────────────────────────────────────────────────────────
     ("UCTA5",   "pct_above_5sma",   "% of Stocks Above 5-Day MA",   G_MA),
     ("UCTA10",  "pct_above_10sma",  "% of Stocks Above 10-Day MA",  G_MA),
-    ("UCTA20",  "pct_above_20ema",  "% of Stocks Above 20-Day EMA", G_MA),
+    # (2026-10-10) UCTA20 is the 20-day SIMPLE average now (the EMA retired from the catalogue)
+    ("UCTA20",  "pct_above_20sma",  "% of Stocks Above 20-Day MA",  G_MA),
     ("UCTA40",  "pct_above_40sma",  "% of Stocks Above 40-Day MA",  G_MA),
     ("UCTA50",  "pct_above_50sma",  "% of Stocks Above 50-Day MA",  G_MA),
     ("UCTA100", "pct_above_100sma", "% of Stocks Above 100-Day MA", G_MA),
+    ("UCTA150", "pct_above_150sma", "% of Stocks Above 150-Day MA", G_MA),
     ("UCTA200", "pct_above_200sma", "% of Stocks Above 200-Day MA", G_MA),
 
     # ── Momentum / Primary Breadth ──────────────────────────────────────────
@@ -904,8 +906,12 @@ def _build_breadth_series(sym: str, metric: str,
         except Exception:
             auth = None
         if auth is not None:
-            closes_by_date = {d: v for d, v in closes_by_date.items() if d < ba.V2_START}
-            ohlc_map = {d: r for d, r in ohlc_map.items() if d < ba.V2_START}
+            # ⭐ (2026-10-10) a metric the V2 authority does not carry (the 20/150-day SMA family)
+            # keeps the store's own rows after V2_START instead of ending there.
+            _auth_has = any(ac is not None for (_o, _h, _l, ac, _c) in auth.values())
+            if _auth_has:
+                closes_by_date = {d: v for d, v in closes_by_date.items() if d < ba.V2_START}
+                ohlc_map = {d: r for d, r in ohlc_map.items() if d < ba.V2_START}
             for d, (ao, ah, al, ac, _cls) in auth.items():
                 if ac is None:
                     continue
@@ -1549,6 +1555,14 @@ def _haystack(row: dict) -> str:
     ))
 
 
+def _has_tok(t: str, text: str) -> bool:
+    """`t` in `text` — a NUMBER only as a whole number (2026-10-10: "above 50" must not find the
+    150-day average because "150" contains "50")."""
+    if t.isdigit():
+        return re.search(r"(?<!\d)%s(?!\d)" % t, text) is not None
+    return t in text
+
+
 def library_search(q: str, limit: int = 40, published_only: bool = False) -> list[dict]:
     """Ranked Breadth Library results for one query.
 
@@ -1612,9 +1626,9 @@ def library_search(q: str, limit: int = 40, published_only: bool = False) -> lis
             score = 2 if want_universes else None
         elif all(t == code for t in rest):
             score = 1                                   # "A50"
-        elif all(t in own for t in rest):
+        elif all(_has_tok(t, own) for t in rest):
             score = 3                                   # "new lows", "above 50"
-        elif all(t in hay for t in rest):
+        elif all(_has_tok(t, hay) for t in rest):
             score = 4                                   # family / universe context
         else:
             score = None

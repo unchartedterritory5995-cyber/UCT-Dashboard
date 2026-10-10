@@ -41,7 +41,7 @@ const rows = Array.from({ length: 60 }, (_, i) => {
   return {
     date: day.toISOString().slice(0, 10),
     breadth_score: 50 + (i % 20), uct_exposure: 60, pct_above_5sma: 40 + (i % 30),
-    pct_above_10sma: 45, pct_above_20ema: 50, pct_above_40sma: 52, pct_above_50sma: 40 + (i % 25),
+    pct_above_10sma: 45, pct_above_20sma: 50, pct_above_40sma: 52, pct_above_50sma: 40 + (i % 25),
     pct_above_100sma: 55, pct_above_200sma: 60, up_4pct_today: 30, down_4pct_today: 12,
     up_20pct_5d: 8, down_20pct_5d: 3, up_25pct_quarter: 40, down_25pct_quarter: 10,
     up_50pct_month: 5, down_50pct_month: 2, magna_up: 60, magna_down: 20,

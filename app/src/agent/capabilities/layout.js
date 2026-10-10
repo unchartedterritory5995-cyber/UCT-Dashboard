@@ -35,6 +35,7 @@
 // ⛔ Not here, deliberately: deleting the open layout, and overwrite of any kind.
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
+import { hasUsableDraft } from './indicatorAuthoring'
 import { afterRender } from '../frames'
 
 const MAX_NAME = 60
@@ -319,15 +320,19 @@ export function registerLayoutCapabilities() {
     exclusive: true,
     exclusiveReason: 'Save the layout on its own, then ask for any other changes.',
     summary: 'Save the current Charts workspace as a NEW named layout (it becomes the open layout). Never replaces an existing layout.',
-    hints: 'target = the ref of the layouts entry; name = the exact name the member gave. If that name is already in the layouts list, do not use this — tell the member instead.',
+    hints: 'target = the ref of the layouts entry; name = the exact name the member gave. If that name is already in the layouts list, do not use this — tell the member instead. ONLY for saving the WORKSPACE/LAYOUT/BOARD: while an indicator draft is active (indicatorDrafts), "save it as X" means the indicator (indicator.saveDraft) unless the member says layout/workspace/board; if you cannot tell, ask.',
     args: {
       type: 'object',
       properties: { name: { type: 'string' } },
       required: ['name'], additionalProperties: false,
     },
-    fast: ({ raw }) => {
+    fast: ({ raw, host }) => {
       const m = /^(?:please )?save (?:this|this setup|this layout|this workspace|this board|the current (?:setup|layout|workspace|board)|it|the board|my setup)? ?as (?:a )?(?:new )?(?:layout )?(?:called |named )?(.+?)[.!]?$/i.exec(String(raw).trim())
       if (!m) return null
+      // ⛔ S6 F2: "save it as X" / "save this as X" / "save as X" name no layout. While an indicator
+      // draft is open the referent is not clear, so the fast path never claims it — the planner
+      // (and its "which one?" question) decides. Explicit layout/workspace/board wording still fast-paths.
+      if (!/\b(layout|workspace|board|setup)\b/i.test(String(raw)) && hasUsableDraft(host)) return null
       const name = m[1].replace(/^[“"'‘]|[”"'’]$/g, '').trim()
       return name ? { name } : null
     },
