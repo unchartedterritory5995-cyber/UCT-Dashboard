@@ -433,7 +433,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     // ⭐ M3: the confirmed Save's chart adds — ONE execution per op, each planned, permission-checked,
     // persisted, confirmed and receipted on its own (a failure never undoes another chart or the Save)
     for (const { awaitDefinition, ...op } of out?.followUps || []) {
-      if (awaitDefinition) await definitionListed(awaitDefinition)
+      if (awaitDefinition && !(await definitionListed(awaitDefinition))) {
+        const chart = (() => { try { return host.charts.read(String(op.target).replace(/^ixe:/, ''))?.label || 'that chart' } catch { return 'that chart' } })()
+        const text = `It is saved, but your indicator list hasn’t caught up yet, so I didn’t add it to ${chart} — ask me to add it again in a moment.`
+        push({ role: 'refusal', text })
+        record({ member, outcome: text, outcomeData: { kind: 'refused', actions: [op.action] }, telemetry: { path: 'followup', refused: true, voice } })
+        continue
+      }
       traceStart('followup:apply')
       try { await executeInner([op], { path: 'followup', mode: 'apply', member, voice }) } finally { traceEnd('done') }
     }

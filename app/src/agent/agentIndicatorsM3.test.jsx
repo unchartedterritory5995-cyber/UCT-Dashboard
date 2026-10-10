@@ -29,8 +29,8 @@ const TREND_RSI = 'ema(close, 9) > ema(close, 20) && rsi(close, 14) > 50'
 
 /** The model, scripted: the member's sentence → the envelope a model would return. */
 let calls
-function converse({ message, state }) {
-  calls.push({ message, revision: state.revision })
+function converse({ message, state, gateCtx }) {
+  calls.push({ message, revision: state.revision, symbol: gateCtx?.symbol || null })
   const env = (ops) => ({ ok: true, disposition: 'change', turn: 'patch', reply: '',
     envelope: { contract: PATCH, baseRevision: state.revision, ops, assumptions: [], disposition: 'change' } })
   const m = message.toLowerCase()
@@ -647,5 +647,24 @@ describe('⭐ typed rename — the specialist’s renameOnly marker is the only 
     const p = await plan(h, [say(ref, 'Name it A'), ...saveAs(ref, 'B')])
     expect(p.ok).toBe(false)
     expect(p.refusals[0].reason).toMatch(/Name it in the save itself/)
+  })
+})
+
+// ── 10. INDICATORS review N1/N2/N3 ───────────────────────────────────────────────────
+describe('review follow-ups — per-tab pointer, the draft keeps its chart', () => {
+  it('N1: the selected-draft pointer lives in sessionStorage (the drafts’ own lifetime), never localStorage', async () => {
+    const h = host([L])
+    await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.')])
+    expect(sessionStorage.getItem('uct.agent.activeDraft')).toMatch(/"lineage"/)
+    expect(localStorage.getItem('uct.agent.activeDraft')).toBe(null)
+  })
+  it('N2: a draft begun on one chart keeps that chart’s symbol for the builder even when the board order changes', async () => {
+    const specs = [L, R]
+    const h = host(specs)
+    await run(h, [say(NEW, 'Build me an indicator that highlights candles when the 9 EMA is above the 20 EMA.')])
+    const ref = activeRef(h)
+    specs.reverse()                                                                // R (AAPL) is now first on the board
+    await run(h, [say(ref, 'Okay, also require RSI to be above 50.')])
+    expect(calls.map(c => c.symbol)).toEqual(['NVDA', 'NVDA'])
   })
 })

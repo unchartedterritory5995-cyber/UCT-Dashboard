@@ -48,21 +48,33 @@ export function authoringCtx(host, chartRef = null) {
 }
 
 // ── the ACTIVE draft of this Agent conversation: the opaque draftRef, as the specialist returned it ──
+// per TAB (sessionStorage) — the same lifetime as the specialist's drafts (INDICATORS review N1)
 const ACTIVE_KEY = 'uct.agent.activeDraft'
+const CHART_KEY = 'uct.agent.draftCharts'
+const store = () => globalThis.sessionStorage
 let active = null
 const readActive = () => {
   if (active) return active
-  try { const v = globalThis.localStorage?.getItem(ACTIVE_KEY); active = v ? JSON.parse(v) : null } catch { active = null }
+  try { const v = store()?.getItem(ACTIVE_KEY); active = v ? JSON.parse(v) : null } catch { active = null }
   return active
 }
 function setActive(draftRef) {
   active = draftRef || null
   try {
-    if (active) globalThis.localStorage?.setItem(ACTIVE_KEY, JSON.stringify(active))
-    else globalThis.localStorage?.removeItem(ACTIVE_KEY)
+    if (active) store()?.setItem(ACTIVE_KEY, JSON.stringify(active))
+    else store()?.removeItem(ACTIVE_KEY)
   } catch { /* storage is a convenience: the specialist is the authority */ }
 }
-export function _resetAuthoring() { active = null; pinned.clear(); try { globalThis.localStorage?.removeItem(ACTIVE_KEY) } catch { /* */ } }
+export function _resetAuthoring() { active = null; pinned.clear(); try { store()?.removeItem(ACTIVE_KEY); store()?.removeItem(CHART_KEY) } catch { /* */ } }
+
+// N2 — the chart a draft was BEGUN on (its symbol/timeframe feed the builder's pre-flight and the
+// model's chart context): remembered per draft key, reused while that chart is on the board.
+function draftCharts() { try { return JSON.parse(store()?.getItem(CHART_KEY) || '{}') || {} } catch { return {} } }
+function rememberChart(draftRef, chartRef) {
+  if (!draftRef || !chartRef) return
+  try { store()?.setItem(CHART_KEY, JSON.stringify({ ...draftCharts(), [draftRef.key]: chartRef })) } catch { /* convenience only */ }
+}
+const chartOf = (draftRef) => (draftRef ? draftCharts()[draftRef.key] || null : null)
 
 // ── ⛔ NEVER A SILENT PICK BETWEEN DRAFTS ──
 // The SELECTED draft of this conversation (`active`) is set only by the member: the Agent made it
@@ -203,12 +215,14 @@ export const indicatorDraftsKind = {
     const followUps = []
     for (const op of patch.ops) {
       if (op.type === 'turn') {
-        const ctx = authoringCtx(host, op.chartRef || null)
+        const firstChart = (() => { try { return host?.charts?.list()?.[0]?.ref || null } catch { return null } })()
+        const ctx = authoringCtx(host, op.chartRef || chartOf(draftRef) || firstChart)
         if (!draftRef) {
           const o = openDraft({ create: true, ...(op.chartRef ? { chartRef: op.chartRef } : {}) }, ctx)
           if (!o.ok) throw fail(refusalSentence(o))
           draftRef = o.draftRef
           revision = o.status.revision
+          rememberChart(draftRef, op.chartRef || firstChart)
         }
         setActive(draftRef)
         const out = await draftTurn(draftRef, op.message, { expectedRevision: op.pinRevision ?? revision }, ctx)
