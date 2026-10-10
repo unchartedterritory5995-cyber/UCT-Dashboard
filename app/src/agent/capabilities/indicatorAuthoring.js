@@ -136,13 +136,15 @@ export function asksToApply(text) {
  * @returns `{ ops, ask?: {text, choices}, notes: string[] }` — ops possibly corrected; `ask` = do not
  *          plan anything, ask this instead (nothing changes).
  */
-export function screenModelOps(host, ops, text) {
+export function screenModelOps(host, ops, text, capCtx = {}) {
   const notes = []
   const words = String(text || '')
   let out = (ops || []).map(o => ({ ...o, args: o && o.args ? { ...o.args } : o?.args }))
-  // F1 — a plain "build me an indicator" is built HERE (indicator.draft), not handed to the panel
+  // F1 — a plain "build me an indicator" is built HERE (indicator.draft), not handed to the panel —
+  // only for a member who CAN author (else the op is left alone and refused exactly as before)
+  const canAuthor = capCtx.surface === 'charts' && capCtx.createIndicator === true
   out = out.map(o => {
-    if (o?.action !== 'indicator.openCreate' || o.args?.defId != null || PANEL_WORDS.test(words)) return o
+    if (!canAuthor || o?.action !== 'indicator.openCreate' || o.args?.defId != null || PANEL_WORDS.test(words)) return o
     const chartRef = typeof o.target === 'string' && o.target.startsWith('ind:') ? o.target.slice(4) : null
     notes.push('Building it with you here in the chat (say “open Create Indicator” if you want the panel instead).')
     return { action: 'indicator.draft', target: NEW, args: { message: words.trim(), chart: chartRef, edit: null } }

@@ -692,7 +692,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // that target's own read-only producer before the refs are translated.
       const bound = bindSourceRefs(env.ops, refMap, { host, message: text }).map(o => ({ ...o, target: refMap[o.target]?.ref || o.target, args: argRefsBack(o, refMap) }))
       // ⛔ S6 F1–F3: the model's plan is checked against the member's own words before anything runs
-      const screened = screenModelOps(host, bound, text)
+      const screened = screenModelOps(host, bound, text, capCtx)
       if (screened.ask) {
         push({ role: 'question', text: screened.ask.text, choices: screened.ask.choices, local: true })
         record({ member: null, outcome: screened.ask.text, outcomeData: { kind: 'clarify-save-target', actions: bound.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })

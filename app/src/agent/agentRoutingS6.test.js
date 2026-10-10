@@ -49,6 +49,7 @@ function host(n = 1) {
   }
 }
 const CTX = { surface: 'charts', createIndicator: true }
+const screen = (h, ops, text) => screenModelOps(h, ops, text, CTX)
 async function withDraft(h) {
   const ops = [{ action: 'indicator.draft', target: 'draft:new', args: { message: 'plot the EMA 20 of close', chart: 'L', edit: null } }]
   buildContext(h, CTX)
@@ -62,18 +63,23 @@ describe('F1 — building an indicator in conversation is the default', () => {
   const openCreate = (request = 'plot the EMA 20 of close', defId = null) => ({ action: 'indicator.openCreate', target: 'ind:L', args: { request, defId } })
   it('"Build me a new custom indicator…" — the model\'s openCreate becomes an in-chat indicator draft on that chart, with the member\'s words', () => {
     const text = 'Build me a new custom indicator that plots the EMA 20 of close on the SPY chart.'
-    const s = screenModelOps(host(), [openCreate()], text)
+    const s = screen(host(), [openCreate()], text)
     expect(s.ask).toBeUndefined()
     expect(s.ops).toEqual([{ action: 'indicator.draft', target: 'draft:new', args: { message: text, chart: 'L', edit: null } }])
     expect(s.notes[0]).toMatch(/Building it with you here in the chat/)
   })
   it('an EXPLICIT request for the visual builder keeps openCreate', () => {
     for (const t of ['Open Create Indicator with an EMA 20 request', 'open the indicator builder and type: EMA 20', 'I want the visual builder for this', 'Open the panel to make an RSI indicator']) {
-      expect(screenModelOps(host(), [openCreate()], t).ops[0].action, t).toBe('indicator.openCreate')
+      expect(screen(host(), [openCreate()], t).ops[0].action, t).toBe('indicator.openCreate')
     }
   })
+  it('a member WITHOUT Create Indicator access: nothing is redirected (the op is refused as before, no "building it" note)', () => {
+    const s = screenModelOps(host(), [openCreate()], 'help me build an rsi indicator', { surface: 'charts', createIndicator: false })
+    expect(s.ops[0].action).toBe('indicator.openCreate')
+    expect(s.notes).toEqual([])
+  })
   it('Modify (defId) is never rewritten', () => {
-    expect(screenModelOps(host(), [openCreate(null, 'u_aaaaaaaaaaaa')], 'change my indicator').ops[0].action).toBe('indicator.openCreate')
+    expect(screen(host(), [openCreate(null, 'u_aaaaaaaaaaaa')], 'change my indicator').ops[0].action).toBe('indicator.openCreate')
   })
   it('the capability text no longer tells the model to open the panel for "help me build…"', () => {
     const oc = getCapability('indicator.openCreate')
@@ -96,7 +102,7 @@ describe('F2 — "Save it as X" with an indicator draft open is never a silent l
   it('the model picks layout.saveAs for "Save it as X" while a draft is open → ASK (both choices named), nothing planned', async () => {
     const h = host()
     await withDraft(h)
-    const s = screenModelOps(h, [{ action: 'layout.saveAs', target: 'layouts', args: { name: 'M3 Acceptance EMA 20' } }], 'Save it as M3 Acceptance EMA 20.')
+    const s = screen(h, [{ action: 'layout.saveAs', target: 'layouts', args: { name: 'M3 Acceptance EMA 20' } }], 'Save it as M3 Acceptance EMA 20.')
     expect(s.ops).toEqual([])
     expect(s.ask.text).toMatch(/save the indicator you’re building, or this workspace as a layout\?/)
     expect(s.ask.choices.map(c => c.label)).toEqual(['Save the indicator draft as M3 Acceptance EMA 20', 'Save this workspace as a new layout called M3 Acceptance EMA 20'])
@@ -106,17 +112,17 @@ describe('F2 — "Save it as X" with an indicator draft open is never a silent l
     const h = host()
     await withDraft(h)
     const op = { action: 'layout.saveAs', target: 'layouts', args: { name: 'Trend' } }
-    expect(screenModelOps(h, [op], 'Save this workspace as a new layout called Trend').ops).toEqual([op])
-    expect(screenModelOps(h, [op], 'save the layout as Trend').ops).toEqual([op])
+    expect(screen(h, [op], 'Save this workspace as a new layout called Trend').ops).toEqual([op])
+    expect(screen(h, [op], 'save the layout as Trend').ops).toEqual([op])
   })
   it('no indicator draft open → "Save it as X" stays a layout save (layout behaviour unchanged)', () => {
     const op = { action: 'layout.saveAs', target: 'layouts', args: { name: 'Trend' } }
-    expect(screenModelOps(host(), [op], 'Save it as Trend').ops).toEqual([op])
+    expect(screen(host(), [op], 'Save it as Trend').ops).toEqual([op])
   })
   it('the reverse: the model picks indicator.saveDraft but the member said "layout" (and not indicator) → ASK', async () => {
     const h = host()
     const ref = await withDraft(h)
-    const s = screenModelOps(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: 'Trend' } }], 'save the layout as Trend')
+    const s = screen(h, [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: 'Trend' } }], 'save the layout as Trend')
     expect(s.ops).toEqual([])
     expect(s.ask.choices).toHaveLength(2)
   })
@@ -124,18 +130,18 @@ describe('F2 — "Save it as X" with an indicator draft open is never a silent l
     const h = host()
     const ref = await withDraft(h)
     const op = { action: 'indicator.saveDraft', target: ref, args: { addTo: [], name: 'Trend' } }
-    expect(screenModelOps(h, [op], 'Save it as Trend').ops).toEqual([op])
+    expect(screen(h, [op], 'Save it as Trend').ops).toEqual([op])
   })
 })
 
 describe('F3 — Save and "add to a chart" are separate intents', () => {
   const save = (addTo) => ({ action: 'indicator.saveDraft', target: 'draft:create:x', args: { addTo, name: 'Trend' } })
   it('an unrequested chart add is dropped (with a note); a requested one is kept', () => {
-    const a = screenModelOps(host(), [save(['L'])], 'Save the indicator draft as Trend.')
+    const a = screen(host(), [save(['L'])], 'Save the indicator draft as Trend.')
     expect(a.ops[0].args.addTo).toEqual([])
     expect(a.notes).toContain('Saving only — I won’t add it to a chart unless you ask.')
-    expect(screenModelOps(host(), [save(['L'])], 'Save it as Trend and add it to my chart.').ops[0].args.addTo).toEqual(['L'])
-    expect(screenModelOps(host(), [save(['L', 'R'])], 'Save it and put it on both charts').ops[0].args.addTo).toEqual(['L', 'R'])
+    expect(screen(host(), [save(['L'])], 'Save it as Trend and add it to my chart.').ops[0].args.addTo).toEqual(['L'])
+    expect(screen(host(), [save(['L', 'R'])], 'Save it and put it on both charts').ops[0].args.addTo).toEqual(['L', 'R'])
   })
   it('asksToApply: negated clauses are not requests', () => {
     for (const t of ['Save it as X and add it to my chart.', 'save it, then apply it to the left chart', 'Save the indicator and add it to both.', 'save it and put it on the NVDA chart']) expect(asksToApply(t), t).toBe(true)
