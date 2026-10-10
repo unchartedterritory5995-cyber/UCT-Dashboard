@@ -4,7 +4,7 @@
 // prefix match (completion, nothing to eat); with args/prose = exact name.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Editor } from '@tiptap/core'
-import { widgetItems, factItems, consensusFactItems, ITEMS } from './SlashMenu'
+import { widgetItems, factItems, consensusFactItems, ITEMS, groupedSlashItems, blockItemGroup } from './SlashMenu'
 import { buildExtensions } from '../../lib/tiptap'
 
 const titles = (q) => widgetItems(q).map((i) => i.title)
@@ -322,5 +322,39 @@ describe('block entries (Wave 5)', () => {
     const ed = run('Math block', '<p>/m</p>')
     expect(found(ed, 'blockMath')).toHaveLength(1)
     expect(ed.view.dom.querySelector('textarea.uctMathInput')).not.toBe(null)
+  })
+})
+
+// UX pass 2026-10-10: a bare `/` leads with the trading blocks, then the everyday basics, then
+// everything else. Filtering by typed text is unchanged; only the bare list is grouped.
+describe('bare slash menu groups (trading first)', () => {
+  const bare = () => groupedSlashItems(ITEMS, [...widgetItems(''), ...factItems(''), ...consensusFactItems('')])
+
+  it('the first options are trading, the headings come after them', () => {
+    const items = bare()
+    expect(items[0].title).toBe('Chart')
+    expect(items[0].group).toBe('trading')
+    const firstHeading = items.findIndex((i) => i.title === 'Heading 1')
+    const lastTrading = items.map((i) => i.group).lastIndexOf('trading')
+    expect(firstHeading).toBeGreaterThan(lastTrading)
+  })
+
+  it('groups appear in order trading, basics, more and never interleave', () => {
+    const order = bare().map((i) => i.group).filter((g, i, a) => g !== a[i - 1])
+    expect(order).toEqual(['trading', 'basics', 'more'])
+  })
+
+  it('no block is lost or duplicated by grouping', () => {
+    const items = bare()
+    const blockTitles = items.filter((i) => ITEMS.some((b) => b.title === i.title)).map((i) => i.title)
+    expect(blockTitles.slice().sort()).toEqual(ITEMS.map((i) => i.title).sort())
+    expect(new Set(items.map((i) => i.title)).size).toBe(items.length)
+  })
+
+  it('the deeper headings sit in More, the first three in Basics', () => {
+    const byTitle = (t) => ITEMS.find((i) => i.title === t)
+    expect(blockItemGroup(byTitle('Heading 1'))).toBe('basics')
+    expect(blockItemGroup(byTitle('Heading 4'))).toBe('more')
+    expect(blockItemGroup(byTitle('Trade-plan canvas'))).toBe('trading')
   })
 })

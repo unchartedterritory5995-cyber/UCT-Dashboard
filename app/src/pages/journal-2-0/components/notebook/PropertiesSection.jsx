@@ -49,6 +49,8 @@ export const COMPUTED_PROPERTY_TYPES = [
   { value: 'rollup', label: 'Rollup' },
 ]
 
+const NO_OMIT = Object.freeze([])
+
 /**
  * Wave E — the note editor's Properties section. Progressive disclosure by
  * design (checkpoint §21): a note with nothing set shows only a single
@@ -63,11 +65,19 @@ export const COMPUTED_PROPERTY_TYPES = [
  * (checkpoint §25): a native control gets full keyboard/screen-reader
  * support for free, and nothing here needs a custom listbox.
  */
-export default function PropertiesSection({ noteId, updateNote, ticker, autofillOn = false }) {
-  const { properties, isLoading, error: loadError, refresh } = useNoteProperties(noteId)
+export default function PropertiesSection({ noteId, updateNote, ticker, autofillOn = false, omit = NO_OMIT }) {
+  const { properties: resolved, isLoading, error: loadError, refresh } = useNoteProperties(noteId)
+  // Notebook UX pass (2026-10-10): the editor's ONE ticker control is its own row in the note's
+  // details, so the read-only `builtin:ticker` mirror of that same value is left out here
+  // (`omit`). The server still derives it; the AUTHORITY is the note's `ticker` column, written
+  // through the editor's metadata door. Showing both was the "ticker twice" the owner saw.
+  const properties = useMemo(
+    () => (omit.length ? resolved.filter((p) => !omit.includes(p.id)) : resolved),
+    [resolved, omit],
+  )
   // The Ticker/Sector/Industry/Theme/Trade rows are computed server-side
-  // from the note's OWN ticker field (a DIFFERENT save path -- the header's
-  // Ticker input, not this section) -- this section's own SWR cache has no
+  // from the note's OWN ticker field (a DIFFERENT save path -- the editor's
+  // Ticker field, not this section) -- this section's own SWR cache has no
   // way to know that field changed underneath it. Refetch whenever the
   // caller's own note.ticker changes so the derived rows never sit stale
   // until a full reload (same principle as Wave D's rename-staleness fix,

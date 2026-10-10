@@ -1,6 +1,7 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import {
   Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useReducer, useRef, useState,
+  useSyncExternalStore,
 } from 'react'
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom'
 import useSWR, { mutate as globalMutate } from 'swr'
@@ -91,7 +92,16 @@ import { textColorClass } from '../../lib/textColor'
 import NoteHistoryPanel from './NoteHistoryPanel'
 import NoteBacklinksSection from './NoteBacklinksSection'
 import PropertiesSection from './PropertiesSection'
-import ThesisSection from './ThesisSection'
+import ThesisSection, { isThesisShaped } from './ThesisSection'
+import NoteDetailsLine, {
+  readNoteDetailsOpen, writeNoteDetailsOpen, registeredTourRunning,
+} from './NoteDetailsLine'
+import useNoteProperties from '../../hooks/useNoteProperties'
+import useThesisReviews from '../../hooks/useThesisReviews'
+import { templateRevealFor } from '../../lib/templatePropertyDefs'
+import {
+  REGISTRY_TOUR_OPEN_EVENT, getRegistryTourWanted, subscribeRegistryTourWanted,
+} from './onboarding/tourRegistryControl'
 import { createNoteViaApi } from '../../lib/noteCreation'
 import { refreshEvidenceCandidates } from '../../hooks/useEvidenceCandidates'
 import { invalidateNoteLinkTarget } from '../../lib/noteLinkTargetsBatch'
@@ -123,6 +133,12 @@ import useNoteLinkTarget from '../../hooks/useNoteLinkTarget'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
 import { TranscriptInsertHost } from './TranscriptDoors'
 import { normalizeNoteTicker } from '../../lib/noteTicker'
+
+// The read-only property mirror of the note's ticker. The details region carries the ONE
+// editable Ticker control, so PropertiesSection leaves this row out (stable array: its memo key).
+const DETAILS_OMIT = Object.freeze(['builtin:ticker'])
+/** How many tags the one-line details summary names before it says "+N". */
+const DETAILS_TAGS_SHOWN = 3
 
 // Wave 7 lane H1 — the toolbar mic. LAZY: the recorder (MediaRecorder, the Web
 // Speech fallback, the Whisper upload) is not needed to open a note, and a
@@ -887,6 +903,26 @@ export default function NoteEditorPage({
   const [tagWriteFailure, setTagWriteFailure] = useState(null)
   const [tickerFailure, setTickerFailure] = useState(null)
   useEffect(() => { setFavoriteFailure(null); setTagWriteFailure(null) }, [noteId])
+
+  // Notebook UX pass (2026-10-10): BODY FIRST. Everything that used to stack between the title
+  // and the body (subtitle, tags, evidence, properties, the thesis review, the changelog) is
+  // folded behind ONE line under the title (NoteDetailsLine), collapsed by default and
+  // remembered per browser. ⛔ The region is HIDDEN, never unmounted: a half-typed property, an
+  // open evidence picker or a review draft keeps its local state through a collapse.
+  // `detailsRevealed` is a reveal for THIS visit only (never saved): a review link, a fresh note
+  // that asks for its ticker, a template's declared properties, a running walkthrough.
+  const [detailsPref, setDetailsPref] = useState(readNoteDetailsOpen)
+  const [detailsRevealed, setDetailsRevealed] = useState(
+    () => registeredTourRunning() || templateRevealFor(noteId).length > 0,
+  )
+  useEffect(() => {
+    const onTour = () => setDetailsRevealed(true)
+    window.addEventListener(REGISTRY_TOUR_OPEN_EVENT, onTour)
+    return () => window.removeEventListener(REGISTRY_TOUR_OPEN_EVENT, onTour)
+  }, [])
+  const detailsRegionId = useId()
+  const subtitleId = useId()
+  const [subtitleFocused, setSubtitleFocused] = useState(false)
   const onToggleFavorite = async () => {
     if (favoriteBusy) return
     const next = !isFavorite
@@ -1645,7 +1681,19 @@ export default function NoteEditorPage({
   // one used to leave its panel empty, which reads as "this note has none".
   const { error: factsError, refresh: refreshFacts } = useNoteFacts(noteId)
   const { error: candidatesError, refresh: refreshCandidates } = useEvidenceCandidates(noteId)
-  const { error: thesisError, refresh: refreshThesis } = useThesisSummary(noteId)
+  const {
+    error: thesisError, refresh: refreshThesis, evidence: thesisEvidence, changelog: thesisChangelog,
+    isLoading: thesisLoading,
+  } = useThesisSummary(noteId)
+  // Notebook UX pass (2026-10-10): the one-line details summary under the title reads the SAME
+  // SWR keys PropertiesSection and ThesisSection read, so it adds no request -- except the
+  // review history, which is asked for only for a note ThesisSection renders (whose review
+  // panel asks for the same key).
+  const { properties: detailProperties } = useNoteProperties(noteId)
+  const detailsThesis = !isTradeCanvasDoc(note?.bodyJson) && !thesisLoading && !thesisError
+    && isThesisShaped(note, thesisEvidence, thesisChangelog)
+  const { completed: thesisReviewsDone, isLoading: reviewsLoading, error: reviewsError } =
+    useThesisReviews(detailsThesis ? noteId : null)
 
   // Wave J: opens the preview Sheet for a document_excerpt evidence row in
   // ThesisSection -- the excerpt may belong to a DIFFERENT note than the
@@ -1772,6 +1820,24 @@ export default function NoteEditorPage({
   // review would have nothing to render. The anchor is passed down to the
   // review panel, which owns the only place a review can truthfully be shown.
   const reviewAnchor = reviewTargetFromParams(searchParams)
+  // The details region (see `detailsPref`) must be OPEN, in this same render, when something is
+  // about to point into it: a review link scrolls to a review row, and a fresh note that asks
+  // for its ticker focuses the Ticker field -- a hidden element can take neither. Derived here
+  // (not only set in an effect) because the focus effect runs in the same commit; the effect
+  // makes the reveal outlast the request (`onOpenFocused` clears `openFocus` right after).
+  // A registered tour running now (any start path: the Learn menu, Help > Replay, a carried
+  // request) may point at a control in the details region (e.g. "Add property"), and a tour step
+  // whose anchor is hidden closes the tour. The gate publishes what it runs; open while it runs.
+  const tourRunning = useSyncExternalStore(subscribeRegistryTourWanted, getRegistryTourWanted) != null
+  const detailsMustShow = openFocus === 'ticker' || Boolean(reviewAnchor?.reviewId) || tourRunning
+  useEffect(() => { if (detailsMustShow) setDetailsRevealed(true) }, [detailsMustShow])
+  const detailsOpen = detailsPref || detailsRevealed || detailsMustShow
+  const toggleDetails = () => {
+    const next = !detailsOpen
+    setDetailsPref(next)
+    writeNoteDetailsOpen(next)
+    if (!next) setDetailsRevealed(false)
+  }
   // ⭐ Wave 13 lane 13D: a resurfacing insight's door. Dark behind
   // `awareness_note_resurface_enabled` (latched per tab) -- off, the parameter is ignored.
   // Only the editor the `?note=` door opened answers it (a side pane holds another note).
@@ -2691,7 +2757,8 @@ export default function NoteEditorPage({
   // is not the editor. The card waits the way it already waits behind the Notebook tour -- the
   // editor holds the first-run stage (components/firstRun/firstRunStage.js, read by
   // FloatingOrb's `coachmarkOn`); the hint waits on `hintDeferred`. The mic itself stays.
-  // Above 640 px nothing changes. Rails: NoteEditorPage.firstRunDefer.test.jsx.
+  // Above 640 px the coach card is unchanged; the mic's hint, since the 2026-10-10 UX pass,
+  // waits at EVERY width (see the mic below). Rails: NoteEditorPage.firstRunDefer.test.jsx.
   const deferFirstRun = useIsPhone()
   useEffect(() => (deferFirstRun ? claimFirstRunStage() : undefined), [deferFirstRun])
 
@@ -4010,6 +4077,40 @@ export default function NoteEditorPage({
     )
   }
 
+  // The one-line details summary (NoteDetailsLine): only what has a value, in the order a
+  // trader reads a research note -- what it is (#tags), what it is about (ticker, sector), how
+  // much else is filled in, and whether the thesis has been reviewed.
+  const detailItems = (() => {
+    const out = []
+    const tags = Array.isArray(note.tags) ? note.tags : []
+    tags.slice(0, DETAILS_TAGS_SHOWN).forEach((t) => out.push({ key: `tag:${t}`, text: `#${t}`, kind: 'tag' }))
+    if (tags.length > DETAILS_TAGS_SHOWN) {
+      out.push({ key: 'tags:more', text: `+${tags.length - DETAILS_TAGS_SHOWN}`, kind: 'tag' })
+    }
+    if (note.ticker) out.push({ key: 'ticker', text: note.ticker, kind: 'ticker' })
+    const sector = detailProperties.find((p) => p.id === 'builtin:sector')?.value
+    if (sector) out.push({ key: 'sector', text: String(sector), kind: 'meta' })
+    // "N properties" counts the rows the details will show (the ticker is its own field now).
+    const filled = detailProperties.filter((p) => !DETAILS_OMIT.includes(p.id)
+      && p.value !== null && p.value !== undefined && p.value !== ''
+      && !(Array.isArray(p.value) && p.value.length === 0)).length
+    if (filled > 0) out.push({ key: 'props', text: `${filled} ${filled === 1 ? 'property' : 'properties'}`, kind: 'meta' })
+    // Said only once the history has answered: "Not reviewed" off a read still in flight (or a
+    // failed one) would be a claim nobody measured.
+    if (detailsThesis && !reviewsLoading && !reviewsError) {
+      const last = thesisReviewsDone[0]
+      const when = last?.completedAt ? new Date(last.completedAt) : null
+      out.push({
+        key: 'review',
+        text: last
+          ? (when && !Number.isNaN(when.getTime()) ? `Reviewed ${when.toLocaleDateString()}` : 'Reviewed')
+          : 'Not reviewed',
+        kind: 'status',
+      })
+    }
+    return out
+  })()
+
   return (
     <div className={styles.page} ref={pageRef} onKeyDown={onPageKeyDown}>
       {/* Final-review fix I-1: where an existing note's open puts focus. A
@@ -4213,16 +4314,10 @@ export default function NoteEditorPage({
               <option key={f.id} value={f.id}>{f.name}</option>
             ))}
           </select>
-          <input
-            ref={tickerInputRef}
-            className={styles.headerInput}
-            placeholder="Ticker"
-            aria-label="Ticker"
-            defaultValue={note.ticker || ''}
-            onBlur={(e) => onTickerChange(e.target.value)}
-            style={{ width: 84 }}
-          />
-          <SaveFailed message={tickerFailure} onDismiss={() => setTickerFailure(null)} />
+          {/* Notebook UX pass (2026-10-10): the Ticker field moved out of this row into the
+              note's details, beside the properties it derives (Sector, Industry, Theme). It
+              was also mirrored there as a read-only "Ticker" property, so the ticker showed
+              twice; now there is ONE control, the same input on the same door. */}
           <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} />
           <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} />
           <SaveFailed message={trashFailure} onDismiss={() => setTrashFailure(null)} />
@@ -4592,10 +4687,16 @@ export default function NoteEditorPage({
                 member's recording and says why, never a silent drop.
                 `hintInFlow` (wave 10 follow-up F5): the first-run hint takes its
                 own place in this wrapping row instead of hanging over the tag
-                input (1200 px) and the formatting row (820 / 390 px). */}
+                input (1200 px) and the formatting row (820 / 390 px).
+                Notebook UX pass (2026-10-10): `hintDeferred` at EVERY width now, not only on a
+                phone -- the editor no longer auto-shows the "speak instead of type" tip over its
+                toolbar. Deferred, never dismissed: the tip is not marked seen and still shows on
+                the next Journal surface with a mic. Dictation stays one tap away here (this mic,
+                and the slash menu's "Dictate"). `hintInFlow` stays, so a later ruling that brings
+                the tip back gets the in-flow placement. */}
             {isPaid === true && (
               <Suspense fallback={null}>
-                <VoiceInputButton ref={micRef} onTranscript={insertDictated} disabled={!editor.isEditable} holdOnFailure hintInFlow hintDeferred={deferFirstRun} />
+                <VoiceInputButton ref={micRef} onTranscript={insertDictated} disabled={!editor.isEditable} holdOnFailure hintInFlow hintDeferred />
               </Suspense>
             )}
             {/* Wave 7 lane H2: writing help — the draft opens in a PREVIEW and
@@ -4714,10 +4815,18 @@ export default function NoteEditorPage({
           // the label, whose wording is free to change.
           data-note-title
         />
+        {/* Notebook UX pass (2026-10-10): the subtitle is the note's deck line -- CONTENT, part
+            of a print or PNG export -- so a subtitle that has words stays on screen under the
+            title. An EMPTY one is a detail: it shows with the details open, or while it has
+            focus (so clearing it never hides the field out from under the caret). */}
         <input
+          id={subtitleId}
           className={styles.subtitleInput}
           readOnly={locked || unreadable}
           value={subtitle}
+          hidden={!detailsOpen && !subtitle && !subtitleFocused}
+          onFocus={() => setSubtitleFocused(true)}
+          onBlur={() => setSubtitleFocused(false)}
           onChange={(e) => {
             const v = e.target.value
             setSubtitle(v)
@@ -4727,30 +4836,67 @@ export default function NoteEditorPage({
           placeholder="Subtitle (optional)"
           aria-label="Subtitle"
         />
-        {/* Wave 10 lane K2 (D-3): the tags sit with the note's other properties, under the
-            title, instead of a row of their own above it. Their failure sentence stays in the
-            header's SaveFailed slot (wave 10 F7), unchanged. */}
-        <div className={styles.tagsRow} data-export-exclude>
-          <NoteTagsField
-            tags={note.tags || []}
-            nodes={tagNodes}
-            busy={tagsBusy}
-            onAdd={(tag) => applyTagDelta({ add: [tag] })}
-            onRemove={(tag) => applyTagDelta({ remove: [tag] })}
-          />
-        </div>
+        <NoteDetailsLine items={detailItems} open={detailsOpen} onToggle={toggleDetails}
+          controls={`${subtitleId} ${detailsRegionId}`} />
+        {/* The ticker's refusal is said OUTSIDE the details region, so collapsing the details
+            never hides a write that did not land (wave 10 F7). */}
+        <SaveFailed message={tickerFailure} onDismiss={() => setTickerFailure(null)} />
+        <div id={detailsRegionId} className={styles.detailsRegion} hidden={!detailsOpen}
+          data-note-details="">
+          {/* Wave 10 lane K2 (D-3): the tags sit with the note's other properties, under the
+              title, instead of a row of their own above it. Their failure sentence stays in the
+              header's SaveFailed slot (wave 10 F7), unchanged. */}
+          <div className={styles.tagsRow} data-export-exclude>
+            <NoteTagsField
+              tags={note.tags || []}
+              nodes={tagNodes}
+              busy={tagsBusy}
+              onAdd={(tag) => applyTagDelta({ add: [tag] })}
+              onRemove={(tag) => applyTagDelta({ remove: [tag] })}
+            />
+          </div>
 
-        {/* Wave E: below title/subtitle, above the body (checkpoint §21) --
-            a note with nothing set renders only a small "+ Add property"
-            link, never a permanent header (progressive disclosure). */}
-        {/* Wave 10 (G-165): "Suggest values" rides writing help's own gate and
-            paid check (`writingHelpOn`, one authority); a suggestion is written
-            only on the member's Accept, through `update` -- the same door.
-            ⛔ Review M-4: never on a LOCKED or UNREADABLE note -- the same two
-            reasons the title and subtitle are read-only for (wave 6: a locked
-            note shows no editing controls at all). */}
-        <PropertiesSection noteId={noteId} updateNote={update} ticker={note?.ticker}
-          autofillOn={writingHelpOn && !locked && !unreadable} />
+          {/* ⛔ THE ONE TICKER CONTROL. The authority is the note's own `ticker` column
+              (`j2_notes.ticker`); `builtin:ticker` in the properties is a read-only value the
+              server DERIVES from it, so that mirror is left out below (DETAILS_OMIT). Same
+              input, same check (normalizeNoteTicker), same metadata door (onTickerChange). */}
+          <div className={styles.tickerRow} data-export-exclude>
+            <label className={styles.tickerLabel} htmlFor={`${detailsRegionId}-ticker`}>Ticker</label>
+            <input
+              id={`${detailsRegionId}-ticker`}
+              ref={tickerInputRef}
+              className={styles.tickerInput}
+              placeholder="e.g. NVDA"
+              defaultValue={note.ticker || ''}
+              onBlur={(e) => onTickerChange(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </div>
+
+          {/* Wave E: below title/subtitle, above the body (checkpoint §21) --
+              a note with nothing set renders only a small "+ Add property"
+              link, never a permanent header (progressive disclosure). */}
+          {/* Wave 10 (G-165): "Suggest values" rides writing help's own gate and
+              paid check (`writingHelpOn`, one authority); a suggestion is written
+              only on the member's Accept, through `update` -- the same door.
+              ⛔ Review M-4: never on a LOCKED or UNREADABLE note -- the same two
+              reasons the title and subtitle are read-only for (wave 6: a locked
+              note shows no editing controls at all). */}
+          <PropertiesSection noteId={noteId} updateNote={update} ticker={note?.ticker}
+            autofillOn={writingHelpOn && !locked && !unreadable} omit={DETAILS_OMIT} />
+
+          {/* Wave G: Thesis Evidence + Changelog -- below Properties, above the
+              body (checkpoint §39); renders nothing for a note that isn't
+              being used as a thesis. */}
+          {/* Wave 11 11D: a trade-plan canvas is the PLAN, not the thesis (the thesis links
+              to it) -- its evidence and review blocks would push the board below the fold. */}
+          {!isCanvas && (
+            <ThesisSection noteId={noteId} note={note} onOpenExcerptSource={handleOpenExcerptSource}
+                           anchorReviewId={reviewAnchor?.reviewId || null}
+                           onReviewAnchorConsumed={clearReviewParam} />
+          )}
+        </div>
 
         {/* Wave P1 §23: why Search/Ask cannot read an attachment yet. Renders
             NOTHING when every document's text is complete — the common case
@@ -4764,17 +4910,6 @@ export default function NoteEditorPage({
           { what: "this note's evidence sources", error: candidatesError, retry: refreshCandidates },
           { what: "this note's thesis evidence", error: thesisError, retry: refreshThesis },
         ]} />
-
-        {/* Wave G: Thesis Evidence + Changelog -- below Properties, above the
-            body (checkpoint §39); renders nothing for a note that isn't
-            being used as a thesis. */}
-        {/* Wave 11 11D: a trade-plan canvas is the PLAN, not the thesis (the thesis links
-            to it) -- its evidence and review blocks would push the board below the fold. */}
-        {!isCanvas && (
-          <ThesisSection noteId={noteId} note={note} onOpenExcerptSource={handleOpenExcerptSource}
-                         anchorReviewId={reviewAnchor?.reviewId || null}
-                         onReviewAnchorConsumed={clearReviewParam} />
-        )}
 
         {/* A locked note takes no captures: they wait in the inbox until Unlock. */}
         {!locked && (

@@ -104,3 +104,31 @@ out of the body.
 **Noticed, not changed:** the admin stats' 7- and 30-day windows (`users`, `subscriptions`) use
 the same ISO-cutoff form; on columns written as CURRENT_TIMESTAMP that only miscounts rows on the
 boundary day, and those queries belong to the admin dashboard, so it is left as a note.
+
+## 5. Speed under load (branch `notebook-ux-1010`, 2026-10-10)
+
+Instrument: `tools/notebook_swarm.py`, 20 API members for 2 minutes against a local sandbox,
+no browsers on the box. Raw runs: the session scratchpad (`ux1010/ab-*`).
+
+**The 11-14 second "slow save" was the instrument, not the server.** Every member built its own
+`httpx.AsyncClient`, and each one loads the certificate bundle synchronously inside the event
+loop (150-700 ms here). Twenty in a row blocked the loop about 14 s, so each member's FIRST
+response was timed as if the server had taken up to 14 s; all twenty finished within 0.1 s of
+each other. A stand-alone probe (20 brand-new members saving their first note at once) answered
+in 0.43-1.1 s, first wave no slower than the second. Fixed in the swarm (one shared TLS
+context, `0b43de82f2`).
+
+| endpoint, steady state (after the opening burst) | p50 | p95 | p99 |
+|---|---|---|---|
+| POST notes (new note) | 29 ms | 64 ms | 121 ms |
+| GET notes/{id} (open a note) | 11 ms | 33 ms | 44 ms |
+| PUT notes/{id} (save an edit) | 16 ms | 38 ms | 89 ms |
+
+Browser, one member at 1280 px: open a note from the list 244 ms to a live editor; switch to
+another note 170 ms to its content showing.
+
+**Tried and dropped:** setting SQLite's WAL mode once per database file instead of on every
+connection. py-spy put most samples on that line, but those samples were requests WAITING for
+the write lock behind the swarm's own stall. Same runs with and without it: POST notes p99 934
+vs 984 ms. Not shipped.
+

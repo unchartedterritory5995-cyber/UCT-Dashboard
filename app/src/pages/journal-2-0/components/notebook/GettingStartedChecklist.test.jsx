@@ -6,9 +6,9 @@
 // -- each "click does not tick" case below proves a click alone records nothing.
 //
 // The registry is extended here with one extra tour (gated on a dark flag), so the
-// "one item per armed registered tour" and D4 ("a newly armed capability never reopens
-// a closed list") rails have a second tour to arm. The real registry holds only the
-// base tour today; gettingStarted.test.js rails the derivation against it too.
+// "an armed capability's tour goes to the Learn menu, never to this list" and D4 ("a newly
+// armed capability never reopens a closed list") rails have a second tour to arm.
+// gettingStarted.test.js rails the derivation against the real registry too.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -147,17 +147,23 @@ describe('when it shows', () => {
     expect(screen.getByText('0 of 3 done')).toBeInTheDocument()
   })
 
-  it('one item per armed registered tour: arming a capability adds its tour', async () => {
+  it('arming a capability does NOT add its tour here (it goes to the Learn menu): still four steps', async () => {
     __resetNotebookFlags()
     latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_formulas_enabled: true })
     renderList()
-    const btn = await screen.findByRole('button', { name: 'Take the Formulas tour' })
+    expect(await screen.findByRole('heading', { name: 'Get started' })).toBeInTheDocument()
+    expect(screen.getByText('0 of 4 done')).toBeInTheDocument()
+    expect(screen.queryByText(/Formulas/)).toBeNull()
+    // the one tour step is the base tour, and it opens through the base tour's own door
     const opened = vi.fn()
-    window.addEventListener(REGISTRY_TOUR_OPEN_EVENT, opened)
-    fireEvent.click(btn)
-    window.removeEventListener(REGISTRY_TOUR_OPEN_EVENT, opened)
+    const registry = vi.fn()
+    window.addEventListener(TOUR_OPEN_EVENT, opened)
+    window.addEventListener(REGISTRY_TOUR_OPEN_EVENT, registry)
+    fireEvent.click(screen.getByRole('button', { name: 'Take the Notebook basics tour' }))
+    window.removeEventListener(TOUR_OPEN_EVENT, opened)
+    window.removeEventListener(REGISTRY_TOUR_OPEN_EVENT, registry)
     expect(opened).toHaveBeenCalledTimes(1)
-    expect(opened.mock.calls[0][0].detail).toEqual({ tourId: 'w14d-formulas' })
+    expect(registry).not.toHaveBeenCalled()
   })
 })
 

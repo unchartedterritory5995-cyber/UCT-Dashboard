@@ -18,8 +18,9 @@ import VoiceInputButton from '../VoiceInputButton'
 //   1. phone: while the editor is open neither shows; the persisted first-run state is
 //      byte-identical before and after the visit; once the editor closes the card is back in
 //      the slot and a non-editor mic shows the hint -- both still pending;
-//   2. CONTROL (above 640 px): nothing changes -- the card and the in-flow hint both show IN
-//      the editor, as they did before this round;
+//   2. above 640 px the coach card is unchanged (it shows IN the editor). The mic's hint does
+//      NOT: since the Notebook UX pass (2026-10-10, "fewer simultaneous nudges") the editor
+//      defers it at EVERY width -- never marked seen, so the next Journal mic still shows it;
 //   3. the mic itself stays in the phone toolbar (the earlier ruling); only its HINT waits.
 // The authorities are unchanged: FloatingOrb's `coachmarkOn` already waits while the first-run
 // stage is held (the Notebook tour's mechanism), and VoiceInputButton's `showHint` is left
@@ -159,24 +160,30 @@ describe('D3P round 2: on a phone the editor DEFERS the first-run card and hint 
   }, 60000)
 })
 
-describe('D3P round 2 CONTROL: above 640 px nothing changes', () => {
-  it('1200 px: the card and the in-flow hint both show IN the editor, as before', async () => {
-    setViewport(1200)
-    mountOrb()
-    const editor = await mountEditor()
-    expect(isFirstRunStageHeld(), 'the desktop editor holds nothing').toBe(false)
-    expect(card(), 'the card shows with the editor open').not.toBeNull()
-    expect(editor.toolbar.querySelector('[data-hint-placement="in-flow"]'), 'the in-flow hint shows').not.toBeNull()
-    editor.unmount()
-  }, 60000)
+// Notebook UX pass (2026-10-10): the editor no longer auto-shows the dictation tip over its
+// toolbar at any width. The coach card's phone-only wait is unchanged, so it is the control here:
+// above 640 px it still shows IN the editor. The tip is DEFERRED, never dismissed: it is not marked
+// seen and the next surface with a mic still shows it (a surface that is not the Notebook editor).
+describe('above 640 px: the coach card is unchanged, and the editor still defers the mic tip', () => {
+  for (const width of [1200, 641]) {
+    it(`${width} px: the card shows in the editor; the tip does not, and stays pending for the next mic`, async () => {
+      setViewport(width)
+      mountOrb()
+      expect(localStorage.getItem(HINT_KEY)).toBeNull()
+      const editor = await mountEditor()
+      expect(isFirstRunStageHeld(), 'above a phone the editor holds nothing').toBe(false)
+      expect(card(), 'CONTROL: the coach card still shows with the editor open').not.toBeNull()
+      // the mic is there, so the tip had every chance to render
+      expect(within(editor.toolbar).getByRole('button', { name: /voice input/i })).toBeTruthy()
+      expect(editor.toolbar.querySelector('[data-hint-placement]'), 'the editor does not auto-show the tip').toBeNull()
+      expect(within(editor.toolbar).queryByRole('button', { name: 'Dismiss tip' })).toBeNull()
+      expect(localStorage.getItem(HINT_KEY), 'deferring is never "seen"').toBeNull()
+      editor.unmount()
 
-  it('641 px (the first tablet width): unchanged too', async () => {
-    setViewport(641)
-    mountOrb()
-    const editor = await mountEditor()
-    expect(isFirstRunStageHeld()).toBe(false)
-    expect(card()).not.toBeNull()
-    expect(editor.toolbar.querySelector('[data-hint-placement="in-flow"]')).not.toBeNull()
-    editor.unmount()
-  }, 60000)
+      const other = render(<VoiceInputButton onTranscript={vi.fn()} />)
+      expect(within(other.container).getByRole('button', { name: 'Dismiss tip' }),
+        'another surface still shows the tip').toBeTruthy()
+      expect(localStorage.getItem(HINT_KEY)).toBeNull()
+    }, 60000)
+  }
 })

@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest'
 import {
   CHECKLIST_PREF, CHECKLIST_STATES, CHECKLIST_COPY, readChecklistPref, checklistClosed,
   checklistRecord, ownHomeNotes, isTemplateNote, deriveChecklistItems,
-  checklistEnabled, recordedDone, withDone, closedAs,
+  checklistEnabled, recordedDone, withDone, closedAs, CHECKLIST_MAX_ITEMS,
 } from './gettingStarted'
 import { TOUR_REGISTRY, BASE_TOUR_ID, replayableTours } from './tourRegistry'
 import { WALKTHROUGH_TITLE } from '../../../lib/templateBlocks'
@@ -20,7 +20,7 @@ const home = (continueWorking = [], extra = {}) => ({
 })
 const byId = (items) => Object.fromEntries(items.map((i) => [i.id, i]))
 
-// A small registry of our own (the real one holds only the base tour today).
+// A small registry of our own, so the rails below do not depend on which tours ship today.
 const FAKE_REGISTRY = Object.freeze([
   { id: BASE_TOUR_ID, flag: 'notebook_onboarding_enabled', title: 'Notebook basics', replayable: true, load: async () => ({}) },
   { id: 'writing-help', flag: 'notebook_writing_help_enabled', title: 'Writing help', replayable: true, load: async () => ({}) },
@@ -158,18 +158,26 @@ describe('deriveChecklistItems -- the fixed items', () => {
   })
 })
 
-describe('deriveChecklistItems -- the tour items are DERIVED from the registry', () => {
-  it('one item per replayable registered tour whose flag is armed, in registry order', () => {
-    const armed = new Set(['notebook_onboarding_enabled', 'notebook_getting_started_enabled', 'notebook_formulas_enabled', 'awareness_note_resurface_enabled'])
-    const items = deriveChecklistItems({ registry: FAKE_REGISTRY, flag: (k) => armed.has(k) })
-    expect(items.filter((i) => i.kind === 'tour').map((i) => i.tourId)).toEqual([BASE_TOUR_ID, 'formulas'])
-    expect(byId(items)['tour:formulas'].label).toBe('Take the Formulas tour')
+describe('deriveChecklistItems -- ONE tour step, the base tour; every other tour is in the Learn menu', () => {
+  it('only the base tour reaches the list, however many tours are armed', () => {
+    const items = deriveChecklistItems({ registry: FAKE_REGISTRY, flag: armAll })
+    expect(items.filter((i) => i.kind === 'tour').map((i) => i.tourId)).toEqual([BASE_TOUR_ID])
+    expect(byId(items)[`tour:${BASE_TOUR_ID}`].label).toBe('Take the Notebook basics tour')
+    // the armed non-base tours are named nowhere in the list
+    expect(items.some((i) => /Writing help|Formulas/.test(i.label))).toBe(false)
   })
 
-  it('no armed flag, no tour item; a flag must be exactly true', () => {
+  it('the base tour step follows its own liveness (its flag, exactly true)', () => {
     expect(deriveChecklistItems({ registry: FAKE_REGISTRY, flag: armNone }).some((i) => i.kind === 'tour')).toBe(false)
     expect(deriveChecklistItems({ registry: FAKE_REGISTRY, flag: () => 'yes' }).some((i) => i.kind === 'tour')).toBe(false)
     expect(deriveChecklistItems({ registry: FAKE_REGISTRY }).some((i) => i.kind === 'tour')).toBe(false)
+    const only = deriveChecklistItems({ registry: FAKE_REGISTRY, flag: (k) => k === 'notebook_onboarding_enabled' })
+    expect(only.filter((i) => i.kind === 'tour').map((i) => i.tourId)).toEqual([BASE_TOUR_ID])
+  })
+
+  it('a registry without a base tour adds no tour step (read off the registry, never restated)', () => {
+    const noBase = FAKE_REGISTRY.filter((t) => t.id !== BASE_TOUR_ID)
+    expect(deriveChecklistItems({ registry: noBase, flag: armAll }).some((i) => i.kind === 'tour')).toBe(false)
   })
 
   it('the base tour ticks from its own key (notebook_tour), only on done', () => {
@@ -181,14 +189,19 @@ describe('deriveChecklistItems -- the tour items are DERIVED from the registry',
     expect(at('dismissed')).toBe(false)
   })
 
-  it('every other tour ticks from its own row in notebook_tours, never the base key', () => {
-    const prefs = {
-      notebook_tours: JSON.stringify({ 'writing-help': { v: 1, state: 'done', step: null } }),
-      notebook_tour: JSON.stringify({ v: 1, state: 'done' }),
-    }
-    const items = byId(deriveChecklistItems({ registry: FAKE_REGISTRY, flag: armAll, prefs }))
-    expect(items['tour:writing-help'].done).toBe(true)
-    expect(items['tour:formulas'].done).toBe(false)
+  it("another tour's done row in notebook_tours ticks nothing here", () => {
+    const prefs = { notebook_tours: JSON.stringify({ 'writing-help': { v: 1, state: 'done', step: null } }) }
+    const items = deriveChecklistItems({ registry: FAKE_REGISTRY, flag: armAll, prefs })
+    expect(items.filter((i) => i.done)).toEqual([])
+  })
+
+  it(`never more than ${CHECKLIST_MAX_ITEMS} steps: every flag armed, the sample offered, the REAL registry`, () => {
+    const items = deriveChecklistItems({ flag: armAll, canAddSample: true })
+    expect(items.length).toBeLessThanOrEqual(CHECKLIST_MAX_ITEMS)
+    expect(items.map((i) => i.id)).toEqual(['note', 'template', 'sample', `tour:${BASE_TOUR_ID}`])
+    // ⛔ NON-VACUITY: the real registry DOES hold more than one replayable tour, so the cap
+    // is a fact about the derivation and not about an empty registry.
+    expect(replayableTours(TOUR_REGISTRY).length).toBeGreaterThan(CHECKLIST_MAX_ITEMS)
   })
 
   it('the real registry is what the component derives from (non-vacuous: it holds the base tour)', () => {

@@ -41,9 +41,9 @@ describe('the AI actions box survives the home changing layout', () => {
     // The box is a lazy chunk while its flag is on (landing 12-15 byte gate): wait for it once.
     fireEvent.click(await screen.findByRole('button', { name: 'Ask Notebook to do something' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'What should Notebook do?' }), { target: { value: 'tag my NVDA notes' } })
-    home = { ...EMPTY, continueWorking: [{ id: 'n1', title: 'NVDA thesis', updatedAt: new Date().toISOString() }] }
+    home = { ...EMPTY, favorites: [{ id: 'n1', title: 'NVDA thesis', updatedAt: new Date().toISOString() }] }
     rerender(tree())
-    expect(screen.getByText('Continue working')).toBeInTheDocument()            // the layout DID flip
+    expect(screen.getByText('Favorites')).toBeInTheDocument()            // the layout DID flip
     expect(screen.getByRole('textbox', { name: 'What should Notebook do?' })).toHaveValue('tag my NVDA notes')
   })
 
@@ -56,7 +56,7 @@ describe('the AI actions box survives the home changing layout', () => {
     const { rerender } = render(tree())
     await settle()
     expect(screen.queryByRole('button', { name: 'Ask Notebook to do something' })).toBeNull()
-    home = { ...EMPTY, continueWorking: [{ id: 'n1', title: 'NVDA thesis', updatedAt: new Date().toISOString() }] }
+    home = { ...EMPTY, favorites: [{ id: 'n1', title: 'NVDA thesis', updatedAt: new Date().toISOString() }] }
     rerender(tree())
     await settle()
     expect(screen.queryByRole('button', { name: 'Ask Notebook to do something' })).toBeNull()

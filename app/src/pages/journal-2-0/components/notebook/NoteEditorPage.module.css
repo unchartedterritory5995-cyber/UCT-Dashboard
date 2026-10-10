@@ -253,6 +253,41 @@
   gap: 8px;
   margin: -8px 0 16px;
 }
+/* Notebook UX pass (2026-10-10): everything between the title and the body, behind the one
+   details line (NoteDetailsLine). `hidden` does the hiding; this only spaces it when open. */
+.detailsRegion {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 8px;
+}
+.detailsRegion[hidden] { display: none; }
+.detailsRegion .tagsRow { margin: 0 0 8px; }
+/* The ONE Ticker control: laid out like a property row (PropertiesSection's label/control
+   split) so it reads as the first of the note's properties. */
+.tickerRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+}
+.tickerLabel {
+  flex: 0 0 140px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.tickerInput {
+  width: 100%;
+  max-width: 160px;
+  min-height: 32px;
+  padding: 4px 8px;
+  font-size: 13px;
+  background: var(--bg-surface);
+  border: 1px solid var(--field-edge);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-bright);
+  text-transform: uppercase;
+}
+.tickerInput::placeholder { text-transform: none; }
 .fontSelect, .fontSizeSelect {
   background: var(--bg-surface);
   border: 1px solid var(--field-edge);
@@ -583,6 +618,8 @@
     min-height: var(--tap-min, 44px);
     padding-top: 7px;
   }
+  /* The details' one Ticker field is a finger target on phone AND tablet. */
+  .tickerInput { min-height: var(--tap-min, 44px); }
 }
 .proseEditor :global(.uctToggleDetails) { flex: 1 1 auto; min-width: 0; }
 .proseEditor :global(.uctToggleDetails) > summary {
@@ -647,6 +684,10 @@
   .header { padding: 8px 12px; }
   .saveStatus { min-width: 0; order: 3; flex-basis: 100%; }
   .headerSelect, .headerInput { font-size: 16px; padding: 8px 10px; }
+  /* 16 px so iOS does not zoom the page into the field; the label stacks above it. */
+  .tickerRow { flex-wrap: wrap; gap: 4px 12px; }
+  .tickerLabel { flex-basis: 100%; }
+  .tickerInput { font-size: 16px; max-width: none; }
   .titleInput { font-size: 28px; }
   .subtitleInput { font-size: 16px; }
   /* The wrapped header + toolbar rows would pin ~200px of chrome over a

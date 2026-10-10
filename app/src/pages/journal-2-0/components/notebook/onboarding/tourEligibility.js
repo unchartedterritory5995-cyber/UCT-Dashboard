@@ -136,7 +136,7 @@ export function offerBlockedBy({
   if (!notesKnown) return 'notes-unknown'
   if (noteOpen) return 'note-open'                  // R4: never while a member is editing
   if (baseTourPending) return 'base-tour'           // the first-run tour goes first
-  if (checklistOpen) return 'checklist-open'        // the open checklist already lists every armed tour
+  if (checklistOpen) return 'checklist-open'        // a member with no notes: the welcome and its list first
   if (stageHeldByOthers) return 'stage-held'        // a tour, or the phone editor, holds the stage
   if (!slot) return 'no-slot'                       // no in-flow slot: never float
   if (slotBusy) return 'slot-busy'                  // the "Meet Compass" card is in the slot

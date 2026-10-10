@@ -206,8 +206,9 @@ export const OTHER_TOURS = Object.freeze(TOUR_REGISTRY.filter((t) => t.id !== BA
 
 /** THE one answer to "may this tour reach the member right now?" (W14-C1, controller ruling).
  *  Every door asks it: the offer and What's new (tourEligibility.js), Help > Walkthroughs
- *  (Support.jsx), the checklist's tour steps (gettingStarted.js) and every open, Help's,
- *  the offer's, the checklist's and the resurfacing explainer's alike (RegistryToursGate.jsx).
+ *  (Support.jsx), Research Home's Learn menu (learnTours.js), the checklist's one tour step
+ *  (gettingStarted.js) and every open, Help's, the offer's, the Learn menu's, the checklist's
+ *  and the resurfacing explainer's alike (RegistryToursGate.jsx).
  *    * the base tour (wave 8) answers exactly as before: its own flag, nothing else;
  *    * every other tour needs its own capability flag, every flag in its optional
  *      `requires`, AND the wave-14 onboarding switch -- `checklistEnabled`

@@ -85,6 +85,13 @@ describe('D-3: the page-level actions sit behind "More note actions"', () => {
   it('the tags are UNDER the title now, not a row above it', async () => {
     await renderEditor()
     const title = screen.getByLabelText('Note title')
+    // Notebook UX pass (2026-10-10): the tags fold into the one "Details" line under the title
+    // (still under it, still out of the header); the line names them while collapsed.
+    const details = screen.getByRole('button', { name: /^(add )?details$/i })
+    expect(details.closest('header')).toBeNull()
+    expect(title.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(details.parentElement.textContent).toContain('#macro')
+    fireEvent.click(details)
     const tags = screen.getByRole('group', { name: 'Tags' })
     expect(within(tags).getByRole('button', { name: 'Remove tag macro' })).toBeTruthy()
     expect(title.compareDocumentPosition(tags) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()

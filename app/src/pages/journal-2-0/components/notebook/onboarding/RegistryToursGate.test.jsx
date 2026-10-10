@@ -14,7 +14,7 @@ import { render, screen, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { makeRegistryToursGate } from './RegistryToursGate'
-import { openRegistryTour, __resetRegistryTourControl } from './tourRegistryControl'
+import { getRegistryTourWanted, openRegistryTour, __resetRegistryTourControl } from './tourRegistryControl'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 
 const BORROWED_FLAG = 'notebook_template_gallery_enabled'
@@ -175,5 +175,39 @@ describe('W14-C1: a request for a tour whose capability is off is dropped, never
     expect(screen.queryByRole('dialog')).toBeNull()
     act(() => { openRegistryTour('w14-0-tour-a') })
     expect(await screen.findByRole('dialog')).toHaveTextContent('Tour A is open')
+  })
+})
+
+// Notebook UX pass: Research Home folds an empty box and a folded box's content is unmounted,
+// so the gate publishes the tour it is running and Home unfolds its boxes while one is wanted.
+describe('the gate publishes the tour it is running (Research Home unfolds for it)', () => {
+  it('a tour that may run is published while it runs, and withdrawn when it closes', async () => {
+    const Gate = makeRegistryToursGate(engineLoader(), 0)
+    render(<Page Gate={Gate} tours={[TOUR_A, TOUR_B]} />)
+    expect(getRegistryTourWanted()).toBeNull()
+    act(() => { openRegistryTour('w14-0-tour-a') })
+    expect(await screen.findByText('Tour A is open')).toBeInTheDocument()
+    expect(getRegistryTourWanted()).toBe('w14-0-tour-a')
+    act(() => { screen.getByRole('button', { name: 'Close' }).click() })
+    await waitFor(() => expect(getRegistryTourWanted()).toBeNull())
+  })
+
+  it('a tour whose capability is off is never published', async () => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, [BORROWED_FLAG]: false })
+    const Gate = makeRegistryToursGate(engineLoader(), 0)
+    render(<Page Gate={Gate} tours={[TOUR_A]} />)
+    act(() => { openRegistryTour('w14-0-tour-a') })
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)) })
+    expect(getRegistryTourWanted()).toBeNull()
+  })
+
+  it('unmounting the gate withdraws it', async () => {
+    const Gate = makeRegistryToursGate(engineLoader(), 0)
+    const { unmount } = render(<Page Gate={Gate} tours={[TOUR_A]} />)
+    act(() => { openRegistryTour('w14-0-tour-a') })
+    expect(await screen.findByText('Tour A is open')).toBeInTheDocument()
+    unmount()
+    expect(getRegistryTourWanted()).toBeNull()
   })
 })

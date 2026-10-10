@@ -89,6 +89,7 @@ export const SURFACES = Object.freeze({
   // Wave 10 lane K2 (D-3): the editor surface opens it, so axe reads the panel's contents.
   'components/notebook/NoteMoreMenu.jsx': { coveredBy: 'editor' },
   'components/notebook/NoteStats.jsx': { coveredBy: 'editor' },
+  'components/notebook/NoteDetailsLine.jsx': { coveredBy: 'editor' },
   'components/notebook/NoteTagsField.jsx': { coveredBy: 'editor' },
   'components/notebook/UnsentTrashDialog.jsx': { recipe: 'unsent-trash' },
   // Wave 11 lane 11C: "Ask Notebook to do something" on Research Home, and the AI change
