@@ -693,6 +693,7 @@ def refresh(force: bool = False) -> dict:
         if _good(p):
             _last_good["rec"] = {"saved_at": now, "payload": p}
             _save_last_good(p)
+            _record_intraday(p)
         else:
             c = _carried(now)
             if c is not None:
@@ -750,7 +751,12 @@ def _finite(v) -> Optional[float]:
 
 
 def append_library_bars(body: list, universe: str, metric: str) -> list:
-    """`body` (sealed canonical bars) + provisional/live close-to-close bars for one metric."""
+    """`body` (sealed canonical bars) + provisional/live bars for one metric.
+
+    ⭐ (2026-10-10) A session the live engine RECORDED (`_record_intraday`) is drawn with its real
+    intraday path — open = the first live reading of the session, high/low = the extremes seen,
+    close = the row's value — and marked observed (`ohlc: 1`), like the canonical history beside it.
+    A session it did not record (a restart gap, an off-hours deploy) is a close-to-close body."""
     if not body:
         return body
     out = list(body)
@@ -758,10 +764,93 @@ def append_library_bars(body: list, universe: str, metric: str) -> list:
         v = _finite((row.get("metrics") or {}).get(metric))
         if v is None or row["date"] <= out[-1]["t"]:
             continue
+        path = _intraday_path(row["date"], universe, metric)
+        if path is not None:
+            o, h, l = path
+            out.append({"t": row["date"], "o": round(o, 4), "h": round(max(h, o, v), 4),
+                        "l": round(min(l, o, v), 4), "c": round(v, 4), "v": 0, "ohlc": 1})
+            continue
         o = out[-1]["c"]
         out.append({"t": row["date"], "o": round(o, 4), "h": round(max(o, v), 4),
                     "l": round(min(o, v), 4), "c": round(v, 4), "v": 0})
     return out
+
+
+# ── the recorded intraday path (real candles for the live / provisional sessions) ─────────────
+#: Where the per-session path is kept, so a restart mid-session does not lose the morning.
+INTRADAY_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "breadth_live_universes_intraday.json")
+_INTRADAY_DEFAULT = INTRADAY_PATH
+#: A path needs this many readings before it is drawn as an observed candle (a single reading
+#: after a restart is not a session's range).
+INTRADAY_MIN_SAMPLES = 5
+_intra: dict = {}          # {date: {universe: {metric: [o, h, l, c, n]}}}
+_intra_loaded: dict = {"done": False}
+_intra_lock = threading.Lock()
+
+
+def _intra_load() -> None:
+    if _intra_loaded["done"]:
+        return
+    _intra_loaded["done"] = True
+    try:
+        with open(INTRADAY_PATH) as fh:
+            d = json.load(fh)
+        if isinstance(d, dict):
+            _intra.update(d)
+    except Exception:
+        pass
+
+
+def _record_intraday(p: dict) -> None:
+    """Fold today's live readings into the session's path. Regular hours only; never raises."""
+    try:
+        from api.services import breadth_live as bl
+        if not (bl._session_started() and bl._market_open()):
+            return
+        today = bl._now_et().date().isoformat()
+        with _intra_lock:
+            _intra_load()
+            day = _intra.setdefault(today, {})
+            for u, uv in (p.get("universes") or {}).items():
+                if not (uv or {}).get("ok"):
+                    continue
+                for row in uv.get("rows") or []:
+                    if row.get("date") != today:
+                        continue
+                    um = day.setdefault(u, {})
+                    for k, val in (row.get("metrics") or {}).items():
+                        x = _finite(val)
+                        if x is None:
+                            continue
+                        cur = um.get(k)
+                        if cur is None:
+                            um[k] = [x, x, x, x, 1]
+                        else:
+                            cur[1] = max(cur[1], x)
+                            cur[2] = min(cur[2], x)
+                            cur[3] = x
+                            cur[4] += 1
+            for d in sorted(_intra)[:-4]:      # keep the last four sessions
+                _intra.pop(d, None)
+            snap = json.dumps(_intra, separators=(",", ":"))
+        if "PYTEST_CURRENT_TEST" in os.environ and INTRADAY_PATH == _INTRADAY_DEFAULT:
+            return                               # never write the real volume from a test run
+        tmp = INTRADAY_PATH + ".tmp"
+        with open(tmp, "w") as fh:
+            fh.write(snap)
+        os.replace(tmp, INTRADAY_PATH)
+    except Exception as e:
+        _log.warning("[breadth_live_universes] intraday record failed: %s", e)
+
+
+def _intraday_path(date_iso: str, universe: str, metric: str):
+    """(open, high, low) of a recorded session, or None when it was not (well) recorded."""
+    with _intra_lock:
+        _intra_load()
+        cur = ((_intra.get(date_iso) or {}).get(universe) or {}).get(metric)
+    if not cur or cur[4] < INTRADAY_MIN_SAMPLES:
+        return None
+    return cur[0], cur[1], cur[2]
 
 
 #: The breadth inputs the market-indicator producers read (`load_pair` / `load_metric_closes`).

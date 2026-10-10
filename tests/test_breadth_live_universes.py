@@ -412,3 +412,30 @@ def test_unchanged_is_carried_for_the_exchange_universes():
     rows must still carry it, or both series stop at the last canonical session."""
     for u in ("nyse", "nasdaq", "us"):
         assert "unchanged" in blu._published_metrics(u)
+
+
+def test_recorded_session_draws_as_an_observed_candle(tmp_path, monkeypatch):
+    """2026-10-10: the live/provisional US/NYSE/Nasdaq bars carry the recorded intraday path."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from api.services import breadth_live as bl
+    monkeypatch.setattr(blu, "INTRADAY_PATH", str(tmp_path / "intra.json"))
+    blu._intra.clear(); blu._intra_loaded["done"] = False
+    monkeypatch.setattr(bl, "_session_started", lambda: True)
+    monkeypatch.setattr(bl, "_market_open", lambda: True)
+    monkeypatch.setattr(bl, "_now_et", lambda: datetime(2026, 10, 12, 11, 0, tzinfo=ZoneInfo("America/New_York")))
+
+    def payload(v):
+        return {"ok": True, "universes": {"nyse": {"ok": True, "rows": [
+            {"date": "2026-10-12", "final": False, "metrics": {"pct_above_50sma": v}}]}}}
+    for v in (30.0, 35.4, 27.2, 29.0, 28.1, 29.6):
+        blu._record_intraday(payload(v))
+    monkeypatch.setattr(blu, "rows_for", lambda u: payload(29.6)["universes"]["nyse"]["rows"])
+    body = [{"t": "2026-10-09", "o": 25.0, "h": 26.0, "l": 24.0, "c": 25.5, "v": 0}]
+    bar = blu.append_library_bars(body, "nyse", "pct_above_50sma")[-1]
+    assert bar == {"t": "2026-10-12", "o": 30.0, "h": 35.4, "l": 27.2, "c": 29.6, "v": 0, "ohlc": 1}
+    # a restart keeps the morning (persisted), and an unrecorded session stays a body
+    blu._intra.clear(); blu._intra_loaded["done"] = False
+    assert blu._intraday_path("2026-10-12", "nyse", "pct_above_50sma") == (30.0, 35.4, 27.2)
+    assert blu._intraday_path("2026-10-12", "us", "pct_above_50sma") is None
+    blu._intra.clear(); blu._intra_loaded["done"] = False
