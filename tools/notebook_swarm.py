@@ -52,6 +52,21 @@ PW = "SwarmLocal2026!"
 PHONE = [False]   # --phone puts every second browser member at 390 px
 SYMS = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "AMD", "CRWD", "GOOGL", "SPY", "QQQ"]
 
+# ONE TLS context for every member. httpx.AsyncClient() builds its own by default, which loads the
+# certificate bundle SYNCHRONOUSLY (150-700 ms each on this box) inside the event loop. Measured
+# 2026-10-10: twenty members did that back to back at start-up, the loop was blocked ~14 s, and
+# every member's first response was timed as if the server had taken up to 14 s (POST notes p99
+# 11-14 s, all twenty completing within 0.1 s of each other). The server answered in <1 s.
+_SSL_CTX = None
+
+
+def _ssl_ctx():
+    global _SSL_CTX
+    if _SSL_CTX is None:
+        import ssl
+        _SSL_CTX = ssl.create_default_context()
+    return _SSL_CTX
+
 # ── provisioning, in a child that owns the sandbox env ───────────────────────────────────────
 
 PROVISION_CHILD = r'''
@@ -379,7 +394,8 @@ class Member:
         import httpx
         names, weights = zip(*self.WEIGHTS)
         async with httpx.AsyncClient(base_url=self.base, cookies={"uct_session": self.acct["token"]},
-                                     timeout=60.0, headers={"User-Agent": "notebook-swarm"}) as c:
+                                     timeout=60.0, headers={"User-Agent": "notebook-swarm"},
+                                     verify=_ssl_ctx()) as c:
             self.client = c
             for _ in range(2):
                 await self.a_create()
