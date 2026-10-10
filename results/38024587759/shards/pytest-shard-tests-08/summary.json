@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 3344,
+  "passed": 3300,
+  "failed": 41,
+  "errored": 0,
+  "skipped": 3,
+  "wall_s": 721.65,
+  "failed_files": [
+    "tests/test_param_manifest.py",
+    "tests/test_param_repaste_c46.py",
+    "tests/test_parity_scorecard.py",
+    "tests/test_perf_batch_a.py",
+    "tests/test_phase_e_acceptance.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "41 failed, 3300 passed, 3 skipped, 54 warnings in 721.65s (0:12:01)",
+  "ok": true
+}
