@@ -184,8 +184,9 @@ export function screenModelOps(host, ops, text, capCtx = {}) {
   }
   // S6 nit — a NEW draft with no chart on a board of several: ask with the charts as choices (the
   // member's pick fills `chart`; nothing is sent to the builder until then)
+  // ⛔ only for a member who CAN author: without access the op is left alone and refused, never asked about
   const unplaced = out.find(o => o?.action === 'indicator.draft' && o.target === NEW && o.args?.chart == null)
-  if (unplaced && out.length === 1) {
+  if (canAuthor && unplaced && out.length === 1) {
     const charts = boardCharts(host)
     if (charts.length > 1) {
       return { ops: [], notes, ask: { text: 'Which chart is this indicator for?',
