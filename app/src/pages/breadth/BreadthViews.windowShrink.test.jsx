@@ -34,7 +34,7 @@ const mkRows = (n) => Array.from({ length: n }, (_, i) => {
     date: day.toISOString().slice(0, 10),
     breadth_score: 70 - (i % 9), uct_exposure: 60,
     pct_above_50sma: 60 - (i % 30), pct_above_200sma: 55, pct_above_5sma: 40,
-    pct_above_10sma: 45, pct_above_20ema: 50, pct_above_40sma: 52, pct_above_100sma: 55,
+    pct_above_10sma: 45, pct_above_20sma: 50, pct_above_40sma: 52, pct_above_100sma: 55,
     up_4pct_today: 300, down_4pct_today: 100, new_52w_highs: 40, new_52w_lows: 9,
     mcclellan_osc: 20, vix: 16, sp500_close: 5000 + i, advancing: 3000, declining: 1500,
   }

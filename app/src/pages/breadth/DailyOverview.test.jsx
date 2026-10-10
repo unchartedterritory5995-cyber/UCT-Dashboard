@@ -21,7 +21,7 @@ const COLS = [
   { key: 'down_4pct_today', label: 'Dn 4%+', drillKey: 'down_4pct_today_list', rowColorFn: () => 'r1' },
   { key: 'new_52w_highs', label: '52w NH', drillKey: 'new_52w_highs_list' },
   { key: 'new_52w_lows', label: '52w NL', drillKey: 'new_52w_lows_list' },
-  { key: 'pct_above_20ema', label: '% >20EMA', fmt: fmt1, colorFn: () => 'g1' },
+  { key: 'pct_above_20sma', label: '% >20SMA', fmt: fmt1, colorFn: () => 'g1' },
   { key: 'pct_above_50sma', label: '% >50SMA', fmt: fmt1, colorFn: () => 'g1' },
   { key: 'pct_above_200sma', label: '% >200SMA', fmt: fmt1, colorFn: () => 'g1' },
   { key: 'ratio_5day', label: '5D Ratio', fmt: v => (v == null ? '—' : Number(v).toFixed(2)) },
@@ -34,14 +34,14 @@ const liveRow = {
   breadth_score: 72, uct_exposure: 95,
   up_4pct_today: 187, down_4pct_today: 92,
   new_52w_highs: 143, new_52w_lows: 12,
-  pct_above_20ema: 58.2, pct_above_50sma: 62.4, pct_above_200sma: 61.0,
+  pct_above_20sma: 58.2, pct_above_50sma: 62.4, pct_above_200sma: 61.0,
   ratio_5day: 1.8, ratio_10day: 1.5, mcclellan_osc: 42,
 }
 const prevRow = {
   date: '2026-08-25', breadth_score: 69, uct_exposure: 90,
   up_4pct_today: 175, down_4pct_today: 100,
   new_52w_highs: 120, new_52w_lows: 15,
-  pct_above_20ema: 55.0, pct_above_50sma: 60.1, pct_above_200sma: 60.0,
+  pct_above_20sma: 55.0, pct_above_50sma: 60.1, pct_above_200sma: 60.0,
   ratio_5day: 1.6, ratio_10day: 1.4, mcclellan_osc: 28,
 }
 

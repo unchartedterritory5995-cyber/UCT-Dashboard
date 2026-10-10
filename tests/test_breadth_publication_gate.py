@@ -58,16 +58,16 @@ def publish(monkeypatch, universes, metrics=None):
 def test_the_accepted_v1_invariant_holds_exactly():
     """⛔ 18 metrics · 70 identities · 16 UCT · 54 new. If canonical metadata ever
     stops producing this, the product changed and somebody has to say so out loud."""
-    assert len(bm.V1_METRICS) == 18
+    assert len(bm.V1_METRICS) == 19   # 20 SMA replaced the EMA, +150 SMA (2026-10-10)
     rows = bs.v1_identity_rows()
-    assert len(rows) == 70
+    assert len(rows) == 74                # +A150 in each of the four universes (2026-10-10)
     by_uni = {}
     for r in rows:
         by_uni.setdefault(r["universe"], []).append(r)
-    assert len(by_uni["uct"]) == 16
-    assert sum(len(v) for k, v in by_uni.items() if k != "uct") == 54
+    assert len(by_uni["uct"]) == 17
+    assert sum(len(v) for k, v in by_uni.items() if k != "uct") == 57
     assert {k: len(v) for k, v in by_uni.items()} == {
-        "uct": 16, "us": 18, "nasdaq": 18, "nyse": 18}
+        "uct": 17, "us": 19, "nasdaq": 19, "nyse": 19}
 
 
 def test_uct_contributes_16_because_two_v1_metrics_have_no_uct_symbol():
@@ -104,13 +104,13 @@ def test_uct_is_never_gated_by_a_publication_set():
 def test_a_typoed_publication_set_falls_back_to_the_default(monkeypatch):
     monkeypatch.setenv("BREADTH_LIBRARY_METRICS", "v9-does-not-exist")
     assert bm.publication_set_name() == "v1.1"
-    assert len(bm.published_metric_keys()) == 35
+    assert len(bm.published_metric_keys()) == 36
 
 
 def test_v1_remains_the_one_variable_rollback(monkeypatch):
     monkeypatch.setenv("BREADTH_LIBRARY_METRICS", "v1")
     assert bm.publication_set_name() == "v1"
-    assert len(bm.published_metric_keys()) == 18
+    assert len(bm.published_metric_keys()) == 19
 
 
 def test_every_unpublished_producible_metric_is_classified_exactly_once():
@@ -128,7 +128,9 @@ def test_every_unpublished_producible_metric_is_classified_exactly_once():
     # and every published US metric is one the V2 authority actually stores
     for m in bm.published_metric_keys():
         if bm.applies_to(m, "us"):
-            assert m in ba.V2_METRICS, m
+            # (2026-10-10) the 20/150-day SMA pair is served by `breadth_ma_extra` beside V2
+            from api.services import breadth_ma_extra as mae
+            assert m in ba.V2_METRICS or m in mae.METRICS, m
 
 
 def test_the_star_publication_set_opens_everything(monkeypatch):
@@ -143,7 +145,7 @@ def test_the_dark_payload_is_byte_identical_to_the_legacy_projection():
     IS the 44 shipped rows — same rows, same order, same keys."""
     assert bs.published_symbol_rows() == bs.legacy_symbol_rows()
     assert bs.list_breadth_symbols() == bs.legacy_symbol_rows()
-    assert len(bs.legacy_symbol_rows()) == 44
+    assert len(bs.legacy_symbol_rows()) == 45
 
 
 def test_dark_means_dark_at_every_surface():
@@ -173,8 +175,8 @@ def test_publishing_a_universe_turns_every_surface_on_together(monkeypatch):
     publish(monkeypatch, "us")
     rows = bs.list_breadth_symbols()
     us = [r for r in rows if r.get("universe") == "us"]
-    assert len(us) == 35                                 # V1.1
-    assert rows[:44] == bs.legacy_symbol_rows()          # legacy first, untouched
+    assert len(us) == 36                                 # V1.1
+    assert rows[:45] == bs.legacy_symbol_rows()          # legacy first, untouched
 
     # …and the SAME identities answer at every other surface
     for r in us:
@@ -232,7 +234,7 @@ def test_the_prebuilt_watchlists_never_gain_a_namespaced_identity(monkeypatch):
     publish(monkeypatch, "*", "*")
     by_group = bs.symbols_by_group()
     flat = [s for syms in by_group.values() for s in syms]
-    assert len(flat) == 44
+    assert len(flat) == 45
     assert not any(":" in s for s in flat)
     assert set(flat) == set(bs.SYMBOLS)
 
@@ -255,7 +257,7 @@ def test_legacy_symbol_rows_is_immune_to_every_flag(monkeypatch):
 def test_enable_then_disable_leaves_no_trace_in_discovery(monkeypatch):
     before = bs.list_breadth_symbols()
     publish(monkeypatch, "us")
-    assert len(bs.list_breadth_symbols()) == 79          # 44 legacy + 35 US (V1.1)
+    assert len(bs.list_breadth_symbols()) == 81          # 45 legacy + 36 US (V1.1)
     monkeypatch.delenv("BREADTH_LIBRARY_UNIVERSES", raising=False)
     bs._avail_cache.update(at=0.0, value=None)
     after = bs.list_breadth_symbols()
@@ -330,7 +332,7 @@ def test_health_reports_a_published_but_empty_universe_as_UNHEALTHY(monkeypatch,
     assert h["universes"]["us"]["published"] is True
     assert h["universes"]["us"]["healthy"] is False
     assert h["ok"] is False
-    assert h["universes"]["us"]["metrics_published"] == 35
+    assert h["universes"]["us"]["metrics_published"] == 36
     store._INIT_DONE = False
 
 

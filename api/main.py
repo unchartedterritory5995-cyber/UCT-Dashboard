@@ -6479,6 +6479,11 @@ async def lifespan(app: FastAPI):
                     breadth_nhnl_intraday.scheduled_extend()
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[nhnl-intraday] extend failed: %s", _e)
+                try:   # the 20/150-day SMA history series rides the same clock
+                    from api.services import breadth_ma_extra
+                    breadth_ma_extra.scheduled_extend()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[ma-extra] extend failed: %s", _e)
 
             _scheduler.add_job(
                 _breadth_nhnl_extend,

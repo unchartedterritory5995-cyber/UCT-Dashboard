@@ -45,10 +45,11 @@ export const CHART_GROUPS = [
     metrics: [
       { key: 'pct_above_5sma',   label: '% Above 5SMA' },
       { key: 'pct_above_10sma',  label: '% Above 10SMA' },
-      { key: 'pct_above_20ema',  label: '% Above 20EMA' },
+      { key: 'pct_above_20sma',  label: '% Above 20SMA' },
       { key: 'pct_above_40sma',  label: '% Above 40SMA' },
       { key: 'pct_above_50sma',  label: '% Above 50SMA' },
       { key: 'pct_above_100sma', label: '% Above 100SMA' },
+      { key: 'pct_above_150sma', label: '% Above 150SMA' },
       { key: 'pct_above_200sma', label: '% Above 200SMA' },
     ],
   },
@@ -165,10 +166,11 @@ export const METRIC_UNITS = {
   // MA Breadth
   pct_above_5sma:   UNIT.PCT,
   pct_above_10sma:  UNIT.PCT,
-  pct_above_20ema:  UNIT.PCT,
+  pct_above_20sma:  UNIT.PCT,
   pct_above_40sma:  UNIT.PCT,
   pct_above_50sma:  UNIT.PCT,
   pct_above_100sma: UNIT.PCT,
+  pct_above_150sma: UNIT.PCT,
   pct_above_200sma: UNIT.PCT,
 
   // Regime
@@ -280,9 +282,10 @@ export const METRIC_META = {
   new_52w_lows: { label: '52W Lows', group: 'Highs / Lows', drillKey: 'new_52w_lows_list' },
   new_ath: { label: 'ATH Count (Close)', group: 'Highs / Lows', coverage: { from: '2026-08-06', note: 'before this the collector counted 52-week highs by another name' } },
   pct_above_100sma: { label: '% Above 100SMA', short: '>100 SMA', group: 'MA Breadth' },
+  pct_above_150sma: { label: '% Above 150SMA', short: '>150 SMA', group: 'MA Breadth' },
   pct_above_10sma: { label: '% Above 10SMA', short: '>10 SMA', group: 'MA Breadth' },
   pct_above_200sma: { label: '% Above 200SMA', short: '>200 SMA', group: 'MA Breadth' },
-  pct_above_20ema: { label: '% Above 20EMA', short: '>20 EMA', group: 'MA Breadth' },
+  pct_above_20sma: { label: '% Above 20SMA', short: '>20 SMA', group: 'MA Breadth' },
   pct_above_40sma: { label: '% Above 40SMA', short: '>40 SMA', group: 'MA Breadth' },
   pct_above_50sma: { label: '% Above 50SMA', short: '>50 SMA', group: 'MA Breadth' },
   pct_above_5sma: { label: '% Above 5SMA', short: '>5 SMA', group: 'MA Breadth' },
@@ -540,7 +543,7 @@ export const CHART_PRESETS = [
     id: 'participation',
     label: 'Participation',
     hint: 'The MA stack from fast to primary, with washout and overbought reference lines.',
-    metrics: ['pct_above_10sma', 'pct_above_20ema', 'pct_above_50sma', 'pct_above_200sma'],
+    metrics: ['pct_above_10sma', 'pct_above_20sma', 'pct_above_50sma', 'pct_above_200sma'],
     extremes: ['MA Breadth'],
   },
   {
@@ -667,7 +670,7 @@ export const CHART_PRESETS = [
     hint: 'The three fastest MAs together — how oversold the market is right now, with the 5/10/15/20 washout lines.',
     // `participation` starts at the 10SMA, so nothing surfaced the fast washout
     // that marks a tradeable bounce. All three run 16-84 on one axis.
-    metrics: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20ema'],
+    metrics: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20sma'],
     extremes: ['MA Breadth'],
   },
   {
@@ -679,7 +682,7 @@ export const CHART_PRESETS = [
     // ramp holds exactly six colours, so a seventh wraps and draws two bands in
     // the SAME colour — indistinguishable on the chart. The 40SMA is dropped as
     // the least conventional of the set; it stays one checkbox away.
-    metrics: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20ema',
+    metrics: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20sma',
               'pct_above_50sma', 'pct_above_100sma', 'pct_above_200sma'],
     extremes: ['MA Breadth'],
   },

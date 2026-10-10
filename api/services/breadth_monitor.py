@@ -579,6 +579,7 @@ def _history_uncached(days: int, end: Optional[str], anchor: str, ck: str) -> li
     _apply_nhnl(result_asc, "counts")
     _derive_ascending(result_asc, adv_decline_seed)
     _apply_nhnl(result_asc, "derived")
+    _apply_extra_ma(result_asc)
 
     # Return newest-first, dropping the warm-up rows off the OLD end. They were
     # fetched to be looked back at, not to be served.
@@ -653,6 +654,28 @@ def _apply_authority(result_asc: list) -> None:
             ba.overlay_monitor_rows(result_asc, _collector_tail())
     except Exception as e:
         print(f"[breadth_monitor] authority overlay skipped: {type(e).__name__}: {e}")
+
+
+_EXTRA_MA = ("pct_above_20sma", "pct_above_150sma")
+
+
+def _apply_extra_ma(result_asc: list) -> None:
+    """(2026-10-10) The 20/150-day SMA readings for rows that do not carry them (the collector and
+    the V2 authority never measured them): the UCT store's reconstructed values for the session."""
+    try:
+        from api.services import breadth_daily_ohlc as bdo
+        want = [r for r in result_asc if r.get("date") and any(r.get(k) is None for k in _EXTRA_MA)]
+        if not want:
+            return
+        for k in _EXTRA_MA:
+            hist = bdo._history_stored(k, limit=8000) or {}
+            for r in want:
+                if r.get(k) is None:
+                    v = (hist.get(r["date"]) or {}).get("c")
+                    if v is not None:
+                        r[k] = v
+    except Exception as e:
+        print(f"[breadth_monitor] extra MA overlay skipped: {type(e).__name__}: {e}")
 
 
 def _apply_nhnl(result_asc: list, part: str) -> None:
@@ -1008,6 +1031,7 @@ def _history_deep_uncached(days: int, end: Optional[str], anchor: str, ck: str) 
     with _bt.phase('derive'):
         _derive_ascending(result_asc, _seed)
     _apply_nhnl(result_asc, "derived")
+    _apply_extra_ma(result_asc)
 
     out = list(reversed(result_asc))[:days]
     with _bt.phase('cache_set'):

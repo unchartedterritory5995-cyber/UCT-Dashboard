@@ -422,7 +422,7 @@ describe('preset axis layout', () => {
   const EXPECTED = {
     health:             { left: ['breadth_score', 'uct_exposure', 'pct_above_50sma'], right: [] },
     'breadth-vs-price': { left: ['pct_above_50sma', 'pct_above_200sma'], right: ['sp500_close'] },
-    participation:      { left: ['pct_above_10sma', 'pct_above_20ema', 'pct_above_50sma', 'pct_above_200sma'], right: [] },
+    participation:      { left: ['pct_above_10sma', 'pct_above_20sma', 'pct_above_50sma', 'pct_above_200sma'], right: [] },
     // Adding up_vol_ratio makes ratios the majority family 3-2, so they take
     // the left axis and the counts move right. Wanted: the parity and thrust
     // reference lines sit on the ratio family, and they belong on the primary.
@@ -442,8 +442,8 @@ describe('preset axis layout', () => {
     // Added 2026-08-07. Intent is declared here and checked through the real
     // rule, so a preset whose metric ORDER changes (which decides the left axis
     // on a family tie) fails rather than silently swapping axes.
-    washout:            { left: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20ema'], right: [] },
-    'ma-term-structure': { left: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20ema', 'pct_above_50sma', 'pct_above_100sma', 'pct_above_200sma'], right: [] },
+    washout:            { left: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20sma'], right: [] },
+    'ma-term-structure': { left: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20sma', 'pct_above_50sma', 'pct_above_100sma', 'pct_above_200sma'], right: [] },
     'long-trend':       { left: ['pct_above_100sma', 'pct_above_200sma'], right: [] },
     'highs-quality':    { left: ['new_52w_highs', 'new_ath'], right: [] },
     'highs-lows-20d':   { left: ['new_20d_highs', 'new_20d_lows'], right: [] },

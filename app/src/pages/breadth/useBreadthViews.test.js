@@ -5,7 +5,7 @@ import useBreadthViews, { STORAGE_KEY, DEFAULT_PRESET, DEFAULT_STYLE, STYLES } f
 const ALL = [
   'breadth_score','uct_exposure','up_4pct_today','down_4pct_today','pct_above_50sma',
   'pct_above_200sma','new_52w_highs','new_52w_lows','mcclellan_osc','stage2_count',
-  'pct_above_20ema','vix',
+  'pct_above_20sma','vix',
 ].map(k => ({ key: k, label: k, group: 'G', polarity: 'bull' }))
 
 // Default: a logged-out-style stub (empty server, no-op writer) so existing

@@ -28,7 +28,7 @@ const HEADLINE = [
   'mcclellan_osc', 'vix',
 ]
 const RADAR_DEFAULT = [
-  'breadth_score', 'uct_exposure', 'pct_above_20ema', 'pct_above_50sma', 'pct_above_200sma',
+  'breadth_score', 'uct_exposure', 'pct_above_20sma', 'pct_above_50sma', 'pct_above_200sma',
   'up_4pct_today', 'down_4pct_today', 'new_52w_highs', 'new_52w_lows', 'mcclellan_osc',
   'stage2_count', 'vix',
 ]
@@ -37,7 +37,7 @@ const TIMELINE_DEFAULT = [
   'up_4pct_today', 'down_4pct_today', 'new_52w_highs', 'new_52w_lows', 'mcclellan_osc', 'vix',
 ]
 const LEVELS_DEFAULT = [
-  'breadth_score', 'uct_exposure', 'pct_above_5sma', 'pct_above_10sma', 'pct_above_20ema',
+  'breadth_score', 'uct_exposure', 'pct_above_5sma', 'pct_above_10sma', 'pct_above_20sma',
   'pct_above_40sma', 'pct_above_50sma', 'pct_above_100sma', 'pct_above_200sma',
   'up_4pct_today', 'down_4pct_today', 'new_52w_highs', 'new_52w_lows',
   'mcclellan_osc', 'stage2_count', 'vix',

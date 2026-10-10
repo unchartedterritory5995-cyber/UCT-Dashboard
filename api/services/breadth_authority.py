@@ -387,6 +387,11 @@ def token() -> str:
         exch += _nhi.token()
     except Exception:
         pass
+    try:
+        from api.services import breadth_ma_extra as _mae
+        exch += _mae.token()
+    except Exception:
+        pass
     if not uct_v2 and not us_v2:
         return "v1" + exch
     f = _FROZEN.get("stat")

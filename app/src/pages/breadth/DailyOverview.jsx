@@ -23,7 +23,7 @@ import { formatNumber } from '../../lib/presentation/presentationPrimitives'
 const HERO_METRICS = [
   { key: 'pct_above_50sma', label: '% Above 50-Day', pct: true },
   { key: 'breadth_score', label: 'Health' },
-  { key: 'pct_above_20ema', label: '% Above 20-EMA', pct: true },
+  { key: 'pct_above_20sma', label: '% Above 20-Day', pct: true },
   { key: 'up_4pct_today', label: 'Up 4%' },
   { key: 'down_4pct_today', label: 'Dn 4%', bear: true },
   { key: 'new_52w_highs', label: 'New 52w Highs' },
@@ -32,7 +32,7 @@ const HERO_METRICS = [
 
 const TILE_KEYS = [
   'up_4pct_today', 'down_4pct_today', 'new_52w_highs', 'new_52w_lows',
-  'pct_above_20ema', 'pct_above_50sma', 'pct_above_200sma',
+  'pct_above_20sma', 'pct_above_50sma', 'pct_above_200sma',
   'ratio_5day', 'ratio_10day', 'mcclellan_osc',
 ]
 // A rise in these is deterioration — deltas and mini paths must not read green.

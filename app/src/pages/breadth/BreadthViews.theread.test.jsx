@@ -23,7 +23,7 @@ const N = 60
 const ROWS = Array.from({ length: N }, (_, i) => ({
   date: new Date(Date.UTC(2026, 7, 28) - i * 86400000).toISOString().slice(0, 10),
   pct_above_50sma: 52.1 + i * 0.215, pct_above_200sma: 60, pct_above_5sma: 40,
-  pct_above_10sma: 45, pct_above_20ema: 50, pct_above_40sma: 52, pct_above_100sma: 55,
+  pct_above_10sma: 45, pct_above_20sma: 50, pct_above_40sma: 52, pct_above_100sma: 55,
   sp500_close: 5000 + (N - 1 - i) * 5, qqq_close: 400 + (N - 1 - i),
   breadth_score: 88 - i * 0.3, uct_exposure: 60, vix: 16 + i * 0.1, mcclellan_osc: 10,
   advancing: 3000, declining: 1500, up_vol_ratio: 1.8,
