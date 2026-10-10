@@ -83,11 +83,10 @@ function draftRefOf(key, state) {
   return Object.freeze({ contract: AUTHORING_CONTRACT, key, lineage: state.lineage })
 }
 
-/** The repaint acknowledgement sentences a Save needs approved, verbatim (§15.4). */
+/** The repaint acknowledgement sentences a Save needs approved, verbatim (§15.4) — the readback's
+ *  own items (`authoring/repaintWarning.js`), one per output, with the measured look-ahead window. */
 function ackTextOf(rb) {
-  const keys = rb.needsAck || []
-  if (!keys.length) return []
-  return (rb.lines || []).filter((l) => /confirm below before saving$/.test(l))
+  return (rb.ack || []).map((a) => a.sentence)
 }
 
 function statusOf(key, snap, ctx = {}) {

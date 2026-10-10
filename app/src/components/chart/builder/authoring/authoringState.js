@@ -159,10 +159,11 @@ export function isDirty(state) {
  * `BuilderSheet.save()` does: an edit bumps `version` from the stored one, a
  * create starts at 1 under a draft id the server replaces; then the shipped
  * validation door. No semantics stamp — the store decides it.
- * @returns {{doc, defId: string|null, errors: string[], needsAck: string[], requests}}
+ * @returns {{doc, defId: string|null, errors: string[], needsAck: string[], ack: object[], requests}}
+ *   `ack` — the repaint acknowledgement items (`repaintWarning.js`), the same ones the readback says.
  */
 export function prepareSave(state, { draftId = null } = {}) {
-  if (!state.working) return { doc: null, defId: null, errors: ['There is nothing to save yet.'], needsAck: [], requests: state.requests }
+  if (!state.working) return { doc: null, defId: null, errors: ['There is nothing to save yet.'], needsAck: [], ack: [], requests: state.requests }
   const editing = !!state.defId && Number.isInteger(state.baseVersion)
   const doc = {
     ...state.working,
@@ -170,5 +171,6 @@ export function prepareSave(state, { draftId = null } = {}) {
     version: editing ? state.baseVersion + 1 : 1,
   }
   const { errors } = validateUserDefinitions([doc])
-  return { doc, defId: editing ? state.defId : null, errors, needsAck: readback(doc, state).needsAck, requests: state.requests }
+  const rb = readback(doc, state)
+  return { doc, defId: editing ? state.defId : null, errors, needsAck: rb.needsAck, ack: rb.ack, requests: state.requests }
 }

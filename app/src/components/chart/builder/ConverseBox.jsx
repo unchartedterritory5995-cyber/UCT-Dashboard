@@ -43,6 +43,7 @@ import { stampSemantics } from '../engine/definitionSemantics'
 import { memberError, memberSaveError, conversationEditability, memberRefusal } from './authoring/memberWords'
 import { logStudioAction, definitionKinds, clientFailureOf } from './authoring/studioTelemetry'
 import { outputNamer } from './authoring/readback'
+import { ackCheckboxText } from './authoring/repaintWarning'
 
 const S = {
   box: { display: 'flex', flexDirection: 'column', gap: 8, padding: 10, border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)' },
@@ -441,7 +442,8 @@ export default function ConverseBox({
       {state.working && needsAck.length > 0 && (
         <label style={S.muted}>
           <input type="checkbox" data-testid="converse-ack" checked={acked} onChange={(e) => setAcked(e.target.checked)} />
-          {' '}I understand {needsAck.join(', ')} is not final until more bars close.
+          {/* ⭐ S6 — the measured window, the same items the readback line states */}
+          {' '}{ackCheckboxText(rb.ack)}
         </label>
       )}
 

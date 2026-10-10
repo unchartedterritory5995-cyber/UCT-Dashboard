@@ -34,6 +34,7 @@ import { tableSpecOfDefinition, tableLines } from './tables'
 import { stampSemantics, semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from '../../engine/definitionSemantics'
 import { INTENTS, intentReadback, NO_PAINT } from '../authoringIntent'
 import { untruncatedLabel } from '../../engine/labelText'
+import { repaintWarningItems } from './repaintWarning'
 
 /** Rule A of `definitionSemantics.js`, said as what the member sees, for the
  *  semantics the store's rule gives this save (`stampSemantics` mirrors
@@ -256,7 +257,7 @@ export function readback(def, state = {}, gateCtx = {}) {
   if (!def) {
     const questions = (state.questions || []).map((q) => `Question: ${q.text}`)
     return Object.freeze({ lines: ['No indicator yet.', ...questions], name: null, outputs: [], presentation: [],
-      intent: null, alerts: [], infoValues: [], assumptions: [], questions, needsAck: [], status: 'refused' })
+      intent: null, alerts: [], infoValues: [], assumptions: [], questions, needsAck: [], ack: [], status: 'refused' })
   }
   const scope = declaredInputs(def)
   const intent = state.intent || null
@@ -271,12 +272,14 @@ export function readback(def, state = {}, gateCtx = {}) {
     const tree = outputTreeOf(def, o.key)
     let sentence = null
     let mode = null
+    let forward = null
     try { sentence = sentenceFor(tree, scope) } catch { sentence = null }
-    try { mode = lintRepaint(tree, { inputs: scope }).mode } catch { mode = 'repaints' }
+    // ⭐ S6 — the reach is kept with the mode: the repaint warning names its window (`repaintWarning.js`).
+    try { const lint = lintRepaint(tree, { inputs: scope }); mode = lint.mode; forward = lint.forward } catch { mode = 'repaints' }
     if (comparesAnything(tree)) compares = true
     const base = { key: o.key, label: o.label, type: o.type, words: o.words, sentence }
     return { ...base, name: nameOf(o.key), phrase: phraseOf(base, tree, scope), lane: o.lane,
-      status: o.verdict.status, reason: o.verdict.reason || null, mode,
+      status: o.verdict.status, reason: o.verdict.reason || null, mode, forward,
       ...(o.verdict.pending ? { pending: true } : {}) }
   })
   const outputLines = outputs.map((o) => {
@@ -326,6 +329,9 @@ export function readback(def, state = {}, gateCtx = {}) {
   const needsAck = outputs.filter((o) => o.mode === 'preview-repaints').map((o) => o.key)
   // ⭐ PHASE 5 — a FORMING-period read repaints for a reason a member can name.
   const formingOf = (key) => readsTfLive(outputTreeOf(def, key))
+  // ⭐ S6 — ONE warning per output, from the measured window (`repaintWarning.js`); every
+  // surface that asks for the acknowledgement reads these same items.
+  const ack = repaintWarningItems(outputs, needsAck, formingOf)
   const semantics = semanticsOf(stampSemantics(def, { prior: state.base || null }))
   const semanticsLine = compares
     ? (semantics === SEMANTICS_UNKNOWN_PROPAGATES ? SEMANTICS_LINE : SEMANTICS_LINE_LEGACY)
@@ -350,15 +356,13 @@ export function readback(def, state = {}, gateCtx = {}) {
     ...alerts,
     ...infoValues,
     ...assumptions,
-    ...needsAck.map((k) => (formingOf(k)
-      ? `${nameOf(k)} reads the period still forming (so far this week or month), so it changes until that period closes — it repaints; confirm below before saving`
-      : `${nameOf(k)} reads a bar ahead, so it can change until that bar closes — confirm below before saving`)),
+    ...ack.map((a) => a.sentence),
     ...(semanticsLine ? [semanticsLine] : []),
     ...(ruleUnknownLine ? [ruleUnknownLine] : []),
     ...questions,
   ]
   return Object.freeze({ lines, name: (def.meta && def.meta.name) || '', outputs, presentation, intent: intentLine,
-    alerts, infoValues, assumptions, questions, needsAck, status: rb.status,
+    alerts, infoValues, assumptions, questions, needsAck, ack, status: rb.status,
     ...(calcLine ? { calculationTimeframe: calcLine } : {}), ...(symLine ? { otherSymbols: symLine } : {}) })
 }
 

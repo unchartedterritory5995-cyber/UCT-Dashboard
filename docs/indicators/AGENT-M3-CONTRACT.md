@@ -412,3 +412,34 @@ history step (undoable).
   outcome is a truthful, RETRYABLE application failure carrying the same `defId`; a retry is a plain M2
   `add` of that `defId`. Never a second Save, never a new definition. (No Indicators change: M2 refuses
   truthfully today; the retry classification is the Agent's.)
+
+### 16.3 S6 remediation — the repaint warning states the measured window (2026-10-10, LOCAL)
+
+S6 found that every acknowledgement said "reads a bar ahead", whatever the formula: `pivothigh(high,
+5, 5)` is final only after five more bars close. The engine already measured that window
+(`lintRepaint(tree).forward`, `engine/ast/lint.js`); the readback discarded it.
+
+- **One builder, Indicators-owned.** `builder/authoring/repaintWarning.js` turns each repainting
+  output's measured `forward` into words. The readback line (and so `DraftStatus.ackText`), the Create
+  Indicator and Converse checkboxes, the conversation save refusal and the member save error all call it.
+  The Agent keeps NO warning text of its own: it shows `ackText` verbatim, as before.
+- **Wording.** `‹output› reads N bars ahead, so its latest N values can change until N more bars close
+  — confirm below before saving` (N = 1: `reads 1 bar ahead, so its latest value can change until the
+  next bar closes — …`). The forming-period sentence is unchanged. A window that is not a whole number
+  of bars is said WITHOUT a count (such trees measure `repaints` and are refused at Save anyway).
+  Every sentence still ends `confirm below before saving`.
+- **No call-surface change (contract stays `/1`).** Every function signature, refusal reason and
+  `DraftStatus` field is unchanged; only the TEXT of `ackText` changes. Additive DATA only, inside
+  values already returned: `readback().ack` / `DraftStatus.readback.ack`
+  `[{key, name, forward, forming, sentence}]` (one per `needsAck` key, in output order),
+  `prepareSave().ack`, and `ack` on `storeConversation`'s `{stage:'ack'}` refusal.
+- **Approval binding (F6) is the Agent's, over existing fields.** The Agent seals the shown
+  `DraftStatus.ackText` (with revision, name, mode/defId/baseVersion) into the proposal and refuses
+  Apply unless the draft's CURRENT status equals the seal; `expectedRevision` stays the backstop.
+  The comparison uses `ackText` verbatim — no warning semantics in the Agent.
+- **Joint follow-up, NOT in `/1` (needs both teams + owner):** an optional `saveDraft` `ackText`
+  argument so Indicators itself refuses `needs-ack {changed:true}` when the approval's sentences differ
+  from the draft's — defence in depth for any future caller. Prototyped and withdrawn on 2026-10-10.
+- **Persisted metadata.** The server stamps its own per-plot verdict at save (`lint_verdict` →
+  `ast_lint.lint_definition`); `tests/test_repaint_warning_window.py` pins that it measures the same
+  window for the same trees (5 / 1 / 1 / 4 / 0), so the warning approved and the badge stored agree.

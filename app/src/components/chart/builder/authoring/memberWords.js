@@ -20,6 +20,7 @@
 // so the member is told up front, instead of on the first change.
 
 import { modelOf, fidelityPlan, AuthoringError } from './model'
+import { ackRequiredText } from './repaintWarning'
 
 const GENERIC = 'UCT Intelligence proposed a change that does not fit this indicator, so nothing was applied. Try saying it another way.'
 
@@ -88,7 +89,8 @@ export function memberError(e, { nameOf = null } = {}) {
 export function memberSaveError(stored) {
   const stage = stored && stored.stage
   const detail = String((stored && stored.error) || '')
-  if (stage === 'ack') return Object.freeze({ text: 'Tick the confirmation box first — this indicator reads a bar ahead, so its latest value can still change.', code: 'save:ack', detail })
+  // ⭐ S6 — the same measured window the readback states (`repaintWarning.js`), never "a bar"
+  if (stage === 'ack') return Object.freeze({ text: ackRequiredText(stored && stored.ack), code: 'save:ack', detail })
   if (stage === 'validate') return Object.freeze({ text: 'This indicator is not valid yet, so it was not saved.', code: 'save:validate', detail })
   // ⭐ PHASE 4 — a stale edit: the store's own sentence already says what happened.
   if (stage === 'conflict') return Object.freeze({ text: detail || 'This indicator was changed somewhere else after you opened it. Nothing was saved — reopen it to see the latest version.', code: 'save:conflict', detail })

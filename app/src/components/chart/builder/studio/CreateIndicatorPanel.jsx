@@ -28,6 +28,7 @@ import useIndicatorConversation, { typeWord } from './useIndicatorConversation'
 import { claimPreview, releasePreview, installPreview, removePreview } from './previewChannel'
 import { withPendingInputs } from './editPreview'
 import { conversationEditability, CARRIED_NOTE } from '../authoring/memberWords'
+import { ackCheckboxText } from '../authoring/repaintWarning'
 import styles from './CreateIndicatorPanel.module.css'
 import { safeCssColour } from '../../engine/objectColour'
 
@@ -506,7 +507,8 @@ export default function CreateIndicatorPanel({
             <label className={styles.ack}>
               <input type="checkbox" checked={conv.acked} onChange={(e) => conv.setAcked(e.target.checked)}
                 data-testid="create-indicator-ack" />
-              <span>{conv.needsAck.map((k) => (rb.outputs.find((o) => o.key === k) || {}).name || k).join(', ')} reads a bar ahead and isn't final until more bars close.</span>
+              {/* ⭐ S6 — the measured window, the same items the readback line states */}
+              <span>{ackCheckboxText(rb.ack)}</span>
             </label>
           )}
         </section>

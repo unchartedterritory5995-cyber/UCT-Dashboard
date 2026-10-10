@@ -418,7 +418,8 @@ describe('⭐ typed rename (renameDraft) — rename-only by construction, machin
     expect(r.ok).toBe(true)
     const after = draftStatus(ref, ctxOf()).ackText
     expect(after).not.toEqual(before)                     // it names the output, which follows the new name
-    expect(after[0]).toMatch(/^Swing Highs reads a bar ahead/)
+    // ⭐ S6 — the measured window: pivothigh(high, 2, 2) is final only after 2 more bars close
+    expect(after[0]).toMatch(/^Swing Highs reads 2 bars ahead, so its latest 2 values can change until 2 more bars close/)
     expect(await saveDraft(ref, { expectedRevision: 2 }, ctxOf())).toMatchObject({ ok: false, reason: R.NEEDS_ACK, detail: { ackText: after } })
     expect((await saveDraft(ref, { expectedRevision: 2, acknowledged: true }, ctxOf())).ok).toBe(true)
   })
