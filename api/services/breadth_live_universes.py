@@ -123,7 +123,15 @@ def _active_reference() -> dict:
 
 
 def members(on_iso: str, ref_map: Optional[dict] = None) -> dict:
-    """`{universe: [ticker, …]}` for a session, from the provider's listing data."""
+    """`{universe: [ticker, …]}` for a session.
+
+    ⭐ (2026-10-10) THE AUTHORITY'S OWN LIST FIRST. The provider's listing data counts every active
+    listing; the canonical producer counts the names that TRADED, classified by its venue ledger.
+    Measured 2026-10-08: the authority's lists were a strict SUBSET of the provider's, and the
+    extras (148 Nasdaq, 19 NYSE, 174 US — blank-check shells, untraded listings, second share
+    classes) put Nasdaq's population drift at 4.3% against the 5% guard. So the live members are the
+    authority's members for its newest session, plus names LISTED after that session (the only ones
+    the authority cannot have seen yet). The provider-only list remains the fallback."""
     hit = _members_cache.get("key")
     if ref_map is None and hit == on_iso:
         return _members_cache["value"]
@@ -132,6 +140,8 @@ def members(on_iso: str, ref_map: Optional[dict] = None) -> dict:
     ref = ref_map if ref_map is not None else _active_reference()
     venues = {u: bu.venues(u) for u in UNIVERSES}
     out: dict = {u: [] for u in UNIVERSES}
+    by_ref: dict = {u: [] for u in UNIVERSES}
+    listed_after: dict = {}
     for sym, recs in (ref or {}).items():
         rec = pf.resolve(recs, on_iso)
         if not rec or rec.get("type") not in pf.COMMON_TYPES:
@@ -139,7 +149,20 @@ def members(on_iso: str, ref_map: Optional[dict] = None) -> dict:
         ex = (rec.get("primary_exchange") or "").upper()
         for u in UNIVERSES:
             if ex in venues[u]:
-                out[u].append(str(sym).upper())
+                by_ref[u].append(str(sym).upper())
+        listed_after[str(sym).upper()] = rec.get("list_date") or ""
+    off = official_members() if ref_map is None else None
+    if off and all(off.get(u) for u in UNIVERSES):
+        session = off["session"]
+        for u in UNIVERSES:
+            base = set(off[u])
+            # spelled as the provider spells it, so the frame and the snapshot find them
+            spelled = {t.replace("-", "."): t for t in by_ref[u]}
+            keep = {spelled.get(t, t) for t in base}
+            keep |= {t for t in by_ref[u] if (listed_after.get(t) or "") > session}
+            out[u] = keep
+    else:
+        out = by_ref
     out = {u: sorted(v) for u, v in out.items()}
     if ref_map is None:
         _members_cache.update(key=on_iso, value=out)
@@ -181,7 +204,7 @@ def membership_diff(sample: int = 40) -> dict:
     from api.services import breadth_pit_frame as pf
     d = off["session"]
     ref = _active_reference() or {}
-    live = members(d)
+    live = members(d, ref_map=ref)          # the provider-only list (what drifts)
     canon = lambda t: str(t or "").upper().replace("-", ".")
     out = {"ok": True, "session": d, "universes": {}}
     for u in UNIVERSES:
