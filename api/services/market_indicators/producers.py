@@ -47,7 +47,9 @@ def _overlay(universe: str, metric: str) -> dict:
     return ((ov.get(universe) or {}).get(metric)) or {}
 
 
-_HIST_TTL = 900
+#: The key carries the authority token, which moves whenever the stored history does, so this
+#: TTL is only a ceiling — 15 min made every indicator's live overlay re-read SQLite in-request.
+_HIST_TTL = 6 * 3600
 _hist_memo: dict = {}
 _hist_lock = threading.Lock()
 
@@ -664,6 +666,22 @@ def _disk_load(sid: str):
         return None
 
 
+_primed: dict = {}
+
+
+def _prime_overlay_inputs(sid: str) -> None:
+    """Read (memoise) the stored histories `sid`'s live overlay derives from, here in the warm
+    thread instead of in the first member request after a deploy (NYSE:AD took 8.9 s)."""
+    key = (sid, _authority_suffix())
+    if _primed.get(sid) == key:
+        return
+    try:
+        build_with_overlay(sid, {})
+        _primed[sid] = key
+    except Exception:
+        pass
+
+
 def warm_all(max_rebuilds: int = 6) -> dict:
     """Keep every breadth-derived indicator warm: restore from disk after a deploy, rebuild in
     the background when stale. At most `max_rebuilds` inline builds per pass."""
@@ -678,6 +696,7 @@ def warm_all(max_rebuilds: int = 6) -> dict:
             hit = _cache.get(key)
         if hit and time.time() - hit[0] <= _CACHE_TTL:
             out["fresh"] += 1
+            _prime_overlay_inputs(sid)
             continue
         if not hit and _disk_load(sid) is not None:
             build(sid)
