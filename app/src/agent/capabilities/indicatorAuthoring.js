@@ -72,7 +72,11 @@ export function _resetAuthoring() { active = null; pinned.clear(); try { store()
 const boardCharts = (host) => { try { return host?.charts?.list() || [] } catch { return [] } }
 const originOf = (status) => (status && typeof status.chartRef === 'string' ? status.chartRef : null)
 /** The chart for a draft request: {ref} or {ask} (a question — never a silent pick). */
+/** A chart named through its own indicators / indicatorEdits entry ('ind:<chart>' / 'ixe:<chart>') IS that
+ *  chart (S6 probe P9: the model passed the indicatorEdits ref for "add it to the SPY chart"). */
+export const asChartRef = (r) => (typeof r === 'string' ? r.replace(/^(?:ind|ixe):/, '') : r)
 export function chartForDraft(st, chartArg) {
+  chartArg = chartArg == null ? chartArg : asChartRef(chartArg)
   const charts = st.charts || []
   const on = (r) => charts.some(c => c.ref === r)
   if (chartArg != null) return on(chartArg) ? { ref: chartArg } : { ask: 'That chart isn’t on the board — which chart is this indicator for?' }
@@ -432,8 +436,8 @@ export function registerIndicatorAuthoringCapabilities() {
     exclusive: true,
     exclusiveReason: 'Work on one indicator draft at a time, on its own — ask for anything else separately.',
     summary: 'THE DEFAULT for building a custom indicator: build it WITH the member right here in this chat ("build/make me an indicator that…", "also require RSI above 50", "what would you add?") — one draft, through Create Indicator\'s own engine. Questions and advice change nothing. Never saves (indicator.saveDraft does).',
-    hints: 'target = the ACTIVE draft\'s ref to continue it (follow-ups like "also…", "make it…", "what would you add?" go to the active draft); the NEW-draft entry only when the member starts a different indicator or edits one of yourIndicators (edit = its defId, else null). If several drafts could be meant and none is active or named, ask which. chart = the ref of the chart the member names for it, else null (a draft keeps its own chart). message = the member\'s words, verbatim — never your own formula or interpretation.',
-    argRefs: { chart: 'chart' },
+    hints: 'target = the ACTIVE draft\'s ref to continue it (follow-ups like "also…", "make it…", "what would you add?" go to the active draft); the NEW-draft entry only when the member starts a different indicator or edits one of yourIndicators (edit = its defId, else null). With an active draft, "this indicator" / "the indicator" / "it" means that draft — do not ask which. If several drafts could be meant and none is active or named, ask which. chart = the ref of the chart the member names for it, else null (a draft keeps its own chart). message = the member\'s words, verbatim — never your own formula or interpretation.',
+    argRefs: { chart: ['chart', 'indicators', 'indicatorEdits'] },
     args: { type: 'object', properties: { message: { type: 'string' }, chart: { type: ['string', 'null'] }, edit: { type: ['string', 'null'] } }, required: ['message', 'chart', 'edit'], additionalProperties: false },
     check(st, { message, chart, edit }) {
       if (!String(message || '').trim()) return 'Say what the indicator should do.'
@@ -467,20 +471,20 @@ export function registerIndicatorAuthoringCapabilities() {
     undo: 'none',
     exclusive: true,
     exclusiveReason: 'Show the preview on its own — ask for anything else separately.',
-    argRefs: { chart: 'chart' },
+    argRefs: { chart: ['chart', 'indicators', 'indicatorEdits'] },
     summary: 'Show an indicator draft as this tab\'s ONE live preview on a chart (not saved; moves off any other chart). Only when the member asks to see it.',
     hints: 'target = the draft\'s ref (usually the active one). chart = the ref of the chart to preview on — the one the member names, or the only chart; if several charts and none named, ask which. Never preview unasked.',
     args: { type: 'object', properties: { chart: { type: 'string' } }, required: ['chart'], additionalProperties: false },
     check(st, { chart }) {
       if (st.new) return 'There is no draft to preview yet — describe the indicator first.'
       const u = usable(st); if (u) return u
-      const c = st.charts.find(x => x.ref === chart)
+      const c = st.charts.find(x => x.ref === asChartRef(chart))
       if (!c) return 'Which chart should I show the preview on?'
       if (!c.canPreview) return `${c.label} can’t show a preview.`
       if (st.ops.length) return 'Show the preview on its own.'
       return null
     },
-    apply: (st, { chart }) => ({ ...st, ops: [{ type: 'preview', chartRef: chart }] }),
+    apply: (st, { chart }) => ({ ...st, ops: [{ type: 'preview', chartRef: asChartRef(chart) }] }),
     describe: (b, a) => {
       const op = a.ops[0]
       const c = b.charts.find(x => x.ref === op?.chartRef)
@@ -496,9 +500,9 @@ export function registerIndicatorAuthoringCapabilities() {
     reversible: false,
     exclusive: true,
     exclusiveReason: 'Save the indicator on its own — ask for anything else separately.',
-    argRefs: { addTo: 'chart' },
+    argRefs: { addTo: ['chart', 'indicators', 'indicatorEdits'] },
     summary: 'Save an indicator draft as one of the member\'s indicators (Create Indicator\'s own Save; a new indicator, or a new version of the one being edited) — always shown as a proposal with the builder\'s own summary first. addTo: charts to add the SAVED indicator to afterwards (each added separately, with its own receipt).',
-    hints: 'Use when the member saves THE INDICATOR: "save it", "save it as X", "save the indicator/draft" while an indicator draft is active (the active indicatorDrafts entry) — that "it" is the draft, NOT the workspace layout (layout.saveAs is only for an explicit layout/workspace/board). target = the draft\'s ref (usually the active one). name = the name the member gave ("save it as Bullish Trend" → "Bullish Trend"), else null — never a separate indicator.draft op for the name. addTo = [] UNLESS the member asked in this message to add/apply/put it on a chart; then only the charts\' refs from the charts section that they named. Saving and adding to a chart are separate intents.',
+    hints: 'Use when the member saves THE INDICATOR: "save it", "save it as X", "save the indicator/draft" while an indicator draft is active (the active indicatorDrafts entry) — that "it" is the draft, NOT the workspace layout (layout.saveAs is only for an explicit layout/workspace/board). target = the draft\'s ref (usually the active one). name = the name the member gave ("save it as Bullish Trend" → "Bullish Trend"), else null — never a separate indicator.draft op for the name. addTo = [] UNLESS the member asked in this message to add/apply/put it on a chart; then only the charts\' refs from the charts section that they named. Saving and adding to a chart are separate intents. "Save the indicator" with one active draft is that draft — do not ask which.',
     args: { type: 'object', properties: { addTo: { type: 'array', items: { type: 'string' } }, name: { type: ['string', 'null'] } }, required: ['addTo', 'name'], additionalProperties: false },
     check(st, { addTo, name }) {
       if (st.new) return 'There is no draft to save yet — describe the indicator first.'
@@ -508,14 +512,14 @@ export function registerIndicatorAuthoringCapabilities() {
       if (has(st, 'save')) return 'One save at a time.'
       if (!has(st, 'turn') && !st.status.canSave) return refusalSentence({ reason: R.NOT_DIRTY })
       for (const r of addTo || []) {
-        const c = st.charts.find(x => x.ref === r)
+        const c = st.charts.find(x => x.ref === asChartRef(r))
         if (!c) return 'That isn’t a chart on this board, so nothing was saved or added — name the chart (or just say “save it”).'
         if (!c.canAdd) return `Indicators on ${c.label} can’t be changed from here.`
       }
       return null
     },
     apply(st, { addTo, name }) {
-      const add = [...new Set(addTo || [])]
+      const add = [...new Set((addTo || []).map(asChartRef))]
       const nm = typeof name === 'string' && name.trim() ? name.trim() : null
       const turn = st.ops.find(o => o.type === 'turn')
       const p = pinFor(st, { addTo: add, name: nm, turn: turn ? turn.message : null })

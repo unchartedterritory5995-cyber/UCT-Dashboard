@@ -47,7 +47,8 @@ function argRefsBack(op, refMap) {
   if (!decl || !op.args || typeof op.args !== 'object') return op.args
   const args = { ...op.args }
   for (const [arg, kind] of Object.entries(decl)) {
-    const back = (v) => { const hit = typeof v === 'string' ? refMap[v] : null; return hit && hit.kind === kind ? hit.ref : v }
+    const kinds = Array.isArray(kind) ? kind : [kind]
+    const back = (v) => { const hit = typeof v === 'string' ? refMap[v] : null; return hit && kinds.includes(hit.kind) ? hit.ref : v }
     args[arg] = Array.isArray(args[arg]) ? args[arg].map(back) : back(args[arg])
   }
   return args

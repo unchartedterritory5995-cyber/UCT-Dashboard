@@ -151,7 +151,7 @@ describe('F3 — Save and "add to a chart" are separate intents', () => {
     const h = host()
     const ref = await withDraft(h)
     const rev0 = indicatorDraftsKind.list(h).find(s => s.ref === ref).status.revision
-    const ops = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: ['ixe:L'], name: null } }]
+    const ops = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: ['c99'], name: null } }]
     const p = planOps(collectTargets(h, ['indicatorDrafts']), ops, await prepareOps(ops), CTX)
     expect(p.ok).toBe(false)
     expect(p.refusals[0].reason).toMatch(/That isn’t a chart on this board, so nothing was saved or added/)
@@ -192,5 +192,25 @@ describe('proposal wording — pending before approval, past tense only in recei
       }
     }
     expect(unknown).toEqual([])
+  })
+})
+
+describe('S6 probe P9 — a chart named through its indicators / indicatorEdits entry is that chart', () => {
+  it('saveDraft.addTo with an ixe:/ind: ref plans an add to that chart; anything else is still refused', async () => {
+    const h = host()
+    const ref = await withDraft(h)
+    for (const r of ['ixe:L', 'ind:L', 'L']) {
+      const ops = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: [r], name: null } }]
+      const p = planOps(collectTargets(h, ['indicatorDrafts']), ops, await prepareOps(ops), CTX)
+      expect(p.ok, r + JSON.stringify(p.refusals)).toBe(true)
+      expect(p.plans[0].after.ops.find(o => o.type === 'save').addTo).toEqual(['L'])
+    }
+    const bad = [{ action: 'indicator.saveDraft', target: ref, args: { addTo: ['ixe:ZZ'], name: null } }]
+    expect(planOps(collectTargets(h, ['indicatorDrafts']), bad, await prepareOps(bad), CTX).ok).toBe(false)
+  })
+  it('the argRefs declare the chart-bearing kinds', () => {
+    expect(getCapability('indicator.saveDraft').argRefs.addTo).toEqual(['chart', 'indicators', 'indicatorEdits'])
+    expect(getCapability('indicator.previewDraft').argRefs.chart).toEqual(['chart', 'indicators', 'indicatorEdits'])
+    expect(getCapability('indicator.draft').hints).toMatch(/"this indicator" \/ "the indicator" \/ "it" means that draft/)
   })
 })
