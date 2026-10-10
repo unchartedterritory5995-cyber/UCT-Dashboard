@@ -28,7 +28,7 @@ import {
   RESET_FIB_STYLE, bandState, bandsFor, defaultBandColor, levelKey,
   resolveLevels, withBand, withLevel,
 } from './drawingFib'
-import { parseBoundId } from './drawingAlertAnchors'
+import { parseBoundId, POSITION_LEVELS, positionLevelDirection, positionSide } from './drawingAlertAnchors'
 import { sectionsFor, defaultsPayloadFor, newDrawingProps, isRetired } from './drawingSettingsSchema'
 import {
   PRICE, VOLUME, resolveZones, paneKeyAtY, rectForKey, inferPaneKey,
@@ -3192,7 +3192,7 @@ export default function ChartDrawingOverlay({
             // ⭐ THE SAME `onSetAlert` HANDLER EVERY OTHER TOOL USES — it is
             // given the level, and the level rides into the bound id. No second
             // alert path, no Fib-only direction vocabulary.
-            onSetLevelAlert={onSetAlert ? ((level) => { onSetAlert(d, 'above', { bound: true, level }); setCtxMenu(null) }) : null}
+            onSetLevelAlert={onSetAlert ? ((level, direction = 'above') => { onSetAlert(d, direction, { bound: true, level }); setCtxMenu(null) }) : null}
             levelAlerts={levelAlertsFor(d)}
             // ⭐ A TOGGLE, NOT A MODE STACK. "Adjust anchors" reveals this one
             // drawing's measurement anchors and makes them grabbable; choosing
@@ -3638,7 +3638,7 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
     points: drawing?.points,
     handlers: {
       onSetFontSize, onSetLevel, onMakeHorizontal, onSetAlert, onSetProp,
-      onAdjustAnchors, onResetFib,
+      onAdjustAnchors, onResetFib, onSetLevelAlert,
       onDuplicate, onToggleLock, onToggleHide, onSaveDefaults, onDelete,
     },
     // Only `adjustAnchors` reads this — it is the one control whose LABEL
@@ -4043,6 +4043,55 @@ export function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, o
       </React.Fragment>
     ),
 
+    // FT-032: a position's three levels, each one bell. The direction comes from
+    // the position's side (`positionLevelDirection`): a long's stop alerts
+    // below, its target above. The caller may refine the entry's side with the
+    // last price. Every bell is an ordinary bound `line` alert, so dragging the
+    // stop moves the stop alert and deleting the drawing deletes all three.
+    positionAlerts: (item) => {
+      const side = positionSide(drawing)
+      const setOne = (lv) => onSetLevelAlert?.(lv.level, positionLevelDirection(drawing, lv.level))
+      return (
+        <div key="positionAlerts" onPointerDown={(e) => e.stopPropagation()}
+          style={{ padding: sheet ? '6px 18px 8px' : '4px 11px 6px' }}>
+          <div style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--menu-text-faint, #6b6b6b)', fontWeight: 600, marginBottom: 4 }}>
+            {`${item.label} (${side})`}
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {POSITION_LEVELS.map((lv) => {
+              const on = !!levelAlerts?.has(levelKey(lv.level))
+              return (
+                <button
+                  key={lv.key}
+                  type="button"
+                  aria-pressed={on}
+                  aria-label={`Alert on ${lv.label.toLowerCase()}`}
+                  title={on ? `Alert set on ${lv.label.toLowerCase()}` : `Alert when price crosses ${positionLevelDirection(drawing, lv.level)} the ${lv.label.toLowerCase()}`}
+                  onClick={() => setOne(lv)}
+                  style={{
+                    flex: 1, padding: sheet ? '9px 8px' : '5px 8px',
+                    background: on ? 'var(--menu-accent-bg, rgba(240,178,58,0.14))' : 'var(--menu-bg, #0e0e10)',
+                    border: `1px solid ${on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-border, #2c2c30)'}`,
+                    borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: sheet ? 13 : 11, fontWeight: 600,
+                    color: on ? 'var(--menu-accent, #f0b23a)' : 'var(--menu-text, #ededed)',
+                  }}
+                >{lv.label}</button>
+              )
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => POSITION_LEVELS.filter((lv) => !levelAlerts?.has(levelKey(lv.level))).forEach(setOne)}
+            style={{
+              marginTop: 6, width: '100%', padding: sheet ? '9px 8px' : '5px 8px',
+              background: 'var(--menu-bg, #0e0e10)', border: '1px solid var(--menu-border, #2c2c30)',
+              borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', fontSize: sheet ? 13 : 11, fontWeight: 600,
+              color: 'var(--menu-text, #ededed)',
+            }}
+          >All three</button>
+        </div>
+      )
+    },
     alertPicker: (item) => (
       <React.Fragment key="setAlert">
         <MenuAction label={item.label} onClick={() => setAlertOpen(o => !o)} big={sheet} icon={CONTROL_ICONS.setAlert} />

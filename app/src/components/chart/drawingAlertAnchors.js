@@ -36,7 +36,57 @@ export function alertKindFor(type) {
   if (type === 'horizontal' || type === 'hray') return 'line'
   if (type === 'trendline' || type === 'ray' || type === 'extended') return 'trendline'
   if (type === 'fib' || type === 'fibext') return 'line'
+  // FT-032: a long/short POSITION is three horizontal levels (entry, stop,
+  // target), so each of its alerts is an ordinary `line` alert. Like a Fib, what
+  // it adds is only WHICH level, and that rides in the bound id as the point
+  // index (see POSITION_LEVELS).
+  if (type === 'position') return 'line'
   return null
+}
+
+/** FT-032: the three levels of a position drawing, keyed by POINT INDEX.
+ *  The stored points are `[entry, stop, target]` (see `renderPosition`), and the
+ *  index is what rides in the bound id (`<drawingId>#1` is the stop), so it
+ *  survives a reload, a drag and a resync exactly as a Fib level does. */
+export const POSITION_LEVELS = Object.freeze([
+  Object.freeze({ level: 0, key: 'entry', label: 'Entry' }),
+  Object.freeze({ level: 1, key: 'stop', label: 'Stop' }),
+  Object.freeze({ level: 2, key: 'target', label: 'Target' }),
+])
+
+const isPositionLevel = (lv) => lv === 0 || lv === 1 || lv === 2
+
+/** `'long'` when target > entry > stop, `'short'` when target < entry < stop,
+ *  else `null`. The same rule the Position Calculator uses. */
+export function positionSide(drawing) {
+  const pts = drawing?.points || []
+  const e = pts[0]?.price, s = pts[1]?.price, t = pts[2]?.price
+  if (![e, s, t].every(Number.isFinite)) return null
+  if (t > e && e > s) return 'long'
+  if (t < e && e < s) return 'short'
+  return null
+}
+
+/**
+ * FT-032: which way price must cross a position level for its alert to mean
+ * what a trader means by it.
+ *   stop   = the loss side   (long: below, short: above)
+ *   target = the profit side (long: above, short: below)
+ *   entry  = toward the level from wherever price is now; with no last price, a
+ *            long enters on strength (above) and a short on weakness (below).
+ * Returns `null` for an invalid (neither long nor short) position.
+ */
+export function positionLevelDirection(drawing, level, lastPrice = null) {
+  const side = positionSide(drawing)
+  if (level === null || level === undefined) return null
+  const lv = Number(level)
+  if (!side || !isPositionLevel(lv)) return null
+  const up = side === 'long'
+  if (lv === 1) return up ? 'below' : 'above'
+  if (lv === 2) return up ? 'above' : 'below'
+  const entry = drawing.points[0].price
+  if (Number.isFinite(lastPrice) && lastPrice !== entry) return lastPrice > entry ? 'below' : 'above'
+  return up ? 'above' : 'below'
 }
 
 /**
@@ -97,6 +147,18 @@ export function anchorsForDrawing(drawing, { bars = [], tf = 'D', etOffset = 0, 
   if (isFibType(drawing?.type)) {
     if (level === null || level === undefined) return null
     const price = fibLevelPrice(drawing.type, Number(level), pts[0]?.price, pts[1]?.price)
+    if (!Number.isFinite(price)) return null
+    return { alert_type: 'line', target_price: price }
+  }
+
+  // FT-032: a position level is one of its three stored points, chosen by
+  // index. Derived from the drawing, never stored, so dragging the stop moves
+  // the stop alert through the same resync a Fib level uses.
+  if (drawing?.type === 'position') {
+    if (level === null || level === undefined) return null
+    const lv = Number(level)
+    if (!isPositionLevel(lv)) return null
+    const price = pts[lv]?.price
     if (!Number.isFinite(price)) return null
     return { alert_type: 'line', target_price: price }
   }

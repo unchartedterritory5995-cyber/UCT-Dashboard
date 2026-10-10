@@ -381,7 +381,8 @@ describe('the seven Model Book / surface override props still reach their decisi
   })
 
   it('⭐ A FIB LEVEL ALERT GOES THROUGH THE ONE ALERT HANDLER', () => {
-    expect(SRC).toContain("onSetAlert(d, 'above', { bound: true, level })")
+    // A Fib level defaults to 'above'; FT-032's position levels pass their side.
+    expect(SRC).toContain("(level, direction = 'above') => { onSetAlert(d, direction, { bound: true, level })")
     // …and which levels already carry one is DERIVED from the live alert list,
     // never stored on the drawing (an alert is server state, and storing it
     // would mean a style write every time one was set).

@@ -51,6 +51,7 @@ import { ARROW_SIZES, DEFAULT_ARROW_SIZE } from './drawingStyle'
 import { DEFAULT_LABEL_POS, LABEL_POSITIONS, fieldOn, labelPosOf } from './drawingMeasure'
 import { DEFAULT_TEXT_BG } from './drawingText'
 import { hasFibOverrides } from './drawingFib'
+import { positionSide } from './drawingAlertAnchors'
 
 /** Fixed render order. A tool's sections are emitted in this order regardless of
  *  how its entry is written, so no tool can accidentally invent its own layout. */
@@ -342,6 +343,15 @@ export const CONTROLS = Object.freeze({
     // Only the MAIN chart passes this — it is the surface that knows the symbol.
     needs: 'onSetAlert',
   },
+  // FT-032: one row, three bells (Entry, Stop, Target) plus "All three". Each
+  // bell is an ordinary bound `line` alert on that level, sent through the same
+  // `onSetLevelAlert` a Fib level uses. Offered only when the three points make
+  // a valid long or short, because otherwise "stop" and "target" have no side.
+  positionAlerts: {
+    id: 'positionAlerts', kind: 'custom', widget: 'positionAlerts', label: 'Alerts',
+    needs: 'onSetLevelAlert',
+    available: (ctx) => positionSide(ctx.drawing) != null,
+  },
 
   // ── actions ──
   duplicate: { id: 'duplicate', kind: 'action', label: 'Duplicate', needs: 'onDuplicate' },
@@ -464,7 +474,9 @@ export const SCHEMA = Object.freeze({
   // ⚰️ RETIRED IN PHASE 9 — see `RETIRED_TYPES`. Its entry stays so an existing
   // drawing still gets a full, working menu; what it does not get is Duplicate
   // or Save as default.
-  position: { style: STYLE, actions: RETIRED_ACTIONS },
+  // FT-032: an existing position can carry alerts on its three levels. Alerts
+  // are not "more of it", so this does not undo the retirement.
+  position: { style: STYLE, advanced: ['positionAlerts'], actions: RETIRED_ACTIONS },
 })
 
 /** A type the table does not know still gets a usable menu. An unknown drawing

@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } fr
 import { createPortal } from 'react-dom'
 import isModalOpen from '../utils/modalOpen'
 import { uid } from '../utils/uid'
-import { anchorsForDrawing, boundIdFor } from './chart/drawingAlertAnchors'
+import { anchorsForDrawing, boundIdFor, positionLevelDirection } from './chart/drawingAlertAnchors'
 import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 // Marks the frames this chart renders INSTEAD of a chart, so anything that
 // rasterizes it as durable evidence (the journal embed's self-archive) refuses
@@ -6311,7 +6311,16 @@ export default function StockChart({
       bars: drawBarsRef.current || [], tf: resolvedTf, etOffset: _ET_OFFSET, level,
     })
     if (!geom) return
-    const body = { sym, direction, ...geom }
+    // FT-032: a position ENTRY alert points toward the entry from wherever
+    // price is now, so the last close decides its side. Stop and target are
+    // fixed by the position's side and come back unchanged.
+    let dir = direction
+    if (drawing.type === 'position') {
+      const bs = drawBarsRef.current || []
+      const last = bs.length ? bs[bs.length - 1]?.c : null
+      dir = positionLevelDirection(drawing, level, Number.isFinite(last) ? last : null) || direction
+    }
+    const body = { sym, direction: dir, ...geom }
     if (opts?.bound !== false && drawing.id) body.drawing_id = boundIdFor(drawing.id, level ?? null)
     try {
       const res = await fetch('/api/watchlist-alerts', {
