@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 3365,
+  "passed": 3304,
+  "failed": 58,
+  "errored": 0,
+  "skipped": 3,
+  "wall_s": 746.39,
+  "failed_files": [
+    "tests/test_notebook_rollback_chain.py",
+    "tests/test_param_manifest.py",
+    "tests/test_param_repaste_c46.py",
+    "tests/test_parity_scorecard.py",
+    "tests/test_perf_batch_a.py",
+    "tests/test_phase_e_acceptance.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "58 failed, 3304 passed, 3 skipped, 54 warnings in 746.39s (0:12:26)",
+  "ok": true
+}
