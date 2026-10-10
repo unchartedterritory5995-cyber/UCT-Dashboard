@@ -126,7 +126,7 @@ draftUndo(draftRef, { expectedStepId }, ctx) → TurnOutcome   // §15.1
 draftStatus(draftRef) → DraftStatus | { ok:false, reason:'draft-expired' }
 listDrafts(ctx) → DraftStatus[]                                    // newest first
 discardDraft(draftRef, { expectedRevision }) → { ok } | refusal     // clearSession
-saveDraft(draftRef, { expectedRevision, acknowledged, ackText? }, ctx) → Promise<SaveOutcome>   // ackText: §16.3
+saveDraft(draftRef, { expectedRevision, acknowledged }, ctx) → Promise<SaveOutcome>
 showDraftPreview(draftRef, chartRef, host) / clearDraftPreview(draftRef, host)   // §5
 ```
 
@@ -428,15 +428,18 @@ S6 found that every acknowledgement said "reads a bar ahead", whatever the formu
   next bar closes — …`). The forming-period sentence is unchanged. A window that is not a whole number
   of bars is said WITHOUT a count (such trees measure `repaints` and are refused at Save anyway).
   Every sentence still ends `confirm below before saving`.
-- **Additive fields (contract stays `/1`).** `readback().ack` / `DraftStatus.readback.ack`:
-  `[{key, name, forward, forming, sentence}]`, one per `needsAck` key, in output order;
-  `prepareSave().ack`; `storeConversation` `{stage:'ack'}` carries `ack`.
-- **Approval-bound acknowledgement (F6 support, additive).** `saveDraft(draftRef, { expectedRevision,
-  acknowledged, ackText? }, ctx)`: when `ackText` (the sentences the approval DISPLAYED) is given, the
-  Save goes ahead only if it equals the draft's current `ackText` sentence for sentence; otherwise
-  `needs-ack` with `detail: { ackText: <current>, changed: true }` and nothing is stored. Omitting it
-  keeps today's behaviour. The Agent's F6 fix is to carry the shown `ackText` in the stored proposal
-  op and pass it here on Apply — the comparison stays in Indicators.
+- **No call-surface change (contract stays `/1`).** Every function signature, refusal reason and
+  `DraftStatus` field is unchanged; only the TEXT of `ackText` changes. Additive DATA only, inside
+  values already returned: `readback().ack` / `DraftStatus.readback.ack`
+  `[{key, name, forward, forming, sentence}]` (one per `needsAck` key, in output order),
+  `prepareSave().ack`, and `ack` on `storeConversation`'s `{stage:'ack'}` refusal.
+- **Approval binding (F6) is the Agent's, over existing fields.** The Agent seals the shown
+  `DraftStatus.ackText` (with revision, name, mode/defId/baseVersion) into the proposal and refuses
+  Apply unless the draft's CURRENT status equals the seal; `expectedRevision` stays the backstop.
+  The comparison uses `ackText` verbatim — no warning semantics in the Agent.
+- **Joint follow-up, NOT in `/1` (needs both teams + owner):** an optional `saveDraft` `ackText`
+  argument so Indicators itself refuses `needs-ack {changed:true}` when the approval's sentences differ
+  from the draft's — defence in depth for any future caller. Prototyped and withdrawn on 2026-10-10.
 - **Persisted metadata.** The server stamps its own per-plot verdict at save (`lint_verdict` →
   `ast_lint.lint_definition`); `tests/test_repaint_warning_window.py` pins that it measures the same
   window for the same trees (5 / 1 / 1 / 4 / 0), so the warning approved and the badge stored agree.

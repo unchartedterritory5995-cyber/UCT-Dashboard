@@ -3,7 +3,7 @@
 // ⛔ S6 (2026-10-10): `pivothigh(high, 5, 5)` was acknowledged as "reads a bar ahead". The warning
 // must state the window the ENGINE measured (`lintRepaint().forward`), from ONE builder
 // (`authoring/repaintWarning.js`), on every surface: the readback line (= the Agent's `ackText`),
-// the save refusal, the member's save error, and the approval-bound Save. Real engine, real draft
+// the save refusal, the member's save error, and the stored badge. Real engine, real draft
 // store, real save path; only the model reply and the server are stand-ins.
 import { describe, it, expect, beforeEach } from 'vitest'
 import { readback } from './authoring'
@@ -145,11 +145,11 @@ describe('⭐ one warning across draft → approval → save → persisted metad
     const name = st.readback.outputs.find((o) => o.key === 'ph').name
     expect(refused.error).toBe(`Tick the confirmation box first — ${name} isn't final until 5 more bars close.`)
     expect(memberSaveError(refused).text).toBe(refused.error)
-    // approval-bound (F6): the shown sentences must be the current ones
-    expect(await saveDraft(ref, { expectedRevision: 1, acknowledged: true, ackText: ['Pivot high reads a bar ahead, so it can change until that bar closes — confirm below before saving'] }, ctxOf()))
-      .toMatchObject({ ok: false, reason: R.NEEDS_ACK, detail: { ackText: st.ackText, changed: true } })
     expect(stored).toHaveLength(0)
-    const saved = await saveDraft(ref, { expectedRevision: 1, acknowledged: true, ackText: st.ackText.slice() }, ctxOf())
+    // the approval's warning (status.ackText, which the Agent seals into its proposal) is still the
+    // draft's warning at Save time: same sentences, same order
+    expect(draftStatus(ref, ctxOf()).ackText).toEqual(st.ackText)
+    const saved = await saveDraft(ref, { expectedRevision: 1, acknowledged: true }, ctxOf())
     expect(saved.ok, JSON.stringify(saved)).toBe(true)
     expect(stored).toHaveLength(1)
     expect(stored[0].opts).toMatchObject({ previewAcked: true })
@@ -159,16 +159,6 @@ describe('⭐ one warning across draft → approval → save → persisted metad
     const rows = lintDefinition(doc).plots.filter((p) => p.mode === 'preview-repaints')
     expect(rows.map((p) => p.forward)).toEqual([5])
     expect(doc.meta.repaint).toBe('preview-repaints')
-  })
-  it('omitting ackText keeps today’s behaviour (contract /1 stays compatible)', async () => {
-    const ref = await drafted('Pivots', [{ key: 'ph', label: 'Pivot high', tree: pivotHigh(5, 5) }])
-    expect((await saveDraft(ref, { expectedRevision: 1, acknowledged: true }, ctxOf())).ok).toBe(true)
-  })
-  it('a clean draft: an approval that showed no warning still saves; one that showed a warning does not', async () => {
-    const ref = await drafted('EMA 20', [{ key: 'e', label: 'EMA 20', tree: ema20 }])
-    expect(await saveDraft(ref, { expectedRevision: 1, ackText: ['x — confirm below before saving'] }, ctxOf()))
-      .toMatchObject({ ok: false, reason: R.NEEDS_ACK, detail: { ackText: [], changed: true } })
-    expect((await saveDraft(ref, { expectedRevision: 1, ackText: [] }, ctxOf())).ok).toBe(true)
   })
 })
 
