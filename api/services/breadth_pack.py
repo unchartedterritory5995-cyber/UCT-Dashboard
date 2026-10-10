@@ -70,10 +70,18 @@ def _symbols() -> list:
 
 
 def _bars_for(sym: str, kind: str) -> list:
+    """The served bars for `sym` — ONLY when its series is already warm (never a build here)."""
     if kind == "indicator":
+        from api.services.market_indicators import producers as p
         from api.services.market_indicators import series as mis
+        from api.services.market_indicators import registry as reg
+        row = reg.get(sym)
+        if row is None or f"derived::{row.id.upper()}{p._authority_suffix()}" not in p._cache:
+            return []
         return (mis.build_bars(sym, "D", PACK_BARS) or {}).get("bars") or []
     from api.services import breadth_symbols as bs
+    if not bs._breadth_cache.get(bs._daily_key(sym)):
+        return []
     return (bs.build_breadth_bars(sym, "D", PACK_BARS) or {}).get("bars") or []
 
 
