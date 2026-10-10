@@ -146,6 +146,58 @@ def members(on_iso: str, ref_map: Optional[dict] = None) -> dict:
     return out
 
 
+def official_members(session: Optional[str] = None) -> Optional[dict]:
+    """`{"session", "us", "nyse", "nasdaq"}` — the exchange authority's OWN member lists for its
+    newest published live session (or `session`), read from the installed replica's `membership`
+    table. None when the authority is not installed / has no membership rows."""
+    try:
+        from api.services import breadth_exchange_authority as ea
+        v = ea._view()
+        if not v:
+            return None
+        c = ea._ro(v["paths"]["live"])
+        try:
+            d = session or (c.execute("SELECT MAX(date) FROM membership").fetchone() or [None])[0]
+            if not d:
+                return None
+            rows = c.execute("SELECT ticker, status FROM membership WHERE date=?", (d,)).fetchall()
+        finally:
+            c.close()
+    except Exception as e:
+        _log.warning("[breadth_live_universes] official membership unreadable: %s", e)
+        return None
+    canon = lambda t: str(t or "").upper().replace("-", ".")
+    return {"session": d, "us": sorted({canon(t) for t, _ in rows}),
+            "nyse": sorted({canon(t) for t, st in rows if st == "NYSE"}),
+            "nasdaq": sorted({canon(t) for t, st in rows if st == "NASDAQ"})}
+
+
+def membership_diff(sample: int = 40) -> dict:
+    """READ-ONLY: the live engine's members vs the authority's for the authority's newest session —
+    sizes, and the tickers only one side has, each with what the provider reference says of it."""
+    off = official_members()
+    if not off:
+        return {"ok": False, "reason": "no official membership available"}
+    from api.services import breadth_pit_frame as pf
+    d = off["session"]
+    ref = _active_reference() or {}
+    live = members(d)
+    canon = lambda t: str(t or "").upper().replace("-", ".")
+    out = {"ok": True, "session": d, "universes": {}}
+    for u in UNIVERSES:
+        L = {canon(t) for t in live.get(u) or []}
+        O = set(off.get(u) or [])
+        def why(t):
+            rec = pf.resolve(ref.get(t) or ref.get(t.replace(".", "-")), d) or {}
+            return "%s %s/%s" % (t, rec.get("type"), rec.get("primary_exchange"))
+        only_l, only_o = sorted(L - O), sorted(O - L)
+        out["universes"][u] = {"live": len(L), "official": len(O), "both": len(L & O),
+                               "only_live": len(only_l), "only_official": len(only_o),
+                               "only_live_sample": [why(t) for t in only_l[:sample]],
+                               "only_official_sample": [why(t) for t in only_o[:sample]]}
+    return out
+
+
 # ── the method ───────────────────────────────────────────────────────────────
 
 def _subset_levels(lv: dict, ix: np.ndarray, tickers: list) -> dict:

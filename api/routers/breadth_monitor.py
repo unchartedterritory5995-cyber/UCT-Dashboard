@@ -181,7 +181,7 @@ def breadth_live_diag(request: Request):
 
 
 @router.get("/api/breadth-monitor/live-universes")
-def breadth_live_universes_diag(request: Request, force: int = 0):
+def breadth_live_universes_diag(request: Request, force: int = 0, members_diff: int = 0):
     """US / NYSE / Nasdaq live breadth — the provisional + live rows, anchors and population
     drift. PUSH_SECRET-gated; computes even while `BREADTH_LIVE_UNIVERSES` is not serving, so
     the method can be inspected in production before any member sees it."""
@@ -189,6 +189,8 @@ def breadth_live_universes_diag(request: Request, force: int = 0):
     from api.services import breadth_live_universes as blu
     # ⛔ Never compute on the request thread (a cold build is tens of seconds): `force=1` starts a
     # background refresh; every call returns the job state and the last computed payload.
+    if members_diff:
+        return blu.membership_diff()
     if force:
         blu.start_job("refresh", blu.refresh, True)
     return {"serving": blu.serving(), "job": {k: v for k, v in blu.job("refresh").items()
