@@ -336,6 +336,17 @@ describe('JournalLayout — "+ Log Trade" header action (A5)', () => {
     expect(screen.getByRole('button', { name: /log trade/i })).toBeInTheDocument()
   })
 
+  // Phone pass 2026-10-10: the floating quick-log button sat over the note being written on a
+  // phone. The Notebook drops it; the header's own "+ Log Trade" (above) stays on every surface.
+  it('the floating quick-log button is not mounted on the Notebook, and is on other surfaces', () => {
+    const { unmount } = renderAt('/journal/notebook')
+    expect(screen.queryByRole('button', { name: 'Log a trade' })).toBeNull()
+    expect(screen.getByRole('button', { name: /log trade/i })).toBeInTheDocument()
+    unmount()
+    renderAt('/journal/insights')
+    expect(screen.getByRole('button', { name: 'Log a trade' })).toBeInTheDocument()
+  })
+
   it('clicking "+ Log Trade" opens a menu with the two log choices', () => {
     renderAt('/journal')
     fireEvent.click(screen.getByRole('button', { name: /log trade/i }))

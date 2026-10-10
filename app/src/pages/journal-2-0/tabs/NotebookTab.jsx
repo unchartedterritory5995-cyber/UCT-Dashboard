@@ -165,20 +165,13 @@ const SB_MAX = 520
 const SB_DEFAULT = 260
 
 // Wave 10 lane DR-F (design finding D-7): on a phone the folder/tag tree is
-// long (Recents, All notes/Unfiled/Archived/Trash, a folder tree, tags) and,
-// like the rest of this page, simply stacks ahead of whatever comes next in
-// document order. List's own landing tolerates that (the reviewer's own
-// verdict: "no folder panel ahead of the note list", D-1/D-2 closed) because
-// it is reached by a fresh navigation — scroll position 0, the member scrolls
-// PAST the tree at their own pace. Every other mode in VIEW_MODES is reached
-// by a same-page click on the view-switcher icon row, which does not reset
-// scroll: the member is already scrolled down to where that row sits, the new
-// view's content starts right there, and on a short phone viewport that is
-// mostly below the fold — further covered by the fixed Log-Trade button and
-// voice orb (design-review-2.md D-7, reproduced at 390px). Derived from
-// VIEW_MODES rather than a second hand-typed list, so a mode added there is
-// covered the day it lands, never silently exempted.
-const CONTENT_FIRST_PHONE_MODES = new Set(VIEW_MODES.map((m) => m.id).filter((id) => id !== 'list'))
+// long (Recents, All notes/Unfiled/Archived/Trash, a folder tree, tags) and
+// stacks ahead of whatever comes next in document order. D-7 folded it for the
+// icon-row view modes only, on the reasoning that List is reached at scroll 0
+// and the member scrolls past the tree. ⚰️ Measured 2026-10-10 at 390x844 that
+// reasoning did not hold: the tree filled the ENTIRE first screen on Research
+// Home and All notes, so no note was visible without scrolling. The phone drawer
+// rule (the effect beside `isShelfView` below) now folds it for every view.
 
 // Obsidian-style "toggle left panel" glyph — a rounded frame with the left
 // column filled, matching the button the user referenced.
@@ -555,14 +548,21 @@ export default function NotebookTab() {
   // floating `.sidebarToggle` un-hides at phone width (NotebookTab.module.css)
   // to reopen it; open, FolderSidebar's own header button closes it again
   // (`.sbHeader > .sbHeaderBtn`, likewise un-hidden at phone for this).
+  //
+  // ⭐ Phone pass (2026-10-10): on a phone the panel is a DRAWER for EVERY view, List and
+  // Research Home included. Measured at 390x844: the folder tree filled the whole first screen
+  // on Home and All notes, so a member's notes started below the fold. It folds on arrival and
+  // again after a folder, tag or view is chosen (the member came to see that view, not the tree);
+  // the labelled "Folders" button (`.sidebarToggle`, un-hidden at phone) reopens it. Never on the
+  // `#search` door, which opens the panel on purpose for its search box.
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (window.innerWidth > 640) return
-    if (isShelfView || noteId) return
-    if (!CONTENT_FIRST_PHONE_MODES.has(viewMode)) return
+    if (noteId) return
+    if (location.hash === NOTEBOOK_SEARCH_HASH) return
     setSidebarOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, isShelfView, noteId])
+  }, [viewMode, folderId, tag, noteId])
 
   // `total` is the TRUE count from SQL for this filter set (folder/tag), never
   // the length of `notes` — a migrated library of thousands of notes must see
@@ -1993,6 +1993,8 @@ export default function NotebookTab() {
           title="Show folders"
         >
           <SidebarToggleIcon />
+          {/* Phone only (CSS): the drawer's door says what it opens. */}
+          <span className={styles.sidebarToggleLabel} aria-hidden="true">Folders</span>
         </button>
       )}
 
@@ -2359,7 +2361,7 @@ export default function NotebookTab() {
               data-tour="import"
             >
               <UIcon name="upload" size={16} gold={false} />
-              Import
+              <span className={styles.actionLabel}>Import</span>
             </button>
             <button
               type="button"
@@ -2368,7 +2370,7 @@ export default function NotebookTab() {
               aria-haspopup="dialog"
             >
               <UIcon name="download" size={16} gold={false} />
-              Export
+              <span className={styles.actionLabel}>Export</span>
             </button>
             <button
               type="button"
@@ -2378,7 +2380,7 @@ export default function NotebookTab() {
               aria-keyshortcuts="Control+Alt+D Meta+Alt+D"
             >
               <UIcon name="sun" size={16} gold={false} />
-              Today
+              <span className={styles.actionLabel}>Today</span>
             </button>
             <button
               type="button"
@@ -2388,7 +2390,8 @@ export default function NotebookTab() {
               aria-haspopup="dialog"
               data-tour="templates"
             >
-              Templates
+              <UIcon name="library" size={16} gold={false} />
+              <span className={styles.actionLabel}>Templates</span>
             </button>
             <button
               type="button"

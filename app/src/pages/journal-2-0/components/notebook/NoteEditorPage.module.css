@@ -173,6 +173,23 @@
   min-width: 0;
   max-width: 100%;
 }
+/* Notebook phone pass (2026-10-10): the header's Ask slot lays out as if it were not there
+   (its toggle stays one of the row's own items); the phone block below hides only the toggle. */
+.askSlot { display: contents; }
+/* The header actions "More note actions" carries on a phone (NoteEditorPage `phoneTools`).
+   NoteMoreMenu renders them only when it was opened on a phone; they are full-width rows like
+   the rest of the panel (NoteMoreMenu.module.css re-lays its buttons). */
+.phoneTools {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+.phoneFolder {
+  padding: 6px 10px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
 /* ...and the folder select itself may be narrower than its longest option
    (the chosen name shows truncated; the open list still shows every name). */
 .headerSelect {
@@ -703,6 +720,31 @@
      Measured before/after: docs/notebook/proof/d3p-*. */
   .formatToggle { display: inline-flex; align-items: center; gap: 6px; }
   .toolbarRow:not([data-format-open]) .formatRun { display: none; }
+  /* Notebook phone pass (2026-10-10): the header is ONE compact row -- Star, Share and "More
+     note actions" (plus a linked-trade chip or a status when there is one). Ask, Find, Writing
+     help, Outline and the folder select are not displayed here; the More panel carries each one
+     on a phone, calling the same handler (NoteEditorPage `phoneTools`). Measured at 390x844
+     before: the title's top sat ~550 CSS px down, under a three-row header and a two-row
+     formatting toolbar. */
+  .phoneInMore { display: none; }
+  .askSlot [data-ask-toggle] { display: none; }
+  /* ...and the formatting toolbar is ONE row that scrolls sideways: never wraps (a wrapped row
+     is what pushed the title down), never widens the page (the row is the scroller, not the
+     page). Undo / Redo stay first, every control keeps the 44 px floor above. */
+  .toolbarRow {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    max-width: 100%;
+    padding: 3px 12px 5px;
+  }
+  .toolbarRow > *,
+  .toolbarRow button,
+  .toolbarRow select {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
   /* Review M-5: with the chrome static, the touch Undo / Redo scrolled away as
      the member typed. Once the toolbar row is above the top bar
      (NoteEditorPage's `historyFloating`), the pair floats at the top-right,

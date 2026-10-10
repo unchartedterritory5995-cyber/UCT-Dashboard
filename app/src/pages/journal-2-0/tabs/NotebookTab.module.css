@@ -236,6 +236,9 @@
 }
 .newBtn:hover { background: var(--ut-gold-bright); }
 .templatesBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: rgba(220, 187, 94, 0.08);
   color: var(--accent);
   border: 1px solid rgba(220, 187, 94, 0.4);
@@ -444,9 +447,27 @@
   .viewModeBtn { min-width: var(--tap-min, 44px); }
 }
 
+/* The toggle's word is phone-only: on a wider screen the icon sits beside the panel it opens. */
+.sidebarToggleLabel { display: none; }
+
 @media (max-width: 640px) {
   /* Phones keep normal page scroll — no viewport-locked panels. */
   .wrap { flex-direction: column; height: auto !important; overflow: visible; }
+  /* Phone pass 2026-10-10: the folders panel is a drawer on every phone view, so its door is a
+     labelled button in the page flow (above the view), not an icon floating over the content. */
+  .sidebarToggle {
+    position: static;
+    align-self: flex-start;
+    width: auto;
+    gap: 8px;
+    padding: 0 14px;
+    margin: 8px 16px 0;
+    color: var(--text-bright);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .sidebarToggleLabel { display: inline; }
   /* Wave 10 lane FX (proof walk wk-7bd834b9f, clause 6c): at rest, once the
      page scrolls as far as it goes, `.main`'s own 40px bottom padding left the
      LAST row of content (the view-switcher's "Week"/"List view" tab, the find
@@ -480,6 +501,28 @@
      `height: 0` (plus `min-height`, `.sidebarSlot`'s own base rule sets none, but
      `.sidebarInner`'s content could still force it without this) closes that gap. */
   .wrap.collapsed .sidebarSlot { width: 0 !important; height: 0 !important; min-height: 0 !important; overflow: hidden; }
+  /* The 62px left pad (base rule) clears the FLOATING toggle on desktop. On a phone the toggle
+     is a labelled button in the page flow above the view, so the pad only cost a sixth of the
+     screen's width (measured 2026-10-10: list content started at x=86 of 390). */
+  .wrap.collapsed .main { padding-left: 0; }
+  /* Phone pass: Import / Export / Today / Templates show their icon only, so the action row is
+     one line beside "+ New note" instead of three (measured: ~350px of toolbar above the first
+     note at 390px). The words stay in the DOM, visually hidden, so each button keeps its name. */
+  .actionLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .newWrap :is(.importBtn, .exportBtn, .templatesBtn) {
+    justify-content: center;
+    min-width: var(--tap-min, 44px);
+    padding-left: 0;
+    padding-right: 0;
+  }
   /* 16px inputs avoid the iOS focus-zoom; let New note keep the row to itself */
   .search, .sortSelect { font-size: 16px; }
   .newWrap { margin-left: 0; }

@@ -428,8 +428,10 @@ export default function JournalLayout() {
       {/* Mobile quick-log FAB (Task B5): a phone-only fixed "+ Log" button that
           opens the same add flow as the header LogTradeButton. Placed clear of
           the global bottom bar + voice orb + feedback widget; CSS-hidden on
-          desktop (the header pill serves). */}
-      <JournalLogFab />
+          desktop (the header pill serves). Not on the Notebook: there it floated over the note
+          being written (measured at 390px, 2026-10-10) while the header's own "Log Trade" stays
+          one tap away at the top of the same screen. */}
+      {!pathname.startsWith(NOTEBOOK_PATH) && <JournalLogFab />}
     </div>
   )
 }
