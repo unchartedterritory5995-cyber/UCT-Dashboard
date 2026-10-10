@@ -27,8 +27,48 @@ Two things to know about the run:
 
 ## 2. Local sandbox (items the fin-walk never walked)
 
-See `docs/notebook/verify-1009-sandbox.md` (branch `feat/notebook-verify-sbx-1009`).
+Full record: `docs/notebook/verify-1009-sandbox.md`. Evidence: `docs/notebook/evidence/verify-1009/sbx/`.
+Every boot read `SANDBOX INTEGRITY: CLEAN` at all four checkpoints; no key appears in the evidence.
 
-## 3. Full test run
+| item | result |
+|---|---|
+| Confirm buttons on top at their centre and the action completes (bulk trash, folder delete, saved-view delete x3, version restore, gallery unpublish), 1280 and 390 | PASS; no floating button covers any of them. Saved-view delete beside an open note does not exist at 390 (the folders panel is hidden there) |
+| Sample chart plan: role buttons and Arm alert | PASS; the alert is stored and the panel says so |
+| Published page, signed out: bold, italic, heading, list, link, table, task list | PASS, all seven survive |
+| Thesis chip sheet on a phone | PASS |
+| Ask from a Word file's own preview sheet | PASS, cited to the file |
+| Long-note Ask in the browser, twice at each width | PASS |
+| Chart block drag | see P2 below |
 
-Pending at the time of writing; see section 4 when filled.
+**Product bugs found, both now fixed:**
+
+- **P1.** Trashing a member's last notes started the first-run tour, which opened over the
+  "Moved N notes to the Trash" notice and covered its Undo. Fixed in `27d6289b75`: a member who
+  had notes earlier in the visit is not new. Mutation-proved test.
+- **P2.** Dragging a block by its grip ("Move this block") failed for any block, not only charts,
+  unless the first motion was slow: the grip re-aimed at the block under the pointer, or hid itself,
+  before the browser started the drag. A tall chart scrolled up also put the grip off screen.
+  Fixed in `1958b48cc8`: a press freezes the grip, and the grip stays in the visible part of the
+  block. Re-walked: 6 of 6 grip drags move their block (2 of 6 before). Seven mutation proofs.
+
+Still for a person: a plain mouse drag on the chart's BODY (not its grip) did not move it in the
+harness, while Playwright's drag API did. That is ProseMirror's own node drag; one check by hand.
+
+## 3. Full test run on today's master plus these fixes
+
+Six shards, `docs/notebook/gate-runs/verify-1009/2026-10-09T18-52-51.md`: 3,152 test files, 12
+tests failed, file count reconciles. **The same 12 fail on clean master** (`c3e95cb643`, run in a
+separate worktree): none is caused by this work. Two of them were Notebook's and are now handled:
+
+- `NotebookTour.stage.test.jsx`: red since `2c902624e4` (bisected). One test's save leaked into the
+  next test's fake server through the new per-key save queue. Fixed in the test (`27d6289b75`).
+- `NotebookTab.publishFolder.test.jsx`: red since F3 (#300). The test expected focus on the
+  folder's action button; F3 deliberately moves it to the folder row. Test updated (`0c24343596`).
+- `iteratorGlobalFloor.test.js` fails only when `app/dist` is not built; with a build it passes 9/9.
+
+The other nine belong to other workstreams (chart engine, screener reachability, polling,
+persistence, formatter and fetch censuses, the symbol-link rail). The Python gate rails: 291
+passed; the one failure (`test_gate_shards` read-set coverage) fails the same way on master.
+
+After merging the 8 commits master gained during the run (chart agent only, no shared files), the
+changed areas were re-run on the final tree: 55 files, 687 tests, all passed.
