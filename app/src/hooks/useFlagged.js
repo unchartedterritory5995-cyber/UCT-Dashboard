@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef, useContext } from 'react'
 import { AuthContext } from '../context/AuthContext'
+import { readSuccessBody } from '../lib/responseBody'
 
 const STORAGE_KEY = 'uct_flagged'
 const SYNC_EVENT  = 'uct:flagged-changed'
@@ -83,12 +84,21 @@ export function useFlagged() {
   useEffect(() => {
     if (!user) return
     if (!_flaggedGetInflight) {
+      // TERM-033: a TAGGED outcome. It used to be `.then(r => r.json()).catch(() => null)`,
+      // which also parsed a non-OK answer's error body as the list's metadata. The flagged
+      // LIST itself is local; this read only fetches its display name and shared flag, so a
+      // failed read keeps both as they are, and lets the next mount ask again.
       _flaggedGetInflight = fetch('/api/watchlists/flagged')
-        .then(r => r.json())
-        .catch(() => null)
+        .then((r) => (r.ok ? readSuccessBody(r) : { ok: false, status: r.status }))
+        .catch((error) => ({ ok: false, error }))
+        .then((read) => {
+          if (!read.ok) _flaggedGetInflight = null
+          return read
+        })
     }
-    _flaggedGetInflight.then(data => {
-      if (!data || !mountedRef.current) return
+    _flaggedGetInflight.then((read) => {
+      if (!read.ok || !read.body || !mountedRef.current) return
+      const data = read.body
       setIsShared(!!data.is_public)
       // Auto-generated names (the plain "Flagged", or the legacy "Flagged (Name)"
       // some accounts still have stored) are treated as "no custom name" → the UI

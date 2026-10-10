@@ -7,54 +7,60 @@
  * label. Symbol + Actions are non-hideable — toggling them is a no-op.
  *
  * Order persists via the parent's useJ2ColumnPrefs hook; this component
- * only emits events. dnd-kit handles the pointer drag; arrow-button
- * equivalents provide the keyboard path §15.75 requires.
+ * only emits events. The pointer drag is the platform's own HTML5
+ * drag-and-drop (CAP-A12: the app's one drag mechanism; this file was the
+ * only @dnd-kit consumer). HTML5 drag never fires on touch, so the ↑/↓
+ * buttons are the touch AND keyboard path §15.75 requires — the same
+ * "drag is not the only door" rule the terminal's panel grip follows.
  */
 
-import { useRef, useEffect } from 'react'
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core'
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  useSortable,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
+import { useRef, useEffect, useState } from 'react'
 import styles from './ColumnsPicker.module.css'
+
+const COLUMN_DRAG_TYPE = 'application/x-uct-j2-column'
+
+/** Move `key` to the slot `targetKey` occupies (arrayMove semantics). */
+export function reorderKeys(keys, key, targetKey) {
+  const from = keys.indexOf(key)
+  const to = keys.indexOf(targetKey)
+  if (from < 0 || to < 0 || from === to) return null
+  const next = keys.slice()
+  next.splice(to, 0, next.splice(from, 1)[0])
+  return next
+}
 
 function SortableRow({
   column,
   isHidden,
   isFirst,
   isLast,
+  isDragging,
+  isDropTarget,
+  drag,
   onToggle,
   onMoveUp,
   onMoveDown,
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: column.key })
-
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
     opacity: isDragging ? 0.5 : 1,
+    outline: isDropTarget ? '1px dashed var(--border-accent)' : undefined,
   }
 
   return (
-    <li ref={setNodeRef} style={style} className={styles.row}>
+    <li
+      style={style}
+      className={styles.row}
+      data-column-key={column.key}
+      onDragOver={drag.onDragOver}
+      onDragLeave={drag.onDragLeave}
+      onDrop={drag.onDrop}
+    >
       <button
         type="button"
         className={styles.handle}
-        {...attributes}
-        {...listeners}
+        draggable
+        onDragStart={drag.onDragStart}
+        onDragEnd={drag.onDragEnd}
         aria-label={`Drag ${column.label}`}
       >
         <span aria-hidden="true">⋮⋮</span>
@@ -108,11 +114,8 @@ export default function ColumnsPicker({
   onClose,
 }) {
   const popoverRef = useRef(null)
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
+  const [dragKey, setDragKey] = useState(null)
+  const [dropKey, setDropKey] = useState(null)
 
   // Close on outside click or Esc.
   useEffect(() => {
@@ -135,15 +138,34 @@ export default function ColumnsPicker({
 
   if (!open) return null
 
-  const handleDragEnd = (event) => {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const oldIndex = columns.findIndex((c) => c.key === active.id)
-    const newIndex = columns.findIndex((c) => c.key === over.id)
-    if (oldIndex < 0 || newIndex < 0) return
-    const newOrder = arrayMove(columns.map((c) => c.key), oldIndex, newIndex)
-    onReorder(newOrder)
-  }
+  const dragFor = (key) => ({
+    onDragStart: (e) => {
+      try {
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData(COLUMN_DRAG_TYPE, key)
+      } catch { /* a browser that refuses dataTransfer still has dragKey */ }
+      setDragKey(key)
+    },
+    onDragEnd: () => { setDragKey(null); setDropKey(null) },
+    onDragOver: (e) => {
+      if (!dragKey) return
+      e.preventDefault()
+      try { e.dataTransfer.dropEffect = 'move' } catch { /* */ }
+      if (dropKey !== key) setDropKey(key)
+    },
+    onDragLeave: (e) => {
+      if (dropKey === key && !e.currentTarget.contains(e.relatedTarget)) setDropKey(null)
+    },
+    onDrop: (e) => {
+      const from = dragKey || e?.dataTransfer?.getData?.(COLUMN_DRAG_TYPE) || null
+      setDragKey(null)
+      setDropKey(null)
+      if (!from) return
+      e.preventDefault()
+      const newOrder = reorderKeys(columns.map((c) => c.key), from, key)
+      if (newOrder) onReorder(newOrder)
+    },
+  })
 
   const moveUp = (key) => {
     const idx = columns.findIndex((c) => c.key === key)
@@ -178,31 +200,23 @@ export default function ColumnsPicker({
           Reset
         </button>
       </div>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={columns.map((c) => c.key)}
-          strategy={verticalListSortingStrategy}
-        >
-          <ul className={styles.list} role="list">
-            {columns.map((column, i) => (
-              <SortableRow
-                key={column.key}
-                column={column}
-                isHidden={hiddenKeys.has(column.key)}
-                isFirst={i === 0}
-                isLast={i === columns.length - 1}
-                onToggle={onToggle}
-                onMoveUp={moveUp}
-                onMoveDown={moveDown}
-              />
-            ))}
-          </ul>
-        </SortableContext>
-      </DndContext>
+      <ul className={styles.list} role="list">
+        {columns.map((column, i) => (
+          <SortableRow
+            key={column.key}
+            column={column}
+            isHidden={hiddenKeys.has(column.key)}
+            isFirst={i === 0}
+            isLast={i === columns.length - 1}
+            isDragging={dragKey === column.key}
+            isDropTarget={dragKey != null && dragKey !== column.key && dropKey === column.key}
+            drag={dragFor(column.key)}
+            onToggle={onToggle}
+            onMoveUp={moveUp}
+            onMoveDown={moveDown}
+          />
+        ))}
+      </ul>
     </div>
   )
 }

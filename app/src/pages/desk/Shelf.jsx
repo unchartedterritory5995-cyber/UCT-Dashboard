@@ -16,6 +16,23 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
 import s from './VideosSection.module.css'
+import { ASC, DESC, sortRows } from '../../lib/presentation/dataGrid'
+
+// ── TERM-065: the expanded grid's Newest / Oldest order runs on the DataGrid seed ──
+// Newest = created_at descending, Oldest = ascending, and equal timestamps break by
+// id IN THE SAME DIRECTION (as the hand-rolled comparator did). Parity:
+// lib/presentation/dataGrid/pageGrids2.seedParity.test.js
+const SHELF_ORDER_DIR = { new: DESC, old: ASC }
+const shelfCreatedAt = (_key, en) => en.video.created_at || 0
+const shelfNumeric = () => true
+const shelfIdAsc = (a, b) => a.video.id - b.video.id
+const shelfIdDesc = (a, b) => b.video.id - a.video.id
+export function sortShelfEntries(entries, order) {
+  const dir = SHELF_ORDER_DIR[order]
+  return sortRows(entries, { key: 'created_at', dir }, {
+    valueOf: shelfCreatedAt, isNumeric: shelfNumeric, tiebreak: dir === ASC ? shelfIdAsc : shelfIdDesc,
+  })
+}
 
 export const ytThumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
 
@@ -219,26 +236,19 @@ export default function Shelf({
   // Expanded-grid sort. Local per expansion (reset on collapse/expand), never
   // persisted. null = the shelf's own default order; shows read that default
   // as Newest (their rail is already newest-first), library keeps server order.
-  const [sortDir, setSortDir] = useState(null)
+  const [sortOrder, setSortOrder] = useState(null)
   const [rowEl, setRowEl] = useState(null)
   // Content key = the exact id set, not just the count: a tag filter can swap
   // a row to a different same-size subset without the node remounting.
   const edges = useScrollEdges(rowEl, entries.map((en) => en.video.id).join(','))
   const isShowShelf = entries[0]?.kind === 'show'
-  const effSort = sortDir ?? (isShowShelf ? 'new' : null)
+  const effSort = sortOrder ?? (isShowShelf ? 'new' : null)
   // Sorted view for the expanded grid. Rebuilds list/index so plays route
   // through the order the member is actually looking at (Up Next coherence) —
   // safe because every expandable shelf's entries share one display list.
   const gridEntries = useMemo(() => {
     if (!expanded || !effSort) return entries
-    const dir = effSort === 'new' ? -1 : 1
-    const vids = [...entries]
-      .sort((a, b) => {
-        const ka = a.video.created_at || 0
-        const kb = b.video.created_at || 0
-        return dir * ((ka - kb) || (a.video.id - b.video.id))
-      })
-      .map((en) => en.video)
+    const vids = sortShelfEntries(entries, effSort).map((en) => en.video)
     return vids.map((v, i) => ({ video: v, list: vids, index: i, kind: entries[0].kind }))
   }, [entries, expanded, effSort])
   if (!entries.length) return null
@@ -277,7 +287,7 @@ export default function Shelf({
             <button
               className={`${s.sortBtn} ${effSort === 'new' ? s.sortBtnActive : ''}`}
               aria-pressed={effSort === 'new'}
-              onClick={() => setSortDir('new')}
+              onClick={() => setSortOrder('new')}
             >
               Newest
             </button>
@@ -285,7 +295,7 @@ export default function Shelf({
             <button
               className={`${s.sortBtn} ${effSort === 'old' ? s.sortBtnActive : ''}`}
               aria-pressed={effSort === 'old'}
-              onClick={() => setSortDir('old')}
+              onClick={() => setSortOrder('old')}
             >
               Oldest
             </button>
@@ -294,7 +304,7 @@ export default function Shelf({
         {expandable && (
           <button
             className={s.viewAll}
-            onClick={() => { setExpanded((e) => !e); setSortDir(null) }}
+            onClick={() => { setExpanded((e) => !e); setSortOrder(null) }}
             aria-expanded={expanded}
           >
             {expanded ? 'Collapse' : 'View all'}

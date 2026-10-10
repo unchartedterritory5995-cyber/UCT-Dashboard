@@ -24,6 +24,7 @@ import {
 } from '../../lib/optionCalcs'
 import { money, moneySigned, percent } from '../../../../lib/journal-2-0'
 import styles from './AddOptionStrategyModal.module.css'
+import Input from '../../../../components/ui/Input'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -229,7 +230,7 @@ export default function CloseOptionStrategyModal({
                     </td>
                     <td>${Number(l.entryPrice).toFixed(2)}</td>
                     <td>
-                      <input
+                      <Input aria-label={`Leg ${l.legIndex + 1} exit price`}
                         type="number"
                         min="0"
                         step="0.01"

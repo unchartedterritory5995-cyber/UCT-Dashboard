@@ -26,6 +26,8 @@ import {
 } from '../../lib/optionCalcs'
 import { money, moneySigned } from '../../../../lib/journal-2-0'
 import styles from './AddOptionStrategyModal.module.css'
+import Input from '../../../../components/ui/Input'
+import Select from '../../../../components/ui/Select'
 
 const TODAY_ISO = () => new Date().toISOString().slice(0, 10)
 
@@ -426,27 +428,27 @@ function LegsEditor({ legs, onChange, onAdd, onRemove, strategyType }) {
             <tr key={i}>
               <td>{i + 1}</td>
               <td>
-                <select
+                <Select aria-label={`Leg ${i + 1} side`}
                   value={l.side}
                   onChange={(e) => onChange(i, { side: e.target.value })}
                   className={styles.legSelect}
                 >
                   <option value="buy">Buy</option>
                   <option value="sell">Sell</option>
-                </select>
+                </Select>
               </td>
               <td>
-                <select
+                <Select aria-label={`Leg ${i + 1} contract type`}
                   value={l.contractType}
                   onChange={(e) => onChange(i, { contractType: e.target.value })}
                   className={styles.legSelect}
                 >
                   <option value="call">Call</option>
                   <option value="put">Put</option>
-                </select>
+                </Select>
               </td>
               <td>
-                <input
+                <Input aria-label={`Leg ${i + 1} strike`}
                   type="number"
                   min="0"
                   step="0.5"
@@ -457,7 +459,7 @@ function LegsEditor({ legs, onChange, onAdd, onRemove, strategyType }) {
                 />
               </td>
               <td>
-                <input
+                <Input aria-label={`Leg ${i + 1} expiration`}
                   type="date"
                   value={l.expiration}
                   onChange={(e) => onChange(i, { expiration: e.target.value })}
@@ -466,7 +468,7 @@ function LegsEditor({ legs, onChange, onAdd, onRemove, strategyType }) {
                 />
               </td>
               <td>
-                <input
+                <Input aria-label={`Leg ${i + 1} quantity`}
                   type="number"
                   min="1"
                   step="1"
@@ -476,7 +478,7 @@ function LegsEditor({ legs, onChange, onAdd, onRemove, strategyType }) {
                 />
               </td>
               <td>
-                <input
+                <Input aria-label={`Leg ${i + 1} entry price`}
                   type="number"
                   min="0"
                   step="0.01"

@@ -20,6 +20,7 @@ import { SURFACE_IMPORTERS, surfacePanel, promotedPaths } from './surfacePanels'
 import { ARG_KINDS, TIMEFRAMES, applyArgs } from './args'
 import { RESEARCH_DEPTH_KEYS } from '../research/depth/researchDepthFlags'
 import { LINK_GROUPS, GROUP_DOT } from './useTerminalLayout'
+import { GROUP_HEX, groupCycle, nextGroup } from '../charts/colorGroups'
 import { TERMINAL_NEXT_COHORT } from './terminalGate'
 
 const SRC = path.join(process.cwd(), 'src')
@@ -440,16 +441,24 @@ describe('pins: this shell reuses other modules\' vocabulary, it does not restat
     expect(m?.[1]).toBe(TERMINAL_NEXT_COHORT)
   })
 
-  it('the link groups are /charts\' WidgetHeader COLORS', () => {
-    const src = fs.readFileSync(path.join(SRC, 'pages/charts/WidgetHeader.jsx'), 'utf8')
-    const m = src.match(/const COLORS = (\[[^\]]+\])/)
-    expect(JSON.parse(m[1].replace(/'/g, '"'))).toEqual(LINK_GROUPS)
+  // COV-10: these two used to regex a LITERAL retyped in WidgetHeader.jsx (`COLORS`) and
+  // PeriodSortPanel.jsx (`COLOR_HEX`), copies kept alive only to be read here. They now
+  // read /charts' one authority, colorGroups.js, and the first WALKS the cycle the header
+  // dot actually clicks through (nextGroup), so the shell's own pinned list (boardModel
+  // LINK_GROUPS / GROUP_DOT, also pinned by a11y/linkGroupColours.test.js) is checked
+  // against /charts' behaviour, not against another typed list.
+  it('the link groups are /charts\' (the colour dot\'s click cycle, extra groups off)', () => {
+    const walked = ['A']
+    for (let c = nextGroup('A', false); c !== 'A'; c = nextGroup(c, false)) {
+      walked.push(c)
+      expect(walked.length, 'the cycle closes').toBeLessThan(20)
+    }
+    expect(walked).toEqual(LINK_GROUPS)
+    expect(groupCycle(false)).toEqual(LINK_GROUPS)
   })
 
-  it('the group dot colours are /charts\' (PeriodSortPanel COLOR_HEX)', () => {
-    const src = fs.readFileSync(path.join(SRC, 'pages/charts/PeriodSortPanel.jsx'), 'utf8')
-    const m = src.match(/const COLOR_HEX = (\{[^}]+\})/)
-    const hex = JSON.parse(m[1].replace(/'/g, '"').replace(/([A-Z]):/g, '"$1":'))
+  it('the group dot colours are /charts\' (colorGroups.js GROUP_HEX)', () => {
+    const hex = Object.fromEntries(groupCycle(false).map((g) => [g, GROUP_HEX[g]]))
     expect(hex).toEqual(GROUP_DOT)
   })
 })

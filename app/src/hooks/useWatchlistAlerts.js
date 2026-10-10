@@ -1,5 +1,6 @@
 import useSWR, { mutate as globalMutate } from 'swr'
 import { useAuth } from '../context/AuthContext'
+import { readSuccessBody } from '../lib/responseBody'
 
 const fetcher = url => fetch(url).then(r => r.ok ? r.json() : [])
 
@@ -27,7 +28,11 @@ export default function useWatchlistAlerts() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sym, target_price: targetPrice, direction }),
       })
-      const created = res.ok ? await res.json().catch(() => null) : null
+      // TERM-033: the body of an already-SUCCESSFUL create, read as a tagged outcome. It
+      // feeds only the optimistic insert; an unreadable body skips that insert and the
+      // revalidation below reads the truth.
+      const read = res.ok ? await readSuccessBody(res) : null
+      const created = read?.ok ? read.body : null
       // Optimistically show it in the Alerts widget, then revalidate every alert cache.
       if (created?.id) {
         globalMutate(ALERTS_WIDGET_KEY,

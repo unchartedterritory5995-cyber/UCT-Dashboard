@@ -66,7 +66,7 @@ describe('AiSearchInsightsPanel — grounding coverage lane', () => {
     expect(screen.queryByText(/^regime$/i)).toBeNull()
   })
 
-  it('degrades to em-dashes when the /admin/log fetch fails, never throws', async () => {
+  it('degrades to em-dashes when the /admin/log fetch fails, never throws, and SAYS the read failed (TERM-033)', async () => {
     mockFetch({ log: null })
     render(<AiSearchInsightsPanel />)
 
@@ -76,8 +76,10 @@ describe('AiSearchInsightsPanel — grounding coverage lane', () => {
     expect(statValue('Personal invocations')).toBe('—')
     expect(statValue('Personal degraded')).toBe('—')
     expect(statValue('Personal / total requests')).toBe('—')
-    // No-data copy for the tier bars, not a crash / blank render (the
-    // freshness-split lane above it shows the same copy for the same reason).
-    expect(screen.getAllByText('No data yet').length).toBeGreaterThan(0)
+    // TERM-033: a failed read is named, never drawn as "No data yet" (which an admin reads
+    // as "nothing was logged"). The tier bars and the freshness split both say "Not loaded".
+    expect(screen.getByRole('alert').textContent).toMatch(/Could not load the question log/)
+    expect(screen.getAllByText('Not loaded').length).toBe(2)
+    expect(screen.queryByText('No data yet')).toBeNull()
   })
 })

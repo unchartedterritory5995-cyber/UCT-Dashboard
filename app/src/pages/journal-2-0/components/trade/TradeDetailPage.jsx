@@ -46,6 +46,7 @@ import { notebookFlag } from '../../lib/offline/notebookFlags'
 import SymbolSearch from '../../../../components/chart/SymbolSearch'
 import { useJournalToast, JournalToast } from '../../lib/useJournalToast'
 import styles from './TradeDetailPage.module.css'
+import { sectionFetcher } from '../../../../components/research/sections/sectionFetch'
 
 // A trade has no live-pane range reachable from here — frame the capture
 // around the holding period itself (±5 sessions) so "save this trade" shows
@@ -100,8 +101,11 @@ function barResLabel(excursion) {
 // canonical timeframe bar instead of a bespoke local row.
 const TF_CODES = ['5', '30', '60', 'D', 'W']
 
-const fetcher = (url) =>
-  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which
+// the page rendered as "This trade isn't available. It may have been deleted" for a 500
+// or a dropped connection: a claim about the trade made out of a failed request. A 404
+// is still "not available"; any other failure now says the read failed, with a Retry.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 async function patchJson(url, body) {
   const res = await fetch(url, {
@@ -341,7 +345,7 @@ export default function TradeDetailPage() {
   const [patchError, setPatchError] = useState(null)
   const notesRef = useRef(null)
 
-  const { data, isLoading, mutate } = useSWR(
+  const { data, error: loadError, isLoading, mutate } = useSWR(
     id ? `/api/j2/trades/${encodeURIComponent(id)}` : null,
     fetcher,
     { revalidateOnFocus: false, shouldRetryOnError: false },
@@ -486,6 +490,19 @@ export default function TradeDetailPage() {
         </header>
         <SkeletonLine width="100%" height={90} />
         <SkeletonLine width="100%" height={420} />
+      </div>
+    )
+  }
+
+  if (!trade && loadError && loadError.status !== 404) {
+    return (
+      <div className={styles.page}>
+        <Link to={backTo} className={styles.back}>← Trade Journal</Link>
+        <p className={styles.missing} role="alert">
+          This trade could not be loaded. The request failed; nothing about the trade has
+          changed.{' '}
+          <button type="button" onClick={() => mutate()}>Retry</button>
+        </p>
       </div>
     )
   }

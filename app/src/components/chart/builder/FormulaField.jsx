@@ -337,8 +337,12 @@ function msg(err) {
  *  inline enhancement of a box that already works, so `lazyWithRetry`'s
  *  hard-reload (right for a ROUTE) would throw away a member's draft here. */
 function loadEditor() {
-  return import('./editor/CodeEditor').then((m) => m.default).catch(() => null)
+  return import('./editor/CodeEditor').then((m) => m.default).catch(() => TEXTAREA_FALLBACK)
 }
+
+/** TERM-033: what a failed chunk load resolves to, by name: no editor, so the textarea
+ *  (already mounted and already the value carrier) stays the box. Never a reload. */
+const TEXTAREA_FALLBACK = null
 
 /**
  * The box, its error chip, and nothing else.

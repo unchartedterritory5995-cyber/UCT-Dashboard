@@ -9700,6 +9700,8 @@ from api.routers import web_push as web_push_router  # noqa: E402  (BRK-04, dark
 app.include_router(web_push_router.router)
 from api.routers import data_exports as data_exports_router  # noqa: E402  (FT-041/042/043, dark)
 app.include_router(data_exports_router.router)
+from api.routers import skill_file as skill_file_router  # noqa: E402  (TERM-061/BRK-06/FT-040, T-16: public skill file + whitelist)
+app.include_router(skill_file_router.router)
 from api.routers import alert_outbound as alert_outbound_router  # noqa: E402  (FT-033/035/036, dark)
 app.include_router(alert_outbound_router.router)
 from api.routers import screen_promote as screen_promote_router  # noqa: E402  (FT-027, dark)

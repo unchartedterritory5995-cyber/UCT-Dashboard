@@ -4,6 +4,8 @@
  * (WritingHelpPanel.jsx), so none of it is in a note's first open; the eager
  * half (scope capture, Accept) is `writingHelp.js`.
  */
+import { failureDetail } from '../../../lib/responseBody'
+
 /** The actions, in the panel's order. `style` / `lang` complete two of them. */
 export const WRITING_HELP_CHOICES = Object.freeze([
   { id: 'summarize', label: 'Summarize', action: 'summarize' },
@@ -83,8 +85,8 @@ export async function streamWritingHelp({ noteId, choice, lang, scope, text, sig
     return { ok: false, error: WH_MESSAGES.network }
   }
   if (!r.ok) {
-    const d = await r.json().catch(() => null)
-    const detail = typeof d?.detail === 'string' ? d.detail : ''
+    // TERM-033: the status decides the failure below; the body only explains it.
+    const detail = (await failureDetail(r)) || ''
     if (r.status === 429) return { ok: false, error: detail || WH_MESSAGES.budget }
     if (r.status === 402) return { ok: false, error: WH_MESSAGES.paid }
     if (r.status === 404) return { ok: false, error: WH_MESSAGES.gone }

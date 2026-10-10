@@ -1,3 +1,4 @@
+import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { useState, useMemo, useEffect } from 'react'
 import useConfluence from '../hooks/useConfluence'
 import TickerPopup from '../components/TickerPopup'
@@ -7,11 +8,16 @@ import Input from '../components/ui/Input'
 const BAND_ORDER = ['L', 'M', 'S']
 const BAND_FALLBACK = { L: ['Large Cap', '$10B – $500B'], M: ['Mid Cap', '$2B – $10B'], S: ['Small Cap', '< $2B'] }
 
+// TERM-066: B two decimals, M and K `Math.round` — the ladder this grammar
+// already had, passed to the one formatter.
+const USD_TIERS = Object.freeze([
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 2 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 'round' }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 'round' }),
+])
 const usd = n => {
   const a = Math.abs(n || 0)
-  if (a >= 1e9) return `$${(a / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `$${Math.round(a / 1e6)}M`
-  if (a >= 1e3) return `$${Math.round(a / 1e3)}K`
+  if (a >= 1e3) return formatCompact(a, { tiers: USD_TIERS, prefix: '$' })
   return `$${Math.round(a)}`
 }
 const pxfmt = v => {

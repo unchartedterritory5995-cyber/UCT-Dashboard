@@ -12,6 +12,8 @@
 // change). These get TWO color overrides — one for positive values, one for negative — stored
 // under `<colorKey>:pos` / `<colorKey>:neg` in header.colors, defaulting to green / red.
 
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
+
 // `short` is the abbreviated label shown when the pane narrows enough that the
 // info row would collide with the timeframe bar (see headerFit.js). Values are
 // never abbreviated — only these labels. Keep them terse + unambiguous.
@@ -74,21 +76,29 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v))
 const signColor = (v) => (num(v) ? (v >= 0 ? SIGN_POS : SIGN_NEG) : null)
 const signOf = (v) => (num(v) ? (v >= 0 ? 'pos' : 'neg') : null)
 const pct = (v) => (num(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : null)
+// TERM-066: the ladder this grammar already had, passed to the one formatter.
+const VOL_TIERS = Object.freeze([
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 1 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
+// TERM-066: the ladder this grammar already had, passed to the one formatter.
+const DOLLAR_VOL_TIERS = Object.freeze([
+  Object.freeze({ at: 1e12, suffix: 'T', decimals: 1 }),
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 1 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
 function fmtVol(v) {
   if (!num(v)) return null
   const a = Math.abs(v)
-  if (a >= 1e9) return `${(v / 1e9).toFixed(1)}B`
-  if (a >= 1e6) return `${(v / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `${(v / 1e3).toFixed(0)}K`
+  if (a >= 1e3) return formatCompact(v, { tiers: VOL_TIERS })
   return String(Math.round(v))
 }
 function fmtDolVol(v) {
   if (!num(v)) return null
   const a = Math.abs(v)
-  if (a >= 1e12) return `$${(v / 1e12).toFixed(1)}T`
-  if (a >= 1e9) return `$${(v / 1e9).toFixed(1)}B`
-  if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `$${(v / 1e3).toFixed(0)}K`
+  if (a >= 1e3) return formatCompact(v, { tiers: DOLLAR_VOL_TIERS, prefix: '$' })
   return `$${v.toFixed(0)}`
 }
 function fmtIpo(ymd) {

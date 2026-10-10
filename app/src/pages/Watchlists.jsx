@@ -107,6 +107,15 @@ import { chordById, matchesChord } from './command/chords.js'
 // its `{detail}` body is truthy, so every `!data` loading guard below is
 // skipped and the consumer throws on an error object. See utils/jsonFetcher.js.
 import fetcher from '../utils/jsonFetcher'
+import { readSuccessBody } from '../lib/responseBody'
+import { ASC, DESC, nextSort } from '../lib/presentation/dataGrid'
+
+// TERM-065: a column-header click asks the DataGrid seed which way the sort turns
+// (same column flips; a new column starts Symbol A→Z, numbers high→low). The frozen
+// snapshot comparator (applyColSort) stays here. Parity with the hand-rolled updater:
+// lib/presentation/dataGrid/pageGrids2.seedParity.test.js
+const watchColFirstDir = (key) => (key === 'sym' ? ASC : DESC)
+export const nextWatchColSort = (prev, key) => nextSort(prev, key, watchColFirstDir)
 
 // S2 CP4 — resolved ONCE at module scope: a lookup inside the handler would
 // re-scan the table on every keystroke, and a miss would silently disable
@@ -963,8 +972,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const setVisiblePerf = useCallback((updater) => {
     setVisiblePerfState((prev) => (typeof updater === 'function' ? updater(prev) : updater))
   }, [])
-  const [sortBy, setSortBy] = useState(null) // null | 'sym' | 'price' | 'change' | '1d' | '1w' | '1m' | '3m' | 'ytd'
-  const [sortDir, setSortDir] = useState('desc')
+  // ⚰️ TERM-065: a second, per-list sort (`sortBy`/`sortDir` + `handleSort` + `sortIndicator`)
+  // lived here from Phase 3 (135b1e7b9). Nothing called `handleSort` any more, so `sortBy`
+  // was always null and its comparator never ran; the global column header (`colSort`,
+  // handleColSort below) is the one sort every list uses. Deleted rather than migrated.
   const [filterText, setFilterText] = useState('')
   const [addingToList, setAddingToList] = useState(null)  // list id whose inline "+" row is open
   const [addErr, setAddErr] = useState(null)              // { listId, msg } — last failed add
@@ -1002,14 +1013,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     setCtxMenu(null)
   }
 
-  function handleSort(col) {
-    if (sortBy === col) setSortDir(d => d === 'desc' ? 'asc' : 'desc')
-    else { setSortBy(col); setSortDir('desc') }
-  }
-  function sortIndicator(col) { return sortBy !== col ? '' : sortDir === 'desc' ? ' ▾' : ' ▴' }
-
-  // sortAndFilterItems is defined further down — after `prices` and `perfData`
-  // are in scope. Defining it here would TDZ on those `const` deps.
+  // sortAndFilterItems (the per-list text filter) is defined further down.
 
   function exportCSV(wl) {
     const items = wl.items || []
@@ -1477,30 +1481,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // `chartTf`, so it warms the on-screen timeframe AND daily; this one warmed daily
   // alone. A strict subset, on a duplicate timer.
 
-  // Moved here from earlier in the file — depends on `prices` and `perfData`,
-  // which are declared above. Putting it earlier hits a TDZ on those consts
-  // when the deps array evaluates, crashing the page on mount.
+  // The per-list text filter. (Its dead per-list sort was removed under TERM-065; the
+  // column sort is applyColSort, which carries the live prices/perfData deps.)
   const sortAndFilterItems = useCallback((items) => {
     let filtered = items
     if (filterText) {
       const q = filterText.toUpperCase()
       filtered = filtered.filter(i => (i.sym || i).toString().toUpperCase().includes(q))
     }
-    if (!sortBy) return filtered
-    return [...filtered].sort((a, b) => {
-      const symA = a.sym || a, symB = b.sym || b
-      let va, vb
-      if (sortBy === 'sym') { va = symA; vb = symB }
-      else if (sortBy === 'price') { va = prices[symA]?.price; vb = prices[symB]?.price }
-      else if (sortBy === 'change') { va = prices[symA]?.change_pct; vb = prices[symB]?.change_pct }
-      else { va = perfData[symA]?.[sortBy]; vb = perfData[symB]?.[sortBy] }
-      if (va == null && vb == null) return 0
-      if (va == null) return 1
-      if (vb == null) return -1
-      if (sortBy === 'sym') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
-      return sortDir === 'asc' ? va - vb : vb - va
-    })
-  }, [sortBy, sortDir, filterText, prices, perfData])
+    return filtered
+  }, [filterText])
 
   function togglePerfCol(key) {
     setVisiblePerf(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n })
@@ -1821,9 +1811,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       body: JSON.stringify({ sym: clean, notes: '' }),
     })
     if (!res.ok) throw new Error(`add failed: ${res.status}`)
-    const item = await res.json().catch(() => null)
+    // TERM-033: the body of an already-SUCCESSFUL add, read as a tagged outcome. The add
+    // landed either way; an unreadable body answers with the symbol it added, and the
+    // revalidation reads the row itself.
+    const read = await readSuccessBody(res)
     mutateMine()
-    return item
+    return read.ok ? read.body : { sym: clean }
   }
 
   // `handleAddItem` THROWS on a non-ok POST. Every inline add row goes through this
@@ -2139,9 +2132,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const toggleColHidden = (key) => saveColCfg({ ...colCfg, hidden: { ...colHidden, [key]: !colHidden[key] } })
   const handleColSort = (key) => {
     if (resizingRef.current) return   // a drag just ended — don't treat the trailing click as a sort
-    const next = (!colSort || colSort.key !== key)
-      ? { key, dir: key === 'sym' ? 'asc' : 'desc' }   // first click: sym A→Z, numbers high→low
-      : { key, dir: colSort.dir === 'asc' ? 'desc' : 'asc' }
+    const next = nextWatchColSort(colSort, key)   // first click: sym A→Z, numbers high→low
     saveColCfg({ ...colCfg, sort: next })
   }
   // Sort an array of symbols by the active column (used by every list render + arrow nav).

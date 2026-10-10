@@ -16,12 +16,9 @@ import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 const DEF_H = 560, MIN_W = 150, MIN_H = 40
 const stockDefW = 528, groupDefW = 450
 // Colour cycle + dot colours from colorGroups.js (E-H only while CHARTS_EXTRA_GROUPS_ENABLED is on).
-// The A-D + N dot colours as a literal: app/src/pages/terminal/functions.rail.test.js
-// reads THIS declaration (a file this lane may not edit); colorGroups.test.js proves it
-// equals GROUP_HEX's base entries. HANDOFF (Lane T2, audit V10): retarget that rail at
-// colorGroups.js, then delete this literal.
-export const COLOR_HEX = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc', N: '#6b7280' }
-const DOT_HEX = { ...COLOR_HEX, ...GROUP_HEX }
+// ⚰️ COV-10: the A-D + N hex used to be retyped here as `COLOR_HEX` for the terminal rail;
+// that rail now reads colorGroups.js itself, and GROUP_HEX already carries all nine.
+const DOT_HEX = GROUP_HEX
 
 export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTab, tabTargets = [], group = null, symbolsFilter = null, titlePrefix = null, offset = 0 }) {
   // Group panels open wider so the theme/sector/industry names fit; stock panels stay snug.

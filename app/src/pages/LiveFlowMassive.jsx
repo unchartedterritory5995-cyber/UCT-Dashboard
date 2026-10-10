@@ -1,3 +1,4 @@
+import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { useEffect, useRef, useState, useMemo, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
 import TickerPopup from "../components/TickerPopup";
@@ -8,6 +9,7 @@ import "./LiveFlowMassive.mobile.css";
 import Checkbox from '../components/ui/Checkbox'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
+import { ASC, DESC, nextSort } from '../lib/presentation/dataGrid'
 
 /**
  * LiveFlowMassive — the PRODUCTION Live Flow page (nav "Live Flow").
@@ -222,6 +224,23 @@ const COLUMNS = [
   { key: "tier",      label: "ALERT",    align: "left",   dir: "asc"  },
 ];
 
+// ── TERM-065: both tables' header decisions come from the DataGrid seed ───────
+// The comparators (blanks last, newest-first tiebreak, CONTRACT_SORT_KEYS) stay in
+// this file; the seed decides which way a click turns the sort. Parity with the
+// hand-rolled updaters: lib/presentation/dataGrid/pageGrids2.seedParity.test.js
+const massiveColFirstDir = (key) => COLUMNS.find(c => c.key === key)?.dir || DESC;
+/** Alert table: 1st click → the column's first direction, 2nd → flip, 3rd → back to
+ *  the natural time-descending tape order. */
+export function nextMassiveColSort(prev, key) {
+  if (prev.key === key && prev.dir !== massiveColFirstDir(key)) return { key: "time", dir: DESC };
+  return nextSort(prev, key, massiveColFirstDir);
+}
+const contractFirstDir = (col) => (col === "TICKER" || col === "EXP" ? ASC : DESC);
+/** By-Contract table: the same column flips; a new column takes its first direction. */
+export function nextContractSort(prev, col) {
+  return nextSort(prev, col, contractFirstDir);
+}
+
 // Turn an M/D/YYYY expiration into a sortable YYYYMMDD-ish integer.
 function _expSortVal(exp) {
   if (!exp) return null;
@@ -259,10 +278,14 @@ function fmtTime(unixSec) {
   return `${h12}:${mm}:${ss} ${ampm}`;
 }
 
+// TERM-066: the ladder this grammar already had, passed to the one formatter.
+const PREMIUM_TIERS = Object.freeze([
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 2 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
 function fmtPremium(p) {
   if (!p && p !== 0) return "—";
-  if (p >= 1_000_000) return "$" + (p / 1_000_000).toFixed(2) + "M";
-  if (p >= 1_000) return "$" + (p / 1_000).toFixed(0) + "K";
+  if (p >= 1_000) return formatCompact(p, { tiers: PREMIUM_TIERS, prefix: '$' });
   return "$" + p.toFixed(0);
 }
 
@@ -341,11 +364,21 @@ function fmtMoneyness(pct, label) {
 
 // Volume / OI as compact counts. Massive contracts hit 6-digit volume on
 // busy days; raw integers get unreadable. 1234 → "1.2K", 12345 → "12.3K".
+// TERM-066: M one decimal; K one decimal below 10K and none from 10K up — the
+// ladder this grammar already had. Never promoted: the old text is pinned.
+const COUNT_TIERS = Object.freeze([
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: (a) => (a >= 1e4 ? 0 : 1) }),
+])
+// Fixed-unit premium text: "$0.40M" / "$950K" all the way down. `absent` echoes
+// the old text for a non-finite sum ("NaNM").
+const FIXED_M2 = Object.freeze([Object.freeze({ at: 1e6, suffix: 'M', decimals: 2 })])
+const FIXED_M1 = Object.freeze([Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 })])
+const FIXED_K0 = Object.freeze([Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 })])
+const fixedUnit = (n, tiers, suffix) => formatCompact(+n, { tiers, fixedUnit: true, absent: `${+n}${suffix}` })
 function fmtCount(n) {
   if (n == null) return "—";
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-  if (n >= 10_000) return (n / 1000).toFixed(0) + "K";
-  if (n >= 1000) return (n / 1000).toFixed(1) + "K";
+  if (n >= 1000) return formatCompact(+n, { tiers: COUNT_TIERS, promote: false, absent: `${+n}M` });
   return String(n);
 }
 
@@ -404,8 +437,8 @@ function MarketReadCard({ stats }) {
   const topBear = (stats.top_bear || []).slice(0, 3);
   const dteBuckets = stats.by_dte || [];
 
-  const fmtM = (n) => `$${(n / 1e6).toFixed(2)}M`;
-  const fmtMShort = (n) => n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : `$${(n/1e3).toFixed(0)}K`;
+  const fmtM = (n) => `$${fixedUnit(n, FIXED_M2, "M")}`;
+  const fmtMShort = (n) => n >= 1e6 ? `$${fixedUnit(n, FIXED_M1, "M")}` : `$${fixedUnit(n, FIXED_K0, "K")}`;
 
   return (
     <div style={{
@@ -3319,12 +3352,10 @@ export default function LiveFlowMassive() {
   // presets to that and flips to the contract view. "Still open only" hides
   // contracts whose fetched OI says closed (exited) — a live still-open filter.
   const [stillOpenOnly, setStillOpenOnly] = useState(false);
-  const [cSortCol, setCSortCol] = useState(null);   // By-Contract column click-sort
-  const [cSortDir, setCSortDir] = useState("desc");
-  const onContractSort = (col) => {
-    if (cSortCol === col) setCSortDir(d => (d === "desc" ? "asc" : "desc"));
-    else { setCSortCol(col); setCSortDir(col === "TICKER" || col === "EXP" ? "asc" : "desc"); }
-  };
+  const [cSort, setCSort] = useState({ key: null, dir: DESC });   // By-Contract column click-sort
+  const cSortCol = cSort.key;
+  const cSortDir = cSort.dir;
+  const onContractSort = (col) => setCSort(prev => nextContractSort(prev, col));
   // Min prints for a contract to appear in By-Contract. Default 3 = accumulation
   // focus; set to 1 to see EVERY contract (single big Alpha Gold prints, held or
   // not — "doesn't have to be accumulating").
@@ -3379,14 +3410,14 @@ export default function LiveFlowMassive() {
   // page's prior always-time-descending behavior. `sortBy` above still selects
   // WHICH alerts the backend returns (recent/conviction/premium top-N); this
   // controls the DISPLAY order of that set, so the two are orthogonal.
-  const [sortCol, setSortCol] = useState(() => {
-    try { const s = JSON.parse(localStorage.getItem(LS_KEY_COLSORT) || ""); return s?.c || "time"; }
-    catch { return "time"; }
+  const [colSort, setColSort] = useState(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem(LS_KEY_COLSORT) || "");
+      return { key: s?.c || "time", dir: s?.d || DESC };
+    } catch { return { key: "time", dir: DESC }; }
   });
-  const [sortDir, setSortDir] = useState(() => {
-    try { const s = JSON.parse(localStorage.getItem(LS_KEY_COLSORT) || ""); return s?.d || "desc"; }
-    catch { return "desc"; }
-  });
+  const sortCol = colSort.key;
+  const sortDir = colSort.dir;
   // How many recent alerts to keep in the feed. Defaults to 500 (~8-15 min
   // of market-open activity); user can bump to 1000 or "All" (full day). The
   // BULL/BEAR cards are always day-scoped and unaffected by this setting.
@@ -4412,18 +4443,7 @@ export default function LiveFlowMassive() {
 
   // Column-header click: 1st → column's default dir, 2nd → flip, 3rd → reset
   // to the natural time-descending tape order.
-  const handleSortColumn = (key) => {
-    const def = COLUMNS.find(c => c.key === key)?.dir || "desc";
-    if (sortCol !== key) {
-      setSortCol(key);
-      setSortDir(def);
-    } else if (sortDir === def) {
-      setSortDir(def === "desc" ? "asc" : "desc");
-    } else {
-      setSortCol("time");
-      setSortDir("desc");
-    }
-  };
+  const handleSortColumn = (key) => setColSort(prev => nextMassiveColSort(prev, key));
 
   // Tier badge / alert-name click inside a row: isolate that tier (mirrors the
   // FilterChips toggle — clicking the already-isolated tier restores all).

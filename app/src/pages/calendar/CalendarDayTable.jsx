@@ -12,6 +12,27 @@ import TickerActionsMenu, { useTickerActions } from '../../components/TickerActi
 import { BeatDots, DateMovedChip, MoveUnavailableMark, moveIsUnavailable } from './cardBits'
 import { formatCompactTerminal, formatCurrency, formatPercent } from '../../lib/presentation/presentationPrimitives'
 import styles from './Calendar.module.css'
+import { ASC, DESC, ariaSortFor, nextSort, sortCaretFor } from '../../lib/presentation/dataGrid'
+
+// ── TERM-065: the day table's header decisions come from the DataGrid seed ─────
+// The table keeps its numeric direction (1 asc / -1 desc, read by its comparator),
+// its per-column first direction (Symbol A→Z, every number high→low) and its third
+// click back to importance order; the seed decides the flip, the direction words and
+// the caret. Parity with the hand-rolled code:
+// lib/presentation/dataGrid/pageGrids2.seedParity.test.js
+const dayTableToSeed = (s) => s && { key: s.key, dir: s.dir === 1 ? ASC : DESC }
+const dayTableFirstDir = (key) => (key === 'sym' ? ASC : DESC)
+export function nextDayTableSort(prev, key) {
+  // already on the column's second direction → the third click restores importance order
+  if (prev?.key === key && dayTableToSeed(prev).dir !== dayTableFirstDir(key)) return null
+  const n = nextSort(dayTableToSeed(prev), key, dayTableFirstDir)
+  return { key, dir: n.dir === ASC ? 1 : -1 }
+}
+export const dayTableSortWords = (sort, key) => ariaSortFor(dayTableToSeed(sort), key, null)
+export function dayTableCaret(sort, key) {
+  const c = sortCaretFor(dayTableToSeed(sort), key)
+  return c ? ` ${c}` : ''
+}
 
 function fmtEps(v) { return v == null ? '' : formatCurrency(v) }
 // Revenue arrives in $M and market cap in $B; both read on the terminal compact ladder.
@@ -119,11 +140,7 @@ export default function CalendarDayTable({ entries, reactions, enrichReady = tru
   const ta = useTickerActions()
 
   const clickSort = (key) => {
-    setSort(s => {
-      if (!s || s.key !== key) return { key, dir: key === 'sym' ? 1 : -1 }
-      if ((key === 'sym' && s.dir === 1) || (key !== 'sym' && s.dir === -1)) return { key, dir: -s.dir }
-      return null   // third click restores importance order
-    })
+    setSort(s => nextDayTableSort(s, key))   // third click restores importance order
   }
 
   const groups = useMemo(() => {
@@ -159,11 +176,11 @@ export default function CalendarDayTable({ entries, reactions, enrichReady = tru
                accessible name instead (aria-pressed can't express 3 states). */
             aria-label={c.sortable
               ? (sort?.key === c.key
-                  ? `${c.label}, sorted ${sort.dir === 1 ? 'ascending' : 'descending'}`
+                  ? `${c.label}, sorted ${dayTableSortWords(sort, c.key)}`
                   : `${c.label}, not sorted`)
               : c.label}
           >
-            {c.label}{sort?.key === c.key ? (sort.dir === 1 ? ' ▲' : ' ▼') : ''}
+            {c.label}{dayTableCaret(sort, c.key)}
           </button>
         ))}
       </div>

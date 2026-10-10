@@ -20,6 +20,8 @@ export const LOSS = '#e74c3c'
 export const GRAY = '#8a8574'
 
 /** Number, or NaN — a wire value is only usable if it is finite. */
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
+
 function finite(v) {
   if (v === null || v === undefined || v === '' || typeof v === 'boolean') return NaN
   const n = typeof v === 'number' ? v : Number(v)
@@ -32,11 +34,17 @@ function levelsOf(payload) {
   return Array.isArray(levels) ? levels : []
 }
 
+// TERM-066: B at one decimal with trailing zeros trimmed ("$1B", "$2.5B"); below
+// that, whole millions all the way down ("$0M") and never promoted ("$1000M").
+const NOTIONAL_TIERS = Object.freeze([
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 1 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 'round' }),
+])
+
 export function fmtNotional(n) {
   const v = finite(n)
   if (Number.isNaN(v) || v <= 0) return ''
-  if (v >= 1e9) return `$${parseFloat((v / 1e9).toFixed(1))}B`
-  return `$${Math.round(v / 1e6)}M`
+  return formatCompact(v, { tiers: NOTIONAL_TIERS, prefix: '$', trim: true, fixedUnit: true, promote: false })
 }
 
 export function dpToPriceLines(payload) {

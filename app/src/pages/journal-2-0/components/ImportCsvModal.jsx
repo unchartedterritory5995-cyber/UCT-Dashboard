@@ -21,6 +21,7 @@ import {
 import { money, moneySigned, rMultiple as fmtR, dateShort } from '../../../lib/journal-2-0'
 import shellStyles from './ModalShell.module.css'
 import styles from './ImportCsvModal.module.css'
+import Input from '../../../components/ui/Input'
 
 const MAX_BYTES = 10 * 1024 * 1024
 
@@ -247,7 +248,7 @@ export default function ImportCsvModal({ onConfirmed, onClose }) {
                 tabIndex={0}
                 aria-label="CSV file drop zone"
               >
-                <input
+                <Input aria-label="Choose a CSV file"
                   ref={inputRef}
                   type="file"
                   accept=".csv,text/csv"

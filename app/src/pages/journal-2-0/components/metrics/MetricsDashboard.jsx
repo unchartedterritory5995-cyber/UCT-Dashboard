@@ -16,6 +16,7 @@ import { useMemo, useRef, useState } from 'react'
 import useMobileSWR from '../../../../hooks/useMobileSWR'
 import usePreferences, { parsePref } from '../../../../hooks/usePreferences'
 import styles from './MetricsDashboard.module.css'
+import Input from '../../../../components/ui/Input'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
@@ -412,11 +413,11 @@ function CustomKpiCard({ kpis, results, vocabulary, onChange }) {
         </div>
       )}
       <div className={styles.kpiForm}>
-        <input
+        <Input aria-label="KPI name"
           className={styles.kpiInput} placeholder="Name" value={name}
           maxLength={40} onChange={(e) => setName(e.target.value)}
         />
-        <input
+        <Input aria-label="KPI formula"
           className={`${styles.kpiInput} ${styles.kpiExpr}`} value={expr}
           placeholder="e.g. net_pnl / days_traded" maxLength={200}
           onChange={(e) => setExpr(e.target.value)}

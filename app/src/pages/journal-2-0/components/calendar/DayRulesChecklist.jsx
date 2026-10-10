@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import { uid } from '../../../../utils/uid'
 import styles from './DayRulesChecklist.module.css'
+import Input from '../../../../components/ui/Input'
 
 const MAX_RULES = 25
 
@@ -98,7 +99,7 @@ export default function DayRulesChecklist({
       )}
 
       <div className={styles.addRow}>
-        <input
+        <Input aria-label="New rule"
           type="text"
           value={newLabel}
           onChange={(e) => setNewLabel(e.target.value)}

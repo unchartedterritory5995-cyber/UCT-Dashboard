@@ -1,4 +1,7 @@
 import { describe, expect, test } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   BASE_GROUPS, EXTRA_GROUPS, GROUP_HEX, groupCycle, linkGroups, nextGroup,
   effectiveGroup, isSuspendedGroup,
@@ -58,17 +61,23 @@ describe('a stored E-H while OFF: kept, not linked, never remapped', () => {
   })
 })
 
-// The terminal rail (pages/terminal/functions.rail.test.js, not this lane's file) still
-// reads literals in WidgetHeader / PeriodSortPanel. They must equal this module's OFF
-// values, or the shell and /charts would disagree while both rails stayed green.
-describe('the literals the terminal rail reads are this module, not a second authority', () => {
-  test('WidgetHeader COLORS is the OFF cycle', async () => {
-    const { COLORS } = await import('./WidgetHeader')
-    expect(COLORS).toEqual(groupCycle(false))
+// COV-10: WidgetHeader's `COLORS` and PeriodSortPanel's `COLOR_HEX` were literal copies of
+// this module, kept only because the terminal rail regexed them. That rail now reads this
+// module (pages/terminal/functions.rail.test.js) and the copies are deleted. This keeps
+// them deleted: neither consumer may retype the group cycle or a group's hex.
+const LITERAL_CYCLE = /\[\s*['"]A['"]\s*,\s*['"]B['"]\s*,\s*['"]C['"]\s*,\s*['"]D['"]/
+const codeOnly = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+
+describe('no second authority: the /charts consumers do not retype the groups', () => {
+  test.each(['WidgetHeader.jsx', 'PeriodSortPanel.jsx'])('%s carries no literal group list or group hex', (file) => {
+    const src = codeOnly(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), file), 'utf8'))
+    expect(src).not.toMatch(LITERAL_CYCLE)
+    for (const hex of Object.values(GROUP_HEX)) {
+      expect(src.toLowerCase(), `${file} retypes ${hex}`).not.toContain(hex)
+    }
   })
-  test('PeriodSortPanel COLOR_HEX is GROUP_HEX for A-D and N', async () => {
-    const { COLOR_HEX } = await import('./PeriodSortPanel')
-    const base = Object.fromEntries(groupCycle(false).map((g) => [g, GROUP_HEX[g]]))
-    expect(COLOR_HEX).toEqual(base)
+  test('control: the checks see a planted literal and a planted hex', () => {
+    expect("const X = ['A', 'B', 'C', 'D', 'N']").toMatch(LITERAL_CYCLE)
+    expect(codeOnly("const H = { A: '#c9a84c' } // x").toLowerCase()).toContain(GROUP_HEX.A)
   })
 })

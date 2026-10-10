@@ -33,14 +33,18 @@ import AnalystSection from './AnalystSection'
 import EarningsSection from './EarningsSection'
 import HistorySection from './HistorySection'
 import styles from './PositionDetailPage.module.css'
+import { sectionFetcher } from '../../../../components/research/sections/sectionFetch'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
 // gear and drawing tools. Lazy, so none of it lands in the eager entry chunk.
 const ChartPane = lazyChunk(() => import('../../../../components/chart/pane/ChartPane'))
 
-const fetcher = (url) =>
-  fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
+// TERM-033: a failed read THROWS (sectionFetcher), so SWR keeps the last good answer and a
+// failure is a stated state, never a `null` that reads like an empty answer. The sections
+// fed by these reads hide when they have nothing; News says when its read FAILED instead
+// (a missing News section on a held name reads as "no news"). A 402 is an absent answer.
+const fetcher = (url) => sectionFetcher(url).then((d) => (d?.paywalled ? null : d))
 
 // Journal is NOT Daily/Weekly-only (that CLAUDE.md note is stale) — these are
 // the five codes the page has always supported, now handed to ChartPane's
@@ -109,7 +113,7 @@ export default function PositionDetailPage() {
     sym ? `/api/bars/${encodeURIComponent(sym)}?tf=D&bars=30` : null, fetcher,
     { revalidateOnFocus: false },
   )
-  const { data: newsData } = useSWR(
+  const { data: newsData, error: newsError } = useSWR(
     sym ? `/api/chart-news/${encodeURIComponent(sym)}?days=30` : null, fetcher,
     { revalidateOnFocus: false },
   )
@@ -351,7 +355,7 @@ export default function PositionDetailPage() {
 
       <AboutSection about={snapshot?.about} sector={snapshot?.sector} industry={snapshot?.industry} />
       <StatsSection rows={stats} />
-      <NewsSection items={newsData?.news} />
+      <NewsSection items={newsData?.news} failed={!newsData && !!newsError} />
       <AnalystSection model={analyst} priceTarget={grades?.price_target} composite={snapshot?.composite} />
       <EarningsSection quarterly={earningsTable?.quarterly} />
       <HistorySection
