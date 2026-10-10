@@ -11,7 +11,7 @@
 import { useMemo } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
-import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, panelAsOf } from '../../../components/terminal'
 import { formatDateTimeEt, formatNumber, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import styles from './myNamesPanel.module.css'
 
@@ -50,7 +50,7 @@ export default function TwtPanel({ sym }) {
   const q = useSWR(enabled && s ? tweetsUrl(s) : null, stamped, { revalidateOnFocus: false, refreshInterval: 5 * 60 * 1000 })
   const rows = useMemo(() => tweetRows(q.data?.body), [q.data])
   const asOf = q.data?.receivedAt || null
-  usePanelFreshness(asOf ? { source: 'Curated X accounts (TwitterAPI.io)', observedAt: asOf } : null)
+  usePanelFreshness(asOf ? panelAsOf('Curated X accounts (TwitterAPI.io)', asOf) : null)
 
   if (!enabled) {
     return (

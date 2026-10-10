@@ -10,7 +10,7 @@
 // "Grade not available yet." — it never draws a verdict it was not handed.
 import { useEffect, useState } from 'react'
 import jsonFetcher from '../../../utils/jsonFetcher'
-import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, usePanelFreshness, panelAsOf } from '../../../components/terminal'
 import { formatCurrency, formatDateTimeEt, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import styles from '../TerminalShell.module.css'
 
@@ -55,7 +55,7 @@ export default function GradePanel({ sym }) {
   // The server stamps when the verdict was computed (cached up to a minute); that instant is the
   // honest "as of". Nothing is reported until a verdict has actually landed.
   usePanelFreshness(graded && Number.isFinite(Number(d.as_of))
-    ? { source: 'Compass grade_ticker', observedAt: new Date(Number(d.as_of) * 1000).toISOString() }
+    ? panelAsOf('Compass grade_ticker', Number(d.as_of))
     : null)
 
   const retry = <button type="button" onClick={() => setAttempt((n) => n + 1)}>Retry</button>

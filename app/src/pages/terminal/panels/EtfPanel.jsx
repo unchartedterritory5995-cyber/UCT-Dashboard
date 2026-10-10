@@ -17,7 +17,7 @@ import { useId, useMemo } from 'react'
 import useSWR from 'swr'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import {
-  PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
+  PanelSkeleton, PanelState, PanelSymbol, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows, panelAsOf,
 } from '../../../components/terminal'
 import { formatCompactTerminal, formatNumberMax, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import styles from './myNamesPanel.module.css'
@@ -68,7 +68,7 @@ export default function EtfPanel({ sym }) {
   usePanelSymbolRows([...fam.map((r) => r.ticker), ...shown.map((h) => h.sym)], `ETF exposure of ${s}`)
   const asOf = holdings.data?.receivedAt || family.data?.receivedAt || null
   usePanelFreshness(asOf && (held.length || fam.length)
-    ? { source: 'FMP ETF holdings, UCT single-stock ETF map', observedAt: asOf }
+    ? panelAsOf('FMP ETF holdings, UCT single-stock ETF map', asOf)
     : null)
 
   if (!s) {
