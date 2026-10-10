@@ -30,7 +30,8 @@ from api.services import workspace_doc_store as wds
 from tests.authclients import authorize
 
 REPO = Path(__file__).resolve().parents[1]
-LAYOUT_HOOK = REPO / "app" / "src" / "pages" / "terminal" / "useTerminalLayout.js"
+# The key constants moved out of useTerminalLayout.js into boardPrefs.js (2143e1378).
+LAYOUT_HOOK = REPO / "app" / "src" / "pages" / "terminal" / "boardPrefs.js"
 UNREADABLE = '{"v":2,"count":4,"panels":[{"id":"p1","code":"GP"'      # truncated mid-write
 GOOD = json.dumps({"v": 2, "count": 1, "focus": 0, "panels": [{"id": "p1", "code": "GP", "channel": "A"}]})
 

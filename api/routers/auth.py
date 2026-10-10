@@ -2985,8 +2985,8 @@ def enforce_board_bound(user_id, key: str, value) -> None:
     """TERM-001: refuse a board write that would GROW a board past the bound (400, with the
     bound's own sentence). An over-bound board that keeps its size or shrinks still saves; the
     stored value is read only when the new one is over the bound. ``api/services/board_bound.py``
-    owns the rule; both doors that write the board (this router and ``/api/workspace-doc/apply``)
-    call this one function."""
+    owns the rule; every door that writes the board (this router, ``/api/workspace/doc/apply`` and
+    ``/api/workspace/doc/restore``) calls this one function."""
     refusal = board_bound.check(key, value, lambda: get_user_preferences(user_id).get(key))
     if refusal:
         raise HTTPException(status_code=400, detail=refusal)

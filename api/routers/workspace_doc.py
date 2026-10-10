@@ -129,8 +129,14 @@ def read_version(version: int, board: str = Query(wds.BOARD_CHARTS), user: dict 
 @router.post("/restore", dependencies=[Depends(_armed)])
 def restore(req: RestoreRequest, user: dict = Depends(get_current_user)):
     """Restore version N (usually N-1). Compare-and-set on ``base_version``: a stale base is 409."""
+    from api.routers.auth import enforce_board_bound  # TERM-001: restore is a board write too
+
     board = _board(req.board)
     uid = user["id"]
+    target = wds.get_version(uid, board, req.version)
+    if target is not None and not target["tombstone"]:
+        for key, value in wds.prefs_from_doc(target["doc"]).items():
+            enforce_board_bound(uid, key, value)
     try:
         res = wds.restore(uid, board, req.version, base_version=req.base_version)
     except wds.VersionConflict as exc:

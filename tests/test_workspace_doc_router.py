@@ -166,6 +166,29 @@ def test_a_restore_on_a_stale_base_is_409_and_changes_nothing(store_path, monkey
     assert client.get("/api/workspace/doc").json()["version"] == head
 
 
+def test_a_restore_cannot_grow_a_board_past_the_bound(store_path, monkeypatch):
+    """TERM-001: restore writes the board, so it passes the same bound as the other doors. A
+    version from before the bound with more widgets than allowed cannot be restored over a board
+    that fits; the refusal changes neither store."""
+    from api.services import board_bound
+
+    over = json.dumps({"widgets": [{"i": f"w{i}", "type": "chart", "x": 0, "y": i, "w": 6, "h": 4}
+                                   for i in range(board_bound.MAX_BOARD_WIDGETS + 3)], "cols": 24, "version": 1})
+    user = _member()
+    client = _client(user)
+    auth_service.set_user_preference(user["id"], "charts_workspace_layout", over)
+    monkeypatch.setenv(wds.ENABLED_ENV, "1")
+    client.post("/api/auth/preferences", json={"key": "charts_workspace_layout", "value": EMPTY_BOARD})
+    head = client.get("/api/workspace/doc").json()["version"]
+    assert client.get("/api/workspace/doc/versions/1").json()["doc"]["prefs"]["charts_workspace_layout"] == over
+
+    r = client.post("/api/workspace/doc/restore", json={"version": 1, "base_version": head})
+    assert r.status_code == 400
+    assert f"at most {board_bound.MAX_BOARD_WIDGETS} widgets" in r.json()["detail"]
+    assert _prefs(client)["charts_workspace_layout"] == EMPTY_BOARD
+    assert client.get("/api/workspace/doc").json()["version"] == head
+
+
 def test_restoring_a_missing_version_is_404(store_path, monkeypatch):
     client = _client(_member())
     monkeypatch.setenv(wds.ENABLED_ENV, "1")
