@@ -93,6 +93,7 @@
 // no React, no LWC, no DOM, and crucially NO SOURCE GRAMMAR, which is the thing
 // `sourceStemOf` below refuses to import and says why. See its header for why one
 // naming rule is shared and the other is deliberately spelled twice.
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 import { untruncatedLabel } from './labelText'
 import { semanticName, namesItselfSemantically } from './semanticName'
 import { formatFundamentalValue, fundamentalFormatOfInstance } from './fundamentalFormat'
@@ -167,12 +168,16 @@ function sourceStemOf(def, inputs) {
  * ⚠️ `decimals` STILL GOVERNS THE ORDINARY PATH and is untouched for every plot
  * that declares no `compact` — which is all of them but one.
  */
+// TERM-066: the ladder this grammar already had, passed to the one formatter.
+const COMPACT_VALUE_TIERS = Object.freeze([
+  Object.freeze({ at: 1e12, suffix: 'T', decimals: 2 }),
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 2 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 1 }),
+])
 function compactValue(v) {
   const n = Math.abs(v)
-  if (n >= 1e12) return `${(v / 1e12).toFixed(2)}T`
-  if (n >= 1e9) return `${(v / 1e9).toFixed(2)}B`
-  if (n >= 1e6) return `${(v / 1e6).toFixed(1)}M`
-  if (n >= 1e3) return `${(v / 1e3).toFixed(1)}K`
+  if (n >= 1e3) return formatCompact(v, { tiers: COMPACT_VALUE_TIERS })
   return `${Math.round(v)}`
 }
 

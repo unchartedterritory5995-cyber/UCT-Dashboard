@@ -15,6 +15,13 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Checkbox from '../components/ui/Checkbox'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
+import { formatCompact } from '../lib/presentation/presentationPrimitives'
+
+// TERM-066: the ladder fmt$ already had (M two decimals, K none), passed to the one formatter.
+const PREMIUM_TIERS = Object.freeze([
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 2 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
 
 const P = {
   bg:  "#0a0e1a",
@@ -420,8 +427,7 @@ export default function AlertTester() {
 
   const fmt$ = (n) => {
     const a = Math.abs(n||0);
-    if (a >= 1e6) return "$"+(a/1e6).toFixed(2)+"M";
-    if (a >= 1e3) return "$"+(a/1e3).toFixed(0)+"K";
+    if (a >= 1e3) return formatCompact(a, { tiers: PREMIUM_TIERS, prefix: '$' });
     return "$"+a.toFixed(0);
   };
 

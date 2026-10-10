@@ -1,4 +1,5 @@
 // app/src/components/tiles/CatalystFlow.jsx
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 import { useState, useRef, useMemo, useCallback } from 'react'
 import useMobileSWR from '../../hooks/useMobileSWR'
 import useRealtimePrices from '../../hooks/useRealtimePrices'
@@ -26,9 +27,12 @@ function fmtEps(v) {
   return `${sign}$${Math.abs(v).toFixed(2)}`
 }
 
+// TERM-066: revenue arrives in MILLIONS, so the B tier sits at 1,000 (one decimal);
+// below it the value prints as whole millions, as it always has.
+const REV_B_TIERS = Object.freeze([Object.freeze({ at: 1000, suffix: 'B', decimals: 1 })])
 function fmtRev(m) {
   if (m == null) return '—'
-  return m >= 1000 ? `$${(m / 1000).toFixed(1)}B` : `$${Math.round(m)}M`
+  return m >= 1000 ? formatCompact(m, { tiers: REV_B_TIERS, prefix: '$' }) : `$${Math.round(m)}M`
 }
 
 function GapCell({ value }) {

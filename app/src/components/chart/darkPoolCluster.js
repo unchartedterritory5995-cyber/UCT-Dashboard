@@ -5,6 +5,14 @@
 // Extracted from pages/DarkPool.jsx so both the Dark Pool page and the in-chart
 // dark-pool setting (StockChart) render from ONE implementation — the clustering
 // rule can never diverge between the two surfaces.
+import { formatCompact } from '../../lib/presentation/presentationPrimitives'
+// TERM-066: the zone dollars ladder (B two decimals, M one, K none), passed to the one formatter.
+const NOTIONAL_TIERS = Object.freeze([
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 2 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
+
 export function clusterDarkPoolPrints(prints, { zonePct = 0.02 } = {}) {
   if (!prints || prints.length === 0) return []
   // Defensively read fields — backend may use either short or long names
@@ -61,9 +69,7 @@ export function clusterDarkPoolPrints(prints, { zonePct = 0.02 } = {}) {
       return single
     }
     const count = z._members.length
-    const dollarsLabel = z.notional >= 1e9 ? "$" + (z.notional/1e9).toFixed(2) + "B"
-                       : z.notional >= 1e6 ? "$" + (z.notional/1e6).toFixed(1) + "M"
-                       : z.notional >= 1e3 ? "$" + (z.notional/1e3).toFixed(0) + "K"
+    const dollarsLabel = z.notional >= 1e3 ? formatCompact(z.notional, { tiers: NOTIONAL_TIERS, prefix: '$' })
                        : "$" + Math.round(z.notional)
     const { _members, ...out } = z
     return {

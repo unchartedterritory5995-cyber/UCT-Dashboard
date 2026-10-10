@@ -1,5 +1,6 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
+import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import isModalOpen from '../utils/modalOpen'
@@ -1129,10 +1130,14 @@ function chartCrosshairTimeFormatter(time) {
   return `${_WD[d.getUTCDay()]} ${d.getUTCDate()} ${_MO[d.getUTCMonth()]} '${yy}`
 }
 
+// TERM-066: the ladder this grammar already had (M one decimal, K none), passed to the one formatter.
+const VOLUME_TIERS = Object.freeze([
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
 function formatVolume(v) {
   if (!v) return '0'
-  if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M'
-  if (v >= 1e3) return (v / 1e3).toFixed(0) + 'K'
+  if (v >= 1e3) return formatCompact(v, { tiers: VOLUME_TIERS })
   return v.toLocaleString()
 }
 
@@ -1155,11 +1160,15 @@ function formatVolumeAxis(v) {
 }
 
 // Format dollar notional for dark pool bars: "$120.5M", "$1.2B", "$45K"
+// TERM-066: B two decimals, M one, K none — the ladder this grammar already had.
+const DP_NOTIONAL_TIERS = Object.freeze([
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 2 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
 function formatDpNotional(v) {
   if (!Number.isFinite(v) || v <= 0) return '$0'
-  if (v >= 1e9) return '$' + (v / 1e9).toFixed(2) + 'B'
-  if (v >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M'
-  if (v >= 1e3) return '$' + (v / 1e3).toFixed(0) + 'K'
+  if (v >= 1e3) return formatCompact(v, { tiers: DP_NOTIONAL_TIERS, prefix: '$' })
   return '$' + v.toLocaleString()
 }
 

@@ -11,6 +11,7 @@
 // Deliberately NOT added to the NavBar yet -- reachable by direct URL only,
 // same as /traders, /dark-pool, /post-market and /setup-library. The packet
 // explicitly defers a permanent nav entry to the owner.
+import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { useMemo, useState } from 'react'
 import useSWR from 'swr'
 import TickerPopup from '../components/TickerPopup'
@@ -27,13 +28,17 @@ const CAP_BANDS = [
   { value: 'mid_small', label: 'Mid/Small cap' },
 ]
 
+// TERM-066: the ladder this grammar already had, passed to the one formatter.
+const MONEY_TIERS = Object.freeze([
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 2 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
 function fmtMoney(v) {
   if (v == null || !Number.isFinite(Number(v))) return '—'
   const n = Number(v)
   const abs = Math.abs(n)
   const sign = n < 0 ? '-' : ''
-  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`
-  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}K`
+  if (abs >= 1_000) return formatCompact(n, { tiers: MONEY_TIERS, prefix: '$' })
   return `${sign}$${abs.toFixed(0)}`
 }
 

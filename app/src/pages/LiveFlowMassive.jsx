@@ -1,3 +1,4 @@
+import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { useEffect, useRef, useState, useMemo, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
 import TickerPopup from "../components/TickerPopup";
@@ -277,10 +278,14 @@ function fmtTime(unixSec) {
   return `${h12}:${mm}:${ss} ${ampm}`;
 }
 
+// TERM-066: the ladder this grammar already had, passed to the one formatter.
+const PREMIUM_TIERS = Object.freeze([
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 2 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
 function fmtPremium(p) {
   if (!p && p !== 0) return "—";
-  if (p >= 1_000_000) return "$" + (p / 1_000_000).toFixed(2) + "M";
-  if (p >= 1_000) return "$" + (p / 1_000).toFixed(0) + "K";
+  if (p >= 1_000) return formatCompact(p, { tiers: PREMIUM_TIERS, prefix: '$' });
   return "$" + p.toFixed(0);
 }
 
@@ -359,10 +364,14 @@ function fmtMoneyness(pct, label) {
 
 // Volume / OI as compact counts. Massive contracts hit 6-digit volume on
 // busy days; raw integers get unreadable. 1234 → "1.2K", 12345 → "12.3K".
+// TERM-066: M one decimal, K none from 10K up (1K-10K keeps its one decimal, below) — the ladder this grammar already had.
+const COUNT_TIERS = Object.freeze([
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
 function fmtCount(n) {
   if (n == null) return "—";
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-  if (n >= 10_000) return (n / 1000).toFixed(0) + "K";
+  if (n >= 10_000) return formatCompact(n, { tiers: COUNT_TIERS });
   if (n >= 1000) return (n / 1000).toFixed(1) + "K";
   return String(n);
 }

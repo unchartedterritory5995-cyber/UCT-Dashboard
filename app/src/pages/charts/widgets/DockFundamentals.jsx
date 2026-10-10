@@ -8,6 +8,7 @@
  * Takes the chart's resolved `sym` directly (no color-group indirection), so it
  * always mirrors exactly what the chart shows.
  */
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 import useEarningsTable from '../../../hooks/useEarningsTable'
 import AnalystPanel from '../../../components/fundamentals/AnalystPanel'
 import OwnershipPanel from '../../../components/fundamentals/OwnershipPanel'
@@ -21,12 +22,16 @@ const TABS = [
   { key: 'ownership', label: 'Ownership' },
 ]
 
+// TERM-066: the ladder this grammar already had, passed to the one formatter.
+const SALES_TIERS = Object.freeze([
+  Object.freeze({ at: 1e12, suffix: 'T', decimals: 2 }),
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 1 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 0 }),
+])
 function fmtSales(v) {
   if (v == null) return '—'
   const a = Math.abs(v)
-  if (a >= 1e12) return `$${(v / 1e12).toFixed(2)}T`
-  if (a >= 1e9) return `$${(v / 1e9).toFixed(1)}B`
-  if (a >= 1e6) return `$${(v / 1e6).toFixed(0)}M`
+  if (a >= 1e6) return formatCompact(v, { tiers: SALES_TIERS, prefix: '$' })
   return `$${v}`
 }
 const fmtEps = (v) => (v == null ? '—' : Number(v).toFixed(2))

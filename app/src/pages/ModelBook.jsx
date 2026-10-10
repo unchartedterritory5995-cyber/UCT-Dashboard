@@ -1,3 +1,4 @@
+import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import useSWR, { preload } from 'swr'
@@ -205,12 +206,16 @@ function fmtPrice(v) {
   return v == null ? '—' : `$${Number(v).toFixed(2)}`
 }
 
+// TERM-066: the ladder this grammar already had, passed to the one formatter.
+const VOL_TIERS = Object.freeze([
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 1 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
 function fmtVol(v) {
   if (v == null) return '—'
   const n = Number(v)
-  if (n >= 1e9) return `${(n / 1e9).toFixed(1)}B`
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`
-  if (n >= 1e3) return `${(n / 1e3).toFixed(0)}K`
+  if (n >= 1e3) return formatCompact(n, { tiers: VOL_TIERS })
   return String(Math.round(n))
 }
 
@@ -252,13 +257,17 @@ function fmtReported(dateStr) {
 function fmtEps(v) {
   return v == null ? '—' : Number(v).toFixed(2)
 }
+// TERM-066: the ladder this grammar already had, passed to the one formatter.
+const REVENUE_TIERS = Object.freeze([
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 2 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 2 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 1 }),
+])
 function fmtRevenue(v) {
   if (v == null) return '—'
   const n = Number(v)
   const a = Math.abs(n)
-  if (a >= 1e9) return `${(n / 1e9).toFixed(2)}B`
-  if (a >= 1e6) return `${(n / 1e6).toFixed(2)}M`
-  if (a >= 1e3) return `${(n / 1e3).toFixed(1)}K`
+  if (a >= 1e3) return formatCompact(n, { tiers: REVENUE_TIERS })
   return String(Math.round(n))
 }
 // Surprise % → display text + up/down sign for coloring.

@@ -46,6 +46,7 @@
 // the route resolves exactly as before, which is what keeps the Sunday Scans /
 // Substack renderer out of the blast radius.
 
+import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
@@ -85,12 +86,16 @@ const TF_LABEL = { '1': '1 min', '5': '5 min', '15': '15 min', '30': '30 min', '
 // Height of the optional `?stats=` strip; the caller adds it to `?h=`.
 export const STATS_STRIP_H = 28
 
+// TERM-066: the ladder this grammar already had, passed to the one formatter.
+const SIZE_TIERS = Object.freeze([
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 1 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 0 }),
+])
 const fmtNum = (v) => {
   if (v == null || !Number.isFinite(Number(v))) return '—'
   const x = Number(v); const a = Math.abs(x)
-  if (a >= 1e9) return `${(x / 1e9).toFixed(1)}B`
-  if (a >= 1e6) return `${(x / 1e6).toFixed(1)}M`
-  if (a >= 1e3) return `${(x / 1e3).toFixed(0)}K`
+  if (a >= 1e3) return formatCompact(x, { tiers: SIZE_TIERS })
   return x.toFixed(2)
 }
 // A PRICE always prints in full (1103.36). fmtNum is for sizes: through it a stock over 1,000
