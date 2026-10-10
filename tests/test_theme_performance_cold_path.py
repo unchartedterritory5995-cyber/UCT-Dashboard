@@ -58,3 +58,12 @@ def test_the_route_stale_bound_is_long_only_while_prices_cannot_move(monkeypatch
     monkeypatch.setattr(tp, "prices_moving", lambda now=None: True)
     tpr.serve_theme_performance()
     assert tpr._THEME_STALE.max_age == tpr.THEME_STALE_MAX_AGE
+
+
+def test_the_market_hours_stale_bound_covers_a_polling_lull():
+    """Measured 2026-10-09: with a 30 s bound, a member arriving after a 30 s lull in
+    polling waited 7-18 s for a synchronous rebuild, all session. The bound must cover
+    a realistic lull so that visitor is served the last complete overlay at once."""
+    from api.routers import theme_performance as tpr
+    assert tpr.THEME_STALE_MAX_AGE >= 300
+    assert tpr.THEME_STALE_QUIET_MAX_AGE >= tpr.THEME_STALE_MAX_AGE
