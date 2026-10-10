@@ -371,8 +371,17 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // The one removed line is a fixture's `"indicatorInstances": []`. No existing
   // value changed. (The previous digest reproduces byte-for-byte on 38bb9a421.)
   // (Prior value: 8f9ffa0ab1e94e09751359907ded43c613dc340489dcdb1c50c64589e5c52066)
+  // 2026-10-10: re-pinned for `breadthChartType` (9c78c7cfdb, the owner ruling that
+  // breadth charts draw candles again). That commit re-pinned perInstanceDoor's digest
+  // and missed this one, so master went red here. ⛔ INVESTIGATED BY MEASUREMENT, NOT
+  // REGENERATED: every fixture's merged blob was dumped (sorted keys) at 11fa16167f
+  // (its parent) and at d8e6537784 and diffed. ADDED ONLY: `breadthChartType =
+  // "candles"` in each of the 5 fixtures. 0 removed, 0 changed. Hashing the new blobs
+  // with that one key dropped reproduces the prior digest byte-for-byte. The key is
+  // read only for a breadth / indicator series, so no stock chart changes a pixel.
+  // (Prior value: 206f81e6a93b20ca0c7dc72131ecec0e0a1e91847e1c0b9e43814a807aec8a19)
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    '206f81e6a93b20ca0c7dc72131ecec0e0a1e91847e1c0b9e43814a807aec8a19'
+    '10ee25844f50734faee52fe6e84abc7353c37c3afe250bc12a1198db7320f873'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's
