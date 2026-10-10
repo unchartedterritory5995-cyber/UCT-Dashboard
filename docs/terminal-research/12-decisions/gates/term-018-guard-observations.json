@@ -998,6 +998,99 @@
         ],
         "unfollowable": "registry.job_specs() imports api.services.wisdom.<pkg>.jobs through an f-string over PACKAGES and reads that module's JOBS list, and run_job reaches an entry's fn by looking its job id up in that list. Both halves are proved; the lookup between them is a runtime string match by design."
       }
+    },
+    {
+      "guard": "api/services/wisdom/capture/health.py::page::<computed>::critical",
+      "in_population": true,
+      "audit_rows": [
+        "G-30"
+      ],
+      "what_the_guard_decides": "Whether a capture slot whose dataset reads ZERO rows (or is unreadable) on a trading day pages `wisdom_capture_p1:<dataset>` at `critical`; a dataset with rows, and one that declares it does not page on that state, page nobody.",
+      "predicate": {
+        "file": "api/services/wisdom/capture/health.py",
+        "scope": "page",
+        "pinned": "f\"{PAGE_KEY_PREFIX}{dataset}\", \"critical\", message,",
+        "mutation": "f\"{PAGE_KEY_PREFIX}{dataset}\", \"warning\", message,"
+      },
+      "observed_by": [
+        "tests/test_term018_wisdom_guards.py::test_a_capture_slot_that_reads_zero_rows_on_a_trading_day_pages_critical",
+        "tests/test_term018_wisdom_guards.py::test_CONTROL_a_capture_slot_with_rows_pages_nobody",
+        "tests/test_term018_wisdom_guards.py::test_CONTROL_a_dataset_that_does_not_page_on_zero_pages_nobody",
+        "tests/test_wisdom_capture_runner.py::test_zero_on_a_trading_day_pages_and_a_holiday_does_not"
+      ],
+      "proof": {
+        "commit": "64f32fec6",
+        "quote": "G-30 capture page demoted to warning (3 red: test_a_capture_slot_that_reads_zero_rows_on_a_trading_day_pages_critical, test_a_zero_row_capture_writes_no_object_and_moves_no_watermark, test_zero_on_a_trading_day_pages_and_a_holiday_does_not)"
+      },
+      "wire": {
+        "kind": "table",
+        "hops": [
+          {
+            "file": "api/services/wisdom/capture/runner.py",
+            "call": "health.page"
+          },
+          {
+            "file": "api/services/wisdom/capture/jobs.py",
+            "call": "runner.run_job"
+          },
+          {
+            "file": "api/services/wisdom/capture/jobs.py",
+            "call": "_cron",
+            "job_id": "wisdom_capture_eod",
+            "job_arg": 0,
+            "factory_kw": "fn"
+          }
+        ],
+        "dispatcher": {
+          "file": "api/services/wisdom/registry.py",
+          "scope": "run_job"
+        },
+        "dispatcher_hops": [
+          {
+            "file": "api/services/wisdom/registry.py",
+            "call": "add_job"
+          },
+          {
+            "file": "api/main.py",
+            "call": "_wisdom_registry_jobs.register_jobs"
+          }
+        ],
+        "unfollowable": "registry.job_specs() imports api.services.wisdom.<pkg>.jobs through an f-string over PACKAGES and reads its JOBS list, and run_job reaches an entry's fn by looking its job id up in that list. The entry is the factory hop: _cron(families.JOB_EOD) resolved to wisdom_capture_eod, building JobSpec(fn=_slot(job_id)) whose returned run is the anchor. Both halves are proved; the lookup between them is a runtime string match by design.",
+        "note": "One capture slot names the entry; the other five slots reach the same runner.run_job through the same factory."
+      }
+    },
+    {
+      "guard": "api/routers/push.py::_check_taxonomy_handshake::taxonomy_version_mismatch::warning",
+      "in_population": true,
+      "audit_rows": [
+        "G-21"
+      ],
+      "what_the_guard_decides": "Whether a wire push carrying a taxonomy version that differs from the dashboard's seeded one raises ONE `warning` (a stale deploy to fix, never a page) while the push still lands; the same version, no version, or a rejected secret raise nothing.",
+      "predicate": {
+        "file": "api/routers/push.py",
+        "scope": "_check_taxonomy_handshake",
+        "pinned": "\"taxonomy_version_mismatch\", \"warning\",",
+        "mutation": "\"taxonomy_version_mismatch\", \"critical\","
+      },
+      "observed_by": [
+        "tests/test_term018_push_handshake_guard.py::test_a_push_on_a_different_taxonomy_raises_one_warning_and_still_lands",
+        "tests/test_term018_push_handshake_guard.py::test_CONTROL_the_same_taxonomy_raises_nothing",
+        "tests/test_term018_push_handshake_guard.py::test_CONTROL_a_push_carrying_no_version_raises_nothing",
+        "tests/test_term018_push_handshake_guard.py::test_CONTROL_a_rejected_secret_never_reaches_the_handshake"
+      ],
+      "proof": {
+        "commit": "08cc500da",
+        "quote": "G-21 taxonomy mismatch promoted to critical (1 red: test_a_push_on_a_different_taxonomy_raises_one_warning_and_still_lands)"
+      },
+      "wire": {
+        "kind": "route",
+        "method": "POST",
+        "path": "/api/push",
+        "file": "api/routers/push.py",
+        "handler": "push_wire_data",
+        "router": "router",
+        "note": "Mounted by app.include_router(push.router) in api/main.py; the production caller is the morning-wire engine's push. Nothing in this repo writes taxonomy_version into a payload yet, so the guard is a no-op until the engine sends it."
+      }
     }
   ],
   "declared_unobserved": [
@@ -1010,14 +1103,6 @@
       ],
       "audit_class": "PROVEN/FIREABLE",
       "why": "THREE audit rows collapse to ONE derived guard here: the key AND the severity are both computed, so nothing static can split the milestone / ordinary-expiring / expired tiers apart. Splitting the id needs the emitter to pass literals. Also cannot fire on a clock before ~2027-07-04."
-    },
-    {
-      "guard": "api/routers/push.py::_check_taxonomy_handshake::taxonomy_version_mismatch::warning",
-      "audit_rows": [
-        "G-21"
-      ],
-      "audit_class": "PROVEN",
-      "why": "The predicate is satisfiable (tests/theme_engine/test_propagation.py) but NOTHING in this repo writes taxonomy_version into a push payload, so the production input is out of reach here. RE-CHECKED 2026-10-10 (lane f-l6): a test CAN build the input with no production change (a payload carrying a taxonomy_version that differs from the seeded one, or a POST to /api/push with PUSH_SECRET), so red-before-green is takeable. What blocks the record is clause 7: the guard is reached only from the /api/push route handler, and a FastAPI route is mounted by include_router and dispatched by the framework, which none of the closed WIRE_KINDS (chain, table, sink, cli) can express. Recording it needs a ruling to add a route wire kind to the rail, not more tests."
     },
     {
       "guard": "api/services/perplexity_search.py::_notify_auth_failure::perplexity_auth_failure::critical",
@@ -1034,14 +1119,6 @@
       ],
       "audit_class": "FIREABLE",
       "why": "No test names the key. WIRE (checked 2026-10-10, lane f-l6): reached from bars_fetch on the request path and by many callers, so no single hop carries it and a cut of any one call would leave the chain intact (clause 7)."
-    },
-    {
-      "guard": "api/services/wisdom/capture/health.py::page::<computed>::critical",
-      "audit_rows": [
-        "G-30"
-      ],
-      "audit_class": "FIREABLE",
-      "why": "classify/should_page are pure and unit-covered; no assertion of the emit itself was found. FIRED AND MUTATION-PROVED 2026-10-10 (lane f-l6, proof 64f32fec6: registry.run_job(wisdom_capture_eod) through the job table; the page demoted to warning reds 3, tests/test_term018_wisdom_guards.py and tests/test_wisdom_capture_runner.py), but NOT recordable: clause 7 wants a table entry named by a literal id at a JobSpec call whose fn is a plain name, and capture/jobs.py builds its six JobSpecs through _cron(families.JOB_*, ...) with fn=_slot(job_id). Recording needs either capture/jobs.py to declare its entries literally (which would restate the families constants) or the rail to follow _cron; a lane call, not a test."
     }
   ]
 }
