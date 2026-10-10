@@ -72,7 +72,14 @@ describe('EtfPanel', () => {
     expect(rows[0].textContent).toContain('NVDA')
     expect(rows[0].textContent).toContain('20%')
     expect(screen.getByTestId('terminal-etf-more').textContent).toContain(`top ${HOLDINGS_SHOWN} of 30`)
-    expect(screen.getByTestId('terminal-etf-family-empty').textContent).toContain('No leveraged or inverse ETFs track SMH')
+    expect(screen.getByTestId('terminal-etf-family-empty').textContent).toContain('SMH is a fund. This list covers leveraged ETFs on single stocks')
+  })
+
+  it('a stock with no single-stock leveraged ETFs says so, naming the scope', async () => {
+    serve({ [holdingsUrl('ACME')]: { symbol: 'ACME', holdings: [] }, [familyUrl('ACME')]: EMPTY_FAMILY, [ETF_SYMBOLS_URL]: { symbols: [] } })
+    renderPanel('ACME')
+    expect((await screen.findByTestId('terminal-etf-family-empty')).textContent)
+      .toBe('No single-stock leveraged or inverse ETFs track ACME.')
   })
 
   it('a leveraged ETF names its underlying and marks itself', async () => {

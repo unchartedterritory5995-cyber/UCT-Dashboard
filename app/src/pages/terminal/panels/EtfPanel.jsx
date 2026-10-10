@@ -100,12 +100,16 @@ export default function EtfPanel({ sym }) {
     <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-etf">
       <section aria-labelledby={`${hid}-family`}>
         <h3 id={`${hid}-family`} className={styles.lede}>
-          {leveragedEtf ? `${s} is a leveraged ETF on ${underlying}. The ${underlying} family:` : `Leveraged and inverse ETFs on ${s}`}
+          {leveragedEtf ? `${s} is a leveraged ETF on ${underlying}. The ${underlying} family:` : `Single-stock leveraged and inverse ETFs on ${s}`}
         </h3>
         {family.error ? (
           <p className={styles.note} role="status" data-testid="terminal-etf-family-error">{familyNote(family.error)}</p>
         ) : familyEmpty ? (
-          <p className={styles.muted} data-testid="terminal-etf-family-empty">No leveraged or inverse ETFs track {s}.</p>
+          <p className={styles.muted} data-testid="terminal-etf-family-empty">
+            {isEtf
+              ? `${s} is a fund. This list covers leveraged ETFs on single stocks, so index products are not in it.`
+              : `No single-stock leveraged or inverse ETFs track ${s}.`}
+          </p>
         ) : (
           <div className={styles.tableBox}>
             <table className={styles.table} data-testid="terminal-etf-family" aria-label={`Leveraged and inverse ETFs on ${leveragedEtf ? underlying : s}`}>

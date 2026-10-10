@@ -9,7 +9,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup, within } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
-import TwtPanel, { TWT_SHOWN, tweetRows, tweetsUrl } from './TwtPanel'
+import TwtPanel, { countText, TWT_SHOWN, tweetRows, tweetsUrl } from './TwtPanel'
 import { BY_CODE, variantFor } from '../functions'
 import { PANEL_IMPORTERS } from '../panels'
 import parseCommand from '../parseCommand'
@@ -125,5 +125,14 @@ describe('TWT locked states (wave 9)', () => {
     const off = await screen.findByTestId('terminal-twt-error')
     expect(off.textContent).toContain('not switched on')
     expect(screen.queryByRole('button', { name: 'Retry' })).toBeNull()
+  })
+})
+
+describe('TWT counts', () => {
+  it('puts the noun in the right number', () => {
+    expect(countText(1, 'repost')).toBe('1 repost')
+    expect(countText(0, 'like')).toBe('0 likes')
+    expect(countText(1200, 'like')).toBe('1,200 likes')
+    expect(countText(undefined, 'repost')).toBe('0 reposts')
   })
 })

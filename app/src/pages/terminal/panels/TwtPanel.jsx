@@ -43,6 +43,12 @@ function failureTitle(err, sym) {
   return `Could not read posts about ${sym} just now.`
 }
 
+/** "1 like", "0 likes", "1,204 reposts": the count with its noun in the right number. */
+export function countText(value, noun) {
+  const n = Number(value) || 0
+  return `${formatNumber(n, { decimals: 0 })} ${noun}${n === 1 ? '' : 's'}`
+}
+
 export default function TwtPanel({ sym }) {
   const s = String(sym || '').trim().toUpperCase()
   const enabled = twitterUiEnabled()
@@ -106,7 +112,7 @@ export default function TwtPanel({ sym }) {
             <p style={{ margin: 'var(--space-xs) 0', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{t.text}</p>
             <div className={styles.head}>
               <span className={styles.lede}>
-                {formatNumber(Number(t.like_count) || 0, { decimals: 0 })} likes, {formatNumber(Number(t.retweet_count) || 0, { decimals: 0 })} reposts
+                {countText(t.like_count, 'like')}, {countText(t.retweet_count, 'repost')}
               </span>
               {t.url ? (
                 <a className={styles.linkBtn} href={t.url} target="_blank" rel="noopener noreferrer"
