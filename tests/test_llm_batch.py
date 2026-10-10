@@ -56,25 +56,25 @@ def test_a_pending_batch_survives_a_restart(lb, monkeypatch, tmp_path):
     """The whole reason the ledger is a FILE: an in-memory batch id is a paid
     result nobody ever collects on a pod that redeploys several times a day."""
     monkeypatch.setattr(lb, "_client", lambda: _client_with(_Batches()))
-    lb.submit("call_recap", [{"custom_id": "DIS|Q3", "params": {}}],
-              {"DIS|Q3": {"symbol": "DIS"}})
+    lb.submit("call_recap", [{"custom_id": "DIS_Q3", "params": {}}],
+              {"DIS_Q3": {"symbol": "DIS"}})
     importlib.reload(lb)                    # stand in for a fresh process
     monkeypatch.setenv("LLM_BATCH_LEDGER_PATH", str(tmp_path / "batches.json"))
     rows = lb.pending("call_recap")
-    assert len(rows) == 1 and rows[0]["meta"]["DIS|Q3"]["symbol"] == "DIS"
+    assert len(rows) == 1 and rows[0]["meta"]["DIS_Q3"]["symbol"] == "DIS"
 
 
 def test_results_are_handed_over_keyed_by_custom_id_with_their_submit_meta(lb, monkeypatch):
-    batches = _Batches(results=[_result("AAPL|Q3", '{"ok":1}'), _result("DIS|Q3", '{"ok":2}')])
+    batches = _Batches(results=[_result("AAPL_Q3", '{"ok":1}'), _result("DIS_Q3", '{"ok":2}')])
     monkeypatch.setattr(lb, "_client", lambda: _client_with(batches))
-    lb.submit("s", [{"custom_id": "DIS|Q3", "params": {}},
-                    {"custom_id": "AAPL|Q3", "params": {}}],
-              {"DIS|Q3": {"symbol": "DIS"}, "AAPL|Q3": {"symbol": "AAPL"}})
+    lb.submit("s", [{"custom_id": "DIS_Q3", "params": {}},
+                    {"custom_id": "AAPL_Q3", "params": {}}],
+              {"DIS_Q3": {"symbol": "DIS"}, "AAPL_Q3": {"symbol": "AAPL"}})
     seen = {}
     out = lb.reap("s", lambda cid, msg, meta: seen.__setitem__(cid, meta.get("symbol")))
     # results arrived in the OPPOSITE order to submission — identity must ride
     # the custom_id, never the position
-    assert seen == {"AAPL|Q3": "AAPL", "DIS|Q3": "DIS"}
+    assert seen == {"AAPL_Q3": "AAPL", "DIS_Q3": "DIS"}
     assert out["succeeded"] == 2 and out["batches"] == 1
     assert lb.pending("s") == []            # collected rows leave the ledger
 
@@ -143,3 +143,29 @@ def test_a_corrupt_ledger_reads_as_empty_instead_of_raising(lb):
     with open(os.environ["LLM_BATCH_LEDGER_PATH"], "w", encoding="utf-8") as f:
         f.write("{not json")
     assert lb.pending() == []
+
+# ── custom_id: the batch API's pattern (production 2026-10-10) ─────────────────
+
+def test_custom_id_is_always_inside_the_batch_api_pattern(lb):
+    for parts in (("DIS", "Q3 2026"), ("BRK.B", "Q2 2026"), ("A|B", "x/y"), ("", ""), ("Z" * 80, "Q1")):
+        cid = lb.custom_id(*parts)
+        assert lb.CUSTOM_ID_PATTERN.match(cid), (parts, cid)
+
+
+def test_custom_id_keeps_a_readable_shape(lb):
+    assert lb.custom_id("DIS", "Q3 2026") == "DIS_Q3-2026"
+
+
+def test_custom_ids_that_sanitise_alike_stay_unique_in_one_batch(lb):
+    taken = set()
+    a = lb.custom_id("BRK.B", "Q2", taken=taken)
+    b = lb.custom_id("BRK-B", "Q2", taken=taken)
+    assert a != b and all(lb.CUSTOM_ID_PATTERN.match(x) for x in (a, b))
+
+
+def test_submit_refuses_an_id_the_api_would_reject_before_any_network(lb, monkeypatch):
+    """The API rejects the WHOLE batch for one bad id; refuse locally and loudly."""
+    calls = []
+    monkeypatch.setattr(lb, "_client", lambda: calls.append("client") or None)
+    assert lb.submit("s", [{"custom_id": "DIS|Q3", "params": {}}], {}) is None
+    assert calls == [] and lb.pending("s") == []
