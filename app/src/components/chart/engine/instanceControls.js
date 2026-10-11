@@ -1069,3 +1069,52 @@ export function duplicateInstance(cs, instanceId, registry) {
   indicators[inst.defId] = { ...(indicators[inst.defId] || {}), enabled: true }
   return { ...withInstances(cs, [...list, added], registry), indicators }
 }
+
+/**
+ * ADD A COPY OF A CAPTURED INSTANCE — an indicator template's entry, put on THIS chart
+ * as its own instance under a NEW stable identity.
+ *
+ * ⭐ `duplicateInstance`'s rule, for a body that is not on the chart. A member's saved
+ * indicator template (`builder/indicatorTemplates.js`) holds each indicator as the
+ * instance it was when saved, minus its identity. Applying it must reproduce what the
+ * member configured — definition, inputs, calculation timeframe, display target,
+ * presentation, visibility, a member rename — and `addInstance` cannot: it builds
+ * DEFAULTS, so a template's RSI(7) would arrive as RSI(14).
+ *
+ * ⛔ NOT COPIED: the id (minted fresh, so applying a template never collides with or
+ * overwrites an instance already on the chart), `scope` (the template belongs to no
+ * chart), `group` (a copy is a standalone series, as duplicate rules), and `deleted`.
+ * `defVersion` is the definition's CURRENT version, as `addInstance` stamps it — a
+ * template saved weeks ago must not pin a version the registry no longer installs.
+ *
+ * ⛔ SOURCE INPUTS THAT NAME ANOTHER INSTANCE ARE THE CALLER'S. An id inside `inputs`
+ * pointed at the chart the template was saved from; the template layer re-points
+ * those at the copies it just minted (`setInstanceInput`) or leaves the default.
+ *
+ * Refused BY IDENTITY (returns `cs`) for a body whose definition does not resolve, so
+ * the caller's test is `next !== cs` like every other writer here.
+ *
+ * @returns {object} the next settings blob, or `cs` UNCHANGED when refused
+ */
+export function addInstanceCopy(cs, body, registry) {
+  if (!cs || typeof cs !== 'object' || !body || typeof body !== 'object') return cs
+  const defId = typeof body.defId === 'string' ? body.defId : null
+  const def = defId ? resolveRegistry(registry)(defId) : null
+  if (!def) return cs
+  const list = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
+  const {
+    instanceId: _id, scope: _scope, group: _group, deleted: _deleted, defVersion: _v, hidden, ...rest
+  } = body
+  const copy = JSON.parse(JSON.stringify(rest))
+  const added = {
+    ...copy,
+    defId,
+    ...(Number.isInteger(def.version) ? { defVersion: def.version } : {}),
+    inputs: copy.inputs && typeof copy.inputs === 'object' && !Array.isArray(copy.inputs) ? copy.inputs : {},
+    instanceId: newInstanceId(defId, list),
+    hidden: hidden === true,
+  }
+  const indicators = { ...(cs.indicators || {}) }
+  indicators[defId] = { ...(indicators[defId] || {}), enabled: true }
+  return { ...withInstances(cs, [...list, added], registry), indicators }
+}

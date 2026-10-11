@@ -3279,3 +3279,57 @@
 }
 .resAction:hover { color: var(--uct-text, inherit); border-color: var(--uct-gold, #c9a84c); }
 .resAction:focus-visible { outline: 2px solid var(--uct-gold, #c9a84c); outline-offset: 1px; }
+
+/* ── Indicator templates (IndicatorTemplatesBar, Chart Settings → Indicators) ──
+   Sits at the foot of the Indicators column beside "Add to Chart". The list opens
+   INLINE rather than as a floating menu: the column foot is the bottom of the modal,
+   where a dropdown would open off its edge. */
+.indTplBox {
+  flex: none;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.indTplToggle {
+  align-self: stretch;
+  background: transparent;
+  border: 1px solid var(--menu-border, #2c2c30);
+  border-radius: 7px;
+  color: var(--menu-text-dim, #8a8a8f);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+.indTplToggle:hover { color: var(--menu-text, #ededed); border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); }
+.indTplToggle:focus-visible { outline: none; border-color: var(--menu-accent, #dcbb5e); box-shadow: 0 0 0 1px var(--menu-accent, #dcbb5e); }
+.indTplPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--menu-divider, #202022);
+  border-radius: 7px;
+  background: var(--menu-bg-top, #161618);
+}
+.indTplList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.indTplCount { color: var(--menu-text-dim, #8a8a8f); font-weight: 500; }
+.indTplStatus {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--menu-text-dim, #8a8a8f);
+}
+
+@media (max-width: 1024px) {
+  .indTplToggle, .indTplPanel .tplApply, .indTplPanel .tplDelete,
+  .indTplPanel .tplSaveBtn, .indTplPanel .tplCancelBtn { min-height: var(--tap-min, 44px); }
+}

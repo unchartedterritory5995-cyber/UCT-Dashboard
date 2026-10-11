@@ -56,7 +56,7 @@ describe('SocialPolarity on the Room attention panel', () => {
     renderPanel()
     const sum = await screen.findByTestId('polarity-summary')
     expect(sum.textContent).toBe('Last month: 2 bullish, 2 bearish, 0 neutral of 4 posts (50% of the directional ones bullish).')
-    expect(screen.getByTestId('polarity-method').textContent).toMatch(/^Auto-labelled: /)
+    expect(screen.getByTestId('polarity-method').textContent).toMatch(/^Auto-labelled by /)
     expect(screen.getByText('Bullish/bearish split (auto-labelled)')).toBeInTheDocument()
     expect(screen.getByTestId('polarity-split')).toHaveAttribute('aria-label', '2 bullish, 2 bearish')
     expect(screen.queryByTestId('mentions-polarity')).toBeNull()
@@ -120,5 +120,51 @@ describe('SocialPolarity on the Room attention panel', () => {
     expect((await screen.findByTestId('polarity-summary')).textContent).toBe('No labelled posts named NVDA in the last month.')
     expect(screen.queryByTestId('polarity-split')).toBeNull()
     expect(screen.getByTestId('polarity-no-posts')).toBeInTheDocument()
+  })
+})
+
+describe('SocialPolarity pre-arm review 2026-10-11', () => {
+  it('the method line reads once, not "Auto-labelled: auto-labelled by"', async () => {
+    polarityBody = view({ method: 'a word-and-emoji rule; treat any single label as a guess' })
+    renderPanel()
+    const m = await screen.findByTestId('polarity-method')
+    expect(m.textContent).toBe('Auto-labelled by a word-and-emoji rule; treat any single label as a guess.')
+    expect(m.textContent.toLowerCase().match(/auto-labelled/g)).toHaveLength(1)
+  })
+
+  it('post text is text, never markup, and wraps at phone width', async () => {
+    polarityBody = view({ posts: [{ source: 'room', id: 'r9', ts: 1, date: '2026-10-09', label: 'neutral', score: 0,
+      text: '<img src=x onerror="window.__pwned=1"> https://example.com/' + 'a'.repeat(300), text_state: 'kept', link: null, author: null }] })
+    renderPanel()
+    const post = await screen.findByTestId('polarity-post')
+    expect(post.querySelector('img')).toBeNull()
+    expect(post.textContent).toContain('<img src=x onerror=')
+    expect(screen.getByTestId('polarity-post-text').className).toMatch(/postText/)
+  })
+
+  it('a link that is not https is not rendered as an href', async () => {
+    polarityBody = view({ posts: [{ source: 'x', id: 't9', ts: 1, date: '2026-10-09', label: 'bullish', score: 0.5,
+      text: 'x', text_state: 'kept', link: 'javascript:alert(1)', author: 'B' }] })
+    renderPanel()
+    const post = await screen.findByTestId('polarity-post')
+    expect(post.querySelector('a')).toBeNull()
+  })
+
+  it('while a new window loads, the old numbers say they are the old window', async () => {
+    let release
+    renderPanel()
+    await screen.findByTestId('polarity-summary')
+    global.fetch = vi.fn((u) => {
+      urls.push(u)
+      if (String(u).includes('window=1w')) return new Promise((r) => { release = () => r({ ok: true, status: 200, json: () => Promise.resolve(view({ window_key: '1w' })) }) })
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(String(u).includes('/polarity') ? polarityBody : SERIES) })
+    })
+    fireEvent.click(screen.getByRole('button', { name: '1W' }))
+    const note = await screen.findByTestId('polarity-updating')
+    expect(note.textContent).toBe('Updating to the last week; the numbers below are still the last month.')
+    expect(screen.getByTestId('polarity')).toHaveAttribute('aria-busy', 'true')
+    release()
+    await waitFor(() => expect(screen.queryByTestId('polarity-updating')).toBeNull())
+    expect(screen.getByTestId('polarity')).toHaveAttribute('aria-busy', 'false')
   })
 })

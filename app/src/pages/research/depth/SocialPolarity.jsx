@@ -23,6 +23,10 @@ const LABEL_WORD = { bullish: 'Bullish', bearish: 'Bearish', neutral: 'Neutral' 
 
 const dash = (v) => (v == null ? '—' : String(v))
 
+// Only an https link becomes an href (the server already drops anything else).
+const safeLink = (u) => (typeof u === 'string' && u.startsWith('https://') ? u : null)
+const methodText = (m) => String(m || '').replace(/^auto-labelled by\s+/i, '').replace(/\.\s*$/, '')
+
 function sourceText(p) {
   if (p.source === 'room') return '#main-chat'
   return p.author ? `X @${p.author}` : 'X'
@@ -36,6 +40,8 @@ export default function SocialPolarity({ sym, polarity }) {
   const route = polarity?.route || (s ? `/api/research/mention-series/${encodeURIComponent(s)}/polarity` : null)
   const url = route ? `${route}?window=${win}&sort=${sort}&label=${label}&limit=50` : null
   const { data, error, mutate } = useSWR(url, depthFetcher, { revalidateOnFocus: false, keepPreviousData: true })
+  // keepPreviousData holds the last window on screen while the new one loads, so say so.
+  const stale = Boolean(data && data.state === 'ok' && data.window_key && data.window_key !== win)
 
   let body
   if (error) body = <div className={styles.error} data-testid="polarity-unavailable">The bullish/bearish split is unavailable right now. That is a gap in what we could read, not a finding about {s}.{' '}<button type="button" className={styles.retry} onClick={() => mutate()}>Retry</button></div>
@@ -63,7 +69,12 @@ export default function SocialPolarity({ sym, polarity }) {
             <span className={styles.polarityBear} style={{ width: `${100 - bullW}%` }} />
           </div>
         )}
-        <p className={styles.muted} data-testid="polarity-method">Auto-labelled: {data.method}.</p>
+        {stale && (
+          <p className={styles.muted} role="status" data-testid="polarity-updating">
+            Updating to the last {WINDOW_WORDS[win] || win}; the numbers below are still the last {WINDOW_WORDS[data.window_key] || data.window_key}.
+          </p>
+        )}
+        <p className={styles.muted} data-testid="polarity-method">Auto-labelled by {methodText(data.method)}.</p>
         {partial && (
           <p className={styles.muted} data-testid="polarity-covered">
             Post text is kept {data.retention_days} days, so this window covers {covered} onward (ET); earlier days show —.
@@ -107,12 +118,12 @@ export default function SocialPolarity({ sym, polarity }) {
                 <li key={`${p.source}:${p.id}`} className={styles.hit} data-testid="polarity-post">
                   <span className={p.label === 'bullish' ? styles.up : p.label === 'bearish' ? styles.down : styles.muted}>{LABEL_WORD[p.label] || p.label}</span>
                   {' · '}{p.date} · {sourceText(p)}
-                  <div>
+                  <div className={styles.postText} data-testid="polarity-post-text">
                     {p.text != null
                       ? p.text
                       : <span className={styles.muted}>Text no longer held (the X feed keeps a post about 7 days); its label is kept.</span>}
                   </div>
-                  {p.link && <div className={styles.cite}><a href={p.link} target="_blank" rel="noreferrer">Open the post</a></div>}
+                  {safeLink(p.link) && <div className={styles.cite}><a href={safeLink(p.link)} target="_blank" rel="noopener noreferrer">Open the post</a></div>}
                 </li>
               ))}
             </ul>
@@ -122,7 +133,7 @@ export default function SocialPolarity({ sym, polarity }) {
   }
 
   return (
-    <div data-testid="polarity">
+    <div data-testid="polarity" aria-busy={stale}>
       <div className={styles.form} role="group" aria-label="Sentiment window">
         <span className={styles.muted}>Bullish/bearish split (auto-labelled)</span>
         {WINDOWS.map(([k, v]) => (

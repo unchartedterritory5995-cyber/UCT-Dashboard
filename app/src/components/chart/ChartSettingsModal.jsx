@@ -35,6 +35,9 @@ import { HEADER_FIELDS, HEADER_FIELD_BY_KEY, headerFieldKeys, SIGN_POS, SIGN_NEG
 import styles from './ChartSettingsModal.module.css'
 // TERM-052: the template cap is published in Settings from this same constant.
 import { MAX_CHART_TEMPLATES } from './chartCeilings'
+// ⭐ The ONE apply every saved-template door shares (this modal, the right-click
+// flyout, UCT Agent) — see chartTemplateApply.js for the ruling behind it.
+import { chartTemplateSettings } from './chartTemplateApply'
 
 // A user's saved chart-settings templates live in ONE global pref so they're
 // available from every chart/tab/grid cell. Applying a template routes through
@@ -452,8 +455,9 @@ export default function ChartSettingsModal({
     setSavingTpl(false); setTplName(''); setTplMenuOpen(false)
   }
   const applyTemplate = (t) => {
-    if (!t?.settings) return
-    onChange?.(JSON.parse(JSON.stringify({ ...t.settings, preset: 'custom' })))
+    const next = chartTemplateSettings(t)
+    if (!next) return
+    onChange?.(next)
     setTplMenuOpen(false)
   }
   const deleteTemplate = (id) => persistTemplates(templates.filter(t => t.id !== id))

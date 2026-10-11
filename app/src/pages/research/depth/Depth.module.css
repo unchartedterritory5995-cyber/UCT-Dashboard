@@ -62,3 +62,5 @@
 .polaritySplit { display: flex; height: 8px; border-radius: var(--radius-sm); overflow: hidden; margin: 0 0 var(--space-sm); background: var(--border); }
 .polarityBull { background: var(--gain); }
 .polarityBear { background: var(--loss); }
+/* A post's text keeps its line breaks and wraps a long URL instead of widening a phone. */
+.postText { white-space: pre-wrap; overflow-wrap: anywhere; }
