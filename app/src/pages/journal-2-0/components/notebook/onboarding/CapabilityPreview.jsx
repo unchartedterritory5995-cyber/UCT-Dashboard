@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import { armedCapabilities, PREVIEW_COPY } from './capabilityList'
+import CaptureDoors from '../CaptureDoors'
 import styles from './CapabilityPreview.module.css'
 
 /**
@@ -42,6 +43,10 @@ export default function CapabilityPreview({ canAddSample = false, promoId }) {
           {PREVIEW_COPY.sampleTail}
         </p>
       )}
+      {/* P0.8: how notes get in from outside the Notebook. Only under a preview that is already
+          showing (nothing armed and no sample offer renders nothing at all, above), and it asks
+          nothing but the two capture gates the Settings cards ask. */}
+      <CaptureDoors compact />
     </section>
   )
 }

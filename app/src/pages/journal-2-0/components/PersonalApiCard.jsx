@@ -31,7 +31,7 @@ import styles from './PersonalApiCard.module.css'
  * list or revoke); only making a new token needs a paid plan.
  */
 
-const URL = '/api/j2/personal/tokens'
+export const PERSONAL_API_URL = '/api/j2/personal/tokens'
 const GATE_SEEN_KEY = 'uct.nb.personalApi.gateSeen'
 function gateSeen() {
   try { return localStorage.getItem(GATE_SEEN_KEY) === '1' } catch { return false }
@@ -44,7 +44,7 @@ function rememberGate(data) {
   } catch { /* private mode: the card falls back to the unknown-gate rule */ }
 }
 
-async function fetcher(u) {
+export async function personalApiFetcher(u) {
   const r = await fetch(u, { credentials: 'include' })
   if (r.status === 404) return { dark: true }
   if (!r.ok) throw new Error(String(r.status))
@@ -69,7 +69,7 @@ function when(iso) {
 }
 
 export default function PersonalApiCard() {
-  const { data, error, isLoading, mutate } = useSWR(URL, fetcher, { revalidateOnFocus: false })
+  const { data, error, isLoading, mutate } = useSWR(PERSONAL_API_URL, personalApiFetcher, { revalidateOnFocus: false })
   const [label, setLabel] = useState('')
   const [making, setMaking] = useState(false)
   const [made, setMade] = useState(null)          // {token, label, expiresAt} — shown once
@@ -83,7 +83,7 @@ export default function PersonalApiCard() {
     e?.preventDefault?.()
     setMaking(true); setMessage(null); setCopied(false)
     try {
-      const res = await fetch(URL, {
+      const res = await fetch(PERSONAL_API_URL, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -119,7 +119,7 @@ export default function PersonalApiCard() {
   const revoke = useCallback(async (id) => {
     setBusyId(id); setMessage(null)
     try {
-      const res = await fetch(`${URL}/${encodeURIComponent(id)}`, {
+      const res = await fetch(`${PERSONAL_API_URL}/${encodeURIComponent(id)}`, {
         method: 'DELETE', credentials: 'include',
       })
       if (!res.ok) {
@@ -141,7 +141,7 @@ export default function PersonalApiCard() {
   const tokens = data?.tokens || []
 
   return (
-    <TileCard icon="bolt" title="Personal API">
+    <TileCard icon="bolt" title="Connect apps & shortcuts (Personal API)">
       <p className={styles.lead}>
         A Personal API token lets an iOS Shortcut or any HTTP tool create notes, add to a
         note, or add to today’s daily note. It cannot read your notes, see your trades, or

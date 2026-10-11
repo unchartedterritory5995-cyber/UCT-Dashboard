@@ -199,6 +199,13 @@ export const SURFACES = Object.freeze({
     exempt: 'renders its children or null; no markup or control of its own',
   },
 
+  // ── capture doors (P0.8) ───────────────────────────────────────────────────
+  // "Capture from anywhere" (under the import dropzone and on the first-run welcome) and the
+  // iPhone Shortcut how-to it opens; rail a11y/captureDoors.a11y.test.jsx (all three doors live,
+  // the sheet open, and the sheet over the box that opens it).
+  'components/notebook/CaptureDoors.jsx': { recipe: 'capture-doors' },
+  'components/notebook/ShortcutHowTo.jsx': { recipe: 'shortcut-how-to' },
+
   // ── import / export ────────────────────────────────────────────────────────
   'components/notebook/import/ImportWizard.jsx': { recipe: 'import-wizard' },
   'components/notebook/import/ExportGuide.jsx': { coveredBy: 'import-wizard' },

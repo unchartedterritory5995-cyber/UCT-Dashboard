@@ -1590,7 +1590,7 @@ def s_research(W, pg) -> str:
         return ROOT
 
 
-SETTINGS_CARDS = ("Personal API", "Email to Notebook", "Browser Capture", "Sharing & publishing")
+SETTINGS_CARDS = ("Connect apps & shortcuts (Personal API)", "Email to Notebook", "Browser Capture", "Sharing & publishing")
 
 
 def s_settings(W, pg) -> str:
@@ -3930,7 +3930,7 @@ def _settings_card(W, door, card, action_re, check_re):
 
 
 def f_personal_api(W, door):
-    return _settings_card(W, door, "Personal API", r"(create|new|generate|make)", r"(token|copy|revoke)")
+    return _settings_card(W, door, "Connect apps & shortcuts (Personal API)", r"(create|new|generate|make)", r"(token|copy|revoke)")
 
 
 def f_email_in(W, door):

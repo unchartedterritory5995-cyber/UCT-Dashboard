@@ -26,6 +26,7 @@ import UIcon from '../../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../../hooks/useBreakpoint'
 import useJ2NoteFolders from '../../../hooks/useJ2NoteFolders'
 import ConnectTilesCompact from '../../connectors/ConnectTilesCompact'
+import CaptureDoors from '../CaptureDoors'
 import ExportGuide from './ExportGuide'
 import styles from './ImportWizard.module.css'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../../lib/notebookTelemetry'
@@ -931,6 +932,10 @@ export default function ImportWizard({ open, onClose, onImported }) {
                   </button>
                 </div>
               </div>
+
+              {/* P0.8: the other ways in (email, the browser extension, an iPhone Shortcut) live in
+                  Settings; this points at them from the one screen about getting notes in. */}
+              <CaptureDoors />
 
               <input
                 ref={fileInputRef}
