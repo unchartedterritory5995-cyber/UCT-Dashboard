@@ -427,4 +427,13 @@
     gap: 14px;
     margin-bottom: 18px;
   }
+  /* P0.17: the New note control joins the search box and Learn on this row; on a phone the row
+     wraps so the search box keeps the whole first line instead of the row running past 390px. */
+  .homeHeader {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .homeHeader .searchBox {
+    flex-basis: 100%;
+  }
 }

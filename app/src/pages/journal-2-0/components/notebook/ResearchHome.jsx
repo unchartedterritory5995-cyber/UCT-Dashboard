@@ -16,6 +16,7 @@ import CollapsibleSection from '../CollapsibleSection'
 import { openNotebookTour } from './onboarding/tourControl'
 import { getRegistryTourWanted, subscribeRegistryTourWanted } from './onboarding/tourRegistryControl'
 import LearnMenu from './onboarding/LearnMenu'
+import NewNoteMenu from './NewNoteMenu'
 import {
   SAMPLE_URL, SAMPLE_PREF, SAMPLE_COPY, readSamplePref, addSampleNotebook, removeSampleNotebook, removedMessage, isNotebookKey,
   describeSampleHold,
@@ -296,6 +297,11 @@ export default function ResearchHome({
   // function its All Notes list header's "Today" button already calls (one authority, never
   // a second day-note opener). Optional so every existing caller/test keeps working unchanged.
   onOpenToday = null,
+  // P0.1 (the Home "New note" door): NotebookTab's own New-note sheet opener and its voice-note
+  // starter (null while the voice gate is off, so the menu never lists a door that opens
+  // nothing). Optional so every existing caller/test keeps working unchanged.
+  onOpenNewNoteSheet = null,
+  onStartVoiceNote = null,
   // Lane KEYS: the Notebook's hidden-until-focused skip-link class, for this page's own link.
   skipLinkClassName = '',
 }) {
@@ -657,6 +663,10 @@ export default function ResearchHome({
     <div className={styles.homeTop} data-export-exclude>
       <div className={styles.homeHeader}>
         <HomeSearch />
+        {hasAnyNotes && onOpenNewNoteSheet && (
+          <NewNoteMenu onBlank={onCreateNote} onFromOutline={onOpenNewNoteSheet}
+            onVoice={onStartVoiceNote} onToday={onOpenToday} />
+        )}
         <LearnMenu />
       </div>
       <RecentNotes opened={opened} edited={Array.isArray(editedNotes) ? editedNotes : []} onOpen={openNote} />

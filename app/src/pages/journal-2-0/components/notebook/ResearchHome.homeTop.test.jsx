@@ -55,13 +55,13 @@ function Where() {
   return <p data-testid="where">{`${loc.pathname}${loc.hash}`}</p>
 }
 
-function renderHome({ onOpenNote = vi.fn(), entry = '/journal/notebook' } = {}) {
+function renderHome({ onOpenNote = vi.fn(), entry = '/journal/notebook', ...props } = {}) {
   const utils = render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       <AuthContext.Provider value={{ isPaid: true }}>
         <MemoryRouter initialEntries={[entry]}>
           <ResearchHome hasAnyNotes onOpenNote={onOpenNote} onCreateNote={vi.fn()}
-            onCreateThesis={vi.fn()} onImport={vi.fn()} />
+            onCreateThesis={vi.fn()} onImport={vi.fn()} {...props} />
           <Routes><Route path="*" element={<Where />} /></Routes>
         </MemoryRouter>
       </AuthContext.Provider>
@@ -154,6 +154,37 @@ describe('the top of Home is the member\'s notes', () => {
     latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: false })
     renderHome()
     expect(screen.queryByRole('button', { name: 'Learn' })).toBeNull()
+  })
+})
+
+describe('P0.1: the Home header carries a New note door', () => {
+  it('a member with notes sees New note beside search and Learn', () => {
+    renderHome({ hasAnyNotes: true, onCreateNote: vi.fn(), onOpenNewNoteSheet: vi.fn() })
+    const header = document.querySelector('[class*="homeHeader"]')
+    expect(within(header).getByRole('button', { name: 'New note' })).toBeTruthy()
+  })
+  it('a brand-new member does not get a second create button (the welcome has one)', () => {
+    renderHome({ hasAnyNotes: false, onCreateNote: vi.fn(), onOpenNewNoteSheet: vi.fn() })
+    const header = document.querySelector('[class*="homeHeader"]')
+    expect(header ? within(header).queryByRole('button', { name: 'New note' }) : null).toBeNull()
+  })
+  it('without a sheet handler there is no door that opens nothing', () => {
+    renderHome({ hasAnyNotes: true, onCreateNote: vi.fn() })
+    const header = document.querySelector('[class*="homeHeader"]')
+    expect(within(header).queryByRole('button', { name: 'New note' })).toBeNull()
+  })
+  it('the main button makes a blank note; the caret lists Voice and Today only when their handlers exist', () => {
+    const onCreateNote = vi.fn()
+    const { unmount } = renderHome({ hasAnyNotes: true, onCreateNote, onOpenNewNoteSheet: vi.fn() })
+    fireEvent.click(screen.getByRole('button', { name: 'New note' }))
+    expect(onCreateNote).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
+    expect(screen.getAllByRole('menuitem').map((el) => el.textContent.trim())).toEqual(['From an outline'])
+    unmount()
+    renderHome({ hasAnyNotes: true, onCreateNote, onOpenNewNoteSheet: vi.fn(), onStartVoiceNote: vi.fn(), onOpenToday: vi.fn() })
+    fireEvent.click(screen.getByRole('button', { name: 'More ways to start a note' }))
+    expect(screen.getAllByRole('menuitem').map((el) => el.textContent.trim()))
+      .toEqual(['From an outline', 'Voice note', "Today's note"])
   })
 })
 

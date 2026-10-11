@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
 import { MemoryRouter, useNavigate } from 'react-router-dom'
 // 13Q-Q1check: a spy over the REAL `mutate`, not a replacement for it -- other
 // hooks in this tree (useJ2SavedViews, useJ2PropertyDefs) use real `useSWR`,
@@ -83,16 +83,24 @@ vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({
 // way every other heavy child in this file is, so these tests stay about
 // the tab's OWN isHome-vs-grid wiring, not Home's internal rendering (that
 // lives in ResearchHome.test.jsx).
+// P0.1: every render pushes the props Home was handed, so a test can call the handlers the
+// tab passes down (the New-note sheet and voice door live in the TAB, not in Home).
+const researchHomeProps = []
+const lastResearchHomeProps = () => researchHomeProps[researchHomeProps.length - 1]
 vi.mock('../components/notebook/ResearchHome', () => ({
   // Lane KEYS3: two buttons stand in for Home's doors, so the tab's own `openNote` can be
   // exercised the way Home's boxes call it (a plain open; a drafted review's open).
-  default: ({ onOpenNote }) => (
+  default: (props) => {
+    const { onOpenNote } = props
+    researchHomeProps.push(props)
+    return (
     <div data-testid="research-home">
       Research Home
       <button type="button" onClick={() => onOpenNote?.({ id: 'n-plain' })}>test: open a note</button>
       <button type="button" onClick={() => onOpenNote?.({ id: 'rev1' }, null, { to: 'collapsed' })}>test: open a drafted review</button>
     </div>
-  ),
+    )
+  },
 }))
 
 import NotebookTab from './NotebookTab'
@@ -898,5 +906,20 @@ describe('lane KEYS3 (Q11): "#notes" lands keyboard focus on the notes list\'s h
     await screen.findByRole('button', { name: 'Templates' })
     await new Promise((r) => setTimeout(r, 60))
     expect(document.activeElement).toBe(document.body)
+  })
+})
+
+describe('NotebookTab — P0.1 the New-note door on Research Home', () => {
+  it('Home receives working New-note handlers and the sheet opens from Home', async () => {
+    researchHomeProps.length = 0
+    renderTab('/journal/notebook')
+    expect(await screen.findByTestId('research-home')).toBeTruthy()
+    const props = lastResearchHomeProps()
+    expect(typeof props.onOpenNewNoteSheet).toBe('function')
+    // gates off in this file: no voice door is handed down, so the menu cannot list one
+    expect(props.onStartVoiceNote).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'New note' })).toBeNull()
+    act(() => props.onOpenNewNoteSheet())
+    expect(await screen.findByRole('dialog', { name: 'New note' })).toBeTruthy()
   })
 })
