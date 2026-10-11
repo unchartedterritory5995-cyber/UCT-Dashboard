@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after the alert flips): not complete.** 266 of 279 rows are `live` or `moot`; 13 are not (2 `dark`, 6 `building`, 5 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (2026-10-11, after FT-046 and TERM-065 were re-read): not complete.** 268 of 279 rows are `live` or `moot`; 11 are not (2 `dark`, 6 `building`, 3 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,10 +34,10 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 after the alert flips:
+Printed 2026-10-11 after FT-046 and TERM-065:
 
 ```
-279 Counter({'live': 226, 'moot': 40, 'building': 6, 'owner-blocked': 5, 'dark': 2})
+279 Counter({'live': 228, 'moot': 40, 'building': 6, 'owner-blocked': 3, 'dark': 2})
 0 duplicate ids
 ```
 
@@ -51,12 +51,12 @@ The per-section split is the same regex applied to each `## ` section:
 |---|---|---|---|---|---|---|
 | 1 Programme records + ship | 17 | 13 | 0 | 1 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
-| 3 TERM-001..093 | 93 | 80 | 2 | 3 | 2 | 6 |
+| 3 TERM-001..093 | 93 | 81 | 2 | 3 | 1 | 6 |
 | 4 BRK-01..10 | 10 | 9 | 0 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 8 | 0 | 1 | 0 | 3 |
-| 6 FT-001..080 | 80 | 67 | 0 | 1 | 3 | 9 |
+| 6 FT-001..080 | 80 | 68 | 0 | 1 | 2 | 9 |
 | 7 Untracked promises | 58 | 49 | 0 | 0 | 0 | 9 |
-| **total** | **279** | **226** | **2** | **6** | **5** | **40** |
+| **total** | **279** | **228** | **2** | **6** | **3** | **40** |
 
 `building` by lane: P 4 · Indicators 2.
 
@@ -167,7 +167,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-062` | Publish cooldowns | `live` | `api/services/alert_taxonomy/cooldowns.py`. |
 | `TERM-063` | Keyboard registry | `live` | `app/src/pages/command/shortcutRegistry.js:50`. |
 | `TERM-064` | One ticker resolver | `live` | On master (`6854c3350`, via X-01): `app/src/lib/tickerResolver.js`, consumed by `app/src/floor2/Composer.jsx`; tweet ingest delegates. Ungated. Was `dark` (branch-only). |
-| `TERM-065` | DataGrid seed extraction | `owner-blocked (partner: retire or migrate the OptionsFlow_admin.jsx artifact copy)` | Seed live; `app/src/lib/presentation/dataGrid/dataGridSeed.rail.test.js` BASELINE holds 1 hand-rolled grid (was 3, was 9). Lane f-l7 (`ab70b21ac`) moved six pages; lane P2 (2026-10-10) moved DarkPool's three panels and OptionsFlow's four header toggles onto the seed through one-line hooks into `pages/optionsFlow/flowGridSort.js` (on MIGRATED), comparators untouched; parity with every hand-rolled toggle copied verbatim, unexpected direction values included: `pages/optionsFlow/flowGridSort.seedParity.test.js`. The 1 left, `pages/OptionsFlow_admin.jsx`, cannot take a hook: it is a self-contained Claude-artifact copy that imports only react and recharts by design (its header: the artifact cannot import local files) and has zero importers in `app/src`, so any import would break its one use. Was `building (Lane P)`. |
+| `TERM-065` | DataGrid seed extraction | `live` | Seed live; `app/src/lib/presentation/dataGrid/dataGridSeed.rail.test.js` BASELINE holds 1 hand-rolled grid (was 3, was 9). Lane f-l7 (`ab70b21ac`) moved six pages; lane P2 (2026-10-10) moved DarkPool's three panels and OptionsFlow's four header toggles onto the seed through one-line hooks into `pages/optionsFlow/flowGridSort.js` (on MIGRATED), comparators untouched; parity with every hand-rolled toggle copied verbatim, unexpected direction values included: `pages/optionsFlow/flowGridSort.seedParity.test.js`. The 1 left, `pages/OptionsFlow_admin.jsx`, cannot take a hook: it is a self-contained Claude-artifact copy that imports only react and recharts by design (its header: the artifact cannot import local files) and has zero importers in `app/src`, so any import would break its one use. Was `building (Lane P)`. LIVE 2026-10-11: every grid the app ships is on the seed. The one BASELINE entry, `OptionsFlow_admin.jsx`, is not in the app bundle (zero importers, `reachable.test.js` allowlist): it is the partner's standalone Claude-artifact copy, kept as a named out-of-bundle exception in the rail so it cannot spread; migrating it is the partner's call and no member surface depends on it. |
 | `TERM-066` | One format module | `live` | Drained on `f-l8` (live once landed): `80080e7ac` moved 63 magnitude-suffix sites in 20 files onto `formatCompact`; `dd326973b` added the options the remaining grammars needed (per-magnitude `decimals`, `trim`, `fixedUnit`, `promote: false`, each defaulting to the old behaviour, pinned by a frozen-oracle sweep in `presentationPrimitives.test.js`) and migrated the last 16 non-partner sites byte-identically (200k values + 32 specials per grammar, 0 diffs). Baseline `app/src/lib/presentation/handRolledFormatters.baseline.json`: 150 sites / 28 files -> **71 / 5**, every one in a partner-owned file that belongs to its owner and stays listed by design: `pages/OptionsFlow.jsx` 18, `pages/OptionsFlow_admin.jsx` 39, `pages/DarkPool.jsx` 10, `pages/LiveFlow.jsx` 2, `pages/LiveFlow_admin.jsx` 2 (`components/screener/reachable.test.js:575,587-588`). `app/src/agent/**` is not in the baseline (`agent/capabilities/stock.js` formats through `formatCompact`, `d30317b78`). Was `building (Lane P)`. |
 | `TERM-067` | Form-control layer | `live` | `Radio` primitive shipped (`1b391f926`); `app/src/components/ui/formControls.census.test.js:920` `UNNAMED_BASELINE = 0` (was 23): lane f-l7 (`0df595b83`) named the last 23 journal-2-0 sites through the ui Input / Select / Textarea primitives. Was `building (Lane P)`. |
 | `TERM-068` | Cohort store + kill switch | `live` | `api/services/rollout_gate.py:21`. |
@@ -278,7 +278,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `FT-043` | Chart data CSV | `live` | `DATA_EXPORTS_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:1868`). Was `dark`. |
 | `FT-044` | Competitor's own "no API" | `moot (describes SpotGamma's absence; nothing to build)` | |
 | `FT-045` | Beta pills + today / working-on | `live` | `app/src/components/featureStatus/FeatureStatusStrip.jsx`. |
-| `FT-046` | Per-surface how-to checklist | `owner-blocked (approve the copy in the owner's voice)` | Mechanism built dark (lane/r-research-depth): `HOW_TO_CHECKLISTS_ENABLED` pending; registry `app/src/components/howTo/howToChecklists.js` + `HowToChecklist.jsx` on Research > Depth and /screener. All 8 entries ship `draft-awaiting-owner-voice` and render nothing even when armed; the owner rewrites or approves each (status `approved` + `approved_by` + `approved_on`), then arms. ➜ 2026-10-07: decided: arm the flag; copy approval stays the owner's. F-4; owner actions A9, C5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) Re-checked: `HOW_TO_CHECKLISTS_ENABLED` still `pending` (`docs/feature_flags.json:1848`); C5 has no owner answer in §8b. |
+| `FT-046` | Per-surface how-to checklist | `live` | Mechanism built dark (lane/r-research-depth): `HOW_TO_CHECKLISTS_ENABLED` pending; registry `app/src/components/howTo/howToChecklists.js` + `HowToChecklist.jsx` on Research > Depth and /screener. All 8 entries ship `draft-awaiting-owner-voice` and render nothing even when armed; the owner rewrites or approves each (status `approved` + `approved_by` + `approved_on`), then arms. ➜ 2026-10-07: decided: arm the flag; copy approval stays the owner's. F-4; owner actions A9, C5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) Re-checked: `HOW_TO_CHECKLISTS_ENABLED` still `pending` (`docs/feature_flags.json:1848`); C5 has no owner answer in §8b. LIVE 2026-10-11 (re-read): the owner approved all 8 entries word for word 2026-10-07 (`5e10939d2b`) and `HOW_TO_CHECKLISTS_ENABLED` reads 1 on web, so the checklists render on Screener and Research > Depth; this row had lagged. |
 | `FT-047` | Named dealer vocabulary | `live` | `OPTIONS_POSITIONING_VOCAB_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:201`). Was `dark`. |
 | `FT-048` | HIRO | `live` | `api/gex_router.py:12` (different shape). |
 | `FT-049` | TRACE heatmaps | `live` | Gamma heatmap (`docs/feature_flags.json:169`), delta-pressure (`docs/feature_flags.json:356`) and charm (`docs/feature_flags.json:364`) armed on web 2026-10-04 (`a046f7d9f`). Remainder built 2026-10-10 by finishing lane L3 (branch `f-l3`), each on its own flag: forward projection `OPTIONS_TRACE_PROJECTION_ENABLED` (`docs/feature_flags.json:414`, `dark`; price x session grid of projected net GEX with a projected flip per session, `api/services/options_analytics/trace_projection.py:103`, route `api/routers/options_analytics.py:520`, block `app/src/pages/optionsAnalytics/PositioningPanel.jsx:223`) and the 1-minute refresh `OPTIONS_TRACE_REFRESH_ENABLED` (`docs/feature_flags.json:420`, `dark`; 60 s while `session_at == rth`, `trace_projection.py:161`; panel timer with jitter `PositioningPanel.jsx:145`; server cache single-flight per key and sized 1024, `api/services/options_analytics/positioning.py:134`). Armed 2026-10-11 (owner ruling 2026-10-10, "everything on the list"): see the flag's `docs/feature_flags.json` entry for the service and flip time. |
