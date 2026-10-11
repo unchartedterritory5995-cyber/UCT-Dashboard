@@ -76,6 +76,13 @@
       "owner": "TERMINAL-NEXT Lane P (TERM-014)",
       "note": "TERM-014 (FB-OBS-03), built dark. On WEB it makes the 60 s memwatch loop (api/main.py _web_memwatch) RETAIN each [mem] sample in /data/rss_series.db (api/services/rss_series.py: RSS, threads, deployment id, and a cheap per-subsystem census of TTLCache entries and live threads per name prefix); unset, record() returns before any I/O and no file is created. On TERMINAL-NEXT-MONITOR it arms the weekday 09:20 ET `memory` job, which reads tools/rss_slope_report.py through /api/terminal-next/report/memory-slope and posts the slope to the ADMIN channel (ALERT on an OBS-4 ceiling: RSS > 3,500 MB or threads > 200; INSUFFICIENT samples is not an alert). Retention OBS-5: newest 400 rows, nothing older than 90 days, declared in api/services/store_retention.py as rss_series; the prune asks may_prune first. Not armed: no owner decision yet, and the reading itself needs TERM-007's quiet window. Reversal: unset it on both services; the rows are LEFT IN PLACE and age out under their declared rule, never deleted to undo an arming. Found ARMED (value 1) on web, terminal-next-monitor when read 2026-10-11; this entry had lagged the live service."
     },
+    "MEASUREMENT_WINDOW_ENABLED": {
+      "status": "armed",
+      "since": "2026-10-11",
+      "where": ["web"],
+      "owner": "TERMINAL-NEXT Lane P (TERM-007 / TERM-017 / X-15)",
+      "note": "KILL SWITCH, default ON (unset = on; 0/false/no/off stops it), read per call in api/services/measurement_window.py::is_enabled(). SERVICE: web. Four scheduler jobs registered unconditionally in api/main.py (measurement_window_sample every minute Wed 09:00-10:59 ET + measurement_window_sample_close 11:00, measurement_window_bars_gate 10:15, measurement_window_finalize 11:01/11:10/11:30/13:xx), each a no-op outside the Wednesday 09:00-11:00 ET window fixed by B1/T-4 (12-decisions/2026-10-07-owner-delegated-decisions.md). READ-ONLY against the product: it samples the web pod's identity, the event-loop watchdog's lag_histogram and the per-job run ring (memory_probe), runs tools/bars_warmth_gate.py ONCE as a child process (never in-process: the gate imports conftest), and writes only its own store /data/measurement_window.db (declared in store_retention as measurement_window: rows > 60 days and results beyond the newest 104 pruned) plus one summary post per window to the ops channel (alert_destination.ops_webhook). It writes ONE result per window with a verdict per ledger row (TERM-007, TERM-017, X-15): valid/invalid, reason, the numbers vs the row's bar; served by GET /api/admin/measurement-window/latest (require_admin). Default ON because it is a measurement that changes no member-visible behaviour and arms nothing (WATCHDOG_ENABLED untouched). REVERSAL: set it to 0 on web; stored rows are LEFT IN PLACE and age out under their declared rule."
+    },
     "WATCHLIST_ENTITY_KEYS_ENABLED": {
       "status": "armed",
       "since": "2026-10-03",
@@ -2155,6 +2162,18 @@
       ],
       "note": "ARMED on web 2026-10-04. FT-080 (lane gaps-research, owner ruling 2026-10-02): Research > Depth > Room attention and GET /api/research/mention-series/{sym}?days=7..365. A per-ticker research panel, NOT a chart overlay: per ET day, #main-chat mentions, distinct people, and the ticker's share of all ticker mentions in the room, from the /buzz mention store (buzz.db, BUZZ_DB_PATH). A day before the store's first mention or a day the whole room was silent is null, never 0. Positive/negative polarity is returned as 'unavailable' with the reason: the store keeps no message text by design, so a ratio cannot be computed. Request path: one local SQLite read. ENABLEMENT GATE, default OFF, read per request on the auth payload (mention_series_enabled, present only when on); unset = the route 404s before identity and the panel is absent. Arm: railway variables --service web --set MENTION_SERIES_ENABLED=1 (owner). Rollback = unset it."
     },
+    "SOCIAL_POLARITY_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-11",
+      "where": [],
+      "exposure": "internal",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "DARK, built 2026-10-11, the owner arms it. FT-080 social-sentiment polarity, owner ruling 2026-10-11 (Patrick, in chat) reversing the 'no message text kept' rule: \"store text but allow sorting, one week, one month etc.\" While on: the buzz poll keeps the TEXT of every #main-chat message the mention series counts, one row per (message x ticker) in buzz.db table social_posts, with a deterministic auto-label (bullish/bearish/neutral + score from cue words, calls/puts, rockets/bears, negation; no paid model is called); the X poller writes a label-only row per tweet ticker it is ABOUT (A8 mention-only links skipped) and NEVER copies tweet text (that stays in tweets.db under its own 7-day window + deletion-sync, licensing register X-04/X-05; the deletion-sync drops the label too). GET /api/research/mention-series/{sym}/polarity?window=1w|1m|3m&sort=newest|oldest|most_bullish|most_bearish&source=all|room|x&label=all|bullish|bearish|neutral&limit=1..200 (paid, 404 unless MENTION_SERIES_ENABLED is also on) serves the per-ET-day split and the posts; the mention-series payload's polarity block says 'available' and names that route, and Research > Depth > Room attention renders the 1W/1M/3M selector, the split and the sortable post list, labelled auto-labelled. Retention: SOCIAL_TEXT_RETENTION_DAYS (knobs, default 90), swept from the buzz poll at most every 6 h whether or not this flag is on; registered in store_retention as 'buzz'. Unset: nothing is written, the route 404s, the panel shows the old 'unavailable' sentence. Arm: railway variables --service web --set SOCIAL_POLARITY_ENABLED=1 (owner). History starts at arming; tools/buzz_backfill.py --restart --days N re-walks #main-chat and fills it (INSERT OR IGNORE). Rollback = unset it; stored rows age out under the sweep."
+    },
     "FILING_SEARCH_ENABLED": {
       "status": "armed",
       "since": "2026-10-02",
@@ -3103,6 +3122,14 @@
   },
   "knobs": {
     "_readme": "X-16 (TERMINAL-NEXT ledger hygiene, 2026-10-02). Env vars that DECIDE behaviour but that `flags` cannot hold, because its rail admits only names the AST index classifies as a gate (ENABLED/DISABLE/_ON), a visibility flag or a *_MODE_FLAGS entry: a CUTOVER switch, a SAMPLE RATE, and a gate that lives in ANOTHER REPO. Each row says where it is read and what its unset value does. tests/test_flag_ledger_knobs.py holds every `repo: uct-dashboard` row to the AST scan (a name the code no longer reads fails) and every row to the same status vocabulary as `flags`.",
+    "SOCIAL_TEXT_RETENTION_DAYS": {
+      "repo": "uct-dashboard",
+      "read_at": "api/services/social_polarity.py::retention_days (read per call; integer days, >= 1; blank or unparseable means the default)",
+      "kind": "config",
+      "status": "armed",
+      "default": "90",
+      "note": "FT-080 (owner ruling 2026-10-11): how long buzz.db social_posts rows (stored #main-chat message text + auto-labelled polarity, and label-only X rows) are kept. The default IS the decision: 90 days, so the 3M window is fully covered once the store is 90 days old; nothing is set on any service. The sweep runs from the buzz poll at most every 6 h, flag or no flag. A window longer than this covers only what retention kept and the payload names the first covered day."
+    },
     "IMPLIED_ENRICHMENT_CUTOVER": {
       "repo": "uct-dashboard",
       "read_at": "api/routers/calendar.py::_cutover_on (read per call; == '1' is on)",

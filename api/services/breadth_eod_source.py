@@ -55,8 +55,9 @@ INST-7, stated rather than hidden
     graded sessions), and that turnover alone moved `adv_decline` past its tier on
     2026-09-25, 10-01, 10-06 and 10-09. So each graded record also carries
     `population_control`: the same price metrics measured over the session's OWN
-    collector list, which isolates the price input. It is a reading beside the
-    switch bar (`switch_readiness()["same_population"]`), never a substitute for it.
+    collector list, which isolates the price input. Since the 2026-10-11 ruling the
+    one-day-old list is ACCEPTED for server mode and THIS is what the switch bar grades
+    (`SWITCH_CLEAN_SESSIONS`); the published-population grade stays recorded beside it.
 
 DRILL LISTS
     Every `*_list` the server writes comes from `members`, the same boolean masks
@@ -99,6 +100,22 @@ DEFAULT_MODE, MODES = BREADTH_EOD_MODE_FLAGS[MODE_ENV]
 # written to the daily row"). A from-open count at the close is not the metric the
 # live row means, so the server row does not start publishing them.
 LIVE_ONLY = ("up_from_open", "down_from_open", "up_on_volume", "down_on_volume")
+
+#: (2026-10-11, owner delegated; integrator ruling) extras the server computes but
+#: cannot match because the SOURCE differs, not the method. In `server` mode the
+#: collector's value is kept for these (the server's fills a gap only when the collector
+#: wrote nothing), so members never see a changed source for them, and they do not gate
+#: the switch. They are still GRADED and recorded like every other key.
+COLLECTOR_CARRIED = {
+    "cnn_fear_greed": "collector reads CNN's live score at ~4:15 PM ET; the server reads "
+                      "CNN's settled daily point (2026-10-02: 31.2 vs 40.0)",
+    "vix": "collector = Yahoo's last print; server = Cboe's official close",
+    "vxn": "collector = Yahoo's last print; server = Cboe's official close",
+    "vix_term_structure": "a ratio of the two VIX-family closes above, same source split",
+    "new_ath": "collector history is yfinance auto_adjust over the full history; the "
+               "dividend store keeps ~2-4 years, so highs from before it (TNK, PBR, STNG "
+               "from 2008) cannot be re-adjusted",
+}
 
 _MAX_PER_TICK = int(os.environ.get("BREADTH_EOD_SOURCE_PER_TICK", "3"))
 _TICK_SECONDS = int(os.environ.get("BREADTH_EOD_SOURCE_SECS", "900"))
@@ -362,13 +379,43 @@ def population_control(date_iso: str, stored: dict, prior_list: Optional[list] =
     return out
 
 
+#: Blocks of a collector row that cannot all be zero on a real session over a real
+#: universe. 2026-10-07: near_52w_high, new_52w_highs and new_52w_lows all 0 (empty
+#: lists) over 2,606 names, while the same names priced 195 / 22 / 144 from bars.db.
+_COLLECTOR_DEFECT_BLOCKS = (
+    ("the 52-week block", ("near_52w_high", "new_52w_highs", "new_52w_lows")),
+)
+_DEFECT_MIN_UNIVERSE = 1000
+COLLECTOR_DEFECT_PREFIX = "collector row is defective"
+
+
+def collector_row_defect(stored: dict) -> Optional[str]:
+    """Why the collector's own row is broken (a collector-side failure), or None."""
+    try:
+        n = int(stored.get("universe_count") or 0)
+    except (TypeError, ValueError):
+        return None
+    if n < _DEFECT_MIN_UNIVERSE:
+        return None
+    for label, keys in _COLLECTOR_DEFECT_BLOCKS:
+        vals = [stored.get(k) for k in keys]
+        try:
+            zero = all(v is not None for v in vals) and all(float(v) == 0 for v in vals)
+        except (TypeError, ValueError):
+            zero = False
+        if zero:
+            return (f"{COLLECTOR_DEFECT_PREFIX}: {label} ({', '.join(keys)}) is all 0 "
+                    f"over {n} names")
+    return None
+
+
 def not_comparable_reason(stored: dict) -> Optional[str]:
     """Why a stored row cannot corroborate the server row (INST-7), or None."""
     if stored.get("_source") == "server":
         return "stored row is itself server-computed"
     if stored.get("_healed"):
         return "stored row is a bars.db self-heal (same input as the server row)"
-    return None
+    return collector_row_defect(stored)
 
 
 # ── the shadow store — its own file, never breadth_snapshots ─────────────────
@@ -412,7 +459,8 @@ def _hash(stored: Optional[dict]) -> Optional[str]:
     return hashlib.sha256(f"{GRADER_VERSION}|{blob}".encode()).hexdigest()[:16]
 
 
-GRADER_VERSION = 4    # 4 (2026-10-11): index MA flags on the frame's basis + population_control
+GRADER_VERSION = 5    # 4 (2026-10-11): index MA flags on the frame's basis + population_control
+#                       5 (2026-10-11): collector-defect rows are not_comparable
 
 
 def _record(date_iso: str, status: str, reason: Optional[str], stored: Optional[dict],
@@ -554,7 +602,12 @@ def build_server_row(result: dict, existing: Optional[dict]) -> dict:
     owned = owned_keys(metrics)
     row = dict(existing or {})
     row.pop("_healed", None)
+    gap_filled = []
     for k in owned:
+        if k in COLLECTOR_CARRIED and (existing or {}).get(k) is not None:
+            continue                     # the collector's value stands (COLLECTOR_CARRIED)
+        if k in COLLECTOR_CARRIED:
+            gap_filled.append(k)
         row[k] = metrics[k]
     cap = result.get("capture") or {}
     members = result.get("members") or {}
@@ -571,6 +624,8 @@ def build_server_row(result: dict, existing: Optional[dict]) -> dict:
         "dividend_basis": bool(result.get("dividend_basis")),
         "measured": metrics.get("_measured"),
         "computed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "collector_carried": sorted(k for k in owned if k in COLLECTOR_CARRIED),
+        "collector_carried_gap_filled": sorted(gap_filled),
         "collector_keys_kept": sorted(k for k in (existing or {})
                                       if k not in owned and not k.startswith("_")
                                       and k != "date" and not k.endswith("_list")),
@@ -607,7 +662,11 @@ def write_server_row(date_iso: str) -> dict:
         return {"date": date_iso, "computed": True, "status": "refused_degraded"}
     if existing:
         try:
-            grade_and_record(date_iso, existing, result)
+            extra = None
+            if not_comparable_reason(existing) is None:
+                extra = {"population_control": population_control(
+                    date_iso, existing, _collector_universe_before(date_iso)[0])}
+            grade_and_record(date_iso, existing, result, extra=extra)
         except Exception as e:                    # noqa: BLE001 - parity is best-effort here
             print(f"[breadth-eod] parity record failed: {e}")
     ok = bm.store_snapshot(date_iso, row, source="server")
@@ -642,6 +701,8 @@ def on_push(date_str: str, metrics: dict) -> tuple:
         print(f"[breadth-eod] late-push parity failed: {e}")
     merged = {k: v for k, v in metrics.items() if not k.startswith("_")}
     for k in owned:
+        if k in COLLECTOR_CARRIED and metrics.get(k) is not None:
+            continue                     # the collector's value stands (COLLECTOR_CARRIED)
         merged[k] = existing.get(k)
         lk = list_key(k)
         if lk in existing:
@@ -659,34 +720,66 @@ def on_push(date_str: str, metrics: dict) -> tuple:
 #: row, each GRADED with every owned metric passing. A session that could not be graded
 #: (healed, low coverage, not comparable) breaks the run rather than being skipped: the
 #: switch is earned on sessions that were actually compared, never on gaps.
+#: RULED 2026-10-11 (owner: "figure it out safely"; integrator ruling): the one-day-old
+#: collector list is ACCEPTED for server mode, so "clean" = every graded price metric
+#: passes on `population_control` (same list, existing tolerances) and every extra passes
+#: except `COLLECTOR_CARRIED` (collector-carried in server mode). A collector-DEFECT day
+#: (`collector_row_defect`) is skipped: it neither counts nor breaks the run. Heal and
+#: low-coverage days still break it. The 2026-10-07 grade stays recorded beside it as
+#: `raw_collector_vs_server`. No automatic switch: setting BREADTH_EOD_SOURCE=server
+#: stays a person's act.
 SWITCH_CLEAN_SESSIONS = 10
 
 
-def _clean(rec: dict) -> bool:
+def _clean_raw(rec: dict) -> bool:
+    """The ORIGINAL bar (2026-10-07): every owned key, the published population. Kept
+    as `switch.raw_collector_vs_server`, a reading, so nothing is hidden."""
     fields = ((rec.get("report") or {}).get("fields") or {})
     return (rec.get("status") == "graded" and bool(fields)
             and all(f.get("pass") for f in fields.values()))
 
 
-def _same_population_run(recs: list) -> dict:
-    """A READING beside the switch bar, never the bar: consecutive graded sessions whose
-    `population_control` (price metrics over the session's own collector list) graded
-    clean. It answers "is the price input at parity?" with the daily universe turnover
-    held fixed. Extras keys are not in it."""
+def _gate_failures(rec: dict) -> Optional[list]:
+    """The keys that fail THE BAR (ruling 2026-10-11), or None when the record cannot
+    answer. The bar: every graded price metric passes on `population_control` (the
+    session's own collector list, existing tolerances), and every extras key passes
+    except those in `COLLECTOR_CARRIED`."""
+    rep = rec.get("report") or {}
+    pc = rep.get("population_control") or {}
+    if rec.get("status") != "graded" or not pc.get("available") or not pc.get("graded"):
+        return None
+    extras = [k for k, f in (rep.get("fields") or {}).items()
+              if f.get("accuracy") == "extras" and k not in COLLECTOR_CARRIED
+              and not f.get("pass")]
+    return sorted(set(pc.get("failed") or []) | set(extras))
+
+
+def _clean(rec: dict) -> bool:
+    return _gate_failures(rec) == []
+
+
+def _skipped(rec: dict) -> bool:
+    """A collector-side defect day neither counts nor breaks the run (ruling 2026-10-11)."""
+    return (rec.get("status") == "not_comparable"
+            and str(rec.get("reason") or "").startswith(COLLECTOR_DEFECT_PREFIX))
+
+
+def _raw_run(recs: list) -> dict:
     run, broke_on = 0, None
     for r in recs:
-        pc = ((r.get("report") or {}).get("population_control") or {})
-        if r.get("status") == "graded" and pc.get("available") and pc.get("graded")                 and not pc.get("failed"):
+        if _skipped(r):
+            continue
+        if _clean_raw(r):
             run += 1
             continue
         broke_on = {"date": r.get("date"), "status": r.get("status"),
-                    "failed": pc.get("failed"),
-                    "reason": (pc.get("reason") if not pc.get("available")
-                               else ("a metric failed" if pc.get("failed") else None))}
+                    "failed": ((r.get("report") or {}).get("failed")),
+                    "reason": r.get("reason") or ("a metric failed"
+                                                  if r.get("status") == "graded" else None)}
         break
     return {"consecutive_clean": run, "broken_by": broke_on,
-            "note": "a reading, not the switch bar: price metrics over the session's own "
-                    "collector universe; extras and the published population excluded"}
+            "note": "a reading, not the bar: every owned key, collector vs server, over "
+                    "the population server mode publishes (the 2026-10-07 bar)"}
 
 
 def switch_readiness(recs: list, required: int = SWITCH_CLEAN_SESSIONS) -> dict:
@@ -694,19 +787,29 @@ def switch_readiness(recs: list, required: int = SWITCH_CLEAN_SESSIONS) -> dict:
     `shadow_records()` (newest first). Reads only; it switches nothing — setting
     the variable stays a person's act on Railway. `current` rows (re-reads of an
     unchanged session) are not in the store, so every record is one session."""
-    run, broke_on = 0, None
+    run, broke_on, skipped = 0, None, []
     for r in recs:
+        if _skipped(r):
+            skipped.append({"date": r.get("date"), "reason": r.get("reason")})
+            continue
         if _clean(r):
             run += 1
             continue
-        broke_on = {"date": r.get("date"), "status": r.get("status"),
-                    "reason": r.get("reason") or ("a metric failed" if r.get("status") == "graded"
-                                                  else None)}
+        failed = _gate_failures(r)
+        pc = (r.get("report") or {}).get("population_control") or {}
+        broke_on = {"date": r.get("date"), "status": r.get("status"), "failed": failed,
+                    "reason": (r.get("reason") if r.get("status") != "graded"
+                               else ("a metric failed" if failed
+                                     else (pc.get("reason") or "no population control")))}
         break
     ready = run >= required
     return {"required_consecutive_clean": required, "consecutive_clean": run,
-            "ready": ready, "broken_by": broke_on,
-            "same_population": _same_population_run(recs),
+            "ready": ready, "broken_by": broke_on, "skipped_collector_defects": skipped,
+            "bar": "every graded price metric on population_control (the session's own "
+                   "collector list, existing tolerances) + every extra except "
+                   "COLLECTOR_CARRIED; ruling 2026-10-11 (owner delegated)",
+            "collector_carried": dict(COLLECTOR_CARRIED),
+            "raw_collector_vs_server": _raw_run(recs),
             "sentence": (f"Ready: the newest {run} sessions all graded clean; set "
                          f"BREADTH_EOD_SOURCE=server with BREADTH_EOD_SERVER_FROM = the next session."
                          if ready else
