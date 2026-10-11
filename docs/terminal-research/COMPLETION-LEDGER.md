@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after lane N): not complete.** 234 of 279 rows are `live` or `moot`; 45 are not (30 `dark`, 6 `building`, 9 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after lane N and TERM-008): not complete.** 235 of 279 rows are `live` or `moot`; 44 are not (30 `dark`, 6 `building`, 8 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,10 +34,10 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 after lane N:
+Printed 2026-10-10 after lane N and TERM-008:
 
 ```
-279 Counter({'live': 194, 'moot': 40, 'dark': 30, 'owner-blocked': 9, 'building': 6})
+279 Counter({'live': 195, 'moot': 40, 'dark': 30, 'owner-blocked': 8, 'building': 6})
 0 duplicate ids
 ```
 
@@ -51,12 +51,12 @@ The per-section split is the same regex applied to each `## ` section:
 |---|---|---|---|---|---|---|
 | 1 Programme records + ship | 17 | 13 | 0 | 1 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
-| 3 TERM-001..093 | 93 | 69 | 11 | 3 | 4 | 6 |
+| 3 TERM-001..093 | 93 | 70 | 11 | 3 | 3 | 6 |
 | 4 BRK-01..10 | 10 | 5 | 4 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 6 | 1 | 1 | 1 | 3 |
 | 6 FT-001..080 | 80 | 57 | 9 | 1 | 4 | 9 |
 | 7 Untracked promises | 58 | 44 | 5 | 0 | 0 | 9 |
-| **total** | **279** | **194** | **30** | **6** | **9** | **40** |
+| **total** | **279** | **195** | **30** | **6** | **8** | **40** |
 
 `building` by lane: P 4 · R 2.
 
@@ -110,7 +110,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-005` | Second screener universe | `moot (decided 2026-10-07: no purchase)` | ➜ 2026-10-07: I-10 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `TERM-006` | Freshness authority in time units | `live` | `app/src/components/provenance/freshnessAge.js:285`, on master via the X-01 landing `2e304db42`; the terminal's panel freshness badges read it (V8, `f26bbee7d`). Was `dark` (branch-only). |
 | `TERM-007` | Quiet measurement window | `building (Lane P)` | Window fixed under delegation: Wed 2026-10-14 09:00–11:00 ET, then every Wednesday (B1, `12-decisions/2026-10-07-owner-delegated-decisions.md:200`, recorded `99ee519b7`); the owner is not asked to post it. Remainder: take the reading inside that window (not yet held on 2026-10-10). Was `owner-blocked`. |
-| `TERM-008` | Cloudflare rule / cache key | `owner-blocked (a read with Cloudflare credentials)` | The authenticated `/api/flow/data` read is agent-doable with the smoke account; the rule read is not. ➜ 2026-10-07: decided: read it, then Browser Cache TTL → Respect Existing Headers. T-5; owner action B2 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) Re-checked: no answer to B2 in the 2026-10-08 owner answers (`12-decisions/2026-10-07-owner-delegated-decisions.md:186`). |
+| `TERM-008` | Cloudflare rule / cache key | `live` | Read 2026-10-10 in the owner's dashboard (T-5 / B2): rule 1 cached `/api/flow/data` and `/api/flow/indexes-data` at the edge with a fixed Edge TTL and no auth in the cache key, and an anonymous request after one member load got the paid 14.3 MB CSV as a `HIT`. Rule 1 set to Bypass cache; re-measured anonymous `401` / `DYNAMIC`. Browser Cache TTL already read Respect Existing Headers. Bars rules 2 and 4 restored as found (the `/api/bars` edge-token programme owns them). Record: `11-risks-and-open-questions/2026-10-10-flow-csv-edge-cache-leak.md`. |
 | `TERM-009` | Community call record | `live` | `api/services/community_call_record.py:33`. |
 | `TERM-010` | First run = UCT Default | `live` | `app/src/pages/charts/ChartsWorkspace.jsx:2216`. |
 | `TERM-011` | Ops channel split | `moot (decided 2026-10-08: no #uct-ops channel; ops alerts use the DISCORD_WEBHOOK_URL fallback)` | B3 answer, `12-decisions/2026-10-07-owner-delegated-decisions.md:202`, recorded `99ee519b7`. Steps 1–7 stay on master, inert (`api/services/alert_routing.py:114`); the fallback is now the decided steady state, so step 8 (fallback = 0) no longer applies. Was `dark`. |
