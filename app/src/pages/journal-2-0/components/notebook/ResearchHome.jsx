@@ -56,6 +56,9 @@ const ReportingSoon = lazyChunk(() => import('./ReportingSoon'))
 // on (the box still checks the flag itself), at the same tree position in every return, so a
 // quiet/full flip keeps its state exactly as before.
 const AiActionsBox = lazyChunk(() => import('./AiActionsPanel'))
+// P0.4: the Notices box (task reminders, fill notices, resurfaced notes -- the desktop bell was
+// removed by request). Lazy, like its neighbours: the Notebook's first-open bytes do not carry it.
+const NoticesBox = lazyChunk(() => import('./NoticesBox'))
 const loadReviewDrafts = () => importWithOneRetry(() => import('../../lib/reviewDrafts'))
 
 const STATUS_LABEL = { watching: 'Watching', active: 'Active', invalidated: 'Invalidated', closed: 'Closed' }
@@ -673,6 +676,12 @@ export default function ResearchHome({
     </div>
   )
 
+  // P0.4 (owner decision 2, 2026-10-11): the Notices box, the SECOND child of the same fragment in
+  // every return below, straight under the member's notes -- one element at one tree position, so
+  // a home that flips between quiet and full keeps it (and whether it is open) mounted. It renders
+  // nothing at all when there is nothing to tell or a read fails.
+  const noticesBox = <Suspense fallback={null}><NoticesBox /></Suspense>
+
   // Wave 10 F7 (Part A, 5d): a FAILED read is not a quiet day. "Nothing needs your attention"
   // after a failed load told a member there was nothing, when we could not look.
   // Wave 11 lane 11C: "Ask Notebook to do something" -- renders nothing while its flag is
@@ -769,6 +778,7 @@ export default function ResearchHome({
     return (
       <>
         {homeTop}
+        {noticesBox}
         {aiBox}
         {prepBox}
         {passedBox}
@@ -789,6 +799,7 @@ export default function ResearchHome({
     return (
       <>
         {homeTop}
+        {noticesBox}
         {aiBox}
         {prepBox}
         {passedBox}
@@ -809,6 +820,7 @@ export default function ResearchHome({
   return (
     <>
     {homeTop}
+    {noticesBox}
     {aiBox}
     {prepBox}
     {passedBox}
