@@ -80,7 +80,7 @@ export default function LearnMenu({ className = '', hasAnyNotes = true }) {
   const isPaid = useIsPaid()
 
   const enabled = learnMenuEnabled(notebookFlag)
-  const tours = enabled ? learnMenuTours({ flag: notebookFlag }) : []
+  const tours = enabled ? learnMenuTours({ flag: notebookFlag, hasAnyNotes }) : []
   const groups = groupLearnTours(tours)
   // The same gate as every other wave-14 surface (`enabled` already needs the onboarding flag;
   // it is named again so this line reads as its own rule), and a paid member only: the sample

@@ -8,7 +8,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  GROUP_OF, HELP_WALKTHROUGHS_HREF, LEARN_COPY, LEARN_GROUPS, learnMenuEnabled, learnMenuTours, learnTourGroup, startTour,
+  GROUP_OF, HELP_WALKTHROUGHS_HREF, LEARN_COPY, LEARN_GROUPS, NEEDS_NOTES, learnMenuEnabled, learnMenuTours, learnTourGroup, startTour,
 } from './learnTours'
 import { BASE_TOUR_ID, TOUR_REGISTRY, replayableTours, tourLive } from './tourRegistry'
 import { TOUR_OPEN_EVENT, __resetTourControl, hasPendingTourOpen } from './tourControl'
@@ -80,6 +80,35 @@ describe('learnMenuTours -- derived from the registry, never listed', () => {
     expect(menu[0]).toBe(BASE_TOUR_ID)
     expect(TOUR_REGISTRY.some((t) => t.replayable === false)).toBe(true)
     expect(menu).not.toContain(TOUR_REGISTRY.find((t) => t.replayable === false).id)
+  })
+})
+
+describe('I3: a tour whose first anchor needs a note is hidden while the member has none', () => {
+  it('on the REAL registry, voice-notes is listed unless hasAnyNotes is exactly false', () => {
+    const flag = () => true
+    const ids = (hasAnyNotes) => learnMenuTours({ flag, hasAnyNotes }).map((t) => t.id)
+    expect(ids(true)).toContain('voice-notes')
+    expect(ids(undefined)).toContain('voice-notes')
+    expect(ids(false)).not.toContain('voice-notes')
+    // everything else is untouched: hiding is by id, not a wholesale drop (non-vacuity)
+    expect(ids(false)).toEqual(ids(true).filter((id) => id !== 'voice-notes'))
+    expect(ids(false)).toContain(BASE_TOUR_ID)
+  })
+
+  it('NEEDS_NOTES names real replayable tours only (a rename cannot strand the rule)', () => {
+    const replayable = new Set(TOUR_REGISTRY.filter((t) => t.replayable !== false).map((t) => t.id))
+    expect(NEEDS_NOTES).toContain('voice-notes')
+    for (const id of NEEDS_NOTES) expect(replayable.has(id), `${id} is not a replayable registry tour`).toBe(true)
+    expect(Object.isFrozen(NEEDS_NOTES)).toBe(true)
+  })
+
+  it('the voice tour first step really is the New note control that needs a note (the reason for the rule)', () => {
+    const steps = readFileSync(join(__dirname, 'tours/b1VoiceNotes.steps.js'), 'utf8')
+    expect(steps).toMatch(/anchor:\s*'new-note-home'/)
+    const menu = readFileSync(join(__dirname, '../NewNoteMenu.jsx'), 'utf8')
+    expect(menu).toMatch(/data-tour="new-note-home"/)
+    const home = readFileSync(join(__dirname, '../ResearchHome.jsx'), 'utf8')
+    expect(home).toMatch(/hasAnyNotes && onOpenNewNoteSheet && \(\s*<NewNoteMenu/)
   })
 })
 

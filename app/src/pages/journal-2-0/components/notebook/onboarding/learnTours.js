@@ -74,11 +74,22 @@ export function groupLearnTours(tours) {
     .filter((g) => g.tours.length > 0)
 }
 
+/** Tours whose FIRST anchor exists only once the member has a note. The voice tour opens on the
+ *  "New note" control Research Home draws only when `hasAnyNotes` (ResearchHome.jsx, homeTop), so
+ *  for a member with no notes it can never open: it fails with "could not be shown here ... start
+ *  it again from Learn", and starting it again fails the same way. Hidden from Learn until they have
+ *  a note. (The registry's `requires` is a list of FLAG keys, which cannot say "has a note".) */
+export const NEEDS_NOTES = Object.freeze(['voice-notes'])
+
 /** The tours the menu offers, in registry order (see the header). `flag` is notebookFlag
- *  (a parameter so a rail can arm a fake registry's flags); `registry` is TOUR_REGISTRY. */
-export function learnMenuTours({ flag, registry = TOUR_REGISTRY } = {}) {
+ *  (a parameter so a rail can arm a fake registry's flags); `registry` is TOUR_REGISTRY.
+ *  `hasAnyNotes === false` (the member is known to have none) hides `NEEDS_NOTES`; a caller that
+ *  does not say hides nothing, like Help > Walkthroughs, which makes the same derivation. */
+export function learnMenuTours({ flag, registry = TOUR_REGISTRY, hasAnyNotes } = {}) {
   if (typeof flag !== 'function') return []
-  return replayableTours(registry).filter((t) => tourLive(t, flag))
+  return replayableTours(registry)
+    .filter((t) => tourLive(t, flag))
+    .filter((t) => !(hasAnyNotes === false && NEEDS_NOTES.includes(t.id)))
 }
 
 /** Whether the menu is offered at all: the wave-14 switch on (see the header). */

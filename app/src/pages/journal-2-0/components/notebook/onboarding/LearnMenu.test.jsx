@@ -42,6 +42,8 @@ vi.mock('./tourRegistry', async (importOriginal) => {
     Object.freeze({ id: 'learn-formulas', flag: 'notebook_formulas_enabled', title: 'Formulas', replayable: true, load: async () => ({}) }),
     // a real Trading-group id on its own (dark) flag, so the grouped menu has a second group to show
     Object.freeze({ id: 'chart-plan-basics', flag: 'notebook_chart_plan_enabled', title: 'Chart plan basics', replayable: true, load: async () => ({}) }),
+    // the real voice tour's id (its first anchor, the New note control, exists only once a member has notes)
+    Object.freeze({ id: 'voice-notes', flag: 'notebook_voice_notes_enabled', title: 'Voice notes', replayable: true, load: async () => ({}) }),
     Object.freeze({ id: 'learn-explainer', flag: 'notebook_formulas_enabled', title: 'An explainer', replayable: false, load: async () => ({}) }),
   ])
   return {
@@ -131,6 +133,30 @@ describe('what it lists -- DERIVED from the registry', () => {
     expect(menuItems().map((el) => el.textContent))
       .toEqual(['Notebook basics tour', 'Formulas tour', 'All walkthroughs in Help'])
     expect(screen.queryByText(/An explainer/)).toBeNull()
+  })
+
+  it('I3: the voice-notes tour is NOT offered while the member has no notes (its first anchor does not exist yet)', () => {
+    latchNotebookFlags({ ...WAVE14, notebook_voice_notes_enabled: true })
+    renderMenu({ hasAnyNotes: false })
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    expect(screen.queryByRole('menuitem', { name: 'Voice notes tour' })).toBeNull()
+    // the other live tours are untouched (non-vacuity: the menu really did render its tours)
+    expect(menuItems().map((el) => el.textContent)).toEqual(['Notebook basics tour', 'What your Notebook can do', 'All walkthroughs in Help'])
+  })
+
+  it('I3: the voice-notes tour IS offered once the member has notes (and by default, when the caller does not say)', () => {
+    latchNotebookFlags({ ...WAVE14, notebook_voice_notes_enabled: true })
+    const first = renderMenu({ hasAnyNotes: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    expect(menuItems().map((el) => el.textContent)).toEqual(['Notebook basics tour', 'Voice notes tour', 'What your Notebook can do', 'All walkthroughs in Help'])
+    first.unmount()
+    render(
+      <AuthContext.Provider value={{ isPaid: false }}>
+        <MemoryRouter initialEntries={['/journal/notebook']}><LearnMenu /></MemoryRouter>
+      </AuthContext.Provider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    expect(screen.getByRole('menuitem', { name: 'Voice notes tour' })).toBeInTheDocument()
   })
 
   it('the Help link goes to Help > Walkthroughs', () => {
