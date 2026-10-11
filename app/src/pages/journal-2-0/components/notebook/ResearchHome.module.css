@@ -412,6 +412,10 @@
   .textLink {
     min-width: var(--tap-min);
   }
+  /* A 16px input does not make iOS zoom the page on focus (the sidebar box is 16px here too). */
+  .searchBox {
+    font-size: 16px;
+  }
 }
 
 @media (max-width: 640px) {
