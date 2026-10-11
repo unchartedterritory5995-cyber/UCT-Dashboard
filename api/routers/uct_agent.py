@@ -5,6 +5,9 @@
                                            turns, receipts, refusals, undo) + telemetry
   GET  /api/agent/conversations            the member's chats, newest first
   GET  /api/agent/conversations/{id}       one chat's transcript
+  PATCH  /api/agent/conversations/{id}     rename and/or pin (History)
+  DELETE /api/agent/conversations/{id}     delete a chat and its transcript (History)
+  GET  /api/agent/search?q=                find words across the member's own chats (History)
 
 Nothing here mutates a workspace: the browser executes the deterministic
 actions and reports the outcome back through /record. Paid (402) AND admin (403)
@@ -193,3 +196,41 @@ def agent_conversation(conversation_id: str, user: dict = Depends(require_admin_
     if conv is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return conv
+
+
+class ConversationPatch(BaseModel):
+    title: Optional[str] = None
+    pinned: Optional[bool] = None
+
+
+@router.patch("/api/agent/conversations/{conversation_id}")
+def agent_conversation_patch(conversation_id: str, body: ConversationPatch, user: dict = Depends(require_admin_dark)):
+    from api.services.uct_agent import store
+    uid = user["id"]
+    if body.title is None and body.pinned is None:
+        raise HTTPException(status_code=400, detail="Nothing to change.")
+    if not store.owns(uid, conversation_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if body.title is not None:
+        try:
+            store.rename_conversation(uid, conversation_id, body.title)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="A chat needs a name.")
+    if body.pinned is not None:
+        store.set_pinned(uid, conversation_id, body.pinned)
+    conv = next((c for c in store.list_conversations(uid, limit=1000) if c["id"] == conversation_id), None)
+    return {"conversation": conv}
+
+
+@router.delete("/api/agent/conversations/{conversation_id}")
+def agent_conversation_delete(conversation_id: str, user: dict = Depends(require_admin_dark)):
+    from api.services.uct_agent import store
+    if not store.delete_conversation(user["id"], conversation_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"deleted": conversation_id}
+
+
+@router.get("/api/agent/search")
+def agent_search(q: str = "", user: dict = Depends(require_admin_dark)):
+    from api.services.uct_agent import store
+    return {"results": store.search_turns(user["id"], q[:200])}

@@ -696,3 +696,46 @@ def test_a_second_refusal_after_the_fallback_is_not_retried_again():
         turn.run_turn(message="set it", context=CTX, history=[], capabilities=_many_caps(3), caller=caller)
     assert len(calls) == 2
 
+
+
+def test_HISTORY_rename_pin_delete_and_search_are_the_members_own(make_client, monkeypatch):
+    """History: rename / pin / delete / search touch ONLY the caller's own chats; pinned list first;
+    search finds every word in any order and names the conversation and time of each hit."""
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: True)
+    a = make_client(ADMIN)
+    c1 = a.post("/api/agent/record", json={"member": "Add the 20 EMA to AAPL", "outcome": "Added EMA 20 to Chart (AAPL)"}).json()["conversationId"]
+    c2 = a.post("/api/agent/record", json={"member": "why is NVDA moving", "outcome": "ok"}).json()["conversationId"]
+    ids = lambda: [c["id"] for c in a.get("/api/agent/conversations").json()["conversations"]]
+    assert ids()[:2] == [c2, c1]                                     # newest first
+    # pin: the pinned chat lists first even though it is older
+    assert a.patch(f"/api/agent/conversations/{c1}", json={"pinned": True}).json()["conversation"]["pinned_at"]
+    assert ids()[0] == c1
+    assert a.patch(f"/api/agent/conversations/{c1}", json={"pinned": False}).json()["conversation"]["pinned_at"] is None
+    # rename: whitespace collapsed, clipped; an empty name is refused
+    r = a.patch(f"/api/agent/conversations/{c2}", json={"title": "  NVDA   research " + "x" * 200})
+    assert r.status_code == 200 and r.json()["conversation"]["title"].startswith("NVDA research x") and len(r.json()["conversation"]["title"]) == store.TITLE_LEN
+    assert a.patch(f"/api/agent/conversations/{c2}", json={"title": "   "}).status_code == 400
+    assert a.patch(f"/api/agent/conversations/{c2}", json={}).status_code == 400
+    # search: all words, any order, any case, "$" ignored; each hit names its chat
+    hits = a.get("/api/agent/search", params={"q": "aapl EMA"}).json()["results"]
+    assert {h["conversation_id"] for h in hits} == {c1} and len(hits) == 2
+    assert all(h["title"] and h["created_at"] for h in hits)
+    assert a.get("/api/agent/search", params={"q": "$nvda"}).json()["results"][0]["conversation_id"] == c2
+    assert a.get("/api/agent/search", params={"q": "100%"}).json()["results"] == []    # LIKE wildcards are literal
+    assert a.get("/api/agent/search", params={"q": "  "}).json()["results"] == []
+    # another admin can't rename, pin, delete or search into it
+    other = make_client({"id": "38c023cf-0e81-4187-aa43-ac51a751a004", "plan": "pro", "role": "admin"})
+    assert other.patch(f"/api/agent/conversations/{c1}", json={"title": "mine now"}).status_code == 404
+    assert other.patch(f"/api/agent/conversations/{c1}", json={"pinned": True}).status_code == 404
+    assert other.delete(f"/api/agent/conversations/{c1}").status_code == 404
+    assert other.get("/api/agent/search", params={"q": "aapl"}).json()["results"] == []
+    # a member who is not admin is refused outright (admin-dark like every Agent route)
+    m = make_client(MEMBER)
+    assert m.get("/api/agent/search", params={"q": "aapl"}).status_code == 403
+    assert m.delete(f"/api/agent/conversations/{c1}").status_code == 403
+    # delete: the chat and its transcript are gone, and it is no longer searchable
+    assert a.delete(f"/api/agent/conversations/{c1}").json() == {"deleted": c1}
+    assert a.get(f"/api/agent/conversations/{c1}").status_code == 404
+    assert c1 not in ids()
+    assert a.get("/api/agent/search", params={"q": "aapl"}).json()["results"] == []
+    assert a.delete(f"/api/agent/conversations/{c1}").status_code == 404
