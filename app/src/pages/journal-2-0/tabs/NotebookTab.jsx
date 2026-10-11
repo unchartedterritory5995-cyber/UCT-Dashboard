@@ -2341,6 +2341,24 @@ export default function NotebookTab() {
                 ))}
               </div>
               {/*
+                P0.11: on a phone the seven icon buttons above say nothing to a member who has
+                not learned the glyphs, so the stylesheet swaps them for this labelled select
+                (<=640px; desktop keeps the buttons). It is the SAME state under the SAME
+                saved-view lock, not a second authority: both doors call setViewMode.
+              */}
+              <label className={styles.viewSelectWrap}>
+                <span className="sr-only">View</span>
+                <select
+                  className={styles.viewSelect}
+                  aria-label="View"
+                  value={viewMode}
+                  onChange={(e) => setViewMode(e.target.value)}
+                  disabled={Boolean(activeView)}
+                >
+                  {VIEW_MODES.map(({ id, short }) => <option key={id} value={id}>{short}</option>)}
+                </select>
+              </label>
+              {/*
                 ⛔ NO "Save this view" IN GRAPH MODE -- still true, for a
                 DIFFERENT reason than this comment used to give. The server's
                 SAVEABLE_VIEW_TYPES (note_properties.py) now accepts "graph",

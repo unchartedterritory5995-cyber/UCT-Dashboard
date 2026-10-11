@@ -183,7 +183,12 @@ def main() -> int:
                                 # also the task-reminder link's door for `?view=tasks`).
                                 pg.goto(base + "/journal/notebook?view=all", wait_until="networkidle", timeout=30000)
                                 H._dismiss_intro(pg)
-                                pg.get_by_role("button", name="Board view").click(timeout=10000)
+                                # P0.11: at 390 px the icon buttons are replaced by a View select
+                                btn = pg.get_by_role("button", name="Board view")
+                                if btn.count() and btn.first.is_visible():
+                                    btn.first.click(timeout=10000)
+                                else:
+                                    pg.get_by_role("combobox", name="View", exact=True).select_option(label="Board", timeout=10000)
                                 pg.wait_for_selector('section[aria-label]', timeout=10000)
                                 pg.wait_for_timeout(500)
                                 row = {"viewport": label, **measure(pg, art, f"{a.tag}-{label}"),

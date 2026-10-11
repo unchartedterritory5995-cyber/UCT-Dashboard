@@ -29,10 +29,12 @@ const EXPECTED = {
   'template-gallery': 'notebook_template_gallery_enabled',
   'meaning-search': 'notebook_semantic_search_enabled',
   'formulas-rollups': 'notebook_formulas_enabled',
+  // P0.10: not one of plan 4.2's rows; added with the voice-notes walkthrough
+  'voice-notes': 'notebook_voice_notes_enabled',
 }
 
 describe('the B1 track is registered', () => {
-  it('declares exactly the seven tours of plan 4.2 rows 2 to 8, each on its own flag', () => {
+  it('declares exactly the seven tours of plan 4.2 rows 2 to 8 plus the P0.10 voice-notes tour, each on its own flag', () => {
     expect(Object.fromEntries(TOURS.map((t) => [t.id, t.flag]))).toEqual(EXPECTED)
   })
 
@@ -54,6 +56,8 @@ describe('the B1 track is registered', () => {
       'template-gallery': '/journal/notebook?view=all',
       'meaning-search': '/journal/notebook?view=all',
       'formulas-rollups': { note: 'recent' },
+      // P0.10: its door is in Research Home's New note menu
+      'voice-notes': '/journal/notebook',
     })
   })
 })
