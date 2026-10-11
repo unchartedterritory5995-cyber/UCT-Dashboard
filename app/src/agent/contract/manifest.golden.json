@@ -920,7 +920,7 @@
    "domain": "watchlist",
    "target": "watchlist",
    "summary": "Add tickers to one of the member's saved watchlists (the list itself, not a widget). Symbols already in the list are skipped.",
-   "hints": "target = the ref of the watchlist (or the \"as\" name of a list created earlier in this request); symbols = the tickers, uppercase, OR {from, top} to add a SCREEN's stocks: from = the \"as\" of a screener op earlier in this request (or \"lastScreen\" for the last screen run here), top = how many of its results, in its order (null = all, at most 50). Never type tickers you have not been given. If they say \"my watchlist\" and it is not clear which list, clarify with the real list names. One op per list.",
+   "hints": "target = the ref of the watchlist (or the \"as\" name of a list created earlier in this request); symbols = the tickers, uppercase, OR {from, top} to add a SCREEN's stocks: from = the \"as\" of a screener op earlier in this request (or \"lastScreen\" for the last screen run here), top = how many of its results, in its order (null = ALL of them — the default when they say \"all\" or give no number; at most 1000). Never type tickers you have not been given. If they say \"my watchlist\" and it is not clear which list, clarify with the real list names. One op per list.",
    "args": {
     "type": "object",
     "properties": {
@@ -1029,7 +1029,7 @@
    "domain": "watchlist",
    "target": "watchlistLibrary",
    "summary": "Create a NEW saved watchlist (a named list of tickers) — only when they ask to create or make a list. \"Add a watchlist\" with no list name means a Watchlist WIDGET on the board: that is widget.add, not this.",
-   "hints": "target = the ref of the watchlistLibrary entry; name = exactly as given. To COPY a list (\"duplicate my X watchlist\"), create \"<X> copy\" (or the name they give — do not ask for one) and add {from: the ref of X, top: null} to it. To fill it in the same request set \"as\" to a short name (new1) and target watchlist.add at that name; otherwise \"as\" is null. Never use this for a name already in the watchlists list — if they ask to put stocks in a list \"called X\" and X already exists, clarify (add to the existing X, or a new name); never silently append.",
+   "hints": "target = the ref of the watchlistLibrary entry; name = exactly as given. To COPY a list (\"duplicate my X watchlist\"), create \"<X> copy\" (or the name they give — do not ask for one) and add {from: the ref of X, top: null} to it. To fill it in the same request set \"as\" to a short name (new1) and target watchlist.add at that name; otherwise \"as\" is null. No name given: pick a short descriptive one (e.g. Software Over $10) not already in the watchlists list — do not ask. Never use this for a name already in the watchlists list — if they ask to put stocks in a list \"called X\" and X already exists, clarify (add to the existing X, or a new name); never silently append.",
    "args": {
     "type": "object",
     "properties": {
@@ -1082,7 +1082,7 @@
    "domain": "screener",
    "target": "screener",
    "summary": "Run a stock screen on UCT's Screener and show the real matches (count + top rows). Changes nothing in UCT. Use this for \"show me / find stocks with …\".",
-   "hints": "target = the ref of the screener entry. filters: each {field: a key from the screener `fields` list (never invent one), op: gt|gte|lt|lte|eq|between, value: number, max: number for between else null}. Percent fields take plain numbers (5 means 5%). Yes/no fields: op eq, value 1 or 0. \"above\"=gt, \"at least\"=gte. sort_field: a field key or null; sort_dir: asc|desc|null. mode: \"refine\" when they add to / narrow / change the LAST screen (\"also\", \"and price above…\"), else \"new\". show: rows to show (null = 10, max 25). If they ask for a measure that is not in `fields`, say the Screener doesn't have it — never substitute another field. as: name this screen's RESULT (e.g. \"screen1\") when a later op in the same request uses its stocks (watchlist.add symbols {from:\"screen1\", top:N}); else null.",
+   "hints": "target = the screener entry ref. filters: each {field: a key from screener `fields` (never invented), op, value, max, values}. Numbers: op gt|gte|lt|lte|eq|between, value, max (between only, else null), values null; % fields take 5 for 5%, $ fields take dollars (10M = 10000000). yes/no: op eq, value 1|0. (list) fields: op in|not_in, values = the member's own words ([\"software\"]) — UCT matches the real values; value/max null. \"(latest session)\" fields = the last completed trading day: use them for a daily dollar volume (\"trades over $10M a day\"), never a 30-day average or share volume. A measure not in `fields`: say the Screener doesn't have it, never substitute. sort_field/sort_dir or null. mode refine = change the LAST screen, else new. show: rows (null = 10, max 25). as: name the RESULT (screen1) when a later op uses its stocks ({from:\"screen1\", top:null} = all of them); else null.",
    "args": {
     "type": "object",
     "properties": {
@@ -1102,24 +1102,39 @@
           "lt",
           "lte",
           "eq",
-          "between"
+          "between",
+          "in",
+          "not_in"
          ]
         },
         "value": {
-         "type": "number"
+         "type": [
+          "number",
+          "null"
+         ]
         },
         "max": {
          "type": [
           "number",
           "null"
          ]
+        },
+        "values": {
+         "type": [
+          "array",
+          "null"
+         ],
+         "items": {
+          "type": "string"
+         }
         }
        },
        "required": [
         "field",
         "op",
         "value",
-        "max"
+        "max",
+        "values"
        ],
        "additionalProperties": false
       }
@@ -1973,6 +1988,29 @@
     },
     "required": [
      "widget",
+     "list"
+    ],
+    "additionalProperties": false
+   },
+   "risk": "local",
+   "reversible": true,
+   "undo": "exact",
+   "query": false
+  },
+  {
+   "name": "watchlist.open",
+   "domain": "watchlist",
+   "target": "board",
+   "summary": "Open one of the member's watchlists in their workspace: the Watchlist widget on this board shows it (with none, a Watchlist widget is added in empty space). Use for \"open it / show it in my workspace\".",
+   "hints": "target = the ref of the board entry; list = the ref of the watchlist, or the \"as\" name of a list created earlier in this request (it opens after that list is created and filled).",
+   "args": {
+    "type": "object",
+    "properties": {
+     "list": {
+      "type": "string"
+     }
+    },
+    "required": [
      "list"
     ],
     "additionalProperties": false

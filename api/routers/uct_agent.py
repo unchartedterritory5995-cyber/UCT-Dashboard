@@ -8,6 +8,7 @@
   PATCH  /api/agent/conversations/{id}     rename and/or pin (History)
   DELETE /api/agent/conversations/{id}     delete a chat and its transcript (History)
   GET  /api/agent/search?q=                find words across the member's own chats (History)
+  POST /api/agent/session-stats            latest completed session close/volume/dollar volume (read-only)
 
 Nothing here mutates a workspace: the browser executes the deterministic
 actions and reports the outcome back through /record. Paid (402) AND admin (403)
@@ -269,3 +270,17 @@ def agent_conversation_delete(conversation_id: str, user: dict = Depends(require
 def agent_search(q: str = "", user: dict = Depends(require_admin_dark)):
     from api.services.uct_agent import store
     return {"results": store.search_turns(user["id"], q[:200])}
+
+
+class SessionStatsIn(BaseModel):
+    symbols: list = Field(default_factory=list)
+
+
+@router.post("/api/agent/session-stats")
+def agent_session_stats(body: SessionStatsIn, user: dict = Depends(require_admin_dark)):
+    """The latest completed session's close / volume / dollar volume for these tickers
+    (services/uct_agent/session_stats.py). Read-only; no model call."""
+    from api.services.uct_agent import session_stats
+    if len(body.symbols) > session_stats.MAX_SYMBOLS:
+        raise HTTPException(status_code=400, detail=f"at most {session_stats.MAX_SYMBOLS} symbols at once")
+    return session_stats.latest_session(body.symbols)

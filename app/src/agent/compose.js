@@ -23,7 +23,9 @@
 import { getCapability, getOutputSource, getTargetKind, isRef, allCapabilityNames } from './capabilities'
 import { mark } from './trace'
 
-const MAX_TOP = 100
+// The most items one reference may carry (a screen → a watchlist). Matches the Screener's
+// FILL_MAX: "all of them" past this is REFUSED with the real count, never cut to a first page.
+export const MAX_TOP = 1000
 
 /** [{ op, arg, ref, type }] for every typed reference in the ops. */
 export function refsOf(ops) {
@@ -221,6 +223,12 @@ export async function resolveRefs(ops, host) {
       const v = args?.[arg]
       if (!isRef(v)) continue
       const res = outputs.get(v.from)
+      // "All of them" (top null) must be ALL of them: a producer that holds more than it could
+      // hand over says so, and nothing is written — never a silent first-N.
+      if (v.top == null && Number(res?.count) > (res?.symbols || []).length) {
+        const n = Number(res.count).toLocaleString()
+        return { ok: false, reason: `that's ${n} stocks — more than the ${(res.symbols || []).length.toLocaleString()} I put in one request. Narrow it (add a condition) or say how many (e.g. the top 200)` }
+      }
       const picked = (res?.symbols || []).slice(0, v.top ?? MAX_TOP)
       if (!picked.length) empty = true
       args = { ...args, [arg]: picked }

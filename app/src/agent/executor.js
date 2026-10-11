@@ -91,11 +91,13 @@ export function planOps(targets, ops, env = {}, ctx = null) {
       if (bad) { refusals.push({ index, action: op?.action, target: ref, reason: bad }); continue }
       const cap = getCapability(op.action)
       if (cap.target !== tgt.kind) { refusals.push({ index, action: op.action, target: ref, reason: `${op.action} doesn't apply to that.` }); continue }
-      const why = cap.check(st, op.args, opEnv)
+      // `trusted`: this op's symbols came from UCT itself (a screen, a saved list) — not model text.
+      const oenv = op.trusted ? { ...opEnv, trusted: true } : opEnv
+      const why = cap.check(st, op.args, oenv)
       if (why) { refusals.push({ index, action: op.action, target: ref, reason: why }); continue }
-      if (cap.confirmIf && cap.confirmIf(st, op.args, opEnv)) confirm = true
-      const next = cap.apply(st, op.args, opEnv)
-      if (next === st && cap.noop) noops.push(cap.noop(st, st, op.args, opEnv))
+      if (cap.confirmIf && cap.confirmIf(st, op.args, oenv)) confirm = true
+      const next = cap.apply(st, op.args, oenv)
+      if (next === st && cap.noop) noops.push(cap.noop(st, st, op.args, oenv))
       st = next
     }
     plans.push({ ref, kind: tgt.kind, snap: tgt.snap, virtual: !!tgt.virtual, before, after: st, items, noops, env: opEnv, confirm })

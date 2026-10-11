@@ -6,6 +6,7 @@ import { registerWorkspaceCapabilities } from './capabilities/workspace'
 import { registerLayoutCapabilities } from './capabilities/layout'
 import { registerWatchlistCapabilities } from './capabilities/watchlist'
 import { registerScreenerCapabilities } from './capabilities/screener'
+import { registerSessionMeasures } from './capabilities/sessionMeasures'
 import { registerAlertCapabilities } from './capabilities/alert'
 import { registerStockCapabilities } from './capabilities/stock'
 import { registerSettingsCapabilities } from './capabilities/settings'
@@ -29,6 +30,7 @@ export function registerBuiltins() {
   registerLayoutCapabilities()
   registerWatchlistCapabilities()
   registerScreenerCapabilities()
+  registerSessionMeasures()
   registerAlertCapabilities()
   registerStockCapabilities()
   registerSettingsCapabilities()
