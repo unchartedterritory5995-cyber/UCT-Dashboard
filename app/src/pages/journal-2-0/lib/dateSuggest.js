@@ -38,6 +38,7 @@ import { SuggestionPluginKey as slashMenuPluginKey } from '@tiptap/suggestion'
 import { applyComboboxWiring } from './comboboxWiring'
 import { noteLinkMenuPluginKey } from '../components/notebook/NoteLinkMenu'
 import { DATE_SUGGEST_MENU_ID } from './dateSuggestMenuId'
+import { guardedCommand, sessionStillOpen } from './suggestionSession'
 
 // I4 (final review, spec section 6: every new surface lazy). The list's UI -- the listbox, its
 // date input and its stylesheet -- is a separate chunk, fetched on the FIRST `@` of the page and
@@ -118,6 +119,13 @@ export function runDateCommand(editor, choice, range) {
 
 export const dateSuggestPluginKey = new PluginKey('dateSuggest')
 
+/** The @ list's Suggestion command (a chosen row), exported so a rail can hand it a dead range.
+ *  Guarded (lib/suggestionSession.js): a row chosen for a session that has ended inserts nothing
+ *  and deletes nothing. `runDateCommand` itself stays the one inserter. */
+export const dateSuggestCommand = guardedCommand(dateSuggestPluginKey, ({ editor, range, props }) => {
+  runDateCommand(editor, props, range)
+})
+
 /**
  * Tab with no list on screen yet (N3, polish round). On the FIRST `@` of a page load the list's
  * chunk is still on its way, and without this Tab went to the browser, which can move focus out of
@@ -165,7 +173,7 @@ export const DateSuggest = Extension.create({
       allowedPrefixes: [' ', '('],
       allow: ({ state, range }) => !inCode(state, range.from) && !otherSuggestionOpen(state),
       items: ({ query }) => dateChoices(query, today()),
-      command: ({ editor, range, props }) => { runDateCommand(editor, props, range) },
+      command: dateSuggestCommand,
       render: () => {
         // The same popup mechanism the emoji and slash menus use (Suggestion + ReactRenderer +
         // a fixed-position wrapper on the body); each keeps its closure state per session.
@@ -197,9 +205,12 @@ export const DateSuggest = Extension.create({
         }
         return {
           onStart: (props) => {
-            // Suggestion starts a session a tick after the keystroke; the editor may have been
-            // destroyed in between (a note closed mid-word). Reading its view then throws.
-            if (props.editor?.isDestroyed) return
+            // Suggestion starts a session a tick after the keystroke (it awaits `items`). The editor
+            // may have been destroyed in between (a note closed mid-word: reading its view throws),
+            // or the session already ended (a start and an end in one task, whose onExit ran FIRST,
+            // so `live` below would be set for a dead session and its list drawn). Either way:
+            // nothing. lib/suggestionSession.js, shared by all four menus.
+            if (!sessionStillOpen(dateSuggestPluginKey, props.editor, props.range)) return
             latest = props
             live = true
             getRect = props.clientRect

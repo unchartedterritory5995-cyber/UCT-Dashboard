@@ -40,6 +40,7 @@ import { ReactRenderer } from '@tiptap/react'
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { SHORTCODE_BODY, emojiByName, searchEmoji } from '../../lib/emojiData'
 import { applyComboboxWiring } from '../../lib/comboboxWiring'
+import { guardedCommand, sessionStillOpen } from '../../lib/suggestionSession'
 import styles from './EmojiMenu.module.css'
 
 export const EMOJI_MENU_ID = 'uct-emoji-menu'
@@ -56,6 +57,12 @@ export function emojiMenuArms(query) {
   return true
 }
 export const emojiMenuPluginKey = new PluginKey('emojiMenu')
+
+/** The emoji Suggestion's command, exported so a rail can hand it a dead session's range.
+ *  Guarded (lib/suggestionSession.js): nothing is replaced for a session that has ended. */
+export const emojiCommand = guardedCommand(emojiMenuPluginKey, ({ editor, range, props }) => {
+  editor.chain().focus().insertContentAt(range, props.char).run()
+})
 
 const inCode = (state, pos) => {
   const $pos = state.doc.resolve(pos)
@@ -146,9 +153,7 @@ export const EmojiMenuExtension = Extension.create({
       // (":oP", ":-1"). An empty list renders nothing and passes every key
       // through (EmojiList).
       items: ({ query }) => (emojiMenuArms(query) ? searchEmoji(query) : []),
-      command: ({ editor, range, props }) => {
-        editor.chain().focus().insertContentAt(range, props.char).run()
-      },
+      command: emojiCommand,
       render: () => {
         let component
         let popup
@@ -171,6 +176,9 @@ export const EmojiMenuExtension = Extension.create({
         }
         return {
           onStart: (props) => {
+            // Suggestion calls this after awaiting `items`; a session that ended meanwhile (the
+            // trigger deleted, or a start and an end in one task) draws nothing.
+            if (!sessionStillOpen(emojiMenuPluginKey, props.editor, props.range)) return
             getRect = props.clientRect
             editorDom = props.editor?.view?.dom || null
             component = new ReactRenderer(EmojiList, { props: { ...props, onActiveChange: setActive }, editor: props.editor })

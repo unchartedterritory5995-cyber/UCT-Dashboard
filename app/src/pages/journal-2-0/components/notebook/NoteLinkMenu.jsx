@@ -25,6 +25,7 @@ import { ReactRenderer } from '@tiptap/react'
 import { useEffect, useImperativeHandle, useState, forwardRef } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { applyComboboxWiring } from '../../lib/comboboxWiring'
+import { guardedCommand, sessionStillOpen } from '../../lib/suggestionSession'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './NoteLinkMenu.module.css'
 
@@ -150,6 +151,13 @@ NoteLinkList.displayName = 'NoteLinkList'
 // Exported so another suggestion (the `@` date list) can ask whether a `[[` session is open.
 export const noteLinkMenuPluginKey = new PluginKey('noteLinkMenu')
 
+/** The note-link Suggestion's command, exported so a rail can hand it a dead session's range.
+ *  Guarded (lib/suggestionSession.js): a row clicked for a session that has ended does nothing,
+ *  never deleting the text that now sits where the dead `[[` was. */
+export const noteLinkCommand = guardedCommand(noteLinkMenuPluginKey, ({ editor, range, props }) => {
+  editor.chain().focus().deleteRange(range).insertNoteLink(props.id).run()
+})
+
 export const NoteLinkMenuExtension = Extension.create({
   name: 'noteLinkMenu',
   addProseMirrorPlugins() {
@@ -189,9 +197,7 @@ export const NoteLinkMenuExtension = Extension.create({
         // menu's whole purpose is searching human-authored, usually
         // multi-word titles, so it needs it even more.
         allowSpaces: true,
-        command: ({ editor, range, props }) => {
-          editor.chain().focus().deleteRange(range).insertNoteLink(props.id).run()
-        },
+        command: noteLinkCommand,
         items: (() => {
           // One search sequence per plugin instance (never shared between
           // open notes/editors) -- see makeNoteSearch.
@@ -229,11 +235,11 @@ export const NoteLinkMenuExtension = Extension.create({
 
           return {
             onStart: (props) => {
-              // The session starts after a debounced search, so the note may have been closed (the
-              // editor destroyed) in between. Reading its view then throws inside Suggestion's async
-              // update, an unhandled rejection, and would leave a popup for an editor that is gone.
-              // The same guard DateSuggest's onStart has (lib/dateSuggest.js).
-              if (props.editor?.isDestroyed) return
+              // The session starts after a debounced search (150 ms plus the fetch). In between the
+              // note may have been closed (reading a destroyed editor's view throws: an unhandled
+              // rejection), or the `[[` deleted (a popup for a session that is gone, which nothing
+              // removes). Either way: draw nothing. lib/suggestionSession.js, shared by all four menus.
+              if (!sessionStillOpen(noteLinkMenuPluginKey, props.editor, props.range)) return
               dismissed = false
               getRect = props.clientRect
               editorDom = props.editor?.view?.dom || null
