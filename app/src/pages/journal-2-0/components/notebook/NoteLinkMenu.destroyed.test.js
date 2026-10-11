@@ -36,7 +36,7 @@ describe('closing a note while a [[ search is still pending', () => {
       extensions: buildExtensions(),
       content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'See ' }] }] },
     })
-    editor.commands.focus('end')
+    editor.commands.focus('end', { scrollIntoView: false }) // jsdom has no getClientRects
     editor.commands.insertContent('[[Weekly')
     expect(noteLinkMenuPluginKey.getState(editor.state).active).toBe(true) // non-vacuity: a session opened
     expect(searched).not.toHaveBeenCalled() // ...and its search is still pending (debounced)

@@ -30,7 +30,7 @@ function mount(text) {
   const el = document.createElement('div')
   document.body.appendChild(el)
   editor = new Editor({ element: el, extensions: buildExtensions(), content: { type: 'doc', content: [para(text)] } })
-  editor.commands.focus('end')
+  editor.commands.focus('end', { scrollIntoView: false }) // jsdom has no getClientRects (see dateSuggest.test.js)
   return editor
 }
 const press = (ed, key) => ed.view.someProp('handleKeyDown', (f) => f(ed.view, new KeyboardEvent('keydown', { key })))
