@@ -104,12 +104,14 @@ const defIds = (h, ref = 'c1') => (mergeChartSettings(JSON.stringify(h.store[ref
 
 async function say(t) {
   const box = screen.getByLabelText('Message UCT Agent')
-  await waitFor(() => expect(box.disabled).toBe(false))
+  await waitFor(() => expect(box.disabled).toBe(false), { timeout: 6000 })
   fireEvent.change(box, { target: { value: t } }); fireEvent.keyDown(box, { key: 'Enter' })
 }
 const turns = () => calls.filter(c => c === '/api/agent/turn').length
 
-describe('MULTI-STEP on one chart, no model call', () => {
+// Waits here allow 6 s: each step is a real save + read-back, slower when the whole suite runs in
+// parallel (the deploy gate). A passing run still returns as soon as the condition holds.
+describe('MULTI-STEP on one chart, no model call', { timeout: 30000 }, () => {
   it('"Add VWAP and RSI, then change my chart to five minutes": all three land, each indicator its own receipt + Undo; no approval needed (one chart, reversible)', async () => {
     const h = chartHost()
     render(<AgentPanel host={h} onClose={() => {}} />)
@@ -118,24 +120,31 @@ describe('MULTI-STEP on one chart, no model call', () => {
     expect(h.store.c1.tf).toBe('5')
     expect(turns()).toBe(0)
     expect(screen.queryByTestId('agent-proposal')).toBeNull()
-    await waitFor(() => expect(screen.getAllByTestId('agent-receipt').length).toBe(3))   // timeframe, VWAP, RSI
+    await waitFor(() => expect(screen.getAllByTestId('agent-receipt').length).toBe(3), { timeout: 6000 })   // timeframe, VWAP, RSI
     const text = screen.getAllByTestId('agent-receipt').map(r => r.textContent).join(' | ')
     expect(text).toMatch(/VWAP/); expect(text).toMatch(/RSI|Relative Strength/); expect(text).toMatch(/5-minute|5m|5 min/i)
     // typed undo takes back the NEWEST step only (RSI), never the earlier ones
     await say('undo')
-    await waitFor(() => expect(defIds(h)).not.toContain('rsi'))
+    await waitFor(() => expect(defIds(h)).not.toContain('rsi'), { timeout: 6000 })
     expect(defIds(h)).toContain('vwap')
   })
   it('"get rid of RSI" is a PROPOSAL (removal can disconnect other indicators) — approval preserved', async () => {
     const h = chartHost()
     render(<AgentPanel host={h} onClose={() => {}} />)
     await say('add RSI')
-    await waitFor(() => expect(defIds(h)).toContain('rsi'))
+    await waitFor(() => expect(defIds(h)).toContain('rsi'), { timeout: 6000 })
+    // the add is DONE only at its receipt (the store is written before the save is confirmed)
+    await waitFor(() => expect(screen.getAllByTestId('agent-receipt').length).toBe(1), { timeout: 6000 })
     await say('get rid of RSI')
-    await screen.findByTestId('agent-proposal', {}, { timeout: 4000 })
+    try {
+      await screen.findByTestId('agent-proposal', {}, { timeout: 6000 })
+    } catch (e) {                                   // a rare failure in the gate is readable, not guessed
+      console.log('[agentPhase2 diagnostic] transcript:', screen.getByTestId('agent-transcript').textContent.split('heavy lifting.')[1])
+      throw e
+    }
     expect(defIds(h)).toContain('rsi')
     await say('do it')
-    await waitFor(() => expect(defIds(h)).not.toContain('rsi'))
+    await waitFor(() => expect(defIds(h)).not.toContain('rsi'), { timeout: 6000 })
     expect(turns()).toBe(0)
   })
   it('two charts: "add RSI" asks WHICH chart (a necessary question, named as a chart) — never guesses', async () => {
@@ -146,7 +155,7 @@ describe('MULTI-STEP on one chart, no model call', () => {
     expect(q.textContent).toMatch(/Which chart\?/)
     expect(defIds(h, 'c1')).not.toContain('rsi'); expect(defIds(h, 'c2')).not.toContain('rsi')
     await say('add RSI to the left chart')
-    await waitFor(() => expect(defIds(h, 'c1')).toContain('rsi'))
+    await waitFor(() => expect(defIds(h, 'c1')).toContain('rsi'), { timeout: 6000 })
     expect(defIds(h, 'c2')).not.toContain('rsi')
   })
 })
