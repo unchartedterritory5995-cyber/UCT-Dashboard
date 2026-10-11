@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after the alert flips): not complete.** 265 of 279 rows are `live` or `moot`; 14 are not (3 `dark`, 6 `building`, 5 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after the alert flips): not complete.** 266 of 279 rows are `live` or `moot`; 13 are not (2 `dark`, 6 `building`, 5 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -37,7 +37,7 @@ python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETI
 Printed 2026-10-10 after the alert flips:
 
 ```
-279 Counter({'live': 225, 'moot': 40, 'building': 6, 'owner-blocked': 5, 'dark': 3})
+279 Counter({'live': 226, 'moot': 40, 'building': 6, 'owner-blocked': 5, 'dark': 2})
 0 duplicate ids
 ```
 
@@ -51,12 +51,12 @@ The per-section split is the same regex applied to each `## ` section:
 |---|---|---|---|---|---|---|
 | 1 Programme records + ship | 17 | 13 | 0 | 1 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
-| 3 TERM-001..093 | 93 | 79 | 3 | 3 | 2 | 6 |
+| 3 TERM-001..093 | 93 | 80 | 2 | 3 | 2 | 6 |
 | 4 BRK-01..10 | 10 | 9 | 0 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 8 | 0 | 1 | 0 | 3 |
 | 6 FT-001..080 | 80 | 67 | 0 | 1 | 3 | 9 |
 | 7 Untracked promises | 58 | 49 | 0 | 0 | 0 | 9 |
-| **total** | **279** | **225** | **3** | **6** | **5** | **40** |
+| **total** | **279** | **226** | **2** | **6** | **5** | **40** |
 
 `building` by lane: P 4 · Indicators 2.
 
@@ -127,7 +127,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-022` | Massive adapter + retirement queue | `live` | `api/services/massive_adapter.py:63`. Partner-file ack is moot (fully open since 9/29). |
 | `TERM-023` | Entity master member path | `live` | `api/services/entity_master/member_resolve.py:50`; armed 10-02 (this branch's ledger). |
 | `TERM-024` | Panel declares a need | `live` | `app/src/lib/panelContract.js:126`. |
-| `TERM-025` | Seven more trigger types | `dark` | 8/8 registered (`api/services/alert_taxonomy/registry.py:16`). The readiness tool exists (`fbe983304`, lane f-l6): it reads every shadow type's log through `api/services/alert_taxonomy/dark_report.py` and applies ADR-0036 clause v3 plus T-11's >= 10 consecutive trading sessions; it flips nothing. **The FLIP switches now exist (lane f-flip, 2026-10-10) for the three types the tool printed READY TO FLIP, owner-approved the same day:** `ALERT_TAXONOMY_REGIME_CHANGE_LIVE_ENABLED` (`api/services/alert_taxonomy/regime_change_live.py`; R4 stands down at `api/services/awareness/engine.py` `run_awareness_scan`, the session-summary path at `api/services/voice_proactive_service.py` `maybe_emit_regime_shift`; delivered in-app only by `alert_taxonomy/delivery.py` `deliver_insight`), `ALERT_TAXONOMY_SCAN_MEMBERSHIP_LIVE_ENABLED` (`scan_membership_change_live.py`; `screener/screen_alerts.py` `run_nightly` stays the driver and its delivery block stands down) and `ALERT_TAXONOMY_CATALYST_MATCH_LIVE_ENABLED` (`catalyst_match_live.py`; `catalyst/engine.py` `_fire_catalyst_alerts` / `_fire_mustknow_alerts` return the taxonomy's count after their own gates). Each is default OFF, read per call, declared `dark` in `docs/feature_flags.json`; on, the taxonomy rule records `alert_fires` and delivers through the taxonomy path (lease, FT-036 routing, AC-4 caps) with the legacy dedup keys kept, so one alert per event and nothing lost (`tests/test_alert_flip_{regime_change,scan_membership,catalyst_match}.py`). Arming each is the owner's A8 step on web, one type at a time (`12-decisions/2026-10-07-owner-delegated-decisions.md:151`). The other four types (price-level, event-proximity, position-risk, indicator-condition) have no switch yet and wait on their own readiness readings. ➜ 2026-10-07: T-11 |
+| `TERM-025` | Seven more trigger types | `live` | 8/8 registered (`api/services/alert_taxonomy/registry.py:16`). The readiness tool exists (`fbe983304`, lane f-l6): it reads every shadow type's log through `api/services/alert_taxonomy/dark_report.py` and applies ADR-0036 clause v3 plus T-11's >= 10 consecutive trading sessions; it flips nothing. **The FLIP switches now exist (lane f-flip, 2026-10-10) for the three types the tool printed READY TO FLIP, owner-approved the same day:** `ALERT_TAXONOMY_REGIME_CHANGE_LIVE_ENABLED` (`api/services/alert_taxonomy/regime_change_live.py`; R4 stands down at `api/services/awareness/engine.py` `run_awareness_scan`, the session-summary path at `api/services/voice_proactive_service.py` `maybe_emit_regime_shift`; delivered in-app only by `alert_taxonomy/delivery.py` `deliver_insight`), `ALERT_TAXONOMY_SCAN_MEMBERSHIP_LIVE_ENABLED` (`scan_membership_change_live.py`; `screener/screen_alerts.py` `run_nightly` stays the driver and its delivery block stands down) and `ALERT_TAXONOMY_CATALYST_MATCH_LIVE_ENABLED` (`catalyst_match_live.py`; `catalyst/engine.py` `_fire_catalyst_alerts` / `_fire_mustknow_alerts` return the taxonomy's count after their own gates). Each is default OFF, read per call, declared `dark` in `docs/feature_flags.json`; on, the taxonomy rule records `alert_fires` and delivers through the taxonomy path (lease, FT-036 routing, AC-4 caps) with the legacy dedup keys kept, so one alert per event and nothing lost (`tests/test_alert_flip_{regime_change,scan_membership,catalyst_match}.py`). Arming each is the owner's A8 step on web, one type at a time (`12-decisions/2026-10-07-owner-delegated-decisions.md:151`). The other four types (price-level, event-proximity, position-risk, indicator-condition) have no switch yet and wait on their own readiness readings. ➜ 2026-10-07: T-11 FLIPPED 2026-10-11T04:50Z on web (owner ruling 2026-10-10): regime-change, scan-membership-change and catalyst-match deliver through the taxonomy (`ALERT_TAXONOMY_*_LIVE_ENABLED=1`, `77a9a8510`); the other types stay in shadow until the readiness tool prints them READY. |
 | `TERM-026` | Auditor denominator | `live` | `api/auth_surface_check.py:393`. |
 | `TERM-027` | Header inside error boundary | `live` | `app/src/pages/charts/WidgetHost.jsx:315`. |
 | `TERM-028` | Honest blank for futures | `moot (futures removed 2026-07-27; BTC/VIX on yfinance is D-004)` | |
