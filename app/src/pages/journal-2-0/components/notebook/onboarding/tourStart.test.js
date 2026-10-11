@@ -87,10 +87,60 @@ describe('(b) a note start opens a SUITABLE note, never creates one', () => {
   })
 
   it('with no note at all, it says so: `none: note`, and the card has a way out', async () => {
+    // A start that names no widget: "no note" is the whole answer. (A chart start with nothing
+    // is `none: chart`, below.)
     const f = fakeFetch({ notes: [] })
-    expect(await resolveStart(sample, loc(NOTEBOOK_ROOT), { fetchImpl: f })).toEqual({ none: 'note' })
+    expect(await resolveStart({ start: { note: 'sample:plan' } }, loc(NOTEBOOK_ROOT), { fetchImpl: f })).toEqual({ none: 'note' })
     expect(UNREACHABLE_COPY.note.exitPath).toBe(NOTEBOOK_ROOT)
     expect(UNREACHABLE_COPY.note.body).not.toMatch(/[—–!]/)
+  })
+
+  // P0.3: the chart tours used to tell a member who HAS notes (but no chart) to add the sample
+  // "from the Notebook home", which no longer offers it once a note exists, and to start again
+  // "from Help" when they had started from Learn. That case now has its own outcome.
+  it('a chart tour with notes but no chart says exactly that (none: "chart")', async () => {
+    const f = fakeFetch({ samples: {}, notes: [{ id: 'n-plain', embeds: [] }] })
+    const r = await resolveStart({ id: 'chart-plan-basics', start: { note: 'sample:plan', embed: 'chart' } }, loc('/journal/notebook'), { fetchImpl: f })
+    expect(r).toEqual({ none: 'chart' })
+    // read-only: it asked, it wrote nothing
+    expect(writes(f)).toEqual([])
+  })
+
+  it('a chart tour with no note at all is the same card (there is no chart to point at either)', async () => {
+    const f = fakeFetch({ samples: {}, notes: [] })
+    expect(await resolveStart({ start: { note: 'sample:plan', embed: 'chart' } }, loc(NOTEBOOK_ROOT), { fetchImpl: f })).toEqual({ none: 'chart' })
+  })
+
+  it('a chart tour still opens the example note, or a note holding a chart, when there is one', async () => {
+    const withSample = fakeFetch({ samples: { [`${SAMPLE_IMPORT_PREFIX}plan`]: 'n-sample' }, notes: [] })
+    expect(await resolveStart(sample, loc(NOTEBOOK_ROOT), { fetchImpl: withSample })).toEqual({ path: notePath('n-sample') })
+    const withChart = fakeFetch({ notes: [{ id: 'n-chart', embeds: ['chart'] }] })
+    expect(await resolveStart(sample, loc(NOTEBOOK_ROOT), { fetchImpl: withChart })).toEqual({ path: notePath('n-chart') })
+  })
+
+  it('the chart copy offers the sample and a new note, and never says "from Help"', () => {
+    const c = UNREACHABLE_COPY.chart
+    expect(c.title).toBe('This walkthrough needs a chart in a note')
+    expect(c.body).toBe('None of your notes has a chart yet. Add the sample notebook, which has one, or type /chart in any note to add your own. Then start the walkthrough again from Learn.')
+    expect(c.action).toBe('add-sample')
+    expect(c.actionLabel).toBe('Add the sample notebook')
+    expect(c.exitLabel).toBe('Go to my notes')
+    expect(c.exitPath).toBe(NOTEBOOK_ROOT)
+    for (const [kind, x] of Object.entries(UNREACHABLE_COPY)) {
+      expect(x.body, kind).not.toMatch(/from Help/)
+      expect(x.body, kind).not.toMatch(/Notebook home/)
+    }
+    expect(UNREACHABLE_COPY.note.body).toBe('You do not have a note it can open yet. Write a note, or add the sample notebook from Learn, then start it again from Learn.')
+    expect(UNREACHABLE_COPY.trade.body).toMatch(/start it again from Learn\.$/)
+    expect(UNREACHABLE_COPY.error.body).toMatch(/start it again from Learn\.$/)
+  })
+
+  it('every real chart tour reaches the chart outcome, and only the chart tours do', async () => {
+    const f = fakeFetch({ samples: {}, notes: [{ id: 'n-plain', embeds: [] }] })
+    const chartTours = OTHER_TOURS.filter((t) => t.start?.embed === 'chart')
+    // NON-VACUITY: the registry does carry chart tours (chart-plan-basics, the visual playbook...)
+    expect(chartTours.length).toBeGreaterThan(1)
+    for (const t of chartTours) expect((await resolveStart(t, loc('/dashboard'), { fetchImpl: f })).none, t.id).toBe('chart')
   })
 
   it('`recent`: any open note already is the right screen (no fetch)', async () => {

@@ -2,7 +2,10 @@
    editor's Export menu (NoteExportControls.module.css), with existing tokens only.
    ⛔ The touch tier is <=1024px (phone AND tablet): the button and every row get the 44px floor
    there (tapFloor.test.js). The list can be long (one row per live walkthrough), so it scrolls
-   inside the popover rather than running off the page. */
+   inside the popover rather than running off the page.
+   P0.12: the rows sit under four small headings (.group / .groupHeading); on a phone the same
+   menu is the body of a bottom Sheet (.sheetMenu: no popover chrome, the Sheet supplies it).
+   P0.15: .sampleItem is the "Add the sample notebook" row and .status the line under it. */
 .wrap {
   position: relative;
   display: inline-flex;
@@ -30,6 +33,59 @@
   background: var(--bg-elevated);
   box-shadow: var(--shadow-popover);
   text-align: left;
+}
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.group + .group {
+  margin-top: 6px;
+}
+.groupHeading {
+  margin: 0;
+  padding: 6px 10px 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* The Sheet supplies the surface, the border and the shadow; the menu is just the list. */
+.sheetMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.group + .sampleItem {
+  margin-top: 6px;
+}
+.sampleItem {
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+.sampleItem[aria-disabled='true'] {
+  cursor: progress;
+  color: var(--text-muted);
+}
+/* The line the sample row answers with (a refusal or a failure). It sits under the list, outside
+   the role="menu" element, and stays in view when a long list scrolls inside the popover. */
+.status {
+  position: sticky;
+  bottom: 0;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: 13px;
+  line-height: 1.4;
 }
 .item {
   display: flex;

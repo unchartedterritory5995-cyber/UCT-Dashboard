@@ -83,7 +83,8 @@ async function recentTradeId(fetchImpl) {
  * Where the engine goes to start `entry`, given where the member is now:
  *   { stay: true }              already there (or no start at all)
  *   { path }                    navigate here, then wait for the first anchor
- *   { none: 'note' | 'trade' }  nothing to open; the card says so (never creates one)
+ *   { none: 'note' | 'trade' | 'chart' }  nothing to open; the card says so (never creates one).
+ *                               `chart`: a tour that needs a chart in a note, and no note has one
  *   { none: 'error' }           the lookup failed; the card says so
  * Never throws.
  */
@@ -104,7 +105,9 @@ export async function resolveStart(entry, location, { fetchImpl = globalThis.fet
     let id = null
     if (note.startsWith('sample:')) id = await sampleNoteId(fetchImpl, note.slice('sample:'.length))
     if (!id) id = await recentNoteId(fetchImpl, embed || null)
-    if (!id) return { none: 'note' }
+    // A chart tour that finds no note holding a chart says THAT, not "no note": the member may
+    // well have notes (P0.3), and the way out is a chart (the sample has one, or `/chart`).
+    if (!id) return { none: embed === 'chart' ? 'chart' : 'note' }
     return openNoteId(location) === id ? { stay: true } : { path: notePath(id) }
   } catch {
     return { none: 'error' }
@@ -115,19 +118,30 @@ export async function resolveStart(entry, location, { fetchImpl = globalThis.fet
 export const UNREACHABLE_COPY = Object.freeze({
   note: Object.freeze({
     title: 'This walkthrough runs inside a note',
-    body: 'You do not have a note it can open yet. Write a note, or add the sample notebook from the Notebook home, then start it again from Help.',
+    body: 'You do not have a note it can open yet. Write a note, or add the sample notebook from Learn, then start it again from Learn.',
     exitLabel: 'Go to the Notebook',
+    exitPath: NOTEBOOK_ROOT,
+  }),
+  // P0.3: a chart walkthrough, a member who has notes but no chart. The card carries ONE action,
+  // `add-sample` (GenericTourEngine.jsx adds the sample through sampleNotebook.js, then restarts
+  // the tour), beside the ordinary way out.
+  chart: Object.freeze({
+    title: 'This walkthrough needs a chart in a note',
+    body: 'None of your notes has a chart yet. Add the sample notebook, which has one, or type /chart in any note to add your own. Then start the walkthrough again from Learn.',
+    action: 'add-sample',
+    actionLabel: 'Add the sample notebook',
+    exitLabel: 'Go to my notes',
     exitPath: NOTEBOOK_ROOT,
   }),
   trade: Object.freeze({
     title: 'This walkthrough runs on a closed trade',
-    body: 'You do not have a trade in your journal yet. Once you log or import one, start it again from Help.',
+    body: 'You do not have a trade in your journal yet. Once you log or import one, start it again from Learn.',
     exitLabel: 'Go to your trades',
     exitPath: '/journal/trades',
   }),
   error: Object.freeze({
     title: 'This walkthrough could not start',
-    body: 'We could not look up where it starts. Check your connection and start it again from Help.',
+    body: 'We could not look up where it starts. Check your connection and start it again from Learn.',
     exitLabel: null,
     exitPath: null,
   }),

@@ -288,4 +288,8 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // (the card alone, and the real gate offering into a first-run slot).
   'components/notebook/onboarding/TourOfferPrompt.jsx': { recipe: 'tour-offer-prompt', railFile: 'a11y/tourOffer.a11y.test.jsx' },
   'components/notebook/onboarding/TourOfferGate.jsx': { recipe: 'tour-offer-in-slot', railFile: 'a11y/tourOffer.a11y.test.jsx' },
+  // Notebook P0.12 / P0.15: Research Home's Learn menu, grouped, with the sample row and its
+  // refusal line, as the desktop popover (learn-menu-grouped) and as the phone's bottom Sheet
+  // (learn-menu-sheet); rail a11y/learnMenu.a11y.test.jsx.
+  'components/notebook/onboarding/LearnMenu.jsx': { recipe: 'learn-menu-grouped', railFile: 'a11y/learnMenu.a11y.test.jsx' },
 })

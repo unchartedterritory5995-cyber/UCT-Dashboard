@@ -10,11 +10,14 @@
 // key could never read as armed. This is a test fixture decision, not a claim
 // about that capability.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { useEffect } from 'react'
 import { render, screen, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import { makeRegistryToursGate } from './RegistryToursGate'
-import { getRegistryTourWanted, openRegistryTour, __resetRegistryTourControl } from './tourRegistryControl'
+import {
+  REGISTRY_TOUR_CLOSED_EVENT, getRegistryTourWanted, hasPendingRegistryTourOpen, openRegistryTour, __resetRegistryTourControl,
+} from './tourRegistryControl'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 
 const BORROWED_FLAG = 'notebook_template_gallery_enabled'
@@ -208,6 +211,72 @@ describe('the gate publishes the tour it is running (Research Home unfolds for i
     act(() => { openRegistryTour('w14-0-tour-a') })
     expect(await screen.findByText('Tour A is open')).toBeInTheDocument()
     unmount()
+    expect(getRegistryTourWanted()).toBeNull()
+  })
+})
+
+// P0.3: a chart tour's card adds the sample notebook and then wants the SAME tour run again, now
+// that a chart note exists. A bare "open this tour" request cannot do that while the engine is
+// still the wanted one (close then re-open lands on the same id: React sees no change and the
+// old engine, finished, stays mounted showing nothing). The engine says `restart` and the gate
+// remounts a fresh one.
+describe('a tour that restarts itself (the chart card, after it adds the sample notebook)', () => {
+  /** An engine that counts its mounts and can ask for a restart or end plainly. */
+  const restartingEngine = (mounts) => vi.fn(async () => ({
+    default: function FakeEngine({ entry, onClose }) {
+      useEffect(() => { mounts.push(entry.id) }, [entry.id])
+      return (
+        <div role="dialog">
+          {entry.title} is open
+          <button type="button" onClick={() => onClose({ opened: false, restart: true })}>Restart</button>
+          <button type="button" onClick={() => onClose({ opened: true })}>End</button>
+        </div>
+      )
+    },
+  }))
+
+  it('mounts a FRESH engine for the same tour, which stays the wanted one', async () => {
+    const mounts = []
+    const Gate = makeRegistryToursGate(restartingEngine(mounts), 0)
+    render(<Page Gate={Gate} tours={[TOUR_A]} />)
+    act(() => { openRegistryTour('w14-0-tour-a') })
+    await screen.findByText('Tour A is open')
+    expect(mounts).toEqual(['w14-0-tour-a'])
+    act(() => { screen.getByRole('button', { name: 'Restart' }).click() })
+    await waitFor(() => expect(mounts).toEqual(['w14-0-tour-a', 'w14-0-tour-a']))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Tour A is open')
+    expect(getRegistryTourWanted()).toBe('w14-0-tour-a')
+  })
+
+  it('a restart is not an end: nothing announces the tour closed, and no request is left pending', async () => {
+    const mounts = []
+    const closed = vi.fn()
+    window.addEventListener(REGISTRY_TOUR_CLOSED_EVENT, closed)
+    const Gate = makeRegistryToursGate(restartingEngine(mounts), 0)
+    render(<Page Gate={Gate} tours={[TOUR_A]} />)
+    act(() => { openRegistryTour('w14-0-tour-a') })
+    await screen.findByText('Tour A is open')
+    act(() => { screen.getByRole('button', { name: 'Restart' }).click() })
+    await waitFor(() => expect(mounts).toHaveLength(2))
+    expect(closed).not.toHaveBeenCalled()
+    expect(hasPendingRegistryTourOpen()).toBeFalsy()
+    // the restarted tour then ends like any other
+    act(() => { screen.getByRole('button', { name: 'End' }).click() })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(closed).toHaveBeenCalledTimes(1)
+    expect(closed.mock.calls[0][0].detail).toEqual({ tourId: 'w14-0-tour-a', opened: true })
+    window.removeEventListener(REGISTRY_TOUR_CLOSED_EVENT, closed)
+  })
+
+  it('CONTROL: an ordinary close still ends the tour (the restart branch is not the default)', async () => {
+    const mounts = []
+    const Gate = makeRegistryToursGate(restartingEngine(mounts), 0)
+    render(<Page Gate={Gate} tours={[TOUR_A]} />)
+    act(() => { openRegistryTour('w14-0-tour-a') })
+    await screen.findByText('Tour A is open')
+    act(() => { screen.getByRole('button', { name: 'End' }).click() })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(mounts).toHaveLength(1)
     expect(getRegistryTourWanted()).toBeNull()
   })
 })

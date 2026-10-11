@@ -9,11 +9,39 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 
+// P0.12 / P0.15: the sample item, the navigation after it, the cache refresh and the phone
+// sheet are all seams the menu reaches through its imports, so each is a mock here.
+const { sampleMock, navigateMock, mutateMock, phone } = vi.hoisted(() => ({
+  sampleMock: vi.fn(),
+  navigateMock: vi.fn(),
+  mutateMock: vi.fn(),
+  phone: { on: false },
+}))
+vi.mock('./sampleNotebook', async (importOriginal) => ({
+  ...(await importOriginal()),
+  addSampleNotebook: (...a) => sampleMock(...a),
+}))
+vi.mock('react-router-dom', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useNavigate: () => navigateMock,
+}))
+vi.mock('swr', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useSWRConfig: () => ({ mutate: mutateMock }),
+}))
+vi.mock('../../../../../hooks/useBreakpoint', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useIsPhone: () => phone.on,
+  useIsTouch: () => phone.on,
+}))
+
 vi.mock('./tourRegistry', async (importOriginal) => {
   const real = await importOriginal()
   const TOUR_REGISTRY = Object.freeze([
     ...real.TOUR_REGISTRY.filter((t) => t.id === real.BASE_TOUR_ID),
     Object.freeze({ id: 'learn-formulas', flag: 'notebook_formulas_enabled', title: 'Formulas', replayable: true, load: async () => ({}) }),
+    // a real Trading-group id on its own (dark) flag, so the grouped menu has a second group to show
+    Object.freeze({ id: 'chart-plan-basics', flag: 'notebook_chart_plan_enabled', title: 'Chart plan basics', replayable: true, load: async () => ({}) }),
     Object.freeze({ id: 'learn-explainer', flag: 'notebook_formulas_enabled', title: 'An explainer', replayable: false, load: async () => ({}) }),
   ])
   return {
@@ -24,6 +52,9 @@ vi.mock('./tourRegistry', async (importOriginal) => {
 })
 
 import LearnMenu from './LearnMenu'
+import { AuthContext } from '../../../../../context/AuthContext'
+import { SAMPLE_COPY, isNotebookKey } from './sampleNotebook'
+import { LEARN_COPY } from './learnTours'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { TOUR_OPEN_EVENT, __resetTourControl } from './tourControl'
 import { REGISTRY_TOUR_OPEN_EVENT, __resetRegistryTourControl } from './tourRegistryControl'
@@ -35,13 +66,15 @@ function Where() {
   return <p data-testid="where">{`${loc.pathname}${loc.hash}`}</p>
 }
 
-function renderMenu() {
+function renderMenu({ isPaid = false } = {}) {
   return render(
-    <MemoryRouter initialEntries={['/journal/notebook']}>
-      <button type="button">before</button>
-      <LearnMenu />
-      <Routes><Route path="*" element={<Where />} /></Routes>
-    </MemoryRouter>,
+    <AuthContext.Provider value={{ isPaid }}>
+      <MemoryRouter initialEntries={['/journal/notebook']}>
+        <button type="button">before</button>
+        <LearnMenu />
+        <Routes><Route path="*" element={<Where />} /></Routes>
+      </MemoryRouter>
+    </AuthContext.Provider>,
   )
 }
 
@@ -51,11 +84,18 @@ beforeEach(() => {
   __resetNotebookFlags()
   __resetTourControl()
   __resetRegistryTourControl()
+  phone.on = false
+  navigateMock.mockReset()
+  mutateMock.mockReset()
+  sampleMock.mockReset()
+  sampleMock.mockResolvedValue({ ok: true, folderId: 'f1', welcomeNoteId: 'w1' })
 })
 afterEach(() => {
   __resetNotebookFlags()
   vi.restoreAllMocks()
 })
+
+const flagged = (...extra) => ({ ...WAVE14, ...Object.fromEntries(extra.map((k) => [k, true])) })
 
 describe('when it shows', () => {
   it('nothing at all with the wave-14 switch off (the pre-wave-14 page)', () => {
@@ -185,16 +225,18 @@ describe('keyboard and screen reader -- the menu button pattern', () => {
 // Integrator, measured in a browser at 390 px: the menu hung from the button's right edge and
 // started 30 px off the left of the screen. It is shifted back inside a 16 px gutter on open.
 describe('the open menu stays on screen', () => {
+  // The popover (menu + status line) is what is measured and shifted; the menu is inside it.
+  const isPopover = (el) => el.hasAttribute('data-learn-popover')
   const rectOf = (left, width) => () => ({ left, right: left + width, top: 0, bottom: 420, width, height: 420, x: left, y: 0 })
 
   it('shifts right when it would start off the left edge', () => {
     latchNotebookFlags(WAVE14)
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
-      return this.getAttribute('role') === 'menu' ? rectOf(-30, 280)() : rectOf(0, 0)()
+      return isPopover(this) ? rectOf(-30, 280)() : rectOf(0, 0)()
     })
     renderMenu()
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
-    expect(screen.getByRole('menu').style.transform).toBe('translateX(46px)')
+    expect(screen.getByRole('menu').closest('[data-learn-popover]').style.transform).toBe('translateX(46px)')
   })
 
   it('shifts left when it would run off the right edge, and leaves a menu that fits alone', () => {
@@ -202,14 +244,180 @@ describe('the open menu stays on screen', () => {
     const vw = window.innerWidth
     let left = vw - 100
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
-      return this.getAttribute('role') === 'menu' ? rectOf(left, 280)() : rectOf(0, 0)()
+      return isPopover(this) ? rectOf(left, 280)() : rectOf(0, 0)()
     })
     renderMenu()
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
-    expect(screen.getByRole('menu').style.transform).toBe(`translateX(${(vw - 16) - (left + 280)}px)`)
+    expect(screen.getByRole('menu').closest('[data-learn-popover]').style.transform).toBe(`translateX(${(vw - 16) - (left + 280)}px)`)
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))   // close
     left = 100
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
-    expect(screen.getByRole('menu').style.transform).toBe('')
+    expect(screen.getByRole('menu').closest('[data-learn-popover]').style.transform).toBe('')
+  })
+})
+
+// ── P0.12: the menu is grouped ─────────────────────────────────────────────────────────────
+describe('grouped by what a member is trying to do', () => {
+  it('groups tours under Basics, Writing and capture, Trading, Research (only the non-empty ones)', () => {
+    latchNotebookFlags(flagged('notebook_chart_plan_enabled', 'notebook_formulas_enabled'))
+    renderMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    const groups = screen.getAllByRole('group').map((g) => g.getAttribute('aria-label'))
+    expect(groups).toEqual(expect.arrayContaining(['Basics', 'Trading']))
+    // an empty group is not drawn (no Research tour is live in this registry)
+    expect(groups).not.toContain('Research')
+  })
+
+  it('each tour sits in the group learnTourGroup names, and the groups read in the declared order', () => {
+    latchNotebookFlags(flagged('notebook_chart_plan_enabled', 'notebook_formulas_enabled'))
+    renderMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    const menu = screen.getByRole('menu', { name: 'Learn: walkthroughs' })
+    const basics = within(within(menu).getByRole('group', { name: 'Basics' })).getAllByRole('menuitem').map((e) => e.textContent)
+    const trading = within(within(menu).getByRole('group', { name: 'Trading' })).getAllByRole('menuitem').map((e) => e.textContent)
+    expect(basics).toEqual(['Notebook basics tour', 'Formulas tour'])   // formulas is not in the map: it falls back to Basics
+    expect(trading).toEqual(['Chart plan basics tour'])
+    const order = screen.getAllByRole('group').map((g) => g.getAttribute('aria-label'))
+    expect(order.indexOf('Basics')).toBeLessThan(order.indexOf('Trading'))
+  })
+
+  it('a group heading is visible text, not only a label', () => {
+    latchNotebookFlags(flagged('notebook_chart_plan_enabled'))
+    renderMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    const trading = screen.getByRole('group', { name: 'Trading' })
+    expect(within(trading).getByText('Trading')).toBeInTheDocument()
+  })
+})
+
+// ── P0.15: the sample notebook, from Learn ─────────────────────────────────────────────────
+describe('"Add the sample notebook"', () => {
+  it('is offered to a paid member with onboarding on', () => {
+    latchNotebookFlags(WAVE14)
+    renderMenu({ isPaid: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    expect(screen.getByRole('menuitem', { name: 'Add the sample notebook' })).toBeTruthy()
+  })
+
+  it('is never offered to a member who is not paid', () => {
+    latchNotebookFlags(WAVE14)
+    renderMenu({ isPaid: false })
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    expect(screen.queryByRole('menuitem', { name: 'Add the sample notebook' })).toBeNull()
+  })
+
+  it('sits after the tours and before the Help link, and the arrow keys walk onto it', async () => {
+    const user = userEvent.setup()
+    latchNotebookFlags(WAVE14)
+    renderMenu({ isPaid: true })
+    const btn = screen.getByRole('button', { name: 'Learn' })
+    btn.focus()
+    await user.keyboard('{Enter}')
+    expect(menuItems().map((el) => el.textContent))
+      .toEqual(['Notebook basics tour', 'Add the sample notebook', 'All walkthroughs in Help'])
+    await user.keyboard('{ArrowDown}')
+    expect(document.activeElement).toHaveTextContent('Add the sample notebook')
+  })
+
+  it('on success it asks the notebook lists to refresh, opens the welcome note, and closes the menu', async () => {
+    latchNotebookFlags(WAVE14)
+    renderMenu({ isPaid: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add the sample notebook' }))
+    await vi.waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/journal/notebook?note=w1'))
+    expect(sampleMock).toHaveBeenCalledTimes(1)
+    // the SAME key predicate Research Home uses (one authority, imported from sampleNotebook.js)
+    expect(mutateMock).toHaveBeenCalledWith(isNotebookKey)
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('sample409: an existing sample shows the refusal, creates nothing, and leaves the menu open', async () => {
+    latchNotebookFlags(WAVE14)
+    sampleMock.mockResolvedValueOnce({ ok: false, message: SAMPLE_COPY.refused })
+    renderMenu({ isPaid: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add the sample notebook' }))
+    expect(await screen.findByText(SAMPLE_COPY.refused)).toBeTruthy()
+    expect(screen.getByText(SAMPLE_COPY.refused).closest('[role="status"]')).not.toBeNull()
+    expect(navigateMock).not.toHaveBeenCalled()
+    expect(mutateMock).not.toHaveBeenCalled()
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+  })
+
+  it('says it is working while it adds, and a second press does not add a second sample', async () => {
+    latchNotebookFlags(WAVE14)
+    let finish
+    sampleMock.mockReturnValueOnce(new Promise((r) => { finish = r }))
+    renderMenu({ isPaid: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add the sample notebook' }))
+    const busy = await screen.findByRole('menuitem', { name: SAMPLE_COPY.adding })
+    fireEvent.click(busy)
+    expect(sampleMock).toHaveBeenCalledTimes(1)
+    finish({ ok: true, folderId: 'f1', welcomeNoteId: 'w1' })
+    await vi.waitFor(() => expect(navigateMock).toHaveBeenCalledTimes(1))
+  })
+})
+
+// ── P0.12: on a phone the menu is a sheet ──────────────────────────────────────────────────
+describe('on a phone the menu opens as a sheet', () => {
+  it('on a phone the menu opens as a sheet', () => {
+    phone.on = true
+    latchNotebookFlags(WAVE14)
+    renderMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    expect(screen.getByRole('dialog', { name: LEARN_COPY.menuLabel })).toBeTruthy()
+    // the same menu, inside it
+    expect(within(screen.getByRole('dialog')).getAllByRole('menuitem').map((e) => e.textContent))
+      .toEqual(['Notebook basics tour', 'All walkthroughs in Help'])
+  })
+
+  it('on a desktop it is the anchored popover, not a dialog', () => {
+    phone.on = false
+    latchNotebookFlags(WAVE14)
+    renderMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('menu', { name: 'Learn: walkthroughs' })).toBeInTheDocument()
+  })
+
+  it('a choice in the sheet starts the tour and closes the sheet', () => {
+    phone.on = true
+    latchNotebookFlags(WAVE14)
+    renderMenu()
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    const base = vi.fn()
+    window.addEventListener(TOUR_OPEN_EVENT, base)
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Notebook basics tour' }))
+    window.removeEventListener(TOUR_OPEN_EVENT, base)
+    expect(base).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Learn' }))
+  })
+
+  it('Escape closes the sheet and focus returns to the Learn button', async () => {
+    const user = userEvent.setup()
+    phone.on = true
+    latchNotebookFlags(WAVE14)
+    renderMenu()
+    const btn = screen.getByRole('button', { name: 'Learn' })
+    btn.focus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('dialog', { name: LEARN_COPY.menuLabel })).toBeInTheDocument()
+    expect(document.activeElement).toHaveTextContent('Notebook basics tour')
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(btn).toHaveAttribute('aria-expanded', 'false')
+    expect(document.activeElement).toBe(btn)
+  })
+
+  it('the sample item works inside the sheet too', async () => {
+    phone.on = true
+    latchNotebookFlags(WAVE14)
+    sampleMock.mockResolvedValueOnce({ ok: false, message: SAMPLE_COPY.refused })
+    renderMenu({ isPaid: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('menuitem', { name: 'Add the sample notebook' }))
+    expect(await within(screen.getByRole('dialog')).findByText(SAMPLE_COPY.refused)).toBeTruthy()
   })
 })

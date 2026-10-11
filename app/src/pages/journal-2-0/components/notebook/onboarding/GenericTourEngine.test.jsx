@@ -11,7 +11,17 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import GenericTourEngine, { START_WAIT_MS, atStart } from './GenericTourEngine'
 import { TOURS_PREF } from './tourSeenState'
+import { SAMPLE_COPY } from './sampleNotebook'
+import { UNREACHABLE_COPY } from './tourStart'
 import { installTourLayout } from './__fixtures__/tourLayout'
+
+// P0.3: the chart card's "Add the sample notebook" button adds the sample through the ONE
+// authority (sampleNotebook.js addSampleNotebook); every other export stays real.
+const { sampleMock } = vi.hoisted(() => ({ sampleMock: vi.fn() }))
+vi.mock('./sampleNotebook', async (importOriginal) => ({
+  ...(await importOriginal()),
+  addSampleNotebook: (...a) => sampleMock(...a),
+}))
 
 let server
 function installFetch() {
@@ -280,5 +290,95 @@ describe('atStart', () => {
     expect(atStart('/journal/notebook', loc('/journal/notebook', '?anything=1'))).toBe(true)
     expect(atStart('/journal/notebook/x', loc('/journal/notebook'))).toBe(false)
     expect(atStart(undefined, loc('/anywhere'))).toBe(true)
+  })
+})
+
+// ── P0.3: a chart tour with notes but no chart says so, and offers the sample ───────────────
+describe('the unreachable card: a chart tour with no chart in any note', () => {
+  const CHART_TOUR = {
+    id: 'w14-0-tour-chart',
+    title: 'Chart plan',
+    start: { note: 'sample:plan', embed: 'chart' },
+    load: async () => ({
+      steps: [{ id: 'chart', anchor: 'chart-anchor', file: 'x' }],
+      copy: { chart: { title: 'The chart', body: 'The chart body' } },
+    }),
+  }
+  const ok = (body) => ({ ok: true, status: 200, json: async () => body })
+
+  /** The start lookup finds no example note and no note holding a chart (the member has notes). */
+  function installNoChartFetch() {
+    const base = global.fetch
+    global.fetch = vi.fn(async (url, init = {}) => {
+      if (url === '/api/j2/notes/import/check') return ok({ existing: {} })
+      if (String(url).startsWith('/api/j2/notes?')) return ok({ notes: [] })
+      return base(url, init)
+    })
+  }
+
+  beforeEach(() => {
+    sampleMock.mockReset()
+    sampleMock.mockResolvedValue({ ok: true, folderId: 'f1', welcomeNoteId: 'w1' })
+    installNoChartFetch()
+  })
+
+  async function openCard(onCloseSpy = vi.fn()) {
+    render(<Page entry={CHART_TOUR} anchors={[]} onCloseSpy={onCloseSpy} />)
+    const d = await dialog({ timeout: 3000 })
+    expect(d).toHaveAccessibleName(UNREACHABLE_COPY.chart.title)
+    return onCloseSpy
+  }
+
+  it('says exactly what is missing, and offers the sample and a way to the notes', async () => {
+    await openCard()
+    expect(screen.getByText(UNREACHABLE_COPY.chart.body)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add the sample notebook' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Go to my notes' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
+  })
+
+  it('"Add the sample notebook" adds it through addSampleNotebook, then restarts THIS tour', async () => {
+    const onCloseSpy = await openCard()
+    fireEvent.click(screen.getByRole('button', { name: 'Add the sample notebook' }))
+    await waitFor(() => expect(onCloseSpy).toHaveBeenCalledTimes(1))
+    expect(sampleMock).toHaveBeenCalledTimes(1)
+    // the engine closes itself and asks to be run again; the gate does the re-run (it cannot be
+    // done by a bare start request while this engine is still the wanted one: RegistryToursGate.test.jsx)
+    expect(onCloseSpy).toHaveBeenCalledWith({ opened: false, restart: true })
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('sample409: when the sample cannot be added the refusal shows in the card and the tour is NOT restarted', async () => {
+    sampleMock.mockResolvedValueOnce({ ok: false, message: SAMPLE_COPY.refused })
+    const onCloseSpy = await openCard()
+    fireEvent.click(screen.getByRole('button', { name: 'Add the sample notebook' }))
+    const said = await screen.findByText(SAMPLE_COPY.refused)
+    expect(said.closest('[role="status"]')).not.toBeNull()
+    expect(onCloseSpy).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    // and the member can try again, or leave
+    expect(screen.getByRole('button', { name: 'Add the sample notebook' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
+  })
+
+  it('a second press while the first is still adding does not add a second sample', async () => {
+    let finish
+    sampleMock.mockReturnValueOnce(new Promise((r) => { finish = r }))
+    const onCloseSpy = await openCard()
+    const add = screen.getByRole('button', { name: 'Add the sample notebook' })
+    fireEvent.click(add)
+    fireEvent.click(add)
+    expect(sampleMock).toHaveBeenCalledTimes(1)
+    expect(add).toHaveAttribute('aria-disabled', 'true')
+    finish({ ok: true, folderId: 'f1', welcomeNoteId: 'w1' })
+    await waitFor(() => expect(onCloseSpy).toHaveBeenCalledTimes(1))
+  })
+
+  it('CONTROL: the other cards (a note tour with no note) carry no sample button', async () => {
+    const NOTE_TOUR = { ...CHART_TOUR, id: 'w14-0-tour-note', start: { note: 'sample:plan' } }
+    render(<Page entry={NOTE_TOUR} anchors={[]} />)
+    expect(await dialog({ timeout: 3000 })).toHaveAccessibleName(UNREACHABLE_COPY.note.title)
+    expect(screen.queryByRole('button', { name: 'Add the sample notebook' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Go to the Notebook' })).toBeInTheDocument()
   })
 })
