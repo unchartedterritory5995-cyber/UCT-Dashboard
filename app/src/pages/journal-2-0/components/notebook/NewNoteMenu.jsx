@@ -22,6 +22,10 @@ export default function NewNoteMenu({ onBlank, onFromOutline, onVoice = null, on
     if (!open) return undefined
     menuRef.current?.querySelector('[role="menuitem"]')?.focus()
     const away = (e) => {
+      // The voice-notes tour keeps this menu open while its card (portalled to <body>, marked
+      // `data-tour-card` by GenericTourEngine) describes the voice item: a press on the card's
+      // Next is "outside" the menu, and closing here ended the tour before the click landed.
+      if (e.target?.closest?.('[data-tour-card]')) return
       if (!menuRef.current?.contains(e.target) && !caretRef.current?.contains(e.target)) setOpen(false)
     }
     document.addEventListener('pointerdown', away)

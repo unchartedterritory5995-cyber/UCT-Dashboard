@@ -12,6 +12,6 @@ export const STEPS = Object.freeze([
 ])
 export const COPY = Object.freeze({
   open: { title: 'Start a voice note', body: 'Open the arrow next to New note to see the other ways to start one.' },
-  voice: { title: 'Record, upload or pick a session', body: 'Voice note records you, takes an audio file, or uses a Desk session. You get a transcript and a short summary in a new note.' },
-  save: { title: 'Nothing is saved until you say so', body: 'Voice note shows you the transcript and summary first. It becomes a note when you choose Save, and the audio is deleted from the server once it is transcribed.' },
+  voice: { title: 'Record, upload or pick a session', body: 'Voice note records you, takes an audio file, or uses a Desk session. You get a transcript, and a short summary when one can be made, in a new note.' },
+  save: { title: 'Nothing is saved until you say so', body: 'Voice note shows you the transcript first, with a summary when one can be made. It becomes a note when you choose Save, and the audio is deleted from the server once it is transcribed.' },
 })
