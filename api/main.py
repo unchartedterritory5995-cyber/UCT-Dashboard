@@ -6514,6 +6514,33 @@ async def lifespan(app: FastAPI):
                 trigger=CronTrigger(day_of_week="mon-fri", hour=21, minute=30, timezone=_ET),
                 id="breadth_eod_row_check", max_instances=1,
                 coalesce=True, misfire_grace_time=3600, replace_existing=True)
+            # (2026-10-11) the external references: capture after the close (retry later
+            # in the evening), compare and report on Saturday morning
+            def _breadth_external_capture():
+                try:
+                    from api.services import breadth_external
+                    breadth_external.capture()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[breadth-external] capture failed: %s", _e)
+
+            def _breadth_external_report():
+                try:
+                    from api.services import breadth_external
+                    breadth_external.weekly_report()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[breadth-external] report failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_external_capture,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="17,21", minute=30,
+                                    timezone=_ET),
+                id="breadth_external_capture", max_instances=1,
+                coalesce=True, misfire_grace_time=3600, replace_existing=True)
+            _scheduler.add_job(
+                _breadth_external_report,
+                trigger=CronTrigger(day_of_week="sat", hour=10, minute=0, timezone=_ET),
+                id="breadth_external_report", max_instances=1,
+                coalesce=True, misfire_grace_time=3600, replace_existing=True)
             _scheduler.add_job(
                 _breadth_eod_row_check, kwargs={"morning": True},
                 trigger=CronTrigger(day_of_week="mon-fri", hour=9, minute=45, timezone=_ET),
