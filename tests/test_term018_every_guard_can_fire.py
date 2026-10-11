@@ -192,7 +192,13 @@ RECORD_PATH = ROOT / "docs" / "terminal-research" / "12-decisions" / "gates" / \
 #: 5 -> 3 (2026-10-10, lane f-l6, integrator ruling): the rail learned the factory hop
 #: and the `route` wire kind (5085d5d42), so G-30 (proof 28530927c) and G-21 (proof
 #: 5085d5d42) are recorded. Left: G-10, G-15, G-18..G-20, each with its blocker.
-DECLARED_UNOBSERVED_CEILING = 3
+#: 3 -> 0 (2026-10-11, lane term018-last): a `route` wire may now declare `hops` that
+#: carry a guard living in a service module to its router (adea773c7d), so G-10 (the
+#: admin source-health page) and G-15 (the member's ai-search ask) are recorded; and
+#: G-18..G-20 are fired today through /api/market-calendar with the module's clock
+#: FROZEN relative to the table's horizon, instead of waiting for ~2027-07. The debt
+#: list is empty; a new guard on this channel must arrive observed.
+DECLARED_UNOBSERVED_CEILING = 0
 
 #: Every file whose AST could not be read during the population sweep. A silent
 #: `except SyntaxError: continue` would let a guard hide in an unparseable file.
@@ -1443,7 +1449,12 @@ def verify_route(root: Path, pred: dict, wire: dict, entries: set[str],
     included), the handler reaches the guard, and a booted module includes THAT router
     - bound to the route file's module by an import - with any include prefix applied.
     The framework's dispatch from a request to the handler is the one edge nothing
-    static follows; the firing test drives it."""
+    static follows; the firing test drives it.
+
+    A guard OUTSIDE the router file (a service the route calls into) declares `hops`:
+    the same hop shape a `chain` uses, walked outward from the guard and ending in the
+    router's own file, and the handler must reach the def holding the last hop. The
+    hop calls are returned as cut points beside the decorator and the mount."""
     overrides = overrides or {}
 
     def srcs(rel: str) -> str:
@@ -1469,10 +1480,34 @@ def verify_route(root: Path, pred: dict, wire: dict, entries: set[str],
     decs = [(p, node) for m, p, node in _route_decorations(handler, router) if m == method]
     if not decs:
         return f"`{handler.name}` is not decorated @{router}.{method.lower()}(...)", []
-    if pred["file"] != rel:
-        return "a route's guard must live in the router's own file", []
-    if handler.name not in refs_reach(srcs(rel), pred["scope"]):
-        return f"`{handler.name}` does not call or reference `{pred['scope']}`", []
+    hop_cuts: list[tuple[str, ast.AST]] = []
+    hops = wire.get("hops") or []
+    if hops:
+        # ⭐ A GUARD IN A SERVICE MODULE, REACHED BY A ROUTE (2026-10-11, TERM-018 last
+        # lane). The chain from the guard to the router file is proved exactly like a
+        # `chain` wire's hops - each call real, BOUND to the previous hop's module by an
+        # import, transitively reaching it - and must END in the router's own file; the
+        # handler must then reach the def holding the last hop. Every hop is cut too.
+        fault, carried = verify_chain(root, pred, hops, entries, overrides,
+                                      require_entry=False)
+        if fault is not None:
+            return f"the hops from the guard to the router are broken: {fault}", []
+        if hops[-1]["file"] != rel:
+            return (f"a route's hops must end in the router's own file ({rel}), "
+                    f"not {hops[-1]['file']}"), []
+        _, rparents = _parsed(srcs(rel))
+        target_scope = _qualname(carried[-1][1], rparents, own=False)
+        for hop, node in carried:
+            hop_cuts.append((hop["file"], node.func))
+            if _is_registration(hop):
+                hop_cuts.append((hop["file"], _wire_target(node, hop["call"], hop.get("arg"))))
+    else:
+        if pred["file"] != rel:
+            return ("a route's guard must live in the router's own file, or the wire "
+                    "must declare the `hops` that carry it there"), []
+        target_scope = pred["scope"]
+    if handler.name not in refs_reach(srcs(rel), target_scope):
+        return f"`{handler.name}` does not call or reference `{target_scope}`", []
     mod = _module_of(rel)
     for entry in sorted(entries):
         if not (root / entry).is_file():
@@ -1491,7 +1526,7 @@ def verify_route(root: Path, pred: dict, wire: dict, entries: set[str],
                 continue
             for path, dnode in decs:
                 if _kw_str(call, "prefix") + rprefix + path == wire.get("path"):
-                    return None, [(rel, dnode), (entry, a)]
+                    return None, hop_cuts + [(rel, dnode), (entry, a)]
         # fall through: this entry does not mount it
     return (f"no booted module includes `{mod}.{router}` serving {method} {wire.get('path')} "
             f"(boots: {sorted(entries)})"), []
@@ -1561,6 +1596,8 @@ def test_every_observation_declares_its_wire():
         if wire["kind"] == "route":
             if not all(wire.get(k) for k in ("method", "path", "file", "handler")):
                 bad.append(f"{rec['guard']}: a route names its method, path, file and handler")
+            if "hops" in wire and not _hops_ok(hops):
+                bad.append(f"{rec['guard']}: a route's hops are {{file, call}}: {hops!r}")
             continue
         if wire["kind"] in ("chain", "table"):
             if not _hops_ok(hops):
@@ -2010,6 +2047,66 @@ def test_CONTROL_a_ROUTE_that_does_not_exist_or_is_not_mounted_fails(tmp_path):
     assert "not an APIRouter" in _route_fault(tmp_path, router=_ROUTER.replace("APIRouter(prefix", "dict(prefix"))
 
 
+_HOP_SVC = (
+    "def guard():\n    return 1\n"
+    "def entry():\n    return guard()\n"
+    "def unrelated():\n    return 0\n"
+)
+_HOP_ROUTER = (
+    "from fastapi import APIRouter\n"
+    "from api.services import svc\n"
+    "router = APIRouter(prefix=\"/api\")\n"
+    "def helper():\n    return svc.entry()\n"
+    "@router.get(\"/x\")\ndef h():\n    return helper()\n"
+    "@router.get(\"/y\")\ndef quiet():\n    return 0\n"
+)
+_HOP_RELAY = "from api.services import svc\ndef relay():\n    return svc.entry()\n"
+_HOP_PRED = {"file": "api/services/svc.py", "scope": "guard"}
+_HOP_WIRE = {"kind": "route", "method": "GET", "path": "/api/x", "file": "api/routers/r.py",
+             "handler": "h", "router": "router",
+             "hops": [{"file": "api/routers/r.py", "call": "svc.entry"}]}
+
+
+def _hop_route(tmp_path, wire=_HOP_WIRE, router=_HOP_ROUTER, overrides=None):
+    _plant_files(tmp_path, {"api/services/svc.py": _HOP_SVC,
+                            "api/services/other.py": _HOP_SVC,
+                            "api/services/relay.py": _HOP_RELAY,
+                            "api/routers/r.py": router, "api/main.py": _MOUNTED})
+    return verify_route(tmp_path, _HOP_PRED, wire, {"api/main.py"}, overrides)
+
+
+def test_a_ROUTE_with_HOPS_carries_a_service_guard_to_its_handler(tmp_path):
+    """The two shapes G-10 and G-15 are reached by: a guard in a SERVICE module that a
+    route handler calls into. The hop is proved like a chain hop, then the route."""
+    fault, carried = _hop_route(tmp_path)
+    assert fault is None, fault
+    assert len(carried) == 3, carried                      # hop + decorator + mount
+    # every returned point is load-bearing: cut any one and the wire breaks
+    for rel, node in carried:
+        src = (tmp_path / rel).read_text(encoding="utf-8")
+        fault2, _ = _hop_route(tmp_path, overrides={rel: cut_name(src, node)})
+        assert fault2 is not None, f"cutting {rel}:{node.lineno} left the route intact"
+
+
+def test_CONTROL_a_ROUTE_with_HOPS_fails_when_the_hops_do_not_carry_it(tmp_path):
+    """Each line is a different wrong wiring, and each must be named."""
+    no_hops = {k: v for k, v in _HOP_WIRE.items() if k != "hops"}
+    assert "must declare the `hops`" in _hop_route(tmp_path, wire=no_hops)[0]
+    # the router calls a sibling that never reaches the guard
+    assert "hops from the guard to the router are broken" in _hop_route(
+        tmp_path, router=_HOP_ROUTER.replace("svc.entry()", "svc.unrelated()"))[0]
+    # the same spelling, bound to a different module - a coincidence, refused
+    assert "not bound" in _hop_route(tmp_path, router=_HOP_ROUTER.replace(
+        "from api.services import svc", "from api.services import other as svc"))[0]
+    # a handler that never reaches the def holding the hop
+    assert "does not call or reference `helper`" in _hop_route(
+        tmp_path, wire={**_HOP_WIRE, "handler": "quiet", "path": "/api/y"})[0]
+    # a perfect hop that ends outside the router file
+    assert "must end in the router's own file" in _hop_route(
+        tmp_path, wire={**_HOP_WIRE, "hops": [{"file": "api/services/relay.py",
+                                               "call": "svc.entry"}]})[0]
+
+
 def _route_params():
     return [pytest.param(r, id=r["guard"]) for r in OBSERVED
             if (r.get("wire") or {}).get("kind") == "route"]
@@ -2017,10 +2114,11 @@ def _route_params():
 
 @pytest.mark.parametrize("rec", _route_params())
 def test_clause7_CUTTING_a_route_breaks_it(rec):
-    """The decorator and the mount are each cut in memory; either cut must break it."""
+    """The decorator, the mount and every declared hop are each cut in memory; any one
+    cut must break it."""
     fault, carried = verify_route(ROOT, rec["predicate"], rec["wire"], ENTRIES)
     assert fault is None, fault
-    assert len(carried) == 2
+    assert len(carried) >= 2 + len(rec["wire"].get("hops") or [])
     for rel, node in carried:
         src = (ROOT / rel).read_text(encoding="utf-8")
         fault2, _ = verify_route(ROOT, rec["predicate"], rec["wire"], ENTRIES,
