@@ -97,7 +97,13 @@ const DateSuggestList = forwardRef(function DateSuggestList(props, ref) {
             aria-selected={i === selectedIndex}
             className={`${styles.item} ${i === selectedIndex ? styles.itemActive : ''}`}
             onMouseDown={(e) => { e.preventDefault(); choose(item) }}
-            onMouseMove={() => setSelectedIndex(i)}
+            onMouseMove={(e) => {
+              // A move that carries no travel (WebKit sends one after a scroll under a parked
+              // pointer) is not the member choosing. Exactly 0/0 only: an engine that reports no
+              // movement fields at all (undefined) still selects on a move.
+              if (e.movementX === 0 && e.movementY === 0) return
+              setSelectedIndex(i)
+            }}
           >
             <span className={styles.label} data-label>{item.label}</span>
             <span className={styles.desc}>

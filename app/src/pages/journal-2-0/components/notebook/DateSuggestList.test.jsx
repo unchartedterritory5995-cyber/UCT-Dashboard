@@ -79,7 +79,7 @@ describe('DateSuggestList', () => {
 
   it('moving the pointer over a row selects it, and Enter then inserts that choice', () => {
     const { ref, command } = mount()
-    fireEvent.mouseMove(screen.getAllByRole('option')[2])
+    fireEvent.mouseMove(screen.getAllByRole('option')[2], { movementX: 4, movementY: 1 })
     expect(screen.getAllByRole('option')[2].getAttribute('aria-selected')).toBe('true')
     expect(key(ref, 'Enter')).toBe(true)
     expect(command).toHaveBeenCalledWith(ALL[2])
@@ -97,6 +97,20 @@ describe('DateSuggestList', () => {
     expect(onActiveChange).toHaveBeenLastCalledWith(null, true)
     expect(key(ref, 'Enter')).toBe(false)
     expect(command).not.toHaveBeenCalled()
+  })
+
+  it('N2: a mousemove with no movement (movementX and movementY both 0) selects nothing; real travel does', () => {
+    // WebKit sends a real mousemove after a scroll under a parked pointer; it carries no travel.
+    const { ref, command } = mount()
+    const row = screen.getAllByRole('option')[2]
+    fireEvent.mouseMove(row, { movementX: 0, movementY: 0 })
+    expect(row.getAttribute('aria-selected')).toBe('false')
+    expect(key(ref, 'Enter')).toBe(false)
+    expect(command).not.toHaveBeenCalled()
+    fireEvent.mouseMove(row, { movementX: 0, movementY: 2 })
+    expect(row.getAttribute('aria-selected')).toBe('true')
+    expect(key(ref, 'Enter')).toBe(true)
+    expect(command).toHaveBeenCalledWith(ALL[2])
   })
 
   it('a tap on a row inserts it', () => {
