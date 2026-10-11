@@ -89,15 +89,14 @@ def _envelope_factory(turn_ix: int):
 def _server_gate(env: dict, body: dict) -> dict:
     """Scripted mode: the canned envelope passes the SERVER's own gate (turn.sanitize_envelope — the
     same function run_turn applies to a real model's envelope), so what the panel shows is what a
-    real turn would show. Imported lazily, after the conftest sandbox (no api.* DB touched)."""
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    import conftest  # noqa: F401 -- every *_DB_PATH → a sandbox before any api import
-    from api.services.uct_agent import turn
-    caps = {c["name"] for c in turn.validate_manifest(body.get("capabilities") or [])}
-    try:
-        return turn.sanitize_envelope(env, turn._context_refs(body.get("context") or {}), caps or None)
-    except turn.TurnError as e:
-        return {"refused": str(e)}          # the endpoint's own answer: HTTP 400 with this sentence
+    real turn would show. In its own process (tools/agent_server_gate.py, census-pinned), so this
+    harness never imports api.* and its live-mode backend environment is never redirected."""
+    tool = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_server_gate.py")
+    r = subprocess.run([sys.executable, tool], input=json.dumps({"envelope": env, "body": body}).encode("utf-8"),
+                       capture_output=True, timeout=120)
+    if r.returncode != 0:
+        raise SystemExit(f"the server gate failed: {r.stderr.decode('utf-8', 'replace')[-500:]}")
+    return json.loads(r.stdout.decode("utf-8").strip().splitlines()[-1])
 
 
 def _launch_live_backend(max_usd: float) -> subprocess.Popen:
