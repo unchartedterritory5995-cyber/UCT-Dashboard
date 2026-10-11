@@ -229,6 +229,11 @@ export async function resolveRefs(ops, host) {
         const n = Number(res.count).toLocaleString()
         return { ok: false, reason: `that's ${n} stocks — more than the ${(res.symbols || []).length.toLocaleString()} I put in one request. Narrow it (add a condition) or say how many (e.g. the top 200)` }
       }
+      // ⛔ "The top 10" of a ranking whose field has no values would be an arbitrary 10: refused.
+      if (v.top != null && res?.unranked) {
+        const { label, dir } = res.unranked
+        return { ok: false, reason: `${label} data is unavailable for those results, so the ${dir === 'asc' ? 'lowest' : 'highest'} ${v.top} by ${label} can't be established from the available data — nothing was added` }
+      }
       const picked = (res?.symbols || []).slice(0, v.top ?? MAX_TOP)
       if (!picked.length) empty = true
       args = { ...args, [arg]: picked }

@@ -312,6 +312,20 @@ async function resultOf(spec, columns, max) {
   return { rows: m.rows.slice(0, max), total: m.rows.length, res: r.res, cut: m.rows.length > max, asOf: m.asOf, values: m.values, notes: m.notes, candidates: r.total }
 }
 
+/** How many of `rows` carry a usable value (a finite number) of the sort field. A value of 0 counts. */
+function sortCoverage(spec, rows, values = {}) {
+  if (!spec?.sort) return { label: null, ranked: 0 }
+  const k = spec.sort.key
+  const isMeasure = (spec.post || []).some(f => f.key === k)
+  const ranked = rows.filter(x => { const v = isMeasure ? values[x.ticker]?.[k] : x[k]; return typeof v === 'number' && Number.isFinite(v) }).length
+  return { label: fieldOf(k)?.label || k, ranked }
+}
+
+/** ⛔ RANKING INTEGRITY (integration 2026-10-11): a requested ranking whose field has NO usable value
+ *  in the results cannot be established. Nothing is presented as that ranking — no rows shown as "the
+ *  strongest", no first-N handed to a list or charts — and nothing is substituted or invented. */
+const unrankableText = (label, dir) => `${label} data is unavailable for these results, so the ${dir === 'asc' ? 'lowest' : 'highest'} ${label} stocks can't be established from the available data — no list is shown as a ${label} ranking`
+
 /** Run a wire spec through the engine: the real count + the first `show` rows. */
 async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null, notes: extra = [] } = {}) {
   const keys = [...new Set([...(spec.filters || []).map(f => f.key), spec.sort?.key].filter(k => k && fieldOf(k) && !fieldOf(k).provider && fieldOf(k).type !== 'list'))]
@@ -345,16 +359,16 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
   // ⭐ ACCEPTANCE (2026-10-11): "by RS Rank" only as far as the RETURNED rows actually carry it. On a
   // snapshot with no RS Rank (measured: 3,665/3,665 null on the local copy) the engine's order is
   // not an RS Rank order, so it is not called one; partial coverage is said with its count.
-  const sortLabel = spec.sort ? (fieldOf(spec.sort.key)?.label || spec.sort.key) : null
-  const ranked = spec.sort ? rows.filter(x => { const v = valueOf(x, spec.sort.key); return typeof v === 'number' && Number.isFinite(v) }).length : 0
+  const { label: sortLabel, ranked } = sortCoverage(spec, rows, r.values)
+  // ⛔ NO usable value at all: the engine's order is not that ranking, so no rows are shown as one.
+  const unrankable = !!spec.sort && rows.length > 0 && ranked === 0
   const sortWord = !spec.sort ? ''
-    : ranked === 0 ? ` — ${sortLabel} data is unavailable for these results, so they are not in ${sortLabel} order`
-      : ` by ${sortLabel} (${spec.sort.dir === 'asc' ? 'lowest' : 'highest'} first)${ranked < rows.length ? `; only ${ranked} of these ${rows.length} have ${sortLabel} values — the other ${rows.length - ranked} have none and are not ranked by it` : ''}`
-  const showing = rows.length ? ` Showing the first ${rows.length}${sortWord}.` : ''
+    : ` by ${sortLabel} (${spec.sort.dir === 'asc' ? 'lowest' : 'highest'} first)${ranked < rows.length ? `; only ${ranked} of these ${rows.length} have ${sortLabel} values — the other ${rows.length - ranked} have none and are not ranked by it` : ''}`
+  const showing = unrankable ? ` ${unrankableText(sortLabel, spec.sort.dir)}.` : rows.length ? ` Showing the first ${rows.length}${sortWord}.` : ''
   const notes = [...extra, ...coverageNotes(spec), ...r.notes]
   return {
     text: `${head}${what}.${showing}${asOf}${notes.length ? ` ${notes.map(n => `${n}.`).join(' ')}` : ''}`,
-    table: rows.length ? { columns, rows: rows.map(x => Object.fromEntries(columns.map(c => [c.key, c.key === 'ticker' ? x.ticker : fmt(c.key, valueOf(x, c.key))]))) } : null,
+    table: rows.length && !unrankable ? { columns, rows: rows.map(x => Object.fromEntries(columns.map(c => [c.key, c.key === 'ticker' ? x.ticker : fmt(c.key, valueOf(x, c.key))]))) } : null,
     link: openLinkFor(spec, savedId),
   }
 }
@@ -393,14 +407,21 @@ const specWords = (spec) => [...(spec.filters || []), ...(spec.post || [])].map(
 /** A screen's RESULT as a typed symbol set: EVERY match (up to FILL_MAX) in the engine's own order.
  *  `count` is the true number of matches, so a consumer can refuse rather than cut. */
 async function produceSymbols(spec, { name = null, savedId = null, notes: extra = [] } = {}) {
-  const r = await resultOf(spec, ['ticker'], FILL_MAX)
+  const sk = spec.sort?.key
+  const sortCol = sk && fieldOf(sk) && !fieldOf(sk).provider && fieldOf(sk).type !== 'list' && !(spec.post || []).some(f => f.key === sk) ? [sk] : []
+  const r = await resultOf(spec, ['ticker', ...sortCol], FILL_MAX)
   const symbols = r.rows.map(x => x.ticker).filter(Boolean)
+  const cov = sortCoverage(spec, r.rows, r.values)
+  // ⛔ the result's ORDER is that ranking only as far as its rows carry the field: none → a first-N of
+  // it is refused downstream (compose); some → the count is said on the receipt line.
+  const unranked = spec.sort && r.rows.length && cov.ranked === 0 ? { label: cov.label, dir: spec.sort.dir } : null
+  const partial = spec.sort && cov.ranked > 0 && cov.ranked < r.rows.length ? `only ${cov.ranked} of ${r.rows.length} have ${cov.label} values; the rest are not ranked by it` : null
   cache.last = { spec, name, savedId, total: r.total, asOf: r.asOf || r.res.snapshot_date || null, live: r.res.snapshot?.live?.state || null, symbols, ms: 0 }
   const what = name ? `${name} (${specWords(spec)})` : specWords(spec)
-  const notes = [...extra, ...coverageNotes(spec), ...r.notes]
+  const notes = [...extra, ...coverageNotes(spec), ...r.notes, ...(unranked ? [`${unranked.label} data is unavailable for these results`] : []), ...(partial ? [partial] : [])]
   const when = r.asOf ? ` on ${r.asOf}` : ''
   return {
-    symbols, count: r.total, cap: FILL_MAX,
+    symbols, count: r.total, cap: FILL_MAX, ...(unranked ? { unranked } : {}),
     summary: (r.total ? `Screened ${what}${when}: ${Number(r.total).toLocaleString()} match${r.total === 1 ? '' : 'es'}` : `No stocks matched ${what}${when}`)
       + (notes.length ? ` (${notes.join('; ')})` : ''),
   }

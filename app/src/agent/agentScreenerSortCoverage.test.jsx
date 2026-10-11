@@ -1,7 +1,8 @@
 // SCREENER RESULT REPORTING (2026-10-11 acceptance, owner option B): a screen sorted by RS Rank is
 // described as RS-Rank-ordered only as far as the RETURNED rows carry an RS Rank. The screen itself is
 // unchanged (whole market, rs_rank desc) — only the sentence about it.
-//   all null   → "RS Rank data is unavailable for these results, so they are not in RS Rank order"
+//   all null   → NO rows shown as a ranking: "RS Rank data is unavailable for these results, so the
+//                highest RS Rank stocks can't be established from the available data" (integration)
 //   partial    → "by RS Rank (highest first); only K of these N have an RS Rank value — …"
 //   all present → "by RS Rank (highest first)" (as before)
 // The opt-in test at the bottom runs the same request against the REAL Screener route over the
@@ -38,14 +39,22 @@ afterEach(() => { vi.restoreAllMocks() })
 const run = async (args = STRONGEST) => getCapability('screener.run').answer(null, args, null)
 
 describe('RS Rank coverage of the RETURNED rows decides how the order is described', () => {
-  it('ALL NULL: says RS Rank data is unavailable and does not call the order a ranking', async () => {
+  it('ALL NULL: the ranking cannot be established — no rows are presented as the strongest', async () => {
     serve(['XRAY', 'XPRO', 'XLK', 'USNA'].map(t => row(t, null)), 3665)
     const a = await run()
     expect(scans[0].sort).toEqual({ key: 'rs_rank', dir: 'desc' })            // the screen is unchanged
     expect(a.text).toMatch(/3,665 stocks match\./)
-    expect(a.text).toMatch(/Showing the first 4 — RS Rank data is unavailable for these results, so they are not in RS Rank order\./)
-    expect(a.text).not.toMatch(/by RS Rank|highest first/)
-    expect(a.table.rows.map(r => r.rs_rank)).toEqual(['—', '—', '—', '—'])    // nothing invented
+    expect(a.text).toMatch(/RS Rank data is unavailable for these results, so the highest RS Rank stocks can't be established from the available data — no list is shown as a RS Rank ranking\./)
+    expect(a.text).not.toMatch(/by RS Rank|highest first|Showing the first/)
+    expect(a.table).toBeNull()                                                 // no arbitrary list
+    expect(a.text).not.toMatch(/XRAY|XPRO|XLK|USNA/)                           // not even in the words
+  })
+
+  it('ALL NULL, "weakest" (ascending): the same refusal, in its own direction', async () => {
+    serve(['XRAY', 'XPRO'].map(t => row(t, null)), 2)
+    const a = await run({ ...STRONGEST, sort_dir: 'asc' })
+    expect(a.text).toMatch(/so the lowest RS Rank stocks can't be established/)
+    expect(a.table).toBeNull()
   })
 
   it('PARTIAL: keeps the ranking words and says exactly how many of the shown rows have an RS Rank', async () => {
@@ -89,8 +98,9 @@ describe('opt-in: the REAL Screener route over the local 3,665-row snapshot', ()
     const realFetch = NODE_FETCH
     globalThis.fetch = vi.fn((url, init = {}) => realFetch(`${ROUTE}${url}`, { method: init.method || 'GET', headers: { 'content-type': 'application/json' }, body: init.body }))
     const a = await run()
-    expect(a.text).toMatch(/^3,665 stocks match\. Showing the first 10 — RS Rank data is unavailable for these results, so they are not in RS Rank order\./)
+    expect(a.text).toMatch(/^3,665 stocks match\. RS Rank data is unavailable for these results, so the highest RS Rank stocks can't be established/)
+    expect(a.table).toBeNull()
     const b = await run({ filters: [{ field: 'price', op: 'gt', value: 50, max: null, values: null }], sort_field: null, sort_dir: null, mode: 'refine', show: null, as: null, within: null })
-    expect(b.text).toMatch(/^1,343 stocks match \(Price > \$50\)\. Showing the first 10 — RS Rank data is unavailable/)
+    expect(b.text).toMatch(/^1,343 stocks match \(Price > \$50\)\. RS Rank data is unavailable/)
   })
 })
