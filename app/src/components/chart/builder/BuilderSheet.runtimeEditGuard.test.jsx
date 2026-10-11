@@ -67,7 +67,10 @@ beforeEach(() => { vi.useFakeTimers() })
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks() })
 
 describe('⭐ a runtime document cannot be opened as a formula', () => {
-  it('the list names it as a script, and Edit refuses by name with the formula box left empty', async () => {
+  // ⭐ UIE PHASE 5 (M1) — Edit no longer refuses: it opens the script in the PINE tab
+  // (`BuilderSheet.runtimeSourceEdit.test.jsx`). What this file pins still holds: the
+  // script never lands in the FORMULA box.
+  it('the list names it as a script, and Edit never puts the script in the formula box', async () => {
     stubFetch([RUNTIME_ROW, FORMULA_ROW])
     mount()
     await flush()
@@ -76,7 +79,7 @@ describe('⭐ a runtime document cannot be opened as a formula', () => {
     expect(row.textContent).not.toContain('s := s + close')
     fireEvent.click(within(row).getByRole('button', { name: /^Edit Bar By Bar Sum$/i }))
     await flush()
-    expect(screen.getByText(/a script drawn bar by bar, not a formula, so it cannot be edited here/i)).toBeTruthy()
+    expect(screen.queryByText(/cannot be edited here/i)).toBeNull()
     const field = screen.queryByLabelText('Formula')
     if (field) expect(field.value || field.textContent || '').not.toContain('indicator(')
   })
