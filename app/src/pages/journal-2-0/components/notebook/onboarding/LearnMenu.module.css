@@ -70,6 +70,15 @@
   border-top: 1px solid var(--border);
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
 }
+/* "What your Notebook can do" (Task 14b) sits between the tour groups and the sample, so it takes
+   over the divider and spacing the sample row had when it followed the groups directly. */
+.group + .catalogItem {
+  margin-top: 6px;
+}
+.catalogItem {
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
 .sampleItem[aria-disabled='true'] {
   cursor: progress;
   color: var(--text-muted);
