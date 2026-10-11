@@ -27,9 +27,12 @@
  */
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { dateMentionLongLabel, isIsoDate } from '../../lib/dateMentionNode'
+import { DATE_SUGGEST_MENU_ID } from '../../lib/dateSuggestMenuId'
 import styles from './DateSuggestList.module.css'
 
-export const DATE_SUGGEST_MENU_ID = 'uct-date-suggest'
+export { DATE_SUGGEST_MENU_ID }
+/** The class of the fixed wrapper the plugin puts the list in (the CSS module is this chunk's). */
+export const POPUP_WRAP_CLASS = styles.popupWrap
 const MIN_YEAR = 1900
 
 const DateSuggestList = forwardRef(function DateSuggestList(props, ref) {

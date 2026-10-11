@@ -31,13 +31,30 @@ import { Extension } from '@tiptap/core'
 import { PluginKey } from '@tiptap/pm/state'
 import Suggestion from '@tiptap/suggestion'
 import { ReactRenderer } from '@tiptap/react'
+import { importWithOneRetry } from './lazyChunk'
 import { isIsoDate, resolveDateWord } from './dateMentionNode'
 import { todayET } from './calendar'
 import { SuggestionPluginKey as slashMenuPluginKey } from '@tiptap/suggestion'
 import { applyComboboxWiring } from './comboboxWiring'
 import { noteLinkMenuPluginKey } from '../components/notebook/NoteLinkMenu'
-import DateSuggestList, { DATE_SUGGEST_MENU_ID } from '../components/notebook/DateSuggestList'
-import styles from '../components/notebook/DateSuggestList.module.css'
+import { DATE_SUGGEST_MENU_ID } from './dateSuggestMenuId'
+
+// I4 (final review, spec section 6: every new surface lazy). The list's UI -- the listbox, its
+// date input and its stylesheet -- is a separate chunk, fetched on the FIRST `@` of the page and
+// kept. The plugin, `dateChoices` and `runDateCommand` stay here: they are small and they are what
+// the editor needs at first open. Until the chunk arrives the session simply has no list: every key
+// reaches the editor, which is what an empty list does anyway (Enter is a new line).
+let listModule = null
+let listLoading = null
+const loadDateList = () => {
+  if (listModule) return Promise.resolve(listModule)
+  if (!listLoading) {
+    listLoading = importWithOneRetry(() => import('../components/notebook/DateSuggestList'))
+      .then((m) => { listModule = m; return m })
+      .finally(() => { listLoading = null })
+  }
+  return listLoading
+}
 
 // [label, the word resolveDateWord reads]. Order is the order a bare "@" shows them in.
 const WORDS = [
@@ -137,6 +154,9 @@ export const DateSuggest = Extension.create({
         let popup
         let getRect = null
         let editorDom = null
+        // The newest props Suggestion handed us, for a list that arrives after the session began.
+        let latest = null
+        let live = false
         const position = () => {
           if (!popup) return
           // Measuring the caret can throw (a range the document no longer holds; an engine with
@@ -161,21 +181,30 @@ export const DateSuggest = Extension.create({
             // Suggestion starts a session a tick after the keystroke; the editor may have been
             // destroyed in between (a note closed mid-word). Reading its view then throws.
             if (props.editor?.isDestroyed) return
+            latest = props
+            live = true
             getRect = props.clientRect
             editorDom = props.editor?.view?.dom || null
-            component = new ReactRenderer(DateSuggestList, { props: { ...props, onActiveChange: setActive }, editor: props.editor })
-            popup = document.createElement('div')
-            popup.className = styles.popupWrap
-            popup.style.position = 'fixed'
-            popup.style.zIndex = 9999
-            popup.appendChild(component.element)
-            document.body.appendChild(popup)
-            position()
-            requestAnimationFrame(position)
-            window.addEventListener('scroll', onViewportChange, true)
-            window.addEventListener('resize', onViewportChange)
+            // Fetched once (the first `@` of the page); after that it is already here and the list
+            // mounts in the same tick. A failed fetch leaves the session with no list, never an error.
+            loadDateList().then((mod) => {
+              // The session may have ended (or the note closed) while the chunk was on its way.
+              if (!live || popup || latest?.editor?.isDestroyed) return
+              component = new ReactRenderer(mod.default, { props: { ...latest, onActiveChange: setActive }, editor: latest.editor })
+              popup = document.createElement('div')
+              popup.className = mod.POPUP_WRAP_CLASS
+              popup.style.position = 'fixed'
+              popup.style.zIndex = 9999
+              popup.appendChild(component.element)
+              document.body.appendChild(popup)
+              position()
+              requestAnimationFrame(position)
+              window.addEventListener('scroll', onViewportChange, true)
+              window.addEventListener('resize', onViewportChange)
+            }).catch(() => {})
           },
           onUpdate(props) {
+            latest = props
             getRect = props.clientRect
             component?.updateProps({ ...props, onActiveChange: setActive })
             position()
@@ -188,6 +217,8 @@ export const DateSuggest = Extension.create({
             return component?.ref?.onKeyDown?.(props) ?? false
           },
           onExit() {
+            live = false
+            latest = null
             window.removeEventListener('scroll', onViewportChange, true)
             window.removeEventListener('resize', onViewportChange)
             setActive(null)

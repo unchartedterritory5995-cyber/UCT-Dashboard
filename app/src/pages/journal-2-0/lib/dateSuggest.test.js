@@ -2,6 +2,8 @@
 // REAL Notebook roster (buildExtensions), driven the way a member drives it: type `@`, read the
 // list, press Enter.
 import { describe, it, expect, afterEach } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { createElement } from 'react'
 import { render, cleanup, waitFor, act } from '@testing-library/react'
 import { SuggestionPluginKey as slashKey } from '@tiptap/suggestion'
@@ -279,6 +281,24 @@ describe('the extension on the real roster', () => {
     expect(mentions(ed)).toEqual([])
     expect(ed.getJSON().content.map((n) => n.type)).toEqual(['paragraph', 'paragraph'])
     expect(ed.state.doc.firstChild.textContent).toBe('ask @john')
+  })
+
+  // I4 (final review, spec section 6: every new surface lazy). The list's UI is a chunk of its own,
+  // fetched on the first `@`; only the plugin, dateChoices and runDateCommand are on the editor's
+  // first-open path. (The end-to-end cases above wait for the list to appear, so the lazy mount is
+  // exercised for real; this pins that nothing imports the UI statically.)
+  it('the list UI is a dynamic import in dateSuggest.js, never a static one (and its stylesheet with it)', () => {
+    const src = readFileSync(join(__dirname, 'dateSuggest.js'), 'utf8')
+    expect(src).toMatch(/import\('\.\.\/components\/notebook\/DateSuggestList'\)/)
+    expect(src).not.toMatch(/^import .*DateSuggestList/m)
+    expect(src).not.toMatch(/\.module\.css/)
+  })
+
+  it('the listbox id is one authority: the lazy list re-exports the constant the plugin wires with', async () => {
+    const ids = await import('./dateSuggestMenuId')
+    const list = await import('../components/notebook/DateSuggestList')
+    expect(list.DATE_SUGGEST_MENU_ID).toBe(ids.DATE_SUGGEST_MENU_ID)
+    expect(ids.DATE_SUGGEST_MENU_ID).toBe('uct-date-suggest')
   })
 
   it('the existing input rule still turns "@tomorrow " into a mention (it was not changed)', () => {
