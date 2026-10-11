@@ -77,11 +77,26 @@ describe('DateSuggestList', () => {
     expect(screen.getAllByRole('option').at(-1).getAttribute('aria-selected')).toBe('true')
   })
 
-  it('hovering a row selects it, and Enter then inserts the hovered choice', () => {
+  it('moving the pointer over a row selects it, and Enter then inserts that choice', () => {
     const { ref, command } = mount()
-    fireEvent.mouseEnter(screen.getAllByRole('option')[2])
+    fireEvent.mouseMove(screen.getAllByRole('option')[2])
+    expect(screen.getAllByRole('option')[2].getAttribute('aria-selected')).toBe('true')
     expect(key(ref, 'Enter')).toBe(true)
     expect(command).toHaveBeenCalledWith(ALL[2])
+  })
+
+  it('⛔ a row under a STILL cursor is not selected: mouseenter/mouseover alone selects nothing, and Enter passes through', () => {
+    // The list opens under the caret; a resting mouse gets boundary events from the layout change
+    // alone. Those must never choose a date (Enter ends a line: R11/R12).
+    const { ref, command, onActiveChange } = mount()
+    const row = screen.getAllByRole('option')[2]
+    fireEvent.mouseEnter(row)
+    fireEvent.mouseOver(row)
+    fireEvent.pointerEnter(row)
+    for (const o of screen.getAllByRole('option')) expect(o.getAttribute('aria-selected')).toBe('false')
+    expect(onActiveChange).toHaveBeenLastCalledWith(null, true)
+    expect(key(ref, 'Enter')).toBe(false)
+    expect(command).not.toHaveBeenCalled()
   })
 
   it('a tap on a row inserts it', () => {

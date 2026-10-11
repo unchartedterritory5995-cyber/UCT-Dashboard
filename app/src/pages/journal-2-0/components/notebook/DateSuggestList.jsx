@@ -9,7 +9,8 @@
  * a task line ending in "@", "ask @tom"), so Enter does nothing here until the member has
  * actually chosen a row:
  *   ↓/↑ select a row (the first ↓ the first row, the first ↑ the last; both wrap) ·
- *   hovering a row selects it · Enter inserts the SELECTED row, and with nothing selected it is
+ *   MOVING the pointer over a row selects it (never a bare mouseenter: the list opens under the
+ *   caret, and a mouse resting there gets boundary events from the layout change alone) · Enter inserts the SELECTED row, and with nothing selected it is
  *   NOT taken (it reaches the editor: a new line) ·
  *   Tab inserts the selected row, or the FIRST row when nothing is selected (a completion
  *   is an explicit act; Enter is not) · a tap inserts a row.
@@ -93,7 +94,7 @@ const DateSuggestList = forwardRef(function DateSuggestList(props, ref) {
             aria-selected={i === selectedIndex}
             className={`${styles.item} ${i === selectedIndex ? styles.itemActive : ''}`}
             onMouseDown={(e) => { e.preventDefault(); choose(item) }}
-            onMouseEnter={() => setSelectedIndex(i)}
+            onMouseMove={() => setSelectedIndex(i)}
           >
             <span className={styles.label} data-label>{item.label}</span>
             <span className={styles.desc}>
