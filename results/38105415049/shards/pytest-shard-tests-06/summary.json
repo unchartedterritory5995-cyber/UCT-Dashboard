@@ -1,0 +1,23 @@
+{
+  "suite": "pytest",
+  "collected": 3452,
+  "passed": 3397,
+  "failed": 34,
+  "errored": 0,
+  "skipped": 21,
+  "wall_s": 444.09,
+  "failed_files": [
+    "tests/test_flow_prepare.py",
+    "tests/test_fmp_guard_census.py",
+    "tests/test_gate_box_lock.py",
+    "tests/test_gitattributes_eol.py",
+    "tests/test_graph_wire_size.py",
+    "tests/test_hub_nav_smoke_routes.py",
+    "tests/test_hub_sandbox_model_keys.py",
+    "tests/test_implied_backfill.py",
+    "tests/test_launch_hardening.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "34 failed, 3397 passed, 21 skipped, 3437 warnings in 444.09s (0:07:24)",
+  "ok": true
+}
