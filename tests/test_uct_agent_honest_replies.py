@@ -104,6 +104,53 @@ def test_ordinary_answers_pass_untouched(reply):
     assert turn.sanitize_envelope(env("answer", reply=reply), {"c1"})["reply"] == reply
 
 
+# ── a clarifying question: never a claim, always still a question ─────────
+
+def clarify(text, choices=("Momentum", "Swing")):
+    return {"disposition": "clarify", "reply": text, "question": {"text": text, "choices": list(choices)},
+            "ops": [], "unsupported_category": None}
+
+
+@pytest.mark.parametrize("text,kept", [
+    ("I filtered your list to stocks above $50 — which list should I save them to?", "Which list should I save them to?"),
+    ("I've opened your Swing layout. Which chart should get RSI?", "Which chart should get RSI?"),
+    ("Done. Which list next?", "Which list next?"),
+    ("Opening your Momentum list — or did you mean Swing?", "Or did you mean Swing?"),
+])
+def test_a_question_that_claims_work_keeps_only_its_question(text, kept):
+    out = turn.sanitize_envelope(clarify(text), {"c1"})
+    assert out["disposition"] == "clarify"
+    assert out["question"]["text"] == f"{turn.NOTHING_YET} {kept}"
+    assert out["question"]["choices"] == ["Momentum", "Swing"]          # the member can still pick
+    assert out["reply"] == ""                                           # the claim is not stored either
+
+
+def test_a_question_that_is_only_a_claim_still_asks():
+    out = turn.sanitize_envelope(clarify("I opened Main Trading."), {"c1"})
+    assert out["question"]["text"] == f"{turn.NOTHING_YET} What would you like me to do?"
+
+
+@pytest.mark.parametrize("text", [
+    "Which list should I save them to — Momentum or Swing?",
+    "Did you mean the Momentum list or the Swing list?",
+    "I can screen the whole market or just Momentum — which one?",
+    "Which layout — “Main Trading” or “Day Trading”?",
+    "Should I add RSI to the left chart or the right one?",
+    "Strongest by RS Rank, or by UCT Composite?",
+])
+def test_ordinary_questions_pass_untouched(text):
+    out = turn.sanitize_envelope(clarify(text), {"c1"})
+    assert out["question"]["text"] == text and out["reply"] == text
+
+
+@pytest.mark.parametrize("reply", [
+    "I filtered your list to stocks above $50.", "I opened Main Trading.", "I ranked your list by RS Rank.",
+    "I just added RSI.",
+])
+def test_a_bare_first_person_past_tense_answer_is_replaced(reply):
+    assert turn.sanitize_envelope(env("answer", reply=reply), {"c1"})["reply"] == turn.NOTHING_DONE
+
+
 # ── with ops: narration dropped (the receipt reports); a disclosure kept ────
 
 @pytest.mark.parametrize("disp", ["apply", "propose"])

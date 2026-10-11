@@ -587,11 +587,30 @@ _NARRATES = re.compile(_LEAD + rf"(?:(?:i(?:'ve| have| am|'m|'ll| will)|let me|n
 # "Adding a 200-day SMA shows the trend", and "let me show you how…".
 _CLAIMS_WITHOUT_ACTION = re.compile(
     _LEAD + rf"(?:(?:i(?:'ve| have| am|'m|'ll| will)|let me)\s+(?:\w+\s+)?(?:{_ACT})\w*\b(?!\s+(?:you|how|what|why)\b)"
+    # a bare first-person past tense ("I filtered your list…", "I opened Main Trading") — measured
+    # inside a clarifying question (the integration's fourth claim case)
+    rf"|i\s+(?:just\s+|already\s+)?(?:(?:{_ACT})\w*ed|ran|drew)\b"
     rf"|(?:{_ACT})\w*(?:ing|ed)\s+(?:up\s+)?(?:\S+\s+){{0,2}}?(?:your|my)\b"
     rf"|here (?:are|is) your\b"
     r"|(?:done|all set)\b)", re.I)
 NOTHING_DONE = ("I didn't do that — no action was planned, so nothing in UCT changed. "
                 "Ask again a little more specifically (for example, “screen for the highest RS Rank stocks”).")
+NOTHING_YET = "Nothing in UCT has changed yet."
+_CLAUSE = re.compile(r"[.!;]\s+|\s+[—–]\s+|\s+-\s+")
+
+
+def _honest_question(text: str) -> str:
+    """A clarifying question is shown BEFORE anything runs, so it can never report work as done
+    ("I filtered your list to stocks above $50 — which list should I save them to?"). The SAME
+    claim rule as an answer (_CLAIMS_WITHOUT_ACTION): a question that claims keeps only its own
+    question, after a plain statement that nothing has changed. An ordinary question is untouched."""
+    if not _CLAIMS_WITHOUT_ACTION.match(text):
+        return text
+    asks = [c.strip() for c in _CLAUSE.split(text) if c.strip().endswith("?") and not _CLAIMS_WITHOUT_ACTION.match(c.strip())]
+    if asks:
+        a = asks[-1]
+        return f"{NOTHING_YET} {a[0].upper()}{a[1:]}"
+    return f"{NOTHING_YET} What would you like me to do?"
 
 
 def _unreadable(reason: str, **shape) -> None:
@@ -709,6 +728,14 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
         # proposed alert delete came back with reply "Done.". UCT's receipt is the only record.
         # ⭐ 2026-10-11: and so is narration ("Filtering Momentum to stocks above $50.").
         reply = ""
+    elif disp == "clarify":
+        # ⛔ A QUESTION THAT CLAIMS WORK: nothing has run yet, so the claim never reaches the member
+        # (or the history the next turn reads). The question itself and its choices are kept.
+        if isinstance(q, dict) and _CLAIMS_WITHOUT_ACTION.match(str(q.get("text") or "")):
+            log.warning("uct_agent claim inside a question: replaced a %d-char question", len(str(q.get("text"))))
+            q = {**q, "text": _honest_question(str(q.get("text")))}
+        if _CLAIMS_WITHOUT_ACTION.match(reply):
+            reply = ""
     elif disp == "answer" and not ops and _CLAIMS_WITHOUT_ACTION.match(reply):
         # ⛔ NO OPS, YET IT SAYS IT ACTED ("Opening your Momentum watchlist…"): nothing ran, so the
         # member is told exactly that — never the claim. This is also what the conversation stores,

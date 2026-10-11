@@ -1,7 +1,7 @@
 // EXECUTION TRUTHFULNESS — what is deterministic today (docs/agent/PHASE2.md, stabilization review).
 // A COMPLETED action is reported ONLY by a receipt built from the read-back state (runtime.commitPlan →
-// kind.landed). Model text can never become a receipt. (The model's free-text `reply` itself is NOT yet
-// checked for completion claims — tests/test_uct_agent_phase2.py pins that gap as an xfail.)
+// kind.landed). Model text can never become a receipt. (The model's free-text `reply` / question is
+// checked server-side for completion claims — tests/test_uct_agent_honest_replies.py.)
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
