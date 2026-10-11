@@ -329,3 +329,81 @@
 /* Change cards and receipts ride in the Agent's own bubble (same frame as every reply). */
 .cardBubble { min-width: 0; max-width: 100%; }
 .cardBubble .cardHead { margin-bottom: 4px; }
+
+/* ── History: the whole panel ─────────────────────────────────────────────────── */
+.stage[hidden], .composer[hidden] { display: none; }
+.historyView { flex: 1; min-height: 0; display: flex; flex-direction: column; animation: fadeIn 140ms ease both; }
+.hSearch {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  margin: 10px 10px 4px; padding: 0 6px 0 11px; height: 38px; border-radius: 10px;
+  background: var(--bg-elevated); border: 1px solid var(--border-accent);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.hSearch:focus-within { border-color: var(--ut-gold-glow); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ut-gold) 8%, transparent); }
+.hList { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 8px 12px; }
+.hGroup { margin-top: 10px; }
+.hGroupLabel {
+  margin: 0 0 4px; padding: 0 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .7px;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.hRow { position: relative; display: flex; align-items: center; border-radius: 8px; }
+.hRow:hover { background: var(--bg-hover); }
+.hCurrent { background: var(--bg-hover); }
+.hCurrent::before { content: ''; position: absolute; left: 0; top: 7px; bottom: 7px; width: 2px; border-radius: 2px; background: var(--ut-gold); }
+.hOpen {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px;
+  background: transparent; border: 0; padding: 8px 10px; cursor: pointer; font: inherit; text-align: left; color: var(--text);
+}
+.hCurrent .hOpen, .hRow:hover .hOpen { color: var(--text-bright); }
+.hPinMark { display: grid; color: var(--ut-gold); flex-shrink: 0; }
+.hPinMark svg { width: 13px; height: 13px; }
+.hTitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.hWhen { flex-shrink: 0; font-size: 11px; color: var(--text-muted); }
+.hActions {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  display: none; gap: 1px; padding-left: 18px;
+  background: linear-gradient(to right, transparent, var(--bg-hover) 16px);
+}
+.hRow:hover .hActions, .hRow:focus-within .hActions { display: flex; }
+.hRow:hover .hWhen, .hRow:focus-within .hWhen { visibility: hidden; }
+.hAct {
+  position: relative; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 6px;
+  border: 0; padding: 0; background: transparent; color: var(--text-muted); cursor: pointer;
+}
+.hAct svg { width: 14px; height: 14px; }
+.hAct:hover { color: var(--text-bright); background: var(--bg-elevated); }
+.hActDanger:hover { color: var(--loss, #ef4444); }
+.hAct[data-tip]::after {
+  content: attr(data-tip); position: absolute; bottom: calc(100% + 5px); right: 0; z-index: 5;
+  white-space: nowrap; pointer-events: none; font-size: 11px; line-height: 1; padding: 5px 7px; border-radius: 6px;
+  color: var(--text-bright); background: var(--bg-elevated); border: 1px solid var(--border-accent);
+  opacity: 0; transition: opacity 120ms ease;
+}
+.hAct[data-tip]:hover::after { opacity: 1; transition-delay: 350ms; }
+.hEditing { padding: 3px 4px; background: var(--bg-hover); }
+.hRename {
+  flex: 1; min-width: 0; height: 30px; padding: 0 9px; border-radius: 7px; font: inherit; font-size: 13px;
+  background: var(--bg-elevated); color: var(--text-bright); border: 1px solid var(--ut-gold-glow); outline: none;
+}
+.hConfirm {
+  flex-direction: column; align-items: stretch; gap: 8px; padding: 9px 10px; margin: 2px 0;
+  background: color-mix(in srgb, var(--loss, #ef4444) 8%, var(--bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--loss, #ef4444) 35%, transparent);
+}
+.hConfirm:hover { background: color-mix(in srgb, var(--loss, #ef4444) 8%, var(--bg-elevated)); }
+.hConfirmText { font-size: 12.5px; color: var(--text); overflow-wrap: anywhere; }
+.hConfirmText b { color: var(--text-bright); font-weight: 600; }
+.hConfirmActions { display: flex; justify-content: flex-end; gap: 6px; }
+.danger {
+  border-radius: 8px; padding: 5px 12px; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600;
+  background: var(--loss, #ef4444); color: #fff; border: 1px solid var(--loss, #ef4444);
+}
+.danger:hover { filter: brightness(1.08); }
+.hError { position: absolute; right: 8px; bottom: -14px; font-size: 10.5px; color: var(--loss, #ef4444); }
+.hHitGroup { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.hHitChat {
+  display: flex; align-items: center; gap: 6px; padding: 4px 4px 0; min-width: 0;
+  font-size: 11.5px; font-weight: 600; color: var(--text-bright);
+}
+.hHitChat svg { width: 13px; height: 13px; color: var(--ut-gold); flex-shrink: 0; }
+.hHitChat span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -28,6 +28,30 @@ export async function agentConversations() {
   } catch { return [] }
 }
 
+// History: rename / pin / delete one of the member's own chats; search across all of them.
+async function send(url, method, body) {
+  try {
+    const r = await fetch(url, {
+      method, credentials: 'include',
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    })
+    let data = null
+    try { data = await r.json() } catch { /* empty */ }
+    return r.ok ? { ok: true, data } : { ok: false, status: r.status, error: (data && typeof data.detail === 'string' && data.detail) || 'That didn’t work. Try again.' }
+  } catch {
+    return { ok: false, error: 'Could not reach UCT. Check your connection.' }
+  }
+}
+const convUrl = (id) => `/api/agent/conversations/${encodeURIComponent(id)}`
+export const renameConversation = (id, title) => send(convUrl(id), 'PATCH', { title })
+export const pinConversation = (id, pinned) => send(convUrl(id), 'PATCH', { pinned })
+export const deleteConversation = (id) => send(convUrl(id), 'DELETE')
+export async function searchHistory(q) {
+  const r = await send(`/api/agent/search?q=${encodeURIComponent(q)}`, 'GET')
+  return r.ok ? (r.data?.results || []) : []
+}
+
 export async function agentConversation(id) {
   try {
     const r = await fetch(`/api/agent/conversations/${encodeURIComponent(id)}`, { credentials: 'include' })

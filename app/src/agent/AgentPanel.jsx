@@ -16,6 +16,7 @@ import { quickReplies } from './quickReplies'
 import { continues } from './chatTime'
 import { searchChat, snippet } from './chatSearch'
 import { agentConversations } from './agentClient'
+import AgentHistory from './AgentHistory'
 import VoiceInputButton from '../pages/journal-2-0/components/VoiceInputButton'
 import compassMark from '../components/intro/assets/compass-mark.png'
 import { HeadIcon, AgentAvatar, MemberAvatar, SenderLine, Hl } from './agentUi'
@@ -287,13 +288,14 @@ export default function AgentPanel({ host, gridMode, onClose }) {
   const jumpRef = useRef(null)
   const searchRef = useRef(null)
   const [history, setHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(false)
   const listRef = useRef(null)
   const inputRef = useRef(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
   useEffect(() => {
     const el = listRef.current
-    if (el) el.scrollTop = el.scrollHeight
+    if (el && !jumpRef.current) el.scrollTop = el.scrollHeight
   }, [agent.items.length, agent.busy])
 
   const results = searchOpen ? searchChat(agent.items, query) : []
@@ -303,13 +305,13 @@ export default function AgentPanel({ host, gridMode, onClose }) {
   // Jump: once the transcript is back, centre the line and flash it.
   useEffect(() => {
     const id = jumpRef.current
-    if (searchOpen || !id) return
-    jumpRef.current = null
+    if (searchOpen || historyOpen || !id) return
     const el = listRef.current?.querySelector(`[data-item-id="${CSS.escape(id)}"]`)
-    if (!el) return
+    if (!el) return                                   // the chat is still loading: try again when it lands
+    jumpRef.current = null
     el.scrollIntoView({ block: 'center', behavior: 'smooth' })
     el.classList.remove(styles.flash); void el.offsetWidth; el.classList.add(styles.flash)
-  }, [searchOpen])
+  }, [searchOpen, historyOpen, agent.items])
 
   const submit = () => {
     const t = text.trim()
@@ -318,10 +320,26 @@ export default function AgentPanel({ host, gridMode, onClose }) {
     agent.send(t)
   }
 
-  const openHistory = async () => {
+  const refreshHistory = async () => {
+    setHistoryLoading(true)
+    setHistory(await agentConversations())
+    setHistoryLoading(false)
+  }
+  const openHistory = () => {
     const n = !historyOpen
     setHistoryOpen(n)
-    if (n) setHistory(await agentConversations())
+    if (n) { closeSearch(); refreshHistory() }
+  }
+  // Open a chat from History; with `jump`, land on that message (the transcript scrolls to it once loaded).
+  const openFromHistory = (id, jump) => {
+    setHistoryOpen(false)
+    jumpRef.current = jump || null
+    const here = id === agent.conversationId && (!jump || listRef.current?.querySelector(`[data-item-id="${CSS.escape(jump)}"]`))
+    if (!here) agent.openConversation(id)
+  }
+  const historyDeleted = (id) => {
+    refreshHistory()
+    if (id === agent.conversationId) { agent.newChat(); setChatEpoch(n => n + 1) }
   }
 
   // The composer grows with what's typed (one line → at most ~6), then scrolls.
@@ -350,7 +368,7 @@ export default function AgentPanel({ host, gridMode, onClose }) {
         </span>
         <span className={styles.headSpacer} />
         <button type="button" className={`${styles.iconBtn} ${searchOpen ? styles.iconOn : ''}`} data-tip="Search" aria-label="Search this chat"
-          aria-expanded={searchOpen} onClick={() => (searchOpen ? closeSearch() : openSearch())}><HeadIcon name="search" /></button>
+          aria-expanded={searchOpen} onClick={() => (searchOpen ? closeSearch() : (setHistoryOpen(false), openSearch()))}><HeadIcon name="search" /></button>
         <button type="button" className={styles.iconBtn} data-tip="New chat" aria-label="New chat"
           onClick={() => { setHistoryOpen(false); closeSearch(); agent.newChat(); setChatEpoch(n => n + 1); inputRef.current?.focus() }}><HeadIcon name="new" /></button>
         <button type="button" className={`${styles.iconBtn} ${historyOpen ? styles.iconOn : ''}`} data-tip="History" aria-label="Conversation history"
@@ -358,7 +376,7 @@ export default function AgentPanel({ host, gridMode, onClose }) {
         <button type="button" className={styles.iconBtn} data-tip="Close" aria-label="Close UCT Agent" onClick={onClose}><HeadIcon name="close" /></button>
       </header>
 
-      {searchOpen && (
+      {searchOpen && !historyOpen && (
         <div className={styles.searchBar}>
           <span className={styles.searchIcon}><HeadIcon name="search" /></span>
           <input ref={searchRef} className={styles.searchInput} value={query} placeholder="Search this chat…" aria-label="Search this chat"
@@ -374,19 +392,11 @@ export default function AgentPanel({ host, gridMode, onClose }) {
       )}
 
       {historyOpen && (
-        <div className={styles.history} data-testid="agent-history">
-          {history.length === 0 && <div className={styles.outcome}>No conversations yet.</div>}
-          {history.map(c => (
-            <button key={c.id} type="button" className={`${styles.historyItem} ${c.id === agent.conversationId ? styles.historyActive : ''}`}
-              onClick={() => { setHistoryOpen(false); closeSearch(); agent.openConversation(c.id) }}>
-              <span className={styles.historyTitle}>{c.title}</span>
-              <span className={styles.historyWhen}>{new Date(c.updated_at * 1000).toLocaleDateString()}</span>
-            </button>
-          ))}
-        </div>
+        <AgentHistory conversations={history} loading={historyLoading} currentId={agent.conversationId} member={member}
+          onOpen={openFromHistory} onRefresh={refreshHistory} onDeleted={historyDeleted} onClose={() => setHistoryOpen(false)} />
       )}
 
-      <div className={styles.stage}>
+      <div className={styles.stage} hidden={historyOpen}>
       <div className={styles.list} ref={listRef} data-testid="agent-transcript">
         {agent.restoring && <div className={styles.thinking} aria-live="polite" data-testid="agent-restoring">Loading this conversation…</div>}
         {/* The greeting opens every chat started here; a reopened past conversation starts at its own history. */}
@@ -412,7 +422,7 @@ export default function AgentPanel({ host, gridMode, onClose }) {
       </div>
 
       {/* iMessage-style composer: one rounded bar — the text grows from one line, mic and send inside. */}
-      <div className={styles.composer}>
+      <div className={styles.composer} hidden={historyOpen}>
         {/* Discord-style: who's typing, just above the bar (never shifts the layout). */}
         {(agent.busy || greetingTyping) && (
           <div className={styles.typingLine} role="status" aria-live="polite" data-testid="agent-typing">
