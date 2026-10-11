@@ -260,14 +260,29 @@ describe('the extension on the real roster', () => {
       expect(mentions(ed)).toEqual([])
     })
 
-    it('⛔ typing "@" inside an open [[ note link does not open the date list', () => {
-      const ed = mount('See ')
-      ed.commands.focus('end')
-      ed.commands.insertContent('[[Weekly review ')
-      expect(noteLinkMenuPluginKey.getState(ed.state).active).toBe(true) // non-vacuity
-      ed.commands.insertContent('@')
-      expect(noteLinkMenuPluginKey.getState(ed.state).active).toBe(true)
-      expect(state(ed).active).toBeFalsy()
+    it('⛔ typing "@" inside an open [[ note link does not open the date list', async () => {
+      // N5 (polish round): the note-link menu starts its session only after a debounced search, so
+      // a synchronous test ended, and afterEach destroyed the editor, BEFORE that session's onStart
+      // read `editor.view` -- an unhandled rejection attributed to this file in loaded batch runs
+      // (1 of 2 batches, before and after I4b alike). The search is answered at once here, and the
+      // test waits for its own session to start (its popup on the page) before it ends.
+      const realFetch = globalThis.fetch
+      globalThis.fetch = async () => ({ ok: true, json: async () => ({ notes: [] }) })
+      try {
+        const ed = mount('See ')
+        ed.commands.focus('end')
+        ed.commands.insertContent('[[Weekly review ')
+        expect(noteLinkMenuPluginKey.getState(ed.state).active).toBe(true) // non-vacuity
+        ed.commands.insertContent('@')
+        expect(noteLinkMenuPluginKey.getState(ed.state).active).toBe(true)
+        expect(state(ed).active).toBeFalsy()
+        const popupUp = () => [...document.body.children].some((el) => el.style?.position === 'fixed')
+        for (let i = 0; i < 200 && !popupUp(); i += 1) await new Promise((r) => setTimeout(r, 10))
+        expect(popupUp()).toBe(true) // the note-link session started while the editor was alive
+        expect(document.getElementById('uct-date-suggest')).toBeNull()
+      } finally {
+        globalThis.fetch = realFetch
+      }
     })
 
     it('the "Due date" slash item still opens the date list (the slash session ends in the same step)', async () => {
