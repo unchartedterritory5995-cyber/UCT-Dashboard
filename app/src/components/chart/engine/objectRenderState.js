@@ -391,7 +391,9 @@ export function toRenderState(live, opts = {}) {
         border_width: p.border_width,
         border_style: p.border_style,
         bgcolor: p.bgcolor,
-        ...(p.text ? { text: String(p.text), text_color: p.text_color, text_size: p.text_size } : {}),
+        // ⭐ UIE PHASE 2 (M5) — and where in the box the author put it
+        ...(p.text ? { text: String(p.text), text_color: p.text_color, text_size: p.text_size,
+          text_halign: p.text_halign, text_valign: p.text_valign } : {}),
       })
     } else if (o.family === 'table') {
       tables.push({

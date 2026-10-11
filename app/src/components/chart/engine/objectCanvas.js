@@ -80,6 +80,104 @@ const DASH = Object.freeze({
   solid: [], dashed: [6, 4], dotted: [2, 3], arrow_left: [], arrow_right: [], arrow_both: [],
 })
 
+// ─── ⭐⭐ UIE PHASE 2 (M5) — WHAT A LABEL'S STYLE IS, NOT ONLY WHERE IT SITS ───────
+//
+// Every label used to be the same filled rectangle, offset by its style. Pine's styles
+// are two different things: the `label_*` ones are a BODY with a POINTER at the anchor,
+// and the shape ones (`circle`, `triangleup`, `xcross`, …) are a GLYPH at the anchor with
+// the text beside it; `none` is text alone, `text_outline` outlined text.
+// ⚠️ THE GEOMETRY IS THIS ENGINE'S, NOT A MEASURED TRADINGVIEW ONE: no capture in the
+// repo pins a glyph's pixel size or the gap to its text, so these are drawn the way the
+// style names them, and graded only on what the harness compares (count, text, colour).
+const SHAPE_STYLES = new Set(['circle', 'square', 'diamond', 'triangleup', 'triangledown', 'arrowup',
+  'arrowdown', 'xcross', 'cross', 'flag'])
+const POINTER_STYLES = new Set(['label_down', 'label_up', 'label_left', 'label_right', 'label_lower_left',
+  'label_lower_right', 'label_upper_left', 'label_upper_right'])
+/** A shape glyph's side in pixels, by Pine's size word. */
+const SHAPE_PX = Object.freeze({ tiny: 6, small: 9, normal: 13, large: 19, huge: 27, auto: 13 })
+const POINTER_PX = 6
+
+/** One glyph centred at (cx, cy), filled (and stroked, for the line glyphs) in `c`. */
+function drawShape(ctx, style, cx, cy, s, c) {
+  const h = s / 2
+  ctx.fillStyle = c
+  ctx.strokeStyle = c
+  ctx.beginPath()
+  switch (style) {
+    case 'circle':
+      if (typeof ctx.arc === 'function') ctx.arc(cx, cy, h, 0, Math.PI * 2)
+      ctx.fill()
+      return
+    case 'square':
+      ctx.fillRect(cx - h, cy - h, s, s)
+      return
+    case 'diamond':
+      ctx.moveTo(cx, cy - h); ctx.lineTo(cx + h, cy); ctx.lineTo(cx, cy + h); ctx.lineTo(cx - h, cy)
+      ctx.closePath(); ctx.fill()
+      return
+    case 'triangleup':
+      ctx.moveTo(cx, cy - h); ctx.lineTo(cx + h, cy + h); ctx.lineTo(cx - h, cy + h)
+      ctx.closePath(); ctx.fill()
+      return
+    case 'triangledown':
+      ctx.moveTo(cx, cy + h); ctx.lineTo(cx + h, cy - h); ctx.lineTo(cx - h, cy - h)
+      ctx.closePath(); ctx.fill()
+      return
+    case 'arrowup':
+    case 'arrowdown': {
+      const d = style === 'arrowup' ? -1 : 1        // the tip's direction on screen
+      ctx.moveTo(cx, cy + d * h)                     // tip
+      ctx.lineTo(cx + h * 0.8, cy)
+      ctx.lineTo(cx + h * 0.3, cy)
+      ctx.lineTo(cx + h * 0.3, cy - d * h)
+      ctx.lineTo(cx - h * 0.3, cy - d * h)
+      ctx.lineTo(cx - h * 0.3, cy)
+      ctx.lineTo(cx - h * 0.8, cy)
+      ctx.closePath(); ctx.fill()
+      return
+    }
+    case 'xcross':
+      ctx.lineWidth = Math.max(1, s / 6)
+      ctx.moveTo(cx - h, cy - h); ctx.lineTo(cx + h, cy + h)
+      ctx.moveTo(cx + h, cy - h); ctx.lineTo(cx - h, cy + h)
+      ctx.stroke()
+      return
+    case 'cross':
+      ctx.lineWidth = Math.max(1, s / 6)
+      ctx.moveTo(cx - h, cy); ctx.lineTo(cx + h, cy)
+      ctx.moveTo(cx, cy - h); ctx.lineTo(cx, cy + h)
+      ctx.stroke()
+      return
+    case 'flag':
+      ctx.lineWidth = 1
+      ctx.moveTo(cx - h, cy + h); ctx.lineTo(cx - h, cy - h)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(cx - h, cy - h); ctx.lineTo(cx + h, cy - h * 0.5); ctx.lineTo(cx - h, cy)
+      ctx.closePath(); ctx.fill()
+      return
+    default:
+  }
+}
+
+/** A filled arrowhead with its tip at (x, y), pointing away from (fx, fy). */
+function drawArrowhead(ctx, fx, fy, x, y, size, c) {
+  const len = Math.hypot(x - fx, y - fy)
+  if (!(len > 0)) return
+  const ux = (x - fx) / len
+  const uy = (y - fy) / len
+  ctx.save()
+  ctx.setLineDash([])
+  ctx.fillStyle = c
+  ctx.beginPath()
+  ctx.moveTo(x, y)
+  ctx.lineTo(x - ux * size - uy * size * 0.5, y - uy * size + ux * size * 0.5)
+  ctx.lineTo(x - ux * size + uy * size * 0.5, y - uy * size - ux * size * 0.5)
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+
 /**
  * Paint one render state.
  *
@@ -149,6 +247,29 @@ export function paintObjects(ctx, state, m) {
       ctx.setLineDash(DASH[b.border_style] || [])
       ctx.strokeRect(x1, a.y, x2 - x1, c.y - a.y)
     }
+    // ⭐⭐ UIE PHASE 2 (M5) — A BOX'S TEXT, where its author put it (`text_halign` /
+    // `text_valign`, centred unless said), one line per `\n`. It was carried into the
+    // render state and never painted.
+    if (b.text) {
+      const px = TEXT_SIZE_PX[b.text_size] || 12
+      const lines = String(b.text).split('\n')
+      const left = Math.min(x1, x2)
+      const right = Math.max(x1, x2)
+      const top = Math.min(a.y, c.y)
+      const bottom = Math.max(a.y, c.y)
+      ctx.setLineDash([])
+      ctx.font = `${px}px -apple-system, Segoe UI, sans-serif`
+      ctx.fillStyle = b.text_color || '#000000'
+      ctx.textAlign = b.text_halign === 'left' ? 'left' : b.text_halign === 'right' ? 'right' : 'center'
+      ctx.textBaseline = 'middle'
+      const tx = b.text_halign === 'left' ? left + 4 : b.text_halign === 'right' ? right - 4 : (left + right) / 2
+      const lh = px + 2
+      const block = lh * lines.length
+      const y0 = b.text_valign === 'top' ? top + 2 + lh / 2
+        : b.text_valign === 'bottom' ? bottom - 2 - block + lh / 2
+          : (top + bottom) / 2 - block / 2 + lh / 2
+      lines.forEach((t, i) => ctx.fillText(t, tx, y0 + i * lh))
+    }
     ctx.restore()
     seen(x1, a.y); seen(x2, c.y)
     drawn.box += 1
@@ -180,6 +301,13 @@ export function paintObjects(ctx, state, m) {
     ctx.lineTo(x2, y2)
     ctx.stroke()
     ctx.restore()
+    // ⭐ UIE PHASE 2 (M5) — `line.style_arrow_*` were drawn as plain solid lines: the
+    // head sits on the end the style names, pointing along the line.
+    if (l.style === 'arrow_right' || l.style === 'arrow_left' || l.style === 'arrow_both') {
+      const size = 5 + 2 * Math.max(1, l.width || 1)
+      if (l.style !== 'arrow_left') drawArrowhead(ctx, x1, y1, x2, y2, size, l.color)
+      if (l.style !== 'arrow_right') drawArrowhead(ctx, x2, y2, x1, y1, size, l.color)
+    }
     lineById.set(l.id, { x1, y1, x2, y2 })
     seen(x1, y1); seen(x2, y2)
     drawn.line += 1
@@ -215,14 +343,69 @@ export function paintObjects(ctx, state, m) {
     ctx.textBaseline = 'middle'
     ctx.textAlign = lb.textalign === 'left' ? 'left' : lb.textalign === 'right' ? 'right' : 'center'
     const text = lb.text || ''
+    const anchor = LABEL_ANCHOR[lb.style] || LABEL_ANCHOR.label_center
+    // ⭐⭐ UIE PHASE 2 (M5) — `dy` IS PINE'S SENSE (+1 = the body sits BELOW the anchor,
+    // `label_up`'s pointer pointing up at it), and SCREEN y GROWS DOWNWARD, so the body's
+    // y moves by +dy. ⚰️ It moved by −dy: every `label_down` (the "sell" callout above a
+    // bar) was drawn BELOW its anchor, over the candle it names.
+    if (SHAPE_STYLES.has(lb.style)) {
+      // a GLYPH at the anchor, the text beyond it on the side the style faces
+      const s = SHAPE_PX[lb.size] || SHAPE_PX.normal
+      const cx = p.x + (anchor.dx * s) / 2
+      const cy = y + (anchor.dy * s) / 2
+      drawShape(ctx, lb.style, cx, cy, s, lb.color || '#2962FF')
+      if (text) {
+        ctx.fillStyle = lb.textcolor || lb.color || '#2962FF'
+        const side = anchor.dy < 0 ? -1 : 1
+        ctx.fillText(text, cx, cy + side * (s / 2 + px / 2 + 2))
+      }
+      ctx.restore()
+      seen(cx - s / 2, cy - s / 2); seen(cx + s / 2, cy + s / 2)
+      drawn.label += 1
+      continue
+    }
+    if (lb.style === 'none' || lb.style === 'text_outline') {
+      // TEXT ALONE at the anchor — no body (a `none` label's colour is its shape's,
+      // and it has none); `text_outline` rings the text in the label's colour
+      if (text) {
+        if (lb.style === 'text_outline' && lb.color && typeof ctx.strokeText === 'function') {
+          ctx.strokeStyle = lb.color
+          ctx.lineWidth = 3
+          ctx.strokeText(text, p.x, y)
+        }
+        ctx.fillStyle = lb.textcolor || '#FFFFFF'
+        ctx.fillText(text, p.x, y)
+      }
+      ctx.restore()
+      seen(p.x, y)
+      drawn.label += 1
+      continue
+    }
     const w = text ? ctx.measureText(text).width + 8 : 10
     const h = px + 6
-    const anchor = LABEL_ANCHOR[lb.style] || LABEL_ANCHOR.label_center
-    const bx = p.x - (w / 2) + (anchor.dx * w) / 2
-    const by = y - (h / 2) - (anchor.dy * h) / 2
+    const pointer = POINTER_STYLES.has(lb.style) ? POINTER_PX : 0
+    const bx = p.x - (w / 2) + anchor.dx * (w / 2 + pointer)
+    const by = y - (h / 2) + anchor.dy * (h / 2 + pointer)
     if (lb.color) {
       ctx.fillStyle = lb.color
       ctx.fillRect(bx, by, w, h)
+      if (pointer) {
+        // the POINTER: its tip on the anchor, its base on the body's near edge
+        ctx.beginPath()
+        ctx.moveTo(p.x, y)
+        if (anchor.dx === 0) {
+          ctx.lineTo(p.x - pointer, y + anchor.dy * pointer)
+          ctx.lineTo(p.x + pointer, y + anchor.dy * pointer)
+        } else if (anchor.dy === 0) {
+          ctx.lineTo(p.x + anchor.dx * pointer, y - pointer)
+          ctx.lineTo(p.x + anchor.dx * pointer, y + pointer)
+        } else {
+          ctx.lineTo(p.x + anchor.dx * pointer * 2, y + anchor.dy * pointer)
+          ctx.lineTo(p.x + anchor.dx * pointer, y + anchor.dy * pointer * 2)
+        }
+        ctx.closePath()
+        ctx.fill()
+      }
     }
     if (text) {
       ctx.fillStyle = lb.textcolor || '#FFFFFF'
