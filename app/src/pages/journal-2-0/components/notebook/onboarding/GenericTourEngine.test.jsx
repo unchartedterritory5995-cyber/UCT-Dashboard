@@ -400,6 +400,59 @@ describe('the unreachable card: a chart tour with no chart in any note', () => {
     await waitFor(() => expect(onCloseSpy).toHaveBeenCalledTimes(1))
   })
 
+  // D (polish round): the voice tour's first anchor (the New note arrow) exists only once the member
+  // has a note. Started from Help or What's new by a member with none, it used to wait for that
+  // anchor and fail with "start it again"; now it shows ONE card and a way to the Notebook.
+  describe('a tour that needs a note, started by a member with none', () => {
+    const VOICE = {
+      id: 'voice-notes',
+      title: 'Voice notes',
+      start: '/journal/notebook',
+      load: async () => ({
+        steps: [{ id: 'open', anchor: 'new-note-home', file: 'x', waitFor: 'new-note-voice' }],
+        copy: { open: { title: 'Start a voice note', body: 'Open the arrow.' } },
+      }),
+    }
+
+    function Where() {
+      const l = useLocation()
+      return <p data-testid="where">{l.pathname}</p>
+    }
+
+    it('shows the "make a note first" card, and its one button goes to the Notebook', async () => {
+      installNoChartFetch({ hasNotes: false })
+      const onCloseSpy = vi.fn()
+      render(
+        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+          <MemoryRouter initialEntries={['/support']}>
+            <GenericTourEngine entry={VOICE} onClose={onCloseSpy} />
+            <Routes><Route path="*" element={<Where />} /></Routes>
+          </MemoryRouter>
+        </SWRConfig>,
+      )
+      const d = await dialog({ timeout: 3000 })
+      expect(d).toHaveAccessibleName(UNREACHABLE_COPY.firstNote.title)
+      expect(screen.getByText('Make your first note, then come back to this tour.')).toBeInTheDocument()
+      expect(screen.queryByText(/start it again/)).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Add the sample notebook' })).toBeNull()
+      const go = screen.getByRole('button', { name: 'Go to the Notebook' })
+      expect(go).toHaveClass('btn-primary')
+      fireEvent.click(go)
+      expect(screen.getByTestId('where')).toHaveTextContent('/journal/notebook')
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(onCloseSpy).toHaveBeenCalledWith({ opened: false })
+    })
+
+    it('CONTROL: a member WITH notes never sees that card (the tour goes on to its start as before)', async () => {
+      installNoChartFetch({ hasNotes: true })
+      const onCloseSpy = vi.fn()
+      render(<Page entry={VOICE} anchors={[]} onCloseSpy={onCloseSpy} startWaitMs={50} />)
+      await waitFor(() => expect(onCloseSpy).toHaveBeenCalled())
+      expect(onCloseSpy).toHaveBeenCalledWith({ opened: false, failed: true })
+      expect(screen.queryByRole('dialog', { name: UNREACHABLE_COPY.firstNote.title })).toBeNull()
+    })
+  })
+
   it('CONTROL: the other cards (a note tour with no note) carry no sample button', async () => {
     const NOTE_TOUR = { ...CHART_TOUR, id: 'w14-0-tour-note', start: { note: 'sample:plan' } }
     render(<Page entry={NOTE_TOUR} anchors={[]} />)
