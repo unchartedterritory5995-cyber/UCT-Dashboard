@@ -13,7 +13,7 @@ import path from 'node:path'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import {
   computeRuntimeColumns, convergedFrom, runtimeWarmupOf, RUNTIME_WARMUP_GUARD, RUNTIME_HISTORY_GUARD,
-  RUNTIME_TIME_BUDGET_GUARD,
+  RUNTIME_TIME_BUDGET_GUARD, warmupShiftFor,
 } from '../runtimeColumns.js'
 import { runtimeObjectsWithheldOf } from '../runtimeObjects.js'
 
@@ -123,5 +123,23 @@ describe('⭐ a listing document off the listing: the warm-up is withheld, the r
     expect(convergedFrom({ v: [1, 2, 3, 4] }, { v: [9, 3, 4] }, 1)).toBe(2)
     expect(convergedFrom({ v: [1, 2, 3, 4] }, { v: [2, 3, 5] }, 1)).toBeNull()
     expect(convergedFrom({ v: [NaN, 2] }, { v: [NaN, 2] }, 0)).toBe(0)
+  })
+})
+
+describe('⭐⭐ UIE PHASE 3 — the second run starts a PRIME number of bars later', () => {
+  it('a counter that repeats every 10 bars is refused: its phase depends on where the chart starts', () => {
+    // ⚰️ at a shift of 250 the two runs agreed (10 divides 250) and it was drawn
+    for (const p of [2, 5, 7, 10, 25, 50, 125]) {
+      let err = null
+      try { computeRuntimeColumns(doc(`var int k = 0\nk := (k + 1) % ${p}\nplot(k)\n`), bars.slice(FULL - 3000), D) } catch (e) { err = e }
+      expect(err && err.guard, `period ${p}`).toBe(RUNTIME_WARMUP_GUARD)
+    }
+  })
+
+  it('warmupShiftFor: the largest prime at most 251 and a quarter of the chart', () => {
+    expect(warmupShiftFor(5000)).toBe(251)
+    expect(warmupShiftFor(1000)).toBe(241)
+    expect(warmupShiftFor(40)).toBe(7)
+    expect(warmupShiftFor(7)).toBe(0)
   })
 })

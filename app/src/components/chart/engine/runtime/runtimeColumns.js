@@ -354,8 +354,19 @@ export function convergedFrom(a, b, shift, last) {
 
 /** ⭐ UIE PHASE 2 — how many bars later the second run of the warm-up check starts
  *  (a quarter of a short chart). Measured: every converging corpus script's warm-up
- *  is the same within a few dozen bars from 250 and from 1,000 bars in. */
-export const WARMUP_PROBE_SHIFT = 250
+ *  is the same within a few dozen bars from 250 and from 1,000 bars in.
+ *  ⭐⭐ UIE PHASE 3 — and it is PRIME (`warmupShiftFor`). Two runs `shift` bars apart
+ *  cannot tell apart a state that repeats every p bars when p divides `shift`: at 250,
+ *  a `var` counter mod 10 (or 2, 5, 25, 50, 125) agreed in both runs and was DRAWN,
+ *  though its phase depends on where the chart starts. At a prime only a period of
+ *  exactly `shift` can hide, which is named here rather than claimed impossible. */
+export const WARMUP_PROBE_SHIFT = 251
+const isPrime = (k) => { if (k < 2) return false; for (let d = 2; d * d <= k; d += 1) if (k % d === 0) return false; return true }
+/** The shift for a chart of `n` bars: the largest prime ≤ min(251, n/4), or 0. */
+export function warmupShiftFor(n) {
+  for (let s = Math.min(WARMUP_PROBE_SHIFT, Math.floor(n / 4)); s >= 2; s -= 1) if (isPrime(s)) return s
+  return 0
+}
 /** The guard a document carries whose run never stops depending on its first bar. */
 export const RUNTIME_WARMUP_GUARD = 'runtime:warmup-never-converges'
 
@@ -387,7 +398,7 @@ export const RUNTIME_WARMUP_GUARD = 'runtime:warmup-never-converges'
  */
 function computeOffListing(def, rows, ctx, opts) {
   const n = rows.length
-  const shift = Math.min(WARMUP_PROBE_SHIFT, Math.floor(n / 4))
+  const shift = warmupShiftFor(n)
   const objects = !!(def.compute && def.compute.objects === true)
   // ⛔ BUILT EXACTLY AS THE DOCUMENT IS — its drawing code included. Stripping
   // `compute.objects` builds a DIFFERENT program (the drawings' text helpers fall to
@@ -399,7 +410,7 @@ function computeOffListing(def, rows, ctx, opts) {
     + "its values never came to agree, so what it would show here depends on where the chart begins, which "
     + 'TradingView does not share. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded '
     + "history reaches the listing (a daily chart of a symbol listed within the bars it loads) draws it.")
-  if (shift < 1) throw never()
+  if (shift < 2) throw never()
   const clock = typeof opts.now === 'function' ? opts.now
     : () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
   const t0 = clock()

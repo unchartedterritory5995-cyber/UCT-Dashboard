@@ -11,7 +11,7 @@
 // depends on the first bar, a read of the past that reaches before the second run's
 // first bar, constant or dynamic) — each is a case a weaker proof would draw wrongly.
 import { describe, it, expect } from 'vitest'
-import { computeRuntimeColumns, runtimeWarmupOf } from '../runtimeColumns.js'
+import { computeRuntimeColumns, runtimeWarmupOf, WARMUP_PROBE_SHIFT as SHIFT } from '../runtimeColumns.js'
 import { encodeState, sameState } from '../vmState.js'
 import { makeWarmupProbe, warmupCheckpoints, columnAgreesFrom } from '../warmupProbe.js'
 import { udtRecord } from '../records.js'
@@ -82,16 +82,16 @@ describe('⛔ two runs with EQUAL state that still diverge later: the stop waits
   it('a column that depends on the first bar (`bar_index` gate): no stop before the column agrees', () => {
     const r = both(doc('plot(bar_index > 1500 ? close : 0)\n'))
     expectSameDrawing(r)
-    // the column `bar_index > 1500` agrees from A's bar 1,751: no stop before it
-    expect(r.early.w.withheldBars).toBe(1751)
-    expect(r.early.w.secondRunStoppedAt).toBeGreaterThanOrEqual(1751)
+    // the column `bar_index > 1500` agrees from A's bar 1501 + SHIFT: no stop before it
+    expect(r.early.w.withheldBars).toBe(1501 + SHIFT)
+    expect(r.early.w.secondRunStoppedAt).toBeGreaterThanOrEqual(1501 + SHIFT)
   })
 
   it('a constant read 300 bars back: no stop before it lands on the second run\'s bars', () => {
     const r = both(doc('plot(close[300])\n'))
     expectSameDrawing(r)
-    expect(r.early.w.withheldBars).toBe(550)
-    expect(r.early.w.secondRunStoppedAt).toBeGreaterThanOrEqual(549)
+    expect(r.early.w.withheldBars).toBe(SHIFT + 300)
+    expect(r.early.w.secondRunStoppedAt).toBeGreaterThanOrEqual(SHIFT + 299)
   })
 
   it('a DYNAMIC read of a series far back (`close[off]`): measured, so never stopped early wrongly', () => {
@@ -112,7 +112,7 @@ describe('⛔ two runs with EQUAL state that still diverge later: the stop waits
     // answers the highest of the finite bars it holds (`restart`)
     const r = both(doc('var float y = 0\ny := close\nx = year * 10000 + month * 100 + dayofmonth >= 20231006 ? y : na\nplot(ta.highest(x, 60))\n'))
     expectSameDrawing(r)
-    expect(r.early.w.secondRunStoppedAt).toBeGreaterThanOrEqual(250 + 59)
+    expect(r.early.w.secondRunStoppedAt).toBeGreaterThanOrEqual(SHIFT + 59)
   })
 
   it('a DYNAMIC read of a column far back (`ta.rsi(...)[off]`): the same', () => {
