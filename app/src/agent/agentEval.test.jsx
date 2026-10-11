@@ -130,7 +130,6 @@ const workflowD = (b) => env('propose', [
   { action: 'screener.run', target: ref(b, 'screener'), args: { filters: [F(b, 'adr_pct', 'gt', 5), F(b, 'price', 'gt', 10)], sort_field: null, sort_dir: null, mode: 'new', show: null, as: null, ...(filterProps(b).values ? {} : {}), ...((b.capabilities || []).find(c => c.name === 'screener.run')?.args?.properties?.within ? { within: null } : {}) } },
   { action: 'screener.saveAs', target: ref(b, 'savedScreenLibrary'), args: { name: 'ADR Movers' } },
 ])
-const removeRsi = (b) => env('propose', [{ action: 'indicator.remove', target: ixeRef(b), args: { instance: 'rsi' } }])
 const indicatorIds = (st) => {
   const w = st.widgets.find(x => x.id === 'c1')
   const cs = w?.opts?.settings

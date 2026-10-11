@@ -32,6 +32,7 @@ describe('the normalizer rewrites wording variants, never meaning', () => {
 describe('variants reach the SAME capability with the same arguments (no model call)', () => {
   it.each([
     ['Switch this chart to five minutes.', 'chart.setTimeframe{"timeframe":"5"}'],
+    ['Now change that chart to 15 minutes', 'chart.setTimeframe{"timeframe":"15"}'],
     ['Make this a 5m chart', 'chart.setTimeframe{"timeframe":"5"}'],
     ['change my chart to 15 minutes', 'chart.setTimeframe{"timeframe":"15"}'],
     ['15m', 'chart.setTimeframe{"timeframe":"15"}'],

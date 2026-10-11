@@ -3,7 +3,7 @@
 // Builds the exact /api/agent/turn bodies the panel would send for the live batch (same manifest,
 // routing and workspace context), with no model call, and writes them for tools/agent_live_batch.py,
 // which sends them to the real model under a hard dollar ceiling. Nothing here executes anything.
-import { it, vi } from 'vitest'
+import { it, vi, expect } from 'vitest'
 import fs from 'node:fs'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { registerBuiltins } from './builtins'
@@ -64,7 +64,7 @@ it.skipIf(!OUT)('capture the live batch requests', async () => {
     const { fastParse } = await import('./fastPath')
     const fast = fastParse(b.say, { host: board.host })
     // force the model path: a leading zero-width space defeats every fast phrase without changing meaning
-    fireEvent.change(box, { target: { value: `​${b.say}` } })
+    fireEvent.change(box, { target: { value: `\u200b${b.say}` } })
     fireEvent.keyDown(box, { key: 'Enter' })
     await new Promise(r => setTimeout(r, 500))
     const body = bodies[n] || null

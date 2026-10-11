@@ -44,7 +44,7 @@ const CANON = [
   [/\b(\w+) (?:indicator|study)\b/g, '$1'],
   // conversational lead-ins and "that chart" (the chart just changed — on a one-chart board, the chart)
   [/^(?:(?:now|ok|okay|and|then|also|alright|great|cool),?\s+)+/, ''],
-  [/that chart/g, 'the chart'],
+  [/\bthat chart\b/g, 'the chart'],
   // verbs: add-type / remove-type synonyms (only unambiguous ones)
   [/^(?:please )?(?:throw|stick|slap|pop|plop|plot|load up|put up)\b/, 'add'],
   // ("delete" is NOT folded in: deleting a list or layout is a different, permanent action)
