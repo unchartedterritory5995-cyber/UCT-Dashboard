@@ -95,3 +95,29 @@ def test_LIVE_BATCH_scoring_and_refusals(monkeypatch, tmp_path, capsys):
         monkeypatch.setattr("sys.argv", argv)
         assert m.main() == code
     assert called == []                                          # never a model call without key + ceiling
+
+
+def test_LIVE_BATCH_the_ceiling_is_checked_before_EVERY_call_and_nothing_else_is_paid_or_written(monkeypatch, tmp_path, capsys):
+    import importlib.util
+    import json as _json
+    spec = importlib.util.spec_from_file_location("agent_live_batch2", "tools/agent_live_batch.py")
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    item = {"id": "x", "want": {"actions": []}, "body": {"message": "hi", "context": {}, "capabilities": [], "routing": None}}
+    bodies = tmp_path / "b.json"
+    bodies.write_text(_json.dumps([item, {**item, "id": "y"}]), encoding="utf-8")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-not-a-key")
+    from api.services import engine
+    monkeypatch.setattr(engine, "_get_anthropic_client", lambda: types.SimpleNamespace(models=types.SimpleNamespace(retrieve=lambda name: {"id": name})))
+    calls, ledger, research = [], [], []
+    monkeypatch.setattr(turn, "_default_caller", lambda **k: calls.append(k) or _caller([])(**k))
+    monkeypatch.setattr(narrative_cost_guard, "record", lambda *a, **k: ledger.append(a))
+    monkeypatch.setattr("api.services.perplexity_search.web_search", lambda **k: research.append(k), raising=False)
+    # a ceiling below one call's worst case: NOTHING is called
+    monkeypatch.setattr("sys.argv", ["x", str(bodies), "--run", "--max-usd", "0.001"])
+    assert m.main() == 0 and calls == []
+    assert "STOP before the next call" in capsys.readouterr().out
+    # a ceiling that fits ONE call's worst case but not two: exactly one call, then it stops
+    monkeypatch.setattr("sys.argv", ["x", str(bodies), "--run", "--max-usd", "0.02"])
+    assert m.main() == 0
+    assert len(calls) == 1
+    assert ledger == [] and research == []                 # no ledger write, no research spend

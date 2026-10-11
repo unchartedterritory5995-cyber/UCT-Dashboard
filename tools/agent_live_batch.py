@@ -39,7 +39,12 @@ def prompt_tokens(body: dict) -> int:
 
 
 def worst_call_usd(tokens_in: int) -> float:
-    return narrative_cost_guard.estimate_cost(turn.model(), tokens_in, turn.MAX_TOKENS)
+    # the whole prompt billed as a cache WRITE (1.25x input — the system prompt is cache_control'd)
+    return narrative_cost_guard.estimate_cost(turn.model(), 0, turn.MAX_TOKENS, cache_creation_tokens=tokens_in)
+
+
+#: run_turn's most calls for ONE request: the plan, a research round, a schema-refusal fallback.
+MAX_CALLS_PER_REQUEST = 3
 
 
 def score(item: dict, env: dict) -> dict:
@@ -83,7 +88,9 @@ def main() -> int:
     print(f"model: {turn.model()}   requests: {len(items)}   one call each (research off; no reroute expected)")
     for b in items:
         print(f"  {b['id']:22} ~{sizes[b['id']]:>6} prompt tokens   worst ${worst_call_usd(sizes[b['id']]):.4f}")
-    print(f"typical total ~ ${typical:.2f}   worst case (every call at max_tokens) ~ ${worst:.2f}")
+    print(f"typical total ~ ${typical:.2f}   worst case, one call each at max_tokens ~ ${worst:.2f}   "
+          f"absolute worst ({MAX_CALLS_PER_REQUEST} calls each) ~ ${worst * MAX_CALLS_PER_REQUEST:.2f}")
+    print("the ceiling is enforced before EVERY API call (guarded caller), whatever the estimate says")
     if not a.run:
         print("DRY RUN — no model call was made.")
         return 0
@@ -93,34 +100,84 @@ def main() -> int:
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print("refused: ANTHROPIC_API_KEY is not set")
         return 2
+    # ── isolation: no research (Perplexity is a second paid service), no cost-ledger writes ──
     turn._research = lambda *_a, **_k: {"results": [], "citations": [], "note": "research disabled for this batch"}
-    spent = 0.0
+    turn._record_cost = lambda _resp: 0.0
+    model = turn.model()
+    budget = {"spent": 0.0, "calls": 0}
+
+    class BudgetStop(Exception):
+        pass
+
+    def guarded(**kw):
+        """⛔ THE CEILING, BEFORE EVERY API CALL. Worst case of THIS call: its whole prompt billed as
+        a cache WRITE (1.25x input) + its full max_tokens output. run_turn may make up to three calls
+        for one request (research round, schema fallback) — each one passes through here."""
+        chars = len(json.dumps(kw.get("system"), default=str)) + len(json.dumps(kw.get("messages"), default=str)) \
+            + len(json.dumps(kw.get("output_config"), default=str))
+        worst = narrative_cost_guard.estimate_cost(model, 0, int(kw.get("max_tokens") or turn.MAX_TOKENS),
+                                                   cache_creation_tokens=int(chars / CHARS_PER_TOKEN))
+        if budget["spent"] + worst > a.max_usd:
+            raise BudgetStop(f"${budget['spent']:.4f} spent + worst ${worst:.4f} for the next call would pass ${a.max_usd:.2f}")
+        resp = turn._default_caller(**kw)
+        u = getattr(resp, "usage", None)
+        budget["spent"] += narrative_cost_guard.estimate_cost(
+            model, int(getattr(u, "input_tokens", 0) or 0), int(getattr(u, "output_tokens", 0) or 0),
+            cache_read_tokens=int(getattr(u, "cache_read_input_tokens", 0) or 0),
+            cache_creation_tokens=int(getattr(u, "cache_creation_input_tokens", 0) or 0))
+        budget["calls"] += 1
+        return resp
+
+    # the model must exist on this account (a free models lookup — not billed)
+    try:
+        from api.services.engine import _get_anthropic_client
+        _get_anthropic_client().models.retrieve(model)
+        print(f"model {model}: available on this account")
+    except Exception as e:  # noqa: BLE001
+        print(f"refused: model {model} is not available on this account ({type(e).__name__})")
+        return 2
+
+    def outcome_of(env: dict) -> str:
+        """What UCT would have receipted for a planned turn (this batch never executes it)."""
+        parts = []
+        for o in env.get("ops") or []:
+            args = o.get("args") or {}
+            if o.get("action") == "watchlist.create":
+                parts.append(f"Created the watchlist “{args.get('name')}”")
+            elif o.get("action") == "screener.run":
+                parts.append("Ran the screen")
+            else:
+                parts.append(str(o.get("action")))
+        return " · ".join(parts)
+
     out = []
     history: dict[str, list] = {}
     for b in items:
-        need = worst_call_usd(sizes[b["id"]])
-        if spent + need > a.max_usd:
-            print(f"STOP before {b['id']}: ${spent:.4f} spent + worst ${need:.4f} would pass the ${a.max_usd:.2f} ceiling")
-            break
         hist = history.get(b.get("history") or "", [])
         body = b["body"]
+        calls0, spent0 = budget["calls"], budget["spent"]
         t0 = time.monotonic()
         try:
             r = turn.run_turn(message=body["message"], context=body["context"], history=hist,
                               capabilities=body["capabilities"], routing=body.get("routing"),
-                              manifest_version=body.get("manifestVersion"))
-            env = r["envelope"]
-            cost = float(r["usage"].get("cost_usd") or 0.0)
-            err = None
+                              manifest_version=body.get("manifestVersion"), caller=guarded)
+            env, err = r["envelope"], None
+        except BudgetStop as e:
+            print(f"STOP before the next call: {e}")
+            break
         except turn.TurnError as e:
-            env, cost, err = {}, 0.0, str(e)
+            env, err = {}, str(e)
         ms = int((time.monotonic() - t0) * 1000)
-        spent += cost
+        cost = budget["spent"] - spent0
         s = score(b, env) if not err else {"ok": False, "notes": [err]}
-        print(f"{'PASS' if s['ok'] else 'FAIL'} {b['id']:22} {ms:>6} ms  ${cost:.4f}  {s.get('disposition')} {s.get('actions')} {'; '.join(s.get('notes') or [])}")
-        out.append({"id": b["id"], "ms": ms, "cost_usd": cost, "envelope": env, "error": err, **s})
+        n = budget["calls"] - calls0
+        print(f"{'PASS' if s['ok'] else 'FAIL'} {b['id']:22} {ms:>6} ms  {n} call(s)  ${cost:.4f}  {s.get('disposition')} {s.get('actions')} {'; '.join(s.get('notes') or [])}")
+        out.append({"id": b["id"], "ms": ms, "calls": n, "cost_usd": cost, "envelope": env, "error": err, **s})
+        done = outcome_of(env)
         history[b["id"]] = hist + [{"role": "member", "text": body["message"]},
-                                   {"role": "agent", "text": env.get("reply") or ""}]
+                                   {"role": "agent", "text": env.get("reply") or ""}] \
+            + ([{"role": "outcome", "text": done, "data": {"kind": "applied"}}] if done else [])
+    spent = budget["spent"]
     print(f"spent ${spent:.4f} of ${a.max_usd:.2f}   passed {sum(1 for o in out if o['ok'])}/{len(out)}")
     if a.out:
         json.dump(out, open(a.out, "w", encoding="utf-8"), indent=2)
