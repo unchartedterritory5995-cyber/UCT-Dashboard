@@ -298,7 +298,9 @@ describe('(b) an in-note start opens a suitable note, never creates one', () => 
     expect(posts.map(([u]) => u)).toEqual(['/api/j2/notes/import/check'])    // the one read, nothing written
   })
 
-  it('with no note to open: a card that says so, a way out, nothing recorded', async () => {
+  // P0.3: this tour needs a CHART (`embed: 'chart'`), so with no note holding one the card says
+  // exactly that (it used to say "no note", wrong for a member who has notes) and offers the sample.
+  it('with no chart in any note: a card that says so, a way out, nothing recorded', async () => {
     installFetch((url) => {
       if (url === '/api/j2/notes/import/check') return { ok: true, status: 200, json: async () => ({ existing: {} }) }
       if (url.startsWith('/api/j2/notes?')) return { ok: true, status: 200, json: async () => ({ notes: [] }) }
@@ -310,12 +312,36 @@ describe('(b) an in-note start opens a suitable note, never creates one', () => 
         <GenericTourEngine entry={T} onClose={onClose} />
       </Shell>,
     )
-    const d = await card('This walkthrough runs inside a note')
-    expect(d).toHaveTextContent('You do not have a note it can open yet')
-    fireEvent.click(screen.getByRole('button', { name: 'Go to the Notebook' }))
+    const d = await card('This walkthrough needs a chart in a note')
+    expect(d).toHaveTextContent('None of your notes has a chart yet')
+    expect(screen.getByRole('button', { name: 'Add the sample notebook' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Go to my notes' }))
     expect(onClose).toHaveBeenCalledTimes(1)
     expect(seen).toBe('/journal/notebook')
     expect(toursWrites('b-note')).toEqual([])
+  })
+
+  it('a note tour that names no widget keeps the plain "no note" card, with no sample button', async () => {
+    installFetch((url) => {
+      if (url === '/api/j2/notes/import/check') return { ok: true, status: 200, json: async () => ({ existing: {} }) }
+      if (url.startsWith('/api/j2/notes?')) return { ok: true, status: 200, json: async () => ({ notes: [] }) }
+      return null
+    })
+    const PLAIN = tour('b-plain', [{ id: 'a', anchor: 'b-plain-a', file: 'x' }], { start: { note: 'recent' } })
+    const onClose = vi.fn()
+    render(
+      <Shell initial="/support">
+        <GenericTourEngine entry={PLAIN} onClose={onClose} />
+      </Shell>,
+    )
+    const d = await card('This walkthrough runs inside a note')
+    expect(d).toHaveTextContent('You do not have a note it can open yet')
+    expect(d).toHaveTextContent('start it again from Learn')
+    expect(screen.queryByRole('button', { name: 'Add the sample notebook' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Go to the Notebook' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(seen).toBe('/journal/notebook')
+    expect(toursWrites('b-plain')).toEqual([])
   })
 
   it('a trade start opens the most recent trade page', async () => {

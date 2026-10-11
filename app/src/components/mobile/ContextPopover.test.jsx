@@ -152,3 +152,19 @@ test('⛔ a header renders above the rows, inert, in both branches', () => {
   // header rendered as one would be a tab stop that does nothing.
   expect(menu.querySelectorAll('button')).toHaveLength(1)
 })
+
+test('an item with an href is a real link row: a menuitem anchor that still closes the menu', () => {
+  const onClose = vi.fn()
+  render(
+    <ContextPopover open onClose={onClose} anchor={{ x: 0, y: 0 }}
+      items={[{ label: 'Open in Charts', href: '/charts?symbol=NVDA' }, { label: 'Flag' }]} />,
+  )
+  const link = screen.getByRole('menuitem', { name: 'Open in Charts' })
+  expect(link.tagName).toBe('A')
+  expect(link.getAttribute('href')).toBe('/charts?symbol=NVDA')
+  // the sibling without an href is still a button row (the branch did not swallow it)
+  expect(screen.getByRole('menuitem', { name: 'Flag' }).tagName).toBe('BUTTON')
+  link.addEventListener('click', (e) => e.preventDefault())   // jsdom would try to navigate
+  fireEvent.click(link)
+  expect(onClose).toHaveBeenCalledTimes(1)
+})

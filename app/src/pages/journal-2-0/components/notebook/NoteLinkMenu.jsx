@@ -147,6 +147,9 @@ export const NoteLinkList = forwardRef((props, ref) => {
 })
 NoteLinkList.displayName = 'NoteLinkList'
 
+// Exported so another suggestion (the `@` date list) can ask whether a `[[` session is open.
+export const noteLinkMenuPluginKey = new PluginKey('noteLinkMenu')
+
 export const NoteLinkMenuExtension = Extension.create({
   name: 'noteLinkMenu',
   addProseMirrorPlugins() {
@@ -161,7 +164,7 @@ export const NoteLinkMenuExtension = Extension.create({
         // extensions are active together (found live, via this file's own
         // test suite). A distinct key is required, not optional, whenever a
         // second Suggestion plugin coexists with SlashMenu's.
-        pluginKey: new PluginKey('noteLinkMenu'),
+        pluginKey: noteLinkMenuPluginKey,
         char: '[[',
         startOfLine: false,
         // ⛔⛔ THE MECHANISM (lane LK): without this, `@tiptap/suggestion`'s

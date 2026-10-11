@@ -72,6 +72,19 @@ async function recentNoteId(fetchImpl, embed) {
   return list[0]?.id || null
 }
 
+/** Whether the member has NO note at all (one unfiltered, limit-1 read). Only `true` when the read
+ *  succeeded and came back empty: a read that fails answers `false`, so the card never offers the
+ *  sample on a guess. It is asked only once a chart tour has found nothing to open, and it can
+ *  never turn the card into an error card. (The list shows active notes; a member whose only notes
+ *  are archived or trashed is offered the sample and gets the server's own refusal sentence.) */
+async function hasNoNotes(fetchImpl) {
+  try {
+    return !(await recentNoteId(fetchImpl, null))
+  } catch {
+    return false
+  }
+}
+
 async function recentTradeId(fetchImpl) {
   const body = await getJson(fetchImpl, '/api/j2/trades?limit=1')
   const list = Array.isArray(body?.trades) ? body.trades : []
@@ -83,7 +96,10 @@ async function recentTradeId(fetchImpl) {
  * Where the engine goes to start `entry`, given where the member is now:
  *   { stay: true }              already there (or no start at all)
  *   { path }                    navigate here, then wait for the first anchor
- *   { none: 'note' | 'trade' }  nothing to open; the card says so (never creates one)
+ *   { none: 'note' | 'trade' | 'chart' | 'chartNoNotes' }  nothing to open; the card says so
+ *                               (never creates one). `chart`: a tour that needs a chart in a note,
+ *                               and the member has notes but none holds one. `chartNoNotes`: the
+ *                               same, and the member has no note at all
  *   { none: 'error' }           the lookup failed; the card says so
  * Never throws.
  */
@@ -104,6 +120,9 @@ export async function resolveStart(entry, location, { fetchImpl = globalThis.fet
     let id = null
     if (note.startsWith('sample:')) id = await sampleNoteId(fetchImpl, note.slice('sample:'.length))
     if (!id) id = await recentNoteId(fetchImpl, embed || null)
+    // A chart tour that finds no note holding a chart says THAT, not "no note": the member may
+    // well have notes (P0.3), and the way out is a chart (`/chart` in a note).
+    if (!id && embed === 'chart') return { none: (await hasNoNotes(fetchImpl)) ? 'chartNoNotes' : 'chart' }
     if (!id) return { none: 'note' }
     return openNoteId(location) === id ? { stay: true } : { path: notePath(id) }
   } catch {
@@ -115,19 +134,40 @@ export async function resolveStart(entry, location, { fetchImpl = globalThis.fet
 export const UNREACHABLE_COPY = Object.freeze({
   note: Object.freeze({
     title: 'This walkthrough runs inside a note',
-    body: 'You do not have a note it can open yet. Write a note, or add the sample notebook from the Notebook home, then start it again from Help.',
+    body: 'You do not have a note it can open yet. Write a note, or add the sample notebook from Learn, then start it again from Learn.',
     exitLabel: 'Go to the Notebook',
+    exitPath: NOTEBOOK_ROOT,
+  }),
+  // P0.3: a chart walkthrough, a member who has notes but no chart. The way out is `/chart` in a
+  // note. NO sample action here: the server refuses the sample (409) to a member with ANY note,
+  // active, archived or trashed, because their own work never shares a notebook with practice
+  // notes they did not ask for (sample_notebook.py, ruling D-C6; R15).
+  chart: Object.freeze({
+    title: 'This walkthrough needs a chart in a note',
+    body: 'None of your notes has a chart yet. Type /chart in any note to add one, then start this walkthrough again from Learn.',
+    exitLabel: 'Go to my notes',
+    exitPath: NOTEBOOK_ROOT,
+  }),
+  // The same walkthrough for a member with NO note at all (rare: the lookup found nothing to open).
+  // The sample is allowed for exactly this member, so the card carries ONE action, `add-sample`
+  // (GenericTourEngine.jsx adds it through sampleNotebook.js, then restarts the tour).
+  chartNoNotes: Object.freeze({
+    title: 'This walkthrough needs a chart in a note',
+    body: 'None of your notes has a chart yet. Add the sample notebook, which has one, or type /chart in any note to add your own. Then start the walkthrough again from Learn.',
+    action: 'add-sample',
+    actionLabel: 'Add the sample notebook',
+    exitLabel: 'Go to my notes',
     exitPath: NOTEBOOK_ROOT,
   }),
   trade: Object.freeze({
     title: 'This walkthrough runs on a closed trade',
-    body: 'You do not have a trade in your journal yet. Once you log or import one, start it again from Help.',
+    body: 'You do not have a trade in your journal yet. Once you log or import one, start it again from Learn.',
     exitLabel: 'Go to your trades',
     exitPath: '/journal/trades',
   }),
   error: Object.freeze({
     title: 'This walkthrough could not start',
-    body: 'We could not look up where it starts. Check your connection and start it again from Help.',
+    body: 'We could not look up where it starts. Check your connection and start it again from Learn.',
     exitLabel: null,
     exitPath: null,
   }),

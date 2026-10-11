@@ -18,22 +18,24 @@
  * ⛔ THE ONE LIST. Order is the toolbar order; `id` is the PERSISTED viewType,
  * written into saved views, so renaming one orphans every saved view using it.
  * `icon` and `label` live here rather than in the tab because a mode that the
- * toolbar cannot render is not a mode the member has.
+ * toolbar cannot render is not a mode the member has. `short` is the word the
+ * phone's View select shows (P0.11): the icon buttons say nothing to a member
+ * who has not learned the glyphs, and a phone has no hover title to fall back on.
  */
 export const VIEW_MODES = [
-  { id: 'list', icon: 'rows', label: 'List view' },
-  { id: 'table', icon: 'columns', label: 'Table view' },
-  { id: 'board', icon: 'board', label: 'Board view' },
-  { id: 'calendar', icon: 'calendar', label: 'Calendar view' },
-  { id: 'graph', icon: 'graph', label: 'Graph view' },
+  { id: 'list', icon: 'rows', label: 'List view', short: 'List' },
+  { id: 'table', icon: 'columns', label: 'Table view', short: 'Table' },
+  { id: 'board', icon: 'board', label: 'Board view', short: 'Board' },
+  { id: 'calendar', icon: 'calendar', label: 'Calendar view', short: 'Calendar' },
+  { id: 'graph', icon: 'graph', label: 'Graph view', short: 'Graph' },
   // Wave 6: notes on a time axis, in lanes by folder or tag. Read-only in v1.
-  { id: 'timeline', icon: 'clock', label: 'Timeline view' },
+  { id: 'timeline', icon: 'clock', label: 'Timeline view', short: 'Timeline' },
   // Wave 6: every checklist item across the notebook (NoteTasksView). ⛔ NOT
   // SAVEABLE: it lists tasks, not the notes a folder/tag/filter selects, so a
   // saved "tasks view" would store nothing — and the server's
   // SAVEABLE_VIEW_TYPES refuses it. `?view=tasks` (the task reminder's link) is
   // its door; NotebookTab handles that param beside `?view=all`.
-  { id: 'tasks', icon: 'check', label: 'Tasks view', saveable: false },
+  { id: 'tasks', icon: 'check', label: 'Tasks view', short: 'Tasks', saveable: false },
 ]
 
 // ⛔ DERIVED, NOT RESTATED. A hand-written second copy of these ids is the

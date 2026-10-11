@@ -353,9 +353,12 @@ def off(pg, base, req, w):
         obs["find_similar_buttons"] = pg.get_by_role("button", name=re.compile(r"^Find more like")).count()
         w.shot(pg, "off_setups_board")
         sentence = (api.get("planDrawing") or {}).get("sentence") or ""
+        # P0.5: with only examples on screen the line leads "These are examples." (it no longer claims
+        # "No open setups yet." above a card the page is showing); the sentence after it is the same.
+        lead = "These are examples." if any(c["example"] for c in obs["api"]["cards"]) else "No open setups yet."
         w.record("V390_P7_setups_board_empty_line_says_a_plan_cannot_be_drawn",
-                 bool(sentence) and f"No open setups yet. {sentence}" in text and "Draw an entry line" not in text,
-                 f"planDrawing={api.get('planDrawing')}; the line on the page starts: {text[text.find('No open setups'):][:170]!r}")
+                 bool(sentence) and f"{lead} {sentence}" in text and "Draw an entry line" not in text,
+                 f"planDrawing={api.get('planDrawing')}; the line on the page starts: {text[text.find(lead):][:170]!r}")
         examples = [c for c in obs["api"]["cards"] if c["example"]]
         w.record("V390_P9_example_cards_offer_no_find_similar_and_say_so",
                  bool(examples) and "Examples are not matched against the day" in text

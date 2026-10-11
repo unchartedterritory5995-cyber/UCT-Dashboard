@@ -491,7 +491,7 @@ def run_live(C, browser, admin, base, fs, vp: str) -> None:
         pg.wait_for_timeout(1000)
         opts = [t.strip().replace("\\n", " ")[:50] for t in pg.locator("[role=option], [cmdk-item]").all_inner_texts()][:8]
         pg.keyboard.press("Enter")
-        box = pg.get_by_label("Search your notes")
+        box = pg.get_by_label("Search your notes").filter(visible=True).first
         ok = C.vis_loc(box, 10000)
         focused = pg.evaluate("() => (document.activeElement.getAttribute('aria-label') || document.activeElement.tagName)")
         C.step(pg, inst, "live: command palette", "\"Search Notebook\" from the command palette opens the Notebook's search", "PASS" if ok else "FAIL",

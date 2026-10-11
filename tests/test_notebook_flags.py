@@ -77,6 +77,9 @@ NOTEBOOK_KEYS = [
     "notebook_semantic_search_enabled",
     # TERM-056 (lane N): a pasted terminal command becomes a terminal link — an enablement gate.
     "notebook_terminal_links_enabled",
+    # Task 14b (ruling R16): the Notebook can say Compass reads notes only while it does -- the
+    # client key for COMPASS_NOTES_TOOL_ENABLED (wave 7 lane H), an enablement gate.
+    "compass_notes_tool_enabled",
 ]
 
 #: Keys whose capability ships ON: unset means ON. Every other key is an enablement gate.

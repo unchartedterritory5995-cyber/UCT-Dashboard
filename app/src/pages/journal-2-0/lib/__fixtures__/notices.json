@@ -1,0 +1,53 @@
+{
+  "_provenance": "CAPTURED, not typed. A sandbox process (census-pinned data dir, no C:\\data) ran the real producers: note_tasks.run_task_reminders (default delivery -> alerts.add_alert), entry_context.notify_new_fill (default delivery -> alerts.add_alert), and voice_proactive_service.add_insight + note_levels.record_fire. The two bodies below are the verbatim JSON of GET /api/alerts?limit=20 and GET /api/voice/insights through the real routers, 2026-10-11. /api/alerts answers a BARE LIST (AlertBell.jsx reads Array.isArray(alerts)); /api/voice/insights answers {insights: [...]}. For both notebook alerts the row's `type` and `data.source` carry the same string, so toNotices matches `type` only.",
+  "alertsBody": [
+    {
+      "data": {
+        "day": "2026-10-11",
+        "research_url": "/journal?j2tab=positions",
+        "source": "notebook_entry_context_new_fill"
+      },
+      "id": "notebook_entry_context_new_fill_1791710116068",
+      "message": "A new fill's market context was captured. Open the trade to see it.",
+      "read": false,
+      "severity": "info",
+      "timestamp": "2026-10-11T05:15:16.068958-04:00",
+      "title": "New fill captured",
+      "type": "notebook_entry_context_new_fill",
+      "user_id": "0841bf63-6991-4f93-ab5d-2df0a746abd4"
+    },
+    {
+      "data": {
+        "day": "2026-10-11",
+        "due_today": 1,
+        "overdue": 1,
+        "research_url": "/journal/notebook?view=tasks",
+        "source": "notebook_task_reminder"
+      },
+      "id": "notebook_task_reminder_1791710116053",
+      "message": "You have 1 task due today and 1 overdue task in your Notebook.",
+      "read": false,
+      "severity": "info",
+      "timestamp": "2026-10-11T05:15:16.053805-04:00",
+      "title": "Tasks due today",
+      "type": "notebook_task_reminder",
+      "user_id": "0841bf63-6991-4f93-ab5d-2df0a746abd4"
+    }
+  ],
+  "insightsBody": {
+    "insights": [
+      {
+        "body": "In “Weekly plan” you named 142.50 as your stop on 2026-10-01. NVDA is at 142.80 now. Here's what you thought then.",
+        "created_at": "2026-10-11 09:15:16",
+        "delivered_at": null,
+        "dismissed_at": null,
+        "headline": "NVDA reached 142.50, the stop you named",
+        "id": 1,
+        "importance": 6,
+        "kind": "note_level_touch",
+        "link": "/journal/notebook?note=4a7d492db926465e9d0e756fe344f67b",
+        "symbol": "NVDA"
+      }
+    ]
+  }
+}

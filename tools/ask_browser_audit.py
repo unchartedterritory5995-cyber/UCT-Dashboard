@@ -115,7 +115,7 @@ def main() -> int:
             page.keyboard.press("Escape")
             page.wait_for_timeout(600)
 
-            toggle = page.locator('button[aria-label^="Ask a question about"]')
+            toggle = page.locator('button[data-ask-toggle]')
             if toggle.count() == 0:
                 failures.append(f"{name}: the Ask affordance is not on the page")
                 rows.append({"viewport": name, "found": False})

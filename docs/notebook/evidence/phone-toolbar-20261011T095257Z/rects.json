@@ -1,0 +1,686 @@
+{
+ "stamp": "20261011T095257Z",
+ "base": "http://127.0.0.1:8132",
+ "tip": "b266524a4e+t6fix",
+ "viewport": {
+  "width": 390,
+  "height": 844
+ },
+ "gutter_px": 24,
+ "expected_closed": [
+  "Undo",
+  "Redo",
+  "Format",
+  "Insert",
+  "B",
+  "I",
+  "Start voice input"
+ ],
+ "control": false,
+ "status": "PASS",
+ "mic_arrived": true,
+ "closed": {
+  "innerWidth": 390,
+  "innerHeight": 844,
+  "docScrollWidth": 390,
+  "row": {
+   "rect": {
+    "left": 24,
+    "right": 366,
+    "top": 258,
+    "bottom": 311,
+    "width": 342,
+    "height": 53
+   },
+   "scrollWidth": 342,
+   "clientWidth": 342,
+   "scrollsSideways": false,
+   "overflowX": "auto",
+   "flexWrap": "nowrap",
+   "dataFormatOpen": null
+  },
+  "visualRows": 1,
+  "rowTops": [
+   261
+  ],
+  "title": {
+   "rect": {
+    "left": 40,
+    "right": 350,
+    "top": 327,
+    "bottom": 361.39,
+    "width": 310,
+    "height": 34.39
+   },
+   "topAboveFold": true,
+   "bottomAboveFold": true
+  },
+  "controls": [
+   {
+    "name": "Undo",
+    "tag": "button",
+    "rect": {
+     "left": 38,
+     "right": 82,
+     "top": 261,
+     "bottom": 305,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 60,
+     "y": 283
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Redo",
+    "tag": "button",
+    "rect": {
+     "left": 84,
+     "right": 128,
+     "top": 261,
+     "bottom": 305,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 106,
+     "y": 283
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Format",
+    "tag": "button",
+    "rect": {
+     "left": 130,
+     "right": 174,
+     "top": 261,
+     "bottom": 305,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 152,
+     "y": 283
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Insert",
+    "tag": "button",
+    "rect": {
+     "left": 176,
+     "right": 220,
+     "top": 261,
+     "bottom": 305,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 198,
+     "y": 283
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "B",
+    "tag": "button",
+    "rect": {
+     "left": 222,
+     "right": 266,
+     "top": 261,
+     "bottom": 305,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 244,
+     "y": 283
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "I",
+    "tag": "button",
+    "rect": {
+     "left": 268,
+     "right": 312,
+     "top": 261,
+     "bottom": 305,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 290,
+     "y": 283
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Start voice input",
+    "tag": "button",
+    "rect": {
+     "left": 314,
+     "right": 358,
+     "top": 261,
+     "bottom": 305,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 336,
+     "y": 283
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   }
+  ]
+ },
+ "open": {
+  "innerWidth": 390,
+  "innerHeight": 844,
+  "docScrollWidth": 390,
+  "row": {
+   "rect": {
+    "left": 24,
+    "right": 366,
+    "top": 258,
+    "bottom": 495,
+    "width": 342,
+    "height": 237
+   },
+   "scrollWidth": 342,
+   "clientWidth": 342,
+   "scrollsSideways": false,
+   "overflowX": "visible",
+   "flexWrap": "wrap",
+   "dataFormatOpen": "true"
+  },
+  "visualRows": 5,
+  "rowTops": [
+   261,
+   307,
+   353,
+   399,
+   445
+  ],
+  "title": {
+   "rect": {
+    "left": 40,
+    "right": 350,
+    "top": 511,
+    "bottom": 545.39,
+    "width": 310,
+    "height": 34.39
+   },
+   "topAboveFold": true,
+   "bottomAboveFold": true
+  },
+  "controls": [
+   {
+    "name": "Undo",
+    "tag": "button",
+    "rect": {
+     "left": 38,
+     "right": 82,
+     "top": 261,
+     "bottom": 305,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 60,
+     "y": 283
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Redo",
+    "tag": "button",
+    "rect": {
+     "left": 84,
+     "right": 128,
+     "top": 261,
+     "bottom": 305,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 106,
+     "y": 283
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Format",
+    "tag": "button",
+    "rect": {
+     "left": 130,
+     "right": 174,
+     "top": 261,
+     "bottom": 305,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 152,
+     "y": 283
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Insert",
+    "tag": "button",
+    "rect": {
+     "left": 176,
+     "right": 220,
+     "top": 261,
+     "bottom": 305,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 198,
+     "y": 283
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Font family",
+    "tag": "select",
+    "rect": {
+     "left": 36,
+     "right": 186,
+     "top": 307,
+     "bottom": 351,
+     "width": 150,
+     "height": 44
+    },
+    "centre": {
+     "x": 111,
+     "y": 329
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Text size",
+    "tag": "select",
+    "rect": {
+     "left": 188,
+     "right": 246,
+     "top": 307,
+     "bottom": 351,
+     "width": 58,
+     "height": 44
+    },
+    "centre": {
+     "x": 217,
+     "y": 329
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "B",
+    "tag": "button",
+    "rect": {
+     "left": 248,
+     "right": 292,
+     "top": 307,
+     "bottom": 351,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 270,
+     "y": 329
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "I",
+    "tag": "button",
+    "rect": {
+     "left": 294,
+     "right": 338,
+     "top": 307,
+     "bottom": 351,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 316,
+     "y": 329
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Text color and highlight",
+    "tag": "button",
+    "rect": {
+     "left": 36,
+     "right": 80,
+     "top": 353,
+     "bottom": 397,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 58,
+     "y": 375
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "H1",
+    "tag": "button",
+    "rect": {
+     "left": 82,
+     "right": 126,
+     "top": 353,
+     "bottom": 397,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 104,
+     "y": 375
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "H2",
+    "tag": "button",
+    "rect": {
+     "left": 128,
+     "right": 172,
+     "top": 353,
+     "bottom": 397,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 150,
+     "y": 375
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "\u2022 List",
+    "tag": "button",
+    "rect": {
+     "left": 174,
+     "right": 218.22,
+     "top": 353,
+     "bottom": 397,
+     "width": 44.22,
+     "height": 44
+    },
+    "centre": {
+     "x": 196.11,
+     "y": 375
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "1. List",
+    "tag": "button",
+    "rect": {
+     "left": 220.22,
+     "right": 270.23,
+     "top": 353,
+     "bottom": 397,
+     "width": 50.02,
+     "height": 44
+    },
+    "centre": {
+     "x": 245.23,
+     "y": 375
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "\u275d",
+    "tag": "button",
+    "rect": {
+     "left": 272.23,
+     "right": 316.23,
+     "top": 353,
+     "bottom": 397,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 294.23,
+     "y": 375
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "</>",
+    "tag": "button",
+    "rect": {
+     "left": 36,
+     "right": 80,
+     "top": 399,
+     "bottom": 443,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 58,
+     "y": 421
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Insert link",
+    "tag": "button",
+    "rect": {
+     "left": 82,
+     "right": 126,
+     "top": 399,
+     "bottom": 443,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 104,
+     "y": 421
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Insert image",
+    "tag": "button",
+    "rect": {
+     "left": 128,
+     "right": 172,
+     "top": 399,
+     "bottom": 443,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 150,
+     "y": 421
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Scan a document with the camera",
+    "tag": "button",
+    "rect": {
+     "left": 174,
+     "right": 237.36,
+     "top": 399,
+     "bottom": 443,
+     "width": 63.36,
+     "height": 44
+    },
+    "centre": {
+     "x": 205.68,
+     "y": 421
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Attach a file",
+    "tag": "button",
+    "rect": {
+     "left": 239.36,
+     "right": 283.36,
+     "top": 399,
+     "bottom": 443,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 261.36,
+     "y": 421
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Start voice input",
+    "tag": "button",
+    "rect": {
+     "left": 285.36,
+     "right": 329.36,
+     "top": 399,
+     "bottom": 443,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 307.36,
+     "y": 421
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Horizontal rule",
+    "tag": "button",
+    "rect": {
+     "left": 36,
+     "right": 80,
+     "top": 445,
+     "bottom": 489,
+     "width": 44,
+     "height": 44
+    },
+    "centre": {
+     "x": 58,
+     "y": 467
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   },
+   {
+    "name": "Insert widget",
+    "tag": "button",
+    "rect": {
+     "left": 82,
+     "right": 145.36,
+     "top": 445,
+     "bottom": 489,
+     "width": 63.36,
+     "height": 44
+    },
+    "centre": {
+     "x": 113.68,
+     "y": 467
+    },
+    "hitsSelf": true,
+    "coveredBy": null,
+    "rightEdgeOk": true,
+    "leftEdgeOk": true
+   }
+  ]
+ },
+ "closed_breaks": [],
+ "open_breaks": []
+}

@@ -614,8 +614,8 @@ def main(argv=None) -> int:
                 press("tab", times=7); time.sleep(1); press("escape")
             row(17, "Ctrl+H, Tab x7 (to the replace field), Escape", ["Replace with", "Note body"], _replace,
                 note="(script says one Tab; from the find box the order is Match case, Whole word, Previous, Next, then the replace row)")
-            row(18, "focus Ask, Enter", ["Ask a question about this note", "Your question"],
-                lambda: (focus_role("button", "Ask a question about this note"), time.sleep(1), press("enter")))
+            row(18, "focus Ask, Enter", ["Ask this note", "Your question"],
+                lambda: (focus_role("button", "Ask this note"), time.sleep(1), press("enter")))
 
             def _ask():
                 type_text("What is the dividend?"); press("enter")
@@ -626,7 +626,7 @@ def main(argv=None) -> int:
                                 f"text={ans.text_content().strip()[:140]!r}")
             row(19, "type a question the note cannot answer, Enter, wait", ["find", "note"], _ask,
                 note="(the sentence is read from a live region; its exact words are the service's)")
-            row(20, "focus Close Ask, Enter", ["Ask a question about this note", "button"],
+            row(20, "focus Close Ask, Enter", ["Ask this note", "button"],
                 lambda: (focus_role("button", "Close Ask"), time.sleep(1), press("enter")))
 
             def _graph():

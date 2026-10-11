@@ -221,8 +221,8 @@ def run(C, browser, admin, base, fs, data_dir, only) -> None:
     # ── K4 first (before any other note mentions CRWD) ────────────────────────────────────────
     def plan_ui(p_, request):
         home(p_)
-        panel = p_.locator('section[aria-label="Ask Notebook to do something"]').filter(visible=True).first
-        tog = panel.get_by_role("button", name="Ask Notebook to do something", exact=True)
+        panel = p_.locator('section[aria-label="Or tell Notebook what to change"]').filter(visible=True).first
+        tog = panel.get_by_role("button", name="Or tell Notebook what to change", exact=True)
         tog.scroll_into_view_if_needed(timeout=15000)
         if tog.get_attribute("aria-expanded") != "true":
             tog.click()

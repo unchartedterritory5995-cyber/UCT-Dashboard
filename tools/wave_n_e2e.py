@@ -438,7 +438,7 @@ def main() -> int:  # noqa: C901 - a journey is a sequence, not a graph
             F.note("13", skipped="--skip-ask")
         else:
             page.goto(f"{base}/journal/notebook?note={note_id}", wait_until="networkidle")
-            askbtn = page.get_by_label("Ask a question about this note")
+            askbtn = page.get_by_label("Ask this note")
             if F.check("13", askbtn.count() > 0, "no Ask affordance on the note"):
                 askbtn.first.click()
                 page.wait_for_timeout(600)

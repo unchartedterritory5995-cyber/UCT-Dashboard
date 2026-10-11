@@ -35,7 +35,7 @@ vi.mock('../../../../components/StockChart', async () => {
 })
 vi.mock('../../../../utils/prefetchBars', () => ({ prefetchListAllTimeframes: vi.fn() }))
 
-import SetupsBoard, { MOUNT_LIMIT, PAGE_SIZE } from './SetupsBoard'
+import SetupsBoard, { MOUNT_LIMIT, PAGE_SIZE, emptyBoardText } from './SetupsBoard'
 import { distanceText, daysText, planPriceLines } from './BoardCard'
 import { prefetchListAllTimeframes } from '../../../../utils/prefetchBars'
 import { Providers } from '../../a11y/fixtures'
@@ -185,6 +185,40 @@ describe('SetupsBoard', () => {
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
+  // P0.5: the board had no way back to the Notebook home.
+  it('has a way back to the Notebook home', async () => {
+    latchNotebookFlags({ notebook_setups_board_enabled: true })
+    stub([[/setups-board$/, contractBody('setups-board.empty')]])
+    renderBoard()
+    const back = await screen.findByRole('link', { name: 'Back to Notebook' })
+    expect(back.getAttribute('href')).toBe('/journal/notebook')
+    // it sits above the page title
+    const title = screen.getByRole('heading', { level: 1, name: 'Setups' })
+    expect(back.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('when only examples show, it does not claim "No open setups yet." above them', async () => {
+    latchNotebookFlags({ notebook_setups_board_enabled: true, notebook_chart_plan_enabled: true })
+    const examples = CARDS.slice(0, 2).map((c) => ({ ...c, example: true }))
+    stub([[/setups-board$/, { ...BOARD, cards: examples, count: 0, exampleCount: 2 }]])
+    renderBoard()
+    expect(await screen.findByText(/These are examples/)).toBeTruthy()
+    expect(screen.queryByText(/^No open setups yet\./)).toBeNull()
+    // the exact words: what an example is, and what makes the member's own plans show
+    expect(screen.getByText('These are examples. Draw an entry line on a chart in a plan note (and a stop, for the distance in R) and your own plans show here.')).toBeTruthy()
+  })
+
+  it('with the chart plan not switched on, the examples line still names no step the member cannot take', () => {
+    const off = { available: false, reason: 'flag_off', sentence: 'Drawing a plan on a chart is not switched on for your account.' }
+    const said = emptyBoardText({ planDrawing: off, chartPlanOn: true, examples: true })
+    expect(said).toBe('These are examples. Drawing a plan on a chart is not switched on for your account.')
+    expect(said).not.toMatch(/Draw an entry line/)
+    expect(emptyBoardText({ chartPlanOn: false, examples: true })).not.toMatch(/Draw an entry line/)
+    expect(emptyBoardText({ chartPlanOn: false, examples: true })).toMatch(/^These are examples\./)
+    // no examples: the words it always had
+    expect(emptyBoardText({ chartPlanOn: true })).toMatch(/^No open setups yet\. Draw an entry line/)
+  })
+
   it('a failed read is an error, never "No open setups yet"', async () => {
     latchNotebookFlags({ notebook_setups_board_enabled: true })
     stub([[/\/api\/j2\/setups-board$/, contractBody('setups-board.signed-out'), 401]])
@@ -259,7 +293,9 @@ describe('SetupsBoard — sample cards', () => {
     const cardEl = await findEl('[data-board-card="MSFT"]')
     expect(cardEl).toBeTruthy()
     expect(cardEl.querySelector('[data-example]').textContent).toBe('Example')   // text, not colour alone
-    expect(screen.getByText(/No open setups yet/)).toBeTruthy()
+    // P0.5: the line above the sample no longer says "No open setups yet." over a card that is shown
+    expect(screen.getByText(/These are examples/)).toBeTruthy()
+    expect(screen.queryByText(/^No open setups yet\./)).toBeNull()
   })
 
   it('a member\'s own card carries no label, and with one of their own the guidance is gone', async () => {

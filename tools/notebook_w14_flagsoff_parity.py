@@ -60,11 +60,42 @@ KEEP_CURRENT = ("/__fixtures__/", "/a11y/fixtures.jsx", "/a11y/surface.js", "/a1
 MUTATION = ("app/src/pages/journal-2-0/components/notebook/onboarding/tourRegistry.js",
             "  if (!checklistEnabled(flag)) return false\n", "")
 
-# The accepted differences. FIVE entries. Adding one is a controller ruling, never a tool-side fix.
+# The accepted differences. Adding one is a controller ruling, never a tool-side fix. (No count is
+# typed here: the rail, tests/test_notebook_w14_flagsoff_parity_expected.py, holds the number.)
+#
+# RULING R9 (controller, 2026-10-11, Notebook P0 discoverability, Task 15): update this list ONCE for
+# the P0 doors. What that could and could not be, stated rather than papered over:
+#   NAMED BELOW (each literal read off the capture, occurring once in HEAD where it is allowed):
+#     the New note menu (P0.1), the search input (P0.13, whose box the 10/10 UX pass made a button),
+#     the Active setups box (P0.5, which REPLACES the lane NAV door that stood here: that link is no
+#     longer in HEAD, so its entry is rewritten, not kept beside the new one) and the note's Ask door
+#     renamed "Ask this note" (P0.7, 4a4c2503e2: one button, its name and its text).
+#   REMOVED, because their targets are gone from HEAD and the cause is not P0's: the passed-setups
+#     status line (fin-a11y M-5) and the reviews heading's id/tabindex. Both vanished with the 10/10
+#     UX pass (53188edfff, on master, an ancestor of the P0 base eec73eede5): the passed-setups box now
+#     starts folded, so its status line is not mounted, and the reviews heading became sr-only. An entry
+#     that matches nothing in HEAD is not evidence, and its true-sounding reason would mislead.
+#   NOT NAMEABLE IN THIS GRAMMAR, and why (the verdict does not pretend otherwise):
+#     the Home half of the Ask change (P0.7): a RESTRUCTURE. BASE holds two Ask pieces in two places and
+#       HEAD one section; no single added element, one-tag swap or counted run states it.
+#     Notices box (P0.4): renders only when the alerts / insights reads return rows, and the capture's
+#       fetch serves none, so no case contains it. A name with no case to appear in is not evidence.
+#     Learn "What your Notebook can do" (Task 14b): the Learn menu needs both wave-14 onboarding switches
+#       and no flag set in the capture turns both on, so neither the Learn button nor its menu is in any
+#       capture (the capture also photographs surfaces at rest; see "WHAT THIS TOOL CANNOT SEE" above).
+# ⚠ THE VERDICT IS STILL "DIFFERS". Every difference left after the entries below is older than P0, in
+# commits that are ancestors of the P0 base and on master: the sidebar tree's keyboard markup (roles,
+# tabindex, data-tree-*, the folder-nav id, Favorites/Recents groups: c9a2d1acfd, 2026-10-08), the
+# sidebar slot's reveal marker (e0102557f4, 2026-10-10) and the UX pass's regrouping of Home (Recent
+# notes, folded boxes, the Today button's move, the reviews heading: 53188edfff, 2026-10-10). The
+# exceptions are the P0 differences this tool cannot state (the Home half of Ask above). They differ
+# from BASE in EVERY flag set and have no entry. Accepting them is its own controller ruling; it is
+# not made here.
 #
 # An entry names how HEAD differs from BASE as LITERAL text, one of two ways:
 #   element          a whole element HEAD has and BASE does not;
-#   head / base      one opening tag as HEAD has it, and the same tag as BASE has it;
+#   head / base      one opening tag as HEAD has it, and the same tag as BASE has it (or, for the one
+#                    renamed button, the whole button as each has it: the rail names that allowance);
 #   roving           the one entry that is a counted run: the editor toolbar's controls, numbered
 #                    tb-0, tb-1, ... with no gap, the first carrying the marker and every later one
 #                    `tabindex="-1"` and the marker. The literals are generated from the count,
@@ -76,28 +107,39 @@ MUTATION = ("app/src/pages/journal-2-0/components/notebook/onboarding/tourRegist
 # every flag set on that surface, the all-off one included.
 EXPECTED = (
     {
-        "name": "passed-setups status line (fin-a11y M-5)",
-        "element": '<p class="_quiet_ _notice_" role="status" data-passed-status=""></p>',
-        "surface": "notebook home",
-        "needs": "notebook_passed_setups_enabled",
-        "commit": "cb5c30b38d",
-        "accepted": "2026-10-06",
-        "reason": "Accessibility item M-5: the passed-setups box keeps one status line mounted, "
-                  "empty at rest, that Add and Remove fill so a screen reader hears the result. "
-                  "It exists only while the passed-setups capability is on. Accepted by the "
-                  "controller as an intended accessibility change.",
-    },
-    {
-        "name": "Active setups door (lane NAV)",
-        "element": '<a class="btn btn-ghost _setupsLink_" title="Your open chart plans, closest to '
-                   'their entry first" href="/journal/notebook/setups" data-discover="true">Active setups</a>',
+        "name": "Active setups box (P0.5; replaces the lane NAV door)",
+        "element": '<div class="_box_" data-export-exclude="true"><span class="_count_">Active setups</span><a class="btn btn-ghost _setupsLink_" aria-describedby="_r_" href="/journal/notebook/setups" data-discover="true">Open the setups board</a><span id="_r_" class="_srOnly_">Your open chart plans, closest to their entry first</span></div>',
         "surface": "notebook home",
         "needs": "notebook_setups_board_enabled",
-        "commit": "6b7e037c9f",
-        "accepted": "2026-10-07",
-        "reason": "The active setups board had no door (BETA-HANDOFF 1b: no menu link to it yet). "
-                  "The NAV lane added one link on Research Home, rendered only while the setups "
-                  "board capability is on. Accepted by the controller as intended.",
+        "commit": "7bc5a0965f",
+        "accepted": "2026-10-11",
+        "reason": "The active setups board's one door was a bare link (lane NAV, 6b7e037c9f, accepted "
+                  "2026-10-07). P0.5 (owner decision, 2026-10-11) made it a box under the Notices box that "
+                  "says how many plans are open and links to the board; the old link is gone from HEAD, so "
+                  "this entry takes its place. Rendered only while the setups board capability is on. "
+                  "Ruling R9.",
+    },
+    {
+        "name": "New note menu on Research Home (P0.1)",
+        "element": '<div class="_split_"><button type="button" class="btn btn-primary _main_"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"></path></svg> New note</button><button type="button" class="btn btn-primary _caret_" aria-haspopup="menu" aria-expanded="false" aria-label="More ways to start a note"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9.5l6 6 6-6"></path></svg></button></div>',
+        "surface": "notebook home",
+        "needs": None,
+        "commit": "c4b504558d",
+        "accepted": "2026-10-11",
+        "reason": "Research Home gained a create door: one press makes a blank note, the caret lists the "
+                  "other ways in (an item only when its handler exists). It renders for a member who has "
+                  "notes, in every flag set. ALWAYS ON. Ruling R9.",
+    },
+    {
+        "name": "Home search input (P0.13)",
+        "element": '<input class="_searchBox_" data-home-search="" aria-label="Search your notes" placeholder="Search your notes" autocomplete="off" type="search">',
+        "surface": "notebook home",
+        "needs": None,
+        "commit": "bf9489adbf",
+        "accepted": "2026-10-11",
+        "reason": "Research Home's search door is a real search input that hands the first character to the "
+                  "folders panel's search (it was a button from the 10/10 UX pass; neither exists in BASE). "
+                  "ALWAYS ON. Ruling R9.",
     },
     {
         "name": "Research Home skip link to the reviews (lane KEYS)",
@@ -111,16 +153,17 @@ EXPECTED = (
                   "rendered by the review-drafts box, so only while that capability is on.",
     },
     {
-        "name": "Research Home reviews heading is the skip link's landing (lane KEYS)",
-        "head": '<h3 id="nb-home-reviews" tabindex="-1" class="_sectionTitle_">',
-        "base": '<h3 class="_sectionTitle_">',
-        "surface": "notebook home",
-        "needs": "notebook_review_drafts_enabled",
-        "commit": "ce16e3f4d5",
-        "accepted": "2026-10-07",
-        "reason": "The same change as the skip link above: the 'Reviews that write themselves' "
-                  "heading gains the id the link points at and becomes focusable by script only "
-                  "(tabindex -1), so it is not a Tab stop of its own.",
+        "name": "note Ask door is named 'Ask this note' (P0.7)",
+        "head": '<button type="button" class="_askToggle_" aria-expanded="false" aria-label="Ask this note" data-ask-toggle="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"><defs><linearGradient id="uig" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a8823a"></stop><stop offset="40%" stop-color="#d4b25a"></stop><stop offset="50%" stop-color="#e8d18c"></stop><stop offset="60%" stop-color="#cba954"></stop><stop offset="100%" stop-color="#8f6f2c"></stop></linearGradient></defs><path d="M12 3l1.9 5.6L19 10l-5.1 1.5L12 17l-1.9-5.5L5 10l5.1-1.4z"></path></svg>Ask this note</button>',
+        "base": '<button type="button" class="_askToggle_" aria-expanded="false" aria-label="Ask a question about this note" data-ask-toggle="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"><defs><linearGradient id="uig" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a8823a"></stop><stop offset="40%" stop-color="#d4b25a"></stop><stop offset="50%" stop-color="#e8d18c"></stop><stop offset="60%" stop-color="#cba954"></stop><stop offset="100%" stop-color="#8f6f2c"></stop></linearGradient></defs><path d="M12 3l1.9 5.6L19 10l-5.1 1.5L12 17l-1.9-5.5L5 10l5.1-1.4z"></path></svg>Ask</button>',
+        "surface": "open note",
+        "needs": None,
+        "commit": "4a4c2503e2",
+        "accepted": "2026-10-11",
+        "reason": "The note's header door was 'Ask' (named 'Ask a question about this note'); P0.7 renamed "
+                  "it 'Ask this note', visibly and to a screen reader, so it cannot be mistaken for the "
+                  "Notebook-wide Ask section on Home. One button: its accessible name and its text. "
+                  "ALWAYS ON: it is in every open note, with every flag off as well. Ruling R9.",
     },
     {
         "name": "editor formatting toolbar is one Tab stop (lane KEYS)",
@@ -272,7 +315,10 @@ def capture(out):
 
 
 def swap_to_base():
-    changed = git("diff", "--name-only", BASE, "HEAD", "--", "app/src").decode().split()
+    # --no-renames: a file MOVED since BASE would otherwise be listed under its new name only, its old
+    # path never swapped back, and the BASE blobs that still import the old path would not resolve
+    # (instanceShape.js -> ./engine/legacyCotGroups, moved to ./legacyCotGroups; 2026-10-11).
+    changed = git("diff", "--no-renames", "--name-only", BASE, "HEAD", "--", "app/src").decode().split()
     saved = {}
     for rel in changed:
         if ".test." in rel or any(k in rel for k in KEEP_CURRENT):
@@ -360,7 +406,7 @@ def judge(case, head, base, flagsets, expected=EXPECTED):
 def _apply(base, entry, n=4):
     """A HEAD made from `base` by applying one entry (for the self-check)."""
     if "element" in entry:
-        return base.replace("</p></section>", "</p>" + entry["element"] + "</section>", 1)
+        return base.replace("</section>", entry["element"] + "</section>", 1)
     if "head" in entry:
         return base.replace(entry["base"], entry["head"], 1)
     out = base
@@ -372,7 +418,9 @@ def _apply(base, entry, n=4):
 
 def self_check():
     """The judge must accept each named difference where it is allowed, and nothing else."""
-    base = ('<main><section><p>or add one above.</p></section><h3 class="_sectionTitle_">Reviews</h3>'
+    # every head/base entry needs its BASE text in the synthetic base for its change to be applied to
+    base = ('<main><section><p>or add one above.</p></section>' + "".join(e["base"] for e in EXPECTED if "head" in e) +
+            '<h3 class="_sectionTitle_">Reviews</h3>'
             '<div role="toolbar"><button class="b0">U</button><button class="b1">B</button>'
             '<button class="b2">I</button><button class="b3">L</button></div><div>next</div></main>')
     cases = []
@@ -409,7 +457,8 @@ def self_check():
             ]
         elif "head" in e:
             cases += [
-                (f"[{n}] the tag with one more attribute", on, head.replace(e["head"], e["head"][:-1] + ' hidden="">'), base, flags, "differs"),
+                (f"[{n}] the tag with one more attribute", on,
+                 head.replace(e["head"], e["head"][:e["head"].index(">")] + ' hidden="">' + e["head"][e["head"].index(">") + 1:]), base, flags, "differs"),
                 (f"[{n}] the tag changed on TWO elements", on,
                  head + e["head"] + "</h3>", base + e["base"] + "</h3>", flags, "differs"),
             ]
@@ -430,10 +479,11 @@ def self_check():
         for e in home:
             both = _apply(both, e)
         case = "notebook home | set | fresh member"
-        all_on = {"set": {e["needs"]: True for e in home}}
+        capped = [e for e in home if e["needs"]]          # the always-on entries need no capability
+        all_on = {"set": {e["needs"]: True for e in capped}}
         cases.append(("every Notebook Home change together, every capability on: accepted", case, both, base, all_on, "expected"))
         cases.append(("the same, plus another difference", case, both.replace("next", "next!"), base, all_on, "differs"))
-        for e in home:
+        for e in capped:
             one_off = {"set": {**all_on["set"], e["needs"]: False}}
             # an entry sharing that capability goes off with it; the rest stay on, so it must differ
             cases.append((f"every Notebook Home change together, {e['needs']} off", case, both, base, one_off, "differs"))

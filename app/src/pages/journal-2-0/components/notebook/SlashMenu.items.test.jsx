@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Editor } from '@tiptap/core'
 import { widgetItems, factItems, consensusFactItems, ITEMS, groupedSlashItems, blockItemGroup, rankedBlockItems } from './SlashMenu'
 import { buildExtensions } from '../../lib/tiptap'
+import { dateSuggestPluginKey } from '../../lib/dateSuggest'
 
 const titles = (q) => widgetItems(q).map((i) => i.title)
 
@@ -387,5 +388,49 @@ describe('a typed query ranks title matches above keyword-only matches', () => {
     const plain = ITEMS.filter((it) => it.title.toLowerCase().includes(q) || (it.keywords || []).some((k) => k.includes(q)))
     expect(new Set(rankedBlockItems(ITEMS, q))).toEqual(new Set(plain))
     expect(rankedBlockItems(ITEMS, '')).toBe(ITEMS)
+  })
+})
+
+// P0.9: a due date is findable. `@tomorrow ` with a trailing space was the only way in, and
+// typing `@` showed nothing; the Checklist hint says so and a "Due date" slash item opens the
+// same `@` list (one door, not a second picker).
+describe('due dates are findable from the slash menu (P0.9)', () => {
+  let editor
+  afterEach(() => { editor?.destroy(); editor = null; document.body.innerHTML = '' })
+
+  it('/due ranks "Due date" first', () => {
+    expect(rankedBlockItems(ITEMS, 'due')[0].title).toBe('Due date')
+  })
+
+  it('reminder / deadline / date also find it', () => {
+    for (const q of ['reminder', 'deadline', 'date']) {
+      expect(rankedBlockItems(ITEMS, q).map((i) => i.title), q).toContain('Due date')
+    }
+  })
+
+  it('the Checklist hint names the typed form', () => {
+    const checklist = ITEMS.find((i) => i.title === 'Checklist')
+    expect(checklist.description).toBe('Task list. Type @tomorrow for a reminder')
+  })
+
+  it('"Due date" sits with the basics, right after Checklist', () => {
+    const titles = ITEMS.map((i) => i.title)
+    expect(titles.indexOf('Due date')).toBe(titles.indexOf('Checklist') + 1)
+    expect(blockItemGroup(ITEMS.find((i) => i.title === 'Due date'))).toBe('basics')
+  })
+
+  it('running it replaces "/due" with an "@" before the cursor, which opens the @ list', () => {
+    const el = document.createElement('div')
+    document.body.appendChild(el)
+    editor = new Editor({ element: el, extensions: buildExtensions(), content: '<p>Call broker /due</p>' })
+    editor.commands.focus('end')
+    const end = editor.state.selection.from
+    const item = ITEMS.find((i) => i.title === 'Due date')
+    item.command({ editor, range: { from: end - 4, to: end } })
+    expect(editor.state.doc.textContent).toBe('Call broker @')
+    const { from } = editor.state.selection
+    expect(editor.state.doc.textBetween(from - 1, from)).toBe('@')
+    // The same "@" a member would have typed: the date list is now open.
+    expect(dateSuggestPluginKey.getState(editor.state).active).toBe(true)
   })
 })

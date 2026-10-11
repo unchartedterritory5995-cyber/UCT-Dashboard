@@ -1,4 +1,4 @@
-"""Wave 11 lane 11C -- the real-browser KEYBOARD walk for "Ask Notebook to do something".
+"""Wave 11 lane 11C -- the real-browser KEYBOARD walk for "Or tell Notebook what to change".
 
 It OWNS its sandbox (tools/notebook_perf_harness.py's `Sandbox`: scripts/hub_sandbox_boot.py
 through the SIGBREAK shim, its own process group, stopped gracefully so the launcher's `finally`
@@ -138,12 +138,12 @@ def run(base: str, w: Walk) -> None:
         pg.on("pageerror", lambda e: errors.append(str(e)[:300]))
         pg.goto(base + "/journal/notebook", wait_until="domcontentloaded")
         h._dismiss_intro(pg)
-        toggle = pg.get_by_role("button", name="Ask Notebook to do something", exact=True)
+        toggle = pg.get_by_role("button", name="Or tell Notebook what to change", exact=True)
         toggle.wait_for(state="visible", timeout=30000)
 
         # W1 -- reach the box by Tab, open with Enter
         pg.evaluate("document.activeElement && document.activeElement.blur && document.activeElement.blur()")
-        presses = tab_to(pg, name_is("Ask Notebook to do something"))
+        presses = tab_to(pg, name_is("Or tell Notebook what to change"))
         pg.keyboard.press("Enter")
         box = pg.get_by_role("textbox", name="What should Notebook do?")
         box.wait_for(state="visible", timeout=10000)

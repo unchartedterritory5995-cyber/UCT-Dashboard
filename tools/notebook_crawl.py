@@ -164,6 +164,18 @@ class Crawl:
                 if b.count() and b.is_visible():
                     hit = b
                     break
+            if hit is None and step.endswith(" view"):
+                # P0.11: at phone width the seven icon buttons are replaced by a labelled View
+                # select whose options carry the short word ("Board" for "Board view").
+                sel = self.pg.get_by_role("combobox", name="View", exact=True)
+                if sel.count() and sel.first.is_visible():
+                    sel.first.select_option(label=step[: -len(" view")])
+                    self.pg.wait_for_timeout(900)
+                    try:
+                        self.pg.wait_for_load_state("networkidle", timeout=6000)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    continue
             if hit is None:
                 raise RuntimeError(f"state {state['name']}: no control named {step!r} to reach it")
             hit.click()

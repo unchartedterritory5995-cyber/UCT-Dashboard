@@ -1,0 +1,16 @@
+{
+ "runs": 10,
+ "nav_ms": 1500,
+ "nav": "click",
+ "viewport": "390",
+ "age": 0,
+ "type_delay": null,
+ "menu_pause_ms": 0,
+ "latency_ms": 0,
+ "settle_s": 8,
+ "base": "http://127.0.0.1:8132",
+ "started": "20261011T070831Z",
+ "measured": 10,
+ "forked_runs": [],
+ "errors": []
+}

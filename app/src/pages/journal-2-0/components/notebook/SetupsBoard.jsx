@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Navigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import useSWR from 'swr'
+import UIcon from '../../../../components/ui/UIcon'
 import LoadFailed from '../LoadFailed'
 import Sheet from '../../../../components/mobile/Sheet'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
+import { BOARD_URL } from '../../lib/setupsBoardLink'
 import { chartPlanEnabled } from '../../lib/widgetEmbedCore'
 import useStaggeredMount from '../../../charts/grid/useStaggeredMount'
 import { makeGridWarmer } from '../../../charts/grid/gridWarm'
@@ -36,7 +38,6 @@ import styles from './SetupsBoard.module.css'
  */
 
 export const BOARD_FLAG = 'notebook_setups_board_enabled'
-export const BOARD_URL = '/api/j2/setups-board'
 export const MOUNT_LIMIT = 3
 export const PAGE_SIZE = GRID_MAX_CELLS
 export const WARM_TFS = Object.freeze(['D'])
@@ -51,17 +52,23 @@ const warmDaily = (syms) => prefetchListAllTimeframes(syms, { tfs: WARM_TFS })
 
 /** The board's "nothing yet" line. With the chart plan off the member cannot mark a line as an
  *  entry, so the line says what is missing instead of naming a step they cannot take. */
-export function emptyBoardText({ planDrawing = null, chartPlanOn }) {
-  const how = 'No open setups yet. Draw an entry line on a chart in a plan note (and a stop, for the distance in R) and it shows here.'
+export function emptyBoardText({ planDrawing = null, chartPlanOn, examples = false }) {
+  // P0.5: when the cards on screen are the examples, "No open setups yet." sat above a card the
+  // page was showing, which reads as a contradiction. The lead says what is on screen instead; what
+  // follows is the same guidance, and it still names no step the member cannot take.
+  const lead = examples ? 'These are examples.' : 'No open setups yet.'
+  const how = examples
+    ? `${lead} Draw an entry line on a chart in a plan note (and a stop, for the distance in R) and your own plans show here.`
+    : `${lead} Draw an entry line on a chart in a plan note (and a stop, for the distance in R) and it shows here.`
   // The board's own answer says whether a plan can be drawn, and why not (`planDrawing`).
   if (planDrawing && typeof planDrawing.available === 'boolean') {
     if (planDrawing.available) return how
-    return `No open setups yet. ${planDrawing.sentence || 'Drawing a plan on a chart is not switched on for your account.'}`
+    return `${lead} ${planDrawing.sentence || 'Drawing a plan on a chart is not switched on for your account.'}`
   }
   // An older answer without it: the tab's own latched flag decides.
   return chartPlanOn
     ? how
-    : 'No open setups yet. A setup comes from a chart whose lines are marked as the entry and the stop, and marking lines is not switched on for your account.'
+    : `${lead} A setup comes from a chart whose lines are marked as the entry and the stop, and marking lines is not switched on for your account.`
 }
 
 function Board({ onFindSimilar }) {
@@ -72,6 +79,7 @@ function Board({ onFindSimilar }) {
   // A sample's card is shown and labelled, and is never one of the member's setups: the
   // "none yet" guidance is decided on their OWN cards (the server marks `example`).
   const hasOwn = useMemo(() => cards.some((c) => !c.example), [cards])
+  const hasExamples = useMemo(() => cards.some((c) => c.example), [cards])
   const pages = Math.max(1, Math.ceil(cards.length / PAGE_SIZE))
   const current = Math.min(page, pages - 1)
   const pageCards = useMemo(() => cards.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE), [cards, current])
@@ -98,7 +106,7 @@ function Board({ onFindSimilar }) {
       {error && <LoadFailed compact what="your setups" error={error} onRetry={() => mutate()} />}
       {!error && isLoading && <p className={styles.quiet} role="status">Reading your plans…</p>}
       {!error && data && !hasOwn && (
-        <p className={styles.quiet}>{emptyBoardText({ planDrawing: data?.planDrawing, chartPlanOn: chartPlanEnabled() })}</p>
+        <p className={styles.quiet}>{emptyBoardText({ planDrawing: data?.planDrawing, chartPlanOn: chartPlanEnabled(), examples: hasExamples })}</p>
       )}
       {!error && data?.capped && (
         <p className={styles.note} role="note">
@@ -218,6 +226,11 @@ export default function SetupsBoard() {
   if (!boardOn && !similarOn) return <Navigate to="/journal/notebook" replace />
   return (
     <div className={styles.page} data-setups-page="">
+      {/* P0.5: the board had no way back; a member who followed the home's door could only use the
+          browser's Back. A real link to the Notebook home, above the title. */}
+      <Link to="/journal/notebook" className={styles.backLink}>
+        <UIcon name="chevronLeft" size={14} gold={false} /> Back to Notebook
+      </Link>
       <h1 className={styles.pageTitle}>Setups</h1>
       {boardOn && <Board onFindSimilar={similarOn ? open : null} />}
       {similarOn && <Templates onPick={open} />}

@@ -1,6 +1,6 @@
 // app/src/pages/journal-2-0/a11y/aiActions.a11y.test.jsx
 //
-// Wave 11 lane 11C ("Ask Notebook to do something") through 8A's axe harness, in each state a
+// Wave 11 lane 11C ("Or tell Notebook what to change") through 8A's axe harness, in each state a
 // member reaches: the request box, the review list (grouped by note, a checkbox per change, the
 // skipped list), the applied view with a partial-failure list, and a note's history listing the
 // AI change set with its Undo. Each recipe proves its state rendered before axe runs.
@@ -42,7 +42,7 @@ describe('lane 11C surfaces', () => {
 
   const box = () => render(<Providers><AiActionsBox /></Providers>)
   const plan = async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Ask Notebook to do something' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Or tell Notebook what to change' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'What should Notebook do?' }), { target: { value: 'tag NVDA' } })
     fireEvent.click(screen.getByRole('button', { name: 'Plan changes' }))
     await screen.findByRole('heading', { name: 'Review 2 proposed changes' })
@@ -50,7 +50,7 @@ describe('lane 11C surfaces', () => {
 
   axeSurface('ai-actions-request', async () => {
     box()
-    fireEvent.click(screen.getByRole('button', { name: 'Ask Notebook to do something' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Or tell Notebook what to change' }))
     screen.getByRole('textbox', { name: 'What should Notebook do?' })
     await settle()
   })

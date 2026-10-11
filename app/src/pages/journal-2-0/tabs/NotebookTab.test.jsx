@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react'
 import { MemoryRouter, useNavigate } from 'react-router-dom'
 // 13Q-Q1check: a spy over the REAL `mutate`, not a replacement for it -- other
 // hooks in this tree (useJ2SavedViews, useJ2PropertyDefs) use real `useSWR`,
@@ -26,21 +26,30 @@ const useJ2NotesMock = vi.fn(() => ({
 vi.mock('../hooks/useJ2Notes', () => ({
   default: (...args) => useJ2NotesMock(...args),
 }))
+// P0.13: every render pushes the props the panel was handed, so a test can read the search
+// request/seed the tab passes down and call the mode report the tab hands it.
+const sidebarProps = []
+const lastSidebarProps = () => sidebarProps[sidebarProps.length - 1]
 vi.mock('../components/notebook/FolderSidebar', () => ({
   // A minimal interactive stub — exposes an "onSelectFolder('__trash__')"
   // trigger the same way ImportWizard's mock exposes "fire onImported",
   // so trash-view wiring can be driven through the real prop instead of
   // reaching into NotebookTab's internal state. UX #1's onSelectView/
   // onDeleteView/onRenameView triggers follow the identical convention.
-  default: ({ onSelectFolder, onSelectView, onDeleteView, onRenameView }) => (
-    <div data-testid="folder-sidebar">
-      <button type="button" onClick={() => onSelectFolder('__trash__')}>go to trash</button>
-      <button type="button" onClick={() => onSelectFolder(null)}>go to all notes</button>
-      <button type="button" onClick={() => onSelectView({ id: 'v1', name: 'My View', viewType: 'list' })}>select view v1</button>
-      <button type="button" onClick={() => onDeleteView('v1', 'My View')}>delete view v1</button>
-      <button type="button" onClick={() => onRenameView('v1', 'Renamed View')}>rename view v1</button>
-    </div>
-  ),
+  default: (props) => {
+    const { onSelectFolder, onSelectView, onDeleteView, onRenameView } = props
+    sidebarProps.push(props)
+    return (
+      <div data-testid="folder-sidebar">
+        <button type="button" onClick={() => onSelectFolder('__trash__')}>go to trash</button>
+        <button type="button" onClick={() => onSelectFolder(null)}>go to all notes</button>
+        <button type="button" onClick={props.onToggleSidebar}>test: toggle the folders panel</button>
+        <button type="button" onClick={() => onSelectView({ id: 'v1', name: 'My View', viewType: 'list' })}>select view v1</button>
+        <button type="button" onClick={() => onDeleteView('v1', 'My View')}>delete view v1</button>
+        <button type="button" onClick={() => onRenameView('v1', 'Renamed View')}>rename view v1</button>
+      </div>
+    )
+  },
 }))
 vi.mock('../components/notebook/NoteCard', () => ({
   default: ({ note, onRestore }) => (
@@ -83,16 +92,24 @@ vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({
 // way every other heavy child in this file is, so these tests stay about
 // the tab's OWN isHome-vs-grid wiring, not Home's internal rendering (that
 // lives in ResearchHome.test.jsx).
+// P0.1: every render pushes the props Home was handed, so a test can call the handlers the
+// tab passes down (the New-note sheet and voice door live in the TAB, not in Home).
+const researchHomeProps = []
+const lastResearchHomeProps = () => researchHomeProps[researchHomeProps.length - 1]
 vi.mock('../components/notebook/ResearchHome', () => ({
   // Lane KEYS3: two buttons stand in for Home's doors, so the tab's own `openNote` can be
   // exercised the way Home's boxes call it (a plain open; a drafted review's open).
-  default: ({ onOpenNote }) => (
+  default: (props) => {
+    const { onOpenNote } = props
+    researchHomeProps.push(props)
+    return (
     <div data-testid="research-home">
       Research Home
       <button type="button" onClick={() => onOpenNote?.({ id: 'n-plain' })}>test: open a note</button>
       <button type="button" onClick={() => onOpenNote?.({ id: 'rev1' }, null, { to: 'collapsed' })}>test: open a drafted review</button>
     </div>
-  ),
+    )
+  },
 }))
 
 import NotebookTab from './NotebookTab'
@@ -898,5 +915,121 @@ describe('lane KEYS3 (Q11): "#notes" lands keyboard focus on the notes list\'s h
     await screen.findByRole('button', { name: 'Templates' })
     await new Promise((r) => setTimeout(r, 60))
     expect(document.activeElement).toBe(document.body)
+  })
+})
+
+describe('NotebookTab — P0.1 the New-note door on Research Home', () => {
+  it('Home receives working New-note handlers and the sheet opens from Home', async () => {
+    researchHomeProps.length = 0
+    renderTab('/journal/notebook')
+    expect(await screen.findByTestId('research-home')).toBeTruthy()
+    const props = lastResearchHomeProps()
+    expect(typeof props.onOpenNewNoteSheet).toBe('function')
+    // gates off in this file: no voice door is handed down, so the menu cannot list one
+    expect(props.onStartVoiceNote).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'New note' })).toBeNull()
+    act(() => props.onOpenNewNoteSheet())
+    expect(await screen.findByRole('dialog', { name: 'New note' })).toBeTruthy()
+  })
+})
+
+// P0.13: search in place. The Home search box is an input that hands its text to the folders
+// panel's one search through the `#search` door; the panel reports when it is searching, and Home
+// steps aside so a member never sees two search boxes.
+describe('NotebookTab — P0.13 search in place', () => {
+  const renderAt = (entry) => render(
+    <MemoryRouter initialEntries={[entry]}>
+      <NotebookTab />
+    </MemoryRouter>,
+  )
+  const lastHome = () => researchHomeProps[researchHomeProps.length - 1]
+
+  beforeEach(() => {
+    sidebarProps.length = 0
+    researchHomeProps.length = 0
+  })
+
+  it('the #search door carries the typed text to the panel as a seed, with a request to open', async () => {
+    renderAt({ pathname: '/journal/notebook', hash: '#search', state: { q: 'nvda' } })
+    await screen.findByTestId('folder-sidebar')
+    await waitFor(() => expect(lastSidebarProps().searchRequest).toBeGreaterThan(0))
+    expect(lastSidebarProps().searchSeed).toBe('nvda')
+  })
+
+  it('the palette door (a #search with no state at all) gives an empty seed and no crash', async () => {
+    renderAt({ pathname: '/journal/notebook', hash: '#search' })
+    await screen.findByTestId('folder-sidebar')
+    await waitFor(() => expect(lastSidebarProps().searchRequest).toBeGreaterThan(0))
+    expect(lastSidebarProps().searchSeed).toBe('')
+  })
+
+  it('without the door there is no request and Home is not told to step aside', async () => {
+    renderAt('/journal/notebook')
+    await screen.findByTestId('research-home')
+    expect(lastSidebarProps().searchRequest).toBe(0)
+    expect(lastHome().searchActive).toBe(false)
+  })
+
+  it('the panel reporting search mode makes Home step aside, and leaving search brings it back', async () => {
+    renderAt('/journal/notebook')
+    await screen.findByTestId('research-home')
+    act(() => lastSidebarProps().onSearchModeChange(true))
+    expect(lastHome().searchActive).toBe(true)
+    act(() => lastSidebarProps().onSearchModeChange(false))
+    expect(lastHome().searchActive).toBe(false)
+  })
+
+  it('a collapsed panel is not on screen, so Home keeps its own box then', async () => {
+    renderAt('/journal/notebook')
+    await screen.findByTestId('research-home')
+    act(() => lastSidebarProps().onSearchModeChange(true))
+    expect(lastHome().searchActive).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'test: toggle the folders panel' }))
+    expect(lastHome().searchActive).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'test: toggle the folders panel' }))
+    expect(lastHome().searchActive).toBe(true)
+  })
+
+  it('H14: the report the tab hands the panel is ONE stable function across every render', async () => {
+    renderAt({ pathname: '/journal/notebook', hash: '#search', state: { q: 'nvda' } })
+    await screen.findByTestId('folder-sidebar')
+    act(() => lastSidebarProps().onSearchModeChange(true))
+    act(() => lastSidebarProps().onSearchModeChange(false))
+    act(() => lastSidebarProps().onSearchModeChange(true))
+    expect(sidebarProps.length).toBeGreaterThan(3)                       // it did re-render
+    expect(new Set(sidebarProps.map((p) => p.onSearchModeChange)).size).toBe(1)
+    expect(sidebarProps.every((p) => typeof p.onSearchModeChange === 'function')).toBe(true)
+  })
+
+  // Fix round 1: fast typing in Home's box is one PUSH then REPLACE navigations carrying the
+  // growing text. A replace changes `location.key`, so the tab re-reads the door and the panel is
+  // seeded with the LATEST text, not just the first character.
+  it('a replace navigation on the door re-seeds the panel with the latest text', async () => {
+    let nav
+    function NavProbe() { nav = useNavigate(); return null }
+    render(
+      <MemoryRouter initialEntries={['/journal/notebook']}>
+        <NotebookTab />
+        <NavProbe />
+      </MemoryRouter>,
+    )
+    await screen.findByTestId('research-home')
+    act(() => nav('/journal/notebook#search', { state: { q: 'n' } }))
+    await waitFor(() => expect(lastSidebarProps().searchSeed).toBe('n'))
+    const first = lastSidebarProps().searchRequest
+    act(() => nav('/journal/notebook#search', { replace: true, state: { q: 'nv' } }))
+    act(() => nav('/journal/notebook#search', { replace: true, state: { q: 'nvda' } }))
+    await waitFor(() => expect(lastSidebarProps().searchSeed).toBe('nvda'))
+    expect(lastSidebarProps().searchRequest).toBeGreaterThan(first)
+  })
+
+  it('an unrelated re-render keeps the seed and the request the door set', async () => {
+    renderAt({ pathname: '/journal/notebook', hash: '#search', state: { q: 'nvda' } })
+    await screen.findByTestId('folder-sidebar')
+    await waitFor(() => expect(lastSidebarProps().searchRequest).toBeGreaterThan(0))
+    const request = lastSidebarProps().searchRequest
+    act(() => lastSidebarProps().onSearchModeChange(true))
+    expect(lastSidebarProps().searchRequest).toBe(request)
+    expect(lastSidebarProps().searchSeed).toBe('nvda')
   })
 })

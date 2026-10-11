@@ -118,6 +118,27 @@ describe('note editor popups', () => {
     await landPendingAutosave()
   })
 
+  // P0.9: the `@` date list, opened the way a member opens it (a typed "@"), then its
+  // "Pick a date" row chosen so the date input is on screen too.
+  axeSurface('editor-date-suggest', async () => {
+    const editor = await renderEditor()
+    caretAtEnd(editor)
+    act(() => { editor.commands.insertContent(' @') })
+    const listbox = await waitFor(() => {
+      const el = document.getElementById('uct-date-suggest')
+      if (!el) throw new Error('the date list did not open')
+      return el
+    })
+    // Non-vacuity: the choices exist, not an empty shell.
+    const names = Array.from(listbox.querySelectorAll('[role="option"]')).map((o) => o.textContent)
+    if (!names.some((t) => t.startsWith('Today')) || !names.some((t) => t.startsWith('Tomorrow'))) {
+      throw new Error(`the date list has no Today/Tomorrow rows: ${JSON.stringify(names)}`)
+    }
+    fireEvent.mouseDown(screen.getByRole('option', { name: /Pick a date/ }))
+    await screen.findByLabelText('Pick a date')
+    await landPendingAutosave()
+  })
+
   axeSurface('editor-note-link', async () => {
     const editor = await renderEditor()
     caretAtEnd(editor)

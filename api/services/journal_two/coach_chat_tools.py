@@ -21,6 +21,7 @@ from datetime import datetime, timezone, timedelta, date
 from typing import Any, Callable
 
 from api.services.auth_db import get_connection
+from api.services.notebook_flags import flag_on
 from api.services.journal_two import accounts as accounts_service
 from api.services.journal_two import coach_data_assembler
 from api.services.journal_two.coach_scope import is_unified
@@ -1858,7 +1859,6 @@ if os.environ.get("BRAIN_TOOLS_ENABLED", "0") == "1":
 # to 30 days — deferred with semantic search's zero-retention condition.
 
 NOTES_TOOL_GATE = "COMPASS_NOTES_TOOL_ENABLED"
-_NOTES_TOOL_ON_VALUES = {"1", "true", "yes", "on"}
 _NOTES_TOOL_LIMIT = 8
 _NOTES_TOOL_SNIPPET = 400
 _NOTES_TOOL_OFF = "Searching your notes isn't available right now."
@@ -1866,8 +1866,9 @@ _NOTES_TOOL_OFF = "Searching your notes isn't available right now."
 
 def notes_tool_enabled() -> bool:
     """The gate, read PER CALL. Unset, or anything but an on-value, is OFF."""
-    raw = os.environ.get(NOTES_TOOL_GATE)
-    return raw is not None and raw.strip().lower() in _NOTES_TOOL_ON_VALUES
+    # Task 14b: the ONE parse (`flag_on`), now that the auth payload carries this gate
+    # (`compass_notes_tool_enabled`) -- the payload and this tool can never disagree.
+    return flag_on(NOTES_TOOL_GATE, False)
 
 
 def _exec_search_my_notes(*, user_id, account_id, args, conn=None) -> dict:

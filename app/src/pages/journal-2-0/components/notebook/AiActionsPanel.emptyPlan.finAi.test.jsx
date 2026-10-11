@@ -37,7 +37,7 @@ async function plan(user, text = EMPTY.request) {
       <AiActionsBox />
     </SWRConfig>,
   )
-  await user.click(screen.getByRole('button', { name: 'Ask Notebook to do something' }))
+  await user.click(screen.getByRole('button', { name: 'Or tell Notebook what to change' }))
   await user.type(screen.getByRole('textbox', { name: 'What should Notebook do?' }), text)
   await user.click(screen.getByRole('button', { name: 'Plan changes' }))
 }

@@ -34,7 +34,7 @@ import styles from './InboundEmailCard.module.css'
  * must not leave a live key the member never asked for.
  */
 
-const URL = '/api/j2/inbound-email/address'
+export const INBOUND_EMAIL_URL = '/api/j2/inbound-email/address'
 const GATE_SEEN_KEY = 'uct.nb.inboundEmail.gateSeen'
 function gateSeen() {
   try { return localStorage.getItem(GATE_SEEN_KEY) === '1' } catch { return false }
@@ -47,7 +47,7 @@ function rememberGate(data) {
   } catch { /* private mode: the card falls back to the unknown-gate rule */ }
 }
 
-async function fetcher(u) {
+export async function inboundEmailFetcher(u) {
   const r = await fetch(u, { credentials: 'include' })
   if (r.status === 404) return { dark: true }
   if (r.status === 402) return { unpaid: true }
@@ -56,7 +56,7 @@ async function fetcher(u) {
 }
 
 export default function InboundEmailCard() {
-  const { data, error, mutate } = useSWR(URL, fetcher, { revalidateOnFocus: false })
+  const { data, error, mutate } = useSWR(INBOUND_EMAIL_URL, inboundEmailFetcher, { revalidateOnFocus: false })
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -78,7 +78,7 @@ export default function InboundEmailCard() {
   const post = useCallback(async ({ done, failed }) => {
     setBusy(true); setMessage(null); setCopied(false)
     try {
-      const res = await fetch(URL, { method: 'POST', credentials: 'include' })
+      const res = await fetch(INBOUND_EMAIL_URL, { method: 'POST', credentials: 'include' })
       if (!res.ok) throw new Error(String(res.status))
       await mutate(await res.json(), { revalidate: false })
       setConfirming(false)

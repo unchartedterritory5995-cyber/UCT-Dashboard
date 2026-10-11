@@ -150,6 +150,19 @@ export default function ContextPopover({
     items?.map((it, i) =>
       it.separator ? (
         <div key={`sep${i}`} className={styles.separator} role={asMenu ? 'separator' : undefined} />
+      ) : it.href ? (
+        // A real link (middle-click and cmd-click open a tab). Same row look, same close-on-pick;
+        // a link cannot be `disabled`, so a caller that needs that passes no `href`.
+        <a
+          key={it.key ?? it.label ?? i}
+          role={asMenu ? 'menuitem' : undefined}
+          className={`${styles.item} ${it.danger ? styles.danger : ''}`}
+          href={it.href}
+          onClick={(e) => { it.onClick?.(e); if (!it.keepOpen) onClose?.() }}
+        >
+          {it.icon != null && <span className={styles.icon}>{it.icon}</span>}
+          <span className={styles.label}>{it.label}</span>
+        </a>
       ) : (
         <button
           key={it.key ?? it.label ?? i}

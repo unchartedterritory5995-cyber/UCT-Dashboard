@@ -175,7 +175,7 @@ SWITCHES = (
     # its reach is the door and the Settings card, which renders nothing at all while dark.
     Switch("NOTEBOOK_PERSONAL_API_ENABLED", "personal_api_card",
            ("GET", "/api/j2/personal/tokens", None), 200,
-           'Settings > Connections carries the "Personal API" card; GET /api/j2/personal/tokens 200 or 404',
+           'Settings > Connections carries the "Connect apps & shortcuts (Personal API)" card; GET /api/j2/personal/tokens 200 or 404',
            payload=False),
 )
 DOOR_OFF = 404
@@ -213,7 +213,7 @@ NOT_REHEARSED = {
     "NOTEBOOK_FORMULAS_ENABLED": "dark (wave 11 11B): formula and rollup properties, computed in "
                                  "memory on read; waits on a quiet-machine 50k re-measure and the "
                                  "owner's go",
-    "NOTEBOOK_AI_ACTIONS_ENABLED": "dark (wave 11 11C): Ask Notebook to do something -- one model "
+    "NOTEBOOK_AI_ACTIONS_ENABLED": "dark (wave 11 11C): Or tell Notebook what to change -- one model "
                                    "call per plan on the shared $25/day cap, then reviewed changes "
                                    "written through the member's own write path, undoable; owner "
                                    "decisions 5-6 open (fail-open counter, unsent-words fork)",
@@ -640,7 +640,7 @@ def observe(pw, base: str, email: str, out: Path, tag: str) -> dict:
         try:
             page.wait_for_selector('[role=region][aria-label="Brokerage Connections"]', timeout=30000)
             try:
-                page.wait_for_selector('[role=region][aria-label="Personal API"]', timeout=10000)
+                page.wait_for_selector('[role=region][aria-label="Connect apps & shortcuts (Personal API)"]', timeout=10000)
                 obs["rendered"]["personal_api_card"] = True
             except Exception:  # noqa: BLE001 -- waited the same 10 s whatever was expected
                 obs["rendered"]["personal_api_card"] = False

@@ -526,8 +526,13 @@ def browser_lane(base: str, accts: list[dict], k: int, minutes: float, out: Path
                     pg.keyboard.press("Escape")
                     for name in rng.sample(["List view", "Table view", "Board view", "Calendar view", "Graph view", "Timeline view", "Tasks view"], 4):
                         b = pg.get_by_role("button", name=name, exact=True)
-                        if b.count() and b.first.is_visible():
-                            b.first.click()
+                        # P0.11: at 390 px the icon buttons give way to a labelled View select
+                        sel = pg.get_by_role("combobox", name="View", exact=True)
+                        if (b.count() and b.first.is_visible()) or (sel.count() and sel.first.is_visible()):
+                            if b.count() and b.first.is_visible():
+                                b.first.click()
+                            else:
+                                sel.first.select_option(label=name[: -len(" view")])
                             pg.wait_for_timeout(900)
                             txt = pg.locator("body").inner_text(timeout=10000)
                             if "Something went wrong" in txt or "This section failed" in txt:

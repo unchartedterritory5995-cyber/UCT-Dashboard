@@ -527,6 +527,19 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
         {autofillControls}
         {pickerOpen && (
           <div className={`${styles.picker} ${isFormula || isRollup ? styles.pickerWide : ''}`}>
+            {/* P0.14: a formula was five steps deep (Add property, + New property, the type
+                select, scroll to Formula, then the editor). This is the first choice, and it
+                opens the SAME new-property flow with the type already set, so the editor and
+                its starter formulas are showing straight away. Flag off: not rendered. */}
+            {formulasOn && (
+              <button
+                type="button"
+                className={styles.pickerItem}
+                onClick={() => { setNewPropOpen(true); setNewPropType('formula') }}
+              >
+                Add a formula
+              </button>
+            )}
             {hidden.map((p) => (
               <button key={p.id} type="button" className={styles.pickerItem} onClick={() => addExisting(p.id)}>
                 {p.name}

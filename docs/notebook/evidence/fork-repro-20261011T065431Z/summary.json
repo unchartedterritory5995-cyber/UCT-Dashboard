@@ -1,0 +1,15 @@
+{
+ "runs": 10,
+ "nav_ms": 850,
+ "nav": "goto",
+ "viewport": "1280",
+ "age": 0,
+ "type_delay": null,
+ "menu_pause_ms": 0,
+ "latency_ms": 150,
+ "base": "http://127.0.0.1:8132",
+ "started": "20261011T065431Z",
+ "measured": 10,
+ "forked_runs": [],
+ "errors": []
+}

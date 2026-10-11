@@ -38,7 +38,10 @@ import { failureDetail } from '../../../../lib/responseBody'
 // citation is validated.
 
 export const SCOPES = {
-  note: { label: 'This note', placeholder: 'What did I say about…' },
+  // `toggle`: the NAME of the door (visible text and accessible name) where "Ask" alone is
+  // ambiguous. P0.7: a note's header door is "Ask this note", so it cannot be mistaken for the
+  // Notebook-wide Ask section on Home; the other scopes keep "Ask".
+  note: { label: 'This note', toggle: 'Ask this note', placeholder: 'What did I say about…' },
   document: { label: 'This document', placeholder: 'What does this document say about…' },
   security: { label: 'This research', placeholder: 'What are my biggest concerns about…' },
   notebook: { label: 'My Notebook', placeholder: 'What have I written about…' },
@@ -347,11 +350,11 @@ export default function AskPanel({
           className={styles.askToggle}
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
-          aria-label={`Ask a question about ${spec.label.toLowerCase()}`}
+          aria-label={spec.toggle || `Ask a question about ${spec.label.toLowerCase()}`}
           data-ask-toggle
         >
           <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-          Ask
+          {spec.toggle || 'Ask'}
         </button>
       )}
       {open && (

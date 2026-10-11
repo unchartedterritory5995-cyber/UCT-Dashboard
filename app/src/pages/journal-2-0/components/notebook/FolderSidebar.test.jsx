@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { Profiler, useEffect, useState } from 'react'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import FolderSidebar, { buildFolderTree, renderSnippetMarks, matchReasonFor } from './FolderSidebar'
 import { SplitViewContext } from '../../lib/splitView'
+import { HomeSearch } from './ResearchHome'
 
 const removeMock = vi.fn()
 
@@ -2175,5 +2178,205 @@ describe('FolderSidebar: a search request from outside opens search with the cur
     expect(document.activeElement).not.toBe(box)
     rerender(mount(2))
     await waitFor(() => expect(document.activeElement).toBe(box))
+  })
+})
+
+// P0.13: search in place. The Home search box hands the text it was typed into to this panel's
+// ONE search (`searchSeed`, applied only when `searchRequest` changes), and the panel reports
+// whether it is in search mode (`onSearchModeChange`) so Home can step aside instead of showing
+// a second box.
+describe('FolderSidebar: P0.13 search in place', () => {
+  const sidebar = (extra = {}) => (
+    <FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+      activeTag={null} onSelectTag={() => {}} {...extra} />)
+  const renderSidebar = (extra = {}) => render(sidebar(extra))
+  const box = () => screen.getByRole('textbox', { name: 'Search your notes' })
+
+  it('a search request with a seed opens search holding that text', () => {
+    const { rerender } = renderSidebar({ searchRequest: 0 })
+    rerender(sidebar({ searchRequest: 1, searchSeed: 'nvda' }))
+    expect(box().value).toBe('nvda')
+  })
+
+  it('a request with no seed (a null seed, as a navigation without state gives) keeps what was typed', () => {
+    const { rerender } = renderSidebar({ searchRequest: 1, searchSeed: null })
+    fireEvent.change(box(), { target: { value: 'abc' } })
+    rerender(sidebar({ searchRequest: 2, searchSeed: null }))
+    expect(box().value).toBe('abc')
+    rerender(sidebar({ searchRequest: 3, searchSeed: undefined }))
+    expect(box().value).toBe('abc')
+  })
+
+  it('the seed is applied when the REQUEST changes, never on an unrelated re-render', () => {
+    const { rerender } = renderSidebar({ searchRequest: 1, searchSeed: 'nvda' })
+    expect(box().value).toBe('nvda')
+    fireEvent.change(box(), { target: { value: 'nvda earnings' } })
+    // same request, same seed, a new prop elsewhere: the member's typing stands
+    rerender(sidebar({ searchRequest: 1, searchSeed: 'nvda', sidebarOpen: true }))
+    expect(box().value).toBe('nvda earnings')
+    // a new request carrying a new seed replaces it
+    rerender(sidebar({ searchRequest: 2, searchSeed: 'amd' }))
+    expect(box().value).toBe('amd')
+  })
+
+  // Residual round, finding C: Home navigates once per keystroke, so a LATE request can carry a
+  // seed that is shorter than what the member has already typed into the panel. Replacing the box
+  // dropped those letters. A seed that extends the previous seed, landing on a box that extends it
+  // too, keeps what was typed after the previous seed.
+  it('C: a late seed that extends the last one keeps the letters typed meanwhile (N, I typed, NV -> NVI)', () => {
+    const { rerender } = renderSidebar({ searchRequest: 1, searchSeed: 'N' })
+    expect(box().value).toBe('N')
+    fireEvent.change(box(), { target: { value: 'NI' } })
+    rerender(sidebar({ searchRequest: 2, searchSeed: 'NV' }))
+    expect(box().value).toBe('NVI')
+  })
+
+  it('C: an unrelated seed still replaces the box', () => {
+    const { rerender } = renderSidebar({ searchRequest: 1, searchSeed: 'N' })
+    fireEvent.change(box(), { target: { value: 'NI' } })
+    rerender(sidebar({ searchRequest: 2, searchSeed: 'amd' }))
+    expect(box().value).toBe('amd')
+  })
+
+  it('C: a seed that extends the last one replaces a box the member has since rewritten', () => {
+    const { rerender } = renderSidebar({ searchRequest: 1, searchSeed: 'N' })
+    fireEvent.change(box(), { target: { value: 'tsla' } }) // no longer starts with the old seed
+    rerender(sidebar({ searchRequest: 2, searchSeed: 'NV' }))
+    expect(box().value).toBe('NV')
+  })
+
+  it('C: leaving search and coming back does not merge against the stale seed', () => {
+    const { rerender } = renderSidebar({ searchRequest: 1, searchSeed: 'N' })
+    fireEvent.change(box(), { target: { value: 'NI' } })
+    // leave search through the Folders tab: the typed text stays in state
+    fireEvent.click(screen.getByRole('tab', { name: 'Show folders' }))
+    expect(screen.queryByRole('textbox', { name: 'Search your notes' })).toBeNull()
+    // re-enter with a seed that extends the OLD seed; the old seed must have been forgotten, so
+    // the box is replaced ('NV'), not merged with the stale 'I' ('NVI')
+    rerender(sidebar({ searchRequest: 2, searchSeed: 'NV' }))
+    expect(box().value).toBe('NV')
+  })
+
+  // Re-review 2: a FOLDED panel stays mounted in search mode (a phone drawer folds itself after a
+  // note opens and closes), so the last seed must be forgotten on the fold too, or the next Home
+  // search merges against an old one ('n' + typed 'vda', fold, new 'n' -> 'nvda', 'nv' -> 'nvvda').
+  it('C: folding the panel forgets the last seed, so the next hand-off is not merged against it', () => {
+    const { rerender } = renderSidebar({ searchRequest: 1, searchSeed: 'n', sidebarOpen: true })
+    fireEvent.change(box(), { target: { value: 'nvda' } })
+    rerender(sidebar({ searchRequest: 1, searchSeed: 'n', sidebarOpen: false }))
+    rerender(sidebar({ searchRequest: 2, searchSeed: 'n', sidebarOpen: true }))
+    expect(box().value).toBe('n')
+    rerender(sidebar({ searchRequest: 3, searchSeed: 'nv', sidebarOpen: true }))
+    expect(box().value).toBe('nv')
+  })
+
+  it('escapeRestores: Escape clears the search and reports search mode off', () => {
+    const onMode = vi.fn()
+    const { rerender } = renderSidebar({ searchRequest: 0, onSearchModeChange: onMode })
+    rerender(sidebar({ searchRequest: 1, searchSeed: 'nvda', onSearchModeChange: onMode }))
+    expect(onMode).toHaveBeenLastCalledWith(true)
+    fireEvent.keyDown(box(), { key: 'Escape' })
+    // the first Escape only clears the text: still searching, still reported as searching
+    expect(box().value).toBe('')
+    expect(onMode).toHaveBeenLastCalledWith(true)
+    fireEvent.keyDown(box(), { key: 'Escape' })
+    expect(screen.queryByRole('textbox', { name: 'Search your notes' })).toBeNull()
+    expect(onMode).toHaveBeenLastCalledWith(false)
+  })
+
+  it('reports each mode CHANGE once, not once per render (H14)', () => {
+    const onMode = vi.fn()
+    const { rerender } = renderSidebar({ searchRequest: 0, onSearchModeChange: onMode })
+    expect(onMode.mock.calls.map((c) => c[0])).toEqual([false])
+    rerender(sidebar({ searchRequest: 1, onSearchModeChange: onMode }))
+    fireEvent.change(box(), { target: { value: 'a' } })
+    fireEvent.change(box(), { target: { value: 'ab' } })
+    rerender(sidebar({ searchRequest: 1, onSearchModeChange: onMode, sidebarOpen: true }))
+    expect(onMode.mock.calls.map((c) => c[0])).toEqual([false, true])
+  })
+
+  it('a new callback every render does not re-fire the report (the effect depends on mode only)', () => {
+    const calls = []
+    const { rerender } = renderSidebar({ searchRequest: 0, onSearchModeChange: (v) => calls.push(v) })
+    rerender(sidebar({ searchRequest: 1, onSearchModeChange: (v) => calls.push(v) }))
+    rerender(sidebar({ searchRequest: 1, onSearchModeChange: (v) => calls.push(v), sidebarOpen: true }))
+    rerender(sidebar({ searchRequest: 1, onSearchModeChange: (v) => calls.push(v), sidebarOpen: false }))
+    expect(calls).toEqual([false, true])
+  })
+
+  it('works without the callback (it is optional)', () => {
+    const { rerender } = renderSidebar({ searchRequest: 0 })
+    expect(() => rerender(sidebar({ searchRequest: 1, searchSeed: 'x' }))).not.toThrow()
+  })
+})
+
+// H14 (the 2026-09-10 app-wide navigation freeze came from a registration loop of exactly this
+// shape: a child reporting up, a parent re-rendering it). This mounts the REAL panel and the REAL
+// Home search box under the same wiring NotebookTab gives them -- the `#search` door bumping a
+// request and a seed, the panel reporting its mode into a setter the Home box reads -- and
+// counts commits across opening the search, typing in it, and leaving it.
+describe('FolderSidebar + Home search: H14, a bounded number of renders across a search open/close', () => {
+  // ⚠️ BOUND is deliberately LOOSE: it only catches a runaway (hundreds of commits). The real loop
+  // catch is the exact `modeCalls` assertion below -- a callback in the effect's deps, or a report
+  // per render, changes that list immediately, long before the commit count gets near this number.
+  const BOUND = 30
+  let sideCommits
+  let homeCommits
+  let modeCalls
+
+  function Wiring() {
+    const location = useLocation()
+    const [searching, setSearching] = useState(false)
+    const [request, setRequest] = useState(0)
+    const [seed, setSeed] = useState('')
+    useEffect(() => {
+      if (location.hash !== '#search') return
+      setRequest((n) => n + 1)
+      setSeed(location.state?.q || '')
+    }, [location.hash, location.key]) // eslint-disable-line react-hooks/exhaustive-deps
+    return (
+      <>
+        <Profiler id="home" onRender={() => { homeCommits += 1 }}>
+          <HomeSearch hidden={searching} />
+        </Profiler>
+        <Profiler id="side" onRender={() => { sideCommits += 1 }}>
+          {/* an unstable inline callback on purpose: the panel must not depend on its identity */}
+          <FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+            activeTag={null} onSelectTag={() => {}} searchRequest={request} searchSeed={seed}
+            onSearchModeChange={(v) => { modeCalls.push(v); setSearching(v) }} />
+        </Profiler>
+      </>
+    )
+  }
+
+  beforeEach(() => { sideCommits = 0; homeCommits = 0; modeCalls = [] })
+
+  it('one box on screen at a time, and the renders stay bounded', async () => {
+    render(<MemoryRouter initialEntries={['/journal/notebook']}><Wiring /></MemoryRouter>)
+    // at rest: the Home box is the only one
+    expect(screen.getAllByLabelText('Search your notes')).toHaveLength(1)
+    expect(screen.getByRole('searchbox', { name: 'Search your notes' })).toBeTruthy()
+
+    // typing in the Home box opens the panel's search holding that text; Home steps aside
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search your notes' }), { target: { value: 'nv' } })
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Search your notes' }).value).toBe('nv'))
+    expect(screen.queryByRole('searchbox', { name: 'Search your notes' })).toBeNull()
+    expect(screen.getAllByLabelText('Search your notes')).toHaveLength(1)
+
+    // typing on, then Escape twice: the panel leaves search and Home's box is back
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search your notes' }), { target: { value: 'nvda' } })
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Search your notes' }), { key: 'Escape' })
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Search your notes' }), { key: 'Escape' })
+    await waitFor(() => expect(screen.getByRole('searchbox', { name: 'Search your notes' })).toBeTruthy())
+    expect(screen.getAllByLabelText('Search your notes')).toHaveLength(1)
+
+    // let anything that was going to loop loop
+    await act(async () => { await new Promise((r) => setTimeout(r, 120)) })
+
+    expect(modeCalls).toEqual([false, true, false])   // each change reported once, not per render
+    expect(sideCommits).toBeLessThan(BOUND)
+    expect(homeCommits).toBeLessThan(BOUND)
+    expect(sideCommits).toBeGreaterThan(0)            // non-vacuity: the counters were wired
+    expect(homeCommits).toBeGreaterThan(0)
   })
 })

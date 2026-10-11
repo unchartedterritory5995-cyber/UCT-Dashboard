@@ -26,6 +26,10 @@
 //      placed inside that sheet so the sheet's own Tab ring includes it. Escape closes
 //      only the TOPMOST layer: the tour when it is on top (and the sheet beneath stays
 //      open), the sheet when a sheet opened above the tour.
+//   (The start card for a chart tour when the member has NO note at all (`chartNoNotes`, P0.3)
+//   carries one action: it adds the sample notebook through sampleNotebook.js and asks the gate to
+//   run THIS tour again. A member who has notes gets the `/chart` card with no such action: the
+//   server refuses the sample to anyone who has a note, D-C6.)
 //   5. PASSIVE. A `replayable: false` entry (a 1-2 step explainer) renders as a light,
 //      non-modal note that never takes focus, shown once per member (any row in
 //      `notebook_tours` means it was seen).
@@ -36,12 +40,14 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useSWRConfig } from 'swr'
 import usePreferences from '../../../../../hooks/usePreferences'
 import { trapTabKey } from '../../../../../components/mobile/useFocusTrap'
 import { claimFirstRunStage } from '../../../../../components/firstRun/firstRunStage'
 import { anchorFor, requestReveal } from './tourAnchorVisibility'
 import { TOURS_PREF, TOUR_STATES, readToursPref, recordTourState } from './tourSeenState'
 import { UNREACHABLE_COPY, atStart, resolveStart } from './tourStart'
+import { SAMPLE_COPY, addSampleNotebook, isNotebookKey } from './sampleNotebook'
 import { cardIsTopmost, dialogHost } from './tourLayers'
 import { carryRegistryTourOpen, stripTourState } from './tourRegistryControl'
 import { importWithOneRetry } from '../../../lib/lazyChunk'
@@ -111,6 +117,10 @@ export default function GenericTourEngine({
   const [index, setIndex] = useState(0)
   const [moving, setMoving] = useState(false)     // Next is waiting for the next anchor
   const [unreachable, setUnreachable] = useState(null)
+  // The unreachable card's one action (copy.action === 'add-sample'): working, and what it said.
+  const [busy, setBusy] = useState(false)
+  const [actionMsg, setActionMsg] = useState('')
+  const { mutate } = useSWRConfig()
   const cardRef = useRef(null)
   const titleRef = useRef(null)
   const returnFocusRef = useRef(null)
@@ -224,13 +234,31 @@ export default function GenericTourEngine({
 
   // Focus goes back where it was BEFORE onClose: the gate unmounts this engine on close,
   // so an effect keyed on the closed phase would never get to run.
-  const finish = useCallback(() => {
+  const end = useCallback((extra) => {
     setPhase('closed')
     const back = returnFocusRef.current
     returnFocusRef.current = null
     if (back && typeof back.focus === 'function' && document.contains(back)) back.focus()
-    onCloseRef.current({ opened: openedRef.current })
+    onCloseRef.current({ opened: openedRef.current, ...extra })
   }, [])
+  const finish = useCallback(() => end(), [end])
+  // Ask the gate to run this same tour again from the top (P0.3: the sample notebook was just
+  // added, so the chart the tour needs now exists). Not a bare `openRegistryTour`: closing then
+  // re-opening the SAME id inside one batch is no change at all to the gate (it keys the engine
+  // on the id), so this finished engine would stay mounted showing nothing. The gate remounts.
+  const restart = useCallback(() => end({ restart: true }), [end])
+
+  const addSample = useCallback(async () => {
+    if (busy) return
+    setBusy(true)
+    setActionMsg('')
+    const r = await addSampleNotebook()
+    if (!aliveRef.current) return
+    setBusy(false)
+    if (!r.ok) { setActionMsg(r.message); return }
+    mutate(isNotebookKey)   // the lists and Home learn there are notes now
+    restart()
+  }, [busy, mutate, restart])
 
   const close = useCallback((state) => {
     const current = steps && phase === 'open' ? steps[index] : null
@@ -394,14 +422,26 @@ export default function GenericTourEngine({
           <p className={styles.progress}>{entry.title}</p>
           <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}>{copy.title}</h2>
           <p id={bodyId} className={styles.body}>{copy.body}</p>
+          {copy.action === 'add-sample' && (
+            // Always mounted while the card offers the action, so a screen reader hears the
+            // text arrive (a live region added WITH its text is often not announced).
+            <p className={own.waiting} role="status">{busy ? SAMPLE_COPY.adding : actionMsg}</p>
+          )}
           <div className={styles.actions}>
             <span />
             <span className={styles.nav}>
               <button type="button" className="btn btn-secondary" onClick={leave}>Close</button>
               {copy.exitPath && (
-                <button type="button" className="btn btn-primary"
+                <button type="button" className={`btn ${copy.action ? 'btn-secondary' : 'btn-primary'}`}
                   onClick={() => { leave(); navigate(copy.exitPath) }}>
                   {copy.exitLabel}
+                </button>
+              )}
+              {copy.action === 'add-sample' && (
+                // aria-disabled, not `disabled`: a disabled button drops the focus the member is on.
+                <button type="button" className="btn btn-primary" aria-disabled={busy || undefined}
+                  onClick={addSample}>
+                  {copy.actionLabel}
                 </button>
               )}
             </span>

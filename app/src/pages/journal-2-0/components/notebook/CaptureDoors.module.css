@@ -1,0 +1,92 @@
+/* P0.8: "Capture from anywhere". Existing tokens only (a11y/notebookContrast.test.js audits every
+   Notebook stylesheet and forbids literal colours). The text pairs are the ones the first-run
+   capability preview already uses: bright text for the door, muted text for what it does.
+   .box sits under the import dropzone; .compact sits under the first-run capability list, inside
+   the same 480px column, so it drops the frame and tightens the type. */
+.box,
+.compact {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  background: var(--bg-surface);
+  text-align: left;
+}
+.compact {
+  margin-top: 12px;
+  padding: 10px 12px;
+}
+.heading {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.compact .item {
+  font-size: 12.5px;
+}
+.what {
+  color: var(--text-muted);
+}
+/* The door itself: a link, or the one button (the Shortcut how-to). */
+.door {
+  font: inherit;
+  font-weight: 600;
+  color: var(--text-bright);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.door:hover {
+  color: var(--accent);
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The touch tier is <=1024px, not just phones: every door is a finger target there. */
+@media (max-width: 1024px) {
+  .door {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap-min);
+  }
+}
+@media (max-width: 640px) {
+  .box,
+  .compact {
+    padding: 10px 12px;
+  }
+}

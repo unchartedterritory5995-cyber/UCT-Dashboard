@@ -444,12 +444,25 @@ export default function NotebookTab() {
   // (lib/notebookSearchDoor.js). The folders panel is shown if it was hidden (for this visit
   // only: the member's stored choice is not rewritten) and asked to open its search with the
   // cursor in the box. Keyed on `location.key`, so choosing the command twice works twice.
+  //
+  // P0.13 (search in place): Home's search box arrives through the SAME door carrying the text it
+  // was typed into (`state.q`); the palette's command carries none (`state` is null). The seed is
+  // stored WITH the request, in the same batch, so the panel reads the pair that belongs together
+  // and a later render can never pair a request with another navigation's text.
   const [searchRequest, setSearchRequest] = useState(0)
+  const [searchSeed, setSearchSeed] = useState('')
   useEffect(() => {
     if (location.hash !== NOTEBOOK_SEARCH_HASH) return
     setSidebarOpen(true)
+    const q = location.state?.q
+    setSearchSeed(typeof q === 'string' ? q : '')
     setSearchRequest((n) => n + 1)
-  }, [location.hash, location.key])
+  }, [location.hash, location.key]) // eslint-disable-line react-hooks/exhaustive-deps
+  // P0.13: whether the panel's search is open, reported up by the panel so Home can step aside
+  // (one search box on screen, never two). ⛔ H14: `setSidebarSearching` is a stable state setter,
+  // handed straight down; it bails out on an unchanged boolean, so reporting cannot loop. A panel
+  // that is hidden (collapsed) is not "on screen", so Home keeps its own box then.
+  const [sidebarSearching, setSidebarSearching] = useState(false)
 
   // Phone pass follow-up (2026-10-10): a walkthrough that points into the folders panel asks
   // for it (tourAnchorVisibility.requestReveal) when the drawer hides its anchor -- Search by
@@ -2028,6 +2041,8 @@ export default function NotebookTab() {
             onToggleSidebar={toggleSidebar}
             sidebarOpen={sidebarOpen}
             searchRequest={searchRequest}
+            searchSeed={searchSeed}
+            onSearchModeChange={setSidebarSearching}
             savedViews={savedViews}
             activeViewId={activeView?.id ?? null}
             onSelectView={handleSelectView}
@@ -2240,6 +2255,14 @@ export default function NotebookTab() {
             // day-note opener -- so the bare-root Research Home reaches Today in one
             // click/tap instead of "All notes" -> "Today" (2).
             onOpenToday={openToday}
+            // P0.1: the Home "New note" menu's other doors -- the SAME sheet opener the
+            // toolbar's Templates button uses, and the SAME voice starter the sheet's own
+            // "Voice note" button calls (null while the voice gate is off, so the menu lists
+            // no door that opens nothing).
+            onOpenNewNoteSheet={() => setPickerOpen(true)}
+            onStartVoiceNote={voiceOn ? () => startVoiceNote('record') : null}
+            // P0.13: Home's search box steps aside while the panel's search is on screen.
+            searchActive={sidebarSearching && sidebarOpen}
             skipLinkClassName={styles.skipLink}
           />
         ) : (
@@ -2335,6 +2358,24 @@ export default function NotebookTab() {
                 ))}
               </div>
               {/*
+                P0.11: on a phone the seven icon buttons above say nothing to a member who has
+                not learned the glyphs, so the stylesheet swaps them for this labelled select
+                (<=640px; desktop keeps the buttons). It is the SAME state under the SAME
+                saved-view lock, not a second authority: both doors call setViewMode.
+              */}
+              <label className={styles.viewSelectWrap}>
+                <span className="sr-only">View</span>
+                <select
+                  className={styles.viewSelect}
+                  aria-label="View"
+                  value={viewMode}
+                  onChange={(e) => setViewMode(e.target.value)}
+                  disabled={Boolean(activeView)}
+                >
+                  {VIEW_MODES.map(({ id, short }) => <option key={id} value={id}>{short}</option>)}
+                </select>
+              </label>
+              {/*
                 ⛔ NO "Save this view" IN GRAPH MODE -- still true, for a
                 DIFFERENT reason than this comment used to give. The server's
                 SAVEABLE_VIEW_TYPES (note_properties.py) now accepts "graph",
@@ -2419,53 +2460,6 @@ export default function NotebookTab() {
         </div>
 
         <NoteConnectorsTrustStrip />
-
-        <Sheet
-          open={pickerOpen}
-          onClose={() => setPickerOpen(false)}
-          title="New note"
-          // F4 / A2R-08: named by its visible title (it had no name at all).
-          labelledByTitle
-          variant="auto"
-          maxWidth={720}
-        >
-          {voiceOn && (
-            <div className={styles.voiceStarts} role="group" aria-label="Start from audio">
-              <span className={styles.voiceStartsLabel}>Start from audio</span>
-              <button type="button" className={styles.templatesBtn} onClick={() => startVoiceNote('record')}>
-                <UIcon name="mic" size={15} gold={false} /> Voice note
-              </button>
-              <button type="button" className={styles.templatesBtn} onClick={() => startVoiceNote('upload')}>
-                <UIcon name="upload" size={15} gold={false} /> Upload recording
-              </button>
-              <button type="button" className={styles.templatesBtn} onClick={() => startVoiceNote('desk')}>
-                <UIcon name="desk" size={15} gold={false} /> From a Desk session
-              </button>
-            </div>
-          )}
-          {canvasOn && (
-            <div className={styles.canvasStart} role="group" aria-label="Plan a trade">
-              <button type="button" className={styles.templatesBtn} onClick={createCanvas} disabled={creating}>
-                <UIcon name="board" size={15} gold={false} /> Trade-plan canvas
-              </button>
-              <span className={styles.canvasStartHint}>
-                A board for a chart, your entry, stop and target, and notes — then link it from your thesis.
-              </span>
-            </div>
-          )}
-          {/* 13Q-5: autoFocus only in the Sheet dialog -- the inline empty-notebook
-              mount below must never steal focus from a page load. */}
-          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} autoFocusSearch />
-        </Sheet>
-
-        {voiceNote && voiceOn && (
-          <VoiceNoteDialog
-            open
-            initialSource={voiceNote.source}
-            onSave={saveVoiceNote}
-            onClose={() => setVoiceNote(null)}
-          />
-        )}
 
         <ImportWizard
           open={importOpen}
@@ -2726,6 +2720,55 @@ export default function NotebookTab() {
           </>
         )}
           </>
+        )}
+        {/* P0.1: the New-note sheet and the voice-note dialog are mounted OUTSIDE the pane's
+            branches. Research Home's "New note" menu opens them, and a sheet mounted inside the
+            list branch would make that door a dead button on Home (and beside an open note). */}
+        <Sheet
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          title="New note"
+          // F4 / A2R-08: named by its visible title (it had no name at all).
+          labelledByTitle
+          variant="auto"
+          maxWidth={720}
+        >
+          {voiceOn && (
+            <div className={styles.voiceStarts} role="group" aria-label="Start from audio">
+              <span className={styles.voiceStartsLabel}>Start from audio</span>
+              <button type="button" className={styles.templatesBtn} onClick={() => startVoiceNote('record')}>
+                <UIcon name="mic" size={15} gold={false} /> Voice note
+              </button>
+              <button type="button" className={styles.templatesBtn} onClick={() => startVoiceNote('upload')}>
+                <UIcon name="upload" size={15} gold={false} /> Upload recording
+              </button>
+              <button type="button" className={styles.templatesBtn} onClick={() => startVoiceNote('desk')}>
+                <UIcon name="desk" size={15} gold={false} /> From a Desk session
+              </button>
+            </div>
+          )}
+          {canvasOn && (
+            <div className={styles.canvasStart} role="group" aria-label="Plan a trade">
+              <button type="button" className={styles.templatesBtn} onClick={createCanvas} disabled={creating}>
+                <UIcon name="board" size={15} gold={false} /> Trade-plan canvas
+              </button>
+              <span className={styles.canvasStartHint}>
+                A board for a chart, your entry, stop and target, and notes — then link it from your thesis.
+              </span>
+            </div>
+          )}
+          {/* 13Q-5: autoFocus only in the Sheet dialog -- the inline empty-notebook
+              mount below must never steal focus from a page load. */}
+          <TemplatePicker onPick={handlePick} onPickMember={createFromMemberTemplate} busy={creating} autoFocusSearch />
+        </Sheet>
+
+        {voiceNote && voiceOn && (
+          <VoiceNoteDialog
+            open
+            initialSource={voiceNote.source}
+            onSave={saveVoiceNote}
+            onClose={() => setVoiceNote(null)}
+          />
         )}
       </div>
       {/* Wave 9 (lane 9D, D2): mounted OUTSIDE the pane's branches. The folder tree it opens

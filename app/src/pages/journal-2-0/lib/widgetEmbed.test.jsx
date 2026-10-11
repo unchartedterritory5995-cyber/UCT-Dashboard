@@ -406,6 +406,19 @@ describe('WidgetEmbedView fallback rendering', () => {
   })
 })
 
+// P0.2: the toolbar row holds the timeframe, Draw/Done, Plan and Replay; every other action
+// (Live/Snapshot, Half/Full, Charts, Aftermath, Re-capture, Chart settings, Sync, Freeze,
+// Remove) lives in the "More chart actions" menu. These helpers are the way a test reaches
+// one: open the menu, pick the item by its menuitem name. Picking closes the menu.
+const MORE = { name: 'More chart actions' }
+function pickMore(name) {
+  fireEvent.click(screen.getByRole('button', MORE))
+  fireEvent.click(screen.getByRole('menuitem', { name }))
+}
+function closeMore() {
+  fireEvent.keyDown(document, { key: 'Escape' })
+}
+
 describe('WidgetEmbedView draw mode', () => {
   const liveChartAttrs = () =>
     buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: '5', from: nowSec - 3600, to: nowSec })
@@ -433,21 +446,22 @@ describe('WidgetEmbedView draw mode', () => {
     const stub = await screen.findByTestId('chart-embed-stub')
     expect(stub.getAttribute('data-peek')).toBe('false')
 
-    fireEvent.click(screen.getByText('Aftermath'))
+    pickMore('Aftermath')
     expect(screen.getByTestId('chart-embed-stub').getAttribute('data-peek')).toBe('true')
     // View-only: nothing lands on the node.
     expect(updateAttributes).not.toHaveBeenCalled()
 
     // Draw mode claims the frame — entering it drops the peek (marks go on
-    // the EVIDENCE window) and the Aftermath button leaves the strip.
+    // the EVIDENCE window) and the More door (Aftermath with it) leaves the strip.
     fireEvent.click(screen.getByText('Draw'))
     expect(screen.getByTestId('chart-embed-stub').getAttribute('data-peek')).toBe('false')
-    expect(screen.queryByText('Aftermath')).toBeNull()
+    expect(screen.queryByRole('button', MORE)).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Aftermath' })).toBeNull()
     fireEvent.click(screen.getByText('Done'))
 
     // Toggling back restores the frozen window.
-    fireEvent.click(screen.getByText('Aftermath'))
-    fireEvent.click(screen.getByText('Aftermath'))
+    pickMore('Aftermath')
+    pickMore('Aftermath')
     expect(screen.getByTestId('chart-embed-stub').getAttribute('data-peek')).toBe('false')
   })
 
@@ -456,22 +470,27 @@ describe('WidgetEmbedView draw mode', () => {
     const rolling = buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: 'D', to: null })
     render(<WidgetEmbedView node={{ attrs: rolling }} selected={false} updateAttributes={() => {}} />)
     await screen.findByTestId('chart-embed-stub')
-    expect(screen.queryByText('Aftermath')).toBeNull()
+    fireEvent.click(screen.getByRole('button', MORE))
+    expect(screen.getByRole('menuitem', { name: 'Freeze' })).toBeTruthy()   // the menu IS open
+    expect(screen.queryByRole('menuitem', { name: 'Aftermath' })).toBeNull()
   })
 
   it('Draw collapses the toolbar to the lone Done button (the chart drawing toolbar owns the top strip)', async () => {
     render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={() => {}} />)
     await screen.findByTestId('chart-embed-stub')
-    // Full toolbar before drawing.
-    expect(screen.getByTitle('Remove embed')).toBeTruthy()
-    expect(screen.getByText('Re-capture')).toBeTruthy()
+    // Full toolbar before drawing: the timeframe and More in the row, the rest under More.
     expect(screen.getByLabelText('Embed timeframe')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', MORE))
+    expect(screen.getByRole('menuitem', { name: 'Remove embed' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: 'Re-capture' })).toBeTruthy()
+    closeMore()
 
     fireEvent.click(screen.getByText('Draw'))
     expect(screen.getByText('Done')).toBeTruthy()
-    // Everything else leaves the strip — including the destructive ✕, one
-    // misclick away from a drawing gesture.
-    expect(screen.queryByTitle('Remove embed')).toBeNull()
+    // Everything else leaves the strip — including More and, with it, the destructive
+    // Remove, one misclick away from a drawing gesture.
+    expect(screen.queryByRole('button', MORE)).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Remove embed' })).toBeNull()
     expect(screen.queryByText('Re-capture')).toBeNull()
     expect(screen.queryByText('Live')).toBeNull()
     expect(screen.queryByText('Half')).toBeNull()
@@ -479,7 +498,8 @@ describe('WidgetEmbedView draw mode', () => {
 
     fireEvent.click(screen.getByText('Done'))
     expect(screen.getByText('Draw')).toBeTruthy()
-    expect(screen.getByTitle('Remove embed')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', MORE))
+    expect(screen.getByRole('menuitem', { name: 'Remove embed' })).toBeTruthy()
   })
 
   it('annotate + onAnnotationsChange reach the chart only in draw mode; edits land in attrs.annotations', async () => {
@@ -540,7 +560,7 @@ describe('WidgetEmbedView draw mode', () => {
     expect(updateAttributes.mock.calls.filter(([a]) => a && a.fallback === null)).toHaveLength(0)
 
     // Freezing the annotated live embed re-freezes: mode + fallback together.
-    fireEvent.click(screen.getByText('Snapshot'))
+    pickMore('Snapshot')
     expect(updateAttributes).toHaveBeenCalledWith({ mode: 'snapshot', fallback: null })
   })
 
@@ -845,7 +865,7 @@ describe('WidgetEmbedView — Sync from my chart', () => {
     render(<WidgetEmbedView node={{ attrs }} selected={false} updateAttributes={updateAttributes} editor={makeEditor()} />)
     await screen.findByTestId('chart-embed-stub')
 
-    fireEvent.click(screen.getByText('Sync'))
+    pickMore('Sync')
     const call = updateAttributes.mock.calls.find(([a]) => a?.params?.settings)
     expect(call).toBeTruthy()
     const [patch] = call
@@ -861,7 +881,7 @@ describe('WidgetEmbedView — Sync from my chart', () => {
     const attrs = { ...liveChartAttrs(), annotations: [{ id: 'embed-mark', type: 'text', points: [{ price: 9 }] }] }
     render(<WidgetEmbedView node={{ attrs }} selected={false} updateAttributes={updateAttributes} editor={makeEditor()} />)
     await screen.findByTestId('chart-embed-stub')
-    fireEvent.click(screen.getByText('Sync'))
+    pickMore('Sync')
     const [patch] = updateAttributes.mock.calls.find(([a]) => a?.params?.settings)
     expect(patch.annotations).toEqual([expect.objectContaining({ id: 'embed-mark' })])
   })
@@ -870,16 +890,18 @@ describe('WidgetEmbedView — Sync from my chart', () => {
     const updateAttributes = vi.fn()
     render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={updateAttributes} editor={makeEditor(null)} />)
     await screen.findByTestId('chart-embed-stub')
-    fireEvent.click(screen.getByText('Sync'))
+    pickMore('Sync')
     expect(updateAttributes).not.toHaveBeenCalled()
   })
 
   it('renders on chart embeds only — a NON-chart embed on the live render path gets no Sync', async () => {
     render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={() => {}} editor={makeEditor()} />)
     await screen.findByTestId('chart-embed-stub')
-    expect(screen.getByText('Sync')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', MORE))
+    expect(screen.getByRole('menuitem', { name: 'Sync' })).toBeTruthy()
+    closeMore()
     fireEvent.click(screen.getByText('Draw'))
-    expect(screen.queryByText('Sync')).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: 'Sync' })).toBeNull()
     fireEvent.click(screen.getByText('Done'))
 
     // The control must actually REACH decision.kind==='live' or the widgetId
@@ -891,7 +913,12 @@ describe('WidgetEmbedView — Sync from my chart', () => {
       <WidgetEmbedView node={{ attrs: liveBreadth }} selected={false} updateAttributes={() => {}} editor={makeEditor()} />,
     )
     expect(container.querySelector('[data-widget-embed-view="breadth"]')).toBeTruthy()
-    expect(screen.queryAllByText('Sync')).toHaveLength(1) // still only the chart embed's
+    // Open the BREADTH embed's menu (the second More button): it has the generic actions
+    // (non-vacuity: the menu is open and populated) and no Sync -- that is the chart's alone.
+    const [, breadthMore] = screen.getAllByRole('button', MORE)
+    fireEvent.click(breadthMore)
+    expect(screen.getByRole('menuitem', { name: 'Re-capture' })).toBeTruthy()
+    expect(screen.queryByRole('menuitem', { name: 'Sync' })).toBeNull()
   })
 })
 

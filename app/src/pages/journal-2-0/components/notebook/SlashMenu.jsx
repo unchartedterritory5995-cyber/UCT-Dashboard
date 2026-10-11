@@ -112,8 +112,16 @@ export const ITEMS = [
   },
   {
     title: 'Checklist',
-    description: 'Task list with checkboxes',
+    description: 'Task list. Type @tomorrow for a reminder',
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleTaskList().run(),
+  },
+  {
+    // P0.9: a due date, found from the slash menu. It types the "@" a member would have typed, which
+    // opens the date list (lib/dateSuggest.js): one door, not a second picker.
+    title: 'Due date',
+    description: 'Add a due date: today, tomorrow or pick one',
+    keywords: ['date', 'due', 'reminder', 'deadline'],
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertContent('@').run(),
   },
   {
     title: 'Callout',
@@ -265,7 +273,7 @@ export const SLASH_GROUPS = [
   { id: 'more', label: 'More' },
 ]
 const BASICS = new Set([
-  'Heading 1', 'Heading 2', 'Heading 3', 'Bullet list', 'Numbered list', 'Checklist', 'Quote',
+  'Heading 1', 'Heading 2', 'Heading 3', 'Bullet list', 'Numbered list', 'Checklist', 'Due date', 'Quote',
   'Divider', 'Table', 'Callout', 'Toggle', 'Image',
 ])
 const TRADING_BLOCKS = new Set(['Trade-plan canvas', 'Transcript passage'])

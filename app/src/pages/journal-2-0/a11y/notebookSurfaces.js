@@ -60,6 +60,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/TextColorMenu.jsx': { coveredBy: 'editor-color' },
   'components/notebook/TableToolbar.jsx': { coveredBy: 'editor-table' },
   'components/notebook/EmojiMenu.jsx': { coveredBy: 'editor-emoji' },
+  // P0.9: the `@` date list (DateSuggestList.jsx); a11y/noteEditor.a11y.test.jsx opens it with a typed "@".
+  'components/notebook/DateSuggestList.jsx': { coveredBy: 'editor-date-suggest' },
   'components/notebook/NoteLinkMenu.jsx': { coveredBy: 'editor-note-link' },
   'components/notebook/LinkPasteMenu.jsx': { coveredBy: 'editor-link-paste' },
   'components/notebook/WritingHelpPanel.jsx': { coveredBy: 'editor-writing-help' },
@@ -199,6 +201,13 @@ export const SURFACES = Object.freeze({
     exempt: 'renders its children or null; no markup or control of its own',
   },
 
+  // ── capture doors (P0.8) ───────────────────────────────────────────────────
+  // "Capture from anywhere" (under the import dropzone and on the first-run welcome) and the
+  // iPhone Shortcut how-to it opens; rail a11y/captureDoors.a11y.test.jsx (all three doors live,
+  // the sheet open, and the sheet over the box that opens it).
+  'components/notebook/CaptureDoors.jsx': { recipe: 'capture-doors' },
+  'components/notebook/ShortcutHowTo.jsx': { recipe: 'shortcut-how-to' },
+
   // ── import / export ────────────────────────────────────────────────────────
   'components/notebook/import/ImportWizard.jsx': { recipe: 'import-wizard' },
   'components/notebook/import/ExportGuide.jsx': { coveredBy: 'import-wizard' },
@@ -214,6 +223,16 @@ export const SURFACES = Object.freeze({
     // added, so 8A wrote the rail in its own directory (no 8B file edited).
     OTHER_LANES: { lane: '8B', railFile: 'a11y/sharing.a11y.test.jsx' },
   },
+  // P0.1: Research Home's New note split button. ResearchHome's own rail renders it closed only;
+  // a11y/newNoteMenu.a11y.test.jsx reads it closed and OPEN (the role="menu" with its menuitem rows).
+  'components/notebook/NewNoteMenu.jsx': { recipe: 'new-note-menu' },
+  // P0.4: Research Home's Notices box. ResearchHome's own rail renders no signed-in member, and the
+  // box reads nothing without one; a11y/notices.a11y.test.jsx reads it closed and OPEN, with rows.
+  'components/notebook/NoticesBox.jsx': { recipe: 'notices-box' },
+  // P0.5: Research Home's Active setups box. ResearchHome's own rail runs with the setups board switch
+  // off (so the box is not on screen there); a11y/setupsBox.a11y.test.jsx reads it with a count,
+  // with none open, and with the read failed.
+  'components/notebook/SetupsBox.jsx': { recipe: 'setups-box' },
   'components/notebook/ResearchHome.jsx': {
     OTHER_LANES: { lane: '8C', railFile: 'components/notebook/ResearchHome.a11y.test.jsx' },
   },
@@ -269,4 +288,8 @@ export const OUTSIDE_POPULATION_SURFACES = Object.freeze({
   // (the card alone, and the real gate offering into a first-run slot).
   'components/notebook/onboarding/TourOfferPrompt.jsx': { recipe: 'tour-offer-prompt', railFile: 'a11y/tourOffer.a11y.test.jsx' },
   'components/notebook/onboarding/TourOfferGate.jsx': { recipe: 'tour-offer-in-slot', railFile: 'a11y/tourOffer.a11y.test.jsx' },
+  // Notebook P0.12 / P0.15: Research Home's Learn menu, grouped, with the sample row and its
+  // refusal line, as the desktop popover (learn-menu-grouped) and as the phone's bottom Sheet
+  // (learn-menu-sheet); rail a11y/learnMenu.a11y.test.jsx.
+  'components/notebook/onboarding/LearnMenu.jsx': { recipe: 'learn-menu-grouped', railFile: 'a11y/learnMenu.a11y.test.jsx' },
 })

@@ -374,6 +374,10 @@
    NoteEditorPage.phoneFormat.test.jsx). */
 .formatToggle { display: none; }
 .formatRun { display: contents; }
+/* P0.6: the phone's "+" insert door. Same rule as the toggle above: it does not exist above
+   640 px (its inline-flex lives in the `max-width: 640px` block below). Its menu is the shared
+   ContextPopover, whose rows already carry the 44 px floor. */
+.insertPhone { display: none; }
 .formatGlyph {
   font-family: Georgia, 'Times New Roman', serif;
   font-weight: 700;
@@ -715,11 +719,34 @@
   .toolBtn { padding: 8px 12px; font-size: 15px; min-height: var(--tap-min, 44px); }
   /* Wave 10 lane D3P (D-3 PHONE): at 390 px the full formatting row wrapped to ~8 rows and
      pushed the note's title below the first screen (L3, measured). A phone keeps Undo / Redo,
-     Bold, Italic, the bullet list and the mic (controller ruling) in the row; every other formatting control waits behind
-     "Aa Format" and opens IN PLACE (the runs are not unmounted, only not displayed).
+     Bold, Italic and the mic (controller ruling) in the row, plus (P0.6) the "+" insert door;
+     every other formatting control, the bullet list included, waits behind "Aa" and opens IN
+     PLACE (the runs are not unmounted, only not displayed).
      Measured before/after: docs/notebook/proof/d3p-*. */
   .formatToggle { display: inline-flex; align-items: center; gap: 6px; }
   .toolbarRow:not([data-format-open]) .formatRun { display: none; }
+  /* P0.6 fix round 1 (controller ruling; measured in a real browser, docs/notebook/evidence/
+     phone-toolbar-*): the seven always-visible controls came to 362 px (Undo 47, Redo 47,
+     Format 78, four at 44, six 7 px gaps), so the mic ended near x=398 behind a clip edge near
+     x=366. Format is now the "Aa" glyph alone (the word is visually hidden in the JSX, the
+     accessible name stays "Format"), and Undo / Redo / Format are pinned to exactly the finger
+     floor: 7 x 44 + 6 x 7 = 322 px (`min-width` is the touch block's `.toolBtn` floor, already 44
+     at this width, so it is not restated: tapFloor.test.js reads a phone-only `min-width:
+     var(--tap-min)` as a finger target the tablet tier lacks). ⛔ `.toolbarRow .x` (0,2,0) on purpose: the unconditional
+     `.toolbarRow .toolBtn { padding: 3px 8px }` far above outranks a bare `.x` here. */
+  .toolbarRow .formatToggle,
+  .toolbarRow .historyBtn {
+    box-sizing: border-box;
+    width: var(--tap-min, 44px);
+    padding-left: 0;
+    padding-right: 0;
+    justify-content: center;
+  }
+  /* P0.6: the "+" insert door shows on a phone, and an OPEN Format wraps into a grid of rows
+     instead of scrolling sideways (the sideways scroll below hid the inserts and clipped the
+     mic). Closed, the row is Undo, Redo, B, I, Format, "+" and the mic in one line. */
+  .insertPhone { display: inline-flex; align-items: center; justify-content: center; }
+  .toolbarRow[data-format-open] { flex-wrap: wrap; overflow-x: visible; overflow-y: visible; }
   /* Notebook phone pass (2026-10-10): the header is ONE compact row -- Star, Writing help (its
      icon), Share and "More note actions" (plus a linked-trade chip or a status when there is
      one). Ask, Find, Outline and the folder select are not displayed here; the More panel carries each one
@@ -734,16 +761,22 @@
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
   }
-  /* ...and the formatting toolbar is ONE row that scrolls sideways: never wraps (a wrapped row
-     is what pushed the title down), never widens the page (the row is the scroller, not the
-     page). Undo / Redo stay first, every control keeps the 44 px floor above. */
+  /* ...and the CLOSED formatting toolbar is ONE row (seven controls, 322 px, so it fits a 390 px
+     phone with nothing to scroll; the sideways scroll stays as the safety net for narrower
+     screens). It never widens the page (the row is the scroller, not the page). An OPEN Format
+     wraps instead (`.toolbarRow[data-format-open]` above wins on specificity). Undo / Redo
+     stay first, every control keeps the 44 px floor above. */
   .toolbarRow {
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-x: contain;
     max-width: 100%;
-    padding: 3px 12px 5px;
+    /* P0.6 fix round 1: 12 left + the history sentinel's 2 px gap + 7 x 44 + 6 x 2 + 4 right
+       = 338 px in a 342 px row, so the CLOSED row does not scroll at 390 px (a 12 px right
+       padding made it 346 and the row scrolled 4 px; measured, phone-toolbar-*). Left stays 12
+       so the row lines up with the header above it. */
+    padding: 3px 4px 5px 12px;
   }
   .toolbarRow > *,
   .toolbarRow button,

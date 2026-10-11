@@ -8,7 +8,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  HELP_WALKTHROUGHS_HREF, LEARN_COPY, learnMenuEnabled, learnMenuTours, startTour,
+  GROUP_OF, HELP_WALKTHROUGHS_HREF, LEARN_COPY, LEARN_GROUPS, NEEDS_NOTES, learnMenuEnabled, learnMenuTours, learnTourGroup, startTour,
 } from './learnTours'
 import { BASE_TOUR_ID, TOUR_REGISTRY, replayableTours, tourLive } from './tourRegistry'
 import { TOUR_OPEN_EVENT, __resetTourControl, hasPendingTourOpen } from './tourControl'
@@ -83,6 +83,35 @@ describe('learnMenuTours -- derived from the registry, never listed', () => {
   })
 })
 
+describe('I3: a tour whose first anchor needs a note is hidden while the member has none', () => {
+  it('on the REAL registry, voice-notes is listed unless hasAnyNotes is exactly false', () => {
+    const flag = () => true
+    const ids = (hasAnyNotes) => learnMenuTours({ flag, hasAnyNotes }).map((t) => t.id)
+    expect(ids(true)).toContain('voice-notes')
+    expect(ids(undefined)).toContain('voice-notes')
+    expect(ids(false)).not.toContain('voice-notes')
+    // everything else is untouched: hiding is by id, not a wholesale drop (non-vacuity)
+    expect(ids(false)).toEqual(ids(true).filter((id) => id !== 'voice-notes'))
+    expect(ids(false)).toContain(BASE_TOUR_ID)
+  })
+
+  it('NEEDS_NOTES names real replayable tours only (a rename cannot strand the rule)', () => {
+    const replayable = new Set(TOUR_REGISTRY.filter((t) => t.replayable !== false).map((t) => t.id))
+    expect(NEEDS_NOTES).toContain('voice-notes')
+    for (const id of NEEDS_NOTES) expect(replayable.has(id), `${id} is not a replayable registry tour`).toBe(true)
+    expect(Object.isFrozen(NEEDS_NOTES)).toBe(true)
+  })
+
+  it('the voice tour first step really is the New note control that needs a note (the reason for the rule)', () => {
+    const steps = readFileSync(join(__dirname, 'tours/b1VoiceNotes.steps.js'), 'utf8')
+    expect(steps).toMatch(/anchor:\s*'new-note-home'/)
+    const menu = readFileSync(join(__dirname, '../NewNoteMenu.jsx'), 'utf8')
+    expect(menu).toMatch(/data-tour="new-note-home"/)
+    const home = readFileSync(join(__dirname, '../ResearchHome.jsx'), 'utf8')
+    expect(home).toMatch(/hasAnyNotes && onOpenNewNoteSheet && \(\s*<NewNoteMenu/)
+  })
+})
+
 describe('learnMenuEnabled -- the wave-14 switch, reused', () => {
   it('needs BOTH the onboarding flag and getting-started, exactly true', () => {
     expect(learnMenuEnabled(armed())).toBe(true)
@@ -136,5 +165,42 @@ describe('the Help link', () => {
   it('the copy is plain', () => {
     expect(LEARN_COPY.button).toBe('Learn')
     expect(LEARN_COPY.tour('Formulas')).toBe('Formulas tour')
+  })
+})
+
+// P0.12: the menu is grouped. The group of a tour is DATA beside the registry, so a tour added
+// to the registry without a group would fall into the default one by accident -- this rail
+// makes that a red test instead of a quiet mis-filing. The ids come from TOUR_REGISTRY, never
+// from a list typed here.
+describe('learnTourGroup -- every replayable tour has a home', () => {
+  it('the four groups, in the order the menu shows them', () => {
+    expect(LEARN_GROUPS).toEqual(['Basics', 'Writing and capture', 'Trading', 'Research'])
+    expect(Object.isFrozen(LEARN_GROUPS)).toBe(true)
+    expect(Object.isFrozen(GROUP_OF)).toBe(true)
+  })
+
+  it('every replayable registry id has an entry in GROUP_OF (a new tour cannot land ungrouped by accident)', () => {
+    const replayable = TOUR_REGISTRY.filter((t) => t.replayable !== false).map((t) => t.id)
+    // NON-VACUITY: the real registry has the base tour and many more
+    expect(replayable.length).toBeGreaterThan(10)
+    expect(replayable).toContain(BASE_TOUR_ID)
+    const missing = replayable.filter((id) => !Object.prototype.hasOwnProperty.call(GROUP_OF, id))
+    expect(missing, `replayable tours with no group: ${missing.join(', ')}`).toEqual([])
+  })
+
+  it('every entry names a real group and a real replayable tour (no stale id outlives a rename)', () => {
+    const replayable = new Set(TOUR_REGISTRY.filter((t) => t.replayable !== false).map((t) => t.id))
+    for (const [id, group] of Object.entries(GROUP_OF)) {
+      expect(LEARN_GROUPS, `${id} -> ${group}`).toContain(group)
+      expect(replayable.has(id), `${id} is not a replayable registry tour`).toBe(true)
+    }
+  })
+
+  it('the base tour is under Basics, and an id the map does not know falls back to Basics', () => {
+    expect(learnTourGroup(BASE_TOUR_ID)).toBe('Basics')
+    expect(learnTourGroup('chart-plan-basics')).toBe('Trading')
+    expect(learnTourGroup('voice-notes')).toBe('Writing and capture')
+    expect(learnTourGroup('transcript-capture')).toBe('Research')
+    expect(learnTourGroup('not-a-tour')).toBe('Basics')
   })
 })
