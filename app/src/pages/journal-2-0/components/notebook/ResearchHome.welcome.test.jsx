@@ -72,6 +72,8 @@ describe('first-run welcome -- ONE short welcome (switch on)', () => {
     const row = container.querySelector('[data-tour="first-run"]')
     expect(row).not.toBeNull()
     expect([...row.querySelectorAll('.btn-primary')].map((b) => b.textContent.trim())).toEqual(['Start a note'])
+    // the voice tour's "Make a note first" card focuses exactly this control on Home (tourStart.js)
+    expect([...container.querySelectorAll('[data-start-note]')].map((b) => b.textContent.trim())).toEqual(['Start a note'])
     const secondary = [...row.querySelectorAll('.btn-ghost')].map((b) => b.textContent.trim())
     expect(secondary).toEqual([SAMPLE_COPY.add, 'Import notes'])
     expect(secondary.length).toBeLessThanOrEqual(2)
@@ -132,6 +134,7 @@ describe('first-run welcome -- the switch off is the pre-wave-14 screen (D1)', (
     expect(within(row).getAllByRole('button').map((b) => b.textContent.trim())).toEqual([
       'Start a note', 'Create a thesis', 'Import notes', 'Today', SAMPLE_COPY.add, SAMPLE_COPY.tour,
     ])
+    expect([...container.querySelectorAll('[data-start-note]')].map((b) => b.textContent.trim())).toEqual(['Start a note'])
     expect(screen.queryByRole('button', { name: 'Learn' })).toBeNull()
   })
 

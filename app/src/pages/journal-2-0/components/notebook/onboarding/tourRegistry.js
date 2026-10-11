@@ -184,6 +184,17 @@ export function startPath(entryOrId, registry = TOUR_REGISTRY) {
 
 
 
+/** Tours whose FIRST anchor exists only once the member has a note. The voice tour opens on the
+ *  "New note" control Research Home draws only when the member has notes (ResearchHome.jsx,
+ *  homeTop), so for a member with none it can never open. Two things read this, from here:
+ *    * Learn hides these tours while the member is known to have no notes (learnTours.js);
+ *    * every OTHER door (Help > Walkthroughs, What's new, the offer) still starts them, so the
+ *      engine checks before it waits (tourStart.js `resolveStart`): with no note it shows one
+ *      card that says to make a note first and goes to the Notebook, instead of waiting for an
+ *      anchor that cannot appear and failing with "start it again" (D, polish round).
+ *  (The registry's `requires` is a list of FLAG keys, which cannot say "has a note".) */
+export const NEEDS_NOTES = Object.freeze(['voice-notes'])
+
 /** Every tour Help should offer a Replay button for, in registry order. */
 export function replayableTours(registry = TOUR_REGISTRY) {
   return registry.filter((t) => t.replayable)
