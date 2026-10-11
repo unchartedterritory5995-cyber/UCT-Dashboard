@@ -81,7 +81,7 @@ describe('release audit (2026-10-09)', () => {
     }
     walk(root)
     expect(hits).toEqual(['agent/useAgent.js'])
-  })
+  }, 30000)   // reads every source file: slow when the whole suite runs in parallel (the deploy gate)
   it('no Agent capability can change the protected list: the guard reads a key nothing in the Agent writes', async () => {
     const fs = await import('node:fs')
     const path = await import('node:path')
