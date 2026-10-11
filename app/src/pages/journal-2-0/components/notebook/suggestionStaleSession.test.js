@@ -99,6 +99,36 @@ describe('the note-link menu: the [[ deleted inside the search delay (polish rev
   })
 })
 
+describe('the note-link menu: the session changed inside the search delay (H14 review F1, F2)', () => {
+  it('F1: a backspace, then a row click, deletes the LIVE range, never one past the cursor', () => {
+    const ed = mount('See end')
+    ed.commands.setTextSelection(5) // between 'See ' and 'end'
+    const captured = type(ed, '[[Weekly') // the range a row rendered before the backspace holds
+    ed.commands.deleteRange({ from: captured.to - 1, to: captured.to }) // backspace: '[[Weekl'
+    const live = noteLinkMenuPluginKey.getState(ed.state)
+    expect(live.active).toBe(true)
+    expect(live.range.to).toBe(captured.to - 1) // the session shrank; the row's range did not
+    noteLinkCommand({ editor: ed, range: captured, props: { id: 'n1' } })
+    expect(ed.state.doc.textContent).not.toContain('[[Weekl')
+    expect(ed.state.doc.textContent.endsWith('end')).toBe(true) // the 'e' of 'end' survives
+  })
+
+  it('F2: the [[ re-pasted at the same spot inside the delay draws ONE popup, not two', async () => {
+    const searched = answerSearchAtOnce()
+    const ed = mount()
+    const r = type(ed, '[[Weekly')
+    await wait(10)
+    ed.commands.deleteRange(r)
+    type(ed, '[[Weekly') // same `from`: both sessions pass the start-position check
+    await vi.waitFor(() => expect(searched).toHaveBeenCalled(), { timeout: 2000 })
+    await wait(100)
+    expect(popups().length).toBe(1)
+    ed.commands.deleteRange({ from: r.from, to: ed.state.selection.from }) // ends the session
+    await wait(50)
+    expect(popups()).toEqual([]) // and the one that exists is the one onExit removes
+  })
+})
+
 describe('a dead session\'s range is never edited by the real commands', () => {
   // Start a session, end it, put the member's words where it was; then hand the command the DEAD
   // range, as a row in a popup that outlived its session would.

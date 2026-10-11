@@ -233,6 +233,16 @@ export const NoteLinkMenuExtension = Extension.create({
             applyComboboxWiring(editorDom, { menuId: MENU_ID, activeId: id, showing: Boolean(id && !dismissed) })
           }
 
+          const teardown = () => {
+            window.removeEventListener('scroll', onViewportChange, true)
+            window.removeEventListener('resize', onViewportChange)
+            setActiveDescendant(null)
+            popup?.remove()
+            component?.destroy()
+            popup = null
+            component = null
+          }
+
           return {
             onStart: (props) => {
               // The session starts after a debounced search (150 ms plus the fetch). In between the
@@ -240,6 +250,10 @@ export const NoteLinkMenuExtension = Extension.create({
               // rejection), or the `[[` deleted (a popup for a session that is gone, which nothing
               // removes). Either way: draw nothing. lib/suggestionSession.js, shared by all four menus.
               if (!sessionStillOpen(noteLinkMenuPluginKey, props.editor, props.range)) return
+              // A `[[` re-pasted at the same spot inside the delay starts a second session at the same
+              // `from`, so both late onStarts pass the check above. Only the newest popup is the one
+              // onExit removes: drop any earlier one first (H14 review F2).
+              teardown()
               dismissed = false
               getRect = props.clientRect
               editorDom = props.editor?.view?.dom || null
@@ -274,13 +288,7 @@ export const NoteLinkMenuExtension = Extension.create({
               return component?.ref?.onKeyDown?.(props) ?? false
             },
             onExit() {
-              window.removeEventListener('scroll', onViewportChange, true)
-              window.removeEventListener('resize', onViewportChange)
-              setActiveDescendant(null)
-              popup?.remove()
-              component?.destroy()
-              popup = null
-              component = null
+              teardown()
             },
           }
         },

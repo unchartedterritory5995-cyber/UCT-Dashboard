@@ -12,8 +12,10 @@
 // two places a stale session can do harm: before a popup is drawn (`onStart`) and before a command
 // edits the document (`guardedCommand`). A session is "still open" when the editor is alive and the
 // menu's own plugin state is active at the SAME start position as the range the callback was handed.
-// Only `from` is compared: `to` moves as the member keeps typing, and a live session's command is
-// handed the newest range.
+// Only `from` is compared, because `to` moves as the member keeps typing. That makes the range a
+// callback was HANDED unsafe to edit with: a row rendered before a backspace still holds the old,
+// longer `to`, one character past the cursor (H14 review F1). So a live session's command is run
+// with the plugin's own newest range, never the captured one.
 
 /** Whether the session `range` belongs to is still open in `editor`, under `pluginKey`. */
 export function sessionStillOpen(pluginKey, editor, range) {
@@ -22,7 +24,11 @@ export function sessionStillOpen(pluginKey, editor, range) {
   return Boolean(s?.active && s.range && s.range.from === range.from)
 }
 
-/** `fn` as a Suggestion `command` that does nothing for a session that has ended (see the header). */
+/** `fn` as a Suggestion `command` that does nothing for a session that has ended, and edits only
+ *  the live session's current range (see the header). */
 export function guardedCommand(pluginKey, fn) {
-  return (args) => (sessionStillOpen(pluginKey, args?.editor, args?.range) ? fn(args) : undefined)
+  return (args) => {
+    if (!sessionStillOpen(pluginKey, args?.editor, args?.range)) return undefined
+    return fn({ ...args, range: pluginKey.getState(args.editor.state).range })
+  }
 }
