@@ -298,16 +298,32 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       allOps = opsIn.filter(o => !isDeferred(o))
       opsIn = allOps
     }
+    // SEQUENTIAL capabilities (indicator edits: exclusive — never mixed in a plan): in a request that
+    // asks for more, each runs as its OWN step after the rest (own receipt + Undo), in request order.
+    // The same change on several charts keeps its fan-out path (proposed together, run per chart).
+    {
+      const seq = (o) => !!getCapability(o?.action)?.sequential
+      if (allOps.length > 1 && allOps.some(seq) && !fanOutOf(allOps)) {
+        const rest = allOps.filter(o => !seq(o))
+        const steps = allOps.filter(seq)
+        const keep = rest.length ? rest : [steps.shift()]
+        deferred = [...steps, ...deferred]
+        allOps = keep; opsIn = keep
+      }
+    }
     const pendingNames = aliasNames(allOps)
     // Checked NOW against the board as it is (a new list's alias stands in for it). One that
     // cannot run is dropped and said up front — the rest of the request still runs.
     let deferredLines = []
     if (deferred.length) {
-      const dp = planOps(collectTargets(host, kindsOf(deferred)), deferred, { pendingLists: pendingNames }, capCtx)
-      if (!dp.ok) {
-        push({ role: 'agent', text: `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}` })
-        deferred = []
-      } else deferredLines = dp.lines
+      // each one on its own (they run one at a time, so they are checked one at a time)
+      const okd = []
+      for (const d of deferred) {
+        const dp = planOps(collectTargets(host, kindsOf([d])), [d], { pendingLists: pendingNames }, capCtx)
+        if (!dp.ok) push({ role: 'agent', text: `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}` })
+        else { okd.push(d); deferredLines.push(...dp.lines) }
+      }
+      deferred = okd
     }
     // ⛔ Another window/device may have changed this member's board (one shared,
     // last-write-wins preference): never write over it (host.boardInSync).
@@ -774,6 +790,21 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (fast?.kind === 'ops' && fast.ops.every(o => o.target)) {
         lastActionsRef.current = fast.ops.map(o => o.action)
         return await execute(fast.ops, { path: 'fast', mode: 'apply', member: text, voice })
+      }
+      // Phase 2: ops of SEVERAL kinds ("add VWAP and switch to 5 minutes") — each kind must name
+      // exactly one target (after a position hint); otherwise the model decides.
+      if (fast?.kind === 'ops' && kindsOf(fast.ops).length > 1 && !fast.target?.all) {
+        const pick = {}
+        for (const k of kindsOf(fast.ops)) {
+          let list = getTargetKind(k)?.list(host) || []
+          if (fast.target?.position && list.length > 1) list = matchPosition(list, fast.target.position)
+          if (list.length === 1) pick[k] = list[0].ref
+        }
+        if (fast.ops.every(o => o.target || pick[getCapability(o.action)?.target])) {
+          const ops = fast.ops.map(o => (o.target ? o : { ...o, target: pick[getCapability(o.action).target] }))
+          lastActionsRef.current = ops.map(o => o.action)
+          return await execute(ops, { path: 'fast', mode: 'apply', member: text, voice })
+        }
       }
       if (fast?.kind === 'ops' && kindsOf(fast.ops).length === 1) {
         const kind = getTargetKind(kindsOf(fast.ops)[0])

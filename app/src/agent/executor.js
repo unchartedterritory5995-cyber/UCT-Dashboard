@@ -207,7 +207,8 @@ export function collectTargets(host, kinds) {
 /** The plan's footprint and strictest risk, for the confirmation policy. */
 export function planShape(plan) {
   // Targets that already exist (new ones are counted as resources instead).
-  const targets = plan.plans.filter(p => p.changed && !p.virtual).length
+  // A kind may say which underlying thing its target is (`groupOf`: a chart's indicators → that chart).
+  const targets = new Set(plan.plans.filter(p => p.changed && !p.virtual).map(p => getTargetKind(p.kind)?.groupOf?.(p.ref) ?? p.ref)).size
   const ops = plan.plans.reduce((n, p) => n + p.items.length, 0)
   // New things this plan brings into existence (capabilities mark themselves).
   const resources = plan.plans.reduce((n, p) => n + p.items.filter(i => getCapability(i.op.action)?.createsResource).length, 0)
