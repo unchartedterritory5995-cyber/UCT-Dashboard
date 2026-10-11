@@ -76,3 +76,22 @@ def test_PROMPT_concepts_use_UCTs_own_definitions_never_invented_ones():
     # still no capability names hard-coded in the generic prompt (the manifest carries them)
     import re
     assert not set(re.findall(r"\b(?:screener|watchlist|chart|layout)\.[a-z][A-Za-z]+\b", p)) - {"screener.run", "widget.addCharts"}
+
+
+def test_LIVE_BATCH_scoring_and_refusals(monkeypatch, tmp_path, capsys):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("agent_live_batch", "tools/agent_live_batch.py")
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    item = {"want": {"actions": ["chart.setTimeframe"], "args": {"timeframe": "15"}, "noClarify": True}}
+    assert m.score(item, {"disposition": "apply", "ops": [{"action": "chart.setTimeframe", "args": {"timeframe": "15"}}]})["ok"]
+    assert not m.score(item, {"disposition": "clarify", "ops": []})["ok"]
+    assert not m.score({"want": {"honest": True}}, {"disposition": "apply", "ops": [{"action": "indicator.add", "args": {"defId": "movingAverage"}}]})["ok"]
+    bodies = tmp_path / "b.json"
+    bodies.write_text("[]", encoding="utf-8")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    called = []
+    monkeypatch.setattr(turn, "_default_caller", lambda **k: called.append(1))
+    for argv, code in ((["x", str(bodies), "--run"], 2), (["x", str(bodies), "--run", "--max-usd", "1"], 2), (["x", str(bodies)], 0)):
+        monkeypatch.setattr("sys.argv", argv)
+        assert m.main() == code
+    assert called == []                                          # never a model call without key + ceiling
