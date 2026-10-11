@@ -2011,7 +2011,7 @@ def get_indexes_data(request: Request, _auth: dict = Depends(require_flow_user))
 
 
 @flow_router.get("/stats")
-async def get_stats(_auth: dict = Depends(require_flow_user)):
+def get_stats(_auth: dict = Depends(require_flow_user)):
     """Database statistics for admin display."""
     try:
         return JSONResponse(db.stats())
@@ -2191,7 +2191,7 @@ async def etf_replica_install(request: Request, _auth: dict = Depends(require_fl
 
 
 @flow_router.get("/etf-replica-status")
-async def etf_replica_status():
+def etf_replica_status():
     """Is Options Flow's ETF classification replica current, and when did it last converge?
 
     ⛔ THIS IS NOT THE ROUTING TABLE. `ticker_types` still drives
@@ -2530,7 +2530,7 @@ def start_background_prepare() -> bool:
 
 
 @flow_router.get("/aggregate-health")
-async def aggregate_health():
+def aggregate_health():
     """Is Options Flow's server-computed first paint actually working?
 
     Deliberately UNAUTHENTICATED and read-only, matching /api/flow-gap-fill/status:
@@ -2557,7 +2557,7 @@ async def aggregate_health():
 
 
 @flow_router.get("/aggregate")
-async def get_aggregate(request: Request, _auth: dict = Depends(require_flow_user)):
+def get_aggregate(request: Request, _auth: dict = Depends(require_flow_user)):
     """The PROCESSED dataset — the same thing the browser computes, computed once.
 
     Measured on prod 2026-08-29 from the page's own `[perf]` logs: every member,
@@ -2659,7 +2659,7 @@ async def get_aggregate(request: Request, _auth: dict = Depends(require_flow_use
 
 
 @flow_router.get("/dates")
-async def get_dates(request: Request, _auth: dict = Depends(require_flow_user)):
+def get_dates(request: Request, _auth: dict = Depends(require_flow_user)):
     """Get available trading dates for a source."""
     source = request.query_params.get("source", "stocks")
     if source not in ("stocks", "indexes"):

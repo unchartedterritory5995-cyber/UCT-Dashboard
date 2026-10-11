@@ -132,6 +132,12 @@ REGISTRY: tuple[Retention, ...] = (
               prunes=("rss_samples",),
               sweeps=("api.services.rss_series:prune",),
               path="api.services.rss_series:db_path"),
+    Retention("measurement_window", "measurement_window.db", NOT_MEMBER,
+              "TERM-007/017 + X-15 Wednesday window readings: sample rows older than 60 days "
+              "and results beyond the newest 104 windows",
+              prunes=("mw_rows", "mw_results"),
+              sweeps=("api.services.measurement_window:prune",),
+              path="api.services.measurement_window:db_path"),
 )
 
 _BY_NAME = {r.name: r for r in REGISTRY}

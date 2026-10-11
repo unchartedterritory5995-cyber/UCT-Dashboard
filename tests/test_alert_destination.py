@@ -121,6 +121,10 @@ CONVERTED = {
     # inside `_ops_url()`); the monitor's other four jobs keep their admin-channel read,
     # because moving them is a TERM-011 row decision this ticket does not take.
     "api/terminal_next_monitor_main.py",
+    # TERM-007/017 + X-15, 2026-10-11 — the Wednesday measurement window's one summary
+    # post per window. New (never a literal reader), an ops message, so it resolves
+    # through `ops_webhook()` lazily inside `_post_ops`.
+    "api/services/measurement_window.py",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
