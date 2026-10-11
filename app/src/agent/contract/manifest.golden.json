@@ -2650,16 +2650,43 @@
    "domain": "indicator",
    "target": "indicatorEdits",
    "summary": "Add ONE indicator to ONE chart — exactly what the Indicator Library's Add to Chart does. Built-in indicators or the member's own saved ones; Undo removes it again.",
-   "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts (\"add it to both charts\") = one indicator.add per chart the member named, same defId — they are proposed together and applied one chart at a time; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. It adds at the indicator's DEFAULT settings only (the Moving Average default is NOT a 20 EMA). If they ask for specific settings (\"a 20 EMA\", \"RSI 7\"), never add a default one as if it were that: answer that you can't set an indicator's inputs yet, and that they can set them in its settings after adding it.",
+   "hints": "target = the ref of that chart's indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn't clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. inputs = null for the indicator's defaults, else [{key, value}] with ONLY keys from that row's `settings` (\"a 20 EMA\" → movingAverage, [{key:\"period\",value:20},{key:\"maType\",value:\"ema\"}]; \"RSI 7\" → rsi, [{key:\"period\",value:7}]). Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn't available; never guess a key.",
    "args": {
     "type": "object",
     "properties": {
      "defId": {
       "type": "string"
+     },
+     "inputs": {
+      "type": [
+       "array",
+       "null"
+      ],
+      "items": {
+       "type": "object",
+       "properties": {
+        "key": {
+         "type": "string"
+        },
+        "value": {
+         "type": [
+          "string",
+          "number",
+          "boolean"
+         ]
+        }
+       },
+       "required": [
+        "key",
+        "value"
+       ],
+       "additionalProperties": false
+      }
      }
     },
     "required": [
-     "defId"
+     "defId",
+     "inputs"
     ],
     "additionalProperties": false
    },

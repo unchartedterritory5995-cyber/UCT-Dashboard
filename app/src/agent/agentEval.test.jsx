@@ -124,7 +124,7 @@ const ixeRef = (b) => ref(b, 'indicatorEdits')
 const workflowA = (b) => env('apply', [
   { action: 'chart.setSymbol', target: chartRef(b), args: { symbol: 'NVDA' } },
   { action: 'chart.setTimeframe', target: chartRef(b), args: { timeframe: 'W' } },
-  ...(has(b, 'indicator.add') ? [{ action: 'indicator.add', target: ixeRef(b), args: { defId: 'rsi' } }] : []),
+  ...(has(b, 'indicator.add') ? [{ action: 'indicator.add', target: ixeRef(b), args: { defId: 'rsi', inputs: null } }] : []),
 ], 'I can add RSI; a 20 EMA with its own period is set from the chart\'s Indicators menu.')
 const workflowD = (b) => env('propose', [
   { action: 'screener.run', target: ref(b, 'screener'), args: { filters: [F(b, 'adr_pct', 'gt', 5), F(b, 'price', 'gt', 10)], sort_field: null, sort_dir: null, mode: 'new', show: null, as: null, ...(filterProps(b).values ? {} : {}), ...((b.capabilities || []).find(c => c.name === 'screener.run')?.args?.properties?.within ? { within: null } : {}) } },

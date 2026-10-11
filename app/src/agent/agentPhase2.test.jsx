@@ -37,23 +37,22 @@ describe('variants reach the SAME capability with the same arguments (no model c
     ['change my chart to 15 minutes', 'chart.setTimeframe{"timeframe":"15"}'],
     ['15m', 'chart.setTimeframe{"timeframe":"15"}'],
     ['switch to the hourly', 'chart.setTimeframe{"timeframe":"60"}'],
-    ['Add RSI', 'indicator.add{"defId":"rsi"}'],
-    ['put the RSI indicator on my chart', 'indicator.add{"defId":"rsi"}'],
-    ['throw VWAP on this chart', 'indicator.add{"defId":"vwap"}'],
+    ['Add RSI', 'indicator.add{"defId":"rsi","inputs":null}'],
+    ['put the RSI indicator on my chart', 'indicator.add{"defId":"rsi","inputs":null}'],
+    ['throw VWAP on this chart', 'indicator.add{"defId":"vwap","inputs":null}'],
     ['Get rid of RSI', 'indicator.remove{"instance":"rsi"}'],
     ['Remove the RSI indicator.', 'indicator.remove{"instance":"rsi"}'],
     ['take RSI off the chart', 'indicator.remove{"instance":"rsi"}'],
     ['Open my momentum watchlist', 'watchlist.open{"list":"m1"}'],
     ['pull up my Swing list', 'watchlist.open{"list":"s1"}'],
-    ['add VWAP and RSI', 'indicator.add{"defId":"vwap"} + indicator.add{"defId":"rsi"}'],
-    ['Add VWAP and RSI, then change my chart to five minutes', 'indicator.add{"defId":"vwap"} + indicator.add{"defId":"rsi"} + chart.setTimeframe{"timeframe":"5"}'],
+    ['add VWAP and RSI', 'indicator.add{"defId":"vwap","inputs":null} + indicator.add{"defId":"rsi","inputs":null}'],
+    ['Add VWAP and RSI, then change my chart to five minutes', 'indicator.add{"defId":"vwap","inputs":null} + indicator.add{"defId":"rsi","inputs":null} + chart.setTimeframe{"timeframe":"5"}'],
   ])('%s', (t, want) => expect(parse(t)).toBe(want))
 })
 
 describe('NOT guessed: anything not obvious still goes to the model', () => {
   it.each([
-    'Put a 20 EMA on my chart',            // needs inputs the indicator interface can't set (handoff)
-    'add the 50 day moving average',
+    'add macd 8 21 5',                      // three lengths, none called `period` — the model maps them
     'remove it',                            // which?
     'open my trading layout',               // no such layout here → the model (or a question)
     'show me my strongest stocks',
@@ -163,7 +162,7 @@ const withLayouts = (names, widgets = ONE, lists = LISTS) => makeBoard(widgets, 
 
 describe('clarification policy, by category (deterministic path)', () => {
   it('CLEAR: "add RSI" on the only chart — the default RSI, no question', () => {
-    expect(parse('add RSI')).toBe('indicator.add{"defId":"rsi"}')
+    expect(parse('add RSI')).toBe('indicator.add{"defId":"rsi","inputs":null}')
   })
   it('DEFAULT: "show me my watchlist" = the list a widget shows; with ONE list and no widget, that list', () => {
     const shown = hostOf([...ONE.slice(0, 1), { id: 'wl', type: 'watchlist', x: 12, y: 0, w: 6, h: 20, opts: { watchKey: 'user:s1' } }])
@@ -187,8 +186,8 @@ describe('clarification policy, by category (deterministic path)', () => {
     expect(parse('open NVDA', h)).not.toMatch(/^layout\.open/)
     expect(parse('open NVDA Earnings', h)).toBe('layout.open{"layout":"1"}')
   })
-  it('MISSING CAPABILITY: "put a 20 EMA on my chart" is not faked as a default EMA — it goes to the model, which must say what it can\'t set', () => {
-    expect(parse('Put a 20 EMA on my chart')).toBe('MODEL')
+  it('SETTINGS (Phase 2.5): "put a 20 EMA on my chart" is added AS a 20 EMA — never a default moving average', () => {
+    expect(parse('Put a 20 EMA on my chart')).toBe('indicator.add{"defId":"movingAverage","inputs":[{"key":"period","value":20},{"key":"maType","value":"ema"}]}')
   })
   it('UNSAFE: "delete" is never read as "remove" (a list delete is permanent and always a proposal)', () => {
     expect(parse('delete my Swing watchlist')).toBe('MODEL')
@@ -264,11 +263,19 @@ describe('Agent and Screener mean the same screen', () => {
 })
 
 describe('a request for SPECIFIC indicator settings is never faked with a default indicator', () => {
-  it.each(['Put a 20 EMA on my chart', 'add a 50 sma', 'add RSI 7', 'throw a 20-period exponential moving average on this chart', 'add the 200 day moving average'])(
-    'instant path leaves "%s" to the model', (t) => expect(parse(t)).toBe('MODEL'))
-  it('the model is told: defaults only; never a default one as if it were the asked-for settings', () => {
+  // ⭐ Phase 2.5 (agentMutations add with `inputs`): the instant path now ADDS these with exactly the
+  // requested settings — still never a default one in their place. agentIndicatorsInputs.test.jsx
+  // drives them through the real interface (validation, read-back, receipt, Undo).
+  it.each([
+    ['Put a 20 EMA on my chart', '{"defId":"movingAverage","inputs":[{"key":"period","value":20},{"key":"maType","value":"ema"}]}'],
+    ['add a 50 sma', '{"defId":"movingAverage","inputs":[{"key":"period","value":50},{"key":"maType","value":"sma"}]}'],
+    ['add RSI 7', '{"defId":"rsi","inputs":[{"key":"period","value":7}]}'],
+    ['throw a 20-period exponential moving average on this chart', '{"defId":"movingAverage","inputs":[{"key":"period","value":20},{"key":"maType","value":"ema"}]}'],
+    ['add the 200 day moving average', '{"defId":"movingAverage","inputs":[{"key":"period","value":200}]}'],
+  ])('instant path adds "%s" with exactly those settings', (t, args) => expect(parse(t)).toBe(`indicator.add${args}`))
+  it('the model is told: every requested setting goes in inputs; never a default one in its place', () => {
     const h = getCapability('indicator.add').hints
-    expect(h).toMatch(/DEFAULT settings only/)
-    expect(h).toMatch(/never add a default one as if it were that/)
+    expect(h).toMatch(/Every number or type the member named goes in inputs/)
+    expect(h).toMatch(/never drop one or add a default instead/)
   })
 })

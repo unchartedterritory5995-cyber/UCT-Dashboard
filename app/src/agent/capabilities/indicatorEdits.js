@@ -59,7 +59,65 @@ export function addableRows() {
   let mine = []
   try { shipped = catalogRows(nativeRegistry).filter(r => !!nativeRegistry.getDefinition(r.id)) } catch { shipped = [] }
   try { mine = userCatalogRows(nativeRegistry).filter(r => owned.has(r.id)) } catch { mine = [] }
-  return [...shipped, ...mine].map(r => ({ defId: r.id, name: r.name }))
+  return [...shipped, ...mine].map(r => {
+    const settings = settingsLine(r.inputs)
+    return settings ? { defId: r.id, name: r.name, settings } : { defId: r.id, name: r.name }
+  })
+}
+
+// ⭐ PHASE 2.5 — WHAT EACH INDICATOR'S SETTINGS ARE, read off the definition's OWN declared
+// inputs (`indicatorCatalog` rows → `instanceControls.inputSpecOf`), never a second schema here.
+// One compact line per row so the model can map "a 20 EMA" onto real keys:
+//   "period int 1-500 (5); maType sma|ema|wma|… (sma)". Colours, sources and text are left
+// out — the Agent sets lengths, multipliers, types and switches, not paint.
+const SETTABLE = new Set(['int', 'float', 'enum', 'bool'])
+export function settableInputs(inputs) {
+  return (Array.isArray(inputs) ? inputs : []).filter(i => i && SETTABLE.has(i.type))
+}
+function settingsLine(inputs) {
+  return settableInputs(inputs).map(i => {
+    const kind = i.type === 'enum' ? (i.options || []).map(o => String(o.value)).join('|')
+      : i.type === 'bool' ? 'true|false'
+        : `${i.type}${Number.isFinite(i.min) || Number.isFinite(i.max) ? ` ${i.min ?? ''}-${i.max ?? ''}` : ''}`
+    return `${i.key} ${kind} (${i.default})`
+  }).join('; ')
+}
+/** The declared settable inputs of one addable defId (`[]` when it has none or is unknown). */
+export function inputsOfDef(defId) {
+  try {
+    const row = [...catalogRows(nativeRegistry), ...userCatalogRows(nativeRegistry)].find(r => r.id === defId)
+    return settableInputs(row && row.inputs)
+  } catch { return [] }
+}
+
+/** The model's closed-schema list `[{key, value}]` → the interface's `{key: value}` object.
+ *  `null`/`[]` → undefined (the indicator's own defaults). A key named twice is refused — which
+ *  value was meant is not this file's guess. */
+export function inputsOfArgs(list) {
+  if (list == null) return { ok: true, inputs: undefined }
+  if (!Array.isArray(list)) return { ok: false, why: 'the settings were not a list' }
+  if (!list.length) return { ok: true, inputs: undefined }
+  const out = {}
+  for (const it of list) {
+    const key = it && typeof it.key === 'string' ? it.key.trim() : ''
+    if (!key) return { ok: false, why: 'a setting had no name' }
+    if (Object.prototype.hasOwnProperty.call(out, key)) return { ok: false, why: `"${key}" was given twice` }
+    out[key] = it.value
+  }
+  return { ok: true, inputs: out }
+}
+const addRequest = (defId, inputs) => (inputs ? { op: 'add', defId, inputs } : { op: 'add', defId })
+
+/** "period 20, MA type EMA" — the settings AS STORED, with the definition's own labels. */
+export function settingsPhrase(defId, values) {
+  if (!values || typeof values !== 'object') return ''
+  const specs = new Map(inputsOfDef(defId).map(i => [i.key, i]))
+  return Object.entries(values).map(([k, v]) => {
+    const s = specs.get(k)
+    const label = s ? String(s.label || k) : k
+    const opt = s && s.type === 'enum' ? (s.options || []).find(o => o.value === v) : null
+    return `${label.toLowerCase()} ${opt ? opt.label : v}`
+  }).join(', ')
 }
 const NOT_ADDABLE = /^(volume ?profile|vpvr|vp|ma|moving average|classic|overlay)$/i
 
@@ -84,6 +142,18 @@ export function refusalSentence(res, { chart = 'that chart', op = null } = {}) {
     case REASONS.UNCONFIRMED: return 'UCT could not read the saved chart back, so I am not reporting it as done.'
     case REASONS.NOT_LANDED: return 'The saved chart does not show the change — it did not land.'
     case REASONS.BAD_REQUEST: return 'That request (or Undo) is not valid for this chart.'
+    // ⭐ PHASE 2.5 — a setting the indicator does not have, or a value it does not allow: the
+    // Indicators rule's own reason, then what IS allowed (its declared range / options).
+    case REASONS.BAD_INPUT: {
+      const d = res.detail || {}
+      const spec = d.input
+      let allowed = ''
+      if (spec && spec.type === 'enum' && Array.isArray(spec.options)) allowed = ` ${spec.label || spec.key} can be ${spec.options.map(o => o.label ?? o.value).join(', ')}.`
+      else if (spec && (Number.isFinite(spec.min) || Number.isFinite(spec.max))) {
+        allowed = ` ${spec.label || spec.key} takes ${spec.type === 'int' ? 'a whole number' : 'a number'}${Number.isFinite(spec.min) && Number.isFinite(spec.max) ? ` from ${spec.min} to ${spec.max}` : Number.isFinite(spec.min) ? ` of at least ${spec.min}` : ` up to ${spec.max}`}.`
+      }
+      return `I didn't add it: ${d.why || 'that setting is not valid'}.${allowed} Nothing was changed.`
+    }
     default: return 'That did not work.'
   }
 }
@@ -102,7 +172,12 @@ export function receiptLine(receipt, chart) {
     if (receipt.undoOf === 'add') return `Removed the ${name} I added${where} (saved).`
     return `Put ${name}${where} back to ${receipt.visible ? 'shown' : 'hidden'} (saved).`
   }
-  if (receipt.op === 'add') return `Added ${name}${where} (saved).`
+  if (receipt.op === 'add') {
+    // ⭐ PHASE 2.5 — the settings AS STORED (the confirmed receipt's own `inputs`), never the
+    // words the member used.
+    const set = receipt.inputs ? settingsPhrase(receipt.defId, receipt.inputs) : ''
+    return `Added ${name}${where}${set ? ` — ${set}` : ''} (saved).`
+  }
   if (receipt.op === 'remove') {
     const cut = severText(receipt.severed)
     return `Removed ${name}${where} (saved)${cut.length ? ` — disconnected ${cut.join(', ')}` : ''}.`
@@ -211,6 +286,55 @@ function defIdOfWords(words) {
   return hits.length === 1 ? hits[0].defId : null
 }
 
+// ⭐ PHASE 2.5 — the few settings phrasings that are unambiguous, mapped onto the definition's
+// DECLARED keys and options (`inputsOfDef`), never onto a key this file invents. Every value is
+// still the Indicators rule's to accept (an out-of-range "EMA 900" is refused BY NAME there).
+//   "20 ema", "ema 20", "20-day ema", "200-period simple moving average", "50 day moving average"
+//     → movingAverage {period, maType?} (maType only when the words name one of its options)
+//   "rsi 7", "rsi(7)", "rsi with length 7", "atr with a period of 10"
+//     → that indicator's ONE length input (`period`/`length`), when it has exactly one
+const MA_TYPE_WORDS = {
+  simple: 'sma', exponential: 'ema', weighted: 'wma', 'volume weighted': 'vwma', 'volume-weighted': 'vwma',
+  hull: 'hma', smoothed: 'smma', 'double exponential': 'dema', 'triple exponential': 'tema', 'least squares': 'lsma',
+}
+function maTypeOf(words, options) {
+  const w = String(words || '').trim()
+  const values = new Set((options || []).map(o => String(o.value)))
+  if (values.has(w)) return { ok: true, type: w }
+  if (w === 'moving average' || w === 'ma') return { ok: true, type: null }
+  const named = /^(.+?) moving average$/.exec(w)
+  if (named && MA_TYPE_WORDS[named[1]] && values.has(MA_TYPE_WORDS[named[1]])) return { ok: true, type: MA_TYPE_WORDS[named[1]] }
+  return { ok: false }
+}
+export function settingsOfWords(words) {
+  const w = String(words || '').trim().toLowerCase()
+  let n = null
+  let rest = null
+  let m = /^(\d{1,4})(?:[- ](?:period|day|bar|length))?[- ](.+)$/.exec(w)
+  if (m) { n = Number(m[1]); rest = m[2] }
+  if (!m) {
+    m = /^(.+?) with (?:a |an )?(?:length|period|lookback)(?: of)? (\d{1,4})$/.exec(w)
+      || /^(.+?) ?\((\d{1,4})\)$/.exec(w)
+      || /^(.+?) (\d{1,4})$/.exec(w)
+    if (m) { rest = m[1]; n = Number(m[2]) }
+  }
+  if (!m || !Number.isInteger(n)) return null
+  const ma = inputsOfDef('movingAverage')
+  const maType = ma.find(i => i.key === 'maType')
+  if (ma.some(i => i.key === 'period') && maType) {
+    const t = maTypeOf(rest, maType.options)
+    if (t.ok) {
+      const inputs = [{ key: 'period', value: n }]
+      if (t.type) inputs.push({ key: 'maType', value: t.type })
+      return { defId: 'movingAverage', inputs }
+    }
+  }
+  const defId = defIdOfWords(rest)
+  if (!defId) return null
+  const lengths = inputsOfDef(defId).filter(i => i.type === 'int' && (i.key === 'period' || i.key === 'length'))
+  return lengths.length === 1 ? { defId, inputs: [{ key: lengths[0].key, value: n }] } : null
+}
+
 function planCheck(st, req) {
   if (!st.canManage) return refusalSentence({ reason: REASONS.READONLY }, { chart: st.chart })
   const p = planFor(st, req)
@@ -245,28 +369,61 @@ export function registerIndicatorEditCapabilities() {
     // ⭐ F5: the same add on several charts is proposed once and run once PER CHART (useAgent fan-out)
     fanOut: true,
     summary: 'Add ONE indicator to ONE chart — exactly what the Indicator Library\'s Add to Chart does. Built-in indicators or the member\'s own saved ones; Undo removes it again.',
-    hints: 'target = the ref of that chart\'s indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts ("add it to both charts") = one indicator.add per chart the member named, same defId — they are proposed together and applied one chart at a time; if it isn\'t clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. '
-      + 'It adds at the indicator\'s DEFAULT settings only (the Moving Average default is NOT a 20 EMA). If they ask for specific settings ("a 20 EMA", "RSI 7"), '
-      + 'never add a default one as if it were that: answer that you can\'t set an indicator\'s inputs yet, and that they can set them in its settings after adding it.',
-    args: { type: 'object', properties: { defId: { type: 'string' } }, required: ['defId'], additionalProperties: false },
+    hints: 'target = the ref of that chart\'s indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn\'t clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. '
+      + 'inputs = null for the indicator\'s defaults, else [{key, value}] with ONLY keys from that row\'s `settings` ("a 20 EMA" → movingAverage, [{key:"period",value:20},{key:"maType",value:"ema"}]; "RSI 7" → rsi, [{key:"period",value:7}]). '
+      + 'Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn\'t available; never guess a key.',
+    // ⭐ PHASE 2.5 — `inputs` is a closed-schema-safe LIST (`[{key, value}]`), turned into the
+    // Indicators interface's `{key: value}` here; the interface (`agentMutations` → the settings
+    // dialog's own `checkInstanceInput`) decides every value, refuses a bad one BY NAME, and
+    // creates nothing then.
+    args: {
+      type: 'object',
+      properties: {
+        defId: { type: 'string' },
+        inputs: {
+          type: ['array', 'null'],
+          items: {
+            type: 'object',
+            properties: { key: { type: 'string' }, value: { type: ['string', 'number', 'boolean'] } },
+            required: ['key', 'value'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['defId', 'inputs'],
+      additionalProperties: false,
+    },
     // Phase 1 — "put RSI on my chart", "add MACD": an indicator named EXACTLY (its catalog id or full
-    // name, one match only) at its standard settings is an obvious command — no model call. Anything
-    // with parameters ("a 20 EMA") or a near-name goes to the model; the check below still decides.
+    // name, one match only) at its standard settings is an obvious command — no model call.
+    // ⭐ Phase 2.5 — and with ONE length or a moving average's length + type ("a 20 EMA", "RSI 7",
+    // "RSI with length 7", "a 200-period simple moving average"): `settingsOfWords`. Anything else
+    // with parameters, or a near-name, goes to the model; the check below still decides.
     fast: ({ lower }) => {
       const m = /^(?:please )?(?:add|put|apply|plot)(?: an?| the| my)? (.+?)(?: indicator| study)?(?: (?:on|to|onto|in) (?:my|the|this) chart)?$/.exec(lower)
-      const defId = m ? defIdOfWords(m[1]) : null
-      return defId ? { defId } : null
+      if (!m) return null
+      const defId = defIdOfWords(m[1])
+      if (defId) return { defId, inputs: null }
+      return settingsOfWords(m[1])
     },
-    check(st, { defId }) {
+    check(st, { defId, inputs }) {
       if (NOT_ADDABLE.test(String(defId || '').trim())) return refusalSentence({ reason: REASONS.UNSUPPORTED_DEFINITION })
-      return oneChange(st) || planCheck(st, { op: 'add', defId })
+      const ins = inputsOfArgs(inputs)
+      if (!ins.ok) return refusalSentence({ reason: REASONS.BAD_INPUT, detail: { why: ins.why } })
+      return oneChange(st) || planCheck(st, addRequest(defId, ins.inputs))
     },
-    apply(st, { defId }) {
-      const req = { op: 'add', defId }
+    apply(st, { defId, inputs }) {
+      const ins = inputsOfArgs(inputs)
+      if (!ins.ok) return st
+      const req = addRequest(defId, ins.inputs)
       const p = planFor(st, req)
       return p.ok ? { ...st, change: { request: req, plan: p.plan } } : st
     },
-    describe: (b, a) => (a.change ? `Add ${a.change.plan.preview.name} to ${a.chart}` : null),
+    describe: (b, a) => {
+      if (!a.change) return null
+      const { preview, defId } = a.change.plan
+      const set = preview.inputs ? settingsPhrase(defId ?? a.change.request.defId, preview.inputs) : ''
+      return `Add ${preview.name} to ${a.chart}${set ? ` — ${set}` : ''}`
+    },
   })
 
   registerCapability({
