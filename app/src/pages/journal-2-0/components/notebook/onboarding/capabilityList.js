@@ -75,7 +75,7 @@ export const CAPABILITY_PREVIEW = Object.freeze([
     id: 'voice-notes',
     flag: VOICE_NOTE_FLAG,
     label: 'Voice notes',
-    line: 'Record or upload a voice memo, or pick a Desk session. You get a transcript and a short summary in a new note.',
+    line: 'Record or upload a voice memo, or pick a Desk session. You get a transcript, and a short summary when one can be made.',
   },
   // Task 14b (ruling R16): the last two live features with no door in the Notebook. Both lines are
   // held to what the code does (capabilityList.test.js pins them word for word).

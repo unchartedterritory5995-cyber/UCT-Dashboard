@@ -58,7 +58,7 @@ describe('capabilityList -- the list', () => {
     expect(voice.flag).toBe(VOICE_NOTE_FLAG)
     expect(voice.flag).toBe('notebook_voice_notes_enabled')
     expect(voice.label).toBe('Voice notes')
-    expect(voice.line).toBe('Record or upload a voice memo, or pick a Desk session. You get a transcript and a short summary in a new note.')
+    expect(voice.line).toBe('Record or upload a voice memo, or pick a Desk session. You get a transcript, and a short summary when one can be made.')
   })
 
   // Task 14b (ruling R16): the last two live features with no door. Each line is held to what the
