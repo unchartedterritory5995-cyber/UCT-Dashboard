@@ -419,6 +419,25 @@
   color: var(--ut-gold);
 }
 
+/* Entity Master UC-2: "renamed from X" / "delisted" beside the current symbol. Plain text, not
+   a control, so it adds no touch target; it inherits the row's ink and only a delisted
+   marker takes --danger-ink. It ellipsizes before it can push the row's other cells. */
+.entityMark {
+  margin-left: 5px;
+  font-family: var(--font-sans);
+  font-size: calc(9px * var(--wl-font-scale, 1));
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  opacity: 0.8;
+}
+.entityMarkDanger {
+  color: var(--danger-ink);
+  opacity: 1;
+}
+
 .rowRight {
   display: flex;
   align-items: center;

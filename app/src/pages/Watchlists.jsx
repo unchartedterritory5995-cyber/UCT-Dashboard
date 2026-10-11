@@ -63,6 +63,7 @@ import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
 import SaveListDialog, { ListOrigin } from './watchlist/SaveListDialog'
 import { isLinkedList } from './watchlist/watchlistOrigin'
+import { entityDisplay } from './watchlist/entityDisplay'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useBulkQuotes from '../hooks/useBulkQuotes'
 import useThemeIndexQuotes, { themeIndexLabel, themeIndexKey } from '../hooks/useThemeIndexQuotes'
@@ -401,6 +402,9 @@ const FlashCell = React.memo(function FlashCell({ value, display, className, tin
 const WatchRow = React.memo(function WatchRow({
   sym, name, price, changePct, volume, flagged, selected, orderedKeys, brandMark = false,
   displayName = null,
+  // Entity Master UC-2: "renamed from X" / "delisted" beside the current symbol. Null (the
+  // default, and always while WATCHLIST_ENTITY_KEYS_ENABLED is off) renders nothing.
+  entityNote = null, entityTitle = null, entityTone = null,
   showLogos = true, tintEnabled = true, logoSize = 16, mcap = null, earn = null, rating = null,
   ipoDate = null,
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, dolvol = null, rvol = null,
@@ -456,6 +460,10 @@ const WatchRow = React.memo(function WatchRow({
         <span key="sym" className={styles.symCell} style={isMember ? { paddingLeft: 20 } : undefined} {...(wlId ? rowMenuBind : {})}>
           {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round brandMark={brandMark} /></span>}
           <span className={styles.rowSym} title={displayName ? sym : undefined}>{displayName || sym}</span>
+          {entityNote && (
+            <span className={`${styles.entityMark}${entityTone === 'danger' ? ' ' + styles.entityMarkDanger : ''}`}
+              title={entityTitle || undefined} data-testid="wl-entity-marker">{entityNote}</span>
+          )}
           {/* Wave 13 lane 13G-2 (ruling P2) -- the one mount line; thesisChip is null
               whenever the flag is off (the default) or no note names this symbol. The
               row itself is a clickable div (activateRow); stopPropagation matches the
@@ -1487,7 +1495,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     let filtered = items
     if (filterText) {
       const q = filterText.toUpperCase()
-      filtered = filtered.filter(i => (i.sym || i).toString().toUpperCase().includes(q))
+      // A renamed row also answers to its current symbol (Entity Master UC-2; absent => as before).
+      filtered = filtered.filter(i => (i.sym || i).toString().toUpperCase().includes(q)
+        || (i.display_sym != null && String(i.display_sym).toUpperCase().includes(q)))
     }
     return filtered
   }, [filterText])
@@ -2427,7 +2437,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Thin wrapper: compute this row's primitive props + hand it the stable callbacks.
   // `wlId` (owner watchlist rows only) enables the right-click row menu, which is
   // where notes / price alerts / remove all live.
-  function renderTickerRow({ sym, name = null, isOwner = false, wlId = null, isGroup = false, isMember = false, expanded = false }) {
+  function renderTickerRow({ sym, name = null, isOwner = false, wlId = null, isGroup = false, isMember = false, expanded = false, entity = null }) {
     // Thematic-index row: no market feed — pull its live daily % from the batch
     // quotes map (keyed by lowercase slug), and show the theme's name instead of
     // the raw "$IDX:CYBERSECURITY" pseudo-ticker.
@@ -2472,11 +2482,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       : (Number.isFinite(_avg20) && _avg20 > 0 && Number.isFinite(q?.volume))
         ? (q.volume / _avg20) * 100
         : null
+    // Entity Master UC-2: the row's identity stays `sym`; only what it SAYS changes.
+    const ent = entity ? entityDisplay(entity) : null
     return (
       <WatchRow
         key={sym}
         sym={sym}
         name={name}
+        {...(ent ? { displayName: ent.shown, entityNote: ent.note, entityTitle: ent.title, entityTone: ent.tone } : {})}
         brandMark={breadth.isBreadth(sym)}
         price={q?.price ?? null}
         changePct={q?.change_pct ?? null}
@@ -2663,7 +2676,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           // be able to drift apart.
           const renderListItem = (item) => (
             <>
-              {renderTickerRow({ sym: item.sym, name: item.name, isOwner: editable, wlId: wl.id })}
+              {renderTickerRow({ sym: item.sym, name: item.name, isOwner: editable, wlId: wl.id, entity: item })}
               {/* Note editor, opened from the row menu's "Notes" entry (and closed by
                   picking it again). Editable on YOUR lists only — a shared list's
                   notes are read-only. */}

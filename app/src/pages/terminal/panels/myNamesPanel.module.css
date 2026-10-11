@@ -154,6 +154,15 @@
   color: var(--text-bright);
 }
 
+/* Entity Master UC-2: "renamed from X" / "delisted" after the current symbol, inside the row's
+   own button, so it adds no touch target. Inherits the row ink; a delisted marker also takes
+   .down (--danger-ink). */
+.entityMark {
+  margin-left: var(--space-xs);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
 .linkBtn {
   color: var(--accent);
   text-decoration: underline;

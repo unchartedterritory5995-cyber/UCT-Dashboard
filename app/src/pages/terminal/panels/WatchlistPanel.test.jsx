@@ -190,3 +190,41 @@ describe('MON — the pure parts', () => {
     expect(pickList([], '2')).toEqual({ index: -1, missing: '2' })
   })
 })
+
+describe('MON: Entity Master UC-2 (renamed / delisted rows)', () => {
+  const decorate = (fields) => LISTS.map((l) => ({ ...l, items: l.items.map((it) => ({ ...it, ...fields(it) })) }))
+  const tableHtml = async (lists) => {
+    ok({ [LISTS_URL]: lists })
+    renderPanel()
+    await screen.findByText('+4.2%')
+    const out = screen.getByTestId('terminal-watchlist-table').outerHTML
+    cleanup()
+    return out
+  }
+
+  it('fields absent, or present but saying nothing changed: the table is the same bytes', async () => {
+    const plain = await tableHtml(LISTS)
+    expect(plain).not.toContain('terminal-watchlist-entity-')
+    expect(await tableHtml(decorate((it) => ({ entity_id: 'e', display_sym: it.sym.toUpperCase(), entity_marker: null })))).toBe(plain)
+    expect(await tableHtml(decorate((it) => ({ entity_id: null, display_sym: it.sym.toUpperCase(), entity_marker: null })))).toBe(plain)
+  })
+
+  it('a renamed row shows the current symbol with "renamed from"; a delisted one says delisted in danger ink', async () => {
+    ok({ [LISTS_URL]: [{ id: 'ab12', name: 'Semis', items: [
+      { sym: 'NVDA', entity_id: 'e1', display_sym: 'NVDX', entity_marker: 'renamed' },
+      { sym: 'AMD', entity_id: 'e2', display_sym: 'AMD', entity_marker: 'delisted' },
+    ] }] })
+    renderPanel()
+    const renamed = await screen.findByTestId('terminal-watchlist-entity-NVDA')
+    expect(renamed.textContent).toBe('renamed from NVDA')
+    const row = screen.getByTestId('terminal-watchlist-row-NVDA')
+    expect(row.textContent).toContain('NVDX')
+    // the row keeps its identity: prices and the load action still key on the stored symbol
+    expect(row.textContent).toContain('182.40')
+    expect(within(row).getByRole('button', { name: 'Load NVDA into the linked panels' })).toBeTruthy()
+    const delisted = screen.getByTestId('terminal-watchlist-entity-AMD')
+    expect(delisted.textContent).toBe('delisted')
+    expect(delisted.className).toMatch(/down/)
+    expect(renamed.className).not.toMatch(/down/)
+  })
+})

@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after the 2026-10-11 arming): not complete.** 264 of 279 rows are `live` or `moot`; 15 are not (2 `dark`, 7 `building`, 6 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after ENT-UC2): not complete.** 265 of 279 rows are `live` or `moot`; 14 are not (2 `dark`, 6 `building`, 6 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,10 +34,10 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 after the 2026-10-11 arming:
+Printed 2026-10-10 after ENT-UC2:
 
 ```
-279 Counter({'live': 224, 'moot': 40, 'building': 7, 'owner-blocked': 6, 'dark': 2})
+279 Counter({'live': 225, 'moot': 40, 'building': 6, 'owner-blocked': 6, 'dark': 2})
 0 duplicate ids
 ```
 
@@ -55,10 +55,10 @@ The per-section split is the same regex applied to each `## ` section:
 | 4 BRK-01..10 | 10 | 9 | 0 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 8 | 0 | 1 | 0 | 3 |
 | 6 FT-001..080 | 80 | 67 | 0 | 1 | 3 | 9 |
-| 7 Untracked promises | 58 | 48 | 0 | 1 | 0 | 9 |
-| **total** | **279** | **224** | **2** | **7** | **6** | **40** |
+| 7 Untracked promises | 58 | 49 | 0 | 0 | 0 | 9 |
+| **total** | **279** | **225** | **2** | **6** | **6** | **40** |
 
-`building` by lane: P 4 · Indicators 2 · integrator 1.
+`building` by lane: P 4 · Indicators 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -368,7 +368,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `D-12` | Canonical UC-5: show when two computations of one metric disagree | `live` | `METRIC_DISAGREEMENT_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2122`). Was `dark`. |
 | `D-13` | FDA / PDUFA dates on the events calendar | `moot (decided 2026-10-07: no PDUFA source purchase)` | ➜ 2026-10-07: S-7 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `ARCH-5B8` | Store retention registry visible to `disk_watchdog` | `live` | On master (`e82e6a661`, via X-01): `api/services/store_retention.py` registers the stores and `disk_watchdog` prints each one's retention or `UNDECLARED`; ungated; rail `tests/test_store_retention.py`. Was `dark` (branch-only). |
-| `ENT-UC2` | Watchlist rows keyed by entity id | `building (integrator)` | On master (`5d376567e`, via X-01; `api/services/watchlist_entity_keys.py`); `WATCHLIST_ENTITY_KEYS_ENABLED` still `pending` (`docs/feature_flags.json:79`). Arming needs the Entity Master seeded on web; rendering `display_sym` on the Watchlists page is not built. `WATCHLIST_ENTITY_KEYS_ENABLED` armed on web 2026-10-11T02:51Z (the Entity Master is live: `ENTITY_MASTER_MEMBER_ENABLED=1`); the Watchlists `display_sym` / marker render is the remainder. |
+| `ENT-UC2` | Watchlist rows keyed by entity id | `live` | Backend on master (`5d376567e`, via X-01; `api/services/watchlist_entity_keys.py`, decorating member rows at `api/services/watchlist_service.py:174` and `:232`); `WATCHLIST_ENTITY_KEYS_ENABLED` armed on web 2026-10-11 (lane E brief; `docs/feature_flags.json:79` still reads `pending` on master, so that entry lags the arming). Rendering lane E (2026-10-10): `app/src/pages/watchlist/entityDisplay.js:23` turns `display_sym` / `entity_marker` into the current symbol plus "renamed from X" or "delisted" (danger ink); the /charts Watchlist widget (Watchlists.jsx scoped mode, `app/src/pages/Watchlists.jsx:463`, `:2486`, `:2679`) and the terminal MON panel (`app/src/pages/terminal/panels/WatchlistPanel.jsx:61`, `:246`) show it. Fields absent renders byte-identical to the pre-change widget (`app/src/pages/Watchlists.entitykeys.test.jsx`, golden recorded against `55b12fe1d`). `sym` stays the row identity: prices, remove and load still key on the stored ticker. Was `dark`. |
 | `CAP-A12` | Merge the two drag-and-drop libraries | `live` | Landed on master 2026-10-10 (`594273c83`, deployed with `df9af5f48`). Measured: `@dnd-kit` had ONE consumer (`pages/journal-2-0/components/ColumnsPicker.jsx`), native HTML5 drag is used in 32 non-test files incl. the terminal grip (`pages/terminal/TerminalShell.jsx:349`). ColumnsPicker moved to HTML5 drag (↑/↓ kept as the touch + keyboard door); `@dnd-kit/{core,sortable,utilities}` removed from `app/package.json` + lock (133,557 B unminified ESM, ~30.0 KB gzip; dist carries none). Rails: `ColumnsPicker.dnd.test.jsx` (9 tests, incl. no-`@dnd-kit` import/dep rail). `react-grid-layout` (/charts) is a layout engine with internal drag, untouched. |
 | `FB-A3` | Doc `file:line` citation resolver | `live` | Done 2026-10-10 by lane f-l1: `tools/doc_citation_resolver.py` (backticked `file.ext:N`, `:N-M` and `:N,M` resolved at a git revision; missing files and out-of-range lines reported; `--self-check` with a fixture that must fail), rails `tests/test_doc_citation_resolver.py`. Run over this file and the 2026-10-10 delivery record: 290 citations, 0 broken. Was `building (Lane P)`. |
 | `FB-A1` | Feature-backlog appendix A-1 | `moot (MOOT by the audit, §1b)` | |

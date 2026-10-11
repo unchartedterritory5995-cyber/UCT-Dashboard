@@ -27,6 +27,7 @@ import {
 } from '../../../lib/presentation/presentationPrimitives'
 import { ariaSortFor, nextSort, sortCaretFor, sortRows } from '../../../lib/presentation/dataGrid'
 import { SESSION_COPY, sessionOf } from './moversModel'
+import { entityDisplayBySym } from '../../watchlist/entityDisplay'
 import styles from './myNamesPanel.module.css'
 
 export const LISTS_URL = '/api/watchlists?include_prebuilt=0'
@@ -55,7 +56,9 @@ export function listSyms(list) {
 export function memberLists(lists, flagged) {
   const own = (Array.isArray(lists) ? lists : [])
     .filter((l) => l && l.id && !l.is_prebuilt && !l.is_flagged_list)
-    .map((l) => ({ id: String(l.id), name: l.name || 'Untitled list', syms: listSyms(l), flagged: false }))
+    .map((l) => ({ id: String(l.id), name: l.name || 'Untitled list', syms: listSyms(l), flagged: false,
+      // Entity Master UC-2: { SYM: { shown, note, title } } for renamed / delisted rows; {} while dark.
+      entities: entityDisplayBySym(l.items) }))
   const flag = flagged && flagged.id
     ? { id: String(flagged.id), name: flagged.name || 'Flagged', syms: listSyms(flagged), flagged: true }
     : null
@@ -121,6 +124,7 @@ export default function WatchlistPanel({ list: pick = null, onRun, onRows }) {
   const index = chosen && all.some((l) => l.id === chosen) ? all.findIndex((l) => l.id === chosen) : picked.index
   const current = index >= 0 ? all[index] : null
   const syms = useMemo(() => current?.syms || [], [current])
+  const entities = current?.entities || {}
 
   const { prices } = useLivePrices(syms)   // the shared pool: one poll for every panel's names
   const perfKey = syms.length ? [PERF_URL, syms.slice(0, PERF_CAP).join(',')] : null
@@ -239,7 +243,11 @@ export default function WatchlistPanel({ list: pick = null, onRun, onRows }) {
                       <button type="button" className={styles.rowBtn} onClick={() => load(r.sym)} aria-current={linked === r.sym ? 'true' : undefined}
                         aria-label={`Load ${r.sym} into the linked panels`}>
                         <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
-                        <span className={styles.sym}>{r.sym}</span>
+                        <span className={styles.sym} title={entities[r.sym] ? entities[r.sym].title : undefined}>{entities[r.sym] ? entities[r.sym].shown : r.sym}</span>
+                        {entities[r.sym] ? (
+                          <span className={`${styles.entityMark} ${entities[r.sym].tone === 'danger' ? styles.down : ''}`}
+                            data-testid={`terminal-watchlist-entity-${r.sym}`}>{entities[r.sym].note}</span>
+                        ) : null}
                       </button>
                     </td>
                     <td>{formatNumber(r.last, { decimals: 2 })}</td>
