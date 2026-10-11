@@ -22,7 +22,7 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 
@@ -137,7 +137,7 @@ def _social_polarity_armed() -> None:
 
 
 @router.get("/api/research/mention-series/{sym}/polarity", dependencies=[Depends(_social_polarity_armed)])
-def social_polarity_route(sym: str,
+def social_polarity_route(sym: str, response: Response,
                           window: str = Query(default="1m", pattern="^(1w|1m|3m)$"),
                           sort: str = Query(default="newest",
                                             pattern="^(newest|oldest|most_bullish|most_bearish)$"),
@@ -146,6 +146,9 @@ def social_polarity_route(sym: str,
                           limit: int = Query(default=50, ge=1, le=200),
                           _user: dict = Depends(require_paid)):
     from api.services import social_polarity as svc
+    # The payload carries #main-chat message TEXT for a paid member: no browser, proxy or
+    # edge cache may keep or replay it (review 2026-10-11).
+    response.headers["Cache-Control"] = "private, no-store"
     return svc.view(_sym(sym), window=window, sort=sort, source=source, label=label, limit=limit)
 
 
