@@ -356,10 +356,16 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     expect(v.objects.counts.filter((c) => c.vendor > 0).map((c) => [c.family, c.ours])).toEqual([['lines', 7], ['labels', 7]])
     expect(items(v, 'Chars').every((p) => p.verdict === 'MATCH')).toBe(true)
   }, T)
-  it('control: fibonacci-dolphintradebot SPY — the run declines a window not from the listing (runtime:history-start) and draws nothing', () => {
+  // ⭐⭐ UIE PHASE 3 (M3A) — this was the control that a window NOT from the listing drew
+  // no drawings (INCONCLUSIVE, `runtime:history-start`). Its two runs from two different
+  // first bars now end with the same drawings (`warmupDrawings.js`), so they are drawn —
+  // and graded against TradingView they MATCH: 7 lines, 7 labels, every label text, all
+  // 21 colour slots (coordinates are not compared by v1).
+  it('fibonacci-dolphintradebot SPY — off the listing its drawings are drawn, and MATCH TradingView', () => {
     const v = grade('fibonacci-dolphintradebot-spy-1d-2026-10-02', 'runtime').v
-    expect(v.objects.verdict).toBe('INCONCLUSIVE')
-    expect(v.objects.reason).toMatch(/runtime:history-start/)
+    expect(v.objects.verdict).toBe('MATCH')
+    expect(v.objects.counts.filter((c) => c.vendor > 0).map((c) => [c.family, c.ours])).toEqual([['lines', 7], ['labels', 7]])
+    expect(items(v, 'Chars').every((p) => p.verdict === 'MATCH')).toBe(true)
   }, T)
 })
 

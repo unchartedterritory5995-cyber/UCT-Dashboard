@@ -29,7 +29,8 @@ import { Budget, RuntimeLimitError, DEFAULT_LIMITS } from './limits.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram.js'
 import { registerObjectRuntimeValues } from '../objectColumns.js'
 // ⭐⭐ RT5 — the run's own drawings ride the column record (`runtimeObjects.js`).
-import { withRuntimeObjects, RUNTIME_WARMUP_KEY, runtimeWarmupOf } from './runtimeObjects.js'
+import { withRuntimeObjects, RUNTIME_WARMUP_KEY, RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from './runtimeObjects.js'
+import { sameDrawings } from './warmupDrawings.js'
 import { runtimeInputValues } from './runtimeInputs.js'
 import { makeWarmupProbe } from './warmupProbe.js'
 export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
@@ -439,9 +440,21 @@ function computeOffListing(def, rows, ctx, opts) {
   const warmup = { withheldBars: from, shift, ...(stoppedAt !== null ? { secondRunStoppedAt: stoppedAt } : {}) }
   Object.defineProperty(a, RUNTIME_WARMUP_KEY, { value: warmup, enumerable: false, configurable: true })
   if (objects) {
-    withRuntimeObjects(a, { status: 'WITHHELD', live: [], guard: RUNTIME_HISTORY_GUARD,
-      reason: "its drawings are not drawn on a chart whose history does not start at the symbol's first bar: "
-        + 'where a drawing lands is not proven to be independent of where the chart begins. Its plots are drawn.' })
+    // ⭐⭐ UIE PHASE 3 (M3A) — the drawings are held to the plots' standard: drawn when
+    // both runs END WITH THE SAME PICTURE (`warmupDrawings.js`), withheld by name otherwise
+    const pa = a[RUNTIME_OBJECTS_KEY]
+    const pb = b[RUNTIME_OBJECTS_KEY]
+    const verdict = opts.warmupDrawings === false ? { same: false, why: 'the drawing check is off' }
+      : pa && pb && pa.status === 'ok' && pb.status === 'ok' ? sameDrawings(pa.live, pb.live, shift)
+        : { same: false, why: 'a run did not finish its drawings' }
+    if (verdict.same) {
+      warmup.drawings = 'same-from-two-starts'
+    } else {
+      withRuntimeObjects(a, { status: 'WITHHELD', live: [], guard: RUNTIME_HISTORY_GUARD,
+        reason: "its drawings are not drawn on a chart whose history does not start at the symbol's first bar: "
+          + `run from two different first bars, it ends with different drawings (${verdict.why}), so where `
+          + 'they land depends on where the chart begins. Its plots are drawn.' })
+    }
   }
   return a
 }
