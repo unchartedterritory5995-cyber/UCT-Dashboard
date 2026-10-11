@@ -40,7 +40,7 @@ import random
 import sys
 import threading
 import time
-from collections import Counter
+from collections import Counter, deque
 
 # How many entries to serialize when estimating a cache's footprint.
 _SAMPLE_ENTRIES = 24
@@ -150,9 +150,35 @@ def _estimate_bytes(cache) -> dict:
 _JOB_MEM: dict[str, dict] = {}
 _JOB_MEM_LOCK = threading.Lock()
 
+#: Every execution, newest last, bounded. `_JOB_MEM` is CUMULATIVE since pod start
+#: (its `max_seconds` may predate any window), so a reader asking "which jobs ran
+#: between 09:00 and 11:00, and how heavy was each run" needs the runs themselves.
+#: Read by `api/services/measurement_window.py` (TERM-007's heavy-job condition).
+_JOB_RUNS: "deque[tuple[float, str, float, float | None]]" = deque(maxlen=4000)
+
+
+def recent_job_runs(since_ts: float, until_ts: float | None = None) -> list[dict]:
+    """Executions that ENDED in (since_ts, until_ts], oldest first. Never raises."""
+    try:
+        with _JOB_MEM_LOCK:
+            runs = list(_JOB_RUNS)
+        return [{"job": j, "ended_at": round(t, 1), "seconds": round(s, 2),
+                 "rss_delta_mb": d}
+                for t, j, s, d in runs
+                if t > since_ts and (until_ts is None or t <= until_ts)]
+    except Exception:
+        return []
+
 
 def record_job(job_id: str, before, after, seconds: float) -> None:
     """Record one job execution's RSS delta. Never raises."""
+    try:
+        d_run = (round(after - before, 1)
+                 if before is not None and after is not None else None)
+        with _JOB_MEM_LOCK:
+            _JOB_RUNS.append((time.time(), job_id, float(seconds), d_run))
+    except Exception:
+        pass
     try:
         if before is None or after is None:
             return
