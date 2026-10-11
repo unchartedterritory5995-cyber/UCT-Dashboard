@@ -1590,7 +1590,11 @@ def _recent_member_product(sym: str, src: str, version: str, st, warm_only: bool
 # ⛔ A STALE ANSWER IS ONLY EVER A HEAD TICKER'S. A ticker the member lane can build keeps its
 # exact-version contract; its persisted copy is used only when the version still matches.
 _HEAVY_CSV_MAX_BYTES = int(os.environ.get("FLOW_SEARCH_HEAVY_MAX_MB", "128") or 128) * 1024 * 1024
-_HEAVY_CSV_DEADLINE_S = float(os.environ.get("FLOW_SEARCH_HEAVY_DEADLINE_S", "150") or 150)
+#: ⚰️ Was 150 s for one deploy: on the freshly booted pod (2026-10-11 17:02 UTC, empty page
+#: cache) NVDA's index-ordered read ran ~800 rows/s -- 122,001 rows at 151 s -- and the build was
+#: declined, while the same read is 6.8 s once warm. The deadline guards the MEMBER lane; this
+#: lane is one slot, off the request path, and the byte cap still bounds its memory.
+_HEAVY_CSV_DEADLINE_S = float(os.environ.get("FLOW_SEARCH_HEAVY_DEADLINE_S", "900") or 900)
 _HEAVY_NODE_TIMEOUT_S = float(os.environ.get("FLOW_SEARCH_HEAVY_NODE_TIMEOUT_S", "180") or 180)
 _HEAVY_REFRESH_MIN_S = float(os.environ.get("FLOW_SEARCH_HEAVY_REFRESH_MIN_S", "300") or 300)
 _HEAVY_STALE_MAX_S = float(os.environ.get("FLOW_SEARCH_HEAVY_STALE_MAX_S", "900") or 900)

@@ -258,3 +258,35 @@ def test_the_warm_loop_rebuilds_serially_in_its_own_thread(leg, monkeypatch):
     assert sorted(calls) == [5, 5, 30, 30]
     cf.warm_all()                                   # all fresh: nothing rebuilt
     assert len(calls) == 4
+
+
+def test_a_cold_caller_behind_a_long_build_hears_computing_in_bounded_time(board, monkeypatch):
+    """⚰️ 2026-10-11: on a freshly booted pod a caller queued behind the boot warm's cold read
+    timed out at 400 s. It now waits `_BOARD_COLD_WAIT_S`, then is told the truth."""
+    calls, gate = board
+    monkeypatch.setattr(wf, "_BOARD_COLD_WAIT_S", 0.2)
+    gate.clear()
+    t0 = time.time()
+    first = wf.board_data(days=60, cap="all")
+    second = wf.board_data(days=60, cap="all")
+    assert time.time() - t0 < 2.0
+    assert first == second == {"ok": False, "reason": "computing", "rows": []}
+    assert len(calls) == 1, "the second cold caller started a second build"
+    gate.set()
+    assert _wait(lambda: wf.board_data(days=60, cap="all").get("ok") is True)
+
+
+def test_a_cold_leg_behind_a_long_build_hears_computing(leg, monkeypatch):
+    cf, calls = leg
+    release = threading.Event()
+    real = cf._compute
+
+    def slow(*a):
+        release.wait(5)
+        return real(*a)
+
+    monkeypatch.setattr(cf, "_compute", slow)
+    monkeypatch.setattr(cf, "_COLD_WAIT", 0.2)
+    assert cf.flow_leg(days=30, cap="all") == {"ok": False, "reason": "computing", "names": {}}
+    release.set()
+    assert _wait(lambda: cf.flow_leg(days=30, cap="all").get("ok") is True)

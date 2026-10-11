@@ -121,21 +121,34 @@ def _build_locked(ckey) -> dict:
     return res
 
 
-def _spawn_refresh(ckey) -> bool:
+#: A caller with nothing to serve waits this long for the build, then hears "computing" (the
+#: web join already treats that reason as "the worker is still BUILDING this leg").
+_COLD_WAIT = float(os.environ.get("CONFLUENCE_FLOW_COLD_WAIT", "25"))
+_INFLIGHT: dict = {}
+_ERRORS: dict = {}
+
+
+def _spawn_refresh(ckey):
+    """Rebuild one key behind the caller; None when it is already building, else the Event set
+    when this build ends."""
     lk = _key_lock(ckey)
     if not lk.acquire(blocking=False):
-        return False
+        return None
+    done = threading.Event()
+    _INFLIGHT[ckey] = done
+    _ERRORS.pop(ckey, None)
 
     def _run():
         try:
             _build_locked(ckey)
-        except Exception:  # noqa: BLE001 -- the stale leg keeps serving
-            pass
+        except Exception as e:  # noqa: BLE001 -- the stale leg keeps serving
+            _ERRORS[ckey] = str(e)
         finally:
             lk.release()
+            done.set()
 
     threading.Thread(target=_run, name="confluence-flow-refresh", daemon=True).start()
-    return True
+    return done
 
 
 def flow_leg(*, days: int = 30, min_dte: int = 30, cap: str = "all",
@@ -157,20 +170,20 @@ def flow_leg(*, days: int = 30, min_dte: int = 30, cap: str = "all",
         if not _is_rth():
             _spawn_refresh(ckey)
         return hit[1]
-    lk = _key_lock(ckey)
-    if not lk.acquire(blocking=False):
-        # someone is already computing this key — return the last good result
-        # (stale is fine for a 30d screen) rather than starting a duplicate.
-        return hit[1] if hit else {"ok": False, "reason": "computing", "names": {}}
-    try:
-        hit = _CACHE.get(ckey)  # re-check: another thread may have just finished
-        if hit and time.time() - hit[0] < _TTL:
-            return hit[1]
-        return _build_locked(ckey)
-    except Exception as e:  # noqa: BLE001
-        return hit[1] if hit else {"ok": False, "reason": f"error: {e}", "names": {}}
-    finally:
-        lk.release()
+    # Nothing servable: start (or join) the one build and wait a bounded time for it -- never
+    # a duplicate, never the whole ~100 s (minutes on a cold pod) on the request.
+    ev = _spawn_refresh(ckey) or _INFLIGHT.get(ckey)
+    if ev is not None:
+        ev.wait(_COLD_WAIT)
+    again = _CACHE.get(ckey)
+    if again and time.time() - again[0] < _STALE_MAX:
+        return again[1]
+    if hit:
+        return hit[1]
+    err = _ERRORS.get(ckey)
+    if err is not None:
+        return {"ok": False, "reason": f"error: {err}", "names": {}}
+    return {"ok": False, "reason": "computing", "names": {}}
 
 
 # ── Background warmer (OFF-HOURS ONLY) ────────────────────────────────────────

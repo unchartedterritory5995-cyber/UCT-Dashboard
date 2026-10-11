@@ -1054,22 +1054,36 @@ def _board_build_locked(ckey) -> dict:
     return res
 
 
-def _spawn_board_refresh(ckey) -> bool:
-    """Rebuild one key behind the caller. Never queues: a key already building is a skip."""
+#: How long a caller with NOTHING to serve waits for the build before it is told "computing".
+#: ⚰️ It waited for the whole build, single-flight: on the freshly booted pod 2026-10-11 the boot
+#: warm's cold-cache 60-day read held the key and a caller behind it timed out at 400 s.
+_BOARD_COLD_WAIT_S = float(os.getenv("FLOW_BOARD_COLD_WAIT_S", "25"))
+_BOARD_INFLIGHT: dict = {}
+_BOARD_ERRORS: dict = {}
+
+
+def _spawn_board_refresh(ckey):
+    """Rebuild one key behind the caller. Never queues: a key already building is a skip
+    (None); otherwise returns the Event set when this build ends."""
     lk = _board_lock(ckey)
     if not lk.acquire(blocking=False):
-        return False
+        return None
+    done = threading.Event()
+    _BOARD_INFLIGHT[ckey] = done
+    _BOARD_ERRORS.pop(ckey, None)
 
     def _run():
         try:
             _board_build_locked(ckey)
-        except Exception:  # noqa: BLE001 -- the stale board keeps serving
+        except Exception as e:  # noqa: BLE001 -- the stale board keeps serving
+            _BOARD_ERRORS[ckey] = str(e)
             log.exception("[flow-board] background refresh failed for %s", ckey)
         finally:
             lk.release()
+            done.set()
 
     threading.Thread(target=_run, name="flow-board-refresh", daemon=True).start()
-    return True
+    return done
 
 
 def board_data(*, days: int = 60, cap: str = "all", min_dte: int = 30,
@@ -1093,16 +1107,17 @@ def board_data(*, days: int = 60, cap: str = "all", min_dte: int = 30,
     if hit and now - hit[0] < _BOARD_STALE_MAX_S:
         _spawn_board_refresh(ckey)
         return hit[1]
-    lk = _board_lock(ckey)
-    try:
-        with lk:   # single-flight: a second cold caller waits for the first build, not a second
-            again = _BOARD_CACHE.get(ckey)
-            if again and time.time() - again[0] < _BOARD_TTL:
-                return again[1]
-            return _board_build_locked(ckey)
-    except Exception as e:  # noqa: BLE001
-        log.exception("[flow-board] build failed")
-        return {"ok": False, "reason": f"error: {e}", "rows": []}
+    # Nothing servable: start (or join) the one build and wait a bounded time for it.
+    ev = _spawn_board_refresh(ckey) or _BOARD_INFLIGHT.get(ckey)
+    if ev is not None:
+        ev.wait(_BOARD_COLD_WAIT_S)
+    again = _BOARD_CACHE.get(ckey)
+    if again and time.time() - again[0] < _BOARD_STALE_MAX_S:
+        return again[1]
+    err = _BOARD_ERRORS.get(ckey)
+    if err is not None:
+        return {"ok": False, "reason": f"error: {err}", "rows": []}
+    return {"ok": False, "reason": "computing", "rows": []}
 
 
 def start_board_warm(delay_s: float = 90.0) -> None:
@@ -1115,7 +1130,11 @@ def start_board_warm(delay_s: float = 90.0) -> None:
     def _run():
         time.sleep(delay_s)
         try:
-            board_data(days=60, cap="all", limit=300)
+            ckey = (60, "all", 30, 0.75, 300)
+            board_data(days=60, cap="all", limit=300)        # loads the disk copy if one exists
+            ev = _BOARD_INFLIGHT.get(ckey)
+            if ev is not None:
+                ev.wait()
         except Exception:  # noqa: BLE001
             log.exception("[flow-board] boot warm failed")
 
