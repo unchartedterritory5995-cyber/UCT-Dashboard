@@ -199,8 +199,8 @@ def fire_session_summary(user_id: str, *, current: dict, last_summary_text: str,
         source_data_class="regime_classifier", freshness_class=None,
         as_of=time.time() if now is None else now)
     if fire_id is None:
-        # Already recorded. Only a fire whose insight write FAILED (lease
-        # released) is retried, as the legacy retried on its next scan.
+        # Already recorded. Only a fire still owed (its insight write FAILED and
+        # the lease was released, or it was never claimed) is retried.
         fire_id = _receipts.released_fire_id(pid, fire_key)
         if fire_id is None:
             return 0
