@@ -163,7 +163,10 @@ FAMILIES: dict[str, Family] = {
          "/api/ticker-logo", "/api/ticker-ipo", "/api/ticker-types", "/api/logos",
          "/api/quote-of-the-day", "/api/market-calendar", "/api/massive",
          "/api/provenance", "/api/etf", "/api/single-stock-etfs", "/api/delisted",
-         "/api/maintenance", "/api/adjustment-basis"),
+         "/api/maintenance", "/api/adjustment-basis",
+         # The Breadth Pack's manifest + immutable shards (the barspack's twin) and the
+         # point-in-time market-cap series the chart draws: chart data, fetched in bursts.
+         "/api/breadthpack", "/api/marketcap"),
     ),
     "options-flow": Family(
         TIER_BULK,
@@ -194,7 +197,10 @@ FAMILIES: dict[str, Family] = {
          "/api/theme-rotation", "/api/theme-sets", "/api/themes", "/api/groups",
          "/api/compare", "/api/uct20", "/api/leadership", "/api/rundown", "/api/wire/archive", "/api/decision-record",
          "/api/candidates", "/api/dashboard", "/api/traders", "/api/signature",
-         "/api/entity", "/api/terminal-next"),
+         "/api/entity", "/api/terminal-next",
+         # FT-056 Market Tide: one market-wide computed read, cached and refreshed off the
+         # request, polled by the panel like the other dashboard reads.
+         "/api/options/market-tide"),
     ),
     "research": Family(
         TIER_STANDARD,
@@ -205,7 +211,14 @@ FAMILIES: dict[str, Family] = {
          "/api/analyst", "/api/analyst-actions", "/api/ownership", "/api/earnings",
          "/api/earnings-analysis", "/api/earnings-gaps", "/api/earnings-intel",
          "/api/calendar", "/api/catalysts", "/api/news", "/api/news-catalysts",
-         "/api/company-news", "/api/chart-news", "/api/tweets"),
+         "/api/company-news", "/api/chart-news", "/api/tweets",
+         # Per-ticker vol reads (IV rank, term structure, realized, VRP, RR/BF, surface) over
+         # the cached chain and our options log -- the per-ticker options reads already
+         # here under /api/research/options are their siblings.
+         "/api/options/vol",
+         # The terminal's per-ticker reads: MOVE (the intelligence + catalyst services for
+         # one name), the sector comparator lookup, and GRADE (grade_ticker, cached per symbol).
+         "/api/terminal/move", "/api/terminal/compare-target", "/api/terminal/grade"),
     ),
     "screener": Family(
         TIER_STANDARD,
@@ -215,7 +228,9 @@ FAMILIES: dict[str, Family] = {
         ("/api/screener", "/api/scanner", "/api/scans", "/api/patterns", "/api/exports",
          "/api/backtest", "/api/user-definitions", "/api/setup-templates",
          "/api/setup-performance", "/api/model-examples", "/api/indicator-alerts",
-         "/api/indicator-telemetry"),
+         "/api/indicator-telemetry",
+         # The Pine library store the chart's translators fetch an `import` line from.
+         "/api/pine"),
     ),
     "member-workspace": Family(
         TIER_STANDARD,
@@ -226,7 +241,13 @@ FAMILIES: dict[str, Family] = {
          "/api/upb", "/api/member", "/api/portfolio", "/api/risk-summary",
          "/api/pre-trade-checklist", "/api/psychology-events", "/api/coaching-notes",
          "/api/skill-assessments", "/api/wire-feedback", "/api/charts",
-         "/api/workspace", "/api/tracings", "/api/address"),
+         "/api/workspace", "/api/tracings", "/api/address",
+         # COV-06 version history of the member's own screens/layouts/watchlists, and the
+         # member's saved option spreads.
+         "/api/artifact-versions", "/api/options/spread-book",
+         # The terminal shell's own per-member state: aliases, command telemetry (one POST
+         # per command run), and the throttled "seen since last visit" markers.
+         "/api/terminal"),
     ),
     "community-content": Family(
         TIER_STANDARD,
@@ -234,6 +255,18 @@ FAMILIES: dict[str, Family] = {
         "Discord ops routes (the interactions endpoint is exempt below).",
         ("/api/community", "/api/desk", "/api/education", "/api/modelbook",
          "/api/support", "/api/discord"),
+    ),
+    "options-analytics": Family(
+        TIER_STANDARD,
+        "Chain- and tape-derived options compute: dealer positioning (levels, GEX / delta / "
+        "charm heatmaps, max pain, NOPE, impact, projection, base rate, level files) and the "
+        "option screens (strategy, multi-leg, sizzle, unusual volume, IV percentile). Heavier "
+        "per call than a research read, so it gets its OWN bucket: a terminal board mounts "
+        "~13 positioning panels per symbol and the heatmaps re-poll every 60 s, which leaves "
+        "this ceiling ~40 symbol switches a minute of headroom without spending the research "
+        "or flow budgets. (One family, not two: the positioning routes carry {sym} MID-path, "
+        "so a concrete request can only ever match at /api/options/positioning.)",
+        ("/api/options/positioning", "/api/options-screener"),
     ),
     "ai": Family(
         TIER_COSTLY,
@@ -276,6 +309,7 @@ FAMILIES: dict[str, Family] = {
         "Admin and ops reads/writes. Internal pollers carry the PUSH_SECRET bearer "
         "and are exempt; this bounds a human admin or an unauthenticated prober.",
         ("/api/admin", "/api/debug", "/api/company-news-ops", "/api/flow-gap-fill",
+         "/api/instruments/what-else-open",   # TERM-093 owner-desk capture, admin-only
          "/api/flow-backup", "/api/watchdog", "/api/theme-engine"),
     ),
     "internal": Family(
@@ -319,6 +353,8 @@ EXEMPT: dict[str, str] = {
     "/fonts": "Static fonts from app/dist; same reason as /assets.",
     "/manifest.json": "Static SPA shell file from app/dist; same reason as /assets.",
     "/sw.js": "The self-uninstalling legacy service-worker kill switch; static.",
+    "/push-sw.js": "BRK-04's Web Push service worker from app/dist; the browser re-fetches "
+                   "it on every registration update check, and a 429 there breaks push.",
     "/favicon.svg": "Static SPA shell file from app/dist; same reason as /assets.",
     "/vite.svg": "Static SPA shell file from app/dist; same reason as /assets.",
     "/og-image.png": "Static social-card image fetched by link unfurlers.",
@@ -336,7 +372,7 @@ EXEMPT: dict[str, str] = {
 #: (read from the app itself, never the filesystem) -- auth_surface_check's
 #: `requires_dist`, mirrored. The rail derives this set from main.py's AST.
 DIST_ONLY = frozenset({
-    "/assets", "/fonts", "/manifest.json", "/sw.js", "/favicon.svg", "/vite.svg",
+    "/assets", "/fonts", "/manifest.json", "/sw.js", "/push-sw.js", "/favicon.svg", "/vite.svg",
     "/og-image.png", "/og-coming-soon.png", "/api/q1-probe-result",
     "/api/q1-probe-results", "/q1-probe.html", "/robots.txt", "/sitemap.xml",
     "/pip-embed", SPA_CATCH_ALL,
