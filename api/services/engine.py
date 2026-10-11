@@ -80,10 +80,21 @@ def _get_anthropic_client():
                 api_key = os.environ.get("ANTHROPIC_API_KEY")
                 if not api_key:
                     raise RuntimeError("ANTHROPIC_API_KEY is not set")
+                # ⭐ AI SPEND GUARD (2026-10-11) — every message call through ANY client
+                # is admitted against the day's ceiling and counted by feature
+                # (`ai_spend.py`). Idempotent; `api/main.py` installs it at boot too.
+                from api.services import ai_spend
+                ai_spend.install()
                 # timeout bounds a hung LLM call so it can't pin a worker thread
                 # forever (the 2026-07-01 thread-exhaustion class). 60s is generous
                 # for our max_tokens; the SDK still retries transient errors.
-                _anthropic_client = anthropic.Anthropic(api_key=api_key, timeout=60.0)
+                # ⭐ AI SPEND (2026-10-11) — the retry bound, stated: the SDK's own default
+                # (2), unchanged, now an explicit and tunable number (AI_SDK_MAX_RETRIES)
+                # so a cost review can see it. Each retry is a new billed attempt only when
+                # the provider generated before failing; the 60 s timeout bounds each one.
+                _anthropic_client = anthropic.Anthropic(
+                    api_key=api_key, timeout=60.0,
+                    max_retries=max(0, int(os.environ.get("AI_SDK_MAX_RETRIES", "2") or 2)))
     return _anthropic_client
 
 # ── Earnings analysis configuration ───────────────────────────────────────────

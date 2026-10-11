@@ -488,3 +488,88 @@ def _no_test_leaks_a_dependency_override():
             # restore is the empty mapping a fresh FastAPI app carries.
             mod.app.dependency_overrides.clear()
             mod.app.dependency_overrides.update(before or {})
+
+
+# ─── ⭐ AI SPEND (2026-10-11): NO TEST CAN SPEND, BY CONSTRUCTION ───────────────
+#
+# Owner policy: paid AI testing only when explicitly authorized, with a budget. A test
+# that reaches a model provider by accident would bill the production account, and a
+# mock that is quietly wrong is exactly how that happens. So the TRANSPORT refuses:
+# every real HTTP request to a model host raises, whichever client made it (httpx —
+# the Anthropic and OpenAI SDKs — and `requests`). Mocked clients and `httpx`
+# MockTransports never reach these methods, so every honest test is unaffected.
+#
+# ⭐ OPT-IN, AND BUDGETED: `ALLOW_LIVE_AI=1` lifts the block for one run, and that run
+# is held to `AI_SPEND_BATCH_CAP_USD` ($2 unless set — the owner's per-batch ceiling),
+# enforced by `api/services/ai_spend.py` on every message call.
+
+MODEL_HOSTS = frozenset({"api.anthropic.com", "api.openai.com", "api.perplexity.ai"})
+
+
+def _live_ai_allowed() -> bool:
+    return os.environ.get("ALLOW_LIVE_AI", "") == "1"
+
+
+def _refuse(host: str):
+    raise RuntimeError(
+        f"tests may not call {host}: a real model call bills the production account. "
+        "Mock the client, or run with ALLOW_LIVE_AI=1 (held to AI_SPEND_BATCH_CAP_USD, $2 by default).")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _no_paid_model_calls_in_tests():
+    if _live_ai_allowed():
+        os.environ.setdefault("AI_SPEND_BATCH_CAP_USD", "2")
+        yield
+        return
+    import httpx
+    patched = []
+
+    def guard_sync(orig):
+        def handle_request(self, request):
+            if request.url.host in MODEL_HOSTS:
+                _refuse(request.url.host)
+            return orig(self, request)
+        return handle_request
+
+    def guard_async(orig):
+        async def handle_async_request(self, request):
+            if request.url.host in MODEL_HOSTS:
+                _refuse(request.url.host)
+            return await orig(self, request)
+        return handle_async_request
+
+    for cls, name, wrap in ((httpx.HTTPTransport, "handle_request", guard_sync),
+                            (httpx.AsyncHTTPTransport, "handle_async_request", guard_async)):
+        orig = getattr(cls, name)
+        setattr(cls, name, wrap(orig))
+        patched.append((cls, name, orig))
+    try:
+        import requests.adapters
+        from urllib.parse import urlsplit
+        orig_send = requests.adapters.HTTPAdapter.send
+
+        def send(self, request, *a, **k):
+            host = urlsplit(request.url).hostname
+            if host in MODEL_HOSTS:
+                _refuse(host)
+            return orig_send(self, request, *a, **k)
+        requests.adapters.HTTPAdapter.send = send
+        patched.append((requests.adapters.HTTPAdapter, "send", orig_send))
+    except ImportError:
+        pass
+    try:
+        yield
+    finally:
+        for cls, name, orig in reversed(patched):
+            setattr(cls, name, orig)
+
+
+@pytest.fixture(autouse=True)
+def _reset_ai_spend_process_state():
+    """The spend guard's breaker / in-flight / batch account are per PROCESS; a test
+    must not inherit the previous test's. Lazy: only when the module is loaded."""
+    mod = sys.modules.get("api.services.ai_spend")
+    if mod is not None:
+        mod.reset_process_state()
+    yield

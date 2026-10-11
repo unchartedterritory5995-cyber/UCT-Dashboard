@@ -40,6 +40,15 @@ for _noisy in ("httpx", "httpcore", "websockets.client", "websockets.server",
                "websockets.protocol", "asyncio", "uvicorn.access"):
     logging.getLogger(_noisy).setLevel(logging.WARNING)
 
+# ⭐ AI SPEND GUARD (2026-10-11) — installed before any route or job can construct an
+# Anthropic client: every message call is admitted against the day's ceiling and
+# counted by feature (`api/services/ai_spend.py`). Never raises at boot.
+try:
+    from api.services import ai_spend as _ai_spend
+    _ai_spend.install()
+except Exception as _e:  # noqa: BLE001
+    logging.getLogger(__name__).warning("[ai-spend] guard not installed: %s", type(_e).__name__)
+
 from fastapi import FastAPI, Request, Depends
 from api.middleware.auth_middleware import get_current_user, require_admin
 from fastapi.staticfiles import StaticFiles

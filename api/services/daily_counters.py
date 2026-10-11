@@ -185,6 +185,24 @@ def read(day: str, scope: str, subject: str) -> float | None:
         conn.close()
 
 
+def rows(day: str, scope: str) -> list[tuple[str, float]]:
+    """Every (subject, value) of `scope` for `day` — READ-ONLY, for a report
+    (`ai_spend.report`). An empty list on an error, with one log line."""
+    try:
+        conn = _connect()
+    except Exception as e:  # noqa: BLE001
+        _fail_open("rows", e)
+        return []
+    try:
+        cur = conn.execute(f"SELECT subject, value FROM {TABLE} WHERE scope = ? AND day = ?", (scope, day))
+        return [(str(s), float(v)) for s, v in cur.fetchall()]
+    except Exception as e:  # noqa: BLE001
+        _fail_open("rows", e)
+        return []
+    finally:
+        conn.close()
+
+
 def value(day: str, scope: str, subject: str) -> float:
     """The counter's value for `day` (0 when there is none, and on an error)."""
     v = read(day, scope, subject)
