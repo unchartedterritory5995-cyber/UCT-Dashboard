@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after the FT-080 polarity build, waiting on its flag): not complete.** 269 of 279 rows are `live` or `moot`; 10 are not (3 `dark`, 5 `building`, 2 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after indicator templates were built, switched off for now): not complete.** 269 of 279 rows are `live` or `moot`; 10 are not (5 `dark`, 3 `building`, 2 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,10 +34,10 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-11 after the FT-080 polarity build moved that row to dark:
+Printed 2026-10-11 after indicator templates were built, switched off for now:
 
 ```
-279 Counter({'live': 229, 'moot': 40, 'building': 5, 'dark': 3, 'owner-blocked': 2})
+279 Counter({'live': 229, 'moot': 40, 'dark': 5, 'building': 3, 'owner-blocked': 2})
 0 duplicate ids
 ```
 
@@ -53,12 +53,12 @@ The per-section split is the same regex applied to each `## ` section:
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
 | 3 TERM-001..093 | 93 | 82 | 2 | 2 | 1 | 6 |
 | 4 BRK-01..10 | 10 | 9 | 0 | 0 | 0 | 1 |
-| 5 COV-01..12 | 12 | 8 | 0 | 1 | 0 | 3 |
-| 6 FT-001..080 | 80 | 68 | 1 | 1 | 1 | 9 |
+| 5 COV-01..12 | 12 | 8 | 1 | 0 | 0 | 3 |
+| 6 FT-001..080 | 80 | 68 | 2 | 0 | 1 | 9 |
 | 7 Untracked promises | 58 | 49 | 0 | 0 | 0 | 9 |
-| **total** | **279** | **229** | **3** | **5** | **2** | **40** |
+| **total** | **279** | **229** | **5** | **3** | **2** | **40** |
 
-`building` by lane: P 3 · Indicators 2.
+`building` by lane: P 3.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -226,7 +226,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `COV-08` | Depth of book / L2 / T&S | `moot (decided 2026-10-07: no L2 purchase)` | In scope by D-008. ➜ 2026-10-07: S-1 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `COV-09` | SEC filings feed (re-id DL-036) | `live` | `FILINGS_FEED_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:2018`); `api/services/filings_feed.py`. Was `dark`. |
 | `COV-10` | Monitor groups / list subscriptions | `live` | List-subscribe (`docs/feature_flags.json:1832`) and groups E-H (`docs/feature_flags.json:1840`) armed on web. The literal `COLORS` / `COLOR_HEX` copies are deleted (lane f-l7, `6c187ca6c`): `app/src/pages/terminal/functions.rail.test.js:450` now walks `charts/colorGroups.js`' own dot cycle and `:460` compares its `GROUP_HEX`; `app/src/pages/charts/colorGroups.test.js:71` keeps the copies gone. Community lists stay on /watchlists via TERM-077. Was `building (Lane T2)`. |
-| `COV-11` | Indicator templates object | `building (Indicators)` | Same as FT-070; coordinate with the indicator programme. Reclassified 2026-10-11 to the Indicators programme: the template object already exists unwired there (`app/src/components/chart/engine/alertSets.js` `applyAlertTemplate`, `421fcafb8`), indicator state is Indicators-owned (`docs/indicators/AGENT-INTEGRATION-CONTRACT.md:6-7`, `builder/agentSeams.js:30`), and a new writer needs an entry in the engine-owned `controlDoorCensus.test.js`. Plan for that team: capture/apply seam beside `builder/agentMutations.js`, an `indicator_templates` pref key, a dark flag. |
+| `COV-11` | Indicator templates object | `dark` | Built 2026-10-11, DARK behind `VITE_INDICATOR_TEMPLATES_ENABLED` (a build flag, default off; `docs/feature_flags.json` build_flags + `docs/frontend_feature_flags.json`; arming = the Railway variable on web set to `1` plus a rebuild). Chart Settings → Indicators → "Indicator templates" (`app/src/components/chart/IndicatorTemplatesBar.jsx`, mounted in `ChartSettingsIndicators.jsx` beside Add to Chart) saves the indicators on a chart as a named template and adds a saved template's indicators to any chart in one click. The seam is `app/src/components/chart/builder/indicatorTemplates.js` (capture/apply beside `agentMutations.js`); the template object is `alertSets.js`'s, validated by `applyAlertTemplate`; each indicator lands as its own new instance through the canonical writer `instanceControls.addInstanceCopy` (a new door-eight entry in `controlDoorCensus.test.js`), nothing already on the chart is removed or edited, and a second apply adds nothing. Templates persist per member in the server preference `indicator_templates` (allowlisted in `api/routers/auth.py`, written with `setPrefMerged`). Same day: the Agent's `chart.applyTemplate` now matches the click (one shared `chartTemplateSettings`, parity test `app/src/agent/agentChartTemplateParity.test.jsx`). |
 | `COV-12` | Congressional / political-disclosure trackers (was COV-09) | `moot (decided 2026-10-07: not pursued, no scraping fallback)` | ➜ 2026-10-07: S-6 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 
 ## 6. Feature register — FT-001..FT-080
@@ -302,7 +302,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `FT-067` | Congressional trackers | `moot (as COV-12)` | ➜ 2026-10-07: S-6 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-068` | Insider / 13F / FEC / SI / FTD datasets | `moot (decided 2026-10-07: no FEC key)` | Insider, 13F and SI live; FTD armed on web 2026-10-04 (`a046f7d9f`) (`FTD_DATASET_ENABLED`, `docs/feature_flags.json:2058`). ➜ 2026-10-07: S-5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-069` | MNRS history + copy / link | `live` | `api/services/artifact_versions.py:97`. |
-| `FT-070` | Indicator templates | `building (Indicators)` | Coordinate with the indicator programme. Reclassified 2026-10-11 to the Indicators programme: the template object already exists unwired there (`app/src/components/chart/engine/alertSets.js` `applyAlertTemplate`, `421fcafb8`), indicator state is Indicators-owned (`docs/indicators/AGENT-INTEGRATION-CONTRACT.md:6-7`, `builder/agentSeams.js:30`), and a new writer needs an entry in the engine-owned `controlDoorCensus.test.js`. Plan for that team: capture/apply seam beside `builder/agentMutations.js`, an `indicator_templates` pref key, a dark flag. |
+| `FT-070` | Indicator templates | `dark` | Built 2026-10-11, DARK behind `VITE_INDICATOR_TEMPLATES_ENABLED` (a build flag, default off; `docs/feature_flags.json` build_flags + `docs/frontend_feature_flags.json`; arming = the Railway variable on web set to `1` plus a rebuild). Chart Settings → Indicators → "Indicator templates" (`app/src/components/chart/IndicatorTemplatesBar.jsx`, mounted in `ChartSettingsIndicators.jsx` beside Add to Chart) saves the indicators on a chart as a named template and adds a saved template's indicators to any chart in one click. The seam is `app/src/components/chart/builder/indicatorTemplates.js` (capture/apply beside `agentMutations.js`); the template object is `alertSets.js`'s, validated by `applyAlertTemplate`; each indicator lands as its own new instance through the canonical writer `instanceControls.addInstanceCopy` (a new door-eight entry in `controlDoorCensus.test.js`), nothing already on the chart is removed or edited, and a second apply adds nothing. Templates persist per member in the server preference `indicator_templates` (allowlisted in `api/routers/auth.py`, written with `setPrefMerged`). Same day: the Agent's `chart.applyTemplate` now matches the click (one shared `chartTemplateSettings`, parity test `app/src/agent/agentChartTemplateParity.test.jsx`). |
 | `FT-071` | Broker estimates + drift | `moot (as COV-07)` | Built and armed on web 2026-10-04 (`a046f7d9f`) (`BROKER_ESTIMATES_ENABLED`, `docs/feature_flags.json:2034`); should read COV-07's snapshot instead of a second FMP call. ➜ 2026-10-07: S-2 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-072` | Option / Spread Hacker | `live` | Saved Spread Book: `OPTIONS_SPREAD_BOOK_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:388`). Was `building (Lane O)`. |
 | `FT-073` | Per-strategy option screeners | `live` | Strategy screens (`docs/feature_flags.json:291`) and the remaining screens (call butterflies, by-expiration, block trades; `docs/feature_flags.json:396`) armed on web 2026-10-09 (`c10e0fef3`) and answering 200 live 2026-10-09. Multi-leg trades built 2026-10-10 by finishing lane L3 (branch `f-l3`) behind `OPTIONS_MULTI_LEG_SCREEN_ENABLED` (`docs/feature_flags.json:426`, `dark`): the tape does carry the flag (flow-worker types a print `ML/` from OPRA condition codes 232-247, `api/build_gap_fill_csv.py:52`), so `GET /api/options-screener/multi-leg` (`api/routers/options_analytics.py:530`) groups today's ML/ prints per symbol and second from Market Tide's same tape read (`api/services/options_analytics/tide_extras.py:51`, `more_screens.py:58`); panel `app/src/pages/optionsAnalytics/StrategyScreensPanel.jsx:203`. Armed 2026-10-11 (owner ruling 2026-10-10, "everything on the list"): see the flag's `docs/feature_flags.json` entry for the service and flip time. |

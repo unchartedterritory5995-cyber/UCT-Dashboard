@@ -39,13 +39,24 @@ THE BAR, PER TYPE (ADR-0036 clauses 1-3, T-11's session count, and one guard):
 `--dispositions` is JSON: {"<type>": {"<predicate_id>": "<disposition>"}}.
 """
 from __future__ import annotations
+import os as _uct_os  # noqa: E402
+import sys as _uct_sys  # noqa: E402
+_uct_repo_root = _uct_os.path.dirname(_uct_os.path.dirname(_uct_os.path.abspath(__file__)))
+if _uct_repo_root not in _uct_sys.path:
+    _uct_sys.path.insert(0, _uct_repo_root)
+# The census and the tripwire, before any api.* import. Safe for this tool's two real uses:
+# off a pod it already REFUSES to run without an explicit `--db`, which is passed straight to
+# `dark_report(db_path=...)` (never through a census-pinned default); ON a Railway pod
+# `conftest` is inert by construction (`_inert_in_production`), so `--db`-less pod runs still
+# read the pod's own `alert_taxonomy.DB_PATH`.
+import conftest  # noqa: E402,F401
 
-import argparse
-import json
-import os
-import sys
-from datetime import date, timedelta
-from pathlib import Path
+import argparse  # noqa: E402
+import json  # noqa: E402
+import os  # noqa: E402
+import sys  # noqa: E402
+from datetime import date, timedelta  # noqa: E402
+from pathlib import Path  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:

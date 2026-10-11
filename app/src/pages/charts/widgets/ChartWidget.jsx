@@ -5,6 +5,7 @@ import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurf
 import { useWorkspace } from '../WorkspaceContext'
 import useWatchlistAlerts from '../../../hooks/useWatchlistAlerts'
 import usePreferences from '../../../hooks/usePreferences'
+import { chartTemplateSettings } from '../../../components/chart/chartTemplateApply'
 import UIcon from '../../../components/ui/UIcon'
 import LeverageInverseControl from './LeverageInverseControl'
 import ViewHoldingsControl from './ViewHoldingsControl'
@@ -458,7 +459,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     } catch { return [] }
   }, [uctPrefs])
   const applyChartTemplate = useCallback((t) => {
-    if (t?.settings) paneRef.current?.applySettings?.(JSON.parse(JSON.stringify({ ...t.settings, preset: 'custom' })))
+    const next = chartTemplateSettings(t)
+    if (next) paneRef.current?.applySettings?.(next)
     closeCtx()
   }, [closeCtx])
 

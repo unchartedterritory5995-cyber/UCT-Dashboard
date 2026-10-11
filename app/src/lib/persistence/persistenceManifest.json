@@ -340,6 +340,18 @@
       ]
     },
     {
+      "key": "indicator_templates",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Charts",
+      "kind": "work",
+      "label": "Indicator templates",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/components/chart/IndicatorTemplatesBar.jsx"
+      ]
+    },
+    {
       "key": "j2_calendar_pnl_basis",
       "store": "server-preference",
       "scope": "cross-device",

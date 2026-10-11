@@ -15,6 +15,7 @@ import { boardProblems } from '../pages/charts/placement/arrange'
 import { chartTabList } from '../pages/charts/chartTabs'
 import { viewAt, dateMs, keepOwned } from './capabilities/chart'
 import { OWNED_TOP_KEYS } from '../components/chart/chartSettingsDescriptors'
+import { chartTemplateSettings } from '../components/chart/chartTemplateApply'
 
 registerBuiltins()
 const CTX = { surface: 'charts' }
@@ -74,23 +75,23 @@ describe('chart.setSetting — Batch 6 rows (colours, watermark detail, prev-day
   })
 })
 
-describe('chart.applyTemplate / chart.resetDefaults — the product\'s own look writes, proposed first, indicators untouched', () => {
+describe('chart.applyTemplate / chart.resetDefaults — the product\'s own whole-chart writes, proposed first', () => {
   const MINE = [{ id: 'i-mine', type: 'rsi', inputs: { length: 9 } }]
   const tpl = { name: 'Swing Dark', settings: { ...mergeChartSettings({}), chartType: 'bars', grid: { color: '#111111', visible: false }, indicatorInstances: [{ id: 'i-tpl', type: 'macd' }], paneOrder: ['macd'] } }
   const owned = (cs) => Object.fromEntries(OWNED_TOP_KEYS.map(k => [k, cs[k]]))
-  it('applies the template\'s look ({...settings, preset:custom}) and KEEPS every indicator-owned key the chart has; Undo', async () => {
+  it('applies the template exactly as clicking it does (one shared apply, indicators included); Undo restores the member\'s', async () => {
     const host = chartHost({ templates: [tpl], stored: { indicatorInstances: MINE } })
-    const before = host.charts.read('c1').cs
     const { p, env } = await plan(host, [op('chart.applyTemplate', { template: 'swing dark' })])
     expect(p.ok).toBe(true)
     expect(decideMode('apply', p)).toBe('propose')
     const after = p.plans[0].after.cs
-    expect(owned(after)).toEqual(owned(before))                    // the member's indicators, panes, overlays — exactly
-    expect(after.indicatorInstances).toEqual(before.indicatorInstances)
+    // ⭐ integrator ruling 2026-10-11: the Agent's apply IS the click's apply
+    expect(after).toEqual(chartTemplateSettings(tpl))
+    expect(after.indicatorInstances).toEqual(tpl.settings.indicatorInstances)
     expect(after).toMatchObject({ chartType: 'bars', grid: { color: '#111111', visible: false }, preset: 'custom' })
-    expect(p.lines[0]).toMatch(/your indicators are unchanged/)
+    expect(p.lines[0]).toMatch(/its look and its indicators/)
     const res = await commitPlan(host, p, { env })
-    expect(host.st.stored.indicatorInstances).toEqual(before.indicatorInstances)
+    expect(host.st.stored.indicatorInstances).toEqual(tpl.settings.indicatorInstances)
     expect((await undoEntry(host, res.undo)).ok).toBe(true)
     expect(host.st.stored).toEqual({ indicatorInstances: MINE })
     expect((await plan(chartHost({ templates: [tpl] }), [op('chart.applyTemplate', { template: 'Nope' })])).p.refusals[0].reason).toMatch(/no chart template named “Nope”/)

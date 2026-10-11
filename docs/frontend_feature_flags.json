@@ -55,6 +55,14 @@
       ],
       "note": "Deliberately off: a `request.security` below a daily or weekly chart's timeframe reads intraday bars, and our store's intraday bars have not been measured against TradingView's. Off, the read is refused by name (`lower-tf:store-unmeasured`), nothing is stamped or fetched. On, C41's `ltf` read is served. Flipped by a measurement (engine/__tests__/storeIntradayAgreement.test.js), then an owner decision. Declared as a build ARG in Dockerfile.web. Reach: docs/feature_flags.json build_flags."
     },
+    "VITE_INDICATOR_TEMPLATES_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-11",
+      "readBy": [
+        "app/src/components/chart/builder/indicatorTemplates.js::indicatorTemplatesEnabled"
+      ],
+      "note": "Built dark (COV-11 / FT-070 plan): Chart Settings -> Indicators -> 'Indicator templates' (save this chart's indicators as a named template; add a saved template's indicators to any chart). Off, the surface renders nothing and nothing is read or written. The integrator arms it. Declared as a build ARG in Dockerfile.web. Reach: docs/feature_flags.json build_flags."
+    },
     "VITE_PINE_RUNTIME_PANE_ENABLED": {
       "status": "dark",
       "since": "2026-09-28",

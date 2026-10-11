@@ -619,7 +619,7 @@ const WatchRow = React.memo(function WatchRow({
 // shared `.listBody` scroll container (the sticky column header sits above it), and reports
 // the visible symbols up so ONLY those get live-streamed — the whole point that lets a
 // ~5,000-row scan render without opening ~100 SSE streams or mounting 5,000 DOM rows.
-function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, measureOffset = false }) {
+export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef, measureOffset = false }) {
   // ⭐ WHY AN OFFSET EXISTS AT ALL. The virtualizer places rows absolutely and
   // measures against the SCROLL element, so its arithmetic is only right when this
   // container starts at the scroller's top. A scan owns the whole body, so it does.
@@ -655,11 +655,27 @@ function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scr
   const vItems = virt.getVirtualItems()
   const first = vItems.length ? vItems[0].index : 0
   const last = vItems.length ? vItems[vItems.length - 1].index : -1
+  // ⛔ REPORT A CHANGED WINDOW, NEVER A RE-RENDER (React #185, /breadth drill board,
+  // 2026-10-06..08). `items` is re-derived whenever live prices / perf / sort move, and
+  // every receiver stores what it is handed: `handleScanVisible` does
+  // `setScanVisibleSyms(syms)`, which re-renders Watchlists, which re-derives `allTickers`
+  // (it lists `scanVisibleSyms` as a dep) and from it `prices` -> `applyColSort` ->
+  // `scanSortedItems` -> a new `items` here -> this effect again, with a NEW array of the
+  // SAME symbols. A passive-effect loop that never settles; under React 19.2 every such
+  // commit also counts toward the nested-update limit, so the next state update anywhere
+  // (typing in a panel in the same board, a table cell's effect) threw "Maximum update
+  // depth exceeded". The reported window is keyed by its contents, so an identical window
+  // is not reported twice; a changed receiver (`onVisibleChange` identity) still gets it.
+  const reportedRef = useRef({ cb: null, key: null })
   useEffect(() => {
     if (!onVisibleChange) return
     const syms = []
     // Group rows (theme/sector/industry names) have no live data — only stream real stocks.
     for (let i = first; i <= last && i < items.length; i++) { const it = items[i]; if (it?.sym && !it.isGroup) syms.push(it.sym) }
+    const key = syms.join(',')
+    const prev = reportedRef.current
+    if (prev.cb === onVisibleChange && prev.key === key) return
+    reportedRef.current = { cb: onVisibleChange, key }
     onVisibleChange(syms)
   }, [first, last, items, onVisibleChange])
   // Scroll a searched/selected symbol INTO VIEW — ONCE, on first search. DOM querySelector

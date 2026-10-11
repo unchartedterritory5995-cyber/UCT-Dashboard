@@ -298,3 +298,116 @@ class TestRoute:
         monkeypatch.setenv(sp.ENABLED_ENV, "1")
         pol = ms.series("NVDA", now=NOW)["polarity"]
         assert pol["state"] == "available" and pol["route"] == self.URL and pol["windows"] == ["1w", "1m", "3m"]
+
+
+# ── pre-arm review 2026-10-11 ────────────────────────────────────────────────
+# Scored against ~220 real posts from the curated X feed: the first cut read the feed's
+# styled headlines as nothing, a cashtag ($BULL, $BEAR) as a mood, "sold out" as selling,
+# and the option side backwards. Each case below is one of those, not a model.
+
+class TestClassifyReview:
+    @pytest.mark.parametrize("text,tickers,want", [
+        ("TOP 10 WEEKLY DOWNGRADES: $NKE $TE $BULL $APP $NFLX", None, "bearish"),
+        ("$BEAR ripping higher today", None, "bullish"),
+        ("$BULL looking weak, lost support", None, "bearish"),
+        ("BULL looking weak, lost support", ["BULL"], "bearish"),
+        ("$HUM | Baird \U0001d602\U0001d5fd\U0001d5f4\U0001d5ff\U0001d5ee\U0001d5f1\U0001d5f2\U0001d600 "
+         "Humana to \U0001d5e2\U0001d602\U0001d601\U0001d5fd\U0001d5f2\U0001d5ff\U0001d5f3\U0001d5fc\U0001d5ff\U0001d5fa",
+         None, "bullish"),                                          # Unicode mathematical bold
+        ("$APP | BofA maintains Hold, cuts PT to $325 from $400", None, "bearish"),
+        ("Barclays initiates Overweight on $RKLB, PT $85", None, "bullish"),
+        ("CEO says its optical components are sold out through 2029 $LITE", None, "bullish"),
+        ("sold puts on $AMD, free money", None, "bullish"),
+        ("selling puts on NVDA into the dip", None, "bullish"),
+        ("buying puts on $TSLA here", None, "bearish"),
+        ("rip my $TSLA calls", None, "bearish"),
+        ("covered my $TSLA shorts", None, "bullish"),
+        ("The market back at ATHs $AMD $DELL", None, "bullish"),
+        ("$ASTS is now down 64% from its May high", None, "bearish"),
+        ("can't believe $SMCI tanked again", None, "bearish"),
+    ])
+    def test_real_feed_shapes(self, text, tickers, want):
+        assert sp.classify(text, tickers)[0] == want
+
+    @pytest.mark.parametrize("text", [
+        "$NVDA to the moon /s",                       # sarcasm marker
+        "\U0001F480\U0001F480 $AMC",                  # skull = laughter in chat
+        "how long can $NVDA hold up here",            # "long" the adverb
+        "he puts it nicely, $MSFT is a story stock",  # "puts" the verb
+        "Zeta Introduces AthenaOS, the enterprise OS $ZETA",   # 'ath' inside a word
+        "$LUNR could rip from here",                  # bare "rip" is ambiguous
+    ])
+    def test_not_a_direction(self, text):
+        assert sp.classify(text)[0] == "neutral"
+
+    def test_room_rows_mask_a_bare_ticker_that_is_a_cue_word(self):
+        rows = sp.room_rows("c", "m", "u", 1, "BULL looking weak, lost support", ["BULL", "BULL"])
+        assert len(rows) == 1 and rows[0][7] == "bearish"
+
+
+class TestReviewFixes:
+    def test_x_text_from_the_tweet_store_is_unescaped(self, seeded, monkeypatch):
+        monkeypatch.setattr(sp, "_x_texts", lambda ids: {"t1": {"id": "t1", "text": "AT&amp;T $T: -6.75% &lt;wow&gt;",
+                                                                "url": "https://x.com/a/1", "author_handle": "B"}})
+        p = {p["id"]: p for p in sp.view("NVDA", window="1w", now=NOW)["posts"]}["t1"]
+        assert p["text"] == "AT&T $T: -6.75% <wow>"
+
+    def test_a_non_https_x_link_is_dropped(self, seeded, monkeypatch):
+        monkeypatch.setattr(sp, "_x_texts", lambda ids: {"t1": {"id": "t1", "text": "x",
+                                                                "url": "javascript:alert(1)", "author_handle": "B"}})
+        p = {p["id"]: p for p in sp.view("NVDA", window="1w", now=NOW)["posts"]}["t1"]
+        assert p["link"] is None
+
+    def test_every_store_write_holds_the_store_write_lock(self, buzz, monkeypatch):
+        """buzz.db has ONE cached connection and was written by ONE thread (the buzz poll).
+        FT-080 added two more writers on other scheduler threads (the tweet poller and the X
+        deletion-sync), so each write must hold the store lock or the total_changes deltas and
+        the commits interleave on the shared handle."""
+        real = buzz.connect()
+        seen = []
+
+        class Spy:
+            def __getattr__(self, name):
+                attr = getattr(real, name)
+                if name in ("execute", "executemany", "executescript", "commit"):
+                    def wrapped(*a, **k):
+                        seen.append((name, buzz._write_lock._is_owned()))
+                        return attr(*a, **k)
+                    return wrapped
+                return attr
+
+        monkeypatch.setattr(buzz, "connect", lambda: Spy())
+        buzz.record_posts(sp.room_rows("c", "m1", "u", 1_700_000_000, "bullish", ["NVDA"]))
+        buzz.record_mentions([("m1", "c", "u", "NVDA", 1_700_000_000, "cashtag")])
+        buzz.prune_posts(1)
+        buzz.delete_posts("x", ["t1"])
+        writes = [owned for name, owned in seen if name in ("executemany", "commit")
+                  or name == "execute"]
+        assert writes and all(writes), seen
+
+
+class TestRouteReview:
+    URL = "/api/research/mention-series/NVDA/polarity"
+
+    @pytest.fixture
+    def armed(self, monkeypatch):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from api.routers import research_depth as route
+        app = FastAPI()
+        app.include_router(route.router)
+        app.dependency_overrides[route.require_paid] = lambda: {"id": "u1"}
+        monkeypatch.setenv("MENTION_SERIES_ENABLED", "1")
+        monkeypatch.setenv(sp.ENABLED_ENV, "1")
+        return TestClient(app, raise_server_exceptions=False)
+
+    def test_member_text_is_never_cached(self, armed, seeded):
+        r = armed.get(self.URL)
+        assert r.status_code == 200
+        cc = r.headers.get("cache-control", "")
+        assert "private" in cc and "no-store" in cc, cc
+
+    def test_empty_store_unknown_ticker_and_junk_symbol_never_500(self, armed, buzz):
+        assert armed.get(self.URL).json()["state"] == "no_store"
+        assert armed.get("/api/research/mention-series/ZZZZ/polarity").status_code == 200
+        assert armed.get("/api/research/mention-series/%24%24%24/polarity").status_code in (400, 404, 422)

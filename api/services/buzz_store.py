@@ -31,6 +31,13 @@ import threading
 DISCORD_EPOCH_MS = 1420070400000
 
 _lock = threading.Lock()
+# Serialises every WRITE on the one cached connection. The store was written by one
+# thread (the buzz poll); FT-080 added the tweet poller and the X deletion-sync, which
+# run on other scheduler threads. Without this their statements and commits interleave
+# on the shared handle: one thread's commit lands another's half-written batch, and
+# `record_*`'s total_changes delta counts the other thread's rows. Reentrant, so a
+# writer may call another writer. Reads stay lock-free (WAL).
+_write_lock = threading.RLock()
 _conn: sqlite3.Connection | None = None
 _conn_path: str | None = None
 
@@ -70,7 +77,11 @@ def init_db(path: str | None = None) -> None:
     if path:
         os.environ["BUZZ_DB_PATH"] = path
         _reset_for_tests()
-    c = connect()
+    with _write_lock:
+        _init_schema(connect())
+
+
+def _init_schema(c: sqlite3.Connection) -> None:
     c.executescript(
         """
         CREATE TABLE IF NOT EXISTS mentions (
@@ -117,15 +128,16 @@ def record_mentions(rows) -> int:
     rows = list(rows)
     if not rows:
         return 0
-    c = connect()
-    before = c.total_changes
-    c.executemany(
-        "INSERT OR IGNORE INTO mentions "
-        "(message_id, channel_id, author_id, ticker, ts, confidence) VALUES (?,?,?,?,?,?)",
-        rows,
-    )
-    c.commit()
-    return c.total_changes - before
+    with _write_lock:
+        c = connect()
+        before = c.total_changes
+        c.executemany(
+            "INSERT OR IGNORE INTO mentions "
+            "(message_id, channel_id, author_id, ticker, ts, confidence) VALUES (?,?,?,?,?,?)",
+            rows,
+        )
+        c.commit()
+        return c.total_changes - before
 
 
 def get_cursor(channel_id: str) -> str | None:
@@ -137,14 +149,15 @@ def get_cursor(channel_id: str) -> str | None:
 
 def set_cursor(channel_id: str, message_id: str) -> None:
     import time
-    c = connect()
-    c.execute(
-        "INSERT INTO ingest_state (channel_id, last_message_id, updated_at) VALUES (?,?,?) "
-        "ON CONFLICT(channel_id) DO UPDATE SET last_message_id=excluded.last_message_id, "
-        "updated_at=excluded.updated_at",
-        (channel_id, str(message_id), int(time.time())),
-    )
-    c.commit()
+    with _write_lock:
+        c = connect()
+        c.execute(
+            "INSERT INTO ingest_state (channel_id, last_message_id, updated_at) VALUES (?,?,?) "
+            "ON CONFLICT(channel_id) DO UPDATE SET last_message_id=excluded.last_message_id, "
+            "updated_at=excluded.updated_at",
+            (channel_id, str(message_id), int(time.time())),
+        )
+        c.commit()
 
 
 # ── The BACKWARD watermark, distinct from the forward cursor above.
@@ -180,9 +193,10 @@ def set_backfill_mark(channel_id: str, message_id: str) -> None:
 
 
 def clear_backfill_mark(channel_id: str) -> None:
-    c = connect()
-    c.execute("DELETE FROM ingest_state WHERE channel_id=?", (channel_id + _BACKFILL_SUFFIX,))
-    c.commit()
+    with _write_lock:
+        c = connect()
+        c.execute("DELETE FROM ingest_state WHERE channel_id=?", (channel_id + _BACKFILL_SUFFIX,))
+        c.commit()
 
 
 def _chan_clause(channels):
@@ -263,16 +277,17 @@ def record_posts(rows) -> int:
     rows = list(rows)
     if not rows:
         return 0
-    c = connect()
-    before = c.total_changes
-    c.executemany(
-        "INSERT OR IGNORE INTO social_posts "
-        "(source, post_id, ticker, channel_id, author, ts, text, label, score) "
-        "VALUES (?,?,?,?,?,?,?,?,?)",
-        rows,
-    )
-    c.commit()
-    return c.total_changes - before
+    with _write_lock:
+        c = connect()
+        before = c.total_changes
+        c.executemany(
+            "INSERT OR IGNORE INTO social_posts "
+            "(source, post_id, ticker, channel_id, author, ts, text, label, score) "
+            "VALUES (?,?,?,?,?,?,?,?,?)",
+            rows,
+        )
+        c.commit()
+        return c.total_changes - before
 
 
 def prune_posts(cutoff_ts: int) -> int:
@@ -281,10 +296,11 @@ def prune_posts(cutoff_ts: int) -> int:
     from api.services import store_retention
     if not store_retention.may_prune("buzz", "social_posts"):
         return 0
-    c = connect()
-    cur = c.execute("DELETE FROM social_posts WHERE ts < ?", (int(cutoff_ts),))
-    c.commit()
-    return cur.rowcount
+    with _write_lock:
+        c = connect()
+        cur = c.execute("DELETE FROM social_posts WHERE ts < ?", (int(cutoff_ts),))
+        c.commit()
+        return cur.rowcount
 
 
 def delete_posts(source: str, post_ids) -> int:
@@ -295,8 +311,9 @@ def delete_posts(source: str, post_ids) -> int:
         return 0
     if not os.path.exists(db_path()):
         return 0
-    c = connect()
-    cur = c.execute("DELETE FROM social_posts WHERE source=? AND post_id IN (%s)"
-                    % ",".join("?" * len(ids)), [source, *ids])
-    c.commit()
-    return cur.rowcount
+    with _write_lock:
+        c = connect()
+        cur = c.execute("DELETE FROM social_posts WHERE source=? AND post_id IN (%s)"
+                        % ",".join("?" * len(ids)), [source, *ids])
+        c.commit()
+        return cur.rowcount

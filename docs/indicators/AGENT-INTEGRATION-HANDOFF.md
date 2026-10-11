@@ -226,6 +226,16 @@ Entry: `app/src/agent/capabilities/chart.js` (`chart.applyTemplate` / `chart.res
 
 Verdict: the entry complies with the ownership rules; no change to it.
 
+**Amended 2026-10-11 (integrator ruling, owner delegated): `chart.applyTemplate` now matches the
+click.** A member's saved chart template applied by clicking (Chart Settings → Templates, right-click →
+Chart template) has always copied the template's indicators; the Agent's apply kept the member's
+(`keepOwned`). One behaviour now, the one members already know: all three doors call the one shared
+`chartTemplateSettings` (`app/src/components/chart/chartTemplateApply.js`), so the Agent's apply
+writes the template's whole saved settings, indicators included — still a member's own saved blob,
+always proposed first, with exact Undo. Parity is asserted in
+`app/src/agent/agentChartTemplateParity.test.jsx` (the real modal click and the real Agent plan →
+commit, deep-equal). `chart.resetDefaults` is unchanged and still uses `keepOwned`.
+
 ## 13. M2 APPROVAL CRITERIA (gate owned by Indicators) — §14 is the final contract and wins where they differ
 
 M2 = the Agent adds or removes a saved or built-in indicator on one chart. Indicators approves it only
