@@ -33,6 +33,7 @@ import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
 import { runtimeOwnObjectsOf } from './runtimeObjectsDoor'
+import { runtimeInputSpecsOf } from '../../engine/runtime/runtimeInputs'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { objectLossNote } from '../../engine/ast/objectLoss'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
@@ -1237,6 +1238,11 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       readback: '', style: 'line', hidden: true,
     })
   }
+  // ⭐⭐ UIE PHASE 2 (M4) — THE SCRIPT'S OWN SETTINGS, as ordinary `defSchema` inputs
+  // (`runtime/runtimeInputs.js`): the instance carries the member's values, and the run
+  // rebuilds the program with them. One that cannot be read exactly keeps the author's
+  // default, and says so.
+  const runtimeInputs = runtimeInputSpecsOf(source)
   let definition
   try {
     definition = buildDefinition({
@@ -1246,7 +1252,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       ast: rows[0].ast,
       mode: repaint.mode,
       readback: '',
-      inputs: withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null),
+      inputs: runtimeDocInputs(withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null), runtimeInputs.specs),
       plots: [...rows, ...colourRows],
       placement: (t.presentation && t.presentation.overlay === true)
         ? { target: 'price' }
@@ -1285,9 +1291,16 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const notes = [{
     name: 'Drawn bar by bar',
     note: 'This script is drawn by running it bar by bar, the way TradingView does, '
-      + 'because a single formula per line cannot hold it. Its settings are drawn at '
-      + 'the script\'s own defaults.',
+      + 'because a single formula per line cannot hold it. Its settings can be changed '
+      + 'like any indicator\'s; a value outside the script author\'s own bounds or options '
+      + 'is refused by name, never stretched to fit.',
   }]
+  if (runtimeInputs.skipped.length) {
+    notes.push({
+      name: 'Settings',
+      note: `Kept at the author's default: ${runtimeInputs.skipped.map((x) => `\`${x.key}\` (${x.reason})`).join('; ')}.`,
+    })
+  }
   for (const w of withheld) {
     notes.push({
       name: w.label,
@@ -1457,6 +1470,14 @@ export function requirementTagsRaised(translation, notes = REQUIREMENT_NOTES) {
  *  annotation of whichever output declared it; a name no output annotates stays
  *  undeclared, and its tree still refuses — loudly, by name.
  */
+/** ⭐ UIE PHASE 2 (M4) — a runtime document's inputs: the ones its object program
+ *  already declared (kept, by key), then every literal setting of the script. */
+function runtimeDocInputs(declared, specs) {
+  const byKey = new Map((declared || []).map((s) => [s.key, s]))
+  for (const spec of specs || []) if (!byKey.has(spec.key)) byKey.set(spec.key, spec)
+  return byKey.size ? [...byKey.values()] : declared
+}
+
 function withObjectInputs(specs, t) {
   const declared = new Set((t && t.declared) || [])
   const trees = (t && t.objects && t.objects.trees) || []

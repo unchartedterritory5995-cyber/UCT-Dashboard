@@ -30,6 +30,7 @@ import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram
 import { registerObjectRuntimeValues } from '../objectColumns.js'
 // ⭐⭐ RT5 — the run's own drawings ride the column record (`runtimeObjects.js`).
 import { withRuntimeObjects, RUNTIME_WARMUP_KEY, runtimeWarmupOf } from './runtimeObjects.js'
+import { runtimeInputValues } from './runtimeInputs.js'
 export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
 import { declaredCalcBarsOf } from './objectStore.js'
 import { strippedForScan } from '../ast/pine.js'
@@ -183,7 +184,10 @@ function runKey(def, ctx) {
   const tf = ctx && typeof ctx.tf === 'string' ? ctx.tf : undefined
   const forming = newestBarIsFormingFrom(ctx)
   const listing = !!(ctx && ctx.historyFromListing === true)
-  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}`
+  // ⭐ UIE PHASE 2 (M4) — the member's settings are part of what a run computed
+  const given = ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object' ? ctx.runtimeInputs : null
+  const settings = given && Object.keys(given).length ? JSON.stringify(given) : ''
+  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}`
 }
 
 /** ⭐⭐ P1 HARDENING — `PROGRAM_SIZE` (`limits.js`): the source's UTF-8 bytes, asked
@@ -455,7 +459,10 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   if (tooBig) throw refusal(RUNTIME_LIMIT_GUARD, tooBig)
   const built = buildRuntimeIr(String(compute.source || ''), {
     bars: rows,
-    inputs: {},
+    // ⭐ UIE PHASE 2 (M4) — the member's own settings (`runtimeInputs.js`): only the
+    // values that differ from the author's defaults, refused by name outside the
+    // author's bounds or options by the front end itself.
+    inputs: ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object' ? ctx.runtimeInputs : {},
     // `[]` = the caller owns the drawing: `line.new` & co. are skipped, not
     // refused. The document's object program (the host lane's) draws them.
     ...(ownObjects ? { objectsInRun: true } : { objectTrees: [] }),
@@ -597,8 +604,11 @@ export function onRuntimeColumnsLanded(fn) {
  *          an off-thread run is in flight (the chart repaints when it lands)
  * @throws a refusal-shaped error when the runtime lane cannot build the script
  */
-export function runtimeColumnsFor(def, bars, _inputs, ctx) {
+export function runtimeColumnsFor(def, bars, inputs, ctx) {
   const rows = Array.isArray(bars) ? bars : []
+  // ⭐ UIE PHASE 2 (M4) — the instance's settings ride the context the run reads
+  const values = runtimeInputValues(def, inputs)
+  if (Object.keys(values).length) ctx = { ...(ctx || {}), runtimeInputs: values }
   const key = runKey(def, ctx)
   let perBars = _memo.get(rows)
   if (!perBars) { perBars = new Map(); _memo.set(rows, perBars) }

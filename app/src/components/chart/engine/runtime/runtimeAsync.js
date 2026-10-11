@@ -162,6 +162,9 @@ function messageOf(id, def, rows, ctx) {
     tf: ctx && ctx.tf,
     newestBarIsForming: ctx ? ctx.newestBarIsForming : undefined,
     historyFromListing: !!(ctx && ctx.historyFromListing === true),
+    // ⭐ UIE PHASE 2 (M4) — the member's settings (plain numbers and text)
+    ...(ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object'
+      ? { runtimeInputs: { ...ctx.runtimeInputs } } : {}),
     ...(ctx && ctx.symbol && typeof ctx.symbol === 'object'
       ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange } } : {}),
   }

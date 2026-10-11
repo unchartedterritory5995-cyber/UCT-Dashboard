@@ -48,7 +48,7 @@
      "disclosures": [
       {
        "name": "Drawn bar by bar",
-       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
+       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
       }
      ],
      "requirementTags": []
@@ -104,6 +104,18 @@
       "min": 1,
       "max": 4,
       "step": 1
+     },
+     {
+      "key": "len",
+      "type": "int",
+      "default": 14,
+      "label": "len"
+     },
+     {
+      "key": "th",
+      "type": "int",
+      "default": 20,
+      "label": "th"
      }
     ],
     "plots": [
@@ -199,7 +211,7 @@
      "disclosures": [
       {
        "name": "Drawn bar by bar",
-       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
+       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
       }
      ],
      "requirementTags": []
@@ -267,6 +279,90 @@
       "min": 1,
       "max": 4,
       "step": 1
+     },
+     {
+      "key": "degree",
+      "type": "int",
+      "default": 2,
+      "label": "Polynomial Order",
+      "min": 1
+     },
+     {
+      "key": "rsi_l",
+      "type": "int",
+      "default": 21,
+      "label": "RSI Length",
+      "min": 1
+     },
+     {
+      "key": "window",
+      "type": "int",
+      "default": 21,
+      "label": "Length ( > Order)",
+      "min": 2
+     },
+     {
+      "key": "signalLength",
+      "type": "int",
+      "default": 9,
+      "label": "Signal Length"
+     },
+     {
+      "key": "islong",
+      "type": "int",
+      "default": 1,
+      "label": "Buy"
+     },
+     {
+      "key": "isshort",
+      "type": "int",
+      "default": 1,
+      "label": "Sell"
+     },
+     {
+      "key": "showendlabels",
+      "type": "int",
+      "default": 1,
+      "label": "Exit"
+     },
+     {
+      "key": "buycond",
+      "type": "enum",
+      "default": "Zero-Crossing",
+      "label": "Buy",
+      "options": [
+       "Zero-Crossing",
+       "Signal Line Crossing",
+       "Direction Change"
+      ]
+     },
+     {
+      "key": "sellcond",
+      "type": "enum",
+      "default": "Zero-Crossing",
+      "label": "Sell",
+      "options": [
+       "Zero-Crossing",
+       "Signal Line Crossing",
+       "Direction Change"
+      ]
+     },
+     {
+      "key": "endcond",
+      "type": "enum",
+      "default": "Zero-Crossing",
+      "label": "Exit",
+      "options": [
+       "Zero-Crossing",
+       "Signal Line Crossing",
+       "Direction Change"
+      ]
+     },
+     {
+      "key": "usenrmse",
+      "type": "int",
+      "default": 0,
+      "label": "usenrmse"
      }
     ],
     "plots": [
@@ -391,7 +487,11 @@
      "disclosures": [
       {
        "name": "Drawn bar by bar",
-       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
+       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
+      },
+      {
+       "name": "Settings",
+       "note": "Kept at the author's default: `col_U` (`input.color` is not a setting this pane can carry yet); `col_D` (`input.color` is not a setting this pane can carry yet); `c_border` (`input.color` is not a setting this pane can carry yet); `c_level1` (`input.color` is not a setting this pane can carry yet); `c_level2` (`input.color` is not a setting this pane can carry yet); `c_level3` (`input.color` is not a setting this pane can carry yet); `c_level4` (`input.color` is not a setting this pane can carry yet); `c_level5` (`input.color` is not a setting this pane can carry yet); `alert_source` (`input.source` is not a setting this pane can carry yet)."
       },
       {
        "name": "Drawings",
@@ -433,6 +533,97 @@
       "min": 1,
       "max": 4,
       "step": 1
+     },
+     {
+      "key": "prd",
+      "type": "int",
+      "default": 15,
+      "label": "ZigZag Period",
+      "min": 2,
+      "max": 50
+     },
+     {
+      "key": "i_ShowZ",
+      "type": "bool",
+      "default": false,
+      "label": "Show Zigzag"
+     },
+     {
+      "key": "Show_prv",
+      "type": "bool",
+      "default": false,
+      "label": "Show Previous Levels"
+     },
+     {
+      "key": "ward",
+      "type": "enum",
+      "default": "Both",
+      "label": "Fibonacci Direction",
+      "options": [
+       "Upward",
+       "Downward",
+       "Both"
+      ]
+     },
+     {
+      "key": "i_level1",
+      "type": "float",
+      "default": 0.236,
+      "label": "1. Level"
+     },
+     {
+      "key": "i_level2",
+      "type": "float",
+      "default": 0.382,
+      "label": "2. Level"
+     },
+     {
+      "key": "i_level3",
+      "type": "float",
+      "default": 0.5,
+      "label": "3. Level"
+     },
+     {
+      "key": "i_level4",
+      "type": "float",
+      "default": 0.618,
+      "label": "4. Level"
+     },
+     {
+      "key": "i_level5",
+      "type": "float",
+      "default": 0.786,
+      "label": "5. Level"
+     },
+     {
+      "key": "b_alert",
+      "type": "bool",
+      "default": false,
+      "label": "Custom Alert"
+     },
+     {
+      "key": "alert_tpye",
+      "type": "enum",
+      "default": "cross-up",
+      "label": "Alert Type",
+      "options": [
+       "cross-up",
+       "cross-down",
+       "cross-any"
+      ]
+     },
+     {
+      "key": "cross_level",
+      "type": "enum",
+      "default": "1. Level",
+      "label": "Select Level",
+      "options": [
+       "1. Level",
+       "2. Level",
+       "3. Level",
+       "4. Level",
+       "5. Level"
+      ]
      }
     ],
     "plots": [
@@ -866,7 +1057,11 @@
      "disclosures": [
       {
        "name": "Drawn bar by bar",
-       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
+       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
+      },
+      {
+       "name": "Settings",
+       "note": "Kept at the author's default: `lineColor` (its default is not a literal value)."
       }
      ],
      "requirementTags": []
@@ -934,6 +1129,23 @@
       "min": 1,
       "max": 4,
       "step": 1
+     },
+     {
+      "key": "showVolumeThreshold",
+      "type": "bool",
+      "default": false,
+      "label": "Show Volume Threshold"
+     },
+     {
+      "key": "styleOption",
+      "type": "enum",
+      "default": "────",
+      "label": "Line Style",
+      "options": [
+       "────",
+       "┈┈┈",
+       "╌╌╌"
+      ]
      }
     ],
     "plots": [
@@ -11365,7 +11577,11 @@
      "disclosures": [
       {
        "name": "Drawn bar by bar",
-       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
+       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
+      },
+      {
+       "name": "Settings",
+       "note": "Kept at the author's default: `green` (`input.color` is not a setting this pane can carry yet); `red` (`input.color` is not a setting this pane can carry yet)."
       }
      ],
      "requirementTags": []
@@ -11519,6 +11735,41 @@
       "label": "TP3 Multiplier",
       "default": 1.5,
       "min": 0.1
+     },
+     {
+      "key": "st_atr_period",
+      "type": "int",
+      "default": 90,
+      "label": "Supertrend ATR Period",
+      "min": 1
+     },
+     {
+      "key": "wma_length",
+      "type": "int",
+      "default": 40,
+      "label": "WMA Length",
+      "min": 1
+     },
+     {
+      "key": "ema_length",
+      "type": "int",
+      "default": 14,
+      "label": "EMA Length",
+      "min": 1
+     },
+     {
+      "key": "cont_factor",
+      "type": "int",
+      "default": 3,
+      "label": "Confirmation count",
+      "min": 1
+     },
+     {
+      "key": "atr_period",
+      "type": "int",
+      "default": 14,
+      "label": "Volatility (ATR) period",
+      "min": 1
      }
     ],
     "plots": [
@@ -11706,7 +11957,11 @@
      "disclosures": [
       {
        "name": "Drawn bar by bar",
-       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
+       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
+      },
+      {
+       "name": "Settings",
+       "note": "Kept at the author's default: `color_` (`input.color` is not a setting this pane can carry yet)."
       },
       {
        "name": "The Selling Climax",
@@ -11780,6 +12035,27 @@
       "min": 1,
       "max": 4,
       "step": 1
+     },
+     {
+      "key": "rsilen",
+      "type": "int",
+      "default": 14,
+      "label": "RSI Length"
+     },
+     {
+      "key": "rsisens",
+      "type": "int",
+      "default": 20,
+      "label": "trend Sensitivity",
+      "min": 0,
+      "max": 50
+     },
+     {
+      "key": "pivotLen",
+      "type": "int",
+      "default": 5,
+      "label": "Pivot Length",
+      "min": 1
      }
     ],
     "plots": [
