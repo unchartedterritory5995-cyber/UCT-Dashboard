@@ -198,14 +198,22 @@ export const RECENT_NOTES_SHOWN = 5
 // folders panel's, FolderSidebar.jsx) through the door the command palette already uses: the
 // Notebook reads `#search`, shows the panel and puts the cursor in its box
 // (lib/notebookSearchDoor.js). Nothing here queries notes.
-export function HomeSearch() {
+//
+// P0.13 (search in place): this used to be a BUTTON, so pressing it opened a SECOND search box in
+// the panel while its own stayed on screen. It is now a real search input: the first character a
+// member types is handed to the panel (the door carries it as `state.q`, the panel seeds its box
+// with it and takes the cursor), and while the panel's search is open `hidden` is true and this box
+// is not drawn at all -- one search on screen at a time. The panel reports "searching" up through
+// NotebookTab, which passes it back down here as `searchActive`.
+export function HomeSearch({ hidden = false }) {
   const navigate = useNavigate()
+  if (hidden) return null
   return (
-    <button type="button" className={styles.searchBox} data-home-search=""
-      onClick={() => navigate(`/journal/notebook${NOTEBOOK_SEARCH_HASH}`)}>
-      <UIcon name="search" size={14} gold={false} />
-      <span className={styles.searchText}>Search your notes</span>
-    </button>
+    <input type="search" className={styles.searchBox} data-home-search="" aria-label="Search your notes"
+      placeholder="Search your notes" autoComplete="off"
+      onChange={(e) => {
+        if (e.target.value) navigate(`/journal/notebook${NOTEBOOK_SEARCH_HASH}`, { state: { q: e.target.value } })
+      }} />
   )
 }
 
@@ -305,6 +313,9 @@ export default function ResearchHome({
   // nothing). Optional so every existing caller/test keeps working unchanged.
   onOpenNewNoteSheet = null,
   onStartVoiceNote = null,
+  // P0.13 (search in place): true while the folders panel's search is open. Home's own search box
+  // steps aside then, so a member sees ONE search box, not two.
+  searchActive = false,
   // Lane KEYS: the Notebook's hidden-until-focused skip-link class, for this page's own link.
   skipLinkClassName = '',
 }) {
@@ -665,7 +676,7 @@ export default function ResearchHome({
   const homeTop = (
     <div className={styles.homeTop} data-export-exclude>
       <div className={styles.homeHeader}>
-        <HomeSearch />
+        <HomeSearch hidden={searchActive} />
         {hasAnyNotes && onOpenNewNoteSheet && (
           <NewNoteMenu onBlank={onCreateNote} onFromOutline={onOpenNewNoteSheet}
             onVoice={onStartVoiceNote} onToday={onOpenToday} />

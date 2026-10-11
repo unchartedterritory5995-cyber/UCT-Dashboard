@@ -276,35 +276,39 @@
   align-items: center;
   gap: 10px;
 }
+/* P0.13: the Home search box is a real <input type="search"> now (it was a button drawn to look
+   like one). Same box as before: border, surface, radius, gold hover and focus ring. The text a
+   member types reads in the bright ink; the placeholder keeps the muted one the old label had. */
 .searchBox {
   flex: 1;
   min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
   min-height: 38px;
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md, 6px);
   background: var(--bg-surface);
-  color: var(--text-muted);
+  color: var(--text-bright);
   font: inherit;
   font-size: 13.5px;
   text-align: left;
   cursor: text;
 }
+.searchBox::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
 .searchBox:hover {
   border-color: rgba(220, 187, 94, 0.4);
   background: var(--bg-hover);
 }
+.searchBox:focus,
 .searchBox:focus-visible {
   outline: none;
+  border-color: var(--ut-gold);
   box-shadow: 0 0 0 2px var(--ut-gold);
-}
-.searchText {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* A folding dashboard box (HomeBox, over the shared CollapsibleSection). */

@@ -55,7 +55,8 @@ describe('Research Home carries the Notices box', () => {
     render(tree())
     const summary = await screen.findByText(/Notices · 3/)
     expect(screen.getByText('Nothing needs your attention right now.')).toBeInTheDocument()
-    const search = screen.getByRole('button', { name: /Search/ })
+    // P0.13: the search door is a real search input now, not a button
+    const search = screen.getByRole('searchbox', { name: /Search/ })
     expect(follows(search, summary)).toBe(true)
     expect(follows(summary, screen.getByTestId('ask-door'))).toBe(true)
   })

@@ -98,7 +98,7 @@ describe('the top of Home is the member\'s notes', () => {
     latchNotebookFlags({ ...WAVE14, notebook_earnings_prep_enabled: true, notebook_passed_setups_enabled: true, notebook_review_drafts_enabled: true })
     homeData = { ...EMPTY, continueWorking: [NOTE('n1', 'NVDA thesis'), NOTE('n2', 'Weekly plan')] }
     renderHome()
-    const search = screen.getByRole('button', { name: 'Search your notes' })
+    const search = screen.getByRole('searchbox', { name: 'Search your notes' })
     const recent = screen.getByRole('heading', { name: 'Recent notes' })
     await waitFor(() => expect(boxHeader('Reporting soon')).toBeInTheDocument())
     const boxes = [boxHeader('Reporting soon'), boxHeader('Passed setups'), boxHeader('Reviews that write themselves')]
@@ -111,10 +111,10 @@ describe('the top of Home is the member\'s notes', () => {
     expect(within(list).getByText('Weekly plan')).toBeInTheDocument()
   })
 
-  it('the search box opens the Notebook\'s own search (the #search door), and searches nothing itself', () => {
+  it('typing in the search box opens the Notebook\'s own search (the #search door), and searches nothing itself', () => {
     renderHome()
     const before = global.fetch.mock.calls.length
-    fireEvent.click(screen.getByRole('button', { name: 'Search your notes' }))
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search your notes' }), { target: { value: 'nv' } })
     expect(screen.getByTestId('where')).toHaveTextContent('/journal/notebook#search')
     expect(global.fetch.mock.calls.length).toBe(before)
   })
@@ -147,7 +147,7 @@ describe('the top of Home is the member\'s notes', () => {
   it('the Learn menu sits on the same row as the search box (switch on); not there switch off', () => {
     latchNotebookFlags(WAVE14)
     const { unmount } = renderHome()
-    const search = screen.getByRole('button', { name: 'Search your notes' })
+    const search = screen.getByRole('searchbox', { name: 'Search your notes' })
     expect(search.parentElement).toContainElement(screen.getByRole('button', { name: 'Learn' }))
     unmount()
     __resetNotebookFlags()

@@ -26,21 +26,30 @@ const useJ2NotesMock = vi.fn(() => ({
 vi.mock('../hooks/useJ2Notes', () => ({
   default: (...args) => useJ2NotesMock(...args),
 }))
+// P0.13: every render pushes the props the panel was handed, so a test can read the search
+// request/seed the tab passes down and call the mode report the tab hands it.
+const sidebarProps = []
+const lastSidebarProps = () => sidebarProps[sidebarProps.length - 1]
 vi.mock('../components/notebook/FolderSidebar', () => ({
   // A minimal interactive stub — exposes an "onSelectFolder('__trash__')"
   // trigger the same way ImportWizard's mock exposes "fire onImported",
   // so trash-view wiring can be driven through the real prop instead of
   // reaching into NotebookTab's internal state. UX #1's onSelectView/
   // onDeleteView/onRenameView triggers follow the identical convention.
-  default: ({ onSelectFolder, onSelectView, onDeleteView, onRenameView }) => (
-    <div data-testid="folder-sidebar">
-      <button type="button" onClick={() => onSelectFolder('__trash__')}>go to trash</button>
-      <button type="button" onClick={() => onSelectFolder(null)}>go to all notes</button>
-      <button type="button" onClick={() => onSelectView({ id: 'v1', name: 'My View', viewType: 'list' })}>select view v1</button>
-      <button type="button" onClick={() => onDeleteView('v1', 'My View')}>delete view v1</button>
-      <button type="button" onClick={() => onRenameView('v1', 'Renamed View')}>rename view v1</button>
-    </div>
-  ),
+  default: (props) => {
+    const { onSelectFolder, onSelectView, onDeleteView, onRenameView } = props
+    sidebarProps.push(props)
+    return (
+      <div data-testid="folder-sidebar">
+        <button type="button" onClick={() => onSelectFolder('__trash__')}>go to trash</button>
+        <button type="button" onClick={() => onSelectFolder(null)}>go to all notes</button>
+        <button type="button" onClick={props.onToggleSidebar}>test: toggle the folders panel</button>
+        <button type="button" onClick={() => onSelectView({ id: 'v1', name: 'My View', viewType: 'list' })}>select view v1</button>
+        <button type="button" onClick={() => onDeleteView('v1', 'My View')}>delete view v1</button>
+        <button type="button" onClick={() => onRenameView('v1', 'Renamed View')}>rename view v1</button>
+      </div>
+    )
+  },
 }))
 vi.mock('../components/notebook/NoteCard', () => ({
   default: ({ note, onRestore }) => (
@@ -921,5 +930,84 @@ describe('NotebookTab — P0.1 the New-note door on Research Home', () => {
     expect(screen.queryByRole('dialog', { name: 'New note' })).toBeNull()
     act(() => props.onOpenNewNoteSheet())
     expect(await screen.findByRole('dialog', { name: 'New note' })).toBeTruthy()
+  })
+})
+
+// P0.13: search in place. The Home search box is an input that hands its text to the folders
+// panel's one search through the `#search` door; the panel reports when it is searching, and Home
+// steps aside so a member never sees two search boxes.
+describe('NotebookTab — P0.13 search in place', () => {
+  const renderAt = (entry) => render(
+    <MemoryRouter initialEntries={[entry]}>
+      <NotebookTab />
+    </MemoryRouter>,
+  )
+  const lastHome = () => researchHomeProps[researchHomeProps.length - 1]
+
+  beforeEach(() => {
+    sidebarProps.length = 0
+    researchHomeProps.length = 0
+  })
+
+  it('the #search door carries the typed text to the panel as a seed, with a request to open', async () => {
+    renderAt({ pathname: '/journal/notebook', hash: '#search', state: { q: 'nvda' } })
+    await screen.findByTestId('folder-sidebar')
+    await waitFor(() => expect(lastSidebarProps().searchRequest).toBeGreaterThan(0))
+    expect(lastSidebarProps().searchSeed).toBe('nvda')
+  })
+
+  it('the palette door (a #search with no state at all) gives an empty seed and no crash', async () => {
+    renderAt({ pathname: '/journal/notebook', hash: '#search' })
+    await screen.findByTestId('folder-sidebar')
+    await waitFor(() => expect(lastSidebarProps().searchRequest).toBeGreaterThan(0))
+    expect(lastSidebarProps().searchSeed).toBe('')
+  })
+
+  it('without the door there is no request and Home is not told to step aside', async () => {
+    renderAt('/journal/notebook')
+    await screen.findByTestId('research-home')
+    expect(lastSidebarProps().searchRequest).toBe(0)
+    expect(lastHome().searchActive).toBe(false)
+  })
+
+  it('the panel reporting search mode makes Home step aside, and leaving search brings it back', async () => {
+    renderAt('/journal/notebook')
+    await screen.findByTestId('research-home')
+    act(() => lastSidebarProps().onSearchModeChange(true))
+    expect(lastHome().searchActive).toBe(true)
+    act(() => lastSidebarProps().onSearchModeChange(false))
+    expect(lastHome().searchActive).toBe(false)
+  })
+
+  it('a collapsed panel is not on screen, so Home keeps its own box then', async () => {
+    renderAt('/journal/notebook')
+    await screen.findByTestId('research-home')
+    act(() => lastSidebarProps().onSearchModeChange(true))
+    expect(lastHome().searchActive).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'test: toggle the folders panel' }))
+    expect(lastHome().searchActive).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'test: toggle the folders panel' }))
+    expect(lastHome().searchActive).toBe(true)
+  })
+
+  it('H14: the report the tab hands the panel is ONE stable function across every render', async () => {
+    renderAt({ pathname: '/journal/notebook', hash: '#search', state: { q: 'nvda' } })
+    await screen.findByTestId('folder-sidebar')
+    act(() => lastSidebarProps().onSearchModeChange(true))
+    act(() => lastSidebarProps().onSearchModeChange(false))
+    act(() => lastSidebarProps().onSearchModeChange(true))
+    expect(sidebarProps.length).toBeGreaterThan(3)                       // it did re-render
+    expect(new Set(sidebarProps.map((p) => p.onSearchModeChange)).size).toBe(1)
+    expect(sidebarProps.every((p) => typeof p.onSearchModeChange === 'function')).toBe(true)
+  })
+
+  it('an unrelated re-render keeps the seed and the request the door set', async () => {
+    renderAt({ pathname: '/journal/notebook', hash: '#search', state: { q: 'nvda' } })
+    await screen.findByTestId('folder-sidebar')
+    await waitFor(() => expect(lastSidebarProps().searchRequest).toBeGreaterThan(0))
+    const request = lastSidebarProps().searchRequest
+    act(() => lastSidebarProps().onSearchModeChange(true))
+    expect(lastSidebarProps().searchRequest).toBe(request)
+    expect(lastSidebarProps().searchSeed).toBe('nvda')
   })
 })

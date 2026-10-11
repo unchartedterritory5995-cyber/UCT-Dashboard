@@ -444,12 +444,25 @@ export default function NotebookTab() {
   // (lib/notebookSearchDoor.js). The folders panel is shown if it was hidden (for this visit
   // only: the member's stored choice is not rewritten) and asked to open its search with the
   // cursor in the box. Keyed on `location.key`, so choosing the command twice works twice.
+  //
+  // P0.13 (search in place): Home's search box arrives through the SAME door carrying the text it
+  // was typed into (`state.q`); the palette's command carries none (`state` is null). The seed is
+  // stored WITH the request, in the same batch, so the panel reads the pair that belongs together
+  // and a later render can never pair a request with another navigation's text.
   const [searchRequest, setSearchRequest] = useState(0)
+  const [searchSeed, setSearchSeed] = useState('')
   useEffect(() => {
     if (location.hash !== NOTEBOOK_SEARCH_HASH) return
     setSidebarOpen(true)
+    const q = location.state?.q
+    setSearchSeed(typeof q === 'string' ? q : '')
     setSearchRequest((n) => n + 1)
-  }, [location.hash, location.key])
+  }, [location.hash, location.key]) // eslint-disable-line react-hooks/exhaustive-deps
+  // P0.13: whether the panel's search is open, reported up by the panel so Home can step aside
+  // (one search box on screen, never two). ⛔ H14: `setSidebarSearching` is a stable state setter,
+  // handed straight down; it bails out on an unchanged boolean, so reporting cannot loop. A panel
+  // that is hidden (collapsed) is not "on screen", so Home keeps its own box then.
+  const [sidebarSearching, setSidebarSearching] = useState(false)
 
   // Phone pass follow-up (2026-10-10): a walkthrough that points into the folders panel asks
   // for it (tourAnchorVisibility.requestReveal) when the drawer hides its anchor -- Search by
@@ -2028,6 +2041,8 @@ export default function NotebookTab() {
             onToggleSidebar={toggleSidebar}
             sidebarOpen={sidebarOpen}
             searchRequest={searchRequest}
+            searchSeed={searchSeed}
+            onSearchModeChange={setSidebarSearching}
             savedViews={savedViews}
             activeViewId={activeView?.id ?? null}
             onSelectView={handleSelectView}
@@ -2246,6 +2261,8 @@ export default function NotebookTab() {
             // no door that opens nothing).
             onOpenNewNoteSheet={() => setPickerOpen(true)}
             onStartVoiceNote={voiceOn ? () => startVoiceNote('record') : null}
+            // P0.13: Home's search box steps aside while the panel's search is on screen.
+            searchActive={sidebarSearching && sidebarOpen}
             skipLinkClassName={styles.skipLink}
           />
         ) : (

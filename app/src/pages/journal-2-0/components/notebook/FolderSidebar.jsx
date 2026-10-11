@@ -856,6 +856,14 @@ export default function FolderSidebar({
   onSelectTag,
   // Lane KEYS: a counter the parent bumps to ask for the search view with the cursor in the box.
   searchRequest = 0,
+  // P0.13 (search in place): the text Home's search box was typed into, handed over with the request
+  // (`state.q` on the `#search` door). Applied ONLY when `searchRequest` changes -- never on an
+  // unrelated re-render -- and an empty seed (the palette door carries none) leaves the box as it is.
+  searchSeed = '',
+  // P0.13: told `mode === 'search'` whenever the panel's mode changes, so Home can step aside while
+  // the one search is open. ⛔ H14: the report is keyed on `mode` ALONE (not on this callback's
+  // identity), and the parent hands a stable state setter that bails out on an unchanged boolean.
+  onSearchModeChange = null,
   onOpenNote = () => {},
   activeNoteId = null,
   onToggleSidebar = () => {},
@@ -961,11 +969,28 @@ export default function FolderSidebar({
   // Lane KEYS: the palette's "Search Notebook" (NotebookTab bumps `searchRequest`). Switch to
   // search; the effect above focuses the box when the mode changes, and when the panel was
   // already in search the box is focused here.
+  //
+  // P0.13: the request may carry the text Home's search box was typed into. It is read through a
+  // ref so the effect stays keyed on the request alone: the seed lands once per request and a
+  // later render with a different seed prop (or none) cannot overwrite what the member typed.
+  const searchSeedRef = useRef(searchSeed)
+  useEffect(() => { searchSeedRef.current = searchSeed })
   useEffect(() => {
     if (!searchRequest) return
     setMode('search')
+    const seed = searchSeedRef.current
+    if (typeof seed === 'string' && seed) setQuery(seed)
     searchInputRef.current?.focus()
   }, [searchRequest])
+
+  // P0.13: report whether the one search is open. ⛔ H14 -- `[mode]` only, never the callback:
+  // an inline callback from a parent would otherwise re-fire this on every render. The latest
+  // callback is read through a ref, and the parent's setter bails out on an unchanged boolean.
+  const onSearchModeChangeRef = useRef(onSearchModeChange)
+  useEffect(() => { onSearchModeChangeRef.current = onSearchModeChange })
+  useEffect(() => {
+    onSearchModeChangeRef.current?.(mode === 'search')
+  }, [mode])
 
   const trimmedQuery = query.trim()
 
