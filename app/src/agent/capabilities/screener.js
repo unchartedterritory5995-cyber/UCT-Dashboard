@@ -342,7 +342,14 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
   const all = [...(spec.filters || []), ...(spec.post || [])]
   const what = all.length ? ` (${all.map(describeFilter).join(' · ')})` : ''
   const asOf = r.asOf ? ` Latest completed session: ${r.asOf}.` : r.res.snapshot_date ? ` Data: ${r.res.snapshot_date} snapshot${r.res.snapshot?.live?.state === 'live' ? ', live prices' : ''}.` : ''
-  const sortWord = spec.sort ? ` by ${fieldOf(spec.sort.key)?.label || spec.sort.key} (${spec.sort.dir === 'asc' ? 'lowest' : 'highest'} first)` : ''
+  // ⭐ ACCEPTANCE (2026-10-11): "by RS Rank" only as far as the RETURNED rows actually carry it. On a
+  // snapshot with no RS Rank (measured: 3,665/3,665 null on the local copy) the engine's order is
+  // not an RS Rank order, so it is not called one; partial coverage is said with its count.
+  const sortLabel = spec.sort ? (fieldOf(spec.sort.key)?.label || spec.sort.key) : null
+  const ranked = spec.sort ? rows.filter(x => { const v = valueOf(x, spec.sort.key); return typeof v === 'number' && Number.isFinite(v) }).length : 0
+  const sortWord = !spec.sort ? ''
+    : ranked === 0 ? ` — ${sortLabel} data is unavailable for these results, so they are not in ${sortLabel} order`
+      : ` by ${sortLabel} (${spec.sort.dir === 'asc' ? 'lowest' : 'highest'} first)${ranked < rows.length ? `; only ${ranked} of these ${rows.length} have ${sortLabel} values — the other ${rows.length - ranked} have none and are not ranked by it` : ''}`
   const showing = rows.length ? ` Showing the first ${rows.length}${sortWord}.` : ''
   const notes = [...extra, ...coverageNotes(spec), ...r.notes]
   return {
