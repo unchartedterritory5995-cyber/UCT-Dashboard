@@ -16,7 +16,7 @@
 //   * Research Home is on the Notebook's first-open path, so the door must not pull the board
 //     page (charts, grid) into it.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -27,7 +27,7 @@ vi.mock('../../hooks/useNotebookHome', () => ({ default: () => hookResult }))
 
 import ResearchHome from './ResearchHome'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
-import { SETUPS_BOARD_FLAG, SETUPS_BOARD_PATH, setupsBoardEnabled } from '../../lib/setupsBoardLink'
+import { BOARD_URL, SETUPS_BOARD_FLAG, SETUPS_BOARD_PATH, setupsBoardEnabled } from '../../lib/setupsBoardLink'
 import { START_ROUTES } from './onboarding/tourRegistry'
 import { expectNoAxeViolations } from '../../a11y/axeHarness'
 
@@ -45,8 +45,10 @@ function renderHome(props = {}) {
 }
 // P0.5: the door is now the "Open the setups board" link inside the Active setups box
 // (ResearchHome.setupsBox.test.jsx holds the box's own copy and position).
+// I4: the box is a lazy chunk (spec section 6), so a switch-ON render finds it a tick later.
 const DOOR_NAME = 'Open the setups board'
 const door = () => screen.queryByRole('link', { name: DOOR_NAME })
+const doorShows = () => screen.findByRole('link', { name: DOOR_NAME })
 // UIcon's gradient id and React's useId are counters of mount order, not markup.
 const normalise = (html) => html.replace(/uig\d+/g, 'uig').replace(/:r[0-9a-z]+:/g, ':r:')
 
@@ -89,30 +91,32 @@ describe('the setups board door: one authority', () => {
 describe('Research Home, setups board switch ON', () => {
   beforeEach(() => latchNotebookFlags({ notebook_setups_board_enabled: true }))
 
-  it('quiet home: exactly one link, named, pointing at the board', () => {
+  it('quiet home: exactly one link, named, pointing at the board', async () => {
     renderHome()
     expect(screen.getByText('Nothing needs your attention right now.')).toBeTruthy()
+    await doorShows()
     expect(screen.getAllByRole('link', { name: DOOR_NAME })).toHaveLength(1)
     expect(door().getAttribute('href')).toBe(SETUPS_BOARD_PATH)
   })
 
-  it('quiet home with a failed load still offers it', () => {
+  it('quiet home with a failed load still offers it', async () => {
     hookResult = { home: EMPTY, isLoading: false, error: new Error('boom'), refresh: vi.fn() }
     renderHome()
-    expect(door()).toBeTruthy()
+    expect(await doorShows()).toBeTruthy()
   })
 
-  it('full home: exactly one link, and it is now near the top (before the Today button)', () => {
+  it('full home: exactly one link, and it is now near the top (before the Today button)', async () => {
     hookResult = { home: FULL, isLoading: false, error: null, refresh: vi.fn() }
     renderHome()
+    await doorShows()
     expect(screen.getAllByRole('link', { name: DOOR_NAME })).toHaveLength(1)
     const today = screen.getByRole('button', { name: /^Today$/ })
     expect(door().compareDocumentPosition(today) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('carries the touch floor class, so it is 44px on a phone and a tablet', () => {
+  it('carries the touch floor class, so it is 44px on a phone and a tablet', async () => {
     renderHome()
-    expect(door().className).toMatch(/setupsLink/)
+    expect((await doorShows()).className).toMatch(/setupsLink/)
     const css = readFileSync(resolve(here, 'SetupsBox.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
     const touch = css.match(/@media \(max-width: 1024px\)\s*\{\s*\.setupsLink\s*\{([^}]*)\}/)
     expect(touch, 'a <=1024px rule for .setupsLink').toBeTruthy()
@@ -123,7 +127,7 @@ describe('Research Home, setups board switch ON', () => {
   it('axe finds nothing wrong with the home that carries the door', async () => {
     hookResult = { home: FULL, isLoading: false, error: null, refresh: vi.fn() }
     const { container } = renderHome()
-    expect(door()).toBeTruthy()
+    expect(await doorShows()).toBeTruthy()
     await expectNoAxeViolations(container)
   })
 
@@ -139,7 +143,7 @@ describe('Research Home, setups board switch OFF', () => {
     ['quiet home, failed load', EMPTY, new Error('boom')],
     ['full home', FULL, null],
   ]) {
-    it(`${name}: no box, and the box is the whole difference from switch ON`, () => {
+    it(`${name}: no box, and the box is the whole difference from switch ON`, async () => {
       hookResult = { home, isLoading: false, error, refresh: vi.fn() }
       const off = renderHome()
       expect(door()).toBeNull()
@@ -149,6 +153,7 @@ describe('Research Home, setups board switch OFF', () => {
 
       latchNotebookFlags({ notebook_setups_board_enabled: true })
       const on = renderHome()
+      await waitFor(() => expect(on.container.querySelector('[data-tour="home-setups"]')).toBeTruthy())
       const box = on.container.querySelector('[data-tour="home-setups"]')
       expect(box, 'control: switch ON renders the Active setups box').toBeTruthy()
       expect(box.querySelector(`a[href="${SETUPS_BOARD_PATH}"]`), 'control: the box holds the link').toBeTruthy()
@@ -176,5 +181,20 @@ describe('first-open bytes', () => {
     const lib = readFileSync(resolve(here, '../../lib/setupsBoardLink.js'), 'utf8')
     const imports = [...lib.matchAll(/^import .* from ['"]([^'"]+)['"]/gm)].map((m) => m[1])
     expect(imports).toEqual(['./offline/notebookFlags'])
+  })
+
+  // I4 (final review, spec section 6: every new surface lazy). The Active setups box is on the
+  // first-open path, so it loads on demand and only while its flag is on.
+  it('the Active setups box is a lazy chunk, never a static import, and mounts only while its flag is on', () => {
+    const home = readFileSync(resolve(here, 'ResearchHome.jsx'), 'utf8')
+    expect(home).not.toMatch(/import\s+SetupsBox\s+from/)
+    expect(home).toMatch(/const SetupsBox = lazyChunk\(\(\) => import\('\.\/SetupsBox'\)\)/)
+    expect(home).toMatch(/setupsBoardEnabled\(\) \? <Suspense fallback=\{null\}><SetupsBox \/><\/Suspense> : null/)
+  })
+
+  it('switch OFF never asks for the board (the box is not even mounted)', () => {
+    renderHome()
+    const asked = globalThis.fetch.mock.calls.map((c) => String(c[0]))
+    expect(asked.some((u) => u.startsWith(BOARD_URL))).toBe(false)
   })
 })

@@ -27,7 +27,7 @@ import AskPanel from './AskPanel'
 import { SOON_URL, earningsPrepEnabled, fetchReportingSoon } from '../../lib/earningsPrepShared'
 import { PASSED_URL, fetchPassedSetups, passedSetupsEnabled } from '../../lib/researchCapture'
 import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
-import SetupsBox from './SetupsBox'
+import { setupsBoardEnabled } from '../../lib/setupsBoardLink'
 import GettingStartedChecklist from './GettingStartedChecklist'
 import { checklistEnabled } from './onboarding/gettingStartedPref'
 import { FIRST_RUN_HEADING_ATTR } from './onboarding/keyboardDoors'
@@ -59,6 +59,10 @@ const AiActionsBox = lazyChunk(() => import('./AiActionsPanel'))
 // P0.4: the Notices box (task reminders, fill notices, resurfaced notes -- the desktop bell was
 // removed by request). Lazy, like its neighbours: the Notebook's first-open bytes do not carry it.
 const NoticesBox = lazyChunk(() => import('./NoticesBox'))
+// I4 (final review): the Active setups box is lazy too. It is a single line and a link, but it is
+// still new bytes on the first-open path (spec section 6: every new surface lazy), so it loads on
+// demand and only while its own flag is on (below).
+const SetupsBox = lazyChunk(() => import('./SetupsBox'))
 const loadReviewDrafts = () => importWithOneRetry(() => import('../../lib/reviewDrafts'))
 
 const STATUS_LABEL = { watching: 'Watching', active: 'Active', invalidated: 'Invalidated', closed: 'Closed' }
@@ -761,7 +765,10 @@ export default function ResearchHome({
   // is off, so off the page is the page it was (ResearchHome.setupsDoor.test.jsx compares the two
   // renders). It links to the board and never imports the board page: Research Home is on the
   // first-open path and the board carries charts.
-  const setupsBox = <SetupsBox />
+  // Lazy (I4), at the same tree position as before. Mounted only while the board's flag is on, so a
+  // member whose switch is off fetches nothing; the flag is latched for the tab's life
+  // (notebookFlags), so the slot is null or the Suspense for the whole session and never flips.
+  const setupsBox = setupsBoardEnabled() ? <Suspense fallback={null}><SetupsBox /></Suspense> : null
 
   // P0.7 (owner decision, 2026-10-11): ONE Ask section. Research Home used to have two doors --
   // "Ask Notebook to do something" under the Notices box and a lower Ask box -- and a member could
