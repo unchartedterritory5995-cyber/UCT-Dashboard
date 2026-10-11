@@ -125,6 +125,11 @@ CONVERTED = {
     # post per window. New (never a literal reader), an ops message, so it resolves
     # through `ops_webhook()` lazily inside `_post_ops`.
     "api/services/measurement_window.py",
+    # Owner ruling 2026-10-08 (one person per subscription) -- the login-sharing alarm.
+    # New (never a literal reader), an owner/ops message (account + networks, never member
+    # content), so `_post_owner_alert` resolves through `ops_webhook()` lazily at call time,
+    # and an unset destination posts nothing rather than breaking a sign-in.
+    "api/services/session_guard.py",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════

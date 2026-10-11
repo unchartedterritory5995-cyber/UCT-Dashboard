@@ -316,6 +316,24 @@ EXEMPT_TOOLS: dict[str, str] = {
         "AST census over api/**, scripts/, tools/ on every import) -- an unacceptable tax on "
         "every push, and the guard already deliberately defers its one api.*-touching import "
         "to stay cheap for --audit and the unit tests. It only talks to Railway's CLI/API."),
+    "ast_conformance.py": (
+        "Imported BY THE LIVE SERVER (`api/services/alert_user_series._conformance()` loads it "
+        "by path for user-formula alerts), so it must never `import conftest` unconditionally: "
+        "that exact module-level pin is what redirected production's data paths and armed the "
+        "tripwire in the web process (65dc5e4586 / dbff88a47c, 2026-10-06/07). It carries its "
+        "OWN guarded pin instead -- `if __name__ == '__main__' or 'conftest' in sys.modules: "
+        "import conftest` -- so a CLI run and a pytest run are census-pinned and the server "
+        "import is not. That `if` is deliberately not a module-level Import node."),
+    "prod_dependency_smoke.py": (
+        "The production dependency rail: run by master-deploy-gate.yml under `python -I` in a "
+        "venv holding ONLY requirements.txt, and it FAILS if `conftest` is in sys.modules "
+        "('production must never import conftest'). Its boot already points every database it "
+        "opens at its own throwaway directory, so a pin would both defeat and fail the check."),
+    "rss_slope_report.py": (
+        "Runs ON `web` as a subprocess of `/api/terminal-next/report/memory-slope` "
+        "(api/routers/terminal_next_reports.py `_REPORTS`) -- the same surface and the same "
+        "reason as cadence_rollup_report.py: it reads that pod's own rss_series.db off its "
+        "live volume, READ-ONLY, and takes `--db` for any other store."),
     "record_clock_parity.py": (
         "Runs in CI: `.github/workflows/clock-parity-fixture.yml` executes `python "
         "tools/record_clock_parity.py --check` on a runner that installs only `tzdata`. The "
