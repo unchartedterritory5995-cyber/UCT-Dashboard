@@ -118,8 +118,8 @@ def deliver_one(*, user_id: str, def_hash: str, name: str, mode: str, tf: str,
             source_data_class="scan_snapshot", freshness_class="end_of_day",
             as_of=time.time())
         if fire_id is None:
-            # Recorded on an earlier run whose delivery failed (the dedup row
-            # was never written): retry exactly that fire, as the legacy did.
+            # Recorded on an earlier run whose delivery failed or never started
+            # (the dedup row was never written): retry exactly that fire.
             fire_id = _receipts.released_fire_id(pid, fire_key)
             if fire_id is None:
                 return "skipped_dedup"

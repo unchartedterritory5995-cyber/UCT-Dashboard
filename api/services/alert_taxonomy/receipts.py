@@ -170,17 +170,25 @@ def list_fires(user_id: str, limit: int = 50, *, db_path: str | None = None) -> 
 
 
 def released_fire_id(predicate_id: str, fire_key: str, *, db_path: str | None = None) -> Optional[int]:
-    """The id of an already-recorded fire whose delivery lease was RELEASED
-    (`release_delivery`: claimed, failed, retry allowed), or None. Lets a
-    caller whose `record_fire` answered "already recorded" retry exactly that
-    fire instead of either dropping it or recording a second one. A fire that
-    is unclaimed-and-never-attempted, delivered, or terminal is not returned."""
+    """The id of an already-recorded fire whose delivery is still OWED, or None:
+    its lease was RELEASED (`release_delivery`: claimed, failed, retry allowed),
+    or it was recorded and never claimed at all. Lets a caller whose
+    `record_fire` answered "already recorded" deliver exactly that fire instead
+    of either dropping it or recording a second one. A fire that is delivered
+    (lease held, whatever its outcome) or terminal is not returned.
+
+    ⭐ (review 2026-10-11) "never claimed" is a restart between `record_fire` and
+    `claim_delivery`: the fire is on record and nobody attempted it. Excluding it
+    lost that alert for good. Returning it is safe because the caller still has
+    to win `claim_delivery`'s compare-and-set, so two callers racing on one fire
+    deliver it once."""
     conn = _db.connect(db_path)
     try:
         _db.init_db(conn)
         row = conn.execute(
             "SELECT id FROM alert_fires WHERE predicate_id = ? AND fire_key = ? "
-            "AND delivered_at IS NULL AND delivery_failed_at IS NOT NULL "
+            "AND delivered_at IS NULL "
+            "AND (delivery_failed_at IS NOT NULL OR delivery_attempts = 0) "
             "AND delivery_attempts < ?",
             (predicate_id, fire_key, MAX_DELIVERY_ATTEMPTS),
         ).fetchone()
