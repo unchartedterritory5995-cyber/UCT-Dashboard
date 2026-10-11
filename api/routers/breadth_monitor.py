@@ -1463,6 +1463,21 @@ def breadth_eod_source_detail(date: str = Query(...), run: str = Query(default="
     return out
 
 
+@router.get("/api/breadth-monitor/external")
+def breadth_external_status(days: int = Query(default=30, ge=1, le=120),
+                            capture: int = Query(default=0, ge=0, le=1),
+                            _: None = Depends(require_push_secret)):
+    """(2026-10-11) Our breadth vs WSJ / StockCharts: the stored daily observations and the
+    current drift findings. `capture=1` fetches both references once now. Push-secret only."""
+    from api.services import breadth_external as bx
+    out = {}
+    if capture:
+        out["capture"] = bx.capture()
+    out.update(bx.compare())
+    out["observations"] = bx.observations(days)
+    return out
+
+
 @router.get("/api/admin/breadth-eod-source")
 def breadth_eod_source_status_admin(limit: int = Query(default=60, ge=1, le=400),
                                     _user: dict = Depends(require_admin)):
