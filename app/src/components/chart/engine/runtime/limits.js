@@ -81,6 +81,17 @@ export const LIMIT_NAMES = Object.freeze([
  *  enough that no honest indicator meets it and tight enough that a runaway
  *  stops in well under a second. */
 export const DEFAULT_LIMITS = Object.freeze({
+  // ⭐ P1 HARDENING (2026-10-11) — the six ceilings below marked ENFORCED were
+  // declared here and counted NOWHERE (verified by grep: no `charge`/`peak` named
+  // them), so they read as protection while protecting nothing. Each now has one
+  // accounting site and one named failure; `runtimeHardeningP1.test.js` rails that
+  // every name in `LIMIT_NAMES` is counted somewhere.
+  //
+  // ENFORCED — the UTF-8 BYTES of the script's source, checked before the front end
+  // reads it (`runtimeColumns.js::sourceSizeRefusal`). The server stores a runtime
+  // document of at most 128 KiB (`runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES`),
+  // so no document the store accepts can meet this; it stops a pasted or generated
+  // source before the lexer is handed it.
   PROGRAM_SIZE: 512 * 1024,
   IR_SIZE: 200000,
   // R-B (2026-10-01): a raise to 250,000 was MEASURED and NOT taken - it moves no graded
@@ -88,7 +99,24 @@ export const DEFAULT_LIMITS = Object.freeze({
   // withheld text gate; only the dark runtime pane meets this ceiling). Revisit with R-RT.
   INSTRUCTIONS_PER_BAR: 200000,
   TOTAL_INSTRUCTIONS: 200000000,
-  LOOP_ITERATIONS: 100000,
+  // ⭐⭐ UIE PHASE 2 (2026-10-11) — RAISED FROM 100,000 TO 5,000,000, MEASURED FIRST
+  // (`runtimeLimitsBudget.measure.test.js`). This is a WHOLE-RUN count, so the old
+  // ceiling was really ~3-20 iterations a bar on a 5,000-32,000-bar chart: it stopped
+  // atr-stepped (43 a bar) at bar 2,325, nadaraya-watson (56 a bar) at bar 1,785 and
+  // kalman (12 a bar) at bar 8,332 of an ordinary daily chart, while their whole runs
+  // need at most 1.8 M iterations at 32,000 bars.
+  //   WHY 5 M AND NOT MORE: one iteration of the smallest loop body (`s += i`) costs
+  // ~21 VM instructions (measured: 2,139 instructions a bar for 101 iterations), so
+  // `TOTAL_INSTRUCTIONS` (200 M) already stops ANY loop near 9.5 M iterations; a loop
+  // ceiling above that could never be the one met. 5 M stays the ceiling a loop meets
+  // first (~105 M instructions, ~0.8 s on this box), admits 2.8x the heaviest honest
+  // corpus run at the longest chart a member loads (`fullBarsFor`: 32,000 bars) and
+  // ~430 iterations a bar on a 11,534-bar daily chart.
+  //   ⛔ THE PER-BAR BOUND IS `INSTRUCTIONS_PER_BAR`, NOT A SECOND LOOP COUNT: a loop
+  // that runs away inside one bar (a bound it never reaches, `by 0`) meets 200,000
+  // instructions on that bar and stops by name there. Nesting is `LOOP_NESTING`, one
+  // `while` entry is `WHILE_ITERATIONS`, time is `WALL_TIME` and the pane budget.
+  LOOP_ITERATIONS: 5000000,
   // ⛔⛔ AN ENGINE LIMIT, NOT A PINE CLAIM. TradingView stops a runaway loop on
   // ELAPSED TIME, and no capture or document in this repo pins that limit, so no
   // pass count can be said to be Pine's. A `while` that finishes within this many
@@ -104,9 +132,37 @@ export const DEFAULT_LIMITS = Object.freeze({
   CALL_COUNT: 5000000,
   ARRAY_ELEMENTS: 100000,
   ARRAY_OPERATIONS: 2000000,
-  LIVE_OBJECTS: 500,
-  OBJECT_OPERATIONS: 200000,
-  HISTORY: 20000,
+  // ENFORCED — drawings live at the end of a bar, every family, AFTER the store's
+  // own Pine collector (`objectStore.js`). ⛔ RAISED FROM 500, deliberately: Pine
+  // lets ONE script hold up to 500 lines AND 500 labels AND 500 boxes (`max_*_count`
+  // ceilings, `objectPool.POOL_LIMITS`), so a total of 500 would have refused valid
+  // scripts. The ceiling is the most the store can ever hold — line, label and box
+  // at their 500 ceiling plus the 5 the batched collector lets past (3 x 505), the
+  // 40-table and 500-linefill house envelopes — so it never refuses what the store
+  // admits, and still stops a store defect that would let objects accumulate.
+  LIVE_OBJECTS: 3 * 505 + 40 + 500,
+  // ENFORCED — drawing calls (`line.new`, every setter, getter, delete …) over the
+  // WHOLE run, request sub-runs included. ⛔ RAISED FROM 200,000: a 50-cell table
+  // rewritten on every bar of a 20,000-bar intraday history is 1,000,000 (32,768 bars, the
+  // `HISTORY` ceiling since UIE Phase 3: 1,638,400)
+  // calls and is an honest dashboard; 2,000,000 admits it and still bounds a runaway
+  // well inside `TOTAL_INSTRUCTIONS`.
+  OBJECT_OPERATIONS: 2000000,
+  // ⛔⛔ OWNER RULING D5 (2026-10-02, `docs/pine/runtime-pane-switch-on-plan.md`) kept 20,000.
+  // ⭐⭐ UIE PHASE 3 (M2, 2026-10-11) — REVISITED, AS THE OWNER AUTHORIZED FOR THIS MILESTONE,
+  // AND RAISED TO 32,768 (2^15) ON MEASUREMENT (`runtimeHistoryCeiling.measure.test.js`,
+  // every runtime-only corpus script and eight adversarial programs at 20,000 / 30,000 /
+  // 32,000 / 32,768 five-minute bars, through the product path under the pane budget):
+  //   * the longest history any chart loads is 32,000 bars (`fullBarsFor`, 30m / 60m), so
+  //     20,000 refused every full intraday load at bar 0 whatever the script did;
+  //   * at 32,768 every script either draws or stops BY NAME (`runtime:time-budget` for
+  //     the slow ones), worst case ~1.3 s with its build; the MEMORY estimate peaks at
+  //     28 MB of its 64 MB ceiling (columns are 8 bytes a bar; rings, windows and carried
+  //     state do not scale with bars); two runs of a chart are bit-identical;
+  //   * every adversarial program is still stopped by name (the slowest, a 5k-a-bar
+  //     loop, by the pane budget at ~1.04 s) — a longer window buys a runaway nothing;
+  //   * 32,769 bars is refused at bar 0, by name. ⛔ Past 32,768 needs the owner again.
+  HISTORY: 32768,
   // ⚠️ MEASURED, NOT GUESSED — and the measurement is why they are this small.
   // The 2F-2 census over all five corpora (169 scripts) found 35 that read
   // history over a value they mutate, and their DEPTH demand is: 29 scripts at
@@ -124,10 +180,27 @@ export const DEFAULT_LIMITS = Object.freeze({
   CARRIED_CELLS: 65536,
   CARRIED_STEPS: 100000000,
   REQUEST_COUNT: 16,
+  // ENFORCED — how deep requests NEST: a request whose region itself requests runs
+  // the program again inside the first run (`vm.js::runRequest`), and without a depth
+  // bound a self-requesting region is unbounded recursion. Peaked on entry.
   REQUEST_FANOUT: 64,
+  // ENFORCED — an ESTIMATE, in bytes, of the state a run holds, and said to be one:
+  // JavaScript exposes no per-run heap figure. It is the run's own allocations,
+  // exactly sized (output columns, history rings, window buffers, carried state,
+  // frames, iteration buffers, aligned request results) plus, at every bar end, the
+  // largest collection seen (16 B / element) and the live drawings (512 B each).
+  // Dynamic collection memory is additionally bounded by `ARRAY_ELEMENTS` and
+  // `ARRAY_OPERATIONS`.
   MEMORY: 64 * 1024 * 1024,
+  // ENFORCED — milliseconds since the run's first bar, checked at every bar end of
+  // every run that shares the budget. The runtime PANE stops earlier, at its own
+  // 1,000 ms (`runtimeColumns.RUNTIME_PANE_TIME_BUDGET_MS`); this is the backstop for
+  // every other caller of `execute` (a worker, a census, a test harness).
   WALL_TIME: 5000,
 })
+
+/** ⭐ P1 HARDENING — the per-object figure `MEMORY` charges for a live drawing. */
+export const LIVE_OBJECT_BYTES = 512
 
 /** ⛔ A RESOURCE STOP IS ITS OWN FAILURE CLASS, distinct from a refusal (the
  *  member wrote something this engine cannot mean) and from a bug (an Error).

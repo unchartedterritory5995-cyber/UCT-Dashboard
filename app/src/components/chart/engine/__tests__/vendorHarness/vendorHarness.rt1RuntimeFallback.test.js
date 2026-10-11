@@ -24,6 +24,7 @@ import {
   RUNTIME_PANE_TIME_BUDGET_MS,
 } from '../../runtime/runtimeColumns'
 import { setRuntimeKillList, runtimeSourceHash, runtimeKillOf } from '../../runtimeKill'
+import { runtimeWarmupOf } from '../../runtime/runtimeObjects'
 
 const REPO = path.resolve(process.cwd(), '..')
 const HARNESS = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness')
@@ -199,19 +200,40 @@ describe('RT1 → RT3 — a `?:` whose test is `na` reads as false from v4; only
 })
 
 describe('RT1 — R-W for the runtime lane: a fallback document needs a listing-start series', () => {
-  it('⛔ off the listing it computes nothing, by name; on it, the vendor columns', () => {
+  // ⭐ UIE Phase 2: OFF the listing the run draws behind R-W's warm-up curtain
+  // (`runtimeColumns.js::computeOffListing`) — the warm-up is withheld, and every bar it
+  // draws EQUALS the run from the listing over the same bars.
+  it('off the listing it withholds its warm-up and draws the listing run values after it; on it, the vendor columns', () => {
     const cap = capture(ADX)
     vi.stubEnv(FLAG, '1')
     const built = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
     const { installed } = registry.installUserDefinitions([built.definition])
+    // the truth: AAPL's daily history FROM ITS LISTING (11,534 bars); the chart: its last 3,000
+    const aapl = JSON.parse(fs.readFileSync(path.join(path.resolve(process.cwd(), '..'), 'tests', 'fixtures',
+      'vendor', 'harness', 'vw-deadband-ticks-aapl-1d-2026-09-28.json'), 'utf8')).bars.rows
+      .map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v }))
+    const truth = registry.computeFor(installed[0], aapl, undefined,
+      { tf: 'D', newestBarIsForming: false, historyFromListing: true })
+    const N = 3000
+    const window = aapl.slice(aapl.length - N)
+    const off = registry.computeFor(installed[0], window, undefined, { tf: 'D', newestBarIsForming: false })
+    expect(registry.columnErrors(off)).toEqual({})
+    const curtain = runtimeWarmupOf(off)
+    expect(curtain && curtain.withheldBars).toBeGreaterThan(0)
+    expect(curtain.withheldBars).toBeLessThan(N / 2)
+    for (const r of built.rows) {
+      for (let i = 0; i < N; i += 1) {
+        const want = truth[r.key][aapl.length - N + i]
+        if (i < curtain.withheldBars) expect(Number.isNaN(off[r.key][i]), `${r.label} bar ${i}`).toBe(true)
+        else expect(Math.abs(off[r.key][i] - want) <= 1e-9 * Math.abs(want), `${r.label} bar ${i}`).toBe(true)
+      }
+    }
     const bars = toProductBars(cap)
-    const off = registry.computeFor(installed[0], bars, undefined, { tf: 'D', newestBarIsForming: false })
-    const errs = registry.columnErrors(off)
-    expect(Object.keys(errs).length).toBe(built.rows.length)
-    for (const e of Object.values(errs)) expect(e.guard).toBe(RUNTIME_HISTORY_GUARD)
-    const on = registry.computeFor(installed[0], toProductBars(cap), undefined,
+    const on = registry.computeFor(installed[0], bars, undefined,
       { tf: 'D', newestBarIsForming: false, historyFromListing: true })
     expect(registry.columnErrors(on)).toEqual({})
+    // the old answer, for a caller that asks for it, is still the named refusal
+    expect(RUNTIME_HISTORY_GUARD).toBe('runtime:history-start')
     const vendor = vendorColumn(cap, 'ADX')
     const ours = on[built.rows.find((r) => r.label === 'ADX').key]
     const last = ours.length - 1

@@ -1377,6 +1377,34 @@ export default function BuilderSheet({
     // ⛔ NO `setAcknowledged` HERE — the restored rows below each carry their
     // own fresh `acknowledged: false`, which is where that flag lives now.
     setStoreError(null); setSavedRow(null); setCopied(false); setPineText(''); applyProvenanceRef.current = null
+    // ⛔⛔ P1 HARDENING (2026-10-11) — THE FORMULA BOX EDITS FORMULAS, AND ONLY FORMULAS.
+    // A `runtime` document's `compute.source` is a whole PINE SCRIPT, and the restore
+    // below would drop it into the formula box as formula text — a document of one
+    // kind misread as the other.
+    // ⭐⭐ UIE PHASE 5 (M1) — so it is opened where a Pine script IS edited: the Pine tab,
+    // its stored script in the import box, previewed by the member pane, and saved back
+    // as a REVISION of the same document (`attachPine`, a PUT with `baseVersion`, exactly
+    // as a formula edit saves) — or as a new indicator. Nothing is written until then;
+    // closing the sheet, or a script the door refuses, leaves the stored one untouched.
+    if (compute.kind === 'runtime') {
+      if (typeof compute.source !== 'string' || !compute.source.trim()) {
+        setEditing(null)
+        setStoreError('This script was stored without its source, so it cannot be edited here. It is unchanged.')
+        return
+      }
+      setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null, runtime: true })
+      setName(String(def?.meta?.name || ''))
+      setPineText(compute.source)
+      setBuildMode('pine')
+      return
+    }
+    if (compute.kind !== undefined && compute.kind !== 'ast') {
+      setEditing(null)
+      setStoreError(compute.kind === 'runtime'
+        ? 'This indicator is a script drawn bar by bar, not a formula, so it cannot be edited here. Its script is unchanged.'
+        : 'This indicator is not a formula, so it cannot be edited here. It is unchanged.')
+      return
+    }
     if (typeof src !== 'string' || src.trim() === '') {
       setEditing(null)
       setStoreError('This formula was stored without its source text, so it cannot be edited here.')
@@ -1922,6 +1950,12 @@ export default function BuilderSheet({
   }, [result, mode])
 
   const save = useCallback(async (opts) => {
+    // ⛔ UIE PHASE 5 (M1) — the FORMULA save never writes over a stored script open for
+    // edit (its button is hidden then; this holds the line for any other caller)
+    if (editing && editing.runtime) {
+      setStoreError('This indicator is a script. Save it with "Save changes" under its preview.')
+      return
+    }
     // ⭐ P2X — `{confirmObjectLoss: true}` only from the lossy-save confirmation
     // below; the Save button's click event carries no such field.
     const confirmObjectLoss = !!(opts && opts.confirmObjectLoss === true)
@@ -2162,22 +2196,32 @@ export default function BuilderSheet({
   // ⭐ P0 gate (decision D) — `options.previewAcked` is MemberPane's repaint
   // acknowledgement, passed straight to `saveUserDefinition` (the server's
   // `repaint_acknowledged`; never persisted). The server stays the authority.
-  const attachPine = useCallback(async (definition, options = null) => {
-    const { defs, errors } = validateUserDefinitions([definition])
+  // ⭐⭐ UIE PHASE 5 (M1) — `revise`: while a runtime document is open for edit
+  // (`openForEdit`), the pane's save is a REVISION of that document — the formula
+  // edit's semantics, unchanged: the same id, a PUT with `baseVersion` (the store
+  // refuses a stale one), re-installed under its id so every chart showing it draws
+  // the revision (as a formula edit does), and no second instance added. Its other
+  // action (`attachPineCopy`) is the create this door has always made.
+  const attachPineAs = useCallback(async (definition, options = null, revise = false) => {
+    const target = revise && editing && editing.runtime ? editing : null
+    const doc = target ? { ...definition, id: target.defId } : definition
+    const { defs, errors } = validateUserDefinitions([doc])
     if (errors.length || defs.length !== 1) {
       return { ok: false, error: errors.join('\n') || 'The registry refused this definition.' }
     }
-    const res = await saveUserDefinition(definition, null, importTelemetryRef.current,
-      options && options.previewAcked === true ? { previewAcked: true } : null)
+    const ack = options && options.previewAcked === true
+    const saveOptions = (ack || target) ? { ...(ack ? { previewAcked: true } : {}),
+      ...(target ? { baseVersion: target.version } : {}) } : null
+    const res = await saveUserDefinition(doc, target ? target.defId : null, importTelemetryRef.current, saveOptions)
     if (!res.ok) return res
     importTelemetryRef.current = null
     const row = res.row || {}
     const storedDoc = {
-      ...definition,
-      id: row.def_id || definition.id,
+      ...doc,
+      id: row.def_id || doc.id,
       ...(Number.isInteger(row.version) ? { version: row.version } : {}),
       compute: {
-        ...definition.compute,
+        ...doc.compute,
         ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}),
       },
     }
@@ -2189,7 +2233,10 @@ export default function BuilderSheet({
           || 'Saved, but this script could not be added to the chart.',
       }
     }
-    if (settings && onChange) onChange(addInstance(settings, installed[0].id, engineRegistry))
+    if (target) {
+      // the revision is now the version an edit is based on
+      setEditing({ defId: storedDoc.id, version: Number(row.version) || target.version + 1, prior: storedDoc, runtime: true })
+    } else if (settings && onChange) onChange(addInstance(settings, installed[0].id, engineRegistry))
     // ⭐⭐ THE HAND-BACK `save()` HAS ALWAYS MADE, FROM THE DOOR THAT WAS SKIPPING
     // IT (j.5, 2026-09-18). Attaching a script draws it on the chart underneath
     // this modal, so a door that does not tell its host the act is finished
@@ -2210,7 +2257,9 @@ export default function BuilderSheet({
     // still renders for a host that stays open (a preview mount passes none).
     onSaved?.(row)
     return { ok: true }
-  }, [settings, onChange, onSaved])
+  }, [settings, onChange, onSaved, editing])
+  const attachPine = useCallback((definition, options = null) => attachPineAs(definition, options, true), [attachPineAs])
+  const attachPineCopy = useCallback((definition, options = null) => attachPineAs(definition, options, false), [attachPineAs])
 
   const badge = useMemo(() => (mode ? (REPAINT_LABEL[mode] || mode) : null), [mode])
 
@@ -2527,6 +2576,9 @@ export default function BuilderSheet({
 
           {buildMode === 'pine' && (
             <ImportBox
+              // ⭐ UIE PHASE 5 (M1) — a script opened for edit seeds a FRESH box (its
+              // source is an initial value, read on mount)
+              key={editing && editing.runtime ? `edit:${editing.defId}` : 'new'}
               dialect="auto"
               disabled={saving}
               // ⚠️ AN INITIAL VALUE, NOT A CONTROLLED ONE. `initialSource` seeds
@@ -3052,6 +3104,12 @@ export default function BuilderSheet({
             source={pineText}
             settings={settings}
             onAttach={attachPine}
+            // ⭐ UIE PHASE 5 (M1) — editing a stored script: the save is its revision,
+            // and saving it as a new indicator is offered beside it
+            {...(editing && editing.runtime ? {
+              attachLabel: 'Save changes', doneLabel: 'Saved. Every chart showing this indicator now draws the change.',
+              onAttachCopy: attachPineCopy, copyLabel: 'Save as a new indicator',
+            } : {})}
           />
 
           {/* ⭐⭐ TRACK F (DEC-006) — a Pine import's own adjustable parameters.
@@ -3716,7 +3774,10 @@ export default function BuilderSheet({
             {/* Cancel goes through the SAME door as Escape and the × — one place
                 decides whether unsaved work needs a prompt. */}
             <button type="button" className="btn btn-ghost" onClick={requestClose}>Cancel</button>
-            <button
+            {/* ⛔ UIE PHASE 5 (M1) — while a stored SCRIPT is open for edit, the formula
+                save is not offered: it would PUT the formula draft over the script. The
+                script's own save is the member pane's ("Save changes"). */}
+            {!(editing && editing.runtime) && <button
               type="button"
               className="btn btn-primary"
               data-testid="sheet-save"
@@ -3724,7 +3785,7 @@ export default function BuilderSheet({
               disabled={converseActive ? !converseCommit.canSave : !canSave}
             >{converseActive
                 ? (converseCommit.saving ? 'Saving…' : converseCommit.label)
-                : (saving ? 'Saving…' : (editing ? 'Save changes' : 'Save'))}</button>
+                : (saving ? 'Saving…' : (editing ? 'Save changes' : 'Save'))}</button>}
           </div>
         </div>
 
@@ -3735,7 +3796,9 @@ export default function BuilderSheet({
                 {rows.map((row) => (
                   <li key={row.def_id} className={styles.listRow}>
                     <span className={styles.listName}>{row.definition?.meta?.name || row.def_id}</span>
-                    <span className={styles.listSource}>{row.definition?.compute?.source}</span>
+                    {/* ⭐ P1 HARDENING — a runtime document's source is a whole script, not a formula line */}
+                    <span className={styles.listSource}>{row.definition?.compute?.kind === 'runtime'
+                      ? 'Script drawn bar by bar' : row.definition?.compute?.source}</span>
                     <button
                       type="button"
                       className="btn btn-ghost"

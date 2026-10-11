@@ -1,0 +1,22 @@
+//@version=5
+indicator("UCTPROBE_VW_UIE3_NA_TEXT", overlay = false)
+
+// ─── 2026-10-11 — UIE Phase 3 (M5): `na` text concatenated with text (Q-UIE3b) ─
+//
+// order-blocks (v5) declares `string alert = na` and then writes
+//     alert := alert + 'Bearish MSB @ ' + str.tostring(price) + '\n'
+//     alert := not na(alert) ? (alert + 'Current price = ' + …) : na
+// What `na + "text"` is — `na`, or the text — decides `na(alert)` on every bar. Rows:
+//   T00  bar_index                                   control
+//   T01  na(s + "x")         s = na                  1 (still na) | 0
+//   T02  str.length(s + "x")                         na | 1
+//   T03  na("x" + s)                                 1 | 0
+//   T04  str.length(s + s)                           na | 0
+// ⛔ CAPTURE: AMEX:SPY 1D, >= 200 bars, no inputs. A runtime error is itself a reading.
+
+string s = na
+plot(bar_index, "T00_bar_index_CONTROL")
+plot(na(s + "x") ? 1 : 0, "T01_na_of_na_plus_text")
+plot(str.length(s + "x"), "T02_length_na_plus_text")
+plot(na("x" + s) ? 1 : 0, "T03_na_of_text_plus_na")
+plot(str.length(s + s), "T04_length_na_plus_na")

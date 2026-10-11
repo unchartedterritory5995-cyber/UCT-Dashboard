@@ -312,9 +312,11 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title)).toEqual(['Baseline'])
     expect(item(v, 'Bullish Rejection').verdict).toBe('MATCH')
   }, T)
-  it('trend-targets-algoalpha SPY (runtime pane): the run declines a window not from the listing (runtime:history-start) — draws nothing', () => {
+  // UIE Phase 2: off the listing the run is tried behind its warm-up curtain;
+  // trend-targets needs ~1,500 bars to forget its first bar, more than half of SPY's 1,800
+  it('trend-targets-algoalpha SPY (runtime pane): its warm-up does not fit the window (runtime:warmup-never-converges) — draws nothing', () => {
     const v = grade('trend-targets-algoalpha-spy-1d-2026-10-02', 'runtime').v
-    expect(v.objects.reason).toMatch(/runtime:history-start/)
+    expect(v.objects.reason).toMatch(/runtime:warmup-never-converges/)
   }, T)
   it.fails('wyckoff-accumulation-distribution RDDT (runtime pane): MATCH', () => {
     expect(grade('wyckoff-accumulation-distribution-rddt-1d-2026-10-02', 'runtime').v.verdict).toBe('MATCH')
@@ -354,10 +356,16 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     expect(v.objects.counts.filter((c) => c.vendor > 0).map((c) => [c.family, c.ours])).toEqual([['lines', 7], ['labels', 7]])
     expect(items(v, 'Chars').every((p) => p.verdict === 'MATCH')).toBe(true)
   }, T)
-  it('control: fibonacci-dolphintradebot SPY — the run declines a window not from the listing (runtime:history-start) and draws nothing', () => {
+  // ⭐⭐ UIE PHASE 3 (M3A) — this was the control that a window NOT from the listing drew
+  // no drawings (INCONCLUSIVE, `runtime:history-start`). Its two runs from two different
+  // first bars now end with the same drawings (`warmupDrawings.js`), so they are drawn —
+  // and graded against TradingView they MATCH: 7 lines, 7 labels, every label text, all
+  // 21 colour slots (coordinates are not compared by v1).
+  it('fibonacci-dolphintradebot SPY — off the listing its drawings are drawn, and MATCH TradingView', () => {
     const v = grade('fibonacci-dolphintradebot-spy-1d-2026-10-02', 'runtime').v
-    expect(v.objects.verdict).toBe('INCONCLUSIVE')
-    expect(v.objects.reason).toMatch(/runtime:history-start/)
+    expect(v.objects.verdict).toBe('MATCH')
+    expect(v.objects.counts.filter((c) => c.vendor > 0).map((c) => [c.family, c.ours])).toEqual([['lines', 7], ['labels', 7]])
+    expect(items(v, 'Chars').every((p) => p.verdict === 'MATCH')).toBe(true)
   }, T)
 })
 
@@ -391,13 +399,17 @@ describe('F2 — RT3 Q-NL: an `na` operand of `and` / `or` / `not` is false (v4 
 
 // ─── INCONCLUSIVE — measured, but nothing comparable on our side ───────────────
 describe('CAP2 coverage audit — INCONCLUSIVE', () => {
-  it('delta-rsi-oscillator-strategy (runtime pane): the run attaches and computes no column for Buy / Sell / Exit Long / Exit Short', () => {
-    for (const id of ['delta-rsi-oscillator-strategy-rddt-1d-2026-10-02', 'delta-rsi-oscillator-strategy-spy-1d-2026-10-02']) {
-      const v = grade(id, 'runtime').v
-      expect(v.verdict, id).toBe('INCONCLUSIVE')
-      for (const t of ['Buy', 'Sell', 'Exit Long', 'Exit Short']) expect(item(v, t).reason, `${id} ${t}`).toMatch(/no column/)
-    }
+  // ⭐⭐ UIE PHASE 3 (M5) — delta-rsi stopped on `array.sum` of an all-`na` array (unmeasured
+  // then). Measured since (`vw-rt7-empty-reduce-fixnan`: `na`), it computes: RDDT (from the
+  // listing) MATCHES TradingView on all four plots; SPY (not from the listing) is stopped
+  // by the pane's time budget in the warm-up check, by name — a cost, not a semantics gap.
+  it('delta-rsi-oscillator-strategy (runtime pane): RDDT MATCHES on Buy / Sell / Exit Long / Exit Short', () => {
+    const v = grade('delta-rsi-oscillator-strategy-rddt-1d-2026-10-02', 'runtime').v
+    expect(v.verdict).toBe('MATCH')
+    for (const t of ['Buy', 'Sell', 'Exit Long', 'Exit Short']) expect(item(v, t).verdict, t).toBe('MATCH')
   }, T)
+  // ⚠️ SPY is not pinned here: whether its warm-up check fits the 1,000 ms budget is the
+  // machine's speed, and a test of a wall clock would be a flaky test.
   it('opening-range-initial-balance-opening-price: TradingView repeats titles (Shapes, OR Low, IB Low), so 11 of 15 items are UNMAPPED', () => {
     const v = grade('opening-range-initial-balance-opening-price-rddt-1d-2026-10-02').v
     expect(v.verdict).toBe('INCONCLUSIVE')
@@ -542,10 +554,16 @@ describe('CAP3 — Q-H4a vw-h4-loops (vendor witness)', () => {
     expect(v.plots.length).toBe(4)
     for (const p of v.plots) expect(p.stats.compared, p.title).toBe(636)
   }, T)
-  it('door: SPY (a window not from the listing) — the run computes no column; the objects pane alone still refuses the `for` (pine:block)', () => {
+  // ⭐ UIE Phase 2: off the listing the run draws behind its warm-up curtain — 273 bars
+  // withheld, then every plot (the seeded filter included) agrees with TradingView
+  it('door: SPY (a window not from the listing) — the run draws behind its warm-up curtain and MATCHes; the objects pane alone still refuses the `for` (pine:block)', () => {
     const s = grade('vw-h4-loops-spy-1d-2026-10-03', 'runtime').v
-    expect(s.verdict).toBe('INCONCLUSIVE')
-    expect(s.plots.every((p) => /no column/.test(p.reason || ''))).toBe(true)
+    expect(s.verdict).toBe('MATCH')
+    for (const p of s.plots) {
+      expect(p.verdict, p.title).toBe('MATCH')
+      expect(p.warmupBars, p.title).toBeGreaterThan(0)
+      expect(p.stats.steady.compared, p.title).toBeGreaterThan(1500)
+    }
     expect(grade('vw-h4-loops-rddt-1d-2026-10-03').v.reason).toMatch(/pine:block/)
   }, T)
 })

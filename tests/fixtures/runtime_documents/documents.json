@@ -33,10 +33,22 @@
      "lane": "runtime",
      "runtimeSourceHash": "d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499",
      "runtimeHistory": "listing",
+     "runtimeLanguage": "pine",
+     "runtimeFrontend": 1,
+     "runtimeIr": 1,
+     "runtimeOutputSignature": [
+      "plot",
+      "plot",
+      "plot",
+      "hline",
+      "colour",
+      "colour",
+      "colour"
+     ],
      "disclosures": [
       {
        "name": "Drawn bar by bar",
-       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
+       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
       }
      ],
      "requirementTags": []
@@ -92,6 +104,18 @@
       "min": 1,
       "max": 4,
       "step": 1
+     },
+     {
+      "key": "len",
+      "type": "int",
+      "default": 14,
+      "label": "len"
+     },
+     {
+      "key": "th",
+      "type": "int",
+      "default": 20,
+      "label": "th"
      }
     ],
     "plots": [
@@ -167,10 +191,27 @@
      "lane": "runtime",
      "runtimeSourceHash": "2d34f6b389ee4448beffa52f9e2249049f6b9365630e02bef57c7d9e09edfc8c",
      "runtimeHistory": "listing",
+     "runtimeLanguage": "pine",
+     "runtimeFrontend": 1,
+     "runtimeIr": 1,
+     "runtimeOutputSignature": [
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "alertcondition",
+      "alertcondition",
+      "alertcondition",
+      "alertcondition",
+      "colour",
+      "colour",
+      "colour",
+      "colour"
+     ],
      "disclosures": [
       {
        "name": "Drawn bar by bar",
-       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
+       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
       }
      ],
      "requirementTags": []
@@ -238,6 +279,90 @@
       "min": 1,
       "max": 4,
       "step": 1
+     },
+     {
+      "key": "degree",
+      "type": "int",
+      "default": 2,
+      "label": "Polynomial Order",
+      "min": 1
+     },
+     {
+      "key": "rsi_l",
+      "type": "int",
+      "default": 21,
+      "label": "RSI Length",
+      "min": 1
+     },
+     {
+      "key": "window",
+      "type": "int",
+      "default": 21,
+      "label": "Length ( > Order)",
+      "min": 2
+     },
+     {
+      "key": "signalLength",
+      "type": "int",
+      "default": 9,
+      "label": "Signal Length"
+     },
+     {
+      "key": "islong",
+      "type": "int",
+      "default": 1,
+      "label": "Buy"
+     },
+     {
+      "key": "isshort",
+      "type": "int",
+      "default": 1,
+      "label": "Sell"
+     },
+     {
+      "key": "showendlabels",
+      "type": "int",
+      "default": 1,
+      "label": "Exit"
+     },
+     {
+      "key": "buycond",
+      "type": "enum",
+      "default": "Zero-Crossing",
+      "label": "Buy",
+      "options": [
+       "Zero-Crossing",
+       "Signal Line Crossing",
+       "Direction Change"
+      ]
+     },
+     {
+      "key": "sellcond",
+      "type": "enum",
+      "default": "Zero-Crossing",
+      "label": "Sell",
+      "options": [
+       "Zero-Crossing",
+       "Signal Line Crossing",
+       "Direction Change"
+      ]
+     },
+     {
+      "key": "endcond",
+      "type": "enum",
+      "default": "Zero-Crossing",
+      "label": "Exit",
+      "options": [
+       "Zero-Crossing",
+       "Signal Line Crossing",
+       "Direction Change"
+      ]
+     },
+     {
+      "key": "usenrmse",
+      "type": "int",
+      "default": 0,
+      "label": "usenrmse"
      }
     ],
     "plots": [
@@ -352,10 +477,17 @@
      "lane": "runtime",
      "runtimeSourceHash": "cf5d2464b9d0141e45ab0f516bc1d615208039f707b27645033e9844f34136ac",
      "runtimeHistory": "listing",
+     "runtimeLanguage": "pine",
+     "runtimeFrontend": 1,
+     "runtimeIr": 1,
+     "runtimeOutputSignature": [
+      "plotchar",
+      "plotchar"
+     ],
      "disclosures": [
       {
        "name": "Drawn bar by bar",
-       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
+       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
       },
       {
        "name": "Drawings",
@@ -397,6 +529,162 @@
       "min": 1,
       "max": 4,
       "step": 1
+     },
+     {
+      "key": "prd",
+      "type": "int",
+      "default": 15,
+      "label": "ZigZag Period",
+      "min": 2,
+      "max": 50
+     },
+     {
+      "key": "i_ShowZ",
+      "type": "bool",
+      "default": false,
+      "label": "Show Zigzag"
+     },
+     {
+      "key": "col_U",
+      "type": "color",
+      "default": "#4CAF50",
+      "label": "Zigzag Colors"
+     },
+     {
+      "key": "col_D",
+      "type": "color",
+      "default": "#363A45",
+      "label": "col_D"
+     },
+     {
+      "key": "Show_prv",
+      "type": "bool",
+      "default": false,
+      "label": "Show Previous Levels"
+     },
+     {
+      "key": "ward",
+      "type": "enum",
+      "default": "Both",
+      "label": "Fibonacci Direction",
+      "options": [
+       "Upward",
+       "Downward",
+       "Both"
+      ]
+     },
+     {
+      "key": "i_level1",
+      "type": "float",
+      "default": 0.236,
+      "label": "1. Level"
+     },
+     {
+      "key": "i_level2",
+      "type": "float",
+      "default": 0.382,
+      "label": "2. Level"
+     },
+     {
+      "key": "i_level3",
+      "type": "float",
+      "default": 0.5,
+      "label": "3. Level"
+     },
+     {
+      "key": "i_level4",
+      "type": "float",
+      "default": 0.618,
+      "label": "4. Level"
+     },
+     {
+      "key": "i_level5",
+      "type": "float",
+      "default": 0.786,
+      "label": "5. Level"
+     },
+     {
+      "key": "c_border",
+      "type": "color",
+      "default": "#787B86",
+      "label": "Fib Border Color"
+     },
+     {
+      "key": "c_level1",
+      "type": "color",
+      "default": "#F23645",
+      "label": "c_level1"
+     },
+     {
+      "key": "c_level2",
+      "type": "color",
+      "default": "#FF9800",
+      "label": "c_level2"
+     },
+     {
+      "key": "c_level3",
+      "type": "color",
+      "default": "#4CAF50",
+      "label": "c_level3"
+     },
+     {
+      "key": "c_level4",
+      "type": "color",
+      "default": "#20C798",
+      "label": "c_level4"
+     },
+     {
+      "key": "c_level5",
+      "type": "color",
+      "default": "#00BCD4",
+      "label": "c_level5"
+     },
+     {
+      "key": "b_alert",
+      "type": "bool",
+      "default": false,
+      "label": "Custom Alert"
+     },
+     {
+      "key": "alert_source",
+      "type": "enum",
+      "default": "close",
+      "options": [
+       "open",
+       "high",
+       "low",
+       "close",
+       "hl2",
+       "hlc3",
+       "ohlc4",
+       "hlcc4"
+      ],
+      "label": "Alert Source",
+      "source": true
+     },
+     {
+      "key": "alert_tpye",
+      "type": "enum",
+      "default": "cross-up",
+      "label": "Alert Type",
+      "options": [
+       "cross-up",
+       "cross-down",
+       "cross-any"
+      ]
+     },
+     {
+      "key": "cross_level",
+      "type": "enum",
+      "default": "1. Level",
+      "label": "Select Level",
+      "options": [
+       "1. Level",
+       "2. Level",
+       "3. Level",
+       "4. Level",
+       "5. Level"
+      ]
      }
     ],
     "plots": [
@@ -816,10 +1104,25 @@
      "freshness": "live",
      "lane": "runtime",
      "runtimeSourceHash": "e7a7781eacad676ec436c0a778f1e0223e7ad5ad47bac2c2b38569f81b5d2187",
+     "runtimeLanguage": "pine",
+     "runtimeFrontend": 1,
+     "runtimeIr": 1,
+     "runtimeOutputSignature": [
+      "barcolor",
+      "plotshape",
+      "plotshape",
+      "barcolor",
+      "colour",
+      "colour"
+     ],
      "disclosures": [
       {
        "name": "Drawn bar by bar",
-       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
+       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
+      },
+      {
+       "name": "Settings",
+       "note": "Kept at the author's default: `lineColor` (its default is not a literal value)."
       }
      ],
      "requirementTags": []
@@ -887,6 +1190,23 @@
       "min": 1,
       "max": 4,
       "step": 1
+     },
+     {
+      "key": "showVolumeThreshold",
+      "type": "bool",
+      "default": false,
+      "label": "Show Volume Threshold"
+     },
+     {
+      "key": "styleOption",
+      "type": "enum",
+      "default": "────",
+      "label": "Line Style",
+      "options": [
+       "────",
+       "┈┈┈",
+       "╌╌╌"
+      ]
      }
     ],
     "plots": [
@@ -11292,10 +11612,33 @@
      "lane": "runtime",
      "runtimeSourceHash": "08ed07e699888fe78aee08d3bba984d2e65e42d3518a4f9581fa790dbaf124cb",
      "runtimeHistory": "listing",
+     "runtimeLanguage": "pine",
+     "runtimeFrontend": 1,
+     "runtimeIr": 1,
+     "runtimeOutputSignature": [
+      "plotchar",
+      "plotchar",
+      "plot",
+      "barcolor",
+      "plotshape",
+      "plotshape",
+      "alertcondition",
+      "alertcondition",
+      "alertcondition",
+      "alertcondition",
+      "alertcondition",
+      "alertcondition",
+      "alertcondition",
+      "colour",
+      "colour",
+      "colour",
+      "colour",
+      "colour"
+     ],
      "disclosures": [
       {
        "name": "Drawn bar by bar",
-       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
+       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
       }
      ],
      "requirementTags": []
@@ -11449,6 +11792,53 @@
       "label": "TP3 Multiplier",
       "default": 1.5,
       "min": 0.1
+     },
+     {
+      "key": "st_atr_period",
+      "type": "int",
+      "default": 90,
+      "label": "Supertrend ATR Period",
+      "min": 1
+     },
+     {
+      "key": "wma_length",
+      "type": "int",
+      "default": 40,
+      "label": "WMA Length",
+      "min": 1
+     },
+     {
+      "key": "ema_length",
+      "type": "int",
+      "default": 14,
+      "label": "EMA Length",
+      "min": 1
+     },
+     {
+      "key": "cont_factor",
+      "type": "int",
+      "default": 3,
+      "label": "Confirmation count",
+      "min": 1
+     },
+     {
+      "key": "atr_period",
+      "type": "int",
+      "default": 14,
+      "label": "Volatility (ATR) period",
+      "min": 1
+     },
+     {
+      "key": "green",
+      "type": "color",
+      "default": "#00FFBB",
+      "label": "Bullish Color"
+     },
+     {
+      "key": "red",
+      "type": "color",
+      "default": "#FF1100",
+      "label": "Bearish Color"
      }
     ],
     "plots": [
@@ -11611,10 +12001,32 @@
      "freshness": "live",
      "lane": "runtime",
      "runtimeSourceHash": "340b65e04b1b23d2f7c41692fe64330552430a88276273bb0b57a0795cc4235b",
+     "runtimeLanguage": "pine",
+     "runtimeFrontend": 1,
+     "runtimeIr": 1,
+     "runtimeOutputSignature": [
+      "barcolor",
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "colour",
+      "colour",
+      "colour",
+      "colour",
+      "colour",
+      "colour",
+      "colour",
+      "colour"
+     ],
      "disclosures": [
       {
        "name": "Drawn bar by bar",
-       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings are drawn at the script's own defaults."
+       "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
       },
       {
        "name": "The Selling Climax",
@@ -11688,6 +12100,33 @@
       "min": 1,
       "max": 4,
       "step": 1
+     },
+     {
+      "key": "color_",
+      "type": "color",
+      "default": "#FFFFFF",
+      "label": "Text Color"
+     },
+     {
+      "key": "rsilen",
+      "type": "int",
+      "default": 14,
+      "label": "RSI Length"
+     },
+     {
+      "key": "rsisens",
+      "type": "int",
+      "default": 20,
+      "label": "trend Sensitivity",
+      "min": 0,
+      "max": 50
+     },
+     {
+      "key": "pivotLen",
+      "type": "int",
+      "default": 5,
+      "label": "Pivot Length",
+      "min": 1
      }
     ],
     "plots": [

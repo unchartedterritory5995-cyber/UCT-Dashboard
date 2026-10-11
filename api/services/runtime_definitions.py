@@ -248,6 +248,16 @@ def validate(definition: dict) -> None:
     validateRuntimeCompute`'s rules, applied at the door every member shares.
 
     Raises ``ValueError`` with the sentence the router returns as a 400."""
+    # ⭐ P1 HARDENING (2026-10-11) — a runtime document now names the language its
+    # source is in (`meta.runtimeLanguage`, stamped by the member door). Every reader
+    # here (`runtime_repaint`, the kill list, the allowlist) reads PINE, so a document
+    # naming another language is refused rather than classified by the wrong grammar.
+    # Absent (a document minted before the stamp) is Pine, as it always was.
+    meta = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
+    language = meta.get("runtimeLanguage")
+    if language is not None and language != "pine":
+        raise ValueError(f"meta.runtimeLanguage: {language!r} is not a language this store reads "
+                         "a bar-by-bar script in — only 'pine' is")
     compute = definition.get("compute")
     if not isinstance(compute, dict) or compute.get("kind") != RUNTIME_KIND:
         raise ValueError("definition: not a runtime document")

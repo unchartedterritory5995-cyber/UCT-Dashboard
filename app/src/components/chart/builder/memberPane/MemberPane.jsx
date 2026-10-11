@@ -77,6 +77,13 @@ const MEMBER_CHART_PROPS = Object.freeze({ liveUpdates: false, backgroundWarm: f
 export default function MemberPane({
   sym = null, tf = null, source = null, defId = MEMBER_PANE_DEF_PREFIX, settings = null,
   onAttach = null,
+  // ⭐ UIE PHASE 5 (M1) — a stored script opened for edit: its host names the save
+  // ("Save changes", a revision) and may offer a second one (`onAttachCopy`, a new
+  // indicator). Both run the SAME attach below — acknowledgement, errors, notes.
+  attachLabel = 'Add this script to my chart',
+  doneLabel = 'Saved, and added to this chart.',
+  onAttachCopy = null,
+  copyLabel = null,
 }) {
   // ⛔ FIRST, AND BEFORE ANY BUILD. Reading the flag after `memberPaneDefinition`
   // would translate a member's script on a build that may not show it — work
@@ -218,13 +225,13 @@ export default function MemberPane({
   const [acked, setAcked] = useState(false)
   useEffect(() => { setAcked(false) }, [built])
 
-  const doAttach = useCallback(async () => {
-    if (!onAttach || !built || !built.ok || built.saveable === false) return
+  const doAttachWith = useCallback(async (fn) => {
+    if (!fn || !built || !built.ok || built.saveable === false) return
     if (needsAck && !acked) return
     setAttach({ state: 'busy', error: null })
     let res = null
     try {
-      res = await onAttach(built.definition, needsAck && acked ? { previewAcked: true } : null)
+      res = await fn(built.definition, needsAck && acked ? { previewAcked: true } : null)
     } catch (e) {
       // ⚠️ A THROW IS A TRANSPORT FAILURE, NOT A REFUSAL. The store never
       // answered, so there is no sentence of its to render and inventing one that
@@ -238,7 +245,9 @@ export default function MemberPane({
       error: (res && typeof res.error === 'string' && res.error.trim())
         ? res.error : 'The store refused this definition.',
     })
-  }, [onAttach, built, needsAck, acked])
+  }, [built, needsAck, acked])
+  const doAttach = useCallback(() => doAttachWith(onAttach), [doAttachWith, onAttach])
+  const doAttachCopy = useCallback(() => doAttachWith(onAttachCopy), [doAttachWith, onAttachCopy])
 
   if (!enabled) return null
   if (!live) return null
@@ -307,11 +316,22 @@ export default function MemberPane({
             disabled={attach.state === 'busy' || (needsAck && !acked)}
             onClick={doAttach}
           >
-            {attach.state === 'busy' ? 'Adding…' : 'Add this script to my chart'}
+            {attach.state === 'busy' ? (onAttachCopy ? 'Saving…' : 'Adding…') : attachLabel}
           </button>
+          {onAttachCopy && copyLabel && (
+            <button
+              type="button"
+              className={styles.attach}
+              data-testid="pine-member-pane-attach-copy"
+              disabled={attach.state === 'busy' || (needsAck && !acked)}
+              onClick={doAttachCopy}
+            >
+              {copyLabel}
+            </button>
+          )}
           {attach.state === 'done' && (
             <span className={styles.attachOk} role="status">
-              Saved, and added to this chart.
+              {doneLabel}
             </span>
           )}
           {attach.state === 'error' && attach.error && (

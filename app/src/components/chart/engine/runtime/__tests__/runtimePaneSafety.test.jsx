@@ -33,13 +33,14 @@ import AttachedPineDisclosures from '../../../pane/AttachedPineDisclosures'
 import { useServerColumns } from '../../useServerColumns'
 import {
   computeRuntimeColumns, runtimeColumnsFor, setRuntimeRunner,
-  RUNTIME_HISTORY_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD, RUNTIME_TIME_BUDGET_GUARD,
+  RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD, RUNTIME_TIME_BUDGET_GUARD, RUNTIME_WARMUP_GUARD,
 } from '../runtimeColumns'
 import {
   workerRunner, resetRuntimeAsync, ensureRuntimeLane,
   RUNTIME_WORKER_WATCHDOG_MS, RUNTIME_WORKER_MAX_STARTS,
   RUNTIME_WORKER_UNRESPONSIVE_GUARD, RUNTIME_WORKER_FAILED_GUARD,
 } from '../runtimeAsync'
+import { DEFAULT_LIMITS } from '../limits'
 
 const LF = String.fromCharCode(10)
 const REPO = path.resolve(process.cwd(), '..')
@@ -50,7 +51,7 @@ const TINY = ['//@version=5', 'indicator("t")', 'var float s = 0.0', 's := s + c
 // a collection error on the first bar: Pine stops the script here, this lane names it
 // ⚰️ RT7 — this was `array.max` of an empty array, which is MEASURED now (na, as Pine;
 // `rt7ArrayNa.test.js`). `array.sum` of an empty array is still an unmeasured, named stop.
-const EMPTY_MAX = ['//@version=5', 'indicator("t")', 'a = array.new_float(0)', 'plot(array.sum(a))', ''].join(LF)
+const EMPTY_MAX = ['//@version=5', 'indicator("t")', 'a = array.new_float(0)', 'plot(array.median(a))', ''].join(LF)
 
 const rtDef = (source, id = 'u_rf_safety') => ({
   id,
@@ -82,7 +83,9 @@ describe('RF — a VM throw and a limit stop are refusals by name, never `engine
     try { computeRuntimeColumns(rtDef(EMPTY_MAX), rows(30), { tf: 'D' }) } catch (e) { err = e }
     expect(err.guard).toBe(RUNTIME_FAILED_GUARD)
     expect(err.message).toMatch(/stopped on bar 0 of 30/)
-    expect(err.message).toMatch(/array\.sum of an empty array/)
+    // ⭐ UIE PHASE 3 (M5) — `array.sum` of an empty array is measured now (na); `array.median`
+    // is still a stop of the script's own
+    expect(err.message).toMatch(/array\.median/)
     // through the registry: a reason, never a throw on the paint path
     const cols = registry.computeFor(rtDef(EMPTY_MAX, 'u_rf_f2'), rows(30), undefined, { tf: 'D' })
     expect(Object.keys(cols)).toEqual([])
@@ -93,9 +96,10 @@ describe('RF — a VM throw and a limit stop are refusals by name, never `engine
 
   it('⛔ a VM limit (more bars than `HISTORY` holds) is `runtime:limit`, naming the limit', () => {
     let err = null
-    try { computeRuntimeColumns(rtDef(TINY), rows(20001), { tf: 'D' }) } catch (e) { err = e }
+    const over = DEFAULT_LIMITS.HISTORY + 1
+    try { computeRuntimeColumns(rtDef(TINY), rows(over), { tf: 'D' }) } catch (e) { err = e }
     expect(err.guard).toBe(RUNTIME_LIMIT_GUARD)
-    expect(err.message).toMatch(/HISTORY: at most 20000, it reached 20001/)
+    expect(err.message).toMatch(new RegExp(`HISTORY: at most ${DEFAULT_LIMITS.HISTORY}, it reached ${over}`))
     expect(err.message).not.toMatch(/_EXCEEDED/)
   })
 
@@ -174,15 +178,17 @@ describe('RF — the member reads WHY on the disclosure strip (real binder, real
   })
   const settings = { indicatorInstances: [{ instanceId: 'i1', defId: DEF_ID, hidden: false }] }
 
-  it('⭐ a chart that does not start at the listing: the strip names `runtime:history-start` and the chart still binds', () => {
+  // UIE Phase 2: off the listing the run is tried behind its warm-up curtain; on this
+  // short chart its two runs never agree, so the refusal is `runtime:warmup-never-converges`
+  it('⭐ a chart that does not start at the listing, too short to prove a warm-up: the strip names the refusal and the chart still binds', () => {
     install()
     binder.sync(ctxFor())
     const notices = runtimeErrorNotices()
     expect(notices.length).toBe(1)
-    expect(notices[0][1]).toMatch(new RegExp(`\\(${RUNTIME_HISTORY_GUARD}\\)`))
+    expect(notices[0][1]).toMatch(new RegExp(`\\(${RUNTIME_WARMUP_GUARD}\\)`))
     render(<AttachedPineDisclosures settings={settings} registry={registry} />)
-    const row = screen.getByText(/runtime:history-start/)
-    expect(row.textContent).toMatch(/^ADX and DI — not drawn on this chart \(runtime:history-start\): this script is drawn bar by bar/)
+    const row = screen.getByText(/runtime:warmup-never-converges/)
+    expect(row.textContent).toMatch(/^ADX and DI — not drawn on this chart \(runtime:warmup-never-converges\): this script is drawn bar by bar/)
     // the chart is not wedged: syncing again is cheap and stays at one notice
     binder.sync(ctxFor())
     expect(runtimeErrorNotices().length).toBe(1)

@@ -260,7 +260,14 @@ export const OP = Object.freeze({
   OBJECT: 96,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
-  OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
+  // ⛔⛔ P1 HARDENING (2026-10-11) — MOVED OFF 90–92. `OBJ_CREATE` was declared 90
+  // while `CARRIED2` (above) EXECUTES as 90, so `OP_NAME[90]` read "OBJ_CREATE" and
+  // `IMPLEMENTED.has(90)` was true for a reserved opcode — an ambiguous encoding
+  // waiting for the first emitter. These three have never been emitted, executed or
+  // persisted (a runtime document stores its SOURCE, never a lowered program), so
+  // renumbering them changes no bytecode anywhere; `CARRIED2` keeps 90.
+  // `runtimeHardeningP1.test.js` now rails every opcode number as unique.
+  OBJ_CREATE: 97, OBJ_UPDATE: 98, OBJ_DELETE: 99,
 })
 
 /** The opcodes this foundation actually executes. ⛔ DERIVED, so a reserved

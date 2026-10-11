@@ -49,6 +49,11 @@ export function calcTimeframeCapability(def, inst) {
   if (meta.calcTimeframe === false) return { ok: false, reason: 'declared' }
   const kind = def.compute && def.compute.kind
   if (kind === 'server') return { ok: false, reason: 'server' }
+  // ⭐ UIE PHASE 4 (M5) — a script drawn BAR BY BAR (the runtime lane) runs on the bars it is
+  // handed, from its first; run over another timeframe's resampled bars and projected back
+  // it would be Pine's `indicator(timeframe = …)`, which no capture has measured for this
+  // lane (nor its listing rule, `meta.runtimeHistory`, over resampled bars). Refused by name.
+  if (kind === 'runtime') return { ok: false, reason: 'runtime' }
   if (def.passthrough === true) return { ok: false, reason: 'passthrough' }
   // ⭐ A SESSION study (its timeframe list names an INTRADAY frame — VWAP, Anchored
   // VWAP) resets per session and has no higher-frame meaning. A study limited to
@@ -81,6 +86,7 @@ export function calcTimeframeCapability(def, inst) {
 export const CAPABILITY_WORDS = Object.freeze({
   declared: 'This indicator is always calculated on the chart timeframe.',
   server: 'This indicator is calculated on the chart timeframe.',
+  runtime: 'This script runs bar by bar on the chart timeframe.',
   passthrough: 'A data series always follows the chart timeframe.',
   session: 'This indicator is session-based and follows the chart timeframe.',
   objects: 'This indicator draws on the chart timeframe.',

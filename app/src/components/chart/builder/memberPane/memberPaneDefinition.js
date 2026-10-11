@@ -28,11 +28,12 @@ import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '..
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { naConditionIsFalse } from '../../engine/ast/interpret'
-import { probeRuntimeProgram, probeObjectRuntime } from '../../engine/runtime/runtimeColumns'
+import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads } from '../../engine/runtime/runtimeColumns'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
 import { runtimeOwnObjectsOf } from './runtimeObjectsDoor'
+import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { objectLossNote } from '../../engine/ast/objectLoss'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
@@ -1237,6 +1238,36 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       readback: '', style: 'line', hidden: true,
     })
   }
+  // ⭐⭐ UIE PHASE 2 (M4) — THE SCRIPT'S OWN SETTINGS, as ordinary `defSchema` inputs
+  // (`runtime/runtimeInputs.js`): the instance carries the member's values, and the run
+  // rebuilds the program with them. One that cannot be read exactly keeps the author's
+  // default, and says so.
+  const runtimeInputs = runtimeInputSpecsOf(source)
+  // ⭐⭐ UIE PHASE 3 (M4) — A COLOUR INPUT IS A SETTING ONLY WHERE THE RUN COLOURS WITH IT:
+  // a per-bar colour, the run's own drawings, a table (`colourInputsTheRunReads`,
+  // measured). ⛔ One that only sets a plot's FIXED colour is not offered twice: every
+  // plot already has its own colour in Style (the builder's `$<key>Color` input, seeded
+  // with the author's colour). One the run never reads at all — a host-lane drawing's
+  // colour, an unused input — would be a knob that changes nothing. Both skipped, by name.
+  {
+    const colourKeys = runtimeInputs.specs.filter((s) => s.type === 'color').map((s) => s.key)
+    if (colourKeys.length) {
+      const read = colourInputsTheRunReads(source, colourKeys,
+        { objectsInRun: ownObjects, outputs: [...colourKeyByOutput.keys()] })
+      const dead = colourKeys.filter((k) => !read.has(k))
+      if (dead.length) {
+        runtimeInputs.specs = runtimeInputs.specs.filter((s) => !dead.includes(s.key))
+        const plotKeys = new Set(dead.filter((k) => drawnRows.some((d) => d.o && Number.isInteger(d.o.line)
+          && plotColourInputAt(source, d.o.line, new Set([k])) === k)))
+        for (const k of dead) {
+          runtimeInputs.skipped.push({ key: k, call: 'input.color',
+            reason: plotKeys.has(k)
+              ? "it sets a plot's fixed colour, which is that plot's own colour in Style"
+              : 'it colours nothing this pane draws from its own run, so a colour picked here would change nothing' })
+        }
+      }
+    }
+  }
   let definition
   try {
     definition = buildDefinition({
@@ -1246,7 +1277,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       ast: rows[0].ast,
       mode: repaint.mode,
       readback: '',
-      inputs: withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null),
+      inputs: runtimeDocInputs(withObjectInputs(memberInputSpecs([]), drawsObjects ? t : null), runtimeInputs.specs),
       plots: [...rows, ...colourRows],
       placement: (t.presentation && t.presentation.overlay === true)
         ? { target: 'price' }
@@ -1285,9 +1316,16 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   const notes = [{
     name: 'Drawn bar by bar',
     note: 'This script is drawn by running it bar by bar, the way TradingView does, '
-      + 'because a single formula per line cannot hold it. Its settings are drawn at '
-      + 'the script\'s own defaults.',
+      + 'because a single formula per line cannot hold it. Its settings can be changed '
+      + 'like any indicator\'s; a value outside the script author\'s own bounds or options '
+      + 'is refused by name, never stretched to fit.',
   }]
+  if (runtimeInputs.skipped.length) {
+    notes.push({
+      name: 'Settings',
+      note: `Kept at the author's default: ${runtimeInputs.skipped.map((x) => `\`${x.key}\` (${x.reason})`).join('; ')}.`,
+    })
+  }
   for (const w of withheld) {
     notes.push({
       name: w.label,
@@ -1354,6 +1392,11 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // only on a series that starts at the listing (`runtimeColumns.js`), and is
     // refused by name on any other. The routed case keeps its measured behaviour.
     ...(routed ? {} : { runtimeHistory: 'listing' }),
+    // ⭐⭐ P1 HARDENING — which front end / IR built this document, and what each
+    // `compute.outputs` index named when it did (`runtimeColumns.js::runtimeVersionStamp`).
+    // Every run re-checks them, so a later engine that orders outputs differently
+    // refuses by name instead of drawing one plot under another's name.
+    ...runtimeVersionStamp(probe.outputs),
     disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
     requirementTags: [],
   }
@@ -1452,6 +1495,14 @@ export function requirementTagsRaised(translation, notes = REQUIREMENT_NOTES) {
  *  annotation of whichever output declared it; a name no output annotates stays
  *  undeclared, and its tree still refuses — loudly, by name.
  */
+/** ⭐ UIE PHASE 2 (M4) — a runtime document's inputs: the ones its object program
+ *  already declared (kept, by key), then every literal setting of the script. */
+function runtimeDocInputs(declared, specs) {
+  const byKey = new Map((declared || []).map((s) => [s.key, s]))
+  for (const spec of specs || []) if (!byKey.has(spec.key)) byKey.set(spec.key, spec)
+  return byKey.size ? [...byKey.values()] : declared
+}
+
 function withObjectInputs(specs, t) {
   const declared = new Set((t && t.declared) || [])
   const trees = (t && t.objects && t.objects.trees) || []
