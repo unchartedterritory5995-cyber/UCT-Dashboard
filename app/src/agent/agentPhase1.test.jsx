@@ -128,7 +128,7 @@ describe('PRIMARY ACCEPTANCE — software screen → new watchlist → filled wi
     // The card is the WHOLE plan, in pending words, with no symbol guessed and nothing written yet.
     expect(card.textContent).toContain('Industry: Software - Application, Software - Infrastructure')
     expect(card.textContent).toContain('Close (latest session) > $10')
-    expect(card.textContent).toContain('Dollar Volume (latest session) > $10000000')
+    expect(card.textContent).toContain('Dollar Volume (latest session) > $10M')
     expect(card.textContent).toContain('(latest completed session)')
     expect(card.textContent).toContain('Create the watchlist “Software Over $10”')
     expect(card.textContent).toContain('Add all of its results to “Software Over $10”')
