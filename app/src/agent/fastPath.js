@@ -19,8 +19,10 @@
 
 import { allCapabilityNames, getCapability } from './capabilities'
 
-const LEAD = /^(please\s+)?(switch|change|go|set|make|turn|flip|put)\s+(it|this|the chart|this chart|chart)?\s*(to|into|in|on)?\s*/
-const TAIL = /\s+(chart|timeframe|time frame|view|please)$/
+// Phase 1: "change MY chart to 15 minutes", "change the timeframe to daily", "switch to the 15 minute"
+// are the same obvious commands as "15 minute chart" — no model call.
+const LEAD = /^(please\s+)?(switch|change|go|set|make|turn|flip|put)\s+(it|this|the chart|this chart|chart|my chart|the timeframe|my timeframe|the time frame|timeframe|the chart type|my chart type|the chart style)?\s*(to|into|in|on)?\s*(?:the |a |an )?/
+const TAIL = /\s+(chart|timeframe|time frame|view|one|please)$/
 const clean = (s) => s.toLowerCase().replace(/[.!?]+$/g, '').replace(/\s+/g, ' ').trim()
 const WORDNUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 }
 

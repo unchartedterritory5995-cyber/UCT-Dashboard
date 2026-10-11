@@ -143,6 +143,7 @@ const fail = (msg, { unreverted = false } = {}) => Object.assign(new Error(msg),
 
 export const indicatorEditsKind = {
   name: 'indicatorEdits',
+  noun: 'chart',                 // what a local "which one?" asks for
   selfDescribing: true,
   list: (host) => (host?.charts ? host.charts.list().map(c => snapOf(host, c)) : []),
   read: (host, ref) => {
@@ -230,6 +231,17 @@ export function registerIndicatorEditCapabilities() {
     summary: 'Add ONE indicator to ONE chart — exactly what the Indicator Library\'s Add to Chart does. Built-in indicators or the member\'s own saved ones; Undo removes it again.',
     hints: 'target = the ref of that chart\'s indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts ("add it to both charts") = one indicator.add per chart the member named, same defId — they are proposed together and applied one chart at a time; if it isn\'t clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings.',
     args: { type: 'object', properties: { defId: { type: 'string' } }, required: ['defId'], additionalProperties: false },
+    // Phase 1 — "put RSI on my chart", "add MACD": an indicator named EXACTLY (its catalog id or full
+    // name, one match only) at its standard settings is an obvious command — no model call. Anything
+    // with parameters ("a 20 EMA") or a near-name goes to the model; the check below still decides.
+    fast: ({ lower }) => {
+      const m = /^(?:please )?(?:add|put|apply|plot)(?: an?| the| my)? (.+?)(?: indicator| study)?(?: (?:on|to|onto|in) (?:my|the|this) chart)?$/.exec(lower)
+      if (!m) return null
+      const want = m[1].trim()
+      if (!want || NOT_ADDABLE.test(want)) return null
+      const hits = addableRows().filter(r => String(r.defId).toLowerCase() === want || String(r.name).toLowerCase() === want)
+      return hits.length === 1 ? { defId: hits[0].defId } : null
+    },
     check(st, { defId }) {
       if (NOT_ADDABLE.test(String(defId || '').trim())) return refusalSentence({ reason: REASONS.UNSUPPORTED_DEFINITION })
       return oneChange(st) || planCheck(st, { op: 'add', defId })

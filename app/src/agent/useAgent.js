@@ -792,11 +792,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
             { path: 'fast', mode: 'apply', member: text, voice })
         }
         let candidates = charts
-        let ask = `Which ${kind.name}?`
+        const noun = kind.noun || kind.name
+        let ask = `Which ${noun}?`
         if (fast.target?.position && charts.length > 1) {
           const hit = matchPosition(charts, fast.target.position)
           if (hit.length) candidates = hit
-          else ask = `I don't see a ${fast.target.position} ${kind.name}. Which one?`
+          else ask = `I don't see a ${fast.target.position} ${noun}. Which one?`
         }
         const unmatchedHint = fast.target?.position && charts.length > 1 && candidates === charts
         if (candidates.length > 1 || unmatchedHint) {
