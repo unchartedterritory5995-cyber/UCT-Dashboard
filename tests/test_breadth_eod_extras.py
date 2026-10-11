@@ -206,3 +206,24 @@ def test_no_dividend_and_a_far_high_stay_on_the_raw_answer(conn, payer, monkeypa
     # FLAT is 50% below its high: a small dividend cannot lift it, and it is not re-read
     _divs(monkeypatch, {"FLAT": [(bl._ts_int(DAYS[100]), 0.5)]})
     assert bee.new_ath(conn, ["FLAT"], bl._ts_int(LAST), dividend_basis=True) == 0
+
+def test_the_regime_phase_is_recorded_per_session_latest_wins(tmp_path, monkeypatch):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    et = ZoneInfo("America/New_York")
+    monkeypatch.setenv("BREADTH_REGIME_PHASE_PATH", str(tmp_path / "phase.json"))
+    bee.record_regime_phase({"mode": "open", "regime": {"phase": "Pullback"}},
+                            now=datetime(2026, 10, 9, 9, 45, tzinfo=et))
+    bee.record_regime_phase({"mode": "preclose", "regime": {"phase": "Uptrend"}},
+                            now=datetime(2026, 10, 9, 14, 30, tzinfo=et))
+    assert bee.market_phase_for("2026-10-09") == "Uptrend"
+    assert bee.record_regime_phase({"mode": "midday", "regime": {}}) is None
+
+
+def test_market_phase_falls_back_to_that_days_wire_only(tmp_path, monkeypatch):
+    from api.services import engine
+    monkeypatch.setenv("BREADTH_REGIME_PHASE_PATH", str(tmp_path / "none.json"))
+    monkeypatch.setattr(engine, "_load_wire_data", lambda: {
+        "date": "2026-10-09", "breadth": {"market_phase": "Rally Attempt"}})
+    assert bee.market_phase_for("2026-10-09") == "Rally Attempt"
+    assert bee.market_phase_for("2026-10-08") is None

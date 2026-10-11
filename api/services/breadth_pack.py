@@ -101,11 +101,15 @@ def refresh() -> dict:
             continue
         cols = {k: [b.get(k) for b in bars] for k in ("t", "o", "h", "l", "c")}
         cols["v"] = [0] * len(bars)
+        # (2026-10-11) the series' CONTENT identity: a correction inside the window that
+        # keeps its length and last bar must still re-version the pack and reach browsers
+        cols["sha"] = hashlib.sha1(json.dumps([cols["t"], cols["o"], cols["h"], cols["l"],
+                                               cols["c"]]).encode()).hexdigest()[:12]
         # the per-bar observed-OHLC mark, so a packed bar is byte-identical to /api/bars'
         if any(b.get("ohlc") == 1 for b in bars):
             cols["ohlc"] = [1 if b.get("ohlc") == 1 else 0 for b in bars]
         shards[uni if uni in shards else "us"][sym] = {"D": cols}
-        sig.append((sym, len(bars), bars[-1]["t"], bars[-1].get("c")))
+        sig.append((sym, len(bars), bars[-1]["t"], bars[-1].get("c"), cols["sha"]))
     if not sig:
         return {"ok": False, "reason": "no breadth series built yet"}
     version = "b" + hashlib.sha1(json.dumps(sorted(sig)).encode()).hexdigest()[:16]

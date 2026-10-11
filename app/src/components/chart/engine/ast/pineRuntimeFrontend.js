@@ -57,6 +57,7 @@ import {
   record as irRecord, field as irField, fieldSet as irFieldSet,
 } from '../runtime/ir.js'
 import { CLOCK_FIELDS } from '../runtime/program.js'
+import { RUNTIME_SOURCES as MEMBER_SOURCES } from '../runtime/runtimeInputs.js'
 import { TEXT_FNS, producesText } from '../runtime/text.js'
 import { ARRAY_FNS, producesArray, isVoid, argKind } from '../runtime/collections.js'
 // ⭐ Pine's method form, and it decides no legality — see `ufcs.js`. The rewrite
@@ -160,6 +161,16 @@ function fromCanonical(node, tok) {
 }
 
 const MUTATOR_OPS = Object.freeze(new Set(['+', '-', '*', '/', '%']))
+
+/** ⭐⭐ P1 HARDENING (2026-10-11) — the language this front end reads, and its
+ *  version, stamped on every runtime document (`meta.runtimeLanguage`,
+ *  `meta.runtimeFrontend`). The IR is the seam another language's front end would
+ *  target, so a stored document must say WHICH front end built it. ⛔ BUMP the
+ *  version when a change here would hand a stored source a different program (a
+ *  different output order, a different meaning); the output signature check
+ *  (`runtimeColumns.js`) catches an accidental reorder either way. */
+export const RUNTIME_FRONTEND_LANGUAGE = 'pine'
+export const RUNTIME_FRONTEND_VERSION = 1
 
 export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:loop': 'a loop — the runtime has no iteration yet',
@@ -1022,6 +1033,47 @@ export function buildRuntimeIr(source, opts = {}) {
 function buildRuntimeIrLinked(source, opts, holder) {
   const bars = opts.bars || []
   const inputs = opts.inputs || {}
+  // ⭐⭐ UIE PHASE 3 (M4) — A MEMBER'S COLOUR OR SOURCE, AS THE DEFAULT THE AUTHOR WOULD HAVE
+  // TYPED. `opts.inputDefaults` = `{ name: value }` for an `input.color` / `input.source`
+  // binding (`runtimeInputs.js::runtimeBuildInputs`). At the binding, the input's DEFAULT
+  // NODE is replaced by the member's value — a colour literal, a bar series — so every
+  // reader in this lane (the colour readers, the resolver's columns) builds the script the
+  // author's way with the member's choice in it, and the shared resolver, which carries
+  // only numbers, never sees one. ⛔ Validated here, refused BY NAME otherwise: a colour
+  // is `#RGB`, `#RRGGBB` or `#RRGGBBAA`; a source is one of the bar series below, and
+  // only on a source input (a colour only on a colour input).
+  const inputDefaults = opts.inputDefaults && typeof opts.inputDefaults === 'object' ? opts.inputDefaults : {}
+  const applyMemberDefault = (call, name, at) => {
+    if (!Object.prototype.hasOwnProperty.call(inputDefaults, name)) return
+    const given = inputDefaults[name]
+    const args = call.args || []
+    // v4's type rides NAMED or as the THIRD positional argument (`input(close, "Src", input.source)`)
+    const typeArg = args.find((a) => a && a.name === 'type') || args.filter((a) => a && !a.name)[2]
+    const legacy = call.name === 'input' && typeArg && typeArg.value ? typeArg.value.name : null
+    const kind = call.name === 'input.color' || legacy === 'input.color' ? 'color'
+      : call.name === 'input.source' || legacy === 'input.source' ? 'source' : null
+    if (!kind) {
+      throw new RuntimeRefusal('runtime:statement',
+        '`' + name + '` was given a colour or a source, and it is not a colour or source input', at)
+    }
+    let node
+    if (kind === 'color') {
+      const m = typeof given === 'string' ? /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(given) : null
+      if (!m) throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given a value that is not a colour', at)
+      const hex = m[1].length === 3 ? m[1].split('').map((c) => c + c).join('') : m[1]
+      node = { type: 'colour', value: '#' + hex.toUpperCase() }
+    } else {
+      if (typeof given !== 'string' || !MEMBER_SOURCES.has(given)) {
+        throw new RuntimeRefusal('runtime:statement', '`' + name + '` was given a source that is not one of '
+          + [...MEMBER_SOURCES].join(', '), at)
+      }
+      node = { type: 'name', name: given }
+    }
+    const named = args.findIndex((a) => a && a.name === 'defval')
+    const slot = named >= 0 ? named : (args[0] && !args[0].name ? 0 : -1)
+    if (slot < 0) throw new RuntimeRefusal('runtime:statement', '`' + name + '` states no default to replace', at)
+    call.args = args.map((a, i) => (i === slot ? { ...a, value: node } : a))
+  }
   const diagnostics = { statements: 0, columns: 0, slots: 0, families: {} }
 
   // ⭐⭐ THE OBJECT PASS OWNS THE DRAWING when the caller supplies its trees.
@@ -7157,6 +7209,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (value && value.type === 'call' && typeof value.name === 'string'
             && (value.name === 'input' || value.name.startsWith('input.'))) {
           value.boundName = nameTok.value
+          applyMemberDefault(value, nameTok.value, locate(first))
         }
         // ⭐⭐ `var t = table.new(…)` BINDS A HANDLE, AND A HANDLE IS NOT A
         // NUMBER. The object program owns that table; this lane has no
@@ -7331,6 +7384,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (value && value.type === 'call' && typeof value.name === 'string'
             && (value.name === 'input' || value.name.startsWith('input.'))) {
           value.boundName = nameTok.value
+          applyMemberDefault(value, nameTok.value, locate(first))
         }
         const mutable = mut.mutated.has(nameTok.value)
         // ⛔⛔ A COLLECTION BINDING IS ALWAYS A SLOT, NEVER AN `env` MACRO. A

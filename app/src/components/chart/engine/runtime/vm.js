@@ -36,8 +36,13 @@ import {
 // ⭐⭐ RT5 — the run's own drawings (`objectStore.js`).
 import { makeObjectStore } from './objectStore.js'
 import { isDrawingHandle } from './handles.js'
-import { Budget } from './limits.js'
+import { Budget, RuntimeLimitError, LIVE_OBJECT_BYTES } from './limits.js'
+
+/** ⭐ P1 HARDENING — the clock `WALL_TIME` reads. Injected through `opts.now` by a
+ *  test; otherwise the platform's monotonic clock. */
+const defaultNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
 import { etClockAt } from '../../indicators.js'
+import { encodeState, cloneValues } from './vmState.js'
 
 /** `CLOCK_FIELDS` index -> the property `etClockAt` returns that field under.
  *
@@ -122,7 +127,7 @@ export function makeContext({ bars, series, columns, confirmed = true }) {
  *  hand a backtest a number nobody could have traded on — the most
  *  valuable-looking wrong answer this engine could produce.
  */
-function runRequest(program, site, otherBars, ctx, budget, requested, requestCache, results) {
+function runRequest(program, site, otherBars, ctx, budget, requested, requestCache, results, requestDepth = 1, now) {
   const n = otherBars.length
   const pick = (k) => Float64Array.from(otherBars.map((b) => b[k]))
   const sub = execute(program, {
@@ -133,7 +138,7 @@ function runRequest(program, site, otherBars, ctx, budget, requested, requestCac
     barTimes: otherBars.map((b) => b.t),
     requestBars: ctx.requestBars,
   }, undefined, {
-    entry: site.entry, budget, requested, requestCache,
+    entry: site.entry, budget, requested, requestCache, requestDepth, now,
   })
 
   const chartTimes = ctx.barTimes || []
@@ -169,6 +174,14 @@ export function execute(program, ctx, limits, opts) {
   const onBar = (opts && typeof opts.onBar === 'function') ? opts.onBar : null
   budget.peak('IR_SIZE', program.instructions)
   budget.peak('HISTORY', ctx.bars)
+  // ⭐⭐ P1 HARDENING — REQUEST NESTING (`REQUEST_FANOUT`) and the shared WALL_TIME
+  // clock. A request's sub-run shares this budget, so the clock starts once, at the
+  // outermost run, and every nested run is measured against the same start.
+  const requestDepth = (opts && Number.isInteger(opts.requestDepth)) ? opts.requestDepth : 0
+  if (requestDepth > 0) budget.peak('REQUEST_FANOUT', requestDepth)
+  const now = (opts && typeof opts.now === 'function') ? opts.now : defaultNow
+  if (!budget.startedAt) budget.startedAt = now() || 1e-9
+  const wallCap = budget.limits.WALL_TIME
   // ⭐ RT7 — the script's `//@version`, for the one collection rule that depends on it
   // (`collections.js::at`: v6 counts a negative index from the end). Unset (a caller
   // that is not a run) reads as "not v6", which keeps the stop.
@@ -300,6 +313,9 @@ export function execute(program, ctx, limits, opts) {
       caps: program.objectCaps || {},
     })
     : null)
+  // ⭐ UIE PHASE 3 (M5) — THIS run holds its own drawings, so a drawing handle is ITS value:
+  // a sized `array.new_line(n)` may hold Pine's `na` handle (`collections.js::ARRAY_NEW`).
+  if (store && budget.objectsInRun === undefined) budget.objectsInRun = true
 
   // ⭐⭐⭐ 2F-2B — ONE SCRATCH WINDOW PER SITE, ALLOCATED ONCE.
   //
@@ -454,7 +470,109 @@ export function execute(program, ctx, limits, opts) {
   // ⭐ RT7 — read once: a budget's limits are fixed for its life (`limits.js`), and
   // this check runs on every instruction.
   const instrCap = budget.limits.INSTRUCTIONS_PER_BAR
-  for (let bar = 0; bar < ctx.bars; bar += 1) {
+  // ⭐⭐ P1 HARDENING — `MEMORY`, the run's own allocations, sized exactly from what
+  // was just allocated above (8 bytes a cell; the value arrays are counted at the
+  // same rate). Peaked once here, then again at every bar end with what can grow.
+  let winCells = 0
+  for (let i = 0; i < winBuf.length; i += 1) winCells += winBuf[i].length
+  const staticBytes = 8 * (nOut * ctx.bars + iterSpecs.length * ITER_SLOTS + histTotal + winCells
+    + carCells + car2Cells + locals.length + persist.length + stack.length)
+  let requestBytes = 0
+  budget.peak('MEMORY', staticBytes)
+  // ⭐⭐ UIE PHASE 3 (M1) — THE STATE PROBE (`opts.probe`, the warm-up curtain's).
+  // At each bar it names, after the bar is committed, the run's whole carried state
+  // is encoded canonically (`vmState.js`) and handed to `probe.visit`, with the
+  // lowest bar any DYNAMIC history read reached since the previous probe (a dynamic
+  // offset can reach any bar, so what it reached is measured, not assumed). A
+  // `true` answer stops the run there (`stoppedAt`). ⛔ Never for a program that
+  // draws: an object store is not encoded, so it is not probed.
+  const probe = opts && opts.probe && !store && entryPc === 0 ? opts.probe : null
+  const probeBars = probe && Array.isArray(probe.bars) ? probe.bars : []
+  let probeI = 0
+  let probeAt = probe && probeBars.length ? probeBars[0] : -1
+  let dynLowSeries = Infinity
+  let dynLowCol = Infinity
+  // ⭐⭐⭐ UIE PHASE 5 (M2) — RESUME FROM A CHECKPOINT, AND TAKE ONE.
+  //
+  // `opts.resume` is a checkpoint this VM took at the end of bar `resume.bar` of an
+  // EARLIER run of the SAME program over bars whose prefix [0, resume.bar] was the same,
+  // with every precomputed column the same over it (the caller proves all three:
+  // `runtimeColumns.js::resumableFrom`) — so running those bars again would rebuild this
+  // exact state. Everything a bar carries to the next is put back: every `var` and its
+  // init flag, the history rings and their commit count, the call sites' held cells, the
+  // builtins' carried state, the skip windows, the iteration buffers, the object store,
+  // the limit counts — and the outputs up to that bar; the loop starts at `resume.bar + 1`.
+  // ⛔ COPIED IN, never handed over: a forming bar resumes from the SAME checkpoint on
+  // every tick, so no tick's writes accumulate into the next.
+  // `opts.checkpointAt` names the bar at whose end this run's state is copied OUT
+  // (`res.checkpoint`) — the last CONFIRMED bar, so no forming value is ever saved.
+  const resume = opts && opts.resume && entryPc === 0 ? opts.resume : null
+  const checkpointAt = opts && Number.isInteger(opts.checkpointAt) && entryPc === 0 ? opts.checkpointAt : -1
+  let checkpoint = null
+  let startBar = 0
+  if (resume) {
+    const [p, ini, h, hd, cs, c2, wn] = cloneValues([resume.persist, resume.initialised, resume.hist,
+      resume.held, resume.carState, resume.car2State, resume.winObsN])
+    const put = (into, from) => { for (let i = 0; i < into.length; i += 1) into[i] = from[i] }
+    put(persist, p); put(initialised, ini); put(hist, h); put(held, hd)
+    put(carState, cs); put(car2State, c2); put(winObsN, wn)
+    for (let w = 0; w < winObs.length; w += 1) if (winObs[w]) put(winObs[w], resume.winObs[w])
+    const it = cloneValues(resume.iters)
+    for (let k = 0; k < iters.length; k += 1) put(iters[k], it[k])
+    committed = resume.committed
+    for (let k = 0; k < nOut; k += 1) outputs[k].set(resume.outputs[k])
+    if (store && resume.store) store.restore(resume.store)
+    Object.assign(budget.counts, resume.counts)
+    startBar = resume.bar + 1
+  }
+  const takeCheckpoint = (bar) => {
+    const [p, ini, h, hd, cs, c2, wn] = cloneValues([persist, initialised, hist, held, carState, car2State, winObsN])
+    return {
+      bar, committed, persist: p, initialised: ini, hist: h, held: hd, carState: cs, car2State: c2, winObsN: wn,
+      winObs: winObs.map((o) => (o ? Array.from(o) : null)),
+      iters: cloneValues(iters),
+      outputs: outputs.map((o) => o.slice(0, bar + 1)),
+      store: store ? store.snapshot() : null,
+      counts: { ...budget.counts },
+    }
+  }
+  // ⭐⭐ UIE PHASE 4 (M3) — THE HOT COUNTERS, KEPT LOCAL. A loop pass, a call, a carried
+  // step and a window's cells were each a `Budget` method call with a by-name lookup on
+  // EVERY occurrence. They are counted here instead, against the SAME ceilings, and the
+  // moment one is passed the budget's own `charge` / `peak` throws — so a stop names the
+  // same limit, ceiling and reached value as before. `budget.counts` is brought up to date
+  // at every bar end, before a request's sub-run (which shares the budget), and on return.
+  const bc = budget.counts
+  const bl = budget.limits
+  let cLoop = bc.LOOP_ITERATIONS
+  let cCall = bc.CALL_COUNT
+  let cCarried = bc.CARRIED_STEPS
+  let cWin = bc.WINDOW_CELLS
+  let pkDepth = bc.CALL_DEPTH
+  let pkNest = bc.LOOP_NESTING
+  const capLoop = bl.LOOP_ITERATIONS
+  const capCall = bl.CALL_COUNT
+  const capCarried = bl.CARRIED_STEPS
+  const capWin = bl.WINDOW_CELLS
+  const capDepth = bl.CALL_DEPTH
+  const capNest = bl.LOOP_NESTING
+  const flushHot = () => {
+    bc.LOOP_ITERATIONS = cLoop
+    bc.CALL_COUNT = cCall
+    bc.CARRIED_STEPS = cCarried
+    bc.WINDOW_CELLS = cWin
+    if (pkDepth > bc.CALL_DEPTH) bc.CALL_DEPTH = pkDepth
+    if (pkNest > bc.LOOP_NESTING) bc.LOOP_NESTING = pkNest
+  }
+  const reloadHot = () => {
+    cLoop = bc.LOOP_ITERATIONS
+    cCall = bc.CALL_COUNT
+    cCarried = bc.CARRIED_STEPS
+    cWin = bc.WINDOW_CELLS
+    pkDepth = bc.CALL_DEPTH
+    pkNest = bc.LOOP_NESTING
+  }
+  for (let bar = startBar; bar < ctx.bars; bar += 1) {
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
     // call from seeing the previous bar's leftovers.
@@ -561,6 +679,7 @@ export function execute(program, ctx, limits, opts) {
           const raw = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
           const idx = Number.isInteger(n) && n >= 0 ? bar - n : -1
+          if (idx >= 0 && idx < dynLowCol) dynLowCol = idx
           stack[sp++] = idx >= 0 ? columns[a][idx] : NaN
           break
         }
@@ -593,6 +712,7 @@ export function execute(program, ctx, limits, opts) {
           const raw = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
           const idx = Number.isInteger(n) && n >= 0 ? bar - n : -1
+          if (idx >= 0 && idx < dynLowSeries) dynLowSeries = idx
           stack[sp++] = idx >= 0 ? series[a][idx] : NaN
           break
         }
@@ -677,8 +797,8 @@ export function execute(program, ctx, limits, opts) {
         case 70 /* OP.CALL */: {
           const fn = program.functions[a]
           const site = program.callSites[b]
-          budget.peak('CALL_DEPTH', depth + 1)
-          budget.charge('CALL_COUNT', 1)
+          if (depth + 1 > pkDepth) { pkDepth = depth + 1; if (pkDepth > capDepth) budget.peak('CALL_DEPTH', pkDepth) }
+          if (++cCall > capCall) { bc.CALL_COUNT = cCall - 1; budget.charge('CALL_COUNT', 1) }
           const newBase = localsTop
           // ⭐ ARGUMENTS COME OFF THE STACK IN REVERSE — they were pushed
           // left-to-right, so the last parameter is on top.
@@ -748,6 +868,8 @@ export function execute(program, ctx, limits, opts) {
           let k = sp
           for (let i = 0; i < oop.present.length; i += 1) oargs[i] = oop.present[i] ? stack[k++] : undefined
           heldTop = localsTop
+          // ⭐ P1 HARDENING — every drawing call is counted (`OBJECT_OPERATIONS`).
+          budget.charge('OBJECT_OPERATIONS', 1)
           const ov = store.call(oop.fn, oargs, bar, heldNow)
           if (oop.returns !== 'void') stack[sp++] = ov === undefined ? NaN : ov
           break
@@ -879,7 +1001,7 @@ export function execute(program, ctx, limits, opts) {
               obs[span - 1] = live
               if (winObsN[wi] < span) winObsN[wi] += 1
             }
-            budget.charge('WINDOW_CELLS', span)
+            if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
             stack[sp++] = winObsN[wi] < span ? NaN : winReduce[wi](obs, 0, span - 1)
             break
           }
@@ -899,7 +1021,7 @@ export function execute(program, ctx, limits, opts) {
               buf[span - 1 - k] = hist[off + ((committed - k) % depth)]
             }
           }
-          budget.charge('WINDOW_CELLS', span)
+          if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
           if (policy === 'restart') {
             // ⭐ THE WINDOW BEGINS AGAIN AFTER A HOLE. The current bar must be
             // finite (the vendor blanks ON the hole); the run then reaches back
@@ -927,7 +1049,7 @@ export function execute(program, ctx, limits, opts) {
           // — which is the measured TradingView rule, and the opposite of what
           // the history commit phase does for a skipped site (it re-commits a
           // HELD value). Two lifetimes, two rules, one wave apart.
-          budget.charge('CARRIED_STEPS', 1)
+          if (++cCarried > capCarried) { bc.CARRIED_STEPS = cCarried - 1; budget.charge('CARRIED_STEPS', 1) }
           stack[sp++] = carSpec[ci].step(carState, carOffset[ci], v, carPlan[ci].n, carAlpha[ci])
           break
         }
@@ -940,7 +1062,7 @@ export function execute(program, ctx, limits, opts) {
           // rings (`ta.valuewhen`) or two previous-bar pairs (the cross family).
           const v2src = stack[--sp]
           const v2cond = stack[--sp]
-          budget.charge('CARRIED_STEPS', 1)
+          if (++cCarried > capCarried) { bc.CARRIED_STEPS = cCarried - 1; budget.charge('CARRIED_STEPS', 1) }
           const c2 = carried2Base + a
           stack[sp++] = car2Spec[c2].step(
             car2State, car2Offset[c2], v2cond, v2src, car2Plan[c2].n)
@@ -1053,8 +1175,8 @@ export function execute(program, ctx, limits, opts) {
           // never reaches its bound — `by 0`, or a bound a body keeps moving —
           // is stopped here, by a limit that names itself, rather than hanging
           // the browser tab a member is looking at.
-          budget.charge('LOOP_ITERATIONS', 1)
-          budget.peak('LOOP_NESTING', a)
+          if (++cLoop > capLoop) { bc.LOOP_ITERATIONS = cLoop - 1; budget.charge('LOOP_ITERATIONS', 1) }
+          if (a > pkNest) { pkNest = a; if (a > capNest) budget.peak('LOOP_NESTING', a) }
           break
         case 95 /* OP.WHILE_BOUND */: {
           // ⭐⭐ C18 — this entry's pass count, checked as a PEAK so a finished
@@ -1093,7 +1215,11 @@ export function execute(program, ctx, limits, opts) {
               series2 = null
             } else {
               budget.peak('REQUEST_COUNT', requestCache.size + 1)
-              series2 = runRequest(program, site, other, ctx, budget, requested, requestCache, b)
+              flushHot()   // the sub-run shares this budget
+              series2 = runRequest(program, site, other, ctx, budget, requested, requestCache, b,
+                requestDepth + 1, now)
+              reloadHot()
+              requestBytes += 8 * b * ctx.bars
             }
             requestCache.set(`${a}::${key}`, series2)
           }
@@ -1118,6 +1244,7 @@ export function execute(program, ctx, limits, opts) {
       if (op === OP_HALT) break
       if (pc >= n) throw new VmError('ran off the end of the program without HALT')
     }
+    flushHot()
     budget.charge('TOTAL_INSTRUCTIONS', perBar)
     budget.peak('INSTRUCTIONS_PER_BAR', perBar)
 
@@ -1194,8 +1321,43 @@ export function execute(program, ctx, limits, opts) {
     // ⛔ TOP-LEVEL ONLY. `runRequest` builds its sub-`execute` with its own
     // opts and passes no hook, so another symbol's bars can never drive a
     // drawing that belongs to this chart's.
+    // ⭐⭐ P1 HARDENING — THE BAR-END ACCOUNT: live drawings after the collector, the
+    // run's held state, and its elapsed time. Each stops BY NAME, never by a short
+    // series. O(1) a bar.
+    const liveObjects = store ? store.liveCount() : 0
+    if (store) budget.peak('LIVE_OBJECTS', liveObjects)
+    budget.peak('MEMORY', staticBytes + requestBytes + 16 * budget.counts.ARRAY_ELEMENTS
+      + LIVE_OBJECT_BYTES * liveObjects)
+    {
+      const elapsed = now() - budget.startedAt
+      if (elapsed > wallCap) throw new RuntimeLimitError('WALL_TIME', wallCap, Math.round(elapsed))
+    }
     if (onBar) onBar(bar, iters, outputs)
+    if (bar === probeAt) {
+      // the rings LOGICALLY: offset k back is the same bar in two runs that have
+      // committed a different number of bars, and an uncommitted offset reads `na`
+      const past = new Array(histTotal)
+      for (let i = 0, p = 0; i < nHist; i += 1) {
+        const depth = histPlan[i].depth
+        for (let k = 1; k <= depth; k += 1, p += 1) {
+          past[p] = k <= committed ? hist[histOffset[i] + ((committed - k) % depth)] : NaN
+        }
+      }
+      const cells = encodeState([persist, initialised, past, held, carState, car2State, winObsN,
+        ...winObs.map((o) => o || [])])
+      const stop = probe.visit(bar, { cells, committed, dynLowSeries, dynLowCol })
+      dynLowSeries = Infinity
+      dynLowCol = Infinity
+      probeI += 1
+      probeAt = probeI < probeBars.length ? probeBars[probeI] : -1
+      if (stop === true) {
+        return { outputs, iters, budget, requested: Array.from(requested).sort(), objects: store, stoppedAt: bar }
+      }
+    }
+    if (bar === checkpointAt) checkpoint = takeCheckpoint(bar)
   }
+  if (probe && typeof probe.done === 'function') probe.done({ dynLowSeries, dynLowCol })
 
-  return { outputs, iters, budget, requested: Array.from(requested).sort(), objects: store }
+  return { outputs, iters, budget, requested: Array.from(requested).sort(), objects: store,
+    ...(checkpoint ? { checkpoint } : {}), ...(resume ? { resumedFrom: resume.bar } : {}) }
 }

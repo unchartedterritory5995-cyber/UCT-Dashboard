@@ -63,11 +63,20 @@ describe('⭐⭐ RT7 — the vw-array-na probe, run by the runtime lane, equals 
 describe('⛔ RT7 — what the capture does not pin stays a named stop', () => {
   const rows = CAP.bars.rows.slice(0, 5)
   const head = '//@version=6\nindicator("t")\n'
-  it('`array.sum` / `array.avg` of an EMPTY array, or of an all-na array, stop by name', () => {
-    expect(() => run(`${head}plot(array.sum(array.new_float(0)))\n`, rows)).toThrow(/array\.sum of an empty array/)
-    expect(() => run(`${head}plot(array.avg(array.new_float(0)))\n`, rows)).toThrow(/array\.avg of an empty array/)
-    expect(() => run(`${head}plot(array.sum(array.new_float(2)))\n`, rows)).toThrow(/array\.sum of an array whose every element is na/)
-    expect(() => run(`${head}plot(array.avg(array.new_float(2)))\n`, rows)).toThrow(/array\.avg of an array whose every element is na/)
+  // ⭐⭐ UIE PHASE 3 (M5) — MEASURED NOW, so no longer a stop: `vw-rt7-empty-reduce-fixnan-spy-
+  // 1d-2026-10-04` reads `na` for E03 / E04 (sum / avg of an empty array) and E05 / E06 (of
+  // `(na, na)`) on all 8,477 bars, and the script was not stopped (E00 plots on every bar)
+  it('`array.sum` / `array.avg` of an EMPTY array, or of an all-na array, are na — as TradingView reads them', () => {
+    const out = run(`${head}plot(array.sum(array.new_float(0)))\nplot(array.avg(array.new_float(0)))\n`
+      + 'plot(array.sum(array.new_float(2)))\nplot(array.avg(array.from(float(na), float(na))))\n', rows)
+    for (const col of out) expect(col).toEqual([null, null, null, null, null])
+    const cap = JSON.parse(fs.readFileSync(path.join(path.resolve(process.cwd(), '..'), 'tests', 'fixtures', 'vendor',
+      'harness', 'vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04.json'), 'utf8'))
+    for (const t of ['E03_sum_empty', 'E04_avg_empty', 'E05_sum_all_na', 'E06_avg_all_na']) {
+      const i = cap.plotValues.fields.indexOf(cap.study.plots.find((p) => p.title === t).id)
+      expect(cap.plotValues.rows.every((r) => r[i] === null), t).toBe(true)
+    }
+    expect(cap.plotValues.rows.every((r) => r[cap.plotValues.fields.indexOf('plot_0')] !== null)).toBe(true)
   })
   it('a negative index counts from the end in v6 only; below -size it stops in every version', () => {
     const v5 = '//@version=5\nindicator("t")\n'

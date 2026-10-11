@@ -35,7 +35,7 @@ import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
 // ⭐ RT5 — a runtime document's own drawings.
-import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects } from '../../runtime/runtimeObjects'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, runtimeWarmupOf } from '../../runtime/runtimeObjects'
 import { maxLookback } from '../../ast/interpret'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
@@ -928,6 +928,10 @@ export function runOurSide(capture) {
     // output it draws instead, and is matched by that.
     const rowByOutput = new Map((built.rows || [])
       .filter((r) => Number.isInteger(r.output)).map((r) => [r.output, r]))
+    // ⭐ UIE PHASE 2 — a runtime run off the listing WITHHOLDS its warm-up
+    // (`runtimeColumns.js::computeOffListing`): those bars are blank on the chart, so
+    // they are the plot's warm-up region here, exactly as a tree's own lookback is.
+    const curtain = built.lane === 'runtime' ? runtimeWarmupOf(cols) : null
     const plots = []
     for (const [index, o] of (built.translation.outputs || []).entries()) {
       if (o && o.kind === 'alertcondition') continue
@@ -953,7 +957,7 @@ export function runOurSide(capture) {
         hidden: !!(o && o.hidden),
         column: col || null,
         missingReason,
-        lookback: o && o.ast ? lookbackOf(o.ast) : null,
+        lookback: curtain ? curtain.withheldBars : (o && o.ast ? lookbackOf(o.ast) : null),
         // ⭐ F2 — the colour rule's own reach (`compare.mjs::colourWarmupOf`).
         colorLookback: colourRuleLookback(o),
         colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,

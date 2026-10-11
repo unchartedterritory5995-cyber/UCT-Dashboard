@@ -19,13 +19,52 @@
 
 import { allCapabilityNames, getCapability } from './capabilities'
 
-const LEAD = /^(please\s+)?(switch|change|go|set|make|turn|flip|put)\s+(it|this|the chart|this chart|chart)?\s*(to|into|in|on)?\s*/
-const TAIL = /\s+(chart|timeframe|time frame|view|please)$/
+// Phase 1: "change MY chart to 15 minutes", "change the timeframe to daily", "switch to the 15 minute"
+// are the same obvious commands as "15 minute chart" — no model call.
+const LEAD = /^(please\s+)?(switch|change|go|set|make|turn|flip|put)\s+(it|this|the chart|this chart|chart|my chart|the timeframe|my timeframe|the time frame|timeframe|the chart type|my chart type|the chart style)?\s*(to|into|in|on)?\s*(?:the |a |an )?/
+const TAIL = /\s+(chart|timeframe|time frame|view|one|please)$/
 const clean = (s) => s.toLowerCase().replace(/[.!?]+$/g, '').replace(/\s+/g, ' ').trim()
+
+// ── Phase 2: ONE shared normalizer for common trading phrasing ──
+// Rewrites wording VARIANTS to the canonical words the capability phrases already match — it
+// knows no capability and adds no new command. Anything it can't make obvious still reaches the
+// model. Every rule is a meaning-preserving synonym; nothing here picks a target or a value.
+const NUMWORD = { one: '1', two: '2', three: '3', four: '4', five: '5', ten: '10', fifteen: '15', twenty: '20', thirty: '30', fifty: '50', sixty: '60' }
+const CANON = [
+  // number words before a unit or a period ("five minutes", "twenty period")
+  [new RegExp(`\\b(${Object.keys(NUMWORD).join('|')})(?=[\\s-]+(?:m|min|mins|minutes?|hours?|hr|day|days|period|bar|week)\\b)`, 'g'), (w) => NUMWORD[w]],
+  // timeframe shorthand: 5m / 5-min / 5 mins / 15min → "5 minute"; 1h / 4 hr → "1 hour"
+  // (never a money amount: "$10m" is ten million dollars, not a timeframe)
+  // (no lookbehind — older Safari lacks it, src/noRegexLookbehind.test.js: the character before is captured)
+  [/(^|[^$\w.,])(\d+)\s*-?\s*(?:m|mins?|minutes?)\b/g, '$1$2 minute'],
+  [/(^|[^$\w.,])(\d+)\s*-?\s*(?:h|hrs?|hours?)\b/g, '$1$2 hour'],
+  // indicator names and their period: "20-period exponential moving average" → "20 ema"
+  [/\bexponential moving average\b/g, 'ema'], [/\bsimple moving average\b/g, 'sma'],
+  [/\b(\d+)[\s-]*(?:period|bar|day)s?\s+(?=ema|sma|rsi|atr|vwap|ma\b|moving average)/g, '$1 '],
+  // "the rsi indicator" → "rsi"; "rsi study" → "rsi"
+  [/\b(\w+) (?:indicator|study)\b/g, '$1'],
+  // conversational lead-ins and "that chart" (the chart just changed — on a one-chart board, the chart)
+  [/^(?:(?:now|ok|okay|and|then|also|alright|great|cool),?\s+)+/, ''],
+  [/\bthat chart\b/g, 'the chart'],
+  // verbs: add-type / remove-type synonyms (only unambiguous ones)
+  [/^(?:please )?(?:throw|stick|slap|pop|plop|plot|load up|put up)\b/, 'add'],
+  // ("delete" is NOT folded in: deleting a list or layout is a different, permanent action)
+  [/^(?:please )?(?:get rid of|take off|take away|ditch)\b/, 'remove'],
+  [/^(?:please )?take (.+?) off(?: of)?\b/, 'remove $1 from'],
+  // "this chart / my chart / the chart / the active chart" add nothing a single-chart board
+  // doesn't already say; with several charts the orchestrator still asks which one
+  [/\s+(?:on|to|onto|in|from|off|off of)\s+(?:this|my|the|our)\s+(?:active |current |open |main )?chart$/, ''],
+  [/\s+(?:this|my|the)\s+(?:active |current |main )?chart\b/g, ' the chart'],
+]
+export function canon(text) {
+  let s = clean(String(text || ''))
+  for (const [re, to] of CANON) s = s.replace(re, to)
+  return s.replace(/\s+/g, ' ').trim()
+}
 const WORDNUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 }
 
 function matchClause(raw, host) {
-  const lower = clean(raw)
+  const lower = canon(raw)
   if (!lower) return null
   const core = lower.replace(LEAD, '').replace(TAIL, '').trim()
   const hits = []
@@ -49,7 +88,7 @@ function matchClause(raw, host) {
 // PLTR and ASTS to Momentum") declare `fastWhole`; they are tried on the whole text
 // BEFORE it is split into clauses on "," / "and".
 function matchWhole(text, host) {
-  const lower = clean(text)
+  const lower = canon(text)
   const hits = []
   for (const name of allCapabilityNames()) {
     const cap = getCapability(name)
@@ -94,6 +133,8 @@ export function matchPosition(snaps, position) {
   return snaps.filter(s => s.position && parts.every(p => s.position.split('-').includes(p)))
 }
 
+const VERB_LEAD = /^(add|remove|show|hide)\b/
+
 export function fastParse(text, { host = null } = {}) {
   const t = clean(String(text || ''))
   if (!t || t.length > 160) return null
@@ -117,9 +158,13 @@ export function fastParse(text, { host = null } = {}) {
   const clauses = rest.split(/,|;|\band\b|\bthen\b|&/i).map(s => s.trim()).filter(Boolean)
   if (!clauses.length || clauses.length > 6) return null
   const ops = []
+  let verb = null
   for (const c of clauses) {
-    const op = matchClause(c, host)
+    // "add VWAP and RSI": a bare follow-on clause takes the previous clause's verb
+    const op = matchClause(c, host) || (verb && !VERB_LEAD.test(canon(c)) ? matchClause(`${verb} ${c}`, host) : null)
     if (!op) return null
+    const v = VERB_LEAD.exec(canon(c))
+    if (v) verb = v[1]
     ops.push(op)
   }
   return { kind: 'ops', ops, target }

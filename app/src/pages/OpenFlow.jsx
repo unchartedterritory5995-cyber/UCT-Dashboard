@@ -58,6 +58,10 @@ function contractLine(r) {
   return `$${r.strike}${r.cp} ${r.exp || ''}`.trim()
 }
 
+function isComputing(d) {
+  return d?.ok === false && String(d?.reason || '').toLowerCase().startsWith('comput')
+}
+
 export default function OpenFlow() {
   const [cap, setCap] = useState('all')
   const [days, setDays] = useState(60)
@@ -66,7 +70,9 @@ export default function OpenFlow() {
   const { data, isLoading } = useSWR(
     `/api/live/massive/flow-board?days=${days}&cap=${cap}&limit=300`,
     fetcher,
-    { refreshInterval: 120_000, revalidateOnFocus: false },
+    // A cold board answers {ok:false, reason:'computing'} while its one build runs (worker,
+    // 2026-10-11): ask again in 20 s rather than leave the member on it for two minutes.
+    { refreshInterval: (d) => (isComputing(d) ? 20_000 : 120_000), revalidateOnFocus: false },
   )
 
   const rows = useMemo(() => {
@@ -76,6 +82,7 @@ export default function OpenFlow() {
   }, [data, query])
 
   const ok = data?.ok !== false
+  const computing = isComputing(data)
 
   return (
     <div className={styles.page}>
@@ -115,6 +122,10 @@ export default function OpenFlow() {
 
       {isLoading && !data ? (
         <div className={styles.loading}>Loading the board…</div>
+      ) : computing ? (
+        <div className={styles.loading} role="status">
+          Building the board. This can take a couple of minutes; it refreshes on its own.
+        </div>
       ) : !ok ? (
         <div className={styles.empty} role="alert">
           Could not load the flow board right now — try again shortly.

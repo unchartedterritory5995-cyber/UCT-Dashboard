@@ -182,7 +182,7 @@ describe('UCT Agent panel', () => {
     const host = makeHost([{ ref: 'w1' }])
     turns.push({ ...env('unsupported', [], "I can't add indicators yet — use Chart Settings › Indicators."), unsupported_category: 'indicators' })
     render(<AgentPanel host={host} onClose={() => {}} />)
-    type('add RSI 21')
+    type('add macd 8 21 5')
     await screen.findByText(/can't add indicators yet/)
     expect(host.commits).toHaveLength(0)
   })

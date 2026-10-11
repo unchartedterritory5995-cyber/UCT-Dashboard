@@ -67,7 +67,9 @@ describe('RT1 — the worker runner', () => {
     const def = { ...DEF, meta: { runtimeHistory: 'listing' } }
     const got = await new Promise((resolve) => run(def, bars(), { tf: 'D' }, (err, cols) => resolve({ err, cols })))
     expect(got.cols).toBeNull()
-    expect(got.err.guard).toBe('runtime:history-start')
+    // UIE Phase 2: off the listing a listing document runs behind its warm-up curtain;
+    // on these few bars its runs never come to agree, so it is refused by THAT name
+    expect(got.err.guard).toBe('runtime:warmup-never-converges')
   })
 
   // ⚰️ RT1 re-ran a dead worker's jobs on THIS thread. RF (2026-10-02) answers them

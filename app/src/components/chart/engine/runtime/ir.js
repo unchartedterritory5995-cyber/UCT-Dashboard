@@ -21,6 +21,15 @@
 // yet lowerable is refused BY NAME at lowering, never silently dropped.
 import { drawingHandle, isDrawingHandle } from './handles.js'
 
+/** ⭐⭐ P1 HARDENING (2026-10-11) — THE IR'S VERSION, stamped on every runtime
+ *  document the member door mints (`meta.runtimeIr`). `PHASE2_RUNTIME_ARCHITECTURE.md`
+ *  §5: "New artifacts carry an explicit runtime/compiler version … Old artifact + new
+ *  runtime is a detected, named condition". ⛔ BUMP IT when a change to this IR or
+ *  its lowering would make a stored document compute something different from what
+ *  it was minted under; a document stamped NEWER than the running engine is refused
+ *  by name (`runtimeColumns.js::runtimeVersionRefusal`), never run on a guess. */
+export const RUNTIME_IR_VERSION = 1
+
 /** Statement kinds. ⛔ DERIVED-FROM, never retyped: `lowerIr.js` switches on
  *  these and `irShape.test.js` asserts the two agree. */
 export const STMT = Object.freeze({

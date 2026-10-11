@@ -281,7 +281,11 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # ⭐ 66 → 67 (2026-09-28): #176 added `security_type` to snapshot_db
     # COLUMNS as TEXT (the Stock / ADR / ETF bucket), and a text column is
     # excluded for the same reason as `sector` — no string literal exists.
-    assert (len(declared), len(excluded)) == (137, 67)
+    # ⭐ 137 → 138 (2026-10-11, UCT Agent ⇄ Screener parity): `dollar_vol_1d` joined
+    # snapshot_db COLUMNS (the newest session's close × volume, written by
+    # `technicals.compute_technicals` beside `price`) and is DECLARED — a number a formula
+    # can compare, bar-derived, so `as_of` is `bars_asof` like `price`. Nothing retired.
+    assert (len(declared), len(excluded)) == (138, 67)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
@@ -817,7 +821,8 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # New bar-corpus case: `bars_ago_a_per_bar_count_na_and_past_the_buffer`.
     # The scalar half is untouched at 137 -- it names no per-symbol column.
     # ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`, Pine's `ta.vwap(source)` for a bar price.
-    assert len(parts["bar"]) == 131 and len(parts["scalar"]) == 137
+    # ⭐ scalar half 137 -> 138 (2026-10-11): `dollar_vol_1d` (see the partition pin)
+    assert len(parts["bar"]) == 131 and len(parts["scalar"]) == 138
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     assert not (parts["bar"] & parts["scalar"])

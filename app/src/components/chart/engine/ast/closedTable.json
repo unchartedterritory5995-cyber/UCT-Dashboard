@@ -1852,6 +1852,19 @@
       "yields": "num",
       "sentence": "the average daily dollar volume over 30 days"
     },
+    "dollar_vol_1d": {
+      "source": {
+        "store": "screener_rows",
+        "column": "dollar_vol_1d"
+      },
+      "as_of": {
+        "column": "bars_asof",
+        "grain": "date"
+      },
+      "cadence": "nightly",
+      "yields": "num",
+      "sentence": "the dollar volume traded in the latest completed session (its close times its volume)"
+    },
     "downgrades_30d": {
       "source": {
         "store": "screener_rows",

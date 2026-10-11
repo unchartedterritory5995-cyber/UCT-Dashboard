@@ -215,7 +215,7 @@ describe('⭐ the six-line conversation — one draft, one lineage, typed outcom
     expect(r6.lines.join(' ')).toMatch(/Saved “Bullish Trend” \(version 1, a new indicator\) — confirmed by reading it back/)
     expect(r6.undo).toBe(null)                                          // a saved version has no Undo (D7)
     expect(r6.lines.join(' ')).not.toMatch(/No chart is open here/)    // Save attaches nothing; the add reports itself
-    expect(r6.followUps).toEqual([{ action: 'indicator.add', target: 'ixe:L', args: { defId: saved.def_id }, awaitDefinition: { defId: saved.def_id, version: 1, name: 'Bullish Trend' } }])
+    expect(r6.followUps).toEqual([{ action: 'indicator.add', target: 'ixe:L', args: { defId: saved.def_id, inputs: null }, awaitDefinition: { defId: saved.def_id, version: 1, name: 'Bullish Trend' } }])
     expect(instancesOn(h, 'L').some(i => i.defId === saved.def_id)).toBe(false)   // Save attaches nothing
     expect(drafts(h)).toEqual([])                                       // the draft ended with the Save
 
@@ -581,7 +581,7 @@ describe('⭐ several drafts — the member chooses; nothing is picked for them'
   it('unrelated Agent actions never change which draft is selected', async () => {
     const h = host([L])
     const { a, b } = await two(h)
-    await run(h, [{ action: 'indicator.add', target: 'ixe:L', args: { defId: 'rsi' } }])   // an M2 chart change
+    await run(h, [{ action: 'indicator.add', target: 'ixe:L', args: { defId: 'rsi', inputs: null } }])   // an M2 chart change
     expect(drafts(h).find(s => s.active).ref).toBe(b)
     expect(draftAmbiguity(h, [say(a, 'x')])).not.toBe(null)
   })
@@ -777,7 +777,7 @@ describe('edit an existing saved indicator; a saved definition is never saved tw
     // the retry is an ordinary M2 add of that defId — no Save involved
     registry.installUserDefinitions([{ ...row.definition, id: row.def_id, version: 1 }])
     const n = stored.length
-    const a = await run(h, [{ action: 'indicator.add', target: 'ixe:L', args: { defId: neu.lastSaved.defId } }])
+    const a = await run(h, [{ action: 'indicator.add', target: 'ixe:L', args: { defId: neu.lastSaved.defId, inputs: null } }])
     expect(a.res.ok).toBe(true)
     expect(stored.length).toBe(n)
   })

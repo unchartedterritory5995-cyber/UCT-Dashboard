@@ -530,6 +530,20 @@ def _start_flow_schedulers():
         except Exception as e:  # noqa: BLE001
             log.warning("confluence warmer start failed: %s", e)
 
+        try:
+            # 2026-10-11 flow perf: the head tickers' full Search product (NVDA & co., over the
+            # member budget) from its persisted copy or one serial heavy build, and the Open
+            # Flow tab's default board from disk or one build -- so the first member after a
+            # deploy is not the one who pays 30-200 s for either.
+            from api import flow_router as _fr_heavy
+            from api import weekly_flow as _wf_board
+            _fr_heavy.start_heavy_prewarm()
+            _wf_board.start_board_warm()
+            log.info("[startup] flow heavy-search prewarm + board warm scheduled "
+                     "(FLOW_SEARCH_HEAVY_PREWARM='' / FLOW_BOARD_WARM_ENABLED=0 to disable)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("flow heavy/board warm start failed: %s", e)
+
         def _nightly_flow_prune():
             # Retention on the LIVE flow.db, which lives here post-cutover.
             #

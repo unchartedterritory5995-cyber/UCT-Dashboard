@@ -8,6 +8,7 @@
   PATCH  /api/agent/conversations/{id}     rename and/or pin (History)
   DELETE /api/agent/conversations/{id}     delete a chat and its transcript (History)
   GET  /api/agent/search?q=                find words across the member's own chats (History)
+  POST /api/agent/session-stats            latest completed session close/volume/dollar volume (read-only)
 
 Nothing here mutates a workspace: the browser executes the deterministic
 actions and reports the outcome back through /record. Paid (402) AND admin (403)
@@ -58,6 +59,21 @@ def daily_cap() -> int:
         return max(1, int(os.environ.get("UCT_AGENT_DAILY_CAP", "300")))
     except ValueError:
         return 300
+
+
+#: OPT-IN dollar ceiling for UCT Agent's model spend per ET day (all members, the ledger's
+#: `uct_agent` surface). Unset = no dollar ceiling (the request-count cap above still applies) —
+#: production behaviour is unchanged until someone sets it. Checked BEFORE each model call, so one
+#: request (at most 3 calls + a naming call) can pass the ceiling by that request's cost, never more.
+COST_CAP_ENV = "UCT_AGENT_COST_CAP_DAILY"
+
+
+def over_cost_cap() -> bool:
+    if not str(os.environ.get(COST_CAP_ENV) or "").strip():
+        return False
+    from api.services import narrative_cost_guard
+    from api.services.uct_agent import turn as agent
+    return narrative_cost_guard.over_budget(agent.COST_SURFACE, env_name=COST_CAP_ENV)
 
 
 def _et_day() -> str:
@@ -112,6 +128,9 @@ def agent_turn(body: TurnIn, background: BackgroundTasks, user: dict = Depends(r
     uid = user["id"]
     if not _take(uid):
         raise HTTPException(status_code=429, detail="You've reached today's UCT Agent limit.")
+    if over_cost_cap():
+        _give_back(uid)
+        raise HTTPException(status_code=429, detail="UCT Agent's spending limit for today has been reached.")
     refusal = ai_population_cap.admit("uct_agent")
     if refusal:
         _give_back(uid)
@@ -187,7 +206,7 @@ def _name_unnamed(uid: int, cid: str) -> None:
     name (the store refuses that) or over a name the Agent gave it meanwhile."""
     from api.services.uct_agent import store, turn as agent
     try:
-        if (store.title_info(uid, cid) or {}).get("source") is not None:
+        if over_cost_cap() or (store.title_info(uid, cid) or {}).get("source") is not None:
             return
         title = agent.name_conversation(store.get_turns(uid, cid) or [])
         if title and (store.title_info(uid, cid) or {}).get("source") is None:
@@ -269,3 +288,17 @@ def agent_conversation_delete(conversation_id: str, user: dict = Depends(require
 def agent_search(q: str = "", user: dict = Depends(require_admin_dark)):
     from api.services.uct_agent import store
     return {"results": store.search_turns(user["id"], q[:200])}
+
+
+class SessionStatsIn(BaseModel):
+    symbols: list = Field(default_factory=list)
+
+
+@router.post("/api/agent/session-stats")
+def agent_session_stats(body: SessionStatsIn, user: dict = Depends(require_admin_dark)):
+    """The latest completed session's close / volume / dollar volume for these tickers
+    (services/uct_agent/session_stats.py). Read-only; no model call."""
+    from api.services.uct_agent import session_stats
+    if len(body.symbols) > session_stats.MAX_SYMBOLS:
+        raise HTTPException(status_code=400, detail=f"at most {session_stats.MAX_SYMBOLS} symbols at once")
+    return session_stats.latest_session(body.symbols)

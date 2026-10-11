@@ -431,6 +431,73 @@ def wire_regime(date_iso: str) -> dict:
     return out
 
 
+# ── market phase: the brain's latest regime phase per session ────────────────
+#
+# ⭐ (2026-10-11) The PC collector stored `market_phase` from the brain's `market_regimes`
+# row for the day, which the 14:30 ET preclose run overwrites last — so the stored value is
+# normally the PRECLOSE phase (measured 2026-10-09: stored "Uptrend", the 07:35 wire's
+# "Rally Attempt"). The brain pushes each intraday run to /api/push/intraday, but that push
+# lives in a 4-hour in-memory cache that has expired (or been wiped by a deploy) before the
+# 20:00 EOD row is computed. So each push is recorded here, per ET session date, latest wins.
+
+def _phase_path() -> str:
+    import os
+    return os.environ.get("BREADTH_REGIME_PHASE_PATH") or os.path.join(
+        os.environ.get("DATA_DIR", "/data"), "breadth_regime_phase.json")
+
+
+def record_regime_phase(payload: dict, now: Optional[datetime] = None) -> Optional[dict]:
+    """Remember the phase an intraday brain push carried, under today's ET session date."""
+    import json
+    import os
+    from zoneinfo import ZoneInfo
+    phase = ((payload or {}).get("regime") or {}).get("phase")
+    if not isinstance(phase, str) or not phase.strip():
+        return None
+    now = now or datetime.now(ZoneInfo("America/New_York"))
+    day = now.date().isoformat()
+    entry = {"phase": phase.strip(), "mode": (payload or {}).get("mode"),
+             "at": now.isoformat(timespec="seconds")}
+    try:
+        try:
+            with open(_phase_path()) as fh:
+                store = json.load(fh)
+        except Exception:
+            store = {}
+        store[day] = entry
+        store = dict(sorted(store.items())[-60:])
+        tmp = _phase_path() + ".tmp"
+        with open(tmp, "w") as fh:
+            json.dump(store, fh)
+        os.replace(tmp, _phase_path())
+    except Exception as e:                         # noqa: BLE001 - never fails the push
+        _log.warning("[eod-extras] regime phase record failed: %s", e)
+        return None
+    return entry
+
+
+def market_phase_for(date_iso: str) -> Optional[str]:
+    """The phase for a session: the brain's last intraday push that day, else that
+    day's Morning Wire phase. None when neither is known — never another day's."""
+    import json
+    try:
+        with open(_phase_path()) as fh:
+            hit = (json.load(fh) or {}).get(date_iso)
+        if hit and hit.get("phase"):
+            return hit["phase"]
+    except Exception:
+        pass
+    try:
+        from api.services import engine
+        wd = engine._load_wire_data() or {}
+    except Exception:
+        return None
+    if str(wd.get("date") or "")[:10] != date_iso:
+        return None
+    phase = (wd.get("breadth") or {}).get("market_phase")
+    return phase.strip() if isinstance(phase, str) and phase.strip() else None
+
+
 # ── the row ──────────────────────────────────────────────────────────────────
 
 _SESSION_CACHE: dict = {}

@@ -91,7 +91,7 @@ describe('M2 add / remove / show / hide — through the Indicators interface onl
   it('add RSI: the stored chart equals Add to Chart (addInstance) byte for byte; receipt only after the read-back; Undo removes exactly it', async () => {
     const before = chartCs()
     const h = host([L(before)])
-    const { p, res } = await run(h, [op('indicator.add', 'L', { defId: 'rsi' })])
+    const { p, res } = await run(h, [op('indicator.add', 'L', { defId: 'rsi', inputs: null })])
     expect(p.lines[0]).toMatch(/^Add (RSI|Relative Strength Index).* to Left chart \(NVDA\)$/)
     expect(res.ok).toBe(true)
     expect(res.lines[0]).toMatch(/^Added RSI.* on Left chart \(NVDA\) \(saved\)\.$/)
@@ -148,7 +148,7 @@ describe('M2 add / remove / show / hide — through the Indicators interface onl
     expect((await undoEntry(h, res.undo)).ok).toBe(true)
     expect(load(h.store.L).indicatorInstances).toEqual(load(before).indicatorInstances)
     for (const defId of ['volumeProfile', 'ma', 'Volume Profile']) {
-      const p = await plan(h, [op('indicator.add', 'L', { defId })])
+      const p = await plan(h, [op('indicator.add', 'L', { defId, inputs: null })])
       expect(p.ok, defId).toBe(false)
       expect(p.refusals[0].reason).toMatch(/Classic overlay averages and Volume Profile are added from Chart Settings/)
     }
@@ -156,15 +156,15 @@ describe('M2 add / remove / show / hide — through the Indicators interface onl
   it('unknown and foreign definitions are refused before any proposal; the member\'s own saved one is added', async () => {
     const h = host([L()])
     for (const defId of ['u_ffffffffffff', 'nonsense']) {
-      const p = await plan(h, [op('indicator.add', 'L', { defId })])
+      const p = await plan(h, [op('indicator.add', 'L', { defId, inputs: null })])
       expect(p.ok).toBe(false)
       expect(p.refusals[0].reason).toBe(refusalSentence({ reason: REASONS.UNKNOWN_DEFINITION }))
     }
     OWNED = []
-    expect((await plan(h, [op('indicator.add', 'L', { defId: SAVED })])).ok).toBe(false)     // not (or no longer) the member's
+    expect((await plan(h, [op('indicator.add', 'L', { defId: SAVED, inputs: null })])).ok).toBe(false)     // not (or no longer) the member's
     OWNED = [SAVED]
     _resetProposedPlans()
-    const { res } = await run(h, [op('indicator.add', 'L', { defId: SAVED })])
+    const { res } = await run(h, [op('indicator.add', 'L', { defId: SAVED, inputs: null })])
     expect(res.ok).toBe(true)
   })
 })

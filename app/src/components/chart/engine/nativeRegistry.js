@@ -162,6 +162,7 @@ import {
 import { serverColumnsFor, notifyColumnsLanded } from './serverCompute'
 import { runtimeKillOf } from './runtimeKill'
 import { runtimePaneEnabled } from './runtimePaneGate'
+import { runtimeWarmupOf } from './runtime/runtimeObjects'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
 
@@ -2291,6 +2292,19 @@ export function runtimeObjectsWithheld(def, cols) {
   if (!def || !def.compute || def.compute.kind !== 'runtime') return null
   if (!def.objects || !Array.isArray(def.objects.ops) || !def.objects.ops.length) return null
   const keys = Object.keys(def.compute.outputs || {})
+  // ⭐ UIE PHASE 2 — a run off the listing that WITHHELD a warm-up computed columns, but
+  // only from the bar its values stop depending on where the chart starts; the object
+  // program is not proven seed-free, so its drawings stay withheld, by name.
+  const curtain = runtimeWarmupOf(cols)
+  if (curtain) {
+    return {
+      guard: RUNTIME_OBJECTS_GUARD,
+      message: "This script's drawings are not drawn: this chart's history does not start at the symbol's "
+        + `first bar, so its plots are drawn only from bar ${curtain.withheldBars + 1} on, where their values `
+        + 'stop depending on where the chart begins, and where its drawings land is not proven the same way. '
+        + 'Nothing is drawn rather than a guess.',
+    }
+  }
   if (cols && keys.some((k) => cols[k] && typeof cols[k].length === 'number')) return null
   const first = Object.values(columnErrors(cols))[0]
   const why = first

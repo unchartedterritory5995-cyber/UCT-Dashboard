@@ -344,7 +344,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # was not running. That is the cost the note above already spells out: a
     # vacuity guard that goes stale takes the real check down with it, silently,
     # and the AST claim is the half nothing else in the repo makes.
-    assert len(ast_table.scalar_names()) == 137, len(ast_table.scalar_names())
+    # ⭐ scalar half 137 -> 138 (2026-10-11): `dollar_vol_1d` joined the screener columns and
+    # is declared (`tests/test_ast_scalars.py`'s partition pin has the reason)
+    assert len(ast_table.scalar_names()) == 138, len(ast_table.scalar_names())
     # ⭐ 208 -> 234 (2026-09-02) is the SAME 26 Wave-1 columns as the scalar
     # bump below; this is their combined total, so the two move together or
     # one of them is wrong.
@@ -380,7 +382,8 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # the scalar half is untouched at 137; this is their sum.
     # 267 -> 268 (2026-10-02, H3): `vwapOf`. The bar half moved 130 -> 131,
     # the scalar half is untouched at 137; this is their sum.
-    assert len(declared) == 268, f"the table declares {len(declared)} names, not 268"
+    # 268 -> 269 (2026-10-11): `dollar_vol_1d` (the scalar half above)
+    assert len(declared) == 269, f"the table declares {len(declared)} names, not 269"
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)

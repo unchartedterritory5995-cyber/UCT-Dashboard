@@ -1661,7 +1661,9 @@ def save(user_id: Any, def_id: str, definition: dict,
         # ⭐ GT — `role` is the SAVING member's (the router's `user["role"]`).
         # Only the runtime door reads it (`PINE_RUNTIME_STAGE`); a caller that
         # does not pass it is treated as a member, never as an admin.
-        return _save_runtime(user_id, def_id, definition, limits, role=role)
+        return _save_runtime(user_id, def_id, definition, limits, role=role,
+                             repaint_acknowledged=repaint_acknowledged,
+                             copy_of_stored=_copy_of_stored)
     if not isinstance(compute, dict) or compute.get("kind") != "ast":
         raise ValueError(
             "definition: a user definition is a FORMULA — compute.kind must be "
@@ -2068,8 +2070,54 @@ def save(user_id: Any, def_id: str, definition: dict,
     }
 
 
+def _runtime_ack_covers(ack: Any, plot_key: str) -> bool:
+    """Does `ack` (`True` = every plot, or a `{plotKey: True}` map) acknowledge
+    `plot_key` of a RUNTIME document? A runtime document has no per-plot trees and
+    no scan alias, so this is `_ack_covers` without the tree fallback."""
+    if isinstance(ack, Mapping):
+        return ack.get(plot_key) is True
+    return ack is True
+
+
+def _admit_runtime(definition: dict, repaint_acknowledged: Any = None) -> None:
+    """⭐⭐ P1 HARDENING (2026-10-11) — THE FORMULA LANE'S REPAINT ADMISSION, FOR A
+    RUNTIME DOCUMENT. RAISE `SaveRefused` exactly where `_admit_new_maths` would.
+
+    ⛔ Before this, `_save_runtime` validated the repaint class's CONSISTENCY
+    (declared vs measured) and then stored the document whatever the class was: a
+    `repaints` script was saved, and a `preview-repaints` one was saved WITHOUT the
+    author's acknowledgement — both of which the formula lane refuses
+    (`_admit_new_maths`). The verdict is the server's own (`repaint_stamp`, re-derived
+    from the source), never read off the document; the sentences are the formula
+    lane's, so a member is told the same thing whichever lane drew the script.
+    Called for NEW maths only (a new document, a re-created one, or a changed source),
+    the formula lane's rule, so an unchanged stored row is never re-judged."""
+    from api.services import runtime_definitions
+    verdict = runtime_definitions.repaint_stamp(definition)
+    doc_ack = (definition.get("meta") or {}).get("repaintAck")
+    for key in sorted(verdict):
+        mode = verdict[key]
+        if mode == "non-repainting":
+            continue
+        if mode == "preview-repaints":
+            if _runtime_ack_covers(repaint_acknowledged, key) or _runtime_ack_covers(doc_ack, key):
+                continue
+            raise SaveRefused(
+                "repaint-ack",
+                f"plot {key!r} measures 'preview-repaints' (its value moves until a "
+                "later bar closes) and the author has not acknowledged that badge — "
+                "it is saved only with that acknowledgement (repaint_acknowledged)",
+                plot=key, mode=mode)
+        raise SaveRefused(
+            "repaint",
+            f"plot {key!r} measures {mode!r}: a formula whose past values can change "
+            "after the fact is not saved",
+            plot=key, mode=mode)
+
+
 def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
-                  role: Any = None) -> dict:
+                  role: Any = None, repaint_acknowledged: Any = None,
+                  copy_of_stored: bool = False) -> dict:
     """RT1 — append a version of a RUNTIME-LANE document.
 
     The same table, the same version/tombstone rules and the same count cap as a
@@ -2126,6 +2174,18 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         _ensure(c)
         prev = _newest(c, user_id, def_id)
+        # ⛔⛔ P1 HARDENING (2026-10-11) — NO SILENT LANE SWITCH. A runtime document
+        # saved over a LIVE formula under the same id bumped `rev` and ran no alert
+        # migration (this function's docstring assumes no binding exists — true only
+        # for an id that was never a formula), so an alert bound to the formula's
+        # tree was left pointing at maths that no longer existed. No door does this
+        # (the member door always mints a new id); it is refused rather than allowed.
+        if (prev is not None and prev["deleted_at"] is None
+                and not str(prev["ast_hash"] or "").startswith("runtime:")):
+            raise ValueError(
+                "a formula is stored under this id, and a script drawn bar by bar is saved "
+                "as its own indicator rather than over it — nothing was saved and the "
+                "formula is unchanged.")
         if prev is None or prev["deleted_at"] is not None:
             entitlements.check_definition_count(_live_def_count(c, user_id), limits)
         if prev is None:
@@ -2142,6 +2202,14 @@ def _save_runtime(user_id: Any, def_id: str, definition: dict, limits: Any,
             version = prev["version"] + 1
             rev_bumped = prev["ast_hash"] != new_hash
             rev = prev["rev"] + 1 if rev_bumped else prev["rev"]
+        # ⭐ P1 HARDENING — admission for NEW maths only, inside the lock (nothing is
+        # written when it refuses): a first save, a save over a tombstone, or a changed
+        # source. An unchanged stored script re-saved (a rename) is not re-judged, and a
+        # share install / fork (`copy_of_stored`) is a copy of a row the store already
+        # admitted — the formula lane's same two exemptions (`save`'s docstring).
+        new_maths = prev is None or prev["deleted_at"] is not None or prev["ast_hash"] != new_hash
+        if new_maths and not copy_of_stored:
+            _admit_runtime(definition, repaint_acknowledged)
         c.execute(
             "INSERT INTO user_definitions "
             "(user_id, def_id, version, rev, ast_hash, definition, repaint, "

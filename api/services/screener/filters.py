@@ -472,6 +472,11 @@ FILTERS = dict([
     #  volume-low windows 20/15/10 bars). E-8: published, not invented here.
     _open_range("dollar_vol_30d", "Dollar Volume (30d)", "descriptive",
                 "dollar_vol_30d", unit="$"),
+    # ⭐ The newest session's dollar volume (close × volume of the row's own last bar, the
+    # `bars_asof` session). The daily figure a trader means by "trades $10M a day"; the 30-day
+    # average above is a different, smoother number. Same column UCT Agent screens on.
+    _open_range("dollar_vol_1d", "Dollar Volume (1 day)", "descriptive",
+                "dollar_vol_1d", unit="$"),
     _open_range("pole_pct", "Prior Run (Pole %)", "momentum", "pole_pct", unit="%"),
     _range("vol_nweek_low", "Volume Dry-Up", "momentum", "vol_nweek_low",
            [{"label": "Any"},
@@ -940,6 +945,35 @@ def field_catalog() -> list[dict]:
          "unit": f.get("unit"), "category": f.get("category")}
         for key, f in FILTERS.items() if key not in RETIRED
     ]
+
+
+def field_options() -> dict:
+    """The VALUES each value-list field can hold, read off the artifact — for callers that turn a
+    member's words into a list filter (UCT Agent: "software stocks" → industry ∈ {Software -
+    Application, Software - Infrastructure}). Only fields whose options come from a snapshot
+    column (``options_column``); the column name comes from the registry, never the caller.
+
+    ``with_value`` / ``total`` say how much of the universe the field classifies at all: a row
+    with no industry can never match an industry filter, and a caller that reports a screen as
+    exhaustive must be able to say so. One cheap DISTINCT + COUNT per field; no distributions.
+    """
+    from api.services.screener import snapshot_db
+    out: dict = {}
+    try:
+        with snapshot_db.connect() as conn:
+            total = int(conn.execute("SELECT COUNT(*) FROM screener_rows").fetchone()[0] or 0)
+            for key, f in FILTERS.items():
+                col = f.get("options_column")
+                if key in RETIRED or f.get("type") != "enum" or not col or col not in snapshot_db.COLUMNS:
+                    continue
+                rows = conn.execute(
+                    f'SELECT "{col}" AS v, COUNT(*) AS n FROM screener_rows '
+                    f'WHERE "{col}" IS NOT NULL AND "{col}" != \'\' GROUP BY "{col}" ORDER BY "{col}"').fetchall()
+                out[key] = {"values": [r["v"] for r in rows],
+                            "with_value": sum(int(r["n"]) for r in rows), "total": total}
+    except Exception:  # noqa: BLE001 — no snapshot yet: no options, never a 500
+        return {}
+    return out
 
 
 def comparable_keys():

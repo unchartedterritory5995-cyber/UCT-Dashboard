@@ -1,0 +1,63 @@
+diff --git a/api/services/screener/filters.py b/api/services/screener/filters.py
+index b2fc861b85..c858e8833c 100644
+--- a/api/services/screener/filters.py
++++ b/api/services/screener/filters.py
+@@ -472,6 +472,11 @@ FILTERS = dict([
+     #  volume-low windows 20/15/10 bars). E-8: published, not invented here.
+     _open_range("dollar_vol_30d", "Dollar Volume (30d)", "descriptive",
+                 "dollar_vol_30d", unit="$"),
++    # ⭐ The newest session's dollar volume (close × volume of the row's own last bar, the
++    # `bars_asof` session). The daily figure a trader means by "trades $10M a day"; the 30-day
++    # average above is a different, smoother number. Same column UCT Agent screens on.
++    _open_range("dollar_vol_1d", "Dollar Volume (1 day)", "descriptive",
++                "dollar_vol_1d", unit="$"),
+     _open_range("pole_pct", "Prior Run (Pole %)", "momentum", "pole_pct", unit="%"),
+     _range("vol_nweek_low", "Volume Dry-Up", "momentum", "vol_nweek_low",
+            [{"label": "Any"},
+diff --git a/api/services/screener/snapshot_db.py b/api/services/screener/snapshot_db.py
+index f03e2d2661..c31fb1af39 100644
+--- a/api/services/screener/snapshot_db.py
++++ b/api/services/screener/snapshot_db.py
+@@ -72,6 +72,8 @@ COLUMNS = [
+     "chg_pct_3m", "chg_pct_6m", "chg_pct_1y", "chg_pct_ytd",
+     "chg_from_open_pct", "adr_pct_1w", "dist_20d_high_pct", "dist_20d_low_pct",
+     "dist_ath_pct", "new_ath", "dollar_vol_30d",
++    # the newest session's traded dollars (UCT Agent ⇄ Screener parity, 2026-10-11)
++    "dollar_vol_1d",
+     # momentum mechanics (Wave 1)
+     "pole_pct", "vol_nweek_low", "vol_updown_ratio", "ema_touch_count",
+     "ema10_rising", "ema20_rising", "ema_stack_intact", "candle_score",
+diff --git a/api/services/screener/technicals.py b/api/services/screener/technicals.py
+index ca1c55be0a..a97e38d713 100644
+--- a/api/services/screener/technicals.py
++++ b/api/services/screener/technicals.py
+@@ -457,7 +457,7 @@ _WINDOW_BARS = {
+ #: Facts about ONE bar. They cannot span a seam, so they are never withheld —
+ #: and they are listed rather than inferred so the rail below can prove that
+ #: every column this module writes has been classified one way or the other.
+-_SINGLE_BAR = {"price", "chg_from_open_pct"}
++_SINGLE_BAR = {"price", "chg_from_open_pct", "dollar_vol_1d"}
+ 
+ 
+ def seam_withheld_columns(bars) -> set:
+@@ -479,7 +479,7 @@ def compute_technicals(bars: list[dict]) -> dict:
+         "vol_ratio", "gap_pct", "dist_52w_high_pct", "dist_52w_low_pct", "price",
+         "chg_pct_1y", "chg_pct_ytd", "chg_from_open_pct", "adr_pct_1w",
+         "dist_20d_high_pct", "dist_20d_low_pct", "pole_pct", "atr_ext_sma50",
+-        "prev_day_open", "prev_day_high", "prev_day_low", "prev_day_close")}
++        "prev_day_open", "prev_day_high", "prev_day_low", "prev_day_close", "dollar_vol_1d")}
+     out["ma_stack"] = None
+     out["above_50sma"] = None
+     out["new_52w_high"] = False
+@@ -507,6 +507,11 @@ def compute_technicals(bars: list[dict]) -> dict:
+     closes = [b["c"] for b in bars]
+     price = closes[-1]
+     out["price"] = price
++    # ⭐ ONE BAR, ONE CLOCK: the newest session's close × its volume — what actually traded that
++    # day (the SAME bar `price` comes from). "Trades over $10M a day" means this, not the
++    # 30-day average (`dollar_vol_30d`). None — never 0 — when the bar has no volume.
++    v_last = _volume(bars[-1])
++    out["dollar_vol_1d"] = round(price * v_last, 2) if (v_last is not None and price and price > 0) else None
+     if len(closes) >= 2:
+         out["chg_pct_1d"] = _pct(price, closes[-2])
+         out["gap_pct"] = _pct(bars[-1]["o"], closes[-2])

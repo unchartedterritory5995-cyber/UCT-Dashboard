@@ -647,5 +647,47 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
     }
   }
 
-  return { call, naOf, finish, limits }
+  /** ⭐ P1 HARDENING — how many objects are live right now, every family, after
+   *  the collector. Read by the VM to account `LIVE_OBJECTS` (`limits.js`). */
+  const liveCount = () => live.size
+
+  /** ⭐⭐ UIE PHASE 5 (M2) — the store's whole state at a bar, for a run's checkpoint
+   *  (`vm.js`, `opts.checkpointAt`): every live drawing (its props and cells copied),
+   *  the handle identities (shared — a handle is frozen, and IS the key), the dead
+   *  set, the counters and what is withheld. `restore` puts exactly that back, so a run
+   *  resumed after the checkpoint holds the drawings a full run held at that bar. */
+  function snapshot() {
+    const copyInst = (inst) => ({ ...inst, props: { ...inst.props },
+      ...(inst.cells ? { cells: new Map([...inst.cells].map(([k, v]) => [k, { ...v }])) } : {}) })
+    return {
+      live: [...live.values()].map(copyInst),
+      handles: [...handles.entries()],
+      counts: { ...counts },
+      nextId,
+      withheldFams: [...withheldFams.entries()],
+      stopped,
+      undrawn: [...undrawn.entries()],
+      stats: { ...stats },
+      fillsOfLine: [...fillsOfLine.entries()].map(([k, s]) => [k, [...s]]),
+      dead: [...dead],
+    }
+  }
+  function restore(s) {
+    live.clear()
+    for (const inst of s.live) {
+      live.set(inst.id, { ...inst, props: { ...inst.props },
+        ...(inst.cells ? { cells: new Map([...inst.cells].map(([k, v]) => [k, { ...v }])) } : {}) })
+    }
+    handles.clear(); for (const [k, v] of s.handles) handles.set(k, v)
+    Object.assign(counts, s.counts)
+    nextId = s.nextId
+    withheldFams.clear(); for (const [k, v] of s.withheldFams) withheldFams.set(k, v)
+    stopped = s.stopped
+    undrawn.clear(); for (const [k, v] of s.undrawn) undrawn.set(k, v)
+    Object.assign(stats, s.stats)
+    fillsOfLine.clear(); for (const [k, v] of s.fillsOfLine) fillsOfLine.set(k, new Set(v))
+    dead.clear(); for (const id of s.dead) dead.add(id)
+  }
+
+  return { call, naOf, finish, limits, liveCount, snapshot, restore }
 }

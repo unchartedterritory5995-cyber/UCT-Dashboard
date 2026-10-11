@@ -95,6 +95,18 @@ export function recentWindowLabel(w) {
   return `${head} The full history for this ticker is too large to work out here, so older prints are not counted.`
 }
 
+/** The label a head ticker's last full build carries while its rebuild runs (`staleAsOf`). */
+export function staleFullLabel(asOfEpochS) {
+  const t = Number(asOfEpochS)
+  if (!Number.isFinite(t) || t <= 0) return ''
+  let when = ''
+  try {
+    when = new Date(t * 1000).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' })
+  } catch { when = '' }
+  if (!when) return 'Full history from an earlier build. The newer prints are being added now.'
+  return `Full history as of ${when} ET. The newer prints are being added now.`
+}
+
 /**
  * Ask the server for one ticker's Search product.
  *
@@ -188,6 +200,14 @@ export async function fetchSearchProduct(sym, source, opts = {}) {
           asOf: asOf ? Number(asOf) : null,
         },
       }
+    }
+    // 2026-10-11: a head ticker (NVDA & co.) that printed since its last full build is answered
+    // with THAT build for up to 15 min while one rebuild runs (`X-Flow-Cache: stale-full`). It is
+    // the full history, so no window, but it is behind: say when it was built.
+    const cacheState = res.headers.get('X-Flow-Cache')
+    const basisAsOf = Number(res.headers.get('X-Flow-Basis-As-Of'))
+    if (cacheState === 'stale-full' && Number.isFinite(basisAsOf) && basisAsOf > 0) {
+      return { ok: true, product: stamped, version: served.version, staleAsOf: basisAsOf }
     }
     return { ok: true, product: stamped, version: served.version }
   } catch {

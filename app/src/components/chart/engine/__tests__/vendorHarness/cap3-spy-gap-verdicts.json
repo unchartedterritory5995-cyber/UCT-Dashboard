@@ -6,23 +6,23 @@
       "script": "corpus/committed/adx-and-di-for-v4__932.pine",
       "state": "runtime",
       "signature": {
-        "verdict": "INCONCLUSIVE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [
           [
             "DI+",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — computeFor returned no column for va"
+            "MATCH",
+            1800
           ],
           [
             "DI-",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — computeFor returned no column for ou"
+            "MATCH",
+            1800
           ],
           [
             "ADX",
-            "INCONCLUSIVE",
-            "our side produced no column for this plot — computeFor returned no column for ou"
+            "MATCH",
+            1800
           ]
         ],
         "objects": [

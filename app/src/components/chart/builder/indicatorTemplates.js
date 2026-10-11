@@ -39,8 +39,8 @@
 // template list through `setPrefMerged('indicator_templates', …)`.
 
 import { applyAlertTemplate } from '../engine/alertSets'
-import { addInstanceCopy, setInstanceInput } from '../engine/instanceControls'
-import { sourceInputsOf, sourceDependsOn, parseSource, instanceSource } from '../engine/sourceRef'
+import { addInstanceCopy, setInstanceInput, setInstanceDisplayTarget } from '../engine/instanceControls'
+import { sourceInputsOf, sourceDependsOn, parseSource, instanceSource, parsePaneOfTarget, paneOfTarget } from '../engine/sourceRef'
 import { adoptOverlayAverages } from '../maAdoption'
 import { isInstanceTombstone } from '../instanceShape'
 import { STUDIO_PREVIEW_DEF_ID } from './studio/chartPreview'
@@ -52,6 +52,10 @@ export const INDICATOR_TEMPLATES_PREF = 'indicator_templates'
 export const MAX_INDICATOR_TEMPLATES = 25
 export const MAX_TEMPLATE_INDICATORS = 40
 export const TEMPLATE_NAME_MAX = 40
+/** The whole stored list's ceiling, in UTF-8 bytes of its JSON. ⛔ The server holds the
+ *  SAME number (`api/routers/auth.py` `_INDICATOR_TEMPLATES_MAX_BYTES`, pinned equal by
+ *  `tests/test_indicator_templates_pref.py`), so a save this side allows is never a 400. */
+export const MAX_INDICATOR_TEMPLATES_BYTES = 262144
 
 /**
  * Is the indicator-templates surface on in this build? Default OFF:
@@ -86,8 +90,18 @@ const getDefOf = (registry) => (id) => {
  *  configured — not captured, not compared. */
 const IDENTITY_FIELDS = ['instanceId', 'scope', 'group', 'deleted', 'defVersion']
 
-/** The configuration of an instance with its identity removed and the given source
- *  inputs dropped (they name other instances, so they never compare equal by value). */
+/** The INSTANCE a `placement.target` shares a pane with (`@<instanceId>`), or null.
+ *  A legacy `@<defId>` names a definition, not an instance (an instance id always holds
+ *  ':'), so it is chart-independent and travels as saved. */
+function paneHostOf(inst) {
+  const host = isObj(inst && inst.placement) ? parsePaneOfTarget(inst.placement.target) : null
+  return host && host.includes(':') ? host : null
+}
+
+/** The configuration of an instance with its identity removed, the given source
+ *  inputs dropped (they name other instances, so they never compare equal by value),
+ *  and a pane-sharing target that names another INSTANCE dropped for the same reason
+ *  (the template carries it by key, `paneOf`, and apply re-points it). */
 function configOf(inst, dropInputs = []) {
   const out = {}
   for (const [k, v] of Object.entries(inst)) {
@@ -98,6 +112,11 @@ function configOf(inst, dropInputs = []) {
   for (const k of dropInputs) delete inputs[k]
   out.inputs = inputs
   out.hidden = inst.hidden === true
+  if (paneHostOf(inst)) {
+    const { target: _t, targetExplicit: _e, ...restPlacement } = out.placement
+    if (Object.keys(restPlacement).length) out.placement = restPlacement
+    else delete out.placement
+  }
   return out
 }
 
@@ -155,9 +174,9 @@ export function captureIndicatorTemplate(cs, registry, { name, id, now } = {}) {
   const defOf = getDefOf(registry)
   const names = new Map(instancesOf(view || {}, registry).filter((r) => !r.setting).map((r) => [r.instanceId, r.name]))
 
-  const live = list.filter((inst) => isObj(inst) && typeof inst.instanceId === 'string'
+  const eligible = list.filter((inst) => isObj(inst) && typeof inst.instanceId === 'string'
     && !isInstanceTombstone(inst) && !isPreview(inst) && typeof inst.defId === 'string' && defOf(inst.defId))
-    .slice(0, MAX_TEMPLATE_INDICATORS)
+  const live = eligible.slice(0, MAX_TEMPLATE_INDICATORS)
   if (!live.length) return { ok: false, reason: 'empty' }
 
   const keyOf = new Map(live.map((inst, i) => [inst.instanceId, `k${i + 1}`]))
@@ -171,16 +190,23 @@ export function captureIndicatorTemplate(cs, registry, { name, id, now } = {}) {
       if (keyOf.has(target) && parsed && parsed.plotKey) sources[inputKey] = { key: keyOf.get(target), plotKey: parsed.plotKey }
     }
     const cfg = clone(configOf(inst, instanceSourceKeys(def, inst)))
+    // A pane shared with another TEMPLATE indicator travels by key; one shared with an
+    // indicator the template does not carry falls back to the automatic placement.
+    const host = paneHostOf(inst)
+    const paneOf = host && keyOf.has(host) ? keyOf.get(host) : null
     return {
       key: keyOf.get(inst.instanceId),
       ...cfg,
       defId: inst.defId,
       ...(Object.keys(sources).length ? { sources } : {}),
+      ...(paneOf ? { paneOf } : {}),
       label: names.get(inst.instanceId) || (def.meta && def.meta.name) || inst.defId,
     }
   })
   return {
     ok: true,
+    // live indicators past MAX_TEMPLATE_INDICATORS, left out (the surface says so)
+    omitted: eligible.length - live.length,
     template: {
       contract: INDICATOR_TEMPLATE_CONTRACT,
       id: typeof id === 'string' && id ? id : mintTemplateId(),
@@ -243,7 +269,7 @@ export function applyIndicatorTemplate(cs, template, registry) {
     const label = typeof entry.label === 'string' && entry.label ? entry.label : entry.defId
     const key = typeof entry.key === 'string' && entry.key ? entry.key : null
     if (!defOf(entry.defId)) { unavailable.push({ key, label, defId: entry.defId }); continue }
-    const { key: _k, label: _l, sources: _s, ...body } = entry
+    const { key: _k, label: _l, sources: _s, paneOf: _p, ...body } = entry
     // already on this chart, configured identically (and not already matched by an
     // earlier entry of this same template — two identical RSIs need two instances)
     const sig = signature(defOf, { ...body, instanceId: '_' })
@@ -276,6 +302,15 @@ export function applyIndicatorTemplate(cs, template, registry) {
       if (value) next = setInstanceInput(next, self.instanceId, inputKey, value, registry)
     }
   }
+  // …and a pane shared with another indicator of this template, at ITS copy (after the
+  // sources, because the automatic placement the writer compares against follows them).
+  for (const entry of declared) {
+    if (typeof entry.paneOf !== 'string' || !entry.key) continue
+    const self = added.find((a) => a.key === entry.key)
+    const host = idOfKey.get(entry.paneOf)
+    if (!self || !host || host === self.instanceId) continue
+    next = setInstanceDisplayTarget(next, self.instanceId, paneOfTarget(host), registry)
+  }
 
   return { ok: true, cs: next, changed: added.length > 0, added, already, unavailable }
 }
@@ -293,13 +328,37 @@ export function parseIndicatorTemplates(raw) {
     && typeof t.name === 'string' && t.name && Array.isArray(t.instances))
 }
 
-/** The list with `template` saved at the front; a same-named template (case-insensitive)
- *  is REPLACED (re-saving updates in place), and the list is capped. */
-export function withTemplateSaved(current, template) {
+/** UTF-8 bytes of a value's JSON — what the server measures. */
+export function templatesByteSize(list) {
+  const s = JSON.stringify(list)
+  try { return new TextEncoder().encode(s).length } catch { return s.length * 3 }
+}
+
+/**
+ * Saving `template` into the stored list: the verdict, never a silent loss.
+ * A same-named template (case-insensitive) is REPLACED (re-saving updates in place).
+ * ⛔ A FULL LIST IS REFUSED, NOT TRIMMED — dropping the member's oldest template to make
+ * room would delete their work without a word. Same for the byte ceiling.
+ *
+ * @returns {{ok: true, list: object[], replaced: boolean}
+ *          | {ok: false, reason: 'full'|'too-big'}}
+ */
+export function planTemplateSave(current, template) {
   const list = parseIndicatorTemplates(current)
   const want = String(template.name).toLowerCase()
   const without = list.filter((t) => t.name.toLowerCase() !== want && t.id !== template.id)
-  return [template, ...without].slice(0, MAX_INDICATOR_TEMPLATES)
+  const replaced = without.length < list.length
+  if (!replaced && list.length >= MAX_INDICATOR_TEMPLATES) return { ok: false, reason: 'full' }
+  const next = [template, ...without]
+  if (templatesByteSize(next) > MAX_INDICATOR_TEMPLATES_BYTES) return { ok: false, reason: 'too-big' }
+  return { ok: true, list: next, replaced }
+}
+
+/** The list with `template` saved at the front (see `planTemplateSave`); a save the
+ *  ceilings refuse leaves the list exactly as it was. */
+export function withTemplateSaved(current, template) {
+  const plan = planTemplateSave(current, template)
+  return plan.ok ? plan.list : parseIndicatorTemplates(current)
 }
 
 /** The list without the template whose id is `id`. */
@@ -311,10 +370,13 @@ export function withoutTemplate(current, id) {
 export function applySummary(name, result) {
   if (!result || !result.ok) return `Couldn’t apply “${name}”: the saved template is damaged.`
   const n = result.added.length
+  const k = result.already.length
   const parts = []
   if (n) parts.push(`Added ${n} indicator${n === 1 ? '' : 's'} from “${name}”.`)
-  else parts.push(`Everything in “${name}” is already on this chart.`)
-  if (n && result.already.length) parts.push(`${result.already.length} already on this chart.`)
+  else if (k && !result.unavailable.length) parts.push(`Everything in “${name}” is already on this chart.`)
+  else if (k) parts.push(`Nothing new to add from “${name}”.`)
+  else parts.push(`Nothing from “${name}” could be added.`)
+  if (k && (n || result.unavailable.length)) parts.push(`${k} already on this chart.`)
   if (result.unavailable.length) {
     const u = result.unavailable.map((x) => x.label).slice(0, 3).join(', ')
     parts.push(`${result.unavailable.length} no longer available (${u}).`)

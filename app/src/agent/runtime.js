@@ -179,7 +179,9 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   // Follow-up ops a kind asked for once its own change was confirmed (M3: the M2 adds after a
   // Save) — run by the orchestrator as SEPARATE executions, each with its own receipt and Undo.
   const followUps = landed.flatMap(it => it.followUps || [])
-  return { ok: true, lines, failed: [], undo, ...(followUps.length ? { followUps } : {}) }
+  // `created`: alias → the real ref each creator made (a DEFERRED step of the same request —
+  // e.g. opening a new list — is aimed at the real one).
+  return { ok: true, lines, failed: [], undo, created: { ...aliases }, ...(followUps.length ? { followUps } : {}) }
 }
 
 /** All-or-nothing: if ANY target changed since the Agent wrote it, nothing is restored. */

@@ -542,7 +542,7 @@ export const indicatorDraftsKind = {
           if (t && !chartTexts.has(t) && !lines.includes(t)) lines.push(t)
         }
         if (!op.addTo?.length) lines.push('It is not on a chart — ask me to add it to one.')
-        for (const c of op.addTo || []) followUps.push({ action: 'indicator.add', target: `ixe:${c}`, args: { defId: out.defId }, awaitDefinition: { defId: out.defId, version: out.version, name: out.name || name || null } })
+        for (const c of op.addTo || []) followUps.push({ action: 'indicator.add', target: `ixe:${c}`, args: { defId: out.defId, inputs: null }, awaitDefinition: { defId: out.defId, version: out.version, name: out.name || name || null } })
         if (op.addTo?.length) lines.push(`Next: adding it to ${op.addTo.length === 1 ? 'the chart' : `${op.addTo.length} charts`} — each gets its own receipt.`)
         undoData = null
       }

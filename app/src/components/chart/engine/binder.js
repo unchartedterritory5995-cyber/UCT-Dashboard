@@ -760,6 +760,28 @@ export function createBinder({ chart, LWC }) {
   /** instanceId → the live object layer for that indicator, if it draws any. */
   const objectLayers = new Map()
 
+  // ⭐⭐ P1 HARDENING (2026-10-11) — THE CHART MOVED, THE DRAWINGS FOLLOW.
+  // An object layer repaints only when its STATE changes (`objectLayer.js::set`);
+  // its `invalidate()` exists for exactly the other case ("the chart moved, the
+  // state did not") and nothing called it — so after a pan or a zoom with no new
+  // bars, every line, box and label stayed at its old pixels until the next sync.
+  // Subscribed once, the first time a layer exists, to the time scale's
+  // visible-range change; one coalesced paint per frame (`schedule`). Released by
+  // `teardown`, and taken again if this binder draws objects after one.
+  let unsubscribeObjectRange = null
+  const invalidateObjectLayers = () => {
+    for (const [, layer] of objectLayers) attempt(() => layer && layer.invalidate && layer.invalidate())
+  }
+  const ensureObjectRangeSubscription = () => {
+    if (unsubscribeObjectRange) return
+    attempt(() => {
+      const ts = chart && typeof chart.timeScale === 'function' ? chart.timeScale() : null
+      if (!ts || typeof ts.subscribeVisibleLogicalRangeChange !== 'function') return
+      ts.subscribeVisibleLogicalRangeChange(invalidateObjectLayers)
+      unsubscribeObjectRange = () => attempt(() => ts.unsubscribeVisibleLogicalRangeChange(invalidateObjectLayers))
+    })
+  }
+
   /** ⭐ B1 — `${instanceId}#${paintIndex}` → `{host, handle, sig}`: one background
    *  primitive per `bgcolor` paint, attached to a series in the script's pane. */
   const paintLayers = new Map()
@@ -953,6 +975,7 @@ export function createBinder({ chart, LWC }) {
   const syncObjects = (ctx, instances, bars, runCols = null) => {
     const make = ctx.createObjectLayer
     const alive = new Set()
+    if (typeof make === 'function') ensureObjectRangeSubscription()
     const theme = chartThemeOf(ctx.cs)
     for (const inst of instances) {
       if (!inst || typeof inst.instanceId !== 'string' || inst.hidden === true) continue
@@ -2520,5 +2543,11 @@ export function createBinder({ chart, LWC }) {
    *  `null` when its compute failed outright, `undefined` when it was not computed. */
   function columnErrorsOf(instanceId) { return lastColumnErrors.get(instanceId) }
 
-  return { sync, teardown: releaseAll, bindings, columnErrorsOf }
+  /** ⭐ P1 HARDENING — teardown also lets go of the chart's visible-range listener. */
+  function teardown() {
+    releaseAll()
+    if (unsubscribeObjectRange) { unsubscribeObjectRange(); unsubscribeObjectRange = null }
+  }
+
+  return { sync, teardown, bindings, columnErrorsOf }
 }

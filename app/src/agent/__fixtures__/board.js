@@ -26,8 +26,19 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
       const id = `w-${type}-${++n}`
       // handleAddWidget's unlinkedSymbol: born 'N' on that ticker (and init.tf).
       if (init?.symbol) state.groupSyms = { ...state.groupSyms, [`N:${id}`]: init.symbol }
-      state.widgets = [...state.widgets, { id, type, color: init?.symbol ? 'N' : 'A', opts: init?.tf ? { tf: init.tf } : {}, ...place }]
+      // handleAddWidget's seed opts: { opts } (a Watchlist widget born on its list) or { tf }.
+      state.widgets = [...state.widgets, { id, type, color: init?.symbol ? 'N' : 'A', opts: init?.opts ? { ...init.opts } : init?.tf ? { tf: init.tf } : {}, ...place }]
     },
+    // ChartsWorkspace's board writer (remove / set / restore), exactly as agentBoard.test's host does.
+    applyBoard: (p) => {
+      if (state.failApplyBoard) throw new Error('the board refused the write')
+      state.boardWrites = (state.boardWrites || 0) + 1
+      let ws = state.widgets.filter(w => !(p.remove || []).includes(w.id)).map(w => (p.set?.[w.id] ? { ...w, ...p.set[w.id] } : w))
+      for (const r of p.restore || []) if (!ws.some(w => w.id === r.id)) ws.push(r)
+      state.widgets = ws
+    },
+    grid: () => ({ cols: 24, rows: 20 }),
+    minOf: () => ({ minW: 2, minH: 3 }),
     remove: (id) => { state.widgets = state.widgets.filter(w => w.id !== id) },
     color: (id, color) => { state.widgets = state.widgets.map(w => (w.id === id ? { ...w, color } : w)) },
     cancelPending: () => {},

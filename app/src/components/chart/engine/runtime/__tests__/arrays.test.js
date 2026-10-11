@@ -189,12 +189,13 @@ describe('typed arrays in the runtime lane', () => {
       + 'plot(array.size(a) == 2 and na(array.get(a, 0)) ? 1 : 0)\n')).toEqual(all(1))
   })
 
-  it('…and REFUSED for bool and string, because that default is unmeasured', () => {
+  it('…and for bool and string the array is served, but READING its unmeasured fill stops by name', () => {
     // ⛔ What TradingView fills a sized `bool` or `string` array with has not
     // been measured on a chart, and a guess there is a wrong value in a
-    // member's table with nothing to catch it. Both acceptance scripts use the
-    // sized form only with <int>, so refusing it costs no coverage at all.
-    expect(() => runPine('a = array.new<string>(2)\nplot(array.size(a))\n'))
+    // member's table with nothing to catch it. ⭐ UIE PHASE 3 (M5) — so no guess is
+    // made: the elements hold `UNFILLED` (`collections.js`) and READING one stops.
+    expect(runPine('a = array.new<string>(2)\nplot(array.size(a))\n')).toEqual(all(2))
+    expect(() => runPine('a = array.new<string>(2)\nplot(str.length(array.get(a, 0)))\n'))
       .toThrow(/has not been measured/)
   })
 
@@ -211,11 +212,14 @@ describe('typed arrays in the runtime lane', () => {
     // different programs. Interning the op table by name alone gives the second
     // one the FIRST one's element type — found by a mutation run, and invisible
     // to every other case here because none used two types at once. The sized
-    // `<string>` form must still refuse even though a `<float>` one preceded it.
+    // `<string>` fill must still refuse its READ even though a `<float>` one preceded
+    // it, whose `na` fill is read freely.
+    expect(runPine('a = array.new<float>(1)\nb = array.new<string>(1)\n'
+      + 'plot(na(array.get(a, 0)) ? array.size(a) + array.size(b) : 0)\n')).toEqual(all(2))
     expect(() => runPine(
       'a = array.new<float>(1)\n'
       + 'b = array.new<string>(1)\n'
-      + 'plot(array.size(a) + array.size(b))\n')).toThrow(/has not been measured/)
+      + 'plot(str.length(array.get(b, 0)))\n')).toThrow(/has not been measured/)
   })
 
   it('CONTROL: a void call cannot be used as a VALUE', () => {

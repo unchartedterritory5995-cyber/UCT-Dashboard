@@ -72,6 +72,8 @@ COLUMNS = [
     "chg_pct_3m", "chg_pct_6m", "chg_pct_1y", "chg_pct_ytd",
     "chg_from_open_pct", "adr_pct_1w", "dist_20d_high_pct", "dist_20d_low_pct",
     "dist_ath_pct", "new_ath", "dollar_vol_30d",
+    # the newest session's traded dollars (UCT Agent ⇄ Screener parity, 2026-10-11)
+    "dollar_vol_1d",
     # momentum mechanics (Wave 1)
     "pole_pct", "vol_nweek_low", "vol_updown_ratio", "ema_touch_count",
     "ema10_rising", "ema20_rising", "ema_stack_intact", "candle_score",

@@ -398,6 +398,25 @@ export function _closeMismatch(a, b) {
   return Math.abs(ac - bc) / Math.abs(bc) > 0.02    // >2% at a shared CLOSED session = stale/wrong scale
 }
 
+/**
+ * Should a pack import KEEP the cached entry `cur` instead of writing pack entry `e`?
+ * Keep a current-version local entry at least as deep as the pack, unless the pack's tail
+ * disagrees with it, or (`replaceIfNewer`, the Breadth Pack) the pack's tail is newer or
+ * — (2026-10-11) — its per-series content hash differs (a corrected history inside the
+ * window with the same length and last bar). Exported for tests.
+ */
+export const _CACHE_LOGIC_VERSION = CACHE_LOGIC_VERSION
+
+export function _keepLocalOverPack(cur, e, replaceIfNewer = false) {
+  const bars = e?.bars || []
+  if (!cur || cur.v !== CACHE_LOGIC_VERSION) return false
+  const packNewer = replaceIfNewer && String(bars[bars.length - 1]?.t || '') > String(cur?.lastT || '')
+  const packDiffers = replaceIfNewer && !!e?.sha && cur?.sha !== e.sha
+  if (packNewer || packDiffers) return false
+  return (cur.bars?.length || 0) >= bars.length
+    && !_closeMismatch(_findRecentBarByT(cur.bars, bars[bars.length - 1]?.t), bars[bars.length - 1])
+}
+
 function _importBatch(db, batch, replaceIfNewer = false) {
   return new Promise((resolve) => {
     let written = 0, skipped = 0
@@ -429,10 +448,7 @@ function _importBatch(db, batch, replaceIfNewer = false) {
         // `replaceIfNewer` (the Breadth Pack): a deeper local entry whose tail is OLDER than the
         // pack's is replaced — breadth has no live tick to keep a cached tail current, so a deep
         // but stale entry would otherwise win forever and the instant paint would be refused.
-        const packNewer = replaceIfNewer && String(bars[bars.length - 1]?.t || '') > String(cur?.lastT || '')
-        if (cur && cur.v === CACHE_LOGIC_VERSION && !packNewer
-            && (cur.bars?.length || 0) >= bars.length
-            && !_closeMismatch(_findRecentBarByT(cur.bars, bars[bars.length - 1]?.t), bars[bars.length - 1])) {
+        if (_keepLocalOverPack(cur, e, replaceIfNewer)) {
           skipped++
           return
         }
@@ -442,6 +458,7 @@ function _importBatch(db, batch, replaceIfNewer = false) {
           lastT: bars[bars.length - 1]?.t,
           savedAt: Date.now(),
           v: CACHE_LOGIC_VERSION,
+          ...(e.sha ? { sha: e.sha } : {}),
         })
         written++
       }

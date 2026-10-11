@@ -861,12 +861,14 @@ def _build_breadth_series(sym: str, metric: str,
     # collector measured over the UCT universe, so merging it into a PIT universe's
     # series would splice two different populations into one line. A PIT universe is
     # its OHLC store and nothing else.
+    _build_state.issues = []
     history = []
     if universe == DEFAULT_UNIVERSE:
         try:
             history = breadth_monitor.get_history(want_daily)  # newest-first
-        except Exception:
+        except Exception as e:
             history = []
+            _build_state.issues.append(f"monitor history read failed: {type(e).__name__}")
 
     # Per-day OHLC store (trusted sources: 'live' intraday wicks + 'close_recon' deep
     # reconstructed history). This is where the DEEP history lives — recomputed close-basis
@@ -874,9 +876,13 @@ def _build_breadth_series(sym: str, metric: str,
     ohlc_map = {}
     try:
         from api.services import breadth_daily_ohlc
+        breadth_daily_ohlc.begin_read_check()
         ohlc_map = breadth_daily_ohlc.history(metric, universe=universe, with_source=True)
-    except Exception:
+        if breadth_daily_ohlc.read_failed():
+            _build_state.issues.append("breadth store read failed")
+    except Exception as e:
         ohlc_map = {}
+        _build_state.issues.append(f"breadth store read failed: {type(e).__name__}")
 
     # Merged close-per-day: the reconstructed/live store PLUS the collector's snapshots, with
     # the COLLECTOR winning on any shared date (its EOD value is authoritative for days it
@@ -903,8 +909,9 @@ def _build_breadth_series(sym: str, metric: str,
             auth = ba.chart_bars(metric, {r["date"]: _finite(r.get(metric)) for r in tail_rows},
                                  {r["date"]: _finite(r.get("adv_decline")) for r in tail_rows
                                   if r.get("_authority") == ba.PROVISIONAL})
-        except Exception:
+        except Exception as e:
             auth = None
+            _build_state.issues.append(f"V2 authority read failed: {type(e).__name__}")
         if auth is not None:
             # ⭐ (2026-10-10) a metric the V2 authority does not carry (the 20/150-day SMA family)
             # keeps the store's own rows after V2_START instead of ending there.
@@ -1107,6 +1114,37 @@ def _fill_derived_gaps(metric: str, closes_by_date: dict, ohlc_map: dict) -> Non
                 ohlc_map.pop(d, None)
 
 
+# ⭐ (2026-10-11) A BUILD THAT FAILED TO READ, OR CAME BACK MUCH SHORTER, IS NOT CACHED.
+# One swallowed read used to become a truncated series cached for 6 h AND persisted over the
+# good disk copy (surviving deploys). Now the previous series keeps serving, the build is
+# retried in `_REFUSE_RETRY_S`, and only after `_REFUSE_MAX_S` of refusals is the new build
+# accepted — with a #breadth-alerts message, so nothing is ever pinned silently.
+_build_state = threading.local()
+_REFUSE_RETRY_S = 300
+_REFUSE_MAX_S = 24 * 3600
+_refused_since: dict = {}
+
+
+def _shrank(prev: list, new: list) -> Optional[str]:
+    if not prev or not new:
+        return None
+    if new[0].get("t", "") > prev[0].get("t", ""):
+        return f"history now starts {new[0].get('t')} (was {prev[0].get('t')})"
+    if len(new) < len(prev) - max(5, len(prev) // 100):
+        return f"{len(new)} sessions (was {len(prev)})"
+    return None
+
+
+def _previous_series(sym: str) -> Optional[list]:
+    hit = _breadth_cache.get(_daily_key(sym))
+    if hit and hit.get("series"):
+        return hit["series"]
+    d = _disk_load(sym)
+    if d and d.get("series") and d.get("key") == _daily_key(sym):
+        return d["series"]
+    return None
+
+
 def _refresh_series(sym: str, metric: str,
                     universe: str = DEFAULT_UNIVERSE) -> list[dict]:
     """Recompute + cache the SEALED daily series for `sym`. Returns it ([] on failure).
@@ -1117,6 +1155,26 @@ def _refresh_series(sym: str, metric: str,
     except Exception as e:
         _log.warning("[breadth_symbols] series build failed %s: %s", sym, e)
         return []
+    issues = list(getattr(_build_state, "issues", None) or [])
+    prev = _previous_series(sym)
+    why = "; ".join(issues) or _shrank(prev, series)
+    if why and prev:
+        first = _refused_since.setdefault(sym, time.time())
+        if time.time() - first < _REFUSE_MAX_S:
+            _log.warning("[breadth_symbols] build refused %s (%s) — keeping the previous series",
+                         sym, why)
+            cache.set(_daily_key(sym), {"saved_at": time.time() - _SEALED_TTL + _REFUSE_RETRY_S,
+                                        "series": prev}, ttl=_SEALED_TTL)
+            return prev
+        _refused_since.pop(sym, None)
+        try:
+            from api.services import breadth_alerts
+            breadth_alerts.send(f"build_refused:{sym}", f"Breadth: {sym} rebuilt after 24 h of refusals",
+                                [why, "The new build was accepted; check this chart's history."])
+        except Exception:
+            pass
+    else:
+        _refused_since.pop(sym, None)
     # ⛔ AN EMPTY SERIES IS NOT A SEALED FACT — IT IS A FAILURE TO BUILD ONE, and it
     # must not be cached for six hours. `_build_breadth_series` returns `[]` both when
     # an identity genuinely has no history yet and when the STORE WAS NOT THERE TO
@@ -1323,6 +1381,83 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
 
 
 # ── Web-side warm loop (keeps the ~40 breadth series hot in the cache) ────────
+# ── Corrected history → a background rebuild (2026-10-11) ────────────────────
+#
+# ⛔ THE CACHE KEY DOES NOT SEE A STORE WRITE. A backfill or correction of past sessions
+# (recon sweeps, the put/call / AAII / NAAIM fills, a self-heal) stayed hidden behind a
+# fresh cached series for up to 6 h — UCTA20 once hid 187 days that way. Writers of PAST
+# dates mark (universe, metric) dirty; the warm loop rebuilds those charts in the
+# background (throttled) while the old copy keeps serving, so charts stay instant. Live
+# writes for TODAY never mark anything: they would rebuild the catalogue every minute.
+_dirty_lock = threading.Lock()
+_DIRTY_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "breadth_series_dirty.json")
+
+
+def _dirty_load() -> set:
+    try:
+        with open(_DIRTY_PATH) as fh:
+            return {tuple(x) for x in json.load(fh)}
+    except Exception:
+        return set()
+
+
+def _dirty_save(items: set) -> None:
+    if not _persist_on():
+        return
+    try:
+        tmp = _DIRTY_PATH + ".tmp"
+        with open(tmp, "w") as fh:
+            json.dump(sorted(items), fh)
+        os.replace(tmp, _DIRTY_PATH)
+    except Exception:
+        pass
+
+
+_DIRTY: set = set()
+
+
+def mark_dirty(universe: str, metrics) -> None:
+    u = (universe or DEFAULT_UNIVERSE).strip().lower()
+    with _dirty_lock:
+        if not _DIRTY:
+            _DIRTY.update(_dirty_load())
+        for m in (metrics or ["*"]):
+            if m and not str(m).startswith("_") and not str(m).endswith("_list"):
+                _DIRTY.add((u, str(m)))
+        _dirty_save(_DIRTY)
+
+
+def _take_dirty() -> set:
+    with _dirty_lock:
+        items = set(_DIRTY) | _dirty_load()
+        _DIRTY.clear()
+        _dirty_save(set())
+    return items
+
+
+def _is_dirty(dirty: set, universe: str, metric: str) -> bool:
+    return (universe, metric) in dirty or (universe, "*") in dirty
+
+
+def _rebuild_dirty_pit(dirty: set, stats: dict) -> None:
+    """The non-UCT charts a past write touched, rebuilt only when already warm."""
+    if not any(u != DEFAULT_UNIVERSE for u, _m in dirty):
+        return
+    try:
+        rows = published_symbol_rows()
+    except Exception:
+        return
+    for r in rows:
+        sym, metric, uni = r.get("symbol"), r.get("metric"), (r.get("universe") or "").lower()
+        if not sym or uni == DEFAULT_UNIVERSE or not _is_dirty(dirty, uni, metric):
+            continue
+        if _breadth_cache.get(_daily_key(sym)) is None:
+            continue                   # cold: its first request builds it fresh anyway
+        _refresh_series(sym, metric, uni)
+        stats["dirty"] = stats.get("dirty", 0) + 1
+        time.sleep(_WARM_GAP)
+
+
 def warm_breadth() -> dict:
     """Warm each breadth symbol's SEALED daily series so the first request after a deploy
     is a cache hit. CONVERGES: a symbol is rebuilt only when its cache is missing/expired
@@ -1354,10 +1489,13 @@ def warm_breadth() -> dict:
 
     stats = {"refreshed": 0, "fresh": 0}
     now = time.time()
+    dirty = _take_dirty()
     for sym, metric in _METRIC_OF.items():
         hit = cache.get(_daily_key(sym))
         fresh = bool(hit and hit.get("series") is not None
                      and now - hit.get("saved_at", 0) <= _SEALED_TTL)
+        if fresh and _is_dirty(dirty, DEFAULT_UNIVERSE, metric):
+            fresh = False              # a past session changed under it
         up_to_date = True
         if fresh and latest:
             ser = hit["series"]
@@ -1373,6 +1511,7 @@ def warm_breadth() -> dict:
         _refresh_series(sym, metric)
         stats["refreshed"] += 1
         time.sleep(_WARM_GAP)   # yield between cold builds — gentle on the single pod
+    _rebuild_dirty_pit(dirty, stats)
     pit = _warm_published_pit(cache, stats)
     if pit:
         stats["pit"] = pit

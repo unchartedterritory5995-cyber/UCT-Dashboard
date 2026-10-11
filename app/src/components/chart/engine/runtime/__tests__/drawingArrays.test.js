@@ -155,8 +155,10 @@ describe('⭐ the zero-size fix is general, not a drawing special case', () => {
     expect(run('var a = array.new_string(0)\nplot(array.size(a))')).toEqual([0, 0, 0])
   })
 
-  it('⛔ CONTROL: a NON-zero `array.new_bool(2)` still refuses, unchanged', () => {
-    expect(() => run('var a = array.new_bool(2)\nplot(array.size(a))'))
+  it('⛔ CONTROL: a NON-zero `array.new_bool(2)` still refuses READING its unmeasured fill', () => {
+    // ⭐ UIE PHASE 3 (M5) — the array is served; the read of its fill is what stops
+    expect(run('var a = array.new_bool(2)\nplot(array.size(a))')).toEqual([2, 2, 2])
+    expect(() => run('var a = array.new_bool(2)\nplot(array.get(a, 1) ? 1 : 0)'))
       .toThrow(/has not been measured/)
   })
 })

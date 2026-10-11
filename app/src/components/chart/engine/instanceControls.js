@@ -132,6 +132,48 @@ function stackOrderRank(registry) {
   return new Map(ordered.map((id, i) => [id, i]))
 }
 
+/** ⭐ AGENT PHASE 2.5 SEAM — a declared input as a caller outside the dialog reads it (the
+ *  Agent's catalog, a `bad-input` refusal): key, label, type, default, bounds and options,
+ *  plain JSON. Read off the definition's own `inputs` — no second schema. */
+export function inputSpecOf(spec) {
+  if (!spec || typeof spec.key !== 'string') return null
+  const optionValue = (o) => (Array.isArray(o) ? o[0] : (o && typeof o === 'object' && 'value' in o ? o.value : o))
+  const optionLabel = (o) => (Array.isArray(o) ? o[1] : (o && typeof o === 'object' && 'label' in o ? o.label : String(o)))
+  return {
+    key: spec.key, type: spec.type, label: spec.label || spec.key, default: spec.default,
+    ...(Number.isFinite(spec.min) ? { min: spec.min } : {}), ...(Number.isFinite(spec.max) ? { max: spec.max } : {}),
+    ...(Number.isFinite(spec.step) ? { step: spec.step } : {}),
+    ...(Array.isArray(spec.options) ? { options: spec.options.map((o) => ({ value: optionValue(o), label: optionLabel(o) })) } : {}),
+  }
+}
+
+/**
+ * ⭐ AGENT PHASE 2.5 SEAM — THE ONE ANSWER TO "MAY THIS INPUT TAKE THIS VALUE?", WITH WHY.
+ *
+ * `setInstanceInput` (the settings dialog's writer) asks exactly this and writes only on
+ * `ok`; it used to ask it inline and answer a refusal by returning the settings
+ * unchanged, which a caller that must REFUSE BY NAME (`agentMutations.add` with
+ * `inputs`) could not explain. Same three steps, in the same order, now shared: the key
+ * is declared by the definition, the value coerces to its declared type
+ * (`coerce`: "7" for an int is 7, 7.5 is not), and the definition's own bounds/options
+ * admit it (`defSchema.validateInputValue`).
+ * @returns {{ok: true, value: any} | {ok: false, why: string, spec: object|null}}
+ *   `spec` is the declared input (key, type, min/max/step, options) for the sentence.
+ */
+export function checkInstanceInput(def, key, value) {
+  if (!def) return { ok: false, why: 'unknown indicator', spec: null }
+  const declared = declaredInputs(def).get(key)
+  if (!declared) return { ok: false, why: `${(def.meta && def.meta.name) || def.id} has no setting "${key}"`, spec: null }
+  const coerced = coerce(declared, value)
+  if (coerced === undefined) {
+    return { ok: false, why: `"${key}" takes ${declared.type === 'int' ? 'a whole number' : declared.type === 'float' ? 'a number' : declared.type === 'bool' ? 'true or false' : 'text'}, not ${JSON.stringify(value)}`, spec: declared }
+  }
+  const errors = []
+  validateInputValue(declared, coerced, `inputs.${key}`, errors)
+  if (errors.length) return { ok: false, why: errors[0], spec: declared }
+  return { ok: true, value: coerced }
+}
+
 /** The declared inputs a definition has, keyed. */
 function declaredInputs(def) {
   return new Map((def.inputs || []).filter(i => i && typeof i.key === 'string').map(i => [i.key, i]))
@@ -425,13 +467,9 @@ export function setInstanceInput(cs, instanceId, key, value, registry) {
   if (!inst) return cs
   const def = resolveRegistry(registry)(inst.defId)
   if (!def) return cs
-  const declared = declaredInputs(def).get(key)
-  if (!declared) return cs
-  const coerced = coerce(declared, value)
-  if (coerced === undefined) return cs
-  const errors = []
-  validateInputValue(declared, coerced, `inputs.${key}`, errors)
-  if (errors.length) return cs
+  const checked = checkInstanceInput(def, key, value)
+  if (!checked.ok) return cs
+  const coerced = checked.value
 
   const next = cs.indicatorInstances.map(i => (
     i && i.instanceId === instanceId ? { ...i, inputs: { ...(i.inputs || {}), [key]: coerced } } : i

@@ -71,6 +71,8 @@ def env(tmp_path, monkeypatch):
     # The extras reach Cboe, yfinance and CNN (network) — off here; railed in the
     # extras cases below and in tests/test_breadth_eod_extras.py.
     monkeypatch.setattr(eod, "extras_for", lambda d, t, c=None: {})
+    from api.services import breadth_eod_extras as _bee
+    monkeypatch.setattr(_bee, "market_phase_for", lambda d: None)
     monkeypatch.setattr(bm, "_db_path", lambda: str(tmp_path / "bm.db"))
     monkeypatch.setenv("BREADTH_EOD_SHADOW_DB", str(tmp_path / "shadow.db"))
     import api.services.cache as cache_mod
@@ -743,3 +745,14 @@ def test_a_late_collector_push_overrides_a_gap_filled_carried_key(env, monkeypat
     assert merged["cnn_fear_greed"] == 31.2, "the collector's value stands for a carried key"
     assert merged["spy_dist_days"] == 4, "a server-matched key keeps the server's value"
     assert merged["aaii_spread"] == -4.0
+
+def test_the_server_row_fills_market_phase_only_when_missing(env, monkeypatch):
+    from api.services import breadth_eod_extras as bee
+    monkeypatch.setenv("BREADTH_EOD_SOURCE", "server")
+    monkeypatch.setenv("BREADTH_EOD_SERVER_FROM", env.last)
+    monkeypatch.setattr(bee, "market_phase_for", lambda d: "Uptrend")
+    assert eod.write_server_row(env.last)["status"] == "written"     # no collector row
+    assert bm.raw_row(env.last)["market_phase"] == "Uptrend"
+    res = eod.compute(env.last)
+    row = eod.build_server_row(res, {"market_phase": "Pullback"})
+    assert row["market_phase"] == "Pullback"                           # the collector's kept

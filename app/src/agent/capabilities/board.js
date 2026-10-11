@@ -15,10 +15,18 @@
 // no overlap). Undo restores the exact widgets touched (a removed widget comes back with its
 // id, geometry, link colour, settings and tabs) and refuses if any of them changed since.
 //
+//   • watchlist.open = the product's ?openWatchlist= door (ChartsWorkspace): the board's first
+//                      Watchlist widget is pointed at the list through its own opts; with none,
+//                      ONE Watchlist widget is added carrying the list (handleAddWidget's seed
+//                      opts) — only into empty space, never resizing anything. Undo puts the
+//                      old list back, or closes the widget it added.
+//
 // ⛔ Not here: floating / popping out / merging widgets (not persisted on the board), widget
-// TABS (WidgetHost reducers), adding widgets (widget.add), and the extra link groups E–H.
+// TABS (WidgetHost reducers), adding widgets in general (widget.add), and the extra link groups E–H.
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
+import { afterRender } from '../frames'
+import { lastCreatedList, resolveListByName } from './watchlist'
 import { labelMap } from '../../widgets/registry'
 import { boardProblems, fillGaps, tileWidgets, ARRANGE_PATTERNS } from '../../pages/charts/placement/arrange'
 import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups } from '../../pages/charts/colorGroups'
@@ -55,7 +63,7 @@ function snapOf(host) {
   // (host `visible`) leaves them out. Nothing here may re-tile or edit one it cannot see.
   const onGrid = new Set((s.visible || s.raw).map(w => String(w.id)))
   const detached = s.raw.filter(w => !onGrid.has(String(w.id))).map(w => String(w.id))
-  return { ref: 'board', label: 'Board', raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists, detached }
+  return { ref: 'board', label: 'Board', raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists, detached, fitsWatchlist: s.fits?.watchlist === true }
 }
 const nameOf = (w, all) => {
   const pos = positionWord(w, all)
@@ -70,7 +78,7 @@ export const boardKind = {
   name: 'board',
   list: (host) => { const s = snapOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'board' ? snapOf(host) : null),
-  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [] }),
+  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [] }),
   patch(before, after) {
     const removed = before.board.filter(w => !after.board.some(x => x.id === w.id)).map(w => w.id)
     const set = {}
@@ -85,14 +93,36 @@ export const boardKind = {
     if (removed.length) p.remove = removed
     if (Object.keys(set).length) p.set = set
     if (!same(before.layoutTheme, after.layoutTheme)) p.layoutTheme = after.layoutTheme
+    // A NEW widget (watchlist.open with none on the board): added through handleAddWidget, alone.
+    if ((after.adds || []).length) return { add: clone(after.adds) }
     return Object.keys(p).length ? p : null
   },
   async commit(host, ref, patch) {
+    if (patch.add) {
+      const added = []
+      for (const a of patch.add) {
+        const known = new Set(host.widgets.snapshot().widgets.map(w => w.id))
+        host.widgets.add(a.type, null, { opts: a.opts })
+        let fresh = null
+        const t0 = Date.now()
+        while (!fresh && Date.now() - t0 < 5000) {
+          await afterRender()
+          fresh = host.widgets.snapshot().widgets.find(w => !known.has(w.id) && w.type === a.type) || null
+        }
+        if (!fresh) {
+          host.widgets.cancelPending?.()
+          throw new Error('the new Watchlist widget did not appear')
+        }
+        added.push(fresh.id)
+      }
+      return { undoData: { added } }
+    }
     host.widgets.applyBoard(patch)
     return true
   },
   landed(snap, patch) {
     if (!snap) return false
+    if (patch.add) return patch.add.every(a => snap.raw.some(w => w.type === a.type && same(w.opts?.watchKey, a.opts?.watchKey)))
     const by = new Map(snap.raw.map(w => [w.id, w]))
     if ((patch.remove || []).some(id => by.has(id))) return false
     if ((patch.restore || []).some(w => !by.has(w.id))) return false
@@ -108,6 +138,8 @@ export const boardKind = {
   undoPatch(item) {
     const before = item.before?.raw || []           // the target's snapshot before the commit
     const p = item.patch || {}
+    // A widget this change ADDED: Undo removes exactly it (the board writer's remove).
+    if (p.add) return item.undoData?.added?.length ? { remove: [...item.undoData.added] } : null
     const out = {}
     const restore = before.filter(w => (p.remove || []).includes(w.id))
     if (restore.length) out.restore = clone(restore)
@@ -126,7 +158,7 @@ export const boardKind = {
   // Undo is stale only if a widget THIS change touched has changed since (or a removed one is back).
   fingerprintFor(host, s, item) {
     const p = item.patch || {}
-    const ids = [...new Set([...(p.remove || []), ...Object.keys(p.set || {}), ...(p.restore || []).map(w => w.id)])]
+    const ids = [...new Set([...(p.remove || []), ...Object.keys(p.set || {}), ...(p.restore || []).map(w => w.id), ...(p.add ? item.undoData?.added || [] : [])])]
     return JSON.stringify(ids.map(id => {
       const w = s.raw.find(x => x.id === id)
       return w ? [id, ...FIELDS.map(f => JSON.stringify(w[f] ?? null))] : [id, 'gone']
@@ -407,6 +439,63 @@ export function registerBoardCapabilities() {
       return o && n && !same(o.opts, n.opts) ? `The ${nameOf(o, b.board)} now shows “${n.opts.watchName}”` : null
     },
     noop: () => 'It already shows that list',
+  })
+
+  // ── watchlist.open: "open it in my workspace" (the product's ?openWatchlist= door) ──
+  // Which widget: the board's first Watchlist widget the member could switch themselves (not one
+  // showing a UCT-chosen or followed list, not floating). None → ONE new Watchlist widget, only
+  // into empty space. DEFERRED: in a request that also creates / fills the list it runs AFTER
+  // those land, as its own step with its own receipt and Undo — if it can't open the list, the
+  // list it just made is kept and the member is told exactly that.
+  const switchable = (st, env) => st.board.find(w => w.type === 'watchlist' && !w.opts?.source && !w.opts?.listSub
+    && !(env?.target?.detached || []).includes(String(w.id))) || null
+  const listName = (list, env) => env?.target?.lists?.get(String(list)) || env?.pendingLists?.[String(list)] || null
+  const OPEN_VERB = '(?:open|load|pull up|bring up|put|show)'
+  const WHERE = '(?: (?:in|on|into|onto) (?:my|the|this) (?:workspace|board|charts?|watch ?list widget))?'
+  reg({
+    ...common,
+    name: 'watchlist.open',
+    deferred: true,
+    summary: 'Open one of the member\'s watchlists in their workspace: the Watchlist widget on this board shows it (with none, a Watchlist widget is added in empty space). Use for "open it / show it in my workspace".',
+    hints: 'target = the ref of the board entry; list = the ref of the watchlist, or the "as" name of a list created earlier in this request (it opens after that list is created and filled).',
+    args: { type: 'object', properties: { list: { type: 'string' } }, required: ['list'], additionalProperties: false },
+    argRefs: { list: 'watchlist' },
+    fastWhole: true,
+    fast: ({ lower, host }) => {
+      if (!host?.watchlists) return null
+      if (new RegExp(`^(?:please )?${OPEN_VERB}(?: me)? (?:the |my |that )?(?:new )?(?:watch ?list|list) (?:you|i) just (?:made|created|built|set up)${WHERE}$`).test(lower)) {
+        const l = lastCreatedList()
+        return l ? { list: l.id } : null
+      }
+      const m = new RegExp(`^(?:please )?${OPEN_VERB} (?:my |the )?(.+?) (?:watch ?list|list)${WHERE}$`).exec(lower)
+        || new RegExp(`^(?:please )?${OPEN_VERB} (?:my |the )?(.+?) (?:in|on|into|onto) (?:my|the|this) (?:workspace|board)$`).exec(lower)
+        // "open Software Over $10" — the list's EXACT name (a layout or page of the same name also
+        // claims the phrase, and an ambiguous phrase goes to the model: fastPath takes one hit only)
+        || /^(?:please )?(?:open|load|pull up|bring up) (?:my |the )?(.+)$/.exec(lower)
+      if (!m) return null
+      const l = resolveListByName(host, m[1])
+      return l ? { list: l.id } : null
+    },
+    check(st, { list }, env) {
+      if (!listName(list, env)) return 'That isn\'t one of your watchlists.'
+      if (!switchable(st, env) && !env?.target?.fitsWatchlist) {
+        return 'There\'s no Watchlist widget on this board and no empty space for one — add a Watchlist widget (Widgets ▾) or make room, then ask me to open the list.'
+      }
+      return null
+    },
+    apply(st, { list }, env) {
+      const name = listName(list, env)
+      const key = `user:${list}`
+      const w = switchable(st, env)
+      if (w) {
+        if (w.opts?.watchKey === key) return st
+        const opts = { ...(w.opts || {}), watchKey: key, watchName: name, watchTab: 'mine' }
+        return { ...st, board: st.board.map(x => (x.id === w.id ? { ...x, opts } : x)), opened: { name, where: `the ${nameOf(w, st.board)}` } }
+      }
+      return { ...st, adds: [...(st.adds || []), { type: 'watchlist', opts: { watchKey: key, watchName: name, watchTab: 'mine' } }], opened: { name, where: 'a new Watchlist widget' } }
+    },
+    describe: (b, a) => (a.opened && a.opened !== b.opened ? `Opened “${a.opened.name}” in ${a.opened.where}` : null),
+    noop: (st, _a, { list }, env) => `“${listName(list, env) || 'That list'}” is already open in your Watchlist widget`,
   })
 
   reg({

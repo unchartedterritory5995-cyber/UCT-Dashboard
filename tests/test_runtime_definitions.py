@@ -246,19 +246,84 @@ def test_an_alert_cannot_bind_a_runtime_row(store, monkeypatch):
 
 # ─── one repaint class, two languages (RT2) ──────────────────────────────────
 
-def test_a_repainting_script_is_STORED_with_its_class_not_refused(store, monkeypatch):
-    """RT1 refused every source mentioning the live bar; RT2 states its class.
-    A script reading `barstate.islast` is stored as `preview-repaints`, one reading
-    `last_bar_index` as `repaints` — re-derived from the source, never read off it."""
+def test_a_repainting_script_is_admitted_exactly_as_the_formula_lane_admits_it(store, monkeypatch):
+    """RT1 refused every source mentioning the live bar; RT2 states its class, re-derived
+    from the source, never read off it. ⭐ P1 HARDENING (2026-10-11): and the class is now
+    ADMITTED by the formula lane's rule (`_admit_new_maths`) — RT2 stored both scripts
+    below unconditionally, which the formula lane never does. A `preview-repaints` script
+    is stored only with the author's acknowledgement; a `repaints` one is not stored."""
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     d = runtime_defn(SOURCE + "plot(barstate.islast ? close : na)\n")
     d["meta"]["repaint"] = "preview-repaints"
     d["plots"][0]["forward"] = 1
-    assert svc.save(USER, DEF_ID, d)["repaint"] == {"value": "preview-repaints"}
+    with pytest.raises(svc.SaveRefused) as no_ack:
+        svc.save(USER, DEF_ID, d)
+    assert (no_ack.value.gate, no_ack.value.mode) == ("repaint-ack", "preview-repaints")
+    assert svc.get(USER, DEF_ID) is None                       # nothing was written
+    assert svc.save(USER, DEF_ID, d, repaint_acknowledged=True)["repaint"] == {"value": "preview-repaints"}
     d2 = runtime_defn(SOURCE + "plot(last_bar_index > 0 ? close : na)\n", def_id="u_0000000000a2")
     d2["meta"]["repaint"] = "repaints"
     d2["plots"][0]["forward"] = "unbounded"
-    assert svc.save(USER, "u_0000000000a2", d2)["repaint"] == {"value": "repaints"}
+    with pytest.raises(svc.SaveRefused) as refused:
+        svc.save(USER, "u_0000000000a2", d2, repaint_acknowledged=True)
+    assert (refused.value.gate, refused.value.mode) == ("repaint", "repaints")
+    assert svc.get(USER, "u_0000000000a2") is None
+
+
+def test_runtime_admission_judges_new_maths_only_as_the_formula_lane_does(store, monkeypatch):
+    """⭐ P1 HARDENING — the formula lane's two exemptions, held for the runtime lane:
+    an UNCHANGED source re-saved (a rename) is not re-judged, a copy of a stored row
+    (`_copy_of_stored`: share install / fork) is not re-judged — and a CHANGED source is."""
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    d = runtime_defn(SOURCE + "plot(barstate.islast ? close : na)\n")
+    d["meta"]["repaint"] = "preview-repaints"
+    d["plots"][0]["forward"] = 1
+    first = svc.save(USER, DEF_ID, d, repaint_acknowledged=True)
+    renamed = json.loads(json.dumps(d))
+    renamed["meta"]["name"] = "Renamed, same script"
+    again = svc.save(USER, DEF_ID, renamed)                    # no ack: same maths, not re-judged
+    assert again["version"] == first["version"] + 1 and again["rev_bumped"] is False
+    edited = json.loads(json.dumps(renamed))
+    edited["compute"]["source"] = SOURCE + "plot(barstate.islast ? open : na)\n"
+    with pytest.raises(svc.SaveRefused):
+        svc.save(USER, DEF_ID, edited)                         # new maths, no ack: refused
+    copy = runtime_defn(SOURCE + "plot(barstate.islast ? close : na)\n", def_id="u_0000000000c9")
+    copy["meta"]["repaint"] = "preview-repaints"
+    copy["plots"][0]["forward"] = 1
+    copied = svc.save(USER, "u_0000000000c9", copy, _copy_of_stored=True)   # no ack: a stored row's copy
+    assert copied["appended"] is True
+
+
+def test_a_runtime_document_is_never_saved_over_a_live_formula(store, monkeypatch):
+    """⭐ P1 HARDENING — no silent lane switch: a runtime document over a LIVE formula
+    under the same id bumped `rev` with no alert migration, orphaning any alert bound
+    to the formula's tree. Refused, nothing written; over a DELETED formula it saves."""
+    from tests.test_user_definitions import defn as formula_defn
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    fid = "u_0000000000f1"
+    svc.save(USER, fid, formula_defn(20, def_id=fid))
+    before = svc.get(USER, fid)
+    with pytest.raises(ValueError, match="a formula is stored under this id"):
+        svc.save(USER, fid, runtime_defn(def_id=fid))
+    assert svc.get(USER, fid) == before                         # the formula is unchanged
+    svc.soft_delete(USER, fid)
+    assert svc.save(USER, fid, runtime_defn(def_id=fid))["appended"] is True
+
+
+def test_a_runtime_document_naming_another_language_is_refused(store, monkeypatch):
+    """⭐ P1 HARDENING — `meta.runtimeLanguage` (stamped by the member door) is read by
+    the store: every reader here reads PINE, so another language is refused by name.
+    A document with no stamp (minted before it) is Pine, and saves as it always did."""
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    d = runtime_defn()
+    d["meta"]["runtimeLanguage"] = "thinkscript"
+    with pytest.raises(ValueError, match="runtimeLanguage"):
+        svc.save(USER, DEF_ID, d)
+    stamped = runtime_defn()
+    stamped["meta"].update({"runtimeLanguage": "pine", "runtimeFrontend": 1, "runtimeIr": 1,
+                            "runtimeOutputSignature": ["plot:Sum"]})
+    assert svc.save(USER, DEF_ID, stamped)["appended"] is True
+    assert svc.save(USER, "u_0000000000a3", runtime_defn(def_id="u_0000000000a3"))["appended"] is True
 
 
 def test_the_old_regex_gate_is_gone_on_both_sides():

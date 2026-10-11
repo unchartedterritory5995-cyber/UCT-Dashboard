@@ -3,7 +3,7 @@
 //     cd app && npx vitest run src/pages/optionsFlow/flowRecentWindow.test.jsx
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { fetchSearchProduct, searchWindowOf } from './flowRecentWindow'
+import { fetchSearchProduct, searchWindowOf, searchStaleOf } from './flowRecentWindow'
 import FlowRecentWindowNote from './FlowRecentWindowNote'
 
 function response(body, headers) {
@@ -65,5 +65,37 @@ describe('FlowRecentWindowNote', () => {
     expect(container.innerHTML).toBe('')
     rerender(<FlowRecentWindowNote sym="NVDA" searchFull={null} />)
     expect(container.innerHTML).toBe('')
+  })
+})
+
+// 2026-10-11 pre-open review: a head ticker that printed is served its LAST full build for up to
+// 15 min (`X-Flow-Cache: stale-full` + `X-Flow-Basis-As-Of`). The server labels it; the page must.
+const staleFull = () => response(
+  { ok: true, schema: 1, sym: 'NVDA', source: 'stocks', version: 'v8', product: product() },
+  { 'X-Flow-Version': 'v8', 'X-Flow-Cache': 'stale-full', 'X-Flow-Basis-As-Of': '1791300000' },
+)
+
+describe('a stale full product is labelled with when it was built', () => {
+  it('is accepted and remembered with its as-of time against the exact product', async () => {
+    const got = await fetchSearchProduct('NVDA', 'stocks', { fetchImpl: async () => staleFull() })
+    expect(got.ok).toBe(true)
+    expect(searchWindowOf(got.product)).toBe(null)
+    expect(searchStaleOf(got.product)).toEqual({ asOf: 1791300000 })
+    expect(searchStaleOf({ ...got.product })).toBe(null)
+  })
+
+  it('a fresh full answer carries no as-of, even if a basis header is present', async () => {
+    const fresh = response({ ok: true, schema: 1, sym: 'NVDA', source: 'stocks', version: 'v9', product: product() },
+      { 'X-Flow-Version': 'v9', 'X-Flow-Cache': 'hit' })
+    const got = await fetchSearchProduct('NVDA', 'stocks', { fetchImpl: async () => fresh })
+    expect(searchStaleOf(got.product)).toBe(null)
+  })
+
+  it('the note says the history is as of the build time, in ET', async () => {
+    const got = await fetchSearchProduct('NVDA', 'stocks', { fetchImpl: async () => staleFull() })
+    render(<FlowRecentWindowNote sym="NVDA" searchFull={{ sym: 'NVDA', data: got.product }} />)
+    const note = screen.getByTestId('flow-stale-full-note')
+    expect(note.textContent).toMatch(/Full history as of \d{1,2}:\d{2}\s?[AP]M ET/)
+    expect(note.textContent).toContain('newer prints')
   })
 })

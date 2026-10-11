@@ -43,6 +43,7 @@
 // always read — none of them can resolve another member's `u_…` id anyway.
 
 import { TECH_CATEGORY } from './technicalCategories'
+import { inputSpecOf } from './engine/instanceControls'
 import * as defaultRegistry from './engine/nativeRegistry'
 import { CHART_DEFAULTS } from './chartDefaults'
 import { definitionRollUp, repaintNotices } from './engine/repaintVerdict'
@@ -209,6 +210,9 @@ function rowFor(def, userDefined = false) {
     userDefined,
     description: meta.description || '',
     tags: Array.isArray(meta.tags) ? meta.tags : [],
+    // ⭐ AGENT PHASE 2.5 — the definition's own declared inputs (key, type, default, bounds,
+    // options), so a caller can map "20 EMA" onto real settings without guessing
+    inputs: (Array.isArray(def.inputs) ? def.inputs : []).map(inputSpecOf).filter(Boolean),
     // ── what the library dialog badges ───────────────────────────────────────
     // `repaint` and `tier` come straight off the definition; a definition that
     // declares neither gets no badge rather than a default one, because "free"

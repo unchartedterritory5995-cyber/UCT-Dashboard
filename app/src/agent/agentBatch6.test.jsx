@@ -90,6 +90,9 @@ describe('chart.applyTemplate / chart.resetDefaults — the product\'s own whole
     expect(after.indicatorInstances).toEqual(tpl.settings.indicatorInstances)
     expect(after).toMatchObject({ chartType: 'bars', grid: { color: '#111111', visible: false }, preset: 'custom' })
     expect(p.lines[0]).toMatch(/its look and its indicators/)
+    // pre-arm review: the proposal the member confirms says in plain words that the
+    // indicators on THIS chart go — "its indicators" alone reads as additive
+    expect(p.lines[0]).toMatch(/the indicators on this chart now are replaced by the template’s/)
     const res = await commitPlan(host, p, { env })
     expect(host.st.stored.indicatorInstances).toEqual(tpl.settings.indicatorInstances)
     expect((await undoEntry(host, res.undo)).ok).toBe(true)

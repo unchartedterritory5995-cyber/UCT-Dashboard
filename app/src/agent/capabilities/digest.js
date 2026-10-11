@@ -69,6 +69,7 @@ export function registerDigestCapabilities() {
   registerTargetKind(digestKind)
   registerContextProvider({
     key: 'watchlistDigest',
+    refreshGroup: 'settings',
     refresh: () => loadDigest(),
     build: (host, refFor) => [{ ref: refFor('digest', 'digest'), label: 'Watchlist email digest', setting: cache.freq == null ? 'unknown' : label(cache.freq) }],
   })

@@ -233,7 +233,7 @@ export function createObjectLayer(host) {
     if (ctx.setTransform) ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     if (ctx.clearRect) ctx.clearRect(0, 0, w, h)
     stats = paintObjects(ctx, state, {
-      timeToX: map.timeToX, priceToY: map.priceToY, width: w, height: h,
+      timeToX: map.timeToX, priceToY: map.priceToY, width: w, height: h, rightInset: map.rightInset,
     })
     if (canvas.setAttribute) {
       const sum = (o) => Object.values(o || {}).reduce((a, b) => a + b, 0)

@@ -1,0 +1,24 @@
+//@version=4
+study("UCTPROBE_VW_UIE3_NA_INDEX_V4", overlay = false)
+
+// ─── 2026-10-11 — UIE Phase 3 (M5): what v4 does with an `na` in an array index (Q-UIE3a) ─
+//
+// linear-regression-channel (LonesomeTheBlue, v4) runs, on EVERY bar including the first
+// ones where its `slope` is still `na`:
+//     color = array.get(colors, round(max(sign(slope), 0)))
+// TradingView draws the script, so on those bars either `max(na, 0)` is not `na`, or
+// `array.get(a, na)` does not stop the script. Neither is captured. Rows:
+//   N00  bar_index                                   control
+//   N01  max(na, 0)                                  na | 0
+//   N02  round(max(sign(na), 0))                     na | 0
+//   N03  array.get(array.from(10, 20), round(max(sign(na), 0)))
+//                                                    10 (index read as 0) | na | a runtime error
+// ⛔ CAPTURE: AMEX:SPY 1D, >= 200 bars, no inputs. A runtime error is itself a reading:
+// record the message, comment N03 out, re-add the study, capture N00-N02.
+
+float nothing = na
+plot(bar_index, "N00_bar_index_CONTROL")
+plot(max(nothing, 0), "N01_max_na_0")
+plot(round(max(sign(nothing), 0)), "N02_round_max_sign_na")
+a = array.from(10, 20)
+plot(array.get(a, round(max(sign(nothing), 0))), "N03_get_at_that_index")

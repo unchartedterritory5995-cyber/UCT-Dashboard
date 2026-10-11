@@ -271,3 +271,13 @@ def test_override_history_adds_sessions_settled_after_the_stored_tail(tmpdata, m
     out = nhi.override_history("net_new_high_low", "nyse", hist)
     assert out["2026-10-07"]["c"] == -101 and out["2026-10-08"]["c"] == -81
     assert nhi.override_history("advancing", "nyse", hist) is hist      # other metrics: unchanged
+
+
+def test_the_series_identity_ignores_updated_at():
+    """(2026-10-10) an extend run that changes no row must not change the token — it is
+    folded into every breadth cache key, and a churning token rebuilt the catalogue."""
+    a = {"version": "v", "rows": {"us": {"2026-10-09": [1, 2]}}, "updated_at": "2026-10-10T01:00:00Z"}
+    b = dict(a, updated_at="2026-10-10T22:35:00Z", through="2026-10-09")
+    assert nhi.content_sha(a) == nhi.content_sha(b)
+    c = dict(a, rows={"us": {"2026-10-09": [1, 3]}})
+    assert nhi.content_sha(a) != nhi.content_sha(c)

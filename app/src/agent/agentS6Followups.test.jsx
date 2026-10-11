@@ -117,7 +117,7 @@ describe('F4 — a new chart for a named ticker is born on it, not linked', () =
 })
 
 // ── F5 ─────────────────────────────────────────────────────────────────────────────
-const ADD = (b, pos, defId = 'rsi') => ({ action: 'indicator.add', target: b.context.indicatorEdits.find(e => e.position === pos).ref, args: { defId } })
+const ADD = (b, pos, defId = 'rsi') => ({ action: 'indicator.add', target: b.context.indicatorEdits.find(e => e.position === pos).ref, args: { defId, inputs: null } })
 describe('F5 — "add this indicator to both charts": one proposal, then each chart on its own (M2 adds, own receipts + Undo)', () => {
   it('proposed once naming both charts; Apply adds to each separately; Undo removes ONE and leaves the other', async () => {
     const { state, say } = mount([W('L', 0, 'left'), W('R', 8, 'right')], { 'N:L': 'NVDA', 'N:R': 'AAPL' })
@@ -167,7 +167,7 @@ describe('F5 — "add this indicator to both charts": one proposal, then each ch
   it('unambiguous targets: "both" on a 3-chart board with the charts unnamed → asks which two; named → fine; "all" = every chart', () => {
     const board = makeBoard([W('L', 0, 'left'), W('M', 8, 'middle'), W('R', 16, 'right')], { 'N:L': 'NVDA', 'N:M': 'MSFT', 'N:R': 'AAPL' })
     const h = { ...board.host, charts: { ...board.host.charts, canManageIndicators: () => true } }
-    const adds = (refs) => refs.map(r => ({ action: 'indicator.add', target: `ixe:${r}`, args: { defId: 'rsi' } }))
+    const adds = (refs) => refs.map(r => ({ action: 'indicator.add', target: `ixe:${r}`, args: { defId: 'rsi', inputs: null } }))
     expect(multiChartAmbiguity(h, adds(['L', 'R']), 'Add RSI to both charts')).toBe('Which two charts should it go on?')
     expect(multiChartAmbiguity(h, adds(['L', 'R']), 'Add RSI to both the NVDA and AAPL charts')).toBe(null)
     expect(multiChartAmbiguity(h, adds(['L', 'M', 'R']), 'Add RSI to both charts')).toBe('Which two charts should it go on?')

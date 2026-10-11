@@ -457,7 +457,7 @@ _WINDOW_BARS = {
 #: Facts about ONE bar. They cannot span a seam, so they are never withheld —
 #: and they are listed rather than inferred so the rail below can prove that
 #: every column this module writes has been classified one way or the other.
-_SINGLE_BAR = {"price", "chg_from_open_pct"}
+_SINGLE_BAR = {"price", "chg_from_open_pct", "dollar_vol_1d"}
 
 
 def seam_withheld_columns(bars) -> set:
@@ -479,7 +479,7 @@ def compute_technicals(bars: list[dict]) -> dict:
         "vol_ratio", "gap_pct", "dist_52w_high_pct", "dist_52w_low_pct", "price",
         "chg_pct_1y", "chg_pct_ytd", "chg_from_open_pct", "adr_pct_1w",
         "dist_20d_high_pct", "dist_20d_low_pct", "pole_pct", "atr_ext_sma50",
-        "prev_day_open", "prev_day_high", "prev_day_low", "prev_day_close")}
+        "prev_day_open", "prev_day_high", "prev_day_low", "prev_day_close", "dollar_vol_1d")}
     out["ma_stack"] = None
     out["above_50sma"] = None
     out["new_52w_high"] = False
@@ -507,6 +507,11 @@ def compute_technicals(bars: list[dict]) -> dict:
     closes = [b["c"] for b in bars]
     price = closes[-1]
     out["price"] = price
+    # ⭐ ONE BAR, ONE CLOCK: the newest session's close × its volume — what actually traded that
+    # day (the SAME bar `price` comes from). "Trades over $10M a day" means this, not the
+    # 30-day average (`dollar_vol_30d`). None — never 0 — when the bar has no volume.
+    v_last = _volume(bars[-1])
+    out["dollar_vol_1d"] = round(price * v_last, 2) if (v_last is not None and price and price > 0) else None
     if len(closes) >= 2:
         out["chg_pct_1d"] = _pct(price, closes[-2])
         out["gap_pct"] = _pct(bars[-1]["o"], closes[-2])

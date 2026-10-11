@@ -39,6 +39,10 @@ def _isolate(monkeypatch):
     monkeypatch.setattr(fr.flow_aggregate, "available", lambda: True)
     monkeypatch.setattr(fr, "_search_product_cache_get", lambda k: None)
     monkeypatch.setattr(fr, "_search_freshness", lambda sym, src: "1.0")
+    # An over-budget decline now queues the head-ticker lane behind the member; these tests are
+    # about the MEMBER lane's budget, and that lane's own rails live in
+    # tests/test_flow_search_heavy.py. Without this its thread reads the fake DB too.
+    monkeypatch.setattr(fr, "_spawn_heavy_build", lambda sym, src: False)
     with fr._SEARCH_WARMING_LOCK:
         fr._SEARCH_WARMING.clear()
         fr._WARM_FAILED_UNTIL.clear()

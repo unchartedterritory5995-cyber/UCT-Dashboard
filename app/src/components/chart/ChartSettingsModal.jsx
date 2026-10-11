@@ -514,7 +514,13 @@ export default function ChartSettingsModal({
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e) => { if (e.key === 'Escape') { if (activeTarget) setActiveTarget(null); else onClose?.() } }
+    // An Escape a field inside the modal already handled (a template name input's
+    // "cancel naming", which calls preventDefault) is not a request to close Chart
+    // Settings — see ChartSettingsModal.escape.test.jsx.
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      if (activeTarget) setActiveTarget(null); else onClose?.()
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose, activeTarget])

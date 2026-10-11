@@ -270,7 +270,7 @@ describe('fast path (capability-contributed phrases)', () => {
     expect(fastParse('show volume profile')).toBeNull()
     expect(fastParse('make the left chart look like TradingView')).toBeNull()
     expect(fastParse('show me apple')).toBeNull()
-    expect(fastParse('add RSI 21')).toBeNull()
+    expect(fastParse('add macd 8 21 5')).toBeNull()   // three lengths, none called `period` ("add RSI 21" is mapped since Phase 2.5)
   })
 })
 
