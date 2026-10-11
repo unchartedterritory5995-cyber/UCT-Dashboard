@@ -48,6 +48,13 @@ _ROUTER_AI = "api/routers/ai_search.py"
 _NB_WRITING = "api/routers/notebook_writing_help.py"
 
 DOORS: dict[str, Door] = {
+    # ── The spend guard (2026-10-11): no model call of its own ───────────────
+    "api/services/ai_spend.py": Door(
+        "operator", "none: installed in every process (api/main.py, api/*_main.py, the shared "
+        "client factory); it names the model hosts only to GATE requests to them",
+        "IS a budget: AI_SPEND_DAILY_CAP_USD across every paid call (durable reservations in "
+        "daily_counters scopes ai_spend_*), fail-closed in enforce mode, record-only on Railway "
+        "until the owner sets the ceiling (docs/cost-control/AI_COST_PROTECTION.md)"),
     # ── AI Search ────────────────────────────────────────────────────────────
     "api/routers/ai_search.py": Door(
         "member", "POST /api/ai-search, /stream, /deep (require_paid)",

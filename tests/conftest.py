@@ -501,7 +501,8 @@ def _no_test_leaks_a_dependency_override():
 #
 # ⭐ OPT-IN, AND BUDGETED: `ALLOW_LIVE_AI=1` lifts the block for one run, and that run
 # is held to `AI_SPEND_BATCH_CAP_USD` ($2 unless set — the owner's per-batch ceiling),
-# enforced by `api/services/ai_spend.py` on every message call.
+# and to enforcement mode (`AI_SPEND_MODE=enforce`: no call without a durable budget
+# reservation) by `api/services/ai_spend.py`, installed for the run.
 
 MODEL_HOSTS = frozenset({"api.anthropic.com", "api.openai.com", "api.perplexity.ai"})
 
@@ -520,6 +521,10 @@ def _refuse(host: str):
 def _no_paid_model_calls_in_tests():
     if _live_ai_allowed():
         os.environ.setdefault("AI_SPEND_BATCH_CAP_USD", "2")
+        # a live run ENFORCES: every call reserves its worst case first, fail-closed
+        os.environ.setdefault("AI_SPEND_MODE", "enforce")
+        from api.services import ai_spend
+        ai_spend.install()
         yield
         return
     import httpx

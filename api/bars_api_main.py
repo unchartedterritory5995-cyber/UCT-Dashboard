@@ -28,6 +28,14 @@ survived:
      to starve. Also extract onto the 50GB VOLUME (TMPDIR), not the small
      ephemeral /tmp.
 """
+# ⭐ AI SPEND GUARD — this process's model calls are reserved and counted like the web's
+# (`api/services/ai_spend.py`), whichever client a job builds. Never raises at boot.
+try:
+    from api.services import ai_spend as _ai_spend
+    _ai_spend.install()
+except Exception:  # noqa: BLE001
+    pass
+
 import os
 import logging
 import threading

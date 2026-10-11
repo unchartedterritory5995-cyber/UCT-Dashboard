@@ -15,6 +15,14 @@ Exit codes: 0 ok, 2 registry refused, 1 anything else.
 """
 from __future__ import annotations
 
+# ⭐ AI SPEND GUARD — this process's model calls are reserved and counted like the web's
+# (`api/services/ai_spend.py`), whichever client a job builds. Never raises at boot.
+try:
+    from api.services import ai_spend as _ai_spend
+    _ai_spend.install()
+except Exception:  # noqa: BLE001
+    pass
+
 import argparse
 import json
 import logging

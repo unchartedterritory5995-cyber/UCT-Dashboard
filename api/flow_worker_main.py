@@ -236,6 +236,14 @@ block the next phase instead of announcing itself.
 `tools/flow_worker_watch_coverage.py` named the four files from the live diff;
 this touch is the fix that rail prescribes.
 """
+# ⭐ AI SPEND GUARD — this process's model calls are reserved and counted like the web's
+# (`api/services/ai_spend.py`), whichever client a job builds. Never raises at boot.
+try:
+    from api.services import ai_spend as _ai_spend
+    _ai_spend.install()
+except Exception:  # noqa: BLE001
+    pass
+
 import os
 import asyncio
 import threading

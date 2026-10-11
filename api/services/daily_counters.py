@@ -24,6 +24,9 @@ THE RULES.
     database, which is an outage, while the spend it would have prevented is
     bounded by the other valves (concurrency slots, timeouts). `take` answers
     "admitted", `value` answers 0.
+    ⭐ EXCEPT A `strict` take (the AI spend guard's ENFORCE mode, `ai_spend.py`),
+    which answers `STORE_UNAVAILABLE` and counts nothing: a paid model call
+    must not go out on a reservation that was never written.
   * Waits at most `BUSY_TIMEOUT_MS` for the write lock (auth.db's own 3 s is
     the whole request path's budget; a counter is not worth that).
   * Counts only -- never a note, a query or a prompt.
@@ -46,6 +49,9 @@ log = logging.getLogger(__name__)
 
 TABLE = "daily_usage_counters"
 GLOBAL = "*"                 # the subject of a counter that is nobody's own
+#: What a STRICT `take` answers when the store could not be read or written: never
+#: None (admitted), so a caller that must fail CLOSED cannot mistake it for success.
+STORE_UNAVAILABLE = "store:unavailable"
 BUSY_TIMEOUT_MS = 1000
 KEEP_DAYS = 2                # today and yesterday
 
@@ -105,18 +111,20 @@ def _read(conn: sqlite3.Connection, scope: str, subject: str, day: str) -> float
     return float(row[0]) if row else 0.0
 
 
-def take(day: str, charges: Iterable[Charge]) -> str | None:
+def take(day: str, charges: Iterable[Charge], *, strict: bool = False) -> str | None:
     """Admit and count ALL of `charges` for `day`, or none of them.
 
     → None when admitted (and counted), or the `scope` of the first charge
     whose cap refused (nothing counted). A database error admits (fails open)
-    with one log line."""
+    with one log line -- unless `strict`, when it answers `STORE_UNAVAILABLE`
+    and counts nothing (the AI spend guard's enforcement mode, which must fail
+    CLOSED: no paid call without a reservation it could actually write)."""
     charges = list(charges)
     try:
         conn = _connect()
     except Exception as e:  # noqa: BLE001 -- failing open IS the contract
         _fail_open("take", e)
-        return None
+        return STORE_UNAVAILABLE if strict else None
     try:
         conn.execute("BEGIN IMMEDIATE")
         _prune(conn, day)
@@ -136,25 +144,27 @@ def take(day: str, charges: Iterable[Charge]) -> str | None:
         except Exception:  # noqa: BLE001
             pass
         _fail_open("take", e)
-        return None
+        return STORE_UNAVAILABLE if strict else None
     finally:
         conn.close()
 
 
-def give_back(day: str, charges: Iterable[Charge]) -> None:
-    """Subtract each charge's amount for `day`, never below zero. Never raises."""
+def give_back(day: str, charges: Iterable[Charge]) -> bool:
+    """Subtract each charge's amount for `day`, never below zero. Never raises;
+    → True when written, False when the store failed (nothing subtracted)."""
     charges = list(charges)
     try:
         conn = _connect()
     except Exception as e:  # noqa: BLE001
         _fail_open("give_back", e)
-        return
+        return False
     try:
         conn.execute("BEGIN IMMEDIATE")
         stamp = _now()
         for c in charges:
             conn.execute(_SUBTRACT, (float(c.amount), stamp, c.scope, str(c.subject), day))
         conn.commit()
+        return True
     except Exception as e:  # noqa: BLE001
         try:
             if conn.in_transaction:
@@ -162,6 +172,7 @@ def give_back(day: str, charges: Iterable[Charge]) -> None:
         except Exception:  # noqa: BLE001
             pass
         _fail_open("give_back", e)
+        return False
     finally:
         conn.close()
 

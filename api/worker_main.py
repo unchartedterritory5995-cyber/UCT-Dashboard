@@ -17,6 +17,14 @@ errors. The prewarmer covers the same ticker universe and refreshes
 every 5 min (vs one-shot at boot), so the seeder is redundant in the
 worker context.
 """
+# ⭐ AI SPEND GUARD — this process's model calls are reserved and counted like the web's
+# (`api/services/ai_spend.py`), whichever client a job builds. Never raises at boot.
+try:
+    from api.services import ai_spend as _ai_spend
+    _ai_spend.install()
+except Exception:  # noqa: BLE001
+    pass
+
 import os
 import sys
 import asyncio

@@ -37,6 +37,14 @@ without the build it came from cannot be compared to the next one.
 """
 from __future__ import annotations
 
+# ⭐ AI SPEND GUARD — this process's model calls are reserved and counted like the web's
+# (`api/services/ai_spend.py`), whichever client a job builds. Never raises at boot.
+try:
+    from api.services import ai_spend as _ai_spend
+    _ai_spend.install()
+except Exception:  # noqa: BLE001
+    pass
+
 import argparse
 import datetime as dt
 import json
