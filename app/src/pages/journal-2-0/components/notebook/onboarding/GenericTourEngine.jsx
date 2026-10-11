@@ -26,8 +26,10 @@
 //      placed inside that sheet so the sheet's own Tab ring includes it. Escape closes
 //      only the TOPMOST layer: the tour when it is on top (and the sheet beneath stays
 //      open), the sheet when a sheet opened above the tour.
-//   (The start card for a chart tour with no chart in any note carries one action, P0.3: it adds
-//   the sample notebook through sampleNotebook.js and asks the gate to run THIS tour again.)
+//   (The start card for a chart tour when the member has NO note at all (`chartNoNotes`, P0.3)
+//   carries one action: it adds the sample notebook through sampleNotebook.js and asks the gate to
+//   run THIS tour again. A member who has notes gets the `/chart` card with no such action: the
+//   server refuses the sample to anyone who has a note, D-C6.)
 //   5. PASSIVE. A `replayable: false` entry (a 1-2 step explainer) renders as a light,
 //      non-modal note that never takes focus, shown once per member (any row in
 //      `notebook_tours` means it was seen).

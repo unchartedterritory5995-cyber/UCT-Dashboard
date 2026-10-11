@@ -96,8 +96,9 @@ describe('(b) a note start opens a SUITABLE note, never creates one', () => {
   })
 
   // P0.3: the chart tours used to tell a member who HAS notes (but no chart) to add the sample
-  // "from the Notebook home", which no longer offers it once a note exists, and to start again
-  // "from Help" when they had started from Learn. That case now has its own outcome.
+  // "from the Notebook home" and to start again "from Help" when they had started from Learn.
+  // That case now has its own outcome. R15: the server refuses the sample (409, D-C6) to a member
+  // with ANY note, so the card offers it only to a member with none (`chartNoNotes`).
   it('a chart tour with notes but no chart says exactly that (none: "chart")', async () => {
     const f = fakeFetch({ samples: {}, notes: [{ id: 'n-plain', embeds: [] }] })
     const r = await resolveStart({ id: 'chart-plan-basics', start: { note: 'sample:plan', embed: 'chart' } }, loc('/journal/notebook'), { fetchImpl: f })
@@ -106,9 +107,32 @@ describe('(b) a note start opens a SUITABLE note, never creates one', () => {
     expect(writes(f)).toEqual([])
   })
 
-  it('a chart tour with no note at all is the same card (there is no chart to point at either)', async () => {
+  it('a chart tour for a member with NO note at all is its own outcome (none: "chartNoNotes"): the sample can be added', async () => {
     const f = fakeFetch({ samples: {}, notes: [] })
-    expect(await resolveStart({ start: { note: 'sample:plan', embed: 'chart' } }, loc(NOTEBOOK_ROOT), { fetchImpl: f })).toEqual({ none: 'chart' })
+    expect(await resolveStart({ start: { note: 'sample:plan', embed: 'chart' } }, loc(NOTEBOOK_ROOT), { fetchImpl: f })).toEqual({ none: 'chartNoNotes' })
+    expect(writes(f)).toEqual([])
+  })
+
+  it('the question "does the member have any note?" is one cheap unfiltered read, asked only when the card is needed', async () => {
+    const hit = fakeFetch({ samples: {}, notes: [{ id: 'n-chart', embeds: ['chart'] }] })
+    await resolveStart(sample, loc(NOTEBOOK_ROOT), { fetchImpl: hit })
+    expect(hit.mock.calls.filter(([u]) => String(u).startsWith('/api/j2/notes?'))).toHaveLength(1)   // found a chart: no extra read
+    const miss = fakeFetch({ samples: {}, notes: [{ id: 'n-plain', embeds: [] }] })
+    await resolveStart(sample, loc(NOTEBOOK_ROOT), { fetchImpl: miss })
+    const lists = miss.mock.calls.map(([u]) => String(u)).filter((u) => u.startsWith('/api/j2/notes?'))
+    expect(lists).toHaveLength(2)
+    expect(lists[1]).not.toContain('embed_widget')
+    expect(lists[1]).toContain('limit=1')
+  })
+
+  it('if that question cannot be answered the card is still shown, WITHOUT the sample button (never offer what the server may refuse)', async () => {
+    const base = fakeFetch({ samples: {}, notes: [{ id: 'n-plain', embeds: [] }] })
+    let lists = 0
+    const f = vi.fn(async (url, init) => {
+      if (String(url).startsWith('/api/j2/notes?') && ++lists === 2) throw new Error('offline')
+      return base(url, init)
+    })
+    expect(await resolveStart(sample, loc(NOTEBOOK_ROOT), { fetchImpl: f })).toEqual({ none: 'chart' })
   })
 
   it('a chart tour still opens the example note, or a note holding a chart, when there is one', async () => {
@@ -118,14 +142,27 @@ describe('(b) a note start opens a SUITABLE note, never creates one', () => {
     expect(await resolveStart(sample, loc(NOTEBOOK_ROOT), { fetchImpl: withChart })).toEqual({ path: notePath('n-chart') })
   })
 
-  it('the chart copy offers the sample and a new note, and never says "from Help"', () => {
+  it('the chart copy (a member WITH notes) says /chart, offers no sample, and never says "from Help"', () => {
     const c = UNREACHABLE_COPY.chart
+    expect(c.title).toBe('This walkthrough needs a chart in a note')
+    expect(c.body).toBe('None of your notes has a chart yet. Type /chart in any note to add one, then start this walkthrough again from Learn.')
+    expect(c.action).toBeUndefined()
+    expect(c.actionLabel).toBeUndefined()
+    expect(c.exitLabel).toBe('Go to my notes')
+    expect(c.exitPath).toBe(NOTEBOOK_ROOT)
+  })
+
+  it('the chartNoNotes copy (a member with NO notes) offers the sample', () => {
+    const c = UNREACHABLE_COPY.chartNoNotes
     expect(c.title).toBe('This walkthrough needs a chart in a note')
     expect(c.body).toBe('None of your notes has a chart yet. Add the sample notebook, which has one, or type /chart in any note to add your own. Then start the walkthrough again from Learn.')
     expect(c.action).toBe('add-sample')
     expect(c.actionLabel).toBe('Add the sample notebook')
     expect(c.exitLabel).toBe('Go to my notes')
     expect(c.exitPath).toBe(NOTEBOOK_ROOT)
+  })
+
+  it('no card says "from Help" or "Notebook home"', () => {
     for (const [kind, x] of Object.entries(UNREACHABLE_COPY)) {
       expect(x.body, kind).not.toMatch(/from Help/)
       expect(x.body, kind).not.toMatch(/Notebook home/)

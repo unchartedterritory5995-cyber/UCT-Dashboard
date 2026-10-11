@@ -611,7 +611,7 @@ export default function ResearchHome({
             <h2 className={styles.firstRunTitle} tabIndex={-1} {...{ [FIRST_RUN_HEADING_ATTR]: '' }}>
               Welcome to your Notebook
             </h2>
-            <LearnMenu />
+            <LearnMenu hasAnyNotes={hasAnyNotes} />
           </div>
         ) : (
           <h2 className={styles.firstRunTitle}>
@@ -670,7 +670,7 @@ export default function ResearchHome({
           <NewNoteMenu onBlank={onCreateNote} onFromOutline={onOpenNewNoteSheet}
             onVoice={onStartVoiceNote} onToday={onOpenToday} />
         )}
-        <LearnMenu />
+        <LearnMenu hasAnyNotes={hasAnyNotes} />
       </div>
       <RecentNotes opened={opened} edited={Array.isArray(editedNotes) ? editedNotes : []} onOpen={openNote} />
     </div>

@@ -25,7 +25,7 @@ import {
 } from './tourRegistryControl'
 
 /** The one sentence a member reads when a walkthrough they asked for could not be shown. */
-export const TOUR_FAILED_NOTICE = 'That walkthrough could not be shown here, so it was closed; you can start it again from Help.'
+export const TOUR_FAILED_NOTICE = 'That walkthrough could not be shown here, so it was closed; you can start it again from Learn.'
 /** How long that sentence stays up. */
 export const TOUR_NOTICE_MS = 8000
 const NOTICE_STYLE = Object.freeze({

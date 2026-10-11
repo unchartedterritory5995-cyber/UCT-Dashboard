@@ -66,12 +66,12 @@ function Where() {
   return <p data-testid="where">{`${loc.pathname}${loc.hash}`}</p>
 }
 
-function renderMenu({ isPaid = false } = {}) {
+function renderMenu({ isPaid = false, hasAnyNotes = false } = {}) {
   return render(
     <AuthContext.Provider value={{ isPaid }}>
       <MemoryRouter initialEntries={['/journal/notebook']}>
         <button type="button">before</button>
-        <LearnMenu />
+        <LearnMenu hasAnyNotes={hasAnyNotes} />
         <Routes><Route path="*" element={<Where />} /></Routes>
       </MemoryRouter>
     </AuthContext.Provider>,
@@ -297,6 +297,39 @@ describe('"Add the sample notebook"', () => {
     renderMenu({ isPaid: true })
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
     expect(screen.getByRole('menuitem', { name: 'Add the sample notebook' })).toBeTruthy()
+  })
+
+  // R15 (D-C6): the server refuses the sample (409) to a member with ANY note, active, archived or
+  // trashed, so Learn offers it only to a member with none.
+  it('is offered only to a member with no notes: absent once they have one', () => {
+    latchNotebookFlags(WAVE14)
+    renderMenu({ isPaid: true, hasAnyNotes: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Add the sample notebook' })).toBeNull()
+  })
+
+  it('fails closed: a caller that does not say whether there are notes gets no sample item', () => {
+    latchNotebookFlags(WAVE14)
+    render(
+      <AuthContext.Provider value={{ isPaid: true }}>
+        <MemoryRouter><LearnMenu /></MemoryRouter>
+      </AuthContext.Provider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    expect(screen.queryByRole('menuitem', { name: 'Add the sample notebook' })).toBeNull()
+  })
+
+  it('its status line is mounted from the start (empty), so the refusal is announced when its text arrives', async () => {
+    latchNotebookFlags(WAVE14)
+    sampleMock.mockResolvedValueOnce({ ok: false, message: SAMPLE_COPY.refused })
+    renderMenu({ isPaid: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent('')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add the sample notebook' }))
+    await vi.waitFor(() => expect(status).toHaveTextContent(SAMPLE_COPY.refused))
+    expect(screen.getByRole('status')).toBe(status)   // the same node, text swapped
   })
 
   it('is never offered to a member who is not paid', () => {

@@ -41,8 +41,9 @@ export const LEARN_COPY = Object.freeze({
   menuLabel: 'Learn: walkthroughs',
   tour: (title) => `${title} tour`,
   help: 'All walkthroughs in Help',
-  // P0.15: the sample notebook, offered here once a member has notes and Home no longer shows it.
-  // The words the member reads while it adds, or when it cannot, are SAMPLE_COPY's (sampleNotebook.js).
+  // P0.15: the sample notebook, offered here to a member with NO notes yet (the server refuses it to
+  // anyone who has one, active, archived or trashed: D-C6, so the menu does not offer what it will
+  // refuse). The words the member reads while it adds, or when it cannot, are SAMPLE_COPY's.
   sample: 'Add the sample notebook',
 })
 

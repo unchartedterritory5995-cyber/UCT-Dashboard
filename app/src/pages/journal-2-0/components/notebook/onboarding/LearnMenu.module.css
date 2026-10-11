@@ -76,6 +76,11 @@
 }
 /* The line the sample row answers with (a refusal or a failure). It sits under the list, outside
    the role="menu" element, and stays in view when a long list scrolls inside the popover. */
+.status:empty {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
 .status {
   position: sticky;
   bottom: 0;

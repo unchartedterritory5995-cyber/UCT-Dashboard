@@ -15,9 +15,10 @@
 //     an anchored popover; which one is decided when the button is pressed (`useIsPhone()`
 //     read at click time -- a press is the moment CLAUDE.md allows it), never at first paint.
 //   * THE SAMPLE (P0.15) -- "Add the sample notebook", for a paid member with the onboarding
-//     switch on. Research Home stops offering the sample once a note exists, so Learn is where
-//     a member with notes can still add it (and where the chart walkthroughs point them).
-//     It goes through `addSampleNotebook` (sampleNotebook.js), the one authority, and refreshes
+//     switch on AND NO NOTES (`hasAnyNotes` is false). The server refuses the sample (409) to
+//     a member who has any note, active, archived or trashed (sample_notebook.py, ruling D-C6:
+//     their own work never shares a notebook with practice notes they did not ask for), so the
+//     menu does not offer it to one. A caller that does not say fails closed (no item). It goes through `addSampleNotebook` (sampleNotebook.js), the one authority, and refreshes
 //     the notebook lists with the same `isNotebookKey` predicate Research Home uses.
 //
 // ⛔ A real menu button, the Notebook's one contract for it (NoteExportControls.jsx):
@@ -42,7 +43,7 @@ import { SAMPLE_COPY, addSampleNotebook, isNotebookKey } from './sampleNotebook'
 import { NOTEBOOK_ROOT } from './tourRegistry'
 import styles from './LearnMenu.module.css'
 
-export default function LearnMenu({ className = '' }) {
+export default function LearnMenu({ className = '', hasAnyNotes = true }) {
   const [open, setOpen] = useState(false)
   // Whether THIS opening is the phone sheet. Decided when the button is pressed (see the header).
   const [asSheet, setAsSheet] = useState(false)
@@ -68,6 +69,7 @@ export default function LearnMenu({ className = '' }) {
   // it is named again so this line reads as its own rule), and a paid member only: the sample
   // is a paid-member door on the server too.
   const canAddSample = enabled && notebookFlag('notebook_onboarding_enabled') === true && isPaid
+    && hasAnyNotes === false
 
   const openMenu = () => {
     setAsSheet(phone)
@@ -231,7 +233,9 @@ export default function LearnMenu({ className = '' }) {
           {LEARN_COPY.help}
         </Link>
       </div>
-      {sampleMsg && <p role="status" className={styles.status}>{sampleMsg}</p>}
+      {/* Always mounted (empty until it has something to say), so a screen reader announces the text
+        when it arrives; a live region added together with its text is often not announced. */}
+    <p role="status" className={styles.status}>{sampleMsg}</p>
     </div>
   )
 

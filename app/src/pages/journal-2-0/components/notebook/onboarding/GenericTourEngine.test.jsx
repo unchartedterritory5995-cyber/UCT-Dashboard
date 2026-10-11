@@ -306,12 +306,15 @@ describe('the unreachable card: a chart tour with no chart in any note', () => {
   }
   const ok = (body) => ({ ok: true, status: 200, json: async () => body })
 
-  /** The start lookup finds no example note and no note holding a chart (the member has notes). */
-  function installNoChartFetch() {
+  /** The start lookup finds no example note and no note holding a chart. `hasNotes` is whether the
+   *  member has any note at all (the unfiltered read): the sample button is for a member with none. */
+  function installNoChartFetch({ hasNotes = false } = {}) {
     const base = global.fetch
     global.fetch = vi.fn(async (url, init = {}) => {
       if (url === '/api/j2/notes/import/check') return ok({ existing: {} })
-      if (String(url).startsWith('/api/j2/notes?')) return ok({ notes: [] })
+      if (String(url).startsWith('/api/j2/notes?')) {
+        return ok({ notes: hasNotes && !String(url).includes('embed_widget') ? [{ id: 'n1' }] : [] })
+      }
       return base(url, init)
     })
   }
@@ -329,12 +332,35 @@ describe('the unreachable card: a chart tour with no chart in any note', () => {
     return onCloseSpy
   }
 
-  it('says exactly what is missing, and offers the sample and a way to the notes', async () => {
+  it('(no notes at all) says exactly what is missing, and offers the sample and a way to the notes', async () => {
     await openCard()
-    expect(screen.getByText(UNREACHABLE_COPY.chart.body)).toBeInTheDocument()
+    expect(screen.getByText(UNREACHABLE_COPY.chartNoNotes.body)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add the sample notebook' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Go to my notes' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
+  })
+
+  // R15 (D-C6): the server refuses the sample to a member with ANY note, so a member who has notes
+  // gets the /chart card with no add button; only a member with none is offered the sample.
+  it('a member WITH notes: the /chart card, no add button, a way to their notes', async () => {
+    installNoChartFetch({ hasNotes: true })
+    render(<Page entry={CHART_TOUR} anchors={[]} onCloseSpy={vi.fn()} />)
+    expect(await dialog({ timeout: 3000 })).toHaveAccessibleName(UNREACHABLE_COPY.chart.title)
+    expect(screen.getByText(UNREACHABLE_COPY.chart.body)).toBeInTheDocument()
+    expect(screen.getByText(/Type \/chart in any note to add one/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add the sample notebook' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Go to my notes' })).toBeInTheDocument()
+    // exactly one primary button is left: the way out
+    expect(screen.getByRole('button', { name: 'Go to my notes' })).toHaveClass('btn-primary')
+    expect(sampleMock).not.toHaveBeenCalled()
+  })
+
+  it('a member with NO notes: the card offers the sample', async () => {
+    installNoChartFetch({ hasNotes: false })
+    render(<Page entry={CHART_TOUR} anchors={[]} onCloseSpy={vi.fn()} />)
+    expect(await dialog({ timeout: 3000 })).toHaveAccessibleName(UNREACHABLE_COPY.chartNoNotes.title)
+    expect(screen.getByText(UNREACHABLE_COPY.chartNoNotes.body)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add the sample notebook' })).toBeInTheDocument()
   })
 
   it('"Add the sample notebook" adds it through addSampleNotebook, then restarts THIS tour', async () => {

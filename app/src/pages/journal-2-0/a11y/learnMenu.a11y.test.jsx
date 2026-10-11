@@ -47,7 +47,7 @@ function renderMenu() {
   return render(
     <AuthContext.Provider value={{ isPaid: true }}>
       <MemoryRouter initialEntries={['/journal/notebook']}>
-        <main><LearnMenu /></main>
+        <main><LearnMenu hasAnyNotes={false} /></main>
       </MemoryRouter>
     </AuthContext.Provider>,
   )

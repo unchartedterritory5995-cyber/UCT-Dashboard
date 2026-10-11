@@ -14,7 +14,7 @@ import { useEffect } from 'react'
 import { render, screen, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
-import { makeRegistryToursGate } from './RegistryToursGate'
+import { makeRegistryToursGate, TOUR_FAILED_NOTICE } from './RegistryToursGate'
 import {
   REGISTRY_TOUR_CLOSED_EVENT, getRegistryTourWanted, hasPendingRegistryTourOpen, openRegistryTour, __resetRegistryTourControl,
 } from './tourRegistryControl'
@@ -61,6 +61,13 @@ afterEach(() => {
   __resetNotebookFlags()
   __resetRegistryTourControl()
   vi.restoreAllMocks()
+})
+
+describe('the failure notice points at Learn, where the walkthroughs start', () => {
+  it('says Learn, not Help', () => {
+    expect(TOUR_FAILED_NOTICE).toMatch(/start it again from Learn\.$/)
+    expect(TOUR_FAILED_NOTICE).not.toMatch(/Help/)
+  })
 })
 
 describe('multi-tour: the SAME generic gate opens either of two different registered tours by id', () => {
