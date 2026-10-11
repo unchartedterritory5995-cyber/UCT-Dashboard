@@ -67,3 +67,14 @@
     min-width: var(--tap-min);
   }
 }
+
+/* On a phone Home's header row wraps (ResearchHome.module.css, P0.17) and this control lands on
+   the second row at the LEFT, so the menu hangs from the button's left edge: right-anchored it
+   would run off the left side of a 390px screen. */
+@media (max-width: 640px) {
+  .menu {
+    left: 0;
+    right: auto;
+    max-width: calc(100vw - 32px);
+  }
+}
