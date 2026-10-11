@@ -166,3 +166,31 @@ create answering 400. They predate this work and are not claimed here.
 The 503s in every step's console are the sandbox's switched-off broker sync and bar stream (137
 passing steps carry the same lines).
 
+## 7. Finish pass: the phone first screen and a fully green walk (2026-10-10)
+
+`notebook-finish-1010` (#316). Measured at 390x844 in a sandbox, before -> after:
+
+| | before | after |
+|---|---:|---:|
+| note body width | 270 px | 310 px |
+| note body top | y=500 | y=419 |
+| "new tour" banner height | ~165 px | 97 px |
+| first recent note on Home | ~540 | 480 |
+
+The way back to the list now shares the editor's action row (a 44 px chevron, its words its
+accessible name; the header reserves its width), the Notebook pane's extra side padding is gone on
+phones, and the banner's explanation line is hidden there (still its screen-reader description).
+
+The walk's seven remaining faults are fixed in the walk, each as `fin-walk.md` had traced it. One
+needed a second look: the thesis-chip check could never pass on a weekend, because the level
+projection it depends on runs from a weekday-only scan; the check now runs after the walk's own
+projection step. Moving it exposed a silent-skip hole in the walk itself (`run()` returned
+quietly for a step missing from `ORDER`), which now records a FAIL.
+
+**Full c2 walk on `71f47a6033`: 200 steps, 0 FAIL** (185 PASS, 8 INFO, 7 NOT_RUN: six need a model key a sandbox does not have,
+one needs more than five passed names). Raw record: `docs/notebook/evidence/fin-walk/71f47a6033/c2/walk.json`.
+Sandbox integrity CLEAN at every checkpoint.
+
+Also landed today: #315 fixed the two rails red on master (the TERM-033 `readSuccessBody` hop,
+declared inert with proof; FT-015's chain stream moved onto a shared pool under TERM-024).
+

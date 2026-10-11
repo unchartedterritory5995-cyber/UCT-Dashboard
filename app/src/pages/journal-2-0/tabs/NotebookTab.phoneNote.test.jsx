@@ -423,6 +423,22 @@ describe('D-1 -- the phone rule (structural; d2_phone_measure.py is the verdict)
     expect(declaresProp(baseRules(CSS), HIDE, 'display', /^none$/)).toBe(false)
   })
 
+  // Finish pass (2026-10-10, measured at 390x844 by phone_measure.py): the way back sits ON the
+  // editor's action row, not on a row of its own above it, and the header reserves its width so
+  // the actions can never slide under it. Both halves or neither: a lifted button over an
+  // unpadded header would cover the header's first control.
+  it('at 390 px the back chevron is lifted onto the action row, and the header makes room for it', () => {
+    expect(declaresProp(phone, '.phoneBack', 'position', /^absolute$/)).toBe(true)
+    expect(declaresProp(phone, '.phoneBack', 'width', /tap-min/)).toBe(true)
+    expect(declaresProp(phone, '.mainNote', 'position', /^relative$/)).toBe(true)
+    expect(declaresProp(phone, '.mainNote [data-note-header]', 'padding-left', /tap-min/)).toBe(true)
+    // ...and the selector names something the editor really renders
+    const editorSrc = readFileSync(join(__dirname, '../components/notebook/NoteEditorPage.jsx'), 'utf8')
+    expect(editorSrc).toMatch(/<header className=\{styles\.header\} data-note-header=""/)
+    // the button keeps its words as its name, visually hidden
+    expect(declaresProp(baseRules(CSS), '.phoneBackLabel', 'clip', /rect/)).toBe(true)
+  })
+
   it('⭐ CONTROL -- the parser sees an absent rule as absent', () => {
     const without = '@media (max-width: 640px) { .sidebarSlot { width: 100% !important; } }'
     expect(declaresProp(mediaBodiesAt(without, 390).join('\n'), HIDE, 'display', /^none$/)).toBe(false)

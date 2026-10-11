@@ -461,7 +461,9 @@
     width: auto;
     gap: 8px;
     padding: 0 14px;
-    margin: 8px 16px 0;
+    /* finish pass: no side margin -- .main's phone side padding is gone, so the Journal frame's
+       gutter is the one edge the toggle and the content below it share */
+    margin: 8px 0 0;
     color: var(--text-bright);
     font: inherit;
     font-size: 14px;
@@ -482,7 +484,11 @@
      once covers both classes of finding. 150px clears the taller of the two
      (114px) with margin; it only pads how far the page CAN scroll, so a short
      surface is unaffected. */
-  .main { overflow: visible; padding-bottom: 150px; }
+  /* Finish pass (2026-10-10): no side padding here -- the Journal frame already gives a phone its
+     24 px side gutter, and the editor column adds its own for the block handles. This pane's 20 px
+     on top of both left the note body 270 px wide on a 390 px screen. ⛔ ONE `.main` rule in this
+     block: NotebookTab.fabOrbClearance.test.js reads the LAST one for the bottom clearance. */
+  .main { overflow: visible; padding-bottom: 150px; padding-left: 0; padding-right: 0; }
   /* Phones stack the panel above the notes when it IS shown — the slide/resize
    * affordances stay desktop-only either way. D-7 fix: it is no longer forced
    * open regardless of `collapsed` — List's own landing still shows it (its
@@ -715,6 +721,10 @@
    the list also returns to it, since the open pushes a history entry).
    ⛔ Phone only: at 641-1024 px the panel sits BESIDE the note and stays.
    Rail: NotebookTab.phoneNote.test.jsx. */
+.phoneBackLabel {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 .phoneBack {
   display: none;
   /* the finger floor lives here, not in the phone block: tapFloor.test.js */
@@ -724,12 +734,27 @@
   .wrap[data-note-open] .sidebarSlot {
     display: none;
   }
+  /* Finish pass (2026-10-10): the way back shares the editor's action row instead of taking a
+     row of its own above it: a 44 px chevron at the row's left, with the editor header padded
+     by the same amount so its actions can never slide under it (`[data-note-header]`). The
+     words are visually hidden, still the button's name. Measured at 390x844: the actions are
+     235 px wide, so the worded button (133 px) could not fit beside them. ⛔ Not a float: the
+     editor root is a block formatting context, so a float narrowed the WHOLE note (body 270 ->
+     258 px), not only its header. */
+  .mainNote { position: relative; }
+  .mainNote [data-note-header] { padding-left: calc(var(--tap-min) + 8px); }
   .phoneBack {
     display: inline-flex;
+    position: absolute;
+    top: 8px;
+    left: 0;
+    /* above the editor chrome's own background (its .chrome is z-index 40 where it sticks) */
+    z-index: 41;
     align-items: center;
-    gap: 6px;
-    margin: 4px 0 8px;
-    padding: 0 12px 0 8px;
+    justify-content: center;
+    width: var(--tap-min);
+    margin: 0;
+    padding: 0;
     background: transparent;
     border: 1px solid var(--border);
     border-radius: var(--radius-pill);
