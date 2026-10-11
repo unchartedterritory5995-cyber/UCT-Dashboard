@@ -997,6 +997,15 @@ def _buzz_poll() -> None:
                          ch, out["fetched"], out["rows"])
     except Exception as e:  # noqa: BLE001 - never take the scheduler down
         log.warning("[buzz] poll error: %s", e)
+    # FT-080 retention sweep for the stored post text (SOCIAL_TEXT_RETENTION_DAYS).
+    # Flag-independent and throttled inside (at most every 6 h); never raises.
+    try:
+        from api.services import social_polarity
+        n = social_polarity.maybe_prune()
+        if n:
+            log.info("[buzz] pruned %d social post row(s) past retention", n)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[buzz] social post prune error: %s", e)
     # ⛔ The digest's catch-up rides the poll rather than getting its own job.
     # The cron jobs live in an IN-MEMORY store, so a pod that restarts across a
     # checkpoint never schedules that fire at all -- misfire_grace_time cannot
@@ -7486,6 +7495,17 @@ async def lifespan(app: FastAPI):
                 id="calendar_week_post", max_instances=1, replace_existing=True)
             print("[scheduler] weekly calendar Discord post registered (Sat 4:30 AM ET)")
 
+        # -- The Wednesday measurement window (TERM-007 / TERM-017 / X-15) --
+        # Samples every minute Wed 09:00-11:00 ET, one bars-gate run at 10:15,
+        # one result record from 11:01 (catch-ups 11:10/11:30/13:xx). Each job is a
+        # no-op outside its window; kill switch MEASUREMENT_WINDOW_ENABLED=0.
+        try:
+            from api.services import measurement_window as _mwin
+            _mwin.register(_scheduler, boot_ts=_APP_BOOT_TS)
+            print("[scheduler] measurement window jobs registered (Wed 09:00-11:00 ET)")
+        except Exception as e:
+            print(f"[startup] measurement window registration failed (non-fatal): {e}")
+
         # -- Earnings calendar accuracy: snapshot, audit, source health ----
         # Sun 18:00 ET freeze the upcoming week as members see it; Sat 10:00 ET
         # grade the week that just ended against what actually happened; weekdays
@@ -9375,6 +9395,9 @@ def health_cache(_admin: dict = Depends(require_admin)):
 from api import debug_dump_router as _debug_dump_router
 app.include_router(_debug_dump_router.router)
 app.include_router(terminal_next_reports.router)
+# TERM-007/017 + X-15: the Wednesday measurement window, read-only (require_admin).
+from api.routers import measurement_window as _measurement_window_router  # noqa: E402
+app.include_router(_measurement_window_router.router)
 app.include_router(render_panels_router.router)
 app.include_router(chart_edge_service_router.router)
 app.include_router(hub_reports_router.router)
