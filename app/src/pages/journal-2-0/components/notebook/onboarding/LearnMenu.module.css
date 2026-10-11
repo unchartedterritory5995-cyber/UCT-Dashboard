@@ -63,26 +63,6 @@
   flex-direction: column;
   gap: 2px;
 }
-.group + .sampleItem {
-  margin-top: 6px;
-}
-.sampleItem {
-  border-top: 1px solid var(--border);
-  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-}
-/* "What your Notebook can do" (Task 14b) sits between the tour groups and the sample, so it takes
-   over the divider and spacing the sample row had when it followed the groups directly. */
-.group + .catalogItem {
-  margin-top: 6px;
-}
-.catalogItem {
-  border-top: 1px solid var(--border);
-  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
-}
-.sampleItem[aria-disabled='true'] {
-  cursor: progress;
-  color: var(--text-muted);
-}
 /* The line the sample row answers with (a refusal or a failure). It sits under the list, outside
    the role="menu" element, and stays in view when a long list scrolls inside the popover. */
 .status:empty {
@@ -128,6 +108,28 @@
   margin-top: 4px;
   border-top: 1px solid var(--border);
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  color: var(--text-muted);
+}
+/* ⛔ CASCADE ORDER: these rows share a specificity with `.item`, whose `border: 0` would erase their
+   divider if they came first. They sit below `.item` on purpose (LearnMenu.classes.test.js pins the order). */
+.group + .sampleItem {
+  margin-top: 6px;
+}
+.sampleItem {
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+/* "What your Notebook can do" (Task 14b) sits between the tour groups and the sample, so it takes
+   over the divider and spacing the sample row had when it followed the groups directly. */
+.group + .catalogItem {
+  margin-top: 6px;
+}
+.catalogItem {
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+.sampleItem[aria-disabled='true'] {
+  cursor: progress;
   color: var(--text-muted);
 }
 
