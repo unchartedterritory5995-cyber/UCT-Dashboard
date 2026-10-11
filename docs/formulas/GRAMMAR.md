@@ -176,7 +176,7 @@ decide whether a formula can run at all.
 | `williamsR(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar Williams %R of `high`, `low` and `close` |
 | `wma(source, period)` | a number | whatever `period` asks for | the `period`-bar weighted average of `source` |
 
-## Per-symbol values (137)
+## Per-symbol values (138)
 
 One value per symbol rather than one per bar — a fundamental, a rating, a count.
 `Refreshed` is how often the number behind it moves.
@@ -221,6 +221,7 @@ of these, because drawing today’s number on past bars would invent a history.
 | `dist_52w_low_pct` | a number | nightly | the percentage distance from the 52-week low |
 | `dist_ath_pct` | a number | nightly | the distance from the all-time high, in percent |
 | `dividend_yield` | a number | nightly | the dividend yield |
+| `dollar_vol_1d` | a number | nightly | the dollar volume traded in the latest completed session (its close times its volume) |
 | `dollar_vol_30d` | a number | nightly | the average daily dollar volume over 30 days |
 | `downgrades_30d` | a number | nightly | the count of analyst downgrades in the last 30 days |
 | `dp_level_dist_pct` | a number | nightly | the percentage distance to the nearest signature dark-pool level |

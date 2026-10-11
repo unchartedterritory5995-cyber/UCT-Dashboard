@@ -59,7 +59,9 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     // `bars_asof` off the candle producer. Mirrored in `tests/test_ast_scalars.py`.
     // 111 -> 137 on 2026-09-02: the WAVE-1 PROMOTION — twenty-six shipped
     // screener columns crossed from `_scalars_excluded` into the vocabulary.
-    expect(names.length).toBe(137)
+    // 137 -> 138 on 2026-10-11: `dollar_vol_1d`, the newest session's dollar volume (see
+    // `tests/test_ast_scalars.py`'s partition pin)
+    expect(names.length).toBe(138)
     for (const name of names) {
       const spec = TABLE.scalars[name]
       expect(spec.source.store).toBe('screener_rows')
