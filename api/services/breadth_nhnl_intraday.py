@@ -515,6 +515,17 @@ def scheduled_extend() -> None:
 _view: dict = {}
 
 
+def content_sha(series: dict) -> str:
+    """The series' identity for cache keys: its CONTENT, never the file's bytes.
+
+    ⛔ (2026-10-10) the file carries `updated_at`, so hashing the body changed every
+    breadth cache key on every extend run (07:35/18:35/20:35 ET and 12 min after each
+    boot) even when no row changed — and the whole catalogue rebuilt for nothing."""
+    content = json.dumps({"version": series.get("version"), "rows": series.get("rows") or {}},
+                         sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(content.encode()).hexdigest()
+
+
 def _series_view() -> Optional[dict]:
     """{"sha", "rows"} for the installed series, memoised on file mtime; None when absent."""
     try:
@@ -532,8 +543,7 @@ def _series_view() -> Optional[dict]:
     with open(SERIES_PATH, "rb") as fh:
         body = fh.read()
     s = json.loads(body)
-    v = {"sha": hashlib.sha256(body).hexdigest(), "rows": s.get("rows") or {},
-         "through": s.get("through")}
+    v = {"sha": content_sha(s), "rows": s.get("rows") or {}, "through": s.get("through")}
     _view.clear()
     _view.update({"key": key, "value": v})
     return v

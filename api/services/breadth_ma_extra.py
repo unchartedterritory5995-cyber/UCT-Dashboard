@@ -242,8 +242,10 @@ def _series_view() -> Optional[dict]:
             body = fh.read()
         s = json.loads(body)
         _view.clear()
+        # the CONTENT, never the file bytes (which carry `updated_at`) — see
+        # breadth_nhnl_intraday.content_sha
         _view.update(key=key, value={"rows": s.get("rows") or {}, "through": s.get("through"),
-                                     "sha": hashlib.sha256(body).hexdigest()})
+                                     "sha": nhi.content_sha(s)})
     return _view["value"]
 
 

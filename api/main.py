@@ -6493,6 +6493,26 @@ async def lifespan(app: FastAPI):
             logging.getLogger(__name__).info(
                 "[startup] breadth put/call fill scheduled (07:05/19:05/22:05 ET + boot)")
 
+            # (2026-10-11) #breadth-alerts: is the day's official breadth row stored? Evening
+            # run after the EOD server write window (20:00), morning re-check of the prior day.
+            def _breadth_eod_row_check(morning: bool = False):
+                try:
+                    from api.services import breadth_alerts
+                    breadth_alerts.check_eod_row(morning=morning)
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[breadth-alerts] check failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_eod_row_check,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=21, minute=30, timezone=_ET),
+                id="breadth_eod_row_check", max_instances=1,
+                coalesce=True, misfire_grace_time=3600, replace_existing=True)
+            _scheduler.add_job(
+                _breadth_eod_row_check, kwargs={"morning": True},
+                trigger=CronTrigger(day_of_week="mon-fri", hour=9, minute=45, timezone=_ET),
+                id="breadth_eod_row_check_morning", max_instances=1,
+                coalesce=True, misfire_grace_time=3600, replace_existing=True)
+
             # Intraday-basis new highs/lows: extend the series once each session's daily bar has
             # settled, re-try in the morning, and resume after a redeploy (after the boot warms).
             def _breadth_nhnl_extend():

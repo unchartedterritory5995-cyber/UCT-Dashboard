@@ -99,6 +99,9 @@ CONVERTED = {
     # literal `DISCORD_WEBHOOK_URL` read and converted at the Notebook's L1b integration,
     # so it never shipped as a literal reader (it would have broken the pinned roster below).
     "api/services/journal_two/notebook_slo.py",
+    # 2026-10-11 — the breadth alerts (#breadth-alerts). Its own DISCORD_BREADTH_WEBHOOK_URL
+    # first; the OPS resolver as the fallback, so an unset variable never silences it.
+    "api/services/breadth_alerts.py",
     # TERM-011 step 5, 2026-09-27 — the OPS member of D7's nine, converted to the shared
     # resolver rather than its own dedicated variable because it is the OUTAGE ORACLE and
     # must not fail closed. `_post_discord` and the `start_liveflow_monitor` gate both ask
