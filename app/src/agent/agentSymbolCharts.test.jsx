@@ -554,7 +554,7 @@ describe('receipts claim only what the server confirmed (host.persist)', () => {
     const text = await applyTwo(m)
     expect(m.host.persist).toHaveBeenCalledTimes(1)
     expect(text).not.toMatch(/NOT saved|not confirmed/)
-    expect(screen.getAllByTestId('agent-undo')).toHaveLength(1)
+    expect(document.querySelectorAll('[data-undoable]')).toHaveLength(1)
   })
 
   it('a revision conflict → "on screen, NOT saved", and no Undo', async () => {
@@ -563,7 +563,7 @@ describe('receipts claim only what the server confirmed (host.persist)', () => {
     m.host.persist = async () => ({ ok: false, conflict: true, reason: 'conflict' })
     const text = await applyTwo(m)
     expect(text).toMatch(/Shown on this screen but NOT saved: your workspace was changed in another window or device/)
-    expect(screen.queryAllByTestId('agent-undo')).toHaveLength(0)
+    expect(document.querySelectorAll('[data-undoable]')).toHaveLength(0)
     expect(m.newCharts()).toHaveLength(2)                    // on screen — the receipt says so, honestly
   })
 
@@ -573,7 +573,7 @@ describe('receipts claim only what the server confirmed (host.persist)', () => {
     m.host.persist = async () => { throw new Error('offline') }
     const text = await applyTwo(m)
     expect(text).toMatch(/the save was not confirmed/)
-    expect(screen.queryAllByTestId('agent-undo')).toHaveLength(0)
+    expect(document.querySelectorAll('[data-undoable]')).toHaveLength(0)
   })
 
   it('Undo whose save is refused → an "Undone on screen, NOT saved" receipt', async () => {
@@ -583,7 +583,7 @@ describe('receipts claim only what the server confirmed (host.persist)', () => {
     m.host.persist = async () => verdict
     await applyTwo(m)
     verdict = { ok: false, conflict: true, reason: 'conflict' }
-    fireEvent.click(screen.getByTestId('agent-undo'))
+    m.say('undo')
     const text = await nth('agent-receipt', 2)
     expect(text).toMatch(/NOT saved/)
     expect(m.newCharts()).toHaveLength(0)

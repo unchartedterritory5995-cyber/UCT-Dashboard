@@ -265,7 +265,7 @@ describe('in the panel: proposal → Apply once → receipt; delete offers no Un
     fireEvent.click(btn); fireEvent.click(btn)
     await waitFor(() => expect(screen.getAllByTestId('agent-receipt')).toHaveLength(1), { timeout: 4000 })
     expect(posts()).toHaveLength(1)
-    expect(screen.getAllByTestId('agent-undo')).toHaveLength(1)
+    expect(document.querySelectorAll('[data-undoable]')).toHaveLength(1)
   })
   it('an alert made OUTSIDE the panel after it opened is in the very next turn\'s context (measured in prod 2026-10-08: it was not, and the model offered to delete a different real alert)', async () => {
     const { say } = await mount()
@@ -285,7 +285,7 @@ describe('in the panel: proposal → Apply once → receipt; delete offers no Un
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
     await waitFor(() => expect(screen.getAllByTestId('agent-receipt')).toHaveLength(1), { timeout: 4000 })
     expect(screen.getByTestId('agent-receipt').textContent).toMatch(/Deleted the alert AMD at or below \$120 \(permanent\)/)
-    expect(screen.queryAllByTestId('agent-undo')).toHaveLength(0)
+    expect(document.querySelectorAll('[data-undoable]')).toHaveLength(0)
     expect(deletes().map(c => c[1])).toEqual(['/api/watchlist-alerts/a2'])
   })
 })

@@ -24,7 +24,7 @@ from datetime import datetime
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from api.middleware import auth_middleware
@@ -106,7 +106,7 @@ NO_TITLE_YET = "(no name yet)"
 
 
 @router.post("/api/agent/turn")
-def agent_turn(body: TurnIn, user: dict = Depends(require_admin_dark)):
+def agent_turn(body: TurnIn, background: BackgroundTasks, user: dict = Depends(require_admin_dark)):
     from api.services import ai_population_cap
     from api.services.uct_agent import store, turn as agent
     uid = user["id"]
@@ -164,6 +164,9 @@ def agent_turn(body: TurnIn, user: dict = Depends(require_admin_dark)):
             store.set_auto_title(uid, cid, title)       # refuses by itself over a member's own name
         except Exception:  # noqa: BLE001 -- the reply stands; only the name update is lost
             log.exception("[uct-agent] could not store the conversation title")
+    elif nameable == NO_TITLE_YET and not env.get("need_groups"):
+        # Still unnamed and the turn gave no name: one small naming call after the reply is sent.
+        background.add_task(_name_unnamed, uid, cid)
     store.record_telemetry(uid, cid, {
         # routing in the existing columns: path model | routed | reroute; disposition need_groups
         "path": "reroute" if body.reroute else ("routed" if body.routing else "model"),
@@ -177,6 +180,20 @@ def agent_turn(body: TurnIn, user: dict = Depends(require_admin_dark)):
     return {"conversationId": cid, "turnId": turn_id, "envelope": env,
             "usage": {k: usage.get(k) for k in ("model", "input_tokens", "output_tokens", "cost_usd",
                                                 "latency_ms", "research_calls", "citations")}}
+
+
+def _name_unnamed(uid: int, cid: str) -> None:
+    """Background: name a chat that is still on its first message. Never over the member's own
+    name (the store refuses that) or over a name the Agent gave it meanwhile."""
+    from api.services.uct_agent import store, turn as agent
+    try:
+        if (store.title_info(uid, cid) or {}).get("source") is not None:
+            return
+        title = agent.name_conversation(store.get_turns(uid, cid) or [])
+        if title and (store.title_info(uid, cid) or {}).get("source") is None:
+            store.set_auto_title(uid, cid, title)
+    except Exception:  # noqa: BLE001 -- naming is a nicety; the chat keeps its first-message name
+        log.exception("[uct-agent] background naming failed")
 
 
 @router.post("/api/agent/record")

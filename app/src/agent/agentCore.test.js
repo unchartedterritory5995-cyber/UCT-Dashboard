@@ -237,6 +237,9 @@ describe('fast path (capability-contributed phrases)', () => {
   })
   it('control words', () => {
     expect(fastParse('Undo that')).toEqual({ kind: 'undo' })
+    // No Undo button any more: the member just asks, in their own words
+    for (const t of ['reverse that', 'Reverse', 'reverse the last change', 'undo my last action', 'take that back', 'Oops, reverse it'])
+      expect(fastParse(t)).toEqual({ kind: 'undo' })
     expect(fastParse('do it')).toEqual({ kind: 'confirm' })
     expect(fastParse('just apply the first two')).toEqual({ kind: 'subset', count: 2 })
     expect(fastParse('never mind')).toEqual({ kind: 'dismiss' })
