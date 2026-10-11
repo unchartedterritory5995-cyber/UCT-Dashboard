@@ -43,7 +43,8 @@ import { DATE_SUGGEST_MENU_ID } from './dateSuggestMenuId'
 // date input and its stylesheet -- is a separate chunk, fetched on the FIRST `@` of the page and
 // kept. The plugin, `dateChoices` and `runDateCommand` stay here: they are small and they are what
 // the editor needs at first open. Until the chunk arrives the session simply has no list: every key
-// reaches the editor, which is what an empty list does anyway (Enter is a new line).
+// reaches the editor, which is what an empty list does anyway (Enter is a new line), except Tab,
+// which still takes the first choice (`tabFirstChoice`, below).
 let listModule = null
 let listLoading = null
 const loadDateList = () => {
@@ -117,6 +118,23 @@ export function runDateCommand(editor, choice, range) {
 
 export const dateSuggestPluginKey = new PluginKey('dateSuggest')
 
+/**
+ * Tab with no list on screen yet (N3, polish round). On the FIRST `@` of a page load the list's
+ * chunk is still on its way, and without this Tab went to the browser, which can move focus out of
+ * the editor. The list's own rule is "Tab takes the selected row, or the first one" and before the
+ * list exists nothing can be selected, so this takes the first choice -- computed here, eagerly,
+ * from the plugin's own query and range (never from the list, never from a session's props, which
+ * arrive a tick later) and inserted through the ONE command. Answers false (the key is not ours)
+ * when no session is open or there is nothing to take; the picker row is never "taken" by Tab.
+ */
+export function tabFirstChoice(editor, state, today) {
+  const s = dateSuggestPluginKey.getState(state)
+  if (!s?.active) return false
+  const first = dateChoices(s.query, today)[0]
+  if (!first || first.picker) return false
+  return runDateCommand(editor, first, s.range)
+}
+
 // Is the slash menu (`/`, which Suggestion keys by default) or the note-link menu (`[[`) in a
 // session? `state` is the NEW editor state, and both of those plugins sit before this one in the
 // plugin list, so their states are already this transaction's: `/due` + Enter, which ends the
@@ -138,6 +156,7 @@ export const DateSuggest = Extension.create({
 
   addProseMirrorPlugins() {
     const today = this.options.today
+    const editor = this.editor
     return [Suggestion({
       editor: this.editor,
       pluginKey: dateSuggestPluginKey,
@@ -214,7 +233,12 @@ export const DateSuggest = Extension.create({
           // rail could tell from the first (EmojiMenu says the same).
           onKeyDown(props) {
             if (props.event.key === 'Escape') return false
-            return component?.ref?.onKeyDown?.(props) ?? false
+            const listKeys = component?.ref?.onKeyDown
+            if (listKeys) return listKeys(props) ?? false
+            // No list yet (its chunk is still on its way): every key reaches the editor, as an empty
+            // list would let it, EXCEPT Tab, which takes the first choice as the list's Tab does.
+            if (props.event.key === 'Tab') return tabFirstChoice(editor, props.view.state, today())
+            return false
           },
           onExit() {
             live = false
