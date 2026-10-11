@@ -78,9 +78,10 @@ describe('⭐ C18 — k-clustering', () => {
     const b = runAt(RUNTIME_PROBES[1])
     expect(a.budget.counts.WHILE_ITERATIONS).toBe(15)
     expect(a.budget.counts.INSTRUCTIONS_PER_BAR).toBeGreaterThan(DEFAULT_LIMITS.INSTRUCTIONS_PER_BAR)
-    // the empty clusters (k = 3 of 6) are averaged on every pass: the probe runs
-    // agree everywhere, so no served value depends on what Pine answers there
-    expect(a.budget.unmeasured.hits.length).toBeGreaterThan(0)
+    // the empty clusters (k = 3 of 6) are averaged on every pass. ⭐ UIE PHASE 3 (M5) — that
+    // average is MEASURED now (`na`, `vw-rt7-empty-reduce-fixnan` E04), so the unknown-value
+    // probe is never asked; the values below are still TradingView's exactly
+    expect(a.budget.unmeasured.hits.length).toBe(0)
     const last = bars.length - 1
     const value = (res, k) => res.outputs[built.objectAtOutputs[k]][last]
     const vals = rt.at.map((_, k) => value(a.res, k))

@@ -313,6 +313,9 @@ export function execute(program, ctx, limits, opts) {
       caps: program.objectCaps || {},
     })
     : null)
+  // ⭐ UIE PHASE 3 (M5) — THIS run holds its own drawings, so a drawing handle is ITS value:
+  // a sized `array.new_line(n)` may hold Pine's `na` handle (`collections.js::ARRAY_NEW`).
+  if (store && budget.objectsInRun === undefined) budget.objectsInRun = true
 
   // ⭐⭐⭐ 2F-2B — ONE SCRATCH WINDOW PER SITE, ALLOCATED ONCE.
   //

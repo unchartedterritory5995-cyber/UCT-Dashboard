@@ -51,7 +51,7 @@ const TINY = ['//@version=5', 'indicator("t")', 'var float s = 0.0', 's := s + c
 // a collection error on the first bar: Pine stops the script here, this lane names it
 // ⚰️ RT7 — this was `array.max` of an empty array, which is MEASURED now (na, as Pine;
 // `rt7ArrayNa.test.js`). `array.sum` of an empty array is still an unmeasured, named stop.
-const EMPTY_MAX = ['//@version=5', 'indicator("t")', 'a = array.new_float(0)', 'plot(array.sum(a))', ''].join(LF)
+const EMPTY_MAX = ['//@version=5', 'indicator("t")', 'a = array.new_float(0)', 'plot(array.median(a))', ''].join(LF)
 
 const rtDef = (source, id = 'u_rf_safety') => ({
   id,
@@ -83,7 +83,9 @@ describe('RF — a VM throw and a limit stop are refusals by name, never `engine
     try { computeRuntimeColumns(rtDef(EMPTY_MAX), rows(30), { tf: 'D' }) } catch (e) { err = e }
     expect(err.guard).toBe(RUNTIME_FAILED_GUARD)
     expect(err.message).toMatch(/stopped on bar 0 of 30/)
-    expect(err.message).toMatch(/array\.sum of an empty array/)
+    // ⭐ UIE PHASE 3 (M5) — `array.sum` of an empty array is measured now (na); `array.median`
+    // is still a stop of the script's own
+    expect(err.message).toMatch(/array\.median/)
     // through the registry: a reason, never a throw on the paint path
     const cols = registry.computeFor(rtDef(EMPTY_MAX, 'u_rf_f2'), rows(30), undefined, { tf: 'D' })
     expect(Object.keys(cols)).toEqual([])

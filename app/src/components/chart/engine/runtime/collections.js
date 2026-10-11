@@ -105,6 +105,30 @@ const at = (arr, i, what, budget) => {
  *  refusing the other two until somebody measures them. */
 const DEFAULT_FOR = Object.freeze({ float: NaN, int: NaN })
 
+/** ⭐⭐ UIE PHASE 3 (M5) — A SIZED ARRAY WHOSE FILL IS UNMEASURED IS SERVED; READING THE
+ *  FILL IS NOT.
+ *
+ *  `array.new_color(2)` (linear-regression-channel), `array.new_bool(n)`,
+ *  `array.new_string(n)` with no initial value: what Pine fills them with has not been
+ *  measured on a chart (`DEFAULT_FOR` above), and they were refused at the call — a
+ *  refusal about a value the script may never read. linear-regression-channel sizes its
+ *  colour array to 2, `unshift`s its two colours in FRONT, and only ever reads indices
+ *  0 and 1, so the unmeasured fill at 2 and 3 is never looked at.
+ *  So the elements are allocated holding `UNFILLED`, and every member that would READ
+ *  one — hand it back (`get`, `first`, `last`, `pop`, `shift`, `remove`), compare it
+ *  (`indexof`, `includes`, `sort_indices`) or reduce it — stops the run BY NAME with the
+ *  sentence the call used to say. A script that never reads the fill computes exactly
+ *  what TradingView computes whatever that fill is; one that reads it is refused, as
+ *  before. ⛔ Drawing handles keep their own refusal (`noDefaultReason`). */
+const UNFILLED_TAG = Symbol.for('uct.array.unfilled')
+export const UNFILLED = Object.freeze({ [UNFILLED_TAG]: true, typeArg: null })
+const unfilledOf = (typeArg) => Object.freeze({ [UNFILLED_TAG]: true, typeArg })
+export const isUnfilled = (v) => !!(v && typeof v === 'object' && v[UNFILLED_TAG] === true)
+const UNMEASURED_FILL = new Set(['bool', 'string', 'color'])
+const readUnfilled = (what, v) => {
+  throw new CollectionError(`${what} reads an element ${noDefaultReason(v.typeArg, 'n')}`)
+}
+
 /** ⛔⛔ THE FOUR DRAWING ELEMENT TYPES — `box`, `line`, `label`, `linefill`.
  *
  *  A Pine script that draws more than one of anything keeps its drawings in an
@@ -184,10 +208,16 @@ const nonEmpty = (arr, what) => {
  *  na`), call `array.max` / `array.min` of the empty array, and TradingView draws
  *  the script through those bars (Q-RT7a asks the empty case directly).
  *
- *  ⛔ `array.sum` / `array.avg` over ZERO real elements stay UNMEASURED (0, `na`,
- *  or a stop are all plausible, and no capture separates them): they stop the
- *  run by name, as before, unless a caller's probe answers (C18). A NON-numeric
- *  element (a string, a handle) is not a number to reduce and stops by name. */
+ *  ⭐⭐ UIE PHASE 3 (M5) — `array.sum` / `array.avg` over ZERO real elements answer
+ *  `na`: MEASURED. `vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04` (probe
+ *  `vw-rt7-empty-reduce-fixnan.pine`, Q-RT7a) reads, on all 8,477 bars of SPY 1D,
+ *  `na` for `array.sum` of an EMPTY array (E03) and of `(na, na)` (E05), and for
+ *  `array.avg` of both (E04, E06) — not 0, and no runtime error (the bar-index
+ *  control row E00 plots on every bar). ⚰️ They stopped the run by name as
+ *  unmeasured (0, `na` or a stop were all plausible) until that capture was read;
+ *  the caller's probe (C18) that stood in for the unknown value is no longer asked
+ *  for them. A NON-numeric element (a string, a handle) is not a number to reduce
+ *  and stops by name. */
 const realsOf = (arr, what) => {
   const xs = []
   for (const v of arr) {
@@ -196,16 +226,6 @@ const realsOf = (arr, what) => {
         + 'numbers only')
     }
     if (!Number.isNaN(v)) xs.push(v)
-  }
-  return xs
-}
-/** ⛔ zero real elements under `sum` / `avg`: the unmeasured stop, word for word. */
-const realNumbers = (arr, what) => {
-  const xs = realsOf(arr, what)
-  if (!xs.length) {
-    throw new CollectionError(`${what} of ${arr.length ? 'an array whose every element is na' : 'an empty array'}`
-      + ' — what Pine answers here has not been measured on a chart, and this engine does '
-      + 'not guess a value a member would read as data')
   }
   return xs
 }
@@ -223,7 +243,7 @@ const realNumbers = (arr, what) => {
  *  (`objectColumns.js::runtimeColumnsForObjects`).
  *
  *  ⛔ WITHOUT a probe the refusal stands, word for word: the runtime pane and
- *  every other caller keep `realNumbers`' stop. ⛔ AN `na` ELEMENT is a different
+ *  every other caller keep the unmeasured stop (`array.median` / `array.stdev`). ⛔ AN `na` ELEMENT is a different
  *  question (skip it, or poison the result?) and is never probed here. */
 const probedEmpty = (arr, what, budget) => {
   const u = budget && budget.unmeasured
@@ -360,19 +380,18 @@ const C11_MEMBERS = {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
-      const p = probedEmpty(a[0], 'array.sum', budget)
-      if (p) return p.value
-      return realNumbers(a[0], 'array.sum').reduce((s, v) => s + v, 0)
+      // zero real elements → `na` (E03 / E05, measured above)
+      const xs = realsOf(a[0], 'array.sum')
+      return xs.length ? xs.reduce((s, v) => s + v, 0) : NaN
     },
   },
   'array.avg': {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
-      const p = probedEmpty(a[0], 'array.avg', budget)
-      if (p) return p.value
-      const xs = realNumbers(a[0], 'array.avg')
-      return xs.reduce((s, v) => s + v, 0) / xs.length
+      // zero real elements → `na` (E04 / E06, measured above)
+      const xs = realsOf(a[0], 'array.avg')
+      return xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : NaN
     },
   },
 }
@@ -403,6 +422,15 @@ const ARRAY_NEW = {
     // spelling. This is checked BEFORE the default lookup, deliberately: after
     // it, the lookup's verdict decides a case it has no stake in.
     if (n === 0) return []
+    if (UNMEASURED_FILL.has(typeArg)) return filled(n, unfilledOf(typeArg))
+    // ⭐⭐ UIE PHASE 3 (M5) — A RUN THAT HOLDS ITS OWN DRAWINGS (`budget.objectsInRun`, set by
+    // the VM when it owns the object store) fills a sized drawing array with Pine's `na`
+    // handle — the reference's default `initial_value` for `array.new_line` & co. The
+    // refusal below is about a handle the OBJECT PROGRAM owns, which this lane cannot hold;
+    // here the run's own store owns every handle and already reads `na` the way Pine does
+    // (`objectStore.js`: a delete / setter on `na` does nothing, a getter answers `na`), so
+    // `na(array.get(a, i))` is TRUE exactly for a slot no drawing has been put in.
+    if (DRAWING_TYPES.includes(typeArg) && budget && budget.objectsInRun === true) return filled(n, NaN)
     if (!Object.prototype.hasOwnProperty.call(DEFAULT_FOR, typeArg)) {
       throw new CollectionError(noDefaultReason(typeArg, n))
     }
@@ -445,7 +473,7 @@ const typedNew = (typeArg) => ({
   fn: (a, budget) => ARRAY_NEW.fn(a, budget, typeArg),
 })
 
-export const ARRAY_FNS = Object.freeze({
+const ARRAY_FNS_RAW = Object.freeze({
   'array.new': ARRAY_NEW,
   ...Object.fromEntries(TYPED_NEW.map((ty) => [`array.new_${ty}`, typedNew(ty)])),
   'array.from': {
@@ -596,21 +624,41 @@ export const ARRAY_FNS = Object.freeze({
   },
 })
 
-export const ARRAY_NAMES = Object.freeze(Object.keys(ARRAY_FNS))
+export const ARRAY_NAMES = Object.freeze(Object.keys(ARRAY_FNS_RAW))
 
 /** Does this call return a collection? The front end's route decision needs it
  *  for the same reason `producesText` exists: a value the columnar lane cannot
  *  hold must not be sent there. */
 export const producesArray = (name) => (
-  Object.prototype.hasOwnProperty.call(ARRAY_FNS, name) && ARRAY_FNS[name].returns === 'array')
+  Object.prototype.hasOwnProperty.call(ARRAY_FNS_RAW, name) && ARRAY_FNS_RAW[name].returns === 'array')
 
 /** Does this call return nothing? A void call is a STATEMENT, and using one as
  *  a value is refused rather than silently yielding `na`. */
 export const isVoid = (name) => (
-  Object.prototype.hasOwnProperty.call(ARRAY_FNS, name) && ARRAY_FNS[name].returns === 'void')
+  Object.prototype.hasOwnProperty.call(ARRAY_FNS_RAW, name) && ARRAY_FNS_RAW[name].returns === 'void')
 
 /** The declared operand kind for argument `i` — variadic entries repeat their
  *  single declared kind. */
 export const argKind = (spec, i) => (spec.variadic ? spec.args[0] : spec.args[i])
 
 export { RuntimeLimitError }
+
+/** ⭐⭐ UIE PHASE 3 (M5) — the members that READ an element, guarded (`UNFILLED`, above):
+ *  one that compares or reduces the elements stops if any is the unmeasured fill; one
+ *  that hands an element back stops if that element is. Every other member (`set`,
+ *  `push`, `unshift`, `size`, `copy`, `slice`, `concat`, `clear`) moves the marker
+ *  as it is, untouched. */
+const READS_ALL = new Set(['array.indexof', 'array.includes', 'array.sort_indices', 'array.max', 'array.min',
+  'array.sum', 'array.avg', 'array.median', 'array.stdev'])
+export const ARRAY_FNS = Object.freeze(Object.fromEntries(Object.entries(ARRAY_FNS_RAW).map(([name, spec]) => [name, {
+  ...spec,
+  fn: (a, budget, typeArg) => {
+    if (READS_ALL.has(name) && Array.isArray(a[0])) {
+      const hit = a[0].find(isUnfilled)
+      if (hit) readUnfilled(name, hit)
+    }
+    const out = spec.fn(a, budget, typeArg)
+    if (isUnfilled(out)) readUnfilled(name, out)
+    return out
+  },
+}])))

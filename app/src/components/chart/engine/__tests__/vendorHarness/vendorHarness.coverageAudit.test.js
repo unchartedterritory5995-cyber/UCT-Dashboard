@@ -399,13 +399,17 @@ describe('F2 — RT3 Q-NL: an `na` operand of `and` / `or` / `not` is false (v4 
 
 // ─── INCONCLUSIVE — measured, but nothing comparable on our side ───────────────
 describe('CAP2 coverage audit — INCONCLUSIVE', () => {
-  it('delta-rsi-oscillator-strategy (runtime pane): the run attaches and computes no column for Buy / Sell / Exit Long / Exit Short', () => {
-    for (const id of ['delta-rsi-oscillator-strategy-rddt-1d-2026-10-02', 'delta-rsi-oscillator-strategy-spy-1d-2026-10-02']) {
-      const v = grade(id, 'runtime').v
-      expect(v.verdict, id).toBe('INCONCLUSIVE')
-      for (const t of ['Buy', 'Sell', 'Exit Long', 'Exit Short']) expect(item(v, t).reason, `${id} ${t}`).toMatch(/no column/)
-    }
+  // ⭐⭐ UIE PHASE 3 (M5) — delta-rsi stopped on `array.sum` of an all-`na` array (unmeasured
+  // then). Measured since (`vw-rt7-empty-reduce-fixnan`: `na`), it computes: RDDT (from the
+  // listing) MATCHES TradingView on all four plots; SPY (not from the listing) is stopped
+  // by the pane's time budget in the warm-up check, by name — a cost, not a semantics gap.
+  it('delta-rsi-oscillator-strategy (runtime pane): RDDT MATCHES on Buy / Sell / Exit Long / Exit Short', () => {
+    const v = grade('delta-rsi-oscillator-strategy-rddt-1d-2026-10-02', 'runtime').v
+    expect(v.verdict).toBe('MATCH')
+    for (const t of ['Buy', 'Sell', 'Exit Long', 'Exit Short']) expect(item(v, t).verdict, t).toBe('MATCH')
   }, T)
+  // ⚠️ SPY is not pinned here: whether its warm-up check fits the 1,000 ms budget is the
+  // machine's speed, and a test of a wall clock would be a flaky test.
   it('opening-range-initial-balance-opening-price: TradingView repeats titles (Shapes, OR Low, IB Low), so 11 of 15 items are UNMAPPED', () => {
     const v = grade('opening-range-initial-balance-opening-price-rddt-1d-2026-10-02').v
     expect(v.verdict).toBe('INCONCLUSIVE')

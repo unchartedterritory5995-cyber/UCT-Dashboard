@@ -69,7 +69,9 @@ describe('⛔ an unmeasured element default still refuses', () => {
     // array with has not been measured" — instead of the false one, "this
     // engine has no such function". Those are different facts and only one of
     // them is correct.
-    expect(() => run('a = array.new_bool(2)\nplot(array.size(a))'))
+    // ⭐ UIE PHASE 3 (M5) — the array is served; READING its unmeasured fill is what stops
+    expect(run('a = array.new_bool(2)\nplot(array.size(a))')).toEqual([2, 2, 2])
+    expect(() => run('a = array.new_bool(2)\nplot(array.first(a) ? 1 : 0)'))
       .toThrow(/has not been measured/)
   })
 
