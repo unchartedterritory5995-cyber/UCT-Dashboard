@@ -97,6 +97,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if "pinned_at" not in cols:  # History: pinned chats list first (NULL = not pinned)
         conn.execute("ALTER TABLE agent_conversations ADD COLUMN pinned_at INTEGER")
         conn.commit()
+    if "title_source" not in cols:  # NULL = first message (placeholder) | 'auto' (model) | 'user' (renamed)
+        conn.execute("ALTER TABLE agent_conversations ADD COLUMN title_source TEXT")
+        conn.commit()
 
 
 def _uid(user_id: Any) -> str:
@@ -159,7 +162,7 @@ def add_turn(user_id: int, conversation_id: str, role: str, text: str, data: dic
 def list_conversations(user_id: int, limit: int = 100) -> list[dict]:
     """The member's chats: pinned first (most recently pinned on top), then newest activity."""
     with contextlib.closing(_connect()) as c:
-        rows = c.execute("SELECT id, title, created_at, updated_at, pinned_at FROM agent_conversations "
+        rows = c.execute("SELECT id, title, title_source, created_at, updated_at, pinned_at FROM agent_conversations "
                          "WHERE user_id = ? ORDER BY (pinned_at IS NULL), pinned_at DESC, updated_at DESC, rowid DESC LIMIT ?",
                          (_uid(user_id), int(limit))).fetchall()
     return [dict(r) for r in rows]
@@ -171,7 +174,29 @@ def rename_conversation(user_id: int, conversation_id: str, title: str) -> bool:
     if not clean:
         raise ValueError("empty title")
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
-        cur = c.execute("UPDATE agent_conversations SET title = ? WHERE id = ? AND user_id = ?",
+        cur = c.execute("UPDATE agent_conversations SET title = ?, title_source = 'user' WHERE id = ? AND user_id = ?",
+                        (clean, str(conversation_id), _uid(user_id)))
+        c.commit()
+    return cur.rowcount == 1
+
+
+def title_info(user_id: int, conversation_id: str) -> dict | None:
+    """{title, source}: source None = still the first message, 'auto' = named by the Agent, 'user' = renamed."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT title, title_source FROM agent_conversations WHERE id = ? AND user_id = ?",
+                        (str(conversation_id), _uid(user_id))).fetchone()
+    return {"title": row["title"], "source": row["title_source"]} if row else None
+
+
+def set_auto_title(user_id: int, conversation_id: str, title: str) -> bool:
+    """The Agent's name for a chat. ⛔ NEVER over a name the member chose: the guard is in the
+    UPDATE itself, so no caller (and no model output) can replace a 'user' title."""
+    clean = " ".join(str(title or "").split())[:TITLE_LEN]
+    if not clean:
+        return False
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute("UPDATE agent_conversations SET title = ?, title_source = 'auto' WHERE id = ? AND user_id = ? "
+                        "AND (title_source IS NULL OR title_source != 'user')",
                         (clean, str(conversation_id), _uid(user_id)))
         c.commit()
     return cur.rowcount == 1

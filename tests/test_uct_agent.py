@@ -739,3 +739,46 @@ def test_HISTORY_rename_pin_delete_and_search_are_the_members_own(make_client, m
     assert c1 not in ids()
     assert a.get("/api/agent/search", params={"q": "aapl"}).json()["results"] == []
     assert a.delete(f"/api/agent/conversations/{c1}").status_code == 404
+
+
+def test_AUTO_TITLE_the_agent_names_a_chat_until_the_member_renames_it(make_client, monkeypatch):
+    """History auto-naming: the model's `title` names the chat (cleaned), replaces the first-message
+    placeholder, updates only when it changes, never reaches the browser's envelope, and STOPS for
+    good once the member renames the chat (the model is then not even shown a title)."""
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: True)
+    a = make_client(ADMIN)
+    titled = lambda t, reply="ok": {**env("answer", reply=reply), "title": t}
+    caller = caller_of(_resp(titled('  "NVDA Earnings Reaction."  ')), _resp(titled("NVDA Earnings Reaction")),
+                       _resp(titled("Weekly Swing Layout")), _resp(titled("Should Be Ignored")))
+    monkeypatch.setattr(turn, "_default_caller", caller)
+    title = lambda cid: a.get(f"/api/agent/conversations/{cid}").json()["title"]
+    sent = lambda i: json.dumps(caller.calls[i]["messages"][-1]["content"])
+
+    r = a.post("/api/agent/turn", json={"message": "why did nvda drop after earnings", "context": CTX})
+    cid = r.json()["conversationId"]
+    assert "title" not in r.json()["envelope"]                         # server-side only
+    assert "(no name yet)" in sent(0) and sent(0).count("why did nvda drop after earnings") == 1
+    assert title(cid) == "NVDA Earnings Reaction"                      # quotes + trailing period cleaned
+    a.post("/api/agent/turn", json={"conversationId": cid, "message": "and the guidance?", "context": CTX})
+    assert "NVDA Earnings Reaction" in sent(1) and title(cid) == "NVDA Earnings Reaction"
+    a.post("/api/agent/turn", json={"conversationId": cid, "message": "ok now set up a weekly swing layout", "context": CTX})
+    assert title(cid) == "Weekly Swing Layout"                         # the subject moved on
+    # the member renames it: the Agent never names this chat again, and is not shown a title
+    assert a.patch(f"/api/agent/conversations/{cid}", json={"title": "My swing plan"}).status_code == 200
+    a.post("/api/agent/turn", json={"conversationId": cid, "message": "thanks", "context": CTX})
+    assert "conversation_title" not in sent(3)
+    assert title(cid) == "My swing plan"
+    # and the store refuses an auto-title over a member's name even if something tried
+    assert store.set_auto_title(ADMIN["id"], cid, "Sneaky") is False and title(cid) == "My swing plan"
+
+
+@pytest.mark.parametrize("raw, want", [
+    ("NVDA Earnings Reaction", "NVDA Earnings Reaction"),
+    ('"20 EMA Crossover"', "20 EMA Crossover"),
+    ("**Weekly   Swing**\n Layout.", "Weekly Swing Layout"),
+    ("`RSI_Divergence` Scan", "RSI_Divergence Scan"),
+    ("x" * 90, "x" * 60),
+    ("", None), ("  ", None), ("??", None), (None, None), (7, None),
+])
+def test_AUTO_TITLE_cleaning(raw, want):
+    assert turn.clean_title({"title": raw}) == want
