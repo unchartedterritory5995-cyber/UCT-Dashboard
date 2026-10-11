@@ -31,7 +31,8 @@ const D = { tf: 'D', newestBarIsForming: false }
 function both(d, rows = WINDOW, ctx = D) {
   const run = (es) => {
     try {
-      const r = computeRuntimeColumns(d, rows, ctx, { warmupEarlyStop: es })
+      // cold every time (`incremental: false`): this file is about the cold run's early stop
+      const r = computeRuntimeColumns(d, rows, ctx, { warmupEarlyStop: es, incremental: false })
       return { v: r.v, w: runtimeWarmupOf(r) }
     } catch (e) { return { guard: e.guard || e.name } }
   }

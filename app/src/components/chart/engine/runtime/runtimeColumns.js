@@ -32,7 +32,7 @@ import { registerObjectRuntimeValues } from '../objectColumns.js'
 import { withRuntimeObjects, RUNTIME_WARMUP_KEY, RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from './runtimeObjects.js'
 import { sameDrawings } from './warmupDrawings.js'
 import { runtimeInputValues, runtimeBuildInputs } from './runtimeInputs.js'
-import { makeWarmupProbe } from './warmupProbe.js'
+import { makeWarmupProbe, sameProgram } from './warmupProbe.js'
 export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
 import { declaredCalcBarsOf } from './objectStore.js'
 import { strippedForScan } from '../ast/pine.js'
@@ -482,8 +482,12 @@ function computeOffListing(def, rows, ctx, opts) {
   // ⭐⭐ UIE PHASE 3 (M1) — B stops as soon as it is PROVEN to repeat A (`warmupProbe.js`);
   // a drawing program is never probed (its object store is not encoded)
   const probe = objects || opts.warmupEarlyStop === false ? null : makeWarmupProbe(n, shift)
+  // ⭐ UIE PHASE 5 (M2) — each run keeps its own session (`sessionRole`); A is probed only
+  // when it runs from scratch (`probeIfCold`): a resumed A visits none of the early bars
+  // B could stop at, and B then resumes from its own session instead
   const a = computeRuntimeColumnsOnce(plain, rows, ctx,
-    probe ? { ...inner, probe: probe.forA, onProgram: probe.programA } : inner)
+    probe ? { ...inner, sessionRole: 'A', probeIfCold: probe.forA, onProgram: probe.programA } : { ...inner, sessionRole: 'A' })
+  const aResumed = (runtimeIncrementalOf(a) || {}).resumedFrom !== null
   const left = Number.isFinite(opts.budgetMs) ? opts.budgetMs - (clock() - t0) : null
   if (left !== null && left <= 0) {
     throw refusal(RUNTIME_TIME_BUDGET_GUARD, `this script took more than ${opts.budgetMs} ms to draw bar by bar `
@@ -492,8 +496,9 @@ function computeOffListing(def, rows, ctx, opts) {
   }
   const b = computeRuntimeColumnsOnce(plain, rows.slice(shift), ctx,
     { ...inner, onBudget: undefined, ...(left !== null ? { budgetMs: left } : {}),
-      ...(probe ? { probe: probe.forB, onProgram: probe.programB } : {}) })
-  const stoppedAt = probe ? probe.stoppedAt() : null
+      sessionRole: 'B',
+      ...(probe && !aResumed ? { probe: probe.forB, onProgram: probe.programB } : {}) })
+  const stoppedAt = probe && !aResumed ? probe.stoppedAt() : null
   const from = convergedFrom(a, b, shift, stoppedAt === null ? undefined : stoppedAt)
   if (from === null || from > shift + Math.floor((n - shift) / 2)) throw never()
   for (const k of Object.keys(a)) {
@@ -521,6 +526,76 @@ function computeOffListing(def, rows, ctx, opts) {
   }
   return a
 }
+
+// ─── ⭐⭐⭐ UIE PHASE 5 (M2) — INCREMENTAL RUNS: RESUME FROM THE LAST CONFIRMED BAR ───────
+//
+// A chart repaints a runtime pane on every tick and every new bar, and each used to
+// run the script over the WHOLE history again. A run now leaves a SESSION behind: the
+// bars it ran over (copied), the program it ran, and a checkpoint of the VM at the end
+// of its last CONFIRMED bar (`vm.js`, `opts.checkpointAt`). The next run of the same
+// identity (`runKey`: the document's content, its settings, the symbol, timeframe,
+// forming state and listing — plus the run's role) RESUMES from that checkpoint when,
+// and only when, running bars [0, cp] again would rebuild it exactly
+// (`resumableFrom`):
+//   1. those bars are the same bars — time, open, high, low, close, volume, bit for bit
+//      (a historical correction, an inserted bar, a different window: not resumed);
+//   2. the new build lowered to the same program (`sameProgram`: code, constants, slots);
+//   3. every precomputed column the program reads is the same over [0, cp] — which is
+//      what catches what a bar reads of the WHOLE series: `barstate.islast`,
+//      `last_bar_index` and the like change when a bar is appended, so a script that
+//      reads them is not resumed across a new bar (a tick on the forming bar keeps them);
+// and the VM is deterministic, so the resumed run's outputs, drawings and state EQUAL a
+// full run's (`runtimeIncremental.test.js` holds every runtime-only corpus script to
+// it, bit for bit). Anything else is a full run, which leaves a fresh session.
+// ⛔ A forming bar is never checkpointed: each tick resumes from the same confirmed
+// state, so a tick's writes never accumulate. Sessions are few and bounded
+// (`SESSION_CAP`, oldest dropped); `opts.incremental === false` opts a run out.
+const SESSION_CAP = 12
+const _sessions = new Map()
+/** Drop every session (tests; a host that wants a cold start). */
+export function resetRuntimeSessions() { _sessions.clear() }
+const rowsSnapshot = (rows) => {
+  const n = rows.length
+  const out = { n, t: new Float64Array(n), o: new Float64Array(n), h: new Float64Array(n), l: new Float64Array(n),
+    c: new Float64Array(n), v: new Float64Array(n) }
+  for (let i = 0; i < n; i += 1) {
+    const b = rows[i]
+    out.t[i] = b.t; out.o[i] = b.o; out.h[i] = b.h; out.l[i] = b.l; out.c[i] = b.c; out.v[i] = b.v
+  }
+  return out
+}
+const sameRowsTo = (snap, rows, last) => {
+  if (!snap || rows.length <= last || snap.n <= last) return false
+  for (let i = 0; i <= last; i += 1) {
+    const b = rows[i]
+    if (!Object.is(snap.t[i], +b.t) || !Object.is(snap.o[i], +b.o) || !Object.is(snap.h[i], +b.h)
+      || !Object.is(snap.l[i], +b.l) || !Object.is(snap.c[i], +b.c) || !Object.is(snap.v[i], +b.v)) return false
+  }
+  return true
+}
+const sameColumnsTo = (a, b, last) => {
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+  for (let k = 0; k < a.length; k += 1) {
+    const x = a[k]
+    const y = b[k]
+    if (!x || !y || x.length <= last || y.length <= last) return false
+    for (let i = 0; i <= last; i += 1) if (!Object.is(x[i], y[i])) return false
+  }
+  return true
+}
+/** The checkpoint a run over `rows` with `program` may resume from, or `{why}`. */
+export function resumableFrom(prev, rows, program) {
+  if (!prev || !prev.checkpoint) return { why: 'no checkpoint' }
+  const cp = prev.checkpoint
+  if (cp.bar >= rows.length) return { why: 'fewer bars than the checkpoint' }
+  if (!sameRowsTo(prev.rows, rows, cp.bar)) return { why: 'the bars before the checkpoint changed' }
+  if (!sameProgram(prev.program, program)) return { why: 'the program changed' }
+  if (!sameColumnsTo(prev.program.columns, program.columns, cp.bar)) return { why: 'a column before the checkpoint changed' }
+  return { checkpoint: cp }
+}
+/** ⭐ Where a run's incremental decision rides (non-enumerable, like the warm-up). */
+export const RUNTIME_INCREMENTAL_KEY = '__runtimeIncremental'
+export const runtimeIncrementalOf = (cols) => (cols && typeof cols === 'object' ? cols[RUNTIME_INCREMENTAL_KEY] || null : null)
 
 function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const compute = (def && def.compute) || {}
@@ -598,6 +673,18 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // only while each mapped index still names the output it named at mint.
   const versionWhy = runtimeVersionRefusal(def, program.outputs)
   if (versionWhy) throw refusal(RUNTIME_VERSION_GUARD, versionWhy)
+  // ⭐ UIE PHASE 5 (M2) — the session, and whether this run resumes from it
+  const sessionKey = opts.incremental === false || opts.limits ? null
+    : `${runKey(def, ctx)}|${opts.sessionRole || 'run'}`
+  const prevSession = sessionKey ? _sessions.get(sessionKey) : null
+  const resumable = prevSession && !opts.probe ? resumableFrom(prevSession, rows, program) : { why: sessionKey ? 'cold' : 'off' }
+  // a probe that rides only a run from scratch (the curtain's A, `computeOffListing`)
+  const runProbe = opts.probe || (resumable.checkpoint ? null : (opts.probeIfCold || null))
+  const lastConfirmed = forming === false ? rows.length - 1 : rows.length - 2
+  const resumeFrom = resumable.checkpoint || null
+  // ⭐ a resumed run runs the SESSION's program (its constants — a drawing-handle template
+  // the checkpointed state already holds is that very object) over THIS build's columns
+  const runProgram = resumeFrom ? { ...prevSession.program, columns: program.columns } : program
   const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(rows.map((b) => b[k])))
   // ⭐⭐ RT1 — THE TIME BUDGET, checked at the end of every bar through the VM's
   // own per-bar hook (no VM change): past it the run stops by name.
@@ -614,7 +701,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   let finished = -1
   let res
   try {
-    res = execute(program, {
+    res = execute(runProgram, {
       bars: rows.length,
       series,
       columns: program.columns,
@@ -626,7 +713,10 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       // `runtimeLimitsBudget.measure.test.js`); no product caller passes it, so every
       // chart runs under `DEFAULT_LIMITS`.
     }, opts.limits, {
-      ...(opts.probe ? { probe: opts.probe } : {}),
+      ...(runProbe ? { probe: runProbe } : {}),
+      ...(resumeFrom ? { resume: resumeFrom } : {}),
+      ...(sessionKey && lastConfirmed >= 0 && !(resumeFrom && resumeFrom.bar >= lastConfirmed)
+        ? { checkpointAt: lastConfirmed } : {}),
       onBar: (bar) => {
         finished = bar
         if (budgetMs !== null) {
@@ -664,11 +754,20 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     throw err
   }
   if (typeof opts.onBudget === 'function') opts.onBudget(res.budget)   // the census reads its counts
+  if (sessionKey) {
+    const checkpoint = res.checkpoint || (resumeFrom && resumeFrom.bar <= lastConfirmed ? resumeFrom : null)
+    _sessions.delete(sessionKey)
+    _sessions.set(sessionKey, { rows: rowsSnapshot(rows), program: runProgram, checkpoint })
+    while (_sessions.size > SESSION_CAP) _sessions.delete(_sessions.keys().next().value)
+  }
   const out = {}
   for (const [plotKey, index] of Object.entries(outputs)) {
     const col = res.outputs[index]
     if (col) out[plotKey] = Array.from(col)
   }
+  Object.defineProperty(out, RUNTIME_INCREMENTAL_KEY, { enumerable: false, configurable: true,
+    value: { resumedFrom: Number.isInteger(res.resumedFrom) ? res.resumedFrom : null,
+      why: resumeFrom ? null : resumable.why, ranBars: rows.length - (resumeFrom ? resumeFrom.bar + 1 : 0) } })
   // ⭐⭐ RT5 — THE DRAWINGS THIS SAME RUN MADE, as plain data (structured-clone
   // safe for the worker), beside the columns.
   if (ownObjects) {

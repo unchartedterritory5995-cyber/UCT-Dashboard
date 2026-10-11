@@ -35,6 +35,7 @@
 // only remove work B would have repeated; it never changes what is drawn.
 import { OP } from './program.js'
 import { sameState } from './vmState.js'
+import { isDrawingHandle } from './handles.js'
 
 /** The checkpoint offsets after B's first bar: dense early, geometric later. */
 export function warmupCheckpoints(n, shift) {
@@ -46,9 +47,14 @@ export function warmupCheckpoints(n, shift) {
 /** The most encoded cells A keeps across all its checkpoints. */
 export const PROBE_TOTAL_CELL_CAP = 1 << 20
 
+// ⭐ UIE PHASE 5 (M2) — a constant that is a FROZEN DRAWING-HANDLE template (`{family,
+// site}`, minted fresh by every build) is the same constant when its family and site
+// are; every other constant is compared by `Object.is`.
+const sameConst = (a, b) => Object.is(a, b) || (isDrawingHandle(a) && isDrawingHandle(b)
+  && Object.isFrozen(a) && Object.isFrozen(b) && a.family === b.family && a.site === b.site && a.id === b.id)
 const sameList = (x, y) => {
   if (!x || !y || x.length !== y.length) return false
-  for (let i = 0; i < x.length; i += 1) if (!Object.is(x[i], y[i])) return false
+  for (let i = 0; i < x.length; i += 1) if (!sameConst(x[i], y[i])) return false
   return true
 }
 const shapeOf = (p) => {

@@ -93,3 +93,43 @@ export function sameState(a, b) {
   for (let i = 0; i < a.length; i += 1) if (!Object.is(a[i], b[i])) return false
   return true
 }
+
+/**
+ * ⭐⭐ UIE PHASE 5 (M2) — A DEEP COPY OF A RUN'S VALUES, ALIASING KEPT.
+ *
+ * A checkpoint (`vm.js`, `opts.checkpointAt`) must not share a mutable value with the
+ * run that goes on after it: `array.push` on the live run would otherwise write into
+ * the saved state. One copy per distinct object, so two slots that held ONE array hold
+ * one (new) array. Arrays keep their symbol-keyed marks (an `array.slice` link); a UDT
+ * record is rebuilt with its tag (frozen wrapper, fresh fields); a typed array is
+ * copied. ⭐ Frozen values are shared, not copied: a drawing handle (its identity is the
+ * object store's key), an unmeasured-fill marker, a colour — nothing can write them.
+ * ⛔ An object of a shape this does not know throws: a checkpoint is exact or absent.
+ * @param {Array<ArrayLike<any>>} parts
+ * @returns {any[][]} one copied array per part, in order
+ */
+export function cloneValues(parts) {
+  const seen = new Map()
+  const copy = (v) => {
+    if (v === null || typeof v !== 'object') return v
+    if (Object.isFrozen(v) && v[RECORD_TAG] !== true) return v
+    if (seen.has(v)) return seen.get(v)
+    if (Array.isArray(v)) {
+      const out = new Array(v.length)
+      seen.set(v, out)
+      for (const s of Object.getOwnPropertySymbols(v)) out[s] = v[s]
+      for (let i = 0; i < v.length; i += 1) out[i] = copy(v[i])
+      return out
+    }
+    if (v[RECORD_TAG] === true) {
+      const f = {}
+      const out = Object.freeze({ [RECORD_TAG]: true, type: v.type, f })
+      seen.set(v, out)
+      for (const k of Object.keys(v.f)) f[k] = copy(v.f[k])
+      return out
+    }
+    if (ArrayBuffer.isView(v)) { const out = v.slice(); seen.set(v, out); return out }
+    throw new Error('cloneValues: a value of an unknown shape cannot be checkpointed')
+  }
+  return parts.map((part) => Array.from(part, copy))
+}

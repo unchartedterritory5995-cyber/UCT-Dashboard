@@ -42,7 +42,7 @@ import { Budget, RuntimeLimitError, LIVE_OBJECT_BYTES } from './limits.js'
  *  test; otherwise the platform's monotonic clock. */
 const defaultNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
 import { etClockAt } from '../../indicators.js'
-import { encodeState } from './vmState.js'
+import { encodeState, cloneValues } from './vmState.js'
 
 /** `CLOCK_FIELDS` index -> the property `etClockAt` returns that field under.
  *
@@ -492,6 +492,50 @@ export function execute(program, ctx, limits, opts) {
   let probeAt = probe && probeBars.length ? probeBars[0] : -1
   let dynLowSeries = Infinity
   let dynLowCol = Infinity
+  // ⭐⭐⭐ UIE PHASE 5 (M2) — RESUME FROM A CHECKPOINT, AND TAKE ONE.
+  //
+  // `opts.resume` is a checkpoint this VM took at the end of bar `resume.bar` of an
+  // EARLIER run of the SAME program over bars whose prefix [0, resume.bar] was the same,
+  // with every precomputed column the same over it (the caller proves all three:
+  // `runtimeColumns.js::resumableFrom`) — so running those bars again would rebuild this
+  // exact state. Everything a bar carries to the next is put back: every `var` and its
+  // init flag, the history rings and their commit count, the call sites' held cells, the
+  // builtins' carried state, the skip windows, the iteration buffers, the object store,
+  // the limit counts — and the outputs up to that bar; the loop starts at `resume.bar + 1`.
+  // ⛔ COPIED IN, never handed over: a forming bar resumes from the SAME checkpoint on
+  // every tick, so no tick's writes accumulate into the next.
+  // `opts.checkpointAt` names the bar at whose end this run's state is copied OUT
+  // (`res.checkpoint`) — the last CONFIRMED bar, so no forming value is ever saved.
+  const resume = opts && opts.resume && entryPc === 0 ? opts.resume : null
+  const checkpointAt = opts && Number.isInteger(opts.checkpointAt) && entryPc === 0 ? opts.checkpointAt : -1
+  let checkpoint = null
+  let startBar = 0
+  if (resume) {
+    const [p, ini, h, hd, cs, c2, wn] = cloneValues([resume.persist, resume.initialised, resume.hist,
+      resume.held, resume.carState, resume.car2State, resume.winObsN])
+    const put = (into, from) => { for (let i = 0; i < into.length; i += 1) into[i] = from[i] }
+    put(persist, p); put(initialised, ini); put(hist, h); put(held, hd)
+    put(carState, cs); put(car2State, c2); put(winObsN, wn)
+    for (let w = 0; w < winObs.length; w += 1) if (winObs[w]) put(winObs[w], resume.winObs[w])
+    const it = cloneValues(resume.iters)
+    for (let k = 0; k < iters.length; k += 1) put(iters[k], it[k])
+    committed = resume.committed
+    for (let k = 0; k < nOut; k += 1) outputs[k].set(resume.outputs[k])
+    if (store && resume.store) store.restore(resume.store)
+    Object.assign(budget.counts, resume.counts)
+    startBar = resume.bar + 1
+  }
+  const takeCheckpoint = (bar) => {
+    const [p, ini, h, hd, cs, c2, wn] = cloneValues([persist, initialised, hist, held, carState, car2State, winObsN])
+    return {
+      bar, committed, persist: p, initialised: ini, hist: h, held: hd, carState: cs, car2State: c2, winObsN: wn,
+      winObs: winObs.map((o) => (o ? Array.from(o) : null)),
+      iters: cloneValues(iters),
+      outputs: outputs.map((o) => o.slice(0, bar + 1)),
+      store: store ? store.snapshot() : null,
+      counts: { ...budget.counts },
+    }
+  }
   // ⭐⭐ UIE PHASE 4 (M3) — THE HOT COUNTERS, KEPT LOCAL. A loop pass, a call, a carried
   // step and a window's cells were each a `Budget` method call with a by-name lookup on
   // EVERY occurrence. They are counted here instead, against the SAME ceilings, and the
@@ -528,7 +572,7 @@ export function execute(program, ctx, limits, opts) {
     pkDepth = bc.CALL_DEPTH
     pkNest = bc.LOOP_NESTING
   }
-  for (let bar = 0; bar < ctx.bars; bar += 1) {
+  for (let bar = startBar; bar < ctx.bars; bar += 1) {
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
     // call from seeing the previous bar's leftovers.
@@ -1310,8 +1354,10 @@ export function execute(program, ctx, limits, opts) {
         return { outputs, iters, budget, requested: Array.from(requested).sort(), objects: store, stoppedAt: bar }
       }
     }
+    if (bar === checkpointAt) checkpoint = takeCheckpoint(bar)
   }
   if (probe && typeof probe.done === 'function') probe.done({ dynLowSeries, dynLowCol })
 
-  return { outputs, iters, budget, requested: Array.from(requested).sort(), objects: store }
+  return { outputs, iters, budget, requested: Array.from(requested).sort(), objects: store,
+    ...(checkpoint ? { checkpoint } : {}), ...(resume ? { resumedFrom: resume.bar } : {}) }
 }

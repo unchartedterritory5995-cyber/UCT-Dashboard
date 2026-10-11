@@ -56,7 +56,7 @@ describe.skipIf(!RUN)('UIE Phase 3 M1 — early stop draws exactly what the full
         const run = (es) => {
           const t0 = performance.now()
           try {
-            const cols = computeRuntimeColumns(def, c.rows, c.ctx, { warmupEarlyStop: es })
+            const cols = computeRuntimeColumns(def, c.rows, c.ctx, { warmupEarlyStop: es, incremental: false })
             return { cols, w: runtimeWarmupOf(cols), ms: performance.now() - t0 }
           } catch (e) { return { guard: e.guard || e.name, ms: performance.now() - t0 } }
         }
