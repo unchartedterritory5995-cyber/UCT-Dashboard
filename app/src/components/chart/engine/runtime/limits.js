@@ -99,7 +99,24 @@ export const DEFAULT_LIMITS = Object.freeze({
   // withheld text gate; only the dark runtime pane meets this ceiling). Revisit with R-RT.
   INSTRUCTIONS_PER_BAR: 200000,
   TOTAL_INSTRUCTIONS: 200000000,
-  LOOP_ITERATIONS: 100000,
+  // ⭐⭐ UIE PHASE 2 (2026-10-11) — RAISED FROM 100,000 TO 5,000,000, MEASURED FIRST
+  // (`runtimeLimitsBudget.measure.test.js`). This is a WHOLE-RUN count, so the old
+  // ceiling was really ~3-20 iterations a bar on a 5,000-32,000-bar chart: it stopped
+  // atr-stepped (43 a bar) at bar 2,325, nadaraya-watson (56 a bar) at bar 1,785 and
+  // kalman (12 a bar) at bar 8,332 of an ordinary daily chart, while their whole runs
+  // need at most 1.8 M iterations at 32,000 bars.
+  //   WHY 5 M AND NOT MORE: one iteration of the smallest loop body (`s += i`) costs
+  // ~21 VM instructions (measured: 2,139 instructions a bar for 101 iterations), so
+  // `TOTAL_INSTRUCTIONS` (200 M) already stops ANY loop near 9.5 M iterations; a loop
+  // ceiling above that could never be the one met. 5 M stays the ceiling a loop meets
+  // first (~105 M instructions, ~0.8 s on this box), admits 2.8x the heaviest honest
+  // corpus run at the longest chart a member loads (`fullBarsFor`: 32,000 bars) and
+  // ~430 iterations a bar on a 11,534-bar daily chart.
+  //   ⛔ THE PER-BAR BOUND IS `INSTRUCTIONS_PER_BAR`, NOT A SECOND LOOP COUNT: a loop
+  // that runs away inside one bar (a bound it never reaches, `by 0`) meets 200,000
+  // instructions on that bar and stops by name there. Nesting is `LOOP_NESTING`, one
+  // `while` entry is `WHILE_ITERATIONS`, time is `WALL_TIME` and the pane budget.
+  LOOP_ITERATIONS: 5000000,
   // ⛔⛔ AN ENGINE LIMIT, NOT A PINE CLAIM. TradingView stops a runaway loop on
   // ELAPSED TIME, and no capture or document in this repo pins that limit, so no
   // pass count can be said to be Pine's. A `while` that finishes within this many
@@ -130,6 +147,20 @@ export const DEFAULT_LIMITS = Object.freeze({
   // calls and is an honest dashboard; 2,000,000 admits it and still bounds a runaway
   // well inside `TOTAL_INSTRUCTIONS`.
   OBJECT_OPERATIONS: 2000000,
+  // ⛔⛔ OWNER RULING D5 (2026-10-02, `docs/pine/runtime-pane-switch-on-plan.md`): KEEP
+  // the 20,000-bar limit. UIE Phase 2 (2026-10-11) MEASURED the raise and did NOT take
+  // it, because the ruling is the owner's to revisit (`runtimeLimitsBudget.measure.test.js`):
+  //   * the longest history any chart loads is 32,000 bars (`fullBarsFor`, 30m / 60m),
+  //     so 20,000 refuses a full intraday load at bar 0 whatever the script does;
+  //   * at 32,000 bars every runtime-only corpus script that runs holds at most 27 MB of
+  //     MEMORY estimate (ceiling 64 MB) — columns are 8 bytes a bar, rings / windows /
+  //     carried state do not scale with bars — and its time is the pane budget's to stop
+  //     by name (`runtime:time-budget`);
+  //   * ⛔ it is NOT the intraday blocker for most scripts: a document that needs
+  //     TradingView's bar 0 (`meta.runtimeHistory === 'listing'`, 14 of the 16) is
+  //     refused on every chart whose history does not reach the listing
+  //     (`runtime:history-start`) BEFORE this count is read. Only the other two (inside-bar,
+  //     wyckoff) meet this ceiling.
   HISTORY: 20000,
   // ⚠️ MEASURED, NOT GUESSED — and the measurement is why they are this small.
   // The 2F-2 census over all five corpora (169 scripts) found 35 that read

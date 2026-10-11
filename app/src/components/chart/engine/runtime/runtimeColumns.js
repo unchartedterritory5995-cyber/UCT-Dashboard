@@ -403,7 +403,10 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       // way `interpret` does for the four realtime clock columns.
       confirmed: forming === false,
       barTimes: rows.map((b) => b.t),
-    }, undefined, {
+      // ⭐ UIE PHASE 2 — `opts.limits` is a MEASUREMENT door (the limits census,
+      // `runtimeLimitsBudget.measure.test.js`); no product caller passes it, so every
+      // chart runs under `DEFAULT_LIMITS`.
+    }, opts.limits, {
       onBar: (bar) => {
         finished = bar
         if (budgetMs !== null) {
@@ -440,6 +443,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     }
     throw err
   }
+  if (typeof opts.onBudget === 'function') opts.onBudget(res.budget)   // the census reads its counts
   const out = {}
   for (const [plotKey, index] of Object.entries(outputs)) {
     const col = res.outputs[index]

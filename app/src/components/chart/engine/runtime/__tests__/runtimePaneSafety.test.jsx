@@ -40,6 +40,7 @@ import {
   RUNTIME_WORKER_WATCHDOG_MS, RUNTIME_WORKER_MAX_STARTS,
   RUNTIME_WORKER_UNRESPONSIVE_GUARD, RUNTIME_WORKER_FAILED_GUARD,
 } from '../runtimeAsync'
+import { DEFAULT_LIMITS } from '../limits'
 
 const LF = String.fromCharCode(10)
 const REPO = path.resolve(process.cwd(), '..')
@@ -93,9 +94,10 @@ describe('RF — a VM throw and a limit stop are refusals by name, never `engine
 
   it('⛔ a VM limit (more bars than `HISTORY` holds) is `runtime:limit`, naming the limit', () => {
     let err = null
-    try { computeRuntimeColumns(rtDef(TINY), rows(20001), { tf: 'D' }) } catch (e) { err = e }
+    const over = DEFAULT_LIMITS.HISTORY + 1
+    try { computeRuntimeColumns(rtDef(TINY), rows(over), { tf: 'D' }) } catch (e) { err = e }
     expect(err.guard).toBe(RUNTIME_LIMIT_GUARD)
-    expect(err.message).toMatch(/HISTORY: at most 20000, it reached 20001/)
+    expect(err.message).toMatch(new RegExp(`HISTORY: at most ${DEFAULT_LIMITS.HISTORY}, it reached ${over}`))
     expect(err.message).not.toMatch(/_EXCEEDED/)
   })
 
