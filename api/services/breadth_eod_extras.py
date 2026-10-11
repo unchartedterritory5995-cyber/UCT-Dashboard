@@ -155,9 +155,86 @@ def atr_extended(conn, tickers: list, ts: int, thresh: float = ATR_EXT_THRESH) -
     return n
 
 
-def new_ath(conn, tickers: list, ts: int) -> Optional[int]:
+#: A name this far below its RAW all-time high is not re-read on the dividend basis: the
+#: store's ~2-4 years of dividends cannot lift a close by more than this.
+_ATH_ADJ_REACH = 0.70
+
+
+def _could_reach(close: float, raw_max: float, events: list) -> bool:
+    """Cheap pre-filter: can ANY adjustment of these events bring `raw_max` down to
+    `close`? Every factor is >= the product of all of them, each event's ratio bounded
+    below by `1 - 2*cash/close` (a price at the ex-date down to half today's). Measured
+    2026-10-06: without it, 934 names were re-read for 151 s; the count was the same."""
+    f = 1.0
+    for _ex, cash in events:
+        f *= max(0.0, 1.0 - 2.0 * float(cash) / close)
+    return close >= raw_max * f * ATH_TOL
+
+
+def _adjusted_prior_max(conn, names: list, ts: int, divs: Optional[dict] = None) -> dict:
+    """{ticker: all-time high close BEFORE `ts` on the dividend-adjusted basis}, for the
+    names the dividend store holds events for. ONE shared frame from just before the
+    earliest stored event to `ts`, ONE `breadth_dividends.factors` call over it (its own
+    method: the last bar stays raw), and ONE read of the older highs, which all carry the
+    frame's first factor because no stored event precedes the frame."""
+    from datetime import date as _date, timedelta as _td
+    from api.services import breadth_dividends as bdiv
+    divs = divs if divs is not None else bdiv._load(names, 0, ts)
+    names = [tk for tk in names if divs.get(tk.upper())]
+    if not names:
+        return {}
+    first = min(int(ex) for tk in names for ex, _ in divs[tk.upper()])
+    lo_d = _date(first // 10000, first // 100 % 100, first % 100) - _td(days=10)
+    lo = lo_d.year * 10000 + lo_d.month * 100 + lo_d.day
+    dates = [int(r[0]) for r in conn.execute(
+        "SELECT ts FROM ohlcv WHERE tf='D' AND ticker='SPY' AND ts>=? AND ts<=? ORDER BY ts",
+        (lo, ts)).fetchall()]
+    if len(dates) < 2 or dates[-1] != ts:
+        return {}
+    pos = {t: k for k, t in enumerate(dates)}
+    row = {tk: r for r, tk in enumerate(names)}
+    C = np.full((len(names), len(dates)), np.nan)
+    old_max: dict = {}
+    for i in range(0, len(names), 800):
+        chunk = names[i:i + 800]
+        qm = ",".join("?" * len(chunk))
+        for tk, t, c in conn.execute(
+                f"SELECT ticker, ts, c FROM ohlcv WHERE tf='D' AND ts BETWEEN ? AND ? "
+                f"AND ticker IN ({qm})", [lo, ts, *chunk]).fetchall():
+            k = pos.get(int(t))
+            if k is not None and _f(c) and c > 0:
+                C[row[tk], k] = float(c)
+        for tk, m in conn.execute(
+                f"SELECT ticker, MAX(c) FROM ohlcv WHERE tf='D' AND ts<? AND ticker IN ({qm}) "
+                f"GROUP BY ticker", [dates[0], *chunk]).fetchall():
+            if _f(m):
+                old_max[tk] = float(m)
+    fac = bdiv.factors(names, dates, C)
+    out: dict = {}
+    with np.errstate(invalid="ignore"):
+        adj = C[:, :-1] * fac[:, :-1]
+    for tk, r in row.items():
+        if np.isnan(C[r, -1]):
+            continue
+        vals = adj[r][~np.isnan(adj[r])]
+        cands = ([float(vals.max())] if vals.size else []) +                 ([old_max[tk] * float(fac[r, 0])] if tk in old_max else [])
+        if cands:
+            out[tk] = max(cands)
+    return out
+
+
+def new_ath(conn, tickers: list, ts: int, dividend_basis: Optional[bool] = None) -> Optional[int]:
     """`count_at_ath`: names closing at/above 0.999x their all-time high close (the
-    session itself included in the high, as the collector's full-history download is)."""
+    session itself included in the high, as the collector's full-history download is).
+
+    ⭐ (2026-10-11, TERM-042 parity) the collector's history is yfinance `auto_adjust`,
+    i.e. DIVIDEND-adjusted, which lowers every old high; bars.db is split-only. With
+    `BREADTH_DIVIDEND_BASIS` on (`dividend_basis=None` follows it) a name close below its
+    raw high is re-read on the adjusted basis from the dividend store. Measured on
+    production: 10-06 ITUB/CRBG/EQH/NDSN and 10-02 NDSN/CHT were at the collector's
+    all-time high and below the raw one. The store keeps ~2-4 years, so an all-time high
+    from 2008 (TNK, PBR, STNG on 10-08) is still under-adjusted: a source limit, recorded,
+    not hidden."""
     today = {}
     prior_max = {}
     for i in range(0, len(tickers), 800):
@@ -173,9 +250,26 @@ def new_ath(conn, tickers: list, ts: int) -> Optional[int]:
                 prior_max[tk] = float(m)
     if not today:
         return None
+    if dividend_basis is None:
+        from api.services import breadth_live as bl
+        dividend_basis = bl.dividend_basis_enabled()
+    adjusted: dict = {}
+    if dividend_basis:
+        near = [tk for tk, c in today.items()
+                if tk in prior_max and prior_max[tk] * _ATH_ADJ_REACH <= c < prior_max[tk] * ATH_TOL]
+        if near:
+            try:
+                from api.services import breadth_dividends as bdiv
+                divs = bdiv._load(near, 0, ts)
+                near = [tk for tk in near if divs.get(tk.upper())
+                        and _could_reach(today[tk], prior_max[tk], divs[tk.upper()])]
+                adjusted = _adjusted_prior_max(conn, near, ts, divs) if near else {}
+            except Exception as e:                 # noqa: BLE001 - fall back to the raw basis
+                _log.warning("new_ath dividend basis skipped: %s: %s", type(e).__name__, e)
+                adjusted = {}
     n = 0
     for tk, c in today.items():
-        ref = max(c, prior_max.get(tk, c))
+        ref = max(c, adjusted.get(tk, prior_max.get(tk, c)))
         if c >= ref * ATH_TOL:
             n += 1
     return n

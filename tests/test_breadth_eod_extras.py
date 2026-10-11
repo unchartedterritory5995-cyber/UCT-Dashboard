@@ -162,3 +162,47 @@ def test_the_grader_tolerances_and_strings():
     assert not bee.grade("market_phase", "Correction", "Uptrend")["pass"]
     assert bee.grade("new_ath", 30, 33)["pass"] and not bee.grade("new_ath", 20, 33)["pass"]
     assert bee.grade("vix", None, 17.2) is None
+
+
+# -- (2026-10-11) new_ath on the collector's dividend-adjusted basis --
+
+def _divs(monkeypatch, events):
+    from api.services import breadth_dividends as bdiv
+    monkeypatch.setattr(bdiv, "_load", lambda tickers, lo, hi: {
+        t: ev for t, ev in events.items() if t in {x.upper() for x in tickers}})
+
+
+@pytest.fixture
+def payer(conn):
+    """PAY: peaked at 100 on DAYS[50], has paid $1 four times since, closes at 99 today:
+    1% below its RAW high, above its dividend-ADJUSTED one (~96)."""
+    rows = []
+    for j, d in enumerate(DAYS):
+        px = 100.0 if j == 50 else (99.0 if j == len(DAYS) - 1 else 90.0)
+        rows.append(("PAY", "D", bl._ts_int(d), px, px, px, px, 1e6))
+    conn.executemany("INSERT INTO ohlcv VALUES (?,?,?,?,?,?,?,?)", rows)
+    conn.commit()
+    return [(bl._ts_int(DAYS[j]), 1.0) for j in (100, 150, 200, 250)]
+
+
+def test_a_dividend_payer_below_its_raw_high_is_at_its_adjusted_high(conn, payer, monkeypatch):
+    _divs(monkeypatch, {"PAY": payer})
+    ts = bl._ts_int(LAST)
+    assert bee.new_ath(conn, ["PAY"], ts, dividend_basis=False) == 0
+    assert bee.new_ath(conn, ["PAY"], ts, dividend_basis=True) == 1
+
+
+def test_the_flag_decides_the_basis_when_none_is_passed(conn, payer, monkeypatch):
+    _divs(monkeypatch, {"PAY": payer})
+    monkeypatch.setenv("BREADTH_DIVIDEND_BASIS", "0")
+    assert bee.new_ath(conn, ["PAY"], bl._ts_int(LAST)) == 0
+    monkeypatch.setenv("BREADTH_DIVIDEND_BASIS", "1")
+    assert bee.new_ath(conn, ["PAY"], bl._ts_int(LAST)) == 1
+
+
+def test_no_dividend_and_a_far_high_stay_on_the_raw_answer(conn, payer, monkeypatch):
+    _divs(monkeypatch, {})
+    assert bee.new_ath(conn, ["PAY", "FLAT", "RUN"], bl._ts_int(LAST), dividend_basis=True) == 1
+    # FLAT is 50% below its high: a small dividend cannot lift it, and it is not re-read
+    _divs(monkeypatch, {"FLAT": [(bl._ts_int(DAYS[100]), 0.5)]})
+    assert bee.new_ath(conn, ["FLAT"], bl._ts_int(LAST), dividend_basis=True) == 0

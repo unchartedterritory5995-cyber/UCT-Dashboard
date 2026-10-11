@@ -710,7 +710,9 @@ def recompute_close_with_members(target_ts: int, tickers: Optional[list[str]] = 
     except Exception:
         pass
     levels = bl.build_levels(tickers, closes, volumes, prior)
-    index_levels = bl.build_index_levels(bl._load_index_series(conn, prior, start))
+    # the index series on the frame's basis (TERM-042 parity, 2026-10-11)
+    index_levels = bl.build_index_levels(bl._load_index_series(
+        conn, prior, start, dividend_basis=None, measured_ts=int(target_ts)))
     del closes, volumes
     day_c, day_v = bl._load_frame(conn, tickers, [int(target_ts)])
     prices = {t: float(day_c[i, 0]) for i, t in enumerate(tickers)

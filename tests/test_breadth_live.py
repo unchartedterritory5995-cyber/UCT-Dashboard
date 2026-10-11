@@ -921,7 +921,7 @@ def test_a_thin_levels_build_is_neither_persisted_nor_pinned(tmp_path, monkeypat
     monkeypatch.setattr(bl, "_session_dates", lambda conn, a, b: list(range(240)))
     monkeypatch.setattr(bl, "_load_frame", lambda conn, t, d: (None, None))
     monkeypatch.setattr(bl, "_apply_dividend_basis", lambda t, d, c, m, *a: c)
-    monkeypatch.setattr(bl, "_load_index_series", lambda conn, a, b: {})
+    monkeypatch.setattr(bl, "_load_index_series", lambda conn, a, b, **kw: {})
     monkeypatch.setattr(bl, "build_index_levels", lambda s: {})
     bl._levels_cache.clear()
 

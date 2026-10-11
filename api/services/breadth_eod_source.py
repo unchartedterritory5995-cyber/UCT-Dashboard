@@ -12,6 +12,11 @@ WHAT IS RE-SOURCED, AND WHAT IS NOT
     second implementation of any metric; the definitions are the ones `reconcile`
     already grades against the collector every session.
 
+    ⚰️ The list below predates `breadth_eod_extras` (2026-10-10), which now produces
+    most of it (indices, VIX family, Fear & Greed, distribution days, exposure,
+    `new_ath`, `atr_ext_7`). Those keys are OWNED and GRADED, so a failing extras key
+    breaks the clean run exactly as a price metric does — by design: `server` mode
+    would publish them. As first written:
     NOT re-sourced here, named so nothing reads silence as coverage:
       * `NOT_LIVE` (sentiment, VIX family, index closes, `uct_exposure`, distance
         days, `atr_ext_7`) — other feeds, still carried by the collector's push.
@@ -38,11 +43,20 @@ MODES — `BREADTH_EOD_SOURCE` (text, read per call; unset/unknown = `collector`
                the FROM date is never rewritten.
 
 INST-7, stated rather than hidden
-    The two computations share the POPULATION (the collector's list) and the
-    METHOD (verbatim mirror), and differ in the price INPUT — which is the thing
-    being re-sourced, so agreement on it is informative. A stored row that the
-    self-heal already rewrote from bars.db (`_healed`) shares the input too, and is
-    graded `not_comparable`, never counted as a pass.
+    The two computations share the METHOD (verbatim mirror) and differ in the price
+    INPUT, which is the thing being re-sourced. A stored row that the self-heal
+    already rewrote from bars.db (`_healed`) shares the input too, and is graded
+    `not_comparable`, never counted as a pass.
+    ⚠️ (2026-10-11, measured) they do NOT share the session's population. The
+    collector measures ITS OWN list for the session; the server measures the
+    collector's list from the session BEFORE (the population `server` mode would
+    publish). The two lists differ by 50-100 names every day (`universe_count` on
+    the server is the collector's previous `universe_count`, exactly, on all 16
+    graded sessions), and that turnover alone moved `adv_decline` past its tier on
+    2026-09-25, 10-01, 10-06 and 10-09. So each graded record also carries
+    `population_control`: the same price metrics measured over the session's OWN
+    collector list, which isolates the price input. It is a reading beside the
+    switch bar (`switch_readiness()["same_population"]`), never a substitute for it.
 
 DRILL LISTS
     Every `*_list` the server writes comes from `members`, the same boolean masks
@@ -307,6 +321,47 @@ def grade_row(server: dict, stored: dict, recent: Optional[list] = None) -> dict
                                         if s_col is not None and s_srv is not None else None)}}
 
 
+def population_control(date_iso: str, stored: dict, prior_list: Optional[list] = None,
+                       conn=None) -> dict:
+    """The price metrics over the session's OWN collector `universe_list`, graded
+    like the run. The shadow run measures the PREVIOUS session's list (what `server`
+    mode would publish), so its grade mixes the day's universe turnover with the
+    price input; this one holds the population fixed and grades the input alone.
+    Extras keys are not re-measured here. Never raises; `available` says whether
+    it could be measured."""
+    from api.services import breadth_live as bl
+    from api.services import breadth_eod_extras as bee
+    same = _stored_universe(stored)
+    if len(same) <= 100:
+        return {"available": False, "reason": "the stored row carries no universe_list"}
+    try:
+        conn = conn or bl._bars_conn()
+        m = bl._metrics_at_close(conn, same, bl._ts_int(date.fromisoformat(date_iso)))
+    except Exception as e:                        # noqa: BLE001 - a reading, never a failure
+        return {"available": False, "reason": f"{type(e).__name__}: {e}"}
+    if not m:
+        return {"available": False, "reason": "bars.db cannot support this session"}
+    graded, failed, detail = 0, [], {}
+    for k in owned_keys(m):
+        if k in bee.TOLERANCE:
+            continue
+        g, _acc, _tol = _grade(k, m.get(k), stored.get(k))
+        if g is None:
+            continue
+        graded += 1
+        if not g["pass"]:
+            failed.append(k)
+            detail[k] = {"stored": stored.get(k), "server": m.get(k), "delta": g["delta"]}
+    out = {"available": True, "universe": "the session's own collector universe_list",
+           "universe_size": len(same), "graded": graded, "failed": failed,
+           "fields_failed": detail}
+    if prior_list is not None:
+        prior = set(prior_list)
+        out["population_turnover"] = {"only_in_prior_list": len(prior - set(same)),
+                                      "only_in_session_list": len(set(same) - prior)}
+    return out
+
+
 def not_comparable_reason(stored: dict) -> Optional[str]:
     """Why a stored row cannot corroborate the server row (INST-7), or None."""
     if stored.get("_source") == "server":
@@ -357,7 +412,7 @@ def _hash(stored: Optional[dict]) -> Optional[str]:
     return hashlib.sha256(f"{GRADER_VERSION}|{blob}".encode()).hexdigest()[:16]
 
 
-GRADER_VERSION = 3
+GRADER_VERSION = 4    # 4 (2026-10-11): index MA flags on the frame's basis + population_control
 
 
 def _record(date_iso: str, status: str, reason: Optional[str], stored: Optional[dict],
@@ -450,7 +505,11 @@ def shadow_date(date_iso: str) -> dict:
     if not result.get("ok"):
         return {"date": date_iso, "computed": True, "status": "unavailable",
                 "reason": result.get("reason")}
-    rec = grade_and_record(date_iso, stored, result)
+    extra = None
+    if not_comparable_reason(stored) is None and result.get("coverage_ok"):
+        extra = {"population_control": population_control(
+            date_iso, stored, _collector_universe_before(date_iso)[0])}
+    rec = grade_and_record(date_iso, stored, result, extra=extra)
     return {"date": date_iso, "computed": True, "status": rec["status"],
             "failed": (rec["report"] or {}).get("failed")}
 
@@ -609,6 +668,27 @@ def _clean(rec: dict) -> bool:
             and all(f.get("pass") for f in fields.values()))
 
 
+def _same_population_run(recs: list) -> dict:
+    """A READING beside the switch bar, never the bar: consecutive graded sessions whose
+    `population_control` (price metrics over the session's own collector list) graded
+    clean. It answers "is the price input at parity?" with the daily universe turnover
+    held fixed. Extras keys are not in it."""
+    run, broke_on = 0, None
+    for r in recs:
+        pc = ((r.get("report") or {}).get("population_control") or {})
+        if r.get("status") == "graded" and pc.get("available") and pc.get("graded")                 and not pc.get("failed"):
+            run += 1
+            continue
+        broke_on = {"date": r.get("date"), "status": r.get("status"),
+                    "failed": pc.get("failed"),
+                    "reason": (pc.get("reason") if not pc.get("available")
+                               else ("a metric failed" if pc.get("failed") else None))}
+        break
+    return {"consecutive_clean": run, "broken_by": broke_on,
+            "note": "a reading, not the switch bar: price metrics over the session's own "
+                    "collector universe; extras and the published population excluded"}
+
+
 def switch_readiness(recs: list, required: int = SWITCH_CLEAN_SESSIONS) -> dict:
     """Whether the parallel run has earned `BREADTH_EOD_SOURCE=server`. `recs` is
     `shadow_records()` (newest first). Reads only; it switches nothing — setting
@@ -626,6 +706,7 @@ def switch_readiness(recs: list, required: int = SWITCH_CLEAN_SESSIONS) -> dict:
     ready = run >= required
     return {"required_consecutive_clean": required, "consecutive_clean": run,
             "ready": ready, "broken_by": broke_on,
+            "same_population": _same_population_run(recs),
             "sentence": (f"Ready: the newest {run} sessions all graded clean; set "
                          f"BREADTH_EOD_SOURCE=server with BREADTH_EOD_SERVER_FROM = the next session."
                          if ready else
@@ -676,6 +757,12 @@ def parity_report_rows(recs: list) -> dict:
             "per_metric": dict(sorted(per.items())),
             "breadth_score": scores,
             "collector_only_keys": collector_only,
+            "population_control": [
+                {"date": r["date"],
+                 **{k: ((r["report"] or {}).get("population_control") or {}).get(k)
+                    for k in ("available", "failed", "fields_failed", "population_turnover",
+                              "reason")}}
+                for r in graded if (r["report"] or {}).get("population_control")],
             "not_graded": [{"date": r["date"], "status": r["status"], "reason": r["reason"]}
                            for r in recs if r["status"] != "graded"]}
 

@@ -595,3 +595,63 @@ def test_a_grader_change_regrades_a_current_session(env, monkeypatch):
     assert eod.shadow_date(env.last)["status"] == "current"
     monkeypatch.setattr(eod, "GRADER_VERSION", eod.GRADER_VERSION + 1)
     assert eod.shadow_date(env.last)["computed"]
+
+
+# -- (2026-10-11) population_control: the day's universe turnover, held fixed --
+
+def _collector_row_over(env, names: list, **overrides) -> dict:
+    """A collector row that measured ITS OWN list for the session (as the PC does),
+    computed with the same engine over `names`."""
+    conn = bl._bars_conn()
+    m = bl._metrics_at_close(conn, names, bl._ts_int(date.fromisoformat(env.last)))
+    row = {k: m[k] for k in eod.owned_keys(m)}
+    row["universe_list"] = [{"t": t} for t in names]
+    row.update(overrides)
+    return row
+
+
+def test_universe_turnover_fails_the_run_but_not_the_population_control(env, monkeypatch):
+    """The 2026-10-09 shape: the server measures the PREVIOUS session's list (150 names
+    here), the collector its own (130). The run's grade fails on the headcount; the
+    control, over the session's own list, grades the price input clean."""
+    monkeypatch.setenv("BREADTH_EOD_SOURCE", "shadow")
+    own = env.tickers[:130]
+    bm.store_snapshot(env.last, _collector_row_over(env, own))
+    out = eod.shadow_date(env.last)
+    assert out["status"] == "graded" and "universe_count" in out["failed"]
+    rec = eod.shadow_records()[0]
+    pc = rec["report"]["population_control"]
+    assert pc["available"] is True and pc["graded"] > 10
+    assert pc["failed"] == [], pc["fields_failed"]
+    assert pc["population_turnover"] == {"only_in_prior_list": 20, "only_in_session_list": 0}
+    s = eod.switch_readiness([rec])
+    assert s["consecutive_clean"] == 0, "the decided bar is unchanged"
+    assert s["same_population"]["consecutive_clean"] == 1
+    assert eod.parity_report()["population_control"][0]["failed"] == []
+
+
+def test_the_population_control_still_names_a_real_price_disagreement(env, monkeypatch):
+    """Control: holding the population fixed must not hide a metric that disagrees."""
+    monkeypatch.setenv("BREADTH_EOD_SOURCE", "shadow")
+    own = env.tickers[:130]
+    row = _collector_row_over(env, own)
+    row = _collector_row_over(env, own, stage2_count=row["stage2_count"] + 80)
+    bm.store_snapshot(env.last, row)
+    eod.shadow_date(env.last)
+    rec = eod.shadow_records()[0]
+    assert rec["report"]["population_control"]["failed"] == ["stage2_count"]
+    sp = eod.switch_readiness([rec])["same_population"]
+    assert sp["consecutive_clean"] == 0 and sp["broken_by"]["failed"] == ["stage2_count"]
+
+
+def test_a_row_without_its_own_list_is_not_population_controlled(env, monkeypatch):
+    res = eod.compute(env.last)
+    row = _collector_row_from(res)
+    row.pop("universe_list")
+    assert eod.population_control(env.last, row) == {
+        "available": False, "reason": "the stored row carries no universe_list"}
+    rec = {"date": env.last, "status": "graded",
+           "report": {"fields": {"a": {"pass": True}},
+                      "population_control": {"available": False, "reason": "x"}}}
+    sp = eod.switch_readiness([rec])["same_population"]
+    assert sp["consecutive_clean"] == 0 and sp["broken_by"]["reason"] == "x"
