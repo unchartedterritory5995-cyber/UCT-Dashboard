@@ -6,7 +6,7 @@
 const step = (id, anchor, file) => Object.freeze({ id, anchor, file })
 const PROPS = 'components/notebook/PropertiesSection.jsx'
 
-const INTRO = 'Add property, then choose Formula or Rollup as its type. Both are worked out for you and cannot be typed over.'
+const INTRO = 'Add property, then choose Add a formula to start from a trader formula. For a rollup, choose + New property and set its type to Rollup. Both are worked out for you and cannot be typed over.'
 
 export const STEPS = Object.freeze([
   step('add-first', 'properties-add-empty', PROPS),

@@ -82,8 +82,54 @@ describe('⛔ flag OFF — nothing about the section changes', () => {
   })
 })
 
+describe('⛔ flag OFF — there is no "Add a formula"', () => {
+  beforeEach(() => latchNotebookFlags({ notebook_formulas_enabled: false }))
+
+  it('the picker offers no formula door, and its first choice is still + New property…', async () => {
+    const user = userEvent.setup()
+    renderSection()
+    await user.click(screen.getByRole('button', { name: 'Add property' }))
+    expect(screen.queryByRole('button', { name: 'Add a formula' })).toBeNull()
+    const picker = screen.getByRole('button', { name: '+ New property…' }).parentElement
+    expect(within(picker).getAllByRole('button')[0].textContent.trim()).toBe('+ New property…')
+  })
+})
+
 describe('flag ON', () => {
   beforeEach(() => latchNotebookFlags({ notebook_formulas_enabled: true }))
+
+  // P0.14: the member's first move toward a formula was five steps deep (Add property,
+  // + New property, the type select, scroll the list to Formula, then the editor). The
+  // picker now leads with "Add a formula", which opens the same new-property flow with the
+  // type already chosen, so the editor and its starters are one click from the button.
+  it('"Add a formula" is the FIRST choice in Add property, and it presets the type to Formula', async () => {
+    const user = userEvent.setup()
+    renderSection()
+    await user.click(screen.getByRole('button', { name: 'Add property' }))
+    const picker = screen.getByRole('button', { name: '+ New property…' }).parentElement
+    const first = within(picker).getAllByRole('button')[0]
+    expect(first.textContent.trim()).toBe('Add a formula')
+    await user.click(first)
+    expect(screen.getByRole('combobox', { name: 'Property type' }).value).toBe('formula')
+    // the editor (and so its starters) is showing, not just a preset select
+    expect(screen.getByRole('combobox', { name: 'Start from a trader formula' })).toBeInTheDocument()
+  })
+
+  it('"Add a formula" leads even when the note has properties to add back (it is above them)', async () => {
+    defsResult = [...NUMBERS]
+    notePropsResult = {
+      properties: [{ id: 'e1', name: 'Entry', type: 'number', source: 'user_set', value: null }],
+      isLoading: false, refresh: vi.fn(async () => ({})),
+    }
+    const user = userEvent.setup()
+    renderSection()
+    await user.click(screen.getByRole('button', { name: 'Add property' }))
+    const picker = screen.getByRole('button', { name: '+ New property…' }).parentElement
+    const labels = within(picker).getAllByRole('button').map((b) => b.textContent.trim())
+    expect(labels[0]).toBe('Add a formula')
+    expect(labels).toContain('Entry')
+    expect(labels.indexOf('Entry')).toBeGreaterThan(0)
+  })
 
   it('offers Formula and Rollup after the ordinary types', async () => {
     const user = userEvent.setup()

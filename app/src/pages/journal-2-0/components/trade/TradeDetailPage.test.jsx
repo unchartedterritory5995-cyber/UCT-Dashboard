@@ -1,7 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import TradeDetailPage from './TradeDetailPage'
+import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
 
 const navigateSpy = vi.fn()
 
@@ -457,5 +458,36 @@ describe('lane KEYS3 (Q6): the trade page marks its landing on the trade\'s head
     // NON-VACUITY: the back link and the Previous / Next buttons are real, and BEFORE the landing
     const back = screen.getByRole('link', { name: /Trade Journal/ })
     expect(h1.compareDocumentPosition(back) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+  })
+})
+
+// P0.16: the plan-grade card sat below the fold (y about 1176 on a desktop, 1501 on a phone),
+// under the outcome grid, the excursion strip and the notes. It is the page's verdict on the
+// trade, so it now sits straight after the entry-context card and above the outcome numbers.
+describe('P0.16: the plan-grade card moves up', () => {
+  beforeEach(() => latchNotebookFlags({ notebook_plan_grading_enabled: true }))
+  afterEach(() => __resetNotebookFlags())
+
+  it('sits right after the entry-context card, above the outcome grid', async () => {
+    renderPage('t1')
+    const stub = await screen.findByTestId('plan-grade-stub')
+    const outcome = screen.getByTestId('trade-outcome-grid')
+    expect(stub.compareDocumentPosition(outcome) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('is still below the page header, and is rendered ONCE (moved, not copied)', async () => {
+    renderPage('t1')
+    const stub = await screen.findByTestId('plan-grade-stub')
+    const h1 = screen.getByRole('heading', { level: 1, name: 'NVDA' })
+    expect(h1.compareDocumentPosition(stub) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getAllByTestId('plan-grade-stub')).toHaveLength(1)
+  })
+
+  it('NON-VACUITY: with the flag off there is no card at all, and the outcome grid is still there', () => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_plan_grading_enabled: false })
+    renderPage('t1')
+    expect(screen.queryByTestId('plan-grade-stub')).toBeNull()
+    expect(screen.getByTestId('trade-outcome-grid')).toBeInTheDocument()
   })
 })

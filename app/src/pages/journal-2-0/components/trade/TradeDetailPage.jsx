@@ -622,7 +622,23 @@ export default function TradeDetailPage() {
           stays after the trade closes. Dark behind notebook_entry_context_enabled. */}
       {trade.id != null && <EntryContextCard kind="trade" id={trade.id} />}
 
-      <div className={styles.outcomeGrid}>
+      {/* Wave 13 lane 13A: plan vs execution (dark behind notebook_plan_grading_enabled;
+          renders nothing while off). The setup chip writes through the same PATCH.
+          P0.16: it sits straight after the entry-context card, ABOVE the outcome grid. It was
+          far below the fold (about 1176 px on a desktop, 1501 on a phone), under the numbers it
+          is the verdict on. The props are unchanged; only the position moved. */}
+      {planGradingEnabled() && (
+        <Suspense fallback={null}>
+          <PlanGradeCard
+            tradeId={trade.id}
+            trade={trade}
+            onTagSetup={(setup) => patchTrade({ setup }, { setup })}
+            onOpenNote={(noteId) => navigate(`/journal?j2tab=notebook&note=${encodeURIComponent(noteId)}`)}
+          />
+        </Suspense>
+      )}
+
+      <div className={styles.outcomeGrid} data-testid="trade-outcome-grid">
         <div className={styles.outcomeCell}>
           <div className={styles.outcomeLabel}>Net P&amp;L</div>
           <div className={`${styles.outcomeValueBig} ${signClass(out.netPnl)}`}>
@@ -780,18 +796,6 @@ export default function TradeDetailPage() {
 
       {patchError && <div className={styles.errorLine} role="alert">Couldn’t save: {patchError}</div>}
 
-      {/* Wave 13 lane 13A: plan vs execution (dark behind notebook_plan_grading_enabled;
-          renders nothing while off). The setup chip writes through the same PATCH. */}
-      {planGradingEnabled() && (
-        <Suspense fallback={null}>
-          <PlanGradeCard
-            tradeId={trade.id}
-            trade={trade}
-            onTagSetup={(setup) => patchTrade({ setup }, { setup })}
-            onOpenNote={(noteId) => navigate(`/journal?j2tab=notebook&note=${encodeURIComponent(noteId)}`)}
-          />
-        </Suspense>
-      )}
       {notebookFlag('notebook_visual_playbook_enabled') === true && trade.id != null && (
         <Suspense fallback={null}>
           <TradeBeforeAfter tradeId={trade.id} />
