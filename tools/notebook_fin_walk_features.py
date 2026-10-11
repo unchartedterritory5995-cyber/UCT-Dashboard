@@ -1519,6 +1519,10 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             more = frame.get_by_role("button", name="More chart actions", exact=True)
             res["more_visible"] = C.vis_loc(more, 5000)
             res["row_buttons"] = [re.sub(r"\s+", " ", t).strip() for t in row.first.get_by_role("button").all_inner_texts()]
+            names_ = res["row_buttons"]
+            # order: Plan, then Replay, then More, in that run and last (what sits before them is the row's own chrome)
+            res["order_ok"] = (names_.count("Plan") == 1 and names_.count("Replay") == 1 and names_.index("Replay") == names_.index("Plan") + 1
+                               and names_[names_.index("Replay") + 1:] == ["More"])
             res["plan_in_row"] = row.first.get_by_role("button", name="Plan", exact=True).count()
             res["replay_in_row"] = row.first.get_by_role("button", name="Replay", exact=True).count()
             # a panel already open (the plan note keeps it) would be CLOSED by one press: close it first
@@ -1535,8 +1539,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             err = f"{type(e).__name__}: {str(e)[:300]}"
         pl, rp = res.get("plan") or {}, res.get("replay") or {}
         ok = (not err and pl.get("uncovered") and pl.get("inside_x") and rp.get("uncovered") and res.get("plan_in_row") and res.get("replay_in_row")
-              and res.get("more_visible") and res.get("panel_opened"))
-        C.step(p_, i_, "discover.chart-plan-clickable", f"{'390' if touch else '1280'} px: Plan and Replay lead the chart toolbar, Plan is uncovered after scrolling to it and opens the plan panel",
+              and res.get("more_visible") and res.get("order_ok") and res.get("panel_opened"))
+        C.step(p_, i_, "discover.chart-plan-clickable", f"{'390' if touch else '1280'} px: Plan then Replay then More close the chart toolbar row, Plan is uncovered after scrolling to it and opens the plan panel",
                "PASS" if ok else "FAIL", reach_error=err, note=nid, scope=['[role="toolbar"][aria-label="Chart tools"]', "[data-chart-plan-panel]"], **res)
 
     def d_chart_plan():
@@ -1556,44 +1560,44 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 and str(i.get("link") or "").startswith("/journal/notebook?note=")]
         al = M.get(base + "/api/alerts?limit=20")
         alerts = al.json() if al.status == 200 and isinstance(al.json(), list) else []
-        stub = None
-        if not live:
-            nid = S.get("ibm_note") or S.get("amd_note")
-            pg.route("**/api/voice/insights", lambda r: r.fulfill(status=200, content_type="application/json", body=json.dumps({"insights": [
-                {"id": 90001, "kind": "note_level_touch", "symbol": "IBM", "headline": "IBM reached a level you wrote down",
-                 "body": "The price touched the stop on your plan.", "link": f"/journal/notebook?note={nid}", "dismissed_at": None}]})))
-            stub = (f"GET /api/voice/insights answered {ins.status} with {len(body.get('insights') or [])} insights, none open with a note link; "
-                    "stubbed with one note_level_touch insight (page.route)")
-        try:
-            at(pg, base, "/journal/notebook")
-            summ = pg.locator('[data-tour="home-notices"] > summary')
-            shown = C.vis_loc(summ, 30000)
-            # textContent, never innerText: the box's heading is upper-cased by CSS, and innerText follows it
-            text = re.sub(r"\s+", " ", summ.first.text_content() or "").strip() if shown else None
-            mm = re.match(r"^Notices · (\d+)$", text or "")
-            n = int(mm.group(1)) if mm else 0
-            if shown:
-                summ.first.click()
-                pg.wait_for_timeout(400)
-            rows = pg.locator('[data-tour="home-notices"] li')
-            row_texts = [re.sub(r"\s+", " ", t).strip()[:120] for t in rows.all_inner_texts()]
-            links = pg.locator('[data-tour="home-notices"] li a')
-            hrefs = [a.get_attribute("href") for a in links.all()]
-            landed = None
-            if links.count():
-                links.first.click()
-                for _ in range(30):
-                    landed = pg.url.split(base)[-1]
-                    if hrefs[0] and hrefs[0] in landed:
-                        break
-                    pg.wait_for_timeout(300)
-            ok = shown and n >= 1 and len(row_texts) == n and hrefs and hrefs[0] and hrefs[0] in (landed or "")
-            C.step(pg, inst, "discover.notices", "Home shows 'Notices · N' with N of at least 1, and a row opens the note it names",
-                   "PASS" if ok else "FAIL", summary_text=text, n=n, rows=row_texts, hrefs=hrefs, landed=landed, stubbed=stub,
-                   insights_status=ins.status, open_resurfacing_insights=len(live), alerts_in_feed=len(alerts), scope=['[data-tour="home-notices"]'])
-        finally:
-            if stub:
-                pg.unroute("**/api/voice/insights")
+        at(pg, base, "/journal/notebook")
+        summ = pg.locator('[data-tour="home-notices"] > summary')
+        shown = C.vis_loc(summ, 30000)
+        # textContent, never innerText: the box's heading is upper-cased by CSS, and innerText follows it
+        text = re.sub(r"\s+", " ", summ.first.text_content() or "").strip() if shown else None
+        mm = re.match(r"^Notices · (\d+)$", text or "")
+        n = int(mm.group(1)) if mm else 0
+        if shown:
+            summ.first.click()
+            pg.wait_for_timeout(400)
+        rows = pg.locator('[data-tour="home-notices"] li')
+        row_texts = [re.sub(r"\s+", " ", t_).strip()[:120] for t_ in rows.all_inner_texts()]
+        links = pg.locator('[data-tour="home-notices"] li a')
+        hrefs = [a_.get_attribute("href") for a_ in links.all()]
+        # The row the box exists for: a RESURFACED NOTE (href /journal/notebook?note=<id>...). The first anchor is
+        # often the fill alert, which goes to the trades page; opening that proves nothing about this door.
+        note_rows = [h_ for h_ in hrefs if (h_ or "").startswith("/journal/notebook?note=")]
+        want_id = re.match(r"/journal/notebook\?note=([0-9a-f]+)", note_rows[0]).group(1) if note_rows else None
+        landed, editor = None, False
+        if want_id:
+            pg.locator(f'[data-tour="home-notices"] li a[href^="/journal/notebook?note={want_id}"]').first.click()
+            for _ in range(40):
+                landed = pg.url.split(base)[-1]
+                if f"note={want_id}" in landed:
+                    break
+                pg.wait_for_timeout(300)
+            editor = C.vis(pg, ".ProseMirror", 30000)
+        facts = dict(summary_text=text, n=n, rows=row_texts, hrefs=hrefs, resurfaced_rows=note_rows, opened_note_id=want_id,
+                     landed=landed, editor_visible=editor, insights_status=ins.status, open_resurfacing_insights=len(live),
+                     alerts_in_feed=len(alerts), scope=['[data-tour="home-notices"]'])
+        if not want_id:
+            # Never a PASS: the door was not exercised. (The sandbox serves its resurfaced notes through the awareness child.)
+            C.step(pg, inst, "discover.notices", "no resurfaced-note row was served in this sandbox, so a row opening its note was not exercised",
+                   "INFO", reason="GET /api/voice/insights returned no open note_level_touch / note_big_move / note_date_due row with a note link", **facts)
+            return
+        ok = shown and n >= 1 and len(row_texts) == n and f"note={want_id}" in (landed or "") and editor
+        C.step(pg, inst, "discover.notices", "Home shows 'Notices · N' (N of at least 1) and a RESURFACED-NOTE row opens that note",
+               "PASS" if ok else "FAIL", **facts)
 
     # ── discover.setups-box (1280) ─────────────────────────────────────────────────────────────────
     def d_setups_box():
@@ -1601,7 +1605,14 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         at(pg, base, "/journal/notebook")
         boxl = pg.locator('[data-tour="home-setups"]')
         shown = C.vis_loc(boxl, 30000)
-        pg.wait_for_timeout(1500)   # the count arrives with the board's own read
+        count_loc = boxl.first.locator("span").first          # the box's one count line (SetupsBox.jsx `.count`)
+        count_re = re.compile(r"^Active setups · (\d+ open|none open)$")
+        count = None
+        for _ in range(20):                                    # the count arrives with the board's own read
+            count = re.sub(r"\s+", " ", count_loc.text_content() or "").strip() if shown else None
+            if count_re.match(count or ""):
+                break
+            pg.wait_for_timeout(500)
         text = re.sub(r"\s+", " ", boxl.first.text_content() or "").strip() if shown else None
         m = boxl.first.evaluate(COVER_JS) if shown else {}
         link = pg.get_by_role("link", name="Open the setups board", exact=True)
@@ -1622,9 +1633,9 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                     break
                 pg.wait_for_timeout(300)
         home_again = pg.url.split("?")[0].rstrip("/").endswith("/journal/notebook")
-        ok = (shown and re.match(r"^Active setups · .+", text or "") and m.get("above_fold") and lm.get("uncovered") and on_board and back_shown and home_again)
+        ok = (shown and count_re.match(count or "") and m.get("above_fold") and lm.get("uncovered") and on_board and back_shown and home_again)
         C.step(pg, inst, "discover.setups-box", "Home box 'Active setups · …' above the fold; its link opens the board; the board has Back to Notebook",
-               "PASS" if ok else "FAIL", box_text=text, box=m, link=lm, on_board=on_board, back_link=back_shown, back_href=back_href,
+               "PASS" if ok else "FAIL", box_text=text, count_line=count, box=m, link=lm, on_board=on_board, back_link=back_shown, back_href=back_href,
                back_lands_on_home=home_again, scope=['[data-tour="home-setups"]'])
 
     # ── discover.one-ask (1280) ────────────────────────────────────────────────────────────────────
@@ -1692,7 +1703,6 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             pA.keyboard.press("Enter")
             pA.wait_for_timeout(800)
             n2 = pA.locator('[data-type="date-mention"]').count()
-            stored = M.get(f"{base}/api/j2/notes/{nid}").json().get("note") or {}
             ok = (first_opt and selected_before == 0 and sel_after and sel_after[0].startswith("Today") and n1 == 1 and n2 == 1)
             C.step(pA, iA, "discover.due-date", "'/due' + Enter opens the date list with nothing chosen; Down then Enter picks Today; a bare '@' + Enter inserts no date",
                    "PASS" if ok else "FAIL", options=names, selected_before_any_key=selected_before, selected_after_down=sel_after,
@@ -1707,7 +1717,6 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         at(pg, base, "/journal/notebook?view=all")
         imp = pg.get_by_role("button", name="Import", exact=True)
         imp.first.click(timeout=15000)
-        dlg = pg.get_by_role("dialog")
         heading = pg.get_by_role("heading", name="Capture from anywhere")
         has_heading = C.vis_loc(heading, 15000)
         pg.wait_for_timeout(1500)     # the two gates answer on their own reads
@@ -1721,12 +1730,24 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             got = {"Email to Notebook": sec.get_by_role("link", name="Email to Notebook", exact=True).filter(visible=True).count() > 0,
                    "Browser extension": sec.get_by_role("link", name=re.compile(r"^Browser extension")).filter(visible=True).count() > 0,
                    "iPhone Shortcut": sec.get_by_role("button", name="iPhone Shortcut", exact=True).filter(visible=True).count() > 0}
-        ok = has_heading and got == want
-        C.step(pg, inst, "discover.capture-doors", "Import dialog: 'Capture from anywhere' lists exactly the doors whose card's endpoint is live",
-               "PASS" if ok else "FAIL", heading=has_heading, doors_shown=got, doors_expected=want, inbound_email_status=st_email,
-               personal_api_status=st_api, section_text=re.sub(r"\s+", " ", sec.first.inner_text())[:400] if sec is not None else None,
-               note="the iPhone Shortcut gate (NOTEBOOK_PERSONAL_API_ENABLED) is not in c2's switch list, so its door is checked ABSENT-by-gate here",
-               scope=["[role=dialog]"])
+        two = {k: v for k, v in want.items() if k != "iPhone Shortcut"}
+        two_got = {k: v for k, v in got.items() if k != "iPhone Shortcut"}
+        sect_text = re.sub(r"\s+", " ", sec.first.inner_text())[:400] if sec is not None else None
+        # Email to Notebook and the Browser extension: graded here. The Shortcut is a row of its own below.
+        C.step(pg, inst, "discover.capture-doors", "Import dialog: 'Capture from anywhere' lists Email to Notebook (its card's endpoint is live) and the Browser extension (ungated)",
+               "PASS" if has_heading and two_got == two else "FAIL", heading=has_heading, doors_shown=two_got, doors_expected=two,
+               inbound_email_status=st_email, section_text=sect_text, scope=["[role=dialog]"])
+        shortcut_live = live(st_api)
+        shortcut_shown = got.get("iPhone Shortcut")
+        if not shortcut_live:
+            # Never a PASS: the gate is off in this sandbox, so the door that depends on it was not exercised.
+            C.step(pg, inst, "discover.capture-doors", "iPhone Shortcut: gated off in this sandbox, door not exercised",
+                   "FAIL" if shortcut_shown else "INFO", personal_api_status=st_api, door_shown_while_gated_off=bool(shortcut_shown),
+                   reason="GET /api/j2/personal/tokens answered 404: NOTEBOOK_PERSONAL_API_ENABLED is not in c2's switch list, so the card's own gate is dark",
+                   scope=["[role=dialog]"])
+        else:
+            C.step(pg, inst, "discover.capture-doors", "iPhone Shortcut: the personal API gate is live, so the door is in the section",
+                   "PASS" if shortcut_shown else "FAIL", personal_api_status=st_api, door_shown=bool(shortcut_shown), scope=["[role=dialog]"])
         pg.keyboard.press("Escape")
         pg.wait_for_timeout(300)
 
@@ -1866,6 +1887,36 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         finally:
             cA.close()
 
+    def d_chart_tour_nonotes():
+        """The other half of the chart tour's card (tourStart.js `chartNoNotes`): a member with NO notes IS offered the
+        sample (R15), and pressing it starts the tour."""
+        cF, emailF, meF, iF, pF = new_member("c2ct0", "1280")
+        try:
+            at(pF, base, "/journal/notebook", first_run=True)
+            pF.get_by_role("button", name="Learn", exact=True).first.click(timeout=15000)
+            menu = pF.get_by_role("menu", name="Learn: walkthroughs")
+            C.vis_loc(menu, 8000)
+            menu.get_by_role("menuitem", name="Chart plan basics tour", exact=True).first.click(timeout=10000)
+            card = pF.get_by_role("dialog").filter(has=pF.get_by_role("heading", name="This walkthrough needs a chart in a note"))
+            shown = C.vis_loc(card, 30000)
+            add = card.first.get_by_role("button", name="Add the sample notebook", exact=True)
+            has_add = shown and add.count() == 1
+            exit_btn = card.first.get_by_role("button", name="Go to my notes", exact=True).count() if shown else 0
+            body = re.sub(r"\s+", " ", card.first.text_content() or "") if shown else ""
+            C.step(pF, iF, "discover.chart-tour-no-deadend", "No notes at all: the same card offers 'Add the sample notebook' (and 'Go to my notes'), ruling R15",
+                   "PASS" if shown and has_add and exit_btn == 1 else "FAIL", card_text=body[:400], add_sample_buttons=add.count() if shown else None,
+                   exit_buttons=exit_btn, scope=["[role=dialog]"])
+            if has_add:
+                add.click()
+                tour = pF.locator("[data-tour-card]").first
+                started = C.vis_loc(tour, 60000)
+                prog = (tour.locator("p").first.text_content() or "").strip() if started else None
+                C.step(pF, iF, "discover.chart-tour-no-deadend", "Pressing 'Add the sample notebook' adds it and starts the tour (a tour card at step 1)",
+                       "PASS" if started and "step 1 of" in (prog or "").lower() else "FAIL", tour_card=started, progress=prog,
+                       landed=pF.url.split(base)[-1], scope=["[data-tour-card]"])
+        finally:
+            cF.close()
+
     # ── discover.voice-tour (1280) ─────────────────────────────────────────────────────────────────
     def d_voice_tour():
         cA, emailA, meA, iA, pA = new_member("c2vt", "1280")
@@ -1893,7 +1944,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             caret.first.click(timeout=10000)                         # the step asks the member to open it
             for _ in range(30):                                      # the tour moves on when the member did the thing
                 t_ = pA.locator("[data-tour-card] h2").first
-                if t_.count() and "Record, upload" in t_.inner_text():
+                if t_.count() and "record, upload" in (t_.text_content() or "").lower():
                     break
                 pA.wait_for_timeout(300)
             c2_ = card_state("after opening the menu")
@@ -1913,12 +1964,14 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             cA.close()
 
     def discover():
-        for name, fn in (("new-note-home", d_new_note_home), ("phone-toolbar-inside", d_phone_toolbar),
-                         ("phone-folders-visible", d_phone_folders), ("chart-plan-clickable", d_chart_plan),
-                         ("notices", d_notices), ("setups-box", d_setups_box), ("one-ask", d_one_ask),
-                         ("due-date", d_due_date), ("capture-doors", d_capture_doors), ("learn-groups", d_learn_groups),
-                         ("catalog", d_catalog), ("search-in-place", d_search_in_place),
-                         ("chart-tour-no-deadend", d_chart_tour), ("voice-tour", d_voice_tour)):
+        doors = (("new-note-home", d_new_note_home), ("phone-toolbar-inside", d_phone_toolbar),
+                 ("phone-folders-visible", d_phone_folders), ("chart-plan-clickable", d_chart_plan),
+                 ("notices", d_notices), ("setups-box", d_setups_box), ("one-ask", d_one_ask),
+                 ("due-date", d_due_date), ("capture-doors", d_capture_doors), ("learn-groups", d_learn_groups),
+                 ("catalog", d_catalog), ("search-in-place", d_search_in_place),
+                 ("chart-tour-no-deadend", d_chart_tour), ("chart-tour-no-deadend", d_chart_tour_nonotes),
+                 ("voice-tour", d_voice_tour))
+        for name, fn in doors:
             HOLD.clear()
             try:
                 fn()
@@ -1927,6 +1980,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             except Exception as e:  # noqa: BLE001 -- recorded, and the next door is still walked
                 C.step(HOLD.get("pg"), HOLD.get("inst") or inst, f"discover.{name}", "driver exception (the check did not finish)", "FAIL",
                        error=f"{type(e).__name__}: {str(e)[:600]}", traceback=traceback.format_exc()[-1600:], shot=HOLD.get("pg") is not None)
+        # No door can drop out of the record unseen: deleting one from the tuple above would otherwise just
+        # remove its rows, and a missing row is neither PASS nor FAIL.
+        want = sorted({f"discover.{n}" for n, _ in doors})
+        seen = {s.get("feature") for s in C.REC["steps"] if s.get("config") == cfg}
+        missing = [w for w in want if w not in seen]
+        C.step(None, inst, "discover.coverage", f"every one of the {len(want)} door features left a row in the record",
+               "PASS" if not missing else "FAIL", doors=want, missing=missing, shot=False)
     run("discover", discover)
 
     # ── remove the sample in one click; nothing of it remains ───────────────────────────
