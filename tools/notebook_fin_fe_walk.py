@@ -379,8 +379,15 @@ def run(base: str, w, expect_defects: bool) -> None:
             # the toolbar's own Remove button (mouse)
             pg.locator("[data-widget-embed-body]").first.hover()
             pause(pg, 0.4)
-            rm = pg.get_by_role("button", name="Remove embed")
+            # P0.2: Remove embed is a menu item under the toolbar's "More chart actions" menu.
+            more = pg.get_by_role("button", name="More chart actions", exact=True)
+            if more.count():
+                more.first.click()
+                pause(pg, 0.3)
+            rm = pg.get_by_role("menuitem", name="Remove embed", exact=True)
             obs["remove_button_present"] = rm.count()
+            if more.count():
+                more.first.click()                  # a second press closes the menu
             w.shot(pg, "C_note_selecting")
             # every surface of the block that is NOT the chart body: which of them select it by mouse?
             surfaces = pg.evaluate("""() => {
