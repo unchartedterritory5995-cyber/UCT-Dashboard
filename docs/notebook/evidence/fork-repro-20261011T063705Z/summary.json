@@ -1,0 +1,12 @@
+{
+ "runs": 10,
+ "nav_ms": 3000,
+ "nav": "click",
+ "viewport": "1280",
+ "age": 0,
+ "base": "http://127.0.0.1:8132",
+ "started": "20261011T063705Z",
+ "measured": 10,
+ "forked_runs": [],
+ "errors": []
+}
