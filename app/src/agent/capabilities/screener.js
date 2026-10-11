@@ -115,7 +115,14 @@ export const lastScreenNow = () => cache.last
 
 // ── catalog helpers ──
 const fieldOf = (key) => cache.meta?.fields.find(f => f.key === key) || measureOf(key) || null
-const fmtVal = (f, v) => (v == null ? '' : f?.unit === '$' ? `$${v}` : f?.unit === '%' ? `${v}%` : String(v))
+// Dollar amounts a trader says in millions / billions read that way ($10M, $2.5B); smaller ones as typed.
+const big = (v) => {
+  const n = Number(v)
+  if (!Number.isFinite(n) || Math.abs(n) < 1e6) return String(v)
+  const [d, s] = Math.abs(n) >= 1e9 ? [1e9, 'B'] : [1e6, 'M']
+  return `${Number((n / d).toFixed(2))}${s}`
+}
+const fmtVal = (f, v) => (v == null ? '' : f?.unit === '$' ? `$${big(v)}` : f?.unit === '%' ? `${v}%` : String(v))
 function describeFilter(fl) {
   const f = fieldOf(fl.key)
   const label = f?.label || fl.key
@@ -221,9 +228,11 @@ function settleClock(spec) {
   return { ...spec, filters, post }
 }
 
+// A filter as the engine takes it: without the local `pending` mark (and without `key` for the page link).
+const wireOf = (f, noKey = false) => { const o = { ...f }; delete o.pending; if (noKey) delete o.key; return o }
 const openLinkFor = (spec, savedId = null) => {
   if (savedId && /^\d+$/.test(savedId)) return { href: `/screener?savedScreen=${savedId}`, label: 'Open in Screener' }
-  const map = Object.fromEntries((spec.filters || []).map(({ key, pending, ...rest }) => [key, rest]))
+  const map = Object.fromEntries((spec.filters || []).map(f => [f.key, wireOf(f, true)]))
   const s = encodeSpec({ filters: map, sort: spec.sort })
   // The Screener page can't hold a measure condition: the link says what it leaves out.
   const label = (spec.post || []).length ? `Open in Screener (without ${[...new Set(spec.post.map(f => fieldOf(f.key)?.label || f.key))].join(', ')})` : 'Open in Screener'
@@ -231,7 +240,7 @@ const openLinkFor = (spec, savedId = null) => {
 }
 
 const scanBody = (spec, columns, page, size) => ({
-  filters: (spec.filters || []).map(({ pending, ...f }) => f), sort: spec.sort || DEFAULT_SORT, ...(spec.rank ? { rank: spec.rank } : {}),
+  filters: (spec.filters || []).map(f => wireOf(f)), sort: spec.sort || DEFAULT_SORT, ...(spec.rank ? { rank: spec.rank } : {}),
   ...(spec.logic ? { logic: spec.logic } : {}), columns, page, page_size: size,
 })
 
