@@ -173,15 +173,25 @@ describe('the extension on the real roster', () => {
 
   // The list is only real when it is drawn: a key sent to an editor whose list never rendered
   // passes through trivially. These helpers draw it (ReactRenderer needs a React tree) and wait.
+  // N5 (polish round): the list mounts after a promise (the session's items, then its chunk), and
+  // mounting it updates EditorContent's portals. The wait happens INSIDE act, so that update is
+  // part of the test's act scope -- before, it landed outside one ("not wrapped in act").
+  const listMounted = () => [...document.body.children]
+    .some((el) => el.style?.position === 'fixed' && el.querySelector('.react-renderer'))
   async function typeWithList(text, typed) {
     const ed = mount(text)
     render(createElement(EditorContent, { editor: ed }))
     ed.commands.focus('end')
-    ed.commands.insertContent(typed)
-    await waitFor(() => expect(document.getElementById('uct-date-suggest')).not.toBeNull())
+    await act(async () => {
+      ed.commands.insertContent(typed)
+      for (let i = 0; i < 300 && !listMounted(); i += 1) await new Promise((r) => setTimeout(r, 10))
+    })
+    expect(document.getElementById('uct-date-suggest')).not.toBeNull()
     return ed
   }
   const pressKey = (ed, k) => ed.view.someProp('handleKeyDown', (f) => f(ed.view, new KeyboardEvent('keydown', { key: k })))
+  // A key that ends the session unmounts the list (a portal update): pressed inside act too.
+  const pressIn = async (ed, k) => { let out; await act(async () => { out = pressKey(ed, k) }); return out }
   const paragraphs = (ed) => ed.getJSON().content.map((n) => n.type)
 
   it('end to end: "@tom", ArrowDown, Enter inserts tomorrow and leaves no @tom text behind', async () => {
@@ -194,7 +204,7 @@ describe('the extension on the real roster', () => {
 
   it('⛔ a bare "@" then Enter inserts NO date: it leaves the "@" and starts a new paragraph', async () => {
     const ed = await typeWithList('Buy NVDA ', '@')
-    pressKey(ed, 'Enter')
+    await pressIn(ed, 'Enter')
     expect(mentions(ed)).toEqual([])
     expect(paragraphs(ed)).toEqual(['paragraph', 'paragraph'])
     expect(ed.state.doc.firstChild.textContent).toBe('Buy NVDA @')
@@ -203,7 +213,7 @@ describe('the extension on the real roster', () => {
   it('⛔ "@tom" then Enter inserts NO date either (and "@mon", "@fri", "@next")', async () => {
     for (const q of ['@tom', '@mon', '@fri', '@next']) {
       const ed = await typeWithList('ask ', q)
-      pressKey(ed, 'Enter')
+      await pressIn(ed, 'Enter')
       expect(mentions(ed), q).toEqual([])
       expect(paragraphs(ed), q).toEqual(['paragraph', 'paragraph'])
       expect(ed.state.doc.firstChild.textContent, q).toBe(`ask ${q}`)
@@ -221,7 +231,7 @@ describe('the extension on the real roster', () => {
 
   it('Tab inserts the first choice with nothing selected', async () => {
     const ed = await typeWithList('Due ', '@tom')
-    expect(pressKey(ed, 'Tab')).toBe(true)
+    expect(await pressIn(ed, 'Tab')).toBe(true)
     expect(mentions(ed)).toEqual([resolveDateWord('tomorrow', todayET())])
     expect(paragraphs(ed)).toEqual(['paragraph'])
   })
@@ -241,11 +251,12 @@ describe('the extension on the real roster', () => {
       ed.commands.insertContent('/chart AMD ')
       await waitFor(() => expect(document.getElementById('uct-slash-menu')).not.toBeNull())
       expect(slashKey.getState(ed.state).active).toBe(true) // non-vacuity: the slash session IS open
-      ed.commands.insertContent('@')
+      // the slash menu's own portal updates on both keys: inside act (N5)
+      await act(async () => { ed.commands.insertContent('@') })
       expect(slashKey.getState(ed.state).active).toBe(true)
       expect(state(ed).active).toBeFalsy()
       expect(document.getElementById('uct-date-suggest')).toBeNull()
-      pressKey(ed, 'Enter')
+      await pressIn(ed, 'Enter')
       expect(mentions(ed)).toEqual([])
     })
 
