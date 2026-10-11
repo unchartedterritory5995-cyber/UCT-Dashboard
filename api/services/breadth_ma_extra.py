@@ -135,6 +135,7 @@ def sweep(rebuild: bool = False, max_sessions: Optional[int] = None,
     series.setdefault("version", VERSION)
     series.setdefault("fields", ["pct_above_20sma", "pct_above_150sma", "valid20", "valid150"])
     rows = series.setdefault("rows", {})
+    counts = series.setdefault("frame_rows", {})
     last = ring.dates[-1] if ring.dates else None
     todo = nhi._sessions_after(last, nhi._settled_through())
     if max_sessions:
@@ -148,11 +149,18 @@ def sweep(rebuild: bool = False, max_sessions: Optional[int] = None,
             res = massive.get_grouped_daily_frame(d, adjusted=True, store=False)
         except Exception as e:
             failed.append((d, str(e)[:200]))
+            nhi.report_block("20/150-day SMA", d, str(e)[:200])
             break
         frame = res.get("rows") or {}
-        if not frame:
+        why = nhi.check_frame(d, frame, counts)       # the bad-day guard (2026-10-11)
+        if why == "closed":
             time.sleep(nhi.PACE_SECONDS)
             continue
+        if why:
+            failed.append((d, why))
+            nhi.report_block("20/150-day SMA", d, why)
+            break
+        nhi.note_count(counts, d, frame)
         for u, v in measure(ring, d, frame, cls).items():
             rows.setdefault(u, {})[d] = v
         done += 1

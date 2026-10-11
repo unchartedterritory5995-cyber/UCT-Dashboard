@@ -344,6 +344,72 @@ _job: dict = {"state": "none"}
 _job_lock = threading.Lock()
 
 
+# ── the bad-day guard (2026-10-11) ───────────────────────────────────────────
+#
+# ⛔ A RING NEVER REVISITS A DATE BEHIND ITS NEWEST ONE. So an empty provider answer on a
+# real trading day, skipped as a "closure", was lost for good (the 52-week / 20 / 150-session
+# windows silently shifted), and a PARTIAL frame (a fraction of the market) was measured and
+# sealed forever. Both now STOP the sweep — the next scheduled run (three a day) retries —
+# and a date blocked for more than `STALL_SESSIONS` trading sessions alerts #breadth-alerts.
+
+FRAME_FLOOR = float(os.environ.get("BREADTH_RING_FRAME_FLOOR", "0.8"))
+STALL_SESSIONS = 3
+ACCEPT_ENV = "BREADTH_RING_ACCEPT_DATES"     # comma list: an owner's "measure it anyway"
+
+
+def _accepted(d: str) -> bool:
+    return d in {x.strip() for x in (os.environ.get(ACCEPT_ENV) or "").split(",") if x.strip()}
+
+
+def traded_rows(frame: dict) -> int:
+    return sum(1 for r in (frame or {}).values() if (r.get("v") or 0) > 0)
+
+
+def check_frame(d: str, frame: dict, counts: dict) -> Optional[str]:
+    """None = measure it. "closed" = a calendar non-trading day (skip it). Anything else is
+    why the sweep must STOP here and retry later: an empty answer on a trading day, or a
+    frame under `FRAME_FLOOR` of the median traded-row count of the last 20 measured days."""
+    if not frame:
+        try:
+            from api.services import session_calendar as sc
+            day = _date.fromisoformat(d)
+            trading = sc.covers(day) and sc.is_trading_day(day)
+        except Exception:
+            trading = False
+        return "empty answer on a trading day" if trading and not _accepted(d) else "closed"
+    if _accepted(d):
+        return None
+    recent = [c for _k, c in sorted((counts or {}).items())[-20:] if c]
+    if len(recent) >= 5:
+        med = sorted(recent)[len(recent) // 2]
+        n = traded_rows(frame)
+        if n < FRAME_FLOOR * med:
+            return f"partial frame: {n} traded rows vs median {med}"
+    return None
+
+
+def note_count(counts: dict, d: str, frame: dict) -> None:
+    counts[d] = traded_rows(frame)
+    for k in sorted(counts)[:-40]:
+        counts.pop(k, None)
+
+
+def report_block(series_name: str, d: str, reason: str) -> None:
+    """Alert once a date has blocked its series for more than STALL_SESSIONS sessions."""
+    try:
+        today = _date.today().isoformat()
+        behind = len(_sessions_after(d, today))
+        if behind <= STALL_SESSIONS:
+            return
+        from api.services import breadth_alerts
+        breadth_alerts.send(
+            f"ring_stall:{series_name}:{d}", f"Breadth: the {series_name} series is stuck at {d}",
+            [f"{d}: {reason}", f"{behind} sessions behind and not advancing.",
+             f"If the provider's {d} really is thin, add it to {ACCEPT_ENV} on web to measure it anyway."])
+    except Exception as e:                        # noqa: BLE001
+        _log.warning("[ring] stall report failed: %s", e)
+
+
 def _settled_through() -> str:
     """The newest session whose daily bar has settled (ET close + 2h)."""
     from datetime import datetime
@@ -437,6 +503,7 @@ def sweep(rebuild: bool = False, max_sessions: Optional[int] = None,
     series.setdefault("fields", ["nh52", "nl52", "nh20", "nl20", "members", "valid52",
                                  "pct_above_50sma_check", "pct_above_200sma_check"])
     rows = series.setdefault("rows", {})
+    counts = series.setdefault("frame_rows", {})
     last = ring.dates[-1] if ring.dates else None
     todo = _sessions_after(last, _settled_through())
     if max_sessions:
@@ -450,11 +517,18 @@ def sweep(rebuild: bool = False, max_sessions: Optional[int] = None,
             res = massive.get_grouped_daily_frame(d, adjusted=True, store=False)
         except Exception as e:
             failed.append((d, str(e)[:200]))
+            report_block("new highs/lows", d, str(e)[:200])
             break                      # never skip a session: the window would be wrong
         frame = res.get("rows") or {}
-        if not frame:
+        why = check_frame(d, frame, counts)
+        if why == "closed":
             time.sleep(PACE_SECONDS)
-            continue                   # a closure (provider answered empty)
+            continue                   # a calendar closure
+        if why:
+            failed.append((d, why))
+            report_block("new highs/lows", d, why)
+            break                      # retried by the next run; never sealed short
+        note_count(counts, d, frame)
         out = measure(ring, d, frame, cls)
         for u, v in out.items():
             rows.setdefault(u, {})[d] = v

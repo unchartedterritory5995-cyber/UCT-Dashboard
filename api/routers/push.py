@@ -235,6 +235,12 @@ def push_intraday(
 
     # Store as separate cache key — never overwrites wire_data
     cache.set("intraday_update", payload, ttl=14400)  # 4 hours
+    # (2026-10-11) and the regime phase durably, per session, for the EOD breadth row
+    try:
+        from api.services import breadth_eod_extras
+        breadth_eod_extras.record_regime_phase(payload)
+    except Exception:
+        pass
 
     # One authority (spec 2026-08-21): the wire's published score IS the UCT
     # Exposure. The brain's regime opinion stays under intraday_update only.

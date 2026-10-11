@@ -1663,6 +1663,17 @@ class GroupedFrameError(RuntimeError):
         self.reason, self.attempts = reason, attempts
 
 
+def _calendar_trading_day(day_iso: str) -> bool:
+    """True when the exchange calendar says `day_iso` was a session (False when unsure)."""
+    try:
+        from datetime import date as _d
+        from api.services import session_calendar as _sc
+        day = _d.fromisoformat(day_iso)
+        return bool(_sc.covers(day) and _sc.is_trading_day(day))
+    except Exception:
+        return False
+
+
 def get_grouped_daily_frame(day_iso: str, adjusted: bool = False, store: bool = True) -> dict:
     """`{"rows": {...}, "empty": bool}` — or RAISE `GroupedFrameError`.
 
@@ -1704,7 +1715,7 @@ def get_grouped_daily_frame(day_iso: str, adjusted: bool = False, store: bool = 
         # simply cannot run. The marker is written ONLY when the provider answered
         # successfully with no rows on a settled date, so a 429 can never create one and
         # can never poison a date as "zero securities" for the cache's seven-day TTL.
-        if os.path.exists(cpath):
+        if os.path.exists(cpath) and not _calendar_trading_day(day_iso):
             return {"rows": {}, "empty": True, "closed": True}
 
     adj = "true" if adjusted else "false"
@@ -1792,8 +1803,11 @@ def get_grouped_daily_frame(day_iso: str, adjusted: bool = False, store: bool = 
                 os.replace(tmp, fpath)
             except Exception:
                 pass
-    if not out and settled:
+    if not out and settled and not _calendar_trading_day(day_iso):
         # ⚠️ ONLY a successful empty answer reaches here — every failure raised above.
+        # (2026-10-11) and ONLY on a calendar non-trading day: an empty answer on a real
+        # session is a late or broken provider answer, and a durable marker made it
+        # permanent for every caller.
         try:
             os.makedirs(_GROUPED_OHLCV_DIR, exist_ok=True)
             with open(cpath, "w") as fh:
