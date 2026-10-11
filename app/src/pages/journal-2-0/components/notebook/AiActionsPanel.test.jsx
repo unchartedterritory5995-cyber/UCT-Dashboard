@@ -1,4 +1,4 @@
-// Wave 11 lane 11C — "Ask Notebook to do something": the request box, the review list
+// Wave 11 lane 11C — "Or tell Notebook what to change": the request box, the review list
 // (grouped by note, before → after, a checkbox each), apply with progress and the
 // partial-failure list, the one-click undo, hidden while the flag is off, and every step
 // by keyboard with accessible names.
@@ -86,7 +86,7 @@ function renderBox(props = {}) {
 const noteGroups = () => screen.getAllByRole('group').filter((g) => g.tagName === 'FIELDSET')
 
 async function openAndPlan(user, text = 'tag every note that mentions NVDA earnings with earnings-nvda') {
-  await user.click(screen.getByRole('button', { name: 'Ask Notebook to do something' }))
+  await user.click(screen.getByRole('button', { name: 'Or tell Notebook what to change' }))
   const box = screen.getByRole('textbox', { name: 'What should Notebook do?' })
   await user.type(box, text)
   await user.click(screen.getByRole('button', { name: 'Plan changes' }))
@@ -103,14 +103,14 @@ beforeEach(() => {
 })
 afterEach(() => { __resetNotebookFlags() })
 
-describe('Ask Notebook to do something — hidden while the flag is off', () => {
+describe('Or tell Notebook what to change — hidden while the flag is off', () => {
   it('renders nothing when the flag is off, and nothing before any payload latched', () => {
     __resetNotebookFlags()
     const { container } = renderBox()
     expect(container.textContent).toBe('')
     latchNotebookFlags({ notebook_ai_actions_enabled: false })
     renderBox()
-    expect(screen.queryByRole('button', { name: 'Ask Notebook to do something' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Or tell Notebook what to change' })).toBeNull()
   })
 })
 
@@ -118,7 +118,7 @@ describe('the request box', () => {
   it('opens, focuses the box, and plans what was typed — writing nothing', async () => {
     const user = userEvent.setup()
     renderBox()
-    const toggle = screen.getByRole('button', { name: 'Ask Notebook to do something' })
+    const toggle = screen.getByRole('button', { name: 'Or tell Notebook what to change' })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
     await user.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
@@ -138,7 +138,7 @@ describe('the request box', () => {
     const user = userEvent.setup()
     server.plan = () => json(429, { detail: "You've used today's AI change plans — they reset at midnight ET." })
     renderBox()
-    await user.click(screen.getByRole('button', { name: 'Ask Notebook to do something' }))
+    await user.click(screen.getByRole('button', { name: 'Or tell Notebook what to change' }))
     await user.click(screen.getByRole('button', { name: 'Plan changes' }))
     expect(screen.getByRole('alert')).toHaveTextContent('Type what you’d like Notebook to do first.')
     expect(posts('/plan')).toEqual([])
@@ -273,7 +273,7 @@ describe('keyboard only', () => {
     const user = userEvent.setup()
     renderBox()
     await user.tab()
-    expect(screen.getByRole('button', { name: 'Ask Notebook to do something' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Or tell Notebook what to change' })).toHaveFocus()
     await user.keyboard('{Enter}')
     expect(screen.getByRole('textbox', { name: 'What should Notebook do?' })).toHaveFocus()
     await user.keyboard('tag NVDA notes{Control>}{Enter}{/Control}')

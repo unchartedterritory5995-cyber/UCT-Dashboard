@@ -2,7 +2,8 @@
 // its own module so AskPanel.jsx keeps exporting only components (fast refresh).
 //
 // The panel is `position:absolute; right:0; width:400px` on a toggle that may sit anywhere.
-// On Research Home the toggle is at the far right, so hanging from the right edge fits. On a
+// On Research Home the toggle is the left-aligned question door of the Ask section (P0.7), so a
+// right-hung panel may cross the clipping ancestor's left edge and flip to 'start'. On a
 // note page the toggle sits near the LEFT edge of the note pane, which scrolls
 // (`overflow-y:auto` clips both axes), so a right-hung panel reached ~150 px past the pane's
 // left edge and its first ~60 px rendered under the folder sidebar ("s note", "ode is QX-7731":

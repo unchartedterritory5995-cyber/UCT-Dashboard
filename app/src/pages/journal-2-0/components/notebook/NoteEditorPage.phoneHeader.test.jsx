@@ -114,7 +114,7 @@ describe('opened on a DESKTOP, the More panel is exactly what it was', () => {
   it('and the header still carries Ask, Find, Writing help, Outline and the folder', async () => {
     await renderEditor()
     const h = within(header())
-    expect(h.getByRole('button', { name: /^ask a question about/i })).toBeTruthy()
+    expect(h.getByRole('button', { name: /^ask this note$/i })).toBeTruthy()
     for (const name of ['Find in note', 'Writing help', 'Outline']) expect(h.getByRole('button', { name }), name).toBeTruthy()
     expect(h.getByRole('combobox', { name: 'Folder' })).toBeTruthy()
   })

@@ -2,8 +2,9 @@
 // the ancestor that clips it. Measured on production 2026-10-08 (both evidence folders under
 // docs/notebook/evidence/prod-ask/): on a note page the right-hung 400 px panel reached ~150 px
 // past the scrolling note pane's left edge and its first ~60 px rendered under the folder
-// sidebar ("s note", "ode is QX-7731"). On Research Home the toggle sits at the far right and
-// right-hanging is correct. jsdom lays nothing out, so the geometry is stubbed per element and
+// sidebar ("s note", "ode is QX-7731"). On Research Home the toggle was at the far right and
+// right-hanging was correct (since P0.7 it is the left-aligned door of the Ask section; the
+// chooser flips it when the panel would cross the clip edge). jsdom lays nothing out, so the geometry is stubbed per element and
 // the pure chooser is railed on its own.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'

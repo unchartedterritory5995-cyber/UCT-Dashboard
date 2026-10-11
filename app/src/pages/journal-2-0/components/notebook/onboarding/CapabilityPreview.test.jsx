@@ -5,7 +5,7 @@
 // ⛔ It is in-flow page content (plan 5.6): it never claims the first-run stage and never
 //    portals into the first-run slot, so it can neither cover nor queue behind a tour.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, waitFor } from '@testing-library/react'
 import CapabilityPreview from './CapabilityPreview'
 import { CAPABILITY_PREVIEW, PREVIEW_COPY } from './capabilityList'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
@@ -62,16 +62,36 @@ describe('CapabilityPreview', () => {
 
   it('the promotion stands alone when no capability is armed (no list, no heading)', () => {
     render(<CapabilityPreview canAddSample promoId="promo-2" />)
-    expect(screen.queryByRole('list')).toBeNull()
-    expect(screen.queryByRole('heading')).toBeNull()
+    // P0.8: the "Capture from anywhere" box has its own list and heading under the promotion, so
+    // "no list, no heading" is asked of the CAPABILITY list and its heading by name.
+    expect(screen.queryByRole('list', { name: PREVIEW_COPY.heading })).toBeNull()
+    expect(screen.queryByRole('heading', { name: PREVIEW_COPY.heading })).toBeNull()
     expect(document.getElementById('promo-2')).toHaveTextContent(PREVIEW_COPY.sampleTail)
   })
 
-  it('fetches nothing (static text; no AI call before a member has written anything)', () => {
+  it('calls no model (static text; no AI call before a member has written anything)', async () => {
     // ⛔ ONE payload: the latch keeps the first one it sees, so a loop would arm one line only.
     latchNotebookFlags(Object.fromEntries(CAPABILITY_PREVIEW.map((c) => [c.flag, true])))
     render(<CapabilityPreview canAddSample />)
-    expect(screen.getAllByRole('listitem')).toHaveLength(CAPABILITY_PREVIEW.length)
+    expect(screen.getAllByRole('listitem').length).toBeGreaterThanOrEqual(CAPABILITY_PREVIEW.length)
+    // P0.8: the "Capture from anywhere" box under the list asks its two capture gates (the same
+    // endpoints the Settings cards ask), and nothing else. Never a model, never a note read.
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    const urls = global.fetch.mock.calls.map((c) => String(c[0]))
+    expect(urls.every((u) => u === '/api/j2/inbound-email/address' || u === '/api/j2/personal/tokens')).toBe(true)
+  })
+
+  it('P0.8: the capture doors sit under the list, compact', async () => {
+    latchNotebookFlags({ notebook_plan_grading_enabled: true })
+    render(<CapabilityPreview canAddSample={false} />)
+    const doors = await screen.findByRole('region', { name: 'Capture from anywhere' })
+    const list = screen.getByRole('list', { name: PREVIEW_COPY.heading })
+    expect(list.compareDocumentPosition(doors) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('P0.8: nothing armed and no sample offer still renders nothing at all (the doors do not break that)', () => {
+    const { container } = render(<CapabilityPreview canAddSample={false} />)
+    expect(container).toBeEmptyDOMElement()
     expect(global.fetch).not.toHaveBeenCalled()
   })
 
@@ -85,5 +105,43 @@ describe('CapabilityPreview', () => {
     expect(slot).toBeEmptyDOMElement()
     expect(container.querySelector('section')).not.toBeNull()
     slot.remove()
+  })
+})
+
+// Task 14b (ruling R16): the two entries whose feature had no door, and the Learn sheet's use of
+// the preview (it already has a title, so it asks the preview to leave its own heading out).
+describe('CapabilityPreview -- Task 14b', () => {
+  it.each([
+    ['terminal-links', 'notebook_terminal_links_enabled'],
+    ['compass-notes', 'compass_notes_tool_enabled'],
+  ])('%s shows when its own flag is armed and never when it is dark', (id, flag) => {
+    const entry = CAPABILITY_PREVIEW.find((c) => c.id === id)
+    expect(entry, id).toBeTruthy()
+    expect(entry.flag).toBe(flag)
+    latchNotebookFlags({ notebook_plan_grading_enabled: true, [flag]: false })
+    const dark = render(<CapabilityPreview canAddSample={false} />)
+    expect(dark.container.textContent).not.toContain(entry.label)
+    expect(dark.container.textContent).not.toContain(entry.line)
+    dark.unmount()
+    __resetNotebookFlags()
+    latchNotebookFlags({ [flag]: true })
+    render(<CapabilityPreview canAddSample={false} />)
+    const items = within(screen.getByRole('list', { name: PREVIEW_COPY.heading })).getAllByRole('listitem')
+    expect(items).toHaveLength(1)
+    expect(items[0]).toHaveTextContent(`${entry.label}. ${entry.line}`)
+  })
+
+  it('hideHeading: no heading of its own, and the list is still named (by aria-label)', () => {
+    latchNotebookFlags({ notebook_plan_grading_enabled: true })
+    render(<CapabilityPreview canAddSample={false} hideHeading />)
+    expect(screen.queryByRole('heading', { name: PREVIEW_COPY.heading })).toBeNull()
+    expect(within(screen.getByRole('list', { name: PREVIEW_COPY.heading })).getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.getByRole('region', { name: PREVIEW_COPY.heading })).toBeInTheDocument()
+  })
+
+  it('the default still draws the heading (the welcome is unchanged)', () => {
+    latchNotebookFlags({ notebook_plan_grading_enabled: true })
+    render(<CapabilityPreview canAddSample={false} />)
+    expect(screen.getByRole('heading', { name: PREVIEW_COPY.heading })).toBeInTheDocument()
   })
 })

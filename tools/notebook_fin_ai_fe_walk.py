@@ -212,17 +212,17 @@ def walk(pg, base, req, w):
         pg.route("**/api/j2/ai-actions/plan", lambda route: route.fulfill(status=200, content_type="application/json", body=json.dumps(empty)))
         w.raw["stage"] = "open Research Home and the AI actions box"
         load(pg, base, "/journal/notebook")
-        press(pg, seen(pg.get_by_role("button", name="Ask Notebook to do something")), True)
+        press(pg, seen(pg.get_by_role("button", name="Or tell Notebook what to change")), True)
         seen(pg.get_by_role("textbox", name="What should Notebook do?")).fill(empty["request"])
         press(pg, seen(pg.get_by_role("button", name="Plan changes")), True)
         w.raw["stage"] = "wait for the empty plan"
         pg.get_by_role("heading", name="Nothing to change").first.wait_for(state="visible", timeout=20000)
         pause(pg, 0.8)
-        region = pg.get_by_role("region", name="Ask Notebook to do something")
+        region = pg.get_by_role("region", name="Or tell Notebook what to change")
         obs["text"] = region.first.inner_text()[:600]
         obs["apply_buttons"] = pg.get_by_role("button", name=re.compile(r"^Apply")).count()
         obs["checkboxes"] = region.first.get_by_role("checkbox").count()
-        obs["change_button"] = pg.evaluate(BOXES, "section[aria-label='Ask Notebook to do something'] button.btn-primary")
+        obs["change_button"] = pg.evaluate(BOXES, "section[aria-label='Or tell Notebook what to change'] button.btn-primary")
         w.shot(pg, "k4_empty_plan")
         w.dump("k4_empty_plan.json", obs)
         w.record("V390_K4_empty_plan_is_a_message_with_no_apply",

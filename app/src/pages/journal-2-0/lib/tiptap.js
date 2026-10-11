@@ -13,6 +13,7 @@ import { LinkPreview, WebEmbed } from './webLinkNodes'
 import { LinkPasteOffer } from './linkPasteOffer'
 import { LinkClickOpen } from './linkClickOpen'
 import { DateMention } from './dateMentionNode'
+import { DateSuggest } from './dateSuggest'
 import { TableOfContents } from './tableOfContentsNode'
 // Wave 11 lane 11D: the trade-plan canvas node (schema level 3, never-revert;
 // registered UNCONDITIONALLY -- the flag gates the doors, never the schema).
@@ -251,6 +252,9 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     // date: the name and the `date` attr are a contract. Citation leafText =
     // the ISO date; schema 2. Same "never remove" rule as WidgetEmbed.
     DateMention,
+    // P0.9: typing `@` lists today / tomorrow / next Monday... / a date picker and inserts the
+    // SAME dateMention above (dateSuggest.js). A suggestion plugin only: no node, mark or attribute.
+    DateSuggest,
     // Wave 6: /toc -- the note's headings, live, each a jump (tableOfContentsNode.js).
     // A block leaf with no text (_LEAF_TYPES only); schema 2.
     TableOfContents,

@@ -10,6 +10,13 @@ import GenericTourEngine from './GenericTourEngine'
 import { expectNoAxeViolations } from '../../../a11y/axeHarness'
 import { installTourLayout } from './__fixtures__/tourLayout'
 
+// The chart card's "Add the sample notebook" goes through addSampleNotebook (sampleNotebook.js).
+const { sampleMock } = vi.hoisted(() => ({ sampleMock: vi.fn() }))
+vi.mock('./sampleNotebook', async (importOriginal) => ({
+  ...(await importOriginal()),
+  addSampleNotebook: (...a) => sampleMock(...a),
+}))
+
 const ENTRY = {
   id: 'w14-0-a11y-tour',
   load: async () => ({
@@ -126,6 +133,19 @@ describe('GenericTourEngine W14-C1 markup -- axe', () => {
     const d = await screen.findByRole('dialog', { name: 'In the sheet' }, { timeout: 2000 })
     expect(d.closest('[data-sheet-panel]')).not.toBeNull()
     restoreLayout()
+    await expectNoAxeViolations(document.body)
+  })
+
+  // P0.3: the chart card carries a primary action and a status line beside the usual two buttons.
+  it('the "needs a chart in a note" card, idle and after a refusal: zero violations', async () => {
+    global.fetch = vi.fn(async (url) => ({ ok: true, status: 200, json: async () => (String(url).startsWith('/api/j2/notes?') ? { notes: [] } : {}) }))
+    sampleMock.mockResolvedValueOnce({ ok: false, message: 'You already have notes, so we did not add the sample.' })
+    render(wrap(<GenericTourEngine entry={{ ...NOTE_START, id: 'a11y-chart', start: { note: 'sample:plan', embed: 'chart' } }} onClose={() => {}} />))
+    await screen.findByRole('dialog', { name: 'This walkthrough needs a chart in a note' }, { timeout: 2000 })
+    restoreLayout()
+    await expectNoAxeViolations(document.body)
+    fireEvent.click(screen.getByRole('button', { name: 'Add the sample notebook' }))
+    expect(await screen.findByText('You already have notes, so we did not add the sample.')).toBeInTheDocument()
     await expectNoAxeViolations(document.body)
   })
 

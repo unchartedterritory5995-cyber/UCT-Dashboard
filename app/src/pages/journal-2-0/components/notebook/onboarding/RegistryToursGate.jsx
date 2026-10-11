@@ -25,7 +25,7 @@ import {
 } from './tourRegistryControl'
 
 /** The one sentence a member reads when a walkthrough they asked for could not be shown. */
-export const TOUR_FAILED_NOTICE = 'That walkthrough could not be shown here, so it was closed; you can start it again from Help.'
+export const TOUR_FAILED_NOTICE = 'That walkthrough could not be shown here, so it was closed; you can start it again from Learn.'
 /** How long that sentence stays up. */
 export const TOUR_NOTICE_MS = 8000
 const NOTICE_STYLE = Object.freeze({
@@ -114,10 +114,23 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
 
     const wantedRef = useRef(wantedId)
     wantedRef.current = wantedId
+    // Bumped when a tour asks to be run again (below); part of the engine's key.
+    const [run, setRun] = useState(0)
     // Every end is announced with whether the tour ever showed a step, so the offer is spent
     // only on a tour that opened (TourOfferGate.jsx, W14-Q1 finding S6).
     const close = useCallback((info) => {
       const id = wantedRef.current
+      // A tour that asks to RUN AGAIN (`restart`, GenericTourEngine.jsx: the chart card, after it
+      // added the sample notebook) is not an end. It stays the wanted tour and a fresh engine is
+      // mounted under a new key. Closing and re-opening the same id cannot do this: both land in
+      // one batch, the gate sees the same id and no change, and the finished engine stays
+      // mounted showing nothing. Nothing is announced as closed (the offer is not spent, nobody
+      // is told the tour ended), and no request is left pending.
+      if (id && info?.restart === true) {
+        if (hasPendingRegistryTourOpen() === id) takePendingRegistryTourOpenAny()
+        setRun((n) => n + 1)
+        return
+      }
       wantedRef.current = null
       setWantedId(null)
       // A request this tour answered must not outlive it: `openRegistryTour` leaves its id
@@ -151,7 +164,7 @@ export function makeRegistryToursGate(load, waitMs = RETRY_WAIT_MS) {
     if (!allowed) return said
     return (
       <>
-        <RegistryTourCatch key={wantedId} onFail={failed}>
+        <RegistryTourCatch key={`${wantedId}:${run}`} onFail={failed}>
           <Suspense fallback={null}>
             <GenericTourEngineLeaf entry={entry} onClose={close} />
           </Suspense>

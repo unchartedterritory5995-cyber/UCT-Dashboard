@@ -136,8 +136,14 @@ def touch_width(pg, base, req, w, width):
     open_note(pg, base, b, False)
     pg.wait_for_selector("[data-widget-embed-body] canvas", timeout=90000)
     pause(pg, 1.5)
-    rm = pg.get_by_role("button", name="Remove embed", exact=True)
+    # P0.2: Remove embed lives under the toolbar's "More chart actions" menu. At these widths the menu
+    # is ContextPopover's bottom sheet (plain buttons in a dialog); a desktop menu would hold menuitems.
+    more = pg.get_by_role("button", name="More chart actions", exact=True)
     try:
+        more.first.wait_for(state="visible", timeout=8000)
+        tap_or_click(pg, more.first, True)
+        rm = pg.get_by_role("menuitem", name="Remove embed", exact=True).or_(
+            pg.get_by_role("dialog").get_by_role("button", name="Remove embed", exact=True))
         rm.first.wait_for(state="visible", timeout=8000)
         rbox = rm.first.bounding_box()
         tap_or_click(pg, rm.first, True)
@@ -148,7 +154,7 @@ def touch_width(pg, base, req, w, width):
     obs["toolbar_remove_box"] = rbox
     obs["blocks_after_toolbar_remove"] = left
     w.record(f"{tag}_5_toolbar_remove_works_by_touch", bool(rbox) and left == 0 and rbox["height"] >= 44,
-             f"Remove embed box={rbox}; blocks left={left}")
+             f"Remove embed (under More chart actions) box={rbox}; blocks left={left}")
     w.raw[tag] = obs
     w.dump(f"{tag}.json", obs)
     print(f"  OBSERVED {tag}: toolbar visible without hover={obs['before_any_touch']['toolbar_visible']}; "
@@ -165,15 +171,25 @@ def desktop(pg, base, req, w, requests):
     pg.locator("[data-widget-embed-view]").first.hover()
     pause(pg, 1.0)
     state = pg.evaluate("""() => { const b = document.querySelector('[data-embed-block-actions]');
-      const rm = [...document.querySelectorAll('[data-widget-embed-view] button')].find((x) => x.getAttribute('aria-label') === 'Remove embed');
+      const rm = [...document.querySelectorAll('[data-widget-embed-view] button')].find((x) => x.getAttribute('aria-label') === 'More chart actions');
       return { in_dom: !!b, shown: !!b && getComputedStyle(b).display !== 'none' && b.getBoundingClientRect().width > 0,
                remove_shown_on_hover: !!rm && rm.getBoundingClientRect().width > 0 } }""")
+    # P0.2: Remove embed is a menu item under the hover toolbar's More door, so "Remove is shown" now
+    # means: the More door is shown AND its menu holds Remove embed.
+    if state["remove_shown_on_hover"]:
+        more = pg.get_by_role("button", name="More chart actions", exact=True)
+        more.first.click()
+        try:
+            pg.get_by_role("menuitem", name="Remove embed", exact=True).first.wait_for(state="visible", timeout=5000)
+        except Exception:  # noqa: BLE001
+            state["remove_shown_on_hover"] = False
+        more.first.click()                          # a second press closes the menu
     asked = [u for u in requests if "EmbedBlockActions" in u]
     w.raw["V1280"] = {**state, "block_actions_chunk_requests": asked}
     w.dump("V1280.json", w.raw["V1280"])
     w.record("V1280_block_actions_not_shown_and_not_loaded_on_desktop",
              state["shown"] is False and not asked and state["remove_shown_on_hover"] is True,
-             f"{state}; requests for its file={len(asked)} (control: the hover toolbar's Remove IS shown)")
+             f"{state}; requests for its file={len(asked)} (control: the hover toolbar's More door IS shown and its menu holds Remove embed)")
 
 
 def run(base, w):

@@ -1,6 +1,6 @@
 // W14-C1: every registered tour, opened the way a member opens it, MEASURED.
 //
-// For each of the 20 registered tours: start from Help (`/support`), follow the tour's own
+// For each of the 21 registered tours: start from Help (`/support`), follow the tour's own
 // Replay link (`startPath` + `startState`, exactly what Support.jsx renders), through the REAL
 // gate and the REAL engine, in a stand-in app whose pages render a capability's anchors only
 // on the screen where that capability's component really renders (ROUTE_OF_FILE below, one
@@ -47,6 +47,7 @@ const ROUTE_OF_FILE = {
   'tabs/NotebookTab.jsx': onNotebook,
   'components/notebook/FolderSidebar.jsx': onNotebook,
   'components/notebook/ResearchHome.jsx': onHome,
+  'components/notebook/NewNoteMenu.jsx': onHome,                    // P0.10: Research Home's New note split
   'components/notebook/ReportingSoon.jsx': onHome,
   'components/notebook/PassedSetups.jsx': onHome,
   'components/trade/PlanGradeCard.jsx': (l) => /^\/journal-2-0\/trade\/[^/]+$/.test(l.pathname),
@@ -120,8 +121,8 @@ let where = ''
 function Where() { const l = useLocation(); where = l.pathname + l.search; return null }
 
 describe('every registered tour, opened from Help the way a member opens it', () => {
-  it('there are 20 registered tours beyond the base tour (19 replayable, 1 passive explainer)', () => {
-    expect(OTHER_TOURS).toHaveLength(20)
+  it('there are 21 registered tours beyond the base tour (20 replayable, 1 passive explainer)', () => {
+    expect(OTHER_TOURS).toHaveLength(21)
     expect(OTHER_TOURS.filter((t) => !t.replayable).map((t) => t.id)).toEqual(['note-resurfaces'])
   })
 

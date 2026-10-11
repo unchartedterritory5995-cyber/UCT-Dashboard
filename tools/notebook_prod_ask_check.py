@@ -513,7 +513,9 @@ def _ask(page, scope: str, question: str, out: Path, tag: str, step, previous: s
     """Open the Ask door for `scope`, ask, wait. Returns (answer, alert, sources). `previous` is the
     answer already on screen in a panel that was used before, so a settled OLD answer cannot read
     as the new one."""
-    page.locator(f"[data-ask-toggle][aria-label='Ask a question about {scope}']").first.click()
+    # P0.7: a note's door is named "Ask this note"; the Notebook's keeps "Ask a question about my notebook".
+    door = "Ask this note" if scope == "this note" else f"Ask a question about {scope}"
+    page.locator(f"[data-ask-toggle][aria-label='{door}']").first.click()
     input_id = "#ask-input-" + ("notebook" if scope == "my notebook" else "note")
     page.wait_for_selector(input_id, timeout=15_000)
     page.fill(input_id, question)
@@ -694,7 +696,7 @@ def run(base: str, out: Path) -> int:
 
             # Leg B: Ask inside the note (we are on it: the citation opened it).
             try:
-                page.wait_for_selector("[data-ask-toggle][aria-label='Ask a question about this note']", timeout=30_000)
+                page.wait_for_selector("[data-ask-toggle][aria-label='Ask this note']", timeout=30_000)
                 note_answer, note_alert, _ = _ask(page, "this note", NOTE_QUESTION, out, "note-answer", step)
             except Exception as e:
                 page.screenshot(path=str(out / "note-ask-timeout.png"), full_page=True)

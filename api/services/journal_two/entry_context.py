@@ -183,7 +183,7 @@ SRC_FINGERPRINT = "journal_two.tech_fingerprint.compute"
 #: The bell -- one in-app notice per member per ET day for a new fill (lane 13E-2).
 BELL_SOURCE = "notebook_entry_context_new_fill"
 BELL_TITLE = "New fill captured"
-BELL_MESSAGE = "A new fill's market context was captured in your Notebook."
+BELL_MESSAGE = "A new fill's market context was captured. Open the trade to see it."
 BELL_VIEW_URL = "/journal?j2tab=positions"
 
 _DDL = (

@@ -261,7 +261,7 @@ def _drive(base: str, row, rec: dict) -> None:
 
             def search():
                 page.locator('[aria-label="Search notes"]').first.click()
-                page.get_by_label("Search your notes").fill("telemetry")
+                page.get_by_label("Search your notes").filter(visible=True).first.fill("telemetry")
                 page.wait_for_timeout(3000)   # the debounce, then the first settled page
 
             def import_file():

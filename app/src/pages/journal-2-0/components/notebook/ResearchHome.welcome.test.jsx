@@ -90,7 +90,7 @@ describe('first-run welcome -- ONE short welcome (switch on)', () => {
     expect(screen.queryByRole('button', { name: /^Today$/ })).toBeNull()
   })
 
-  it('one sentence under the title; no "Take the tour" button -- the tour is in the Learn menu', () => {
+  it('one sentence under the title; no "Take the tour" button -- the tour is in the Learn menu', async () => {
     latchNotebookFlags(WELCOME_ON)
     __resetTourControl()
     renderHome()
@@ -103,7 +103,7 @@ describe('first-run welcome -- ONE short welcome (switch on)', () => {
     fireEvent.click(learn)
     const opened = vi.fn()
     window.addEventListener(TOUR_OPEN_EVENT, opened)
-    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Notebook basics tour' }))
+    fireEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Notebook basics tour' }))
     window.removeEventListener(TOUR_OPEN_EVENT, opened)
     expect(opened).toHaveBeenCalledTimes(1)
   })

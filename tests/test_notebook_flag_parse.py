@@ -60,6 +60,7 @@ from api.services.journal_two import setups_board
 from api.services.journal_two import similar_matches
 from api.services.journal_two import review_drafts
 from api.services.journal_two import document_extraction, note_semantic, note_tasks
+from api.services.journal_two import coach_chat_tools
 
 REPO = Path(__file__).resolve().parents[1]
 ONE_PARSE = "api/services/notebook_flags.py"
@@ -154,6 +155,8 @@ def _server_gates() -> dict:
         "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": document_extraction.image_docx_documents_enabled,
         "NOTEBOOK_TASK_REMINDERS_ENABLED": note_tasks.reminders_enabled,
         "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": note_semantic.semantic_enabled,
+        # Task 14b: Compass's search_my_notes tool gate, now on the payload.
+        "COMPASS_NOTES_TOOL_ENABLED": coach_chat_tools.notes_tool_enabled,
     }
 
 

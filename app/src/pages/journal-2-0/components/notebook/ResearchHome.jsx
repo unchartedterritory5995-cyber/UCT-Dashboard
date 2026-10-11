@@ -16,6 +16,7 @@ import CollapsibleSection from '../CollapsibleSection'
 import { openNotebookTour } from './onboarding/tourControl'
 import { getRegistryTourWanted, subscribeRegistryTourWanted } from './onboarding/tourRegistryControl'
 import LearnMenu from './onboarding/LearnMenu'
+import NewNoteMenu from './NewNoteMenu'
 import {
   SAMPLE_URL, SAMPLE_PREF, SAMPLE_COPY, readSamplePref, addSampleNotebook, removeSampleNotebook, removedMessage, isNotebookKey,
   describeSampleHold,
@@ -26,7 +27,7 @@ import AskPanel from './AskPanel'
 import { SOON_URL, earningsPrepEnabled, fetchReportingSoon } from '../../lib/earningsPrepShared'
 import { PASSED_URL, fetchPassedSetups, passedSetupsEnabled } from '../../lib/researchCapture'
 import { reviewDraftsEnabled } from '../../lib/reviewDraftsFlag'
-import { setupsBoardEnabled, SETUPS_BOARD_PATH } from '../../lib/setupsBoardLink'
+import { setupsBoardEnabled } from '../../lib/setupsBoardLink'
 import GettingStartedChecklist from './GettingStartedChecklist'
 import { checklistEnabled } from './onboarding/gettingStartedPref'
 import { FIRST_RUN_HEADING_ATTR } from './onboarding/keyboardDoors'
@@ -55,6 +56,13 @@ const ReportingSoon = lazyChunk(() => import('./ReportingSoon'))
 // on (the box still checks the flag itself), at the same tree position in every return, so a
 // quiet/full flip keeps its state exactly as before.
 const AiActionsBox = lazyChunk(() => import('./AiActionsPanel'))
+// P0.4: the Notices box (task reminders, fill notices, resurfaced notes -- the desktop bell was
+// removed by request). Lazy, like its neighbours: the Notebook's first-open bytes do not carry it.
+const NoticesBox = lazyChunk(() => import('./NoticesBox'))
+// I4 (final review): the Active setups box is lazy too. It is a single line and a link, but it is
+// still new bytes on the first-open path (spec section 6: every new surface lazy), so it loads on
+// demand and only while its own flag is on (below).
+const SetupsBox = lazyChunk(() => import('./SetupsBox'))
 const loadReviewDrafts = () => importWithOneRetry(() => import('../../lib/reviewDrafts'))
 
 const STATUS_LABEL = { watching: 'Watching', active: 'Active', invalidated: 'Invalidated', closed: 'Closed' }
@@ -92,7 +100,7 @@ function NoteRow({ note, onOpen, reason }) {
 
 // Wave 13 lane 13F: one small, self-contained door on Home -- "Reviews that write
 // themselves". Renders nothing (and calls nothing) while notebook_review_drafts_enabled
-// is off, the same contract as the other Home boxes below (aiBox/prepBox/passedBox).
+// is off, the same contract as the other Home boxes below (askSection/prepBox/passedBox).
 // Notebook UX pass: on Research Home the box sits in a collapsible section whose header already
 // names it, so `titleHidden` keeps its heading for screen readers and the skip link below while
 // it is not drawn a second time.
@@ -194,14 +202,33 @@ export const RECENT_NOTES_SHOWN = 5
 // folders panel's, FolderSidebar.jsx) through the door the command palette already uses: the
 // Notebook reads `#search`, shows the panel and puts the cursor in its box
 // (lib/notebookSearchDoor.js). Nothing here queries notes.
-export function HomeSearch() {
+//
+// P0.13 (search in place): this used to be a BUTTON, so pressing it opened a SECOND search box in
+// the panel while its own stayed on screen. It is now a real search input: the first character a
+// member types is handed to the panel (the door carries it as `state.q`, the panel seeds its box
+// with it and takes the cursor), and while the panel's search is open `hidden` is true and this box
+// is not drawn at all -- one search on screen at a time. The panel reports "searching" up through
+// NotebookTab, which passes it back down here as `searchActive`.
+//
+// Fix round 1: the router commits a navigation in a transition, so this box stays live for a frame
+// or two after the first keystroke and fast typing fires several changes before it steps aside. The
+// FIRST hand-off is a normal push (Back returns to the Notebook home); every later one while this
+// box is still on screen REPLACES that entry and carries the full text typed so far, so Back never
+// lands on stale `#search` entries and the panel is seeded with all of it. The flag resets whenever
+// the box steps aside or comes back (the component stays mounted while `hidden`).
+export function HomeSearch({ hidden = false }) {
   const navigate = useNavigate()
+  const handedOff = useRef(false)
+  useEffect(() => { handedOff.current = false }, [hidden])
+  if (hidden) return null
   return (
-    <button type="button" className={styles.searchBox} data-home-search=""
-      onClick={() => navigate(`/journal/notebook${NOTEBOOK_SEARCH_HASH}`)}>
-      <UIcon name="search" size={14} gold={false} />
-      <span className={styles.searchText}>Search your notes</span>
-    </button>
+    <input type="search" className={styles.searchBox} data-home-search="" aria-label="Search your notes"
+      placeholder="Search your notes" autoComplete="off"
+      onChange={(e) => {
+        if (!e.target.value) return
+        navigate(`/journal/notebook${NOTEBOOK_SEARCH_HASH}`, { state: { q: e.target.value }, replace: handedOff.current })
+        handedOff.current = true
+      }} />
   )
 }
 
@@ -296,6 +323,14 @@ export default function ResearchHome({
   // function its All Notes list header's "Today" button already calls (one authority, never
   // a second day-note opener). Optional so every existing caller/test keeps working unchanged.
   onOpenToday = null,
+  // P0.1 (the Home "New note" door): NotebookTab's own New-note sheet opener and its voice-note
+  // starter (null while the voice gate is off, so the menu never lists a door that opens
+  // nothing). Optional so every existing caller/test keeps working unchanged.
+  onOpenNewNoteSheet = null,
+  onStartVoiceNote = null,
+  // P0.13 (search in place): true while the folders panel's search is open. Home's own search box
+  // steps aside then, so a member sees ONE search box, not two.
+  searchActive = false,
   // Lane KEYS: the Notebook's hidden-until-focused skip-link class, for this page's own link.
   skipLinkClassName = '',
 }) {
@@ -602,7 +637,7 @@ export default function ResearchHome({
             <h2 className={styles.firstRunTitle} tabIndex={-1} {...{ [FIRST_RUN_HEADING_ATTR]: '' }}>
               Welcome to your Notebook
             </h2>
-            <LearnMenu />
+            <LearnMenu hasAnyNotes={hasAnyNotes} />
           </div>
         ) : (
           <h2 className={styles.firstRunTitle}>
@@ -656,28 +691,25 @@ export default function ResearchHome({
   const homeTop = (
     <div className={styles.homeTop} data-export-exclude>
       <div className={styles.homeHeader}>
-        <HomeSearch />
-        <LearnMenu />
+        <HomeSearch hidden={searchActive} />
+        {hasAnyNotes && onOpenNewNoteSheet && (
+          <NewNoteMenu onBlank={onCreateNote} onFromOutline={onOpenNewNoteSheet}
+            onVoice={onStartVoiceNote} onToday={onOpenToday} />
+        )}
+        <LearnMenu hasAnyNotes={hasAnyNotes} />
       </div>
       <RecentNotes opened={opened} edited={Array.isArray(editedNotes) ? editedNotes : []} onOpen={openNote} />
     </div>
   )
 
+  // P0.4 (owner decision 2, 2026-10-11): the Notices box, the SECOND child of the same fragment in
+  // every return below, straight under the member's notes -- one element at one tree position, so
+  // a home that flips between quiet and full keeps it (and whether it is open) mounted. It renders
+  // nothing at all when there is nothing to tell or a read fails.
+  const noticesBox = <Suspense fallback={null}><NoticesBox /></Suspense>
+
   // Wave 10 F7 (Part A, 5d): a FAILED read is not a quiet day. "Nothing needs your attention"
   // after a failed load told a member there was nothing, when we could not look.
-  // Wave 11 lane 11C: "Ask Notebook to do something" -- renders nothing while its flag is
-  // off. ⛔ ONE element at ONE tree position for both the quiet and the full home: applying a
-  // change set refreshes the home, which can flip it from quiet to full, and a box mounted in
-  // each branch was REMOUNTED by that flip -- the member's applied list and its Undo button
-  // vanished mid-task (found by the lane's real-browser walk, W8 -> W9). As the first child of
-  // the same fragment in both returns, React keeps it, and its state, across the flip.
-  const aiBox = (
-    <div className={styles.aiSlot}>
-      {notebookFlag('notebook_ai_actions_enabled') === true
-        ? <Suspense fallback={null}><AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} /></Suspense>
-        : null}
-    </div>
-  )
   // Wave 13 lane 13C: "Reporting soon" -- renders nothing while notebook_earnings_prep_enabled
   // is off. The SECOND child of the same fragment in every return below, for the same reason
   // as the box above: a home that flips between quiet and full must not remount it mid-draft.
@@ -724,42 +756,59 @@ export default function ResearchHome({
       <UIcon name="sun" size={14} gold={false} /> Today
     </button>
   ) : null
-  // Finish program, lane NAV: the active setups board's one door (BETA-HANDOFF 1b said "No
-  // menu link to it yet"). Rendered beside Today in the same three states, and ONLY while
-  // notebook_setups_board_enabled is on: off, this is null and the page is the page it was
-  // (ResearchHome.setupsDoor.test.jsx compares the two renders). A link, never an import of
-  // the board page: Research Home is on the first-open path and the board carries charts.
-  const setupsLink = setupsBoardEnabled() ? (
-    <Link className={`btn btn-ghost ${styles.setupsLink}`} to={SETUPS_BOARD_PATH}
-      title="Your open chart plans, closest to their entry first">
-      Active setups
-    </Link>
-  ) : null
+  // The active setups board's one door (finish program, lane NAV; BETA-HANDOFF 1b said "No menu
+  // link to it yet"). P0.5 (owner decision, 2026-10-11): it was a bare link at the very bottom of
+  // the page; it is now a box straight under the Notices box that says how many plans are open.
+  // ONE element at ONE tree position (right after `noticesBox`) in all three returns, so a home
+  // that flips between quiet and full keeps it mounted (ResearchHome.setupsBox.test.jsx). The box
+  // is its own file, SetupsBox.jsx, and renders nothing at all while notebook_setups_board_enabled
+  // is off, so off the page is the page it was (ResearchHome.setupsDoor.test.jsx compares the two
+  // renders). It links to the board and never imports the board page: Research Home is on the
+  // first-open path and the board carries charts.
+  // Lazy (I4), at the same tree position as before. Mounted only while the board's flag is on, so a
+  // member whose switch is off fetches nothing; the flag is latched for the tab's life
+  // (notebookFlags), so the slot is null or the Suspense for the whole session and never flips.
+  const setupsBox = setupsBoardEnabled() ? <Suspense fallback={null}><SetupsBox /></Suspense> : null
 
+  // P0.7 (owner decision, 2026-10-11): ONE Ask section. Research Home used to have two doors --
+  // "Ask Notebook to do something" under the Notices box and a lower Ask box -- and a member could
+  // not tell which to use. They are one labelled section now: the question box, then (while its
+  // flag is on) "Or tell Notebook what to change" for the member who wants an edit, not an answer.
+  //
   // Finish program (fin-walk 8.3): a member with notes but nothing surfaced -- the quiet home --
   // had NO Ask door; it was rendered only by the full home below. Ask reads the whole Notebook,
   // not the sections, so it belongs in every state that has notes to ask about (the first-run
-  // branch above has none). The same element at the same tree position (fourth child of the
-  // state's container, after the sample notice, Today and Active setups) in the quiet, the
-  // quiet-with-error and the full home, so a flip between them keeps an open panel and its
-  // answer mounted -- the same reasoning as the four boxes above.
-  const askRow = (
-    <div className={styles.askRow}>
+  // branch above has none).
+  // ⛔ ONE element at ONE tree position (right after `setupsBox`) in the quiet, the
+  // quiet-with-error and the full home. A flip between them keeps an open panel, its answer and
+  // the change-it box's state mounted: applying a change set refreshes the home, which can flip it
+  // from quiet to full, and a box mounted in each branch was REMOUNTED by that flip -- the
+  // member's applied list and its Undo button vanished mid-task (wave 11 lane 11C's real-browser
+  // walk, W8 -> W9). ResearchHome.quietAsk.test.jsx and ResearchHome.aiActions.test.jsx.
+  const askSection = (
+    <section className={styles.askSection} aria-label="Ask your Notebook">
       {/* ⛔ An EXCERPT citation used to be a dead click here: its navigation
           carries no `note_id`, and this handler knew nothing else. The one
           shared router opens it in place, and returns a sentence for
           AskPanel to show when a source cannot be opened. */}
-      <AskPanel scope="notebook" onOpenNote={openNote} onNavigate={(s, _r, { signal } = {}) => openSpanningCitation(s, {
-        signal, openNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
-      })} />
-    </div>
+      <div className={styles.askDoor}>
+        <AskPanel scope="notebook" onOpenNote={openNote} onNavigate={(s, _r, { signal } = {}) => openSpanningCitation(s, {
+          signal, openNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
+        })} />
+      </div>
+      {notebookFlag('notebook_ai_actions_enabled') === true
+        ? <Suspense fallback={null}><AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} /></Suspense>
+        : null}
+    </section>
   )
 
   if (nothingToShow && homeError) {
     return (
       <>
         {homeTop}
-        {aiBox}
+        {noticesBox}
+        {setupsBox}
+        {askSection}
         {prepBox}
         {passedBox}
         {reviewBox}
@@ -767,8 +816,6 @@ export default function ResearchHome({
         <div className={styles.quietState}>
           {sampleNotice}
           {todayBox}
-          {setupsLink}
-          {askRow}
           <LoadFailed what="your research home" error={homeError} onRetry={refreshHome} />
         </div>
       </>
@@ -779,7 +826,9 @@ export default function ResearchHome({
     return (
       <>
         {homeTop}
-        {aiBox}
+        {noticesBox}
+        {setupsBox}
+        {askSection}
         {prepBox}
         {passedBox}
         {reviewBox}
@@ -787,8 +836,6 @@ export default function ResearchHome({
         <div className={styles.quietState}>
           {sampleNotice}
           {todayBox}
-          {setupsLink}
-          {askRow}
           <p>Nothing needs your attention right now.</p>
           <p className={styles.quietHint}>Favorite a note or set a thesis to Active to see it here.</p>
         </div>
@@ -799,7 +846,9 @@ export default function ResearchHome({
   return (
     <>
     {homeTop}
-    {aiBox}
+    {noticesBox}
+    {setupsBox}
+    {askSection}
     {prepBox}
     {passedBox}
     {reviewBox}
@@ -807,11 +856,9 @@ export default function ResearchHome({
     <div className={styles.home} data-export-exclude>
       {sampleNotice}
       {todayBox}
-      {setupsLink}
       {/* ⛔ A CALM ENTRY POINT, NOT AN AI DASHBOARD. Research Home still
           answers "what was I working on, and where do I resume?" -- Ask is
-          one affordance on that page, not the page. */}
-      {askRow}
+          one affordance on that page (askSection, near the top), not the page. */}
       {/* "Continue working" is the top of Home now (Recent notes, homeTop). */}
       <Section title="Favorites" notes={home.favorites} onOpen={openNote} />
       <Section title="Active theses" notes={home.activeTheses} onOpen={openNote} />

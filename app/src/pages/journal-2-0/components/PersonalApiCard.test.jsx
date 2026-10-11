@@ -26,6 +26,14 @@ const realFetch = global.fetch
 afterEach(() => { global.fetch = realFetch; localStorage.clear() })
 
 describe('PersonalApiCard', () => {
+  // P0.8: a member looks for "apps & shortcuts", not for an API. The old name stays in brackets so
+  // support, the docs and anyone searching Settings for it still land here.
+  it('is titled "Connect apps & shortcuts (Personal API)"', async () => {
+    global.fetch = vi.fn(async () => json(200, { tokens: [] }))
+    renderCard()
+    expect(await screen.findByRole('region', { name: 'Connect apps & shortcuts (Personal API)' })).toBeInTheDocument()
+  })
+
   it('renders NOTHING while the feature is dark (every route 404s)', async () => {
     global.fetch = vi.fn(async () => json(404, { detail: 'Not Found' }))
     const { container } = renderCard()

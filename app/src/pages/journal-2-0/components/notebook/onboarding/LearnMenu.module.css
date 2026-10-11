@@ -2,7 +2,10 @@
    editor's Export menu (NoteExportControls.module.css), with existing tokens only.
    ⛔ The touch tier is <=1024px (phone AND tablet): the button and every row get the 44px floor
    there (tapFloor.test.js). The list can be long (one row per live walkthrough), so it scrolls
-   inside the popover rather than running off the page. */
+   inside the popover rather than running off the page.
+   P0.12: the rows sit under four small headings (.group / .groupHeading); on a phone the same
+   menu is the body of a bottom Sheet (.sheetMenu: no popover chrome, the Sheet supplies it).
+   P0.15: .sampleItem is the "Add the sample notebook" row and .status the line under it. */
 .wrap {
   position: relative;
   display: inline-flex;
@@ -30,6 +33,53 @@
   background: var(--bg-elevated);
   box-shadow: var(--shadow-popover);
   text-align: left;
+}
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.group + .group {
+  margin-top: 6px;
+}
+.groupHeading {
+  margin: 0;
+  padding: 6px 10px 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* The Sheet supplies the surface, the border and the shadow; the menu is just the list. */
+.sheetMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* The line the sample row answers with (a refusal or a failure). It sits under the list, outside
+   the role="menu" element, and stays in view when a long list scrolls inside the popover. */
+.status:empty {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.status {
+  position: sticky;
+  bottom: 0;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  font-size: 13px;
+  line-height: 1.4;
 }
 .item {
   display: flex;
@@ -60,10 +110,66 @@
   border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   color: var(--text-muted);
 }
+/* ⛔ CASCADE ORDER: these rows share a specificity with `.item`, whose `border: 0` would erase their
+   divider if they came first. They sit below `.item` on purpose (LearnMenu.classes.test.js pins the order). */
+.group + .sampleItem {
+  margin-top: 6px;
+}
+.sampleItem {
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+/* "What your Notebook can do" (Task 14b) sits between the tour groups and the sample, so it takes
+   over the divider and spacing the sample row had when it followed the groups directly. */
+.group + .catalogItem {
+  margin-top: 6px;
+}
+.catalogItem {
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+.sampleItem[aria-disabled='true'] {
+  cursor: progress;
+  color: var(--text-muted);
+}
+
+/* Task 14b: the "What your Notebook can do" sheet. The preview carries its own top margin for the
+   welcome page; inside the sheet the title already sits above it. The sample button and the status
+   line under it mirror the menu's (the status is mounted empty so a refusal is announced). */
+.catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+.catalog > section {
+  margin-top: 0;
+}
+.catalogAction {
+  align-self: flex-start;
+}
+.catalogAction[aria-disabled='true'] {
+  cursor: progress;
+  color: var(--text-muted);
+}
+.catalogStatus:empty {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.catalogStatus {
+  margin: 0;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  color: var(--text-bright);
+  font-size: 13px;
+  line-height: 1.4;
+}
 
 @media (max-width: 1024px) {
   .trigger,
-  .item {
+  .item,
+  .catalogAction {
     min-height: var(--tap-min);
   }
 }

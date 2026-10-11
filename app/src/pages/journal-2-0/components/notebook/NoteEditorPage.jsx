@@ -39,6 +39,7 @@ import { useDeskVideoByYoutube } from '../../../../hooks/useDeskVideoByYoutube'
 import { useVideoInsights } from '../../../../hooks/useVideoInsights'
 import linkifyTimestamps from '../../lib/linkifyTimestamps'
 import UIcon from '../../../../components/ui/UIcon'
+import ContextPopover from '../../../../components/mobile/ContextPopover'
 import { SkipLinkPortal } from '../../../../components/skipLinks'
 import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
@@ -2745,8 +2746,9 @@ export default function NoteEditorPage({
   // Wave 10 lane D3P (D-3 PHONE): at 390 px the formatting row wrapped to about eight rows,
   // so a note opened to a screen of controls with the title below them, and the phone's Log
   // FAB sat over one of them at rest (L3's measurement). On a PHONE (<= 640 px) the row keeps
-  // Undo / Redo, Bold, Italic, the bullet list and the mic, and every other formatting control sits
-  // behind ONE "Aa Format" disclosure. The collapse is CSS, inside the 640 query
+  // Undo / Redo, Bold, Italic and the mic (plus, since P0.6, the "+" insert door), and every other
+  // formatting control, the bullet list included, sits behind ONE "Aa" disclosure (its word
+  // "Format" is visually hidden on a phone; the accessible name stays "Format"). The collapse is CSS, inside the 640 query
   // (`.formatToggle`, `.formatRun`): the DOM is the same at every width, so desktop and
   // tablet keep their order, their Tab order and their layout (`.formatRun` is
   // `display: contents` there, and the toggle is `display: none`).
@@ -2799,6 +2801,33 @@ export default function NoteEditorPage({
   // EXPANDED on unlock with nothing moving focus into it, so the lock closes it.
   useEffect(() => {
     if (locked) setFormatOpen(false)
+  }, [locked])
+  // P0.6 (notebook discoverability): the phone's "+" insert menu. At 390 px the row had room
+  // for two of its fifteen controls after "Format", the mic was clipped, and the image / file /
+  // camera-scan / chart inserts sat behind a sideways scroll. The phone row is now Undo, Redo,
+  // B, I, Format, "+" and the mic; the "+" lists the four inserts, each calling the SAME door
+  // its desktop button calls (the same input refs and `setPaletteOpen`). The menu is the shared
+  // ContextPopover (a bottom sheet on touch, an anchored menu otherwise), rendered OUTSIDE the
+  // toolbar row so its keys never reach the row's roving handler. It exists only on a phone,
+  // so it closes when the member widens past 640 px or the note is locked, exactly like Format.
+  const [insertPhoneOpen, setInsertPhoneOpen] = useState(false)
+  const [insertPhoneAnchor, setInsertPhoneAnchor] = useState(null)
+  const insertPhoneRef = useRef(null)
+  const closeInsertPhone = useCallback(() => setInsertPhoneOpen(false), [])
+  const toggleInsertPhone = useCallback(() => {
+    const r = insertPhoneRef.current?.getBoundingClientRect?.()
+    setInsertPhoneAnchor(r ? { x: r.left, y: r.bottom + 4 } : { x: 8, y: 8 })
+    setInsertPhoneOpen((o) => !o)
+  }, [])
+  useEffect(() => {
+    if (!insertPhoneOpen || typeof window === 'undefined' || !window.matchMedia) return undefined
+    const mq = window.matchMedia(MQ.phone)
+    const onChange = (e) => { if (!e.matches) setInsertPhoneOpen(false) }
+    mq.addEventListener?.('change', onChange)
+    return () => mq.removeEventListener?.('change', onChange)
+  }, [insertPhoneOpen])
+  useEffect(() => {
+    if (locked) setInsertPhoneOpen(false)
   }, [locked])
   // Wave 10 lane D3P round 2 (owner-delegated ruling (a)): on a PHONE, while this editor is
   // open, the two first-run moments WAIT -- the "Meet Compass" coach card (FloatingOrb) and the
@@ -4663,7 +4692,25 @@ export default function NoteEditorPage({
               data-format-toggle=""
             >
               <span aria-hidden="true" className={styles.formatGlyph}>Aa</span>
-              Format
+              {/* P0.6 fix round 1: on a phone the toggle is the "Aa" glyph alone (the row has to fit
+                  seven 44 px controls); the word stays for the accessible name. */}
+              <span className={styles.phoneIconLabel}>Format</span>
+            </button>
+            {/* P0.6: the phone's ONE insert door (display: none above 640 px, like Format). It
+                opens the menu rendered beside the palette below, which lists the four inserts
+                a phone had hidden behind a sideways scroll. It carries no `data-tour`: this file
+                is one tourAnchors.test.js reads, and no tour step names this door. */}
+            <button
+              ref={insertPhoneRef}
+              type="button"
+              className={`${styles.toolBtn} ${styles.insertPhone}${insertPhoneOpen ? ` ${styles.toolBtnActive}` : ''}`}
+              aria-haspopup="menu"
+              aria-expanded={insertPhoneOpen}
+              aria-label="Insert"
+              title="Insert an image, a file, a camera scan or a chart"
+              onClick={toggleInsertPhone}
+            >
+              <UIcon name="plus" size={16} gold={false} />
             </button>
             <span className={styles.formatRun} id={`${formatRunId}-a`} data-format-run="">
             <select
@@ -4744,12 +4791,16 @@ export default function NoteEditorPage({
               label="H2"
             />
             </span>
+            {/* P0.6: the bullet list moved INTO the third run (it was the one formatting control
+                kept in the phone row). It is still between H2 and "1. List" in the DOM, so the
+                desktop and tablet row, its Tab order and its roving order are exactly what they
+                were; on a phone it now sits behind "Format" and the row has room for the "+". */}
+            <span className={styles.formatRun} id={`${formatRunId}-c`} data-format-run="">
             <ToolButton
               active={editor.isActive('bulletList')}
               onClick={() => editor.chain().focus().toggleBulletList().run()}
               label="• List"
             />
-            <span className={styles.formatRun} id={`${formatRunId}-c`} data-format-run="">
             <ToolButton
               active={editor.isActive('orderedList')}
               onClick={() => editor.chain().focus().toggleOrderedList().run()}
@@ -4825,7 +4876,7 @@ export default function NoteEditorPage({
                 reaches the note only on Accept. Since wave 10 lane K2 (D-3) its button
                 sits in the header row, beside Outline. */}
             {/* D3P (controller ruling): the mic stays OUT of the runs, so it stays visible
-                on phones beside Undo/Redo, B, I and the bullet list. The last run
+                on phones beside Undo/Redo, B, I, Format and the "+". The last run
                 resumes here for the rule and the widget door. */}
             <span className={styles.formatRun} id={`${formatRunId}-d`} data-format-run="">
             <ToolButton
@@ -4856,6 +4907,21 @@ export default function NoteEditorPage({
           duplicated the chrome height by hand). */}
       {paletteOpen && editor && !locked && (
         <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} />
+      )}
+      {/* P0.6: the phone "+" menu. Each row calls the same door its desktop button calls. */}
+      {editor && !locked && !isCanvas && (
+        <ContextPopover
+          open={insertPhoneOpen}
+          onClose={closeInsertPhone}
+          anchor={insertPhoneAnchor}
+          title="Insert"
+          items={[
+            { label: 'Image', onClick: () => fileInputRef.current?.click() },
+            { label: 'Attach a file', onClick: () => attachFileInputRef.current?.click() },
+            { label: 'Scan with camera', onClick: () => scanInputRef.current?.click() },
+            { label: 'Chart or block', onClick: () => { setOutlineOpen(false); setPaletteOpen(true) } },
+          ]}
+        />
       )}
       {outlineOpen && editor && (
         <NoteOutline editor={editor} onClose={() => setOutlineOpen(false)} toggleRef={outlineOpenerRef} />

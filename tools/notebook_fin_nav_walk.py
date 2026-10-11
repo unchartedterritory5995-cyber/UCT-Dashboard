@@ -1,7 +1,8 @@
 """Finish program, lane NAV -- the real-browser check for two keyboard and reach fixes.
 
-  A. The active setups board's door on Research Home ("Active setups", shown only while
-     NOTEBOOK_SETUPS_BOARD_ENABLED is on).
+  A. The active setups board's door on Research Home: the "Open the setups board" link inside the
+     Active setups box (P0.5 moved it from the foot of the page to just under the Notices box;
+     shown only while NOTEBOOK_SETUPS_BOARD_ENABLED is on).
   B. The Screener's "Skip to save results" link (ruling P5 / proposal Q7): the keys it takes to
      reach and press "Save these results to Notebook".
 
@@ -46,7 +47,7 @@ MEMBER = ("finnav@local.dev", "LocalTest2026!", "finnav")
 BOARD_FLAG = "notebook_setups_board_enabled"
 BOARD_ENV = "NOTEBOOK_SETUPS_BOARD_ENABLED"
 BOARD_PATH = "/journal/notebook/setups"
-DOOR_NAME = "Active setups"
+DOOR_NAME = "Open the setups board"   # the link in the Active setups box (P0.5); the box line itself reads "Active setups"
 SAVE_NAME = "Save these results to Notebook"
 SKIP_NAME = "Skip to save results"
 KEY_BUDGET = 10          # WAVE-13-PLAN section 6, Q7, keyboard

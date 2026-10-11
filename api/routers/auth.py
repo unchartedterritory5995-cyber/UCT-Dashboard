@@ -254,6 +254,11 @@ NOTEBOOK_FLAGS = {
     # TERM-056 (lane N, 2026-10-10): a terminal command pasted into a note becomes a link that
     # opens the terminal at it. Client-only; payload key `notebook_terminal_links_enabled`.
     "NOTEBOOK_TERMINAL_LINKS_ENABLED": False,  # enablement — unset means OFF (terminal command links)
+    # Task 14b (ruling R16, 2026-10-11): Compass's text-chat tool `search_my_notes` (wave 7 lane H)
+    # had a server gate only, so the Notebook could not say it exists. The payload key
+    # `compass_notes_tool_enabled` lets the client name it ONLY while it is on. The tool's own gate
+    # (coach_chat_tools.notes_tool_enabled) reads through `flag_on` too: one variable, one parse.
+    "COMPASS_NOTES_TOOL_ENABLED": False,  # enablement — unset means OFF (Compass reads notes, text chat)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

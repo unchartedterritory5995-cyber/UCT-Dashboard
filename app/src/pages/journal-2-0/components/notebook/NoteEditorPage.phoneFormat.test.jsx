@@ -9,8 +9,13 @@ import { isFirstRunStageHeld } from '../../../../components/firstRun/firstRunSta
 // Wave 10 lane D3P (D-3 PHONE): at 390 px the editor's formatting row wrapped to about eight
 // rows, the note's title sat below the first screen, and the phone's Log FAB covered one of the
 // row's controls at rest (lane L3, measured). On a phone the row now keeps Undo / Redo, Bold,
-// Italic, the bullet list and the mic (controller ruling), and every other formatting control
-// waits behind ONE "Aa Format" disclosure that opens the row IN PLACE.
+// Italic and the mic (controller ruling), and every other formatting control waits behind ONE
+// "Aa Format" disclosure that opens the row IN PLACE.
+//
+// P0.6 (notebook discoverability) changed two things here, both on purpose: the bullet list
+// moved INTO the disclosure (the phone row needed the room for the "+" insert door, whose
+// own rail is NoteEditorPage.phoneInsert.test.jsx), and that "+" is the one phone-only
+// control the row gained -- named PHONE_ONLY below so the classification stays complete.
 //
 // ⛔ WHAT THIS FILE CAN AND CANNOT SAY. jsdom applies no stylesheet and lays nothing out, so
 // "hidden on a phone" and "unchanged on a desktop" are CSS facts, railed structurally in
@@ -98,13 +103,17 @@ const controlNamed = (toolbar, name) => {
   return hits[0]
 }
 
-// What a phone keeps in the row: the 10B touch Undo / Redo, Bold, Italic, the bullet list, and
-// the mic (controller ruling: dictation stays one tap away on a phone).
-const KEPT = ['Undo', 'Redo', 'B', 'I', '• List', 'Start voice input']
+// What a phone keeps in the row: the 10B touch Undo / Redo, Bold, Italic, and the mic
+// (controller ruling: dictation stays one tap away on a phone). P0.6: the bullet list is no
+// longer kept -- it sits behind Format so the row has room for the "+" insert door.
+const KEPT = ['Undo', 'Redo', 'B', 'I', 'Start voice input']
+// P0.6: the phone-only "+" insert door. Neither kept nor moved: it is not a formatting control,
+// it is the row's own door to the four inserts (display: none above 640 px).
+const PHONE_ONLY = ['Insert']
 // Everything else the row carries.
 const MOVED = [
   'Font family', 'Text size', TEXT_COLOR_MENU_LABEL, 'H1', 'H2',
-  '1. List', '❝', '</>', 'Insert link', 'Insert image', 'Scan a document with the camera',
+  '• List', '1. List', '❝', '</>', 'Insert link', 'Insert image', 'Scan a document with the camera',
   'Attach a file', 'Horizontal rule', 'Insert widget',
 ]
 // The row BEFORE D3P, in its own (DOM = Tab = desktop visual) order, read off 11349f524.
@@ -136,16 +145,17 @@ describe('D3P: the phone formatting disclosure holds the moved controls, never t
     const inRun = (el) => runs.some((r) => r.contains(el))
     for (const name of MOVED) expect(inRun(controlNamed(toolbar, name)), `${name} is behind Format`).toBe(true)
     for (const name of KEPT) expect(inRun(controlNamed(toolbar, name)), `${name} stays out`).toBe(false)
+    for (const name of PHONE_ONLY) expect(inRun(controlNamed(toolbar, name)), `${name} stays out`).toBe(false)
     expect(inRun(toggleOf(toolbar)), 'the toggle is not inside what it opens').toBe(false)
   }, 60000)
 
   it('COMPLETE: every control in the row is kept, moved or the toggle -- a new one must be classified', async () => {
     const toolbar = await mountToolbar()
     const names = controlsIn(toolbar).map(nameOf)
-    const known = new Set([...KEPT, ...MOVED, 'Format'])
+    const known = new Set([...KEPT, ...MOVED, ...PHONE_ONLY, 'Format'])
     expect(names.filter((n) => !known.has(n))).toEqual([])
     // non-vacuity: the classification covers the whole row, not a lucky subset
-    expect(names).toHaveLength(KEPT.length + MOVED.length + 1)
+    expect(names).toHaveLength(KEPT.length + MOVED.length + PHONE_ONLY.length + 1)
   }, 60000)
 })
 
@@ -273,9 +283,9 @@ describe('D3P fix round 1: the disclosure never outlives what it was opened on',
 })
 
 describe('D3P CONTROL: above 640 px nothing changes', () => {
-  it("the row's own order (its desktop order and Tab order) is the pre-D3P row, the phone-only toggle aside", async () => {
+  it("the row's own order (its desktop order and Tab order) is the pre-D3P row, the phone-only toggle and \"+\" aside", async () => {
     const toolbar = await mountToolbar()
-    const names = controlsIn(toolbar).map(nameOf).filter((n) => n !== 'Format')
+    const names = controlsIn(toolbar).map(nameOf).filter((n) => n !== 'Format' && !PHONE_ONLY.includes(n))
     expect(names).toEqual(ROW_BEFORE_D3P)
   }, 60000)
 

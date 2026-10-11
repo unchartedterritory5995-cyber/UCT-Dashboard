@@ -62,6 +62,15 @@ export const TOURS = Object.freeze([
     load: steps(() => import('./b1TemplateGallery.steps')),
   },
   {
+    id: 'voice-notes',
+    flag: 'notebook_voice_notes_enabled',
+    title: 'Voice notes',
+    replayable: true,
+    // its door is the voice item in Research Home's New note menu (NewNoteMenu.jsx)
+    start: '/journal/notebook',
+    load: steps(() => import('./b1VoiceNotes.steps')),
+  },
+  {
     id: 'meaning-search',
     flag: 'notebook_semantic_search_enabled',
     title: 'Search by meaning',

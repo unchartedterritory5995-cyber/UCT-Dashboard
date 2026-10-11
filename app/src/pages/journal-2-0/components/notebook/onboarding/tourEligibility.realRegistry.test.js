@@ -56,7 +56,7 @@ describe('the real registry, through the real flag reader', () => {
     expect(offerIds({ flagOn: notebookFlag })).toEqual(expected)
     expect(newIds({ flagOn: notebookFlag })).toEqual(expected)
     expect(expected).not.toContain('note-resurfaces')
-    expect(expected).toHaveLength(19)        // 20 registered tours (B1 7, B2 6, B3 7) less the explainer
+    expect(expected).toHaveLength(20)        // 21 registered tours (B1 8 with P0.10's voice notes, B2 6, B3 7) less the explainer
     expect(pickOffer({ offerable: offerableTours({ tours: OTHER_TOURS, flagOn: notebookFlag }) }).id).toBe(expected[0])
   })
 

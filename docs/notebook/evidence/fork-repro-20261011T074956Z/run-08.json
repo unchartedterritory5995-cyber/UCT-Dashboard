@@ -1,0 +1,637 @@
+{
+ "run": 8,
+ "email_domain": "local.dev",
+ "note_id": "852dcdf9f8b54437ac3320ad2be364eb",
+ "created_updatedAt": "2026-10-11T08:02:27.777257+00:00",
+ "viewport": "1280",
+ "nav": "click",
+ "nav_how": "click [data-all-notes-row]",
+ "nav_ms": 300,
+ "type_delay": null,
+ "menu_pause_ms": 0,
+ "latency_ms": 0,
+ "control": false,
+ "control_write": null,
+ "created_at_epoch": "2026-10-11T08:02:27.777257+00:00",
+ "t_run_start": 1791705747.517,
+ "t_last_key": 1791705750.928,
+ "t_nav": 1791705751.232,
+ "forked": false,
+ "fork_at_early": {
+  "by_title": false,
+  "by_tag": false
+ },
+ "fork_at_late": {
+  "by_title": false,
+  "by_tag": false
+ },
+ "notes_after": [
+  {
+   "id": "852dcdf9f8b54437ac3320ad2be364eb",
+   "title": "My trading rules",
+   "updatedAt": "2026-10-11T08:02:31.298415+00:00",
+   "tags": []
+  }
+ ],
+ "server_note_after": {
+  "updatedAt": "2026-10-11T08:02:31.298415+00:00",
+  "title": "My trading rules",
+  "body": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}, {\"type\": \"taskList\", \"content\": [{\"type\": \"taskItem\", \"attrs\": {\"checked\": false}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Never move a stop downRule one.\"}]}]}]}, {\"type\": \"paragraph\"}]}"
+ },
+ "settle_s": 8,
+ "late_s": 90,
+ "idb_after": {
+  "uct_notebook_39bf6f96-8407-48de-b40e-d7f621d43c02": {
+   "meta": [
+    {
+     "name": "inflight:852dcdf9f8b54437ac3320ad2be364eb",
+     "value": null
+    },
+    {
+     "name": "landed:852dcdf9f8b54437ac3320ad2be364eb",
+     "value": [
+      "2026-10-11T08:02:31.298415+00:00"
+     ]
+    }
+   ],
+   "notes": [
+    {
+     "noteId": "852dcdf9f8b54437ac3320ad2be364eb",
+     "title": "My trading rules",
+     "subtitle": "",
+     "bodyJson": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph"
+       },
+       {
+        "type": "taskList",
+        "content": [
+         {
+          "type": "taskItem",
+          "attrs": {
+           "checked": false
+          },
+          "content": [
+           {
+            "type": "paragraph",
+            "content": [
+             {
+              "type": "text",
+              "text": "Never move a stop downRule one."
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "paragraph"
+       }
+      ]
+     },
+     "baseUpdatedAt": "2026-10-11T08:02:31.298415+00:00",
+     "generation": 34,
+     "sessionId": "e9da8337-2e39-4287-a0d6-243d66170bcc",
+     "localSavedAt": 1791705751305,
+     "dirty": 0,
+     "serverBase": null,
+     "writtenSchema": null
+    }
+   ],
+   "outbox": []
+  }
+ },
+ "read_early": {
+  "t": 1791705759.286,
+  "list_status": 200,
+  "fork_by_title": false,
+  "fork_by_tag": false,
+  "fork_ids_by_title": [],
+  "fork_ids_by_tag": [],
+  "notes": [
+   {
+    "id": "852dcdf9f8b54437ac3320ad2be364eb",
+    "title": "My trading rules",
+    "updatedAt": "2026-10-11T08:02:31.298415+00:00",
+    "tags": []
+   }
+  ],
+  "server_note": {
+   "updatedAt": "2026-10-11T08:02:31.298415+00:00",
+   "title": "My trading rules",
+   "body": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}, {\"type\": \"taskList\", \"content\": [{\"type\": \"taskItem\", \"attrs\": {\"checked\": false}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Never move a stop downRule one.\"}]}]}]}, {\"type\": \"paragraph\"}]}"
+  }
+ },
+ "read_late": {
+  "t": 1791705841.273,
+  "list_status": 200,
+  "fork_by_title": false,
+  "fork_by_tag": false,
+  "fork_ids_by_title": [],
+  "fork_ids_by_tag": [],
+  "notes": [
+   {
+    "id": "852dcdf9f8b54437ac3320ad2be364eb",
+    "title": "My trading rules",
+    "updatedAt": "2026-10-11T08:02:31.298415+00:00",
+    "tags": []
+   }
+  ],
+  "server_note": {
+   "updatedAt": "2026-10-11T08:02:31.298415+00:00",
+   "title": "My trading rules",
+   "body": "{\"type\": \"doc\", \"content\": [{\"type\": \"paragraph\"}, {\"type\": \"taskList\", \"content\": [{\"type\": \"taskItem\", \"attrs\": {\"checked\": false}, \"content\": [{\"type\": \"paragraph\", \"content\": [{\"type\": \"text\", \"text\": \"Never move a stop downRule one.\"}]}]}]}, {\"type\": \"paragraph\"}]}"
+  }
+ },
+ "idb_late": {
+  "uct_notebook_39bf6f96-8407-48de-b40e-d7f621d43c02": {
+   "meta": [
+    {
+     "name": "inflight:852dcdf9f8b54437ac3320ad2be364eb",
+     "value": null
+    },
+    {
+     "name": "landed:852dcdf9f8b54437ac3320ad2be364eb",
+     "value": [
+      "2026-10-11T08:02:31.298415+00:00"
+     ]
+    }
+   ],
+   "notes": [
+    {
+     "noteId": "852dcdf9f8b54437ac3320ad2be364eb",
+     "title": "My trading rules",
+     "subtitle": "",
+     "bodyJson": {
+      "type": "doc",
+      "content": [
+       {
+        "type": "paragraph"
+       },
+       {
+        "type": "taskList",
+        "content": [
+         {
+          "type": "taskItem",
+          "attrs": {
+           "checked": false
+          },
+          "content": [
+           {
+            "type": "paragraph",
+            "content": [
+             {
+              "type": "text",
+              "text": "Never move a stop downRule one."
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "paragraph"
+       }
+      ]
+     },
+     "baseUpdatedAt": "2026-10-11T08:02:31.298415+00:00",
+     "generation": 34,
+     "sessionId": "e9da8337-2e39-4287-a0d6-243d66170bcc",
+     "localSavedAt": 1791705751305,
+     "dirty": 0,
+     "serverBase": null,
+     "writtenSchema": null
+    }
+   ],
+   "outbox": []
+  }
+ },
+ "outbox_samples": [
+  [
+   8.1,
+   0
+  ],
+  [
+   13.1,
+   0
+  ],
+  [
+   18.1,
+   0
+  ],
+  [
+   23.1,
+   0
+  ],
+  [
+   28.1,
+   0
+  ],
+  [
+   33.1,
+   0
+  ],
+  [
+   38.1,
+   0
+  ],
+  [
+   43.2,
+   0
+  ],
+  [
+   48.2,
+   0
+  ],
+  [
+   53.2,
+   0
+  ],
+  [
+   58.2,
+   0
+  ],
+  [
+   63.2,
+   0
+  ],
+  [
+   68.2,
+   0
+  ],
+  [
+   73.3,
+   0
+  ],
+  [
+   78.3,
+   0
+  ],
+  [
+   83.3,
+   0
+  ],
+  [
+   88.3,
+   0
+  ]
+ ],
+ "outbox_first_empty_s": 8.1,
+ "console": [
+  "1791705748.255 error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+ ],
+ "pairs": [
+  {
+   "i": 0,
+   "t_sent": 1791705748.304,
+   "method": "GET",
+   "url": "/api/j2/notes/folder-counts",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.337,
+   "response": "{\"counts\":{},\"unfiled\":1,\"total\":1}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.337
+  },
+  {
+   "i": 1,
+   "t_sent": 1791705748.304,
+   "method": "GET",
+   "url": "/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.386,
+   "response": "{\"notes\":[{\"id\":\"852dcdf9f8b54437ac3320ad2be364eb\",\"userId\":\"39bf6f96-8407-48de-b40e-d7f621d43c02\",\"accountId\":null,\"folderId\":null,\"title\":\"My trading rules\",\"subtitle\":null,\"bodyPlain\":\"Rule one.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-11T08:02:27.777257+00:00\",\"updatedAt\":\"2026-10-11T08:02:27.777257+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"propertiesJson\":{}}],\"total\":1,\"limit\":1,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.385
+  },
+  {
+   "i": 2,
+   "t_sent": 1791705748.305,
+   "method": "GET",
+   "url": "/api/j2/notes?sort=updated&limit=1&deleted=true",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.368,
+   "response": "{\"notes\":[],\"total\":0,\"limit\":1,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.367
+  },
+  {
+   "i": 3,
+   "t_sent": 1791705748.305,
+   "method": "GET",
+   "url": "/api/j2/notes?folder_id=__archived__&sort=updated&limit=1",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.37,
+   "response": "{\"notes\":[],\"total\":0,\"limit\":1,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.369
+  },
+  {
+   "i": 4,
+   "t_sent": 1791705748.305,
+   "method": "GET",
+   "url": "/api/j2/notes/favorites",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.378,
+   "response": "{\"notes\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.377
+  },
+  {
+   "i": 5,
+   "t_sent": 1791705748.305,
+   "method": "GET",
+   "url": "/api/j2/notes/recents",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.387,
+   "response": "{\"notes\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.387
+  },
+  {
+   "i": 6,
+   "t_sent": 1791705748.305,
+   "method": "GET",
+   "url": "/api/j2/notes/tags",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.402,
+   "response": "{\"tags\":[],\"tree\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.401
+  },
+  {
+   "i": 7,
+   "t_sent": 1791705748.305,
+   "method": "GET",
+   "url": "/api/j2/notes/852dcdf9f8b54437ac3320ad2be364eb",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.424,
+   "response": "{\"note\":{\"id\":\"852dcdf9f8b54437ac3320ad2be364eb\",\"userId\":\"39bf6f96-8407-48de-b40e-d7f621d43c02\",\"accountId\":null,\"folderId\":null,\"title\":\"My trading rules\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Rule one.\"}]}]},\"bodyPlain\":\"Rule one.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-11T08:02:27.777257+00:00\",\"updatedAt\":\"2026-10-11T08:02:27.777257+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{},\"isFavorite\":false}}",
+   "response_rev": {
+    "updatedAt": "2026-10-11T08:02:27.777257+00:00",
+    "title": "My trading rules",
+    "id": "852dcdf9f8b54437ac3320ad2be364eb"
+   },
+   "failure": null,
+   "t_resp": 1791705748.424
+  },
+  {
+   "i": 8,
+   "t_sent": 1791705748.305,
+   "method": "GET",
+   "url": "/api/j2/notes/852dcdf9f8b54437ac3320ad2be364eb/documents",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.468,
+   "response": "{\"documents\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.463
+  },
+  {
+   "i": 9,
+   "t_sent": 1791705748.305,
+   "method": "GET",
+   "url": "/api/j2/notes/852dcdf9f8b54437ac3320ad2be364eb/excerpts",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.464,
+   "response": "{\"excerpts\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.462
+  },
+  {
+   "i": 10,
+   "t_sent": 1791705748.305,
+   "method": "GET",
+   "url": "/api/j2/notes/852dcdf9f8b54437ac3320ad2be364eb/facts",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.467,
+   "response": "{\"facts\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.463
+  },
+  {
+   "i": 11,
+   "t_sent": 1791705748.305,
+   "method": "GET",
+   "url": "/api/j2/notes/852dcdf9f8b54437ac3320ad2be364eb/evidence-candidates",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.467,
+   "response": "{\"candidates\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.463
+  },
+  {
+   "i": 12,
+   "t_sent": 1791705748.306,
+   "method": "GET",
+   "url": "/api/j2/notes/852dcdf9f8b54437ac3320ad2be364eb/thesis-summary",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.494,
+   "response": "{\"evidence\":[],\"changelog\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.494
+  },
+  {
+   "i": 13,
+   "t_sent": 1791705748.306,
+   "method": "GET",
+   "url": "/api/j2/notes/852dcdf9f8b54437ac3320ad2be364eb/properties",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.491,
+   "response": "{\"properties\":[{\"id\":\"builtin:ticker\",\"name\":\"Ticker\",\"type\":\"text\",\"source\":\"financial_derived\",\"value\":null},{\"id\":\"builtin:sector\",\"name\":\"Sector\",\"type\":\"text\",\"source\":\"financial_derived\",\"value\":null},{\"id\":\"builtin:industry\",\"name\":\"Industry\",\"type\":\"text\",\"source\":\"financial_derived\",\"value\":null},{\"id\":\"builtin:theme\",\"name\":\"Theme\",\"type\":\"text\",\"source\":\"financial_derived\",\"value\":null},{\"id\":\"builtin:trade_ref\",\"name\":\"Linked Trade\",\"type\":\"text\",\"source\":\"financial_derived\",\"value\":null},{\"id\":\"builtin:thesis_status\",\"name\":\"Thesis Status\",\"type\":\"select\",\"source\":\"user_set\",\"options\":[{\"id\":\"watching\",\"label\":\"Watching\",\"color\":\"blue\"},{\"id\":\"active\",\"label\":\"Active\",\"color\":\"green\"},{\"id\":\"invalidated\",\"label\":\"Invalidated\",\"color\":\"red\"},{\"id\":\"closed\",\"label\":\"Closed\",\"color\":\"gray\"}],\"value\":null},{\"id\":\"builtin:confidence\",\"name\":\"Confidence\",\"type\":\"select\",\"source\":\"user_set\",\"options\":[{\"id\":\"low\",\"label\":\"Low\",\"color\":\"gray\"},{\"id\":\"medium\",\"label\":\"Medium\",\"color\":\"amber\"},{\"id\":\"high\",\"label\":\"High\",\"color\":\"green\"}],\"value\":null},{\"id\":\"builtin:research_type\",\"name\":\"Research Type\",\"type\":\"select\",\"source\":\"user_set\",\"options\":[{\"id\":\"long_thesis\",\"label\":\"Long Thesis\",\"color\":\"green\"},{\"id\":\"short_thesis\",\"label\":\"Short Thesis\",\"color\":\"red\"},{\"id\":\"earnings_play\",\"label\":\"Earnings Play\",\"color\":\"amber\"},{\"id\":\"sector_note\",\"label\":\"Sector Note\",\"color\":\"blue\"},{\"id\":\"watchlist_note\",\"label\":\"Watchlist Note\",\"color\":\"gray\"}],\"value\":null},{\"id\":\"builtin:review_date\",\"name\":\"Review Date\",\"type\":\"date\",\"source\":\"user_set\",\"value\":null}]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.491
+  },
+  {
+   "i": 14,
+   "t_sent": 1791705748.306,
+   "method": "GET",
+   "url": "/api/j2/notes?sort=updated",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.494,
+   "response": "{\"notes\":[{\"id\":\"852dcdf9f8b54437ac3320ad2be364eb\",\"userId\":\"39bf6f96-8407-48de-b40e-d7f621d43c02\",\"accountId\":null,\"folderId\":null,\"title\":\"My trading rules\",\"subtitle\":null,\"bodyPlain\":\"Rule one.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-11T08:02:27.777257+00:00\",\"updatedAt\":\"2026-10-11T08:02:27.777257+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"propertiesJson\":{}}],\"total\":1,\"limit\":100,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.494
+  },
+  {
+   "i": 15,
+   "t_sent": 1791705748.306,
+   "method": "GET",
+   "url": "/api/j2/notes?sort=title",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.539,
+   "response": "{\"notes\":[{\"id\":\"852dcdf9f8b54437ac3320ad2be364eb\",\"userId\":\"39bf6f96-8407-48de-b40e-d7f621d43c02\",\"accountId\":null,\"folderId\":null,\"title\":\"My trading rules\",\"subtitle\":null,\"bodyPlain\":\"Rule one.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-11T08:02:27.777257+00:00\",\"updatedAt\":\"2026-10-11T08:02:27.777257+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"propertiesJson\":{}}],\"total\":1,\"limit\":100,\"offset\":0}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.538
+  },
+  {
+   "i": 16,
+   "t_sent": 1791705748.461,
+   "method": "GET",
+   "url": "/api/j2/notes/852dcdf9f8b54437ac3320ad2be364eb/trade-ref/resolve",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.571,
+   "response": "{\"links\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.57
+  },
+  {
+   "i": 17,
+   "t_sent": 1791705748.462,
+   "method": "GET",
+   "url": "/api/j2/notes/852dcdf9f8b54437ac3320ad2be364eb/backlinks",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.571,
+   "response": "{\"count\":0,\"notes\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.57
+  },
+  {
+   "i": 18,
+   "t_sent": 1791705748.462,
+   "method": "GET",
+   "url": "/api/j2/notes/852dcdf9f8b54437ac3320ad2be364eb/related-from",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.616,
+   "response": "{\"count\":0,\"notes\":[]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.616
+  },
+  {
+   "i": 19,
+   "t_sent": 1791705748.462,
+   "method": "GET",
+   "url": "/api/j2/notes/852dcdf9f8b54437ac3320ad2be364eb/unlinked-mentions",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.617,
+   "response": "{\"title\":\"My trading rules\",\"count\":0,\"notes\":[],\"skipped\":null}",
+   "response_rev": {
+    "title": "My trading rules"
+   },
+   "failure": null,
+   "t_resp": 1791705748.616
+  },
+  {
+   "i": 20,
+   "t_sent": 1791705748.462,
+   "method": "POST",
+   "url": "/api/j2/notes/852dcdf9f8b54437ac3320ad2be364eb/opened",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.676,
+   "response": "{\"ok\":true}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.617
+  },
+  {
+   "i": 21,
+   "t_sent": 1791705748.618,
+   "method": "GET",
+   "url": "/api/j2/notes/recents",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705748.625,
+   "response": "{\"notes\":[{\"id\":\"852dcdf9f8b54437ac3320ad2be364eb\",\"userId\":\"39bf6f96-8407-48de-b40e-d7f621d43c02\",\"accountId\":null,\"folderId\":null,\"title\":\"My trading rules\",\"subtitle\":null,\"bodyPlain\":\"Rule one.\",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-11T08:02:27.777257+00:00\",\"updatedAt\":\"2026-10-11T08:02:27.777257+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"propertiesJson\":{}}]}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705748.625
+  },
+  {
+   "i": 22,
+   "t_sent": 1791705751.272,
+   "method": "GET",
+   "url": "/api/j2/notes/connectors/status",
+   "request": "",
+   "request_rev": {},
+   "status": 200,
+   "t_done": 1791705751.286,
+   "response": "{\"enabled\":false,\"providers\":{\"roam\":{\"configured\":true,\"connectKind\":\"token\",\"connected\":false,\"status\":null,\"accountLabel\":null,\"sources\":[]},\"craft\":{\"configured\":true,\"connectKind\":\"token\",\"connected\":false,\"status\":null,\"accountLabel\":null,\"sources\":[]},\"notion\":{\"configured\":false,\"connectKind\":\"oauth\",\"connected\":false,\"status\":null,\"accountLabel\":null,\"sources\":[]},\"dropbox\":{\"configured\":false,\"connectKind\":\"oauth\",\"connected\":false,\"status\":null,\"accountLabel\":null,\"sources\":[]},\"onenote\":{\"configured\":false,\"connectKind\":\"oauth\",\"connected\":false,\"status\":null,\"accountLabel\":null,\"sources\":[]},\"onedrive\":{\"configured\":false,\"connectKind\":\"oauth\",\"connected\":false,\"status\":null,\"accountLabel\":null,\"sources\":[]},\"obsidian\":{\"configured\":false,\"connectKind\":\"device\",\"connected\":false,\"status\":null,\"accountLabel\":null,\"sources\":[]}}}",
+   "response_rev": {},
+   "failure": null,
+   "t_resp": 1791705751.286
+  },
+  {
+   "i": 23,
+   "t_sent": 1791705751.275,
+   "method": "PUT",
+   "url": "/api/j2/notes/852dcdf9f8b54437ac3320ad2be364eb",
+   "request": "{\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"},{\"type\":\"taskList\",\"content\":[{\"type\":\"taskItem\",\"attrs\":{\"checked\":false},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Never move a stop downRule one.\"}]}]}]},{\"type\":\"paragraph\"}]},\"baseUpdatedAt\":\"2026-10-11T08:02:27.777257+00:00\"}",
+   "request_rev": {
+    "baseUpdatedAt": "2026-10-11T08:02:27.777257+00:00"
+   },
+   "status": 200,
+   "t_done": 1791705751.304,
+   "response": "{\"note\":{\"id\":\"852dcdf9f8b54437ac3320ad2be364eb\",\"userId\":\"39bf6f96-8407-48de-b40e-d7f621d43c02\",\"accountId\":null,\"folderId\":null,\"title\":\"My trading rules\",\"subtitle\":null,\"bodyJson\":{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"},{\"type\":\"taskList\",\"content\":[{\"type\":\"taskItem\",\"attrs\":{\"checked\":false},\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Never move a stop downRule one.\"}]}]}]},{\"type\":\"paragraph\"}]},\"bodyPlain\":\" Never move a stop downRule one. \",\"heroImageUrl\":null,\"firstImageUrl\":null,\"ticker\":null,\"tags\":[],\"createdAt\":\"2026-10-11T08:02:27.777257+00:00\",\"updatedAt\":\"2026-10-11T08:02:31.298415+00:00\",\"deletedAt\":null,\"archivedAt\":null,\"locked\":false,\"dailyDate\":null,\"propertiesJson\":{}}}",
+   "response_rev": {
+    "updatedAt": "2026-10-11T08:02:31.298415+00:00",
+    "title": "My trading rules",
+    "id": "852dcdf9f8b54437ac3320ad2be364eb"
+   },
+   "failure": null,
+   "t_resp": 1791705751.304
+  }
+ ]
+}

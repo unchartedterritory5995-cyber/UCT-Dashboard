@@ -482,6 +482,19 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
 // Task 1 — the export guide is actually reachable from the drop step, not
 // just present as a standalone component nobody surfaces.
 // ---------------------------------------------------------------------------
+// P0.8: the three ways in that live in Settings are pointed at from the drop step itself.
+describe('ImportWizard — "Capture from anywhere" under the dropzone (P0.8)', () => {
+  it('shows the capture doors on the drop step, after the dropzone', async () => {
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const heading = await screen.findByRole('heading', { name: 'Capture from anywhere' })
+    // the browser extension has no gate, so its door is always there
+    expect(screen.getByRole('link', { name: /Browser extension/ })).toBeInTheDocument()
+    const drop = screen.getByText('Drop your export here')
+    // the box sits AFTER the dropzone's own text in the document
+    expect(drop.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
 describe('ImportWizard — export guide surfaced on the drop step (Task 1)', () => {
   it('opening "How do I get my export file?" reveals the per-platform guide, Notion included', async () => {
     render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)

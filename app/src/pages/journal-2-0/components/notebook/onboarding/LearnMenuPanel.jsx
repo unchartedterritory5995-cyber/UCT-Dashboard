@@ -1,0 +1,308 @@
+// THE LAZY HALF of Research Home's Learn menu (residual round, ruling R25). `LearnMenu.jsx` keeps the
+// Learn button eager; everything the menu needs only once it is OPENED -- the tour list and its
+// groups, the sample item, the catalog Sheet, `capabilityList`, `learnTours` -- lives here, in a chunk
+// fetched on the first press. Once mounted it stays mounted (the catalog Sheet outlives the menu).
+//
+// Research Home's "Learn" button (Notebook UX pass, 2026-10-10): ONE door to every live,
+// replayable walkthrough, plus the Help page that lists them. It replaces the ~20 "Take the X
+// tour" steps the get-started list used to carry, so the list can be five steps a new member
+// can finish and the tours stay one click away for everyone.
+//
+//   * WHAT IT LISTS -- derived, never typed: `learnMenuTours` (learnTours.js), the same
+//     registry derivation Help > Walkthroughs makes. Plus a link to that Help section.
+//   * WHAT A CHOICE DOES -- starts the tour through its existing door (`startTour`: the base
+//     tour's own, or `openRegistryTour`). No new tour machinery.
+//   * WHEN IT SHOWS -- only while the wave-14 onboarding switch is on (`learnMenuEnabled`),
+//     and only when there is something to list.
+//   * GROUPED (P0.12) -- the tours sit under four headings (`groupLearnTours`, learnTours.js),
+//     each a `role="group"` with a visible heading, so ~20 tours are not one wall. On a PHONE
+//     the same menu opens as a bottom Sheet (the Notebook's one primitive for this) instead of
+//     an anchored popover; which one is decided when the button is pressed (`useIsPhone()`
+//     read at click time -- a press is the moment CLAUDE.md allows it), never at first paint.
+//   * THE SAMPLE (P0.15) -- "Add the sample notebook", for a paid member with the onboarding
+//     switch on AND NO NOTES (`hasAnyNotes` is false). The server refuses the sample (409) to
+//     a member who has any note, active, archived or trashed (sample_notebook.py, ruling D-C6:
+//     their own work never shares a notebook with practice notes they did not ask for), so the
+//     menu does not offer it to one. A caller that does not say fails closed (no item). It goes through `addSampleNotebook` (sampleNotebook.js), the one authority, and refreshes
+//     the notebook lists with the same `isNotebookKey` predicate Research Home uses.
+//   * WHAT YOUR NOTEBOOK CAN DO (Task 14b, ruling R16) -- one item after the tour groups that opens
+//     the capability preview (the first-run welcome's own component, `CapabilityPreview`) in a Sheet,
+//     for EVERY member with or without notes. It is how a live feature with no control of its own
+//     (Compass reading notes, Terminal commands pasted into a note) is found at all. Offered only
+//     while at least one capability is armed (an empty sheet is never a door). The preview's own
+//     sample offer follows the same R15 rule as the menu's item (`hasAnyNotes === false`), and the
+//     sheet carries the one button it describes. On a phone the menu's sheet is REPLACED by this one.
+//
+// ⛔ A real menu button, the Notebook's one contract for it (NoteExportControls.jsx):
+// `aria-haspopup="menu"` + `aria-expanded`, the first item takes focus on open, Arrow keys
+// walk the items, Home/End jump, Escape closes and hands focus BACK to the button
+// (`useDisclosureFocus`), a press outside closes it. A choice also hands focus back to the
+// button before the tour starts, so focus is never dropped on <body> if the tour cannot open
+// here; a tour that does open takes focus itself.
+import { Suspense, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useSWRConfig } from 'swr'
+import UIcon from '../../../../../components/ui/UIcon'
+import Sheet from '../../../../../components/mobile/Sheet'
+import { useIsPaid } from '../../../../../context/AuthContext'
+import { notebookFlag } from '../../../lib/offline/notebookFlags'
+import useDisclosureFocus from '../../../lib/useDisclosureFocus'
+import lazyChunk from '../../../lib/lazyChunk'
+import {
+  HELP_WALKTHROUGHS_HREF, LEARN_COPY, groupLearnTours, learnMenuEnabled, learnMenuTours, startTour,
+} from './learnTours'
+import { SAMPLE_COPY, addSampleNotebook, isNotebookKey } from './sampleNotebook'
+import { NOTEBOOK_ROOT } from './tourRegistry'
+import { PREVIEW_COPY, armedCapabilities } from './capabilityList'
+import styles from './LearnMenu.module.css'
+
+// The same chunk Research Home loads for the welcome's "See what it can do" (one file, fetched on
+// the first open of either). ⛔ Never a static import: the preview and the capture doors it carries
+// stay out of the Notebook's first-open bytes.
+const CapabilityPreview = lazyChunk(() => import('./CapabilityPreview'))
+
+export default function LearnMenuPanel({ open, asSheet, menuId, triggerRef, onOpenChange, hasAnyNotes = true }) {
+  const [adding, setAdding] = useState(false)
+  const [sampleMsg, setSampleMsg] = useState('')
+  // "What your Notebook can do": the capability preview, open in a Sheet.
+  const [catalogOpen, setCatalogOpen] = useState(false)
+  const promoId = useId()
+  // The popover (or the sheet's body): the menu AND the status line under it. The status is a
+  // live region, which a `role="menu"` may not own (axe aria-required-children), so it sits beside
+  // the menu, inside this wrapper.
+  const popoverRef = useRef(null)
+  const menuRef = useRef(null)
+  const itemRefs = useRef([])
+  const navigate = useNavigate()
+  const { mutate } = useSWRConfig()
+  const isPaid = useIsPaid()
+
+  const enabled = learnMenuEnabled(notebookFlag)
+  const tours = enabled ? learnMenuTours({ flag: notebookFlag, hasAnyNotes }) : []
+  const groups = groupLearnTours(tours)
+  // The same gate as every other wave-14 surface (`enabled` already needs the onboarding flag;
+  // it is named again so this line reads as its own rule), and a paid member only: the sample
+  // is a paid-member door on the server too.
+  const canAddSample = enabled && notebookFlag('notebook_onboarding_enabled') === true && isPaid
+    && hasAnyNotes === false
+  // The catalog is offered while the preview has at least one line to show; with nothing armed the
+  // sheet would be empty, and an empty sheet is not a door.
+  const showCatalog = enabled && armedCapabilities(notebookFlag).length > 0
+
+  // A fresh opening starts with an empty status line.
+  useEffect(() => { if (open) setSampleMsg('') }, [open])
+  const closeOnly = useCallback(() => onOpenChange(false), [])
+  // Focus is put back on the button before the sheet opens, so the sheet takes THAT as the place to
+  // return to on close (the menu item that was pressed is unmounted by then).
+  const closeCatalog = useCallback(() => {
+    setCatalogOpen(false)
+    triggerRef.current?.focus()
+  }, [])
+  // The sheet's own close: Sheet handles Escape, the backdrop and the drag; focus goes back to
+  // the button (Sheet restores it too, this makes it independent of what had focus on open).
+  const closeSheet = useCallback(() => {
+    onOpenChange(false)
+    triggerRef.current?.focus()
+  }, [])
+  // Escape closes and hands focus back to the button; Tab stays inside while focus is inside.
+  // (Off in the sheet: Sheet is the layer that answers Escape and traps Tab there.)
+  const { disclosureProps } = useDisclosureFocus({
+    open, containerRef: popoverRef, onClose: closeOnly, openerRef: triggerRef, focusOnOpen: false, enabled: !asSheet,
+  })
+
+  // Keep the open menu on screen. It hangs from the button's right edge, and on a phone the
+  // button can sit centred (the welcome) or at the right (Home's search row), so no one CSS
+  // anchor fits: measured at 390 px it started 30 px off the left edge. Shift it back inside a
+  // 16 px gutter after layout, before paint.
+  useLayoutEffect(() => {
+    const el = popoverRef.current
+    if (!open || asSheet || !el) return
+    el.style.transform = ''
+    const r = el.getBoundingClientRect()
+    const vw = window.innerWidth || document.documentElement.clientWidth || 0
+    const gutter = 16
+    let dx = 0
+    if (r.left < gutter) dx = gutter - r.left
+    else if (vw && r.right > vw - gutter) dx = (vw - gutter) - r.right
+    if (dx) el.style.transform = `translateX(${Math.round(dx)}px)`
+  }, [open, asSheet])
+
+  // The first item takes focus when the menu opens.
+  useEffect(() => {
+    if (open) itemRefs.current.find(Boolean)?.focus()
+  }, [open])
+
+  // A press outside the menu closes it (the button toggles on its own).
+  useEffect(() => {
+    if (!open || asSheet) return undefined   // the sheet's backdrop answers a press outside it
+    const onDown = (e) => {
+      if (popoverRef.current?.contains(e.target) || triggerRef.current?.contains(e.target)) return
+      onOpenChange(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('touchstart', onDown)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('touchstart', onDown)
+    }
+  }, [open, asSheet])
+
+  const choose = (tourId) => {
+    onOpenChange(false)
+    triggerRef.current?.focus()
+    startTour(tourId)
+  }
+
+  const openCatalog = () => {
+    onOpenChange(false)
+    setSampleMsg('')
+    triggerRef.current?.focus()
+    setCatalogOpen(true)
+  }
+
+  // P0.15. Adds the sample through the one authority; on success the notebook lists refresh
+  // (Research Home's own predicate), the menu closes and the welcome note opens. Refused (the
+  // member already has notes, or any other refusal), it says so IN the menu and creates nothing.
+  // A second press while the first is still adding is ignored (aria-disabled, not `disabled`,
+  // so focus is not dropped from the item the member is on).
+  const addSample = async () => {
+    if (adding) return
+    setAdding(true)
+    setSampleMsg('')
+    const out = await addSampleNotebook()
+    setAdding(false)
+    if (!out.ok) {
+      setSampleMsg(out.message)
+      return
+    }
+    mutate(isNotebookKey)
+    onOpenChange(false)
+    setCatalogOpen(false)
+    triggerRef.current?.focus()
+    if (out.welcomeNoteId) navigate(`${NOTEBOOK_ROOT}?note=${encodeURIComponent(out.welcomeNoteId)}`)
+  }
+
+  const onMenuKeyDown = (e) => {
+    const items = itemRefs.current.filter(Boolean)
+    const at = items.indexOf(document.activeElement)
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      items[(at + 1) % items.length]?.focus()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      items[(at - 1 + items.length) % items.length]?.focus()
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      items[0]?.focus()
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      items[items.length - 1]?.focus()
+    } else {
+      disclosureProps.onKeyDown(e)
+    }
+  }
+
+  // One flat run of focusable items, in the order they are drawn: the tours (group by group),
+  // then the sample, then the Help link. `at` hands each its slot in itemRefs.
+  let at = 0
+  const slot = () => {
+    const mine = at
+    at += 1
+    return (el) => { itemRefs.current[mine] = el }
+  }
+  itemRefs.current.length = 0
+
+  const menu = (
+    // ⛔ KNOWN DEVIATION, the same one NoteExportControls.jsx records (K2 review M-6): Tab
+    // stays inside an open menu -- the Notebook's one keep-Tab-inside contract.
+    <div ref={popoverRef} className={asSheet ? styles.sheetMenu : styles.menu} data-learn-popover=""
+      {...(asSheet ? {} : disclosureProps)}>
+      <div ref={menuRef} id={menuId} role="menu" aria-label={LEARN_COPY.menuLabel}
+        className={styles.list} onKeyDown={onMenuKeyDown}>
+        {groups.map((g) => (
+          <div key={g.name} role="group" aria-label={g.name} className={styles.group}>
+            <p className={styles.groupHeading} aria-hidden="true">{g.name}</p>
+            {g.tours.map((t) => (
+              <button
+                key={t.id}
+                ref={slot()}
+                type="button"
+                role="menuitem"
+                className={styles.item}
+                data-learn-tour={t.id}
+                onClick={() => choose(t.id)}
+              >
+                {LEARN_COPY.tour(t.title)}
+              </button>
+            ))}
+          </div>
+        ))}
+        {showCatalog && (
+          <button
+            ref={slot()}
+            type="button"
+            role="menuitem"
+            className={`${styles.item} ${styles.catalogItem}`}
+            data-learn-catalog=""
+            onClick={openCatalog}
+          >
+            {PREVIEW_COPY.heading}
+          </button>
+        )}
+        {canAddSample && (
+          <button
+            ref={slot()}
+            type="button"
+            role="menuitem"
+            className={`${styles.item} ${styles.sampleItem}`}
+            aria-disabled={adding || undefined}
+            data-learn-sample=""
+            onClick={addSample}
+          >
+            {adding ? SAMPLE_COPY.adding : LEARN_COPY.sample}
+          </button>
+        )}
+        <Link
+          ref={slot()}
+          role="menuitem"
+          className={`${styles.item} ${styles.helpItem}`}
+          to={HELP_WALKTHROUGHS_HREF}
+          onClick={() => onOpenChange(false)}
+        >
+          {LEARN_COPY.help}
+        </Link>
+      </div>
+      {/* Always mounted (empty until it has something to say), so a screen reader announces the text
+        when it arrives; a live region added together with its text is often not announced. */}
+    <p role="status" className={styles.status}>{sampleMsg}</p>
+    </div>
+  )
+
+  return (
+    <>
+      {open && (asSheet ? (
+        <Sheet open onClose={closeSheet} variant="bottom-sheet" title={LEARN_COPY.menuLabel} labelledByTitle>
+          {menu}
+        </Sheet>
+      ) : menu)}
+      {catalogOpen && (
+        <Sheet open onClose={closeCatalog} variant="auto" title={PREVIEW_COPY.heading} labelledByTitle>
+          <div className={styles.catalog}>
+            <Suspense fallback={null}>
+              <CapabilityPreview hideHeading canAddSample={canAddSample} promoId={promoId} />
+            </Suspense>
+            {/* R15: the one button the preview's promotion describes, only for a member with no
+                notes. Its refusal is said on the always-mounted status line under it. */}
+            {canAddSample && (
+              <button type="button" className={`btn btn-ghost ${styles.catalogAction}`}
+                aria-describedby={promoId} aria-disabled={adding || undefined} onClick={addSample}>
+                <UIcon name="book" size={14} gold={false} /> {adding ? SAMPLE_COPY.adding : SAMPLE_COPY.add}
+              </button>
+            )}
+            <p role="status" className={styles.catalogStatus}>{sampleMsg}</p>
+          </div>
+        </Sheet>
+      )}
+    </>
+  )
+}

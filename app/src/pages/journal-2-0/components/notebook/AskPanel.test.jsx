@@ -353,3 +353,25 @@ describe('scanned-text provenance on a citation', () => {
       .toEqual({ kind: 'document', document_id: 'd1', page_number: 4 })
   })
 })
+
+// P0.7: Research Home has ONE Ask section ("Ask your Notebook"), so a note's own header door is
+// named for what it asks: "Ask this note", in its visible text AND its accessible name (a speech
+// user says what they see). The other scopes keep "Ask".
+describe('the Ask door names what it asks', () => {
+  it('the note door reads "Ask this note", visibly and to a screen reader', () => {
+    render(<AskPanel scope="note" target="n1" />)
+    const door = screen.getByRole('button', { name: 'Ask this note' })
+    expect(door).toHaveTextContent('Ask this note')
+    expect(door).toHaveAttribute('data-ask-toggle')
+    expect(screen.queryByRole('button', { name: /^Ask a question about/ })).toBeNull()
+  })
+
+  it('the Notebook and document doors keep "Ask" and their descriptive names', () => {
+    const { unmount } = render(<AskPanel scope="notebook" />)
+    const home = screen.getByRole('button', { name: 'Ask a question about my notebook' })
+    expect(home).toHaveTextContent(/^Ask$/)
+    unmount()
+    render(<AskPanel scope="document" target="d1" />)
+    expect(screen.getByRole('button', { name: 'Ask a question about this document' })).toHaveTextContent(/^Ask$/)
+  })
+})

@@ -305,6 +305,18 @@
    guard above, tabs/NotebookTab.viewSwitcherFits.test.js, still sees the same
    flat list). A group role exists for assistive tech, not for layout. */
 .viewModeGroup { display: contents; }
+/* P0.11: the labelled View select is the phone's door to the same seven modes; desktop keeps the
+   icon buttons above. The swap is in the <=640px block below (one fact, one place). */
+.viewSelectWrap { display: none; }
+.viewSelect {
+  background: var(--bg-surface);
+  border: 1px solid var(--field-edge);
+  color: var(--text-bright);
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.viewSelect:disabled { opacity: 0.4; cursor: default; }
 .viewModeBtn {
   display: inline-flex;
   align-items: center;
@@ -434,6 +446,7 @@
 @media (max-width: 1024px) {
   .search,
   .sortSelect,
+  .viewSelect,
   .newBtn,
   .templatesBtn,
   .importBtn,
@@ -530,7 +543,10 @@
     padding-right: 0;
   }
   /* 16px inputs avoid the iOS focus-zoom; let New note keep the row to itself */
-  .search, .sortSelect { font-size: 16px; }
+  .search, .sortSelect, .viewSelect { font-size: 16px; }
+  /* P0.11: a labelled View select replaces the seven icon-only buttons on a phone */
+  .viewSelectWrap { display: inline-flex; }
+  .viewModeGroup { display: none; }
   .newWrap { margin-left: 0; }
 }
 

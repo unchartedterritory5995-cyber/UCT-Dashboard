@@ -1,0 +1,353 @@
+{
+ "stamp": "20261011T101321Z",
+ "base": "http://127.0.0.1:8132",
+ "tip": "4a4c2503e2+fix",
+ "control": false,
+ "width_bar": 0.9,
+ "column_max": 820,
+ "viewports": [
+  {
+   "viewport": "desktop",
+   "width": 1280,
+   "height": 900,
+   "member": "q1des3602896@local.dev",
+   "touch": false,
+   "section": {
+    "innerWidth": 1280,
+    "innerHeight": 900,
+    "docScrollWidth": 1280,
+    "section": {
+     "left": 370,
+     "right": 1190,
+     "top": 482.47,
+     "bottom": 562.47,
+     "width": 820,
+     "height": 80
+    },
+    "sectionAlignItems": "stretch",
+    "parent": {
+     "left": 350,
+     "right": 1256,
+     "top": 209.08,
+     "bottom": 929.69,
+     "width": 906,
+     "height": 720.61
+    },
+    "parentContentWidth": 866,
+    "homeHasFavorites": true
+   },
+   "ai": {
+    "idle": {
+     "wrap": {
+      "left": 370,
+      "right": 1190,
+      "top": 518.47,
+      "bottom": 785.81,
+      "width": 820,
+      "height": 267.34
+     },
+     "panel": {
+      "left": 370,
+      "right": 1130,
+      "top": 558.47,
+      "bottom": 785.81,
+      "width": 760,
+      "height": 227.34
+     },
+     "textarea": {
+      "left": 383,
+      "right": 1117,
+      "top": 600.27,
+      "bottom": 685.44,
+      "width": 734,
+      "height": 85.17
+     }
+    },
+    "review": {
+     "wrap": {
+      "left": 370,
+      "right": 1190,
+      "top": 518.47,
+      "bottom": 881.81,
+      "width": 820,
+      "height": 363.34
+     },
+     "panel": {
+      "left": 370,
+      "right": 1130,
+      "top": 558.47,
+      "bottom": 881.81,
+      "width": 760,
+      "height": 323.34
+     },
+     "textarea": null
+    },
+    "done": {
+     "wrap": {
+      "left": 370,
+      "right": 1190,
+      "top": 518.47,
+      "bottom": 706.45,
+      "width": 820,
+      "height": 187.98
+     },
+     "panel": {
+      "left": 370,
+      "right": 1130,
+      "top": 558.47,
+      "bottom": 706.45,
+      "width": 760,
+      "height": 147.98
+     },
+     "textarea": null
+    }
+   },
+   "ask_kind": "popover",
+   "ask": {
+    "innerWidth": 1280,
+    "innerHeight": 900,
+    "dialog": {
+     "left": 370,
+     "right": 770,
+     "top": 510.47,
+     "bottom": 596.06,
+     "width": 400,
+     "height": 85.59
+    },
+    "toggle": {
+     "left": 370,
+     "right": 429.02,
+     "top": 482.47,
+     "bottom": 510.47,
+     "width": 59.02,
+     "height": 28
+    },
+    "clipAncestor": {
+     "tag": "div",
+     "overflowX": "auto",
+     "rect": {
+      "left": 350,
+      "right": 1256,
+      "top": 209.08,
+      "bottom": 929.69,
+      "width": 906,
+      "height": 720.61
+     }
+    },
+    "probes": [
+     {
+      "x": 570,
+      "y": 553.3,
+      "onScreen": true,
+      "hitsDialog": true
+     },
+     {
+      "x": 410,
+      "y": 519,
+      "onScreen": true,
+      "hitsDialog": true
+     },
+     {
+      "x": 730,
+      "y": 519,
+      "onScreen": true,
+      "hitsDialog": true
+     },
+     {
+      "x": 410,
+      "y": 587.5,
+      "onScreen": true,
+      "hitsDialog": true
+     },
+     {
+      "x": 730,
+      "y": 587.5,
+      "onScreen": true,
+      "hitsDialog": true
+     }
+    ],
+    "className": "_panel_5ri5r_55"
+   },
+   "column_width": 820,
+   "ai_panel_ratio": {
+    "idle": 0.9268,
+    "review": 0.9268,
+    "done": 0.9268
+   }
+  },
+  {
+   "viewport": "phone",
+   "width": 390,
+   "height": 844,
+   "member": "q1pho3614014@local.dev",
+   "touch": true,
+   "section": {
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "docScrollWidth": 390,
+    "section": {
+     "left": 24,
+     "right": 366,
+     "top": 733.03,
+     "bottom": 841.03,
+     "width": 342,
+     "height": 108
+    },
+    "sectionAlignItems": "stretch",
+    "parent": {
+     "left": 24,
+     "right": 366,
+     "top": 355.84,
+     "bottom": 1800.83,
+     "width": 342,
+     "height": 1444.98
+    },
+    "parentContentWidth": 342,
+    "homeHasFavorites": true
+   },
+   "ai": {
+    "idle": {
+     "wrap": {
+      "left": 24,
+      "right": 366,
+      "top": 306.03,
+      "bottom": 644.36,
+      "width": 342,
+      "height": 338.33
+     },
+     "panel": {
+      "left": 24,
+      "right": 366,
+      "top": 358.03,
+      "bottom": 644.36,
+      "width": 342,
+      "height": 286.33
+     },
+     "textarea": {
+      "left": 37,
+      "right": 353,
+      "top": 399.83,
+      "bottom": 494.61,
+      "width": 316,
+      "height": 94.78
+     }
+    },
+    "review": {
+     "wrap": {
+      "left": 24,
+      "right": 366,
+      "top": 306.03,
+      "bottom": 711.56,
+      "width": 342,
+      "height": 405.53
+     },
+     "panel": {
+      "left": 24,
+      "right": 366,
+      "top": 358.03,
+      "bottom": 711.56,
+      "width": 342,
+      "height": 353.53
+     },
+     "textarea": null
+    },
+    "done": {
+     "wrap": {
+      "left": 24,
+      "right": 366,
+      "top": 306.03,
+      "bottom": 568.02,
+      "width": 342,
+      "height": 261.98
+     },
+     "panel": {
+      "left": 24,
+      "right": 366,
+      "top": 358.03,
+      "bottom": 568.02,
+      "width": 342,
+      "height": 209.98
+     },
+     "textarea": null
+    }
+   },
+   "ask_kind": "Sheet",
+   "ask": {
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "dialog": {
+     "left": 0,
+     "right": 390,
+     "top": 686,
+     "bottom": 844,
+     "width": 390,
+     "height": 158
+    },
+    "toggle": {
+     "left": 24,
+     "right": 91.02,
+     "top": 254.03,
+     "bottom": 298.03,
+     "width": 67.02,
+     "height": 44
+    },
+    "clipAncestor": {
+     "tag": "main",
+     "overflowX": "auto",
+     "rect": {
+      "left": 0,
+      "right": 390,
+      "top": 0,
+      "bottom": 844,
+      "width": 390,
+      "height": 844
+     }
+    },
+    "probes": [
+     {
+      "x": 195,
+      "y": 765,
+      "onScreen": true,
+      "hitsDialog": true
+     },
+     {
+      "x": 39,
+      "y": 701.8,
+      "onScreen": true,
+      "hitsDialog": true
+     },
+     {
+      "x": 351,
+      "y": 701.8,
+      "onScreen": true,
+      "hitsDialog": true
+     },
+     {
+      "x": 39,
+      "y": 828.2,
+      "onScreen": true,
+      "hitsDialog": true
+     },
+     {
+      "x": 351,
+      "y": 828.2,
+      "onScreen": true,
+      "hitsDialog": true
+     }
+    ],
+    "className": "_panel_futca_33"
+   },
+   "column_width": 342,
+   "ai_panel_ratio": {
+    "idle": 1.0,
+    "review": 1.0,
+    "done": 1.0
+   }
+  }
+ ],
+ "status": "PASS",
+ "breaks": {
+  "desktop": [],
+  "phone": []
+ }
+}

@@ -10,7 +10,7 @@
 //                            button described by the promotion, and the Learn menu open.
 // OUTSIDE_POPULATION_SURFACES (notebookSurfaces.js) names this file for CapabilityPreview.jsx.
 import { describe, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { Providers } from './fixtures'
 import { axeSurface } from './surface'
 import CapabilityPreview from '../components/notebook/onboarding/CapabilityPreview'
@@ -35,7 +35,11 @@ afterEach(() => { __resetNotebookFlags(); vi.restoreAllMocks() })
 describe('capability preview -- axe', () => {
   axeSurface('capability-preview', async () => {
     const { container } = render(<main><CapabilityPreview canAddSample promoId="w14a-promo" /></main>)
-    expect(screen.getAllByRole('listitem')).toHaveLength(CAPABILITY_PREVIEW.length)
+    // P0.8: the capability list is counted by name, since the compact "Capture from anywhere"
+    // box under it has a list of its own (and is part of what axe reads here).
+    expect(within(screen.getByRole('list', { name: PREVIEW_COPY.heading })).getAllByRole('listitem'))
+      .toHaveLength(CAPABILITY_PREVIEW.length)
+    expect(await screen.findByRole('region', { name: 'Capture from anywhere' })).toBeInTheDocument()
     expect(document.getElementById('w14a-promo')).toHaveTextContent(PREVIEW_COPY.sampleTail)
     return { root: container }
   })
@@ -55,7 +59,7 @@ describe('capability preview -- axe', () => {
       .toHaveAccessibleDescription(new RegExp(PREVIEW_COPY.sampleLead.replace('?', '\\?')))
     // the Learn menu, open, is part of the same screen
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
-    expect(screen.getByRole('menu', { name: 'Learn: walkthroughs' })).toBeInTheDocument()
+    expect(await screen.findByRole('menu', { name: 'Learn: walkthroughs' })).toBeInTheDocument()
     return { root: container }
   })
 })
