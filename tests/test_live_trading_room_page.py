@@ -162,8 +162,9 @@ def test_the_footer_social_row_links_the_approved_accounts_with_labels():
 def test_the_owner_is_named_patrick_tsdr_everywhere():
     html = PAGE.read_text(encoding="utf-8")
     # The X handle keeps its name; every other mention carries "Patrick (TSDR)".
+    # 11 since 2026-10-11: the hero image alt names "Patrick and Bracco", as the image labels do.
     rest = html.replace("TSDR_Trading", "").replace("TSDR Trading on", "")
-    assert rest.count("TSDR") == rest.count("Patrick (TSDR)") == 12, (rest.count("TSDR"), rest.count("Patrick (TSDR)"))
+    assert rest.count("TSDR") == rest.count("Patrick (TSDR)") == 11, (rest.count("TSDR"), rest.count("Patrick (TSDR)"))
     assert "TSDR (Patrick)" not in html
     p = _parsed()
     for desc in (_meta(p, name="description"), _meta(p, property="og:description"), _meta(p, name="twitter:description")):
@@ -568,16 +569,17 @@ V4_H1 = "A live trading room run by traders who trade, and teach, every single d
 V4_INTRO = [
     "Before you join any trading room, you should see what happens inside it and meet the people "
     "who run it. Here's ours.",
-    "Every market morning, about 20 minutes before the 9:30 AM ET open, co-founders Patrick (TSDR) "
-    "and Bracco go live on Zoom. They lay out the plan and the levels, then trade the open on screen "
+    "Every market morning at 9 AM ET, half an hour before the 9:30 open, co-founders Patrick (TSDR) "
+    "and Bracco go live on Zoom. They lay out the game plan and the stocks they are watching and ready "
+    "to trade, then trade the open on screen "
     "share and talk through every decision. Around them: five traders, an options flow team, and a "
     "productive, helpful and focused main chat.",
 ]
 V4_TIMELINE = [
-    ("About 9:10 AM ET.", "The Zoom link drops in the live Zoom links channel."),
-    ("Before the open.", "Patrick (TSDR) and Bracco walk through the market, the levels and the names on their list."),
+    ("At 9 AM ET.", "The Zoom link drops in the live Zoom links channel."),
+    ("Before the open.", "Patrick (TSDR) and Bracco walk through the game plan and the stocks they are watching and ready to trade."),
     ("9:30 AM ET.", "They trade the open live on screen share and talk through each decision."),
-    ("During the day.", "Each trader posts ideas and alerts in his own channel. Options flow and news "
+    ("During the day.", "Each trader posts ideas and alerts in their own channel. Options flow and news "
                         "run all day. Questions go in main chat."),
     ("After the close.", "Every session is recorded, with a recap the same day. About 15 minutes catches you up."),
     ("The weekend.", "Sunday Scans lands with the prep for the week ahead."),
@@ -585,10 +587,10 @@ V4_TIMELINE = [
 V4_TRADERS = [
     ("Patrick (TSDR) and Bracco", "Run the morning Zoom and explain every trade, "
                         "including the ones they pass on."),
-    ("ChartMaster", "Swing trade ideas, educational workshops, and always easy to reach. Years of "
-                    "his workshops are in the library."),
+    ("Elite Swing Traders", "Swing trade ideas, educational workshops, and always easy to reach. Elite "
+                            "Swing Traders' library alone goes back years."),
     ("Alex Jones and a team of three skilled contributors", "Run our robust options flow feed."),
-    ("Manrav and Jersace", "Trade ideas and alerts, each in his own channel."),
+    ("Manrav and Jersace", "Trade ideas and alerts, each in their own channel."),
 ]
 V4_TRADERS_CLOSING = "Every trader, contributor and member is helpful, easy to reach, and happy to teach."
 V4_INSIDE = [
@@ -647,7 +649,7 @@ def test_v4_intro_is_two_locked_paragraphs_and_keeps_the_cta_lines():
     assert _blocks("p", "lede") == V4_INTRO
     hero = _norm(_hero())
     assert "Use code JOINUCT for a nice discount to join the group." in hero
-    assert "4.9 stars from 173 member reviews on Whop." in hero
+    assert "4.9 stars from 173 reviews on Whop." in hero
     assert "Join the live trading room" in hero
 
 
