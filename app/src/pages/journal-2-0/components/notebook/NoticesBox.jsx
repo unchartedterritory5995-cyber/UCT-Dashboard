@@ -1,7 +1,9 @@
 // components/notebook/NoticesBox.jsx -- Research Home's Notices (owner decision 2, 2026-10-11): the
 // desktop bell was removed by request, so resurfaced notes, task reminders and fill notices land
-// here. Folded by default; renders nothing at all when empty or when either read fails (a failed
-// read is not a quiet day, but it is also not worth a banner on the start screen).
+// here. Folded by default; renders nothing when there is nothing to show. A failed read THROWS
+// (TERM-033: never `.catch(() => null)`), so SWR holds it as an error: a read that never answered
+// shows nothing new, and a later failed poll keeps the rows the last good read returned rather
+// than blanking them (a failed read is not a quiet day, and it is not worth a banner either).
 //
 // Two reads, both the ones the bell and the Settings inbox already make:
 //   GET /api/alerts?limit=20    the member's bell rows (a bare list), filtered by lib/notices.js
@@ -19,9 +21,12 @@ import styles from './NoticesBox.module.css'
 const ALERTS_URL = '/api/alerts?limit=20'
 const INSIGHTS_URL = '/api/voice/insights'
 const POLL = Object.freeze({ revalidateOnFocus: false, shouldRetryOnError: false, refreshInterval: 120000 })
-// A failing read resolves to null, never throws into the page: the box then renders nothing.
-const get = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
-const post = (url) => fetch(url, { method: 'POST', credentials: 'include' }).catch(() => null)
+// A failing read throws; SWR keeps it as `error` and `data` stays what the last good read returned.
+async function get(url) {
+  const r = await fetch(url, { credentials: 'include' })
+  if (!r.ok) throw new Error(`${url} answered ${r.status}`)
+  return r.json()
+}
 
 export default function NoticesBox() {
   const userId = useContext(AuthContext)?.user?.id ?? null
@@ -31,11 +36,18 @@ export default function NoticesBox() {
   if (!items.length) return null
 
   // Mark it read (an alert) or dismiss it (an insight), then re-read: the row leaves because the
-  // SERVER says it is gone. A POST that never arrived leaves the row where it was.
-  const done = (n) => {
+  // SERVER says it is gone. A POST that failed or never arrived leaves the row where it was: there
+  // is nothing to re-read, and the next poll shows the server's answer either way.
+  const done = async (n) => {
     const alertRow = n.source === 'alert'
-    post(alertRow ? `/api/alerts/${encodeURIComponent(n.id)}/read` : `/api/voice/insights/${encodeURIComponent(n.id)}/dismiss`)
-      .then(() => (alertRow ? reloadAlerts() : reloadInsights()))
+    const url = alertRow ? `/api/alerts/${encodeURIComponent(n.id)}/read` : `/api/voice/insights/${encodeURIComponent(n.id)}/dismiss`
+    let ok = false
+    try {
+      ok = (await fetch(url, { method: 'POST', credentials: 'include' })).ok
+    } catch {
+      ok = false // network failure: the row stays, as above
+    }
+    if (ok) await (alertRow ? reloadAlerts() : reloadInsights())
   }
 
   return (
