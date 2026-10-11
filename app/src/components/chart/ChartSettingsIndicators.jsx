@@ -106,6 +106,9 @@ import { kindOf as definitionKindOf, copyVerdict } from './builder/definitionAct
  *  own formula under `formulas`, which `resultsForTab` already answers). */
 const YOUR_INDICATORS_TAB = Object.freeze({ key: 'formulas', label: 'Your indicators' })
 import SourceField from './SourceField'
+// FT-070 / COV-11 — save / apply indicator templates (renders nothing unless
+// VITE_INDICATOR_TEMPLATES_ENABLED=1; see IndicatorTemplatesBar.jsx).
+import IndicatorTemplatesBar from './IndicatorTemplatesBar'
 import { availableStyles, resolvePlotStyle, PLOT_STYLE_CHOICES, resolveSignColors } from './engine/presentation'
 import { ohlcCapabilityOf, outputIsSource } from './engine/ohlcCapability'
 import { anyCachedBars } from './engine/secondaryBars'
@@ -3674,6 +3677,9 @@ export default function ChartSettingsIndicators({
                 <span className={styles.insAddIndicatorPlus} aria-hidden="true">＋</span>
                 Add to Chart
               </button>
+            )}
+            {mode !== 'arrange' && (
+              <IndicatorTemplatesBar settings={settings} onChange={onChange} registry={registry} />
             )}
           </div>
         )}

@@ -31,6 +31,7 @@ import { mergeChartSettings, CHART_TYPE_OPTIONS } from '../../components/chart/c
 import { NATIVE_TFS, tfLabel as productTfLabel } from '../../components/chart/timeframes'
 import { ELIGIBLE_SETTINGS, OWNED_TOP_KEYS, settingDescriptor, coerceSettingValue, settingUnavailable, withSetting, settingValue } from '../../components/chart/chartSettingsDescriptors'
 import { CHART_DEFAULTS } from '../../components/chart/chartDefaults'
+import { chartTemplateSettings } from '../../components/chart/chartTemplateApply'
 import { makeTfCode, isValidTf, tfLabel as tfShort } from '../../components/chart/timeframes'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
 
@@ -256,8 +257,9 @@ export const chartKind = {
   },
 }
 
-// A whole-look write (template, restore defaults) with every indicator-owned top-level key carried
-// over from the chart as it is now — present keeps its value, absent stays absent (door SEVEN: a bulk
+// A whole-look write (restore defaults) with every indicator-owned top-level key carried
+// over from the chart as it is now. (chart.applyTemplate no longer uses this: it matches the click,
+// which applies the template's indicators too — see chartTemplateApply.js.) — present keeps its value, absent stays absent (door SEVEN: a bulk
 // write must never stamp indicatorInstances over what the member had).
 export function keepOwned(next, prev) {
   const out = JSON.parse(JSON.stringify(next))
@@ -573,19 +575,22 @@ const CAPABILITIES = [
     },
   },
   {
-    // ── chart.applyTemplate: the right-click "Chart template" flyout's own apply ──
-    // (ChartWidget.applyChartTemplate → paneRef.applySettings({...t.settings, preset:'custom'})),
-    // EXCEPT the indicator-owned keys (OWNED_TOP_KEYS), which stay exactly as the chart has them.
-    // A whole-look change, so it is always proposed.
+    // ── chart.applyTemplate: EXACTLY what clicking a saved template does ──
+    // (Chart Settings → Templates, and right-click → Chart template). All three doors call the
+    // ONE shared apply, `chartTemplateSettings` (chartTemplateApply.js): the template's whole
+    // saved settings, its indicators included. Integrator ruling 2026-10-11 (owner delegated):
+    // one behaviour, the one members already know from clicking; parity is asserted in
+    // agentChartTemplateParity.test.jsx. A whole-chart change, so it is always proposed, and
+    // Undo restores the chart exactly as it was, indicators included.
     name: 'chart.applyTemplate',
     risk: 'confirm',
-    summary: "Apply one of the member's saved chart templates' LOOK to ONE chart (right-click → Chart template). The chart's indicators are kept exactly as they are — UCT Agent never changes indicators.",
+    summary: "Apply one of the member's saved chart templates to ONE chart, exactly as clicking it does (Chart Settings → Templates, or right-click → Chart template): the chart takes the template's whole saved setup, its indicators included.",
     hints: 'template = a name from chartTemplates, exactly. For several charts ("all my charts"), one op per chart.',
     args: { type: 'object', properties: { template: { type: 'string' } }, required: ['template'], additionalProperties: false },
     check: (st, { template }) => (findTemplate(template) ? null
       : templatesNow().length ? `You have no chart template named “${template}” (you have: ${templatesNow().map(t => t.name).slice(0, 8).join(', ')}).` : 'You have no saved chart templates yet — save one in Chart Settings → Templates.'),
-    apply: (st, { template }) => ({ ...st, cs: keepOwned({ ...findTemplate(template).settings, preset: 'custom' }, st.cs) }),
-    describe: (b, a, { template }) => (sameJson(b.cs, a.cs) ? null : `Applied the look of your chart template “${findTemplate(template)?.name || template}” (your indicators are unchanged)`),
+    apply: (st, { template }) => ({ ...st, cs: chartTemplateSettings(findTemplate(template)) }),
+    describe: (b, a, { template }) => (sameJson(b.cs, a.cs) ? null : `Applied your chart template “${findTemplate(template)?.name || template}” (its look and its indicators, as clicking it does)`),
     noop: () => 'The chart already looks exactly like that template',
   },
   {

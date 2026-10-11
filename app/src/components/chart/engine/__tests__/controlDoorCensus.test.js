@@ -213,12 +213,15 @@ const BULK_BLOB_SITES = [
     'applyPreset — the toolbar\'s theme buttons spread a preset\'s whole settings object onto ' +
     'the persisted chart_settings'],
   ['app/src/agent/capabilities/chart.js',
-    'UCT Agent’s chart.applyTemplate / chart.resetDefaults — the right-click template flyout’s and ' +
-    'the modal Reset’s look writes (a clone of the LIVE CHART_DEFAULTS), ALWAYS shown as a proposal ' +
-    'first. NOT door seven’s hazard: keepOwned() carries every indicator-owned top-level key ' +
-    '(OWNED_TOP_KEYS from chartSettingsDescriptors — indicatorInstances, indicators, overlays, panes) ' +
-    'over from the chart unchanged, so the Agent never stamps indicator state; asserted in ' +
-    'agent/agentBatch6.test.jsx'],
+    'UCT Agent’s chart.applyTemplate / chart.resetDefaults. ⭐ chart.applyTemplate (2026-10-11 ruling) ' +
+    'is the ONE shared chartTemplateSettings apply that both click doors call — a member’s own saved ' +
+    'template, indicators included, exactly as clicking it does, always proposed first with exact Undo ' +
+    '(parity: agent/agentChartTemplateParity.test.jsx). What makes this file match the regex is ' +
+    'chart.resetDefaults — the modal Reset’s look write (a clone of the LIVE CHART_DEFAULTS), ALWAYS ' +
+    'shown as a proposal first. NOT door seven’s hazard: keepOwned() carries every indicator-owned ' +
+    'top-level key (OWNED_TOP_KEYS from chartSettingsDescriptors — indicatorInstances, indicators, ' +
+    'overlays, panes) over from the chart unchanged, so a Reset never stamps indicator state; asserted ' +
+    'in agent/agentBatch6.test.jsx'],
   ['app/src/pages/Settings.jsx',
     'applyPreset (again) + resetToDefaults — the Settings page\'s own preset / reset controls, ' +
     'the same two surfaces engineEnabledMigration.test.js already names'],
@@ -611,7 +614,7 @@ describe('the control-door census — how many doors, and whether an eighth exis
     // ⚠️ CHECKED AGAINST THE MODULE, not merely typed here. A renamed door would
     // otherwise narrow the scan to a name nothing has, and its result would mean
     // nothing at all.
-    const DOORS = ['setInstanceHidden', 'setInstanceInput', 'removeInstance', 'addInstance']
+    const DOORS = ['setInstanceHidden', 'setInstanceInput', 'removeInstance', 'addInstance', 'addInstanceCopy']
     expect(DOORS.filter(n => typeof theWriter[n] !== 'function'),
       'a per-instance door was renamed or removed — the caller scan below would then be ' +
       'looking for a name nothing has, and its result would prove nothing').toEqual([])
@@ -882,6 +885,16 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'only RECORDS what the writer changed, so the change can be verified after the ' +
        'persist and undone exactly (restoreRemoved revives the SAME ids; byte-equality ' +
        'with the UI writers is asserted in agentMutations.test.js)'],
+      ['app/src/components/chart/builder/indicatorTemplates.js',
+       '⭐ NEW AT FT-070 / COV-11 (2026-10-11) — INDICATOR TEMPLATES (Chart Settings → Indicators → ' +
+       '"Indicator templates", behind VITE_INDICATOR_TEMPLATES_ENABLED). Applying a saved template puts ' +
+       'each of its indicators on THIS chart as its OWN new instance, configured exactly as saved, ' +
+       'through addInstanceCopy — duplicateInstance’s rule for a captured body that is not on the ' +
+       'chart (addInstance builds DEFAULTS, so a template’s RSI(7) would arrive as RSI(14)). It then ' +
+       're-points a source input that read another indicator of the same template at that ' +
+       'indicator’s new copy with setInstanceInput. ⛔ IT NEVER REMOVES OR EDITS AN INSTANCE ALREADY ' +
+       'ON THE CHART, and one configured identically is reported "already on this chart" and skipped, ' +
+       'so a second apply adds nothing. Pure: the result is persisted by Chart Settings’ own onChange'],
     ]
 
     const perInstance = new RegExp('\\b(' + DOORS.join('|') + ')\\s*\\(')

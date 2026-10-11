@@ -3014,6 +3014,21 @@
       "last_changed": "never set",
       "note": "Unset and the read defaults ON (`!== '0'`), so multi-chart grid warming is live. Setting it to '0' is the kill switch."
     },
+    "VITE_INDICATOR_TEMPLATES_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-11",
+      "where": [],
+      "owner": "integrator (owner delegated) - Indicators programme",
+      "owner_decision": "not yet taken - built dark 2026-10-11 per the completion-ledger plan for COV-11 / FT-070 (a dark flag); the integrator arms it",
+      "exposure": "internal",
+      "default": "off (unset, empty, '0' and 'true' are all off; only '1' is on)",
+      "values": ["1"],
+      "railway_value": "UNSET on every service",
+      "baked_value": "undefined (never set)",
+      "baked_measured_on": "2026-10-11, from Dockerfile.web's ARG list (declared in the same commit that added the read)",
+      "last_changed": "2026-10-11T00:00:00Z",
+      "note": "Indicator templates (FT-070 / COV-11): Chart Settings -> Indicators -> 'Indicator templates' saves the indicators on a chart as a named template and adds a saved template's indicators to any chart in one click. Read in ONE place, app/src/components/chart/builder/indicatorTemplates.js::indicatorTemplatesEnabled, as `=== '1'`; a build with no import.meta.env fails CLOSED. OFF, the surface renders nothing, reads nothing and writes nothing. ON, a member's templates are stored in the server preference `indicator_templates` (allowlisted in api/routers/auth.py) and an apply writes the chart through Chart Settings' own onChange, adding copies through instanceControls.addInstanceCopy and never removing or editing an indicator already on the chart. Arming is a Railway variable on web plus a rebuild (a build constant)."
+    },
     "VITE_LAUNCH_DATE": {
       "status": "dark",
       "where": [],
