@@ -27,6 +27,8 @@ const FIX = path.join(REPO, 'tests', 'fixtures', 'vendor', 'harness')
 const rowsOf = (f) => JSON.parse(fs.readFileSync(path.join(FIX, f), 'utf8')).bars.rows
   .map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v }))
 
+// a member's chart always names its symbol (the binder's `ctx.symbol`)
+const SYM = { ticker: 'AAPL', exchange: 'NASDAQ' }
 afterEach(() => { vi.unstubAllEnvs() })
 
 describe.skipIf(!RUN)('UIE Phase 2 — runtime-only corpus scripts on three member charts (opt-in)', () => {
@@ -34,9 +36,9 @@ describe.skipIf(!RUN)('UIE Phase 2 — runtime-only corpus scripts on three memb
     const daily = rowsOf('vw-deadband-ticks-aapl-1d-2026-09-28.json')
     const five = rowsOf('vw-bar-origin-rddt-5-2026-10-02.json').slice(-19000)
     const charts = [
-      { name: 'D from listing', rows: daily, ctx: { tf: 'D', newestBarIsForming: false, historyFromListing: true } },
-      { name: 'D off listing (5,000)', rows: daily.slice(-5000), ctx: { tf: 'D', newestBarIsForming: false } },
-      { name: '5m (19,000)', rows: five, ctx: { tf: '5', newestBarIsForming: false } },
+      { name: 'D from listing', rows: daily, ctx: { tf: 'D', newestBarIsForming: false, historyFromListing: true, symbol: SYM } },
+      { name: 'D off listing (5,000)', rows: daily.slice(-5000), ctx: { tf: 'D', newestBarIsForming: false, symbol: SYM } },
+      { name: '5m (19,000)', rows: five, ctx: { tf: '5', newestBarIsForming: false, symbol: SYM } },
     ]
     const out = []
     for (const f of fs.readdirSync(CORPUS).filter((x) => x.endsWith('.pine')).sort()) {

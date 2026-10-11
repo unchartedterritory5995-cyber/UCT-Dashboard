@@ -382,8 +382,11 @@ function computeOffListing(def, rows, ctx, opts) {
   const n = rows.length
   const shift = Math.min(WARMUP_PROBE_SHIFT, Math.floor(n / 4))
   const objects = !!(def.compute && def.compute.objects === true)
-  const plain = { ...def, meta: { ...def.meta, runtimeHistory: undefined },
-    compute: objects ? { ...def.compute, objects: undefined } : def.compute }
+  // ⛔ BUILT EXACTLY AS THE DOCUMENT IS — its drawing code included. Stripping
+  // `compute.objects` builds a DIFFERENT program (the drawings' text helpers fall to
+  // the columnar lane, which refuses e.g. `str.length` in renko's labels); the
+  // drawings are withheld AFTER the run instead.
+  const plain = { ...def, meta: { ...def.meta, runtimeHistory: undefined } }
   const never = () => refusal(RUNTIME_WARMUP_GUARD, "this script is drawn bar by bar from its first bar, and "
     + "this chart's history does not start at the symbol's first bar. Run from two different first bars, "
     + "its values never came to agree, so what it would show here depends on where the chart begins, which "

@@ -7,7 +7,10 @@
 // do not depend on where the chart starts, withholds the ones before them, and refuses
 // by name a script whose state never forgets its start. The proof that matters: the
 // drawn values EQUAL the values of a run over the full history from the listing.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import {
   computeRuntimeColumns, convergedFrom, runtimeWarmupOf, RUNTIME_WARMUP_GUARD, RUNTIME_HISTORY_GUARD,
   RUNTIME_TIME_BUDGET_GUARD,
@@ -76,6 +79,28 @@ describe('⭐ a listing document off the listing: the warm-up is withheld, the r
     const got = computeRuntimeColumns(d, bars.slice(FULL - 3000), D)
     expect(runtimeWarmupOf(got).withheldBars).toBeGreaterThan(0)
     expect(runtimeObjectsWithheldOf(got).guard).toBe(RUNTIME_HISTORY_GUARD)
+  })
+
+  it('⭐ the runs are built EXACTLY as the document is — renko off the listing is judged on its warm-up, not refused for its labels', () => {
+    // ⚰️ the curtain built the program WITHOUT its drawing code, so renko's label text
+    // helper (`str.length`) fell to the columnar lane and the whole script was refused
+    // `pine:builtin` off the listing — a refusal about a program nobody runs. Built as
+    // the document is, its plots are judged on what they are: renko bricks depend on
+    // where the chart starts, so they never converge, by name.
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+    const src = fs.readFileSync(path.join(path.resolve(process.cwd(), '..'), 'corpus', 'committed',
+      fs.readdirSync(path.join(path.resolve(process.cwd(), '..'), 'corpus', 'committed'))
+        .find((f) => f.startsWith('renko-candles-overlay'))), 'utf8')
+    const built = memberPaneDefinition({ source: src, id: 'u_member-pane-renko-curtain' })
+    vi.unstubAllEnvs()
+    expect(built.ok, built.reason).toBe(true)
+    expect(built.definition.compute.objects).toBe(true)
+    let err = null
+    try {
+      computeRuntimeColumns(built.definition, bars.slice(FULL - 3000), { ...D, symbol: { ticker: 'AAPL', exchange: 'NASDAQ' } })
+    } catch (e) { err = e }
+    expect(err && err.guard).toBe(RUNTIME_WARMUP_GUARD)
   })
 
   it('⛔ the second run counts against the same pane budget, and a stop is named', () => {
