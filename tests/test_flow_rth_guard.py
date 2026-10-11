@@ -183,3 +183,29 @@ def test_concurrent_persists_of_one_name_never_collide(monkeypatch, tmp_path):
         t.join()
     assert len(set(names)) == len(names) == 4
     assert wf.persisted_json_get("board_x") is not None
+
+
+def test_the_boot_prewarm_waits_out_the_open_rush(monkeypatch):
+    """A pod that (re)boots at 09:31 must not start head-ticker builds on top of the open."""
+    monkeypatch.setenv("FLOW_SEARCH_HEAVY_PREWARM", "NVDA")
+    monkeypatch.setattr(fr, "_PREWARM_POLL_S", 0.01)
+    quiet = {"on": True}
+    built = []
+    monkeypatch.setattr(fr, "_ingest_quiet_now", lambda: quiet["on"])
+    monkeypatch.setattr(fr, "_heavy_build_now", lambda s, src: built.append(s) or "built")
+    assert fr.start_heavy_prewarm(delay_s=0) is True
+    time.sleep(0.3)
+    assert built == [], "a prewarm build started inside the open rush"
+    quiet["on"] = False
+    t = time.time()
+    while not built and time.time() - t < 5:
+        time.sleep(0.01)
+    assert built == ["NVDA"]
+
+
+def test_the_default_prewarm_names_are_the_ones_the_heavy_lane_can_build():
+    """SNDK and MU time out in node at 180 s on the pod (2026-10-11, twice): prewarming them cost
+    ~7-11 minutes of a 2 GB node build on every boot, for nothing."""
+    import inspect
+    src = inspect.getsource(fr.start_heavy_prewarm)
+    assert '"NVDA,TSLA"' in src and "SNDK" not in src.split("os.environ.get")[1].split(")")[0]

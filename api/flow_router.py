@@ -1837,13 +1837,21 @@ def heavy_search_state() -> dict:
             "budget_mb": _HEAVY_CSV_MAX_BYTES // (1024 * 1024)}
 
 
+#: How often the boot prewarm re-checks whether the open rush has passed.
+_PREWARM_POLL_S = 30.0
+
+
 def start_heavy_prewarm(delay_s: float = 120.0) -> bool:
     """After boot, make sure the configured head tickers have a current full product (from the
     persisted copy when its version still matches, else one serial build each). Gated by
-    FLOW_SEARCH_HEAVY_PREWARM ("" = off); default the four names over the member budget that
-    the heavy budget admits."""
+    FLOW_SEARCH_HEAVY_PREWARM ("" = off); default NVDA and TSLA.
+
+    ⚰️ The default was NVDA,TSLA,SNDK,MU. SNDK (510K rows) and MU (735K) both TIMED OUT in node at
+    180 s on the pod, at two boots on 2026-10-11 (after a 33-240 s read each), so every boot spent
+    7-11 minutes and a 2 GB node process on nothing. And a pod that reboots in the open rush waits
+    it out before building anything (`_ingest_quiet_now`)."""
     names = [s.strip().upper() for s in
-             os.environ.get("FLOW_SEARCH_HEAVY_PREWARM", "NVDA,TSLA,SNDK,MU").split(",") if s.strip()]
+             os.environ.get("FLOW_SEARCH_HEAVY_PREWARM", "NVDA,TSLA").split(",") if s.strip()]
     if not names:
         return False
 
@@ -1851,6 +1859,8 @@ def start_heavy_prewarm(delay_s: float = 120.0) -> bool:
         time.sleep(delay_s)
         for sym in names:
             try:
+                while _ingest_quiet_now():
+                    time.sleep(_PREWARM_POLL_S)
                 got = _heavy_build_now(sym, "stocks")
                 for _ in range(10):          # a member-triggered heavy build holds the lane
                     if got != "declined":
