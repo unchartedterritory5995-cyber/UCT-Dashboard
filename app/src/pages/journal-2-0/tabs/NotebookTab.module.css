@@ -484,11 +484,11 @@
      once covers both classes of finding. 150px clears the taller of the two
      (114px) with margin; it only pads how far the page CAN scroll, so a short
      surface is unaffected. */
-  .main { overflow: visible; padding-bottom: 150px; }
-  /* Finish pass (2026-10-10): the Journal frame already gives a phone its 24 px side gutter, and
-     the editor column adds its own for the block handles. This pane's 20 px on top of both left
-     the note body 270 px wide on a 390 px screen. */
-  .main { padding-left: 0; padding-right: 0; }
+  /* Finish pass (2026-10-10): no side padding here -- the Journal frame already gives a phone its
+     24 px side gutter, and the editor column adds its own for the block handles. This pane's 20 px
+     on top of both left the note body 270 px wide on a 390 px screen. ⛔ ONE `.main` rule in this
+     block: NotebookTab.fabOrbClearance.test.js reads the LAST one for the bottom clearance. */
+  .main { overflow: visible; padding-bottom: 150px; padding-left: 0; padding-right: 0; }
   /* Phones stack the panel above the notes when it IS shown — the slide/resize
    * affordances stay desktop-only either way. D-7 fix: it is no longer forced
    * open regardless of `collapsed` — List's own landing still shows it (its
