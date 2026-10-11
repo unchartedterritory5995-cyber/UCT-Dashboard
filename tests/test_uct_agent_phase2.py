@@ -121,3 +121,9 @@ def test_LIVE_BATCH_the_ceiling_is_checked_before_EVERY_call_and_nothing_else_is
     assert m.main() == 0
     assert len(calls) == 1
     assert ledger == [] and research == []                 # no ledger write, no research spend
+
+
+def test_PROMPT_ranking_words_are_UCTs_own_never_invented():
+    p = turn._SYSTEM_HEAD + turn._SYSTEM_TAIL
+    assert '"weakest" means lowest RS Rank' in p
+    assert "UCT Composite, the Screener's own default ranking (say so)" in p and "never a ranking of your own" in p
