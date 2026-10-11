@@ -2194,17 +2194,17 @@ def q23_board_similar(cx: Ctx, pg, m: Meter, width: str) -> dict:
     if cx.seed.get("board_nightly_error") or not cx.seed.get("board_nightly"):
         raise Inconclusive(f"setup: the nightly match run did not complete ({cx.seed.get('board_nightly_error')})")
     open_start(pg, cx.base, "/journal/notebook")
-    door = pg.get_by_role("link", name="Active setups", exact=True).filter(visible=True)
+    door = pg.get_by_role("link", name="Open the setups board", exact=True).filter(visible=True)
     try:
         door.first.wait_for(state="visible", timeout=30000)
     except Exception:  # noqa: BLE001
-        raise Inconclusive("no 'Active setups' door on Research Home")
+        raise Inconclusive("no 'Open the setups board' door (the Active setups box) on Research Home")
     if m.mode == "keys":
         # Lane KEYS3: the command palette's "Active setups" (a plain route). Before: 4 Tabs to
         # Research Home's skip link, Enter, 5 Tabs past the reviews box to the board's link.
         palette_command(m, "active setups", r"^Active setups$", "Active setups")
     else:
-        m.press(door, "Active setups")
+        m.press(door, "Open the setups board")
     try:
         pg.wait_for_url("**/journal/notebook/setups", timeout=20000)
         pg.get_by_role("heading", name="Active setups").wait_for(state="visible", timeout=60000)

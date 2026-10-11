@@ -220,6 +220,10 @@ export const SURFACES = Object.freeze({
   // P0.4: Research Home's Notices box. ResearchHome's own rail renders no signed-in member, and the
   // box reads nothing without one; a11y/notices.a11y.test.jsx reads it closed and OPEN, with rows.
   'components/notebook/NoticesBox.jsx': { recipe: 'notices-box' },
+  // P0.5: Research Home's Active setups box. ResearchHome's own rail runs with the setups board switch
+  // off (so the box is not on screen there); a11y/setupsBox.a11y.test.jsx reads it with a count,
+  // with none open, and with the read failed.
+  'components/notebook/SetupsBox.jsx': { recipe: 'setups-box' },
   'components/notebook/ResearchHome.jsx': {
     OTHER_LANES: { lane: '8C', railFile: 'components/notebook/ResearchHome.a11y.test.jsx' },
   },

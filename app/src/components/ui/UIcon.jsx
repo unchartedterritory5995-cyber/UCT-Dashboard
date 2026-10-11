@@ -371,6 +371,7 @@ const ICONS = {
   chevronDown: <path d="M6 9.5l6 6 6-6" />,
   chevronUp: <path d="M6 14.5l6-6 6 6" />,
   chevronRight: <path d="M9.5 6l6 6-6 6" />,
+  chevronLeft: <path d="M14.5 6l-6 6 6 6" />,
   compass: (
     <>
       <circle cx="12" cy="12" r="8.5" />

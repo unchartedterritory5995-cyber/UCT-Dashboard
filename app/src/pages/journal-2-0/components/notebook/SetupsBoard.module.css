@@ -9,6 +9,20 @@
   max-width: 1400px;
   box-sizing: border-box;
 }
+/* P0.5: the way back to the Notebook home, above the title. A quiet text link, not a button. */
+.backLink {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.backLink:hover {
+  color: var(--text-bright);
+  text-decoration: underline;
+}
 .pageTitle {
   margin: 0;
   font-size: 20px;
@@ -244,8 +258,12 @@
 @media (max-width: 1024px) {
   .action,
   .allFields summary,
+  .backLink,
   .noteLink {
     min-height: var(--tap-min, 44px);
+  }
+  .backLink {
+    min-width: var(--tap-min, 44px);
   }
   .noteLink {
     display: inline-flex;

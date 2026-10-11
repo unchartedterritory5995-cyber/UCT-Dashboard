@@ -8,6 +8,9 @@ import { notebookFlag } from './offline/notebookFlags'
 
 export const SETUPS_BOARD_FLAG = 'notebook_setups_board_enabled'
 export const SETUPS_BOARD_PATH = '/journal/notebook/setups'
+/** The board's read (`GET`), shared by the page and by Research Home's Active setups box, which
+ *  counts the open plans from the same answer. One authority for the URL. */
+export const BOARD_URL = '/api/j2/setups-board'
 
 /** The gate, as the auth payload latched it for this tab (absent = OFF). */
 export function setupsBoardEnabled() {
