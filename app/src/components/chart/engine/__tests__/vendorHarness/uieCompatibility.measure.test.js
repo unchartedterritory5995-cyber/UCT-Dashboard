@@ -39,6 +39,8 @@ describe.skipIf(!RUN)('UIE Phase 2 — runtime-only corpus scripts on three memb
       { name: 'D from listing', rows: daily, ctx: { tf: 'D', newestBarIsForming: false, historyFromListing: true, symbol: SYM } },
       { name: 'D off listing (5,000)', rows: daily.slice(-5000), ctx: { tf: 'D', newestBarIsForming: false, symbol: SYM } },
       { name: '5m (19,000)', rows: five, ctx: { tf: '5', newestBarIsForming: false, symbol: SYM } },
+      // ⭐ UIE PHASE 3 (M2) — a full intraday load, under the raised HISTORY ceiling
+      { name: '5m (32,000)', rows: [...five.slice(0, 32000 - five.length).map((b) => ({ ...b, t: b.t - (five[five.length - 1].t - five[0].t + 300) })), ...five].slice(-32000), ctx: { tf: '5', newestBarIsForming: false, symbol: SYM } },
     ]
     const out = []
     for (const f of fs.readdirSync(CORPUS).filter((x) => x.endsWith('.pine')).sort()) {
