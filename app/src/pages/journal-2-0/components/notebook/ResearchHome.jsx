@@ -205,14 +205,25 @@ export const RECENT_NOTES_SHOWN = 5
 // with it and takes the cursor), and while the panel's search is open `hidden` is true and this box
 // is not drawn at all -- one search on screen at a time. The panel reports "searching" up through
 // NotebookTab, which passes it back down here as `searchActive`.
+//
+// Fix round 1: the router commits a navigation in a transition, so this box stays live for a frame
+// or two after the first keystroke and fast typing fires several changes before it steps aside. The
+// FIRST hand-off is a normal push (Back returns to the Notebook home); every later one while this
+// box is still on screen REPLACES that entry and carries the full text typed so far, so Back never
+// lands on stale `#search` entries and the panel is seeded with all of it. The flag resets whenever
+// the box steps aside or comes back (the component stays mounted while `hidden`).
 export function HomeSearch({ hidden = false }) {
   const navigate = useNavigate()
+  const handedOff = useRef(false)
+  useEffect(() => { handedOff.current = false }, [hidden])
   if (hidden) return null
   return (
     <input type="search" className={styles.searchBox} data-home-search="" aria-label="Search your notes"
       placeholder="Search your notes" autoComplete="off"
       onChange={(e) => {
-        if (e.target.value) navigate(`/journal/notebook${NOTEBOOK_SEARCH_HASH}`, { state: { q: e.target.value } })
+        if (!e.target.value) return
+        navigate(`/journal/notebook${NOTEBOOK_SEARCH_HASH}`, { state: { q: e.target.value }, replace: handedOff.current })
+        handedOff.current = true
       }} />
   )
 }

@@ -1001,6 +1001,28 @@ describe('NotebookTab — P0.13 search in place', () => {
     expect(sidebarProps.every((p) => typeof p.onSearchModeChange === 'function')).toBe(true)
   })
 
+  // Fix round 1: fast typing in Home's box is one PUSH then REPLACE navigations carrying the
+  // growing text. A replace changes `location.key`, so the tab re-reads the door and the panel is
+  // seeded with the LATEST text, not just the first character.
+  it('a replace navigation on the door re-seeds the panel with the latest text', async () => {
+    let nav
+    function NavProbe() { nav = useNavigate(); return null }
+    render(
+      <MemoryRouter initialEntries={['/journal/notebook']}>
+        <NotebookTab />
+        <NavProbe />
+      </MemoryRouter>,
+    )
+    await screen.findByTestId('research-home')
+    act(() => nav('/journal/notebook#search', { state: { q: 'n' } }))
+    await waitFor(() => expect(lastSidebarProps().searchSeed).toBe('n'))
+    const first = lastSidebarProps().searchRequest
+    act(() => nav('/journal/notebook#search', { replace: true, state: { q: 'nv' } }))
+    act(() => nav('/journal/notebook#search', { replace: true, state: { q: 'nvda' } }))
+    await waitFor(() => expect(lastSidebarProps().searchSeed).toBe('nvda'))
+    expect(lastSidebarProps().searchRequest).toBeGreaterThan(first)
+  })
+
   it('an unrelated re-render keeps the seed and the request the door set', async () => {
     renderAt({ pathname: '/journal/notebook', hash: '#search', state: { q: 'nvda' } })
     await screen.findByTestId('folder-sidebar')

@@ -2265,6 +2265,9 @@ describe('FolderSidebar: P0.13 search in place', () => {
 // request and a seed, the panel reporting its mode into a setter the Home box reads -- and
 // counts commits across opening the search, typing in it, and leaving it.
 describe('FolderSidebar + Home search: H14, a bounded number of renders across a search open/close', () => {
+  // ⚠️ BOUND is deliberately LOOSE: it only catches a runaway (hundreds of commits). The real loop
+  // catch is the exact `modeCalls` assertion below -- a callback in the effect's deps, or a report
+  // per render, changes that list immediately, long before the commit count gets near this number.
   const BOUND = 30
   let sideCommits
   let homeCommits
