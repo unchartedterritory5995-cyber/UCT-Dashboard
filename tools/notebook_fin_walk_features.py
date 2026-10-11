@@ -33,7 +33,7 @@ import notebook_w13h2_walk as h2  # noqa: E402
 PW = "LocalTest2026!"
 SAMPLE_SYMS = ["AAPL", "MSFT", "NVDA", "GOOGL", "TSLA", "AMZN"]
 ORDER = ["firstrun", "sample", "examples", "checklist", "offer", "gallery", "formulas", "chartplan", "positions", "board1",
-         "transcript", "passed", "child", "resurface", "board2", "trades", "grading", "earnings", "discipline",
+         "transcript", "passed", "child", "resurface", "thesischips", "board2", "trades", "grading", "earnings", "discipline",
          "vplaybook", "playbook", "reviews", "nokey", "layout", "tours1280", "tours820", "tours390", "whysave", "remove"]
 
 CHECKLIST_JS = """() => { const hd = [...document.querySelectorAll('h3')].find(e => e.textContent.trim() === 'Get started');
@@ -118,6 +118,12 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
            email=S["c2_email"], off=[k for k, v in flags.items() if not v], shot=False)
 
     def run(name, fn):
+        if name not in ORDER:
+            # A step that is not registered would be skipped in silence and its check would never
+            # appear in the record -- neither PASS nor FAIL (it happened to `thesischips`,
+            # 2026-10-10). Say so instead.
+            C.step(None, inst, name, "step is not registered in ORDER, so it never ran", "FAIL", shot=False)
+            return
         if name not in steps:
             return
         try:
