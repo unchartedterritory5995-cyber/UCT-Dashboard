@@ -117,6 +117,16 @@ REGISTRY: tuple[Retention, ...] = (
               prunes=("tweets",),
               sweeps=("api.services.tweet_cleanup:run_cleanup",),
               path="api.services.tweet_store:_DB_PATH"),
+    Retention("buzz", "buzz.db", MEMBER,
+              "FT-080 (owner ruling 2026-10-11): ticker-mention rows (no text) are kept "
+              "indefinitely; social_posts (the text of counted #main-chat messages plus an "
+              "auto-labelled polarity, and label-only rows for X posts) are kept "
+              "SOCIAL_TEXT_RETENTION_DAYS (default 90) and swept by the buzz poll, flag or no "
+              "flag; an X post removed by the X deletion-sync is dropped here too",
+              prunes=("social_posts",),
+              sweeps=("api.services.buzz_store:prune_posts",
+                      "api.services.buzz_store:delete_posts"),
+              path="api.services.buzz_store:db_path"),
     Retention("rss_series", "rss_series.db", NOT_MEMBER,
               "TERM-014 RSS samples: newest 400 rows and nothing older than 90 days (OBS-5)",
               prunes=("rss_samples",),

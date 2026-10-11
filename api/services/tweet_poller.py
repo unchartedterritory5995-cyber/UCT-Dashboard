@@ -66,6 +66,14 @@ def poll_account(handle: str) -> dict:
                 primary = None
             tweet_store.upsert_tweet(tweet, tickers, primary)
             summary["stored"] += 1
+            # FT-080: label (never copy the text of) the tweet for the polarity
+            # split. A no-op while SOCIAL_POLARITY_ENABLED is off; never fatal.
+            try:
+                from api.services import social_polarity
+                social_polarity.record_tweet(tweet, tickers, primary)
+            except Exception:
+                logger.exception("[tweet_poll] %s tweet %s polarity label failed",
+                                 handle, tweet.get("id"))
             # Track the lexicographically/numerically largest id (Twitter ids
             # are numerically increasing; str compare for safety on bigints)
             tid = str(tweet.get("id"))

@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after TERM-018 went live): not complete.** 269 of 279 rows are `live` or `moot`; 10 are not (2 `dark`, 5 `building`, 3 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after the FT-080 polarity build, waiting on its flag): not complete.** 269 of 279 rows are `live` or `moot`; 10 are not (3 `dark`, 5 `building`, 2 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,10 +34,10 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-11 after TERM-018 went live:
+Printed 2026-10-11 after the FT-080 polarity build moved that row to dark:
 
 ```
-279 Counter({'live': 229, 'moot': 40, 'building': 5, 'owner-blocked': 3, 'dark': 2})
+279 Counter({'live': 229, 'moot': 40, 'building': 5, 'dark': 3, 'owner-blocked': 2})
 0 duplicate ids
 ```
 
@@ -54,9 +54,9 @@ The per-section split is the same regex applied to each `## ` section:
 | 3 TERM-001..093 | 93 | 82 | 2 | 2 | 1 | 6 |
 | 4 BRK-01..10 | 10 | 9 | 0 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 8 | 0 | 1 | 0 | 3 |
-| 6 FT-001..080 | 80 | 68 | 0 | 1 | 2 | 9 |
+| 6 FT-001..080 | 80 | 68 | 1 | 1 | 1 | 9 |
 | 7 Untracked promises | 58 | 49 | 0 | 0 | 0 | 9 |
-| **total** | **279** | **229** | **2** | **5** | **3** | **40** |
+| **total** | **279** | **229** | **3** | **5** | **2** | **40** |
 
 `building` by lane: P 3 · Indicators 2.
 
@@ -312,7 +312,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `FT-077` | Level II / T&S | `moot (as COV-08)` | ➜ 2026-10-07: S-1 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-078` | Candlestick pattern detection | `moot (decided 2026-10-07: toggle stays off; Pattern-Lab pause stands)` | Overlay mounted (`app/src/components/StockChart.jsx:19753`), but the toolbar toggle is dead code (`app/src/components/chart/ChartToolbar.jsx:1431`, `{false && …}`). ➜ 2026-10-07: F-5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
 | `FT-079` | Chart-pattern auto-labelling | `moot (as FT-078)` | Fibonacci patterns would be agent-buildable afterwards. ➜ 2026-10-07: F-5 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
-| `FT-080` | Social-sentiment overlay | `owner-blocked (one ruling: may message text be kept, so posts can carry a polarity)` | Mention series armed on web 2026-10-04 (`a046f7d9f`) (`MENTION_SERIES_ENABLED`, `docs/feature_flags.json:2066`); TWT (X/Twitter chatter) answered live 2026-10-09. Polarity needs the owner to reverse the "no message text kept" rule (`buzz_store.py:3`); the 2026-10-07 sweep did not rule on it. Was `dark`. |
+| `FT-080` | Social-sentiment overlay | `dark` | Mention series armed on web 2026-10-04 (`a046f7d9f`) (`MENTION_SERIES_ENABLED`); TWT (X/Twitter chatter) answered live 2026-10-09. Owner ruling 2026-10-11 (Patrick, in chat) reversed the "no message text kept" rule: "store text but allow sorting, one week, one month etc." Polarity is built behind `SOCIAL_POLARITY_ENABLED` (default off, `docs/feature_flags.json`): counted #main-chat text kept 90 days (`SOCIAL_TEXT_RETENTION_DAYS`) with an auto-label (`api/services/social_polarity.py`), X posts label-only, `GET /api/research/mention-series/{sym}/polarity?window=1w|1m|3m`, and the 1W/1M/3M split plus a sortable post list on Room attention. Arming the flag on web is the step left. Was `owner-blocked`. |
 
 ## 7. Untracked promises (scope audit §2; no TERM / RM / FT / COV / BRK row before this file)
 

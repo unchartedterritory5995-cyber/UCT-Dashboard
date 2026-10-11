@@ -7,14 +7,17 @@ import { usePanelFreshness } from '../../../components/terminal/terminalPanel'
 import PanelCommand from '../../../components/terminal/PanelCommand'
 import { formatPercentAsSent } from '../../../lib/presentation/presentationPrimitives'
 import SwitchedOff, { isSwitchedOff } from '../SwitchedOff'
+import SocialPolarity from './SocialPolarity'
 
 // FT-080 — room attention per ticker, from the /buzz mention store. A research
 // panel, not a chart overlay. DARK behind MENTION_SERIES_ENABLED.
 //
 // ⛔ A day before the store existed, or a day the whole room was silent, is "—",
 //    never 0.
-// ⛔ Polarity (positive/negative) is unavailable and the panel says why: the
-//    store keeps no message text by design.
+// ⛔ Polarity (bullish/bearish): owner ruling 2026-10-11 reversed the "no message
+//    text kept" rule. While SOCIAL_POLARITY_ENABLED is on the payload says
+//    `polarity.state === 'available'` and the auto-labelled split + sortable posts
+//    render below (SocialPolarity.jsx); otherwise the panel says why it is absent.
 
 const num = (v) => (v == null ? '—' : String(v))
 const LABEL = { before_store: 'before the store', room_silent: 'room silent' }
@@ -73,7 +76,9 @@ export default function MentionSeriesPanel({ sym }) {
             </tbody>
           </table>
         </div>
-        <p className={styles.muted} data-testid="mentions-polarity">Positive/negative sentiment: unavailable, because {memberText(data.polarity?.reason)}.</p>
+        {data.polarity?.state === 'available'
+          ? <SocialPolarity sym={s} polarity={data.polarity} />
+          : <p className={styles.muted} data-testid="mentions-polarity">Positive/negative sentiment: unavailable, because {memberText(data.polarity?.reason)}.</p>}
         <p className={styles.muted}>Source: {memberText(data.source)}.</p>
       </div>
     )

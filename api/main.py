@@ -997,6 +997,15 @@ def _buzz_poll() -> None:
                          ch, out["fetched"], out["rows"])
     except Exception as e:  # noqa: BLE001 - never take the scheduler down
         log.warning("[buzz] poll error: %s", e)
+    # FT-080 retention sweep for the stored post text (SOCIAL_TEXT_RETENTION_DAYS).
+    # Flag-independent and throttled inside (at most every 6 h); never raises.
+    try:
+        from api.services import social_polarity
+        n = social_polarity.maybe_prune()
+        if n:
+            log.info("[buzz] pruned %d social post row(s) past retention", n)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[buzz] social post prune error: %s", e)
     # ⛔ The digest's catch-up rides the poll rather than getting its own job.
     # The cron jobs live in an IN-MEMORY store, so a pod that restarts across a
     # checkpoint never schedules that fire at all -- misfire_grace_time cannot
