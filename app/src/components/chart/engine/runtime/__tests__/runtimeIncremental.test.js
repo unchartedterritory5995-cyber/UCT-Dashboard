@@ -181,3 +181,19 @@ describe('⛔ when the session must NOT be reused', () => {
     expect(incOf(runaway, rows, ctx).err).toBe('runtime:limit')
   })
 })
+
+describe('⛔ the sessions are bounded', () => {
+  it('many indicators on many charts: never more than the count cap or the byte budget, and the oldest go first', async () => {
+    const { runtimeSessionStats } = await import('../runtimeColumns.js')
+    resetRuntimeSessions()
+    const rows = makeBars(2000)
+    for (let k = 0; k < 30; k += 1) {
+      const d = { ...doc(`var float x = na\nx := na(x) ? close : 0.9 * x + 0.1 * close + ${k}\nplot(x)\nplot(x - close)\n`, { listing: true }), id: `inc${k}` }
+      incOf(d, rows, { tf: '5', newestBarIsForming: true, historyFromListing: true })
+      const s = runtimeSessionStats()
+      expect(s.sessions).toBeLessThanOrEqual(s.cap)
+      expect(s.approxBytes).toBeLessThanOrEqual(s.byteCap)
+    }
+    expect(runtimeSessionStats().sessions).toBe(12)
+  })
+})

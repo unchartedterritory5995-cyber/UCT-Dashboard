@@ -551,9 +551,35 @@ function computeOffListing(def, rows, ctx, opts) {
 // state, so a tick's writes never accumulate. Sessions are few and bounded
 // (`SESSION_CAP`, oldest dropped); `opts.incremental === false` opts a run out.
 const SESSION_CAP = 12
+/** ⭐ …and BYTES (an estimate, `sessionBytes`): measured, one session on 20,208 bars holds
+ *  3-32 MB (the precomputed columns dominate), so a count alone could hold hundreds of
+ *  MB in the worker. Over the budget the oldest go; one bigger than half of it is not
+ *  kept at all — that script simply runs in full on every update, as before. */
+const SESSION_BYTE_CAP = 64 * 1024 * 1024
 const _sessions = new Map()
+const lenOf = (x) => (x && typeof x.length === 'number' ? x.length : 0)
+function sessionBytes(s) {
+  let bytes = 48 * (s.rows ? s.rows.n : 0)
+  for (const c of (s.program && s.program.columns) || []) bytes += 8 * lenOf(c)
+  const cp = s.checkpoint
+  if (cp) {
+    for (const o of cp.outputs || []) bytes += 8 * lenOf(o)
+    bytes += 16 * (lenOf(cp.persist) + lenOf(cp.hist) + lenOf(cp.held)) + 8 * (lenOf(cp.carState) + lenOf(cp.car2State))
+    for (const it of cp.iters || []) bytes += 16 * lenOf(it)
+    if (cp.store) bytes += 256 * lenOf(cp.store.live)
+  }
+  return bytes
+}
 /** Drop every session (tests; a host that wants a cold start). */
 export function resetRuntimeSessions() { _sessions.clear() }
+/** ⭐ What the sessions hold (diagnostics, the resource measurement): how many, and an
+ *  ESTIMATE of their bytes — 8 a number (bars, columns, outputs, numeric state), 16 an
+ *  array element, plus 256 a live drawing. */
+export function runtimeSessionStats() {
+  let bytes = 0
+  for (const s of _sessions.values()) bytes += s.bytes
+  return { sessions: _sessions.size, cap: SESSION_CAP, byteCap: SESSION_BYTE_CAP, approxBytes: bytes }
+}
 const rowsSnapshot = (rows) => {
   const n = rows.length
   const out = { n, t: new Float64Array(n), o: new Float64Array(n), h: new Float64Array(n), l: new Float64Array(n),
@@ -757,8 +783,18 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   if (sessionKey) {
     const checkpoint = res.checkpoint || (resumeFrom && resumeFrom.bar <= lastConfirmed ? resumeFrom : null)
     _sessions.delete(sessionKey)
-    _sessions.set(sessionKey, { rows: rowsSnapshot(rows), program: runProgram, checkpoint })
-    while (_sessions.size > SESSION_CAP) _sessions.delete(_sessions.keys().next().value)
+    const next = { rows: rowsSnapshot(rows), program: runProgram, checkpoint }
+    next.bytes = sessionBytes(next)
+    if (next.bytes <= SESSION_BYTE_CAP / 2) {
+      _sessions.set(sessionKey, next)
+      let total = 0
+      for (const s of _sessions.values()) total += s.bytes
+      while (_sessions.size > SESSION_CAP || total > SESSION_BYTE_CAP) {
+        const oldest = _sessions.keys().next().value
+        total -= _sessions.get(oldest).bytes
+        _sessions.delete(oldest)
+      }
+    }
   }
   const out = {}
   for (const [plotKey, index] of Object.entries(outputs)) {
