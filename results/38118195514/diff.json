@@ -1,0 +1,252 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 15,
+    "fixed": 2,
+    "unchanged": 262,
+    "missing": 0,
+    "baseline": 264,
+    "current": 277,
+    "current_ran": 42969,
+    "new_flaky": 0,
+    "flaky_size": 11,
+    "flaky_new": 1,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 3,
+    "new_unattributed": 12
+  },
+  "arithmetic": "baseline 264 = unchanged 262 + fixed 2 + missing 0  |  current 277 = unchanged 262 + new 15 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "38066388684",
+  "current_run_id": "38118195514",
+  "baseline_sha": "a6282df658f3c6d8166b2590959d16af03ef3f3f",
+  "current_sha": "665b4ffc35e36c8857a4a1b32ecd9b6be61f3332",
+  "commit_range": "a6282df658f3c6d8166b2590959d16af03ef3f3f..665b4ffc35e36c8857a4a1b32ecd9b6be61f3332",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_calendar_week_post|test_unmarked_rows_render_byte_identical_to_before_the_marks",
+    "pytest|tests.test_canonical_address_book|test_every_breadth_METRIC_KEY_is_addressed_and_no_extras_appear",
+    "pytest|tests.test_canonical_address_book|test_the_book_agrees_with_breadth_metrics_py_about_each_SENTENCE",
+    "pytest|tests.test_canonical_address_book|test_the_checked_in_book_IS_what_the_declarations_derive",
+    "pytest|tests.test_fmp_guard_census|test_real_repo_has_zero_unquarantined_violations",
+    "pytest|tests.test_member_interest_surfaces|test_each_gate_is_declared_dark_in_the_ledger",
+    "pytest|tests.test_notebook_earnings_prep|test_the_import_graph_never_reaches_alphavantage_or_the_recap_generator",
+    "pytest|tests.test_notebook_switch_rehearsal|test_every_notebook_gate_is_rehearsed_or_carries_a_reason",
+    "pytest|tests.test_notebook_transcript_capture|test_the_import_graph_never_reaches_alphavantage",
+    "pytest|tests.test_options_l3|test_the_new_flags_are_declared_dark_in_the_ledger",
+    "pytest|tests.test_skill_whitelist|test_the_committed_whitelist_is_exactly_what_the_route_table_generates",
+    "pytest|tests.test_term013_bars_rail_reader|test_the_page_flag_is_declared_in_the_ledger_as_dark",
+    "pytest|tests.test_terminal_next_kill_switch|test_every_frontend_gate_answers_from_the_payload_the_switch_empties",
+    "pytest|tests.test_yf_guard_binds|test_every_yfinance_module_has_a_binding_proof_or_a_named_reason"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_term048_watchlist_alerts_s7|test_FLAG_ON_a_second_checker_that_saw_the_row_armed_delivers_NOTHING",
+    "pytest|tests.test_term048_watchlist_alerts_s7|test_the_bell_carries_ONE_entry_and_no_S7_reconstruction"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/research/sections/CatalystsSection.test.jsx|CatalystsSection > shows the finding state while catalysts generate and lands on its own (polls)",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/charts/widgets/IndexesWidget.test.jsx|CONTROL \u2014 the toast rail fails when the door says nothing",
+    "vitest|src/pages/journal-2-0/components/notebook/CaptureHost.test.jsx|capture preserves the member context (\u00a75/\u00a720) > closing returns the dialog to nothing",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a6282df65..665b4ffc3 touched tests/test_bars_server_include_today.py or anything it imports"
+    },
+    "pytest|tests.test_calendar_week_post|test_unmarked_rows_render_byte_identical_to_before_the_marks": {
+      "class": "test-file-change",
+      "commits": [
+        "07157b89d"
+      ],
+      "workstreams": [
+        {
+          "commit": "07157b89d",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_canonical_address_book|test_every_breadth_METRIC_KEY_is_addressed_and_no_extras_appear": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a6282df65..665b4ffc3 touched tests/test_canonical_address_book.py or anything it imports"
+    },
+    "pytest|tests.test_canonical_address_book|test_the_book_agrees_with_breadth_metrics_py_about_each_SENTENCE": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a6282df65..665b4ffc3 touched tests/test_canonical_address_book.py or anything it imports"
+    },
+    "pytest|tests.test_canonical_address_book|test_the_checked_in_book_IS_what_the_declarations_derive": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a6282df65..665b4ffc3 touched tests/test_canonical_address_book.py or anything it imports"
+    },
+    "pytest|tests.test_fmp_guard_census|test_real_repo_has_zero_unquarantined_violations": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a6282df65..665b4ffc3 touched tests/test_fmp_guard_census.py or anything it imports"
+    },
+    "pytest|tests.test_member_interest_surfaces|test_each_gate_is_declared_dark_in_the_ledger": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a6282df65..665b4ffc3 touched tests/test_member_interest_surfaces.py or anything it imports"
+    },
+    "pytest|tests.test_notebook_earnings_prep|test_the_import_graph_never_reaches_alphavantage_or_the_recap_generator": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a6282df65..665b4ffc3 touched tests/test_notebook_earnings_prep.py or anything it imports"
+    },
+    "pytest|tests.test_notebook_switch_rehearsal|test_every_notebook_gate_is_rehearsed_or_carries_a_reason": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a6282df65..665b4ffc3 touched tests/test_notebook_switch_rehearsal.py or anything it imports"
+    },
+    "pytest|tests.test_notebook_transcript_capture|test_the_import_graph_never_reaches_alphavantage": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a6282df65..665b4ffc3 touched tests/test_notebook_transcript_capture.py or anything it imports"
+    },
+    "pytest|tests.test_options_l3|test_the_new_flags_are_declared_dark_in_the_ledger": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a6282df65..665b4ffc3 touched tests/test_options_l3.py or anything it imports"
+    },
+    "pytest|tests.test_skill_whitelist|test_the_committed_whitelist_is_exactly_what_the_route_table_generates": {
+      "class": "imported-file-change",
+      "commits": [
+        "5d1e73c34",
+        "acd093255",
+        "25bab1588",
+        "e143cfe43",
+        "a04afc118"
+      ],
+      "workstreams": [
+        {
+          "commit": "5d1e73c34",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "acd093255",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "25bab1588",
+          "workstream": "f-int3",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "e143cfe43",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "a04afc118",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_term013_bars_rail_reader|test_the_page_flag_is_declared_in_the_ledger_as_dark": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a6282df65..665b4ffc3 touched tests/test_term013_bars_rail_reader.py or anything it imports"
+    },
+    "pytest|tests.test_terminal_next_kill_switch|test_every_frontend_gate_answers_from_the_payload_the_switch_empties": {
+      "class": "imported-file-change",
+      "commits": [
+        "5d1e73c34",
+        "acd093255",
+        "25bab1588",
+        "e143cfe43",
+        "a04afc118"
+      ],
+      "workstreams": [
+        {
+          "commit": "5d1e73c34",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "acd093255",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "25bab1588",
+          "workstream": "f-int3",
+          "confidence": "merge",
+          "ours": false
+        },
+        {
+          "commit": "e143cfe43",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "a04afc118",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_yf_guard_binds|test_every_yfinance_module_has_a_binding_proof_or_a_named_reason": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a6282df65..665b4ffc3 touched tests/test_yf_guard_binds.py or anything it imports"
+    },
+    "pytest|tests.test_term048_watchlist_alerts_s7|test_FLAG_ON_a_second_checker_that_saw_the_row_armed_delivers_NOTHING": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a6282df65..665b4ffc3 touched tests/test_term048_watchlist_alerts_s7.py or anything it imports"
+    },
+    "pytest|tests.test_term048_watchlist_alerts_s7|test_the_bell_carries_ONE_entry_and_no_S7_reconstruction": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in a6282df65..665b4ffc3 touched tests/test_term048_watchlist_alerts_s7.py or anything it imports"
+    }
+  }
+}
