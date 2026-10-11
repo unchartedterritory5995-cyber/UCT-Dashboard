@@ -63,29 +63,23 @@ function resolveName(entries, phrase) {
   return hits.length === 1 ? hits[0] : null
 }
 
-// OPENING only (never rename / delete / save): "my trading layout" → the ONE saved layout whose
-// name holds every word ("Main Trading"). Exact names win; two candidates → null (the model asks).
-function resolveForOpen(entries, phrase) {
-  const exact = resolveName(entries, phrase) || (/ layout$/.test(phrase) ? resolveName(entries, phrase.replace(/ layout$/, '')) : null)
-  if (exact) return exact
-  const words = norm(phrase).replace(/ layout$/, '').split(' ').filter(w => w.length >= 3)
-  if (!words.length) return null
-  const hits = entries.filter(e => { const n = ` ${norm(e.name)} `; return words.every(w => n.includes(` ${w} `)) })
-  return hits.length === 1 ? hits[0] : null
-}
-
-// The phrases a member uses for a layout by its words ("switch to my trading layout", "can you
-// pull up the swing layout please") → the ONE layout `resolveForOpen` names for each; exactly one
-// distinct layout across them, else null. The SAME rule as the fast path (opening only): a
-// "<words> layout" phrase, never a bare word.
-export function namedLayoutOf(entries, message) {
-  const text = norm(message).replace(/[.!?,;:]+/g, ' ')
-  const hits = new Map()
-  for (const m of text.matchAll(/\b(?:my|the|our) ([a-z0-9][a-z0-9 &+-]*?) layout\b/g)) {
-    const hit = resolveForOpen(entries || [], `${m[1]} layout`)
-    if (hit) hits.set(String(hit.id), hit)
-  }
-  return hits.size === 1 ? [...hits.values()][0] : null
+/**
+ * The layouts the member's words can mean, for OPENING ONLY (rename / delete / save keep the exact
+ * name): an id or an exact name → that one; otherwise EVERY layout whose name holds all the words
+ * ("my trading layout" → "Main Trading"; with "Day Trading" too → both). [] = none. The caller
+ * decides: one opens, several are asked about with the real names, none is refused.
+ */
+export function layoutCandidates(entries, phrase) {
+  const p = String(phrase ?? '').trim()
+  if (!p) return []
+  const byId = entries.filter(e => String(e.id) === p)
+  if (byId.length) return byId
+  const bare = p.replace(/^(?:my|the|our)\s+/i, '')
+  const exact = resolveName(entries, bare) || (/ layout$/i.test(bare) ? resolveName(entries, bare.replace(/ layout$/i, '')) : null)
+  if (exact) return [exact]
+  const words = norm(bare).replace(/ layout$/, '').split(' ').filter(w => w.length >= 3)
+  if (!words.length) return []
+  return entries.filter(e => { const n = ` ${norm(e.name)} `; return words.every(w => n.includes(` ${w} `)) })
 }
 
 function snapshotOf(host) {
@@ -242,20 +236,15 @@ export function registerLayoutCapabilities() {
 
   registerContextProvider({
     key: 'layouts',
-    build: (host, refFor, { message } = {}) => {
+    build: (host, refFor) => {
       const s = snapshotOf(host)
       if (!s) return undefined
-      const named = namedLayoutOf(s.entries, message)
       return [{
         ref: refFor('layouts', 'layouts'), label: 'Layouts',
         open: s.active ? { id: String(s.active.id), name: s.active.name } : null,
         // Switching away would discard edits on the board (it is not one of the member's own layouts).
         unsavedChanges: s.unsaved,
         layouts: s.entries.slice(0, 80).map(e => ({ id: String(e.id), name: e.name, kind: KIND_WORD[e.kind] || e.kind })),
-        // ⭐ Stabilization (2026-10-11): the ONE layout the member's "my/the <words> layout" names, by the
-        // fast path's own rule (`resolveForOpen`) — so a model-planned open defaults exactly like the
-        // instant one. Absent when no phrase, no layout, or several layouts fit (then the model asks).
-        ...(named ? { namedInRequest: { id: String(named.id), name: named.name } } : {}),
       }]
     },
   })
@@ -303,9 +292,8 @@ export function registerLayoutCapabilities() {
     exclusive: true,
     exclusiveReason: 'Opening a layout replaces the whole board, so do it in two steps: open the layout first, then ask for the changes.',
     summary: 'Open (switch to) one of the member\'s named layouts on the Charts workspace — exactly like clicking it in the Layout Dock.',
-    hints: 'target = the ref of the layouts entry; layout = the id of one entry in its `layouts` list (never invent one). '
-      + 'If the layouts entry has `namedInRequest`, the member\'s words name exactly that layout: open it, do not ask. '
-      + 'Otherwise, if more than one layout could be what the member means, or none matches, clarify with the real names instead of guessing. '
+    hints: 'target = the ref of the layouts entry; layout = the id of one entry in its `layouts` list, or the member\'s own words for it '
+      + '("my trading layout" → "trading") — UCT matches the words itself: one match opens, several are asked about with the real names. Do not ask yourself. '
       + 'Only the open layout\'s widgets are in workspace_context; after a switch, ask again for changes on the new board.',
     args: {
       type: 'object',
@@ -317,10 +305,25 @@ export function registerLayoutCapabilities() {
       if (!m || !host?.layouts) return null
       const entries = host.layouts.snapshot().entries
       const phrase = m[1]
-      // "switch to my trading layout" → the one layout named with those words; a bare word with no
-      // "layout" must be an exact name (so "open NVDA" never opens a layout by accident)
-      const hit = / layout$/.test(phrase) ? resolveForOpen(entries, phrase) : resolveName(entries, phrase)
+      // "switch to my trading layout" → the layouts named with those words (several → resolveArgs asks);
+      // a bare word with no "layout" must be an exact name (so "open NVDA" never opens a layout)
+      if (/ layout$/.test(phrase)) {
+        const c = layoutCandidates(entries, phrase)
+        return c.length === 1 ? { layout: String(c[0].id) } : c.length > 1 ? { layout: phrase } : null
+      }
+      const hit = resolveName(entries, phrase)
       return hit ? { layout: String(hit.id) } : null
+    },
+    // ⭐ The member's WORDS → a real layout, the SAME way on every path (instant, model-planned,
+    // approved): useAgent.execute calls this before planning. One match → that id; several → a
+    // question with the real names (the panel's own pick flow); none → the check below refuses.
+    resolveArgs(args, host) {
+      const entries = host?.layouts?.snapshot?.().entries || []
+      if (entries.some(e => String(e.id) === String(args.layout))) return null
+      const c = layoutCandidates(entries, args.layout)
+      if (c.length === 1) return { args: { ...args, layout: String(c[0].id) } }
+      if (c.length > 1) return { ask: { arg: 'layout', text: `Which layout — ${c.map(e => quote(e.name)).join(' or ')}?`, choices: c.map(e => ({ ref: String(e.id), label: e.name })) } }
+      return null
     },
     check(st, { layout }) {
       const busy = oneAtATime(st)

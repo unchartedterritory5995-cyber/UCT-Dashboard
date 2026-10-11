@@ -48,12 +48,14 @@ export const GROUPS = [
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
     words: [/\bscreen\w*\b/, /\bscans?\b/, /\bfind (me )?(stocks|names|tickers)\b/, /\bfilter\w*\b/, /\b(stocks|names) (with|above|below|over|under)\b/, /\b(top|first) \d+\b/, /\bresults?\b/, /\b(adr|rs rating|rvol|market cap|dollar volume|52[- ]week)\b/,
-      // Stabilization (2026-10-11 live batch): STRENGTH / LEADERSHIP words are a screen ("show me my
-      // strongest stocks" matched no group, so the screener actions missed the request budget and
-      // the model had to ask for them). "momentum" alone stays an indicator word — only
+      // STRENGTH / LEADERSHIP screens (stabilization, 2026-10-11). A strength/rank word ATTACHED to a
+      // stock noun (≤2 words between): "my strongest stocks", "the weakest names", "best semiconductor
+      // stocks", "top performers". Never the bare word — "strongest chart color", "best chart theme"
+      // or "top-right chart" stays where it was. "momentum" alone stays an indicator word — only
       // "momentum stocks/names/leaders" is a screen.
-      /\b(strongest|weakest|laggards?|relative strength|rs (rank|leaders?))\b/,
-      /\b(leaders?|leading) (stocks|names)\b|\b(stocks|names) leading\b|\bmarket leaders?\b|\bstrength leaders?\b/,
+      /\b(strongest|weakest|best|worst|top|bottom|leading|lagging|top[- ]rated|highest[- ]rated)(?:[- ]performing)?\s+(?:[a-z0-9&.-]+\s+){0,2}?(stocks|names|tickers|equities|performers|movers|setups)\b/,
+      /\b(relative strength|rs rank|rs leaders?|market leaders?|strength leaders?|leaders and laggards)\b/,
+      /\b(leaders?|leading) (stocks|names)\b|\b(stocks|names) leading\b/,
       /\btop (momentum|performing|performers?|gainers?|losers?|movers?)\b|\bmomentum (stocks|names|leaders?)\b/] },
   { id: 'alerts', title: 'Price alerts (list, create, delete)', domains: ['alert'],
     words: [/\balerts?\b/, /\b(notify|ping|tell) me\b/, /\b(crosses|breaks|hits)\b/] },

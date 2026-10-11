@@ -178,8 +178,11 @@ describe('clarification policy, by category (deterministic path)', () => {
     const h = withLayouts(['Main Trading', 'Swing Setups'])
     expect(parse('switch to my trading layout', h)).toBe('layout.open{"layout":"1"}')
   })
-  it('AMBIGUITY: two layouts match "trading" — not guessed', () => {
-    expect(parse('switch to my trading layout', withLayouts(['Main Trading', 'Day Trading']))).toBe('MODEL')
+  it('AMBIGUITY: two layouts match "trading" — the words are handed on, and the Agent ASKS which (never guesses)', () => {
+    const h = withLayouts(['Main Trading', 'Day Trading'])
+    expect(parse('switch to my trading layout', h)).toBe('layout.open{"layout":"trading layout"}')
+    const r = getCapability('layout.open').resolveArgs({ layout: 'trading layout' }, h)
+    expect(r.ask.choices.map(c => c.label)).toEqual(['Main Trading', 'Day Trading'])
   })
   it('SAFETY: a bare word opens a layout only by its EXACT name ("open NVDA" never opens a layout)', () => {
     const h = withLayouts(['NVDA Earnings'])

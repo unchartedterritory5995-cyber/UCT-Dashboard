@@ -208,12 +208,13 @@ describe('2 · the panel reports what UCT did, never what the model said it did'
     const b = makeBoard([{ id: 'c1', type: 'chart', x: 0, y: 0, w: 18, h: 20 }], { A: 'AAPL' }, {
       layouts: { entries: [{ id: 1, name: 'Main Trading' }, { id: 2, name: 'Swing Setups' }], boards: { 1: [{ id: 'c9', type: 'chart', x: 0, y: 0, w: 24, h: 20 }], 2: [] }, active: 2 },
     })
-    turns.push(env('apply', [{ action: 'layout.open', target: 'l1', args: { layout: '1' } }], ''))
+    // the model passes the member's own words — the shared resolver (layout.open resolveArgs) names the layout
+    turns.push(env('apply', [{ action: 'layout.open', target: 'l1', args: { layout: 'my trading layout' } }], ''))
     render(<AgentPanel host={b.host} onClose={() => {}} />)
     type('​Switch to my trading layout.')            // the model path
     await screen.findByText(/Opened “Main Trading”/)
     expect(b.host.layouts.snapshot().active.name).toBe('Main Trading')
-    // the request the model got named the layout by the fast path's own rule
-    expect(turnBodies[0].context.layouts[0].namedInRequest).toEqual({ id: '1', name: 'Main Trading' })
+    // no prompt-only hint: the request the model got carries the real list, nothing pre-chosen
+    expect(turnBodies[0].context.layouts[0].namedInRequest).toBeUndefined()
   })
 })

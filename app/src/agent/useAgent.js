@@ -579,6 +579,24 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   const execute = useCallback(async (opsIn, { path, mode: suggested, member, voice, chosen = false, approval = null, card = null }) => {
     // ⛔ M3: with several indicator drafts open, a request on one the member has not selected is
     // never planned — they are shown the drafts and pick one (chooseTarget), nothing changes.
+    // ARGUMENT RESOLUTION: a capability may turn the member's WORDS in an argument into a real
+    // resource (`resolveArgs`: one match → its id; several → ask which, with the real names). The
+    // same rule for instant, model-planned and approved requests — never left to the model alone.
+    if (!chosen) {
+      for (let i = 0; i < opsIn.length; i++) {
+        const cap = getCapability(opsIn[i]?.action)
+        if (typeof cap?.resolveArgs !== 'function') continue
+        let r = null
+        try { r = cap.resolveArgs(opsIn[i].args || {}, host) } catch { r = null }
+        if (r?.ask) {
+          pendingRef.current = { kind: 'target', ops: opsIn, path, mode: suggested, member, voice, epoch: epochOf(host), pickArg: { action: opsIn[i].action, arg: r.ask.arg } }
+          push({ role: 'question', text: r.ask.text, choices: r.ask.choices, local: true })
+          record({ member, outcome: r.ask.text, outcomeData: { kind: 'clarify-arg', actions: opsIn.map(o => o?.action) }, telemetry: { path, disposition: 'clarify', voice } })
+          return undefined
+        }
+        if (r?.args) opsIn = opsIn.map((o, j) => (j === i ? { ...o, args: r.args } : o))
+      }
+    }
     const amb = chosen ? null : draftAmbiguity(host, opsIn)
     if (amb) {
       pendingRef.current = { kind: 'target', ops: opsIn, path, mode: suggested, member, voice, epoch: epochOf(host), draft: true }
