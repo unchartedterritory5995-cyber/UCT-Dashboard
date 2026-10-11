@@ -73,6 +73,12 @@
   .card {
     margin: 10px 12px 0;
   }
+  /* Finish pass (2026-10-10): on a phone the title says what is new and the two buttons say what
+     to do; the explanation line cost ~50 px of the first screen. It is still the card's
+     description for a screen reader: an element referenced DIRECTLY by aria-describedby counts
+     even when hidden (accname). `display: none`, not the usual clip pattern -- this file must stay
+     free of absolute positioning (TourOfferGate.test.jsx). */
+  .body { display: none; }
   .actions {
     flex: 1 1 100%;
   }

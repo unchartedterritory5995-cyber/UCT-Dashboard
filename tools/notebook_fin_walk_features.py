@@ -733,7 +733,15 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                scope=['[data-testid="entry-context-card"]'])
         C.goto(pg, base, "/journal?j2tab=positions")
         chips = pg.locator("[data-thesis-chip]")
-        has = C.vis_loc(chips, 30000)
+        # A chip needs the awareness scan to have projected the note; the walk used to look once,
+        # before that scan, and record the product's honest "no chip yet" as a FAIL (fin-walk.md).
+        # Reload until it lands, bounded: one look per 20 s, up to 3 minutes.
+        has, chip_waits = False, 0
+        for chip_waits in range(9):
+            has = C.vis_loc(chips, 20000)
+            if has:
+                break
+            C.goto(pg, base, "/journal?j2tab=positions")
         info = pg.evaluate("() => [...document.querySelectorAll('[data-thesis-chip]')].map(e => ({ note: e.getAttribute('data-thesis-chip'), text: e.innerText.trim().replace(/\\s+/g, ' ').slice(0, 120), row: (e.closest('tr') || e.parentElement).innerText.trim().replace(/\\s+/g, ' ').slice(0, 60) }))")
         nvda_note = (S.get("sample_by_ticker") or {}).get("NVDA")
         # the chip is the member's OWN thesis (IBM); a sample thesis (NVDA) must never put one on a real row
@@ -751,7 +759,8 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
                 opened = str(e)[:120]
         C.step(pg, inst, "thesis chips", "Open Positions rows carry a chip for a stock the member wrote a thesis on",
                "PASS" if has and on_nvda else "FAIL", chips=info, own_thesis_note=S.get("ibm_note"), sample_thesis_note=nvda_note,
-               preview_link=opened, chips_api=(M.get(base + "/api/j2/thesis-chips?symbols=IBM,NVDA,AMD").text() or "")[:400],
+               preview_link=opened, chip_waits=chip_waits,
+               chips_api=str(C.api(ctx, inst, "POST", base, "/api/j2/thesis-chips", {"symbols": ["IBM", "NVDA", "AMD"]})[1])[:400],
                scope=["[data-thesis-chip]"])
     run("positions", positions)
 
@@ -777,6 +786,16 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         except Exception as e:  # noqa: BLE001
             err = str(e)[:300]
         matches = pg.locator("[data-match]").count()
+        example_card = pg.locator(f'[data-board-card="{sym}"]').first
+        if tag == "before the first overnight run" and example_card.locator("[data-example]").count():
+            # P9: an Example card has no "Find more like" door at all -- its chart is left out of
+            # the overnight matching -- and says so on the card. The walk used to wait for the door.
+            card_txt = example_card.inner_text()[:400]
+            ok = (not example_card.get_by_role("button", name=re.compile("^Find more like")).count()
+                  and bool(re.search(r"not matched", card_txt, re.I)))
+            C.step(pg, inst, "find similar", "find similar on an Example card: says an example is never matched, and promises nothing",
+                   "PASS" if ok else "FAIL", symbol=sym, card_text=card_txt, scope=[f'[data-board-card="{sym}"]'])
+            return
         if tag == "before the first overnight run":
             never = bool(re.search(r"never|not matched|aren.t matched|example", text or "", re.I)) and "matched tonight" not in (text or "")
             verdict = "PASS" if text and not matches and (sym != "MSFT" or never) else "FAIL"
@@ -1301,8 +1320,9 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             box.first.wait_for(state="visible", timeout=10000)
             box.first.fill("Tight base, volume dried up, entered over the pivot.")
             typed = True
-            sv = pg.locator('[data-tour="entry-context-why-save"]')
-            (sv.first if sv.count() else card.get_by_role("button", name=re.compile("^Save"))).click(timeout=10000)
+            # the Save BUTTON, never its row: `entry-context-why-save` marks the actions row, which is
+            # wider than the button, so a click on the row's centre could miss it
+            card.get_by_role("button", name=re.compile(r"^Save$")).first.click(timeout=10000)
             saved = C.vis(pg, '[data-testid="why-prompt-saved"]', 8000) or C.vis_loc(card.get_by_role("button", name="Edit"), 8000)
         except Exception as e:  # noqa: BLE001
             err = str(e)[:300]
@@ -1324,7 +1344,13 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
             j = r.json() if r.status == 200 else {}
             return [(f.get("id"), f.get("name"), f.get("parentId") or f.get("parent_id")) for f in ((j.get("folders") if isinstance(j, dict) else j) or [])]
         f_before = folders_now()
-        fs_, fb_ = C.api(ctx, inst, "POST", base, "/api/j2/note-folders", {"name": "Sample notebook"})
+        # Folder names are unique per PARENT (UNIQUE(user_id, parent_id, name)), so a member cannot
+        # hold a second top-level "Sample notebook" while the sample's exists -- the walk's old
+        # top-level create got a 400 and the check never ran. The member's own same-named folder
+        # lives inside a folder of theirs, which is the case removal must not touch.
+        _ps, _pb = C.api(ctx, inst, "POST", base, "/api/j2/note-folders", {"name": "My research"})
+        _parent = ((_pb or {}).get("folder") or _pb or {}).get("id") if isinstance(_pb, dict) else None
+        fs_, fb_ = C.api(ctx, inst, "POST", base, "/api/j2/note-folders", {"name": "Sample notebook", "parentId": _parent})
         own_folder = ((fb_ or {}).get("folder") or fb_ or {}).get("id") if isinstance(fb_, dict) else None
         S["own_same_name_folder"] = own_folder
         home()

@@ -4257,7 +4257,8 @@ export default function NoteEditorPage({
         </a>
       </SkipLinkPortal>
       <h2 ref={toolbarSkipRef} tabIndex={-1} className="sr-only">Editor toolbar</h2>
-      <header className={styles.header}>
+      {/* `data-note-header`: NotebookTab's phone rule reserves room here for its back chevron. */}
+      <header className={styles.header} data-note-header="">
         {showBack && (
           <button type="button" className={styles.backBtn} onClick={onBack}>
             ← Notebook

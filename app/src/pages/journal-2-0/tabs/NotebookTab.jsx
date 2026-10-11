@@ -2104,7 +2104,9 @@ export default function NotebookTab() {
             data-tour="note-phone-back"
           >
             <UIcon name="chevronRight" size={16} gold={false} aria-hidden="true" style={{ transform: 'rotate(180deg)' }} />
-            Back to notes
+            {/* Finish pass (2026-10-10): on a phone the control is the chevron, on the editor's own
+                action row; the words stay its accessible name (.phoneBackLabel). */}
+            <span className={styles.phoneBackLabel}>Back to notes</span>
           </button>
           {/* ⛔ Wave 6 item 7: the main editor sits in the SAME pane element
               whether or not a note is beside it — moving it into a new parent

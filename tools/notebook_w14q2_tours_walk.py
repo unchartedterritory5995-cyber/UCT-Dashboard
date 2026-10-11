@@ -304,7 +304,13 @@ def walk_tour(pg, ctx, base: str, width: int, entry: dict, P: str = "on") -> dic
     row["opens"] = True
     row["reached_start_at_step"] = st["n"]
     record(P, width, tid, "opens", True, step=st["n"], of=st["of"], url=st["url"], title=st["title"])
-    record(P, width, tid, "progress counts the declared steps", st["of"] == M, of=st["of"], declared=M)
+    # Finding P6 (GenericTourEngine.numbering.test.jsx): a tour numbers the steps it SHOWS, so the
+    # total may be below the declared count only when a declared step is not on screen at open --
+    # e.g. the Formulas tour's "no properties yet" branch on a note that has properties.
+    not_shown = skip_reasons(pg, steps, list(range(M))) if st["of"] < M else []
+    record(P, width, tid, "progress counts the steps it shows (P6)",
+           st["of"] == M or (0 < st["of"] < M and len(not_shown) >= M - st["of"]),
+           of=st["of"], declared=M, not_shown_at_open=not_shown)
     row["shot"] = snap(pg, f"{tid}-{width}")
     row["battery"] = card_battery(pg, P, width, tid)
     trap_done = set()
