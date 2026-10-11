@@ -42,6 +42,13 @@ BASE = "http://127.0.0.1:5176"           # the worktree's vite (proxies /api →
 BACKEND = "http://127.0.0.1:54714"
 EMAIL, PASSWORD = "dev@local.dev", "RevTest-local-1!"   # the LOCAL test account (isolated auth.db)
 TURNS = ["Show me my strongest stocks.", "Now only the ones above $50.", "Switch to my trading layout."]
+#: The same three requests in words UCT's instant (no-model) paths do not take, so the MODEL path
+#: (and, in scripted mode, the scripted envelopes) is exercised end to end. --phrasing model
+TURNS_MODEL = ["Which names across the whole market have the most relative strength right now?",
+               "Of those, keep only the ones trading above $50 please.",
+               "Could you bring up my trading layout for me?"]
+#: Turn 2 answered by the instant refine path: its result names the refined screen.
+REFINE_RE = re.compile(r"([\d,]+) stocks? match(?:es)? \(Price > \$50\)")
 #: One turn's worst case on haiku-4-5: up to 3 calls × (~17k prompt tokens at the 1.25x cache-write
 #: rate + 2,048 output tokens) ≈ $0.095, plus the naming call ≈ $0.003.
 WORST_TURN_USD = 0.10
@@ -79,6 +86,20 @@ def _envelope_factory(turn_ix: int):
     return make
 
 
+def _server_gate(env: dict, body: dict) -> dict:
+    """Scripted mode: the canned envelope passes the SERVER's own gate (turn.sanitize_envelope — the
+    same function run_turn applies to a real model's envelope), so what the panel shows is what a
+    real turn would show. Imported lazily, after the conftest sandbox (no api.* DB touched)."""
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    import conftest  # noqa: F401 -- every *_DB_PATH → a sandbox before any api import
+    from api.services.uct_agent import turn
+    caps = {c["name"] for c in turn.validate_manifest(body.get("capabilities") or [])}
+    try:
+        return turn.sanitize_envelope(env, turn._context_refs(body.get("context") or {}), caps or None)
+    except turn.TurnError as e:
+        return {"refused": str(e)}          # the endpoint's own answer: HTTP 400 with this sentence
+
+
 def _launch_live_backend(max_usd: float) -> subprocess.Popen:
     key = os.environ.get("ANTHROPIC_API_KEY")
     scratch = tempfile.mkdtemp(prefix="agent_live_chain_")
@@ -110,7 +131,7 @@ def _launch_live_backend(max_usd: float) -> subprocess.Popen:
     raise SystemExit("refused: the isolated backend did not start")
 
 
-def run(mode: str, max_usd: float | None, out_path: str | None) -> int:
+def run(mode: str, max_usd: float | None, out_path: str | None, phrasing: str = "canonical") -> int:
     from playwright.sync_api import sync_playwright
     backend = None
     if mode == "live":
@@ -147,9 +168,14 @@ def run(mode: str, max_usd: float | None, out_path: str | None) -> int:
             def on_turn(route):
                 req = json.loads(route.request.post_data or "{}")
                 if mode == "scripted":
-                    env = _envelope_factory(state["turn"])(req)
+                    raw = _envelope_factory(state["turn"])(req)
+                    env = _server_gate(raw, req)
+                    if "refused" in env:
+                        captured.append({"turn": state["turn"], "request": req, "envelope": {"refused": env["refused"]}, "raw_envelope": raw, "status": 400})
+                        route.fulfill(status=400, content_type="application/json", body=json.dumps({"detail": env["refused"]}))
+                        return
                     cid = c.request.post(f"{BASE}/api/agent/record", data={"conversationId": req.get("conversationId"), "member": req.get("message"), "outcome": "(scripted)"}).json().get("conversationId")
-                    captured.append({"turn": state["turn"], "request": req, "envelope": env, "status": 200})
+                    captured.append({"turn": state["turn"], "request": req, "envelope": env, "raw_envelope": raw, "status": 200})
                     route.fulfill(status=200, content_type="application/json", body=json.dumps({"conversationId": cid, "envelope": env, "usage": {}}))
                     return
                 resp = route.fetch()                                   # the REAL backend → the real model
@@ -169,7 +195,7 @@ def run(mode: str, max_usd: float | None, out_path: str | None) -> int:
                    "agent-question": "[data-testid=agent-question]", "agent-proposal": "[data-testid=agent-proposal]",
                    "agent-refusal": "[data-testid=agent-transcript] [class*=refusal]"}
             count = lambda tid: pg.locator(SEL[tid]).count()
-            for i, text in enumerate(TURNS):
+            for i, text in enumerate(TURNS_MODEL if phrasing == "model" else TURNS):
                 state["turn"] = i
                 before = {t: count(t) for t in SEL}
                 tx0 = len(pg.locator("[data-testid=agent-transcript]").inner_text())
@@ -191,7 +217,8 @@ def run(mode: str, max_usd: float | None, out_path: str | None) -> int:
                 while time.monotonic() < deadline:
                     pg.wait_for_timeout(250)
                     idle = pg.evaluate("!document.querySelector('[data-testid=agent-typing]') && !document.querySelector('textarea[aria-label=\"Message UCT Agent\"]').disabled")
-                    moved = any(count(t) > before[t] for t in SEL) or any(x["turn"] == i for x in captured)
+                    grew = len(pg.locator("[data-testid=agent-transcript]").inner_text()) > tx0 + len(text) + 40
+                    moved = any(count(t) > before[t] for t in SEL) or any(x["turn"] == i for x in captured) or grew
                     stable = stable + 1 if (idle and moved) else 0
                     if stable >= 6:
                         break
@@ -205,22 +232,30 @@ def run(mode: str, max_usd: float | None, out_path: str | None) -> int:
                 evidence = {k.replace("agent-", ""): after[k] - before[k] for k in before}
                 executed = evidence["receipt"] > 0 or evidence["result-table"] > 0
                 claims = [m.group(0) for m in CLAIM_RE.finditer(words)]
+                raw_words = " ".join(filter(None, [(x.get("raw_envelope") or {}).get("reply") or "" for x in turns_here]))
+                raw_claims = [m.group(0) for m in CLAIM_RE.finditer(raw_words)]
                 unbacked = claims if (claims and not executed) else []
                 row = {"turn": i + 1, "said": text, "ms": ms, "model_calls": len(turns_here),
+                       "path": "model" if turns_here else "instant",
                        "dispositions": [e.get("disposition") for e in envs], "proposed_ops": ops, "model_text": words,
                        "evidence": evidence, "panel_text": new_text.strip()[-600:], "claims": claims, "unbacked_claims": unbacked,
+                       "raw_claims_before_server_gate": raw_claims,
                        "usage": [x.get("usage") for x in turns_here]}
                 if i == 1:      # turn 2 must carry turn 1's ACTUAL screen
                     last = (((turns_here[0]["request"].get("context") or {}).get("screener") or [{}])[0].get("lastScreen")) if turns_here else None
-                    row["continues_turn1"] = bool(last)
+                    # the model path carries turn 1's screen in its context; the instant refine path
+                    # answers with the refined screen itself ("N stocks match (Price > $50)")
+                    refined = REFINE_RE.search(new_text)
+                    row["continues_turn1"] = bool(last) or bool(refined)
                     row["turn1_screen_in_context"] = last
+                    row["refined_answer"] = refined.group(0) if refined else None
                 if i == 2:
                     prefs = c.request.get(f"{BASE}/api/auth/preferences").json()
                     row["active_layout_after"] = prefs.get("charts_active_template")
                     first = turns_here[0]["request"] if turns_here else None
                     row["layouts_offered"] = [e.get("name") for e in (((first or {}).get("context") or {}).get("layouts") or [{}])[0].get("layouts", [])] if first else None
                 rows.append(row)
-                print(json.dumps({k: row[k] for k in ("turn", "said", "ms", "model_calls", "dispositions", "proposed_ops", "model_text", "evidence", "unbacked_claims")}, default=str))
+                print(json.dumps({k: row[k] for k in ("turn", "said", "path", "ms", "model_calls", "dispositions", "proposed_ops", "model_text", "evidence", "unbacked_claims", "raw_claims_before_server_gate")}, default=str))
             b.close()
     finally:
         if backend:
@@ -239,6 +274,7 @@ if __name__ == "__main__":
     ap.add_argument("--mode", choices=["scripted", "live"], default="scripted")
     ap.add_argument("--max-usd", type=float, default=None)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--phrasing", choices=["canonical", "model"], default="canonical")
     a = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
-    sys.exit(run(a.mode, a.max_usd, a.out))
+    sys.exit(run(a.mode, a.max_usd, a.out, a.phrasing))
