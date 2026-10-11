@@ -58,17 +58,24 @@ def test_a_malformed_table_is_refused():
     assert any("role|name" in w for w in A.validate_table(bad))
     bad = [dict(r) for r in rows if r["audit_row"] != 42]
     assert any("42" in w for w in A.validate_table(bad))
+    # no row in the table is doorless any more (task 14b built the last two); the rule still holds
     bad = json.loads(json.dumps(rows))
-    for r in bad:
-        if r.get("door") is False:
-            r.pop("reason")
+    next(r for r in bad if r["audit_row"] == 29)["door"] = False
     assert any("written reason" in w for w in A.validate_table(bad))
     bad = json.loads(json.dumps(rows))
     next(r for r in bad if r["audit_row"] == 15)["reason"] = "a bare string is no longer a reason"
     assert any("reason is" in w for w in A.validate_table(bad))
     bad = json.loads(json.dumps(rows))
-    next(r for r in bad if r["audit_row"] == 42)["reason"] = {"verdict": "HARD", "text": "wrong verdict for an unmeasurable row"}
+    row = next(r for r in bad if r["audit_row"] == 42)
+    row["unmeasurable_here"] = True
+    row["reason"] = {"verdict": "HARD", "text": "wrong verdict for an unmeasurable row"}
     assert any("NOT_MEASURED reason" in w for w in A.validate_table(bad))
+    bad = json.loads(json.dumps(rows))
+    next(r for r in bad if r["audit_row"] == 42)["needs_seed"] = "no such seed"
+    assert any("needs_seed" in w for w in A.validate_table(bad))
+    bad = json.loads(json.dumps(rows))
+    next(r for r in bad if r["audit_row"] == 29)["target"] = {"text": ""}
+    assert any("a target needs" in w for w in A.validate_table(bad))
 
 
 # ── the verdict, graded the way the audit grades ───────────────────────────────────────────────
@@ -265,3 +272,98 @@ def test_self_check_can_fail():
 def test_the_door_table_hash_is_recorded_and_stable():
     h = A.table_sha256()
     assert len(h) == 64 and h == A.table_sha256()
+
+
+# ── Task 14b: rows 29 and 53 through Learn, and row 42 measured on seeded matches ───────────────
+
+def row_of(audit_row):
+    return next(r for r in table() if r["audit_row"] == audit_row)
+
+
+def test_rows_29_and_53_are_reached_through_learn_and_the_sheet_names_them():
+    """The door is Research Home > Learn > What your Notebook can do > the entry's label in the Sheet.
+    The labels are the catalogue's own (capabilityList.js), read from the file, never retyped."""
+    cap = (REPO / "app" / "src" / "pages" / "journal-2-0" / "components" / "notebook" / "onboarding" / "capabilityList.js").read_text(encoding="utf-8")
+    for audit_row, label in ((29, "Compass can read your notes"), (53, "Terminal commands in notes")):
+        assert f"label: '{label}'" in cap, f"capabilityList.js no longer carries {label!r}"
+        r = row_of(audit_row)
+        assert r.get("door") is not False, "a door was built: the row is measured, not declared doorless"
+        assert r["steps"] == [{"click": "button|Learn"}, {"click": "menuitem|What your Notebook can do"}]
+        assert r["target"] == {"text": label}
+        assert "reason" not in r and not r.get("unmeasurable_here"), "the old NO DOOR reason must be gone"
+        assert set(r["viewports"]) == {"1280", "390"}
+        assert r["target_wait_ms"] >= 10000, "the Sheet loads the catalogue's chunk on first open"
+    assert row_of(29)["flag"] == "COMPASS_NOTES_TOOL_ENABLED"
+    assert row_of(53)["flag"] == "NOTEBOOK_TERMINAL_LINKS_ENABLED"
+    assert A.validate_table(table()) == []
+
+
+def test_a_text_target_is_a_valid_target_and_an_empty_one_is_not():
+    base = {"feature": "x", "audit_row": 1, "path": "/", "steps": [], "viewports": ["1280"]}
+    only_missing_rows = "audit rows with no entry: " + str(sorted(set(A.REQUIRED_AUDIT_ROWS)))
+    assert A.validate_table([{**base, "target": {"text": "Compass can read your notes"}}]) == [only_missing_rows]
+    assert any("a target needs" in w for w in A.validate_table([{**base, "target": {"text": " "}}]))
+    assert any("a target needs" in w for w in A.validate_table([{**base, "target": {"text": 5}}]))
+
+
+def test_row_42_is_graded_by_measurement_and_needs_the_seed_not_a_written_excuse():
+    r = row_of(42)
+    assert r["needs_seed"] == "find_similar"
+    assert "unmeasurable_here" not in r and "reason" not in r, "the NOT_MEASURED reason is dropped"
+    assert r["target"]["name"] == "~^Find more like"
+    assert r["target_wait_ms"] >= 20000, "the board fills after its own fetches; a 5 s wait would read it absent"
+    assert set(r["viewports"]) == {"1280", "390"}
+
+
+def test_a_row_that_needs_the_seed_is_not_measured_when_the_seed_did_not_land():
+    row = {"feature": "x", "audit_row": 42, "needs_seed": "find_similar"}
+    assert A.seed_gap({"feature": "x", "audit_row": 11}, None) is None, "a row that needs no seed ignores it"
+    assert A.seed_gap(row, {"ok": True, "matches": 1}) is None
+    for seed in (None, {}, {"ok": False, "why": "the sandbox data dir was not given"}):
+        gap = A.seed_gap(row, seed)
+        assert gap and "find-similar" in gap, seed
+    assert "the sandbox data dir" in A.seed_gap(row, {"ok": False, "why": "the sandbox data dir was not given"})
+    # ok but no match stored: the seed did not do its job, so the door is not measured on it
+    assert A.seed_gap(row, {"ok": True, "matches": 0})
+
+
+def test_the_seeded_note_is_a_plan_the_board_lists_and_a_template_the_nightly_job_takes():
+    """Built from the product's own readers: the setups board's plan reading, the chart-block index
+    and the similar-matches ranking. A note these would refuse would seed nothing."""
+    from api.services.journal_two import chart_blocks, plan_extract, similar_matches as sm, tech_fingerprint as tfp
+    note = A.find_similar_note("2026-10-09")
+    assert note["ticker"] == "AMD" and note["title"]
+    blocks = chart_blocks.extract_blocks(note["bodyJson"])
+    assert len(blocks) == 1 and blocks[0]["symbol"] == "AMD" and blocks[0]["setup_tag"]
+    assert tfp.well_formed(blocks[0]["note_fingerprint"]), "the note's own fingerprint must pass the index's check"
+    reading = plan_extract.read_note_plan(note["bodyJson"], None, [], "AMD")
+    entry = reading.role("entry")
+    assert entry.state == plan_extract.STATE_OK and entry.shape in ("chart", "canvas")
+    e, st, tg = reading.value("entry"), reading.value("stop"), reading.value("target")
+    assert tg > e > st > 0
+    # the template carries enough fields to be ranked at all, and a name with the same values wins
+    values = tfp.summary_values(blocks[0]["note_fingerprint"])
+    assert sum(1 for f in sm.RULES if values.get(f) is not None) >= sm.MIN_TEMPLATE_FIELDS
+    universe = {"as_of": "2026-10-09", "truncated": False,
+                "rows": [{"symbol": "CRWD", "as_of": "2026-10-09", "is_etf": False, "values": values}]}
+    ranked = sm.rank_matches(values, "AMD", universe)
+    assert ranked and ranked[0]["symbol"] == "CRWD" and ranked[0]["score"] == 100
+
+
+def test_the_seed_spec_names_the_template_the_candidate_and_the_switch():
+    spec = A.seed_spec("da1280@local.dev", "2026-10-09", ["NOTEBOOK_FIND_SIMILAR_ENABLED", "NOTEBOOK_SETUPS_BOARD_ENABLED"])
+    assert spec["email"] == "da1280@local.dev" and spec["today"] == "2026-10-09"
+    assert spec["template_symbol"] == A.find_similar_note("2026-10-09")["ticker"]
+    assert spec["candidate"] and spec["candidate"] != spec["template_symbol"]
+    assert "NOTEBOOK_FIND_SIMILAR_ENABLED" in spec["flags"]
+    assert spec["project_note_ids"] == [] and spec["quotes"] == [], "no awareness scan: only the matches are seeded"
+
+
+def test_the_seed_is_the_fin_walks_own_post_child_not_a_copy_of_it():
+    """Row 42 reuses tools/notebook_fin_walk.py's run_post_child (brief section 3); the spec this
+    tool builds must be one that child's code reads: every key it indexes."""
+    import re
+    child = (REPO / "tools" / "notebook_fin_walk.py").read_text(encoding="utf-8").split("POST_CHILD = r'''", 1)[1].split("'''", 1)[0]
+    needed = set(re.findall(r'spec\["([a-z_]+)"\]', child))
+    spec = A.seed_spec("a@local.dev", "2026-10-09", ["NOTEBOOK_FIND_SIMILAR_ENABLED"])
+    assert needed and needed <= set(spec), f"the child reads {sorted(needed - set(spec))} which the spec lacks"

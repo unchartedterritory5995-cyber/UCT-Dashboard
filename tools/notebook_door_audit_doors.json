@@ -159,18 +159,24 @@
     "feature": "Compass can read your notes",
     "audit_row": 29,
     "path": "/journal/notebook",
-    "steps": [],
-    "target": null,
+    "steps": [
+      {
+        "click": "button|Learn"
+      },
+      {
+        "click": "menuitem|What your Notebook can do"
+      }
+    ],
+    "target": {
+      "text": "Compass can read your notes"
+    },
+    "target_wait_ms": 15000,
     "viewports": [
       "1280",
       "390"
     ],
-    "flag": null,
-    "door": false,
-    "reason": {
-      "verdict": "HIDDEN",
-      "text": "NO DOOR WAS BUILT, and none can be added from the client: COMPASS_NOTES_TOOL_ENABLED is a server-side gate with no key in the auth payload (api/routers/auth.py NOTEBOOK_FLAGS has none), and onboarding/capabilityList.js (CAPABILITY_PREVIEW) lists ten capabilities and names Compass in none. Compass is a separate surface, covered by the Compass tour, not a Notebook door. This is the audit's HIDDEN row and it stays HIDDEN here: a reason clears nothing. A separate task adds the door (controller ruling R16)."
-    }
+    "flag": "COMPASS_NOTES_TOOL_ENABLED",
+    "note": "Research Home, Learn, What your Notebook can do: the entry's label is a line of text in the Sheet (task 14b, ruling R16), so it is reached by its visible text. The press on the target is counted as the audit counts it, though a line of text is read, not pressed."
   },
   {
     "feature": "Task reminders: slash menu, Due date",
@@ -382,11 +388,9 @@
       "390"
     ],
     "flag": "NOTEBOOK_FIND_SIMILAR_ENABLED",
-    "unmeasurable_here": true,
-    "reason": {
-      "verdict": "NOT_MEASURED",
-      "text": "needs the overnight run: the find-similar precompute (similar_matches.run_nightly) has not run in a sandbox, so a card has no matches to offer and the audit could not grade the door. A door that cannot be exercised is NOT_MEASURED here, never a pass."
-    }
+    "needs_seed": "find_similar",
+    "target_wait_ms": 30000,
+    "note": "Measured on a member with a chart plan of their own: the run makes the note through the member's route and runs the overnight find-similar job for it (tools/notebook_fin_walk.py run_post_child), so the card carries the button and stored matches exist. An example card never carries it. If the seed did not land the row is NOT_MEASURED; if it landed and the button is absent the row is HIDDEN."
   },
   {
     "feature": "Note resurfacing: the Notices box on Research Home",
@@ -410,17 +414,23 @@
     "feature": "Terminal links in notes: paste a command",
     "audit_row": 53,
     "path": "/journal/notebook",
-    "steps": [],
-    "target": null,
+    "steps": [
+      {
+        "click": "button|Learn"
+      },
+      {
+        "click": "menuitem|What your Notebook can do"
+      }
+    ],
+    "target": {
+      "text": "Terminal commands in notes"
+    },
+    "target_wait_ms": 15000,
     "viewports": [
       "1280",
       "390"
     ],
-    "flag": null,
-    "door": false,
-    "reason": {
-      "verdict": "HIDDEN",
-      "text": "NO DOOR, by design of TERM-056: a pasted terminal command becomes a link (lib/terminalCommandPaste.js, gated by NOTEBOOK_TERMINAL_LINKS_ENABLED, armed 2026-10-10). It is a behaviour on paste, not a control, so there is nothing to click and nothing for a member to find until they paste one. No Notebook door was built and none is a P0 task. Owner to decide whether the terminal's 'copy command' or a 'See what it can do' line should name it."
-    }
+    "flag": "NOTEBOOK_TERMINAL_LINKS_ENABLED",
+    "note": "Research Home, Learn, What your Notebook can do: the entry's label is a line of text in the Sheet (task 14b, ruling R16). Pasting a command is a behaviour, not a control, so the catalogue line is the door."
   }
 ]

@@ -9,7 +9,18 @@ labelled cannot be a unit-test fact. This is the committed instrument, and it is
 
 THE TABLE. tools/notebook_door_audit_doors.json, one entry per door (a bare JSON list; the field
 list is in `validate_table`). Doors are reached by role and accessible name, never by CSS-module
-class, so a restyle does not break the table and a rename does (which is the point).
+class, so a restyle does not break the table and a rename does (which is the point). A line of
+text a member READS (a catalogue entry in a Sheet) has no role of its own, so it is reached by
+its visible text: {"text": "..."}.
+
+SEEDS (Task 14b). A door that exists only for a member who has something (row 42's "Find more like
+this" sits on a card of the member's OWN tagged chart plan, never on an example) is measured on a
+member who has it. A row says `needs_seed: "find_similar"`; the run then makes a real chart-plan note
+for that member through the product's own route and runs tools/notebook_fin_walk.py's post-boot
+child (`run_post_child`: catch up the chart index, then the nightly find-similar job over a
+one-name universe) against the sandbox's data dir (`--data-dir`). A seed that did not land is
+NOT_MEASURED for that row, never a pass and never HIDDEN; a seed that landed and a door that is
+still absent is HIDDEN.
 
 GRADED THE WAY THE AUDIT GRADES. The audit's rule (its "grading rule" and "counts by verdict" tables):
   EASY  visible where the task happens, 2 clicks or fewer, PLAIN LABEL, same on a phone
@@ -106,6 +117,8 @@ MEASURED = ("EASY", "OK", "HARD", "HIDDEN")
 REASON_VERDICTS = ("HARD", "HIDDEN", "NOT_MEASURED")
 SAMPLE_BUTTON = "Add a sample notebook"
 TOP_PATH = "/journal/notebook"
+SEEDS = ("find_similar",)
+SEED_TEMPLATE, SEED_CANDIDATE = "AMD", "CRWD"      # both have bars in the c2 sandbox's pre-boot seed
 
 
 # ── pure: the verdict, the table, the exit code (tests/test_notebook_door_audit.py) ─────────────
@@ -207,6 +220,14 @@ STEP_KINDS = ("click", "click_css", "hover_css", "open_note", "type")
 COUNTED = ("click", "click_css", "open_note", "type")      # a hover only reveals; it is not a press
 
 
+def _target_ok(t) -> bool:
+    if not isinstance(t, dict):
+        return False
+    if "css" in t or ("role" in t and "name" in t):
+        return True
+    return isinstance(t.get("text"), str) and bool(t["text"].strip())
+
+
 def validate_table(rows) -> list[str]:
     """Why the table is malformed; empty = well-formed. Pure."""
     why: list[str] = []
@@ -241,8 +262,13 @@ def validate_table(rows) -> list[str]:
         for t in [r.get("target"), *(r.get("target_by_viewport") or {}).values()]:
             if t is None:
                 continue
-            if not (("css" in t) or ("role" in t and "name" in t)):
-                why.append(f"{tag}: a target needs role+name or css: {t}")
+            if not _target_ok(t):
+                why.append(f"{tag}: a target needs role+name, css or a non-empty text: {t}")
+        if "needs_seed" in r and r["needs_seed"] not in SEEDS:
+            why.append(f"{tag}: needs_seed must be one of {SEEDS}, not {r['needs_seed']!r}")
+        w = r.get("target_wait_ms", 5000)
+        if not (isinstance(w, int) and not isinstance(w, bool) and 1000 <= w <= 120000):
+            why.append(f"{tag}: target_wait_ms is a whole number of ms from 1000 to 120000")
         for s in [*(r.get("steps") or []), *[x for v in (r.get("steps_by_viewport") or {}).values() for x in v]]:
             if not (isinstance(s, dict) and len(s) == 1 and next(iter(s)) in STEP_KINDS):
                 why.append(f"{tag}: bad step {s}")
@@ -374,6 +400,44 @@ def slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:60]
 
 
+# ── seeds: pure builders (the browser half below runs them) ─────────────────────────────────────
+
+def seed_gap(row: dict, seed: dict | None) -> str | None:
+    """Why a row that needs a seed cannot be measured for this member, or None. Pure. A row that
+    needs no seed ignores it. A seed that did not land, or landed without storing a match, is a
+    gap in what was set up (NOT_MEASURED), never evidence about the door."""
+    need = row.get("needs_seed")
+    if not need:
+        return None
+    name = str(need).replace("_", "-")
+    if not seed or not seed.get("ok"):
+        return f"the {name} seed did not land for this member: {(seed or {}).get('why') or 'no seed was made'}"
+    if need == "find_similar" and int(seed.get("matches") or 0) < 1:
+        return f"the {name} seed landed but stored no match for this member's chart plan"
+    return None
+
+
+def find_similar_note(today: str) -> dict:
+    """A note body a member's own chart plan would be: a chart of SEED_TEMPLATE with entry, stop and
+    target drawn and a setup tag with its frozen fingerprint. The setups board lists it as the
+    member's own card (not an example) and the nightly find-similar job takes it as a template.
+    Pure; uses the walks' own series builders so the shape is the one they already seed."""
+    import notebook_w13x_walk as x13
+    fp = x13.seeded_fingerprint(SEED_TEMPLATE, today, rs=92, depth=12.0, adr=5.0, pole=60.0)
+    levels = [x13.level("target", 170.0, "da-target"), x13.level("entry", 155.0, "da-entry"), x13.level("stop", 147.0, "da-stop")]
+    return {"title": f"{SEED_TEMPLATE} base plan", "ticker": SEED_TEMPLATE,
+            "bodyJson": x13.doc_with(x13.para(f"{SEED_TEMPLATE} tight base, buying the break of the pivot."),
+                                     x13.chart_block(SEED_TEMPLATE, levels, "e-door-audit", ta={"setupTag": "VCP", "fingerprint": fp}))}
+
+
+def seed_spec(email: str, today: str, flags: list[str]) -> dict:
+    """The spec tools/notebook_fin_walk.py's post child reads (every key it indexes): which member,
+    which template symbol to find among the member's chart blocks, the one candidate name tonight's
+    universe holds, the switches to set. No notes to project and no quotes: no awareness scan runs."""
+    return {"email": email, "today": today, "flags": list(flags), "template_symbol": SEED_TEMPLATE,
+            "candidate": SEED_CANDIDATE, "project_note_ids": [], "quotes": []}
+
+
 # ── the browser half (imports are lazy: the pure half above must import with nothing installed) ─
 
 OVERLAY_JS = """() => { const d = document.createElement('div'); d.setAttribute('data-door-audit-control', '');
@@ -462,6 +526,8 @@ def parse_click(s: str) -> tuple[str, str]:
 def locate(pg, spec: dict):
     if "css" in spec:
         return pg.locator(spec["css"])
+    if "text" in spec:
+        return pg.get_by_text(spec["text"], exact=False)
     name = spec["name"]
     if name.startswith("~"):
         return pg.get_by_role(spec["role"], name=re.compile(name[1:], re.I))
@@ -565,7 +631,7 @@ def rest_pointer(pg, el) -> None:
     pg.wait_for_timeout(250)
 
 
-def run_row(pg, base: str, row: dict, vp: str, notes: dict, me: dict, out: Path, cond: str) -> dict:
+def run_row(pg, base: str, row: dict, vp: str, notes: dict, me: dict, out: Path, cond: str, seed: dict | None = None) -> dict:
     """Measure one door at one viewport in one state. Always returns a dict, never raises.
     A failure of the load, the setup or the measuring is `setup_failed` (NOT_MEASURED); a step of the
     path that cannot be made on a page that loaded is `step_failed` (HIDDEN); every step made and the
@@ -584,6 +650,13 @@ def run_row(pg, base: str, row: dict, vp: str, notes: dict, me: dict, out: Path,
         m["flag"] = {"key": flag.lower(), "state": me.get(flag.lower())}
         if me.get(flag.lower()) is not True:
             m["setup_failed"] = f"{flag} is not on for this member in this sandbox"
+            m["found"] = False
+            return m
+    if row.get("needs_seed"):
+        m["seed"] = seed
+        gap = seed_gap(row, seed)
+        if gap:
+            m["setup_failed"] = gap
             m["found"] = False
             return m
     hovers: list[str] = []
@@ -612,7 +685,7 @@ def run_row(pg, base: str, row: dict, vp: str, notes: dict, me: dict, out: Path,
         phase = "measure"
         if not realistic:
             dismiss_nudges(pg, m["nudges_dismissed"], "before measuring")
-        el = first_visible(locate(pg, spec), 5000)
+        el = first_visible(locate(pg, spec), int(row.get("target_wait_ms", 5000)))
         if el is None:
             m["found"] = False
             m["target_absent"] = True
@@ -716,9 +789,61 @@ def settle_member(pg, base: str, notes: dict, dismiss: bool) -> dict:
     return {"condition_dismisses_nudges": dismiss, "nudges_dismissed": gone, "recent_note_rows": rows}
 
 
-def member_for(browser, admin_req, base: str, vp: str, dismiss: bool):
+def seed_find_similar(ctx, base: str, email: str, data_dir: str | None, logs: Path) -> dict:
+    """Make this member's chart plan and run the overnight find-similar job for it (row 42's seed).
+    The note goes in through the member's own route; the job is tools/notebook_fin_walk.py's
+    post-boot child against the sandbox's data dir. Always returns a record, never raises: a seed
+    that did not land says why and the row is NOT_MEASURED (`seed_gap`)."""
+    rec: dict = {"ok": False, "kind": "find_similar", "template": SEED_TEMPLATE, "candidate": SEED_CANDIDATE}
+    try:
+        import notebook_fin_walk as C
+        import notebook_perf_harness as h
+        if not data_dir:
+            rec["why"] = "no --data-dir (the sandbox's data dir) was given, so the nightly find-similar job could not be run"
+            return rec
+        refused = h.refuse_shared_root(data_dir)
+        if refused:
+            rec["why"] = f"refused: {refused}"
+            return rec
+        today = C.TODAY.isoformat()
+        r = ctx.request.post(base + "/api/j2/notes", data=find_similar_note(today))
+        if r.status not in (200, 201):
+            rec["why"] = f"POST /api/j2/notes answered {r.status}: {(r.text() or '')[:160]}"
+            return rec
+        note = r.json()["note"]
+        rec["note_id"] = note["id"]
+        logs.mkdir(parents=True, exist_ok=True)
+        C.REC.setdefault("tip", "door audit seed")
+        child = C.run_post_child(Path(data_dir), logs, seed_spec(email, today, C.flag_sets()["c2"]))
+        rec["child"] = {k: child.get(k) for k in ("error", "template", "nightly", "catch_up_error", "stderr_tail") if k in child}
+        if child.get("error"):
+            rec["why"] = f"the post-boot child failed: {child['error']}"
+            return rec
+        if not (child.get("template") or {}).get("found"):
+            rec["why"] = "the child found no chart block of the template symbol in the member's index"
+            return rec
+        nightly = child.get("nightly") or {}
+        if nightly.get("error") or not nightly.get("ran"):
+            rec["why"] = f"the nightly job did not run: {nightly.get('error') or nightly.get('reason')}"
+            return rec
+        # What the member sees, read back through the member's own routes
+        tpl = ctx.request.get(base + "/api/j2/similar-names/templates").json().get("templates") or []
+        mine = next((t for t in tpl if t.get("noteId") == note["id"]), None)
+        rec["templates_seen"] = len(tpl)
+        rec["matches"] = int((mine or {}).get("matchCount") or 0)
+        rec["ok"] = rec["matches"] >= 1
+        if not rec["ok"]:
+            rec["why"] = f"the member's templates route reports {rec['matches']} stored matches for the plan"
+        return rec
+    except Exception as e:  # noqa: BLE001 -- a seed that broke is a gap in the setup, said so
+        rec["why"] = f"{type(e).__name__}: {str(e).splitlines()[0][:200] if str(e) else ''}"
+        return rec
+
+
+def member_for(browser, admin_req, base: str, vp: str, dismiss: bool, data_dir: str | None = None, out: Path | None = None):
     """A fresh paid member with the sample notebook added through the UI (the way a new member
-    gets notes and chart notes). Returns (ctx, email, me, {title: id}, state)."""
+    gets notes and chart notes), and the find-similar seed (a chart plan of the member's own with
+    its overnight matches stored). Returns (ctx, email, me, {title: id}, state)."""
     import notebook_fin_walk as C
     ctx, email, me = C.member(browser, admin_req, base, f"da{vp}", vp)
     pg = ctx.new_page()
@@ -732,15 +857,17 @@ def member_for(browser, admin_req, base: str, vp: str, dismiss: bool):
             break
         pg.wait_for_timeout(500)
     pg.wait_for_timeout(2500)
+    seed = seed_find_similar(ctx, base, email, data_dir, (out or Path(".")) / f"seed-{vp}-{'settled' if dismiss else 'realistic'}")
     notes = {n.get("title"): n.get("id") for n in C.notes_list(ctx, base)}
     state = settle_member(pg, base, notes, dismiss)
+    state["find_similar_seed"] = seed
     pg.close()
     if len(notes) < 5:
         raise SetupFailed(f"the sample notebook did not land ({len(notes)} notes)")
     return ctx, email, me, notes, state
 
 
-def audit(base: str, out: Path, tip: str, only: set[int] | None) -> int:
+def audit(base: str, out: Path, tip: str, only: set[int] | None, data_dir: str | None = None) -> int:
     """Measure and WRITE THE RAW FILE; interpret nothing (R-RAW). `--reinterpret` does the rest."""
     import notebook_perf_harness as h
     from playwright.sync_api import sync_playwright
@@ -755,6 +882,7 @@ def audit(base: str, out: Path, tip: str, only: set[int] | None) -> int:
     raw: dict = {"stamp": stamp, "base": base, "tip": tip, "tool": "tools/notebook_door_audit.py",
                  "table": TABLE_PATH.name, "table_sha256": table_sha256(),
                  "partial": bool(only), "only": sorted(only) if only else None, "viewports": list(VIEWPORTS),
+                 "seed_data_dir": data_dir,
                  "conditions": list(CONDITIONS), "graded_condition": GRADED,
                  "status": "INCOMPLETE (the run did not finish)", "members": {}, "control": [], "measures": []}
 
@@ -773,7 +901,7 @@ def audit(base: str, out: Path, tip: str, only: set[int] | None) -> int:
                 for cond in CONDITIONS:
                     ctx = None
                     try:
-                        ctx, email, me, notes, state = member_for(browser, admin.request, base, vp, cond == "settled")
+                        ctx, email, me, notes, state = member_for(browser, admin.request, base, vp, cond == "settled", data_dir, out)
                         raw["members"][vp][cond] = {"email": email, "notes": len(notes), **state}
                         # R-HON: the control first, at this viewport, in this state. A fresh page per door,
                         # so an injected overlay or a read stub never reaches the next one.
@@ -788,7 +916,7 @@ def audit(base: str, out: Path, tip: str, only: set[int] | None) -> int:
                             if vp not in row["viewports"] or row.get("door") is False:
                                 continue
                             pg = ctx.new_page()
-                            raw["measures"].append(run_row(pg, base, row, vp, notes, me, out, cond))
+                            raw["measures"].append(run_row(pg, base, row, vp, notes, me, out, cond, state.get("find_similar_seed")))
                             pg.close()
                             save_raw()
                     except SetupFailed as e:
@@ -915,7 +1043,10 @@ def render_md(final: dict, results: list[dict], by_row: dict) -> str:
                  f"control exit codes {final.get('control_exit_codes')}.", ""]
     for vp, conds in final.get("members", {}).items():
         for cond, m in conds.items():
-            lines.append(f"- {vp} {cond}: sample notebook, {m.get('recent_note_rows')} recent rows, nudges dismissed {len(m.get('nudges_dismissed') or [])}")
+            sd = m.get("find_similar_seed")
+            seed_txt = ("" if not sd else (f"; find-similar seed ok, {sd.get('matches')} stored match(es)" if sd.get("ok")
+                                           else f"; find-similar seed DID NOT LAND ({sd.get('why')})"))
+            lines.append(f"- {vp} {cond}: sample notebook, {m.get('recent_note_rows')} recent rows, nudges dismissed {len(m.get('nudges_dismissed') or [])}{seed_txt}")
     lines += ["", "| audit row | door | verdict | 1280 | 390 | settled 1280 / 390 | reason (clears?) or note |", "|---|---|---|---|---|---|---|"]
 
     def cell(m, v=None):
@@ -982,6 +1113,7 @@ def main(argv=None) -> int:
     ap.add_argument("--out", help="parent dir; a door-audit-<UTC stamp>/ folder is made inside it")
     ap.add_argument("--tip", default="", help="the commit under test, recorded in the evidence")
     ap.add_argument("--only", default="", help="comma list of audit rows (the evidence is marked partial)")
+    ap.add_argument("--data-dir", default="", help="the sandbox's data dir (<data-root>/c2): row 42's seed runs the nightly find-similar job against it; without it that row is NOT_MEASURED")
     ap.add_argument("--self-check", action="store_true", help="run the verdict and exit functions on known cases and exit")
     ap.add_argument("--reinterpret", metavar="DIR", help="derive doors.json and doors.md from DIR/doors-raw.json and print the exit code (never writes the raw file)")
     a = ap.parse_args(argv)
@@ -999,7 +1131,7 @@ def main(argv=None) -> int:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out = Path(a.out) / f"door-audit-{stamp}"
     out.mkdir(parents=True, exist_ok=True)
-    return audit(a.base.rstrip("/"), out, a.tip, only)
+    return audit(a.base.rstrip("/"), out, a.tip, only, a.data_dir or None)
 
 
 if __name__ == "__main__":
