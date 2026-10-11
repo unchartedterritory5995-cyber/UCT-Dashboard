@@ -57,3 +57,36 @@ protected layouts, cross-session board guard, follow-up executions, routing.
 - 1 model call per model-path turn; +1 on a routing miss (`need_groups`), +1 for research, +1 for a schema refusal.
 - Fast path (0 model calls) covers only exact phrasings; common short commands with a symbol/timeframe/indicator still pay a model call.
 - Composed plans run producers serially; the Screener scan is one page only.
+
+## What changed (Gates B–E)
+
+| Area | Change |
+|---|---|
+| Screener (Agent) | List fields (sector, industry, theme…): the model writes the member's words, UCT matches the real values (`/api/screener/fields?options=1`), names them, says coverage; unmatched words are refused with the real names. A word that only fits the sibling field (Sector→Industry) is matched there and said. |
+| Latest-session measures | `capabilities/sessionMeasures.js` + `POST /api/agent/session-stats`: close / volume / dollar volume of the newest session whose close has passed (whole-market grouped frame, raw), checked after the engine's filters. One clock: a price condition in the same screen is checked on that session's close. |
+| Complete results | Screens are read page by page (parallel after page 1) up to `FILL_MAX` = 1,000 for a fill; "all of them" past that is refused with the real count — never a silent first page. Model-typed tickers stay capped at 50. |
+| watchlist.add | `{from, top: null}` = all results, no "how many?" question. |
+| watchlist.open (board) | The product's `?openWatchlist=` write: first switchable Watchlist widget, or one new widget in empty space; own receipt and Undo. |
+| Deferred steps | A capability marked `deferred` runs after the rest of the request lands, as its own execution (follow-up); its failure keeps what the rest made and says so. Shown on the same approval card. |
+| Alias safety | A plan's own `as` alias wins over a same-spelled context ref for later ops of that kind (the fill otherwise went to an existing list). |
+| Prompt | "Act on clear intent" defaults + the four reasons to clarify; "whole requests" in one plan; follow-up references resolve from the latest receipt. No capability names hard-coded. |
+| Fast path | "change my chart to 15 minutes", "change the timeframe to daily", "switch to the 15 minute", "change my chart to candles", exact-name indicator adds ("put RSI on my chart", "add VWAP"), "open <list>", "open the watchlist you just made". |
+
+## Results (Gate F) — `agentEval.test.jsx`, same 20 tasks, same scripted manifest-aware model
+
+| Metric | master `d4e5200ace` | branch |
+|---|---|---|
+| Tasks completed | 75% | **100%** |
+| Tasks with an unnecessary question | 22% | **0%** |
+| Necessary questions still asked | 100% | 100% |
+| Model calls per task | 0.95 | **0.60** |
+| Model calls across the 9 simple commands | 6 | **1** |
+| Writes before approval | 0 | 0 |
+| Local pipeline ms (p50 / p95) | 93 / 293 | 108 / 311 |
+
+Local ms excludes the model; the branch's p95 is higher because it now does work the old build refused
+(full paged scans + session read). Real-model latency was NOT measured (no paid calls); each model call
+avoided is one full Haiku round trip saved.
+
+Real-backend E2E (scratchpad `p1/e2e_software.py`, real /charts, real screener DB + session frame from
+local bars, scripted model): 12/12 — the list held exactly the 20 stocks computed independently.
