@@ -43,6 +43,25 @@ def _thesis_review_enabled() -> bool:
     return os.environ.get("AWARENESS_THESIS_REVIEW_ENABLED", "0") == "1"
 
 
+#: S7 FLIP (TERM-025): the position R4 held in a member's candidate list, kept
+#: when `ALERT_TAXONOMY_REGIME_CHANGE_LIVE_ENABLED` hands R4 to the taxonomy, so
+#: the regime fire still meets `add_insight`'s shared 8/day cap in R4's ORDER
+#: (after stop-watch and earnings, before thesis-review). A sentinel, never an
+#: InsightCandidate: nothing but the loop below can mistake it for one.
+_REGIME_TAXONOMY_SLOT = object()
+
+
+def _regime_change_live():
+    """The S7 flip module when its flag is on (read per call), else None.
+    ⛔ An import failure answers None: R4 keeps firing rather than a member
+    losing the flip."""
+    try:
+        from api.services.alert_taxonomy import regime_change_live as _live
+    except Exception:  # noqa: BLE001
+        return None
+    return _live if _live.is_enabled() else None
+
+
 def _note_resurface_enabled() -> bool:
     """R7-R9 (wave 13 lane 13D, resurfacing) get their OWN flag, the R6
     precedent above: a new family of insight kinds that can be turned off alone.
@@ -309,6 +328,10 @@ def run_awareness_scan() -> dict:
     scan_ctx = _build_market_scan_ctx(user_ctxs)
 
     thesis_review_on = _thesis_review_enabled()
+    # S7 FLIP: R4 stands down and the `regime-change` taxonomy rule delivers.
+    regime_live = _regime_change_live()
+    regime_fire_key = (regime_live.ledger_cycle_key(scan_ctx)
+                       if regime_live is not None else None)
 
     fired = 0
     for user_id, user_ctx in user_ctxs.items():
@@ -316,7 +339,10 @@ def run_awareness_scan() -> dict:
         try:
             candidates += rules.rule_stop_watch(scan_ctx, user_ctx)
             candidates += rules.rule_earnings_proximity(scan_ctx, user_ctx)
-            candidates += rules.rule_regime_flip(scan_ctx, user_ctx)
+            if regime_live is None:
+                candidates += rules.rule_regime_flip(scan_ctx, user_ctx)
+            else:
+                candidates.append(_REGIME_TAXONOMY_SLOT)
             if thesis_review_on:
                 candidates += rules.rule_thesis_stop_review(scan_ctx, user_ctx)
         except Exception as e:  # noqa: BLE001 — one user's bad data can't abort the rest
@@ -324,11 +350,15 @@ def run_awareness_scan() -> dict:
             continue
         for candidate in candidates:
             try:
+                if candidate is _REGIME_TAXONOMY_SLOT:
+                    fired += regime_live.fire_ledger(user_id, scan_ctx, user_ctx,
+                                                     fire_key=regime_fire_key)
+                    continue
                 if _fire_candidate(user_id, candidate):
                     fired += 1
             except Exception as e:  # noqa: BLE001
                 _log.warning("[awareness] fire failed user=%s kind=%s: %s",
-                             user_id, candidate.kind, e)
+                             user_id, getattr(candidate, "kind", "regime_flip"), e)
 
     result = {"enabled": True, "scanned_users": len(user_ctxs), "fired": fired,
               "regime_degraded": bool(scan_ctx.get("regime", {}).get("degraded"))}

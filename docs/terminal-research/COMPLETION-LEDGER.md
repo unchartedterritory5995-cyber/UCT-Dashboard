@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after ENT-UC2): not complete.** 265 of 279 rows are `live` or `moot`; 14 are not (2 `dark`, 6 `building`, 6 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after the alert flips): not complete.** 265 of 279 rows are `live` or `moot`; 14 are not (3 `dark`, 6 `building`, 5 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,10 +34,10 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 after ENT-UC2:
+Printed 2026-10-10 after the alert flips:
 
 ```
-279 Counter({'live': 225, 'moot': 40, 'building': 6, 'owner-blocked': 6, 'dark': 2})
+279 Counter({'live': 225, 'moot': 40, 'building': 6, 'owner-blocked': 5, 'dark': 3})
 0 duplicate ids
 ```
 
@@ -51,12 +51,12 @@ The per-section split is the same regex applied to each `## ` section:
 |---|---|---|---|---|---|---|
 | 1 Programme records + ship | 17 | 13 | 0 | 1 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
-| 3 TERM-001..093 | 93 | 79 | 2 | 3 | 3 | 6 |
+| 3 TERM-001..093 | 93 | 79 | 3 | 3 | 2 | 6 |
 | 4 BRK-01..10 | 10 | 9 | 0 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 8 | 0 | 1 | 0 | 3 |
 | 6 FT-001..080 | 80 | 67 | 0 | 1 | 3 | 9 |
 | 7 Untracked promises | 58 | 49 | 0 | 0 | 0 | 9 |
-| **total** | **279** | **225** | **2** | **6** | **6** | **40** |
+| **total** | **279** | **225** | **3** | **6** | **5** | **40** |
 
 `building` by lane: P 4 · Indicators 2.
 
@@ -127,7 +127,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-022` | Massive adapter + retirement queue | `live` | `api/services/massive_adapter.py:63`. Partner-file ack is moot (fully open since 9/29). |
 | `TERM-023` | Entity master member path | `live` | `api/services/entity_master/member_resolve.py:50`; armed 10-02 (this branch's ledger). |
 | `TERM-024` | Panel declares a need | `live` | `app/src/lib/panelContract.js:126`. |
-| `TERM-025` | Seven more trigger types | `owner-blocked (run tools/alert_type_readiness.py on web; flip each type it prints READY TO FLIP)` | 8/8 registered (`api/services/alert_taxonomy/registry.py:16`). The readiness tool exists (`fbe983304`, lane f-l6): it reads every shadow type's log through `api/services/alert_taxonomy/dark_report.py` and applies ADR-0036 clause v3 plus T-11's >= 10 consecutive trading sessions; it flips nothing. The command is in `12-decisions/2026-10-10-arming-list.md`. ➜ 2026-10-07: T-11; owner action A8 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `TERM-025` | Seven more trigger types | `dark` | 8/8 registered (`api/services/alert_taxonomy/registry.py:16`). The readiness tool exists (`fbe983304`, lane f-l6): it reads every shadow type's log through `api/services/alert_taxonomy/dark_report.py` and applies ADR-0036 clause v3 plus T-11's >= 10 consecutive trading sessions; it flips nothing. **The FLIP switches now exist (lane f-flip, 2026-10-10) for the three types the tool printed READY TO FLIP, owner-approved the same day:** `ALERT_TAXONOMY_REGIME_CHANGE_LIVE_ENABLED` (`api/services/alert_taxonomy/regime_change_live.py`; R4 stands down at `api/services/awareness/engine.py` `run_awareness_scan`, the session-summary path at `api/services/voice_proactive_service.py` `maybe_emit_regime_shift`; delivered in-app only by `alert_taxonomy/delivery.py` `deliver_insight`), `ALERT_TAXONOMY_SCAN_MEMBERSHIP_LIVE_ENABLED` (`scan_membership_change_live.py`; `screener/screen_alerts.py` `run_nightly` stays the driver and its delivery block stands down) and `ALERT_TAXONOMY_CATALYST_MATCH_LIVE_ENABLED` (`catalyst_match_live.py`; `catalyst/engine.py` `_fire_catalyst_alerts` / `_fire_mustknow_alerts` return the taxonomy's count after their own gates). Each is default OFF, read per call, declared `dark` in `docs/feature_flags.json`; on, the taxonomy rule records `alert_fires` and delivers through the taxonomy path (lease, FT-036 routing, AC-4 caps) with the legacy dedup keys kept, so one alert per event and nothing lost (`tests/test_alert_flip_{regime_change,scan_membership,catalyst_match}.py`). Arming each is the owner's A8 step on web, one type at a time (`12-decisions/2026-10-07-owner-delegated-decisions.md:151`). The other four types (price-level, event-proximity, position-risk, indicator-condition) have no switch yet and wait on their own readiness readings. ➜ 2026-10-07: T-11 |
 | `TERM-026` | Auditor denominator | `live` | `api/auth_surface_check.py:393`. |
 | `TERM-027` | Header inside error boundary | `live` | `app/src/pages/charts/WidgetHost.jsx:315`. |
 | `TERM-028` | Honest blank for futures | `moot (futures removed 2026-07-27; BTC/VIX on yfinance is D-004)` | |
@@ -266,7 +266,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `FT-031` | Three alert kinds | `live` | `api/services/alert_conditions.py:44`. |
 | `FT-032` | Alert on the position drawing | `live` | Built on lane f-l6 (`47013a182`, branch-only until merged; no flag, so it is live once merged): `alertKindFor('position')` returns `line` (`app/src/components/chart/drawingAlertAnchors.js`); entry, stop and target are bound line alerts keyed by point index (`<id>#1` is the stop), so the existing resync moves and deletes them; the menu offers Entry, Stop, Target and All three (`positionAlerts` in `drawingSettingsSchema.js`, `ChartDrawingOverlay.jsx`), and the entry's side comes from the last close (`StockChart.jsx`). Tests: `drawingPositionAlert.test.jsx`. Was `building (Lane S)`. Landed on master with lane L6 (`25bab1588`); no flag, so live on merge. |
 | `FT-033` | Outbound webhook alerts | `live` | `ALERT_WEBHOOKS_ENABLED` still `pending` (`docs/feature_flags.json`); on master. Arming checked 2026-10-10 (lane f-l6): read site `api/services/alert_taxonomy/outbound_webhooks.py:102`, drain job `alert_webhooks_drain`; prerequisite `BROKER_ENCRYPTION_KEY` on web (`outbound_webhooks.py:219` refuses to mint a signing secret without it). `12-decisions/2026-10-10-arming-list.md`. Armed 2026-10-11 (owner ruling 2026-10-10, "everything on the list"): see the flag's `docs/feature_flags.json` entry for the service and flip time. |
-| `FT-034` | Six trigger source types | `owner-blocked (as TERM-025: arm ALERT_TAXONOMY_RATING_CHANGE_DARK_ENABLED on web, then flip rating-change when the readiness tool prints it READY)` | The rating-change type is built dark (`api/services/alert_taxonomy/rating_change.py`, `ALERT_RATING_CHANGE_ENABLED` pending). Lane f-l6 (`fbe983304`) adds its shadow log (`rating_change_compare.py`, behind `ALERT_TAXONOMY_RATING_CHANGE_DARK_ENABLED`, spans and a heartbeat only), read by `tools/alert_type_readiness.py` like the other seven. ➜ 2026-10-07: T-11 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |
+| `FT-034` | Six trigger source types | `owner-blocked (as TERM-025: arm ALERT_TAXONOMY_RATING_CHANGE_DARK_ENABLED on web, then flip rating-change when the readiness tool prints it READY)` | The rating-change type is built dark (`api/services/alert_taxonomy/rating_change.py`, `ALERT_RATING_CHANGE_ENABLED` pending). Lane f-l6 (`fbe983304`) adds its shadow log (`rating_change_compare.py`, behind `ALERT_TAXONOMY_RATING_CHANGE_DARK_ENABLED`, spans and a heartbeat only), read by `tools/alert_type_readiness.py` like the other seven. ➜ 2026-10-07: T-11 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) ➜ 2026-10-10 (lane f-flip): the flip shape every type follows now exists in code for regime-change, scan-membership-change and catalyst-match (`*_live.py` modules, flags `dark`, see TERM-025); rating-change keeps its own `ALERT_RATING_CHANGE_ENABLED` delivery gate and flips when the readiness tool prints it READY. |
 | `FT-035` | Per-alert lifecycle | `live` | Expiry armed on web 2026-10-04 (`a046f7d9f`) (`ALERT_LIFECYCLE_ENABLED`). Remind built dark (`lane/s2-finish`, `9e69eddd9`): `ALERT_REMIND_ENABLED` pending; arming checked 2026-10-10 (lane f-l6): read site `api/services/alert_taxonomy/remind.py:63`, job `alert_remind`, no prerequisite (`12-decisions/2026-10-10-arming-list.md`). Reverse still waits on the price_level flip (TERM-025). Was `building (Lane S)`. Armed 2026-10-11 (owner ruling 2026-10-10, "everything on the list"): see the flag's `docs/feature_flags.json` entry for the service and flip time. |
 | `FT-036` | Routing rule + suspend | `live` | `ALERT_ROUTING_RULE_ENABLED` armed on web 2026-10-04 (`a046f7d9f`) (`docs/feature_flags.json:1890`); the rule governs the TERM-048 bridge too (`937b3d9e5`). Was `building (Lane S)`. |
 | `FT-037` | Four channels incl. SMS / push | `moot (decided 2026-10-07: no SMS; email, in-app and push cover it)` | Email/in-app live; push dark (BRK-04). ➜ 2026-10-07: S-3 (`12-decisions/2026-10-07-owner-delegated-decisions.md`) |

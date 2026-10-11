@@ -169,6 +169,26 @@ def list_fires(user_id: str, limit: int = 50, *, db_path: str | None = None) -> 
         conn.close()
 
 
+def released_fire_id(predicate_id: str, fire_key: str, *, db_path: str | None = None) -> Optional[int]:
+    """The id of an already-recorded fire whose delivery lease was RELEASED
+    (`release_delivery`: claimed, failed, retry allowed), or None. Lets a
+    caller whose `record_fire` answered "already recorded" retry exactly that
+    fire instead of either dropping it or recording a second one. A fire that
+    is unclaimed-and-never-attempted, delivered, or terminal is not returned."""
+    conn = _db.connect(db_path)
+    try:
+        _db.init_db(conn)
+        row = conn.execute(
+            "SELECT id FROM alert_fires WHERE predicate_id = ? AND fire_key = ? "
+            "AND delivered_at IS NULL AND delivery_failed_at IS NOT NULL "
+            "AND delivery_attempts < ?",
+            (predicate_id, fire_key, MAX_DELIVERY_ATTEMPTS),
+        ).fetchone()
+        return int(row["id"]) if row else None
+    finally:
+        conn.close()
+
+
 def fires_for_predicate(predicate_id: str, limit: int = 50, *, db_path: str | None = None) -> list[dict[str, Any]]:
     conn = _db.connect(db_path)
     try:

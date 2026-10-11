@@ -229,6 +229,45 @@ def _collect_user_watchlist_tickers() -> dict[str, set[str]]:
     return out
 
 
+def _catalyst_match_live():
+    """The S7 flip module when `ALERT_TAXONOMY_CATALYST_MATCH_LIVE_ENABLED` is on
+    (read per call), else None. ⛔ An import failure answers None, so the legacy
+    path keeps delivering rather than a member losing the alert."""
+    try:
+        from api.services.alert_taxonomy import catalyst_match_live as _live
+    except Exception:  # noqa: BLE001
+        return None
+    return _live if _live.is_enabled() else None
+
+
+def _watchlist_alert_payload(ticker: str, c: dict, market_date: str) -> tuple[str, str, dict]:
+    """The ONE place the watchlist catalyst alert's words are built. The legacy
+    loop and the S7 flip (`catalyst_match_live`) both call it."""
+    tag = c.get("tag", CATALYST_TAG.CATALYST)
+    gap = c.get("gap_pct") or 0.0
+    thesis = (c.get("thesis_text") or "")[:300]
+    title = f"📰 Catalyst: ${ticker} ({tag})"
+    message = (
+        f"{ticker} is a top catalyst today ({tag}, {gap:+.2f}%). "
+        f"{thesis}"
+    )
+    return title, message, {"ticker": ticker, "tag": tag, "gap_pct": gap,
+                            "market_date": market_date}
+
+
+def _mustknow_alert_payload(ticker: str, c: dict, market_date: str) -> tuple[str, str, dict]:
+    """The ONE place the must-know alert's words are built (legacy + S7 flip)."""
+    grade = (c.get("grade") or "").upper()
+    ctype = c.get("catalyst_type") or c.get("tag") or CATALYST_TAG.CATALYST
+    gap = c.get("gap_pct") or 0.0
+    thesis = (c.get("thesis_text") or "")[:300]
+    title = f"🚨 Must-know {grade}: ${ticker} ({ctype})"
+    message = f"{ticker} — grade {grade} {ctype} catalyst ({gap:+.2f}%). {thesis}"
+    return title, message, {"ticker": ticker, "grade": grade,
+                            "catalyst_type": ctype, "gap_pct": gap,
+                            "market_date": market_date}
+
+
 def _fire_catalyst_alerts(top_n: list[dict], market_date: str) -> int:
     """For each (user, ticker) where ticker is in top-N and on user's watchlist,
     fire a multi-channel alert (AlertBell + email + Discord). Deduped per
@@ -241,6 +280,14 @@ def _fire_catalyst_alerts(top_n: list[dict], market_date: str) -> int:
         return 0
     if not top_n:
         return 0
+
+    # S7 FLIP (TERM-025): with ALERT_TAXONOMY_CATALYST_MATCH_LIVE_ENABLED=1 the
+    # `catalyst-match` taxonomy rule decides and delivers this alert and the
+    # loop below STANDS DOWN. Same gate above, same dedup claim
+    # (`store.try_record_alert`), same words. Off: unchanged.
+    live = _catalyst_match_live()
+    if live is not None:
+        return live.fire_watchlist(top_n, market_date)
 
     user_tickers = _collect_user_watchlist_tickers()
     if not user_tickers:
@@ -263,14 +310,7 @@ def _fire_catalyst_alerts(top_n: list[dict], market_date: str) -> int:
             if not store.try_record_alert(user_id, ticker, market_date):
                 continue
 
-            tag = c.get("tag", CATALYST_TAG.CATALYST)
-            gap = c.get("gap_pct") or 0.0
-            thesis = (c.get("thesis_text") or "")[:300]
-            title = f"📰 Catalyst: ${ticker} ({tag})"
-            message = (
-                f"{ticker} is a top catalyst today ({tag}, {gap:+.2f}%). "
-                f"{thesis}"
-            )
+            title, message, extra_data = _watchlist_alert_payload(ticker, c, market_date)
             try:
                 deliver_alert_payload(
                     user_id=user_id,
@@ -278,12 +318,7 @@ def _fire_catalyst_alerts(top_n: list[dict], market_date: str) -> int:
                     title=title,
                     message=message,
                     source="catalyst_alert",
-                    extra_data={
-                        "ticker": ticker,
-                        "tag": tag,
-                        "gap_pct": gap,
-                        "market_date": market_date,
-                    },
+                    extra_data=extra_data,
                 )
                 fired += 1
             except Exception:
@@ -334,6 +369,12 @@ def _fire_mustknow_alerts(displayed: list[dict], market_date: str) -> int:
     if not displayed:
         return 0
 
+    # S7 FLIP (TERM-025): see `_fire_catalyst_alerts`. The taxonomy grade rule
+    # decides and delivers; the loop below stands down. Off: unchanged.
+    live = _catalyst_match_live()
+    if live is not None:
+        return live.fire_mustknow(displayed, market_date)
+
     grades = {g.strip().upper() for g in
               os.environ.get("CATALYST_MUSTKNOW_GRADES", "A,B").split(",") if g.strip()}
     rows = [c for c in displayed if (c.get("grade") or "").upper() in grades]
@@ -372,19 +413,12 @@ def _fire_mustknow_alerts(displayed: list[dict], market_date: str) -> int:
             if not store.try_record_alert(
                     user_id, store.mustknow_dedup_key(ticker), market_date):
                 continue
-            grade = (c.get("grade") or "").upper()
-            ctype = c.get("catalyst_type") or c.get("tag") or CATALYST_TAG.CATALYST
-            gap = c.get("gap_pct") or 0.0
-            thesis = (c.get("thesis_text") or "")[:300]
-            title = f"🚨 Must-know {grade}: ${ticker} ({ctype})"
-            message = f"{ticker} — grade {grade} {ctype} catalyst ({gap:+.2f}%). {thesis}"
+            title, message, extra_data = _mustknow_alert_payload(ticker, c, market_date)
             try:
                 deliver_alert_payload(
                     user_id=user_id, sym=ticker, title=title, message=message,
                     source="catalyst_mustknow",
-                    extra_data={"ticker": ticker, "grade": grade,
-                                "catalyst_type": ctype, "gap_pct": gap,
-                                "market_date": market_date},
+                    extra_data=extra_data,
                 )
                 fired += 1
             except Exception:

@@ -655,7 +655,12 @@ def test_the_harness_is_the_only_caller_of_would_fire():
     # ⚰️ MOVED AT CP3: the projection drives the evaluator through `observe()`,
     # so the caller list is unchanged — but it stays EXACT so a direct call added
     # anywhere else fails by name.
-    assert callers == ["api/services/alert_taxonomy/regime_change_compare.py"], (
+    # ⚰️ MOVED AT THE FLIP (owner approval 2026-10-10, TERM-025): the live
+    # module is the one new caller, behind ALERT_TAXONOMY_REGIME_CHANGE_LIVE_ENABLED,
+    # wired from awareness/engine.py and voice_proactive_service.py (rail:
+    # tests/test_alert_flip_regime_change.py). The list stays EXACT.
+    assert sorted(callers) == ["api/services/alert_taxonomy/regime_change_compare.py",
+                               "api/services/alert_taxonomy/regime_change_live.py"], (
         f"expected the harness to be the ONLY caller; found {callers}")
 
 

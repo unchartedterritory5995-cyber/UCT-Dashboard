@@ -717,6 +717,22 @@ def test_CONTROL_document_arrival_is_still_the_only_trigger_type_in_the_package(
     # the cross-store dedup and read parity key on `s7_fire_key`, and
     # tests/test_alert_rating_change.py::test_the_feed_carries_ONE_copy_* runs
     # the feed observables against its own fixture fire.
+    #
+    # THE FLIP (lane f-flip, 2026-10-10, owner-approved; flags DEFAULT OFF):
+    # `regime-change`, `scan-membership-change` and `catalyst-match` now RECORD
+    # live fires in alert_fires behind their *_LIVE_ENABLED flags. Step 2 was
+    # weighed and deliberately NOT done, for a reason each type states: the
+    # two that reach the AlertBell (`scan-membership-change`, `catalyst-match`)
+    # deliver through the SAME deliver_alert_payload call their legacy made,
+    # with the legacy `source`, so the member's feed row is the legacy row and
+    # alert_durability keeps it exactly as before; a `_s7_durable_alerts`
+    # branch would render that alert TWICE. Their live fires also carry
+    # `live:` predicate ids with no alert_predicates row, so
+    # receipts.list_fires_for_feed (an INNER JOIN on alert_predicates) cannot
+    # surface them. `regime-change` never reaches the feed at all: its fixed
+    # channel is the Compass insight row (delivery.deliver_insight), as its
+    # legacy's was. Step 3's observables per type live in
+    # tests/test_alert_flip_{regime_change,scan_membership,catalyst_match}.py.
     _EXPECTED = {"document-arrival", "price-level", "event-proximity",
                  "catalyst-match", "position-risk",
                  "scan-membership-change", "regime-change",

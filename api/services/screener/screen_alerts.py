@@ -161,6 +161,45 @@ def _phrase(names, verb, screen):
     return f"{', '.join(shown)}{tail} {verb} {screen}"
 
 
+def _compose(name, want_in, want_out):
+    """`(title, message, sym)` for one alert. The ONE place the words are built:
+    `run_nightly` and the S7 flip (`scan_membership_change_live`) both call it."""
+    parts = []
+    if want_in:
+        parts.append(_phrase(want_in, "entered", name))
+    if want_out:
+        parts.append(_phrase(want_out, "left", name))
+    # ⚠️ "Overnight" is the honest word and is load-bearing — the
+    # sweep is nightly, so a member must not read this as live.
+    message = ("Overnight change in your screen — "
+               + "; ".join(parts) + ".")
+    return (f"{name}: {len(want_in)} in, {len(want_out)} out", message,
+            (want_in or want_out)[0])
+
+
+def _record_fired(user_id, def_hash, as_of, n_in, n_out) -> None:
+    """The dedup row, written after a delivery. ONE writer shape for both
+    the legacy loop and the S7 flip, so the dedup key never forks."""
+    with snapshot_db.connect() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO screen_alerts_fired "
+            "(user_id, def_hash, as_of, fired_at, entered, exited) "
+            "VALUES (?,?,?,?,?,?)",
+            (str(user_id), str(def_hash), int(as_of),
+             int(time.time()), int(n_in), int(n_out)))
+
+
+def _scan_membership_live():
+    """The S7 flip module when `ALERT_TAXONOMY_SCAN_MEMBERSHIP_LIVE_ENABLED` is
+    on (read per call), else None. ⛔ An import failure answers None, so the
+    legacy loop keeps delivering."""
+    try:
+        from api.services.alert_taxonomy import scan_membership_change_live as _live
+    except Exception:  # noqa: BLE001
+        return None
+    return _live if _live.is_enabled() else None
+
+
 def _already_fired(conn, user_id, def_hash, as_of) -> bool:
     return conn.execute(
         "SELECT 1 FROM screen_alerts_fired WHERE user_id=? AND def_hash=? "
@@ -204,6 +243,8 @@ def run_nightly(deliver=None, tf=None) -> dict:
                "sent": 0, "skipped_dedup": 0, "skipped_quota": 0,
                "skipped_quiet": 0, "skipped_dangling": 0, "errors": 0}
     per_user = {}
+    live = _scan_membership_live()      # S7 flip; None = the legacy loop delivers
+    live_inputs = {}
 
     for def_hash, watchers in by_hash.items():
         try:
@@ -251,6 +292,19 @@ def run_nightly(deliver=None, tf=None) -> dict:
             live_meta = (doc.get("definition") or {}).get("meta") or {}
             name = live_meta.get("name") or name
 
+            if live is not None:
+                # S7 FLIP (TERM-025): the `scan-membership-change` taxonomy rule
+                # decides and delivers this subscription's alert; the legacy
+                # decide/deliver below stands down. Same driver, same dangling
+                # check and live name above, same quota, dedup table and words.
+                outcome = live.deliver_one(
+                    user_id=user_id, def_hash=def_hash, name=name, mode=mode,
+                    tf=tf, sent_so_far=per_user.get(user_id, 0), inputs=live_inputs)
+                receipt[outcome] += 1
+                if outcome == "sent":
+                    per_user[user_id] = per_user.get(user_id, 0) + 1
+                continue
+
             want_in = entered if mode in ("entry", "both") else []
             want_out = exited if mode in ("exit", "both") else []
             if not want_in and not want_out:
@@ -267,31 +321,17 @@ def run_nightly(deliver=None, tf=None) -> dict:
                     if _already_fired(conn, user_id, def_hash, as_of):
                         receipt["skipped_dedup"] += 1
                         continue
-                parts = []
-                if want_in:
-                    parts.append(_phrase(want_in, "entered", name))
-                if want_out:
-                    parts.append(_phrase(want_out, "left", name))
-                # ⚠️ "Overnight" is the honest word and is load-bearing — the
-                # sweep is nightly, so a member must not read this as live.
-                message = ("Overnight change in your screen — "
-                           + "; ".join(parts) + ".")
+                title, message, sym = _compose(name, want_in, want_out)
                 deliver(
                     user_id=str(user_id),
-                    sym=(want_in or want_out)[0],
-                    title=f"{name}: {len(want_in)} in, {len(want_out)} out",
+                    sym=sym,
+                    title=title,
                     message=message,
                     source="screen_alert",
                     extra_data={"def_hash": def_hash, "as_of": as_of,
                                 "entered": want_in, "exited": want_out},
                 )
-                with snapshot_db.connect() as conn:
-                    conn.execute(
-                        "INSERT OR REPLACE INTO screen_alerts_fired "
-                        "(user_id, def_hash, as_of, fired_at, entered, exited) "
-                        "VALUES (?,?,?,?,?,?)",
-                        (str(user_id), str(def_hash), int(as_of),
-                         int(time.time()), len(want_in), len(want_out)))
+                _record_fired(user_id, def_hash, as_of, len(want_in), len(want_out))
                 per_user[user_id] = per_user.get(user_id, 0) + 1
                 receipt["sent"] += 1
             except Exception:  # noqa: BLE001

@@ -565,9 +565,13 @@ def test_the_harness_is_the_only_caller_of_would_fire():
         if "catalyst_match.would_fire" in code or "_cm.would_fire" in code:
             callers.append(str(p.relative_to(_REPO)).replace("\\", "/"))
     # ⚰️ MOVED AT CP3 (line 2, 3ee80dc13): the PROJECTION is the one new caller.
-    # ⛔ The list stays EXACT — a third caller is an unapproved wire.
+    # ⚰️ MOVED AT THE FLIP (owner approval 2026-10-10, TERM-025): the live
+    # module is the one new caller, behind ALERT_TAXONOMY_CATALYST_MATCH_LIVE_ENABLED,
+    # wired from catalyst/engine.py (rail: tests/test_alert_flip_catalyst_match.py).
+    # ⛔ The list stays EXACT — a fourth caller is an unapproved wire.
     assert sorted(callers) == [
         "api/services/alert_taxonomy/catalyst_match_compare.py",
+        "api/services/alert_taxonomy/catalyst_match_live.py",
         "api/services/alert_taxonomy/catalyst_match_projection.py",
     ], (
         f"expected the harness to be the ONLY caller; found {callers}")

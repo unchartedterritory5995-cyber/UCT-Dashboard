@@ -567,6 +567,16 @@ def _regime_shift_already_told(user_id: str, cur_regime: str) -> bool:
     return row[0] == f"Regime shifted to {cur_regime.replace('_', ' ')}"
 
 
+def _regime_change_live():
+    """The S7 flip module when its flag is on (read per call), else None.
+    ⛔ An import failure answers None: path B keeps firing."""
+    try:
+        from api.services.alert_taxonomy import regime_change_live as _live
+    except Exception:  # noqa: BLE001
+        return None
+    return _live if _live.is_enabled() else None
+
+
 def maybe_emit_regime_shift(user_id: str) -> int:
     """
     Detect if the regime has flipped since the user's most recent session
@@ -582,6 +592,14 @@ def maybe_emit_regime_shift(user_id: str) -> int:
         summaries = list_summaries(user_id, limit=1)
         if not summaries:
             return 0
+        # S7 FLIP (TERM-025): with ALERT_TAXONOMY_REGIME_CHANGE_LIVE_ENABLED=1
+        # the `regime-change` taxonomy rule decides and delivers from these same
+        # inputs, and the loop below stands down. Off: unchanged.
+        live = _regime_change_live()
+        if live is not None:
+            return live.fire_session_summary(
+                user_id, current=current,
+                last_summary_text=summaries[0].get("summary_text") or "")
         last_text = (summaries[0].get("summary_text") or "").lower()
         for r in ("bull_trend", "bull_correction", "distribution", "chop", "bear_trend"):
             if r in last_text and r != cur_regime:

@@ -98,3 +98,67 @@ def deliver(
             report = {**report, "channels": {**report.get("channels", {}), "webhook": "queued"}}
     _receipts.record_delivery_channels(fire_id, report.get("channels", {}))
     return report
+
+
+def deliver_insight(
+    fire_id: int,
+    user_id: str,
+    *,
+    trigger_type: str,
+    kind: str,
+    headline: str,
+    body: Optional[str],
+    importance: int,
+    symbol: Optional[str] = None,
+) -> dict[str, Any]:
+    """Deliver a fire whose type's channel set is FIXED to `in_app` as a Compass
+    insight (`voice_proactive_service.add_insight`), the surface that type's
+    legacy emitter used. `regime-change` is the one caller
+    (`regime_change.CHANNELS_FIXED == ("in_app",)`): routing it through
+    `deliver()` would add email, Discord and webhooks to every position holder
+    on every regime flip, the widening that schema pins against.
+
+    Same contract as `deliver()`: the lease is claimed exactly once before
+    anything runs, a suspended FT-036 routing rule or an AC-4 queue cap
+    records the fire and sends nothing, and the outcome is written onto the
+    fire's own row. `in_app` is not routable (channels.REGISTRY), so a live
+    routing rule never turns it off. `add_insight` returning None (its own
+    8-per-day cap) is recorded as `suppressed`, exactly what the legacy path
+    did with that answer: nothing.
+    """
+    if not _receipts.claim_delivery(fire_id):
+        return {"claimed": False, "channels": {}, "insight_id": None}
+
+    from api.services.alert_taxonomy import routing_rule as _routing
+    rule = _routing.effective(user_id)
+    if rule is not None and rule.suspended:
+        channels = {"routing": "suspended"}
+        _receipts.record_delivery_channels(fire_id, channels)
+        return {"claimed": True, "channels": channels, "insight_id": None, "suspended": True}
+
+    from api.services.alert_taxonomy import queue_caps as _caps
+    if _caps.is_enabled():
+        ttype = _caps.trigger_type_of(fire_id) or trigger_type
+        if not _caps.admit(user_id, ttype, fire_id=fire_id):
+            channels = dict(_caps.CAPPED)
+            _receipts.record_delivery_channels(fire_id, channels)
+            return {"claimed": True, "channels": channels, "insight_id": None, "capped": True}
+
+    from api.services.voice_proactive_service import add_insight
+    channels: dict[str, str] = {}
+    insight_id = None
+    try:
+        insight_id = add_insight(user_id, kind=kind, headline=headline, symbol=symbol,
+                                 body=body, importance=importance)
+        channels["in_app"] = "ok" if insight_id else "suppressed"
+    except Exception as e:  # noqa: BLE001
+        # ONE channel and nothing was written, so a retry cannot double a
+        # delivery (the hazard that makes deliver() never retry). The legacy
+        # emitters retried on their next cycle; releasing the lease (bounded
+        # by MAX_DELIVERY_ATTEMPTS) lets the caller do the same.
+        channels["in_app"] = "failed"
+        _receipts.record_delivery_channels(fire_id, channels)
+        _receipts.release_delivery(fire_id, error=f"{type(e).__name__}: {e}")
+        return {"claimed": True, "channels": channels, "insight_id": None, "released": True}
+    _receipts.record_delivery_channels(fire_id, channels)
+    return {"claimed": True, "channels": channels, "insight_id": insight_id}

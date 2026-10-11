@@ -637,8 +637,12 @@ def test_the_harness_is_the_only_caller_of_would_fire():
     # ⚰️ MOVED AT CP3 (line 2, d0415f251): the PROJECTION is the one new caller,
     # driving the same evaluator over real member rows. ⛔ The list stays EXACT —
     # a third caller is an unapproved wire and fails here by name.
+    # ⚰️ MOVED AT THE FLIP (owner approval 2026-10-10, TERM-025): the live
+    # module is the one new caller, behind ALERT_TAXONOMY_SCAN_MEMBERSHIP_LIVE_ENABLED,
+    # wired from screener/screen_alerts.py (rail: tests/test_alert_flip_scan_membership.py).
     assert sorted(callers) == [
         "api/services/alert_taxonomy/scan_membership_change_compare.py",
+        "api/services/alert_taxonomy/scan_membership_change_live.py",
         "api/services/alert_taxonomy/scan_membership_change_projection.py",
     ], (
         f"expected the harness to be the ONLY caller; found {callers}")

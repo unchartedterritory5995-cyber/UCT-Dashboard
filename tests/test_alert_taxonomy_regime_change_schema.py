@@ -14,6 +14,7 @@ change instead of something a later `entity_scope` quietly acquires.
 from __future__ import annotations
 
 import ast
+import re
 import json
 import pathlib
 
@@ -527,7 +528,10 @@ def test_the_type_IS_wired_now_that_CP3_is_signed():
             code = _code_only(p)
         except SyntaxError:
             continue
-        if "alert_taxonomy import regime_change" in code or "regime_change.register" in code:
+        # ⚰️ TIGHTENED AT THE FLIP: `import regime_change_live` contains the
+        # substring `import regime_change`, so the match is now word-bounded.
+        if (re.search(r"alert_taxonomy import regime_change(?!\w)", code)
+                or "regime_change.register" in code):
             importers.append(str(p.relative_to(_REPO)).replace("\\", "/"))
     # ⚰️ MOVED AT CP3: the PROJECTION and `api/main.py` (the registration wire)
     # join the harness. ⛔ The list stays EXACT — a fourth importer is an
@@ -535,5 +539,8 @@ def test_the_type_IS_wired_now_that_CP3_is_signed():
     assert sorted(importers) == [
         "api/main.py",
         "api/services/alert_taxonomy/regime_change_compare.py",
+        # ⚰️ MOVED AT THE FLIP (owner approval 2026-10-10, TERM-025): the live
+        # module, behind ALERT_TAXONOMY_REGIME_CHANGE_LIVE_ENABLED.
+        "api/services/alert_taxonomy/regime_change_live.py",
         "api/services/alert_taxonomy/regime_change_projection.py",
-    ], (f"expected the harness, the CP3 projection and main.py; found {importers}")
+    ], (f"expected the harness, the CP3 projection, the flip and main.py; found {importers}")
