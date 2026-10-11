@@ -183,10 +183,14 @@ def screener_meta(user=Depends(require_paid)):
 
 
 @router.get("/api/screener/fields")
-def screener_fields(_user=Depends(require_paid)):
+def screener_fields(options: int = 0, _user=Depends(require_paid)):
     """The filter registry alone (key/label/type/unit/category) — no measurement.
-    For callers that need to know which fields exist, not draw the filter panel."""
-    return {"fields": scr_filters.field_catalog()}
+    For callers that need to know which fields exist, not draw the filter panel.
+    `?options=1` adds each value-list field's values and coverage (filters.field_options)."""
+    out = {"fields": scr_filters.field_catalog()}
+    if options:
+        out["options"] = scr_filters.field_options()
+    return out
 
 
 class ScreenAlertSub(BaseModel):

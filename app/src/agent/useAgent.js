@@ -43,16 +43,38 @@ registerBuiltins()
 // translated back like a target — only for the args a capability declares (`argRefs: {arg: kind}`),
 // and only when the short ref really is a target of that kind; anything else stays as the model
 // sent it, and the capability's check refuses it.
-function argRefsBack(op, refMap) {
+function argRefsBack(op, refMap, isAlias = () => false) {
   const decl = getCapability(op?.action)?.argRefs
   if (!decl || !op.args || typeof op.args !== 'object') return op.args
   const args = { ...op.args }
   for (const [arg, kind] of Object.entries(decl)) {
     const kinds = Array.isArray(kind) ? kind : [kind]
-    const back = (v) => { const hit = typeof v === 'string' ? refMap[v] : null; return hit && kinds.includes(hit.kind) ? hit.ref : v }
+    const back = (v) => {
+      if (isAlias(v, kinds)) return v
+      const hit = typeof v === 'string' ? refMap[v] : null
+      return hit && kinds.includes(hit.kind) ? hit.ref : v
+    }
     args[arg] = Array.isArray(args[arg]) ? args[arg].map(back) : back(args[arg])
   }
   return args
+}
+
+// The model's short refs → real refs. ⛔ An ALIAS the plan itself declared (a creator's `as`,
+// e.g. a new list "w1") wins over a context ref spelled the same way, for every LATER op that
+// expects that kind — the model picks alias names freely, and "w1" may also be the short ref
+// of an existing list (measured 2026-10-11: the fill went to the wrong list). Earlier ops, and
+// ops expecting another kind, still read the context ref.
+export function translateRefs(ops, refMap) {
+  const aliasKind = {}
+  const isAlias = (v, kinds) => typeof v === 'string' && aliasKind[v] != null && (!kinds || [].concat(kinds).includes(aliasKind[v]))
+  return (ops || []).map((o) => {
+    const cap = getCapability(o?.action)
+    const target = isAlias(o?.target, cap?.target) ? o.target : (refMap[o?.target]?.ref || o?.target)
+    const out = { ...o, target, args: argRefsBack(o, refMap, isAlias) }
+    const c = cap?.creates?.(o?.args || {})
+    if (c?.alias) aliasKind[c.alias] = c.kind
+    return out
+  })
 }
 const kindsOf = (ops) => [...new Set(ops.map(o => getCapability(o?.action)?.target).filter(Boolean))]
 // Which board the host is showing (null for hosts without layouts).
@@ -76,6 +98,36 @@ function fanOutOf(ops) {
   if (!ops.every(o => o?.action === ops[0].action && JSON.stringify(o.args ?? null) === args)) return null
   if (new Set(ops.map(o => o.target)).size !== ops.length) return null
   return ops
+}
+
+// ⭐ DEFERRED steps (a capability with `deferred: true`, e.g. watchlist.open): in a request that
+// also does other things, they run AFTER the rest has landed — as their own execution with their
+// own receipt and Undo, aimed at what the rest created (an alias → its real id). If one cannot
+// run, what the rest did STAYS (a new list is never deleted because it could not be opened) and
+// the member is told exactly that. Never a way around approval: they are on the same card.
+const isDeferred = (o) => !!getCapability(o?.action)?.deferred
+// alias → the name a creator in these ops will give it (watchlist.create's `as`)
+function aliasNames(ops) {
+  const out = {}
+  for (const o of ops || []) {
+    const c = getCapability(o?.action)?.creates?.(o.args || {})
+    if (c?.alias && c.spec?.name) out[c.alias] = c.spec.name
+  }
+  return out
+}
+// A deferred op re-aimed at what was created: aliases in its target / args → real refs.
+function landDeferred(ops, created, names) {
+  const real = (v) => (typeof v === 'string' && created?.[v] ? created[v] : v)
+  const made = Object.entries(names).filter(([a]) => created?.[a])
+  const pendingLists = Object.fromEntries(made.map(([a, n]) => [created[a], n]))
+  const followNote = made.length
+    ? `${made.map(([, n]) => `“${n}”`).join(' and ')} ${made.length === 1 ? 'was' : 'were'} still created and filled — say “open ${made[0][1]}” to try again.`
+    : 'The rest of your request was done.'
+  return ops.map(o => ({
+    action: o.action, target: real(o.target),
+    args: Object.fromEntries(Object.entries(o.args || {}).map(([k, v]) => [k, real(v)])),
+    pendingLists, followNote,
+  }))
 }
 
 // ⛔ A RECEIPT CLAIMS ONLY WHAT IS PROVEN. A change to the board is on screen the moment it
@@ -236,8 +288,27 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
   }, [setConversationId])
 
   // ── execution (shared by the fast path, the model path and approvals) ──
-  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null }) => {
+  const executeInner = useCallback(async (opsIn, { path, mode: suggested, member, voice, approval = null, card = null, note = null }) => {
+    // A follow-up step's refusal says what the earlier steps already did (`note`).
+    const refusalPush = (text) => push({ role: 'refusal', text: note ? `${text} ${note}` : text })
     let allOps = opsIn
+    let deferred = []
+    if (opsIn.some(isDeferred) && !opsIn.every(isDeferred)) {
+      deferred = opsIn.filter(isDeferred)
+      allOps = opsIn.filter(o => !isDeferred(o))
+      opsIn = allOps
+    }
+    const pendingNames = aliasNames(allOps)
+    // Checked NOW against the board as it is (a new list's alias stands in for it). One that
+    // cannot run is dropped and said up front — the rest of the request still runs.
+    let deferredLines = []
+    if (deferred.length) {
+      const dp = planOps(collectTargets(host, kindsOf(deferred)), deferred, { pendingLists: pendingNames }, capCtx)
+      if (!dp.ok) {
+        push({ role: 'agent', text: `I'll do the rest, but not this part: ${[...new Set(dp.refusals.map(r => r.reason))].join(' ')}` })
+        deferred = []
+      } else deferredLines = dp.lines
+    }
     // ⛔ Another window/device may have changed this member's board (one shared,
     // last-write-wins preference): never write over it (host.boardInSync).
     const boardStillOurs = async (ops) => {
@@ -246,13 +317,13 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       mark('board:synced', s.ok ? 'ok' : 'changed')
       if (s.ok) return true
       const text = `I didn't change anything: ${s.reason}. Reload this page to see the current board, then ask again.`
-      push({ role: 'refusal', text })
+      refusalPush(text)
       record({ member, outcome: text, outcomeData: { kind: 'refused-stale-board', actions: ops.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
       return false
     }
     const refuse = (why) => {
       const text = `I didn't change anything: ${why}`
-      push({ role: 'refusal', text })
+      refusalPush(text)
       record({ member, outcome: text, outcomeData: { kind: 'refused', actions: opsIn.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
     }
     // ── EXPANSION: a macro op with CONCRETE inputs (widget.addCharts with tickers)
@@ -285,7 +356,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
             const gate = planOps(collectTargets(host, kindsOf(rest)), rest, await prepareOps(rest), capCtx)
             if (!gate.ok) {
               const text = refusalText(gate.refusals)
-              push({ role: 'refusal', text })
+              refusalPush(text)
               record({ member, outcome: text, outcomeData: { kind: 'refused', actions: rest.map(o => o.action) }, telemetry: { path, refused: true, voice } })
               return
             }
@@ -296,7 +367,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         mark('sources:resolved')
         if (!r.ok) {
           const text = `I didn't change anything: ${r.reason}.`
-          push({ role: 'refusal', text })
+          refusalPush(text)
           record({ member, outcome: text, outcomeData: { kind: 'refused', actions: allOps.map(o => o.action) }, telemetry: { path, refused: true, voice } })
           return
         }
@@ -347,7 +418,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         const guard = one.ok ? protectionRefusal(host, one, [o]) : null
         const why = !one.ok ? refusalText(one.refusals) : (guard ? `I didn't change anything: ${guard}` : null)
         if (why) {
-          push({ role: 'refusal', text: why })
+          refusalPush(why)
           record({ member, outcome: why, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
           return
         }
@@ -358,7 +429,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         // only the charts and the change the member approved — else nothing runs
         if (!card || !sameLines(card, plines)) {
           const text = `Something on those charts changed since you approved it, ${STALE_PROPOSAL}`
-          push({ role: 'refusal', text })
+          refusalPush(text)
           record({ member, outcome: text, outcomeData: { kind: 'refused-stale-proposal', actions }, telemetry: { path, refused: true, actions, voice } })
           return
         }
@@ -371,14 +442,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       return
     }
     // ⛔ F6: an Apply plans from what was approved (the seals), never from a fresh read
-    const env = { ...(await prepareOps(ops)), ...(suggested === 'approved' ? { approved: true, approval: approval || [] } : {}) }
+    const pendingLists = Object.assign({}, ...ops.map(o => o.pendingLists || {}))
+    const env = { ...(await prepareOps(ops)), ...(suggested === 'approved' ? { approved: true, approval: approval || [] } : {}), ...(Object.keys(pendingLists).length ? { pendingLists } : {}) }
     mark('prepared')
     const plan = planOps(targets, ops, env, capCtx)
     mark('planned')
     const actions = ops.map(o => o.action)
     if (!plan.ok) {
       const text = refusalText(plan.refusals)
-      push({ role: 'refusal', text })
+      refusalPush(text)
       record({ member, outcome: text, outcomeData: { kind: 'refused', actions }, telemetry: { path, refused: true, actions, voice } })
       return
     }
@@ -387,22 +459,22 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     const guarded = protectionRefusal(host, plan, ops)
     if (guarded) {
       const text = `I didn't change anything: ${guarded}`
-      push({ role: 'refusal', text })
+      refusalPush(text)
       record({ member, outcome: text, outcomeData: { kind: 'refused-protected', actions }, telemetry: { path, refused: true, actions, voice } })
       return
     }
     // ⛔ F6: a sealed approval runs only if the plan still reads EXACTLY as the card the member approved
     if (suggested === 'approved' && card && !sameLines(card, pendingWording(plan.lines.length ? plan.lines : plan.noops))) {
       const text = `That proposal no longer matches what you approved, ${STALE_PROPOSAL}`
-      push({ role: 'refusal', text })
+      refusalPush(text)
       record({ member, outcome: text, outcomeData: { kind: 'refused-stale-proposal', actions }, telemetry: { path, refused: true, actions, voice } })
       return
     }
     if (composing && !composed) {
       const pid = nid()
-      pendingRef.current = { kind: 'proposal', id: pid, ops: allOps, epoch: boardEpoch(host, allOps) }
+      pendingRef.current = { kind: 'proposal', id: pid, ops: [...allOps, ...deferred], epoch: boardEpoch(host, [...allOps, ...deferred]) }
       // a proposal says what WILL happen (proposalWording.js), never a success not yet written
-      const lines = pendingWording([...pendingLines(allOps, host), ...plan.lines])
+      const lines = pendingWording([...pendingLines(allOps, host), ...plan.lines, ...deferredLines])
       push({ id: pid, role: 'proposal', lines, status: 'pending' })
       record({ member, outcome: `Proposed: ${lines.join(' · ')}`, outcomeData: { kind: 'proposed', actions }, telemetry: { path, disposition: 'propose', actions, voice } })
       return
@@ -424,8 +496,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     if (mode === 'propose') {
       const pid = nid()
       // The proposal keeps the UNEXPANDED request: Apply expands it again from scratch.
-      const keep = expansion ? opsIn.filter(o => !getCapability(o?.action)?.query) : ops
-      const plines = pendingWording(wholly ? expansion.proposal : (plan.lines.length ? plan.lines : plan.noops))
+      const keep = [...(expansion ? opsIn.filter(o => !getCapability(o?.action)?.query) : ops), ...deferred]
+      const plines = pendingWording([...(wholly ? expansion.proposal : (plan.lines.length ? plan.lines : plan.noops)), ...deferredLines])
       const seals = sealsOf(plan)
       pendingRef.current = { kind: 'proposal', id: pid, ops: keep, epoch: boardEpoch(host, keep),
         ...(seals.length ? { seals, card: plines, expiresAt: Math.min(...seals.map(x => x.expiresAt)) } : {}) }
@@ -437,6 +509,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const text = plan.noops.length ? `Nothing to change — ${plan.noops.join(' · ')}.` : 'Nothing to change.'
       push({ role: 'outcome', text })
       record({ member, outcome: text, outcomeData: { kind: 'noop', actions }, telemetry: { path, disposition: 'apply', actions, voice } })
+      if (deferred.length) return { followUps: landDeferred(deferred, {}, {}) }
       return
     }
     if (boardEpoch(host, ops) != null) {
@@ -472,11 +545,12 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: [...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
-      if (Array.isArray(res.followUps) && res.followUps.length) return { followUps: res.followUps }
+      const next = [...(Array.isArray(res.followUps) ? res.followUps : []), ...landDeferred(deferred, res.created, pendingNames)]
+      if (next.length) return { followUps: next }
     } else {
       const text = `Some of that didn't take effect: ${res.failed.map(f => `${f.label} ${f.reason}`).join('; ')}.`
       if (res.lines.length) push({ role: 'receipt', lines: res.lines, undoId: res.undo?.id || null })
-      push({ role: 'refusal', text })
+      refusalPush(text)
       record({ member, outcome: [res.lines.join(' · '), text].filter(Boolean).join(' · '), outcomeData: { kind: 'failed', actions }, telemetry: { path, refused: true, actions, voice } })
     }
   }, [host, push, record, capCtx])
@@ -541,7 +615,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         continue
       }
       traceStart('followup:apply')
-      try { await executeInner([op], { path: 'followup', mode: 'apply', member, voice }) } finally { traceEnd('done') }
+      const { followNote, ...one } = op
+      try { await executeInner([one], { path: 'followup', mode: 'apply', member, voice, note: followNote || null }) } finally { traceEnd('done') }
     }
     return undefined
   }, [executeInner, definitionListed, host, push, record])
@@ -802,7 +877,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (p?.kind === 'proposal') { pendingRef.current = null; patchItem(p.id, { status: 'replaced' }) }
       // A reference that names a context target (a saved list's ref) is bound to
       // that target's own read-only producer before the refs are translated.
-      const bound = bindSourceRefs(env.ops, refMap, { host, message: text }).map(o => ({ ...o, target: refMap[o.target]?.ref || o.target, args: argRefsBack(o, refMap) }))
+      const bound = translateRefs(bindSourceRefs(env.ops, refMap, { host, message: text }), refMap)
       // ⛔ S6 F1–F3: the model's plan is checked against the member's own words before anything runs
       const screened = screenModelOps(host, bound, text, capCtx)
       if (screened.ask) {
