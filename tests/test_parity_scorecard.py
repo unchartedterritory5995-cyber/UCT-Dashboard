@@ -786,9 +786,13 @@ def test_every_backticked_evidence_path_in_the_cells_is_extracted():
     # 12B's template walk 5. 59 + 2 = 61.
     # Wave 15, lane W15-SC (2026-10-04): G-041 and G-153 now cite lane W15-UCT's browser-pass report
     # (one new path, cited by both rows). 61 + 1 = 62.
-    assert len(paths) == 62, (len(paths), paths)
+    # Re-score 2026-10-11: clauses 1a/12c/13a and rows G-017/G-127 cite the 2026-10-09 production walk of
+    # meaning search (one new path). G-017 no longer cites the wave-7 walk's W19_semantic_dark check, but that
+    # report is still cited by other rows, so no path leaves. 62 + 1 = 63.
+    assert len(paths) == 63, (len(paths), paths)
     for p in ('docs/notebook/evidence/w12d/sandbox-1ad04a0383/walk.json',
-              'docs/notebook/evidence/wave12-12b/walk-5.json'):
+              'docs/notebook/evidence/wave12-12b/walk-5.json',
+              'docs/notebook/evidence/verify-1009/live/result.json'):
         assert p in paths, p
     for p in ('docs/notebook/proof/evernote-evidence-2026-09-26.jsonl',
               'docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T14-58-03.md',
