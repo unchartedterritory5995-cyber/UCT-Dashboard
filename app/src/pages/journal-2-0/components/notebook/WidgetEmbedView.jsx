@@ -12,6 +12,7 @@ import { useCoarsePointer } from '../../../../components/chart/coarsePointer'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
 import { RENDER_UNAVAILABLE, showsUnavailableFrame } from '../../../../lib/captureSafety'
 import UIcon from '../../../../components/ui/UIcon'
+import ContextPopover from '../../../../components/mobile/ContextPopover'
 import { useIsTouch } from '../../../../hooks/useBreakpoint'
 import styles from './WidgetEmbedView.module.css'
 import { lazyLeaf } from '../../lib/lazyChunk'
@@ -397,6 +398,23 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   // the live canvas. Resizable via the corner handle like any chart.
   const freezeChart = () => updateAttributes?.({ frozen: true })
 
+  // ── The More menu (P0.2) ────────────────────────────────────────────────────────────
+  // ContextPopover is the shared action menu: an anchored menu on a computer, a bottom sheet
+  // with 44 px rows on touch -- the same one the touch tier's Block actions button opens.
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [moreAnchor, setMoreAnchor] = useState(null)
+  const moreRef = useRef(null)
+  // The popover closes itself on a mouse press outside it, which includes the press on this
+  // very button; the click that follows would then toggle it straight back open. The press
+  // records whether the menu WAS open, and the click honours that.
+  const moreWasOpenRef = useRef(false)
+  const toggleMore = () => {
+    if (moreWasOpenRef.current) { moreWasOpenRef.current = false; return }
+    const r = moreRef.current?.getBoundingClientRect?.()
+    setMoreAnchor(r ? { x: r.left, y: r.bottom + 4 } : { x: 8, y: 8 })
+    setMoreOpen((o) => !o)
+  }
+
   // Corner resize (all four corners). Live width/height are written straight to
   // the DOM during the drag (no React churn), then committed to attrs.layout on
   // release — so the size persists and re-renders match. First resize converts a
@@ -580,6 +598,31 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   const planDoors = attrs.widgetId === 'chart' && decision.kind === 'live' && !shareView
     && editor?.isEditable !== false && !frozen && chartPlanEnabled()
 
+  // Every item keeps the guard its button had; picking one closes the menu (ContextPopover).
+  //  - Live/Snapshot: only widget types that can mount live.
+  //  - Open in Charts: the REVERSE of the capture flow (captures always went charts -> journal and
+  //    nothing came back). A real link, so middle-click and cmd-click open a tab.
+  //  - Aftermath: the VIEW-ONLY "what happened next" peek on an anchored chart snapshot -- nothing
+  //    is written, a reload reopens anchored. While it is on, the More button lights (toolBtnActive).
+  //  - Re-capture: only where a NEW capture can happen -- for image-only widget types the archive IS
+  //    the capture, and clearing it would destroy the only image with nothing to re-arm the pipeline.
+  //  - Chart settings: the standard modal, scoped to THIS chart. Sync: re-freeze with the CURRENT
+  //    Charts-page settings and drawings. Freeze: keep the real canvas but make it static.
+  const isLiveChart = attrs.widgetId === 'chart' && decision.kind === 'live'
+  const moreItems = [
+    widgetMeta(attrs.widgetId)?.liveCapable === true
+      && { label: attrs.mode === 'live' ? 'Snapshot' : 'Live', onClick: toggleLive },
+    { label: half ? 'Full width' : 'Half width', onClick: toggleWidth },
+    attrs.widgetId === 'chart' && attrs.params?.symbol
+      && { label: 'Open in Charts', href: chartsLinkPath({ symbol: attrs.params.symbol, tf: attrs.params.tf }) },
+    canPeek && { label: 'Aftermath', onClick: togglePeek },
+    decision.kind === 'live' && { label: 'Re-capture', onClick: recapture },
+    isLiveChart && { label: 'Chart settings', onClick: openEmbedSettings },
+    isLiveChart && { label: 'Sync', onClick: syncFromMyChart },
+    decision.kind === 'live' && { label: 'Freeze', onClick: freezeChart },
+    { label: 'Remove embed', danger: true, onClick: () => deleteNode?.() },
+  ].filter(Boolean)
+
   let body = archived
   if (decision.kind === 'live' && !shareView) {
     const Live = EMBED_COMPONENTS[attrs.widgetId]
@@ -672,18 +715,6 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
               ))}
             </select>
           )}
-          {!annotate && widgetMeta(attrs.widgetId)?.liveCapable === true && (
-            <button type="button" className={styles.toolBtn} onClick={toggleLive}
-              title={attrs.mode === 'live' ? 'Freeze to snapshot' : `Go live (max ${LIVE_EMBEDS_PER_ENTRY} per note)`}>
-              {attrs.mode === 'live' ? 'Snapshot' : 'Live'}
-            </button>
-          )}
-          {!annotate && (
-            <button type="button" className={styles.toolBtn} onClick={toggleWidth}
-              title={half ? 'Full width' : 'Half width (pair two side-by-side)'}>
-              {half ? 'Full' : 'Half'}
-            </button>
-          )}
           {/* Draw mode — chart embeds on the live render path. Done exits;
               the marks are already persisted per-edit. */}
           {attrs.widgetId === 'chart' && decision.kind === 'live' && (
@@ -695,37 +726,6 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
               title={annotate ? 'Exit drawing mode' : 'Draw on this snapshot (lines, text — saved with the embed)'}
             >
               {annotate ? 'Done' : 'Draw'}
-            </button>
-          )}
-          {/* → Charts: the REVERSE of the capture flow. Captures always went
-              charts → journal and nothing came back, so an embed was a dead
-              end — you could read March's AMD 15m but not pick the work back
-              up on the real workspace. Opens /charts pointed at this embed's
-              symbol + timeframe. A plain link (not a click handler) so
-              middle-click / ⌘-click open a tab, like any other link. */}
-          {!annotate && attrs.widgetId === 'chart' && attrs.params?.symbol && (
-            <a
-              className={styles.toolBtn}
-              href={chartsLinkPath({ symbol: attrs.params.symbol, tf: attrs.params.tf })}
-              title={`Open ${attrs.params.symbol} on the Charts page`}
-            >
-              Charts ↗
-            </a>
-          )}
-          {/* "What happened next" — VIEW-ONLY aftermath peek on an anchored
-              chart snapshot (spec Phase 6 #2): the same window extended
-              through today; toggling back restores the frozen cutoff. Never
-              writes attrs — a reload always reopens anchored. */}
-          {!annotate && canPeek && (
-            <button
-              type="button"
-              className={`${styles.toolBtn} ${peek ? styles.toolBtnActive : ''}`}
-              onClick={togglePeek}
-              title={peek
-                ? 'Back to the frozen window'
-                : 'What happened next — show this window through today (view-only, nothing saved)'}
-            >
-              Aftermath
             </button>
           )}
           {/* 13H-2: the drawn plan (roles, R:R + size, alerts) and "what happened next". */}
@@ -752,45 +752,36 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
               Replay
             </button>
           )}
-          {/* Re-capture only where a NEW capture can actually happen — for
-              image-only widget types the archive IS the capture, and clearing
-              it would permanently destroy the only image with nothing to
-              re-arm the pipeline (review finding: destructive control with no
-              recovery, the 8/10 builder-sweep defect class). */}
-          {!annotate && decision.kind === 'live' && (
-            <button type="button" className={styles.toolBtn} onClick={recapture} title="Re-capture the archive image">
-              Re-capture
-            </button>
-          )}
-          {/* Chart settings — opens the standard Chart Settings modal, scoped to
-              THIS chart only. */}
-          {!annotate && attrs.widgetId === 'chart' && decision.kind === 'live' && (
-            <button type="button" className={styles.toolBtn} onClick={openEmbedSettings}
-              title="Chart settings (this chart only)" aria-label="Chart settings">
-              <UIcon name="gear" size={13} gold={false} />
-            </button>
-          )}
-          {/* Sync from my chart — re-freeze with the CURRENT Charts-page
-              settings + drawings (the heal door for embeds frozen before an
-              adjustment, and the deliberate "pull my changes in" action). */}
-          {!annotate && attrs.widgetId === 'chart' && decision.kind === 'live' && (
-            <button type="button" className={styles.toolBtn} onClick={syncFromMyChart}
-              title="Sync from my chart — pull your current Charts-page settings and drawings into this embed">
-              Sync
-            </button>
-          )}
-          {/* Freeze to a static PNG — replaces the live embed with a plain,
-              non-interactive image (no crosshair, no toolbar). */}
-          {!annotate && decision.kind === 'live' && (
-            <button type="button" className={styles.toolBtn} onClick={freezeChart}
-              title="Freeze — make the chart static (no crosshair, not interactive); stays crystal clear">
-              Freeze
+          {/* More -- every action that is not the row's main job. P0.2: the row used to carry
+              fourteen controls and the flagship Plan door was lost among them. The row keeps
+              the timeframe, Draw/Done, Plan and Replay; everything below is one menu away,
+              under the same guard, name and effect it had as a button. Absent while drawing
+              (Done is the only control there, and a destructive Remove next to a drawing
+              gesture is a misclick). */}
+          {!annotate && (
+            <button
+              ref={moreRef}
+              type="button"
+              className={`${styles.toolBtn} ${styles.moreBtn} ${peek ? styles.toolBtnActive : ''}`}
+              aria-haspopup="menu"
+              aria-expanded={moreOpen}
+              aria-label="More chart actions"
+              data-tour="chart-embed-more"
+              title="More chart actions"
+              onMouseDown={() => { moreWasOpenRef.current = moreOpen }}
+              onClick={toggleMore}
+            >
+              <UIcon name="more" size={14} gold={false} /> More
             </button>
           )}
           {!annotate && (
-            <button type="button" className={styles.toolBtn} onClick={() => deleteNode?.()} title="Remove embed" aria-label="Remove embed">
-              ✕
-            </button>
+            <ContextPopover
+              open={moreOpen}
+              onClose={() => setMoreOpen(false)}
+              anchor={moreAnchor}
+              title="Chart actions"
+              items={moreItems}
+            />
           )}
           </>)}
         </div>

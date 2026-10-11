@@ -71,6 +71,7 @@
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
   cursor: pointer;
+  text-decoration: none; /* a row may be a link (an item with an href) */
 }
 .item:hover:not(:disabled) { background: var(--bg-hover); }
 .item:disabled { opacity: 0.4; cursor: default; }

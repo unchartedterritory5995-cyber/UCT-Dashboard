@@ -52,7 +52,9 @@ async function mount(planOn = true) {
 describe('the chart toolbar in a note is one Tab stop', () => {
   it('is a named toolbar and exactly one of its controls is in the Tab order', async () => {
     const { controls, stops } = await mount()
-    expect(controls().length).toBeGreaterThan(6)      // NON-VACUITY: there is a real row to walk
+    // NON-VACUITY: there is a real row to walk. Six since P0.2 (the hide toggle, the timeframe,
+    // Draw, Plan, Replay and More); the other nine controls moved under More.
+    expect(controls().length).toBeGreaterThanOrEqual(6)
     expect(stops().length).toBe(1)
     expect(controls().filter((el) => el.tabIndex === -1).length).toBe(controls().length - 1)
   })

@@ -146,6 +146,11 @@
   gap: 4px;
   flex-wrap: wrap;
   max-width: calc(100% - 16px);
+  /* Scrolled to (a tour step, a skip link, scrollIntoView) the toolbar must land BELOW the
+     sticky editor chrome, not under it. --uct-chrome-h is the chrome's measured height, set
+     on the editor page root by NoteEditorPage (an ancestor of every embed); the fallback is
+     the value the watch rails use. */
+  scroll-margin-top: calc(var(--uct-chrome-h, 92px) + 8px);
 }
 .frame:hover .toolbar,
 .frame:focus-within .toolbar,
@@ -205,6 +210,8 @@
   cursor: pointer;
 }
 .toolBtn:hover { border-color: var(--ut-gold); }
+/* The More door: icon + word in the row, so it reads as a menu rather than another action. */
+.moreBtn { display: inline-flex; align-items: center; gap: 4px; }
 /* The "Charts ↗" control is an <a> (middle-click opens a tab) — strip the
    link underline so it reads as one of the buttons beside it. */
 a.toolBtn { text-decoration: none; line-height: 1.5; }
@@ -312,4 +319,13 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
     font: 600 18px/1 var(--font-ui, system-ui, sans-serif);
     cursor: pointer;
   }
+}
+
+/* A phone's toolbar is ONE row (timeframe, Draw, Plan, Replay, More): it scrolls sideways
+   inside the block instead of wrapping to a second line over the chart. The scrollbar is
+   hidden; the row is short enough that the first three doors are always in view. */
+@media (max-width: 640px) {
+  .toolbar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .toolbar::-webkit-scrollbar { display: none; }
+  .toolbar > * { flex: 0 0 auto; }
 }
