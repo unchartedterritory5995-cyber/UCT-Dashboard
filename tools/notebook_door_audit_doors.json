@@ -1,0 +1,410 @@
+[
+  {
+    "feature": "Views: list, table, board, calendar, graph, timeline, tasks",
+    "audit_row": 11,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "link|View all notes"
+      }
+    ],
+    "target": {
+      "role": "button",
+      "name": "Board view"
+    },
+    "target_by_viewport": {
+      "390": {
+        "role": "combobox",
+        "name": "View"
+      }
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": null,
+    "note": "1280: the icon buttons (aria-labelled, icon only). 390: the labelled View select (Task 10)."
+  },
+  {
+    "feature": "Formulas and rollups: Add a formula",
+    "audit_row": 15,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "open_note": "Research: how a base"
+      },
+      {
+        "click": "button|Add details"
+      },
+      {
+        "click": "button|Add property"
+      }
+    ],
+    "target": {
+      "role": "button",
+      "name": "Add a formula"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_FORMULAS_ENABLED",
+    "note": "Three presses before 'Add a formula' is on screen (open the note, Details, Add property); four by the audit's own press-inclusive count, which graded 4 or more HARD. Reported both ways rather than picking the kinder one."
+  },
+  {
+    "feature": "Voice notes: New note caret, Voice note",
+    "audit_row": 23,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "button|More ways to start a note"
+      }
+    ],
+    "target": {
+      "role": "menuitem",
+      "name": "Voice note"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_VOICE_NOTES_ENABLED"
+  },
+  {
+    "feature": "Attach a file (toolbar paperclip, phone Insert menu)",
+    "audit_row": 24,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "open_note": "Research: how a base"
+      }
+    ],
+    "steps_by_viewport": {
+      "390": [
+        {
+          "open_note": "Research: how a base"
+        },
+        {
+          "click": "button|Insert"
+        }
+      ]
+    },
+    "target": {
+      "role": "button",
+      "name": "Attach a file"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": null
+  },
+  {
+    "feature": "Scan with camera (phone Insert menu)",
+    "audit_row": 24,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "open_note": "Research: how a base"
+      },
+      {
+        "click": "button|Insert"
+      }
+    ],
+    "target": {
+      "role": "button",
+      "name": "Scan with camera"
+    },
+    "viewports": [
+      "390"
+    ],
+    "flag": null,
+    "note": "The phone Insert menu is the only camera door; a desktop has none."
+  },
+  {
+    "feature": "Ask the Notebook: the question button on Research Home",
+    "audit_row": 26,
+    "path": "/journal/notebook",
+    "steps": [],
+    "target": {
+      "role": "button",
+      "name": "Ask a question about my notebook"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": null
+  },
+  {
+    "feature": "Ask the Notebook: the labelled Ask your Notebook section",
+    "audit_row": 26,
+    "path": "/journal/notebook",
+    "steps": [],
+    "target": {
+      "role": "region",
+      "name": "Ask your Notebook"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": null
+  },
+  {
+    "feature": "Compass can read your notes",
+    "audit_row": 29,
+    "path": "/journal/notebook",
+    "steps": [],
+    "target": null,
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": null,
+    "door": false,
+    "reason": "NO DOOR WAS BUILT, and none can be added from the client: COMPASS_NOTES_TOOL_ENABLED is a server-side gate with no key in the auth payload (api/routers/auth.py NOTEBOOK_FLAGS has none), and onboarding/capabilityList.js (CAPABILITY_PREVIEW) lists ten capabilities and names Compass in none. Compass is a separate surface, covered by the Compass tour, not a Notebook door. This is the audit's HIDDEN row, still hidden from a member inside the Notebook: owner to decide whether it gets a payload key and a 'See what it can do' line."
+  },
+  {
+    "feature": "Task reminders: slash menu, Due date",
+    "audit_row": 32,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "open_note": "Research: how a base"
+      },
+      {
+        "type": "\n/due"
+      }
+    ],
+    "target": {
+      "role": "option",
+      "name": "~^Due date"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_TASK_REMINDERS_ENABLED"
+  },
+  {
+    "feature": "Task reminders: typing @ lists the dates",
+    "audit_row": 32,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "open_note": "Research: how a base"
+      },
+      {
+        "type": "\n@"
+      }
+    ],
+    "target": {
+      "role": "option",
+      "name": "~^Tomorrow"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_TASK_REMINDERS_ENABLED"
+  },
+  {
+    "feature": "Email to Notebook: Import, Capture from anywhere",
+    "audit_row": 33,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "link|View all notes"
+      },
+      {
+        "click": "button|Import"
+      }
+    ],
+    "target": {
+      "role": "link",
+      "name": "Email to Notebook"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": null,
+    "note": "Shown only while GET /api/j2/inbound-email/address answers (the card's own gate)."
+  },
+  {
+    "feature": "Browser capture extension: Import, Capture from anywhere",
+    "audit_row": 34,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "link|View all notes"
+      },
+      {
+        "click": "button|Import"
+      }
+    ],
+    "target": {
+      "role": "link",
+      "name": "~^Browser extension"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": null
+  },
+  {
+    "feature": "iPhone Shortcut and Personal API: Import, Capture from anywhere",
+    "audit_row": 35,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "link|View all notes"
+      },
+      {
+        "click": "button|Import"
+      }
+    ],
+    "target": {
+      "role": "button",
+      "name": "iPhone Shortcut"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": null,
+    "note": "Shown only while GET /api/j2/personal/tokens answers (NOTEBOOK_PERSONAL_API_ENABLED, which the stock c2 sandbox does not set: boot through --serve)."
+  },
+  {
+    "feature": "Chart plan: the chart toolbar's Plan",
+    "audit_row": 39,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "open_note": "AAPL pullback"
+      },
+      {
+        "hover_css": "[data-widget-embed-view=\"chart\"]"
+      }
+    ],
+    "target": {
+      "role": "button",
+      "name": "Plan"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_CHART_PLAN_ENABLED",
+    "note": "The target is measured after scrollIntoView, then hit-tested at its centre: a toolbar under the note's sticky bar reads covered."
+  },
+  {
+    "feature": "Visual playbook: the fingerprint panel button",
+    "audit_row": 40,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "open_note": "AAPL pullback"
+      }
+    ],
+    "target": {
+      "role": "button",
+      "name": "Visual playbook"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
+    "reason": "Structural, not moved by any P0 task: the button lives in the fingerprint panel, which renders under the chart and its toolbar, so it is the last thing in a chart note's first screens. Measured one press, labelled and uncovered, but 2.04 viewport heights down the note at 390 (1.72 at 1280): 0.04 past the one-scroll line, so the verdict is a hair over the threshold, not far over it. The command palette's 'Visual playbook' (FingerprintPanel.jsx) is the other way in. Owner call: accept, or surface the button above the chart."
+  },
+  {
+    "feature": "Active setups: the Research Home box",
+    "audit_row": 41,
+    "path": "/journal/notebook",
+    "steps": [],
+    "target": {
+      "role": "link",
+      "name": "Open the setups board"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_SETUPS_BOARD_ENABLED"
+  },
+  {
+    "feature": "Active setups: the way back from the board",
+    "audit_row": 41,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "link|Open the setups board"
+      }
+    ],
+    "target": {
+      "role": "link",
+      "name": "~Back to Notebook"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_SETUPS_BOARD_ENABLED"
+  },
+  {
+    "feature": "Find more like this: a board card's or a tagged chart's button",
+    "audit_row": 42,
+    "path": "/journal/notebook",
+    "steps": [
+      {
+        "click": "link|Open the setups board"
+      }
+    ],
+    "target": {
+      "role": "button",
+      "name": "~^Find more like"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": "NOTEBOOK_FIND_SIMILAR_ENABLED",
+    "unmeasurable_here": true,
+    "reason": "needs the overnight run: the find-similar precompute (similar_matches.run_nightly) has not run in a sandbox, so a card has no matches to offer and the audit could not grade the door. A door that cannot be exercised is NOT_MEASURED here, never a pass."
+  },
+  {
+    "feature": "Note resurfacing: the Notices box on Research Home",
+    "audit_row": 46,
+    "path": "/journal/notebook",
+    "steps": [],
+    "target": {
+      "css": "[data-tour=\"home-notices\"] > summary"
+    },
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": null,
+    "stubs": [
+      "notices"
+    ],
+    "note": "The box renders only while the member has a notice, and a fresh sandbox member has none (a resurfaced note needs the overnight awareness scan). This row therefore answers ONE bell-read with a task-reminder row, through page.route: the box, its position and its label are the real product code, the data is not. With no notice the box is absent by design (components/notebook/NoticesBox.jsx returns null)."
+  },
+  {
+    "feature": "Terminal links in notes: paste a command",
+    "audit_row": 53,
+    "path": "/journal/notebook",
+    "steps": [],
+    "target": null,
+    "viewports": [
+      "1280",
+      "390"
+    ],
+    "flag": null,
+    "door": false,
+    "reason": "NO DOOR, by design of TERM-056: a pasted terminal command becomes a link (lib/terminalCommandPaste.js, gated by NOTEBOOK_TERMINAL_LINKS_ENABLED, armed 2026-10-10). It is a behaviour on paste, not a control, so there is nothing to click and nothing for a member to find until they paste one. No Notebook door was built and none is a P0 task. Owner to decide whether the terminal's 'copy command' or a 'See what it can do' line should name it."
+  }
+]
