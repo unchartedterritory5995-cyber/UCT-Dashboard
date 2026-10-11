@@ -975,11 +975,24 @@ export default function FolderSidebar({
   // later render with a different seed prop (or none) cannot overwrite what the member typed.
   const searchSeedRef = useRef(searchSeed)
   useEffect(() => { searchSeedRef.current = searchSeed })
+  //
+  // Residual round (finding C): Home navigates once per keystroke, so a LATE request can carry a
+  // seed shorter than what the member has typed into the panel since. Replacing the box dropped
+  // those letters ("N" seeded, "I" typed, then seed "NV" landed: the I vanished). So a seed that
+  // EXTENDS the previous seed, landing on a box that extends it too, keeps whatever was typed after
+  // the previous seed; any other seed replaces the box. The last seed is forgotten when search
+  // closes, so a later hand-off is never merged against stale text.
+  const lastSeedRef = useRef('')
+  useEffect(() => { if (mode !== 'search') lastSeedRef.current = '' }, [mode])
   useEffect(() => {
     if (!searchRequest) return
     setMode('search')
     const seed = searchSeedRef.current
-    if (typeof seed === 'string' && seed) setQuery(seed)
+    if (typeof seed === 'string' && seed) {
+      const prev = lastSeedRef.current
+      lastSeedRef.current = seed
+      setQuery((q) => (prev && seed.startsWith(prev) && q.startsWith(prev) ? seed + q.slice(prev.length) : seed))
+    }
     searchInputRef.current?.focus()
   }, [searchRequest])
 

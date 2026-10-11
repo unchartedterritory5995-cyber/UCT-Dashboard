@@ -2219,6 +2219,44 @@ describe('FolderSidebar: P0.13 search in place', () => {
     expect(box().value).toBe('amd')
   })
 
+  // Residual round, finding C: Home navigates once per keystroke, so a LATE request can carry a
+  // seed that is shorter than what the member has already typed into the panel. Replacing the box
+  // dropped those letters. A seed that extends the previous seed, landing on a box that extends it
+  // too, keeps what was typed after the previous seed.
+  it('C: a late seed that extends the last one keeps the letters typed meanwhile (N, I typed, NV -> NVI)', () => {
+    const { rerender } = renderSidebar({ searchRequest: 1, searchSeed: 'N' })
+    expect(box().value).toBe('N')
+    fireEvent.change(box(), { target: { value: 'NI' } })
+    rerender(sidebar({ searchRequest: 2, searchSeed: 'NV' }))
+    expect(box().value).toBe('NVI')
+  })
+
+  it('C: an unrelated seed still replaces the box', () => {
+    const { rerender } = renderSidebar({ searchRequest: 1, searchSeed: 'N' })
+    fireEvent.change(box(), { target: { value: 'NI' } })
+    rerender(sidebar({ searchRequest: 2, searchSeed: 'amd' }))
+    expect(box().value).toBe('amd')
+  })
+
+  it('C: a seed that extends the last one replaces a box the member has since rewritten', () => {
+    const { rerender } = renderSidebar({ searchRequest: 1, searchSeed: 'N' })
+    fireEvent.change(box(), { target: { value: 'tsla' } }) // no longer starts with the old seed
+    rerender(sidebar({ searchRequest: 2, searchSeed: 'NV' }))
+    expect(box().value).toBe('NV')
+  })
+
+  it('C: leaving search and coming back does not merge against the stale seed', () => {
+    const { rerender } = renderSidebar({ searchRequest: 1, searchSeed: 'N' })
+    fireEvent.change(box(), { target: { value: 'NI' } })
+    // leave search through the Folders tab: the typed text stays in state
+    fireEvent.click(screen.getByRole('tab', { name: 'Show folders' }))
+    expect(screen.queryByRole('textbox', { name: 'Search your notes' })).toBeNull()
+    // re-enter with a seed that extends the OLD seed; the old seed must have been forgotten, so
+    // the box is replaced ('NV'), not merged with the stale 'I' ('NVI')
+    rerender(sidebar({ searchRequest: 2, searchSeed: 'NV' }))
+    expect(box().value).toBe('NV')
+  })
+
   it('escapeRestores: Escape clears the search and reports search mode off', () => {
     const onMode = vi.fn()
     const { rerender } = renderSidebar({ searchRequest: 0, onSearchModeChange: onMode })
