@@ -38,6 +38,83 @@ from api.alpha_gold_eod import _fmt_prem, _post_discord_image
 
 log = logging.getLogger("weekly_flow")
 
+try:
+    from zoneinfo import ZoneInfo
+    _ET = ZoneInfo("America/New_York")
+except Exception:  # noqa: BLE001
+    _ET = None
+
+
+# ── the live tape comes first (2026-10-11 pre-open review) ─────────────────
+# ⛔ THE OPRA CONSUMER IS A THREAD IN THIS SAME PROCESS. A board scan is ~116 s of pure Python
+# and a heavy Search read is a long Python row loop; both hold the GIL in 5 ms slices against the
+# thread that writes the live tape. So the background rebuilds these lanes start on their own
+# (a stale board refreshed behind a caller, a head ticker's full product rebuilt behind a
+# member) sit out the open rush, and a stale board refreshes at most every
+# `_BOARD_RTH_REFRESH_S` during the session -- a 60-day board does not move in two minutes.
+# A caller with NOTHING to serve still gets its one build: these gates only ever delay a refresh
+# of something already servable. Off-hours behaviour is unchanged.
+def _now_et():
+    return datetime.now(_ET) if _ET is not None else None
+
+
+def _span_minutes(spec: str):
+    """'HH:MM-HH:MM' -> (start, end) minutes, end exclusive; None when blank or malformed."""
+    try:
+        a, b = (spec or "").strip().split("-")
+        ah, am = (int(x) for x in a.split(":"))
+        bh, bm = (int(x) for x in b.split(":"))
+        return ah * 60 + am, bh * 60 + bm
+    except Exception:  # noqa: BLE001 -- blank / malformed is "no quiet window"
+        return None
+
+
+def ingest_quiet_now() -> bool:
+    """True in the weekday open rush (`FLOW_INGEST_QUIET_ET`, default 09:25-10:05 ET; "" = off),
+    when no background flow rebuild starts."""
+    now = _now_et()
+    span = _span_minutes(os.environ.get("FLOW_INGEST_QUIET_ET", "09:25-10:05"))
+    if now is None or span is None or now.weekday() >= 5:
+        return False
+    mins = now.hour * 60 + now.minute
+    return span[0] <= mins < span[1]
+
+
+def in_rth_now() -> bool:
+    """True during the regular session (Mon-Fri 09:30-16:00 ET)."""
+    now = _now_et()
+    if now is None or now.weekday() >= 5:
+        return False
+    mins = now.hour * 60 + now.minute
+    return 9 * 60 + 30 <= mins <= 16 * 60
+
+
+#: During the session a stale board is refreshed at most this often (it is served meanwhile).
+_BOARD_RTH_REFRESH_S = float(os.getenv("FLOW_BOARD_RTH_REFRESH_S", "600") or 600)
+#: The widest scan a caller may ask for (the UI offers 30/60/90; Confluence up to 90).
+_SCAN_MAX_DAYS = int(os.getenv("FLOW_SCAN_MAX_DAYS", "120") or 120)
+_SCAN_CAPS = ("all", "mega", "large", "mid_small", "etf")
+
+
+def clamp_scan_params(days, cap):
+    """(days, cap) bounded to what a scan may be asked for: an unbounded `days` reads the whole
+    13M-row table into Python on the pod that runs the live tape."""
+    try:
+        d = int(days)
+    except (TypeError, ValueError):
+        d = 60
+    c = (cap or "all").strip().lower()
+    return max(1, min(_SCAN_MAX_DAYS, d)), (c if c in _SCAN_CAPS else "all")
+
+
+def board_refresh_allowed(age_s: float) -> bool:
+    """May a SERVABLE board (or leg) of this age be rebuilt behind its caller now?"""
+    if ingest_quiet_now():
+        return False
+    if in_rth_now() and age_s < _BOARD_RTH_REFRESH_S:
+        return False
+    return True
+
 _ASSETS = os.path.join(os.path.dirname(__file__), "services", "desk_assets")
 
 # ── palette (shared brand look with the Top Flow card) ─────────────────────
@@ -982,6 +1059,13 @@ def product_persist_dir() -> str | None:
     return os.path.join(base, "flow_products") if os.path.isdir(base) else None
 
 
+def tmp_suffix() -> str:
+    """A temp-file suffix unique to this writer. ⛔ `.tmp<pid>` alone is shared by every thread
+    of the process (the worker is pid 1, so it is the same name forever): two writers of one name
+    then write and rename the SAME temp file, and one can publish the other's half-written bytes."""
+    return ".tmp%d_%d" % (os.getpid(), threading.get_ident())
+
+
 def persisted_json_get(name: str):
     """The persisted (at, payload) for `name`, or None. Never raises."""
     d = product_persist_dir()
@@ -1000,15 +1084,21 @@ def persisted_json_put(name: str, at: float, res) -> None:
     d = product_persist_dir()
     if not d:
         return
+    tmp = None
     try:
         os.makedirs(d, exist_ok=True)
         fp = os.path.join(d, name + ".json")
-        tmp = fp + ".tmp%d" % os.getpid()
+        tmp = fp + tmp_suffix()
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump({"at": at, "res": res}, f, separators=(",", ":"), default=str)
         os.replace(tmp, fp)
     except Exception as e:  # noqa: BLE001
         log.warning("[flow-product] persist %s failed: %s", name, e)
+        if tmp:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
 
 def _board_name(ckey) -> str:
@@ -1094,7 +1184,11 @@ def board_data(*, days: int = 60, cap: str = "all", min_dte: int = 30,
     whole set. Each row carries bull/bear/net/bullPct + top contract + since +
     since-open perf. 120s TTL per params; past it the last board is served while
     one rebuild runs behind it (see `_BOARD_STALE_MAX_S`). Never raises."""
-    cap = (cap or "all").strip().lower()
+    days, cap = clamp_scan_params(days, cap)
+    try:
+        limit = max(1, min(1000, int(limit)))
+    except (TypeError, ValueError):
+        limit = 300
     ckey = (days, cap, min_dte, frac, limit)
     now = time.time()
     hit = _BOARD_CACHE.get(ckey)
@@ -1105,7 +1199,8 @@ def board_data(*, days: int = 60, cap: str = "all", min_dte: int = 30,
     if hit and now - hit[0] < _BOARD_TTL:
         return hit[1]
     if hit and now - hit[0] < _BOARD_STALE_MAX_S:
-        _spawn_board_refresh(ckey)
+        if board_refresh_allowed(now - hit[0]):     # the open rush / the session interval
+            _spawn_board_refresh(ckey)
         return hit[1]
     # Nothing servable: start (or join) the one build and wait a bounded time for it.
     ev = _spawn_board_refresh(ckey) or _BOARD_INFLIGHT.get(ckey)

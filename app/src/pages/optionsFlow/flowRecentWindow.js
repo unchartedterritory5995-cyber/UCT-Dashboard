@@ -23,10 +23,17 @@
 import { fetchSearchProduct as fetchProduct } from './flowSearchFetch'
 
 const WINDOWS = new WeakMap()
+const STALE = new WeakMap()
 
 /** The recent-window description of a landed product, or null when it is a full answer. */
 export function searchWindowOf(product) {
   return product && typeof product === 'object' ? WINDOWS.get(product) || null : null
+}
+
+/** `{asOf}` (epoch seconds) when the landed product is a head ticker's LAST full build, served
+ *  while its rebuild runs; null when it is current. Keyed on the product object, like the window. */
+export function searchStaleOf(product) {
+  return product && typeof product === 'object' ? STALE.get(product) || null : null
 }
 
 /**
@@ -37,6 +44,9 @@ export async function fetchSearchProduct(sym, source, opts = {}) {
   const got = await fetchProduct(sym, source, { ...opts, acceptRecent: true })
   if (got && got.ok && got.window && got.product && typeof got.product === 'object') {
     WINDOWS.set(got.product, got.window)
+  }
+  if (got && got.ok && got.staleAsOf && got.product && typeof got.product === 'object') {
+    STALE.set(got.product, { asOf: got.staleAsOf })
   }
   return got
 }

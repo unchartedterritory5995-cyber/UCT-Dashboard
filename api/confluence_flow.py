@@ -156,7 +156,7 @@ def flow_leg(*, days: int = 30, min_dte: int = 30, cap: str = "all",
     """Per-ticker options-flow leg. Single-flight per key; serves the cached
     result (fresh, or past its TTL while one off-hours rebuild runs behind it, or
     -- while a recompute holds the lock -- the last one)."""
-    cap = (cap or "all").strip().lower()
+    days, cap = wf.clamp_scan_params(days, cap)   # an unbounded `days` is a whole-table scan
     ckey = (days, min_dte, cap, frac)
     now = time.time()
     hit = _CACHE.get(ckey)

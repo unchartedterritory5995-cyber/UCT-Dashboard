@@ -18,6 +18,16 @@ from api import flow_router as fr
 from api.flow_admin_auth import require_flow_user
 
 
+@pytest.fixture(autouse=True)
+def _off_hours_clock(monkeypatch):
+    """These rails pin the lanes' off-hours behaviour; the open-rush / session gates have their
+    own (tests/test_flow_rth_guard.py), so a run during market hours must not change them."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from api import weekly_flow as _wf
+    monkeypatch.setattr(_wf, "_now_et", lambda: datetime(2026, 10, 11, 13, 40, tzinfo=ZoneInfo("America/New_York")))
+
+
 @pytest.fixture
 def client():
     app = FastAPI()

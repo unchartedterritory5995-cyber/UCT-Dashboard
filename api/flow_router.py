@@ -1624,6 +1624,20 @@ def _note_heavy_too_big(sym: str, src: str) -> None:
         _HEAVY_TOO_BIG_UNTIL[(sym, src)] = time.monotonic() + _HEAVY_TOO_BIG_TTL_S
 
 
+def _tmp_suffix() -> str:
+    """A temp-file suffix unique to this writer thread (see weekly_flow.tmp_suffix)."""
+    return ".tmp%d_%d" % (os.getpid(), threading.get_ident())
+
+
+def _ingest_quiet_now() -> bool:
+    """The open rush, when no heavy rebuild starts (weekly_flow owns the window). Never raises."""
+    try:
+        from api import weekly_flow
+        return weekly_flow.ingest_quiet_now()
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _persist_paths(sym: str, src: str):
     """(gz path, meta path) for one symbol's persisted full product, or None when off."""
     try:
@@ -1655,13 +1669,13 @@ def _last_good_put(sym: str, src: str, version: str, gz: bytes, built_at: float,
     gz_path, meta_path = paths
     try:
         os.makedirs(os.path.dirname(gz_path), exist_ok=True)
-        tmp = gz_path + ".tmp%d" % os.getpid()
+        tmp = gz_path + _tmp_suffix()
         with open(tmp, "wb") as f:
             f.write(gz)
         os.replace(tmp, gz_path)
         meta = {"version": version, "built_at": built_at, "heavy": rec["heavy"],
                 "schema": _SEARCH_PRODUCT_SCHEMA, "sha256": hashlib.sha256(gz).hexdigest()}
-        tmp = meta_path + ".tmp%d" % os.getpid()
+        tmp = meta_path + _tmp_suffix()
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(meta, f)
         os.replace(tmp, meta_path)
@@ -1737,8 +1751,17 @@ def _heavy_build_now(sym: str, src: str) -> str:
             return "failed"
         _, err = _build_search_product(sym, src, key, version,
                                        _Stages(sym + "/" + src + " heavy"), heavy=True)
-        _HEAVY_STATS["failed" if err is not None else "built"] += 1
-        return "failed" if err is not None else "built"
+        if err is not None:
+            # ⛔ A FAILED HEAVY BUILD SITS OUT, LIKE AN OVER-BUDGET ONE. Measured 2026-10-11:
+            # SNDK (510K rows) and MU (735K) each spent ~33 s reading and 180 s in node before
+            # the timeout, and nothing remembered it -- so every member search re-ran that
+            # 3.5-minute build once per refresh window, all session. The member keeps its
+            # recent-window answer meanwhile.
+            _note_heavy_too_big(sym, src)
+            _HEAVY_STATS["failed"] += 1
+            return "failed"
+        _HEAVY_STATS["built"] += 1
+        return "built"
     except Exception as e:  # noqa: BLE001
         _HEAVY_STATS["failed"] += 1
         log.warning("[flow-search] heavy build failed for %s/%s: %s", sym, src, e)
@@ -1754,6 +1777,10 @@ def _spawn_heavy_build(sym: str, src: str) -> bool:
     even the heavy budget sits out `_HEAVY_TOO_BIG_TTL_S`."""
     k = (sym, src)
     now = time.monotonic()
+    if _ingest_quiet_now():
+        # The open rush belongs to the live tape: the last full product (<= 15 min) or the
+        # member's recent window answers until it passes.
+        return False
     with _HEAVY_GUARD:
         if k in _HEAVY_INFLIGHT:
             return False
