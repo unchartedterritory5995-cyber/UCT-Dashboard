@@ -59,6 +59,10 @@ export class PineRuntimeError extends Error {
  *  wrote. `handles.js` explains why a handle must never coerce; this is the
  *  sentence that says so when one lands where a number was declared. */
 export const kindOf = (v) => {
+  // ⭐ UIE PHASE 5 (M4) — the common case first: a number or a string is never an array,
+  // a handle or a record, so the answer is unchanged and the three probes are skipped
+  const t0 = typeof v
+  if (t0 === 'number' || t0 === 'string') return t0
   if (Array.isArray(v)) return 'array'
   if (isDrawingHandle(v)) return 'drawing'
   // ⭐⭐ A RECORD ANSWERS ITS OWN TYPE NAME, which is the same argument as
