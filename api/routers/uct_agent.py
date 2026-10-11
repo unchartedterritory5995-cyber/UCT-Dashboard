@@ -61,6 +61,21 @@ def daily_cap() -> int:
         return 300
 
 
+#: OPT-IN dollar ceiling for UCT Agent's model spend per ET day (all members, the ledger's
+#: `uct_agent` surface). Unset = no dollar ceiling (the request-count cap above still applies) —
+#: production behaviour is unchanged until someone sets it. Checked BEFORE each model call, so one
+#: request (at most 3 calls + a naming call) can pass the ceiling by that request's cost, never more.
+COST_CAP_ENV = "UCT_AGENT_COST_CAP_DAILY"
+
+
+def over_cost_cap() -> bool:
+    if not str(os.environ.get(COST_CAP_ENV) or "").strip():
+        return False
+    from api.services import narrative_cost_guard
+    from api.services.uct_agent import turn as agent
+    return narrative_cost_guard.over_budget(agent.COST_SURFACE, env_name=COST_CAP_ENV)
+
+
 def _et_day() -> str:
     return datetime.now(_ET).strftime("%Y-%m-%d")
 
@@ -113,6 +128,9 @@ def agent_turn(body: TurnIn, background: BackgroundTasks, user: dict = Depends(r
     uid = user["id"]
     if not _take(uid):
         raise HTTPException(status_code=429, detail="You've reached today's UCT Agent limit.")
+    if over_cost_cap():
+        _give_back(uid)
+        raise HTTPException(status_code=429, detail="UCT Agent's spending limit for today has been reached.")
     refusal = ai_population_cap.admit("uct_agent")
     if refusal:
         _give_back(uid)
@@ -188,7 +206,7 @@ def _name_unnamed(uid: int, cid: str) -> None:
     name (the store refuses that) or over a name the Agent gave it meanwhile."""
     from api.services.uct_agent import store, turn as agent
     try:
-        if (store.title_info(uid, cid) or {}).get("source") is not None:
+        if over_cost_cap() or (store.title_info(uid, cid) or {}).get("source") is not None:
             return
         title = agent.name_conversation(store.get_turns(uid, cid) or [])
         if title and (store.title_info(uid, cid) or {}).get("source") is None:
