@@ -2890,8 +2890,10 @@ export default function ChartsWorkspace() {
   agentGroupSymsRef.current = groupSyms
   agentWidgetOpsRef.current = {
     // `init` (optional): { tf, symbol } a new chart is BORN with (unlinked, on that
-    // ticker and timeframe) instead of being created on a default and then changed.
-    add: (t, place, init) => handleAddWidget(t, init?.tf ? { tf: init.tf } : undefined, { place, unlinkedSymbol: init?.symbol || null }),
+    // ticker and timeframe) instead of being created on a default and then changed;
+    // { opts } a widget is born with (a Watchlist widget carrying its list — the
+    // ?openWatchlist= door's own seed shape).
+    add: (t, place, init) => handleAddWidget(t, init?.opts ? { ...init.opts } : init?.tf ? { tf: init.tf } : undefined, { place, unlinkedSymbol: init?.symbol || null }),
     // PERSISTENCE ACK for the Agent's receipt: write the board and the link-group tickers NOW
     // (instead of after their debounce) through the SAME writer the autosave uses, and answer
     // only once the server has. `{ ok, conflict, reason }` — `ok` means the server accepted

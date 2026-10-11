@@ -181,8 +181,11 @@ export function manifestFor(ctx = {}) {
  * OUTSIDE this panel — e.g. an alert made from a chart menu), all at once, capped at `budgetMs`.
  * A slow or failing refresh never blocks the turn; the provider then builds from what it has.
  */
-export async function refreshContext(budgetMs = 1500) {
+// `groups` (Phase 2): refresh only the providers whose `refreshGroup` is among the routing groups this
+// message was sent with (null = every provider). A provider with no `refreshGroup` always refreshes.
+export async function refreshContext(budgetMs = 1500, { groups = null } = {}) {
   const jobs = [...PROVIDERS.values()].filter(p => typeof p.refresh === 'function')
+    .filter(p => !groups || !p.refreshGroup || groups.includes(p.refreshGroup))
     .map(p => Promise.resolve().then(() => p.refresh()).catch(() => {}))
   if (!jobs.length) return
   await Promise.race([Promise.all(jobs), new Promise(r => setTimeout(r, budgetMs))])

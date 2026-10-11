@@ -346,7 +346,15 @@ const CAPABILITIES = [
     args: { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'], additionalProperties: false },
     // "$NVDA", or chart|open|show|load|pull up + an UPPERCASE ticker in the RAW
     // text (so "show volume" can never read as the ticker VOLUME).
-    fast: ({ raw }) => {
+    fast: ({ raw: said }) => {
+      // Phase 2: the VERB may be capitalised ("Open NVDA") and "on the main chart" adds nothing on a
+      // one-chart board (several charts → the orchestrator asks which). The TICKER keeps its case.
+      // Only these verbs ("Chart SPY." is left exactly as before — it may mean a NEW chart).
+      const VERB = /^(Open|Show|Load|Pull up|Switch to|Go to)\b/
+      const raw = VERB.test(said)
+        ? String(said).replace(VERB, w => w.toLowerCase())
+          .replace(/\s+(?:on|in|to)\s+(?:the|my|this)\s+(?:main |active |current )?chart[.!]?$/i, '').replace(/[.!]$/, '')
+        : String(said).replace(/\s+(?:on|in|to)\s+(?:the|my|this)\s+(?:main |active |current )?chart$/i, '')
       // An explicit "symbol/ticker to X" may be lowercase: the noun removes the
       // ambiguity that keeps "show volume" from ever reading as a ticker.
       const m = /^\$([A-Za-z][A-Za-z0-9.]{0,9})$/.exec(raw)

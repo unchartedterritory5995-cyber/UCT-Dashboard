@@ -947,6 +947,35 @@ def field_catalog() -> list[dict]:
     ]
 
 
+def field_options() -> dict:
+    """The VALUES each value-list field can hold, read off the artifact — for callers that turn a
+    member's words into a list filter (UCT Agent: "software stocks" → industry ∈ {Software -
+    Application, Software - Infrastructure}). Only fields whose options come from a snapshot
+    column (``options_column``); the column name comes from the registry, never the caller.
+
+    ``with_value`` / ``total`` say how much of the universe the field classifies at all: a row
+    with no industry can never match an industry filter, and a caller that reports a screen as
+    exhaustive must be able to say so. One cheap DISTINCT + COUNT per field; no distributions.
+    """
+    from api.services.screener import snapshot_db
+    out: dict = {}
+    try:
+        with snapshot_db.connect() as conn:
+            total = int(conn.execute("SELECT COUNT(*) FROM screener_rows").fetchone()[0] or 0)
+            for key, f in FILTERS.items():
+                col = f.get("options_column")
+                if key in RETIRED or f.get("type") != "enum" or not col or col not in snapshot_db.COLUMNS:
+                    continue
+                rows = conn.execute(
+                    f'SELECT "{col}" AS v, COUNT(*) AS n FROM screener_rows '
+                    f'WHERE "{col}" IS NOT NULL AND "{col}" != \'\' GROUP BY "{col}" ORDER BY "{col}"').fetchall()
+                out[key] = {"values": [r["v"] for r in rows],
+                            "with_value": sum(int(r["n"]) for r in rows), "total": total}
+    except Exception:  # noqa: BLE001 — no snapshot yet: no options, never a 500
+        return {}
+    return out
+
+
 def comparable_keys():
     """Filter keys whose column may sit on the RIGHT of a `_col` comparison.
 

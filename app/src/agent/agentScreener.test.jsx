@@ -49,18 +49,18 @@ const run = (args) => getCapability('screener.run').answer(null, { filters: [], 
 const scanCalls = () => calls.filter(c => c[1] === '/api/screener/scan')
 
 describe('Screener: the real engine, the real catalog', () => {
-  it('the field catalog reaches the model compactly (keys from /fields, enum lists left out) — in full when the request could be a screen', async () => {
+  it('the field catalog reaches the model compactly (keys from /fields; list fields marked, their values matched in UCT) — in full when the request could be a screen', async () => {
     await loadMeta()
     const { context, refMap } = buildContext({}, { ...CTX, message: 'find stocks with ADR above 5%' })
     const s = context.screener[0]
     expect(refMap[s.ref]).toEqual({ kind: 'screener', ref: 'screener' })
-    expect(s.fields).toBe('adr_pct:ADR %(%);price:Price($);chg_pct_1m:Change 1M(%);above_50sma:Above 50 SMA(yes/no)')
+    expect(s.fields).toBe('adr_pct:ADR %(%);price:Price($);chg_pct_1m:Change 1M(%);above_50sma:Above 50 SMA(yes/no);sector:Sector(list);dollar_volume_1d:Dollar Volume (latest session)($);volume_1d:Volume (latest session);close_1d:Close (latest session)($)')
     expect(s.fieldsDetail).toBeUndefined()
   })
   it('CONTEXT RELEVANCE: an unrelated request gets the field KEYS only (still discoverable), and says so', async () => {
     await loadMeta()
     const s = buildContext({}, { ...CTX, message: 'make the left chart weekly' }).context.screener[0]
-    expect(s.fields).toBe('adr_pct,price,chg_pct_1m,above_50sma')
+    expect(s.fields).toBe('adr_pct,price,chg_pct_1m,above_50sma,sector,dollar_volume_1d,volume_1d,close_1d')
     expect(s.fieldsDetail).toMatch(/keys only/)
     const { screenRelevant } = await import('./capabilities/screener')
     for (const m of ['Find stocks with high ADR and open the top four in Charts', 'now only above $20', 'sort those by 1-month performance', 'exclude ETFs', 'what moved more than 10% today'])
@@ -81,9 +81,9 @@ describe('Screener: the real engine, the real catalog', () => {
     await run({ filters: [{ field: 'chg_pct_1m', op: 'gte', value: 20, max: null }, { field: 'adr_pct', op: 'gt', value: 4, max: null }] })
     expect(scanCalls()[0][2].filters).toEqual([{ key: 'chg_pct_1m', op: 'gte', min: 20 }, { key: 'adr_pct', op: 'gt', min: 4 }])
   })
-  it('an UNKNOWN field or bad value is refused before anything runs; a list field is not offered', async () => {
+  it('an UNKNOWN field or bad value is refused before anything runs; a list field needs its values', async () => {
     expect(await run({ filters: [{ field: 'adr_pcx', op: 'gt', value: 5, max: null }] })).toBe('I didn\'t run it: the Screener has no field “adr_pcx”.')
-    expect(await run({ filters: [{ field: 'sector', op: 'eq', value: 1, max: null }] })).toMatch(/no field “sector”/)
+    expect(await run({ filters: [{ field: 'sector', op: 'eq', value: 1, max: null }] })).toMatch(/which sector\?/)
     expect(await run({ filters: [{ field: 'price', op: 'between', value: 20, max: 10 }] })).toMatch(/higher upper bound/)
     expect(await run({ filters: [{ field: 'above_50sma', op: 'eq', value: 3, max: null }] })).toMatch(/yes\/no/)
     expect(scanCalls()).toHaveLength(0)
@@ -129,7 +129,7 @@ describe('Screener: the real engine, the real catalog', () => {
     for (const c of sc) expect(getCapability(c.name).query).toBe(true)
     expect(m.filter(c => getCapability(c.name).target === 'savedScreens').map(c => c.name).sort())
       .toEqual(['screener.deleteSaved', 'screener.duplicateSaved', 'screener.renameSaved', 'screener.saveAs'])
-    expect(m.length).toBe(82)                    // M2: + indicator.add/remove/show/hide.  M1: + indicator.list (indicator.openCreate needs Create Indicator access — not in this ctx).  overnight Batch 8: + drawing.addLevel/style/remove/list. Batch 6: + template, defaults, goToDate, compare, custom tf, resize, 5 tab actions (rail-checked by agentContracts.test.js)
+    expect(m.length).toBe(83)                    // Phase 1: + watchlist.open.  M2: + indicator.add/remove/show/hide.  M1: + indicator.list (indicator.openCreate needs Create Indicator access — not in this ctx).  overnight Batch 8: + drawing.addLevel/style/remove/list. Batch 6: + template, defaults, goToDate, compare, custom tf, resize, 5 tab actions (rail-checked by agentContracts.test.js)
   })
   it('no Screener field is hard-coded in the Agent', () => {
     const src = screenerSource

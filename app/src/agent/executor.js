@@ -91,11 +91,13 @@ export function planOps(targets, ops, env = {}, ctx = null) {
       if (bad) { refusals.push({ index, action: op?.action, target: ref, reason: bad }); continue }
       const cap = getCapability(op.action)
       if (cap.target !== tgt.kind) { refusals.push({ index, action: op.action, target: ref, reason: `${op.action} doesn't apply to that.` }); continue }
-      const why = cap.check(st, op.args, opEnv)
+      // `trusted`: this op's symbols came from UCT itself (a screen, a saved list) — not model text.
+      const oenv = op.trusted ? { ...opEnv, trusted: true } : opEnv
+      const why = cap.check(st, op.args, oenv)
       if (why) { refusals.push({ index, action: op.action, target: ref, reason: why }); continue }
-      if (cap.confirmIf && cap.confirmIf(st, op.args, opEnv)) confirm = true
-      const next = cap.apply(st, op.args, opEnv)
-      if (next === st && cap.noop) noops.push(cap.noop(st, st, op.args, opEnv))
+      if (cap.confirmIf && cap.confirmIf(st, op.args, oenv)) confirm = true
+      const next = cap.apply(st, op.args, oenv)
+      if (next === st && cap.noop) noops.push(cap.noop(st, st, op.args, oenv))
       st = next
     }
     plans.push({ ref, kind: tgt.kind, snap: tgt.snap, virtual: !!tgt.virtual, before, after: st, items, noops, env: opEnv, confirm })
@@ -205,7 +207,8 @@ export function collectTargets(host, kinds) {
 /** The plan's footprint and strictest risk, for the confirmation policy. */
 export function planShape(plan) {
   // Targets that already exist (new ones are counted as resources instead).
-  const targets = plan.plans.filter(p => p.changed && !p.virtual).length
+  // A kind may say which underlying thing its target is (`groupOf`: a chart's indicators → that chart).
+  const targets = new Set(plan.plans.filter(p => p.changed && !p.virtual).map(p => getTargetKind(p.kind)?.groupOf?.(p.ref) ?? p.ref)).size
   const ops = plan.plans.reduce((n, p) => n + p.items.length, 0)
   // New things this plan brings into existence (capabilities mark themselves).
   const resources = plan.plans.reduce((n, p) => n + p.items.filter(i => getCapability(i.op.action)?.createsResource).length, 0)

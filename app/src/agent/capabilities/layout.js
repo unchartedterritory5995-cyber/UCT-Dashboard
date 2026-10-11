@@ -63,6 +63,17 @@ function resolveName(entries, phrase) {
   return hits.length === 1 ? hits[0] : null
 }
 
+// OPENING only (never rename / delete / save): "my trading layout" → the ONE saved layout whose
+// name holds every word ("Main Trading"). Exact names win; two candidates → null (the model asks).
+function resolveForOpen(entries, phrase) {
+  const exact = resolveName(entries, phrase) || (/ layout$/.test(phrase) ? resolveName(entries, phrase.replace(/ layout$/, '')) : null)
+  if (exact) return exact
+  const words = norm(phrase).replace(/ layout$/, '').split(' ').filter(w => w.length >= 3)
+  if (!words.length) return null
+  const hits = entries.filter(e => { const n = ` ${norm(e.name)} `; return words.every(w => n.includes(` ${w} `)) })
+  return hits.length === 1 ? hits[0] : null
+}
+
 function snapshotOf(host) {
   if (!host?.layouts) return null
   const s = host.layouts.snapshot()
@@ -286,7 +297,9 @@ export function registerLayoutCapabilities() {
       if (!m || !host?.layouts) return null
       const entries = host.layouts.snapshot().entries
       const phrase = m[1]
-      const hit = resolveName(entries, phrase) || (/ layout$/.test(phrase) ? resolveName(entries, phrase.replace(/ layout$/, '')) : null)
+      // "switch to my trading layout" → the one layout named with those words; a bare word with no
+      // "layout" must be an exact name (so "open NVDA" never opens a layout by accident)
+      const hit = / layout$/.test(phrase) ? resolveForOpen(entries, phrase) : resolveName(entries, phrase)
       return hit ? { layout: String(hit.id) } : null
     },
     check(st, { layout }) {

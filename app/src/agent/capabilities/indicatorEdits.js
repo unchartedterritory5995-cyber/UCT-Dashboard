@@ -143,6 +143,9 @@ const fail = (msg, { unreverted = false } = {}) => Object.assign(new Error(msg),
 
 export const indicatorEditsKind = {
   name: 'indicatorEdits',
+  noun: 'chart',                 // what a local "which one?" asks for
+  // Its target IS a chart: the mutation policy counts "this chart's indicators" and "this chart" as one.
+  groupOf: (ref) => chartRefOf(ref) ?? ref,
   selfDescribing: true,
   list: (host) => (host?.charts ? host.charts.list().map(c => snapOf(host, c)) : []),
   read: (host, ref) => {
@@ -180,7 +183,9 @@ export const indicatorEditsKind = {
   fingerprint: (s) => s.chartRef,
 }
 
-const common = { target: 'indicatorEdits', surfaces: ['charts'], exclusive: true,
+// `sequential`: in a request that asks for more, each indicator change still runs ALONE (exclusive) —
+// as its own step right after the rest, with its own receipt and Undo (useAgent), never mixed in a plan.
+const common = { target: 'indicatorEdits', surfaces: ['charts'], exclusive: true, sequential: true,
   exclusiveReason: 'Change one indicator at a time, on its own — ask for anything else separately.',
   // Never advertised where the member cannot manage indicators (no writable chart on the board).
   available: (ctx) => ctx.surface === 'charts' && ctx.manageIndicators !== false }
@@ -191,7 +196,19 @@ function oneChange(st) { return st.change ? 'One indicator change at a time — 
 function targetOf(st, instance) {
   const byId = resolveIndicatorTarget(st.cs, nativeRegistry, { instanceId: instance })
   if (byId.ok) return byId
-  return resolveIndicatorTarget(st.cs, nativeRegistry, { name: instance })
+  const byName = resolveIndicatorTarget(st.cs, nativeRegistry, { name: instance })
+  if (byName.ok) return byName
+  // Phase 2: "remove RSI" — the KIND of indicator, when exactly one of that kind is on the chart
+  const want = String(instance || '').trim().toLowerCase()
+  const kinds = (st.rows || []).filter(r => String(r.defId).toLowerCase() === want)
+  return kinds.length === 1 ? { ok: true, instanceId: kinds[0].instanceId } : byName
+}
+/** "rsi" / "relative strength index" → the catalog id, when the words name exactly one indicator. */
+function defIdOfWords(words) {
+  const want = String(words || '').trim().toLowerCase()
+  if (!want || NOT_ADDABLE.test(want)) return null
+  const hits = addableRows().filter(r => String(r.defId).toLowerCase() === want || String(r.name).toLowerCase() === want)
+  return hits.length === 1 ? hits[0].defId : null
 }
 
 function planCheck(st, req) {
@@ -228,8 +245,18 @@ export function registerIndicatorEditCapabilities() {
     // ⭐ F5: the same add on several charts is proposed once and run once PER CHART (useAgent fan-out)
     fanOut: true,
     summary: 'Add ONE indicator to ONE chart — exactly what the Indicator Library\'s Add to Chart does. Built-in indicators or the member\'s own saved ones; Undo removes it again.',
-    hints: 'target = the ref of that chart\'s indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts ("add it to both charts") = one indicator.add per chart the member named, same defId — they are proposed together and applied one chart at a time; if it isn\'t clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings.',
+    hints: 'target = the ref of that chart\'s indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts ("add it to both charts") = one indicator.add per chart the member named, same defId — they are proposed together and applied one chart at a time; if it isn\'t clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. '
+      + 'It adds at the indicator\'s DEFAULT settings only (the Moving Average default is NOT a 20 EMA). If they ask for specific settings ("a 20 EMA", "RSI 7"), '
+      + 'never add a default one as if it were that: answer that you can\'t set an indicator\'s inputs yet, and that they can set them in its settings after adding it.',
     args: { type: 'object', properties: { defId: { type: 'string' } }, required: ['defId'], additionalProperties: false },
+    // Phase 1 — "put RSI on my chart", "add MACD": an indicator named EXACTLY (its catalog id or full
+    // name, one match only) at its standard settings is an obvious command — no model call. Anything
+    // with parameters ("a 20 EMA") or a near-name goes to the model; the check below still decides.
+    fast: ({ lower }) => {
+      const m = /^(?:please )?(?:add|put|apply|plot)(?: an?| the| my)? (.+?)(?: indicator| study)?(?: (?:on|to|onto|in) (?:my|the|this) chart)?$/.exec(lower)
+      const defId = m ? defIdOfWords(m[1]) : null
+      return defId ? { defId } : null
+    },
     check(st, { defId }) {
       if (NOT_ADDABLE.test(String(defId || '').trim())) return refusalSentence({ reason: REASONS.UNSUPPORTED_DEFINITION })
       return oneChange(st) || planCheck(st, { op: 'add', defId })
@@ -249,6 +276,14 @@ export function registerIndicatorEditCapabilities() {
     summary: 'Remove ONE indicator (its whole group, e.g. all COT panes) from ONE chart — the settings ✕ / legend Delete. Always shown as a proposal first, listing anything it would disconnect. Undo restores it exactly (same identity, reconnected inputs).',
     hints: 'target = the ref of that chart\'s indicatorEdits entry. instance = the indicator\'s `id` from that chart\'s indicators list (exact; a name only if it is unique). Volume is not an indicator (use volume.setState).',
     args: { type: 'object', properties: { instance: { type: 'string' } }, required: ['instance'], additionalProperties: false },
+    // Phase 2 — "remove RSI", "get rid of the RSI": the indicator KIND named exactly; which instance
+    // is decided on the chart (exactly one of that kind, else refused with the real names). Still
+    // a proposal (risk confirm).
+    fast: ({ lower }) => {
+      const m = /^(?:please )?remove(?: the| my)? (.+?)(?: from the chart)?$/.exec(lower)
+      const defId = m ? defIdOfWords(m[1]) : null
+      return defId ? { instance: defId } : null
+    },
     check(st, { instance }) {
       const t = targetOf(st, instance)
       if (!t.ok) return refusalSentence(t, { chart: st.chart })

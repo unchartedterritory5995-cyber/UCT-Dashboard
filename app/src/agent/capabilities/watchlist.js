@@ -35,6 +35,7 @@
 import { registerCapability, registerTargetKind, registerContextProvider, isRef, SYMBOLS } from '../capabilities'
 import { unknownSymbols } from '../agentClient'
 import { afterRender } from '../frames'
+import { MAX_TOP } from '../compose'
 // Each list's tickers ARE shown to the model (removing "TSLA from Momentum" needs it:
 // without them the production model asked whether TSLA was in the list, 0/5 —
 // measured 2026-10-08). Provenance does not depend on hiding them: a copied list
@@ -42,7 +43,10 @@ import { afterRender } from '../frames'
 const SHOW_IN_CONTEXT = 40           // symbols per list the model is shown
 const COMPACT_SHOW = 8               // …per list when the context is over budget
 
-const MAX_PER_REQUEST = 50           // symbols one add/remove may carry
+const MAX_PER_REQUEST = 50           // tickers the MODEL may type into one add/remove
+// Symbols that came from UCT itself (a screen's result, a saved list) may fill a list up to the
+// composition ceiling — the watchlist server has no size limit; this bounds one request.
+const MAX_TRUSTED = MAX_TOP
 const CONFIRM_OVER = 10              // a bigger batch is proposed first
 const MAX_NAME = 80
 const TICKER = /^[A-Z0-9.$:^_\-/]{1,24}$/
@@ -78,13 +82,24 @@ const sigOf = (items) => JSON.stringify(items.map(i => [i.id, i.sym]))
 function resolveList(host, phrase) {
   const lists = listsOf(host)
   const p = norm(phrase).replace(/ (watch ?list|list)$/, '')
-  if (/^(my|this|the|our) ?(watch ?list|list)?$/.test(norm(phrase)) || /^(my|this|the)$/.test(p)) {
+  if (/^(my|this|the|our)? ?(watch ?list|list)?$/.test(norm(phrase)) || /^(my|this|the)$/.test(p)) {
+    // "my watchlist": the one a Watchlist widget is showing — or, with exactly one list, that one
     const shown = lists.filter(l => l.shownIn.length)
-    return shown.length === 1 ? shown[0] : null
+    if (shown.length === 1) return shown[0]
+    return !shown.length && lists.length === 1 ? lists[0] : null
   }
   const hits = lists.filter(l => norm(l.name) === p || norm(l.name) === norm(phrase))
   return hits.length === 1 ? hits[0] : null
 }
+
+/** A list by its name ("Software Stocks", "my Momentum list"), or null if none / several. */
+export const resolveListByName = (host, phrase) => resolveList(host, phrase)
+
+// The list THIS session's Agent created last ("open the watchlist you just made"). Per page
+// session, like Undo: it names a real id, re-checked against the member's lists before use.
+let lastCreated = null
+export const lastCreatedList = () => lastCreated
+export function _resetLastCreated() { lastCreated = null }
 
 // Wait for React to commit (never for a paint: a hidden tab never paints) — see agent/frames.js.
 const nextFrame = afterRender
@@ -239,6 +254,7 @@ export const watchlistLibraryKind = {
     const W = host.watchlists
     if (patch.deleteCreated) {
       for (const id of patch.deleteCreated) await W.deleteCreated(id)
+      if (lastCreated && patch.deleteCreated.includes(lastCreated.id)) lastCreated = null
       return true
     }
     // Names are not unique server-side, so check the CURRENT library right before
@@ -255,6 +271,7 @@ export const watchlistLibraryKind = {
       try {
         const row = await W.create(c.name)
         created[c.alias || `#${c.name}`] = String(row.id)
+        lastCreated = { id: String(row.id), name: c.name }
       } catch (e) {
         e.created = created                // the runtime takes these back
         throw e
@@ -384,7 +401,7 @@ export function registerWatchlistCapabilities() {
     summary: 'Add tickers to one of the member\'s saved watchlists (the list itself, not a widget). Symbols already in the list are skipped.',
     hints: 'target = the ref of the watchlist (or the "as" name of a list created earlier in this request); symbols = the tickers, uppercase, '
       + 'OR {from, top} to add a SCREEN\'s stocks: from = the "as" of a screener op earlier in this request (or "lastScreen" for the last screen run here), '
-      + 'top = how many of its results, in its order (null = all, at most 50). Never type tickers you have not been given. '
+      + `top = how many of its results, in its order (null = ALL of them — the default when they say "all" or give no number; at most ${MAX_TOP}). Never type tickers you have not been given. `
       + 'If they say "my watchlist" and it is not clear which list, clarify with the real list names. One op per list.',
     args: {
       type: 'object',
@@ -415,13 +432,14 @@ export function registerWatchlistCapabilities() {
       const bad = editProblem(st, env)
       if (bad) return bad
       if (isRef(symbols)) {
-        if (symbols.top === null || symbols.top > MAX_PER_REQUEST) return `Say how many of its stocks to add (up to ${MAX_PER_REQUEST}).`
+        if (symbols.top != null && symbols.top > MAX_TRUSTED) return `That's more than ${MAX_TRUSTED.toLocaleString()} stocks for one request — narrow it first.`
         return null
       }
       if (!Array.isArray(symbols)) return '“symbols” has the wrong kind of value.'
       const syms = symbols.map(upper)
       if (!syms.length) return 'Which tickers?'
-      if (syms.length > MAX_PER_REQUEST) return `That's more than ${MAX_PER_REQUEST} tickers at once — split it up.`
+      const max = env?.trusted ? MAX_TRUSTED : MAX_PER_REQUEST
+      if (syms.length > max) return `That's more than ${max.toLocaleString()} tickers at once — split it up.`
       const odd = syms.find(s => !TICKER.test(s))
       if (odd) return `“${odd}” doesn't look like a ticker.`
       const unknown = syms.filter(s => env?.unknownSymbols?.has(s))
@@ -440,7 +458,7 @@ export function registerWatchlistCapabilities() {
     },
     noop: (st, _a, { symbols }) => `${andList((symbols || []).map(upper))} ${(symbols || []).length === 1 ? 'is' : 'are'} already in ${quote(st.name)}`,
     describe(b, a) {
-      if (a.addFrom && !b.addFrom) return `Add the top ${a.addFrom.top} of its results to ${quote(a.name)}`
+      if (a.addFrom && !b.addFrom) return a.addFrom.top == null ? `Add all of its results to ${quote(a.name)}` : `Add the top ${a.addFrom.top} of its results to ${quote(a.name)}`
       if (!a.add.length) return null
       // A long add is counted, not listed — the watchlist itself is the record.
       const what = a.add.length > 5 ? `${a.add.length} stocks` : andList(a.add)
@@ -552,7 +570,8 @@ export function registerWatchlistCapabilities() {
     summary: 'Create a NEW saved watchlist (a named list of tickers) — only when they ask to create or make a list. "Add a watchlist" with no list name means a Watchlist WIDGET on the board: that is widget.add, not this.',
     hints: 'target = the ref of the watchlistLibrary entry; name = exactly as given. To COPY a list ("duplicate my X watchlist"), create "<X> copy" '
       + '(or the name they give — do not ask for one) and add {from: the ref of X, top: null} to it. To fill it in the same request set "as" to a short name (new1) '
-      + 'and target watchlist.add at that name; otherwise "as" is null. Never use this for a name already in the watchlists list — '
+      + 'and target watchlist.add at that name; otherwise "as" is null. No name given: pick a short descriptive one (e.g. Software Over $10) not already in the watchlists list — do not ask. '
+      + 'Never use this for a name already in the watchlists list — '
       + 'if they ask to put stocks in a list "called X" and X already exists, clarify (add to the existing X, or a new name); never silently append.',
     args: {
       type: 'object',
