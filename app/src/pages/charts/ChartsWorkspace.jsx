@@ -14,10 +14,12 @@ import { WorkspaceContext } from './WorkspaceContext'
 // for anyone who never opens it. The host only READS the chart registry below.
 import useSWR, { useSWRConfig } from 'swr'
 import { useAgentFlag, AGENT_OPEN_KEY, readLocal, writeLocal } from '../../agent/agentFlag'
+import AgentDock from '../../agent/AgentDock'
 import { buildWorkspaceHost } from '../../agent/host'
 import { useInRouterContext } from 'react-router-dom'
 import AgentNavBridge from '../../agent/AgentNavBridge'
-const AgentPanel = lazy(() => import('../../agent/AgentPanel'))
+const loadAgentPanel = () => import('../../agent/AgentPanel')
+const AgentPanel = lazy(loadAgentPanel)
 // TERM-079 — the board's typed context channels (list-ref, symbol-set, range, …).
 // A SEPARATE, never-changing context beside WorkspaceContext: its value is one store
 // created once per mount, so mounting it cannot re-render anything (H14 / PERF-4).
@@ -2855,6 +2857,15 @@ export default function ChartsWorkspace() {
   // adapter) and the visible board below — it never writes prefs itself.
   const agentFlag = useAgentFlag()
   const agentAllowed = agentFlag && isAdmin
+  // The panel's code is fetched in the background before the first open, so that open slides
+  // in on the first click instead of waiting on the download.
+  useEffect(() => {
+    if (!agentAllowed) return undefined
+    const idle = window.requestIdleCallback || ((f) => setTimeout(f, 1500))
+    const cancel = window.cancelIdleCallback || clearTimeout
+    const id = idle(() => { loadAgentPanel().catch(() => {}) })
+    return () => cancel(id)
+  }, [agentAllowed])
   const [agentOpen, setAgentOpenState] = useState(() => readLocal(AGENT_OPEN_KEY) === '1')
   const setAgentOpen = useCallback((v) => { setAgentOpenState(v); writeLocal(AGENT_OPEN_KEY, v ? '1' : '0') }, [])
   // Saved watchlists (the DATA, not the widget) for the Agent: the member's OWN lists,
@@ -3566,10 +3577,12 @@ export default function ChartsWorkspace() {
           onRestored={handleDockRestored}
         />
         </div>
-        {agentAllowed && agentOpen && (
-          <Suspense fallback={null}>
-            <AgentPanel host={agentHost} gridMode={gridMode} onClose={() => setAgentOpen(false)} />
-          </Suspense>
+        {agentAllowed && (
+          <AgentDock open={agentOpen}>
+            <Suspense fallback={null}>
+              <AgentPanel host={agentHost} gridMode={gridMode} onClose={() => setAgentOpen(false)} />
+            </Suspense>
+          </AgentDock>
         )}
         {agentAllowed && agentOpen && inRouter && <AgentNavBridge navRef={agentNavRef} />}
         </div>

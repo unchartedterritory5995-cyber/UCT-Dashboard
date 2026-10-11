@@ -1,7 +1,7 @@
 """SQLite store for UCT Agent conversations and structured telemetry.
 
 THREE TABLES
-  agent_conversations  one row per chat (owner, title, timestamps)
+  agent_conversations  one row per chat (owner, title, timestamps, pinned_at)
   agent_turns          the transcript: role 'member' (what they typed or said),
                        'agent' (the model's reply text + its structured
                        envelope), 'outcome' (what UCT ACTUALLY did: the
@@ -86,8 +86,20 @@ def _connect() -> sqlite3.Connection:
     if not _READY:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.executescript(_SCHEMA)
+        _migrate(conn)
         _READY = True
     return conn
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Additive, idempotent column adds for tables created before the column existed."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(agent_conversations)").fetchall()}
+    if "pinned_at" not in cols:  # History: pinned chats list first (NULL = not pinned)
+        conn.execute("ALTER TABLE agent_conversations ADD COLUMN pinned_at INTEGER")
+        conn.commit()
+    if "title_source" not in cols:  # NULL = first message (placeholder) | 'auto' (model) | 'user' (renamed)
+        conn.execute("ALTER TABLE agent_conversations ADD COLUMN title_source TEXT")
+        conn.commit()
 
 
 def _uid(user_id: Any) -> str:
@@ -147,10 +159,89 @@ def add_turn(user_id: int, conversation_id: str, role: str, text: str, data: dic
         return int(cur.lastrowid)
 
 
-def list_conversations(user_id: int, limit: int = 30) -> list[dict]:
+def list_conversations(user_id: int, limit: int = 100) -> list[dict]:
+    """The member's chats: pinned first (most recently pinned on top), then newest activity."""
     with contextlib.closing(_connect()) as c:
-        rows = c.execute("SELECT id, title, created_at, updated_at FROM agent_conversations WHERE user_id = ? "
-                         "ORDER BY updated_at DESC LIMIT ?", (_uid(user_id), int(limit))).fetchall()
+        rows = c.execute("SELECT id, title, title_source, created_at, updated_at, pinned_at FROM agent_conversations "
+                         "WHERE user_id = ? ORDER BY (pinned_at IS NULL), pinned_at DESC, updated_at DESC, rowid DESC LIMIT ?",
+                         (_uid(user_id), int(limit))).fetchall()
+    return [dict(r) for r in rows]
+
+
+def rename_conversation(user_id: int, conversation_id: str, title: str) -> bool:
+    """The member's own chat only. Whitespace collapsed, clipped to TITLE_LEN; an empty title is refused."""
+    clean = " ".join(str(title or "").split())[:TITLE_LEN]
+    if not clean:
+        raise ValueError("empty title")
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute("UPDATE agent_conversations SET title = ?, title_source = 'user' WHERE id = ? AND user_id = ?",
+                        (clean, str(conversation_id), _uid(user_id)))
+        c.commit()
+    return cur.rowcount == 1
+
+
+def title_info(user_id: int, conversation_id: str) -> dict | None:
+    """{title, source}: source None = still the first message, 'auto' = named by the Agent, 'user' = renamed."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT title, title_source FROM agent_conversations WHERE id = ? AND user_id = ?",
+                        (str(conversation_id), _uid(user_id))).fetchone()
+    return {"title": row["title"], "source": row["title_source"]} if row else None
+
+
+def set_auto_title(user_id: int, conversation_id: str, title: str) -> bool:
+    """The Agent's name for a chat. ⛔ NEVER over a name the member chose: the guard is in the
+    UPDATE itself, so no caller (and no model output) can replace a 'user' title."""
+    clean = " ".join(str(title or "").split())[:TITLE_LEN]
+    if not clean:
+        return False
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute("UPDATE agent_conversations SET title = ?, title_source = 'auto' WHERE id = ? AND user_id = ? "
+                        "AND (title_source IS NULL OR title_source != 'user')",
+                        (clean, str(conversation_id), _uid(user_id)))
+        c.commit()
+    return cur.rowcount == 1
+
+
+def set_pinned(user_id: int, conversation_id: str, pinned: bool) -> bool:
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute("UPDATE agent_conversations SET pinned_at = ? WHERE id = ? AND user_id = ?",
+                        (_now() if pinned else None, str(conversation_id), _uid(user_id)))
+        c.commit()
+    return cur.rowcount == 1
+
+
+def delete_conversation(user_id: int, conversation_id: str) -> bool:
+    """Deletes the member's own chat and its transcript. Telemetry rows carry no
+    conversation text and stay (they are counts, not content)."""
+    if not owns(user_id, conversation_id):
+        return False
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("DELETE FROM agent_turns WHERE conversation_id = ? AND user_id = ?", (str(conversation_id), _uid(user_id)))
+        cur = c.execute("DELETE FROM agent_conversations WHERE id = ? AND user_id = ?", (str(conversation_id), _uid(user_id)))
+        c.commit()
+    return cur.rowcount == 1
+
+
+SEARCH_LIMIT = 60
+SEARCH_TERMS = 6
+
+
+def search_turns(user_id: int, query: str, limit: int = SEARCH_LIMIT) -> list[dict]:
+    """History search across the member's OWN chats: every word must appear (any order, any case),
+    newest first. Each hit names its conversation (id + title) and when it was said."""
+    terms = [t.lstrip("$") for t in str(query or "").lower().split()]
+    terms = [t for t in terms if t][:SEARCH_TERMS]
+    if not terms:
+        return []
+    def like(t: str) -> str:
+        return "%" + t.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    where = " AND ".join(["lower(t.text) LIKE ? ESCAPE '\\'"] * len(terms))
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT t.id, t.conversation_id, t.role, t.text, t.created_at, c.title FROM agent_turns t "
+            "JOIN agent_conversations c ON c.id = t.conversation_id AND c.user_id = t.user_id "
+            f"WHERE t.user_id = ? AND {where} ORDER BY t.created_at DESC, t.id DESC LIMIT ?",
+            (_uid(user_id), *[like(t) for t in terms], int(limit))).fetchall()
     return [dict(r) for r in rows]
 
 

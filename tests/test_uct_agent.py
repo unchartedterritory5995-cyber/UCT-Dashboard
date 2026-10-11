@@ -696,3 +696,89 @@ def test_a_second_refusal_after_the_fallback_is_not_retried_again():
         turn.run_turn(message="set it", context=CTX, history=[], capabilities=_many_caps(3), caller=caller)
     assert len(calls) == 2
 
+
+
+def test_HISTORY_rename_pin_delete_and_search_are_the_members_own(make_client, monkeypatch):
+    """History: rename / pin / delete / search touch ONLY the caller's own chats; pinned list first;
+    search finds every word in any order and names the conversation and time of each hit."""
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: True)
+    a = make_client(ADMIN)
+    c1 = a.post("/api/agent/record", json={"member": "Add the 20 EMA to AAPL", "outcome": "Added EMA 20 to Chart (AAPL)"}).json()["conversationId"]
+    c2 = a.post("/api/agent/record", json={"member": "why is NVDA moving", "outcome": "ok"}).json()["conversationId"]
+    ids = lambda: [c["id"] for c in a.get("/api/agent/conversations").json()["conversations"]]
+    assert ids()[:2] == [c2, c1]                                     # newest first
+    # pin: the pinned chat lists first even though it is older
+    assert a.patch(f"/api/agent/conversations/{c1}", json={"pinned": True}).json()["conversation"]["pinned_at"]
+    assert ids()[0] == c1
+    assert a.patch(f"/api/agent/conversations/{c1}", json={"pinned": False}).json()["conversation"]["pinned_at"] is None
+    # rename: whitespace collapsed, clipped; an empty name is refused
+    r = a.patch(f"/api/agent/conversations/{c2}", json={"title": "  NVDA   research " + "x" * 200})
+    assert r.status_code == 200 and r.json()["conversation"]["title"].startswith("NVDA research x") and len(r.json()["conversation"]["title"]) == store.TITLE_LEN
+    assert a.patch(f"/api/agent/conversations/{c2}", json={"title": "   "}).status_code == 400
+    assert a.patch(f"/api/agent/conversations/{c2}", json={}).status_code == 400
+    # search: all words, any order, any case, "$" ignored; each hit names its chat
+    hits = a.get("/api/agent/search", params={"q": "aapl EMA"}).json()["results"]
+    assert {h["conversation_id"] for h in hits} == {c1} and len(hits) == 2
+    assert all(h["title"] and h["created_at"] for h in hits)
+    assert a.get("/api/agent/search", params={"q": "$nvda"}).json()["results"][0]["conversation_id"] == c2
+    assert a.get("/api/agent/search", params={"q": "100%"}).json()["results"] == []    # LIKE wildcards are literal
+    assert a.get("/api/agent/search", params={"q": "  "}).json()["results"] == []
+    # another admin can't rename, pin, delete or search into it
+    other = make_client({"id": "38c023cf-0e81-4187-aa43-ac51a751a004", "plan": "pro", "role": "admin"})
+    assert other.patch(f"/api/agent/conversations/{c1}", json={"title": "mine now"}).status_code == 404
+    assert other.patch(f"/api/agent/conversations/{c1}", json={"pinned": True}).status_code == 404
+    assert other.delete(f"/api/agent/conversations/{c1}").status_code == 404
+    assert other.get("/api/agent/search", params={"q": "aapl"}).json()["results"] == []
+    # a member who is not admin is refused outright (admin-dark like every Agent route)
+    m = make_client(MEMBER)
+    assert m.get("/api/agent/search", params={"q": "aapl"}).status_code == 403
+    assert m.delete(f"/api/agent/conversations/{c1}").status_code == 403
+    # delete: the chat and its transcript are gone, and it is no longer searchable
+    assert a.delete(f"/api/agent/conversations/{c1}").json() == {"deleted": c1}
+    assert a.get(f"/api/agent/conversations/{c1}").status_code == 404
+    assert c1 not in ids()
+    assert a.get("/api/agent/search", params={"q": "aapl"}).json()["results"] == []
+    assert a.delete(f"/api/agent/conversations/{c1}").status_code == 404
+
+
+def test_AUTO_TITLE_the_agent_names_a_chat_until_the_member_renames_it(make_client, monkeypatch):
+    """History auto-naming: the model's `title` names the chat (cleaned), replaces the first-message
+    placeholder, updates only when it changes, never reaches the browser's envelope, and STOPS for
+    good once the member renames the chat (the model is then not even shown a title)."""
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: True)
+    a = make_client(ADMIN)
+    titled = lambda t, reply="ok": {**env("answer", reply=reply), "title": t}
+    caller = caller_of(_resp(titled('  "NVDA Earnings Reaction."  ')), _resp(titled("NVDA Earnings Reaction")),
+                       _resp(titled("Weekly Swing Layout")), _resp(titled("Should Be Ignored")))
+    monkeypatch.setattr(turn, "_default_caller", caller)
+    title = lambda cid: a.get(f"/api/agent/conversations/{cid}").json()["title"]
+    sent = lambda i: json.dumps(caller.calls[i]["messages"][-1]["content"])
+
+    r = a.post("/api/agent/turn", json={"message": "why did nvda drop after earnings", "context": CTX})
+    cid = r.json()["conversationId"]
+    assert "title" not in r.json()["envelope"]                         # server-side only
+    assert "(no name yet)" in sent(0) and sent(0).count("why did nvda drop after earnings") == 1
+    assert title(cid) == "NVDA Earnings Reaction"                      # quotes + trailing period cleaned
+    a.post("/api/agent/turn", json={"conversationId": cid, "message": "and the guidance?", "context": CTX})
+    assert "NVDA Earnings Reaction" in sent(1) and title(cid) == "NVDA Earnings Reaction"
+    a.post("/api/agent/turn", json={"conversationId": cid, "message": "ok now set up a weekly swing layout", "context": CTX})
+    assert title(cid) == "Weekly Swing Layout"                         # the subject moved on
+    # the member renames it: the Agent never names this chat again, and is not shown a title
+    assert a.patch(f"/api/agent/conversations/{cid}", json={"title": "My swing plan"}).status_code == 200
+    a.post("/api/agent/turn", json={"conversationId": cid, "message": "thanks", "context": CTX})
+    assert "conversation_title" not in sent(3)
+    assert title(cid) == "My swing plan"
+    # and the store refuses an auto-title over a member's name even if something tried
+    assert store.set_auto_title(ADMIN["id"], cid, "Sneaky") is False and title(cid) == "My swing plan"
+
+
+@pytest.mark.parametrize("raw, want", [
+    ("NVDA Earnings Reaction", "NVDA Earnings Reaction"),
+    ('"20 EMA Crossover"', "20 EMA Crossover"),
+    ("**Weekly   Swing**\n Layout.", "Weekly Swing Layout"),
+    ("`RSI_Divergence` Scan", "RSI_Divergence Scan"),
+    ("x" * 90, "x" * 60),
+    ("", None), ("  ", None), ("??", None), (None, None), (7, None),
+])
+def test_AUTO_TITLE_cleaning(raw, want):
+    assert turn.clean_title({"title": raw}) == want

@@ -189,7 +189,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     writeLocal(AGENT_CONVERSATION_KEY, id)
   }, [])
 
-  const push = useCallback((item) => setItems(xs => [...xs, { id: nid(), ...item }]), [])
+  // `at`: when the line joined the chat (the panel shows it beside the sender's name).
+  const push = useCallback((item) => setItems(xs => [...xs, { id: nid(), at: Date.now(), ...item }]), [])
   const patchItem = useCallback((id, patch) => setItems(xs => xs.map(x => (x.id === id ? { ...x, ...patch } : x))), [])
 
   // Reopen the remembered conversation (transcript only; proposals and undo are per session).
@@ -207,7 +208,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       if (!conv) { setConversationId(null); return }
       const history = (Array.isArray(conv.turns) ? conv.turns : []).map(t => ({
         id: `h${t.id}`, role: t.role === 'member' ? 'member' : (t.role === 'outcome' ? 'outcome' : 'agent'),
-        text: t.text, history: true,
+        text: t.text, history: true, at: t.created_at ? t.created_at * 1000 : undefined,
       }))
       setItems(xs => [...history, ...xs.filter(x => !x.history)])
     }, () => { if (alive) setRestoring(false) })
@@ -835,7 +836,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     setConversationId(id)
     setItems(conv.turns.map(t => ({
       id: `h${t.id}`, role: t.role === 'member' ? 'member' : (t.role === 'outcome' ? 'outcome' : 'agent'),
-      text: t.text, history: true,
+      text: t.text, history: true, at: t.created_at ? t.created_at * 1000 : undefined,
     })))
   }, [setConversationId])
 

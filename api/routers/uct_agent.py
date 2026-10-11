@@ -5,6 +5,9 @@
                                            turns, receipts, refusals, undo) + telemetry
   GET  /api/agent/conversations            the member's chats, newest first
   GET  /api/agent/conversations/{id}       one chat's transcript
+  PATCH  /api/agent/conversations/{id}     rename and/or pin (History)
+  DELETE /api/agent/conversations/{id}     delete a chat and its transcript (History)
+  GET  /api/agent/search?q=                find words across the member's own chats (History)
 
 Nothing here mutates a workspace: the browser executes the deterministic
 actions and reports the outcome back through /record. Paid (402) AND admin (403)
@@ -99,6 +102,9 @@ class RecordIn(BaseModel):
     telemetry: Optional[dict] = None
 
 
+NO_TITLE_YET = "(no name yet)"
+
+
 @router.post("/api/agent/turn")
 def agent_turn(body: TurnIn, user: dict = Depends(require_admin_dark)):
     from api.services import ai_population_cap
@@ -121,11 +127,20 @@ def agent_turn(body: TurnIn, user: dict = Depends(require_admin_dark)):
         log.exception("[uct-agent] conversation store failed before the model call")
         _give_back(uid)
         raise HTTPException(status_code=500, detail=FAILED)
+    # Auto-naming: the Agent may name this chat until the member renames it ('user' = hands off).
+    try:
+        info = store.title_info(uid, cid)
+    except Exception:  # noqa: BLE001 -- naming is a nicety; the turn goes ahead without it
+        info = None
+    # The first-message placeholder is not a name: the model is told there is none yet (and the
+    # member's words are never sent twice).
+    nameable = None if not info or info.get("source") == "user" else (info["title"] if info.get("source") == "auto" else NO_TITLE_YET)
     try:
         out = agent.run_turn(message=body.message, context=body.context, history=history,
                              capabilities=body.capabilities,
                              pending=body.pending, recent_outcome=body.recentOutcome,
-                             manifest_version=body.manifestVersion, routing=body.routing)
+                             manifest_version=body.manifestVersion, routing=body.routing,
+                             conversation_title=nameable)
     except agent.TurnError as e:
         _give_back(uid)
         store.add_turn(uid, cid, "outcome", f"Refused: {e}", {"kind": "error"})
@@ -143,6 +158,12 @@ def agent_turn(body: TurnIn, user: dict = Depends(require_admin_dark)):
     except Exception:  # noqa: BLE001 -- the answer stands; only its transcript row is lost
         log.exception("[uct-agent] could not store the agent turn")
         turn_id = None
+    title = out.get("title")
+    if title and nameable and title != nameable and title != (info or {}).get("title"):
+        try:
+            store.set_auto_title(uid, cid, title)       # refuses by itself over a member's own name
+        except Exception:  # noqa: BLE001 -- the reply stands; only the name update is lost
+            log.exception("[uct-agent] could not store the conversation title")
     store.record_telemetry(uid, cid, {
         # routing in the existing columns: path model | routed | reroute; disposition need_groups
         "path": "reroute" if body.reroute else ("routed" if body.routing else "model"),
@@ -193,3 +214,41 @@ def agent_conversation(conversation_id: str, user: dict = Depends(require_admin_
     if conv is None:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return conv
+
+
+class ConversationPatch(BaseModel):
+    title: Optional[str] = None
+    pinned: Optional[bool] = None
+
+
+@router.patch("/api/agent/conversations/{conversation_id}")
+def agent_conversation_patch(conversation_id: str, body: ConversationPatch, user: dict = Depends(require_admin_dark)):
+    from api.services.uct_agent import store
+    uid = user["id"]
+    if body.title is None and body.pinned is None:
+        raise HTTPException(status_code=400, detail="Nothing to change.")
+    if not store.owns(uid, conversation_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if body.title is not None:
+        try:
+            store.rename_conversation(uid, conversation_id, body.title)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="A chat needs a name.")
+    if body.pinned is not None:
+        store.set_pinned(uid, conversation_id, body.pinned)
+    conv = next((c for c in store.list_conversations(uid, limit=1000) if c["id"] == conversation_id), None)
+    return {"conversation": conv}
+
+
+@router.delete("/api/agent/conversations/{conversation_id}")
+def agent_conversation_delete(conversation_id: str, user: dict = Depends(require_admin_dark)):
+    from api.services.uct_agent import store
+    if not store.delete_conversation(user["id"], conversation_id):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return {"deleted": conversation_id}
+
+
+@router.get("/api/agent/search")
+def agent_search(q: str = "", user: dict = Depends(require_admin_dark)):
+    from api.services.uct_agent import store
+    return {"results": store.search_turns(user["id"], q[:200])}
