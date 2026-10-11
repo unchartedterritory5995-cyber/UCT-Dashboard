@@ -405,7 +405,7 @@ DISPOSITIONS
 - unsupported: they asked you to DO something no available action can do. ops []. Say plainly that you can't do that yet and, if you know it, where in UCT they can do it by hand. Set unsupported_category to one short lowercase word naming the area (for example indicators, widgets, layouts, alerts, scanners, drawings, navigation, account, other).
 
 ACT ON CLEAR INTENT — DON'T MAKE THE MEMBER MANAGE YOU
-If the request can be done with reasonable, established defaults, plan it; do not ask. Defaults: an indicator at its standard settings; "my chart" when only one chart exists; ALL of a screen's results unless they give a number (top null); a short descriptive name for a new list or layout they did not name (not one already used); the latest completed session for "daily" figures; the action's own hints for which widget shows something. Never ask for something UCT can look up (a sector's members, a list's tickers, which widget is a watchlist). When they name a trading CONCEPT that one of UCT's starter or saved screens in <workspace_context> already defines (breakouts, leaders, pullbacks, tight bases, gap movers…), run that screen and name it in `reply` — never invent your own criteria for it; if none fits, say so and offer the closest. "Strongest" means highest RS Rank (say so); "my" stocks means the watchlist on their board. Clarify ONLY when: essential information is missing and has no safe default; readings would give materially different results; it is unclear WHICH existing thing to change, delete or overwrite among several; or what they asked for is not available and they must choose an alternative. When you use a default that matters, say it in one short `reply` line (e.g. "Using the latest session's close and dollar volume.").
+If the request can be done with reasonable, established defaults, plan it; do not ask. Defaults: an indicator at its standard settings; "my chart" when only one chart exists; ALL of a screen's results unless they give a number (top null); a short descriptive name for a new list or layout they did not name (not one already used); the latest completed session for "daily" figures; the action's own hints for which widget shows something. Never ask for something UCT can look up (a sector's members, a list's tickers, which widget is a watchlist). When they name a trading CONCEPT that one of UCT's starter or saved screens in <workspace_context> already defines (breakouts, leaders, pullbacks, tight bases, gap movers…), run that screen and name it in `reply` — never invent your own criteria for it; if none fits, say so and offer the closest. "Strongest" means highest RS Rank (say so), across UCT's whole Screener universe — "my strongest stocks" too; screen within one of their watchlists only when they name it ("my strongest stocks in Momentum"), and never answer a screening request by opening or showing a watchlist. "My watchlist" / "my list" means the watchlist on their board. Clarify ONLY when: essential information is missing and has no safe default; readings would give materially different results; it is unclear WHICH existing thing to change, delete or overwrite among several; or what they asked for is not available and they must choose an alternative. When you use a default that matters, say it in one short `reply` line (e.g. "Using the latest session's close and dollar volume.").
 
 WHOLE REQUESTS
 A request with several steps is ONE plan: put every step in `ops`, in order, connected by `as` names — e.g. "make a watchlist of X and open it" is: run the screen (as "screen1"), create the list (as "list1"), add the screen's results to "list1" ({from:"screen1", top:null}), open "list1" in the workspace. Pick `as` names that are not refs in <workspace_context>. Never plan only the first step, and never tell the member you "will" do the rest later. UCT shows the whole plan once and asks for approval where an action needs it.
@@ -565,6 +565,32 @@ def _record_cost(resp) -> float:
 _CLAIMS_DONE = re.compile(r"^\s*(done|all set|deleted|created|added|removed|applied|changed|updated|switched|"
                           r"finished|completed|set|saved)\b[^.!?]{0,40}[.!]?\s*$", re.I)
 
+# ⭐ STABILIZATION (2026-10-11 live check): NARRATION of an action, not only a bare "Done.". Measured:
+# "Opening your Momentum watchlist—your 8 strongest by RS Rank." came back as an `answer` with NO ops
+# (shown to the member as if it had happened, and stored in the history the next turn reads), and
+# "Filtering Momentum to stocks above $50." rode an `apply` whose one op only SHOWED a list.
+_ACT = (r"open|switch|chang|add|remov|filter|run|ran|screen|creat|show|sort|rank|sav|delet|renam|mov|put|"
+        r"set|appl|load|pull|draw|drew|hid|clear|arrang|resiz|link|turn|replac|swap|refin|narrow")
+_LEAD = r"^\s*(?:(?:sure|ok|okay|got it|alright|great|perfect|done)\s*[,!.—–-]?\s+)?"
+# A plan's reply that NARRATES work (any action verb as a gerund or past tense up front, a first-person
+# promise, "here are …") — shown before anything runs, so it is dropped: UCT's receipt, proposal card
+# or refusal says what actually happened.
+_NARRATES = re.compile(_LEAD + rf"(?:(?:i(?:'ve| have| am|'m|'ll| will)|let me|now)\s+(?:\w+\s+)?(?:{_ACT})\w*\b"
+                       rf"|(?:{_ACT})\w*(?:ing|ed)\b|here (?:are|is)\b)", re.I)
+# An ANSWER (no ops at all) that claims work: first person ("I've added…", "let me open…"), an action
+# verb in the past tense up front ("Added RSI…", "Switched…"), a gerund on the member's own things
+# within two words ("Opening your…", "filtering your list…"), or results handed over ("here are
+# your/the top …"). Plain explanations that merely start with a gerund ("Adding a 200-day SMA shows the
+# trend", "Showing volume helps…") and "let me show you how…" are NOT matched.
+_CLAIMS_WITHOUT_ACTION = re.compile(
+    _LEAD + rf"(?:(?:i(?:'ve| have| am|'m|'ll| will)|let me)\s+(?:\w+\s+)?(?:{_ACT})\w*\b(?!\s+(?:you|how|what|why)\b)"
+    rf"|(?:{_ACT})\w*ed\b"
+    rf"|(?:{_ACT})\w*ing\s+(?:up\s+)?(?:\S+\s+){{0,2}}?(?:your|my)\b"
+    rf"|here (?:are|is) (?:your|the (?:top|strongest|best|leading|results?|matches|stocks|names))\b"
+    r"|(?:done|all set)\b)", re.I)
+NOTHING_DONE = ("I didn't do that — no action was planned, so nothing in UCT changed. "
+                "Ask again a little more specifically (for example, “screen for the highest RS Rank stocks”).")
+
 
 def _unreadable(reason: str, **shape) -> None:
     """Every "unreadable" refusal says WHY in the server log: its shape only (reason code,
@@ -675,11 +701,18 @@ def sanitize_envelope(env: dict, valid_refs: set[str], cap_names: set[str] | Non
     if disp == "clarify" and not (isinstance(q, dict) and q.get("text")):
         q = {"text": env.get("reply") or "Which one do you mean?", "choices": []}
     reply = str(env.get("reply") or "")[:6000]
-    if disp in MUTATING and _CLAIMS_DONE.match(reply):
+    if disp in MUTATING and (_CLAIMS_DONE.match(reply) or _NARRATES.match(reply)):
         # ⛔ A plan's reply is shown BEFORE anything runs (and a proposal may never run): a bare
         # "Done." would be a receipt the model wrote itself. Measured 2026-10-08 (prod): a
         # proposed alert delete came back with reply "Done.". UCT's receipt is the only record.
+        # ⭐ 2026-10-11: and so is narration ("Filtering Momentum to stocks above $50.").
         reply = ""
+    elif disp == "answer" and not ops and _CLAIMS_WITHOUT_ACTION.match(reply):
+        # ⛔ NO OPS, YET IT SAYS IT ACTED ("Opening your Momentum watchlist…"): nothing ran, so the
+        # member is told exactly that — never the claim. This is also what the conversation stores,
+        # so the next turn's history does not believe it either. (Shape only in the log.)
+        log.warning("uct_agent claim without action: replaced a %d-char answer", len(reply))
+        reply = NOTHING_DONE
     return {
         "disposition": disp,
         "reply": reply,

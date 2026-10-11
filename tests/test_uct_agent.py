@@ -361,7 +361,10 @@ def test_a_plan_never_carries_a_reply_that_claims_it_already_happened(reply, kep
     """Measured on the production model (2026-10-08): a PROPOSED alert delete came back with reply "Done."."""
     out = turn.sanitize_envelope(env("propose", ops=[OP], reply=reply), {"c1", "c2"})
     assert out["reply"] == (reply if kept else "")
-    assert turn.sanitize_envelope(env("answer", reply="Done."), {"c1"})["reply"] == "Done."   # an answer is untouched
+    # ⭐ 2026-10-11 (owner: no false action claims): an ANSWER has no ops, so a bare "Done." is a claim
+    # that nothing backs — it used to pass untouched; it is now replaced by the honest NOTHING_DONE.
+    # (tests/test_uct_agent_honest_replies.py holds the full set, incl. answers that stay untouched.)
+    assert turn.sanitize_envelope(env("answer", reply="Done."), {"c1"})["reply"] == turn.NOTHING_DONE
 
 
 def test_research_has_a_hard_ceiling_of_one(monkeypatch):

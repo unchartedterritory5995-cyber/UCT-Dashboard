@@ -491,7 +491,7 @@ export function registerScreenerCapabilities() {
       + '"(latest session)" fields = the last completed trading day: use them for a daily dollar volume ("trades over $10M a day"), never a 30-day average or share volume. '
       + 'A measure not in `fields`: say the Screener doesn\'t have it, never substitute. sort_field/sort_dir or null. mode refine = change the LAST screen, else new. '
       + 'show: rows (null = 10, max 25). as: name the RESULT (screen1) when a later op uses its stocks ({from:"screen1", top:null} = all); else null. '
-      + 'within: a watchlist ref to screen only that list ("my strongest" = the list on their board), else null.',
+      + 'within: a watchlist ref only if they name that list ("in Momentum"); else null (the whole market).',
     args: {
       type: 'object',
       properties: {
@@ -521,6 +521,25 @@ export function registerScreenerCapabilities() {
       const b = await specFor(args, host)
       if (b.error) throw new Error(b.error)
       return produceSymbols(b.spec, { notes: b.notes })
+    },
+    // ⭐ STABILIZATION (2026-10-11 live check, owner ruling: the WHOLE market). Two obvious phrasings,
+    // no model call, onto this same screen and the Screener's own RS Rank field:
+    //   "show me my strongest stocks", "what are the strongest names", "RS leaders"
+    //     → every stock, highest RS Rank first (within: null — a watchlist only when they name one,
+    //       which goes to the model)
+    //   "now only the ones above $50" (a screen already ran here) → that screen REFINED with price
+    // Anything else — a named list, a second condition, a bare number — goes to the model.
+    fast: ({ lower }) => {
+      if (!cache.meta) return null
+      if (/^(?:please )?(?:(?:show(?: me)?|find(?: me)?|list|give me|get(?: me)?|what are|which are) )?(?:my |the )?(?:strongest|rs leaders|relative strength leaders|highest rs(?: rank(?:ed)?)?)(?: stocks| names)?(?: right now| today)?$/.test(lower)) {
+        return fieldOf('rs_rank') ? { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: null } : null
+      }
+      const m = /^(?:(?:now|and|ok|okay) )?(?:show me )?(?:only|just) (?:the ones|those|them|the stocks|the names|stocks|names)? ?(above|over|under|below) \$(\d+(?:\.\d+)?)$/.exec(lower)
+      if (m && cache.last && fieldOf('price')) {
+        const op = m[1] === 'above' || m[1] === 'over' ? 'gt' : 'lt'
+        return { filters: [{ field: 'price', op, value: Number(m[2]), max: null, values: null }], sort_field: null, sort_dir: null, mode: 'refine', show: null, as: null, within: null }
+      }
+      return null
     },
     async answer(_snap, args, host) {
       let b
