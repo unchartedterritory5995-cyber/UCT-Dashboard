@@ -13,7 +13,7 @@ import {
   CALC_TIMEFRAMES, calcTimeframeOf, frameRelation, effectiveCalcFrame, normalizeVisibility,
   isVisibleOnTimeframe, visibilitySummary, visibilityChoices, calcTimeframeLabel,
 } from '../instanceTimeframe'
-import { calcTimeframeCapability, resolveInstanceFrames } from '../calcTimeframeCapability'
+import { calcTimeframeCapability, resolveInstanceFrames, CAPABILITY_WORDS } from '../calcTimeframeCapability'
 import { eligibleInstances } from '../eligibility'
 import { legendChips } from '../readout'
 import {
@@ -305,5 +305,17 @@ describe('a DEFAULT chart\'s averages accept the new controls like any other', (
     expect(avg.inputs.period).toBe(10)
     expect(avg.calculationTimeframe).toBe('W')
     expect(avg.visibility).toEqual({ preset: 'custom', tfs: ['D'] })
+  })
+})
+
+// ⭐ UIE PHASE 4 (M5) — a script drawn bar by bar is never offered another timeframe
+describe('calcTimeframeCapability — a runtime-lane document', () => {
+  it('is refused by name, with the member\'s words', () => {
+    const def = { id: 'u_rt', compute: { kind: 'runtime', fn: 'runtime:u_rt', source: '' },
+      plots: [{ key: 'value', style: 'line' }] }
+    expect(calcTimeframeCapability(def, null)).toEqual({ ok: false, reason: 'runtime' })
+    expect(CAPABILITY_WORDS.runtime).toMatch(/bar by bar/)
+    // control: the same document as a formula is offered
+    expect(calcTimeframeCapability({ ...def, compute: { kind: 'ast' } }, null).ok).toBe(true)
   })
 })
