@@ -472,6 +472,11 @@ FILTERS = dict([
     #  volume-low windows 20/15/10 bars). E-8: published, not invented here.
     _open_range("dollar_vol_30d", "Dollar Volume (30d)", "descriptive",
                 "dollar_vol_30d", unit="$"),
+    # ⭐ The newest session's dollar volume (close × volume of the row's own last bar, the
+    # `bars_asof` session). The daily figure a trader means by "trades $10M a day"; the 30-day
+    # average above is a different, smoother number. Same column UCT Agent screens on.
+    _open_range("dollar_vol_1d", "Dollar Volume (1 day)", "descriptive",
+                "dollar_vol_1d", unit="$"),
     _open_range("pole_pct", "Prior Run (Pole %)", "momentum", "pole_pct", unit="%"),
     _range("vol_nweek_low", "Volume Dry-Up", "momentum", "vol_nweek_low",
            [{"label": "Any"},

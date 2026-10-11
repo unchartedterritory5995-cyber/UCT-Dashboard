@@ -19,8 +19,8 @@
 // settings through the chart's one persist path and hands the read-back to
 // `confirmIndicatorMutation`; nothing here claims a save it did not see.
 
-import { addInstance, removeInstance, setInstanceHidden, findInstance, groupMemberIds } from '../engine/instanceControls'
-import { sourceInputsOf, sourceDependsOn } from '../engine/sourceRef'
+import { addInstance, removeInstance, setInstanceHidden, findInstance, groupMemberIds, setInstanceInput, checkInstanceInput, inputSpecOf } from '../engine/instanceControls'
+import { sourceInputsOf, sourceDependsOn, instanceLabel } from '../engine/sourceRef'
 import { infoValuesOf } from '../engine/infoValues'
 import { adoptOverlayAverages } from '../maAdoption'
 import { mergeChartSettings } from '../chartDefaults'
@@ -47,6 +47,7 @@ export const REASONS = Object.freeze({
   DEPENDENT_EXISTS: 'dependent-exists',           // Undo-add would sever something that now reads the instance
   UNCONFIRMED: 'unconfirmed',                     // no read-back to verify against
   NOT_LANDED: 'did-not-land',                     // the read-back does not show the change
+  BAD_INPUT: 'bad-input',                         // an `add`'s `inputs` names a setting the indicator lacks, or a value it refuses
 })
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
@@ -74,6 +75,39 @@ const getDefOf = (registry) => (id) => {
   } catch { /* an unreadable registry resolves nothing */ }
   return null
 }
+
+/**
+ * ⭐⭐ AGENT PHASE 2.5 — "ADD A 20 EMA": an add WITH SETTINGS, through the canonical
+ * writers only. `addInstance` makes the instance (its declared defaults), then EACH
+ * requested setting is asked of `checkInstanceInput` (the settings dialog's own
+ * validation: declared key, coerced type, the definition's bounds/options) and written by
+ * `setInstanceInput` (the dialog's own writer). ⛔ Every requested setting lands or the
+ * whole add is refused, naming the first that cannot (`bad-input`, with the input's
+ * declared type / range / options) — never a default kept in place of a value asked for,
+ * never a partly-configured indicator. One write, so one receipt and one Undo.
+ * @returns `{ok:true, cs, ids, inputs}` (`inputs`: the values as stored) | refusal
+ */
+function addWithInputs(view, defId, inputs, registry) {
+  const next0 = addInstance(view, defId, registry)
+  if (next0 === view) return refuse(REASONS.UNSUPPORTED_DEFINITION)
+  const before = new Set((view.indicatorInstances || []).map((i) => i && i.instanceId))
+  const ids = (next0.indicatorInstances || []).filter((i) => i && !before.has(i.instanceId)).map((i) => i.instanceId).sort()
+  if (inputs === undefined || inputs === null) return { ok: true, cs: next0, ids, inputs: null }
+  if (!isObj(inputs) || ids.length !== 1) return refuse(REASONS.BAD_REQUEST)
+  const def = getDefOf(registry)(defId)
+  let next = next0
+  for (const [key, value] of Object.entries(inputs)) {
+    const checked = checkInstanceInput(def, key, value)
+    if (!checked.ok) return refuse(REASONS.BAD_INPUT, { key, value, why: checked.why, input: inputSpecOf(checked.spec) })
+    next = setInstanceInput(next, ids[0], key, checked.value, registry)
+    if ((findInstance(next, ids[0]).inputs || {})[key] !== checked.value) {
+      return refuse(REASONS.BAD_INPUT, { key, value, why: 'the settings writer refused it', input: inputSpecOf(checked.spec) })
+    }
+  }
+  const stored = findInstance(next, ids[0]).inputs || {}
+  return { ok: true, cs: next, ids, inputs: Object.fromEntries(Object.keys(inputs).map((k) => [k, stored[k]])) }
+}
+
 
 // ─── canonical JSON, fingerprints ─────────────────────────────────────────────
 
@@ -333,12 +367,15 @@ export function planIndicatorMutation(cs, request, ctx) {
   const base = { contract: MUTATION_CONTRACT, op: req.op, boardRevision: ctx.boardRevision ?? null, instanceFingerprint: instanceFingerprint(view) }
 
   if (req.op === 'add') {
-    const next = addInstance(view, req.defId, registry)
-    if (next === view) return refuse(REASONS.UNSUPPORTED_DEFINITION)
+    const made = addWithInputs(view, req.defId, req.inputs, registry)
+    if (!made.ok) return made
     const def = getDefOf(registry)(req.defId)
-    return { ok: true, plan: { ...base, args: { defId: req.defId }, target: { ids: [], defId: req.defId },
+    // ⭐ the preview names what WILL be drawn ("EMA 20"), not the definition ("Moving Average")
+    const label = made.inputs ? instanceLabel(def, findInstance(made.cs, made.ids[0])) : null
+    return { ok: true, plan: { ...base, args: { defId: req.defId, ...(made.inputs ? { inputs: { ...req.inputs } } : {}) },
+      target: { ids: [], defId: req.defId },
       pins: { defVersion: defVersionOf(registry, req.defId) },
-      preview: { name: (def.meta && def.meta.name) || req.defId, severs: [] } } }
+      preview: { name: label || (def.meta && def.meta.name) || req.defId, severs: [], ...(made.inputs ? { inputs: made.inputs } : {}) } } }
   }
 
   const t = resolveIndicatorTarget(view, registry, { instanceId: req.instanceId })
@@ -401,12 +438,15 @@ export function applyIndicatorMutation(cs, plan, ctx) {
   const registry = c.registry
 
   if (plan.op === 'add') {
-    const next = addInstance(view, plan.args.defId, registry)
-    if (next === view) return refuse(REASONS.WRITER_REFUSED)
-    const before = new Set((view.indicatorInstances || []).map((i) => i && i.instanceId))
-    const ids = (next.indicatorInstances || []).filter((i) => i && !before.has(i.instanceId)).map((i) => i.instanceId).sort()
+    const made = addWithInputs(view, plan.args.defId, plan.args.inputs, registry)
+    if (!made.ok) return made.reason === REASONS.UNSUPPORTED_DEFINITION ? refuse(REASONS.WRITER_REFUSED) : made
+    const next = made.cs
+    const ids = made.ids
+    // the record holds every leaf the add wrote — the instance AND each `inputs.<key>` — so
+    // the read-back proves the values landed, and Undo (remove the instance) is exact
     const record = recordOf(ids, view, next)
-    return { ok: true, cs: next, pending: pendingFor('add', plan, view, next, record, registry, { name: nameOf(next, registry, ids[0]) }) }
+    return { ok: true, cs: next, pending: pendingFor('add', plan, view, next, record, registry,
+      { name: nameOf(next, registry, ids[0]), ...(made.inputs ? { inputs: made.inputs } : {}) }) }
   }
   if (plan.op === 'remove') {
     const r = removeInstanceWithRecord(view, plan.args.instanceId, registry)
@@ -437,6 +477,7 @@ export function confirmIndicatorMutation(persisted, pending, ctx) {
     defId: pending.defId, name: pending.name,
     ...(pending.undoOf ? { undoOf: pending.undoOf } : {}),
     ...(pending.op === 'setVisible' ? { visible: pending.visible } : {}),
+    ...(pending.op === 'add' && pending.inputs && !pending.undoOf ? { inputs: { ...pending.inputs } } : {}),
     ...(pending.op === 'remove' && !pending.undoOf ? { severed: (pending.severed || []).map((d) => ({ ...d })) } : {}),
     ...(pending.restored ? { restored: pending.restored.map((d) => ({ ...d })) } : {}),
     chartId: (ctx && ctx.chartId) ?? null,
@@ -492,3 +533,5 @@ export function undoIndicatorMutation(cs, undo, ctx) {
   }
   return refuse(REASONS.BAD_REQUEST)
 }
+
+export { inputSpecOf }
