@@ -40,7 +40,10 @@ export default function NewNoteMenu({ onBlank, onFromOutline, onVoice = null, on
     else if (e.key === 'ArrowDown') { e.preventDefault(); list[(i + 1) % list.length]?.focus() }
     else if (e.key === 'ArrowUp') { e.preventDefault(); list[(i - 1 + list.length) % list.length]?.focus() }
   }
-  const run = (fn) => () => { setOpen(false); fn() }
+  // Focus goes back to the caret BEFORE the item runs: the menu (and the item holding focus) is gone
+  // on the next render, and what the item opens (the New-note sheet, the voice dialog) returns focus
+  // to whatever held it when it opened.
+  const run = (fn) => () => { setOpen(false); caretRef.current?.focus(); fn() }
 
   return (
     <div className={styles.split} data-tour="new-note-home">

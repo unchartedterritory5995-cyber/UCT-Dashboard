@@ -42,6 +42,24 @@ describe('NewNoteMenu', () => {
     fireEvent.pointerDown(screen.getByText('elsewhere'))
     expect(screen.queryByRole('menu')).toBeNull()
   })
+  // M2 (final review): `run` closed the menu but left focus on the item, which then unmounted, so
+  // when the New-note sheet or the voice dialog closed, focus returned to a detached item (<body>).
+  // Focus goes back to the caret BEFORE the chosen item runs, so whatever opens and closes after
+  // it hands focus back to a live control.
+  it('M2: focus is on the caret by the time a chosen item runs, for every item', () => {
+    const seen = {}
+    const spy = (name) => vi.fn(() => { seen[name] = document.activeElement })
+    const onFromOutline = spy('outline'); const onVoice = spy('voice'); const onToday = spy('today')
+    render(<NewNoteMenu onBlank={vi.fn()} onFromOutline={onFromOutline} onVoice={onVoice} onToday={onToday} />)
+    const caret = screen.getByRole('button', { name: 'More ways to start a note' })
+    for (const [name, label] of [['outline', 'From an outline'], ['voice', 'Voice note'], ['today', "Today's note"]]) {
+      fireEvent.click(caret)
+      fireEvent.click(screen.getByRole('menuitem', { name: label }))
+      expect(screen.queryByRole('menu'), `${name}: menu closed`).toBeNull()
+      expect(seen[name], `${name}: focus was on the caret when the item ran`).toBe(caret)
+      expect(document.activeElement, `${name}: and it is still there afterwards`).toBe(caret)
+    }
+  })
   it('Escape closes the menu and returns focus to the caret', () => {
     render(<NewNoteMenu onBlank={vi.fn()} onFromOutline={vi.fn()} />)
     const caret = screen.getByRole('button', { name: 'More ways to start a note' })
