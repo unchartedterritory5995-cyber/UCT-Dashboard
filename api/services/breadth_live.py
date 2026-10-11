@@ -1314,7 +1314,8 @@ def _persist_levels(levels: dict) -> None:
         path = _snapshot_path("breadth_live_levels.pkl")
         tmp = f"{path}.tmp"
         with open(tmp, "wb") as f:
-            pickle.dump({"as_of_ts": levels.get("as_of_ts"), "levels": levels},
+            pickle.dump({"as_of_ts": levels.get("as_of_ts"), "levels": levels,
+                         "sma_windows": list(_SMA_WINDOWS)},
                         f, protocol=pickle.HIGHEST_PROTOCOL)
         os.replace(tmp, path)
     except Exception as e:
@@ -1332,6 +1333,16 @@ def _load_persisted_levels(as_of_ts: int) -> Optional[dict]:
         with open(path, "rb") as f:
             blob = pickle.load(f)
         if blob.get("as_of_ts") != as_of_ts:   # snapshot is for a different day
+            return None
+        # ⛔ (2026-10-11) A snapshot written by code with a DIFFERENT window set is a
+        # different schema, not a stale copy of this one. acd0932555 added the 20-day SMA;
+        # the 2026-10-09 snapshot, built before that deploy, carried no `sma_prev_sum[20]`
+        # and was still adopted for its session, so every `/api/breadth-monitor/live` read
+        # 503'd with detail "20" (KeyError) until a new session landed. Reject it and let
+        # the caller rebuild, which writes a snapshot stamped with the current windows.
+        if blob.get("sma_windows") != list(_SMA_WINDOWS):
+            print("[breadth-live] levels snapshot has a different SMA window set "
+                  f"({blob.get('sma_windows')!r} vs {list(_SMA_WINDOWS)!r}); rebuilding")
             return None
         lv = blob.get("levels")
         if lv is not None and not _adopt_basis(lv.get("dividend_basis")):

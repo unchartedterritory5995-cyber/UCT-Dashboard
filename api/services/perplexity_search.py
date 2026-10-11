@@ -323,6 +323,24 @@ def _log_call(surface: str, model: str, mode: str, *, ok: bool,
                      surface, model, mode, error)
 
 
+def _provider_reason(e: "requests.RequestException") -> str:
+    """The provider's own 4xx explanation, for the SERVER LOG only.
+
+    2026-10-11: production logged 85 `400 Bad Request` lines on surface=news_catalysts in a
+    few hours with nothing else, because `str(HTTPError)` carries only the status and URL.
+    A 400 is never retried, so without Perplexity's message nobody can tell which request
+    field it refused. Never forwarded to a member (see `_mask_http_error`)."""
+    resp = getattr(e, "response", None)
+    status = getattr(resp, "status_code", None)
+    if not status or not (400 <= int(status) < 500):
+        return ""
+    try:
+        body = " ".join((resp.text or "").split())
+    except Exception:          # noqa: BLE001 - a log detail must never raise
+        return ""
+    return f" | provider said: {body[:300]}" if body else ""
+
+
 def _mask_http_error(e: "requests.RequestException") -> tuple[str, int | None]:
     """Member-safe error string + the status code. str(HTTPError) embeds the
     full provider URL ('401 Client Error: Unauthorized for url: https://…'),
@@ -477,7 +495,7 @@ def web_search(
                     "mode": resolved_mode, "model": model}
         except requests.RequestException as e:
             # Full detail stays server-side; members get a status-only string.
-            _log.warning("perplexity request failed: %s", e)
+            _log.warning("perplexity request failed: %s%s", e, _provider_reason(e))
             msg, status = _mask_http_error(e)
             # Never retry a definite 4xx (auth/bad-request) — it will never
             # succeed and just burns daily budget. Only 429/5xx are retryable.
