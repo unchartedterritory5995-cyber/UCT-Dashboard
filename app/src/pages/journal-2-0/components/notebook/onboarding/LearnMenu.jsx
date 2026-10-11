@@ -43,23 +43,18 @@ export default function LearnMenu({ className = '', hasAnyNotes = true }) {
   const triggerRef = useRef(null)
   const phone = useIsPhone()
 
-  // Opened, chunk still on its way: Escape or a press outside the button cancels the open.
+  // Opened, chunk still on its way: a press outside the button cancels the open. Escape is the
+  // button's own onKeyDown below: focus is still on it while the panel loads, and a document-level
+  // key listener would be a raw one outside the shortcut registry (TERM-063 census).
   useEffect(() => {
     if (!open || ready) return undefined
-    const onKey = (e) => {
-      if (e.key !== 'Escape') return
-      setOpen(false)
-      triggerRef.current?.focus()
-    }
     const onDown = (e) => {
       if (triggerRef.current?.contains(e.target)) return   // the button toggles on its own
       setOpen(false)
     }
-    document.addEventListener('keydown', onKey)
     document.addEventListener('mousedown', onDown)
     document.addEventListener('touchstart', onDown)
     return () => {
-      document.removeEventListener('keydown', onKey)
       document.removeEventListener('mousedown', onDown)
       document.removeEventListener('touchstart', onDown)
     }
@@ -88,6 +83,9 @@ export default function LearnMenu({ className = '', hasAnyNotes = true }) {
           if (e.key === 'ArrowDown' && !open) {
             e.preventDefault()
             openMenu()
+          } else if (e.key === 'Escape' && open && !ready) {
+            e.preventDefault()
+            setOpen(false)
           }
         }}
       >
