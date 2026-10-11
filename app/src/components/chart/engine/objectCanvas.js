@@ -188,6 +188,7 @@ function drawArrowhead(ctx, fx, fy, x, y, size, c) {
  * @param {(p:number)=>number|null} m.priceToY
  * @param {number} m.width
  * @param {number} m.height
+ * @param {number} [m.rightInset]  the price scale's width at the right: the plot ends there
  * @returns {{drawn:object, skipped:object}}
  */
 export function paintObjects(ctx, state, m) {
@@ -214,10 +215,47 @@ export function paintObjects(ctx, state, m) {
   // object, which is why `bbox` is reported beside the counts. The earlier
   // `isNaN`-only test let `Infinity` through as a coordinate.
   const finite = (v) => typeof v === 'number' && Number.isFinite(v)
-  const xy = (t, p) => {
-    const x = timeToX(t)
+  // ⭐⭐ UIE PHASE 3 (M3B) — AN ENDPOINT THE CHART HOLDS NO SLOT FOR. A line from a pivot
+  // 300 bars back on a chart that loaded 200 used to be DROPPED whole: `timeToX` has no
+  // coordinate for a time before the first loaded bar (or past the last, beyond the
+  // chart's own future slots). Such an endpoint is placed by BAR, from the spacing of the
+  // two loaded bars at that end (the chart spaces bars uniformly, so this is its own
+  // coordinate, not a guess), and the canvas clip below cuts the line at the plot's edge.
+  // ⛔ Only an `xloc.bar_index` endpoint OUTSIDE the loaded bars: a loaded bar the chart
+  // cannot place, or a `bar_time` instant, stays unplaced and the object is skipped.
+  const fr = state.frame
+  const spacingAt = new Map()
+  const spacing = (ta, tb) => {
+    const key = `${ta}|${tb}`
+    if (!spacingAt.has(key)) {
+      const xa = timeToX(ta)
+      const xb = timeToX(tb)
+      spacingAt.set(key, finite(xa) && finite(xb) && xb > xa ? { x: xa, dx: xb - xa } : null)
+    }
+    return spacingAt.get(key)
+  }
+  const barX = (bi) => {
+    if (!fr || !Number.isInteger(bi)) return null
+    if (bi < 0) { const sp = spacing(fr.first, fr.second); return sp ? sp.x + bi * sp.dx : null }
+    if (bi > fr.n - 1) { const sp = spacing(fr.prev, fr.last); return sp ? sp.x + (bi - (fr.n - 2)) * sp.dx : null }
+    return null
+  }
+  const xy = (t, p, bi) => {
+    let x = timeToX(t)
+    if (!finite(x)) x = barX(bi)
     const y = p === null || p === undefined ? null : priceToY(p)
     return finite(x) ? { x, y: finite(y) ? y : null } : null
+  }
+  // ⭐ UIE PHASE 3 (M3B) — EVERYTHING IS CLIPPED TO THE PLOT: a line placed past the
+  // loaded bars, or extended, stops at the plot's left edge and at the price scale
+  // (`rightInset`), never painted over the axis labels.
+  const plotRight = width - (finite(m.rightInset) && m.rightInset > 0 ? m.rightInset : 0)
+  const clipped = typeof ctx.rect === 'function' && typeof ctx.clip === 'function'
+  if (clipped) {
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(0, 0, plotRight, height)
+    ctx.clip()
   }
   /** How far right an `extend`ed edge runs — the pane, never a guess. */
   const RIGHT = width
@@ -229,8 +267,8 @@ export function paintObjects(ctx, state, m) {
   // line the author cannot see. Pine paints in creation order within a family,
   // and families in this order, which is what a member is used to.
   for (const b of state.boxes || []) {
-    const a = xy(b.left, b.top)
-    const c = xy(b.right, b.bottom)
+    const a = xy(b.left, b.top, b.bleft)
+    const c = xy(b.right, b.bottom, b.bright)
     if (!a || !c || a.y === null || c.y === null) { skipped.box += 1; continue }
     let x1 = a.x
     let x2 = c.x
@@ -276,8 +314,8 @@ export function paintObjects(ctx, state, m) {
   }
 
   for (const l of state.lines || []) {
-    const a = xy(l.x1, l.y1)
-    const b = xy(l.x2, l.y2)
+    const a = xy(l.x1, l.y1, l.bx1)
+    const b = xy(l.x2, l.y2, l.bx2)
     if (!a || !b || a.y === null || b.y === null) { skipped.line += 1; continue }
     let { x: x1, y: y1 } = a
     let { x: x2, y: y2 } = b
@@ -332,7 +370,7 @@ export function paintObjects(ctx, state, m) {
   }
 
   for (const lb of state.labels || []) {
-    const p = xy(lb.x, lb.y)
+    const p = xy(lb.x, lb.y, lb.bx)
     if (!p) { skipped.label += 1; continue }
     // ⭐ A BAR-ANCHORED LABEL WITH NO PRICE sits at the pane edge it names.
     const y = p.y !== null ? p.y
@@ -433,6 +471,7 @@ export function paintObjects(ctx, state, m) {
   // `drawn.table` and `skipped.table` stay in the shape below and stay ZERO:
   // the counters an observer reads are the DOM layer's own, on its own node.
 
+  if (clipped) ctx.restore()
   return {
     drawn,
     skipped,

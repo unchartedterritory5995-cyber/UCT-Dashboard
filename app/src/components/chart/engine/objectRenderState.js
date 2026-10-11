@@ -277,6 +277,15 @@ function xOf(value, xloc, clock) {
   return t
 }
 
+/** ⭐ UIE PHASE 3 (M3B) — an `xloc.bar_index` coordinate's BAR, kept beside its time so the
+ *  painter can place an endpoint the chart holds no slot for (before the first loaded bar,
+ *  or past the last) by bar spacing (`objectCanvas.js`). A `bar_time` one has no bar here. */
+function barOf(value, xloc) {
+  if (xloc === 'bar_time') return undefined
+  const v = num(value)
+  return v === null ? undefined : Math.round(v)
+}
+
 /** The colour slots of each family — the only props a theme reference can sit in. */
 const THEME_SLOTS = Object.freeze({
   line: Object.freeze(['color']),
@@ -335,6 +344,7 @@ export function toRenderState(live, opts = {}) {
       if (x1 === null || x2 === null || y1 === null || y2 === null) { dropped.line += 1; continue }
       const row = {
         id: o.id, x1, y1, x2, y2, extend: p.extend, color: p.color, style: p.style, width: p.width,
+        bx1: barOf(p.x1, p.xloc), bx2: barOf(p.x2, p.xloc),
       }
       lines.push(row)
       byId.set(o.id, row)
@@ -350,6 +360,7 @@ export function toRenderState(live, opts = {}) {
       labels.push({
         id: o.id,
         x,
+        bx: barOf(p.x, p.xloc),
         // ⭐ `yloc.abovebar`/`belowbar` ANCHOR TO THE BAR, not to a price, and
         // the adapter needs to know which — so `y` may legitimately be null.
         y: p.yloc === 'price' ? y : null,
@@ -377,10 +388,15 @@ export function toRenderState(live, opts = {}) {
       // Ordering is decided on the CLOCK's epoch and the values are passed
       // through untouched.
       const [lo, hi] = clock.orderTimes(left, right)
+      const swapped = lo !== left
+      const bl = barOf(p.left, p.xloc)
+      const br = barOf(p.right, p.xloc)
       boxes.push({
         id: o.id,
         left: lo,
         right: hi,
+        bleft: swapped ? br : bl,
+        bright: swapped ? bl : br,
         // ⭐ TOP IS THE HIGHER PRICE. Pine lets an author pass them either way
         // round and draws the same box; normalising here means the adapter never
         // has to, and a zero-height box stays zero-height rather than inverting.
@@ -447,12 +463,19 @@ export function toRenderState(live, opts = {}) {
     }
   }
 
+  // ⭐ UIE PHASE 3 (M3B) — the bars this state was built on, by their first and last two
+  // times: what the painter measures bar spacing from to place an off-axis endpoint
+  const bars = opts.bars || []
+  const nb = bars.length
+  const frame = nb >= 2 ? { n: nb, first: bars[0].t, second: bars[1].t, prev: bars[nb - 2].t, last: bars[nb - 1].t }
+    : null
   return {
     lines,
     labels,
     boxes,
     tables,
     fills,
+    frame,
     dropped,
     counts: {
       line: lines.length,
