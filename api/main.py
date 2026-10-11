@@ -6501,6 +6501,13 @@ async def lifespan(app: FastAPI):
                     breadth_alerts.check_eod_row(morning=morning)
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[breadth-alerts] check failed: %s", _e)
+                # every published breadth chart: stale / gaps / impossible values, and the
+                # sentiment inputs — cache-only, it never builds a series
+                try:
+                    from api.services import breadth_health
+                    breadth_health.run(morning=morning)
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[breadth-health] run failed: %s", _e)
 
             _scheduler.add_job(
                 _breadth_eod_row_check,
