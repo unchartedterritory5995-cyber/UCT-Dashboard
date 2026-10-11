@@ -731,37 +731,6 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         C.step(pg, inst, "entry context", "the card on the position page: the market at the fill, and why you took it",
                "PASS" if present and text and "Regime" in text else "FAIL", present=present, card_text=text, why_box=why.count(),
                scope=['[data-testid="entry-context-card"]'])
-        C.goto(pg, base, "/journal?j2tab=positions")
-        chips = pg.locator("[data-thesis-chip]")
-        # A chip needs the awareness scan to have projected the note; the walk used to look once,
-        # before that scan, and record the product's honest "no chip yet" as a FAIL (fin-walk.md).
-        # Reload until it lands, bounded: one look per 20 s, up to 3 minutes.
-        has, chip_waits = False, 0
-        for chip_waits in range(9):
-            has = C.vis_loc(chips, 20000)
-            if has:
-                break
-            C.goto(pg, base, "/journal?j2tab=positions")
-        info = pg.evaluate("() => [...document.querySelectorAll('[data-thesis-chip]')].map(e => ({ note: e.getAttribute('data-thesis-chip'), text: e.innerText.trim().replace(/\\s+/g, ' ').slice(0, 120), row: (e.closest('tr') || e.parentElement).innerText.trim().replace(/\\s+/g, ' ').slice(0, 60) }))")
-        nvda_note = (S.get("sample_by_ticker") or {}).get("NVDA")
-        # the chip is the member's OWN thesis (IBM); a sample thesis (NVDA) must never put one on a real row
-        on_nvda = any(c["note"] == S.get("ibm_note") for c in info) and not any(c["note"] == nvda_note for c in info)
-        opened = None
-        if has:
-            try:
-                chips.first.hover()
-                btn = chips.first.locator("button")
-                if btn.count():
-                    btn.first.click()
-                pg.wait_for_timeout(800)
-                opened = chips.first.locator('a[href*="note="]').count()
-            except Exception as e:  # noqa: BLE001
-                opened = str(e)[:120]
-        C.step(pg, inst, "thesis chips", "Open Positions rows carry a chip for a stock the member wrote a thesis on",
-               "PASS" if has and on_nvda else "FAIL", chips=info, own_thesis_note=S.get("ibm_note"), sample_thesis_note=nvda_note,
-               preview_link=opened, chip_waits=chip_waits,
-               chips_api=str(C.api(ctx, inst, "POST", base, "/api/j2/thesis-chips", {"symbols": ["IBM", "NVDA", "AMD"]})[1])[:400],
-               scope=["[data-thesis-chip]"])
     run("positions", positions)
 
     # ── the setups board (before any overnight run) ─────────────────────────────────────
@@ -1000,6 +969,38 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
         C.step(None, inst, "note resurfacing", "a plan drawn in one sitting has no saved version naming its stop, so its notice opens the note itself, with no sheet (by design: note_levels.project_note)",
                "INFO", amd_level=S.get("amd_level"), amd_link=links.get("AMD"), shot=False)
     run("resurface", resurface)
+
+    # ── thesis chips on Open Positions ──────────────────────────────────────────────────
+    # A chip is a level row of the member's note (j2_note_levels), written by the awareness
+    # scan's projection (`note_levels.catch_up_all`). In a sandbox that projection runs in the
+    # post-seed child ("child"/"resurface" above), so the check sits AFTER it. It used to run
+    # inside `positions`, before any projection, and recorded "no chip yet" as a FAIL
+    # (fin-walk.md: "the tool's earlier FAIL row looked before that scan").
+    def thesis_chips():
+        C.goto(pg, base, "/journal?j2tab=positions")
+        chips = pg.locator("[data-thesis-chip]")
+        has = C.vis_loc(chips, 30000)
+        info = pg.evaluate("() => [...document.querySelectorAll('[data-thesis-chip]')].map(e => ({ note: e.getAttribute('data-thesis-chip'), text: e.innerText.trim().replace(/\\s+/g, ' ').slice(0, 120), row: (e.closest('tr') || e.parentElement).innerText.trim().replace(/\\s+/g, ' ').slice(0, 60) }))")
+        nvda_note = (S.get("sample_by_ticker") or {}).get("NVDA")
+        # the chip is the member's OWN thesis (IBM); a sample thesis (NVDA) must never put one on a real row
+        on_nvda = any(c["note"] == S.get("ibm_note") for c in info) and not any(c["note"] == nvda_note for c in info)
+        opened = None
+        if has:
+            try:
+                chips.first.hover()
+                btn = chips.first.locator("button")
+                if btn.count():
+                    btn.first.click()
+                pg.wait_for_timeout(800)
+                opened = chips.first.locator('a[href*="note="]').count()
+            except Exception as e:  # noqa: BLE001
+                opened = str(e)[:120]
+        C.step(pg, inst, "thesis chips", "Open Positions rows carry a chip for a stock the member wrote a thesis on",
+               "PASS" if has and on_nvda else "FAIL", chips=info, own_thesis_note=S.get("ibm_note"), sample_thesis_note=nvda_note,
+               preview_link=opened,
+               chips_api=str(C.api(ctx, inst, "POST", base, "/api/j2/thesis-chips", {"symbols": ["IBM", "NVDA", "AMD"]})[1])[:400],
+               scope=["[data-thesis-chip]"])
+    run("thesischips", thesis_chips)
 
     run("board2", lambda: board("after the overnight run"))
 
