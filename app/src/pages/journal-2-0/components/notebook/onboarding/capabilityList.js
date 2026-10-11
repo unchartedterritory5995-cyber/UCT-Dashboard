@@ -77,6 +77,26 @@ export const CAPABILITY_PREVIEW = Object.freeze([
     label: 'Voice notes',
     line: 'Record or upload a voice memo, or pick a Desk session. You get a transcript and a short summary in a new note.',
   },
+  // Task 14b (ruling R16): the last two live features with no door in the Notebook. Both lines are
+  // held to what the code does (capabilityList.test.js pins them word for word).
+  //   * TERM-056 (lib/terminalCommandPaste.js, lib/linkClickOpen.js): a pasted line that is
+  //     unmistakably a Terminal command (a function code and a ticker, a board or saved-item
+  //     address) becomes a link to /terminal?cmd=...; in the editor it opens on Ctrl or Cmd+click.
+  //   * Compass's `search_my_notes` tool (api/services/journal_two/coach_chat_tools.py): TEXT chat
+  //     only (the voice registration is deliberately not built), so the line says "in chat".
+  //     Compass is a primary item of the Journal's navigation (JournalLayout PRIMARY_NAV).
+  {
+    id: 'terminal-links',
+    flag: 'notebook_terminal_links_enabled',
+    label: 'Terminal commands in notes',
+    line: 'Paste a Terminal command such as NVDA GRADE into a note. It becomes a link, and Ctrl or Cmd+click opens the Terminal.',
+  },
+  {
+    id: 'compass-notes',
+    flag: 'compass_notes_tool_enabled',
+    label: 'Compass can read your notes',
+    line: 'Ask Compass in chat about something you wrote and it searches your notes. Find Compass in the Journal navigation.',
+  },
 ])
 
 export const PREVIEW_COPY = Object.freeze({

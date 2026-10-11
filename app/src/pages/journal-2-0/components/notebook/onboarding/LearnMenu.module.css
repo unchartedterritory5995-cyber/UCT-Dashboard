@@ -122,9 +122,43 @@
   color: var(--text-muted);
 }
 
+/* Task 14b: the "What your Notebook can do" sheet. The preview carries its own top margin for the
+   welcome page; inside the sheet the title already sits above it. The sample button and the status
+   line under it mirror the menu's (the status is mounted empty so a refusal is announced). */
+.catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+.catalog > section {
+  margin-top: 0;
+}
+.catalogAction {
+  align-self: flex-start;
+}
+.catalogAction[aria-disabled='true'] {
+  cursor: progress;
+  color: var(--text-muted);
+}
+.catalogStatus:empty {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.catalogStatus {
+  margin: 0;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  color: var(--text-bright);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 @media (max-width: 1024px) {
   .trigger,
-  .item {
+  .item,
+  .catalogAction {
     min-height: var(--tap-min);
   }
 }

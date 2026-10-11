@@ -20,6 +20,13 @@
 //     their own work never shares a notebook with practice notes they did not ask for), so the
 //     menu does not offer it to one. A caller that does not say fails closed (no item). It goes through `addSampleNotebook` (sampleNotebook.js), the one authority, and refreshes
 //     the notebook lists with the same `isNotebookKey` predicate Research Home uses.
+//   * WHAT YOUR NOTEBOOK CAN DO (Task 14b, ruling R16) -- one item after the tour groups that opens
+//     the capability preview (the first-run welcome's own component, `CapabilityPreview`) in a Sheet,
+//     for EVERY member with or without notes. It is how a live feature with no control of its own
+//     (Compass reading notes, Terminal commands pasted into a note) is found at all. Offered only
+//     while at least one capability is armed (an empty sheet is never a door). The preview's own
+//     sample offer follows the same R15 rule as the menu's item (`hasAnyNotes === false`), and the
+//     sheet carries the one button it describes. On a phone the menu's sheet is REPLACED by this one.
 //
 // ⛔ A real menu button, the Notebook's one contract for it (NoteExportControls.jsx):
 // `aria-haspopup="menu"` + `aria-expanded`, the first item takes focus on open, Arrow keys
@@ -27,7 +34,7 @@
 // (`useDisclosureFocus`), a press outside closes it. A choice also hands focus back to the
 // button before the tour starts, so focus is never dropped on <body> if the tour cannot open
 // here; a tour that does open takes focus itself.
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSWRConfig } from 'swr'
 import UIcon from '../../../../../components/ui/UIcon'
@@ -36,12 +43,19 @@ import { useIsPhone } from '../../../../../hooks/useBreakpoint'
 import { useIsPaid } from '../../../../../context/AuthContext'
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import useDisclosureFocus from '../../../lib/useDisclosureFocus'
+import lazyChunk from '../../../lib/lazyChunk'
 import {
   HELP_WALKTHROUGHS_HREF, LEARN_COPY, groupLearnTours, learnMenuEnabled, learnMenuTours, startTour,
 } from './learnTours'
 import { SAMPLE_COPY, addSampleNotebook, isNotebookKey } from './sampleNotebook'
 import { NOTEBOOK_ROOT } from './tourRegistry'
+import { PREVIEW_COPY, armedCapabilities } from './capabilityList'
 import styles from './LearnMenu.module.css'
+
+// The same chunk Research Home loads for the welcome's "See what it can do" (one file, fetched on
+// the first open of either). ⛔ Never a static import: the preview and the capture doors it carries
+// stay out of the Notebook's first-open bytes.
+const CapabilityPreview = lazyChunk(() => import('./CapabilityPreview'))
 
 export default function LearnMenu({ className = '', hasAnyNotes = true }) {
   const [open, setOpen] = useState(false)
@@ -49,7 +63,10 @@ export default function LearnMenu({ className = '', hasAnyNotes = true }) {
   const [asSheet, setAsSheet] = useState(false)
   const [adding, setAdding] = useState(false)
   const [sampleMsg, setSampleMsg] = useState('')
+  // "What your Notebook can do": the capability preview, open in a Sheet.
+  const [catalogOpen, setCatalogOpen] = useState(false)
   const menuId = useId()
+  const promoId = useId()
   const triggerRef = useRef(null)
   // The popover (or the sheet's body): the menu AND the status line under it. The status is a
   // live region, which a `role="menu"` may not own (axe aria-required-children), so it sits beside
@@ -70,6 +87,9 @@ export default function LearnMenu({ className = '', hasAnyNotes = true }) {
   // is a paid-member door on the server too.
   const canAddSample = enabled && notebookFlag('notebook_onboarding_enabled') === true && isPaid
     && hasAnyNotes === false
+  // The catalog is offered while the preview has at least one line to show; with nothing armed the
+  // sheet would be empty, and an empty sheet is not a door.
+  const showCatalog = enabled && armedCapabilities(notebookFlag).length > 0
 
   const openMenu = () => {
     setAsSheet(phone)
@@ -77,6 +97,12 @@ export default function LearnMenu({ className = '', hasAnyNotes = true }) {
     setOpen(true)
   }
   const closeOnly = useCallback(() => setOpen(false), [])
+  // Focus is put back on the button before the sheet opens, so the sheet takes THAT as the place to
+  // return to on close (the menu item that was pressed is unmounted by then).
+  const closeCatalog = useCallback(() => {
+    setCatalogOpen(false)
+    triggerRef.current?.focus()
+  }, [])
   // The sheet's own close: Sheet handles Escape, the backdrop and the drag; focus goes back to
   // the button (Sheet restores it too, this makes it independent of what had focus on open).
   const closeSheet = useCallback(() => {
@@ -134,6 +160,13 @@ export default function LearnMenu({ className = '', hasAnyNotes = true }) {
     startTour(tourId)
   }
 
+  const openCatalog = () => {
+    setOpen(false)
+    setSampleMsg('')
+    triggerRef.current?.focus()
+    setCatalogOpen(true)
+  }
+
   // P0.15. Adds the sample through the one authority; on success the notebook lists refresh
   // (Research Home's own predicate), the menu closes and the welcome note opens. Refused (the
   // member already has notes, or any other refusal), it says so IN the menu and creates nothing.
@@ -151,6 +184,7 @@ export default function LearnMenu({ className = '', hasAnyNotes = true }) {
     }
     mutate(isNotebookKey)
     setOpen(false)
+    setCatalogOpen(false)
     triggerRef.current?.focus()
     if (out.welcomeNoteId) navigate(`${NOTEBOOK_ROOT}?note=${encodeURIComponent(out.welcomeNoteId)}`)
   }
@@ -210,6 +244,18 @@ export default function LearnMenu({ className = '', hasAnyNotes = true }) {
             ))}
           </div>
         ))}
+        {showCatalog && (
+          <button
+            ref={slot()}
+            type="button"
+            role="menuitem"
+            className={`${styles.item} ${styles.catalogItem}`}
+            data-learn-catalog=""
+            onClick={openCatalog}
+          >
+            {PREVIEW_COPY.heading}
+          </button>
+        )}
         {canAddSample && (
           <button
             ref={slot()}
@@ -265,6 +311,24 @@ export default function LearnMenu({ className = '', hasAnyNotes = true }) {
           {menu}
         </Sheet>
       ) : menu)}
+      {catalogOpen && (
+        <Sheet open onClose={closeCatalog} variant="auto" title={PREVIEW_COPY.heading} labelledByTitle>
+          <div className={styles.catalog}>
+            <Suspense fallback={null}>
+              <CapabilityPreview hideHeading canAddSample={canAddSample} promoId={promoId} />
+            </Suspense>
+            {/* R15: the one button the preview's promotion describes, only for a member with no
+                notes. Its refusal is said on the always-mounted status line under it. */}
+            {canAddSample && (
+              <button type="button" className={`btn btn-ghost ${styles.catalogAction}`}
+                aria-describedby={promoId} aria-disabled={adding || undefined} onClick={addSample}>
+                <UIcon name="book" size={14} gold={false} /> {adding ? SAMPLE_COPY.adding : SAMPLE_COPY.add}
+              </button>
+            )}
+            <p role="status" className={styles.catalogStatus}>{sampleMsg}</p>
+          </div>
+        </Sheet>
+      )}
     </span>
   )
 }

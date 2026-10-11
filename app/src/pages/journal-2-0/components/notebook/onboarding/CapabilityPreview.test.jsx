@@ -107,3 +107,41 @@ describe('CapabilityPreview', () => {
     slot.remove()
   })
 })
+
+// Task 14b (ruling R16): the two entries whose feature had no door, and the Learn sheet's use of
+// the preview (it already has a title, so it asks the preview to leave its own heading out).
+describe('CapabilityPreview -- Task 14b', () => {
+  it.each([
+    ['terminal-links', 'notebook_terminal_links_enabled'],
+    ['compass-notes', 'compass_notes_tool_enabled'],
+  ])('%s shows when its own flag is armed and never when it is dark', (id, flag) => {
+    const entry = CAPABILITY_PREVIEW.find((c) => c.id === id)
+    expect(entry, id).toBeTruthy()
+    expect(entry.flag).toBe(flag)
+    latchNotebookFlags({ notebook_plan_grading_enabled: true, [flag]: false })
+    const dark = render(<CapabilityPreview canAddSample={false} />)
+    expect(dark.container.textContent).not.toContain(entry.label)
+    expect(dark.container.textContent).not.toContain(entry.line)
+    dark.unmount()
+    __resetNotebookFlags()
+    latchNotebookFlags({ [flag]: true })
+    render(<CapabilityPreview canAddSample={false} />)
+    const items = within(screen.getByRole('list', { name: PREVIEW_COPY.heading })).getAllByRole('listitem')
+    expect(items).toHaveLength(1)
+    expect(items[0]).toHaveTextContent(`${entry.label}. ${entry.line}`)
+  })
+
+  it('hideHeading: no heading of its own, and the list is still named (by aria-label)', () => {
+    latchNotebookFlags({ notebook_plan_grading_enabled: true })
+    render(<CapabilityPreview canAddSample={false} hideHeading />)
+    expect(screen.queryByRole('heading', { name: PREVIEW_COPY.heading })).toBeNull()
+    expect(within(screen.getByRole('list', { name: PREVIEW_COPY.heading })).getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.getByRole('region', { name: PREVIEW_COPY.heading })).toBeInTheDocument()
+  })
+
+  it('the default still draws the heading (the welcome is unchanged)', () => {
+    latchNotebookFlags({ notebook_plan_grading_enabled: true })
+    render(<CapabilityPreview canAddSample={false} />)
+    expect(screen.getByRole('heading', { name: PREVIEW_COPY.heading })).toBeInTheDocument()
+  })
+})

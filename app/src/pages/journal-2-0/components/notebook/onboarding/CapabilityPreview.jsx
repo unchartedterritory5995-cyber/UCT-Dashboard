@@ -18,17 +18,22 @@ import styles from './CapabilityPreview.module.css'
  *
  * @param canAddSample  the sample button is on screen (onboarding on, paid, no sample yet)
  * @param promoId       the id the sample button's aria-describedby names
+ * @param hideHeading   the caller already shows this title (Learn's "What your Notebook can do"
+ *                      sheet): leave the heading out and name the region and list by label instead
  */
-export default function CapabilityPreview({ canAddSample = false, promoId }) {
+export default function CapabilityPreview({ canAddSample = false, promoId, hideHeading = false }) {
   const headingId = useId()
   const lines = armedCapabilities()
   if (lines.length === 0 && !canAddSample) return null
+  const named = hideHeading
+    ? { 'aria-label': PREVIEW_COPY.heading }
+    : { 'aria-labelledby': headingId }
   return (
-    <section className={styles.preview} aria-labelledby={lines.length ? headingId : undefined}>
+    <section className={styles.preview} {...(lines.length ? named : {})}>
       {lines.length > 0 && (
         <>
-          <h3 id={headingId} className={styles.heading}>{PREVIEW_COPY.heading}</h3>
-          <ul className={styles.list} aria-labelledby={headingId}>
+          {!hideHeading && <h3 id={headingId} className={styles.heading}>{PREVIEW_COPY.heading}</h3>}
+          <ul className={styles.list} {...named}>
             {lines.map((c) => (
               <li key={c.id} className={styles.item}>
                 <span className={styles.label}>{c.label}.</span> {c.line}

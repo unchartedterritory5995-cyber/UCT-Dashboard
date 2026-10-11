@@ -55,6 +55,7 @@ import LearnMenu from './LearnMenu'
 import { AuthContext } from '../../../../../context/AuthContext'
 import { SAMPLE_COPY, isNotebookKey } from './sampleNotebook'
 import { LEARN_COPY } from './learnTours'
+import { PREVIEW_COPY, CAPABILITY_PREVIEW } from './capabilityList'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { TOUR_OPEN_EVENT, __resetTourControl } from './tourControl'
 import { REGISTRY_TOUR_OPEN_EVENT, __resetRegistryTourControl } from './tourRegistryControl'
@@ -452,5 +453,206 @@ describe('on a phone the menu opens as a sheet', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('menuitem', { name: 'Add the sample notebook' }))
     expect(await within(screen.getByRole('dialog')).findByText(SAMPLE_COPY.refused)).toBeTruthy()
+  })
+})
+
+// ── Task 14b (ruling R16): "What your Notebook can do", the catalog every member can reach ────
+// The audit's rows 29 (Compass reads notes) and 53 (terminal commands in notes) had no door. The
+// capability preview was shown only on the first-run welcome; this opens the SAME component in a
+// Sheet from Learn. It is lazy (a chunk), so every find here awaits it.
+const CATALOG = PREVIEW_COPY.heading
+const entry = (id) => CAPABILITY_PREVIEW.find((c) => c.id === id)
+const openLearn = () => fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+const openCatalog = async () => {
+  openLearn()
+  fireEvent.click(screen.getByRole('menuitem', { name: CATALOG }))
+  return screen.findByRole('dialog', { name: CATALOG })
+}
+
+describe('"What your Notebook can do" -- the Learn item', () => {
+  it("is named by the preview's own heading (one authority), not a second copy", () => {
+    expect(CATALOG).toBe('What your Notebook can do')
+  })
+
+  it('sits after the tours and before the sample and the Help link', () => {
+    latchNotebookFlags(flagged('notebook_playbook_enabled'))
+    renderMenu({ isPaid: true })
+    openLearn()
+    expect(menuItems().map((el) => el.textContent)).toEqual([
+      'Notebook basics tour', CATALOG, 'Add the sample notebook', 'All walkthroughs in Help',
+    ])
+  })
+
+  it("is one of the menu's own items: a real menuitem button the arrow keys walk onto", async () => {
+    const user = userEvent.setup()
+    latchNotebookFlags(flagged('notebook_playbook_enabled'))
+    renderMenu()
+    screen.getByRole('button', { name: 'Learn' }).focus()
+    await user.keyboard('{Enter}')
+    await user.keyboard('{ArrowDown}')
+    expect(document.activeElement).toHaveTextContent(CATALOG)
+    expect(document.activeElement.tagName).toBe('BUTTON')
+  })
+
+  it('is not offered when no capability is armed: there is nothing to list, so no empty sheet', () => {
+    latchNotebookFlags(WAVE14)
+    renderMenu({ isPaid: true, hasAnyNotes: true })
+    openLearn()
+    expect(screen.queryByRole('menuitem', { name: CATALOG })).toBeNull()
+  })
+})
+
+describe('"What your Notebook can do" -- the Sheet', () => {
+  it('opens the capability preview in a dialog named by its title, and closes the menu', async () => {
+    latchNotebookFlags(flagged('notebook_playbook_enabled'))
+    renderMenu({ hasAnyNotes: true })
+    const dlg = await openCatalog()
+    expect(screen.queryByRole('menu')).toBeNull()
+    const list = await within(dlg).findByRole('list', { name: CATALOG })
+    expect(within(list).getAllByRole('listitem')).toHaveLength(1)
+    expect(list).toHaveTextContent(`${entry('playbook').label}. ${entry('playbook').line}`)
+  })
+
+  it('reaches EVERY member: with notes, without notes, paid or not', async () => {
+    for (const [isPaid, hasAnyNotes] of [[true, true], [true, false], [false, true], [false, false]]) {
+      __resetNotebookFlags()
+      latchNotebookFlags(flagged('notebook_playbook_enabled'))
+      const { unmount } = renderMenu({ isPaid, hasAnyNotes })
+      const dlg = await openCatalog()
+      expect(await within(dlg).findByRole('list', { name: CATALOG }), `paid ${isPaid}, notes ${hasAnyNotes}`).toBeTruthy()
+      unmount()
+    }
+  })
+
+  it('shows the title once: the preview leaves its own heading out under the dialog title', async () => {
+    latchNotebookFlags(flagged('notebook_playbook_enabled'))
+    renderMenu()
+    const dlg = await openCatalog()
+    await within(dlg).findByRole('list', { name: CATALOG })
+    expect(within(dlg).queryByRole('heading', { name: CATALOG })).toBeNull()
+    expect(within(dlg).getAllByText(CATALOG)).toHaveLength(1)
+  })
+
+  it.each([
+    ['terminal-links', 'notebook_terminal_links_enabled'],
+    ['compass-notes', 'compass_notes_tool_enabled'],
+  ])('%s is in the sheet when its own gate is armed, and absent when it is dark', async (id, flag) => {
+    latchNotebookFlags(flagged('notebook_playbook_enabled', flag))
+    const armed = renderMenu({ hasAnyNotes: true })
+    let dlg = await openCatalog()
+    expect(await within(dlg).findByText(`${entry(id).label}.`)).toBeInTheDocument()
+    expect(dlg).toHaveTextContent(entry(id).line)
+    armed.unmount()
+    __resetNotebookFlags()
+    latchNotebookFlags({ ...flagged('notebook_playbook_enabled'), [flag]: false })
+    renderMenu({ hasAnyNotes: true })
+    dlg = await openCatalog()
+    await within(dlg).findByRole('list', { name: CATALOG })
+    expect(dlg.textContent).not.toContain(entry(id).label)
+  })
+
+  it('Escape closes it and focus returns to the Learn button', async () => {
+    const user = userEvent.setup()
+    latchNotebookFlags(flagged('notebook_playbook_enabled'))
+    renderMenu()
+    const btn = screen.getByRole('button', { name: 'Learn' })
+    btn.focus()
+    await user.keyboard('{Enter}')
+    await user.keyboard('{ArrowDown}')
+    await user.keyboard('{Enter}')
+    await screen.findByRole('dialog', { name: CATALOG })
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(btn).toHaveAttribute('aria-expanded', 'false')
+    expect(document.activeElement).toBe(btn)
+  })
+
+  it('the Close button closes it and focus returns to the Learn button', async () => {
+    latchNotebookFlags(flagged('notebook_playbook_enabled'))
+    renderMenu()
+    const dlg = await openCatalog()
+    fireEvent.click(within(dlg).getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Learn' }))
+  })
+
+  it('on a phone the menu sheet is REPLACED by the catalog sheet, never stacked under it', async () => {
+    phone.on = true
+    latchNotebookFlags(flagged('notebook_playbook_enabled'))
+    renderMenu()
+    openLearn()
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('menuitem', { name: CATALOG }))
+    const dlg = await screen.findByRole('dialog', { name: CATALOG })
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(await within(dlg).findByRole('list', { name: CATALOG })).toBeTruthy()
+  })
+})
+
+// R15 (D-C6) inside the sheet: the preview's own sample offer shows ONLY to a member with no notes.
+describe('"What your Notebook can do" -- the sample offer follows R15', () => {
+  const promo = (dlg) => within(dlg).queryByText(PREVIEW_COPY.sampleLead, { exact: false })
+  const sampleButton = (dlg) => within(dlg).queryByRole('button', { name: 'Add a sample notebook' })
+
+  it('hasAnyNotes false and paid: the promotion and a button that adds it', async () => {
+    latchNotebookFlags(flagged('notebook_playbook_enabled'))
+    renderMenu({ isPaid: true, hasAnyNotes: false })
+    const dlg = await openCatalog()
+    await within(dlg).findByRole('list', { name: CATALOG })
+    expect(promo(dlg)).toBeTruthy()
+    expect(sampleButton(dlg)).toBeTruthy()
+    expect(sampleButton(dlg)).toHaveAccessibleDescription(new RegExp(PREVIEW_COPY.sampleLead.replace('?', '\\?')))
+    fireEvent.click(sampleButton(dlg))
+    await vi.waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/journal/notebook?note=w1'))
+    expect(sampleMock).toHaveBeenCalledTimes(1)
+    expect(mutateMock).toHaveBeenCalledWith(isNotebookKey)
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('hasAnyNotes true: no promotion, no button', async () => {
+    latchNotebookFlags(flagged('notebook_playbook_enabled'))
+    renderMenu({ isPaid: true, hasAnyNotes: true })
+    const dlg = await openCatalog()
+    await within(dlg).findByRole('list', { name: CATALOG })
+    expect(promo(dlg)).toBeNull()
+    expect(sampleButton(dlg)).toBeNull()
+  })
+
+  it('fails closed: a caller that does not say whether there are notes gets no offer', async () => {
+    latchNotebookFlags(flagged('notebook_playbook_enabled'))
+    render(
+      <AuthContext.Provider value={{ isPaid: true }}>
+        <MemoryRouter><LearnMenu /></MemoryRouter>
+      </AuthContext.Provider>,
+    )
+    const dlg = await openCatalog()
+    await within(dlg).findByRole('list', { name: CATALOG })
+    expect(promo(dlg)).toBeNull()
+    expect(sampleButton(dlg)).toBeNull()
+  })
+
+  it('a member who is not paid is never offered it (the server refuses it to them)', async () => {
+    latchNotebookFlags(flagged('notebook_playbook_enabled'))
+    renderMenu({ isPaid: false, hasAnyNotes: false })
+    const dlg = await openCatalog()
+    await within(dlg).findByRole('list', { name: CATALOG })
+    expect(promo(dlg)).toBeNull()
+    expect(sampleButton(dlg)).toBeNull()
+  })
+
+  it('a refusal is said inside the sheet (a status line mounted from the start) and nothing is created', async () => {
+    latchNotebookFlags(flagged('notebook_playbook_enabled'))
+    sampleMock.mockResolvedValueOnce({ ok: false, message: SAMPLE_COPY.refused })
+    renderMenu({ isPaid: true, hasAnyNotes: false })
+    const dlg = await openCatalog()
+    await within(dlg).findByRole('list', { name: CATALOG })
+    const status = within(dlg).getByRole('status')
+    expect(status).toHaveTextContent('')
+    fireEvent.click(sampleButton(dlg))
+    await vi.waitFor(() => expect(within(dlg).getByRole('status')).toHaveTextContent(SAMPLE_COPY.refused))
+    expect(within(dlg).getByRole('status')).toBe(status)
+    expect(navigateMock).not.toHaveBeenCalled()
+    expect(mutateMock).not.toHaveBeenCalled()
   })
 })

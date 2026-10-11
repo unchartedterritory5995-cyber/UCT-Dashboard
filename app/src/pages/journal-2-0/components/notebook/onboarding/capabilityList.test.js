@@ -61,6 +61,29 @@ describe('capabilityList -- the list', () => {
     expect(voice.line).toBe('Record or upload a voice memo, or pick a Desk session. You get a transcript and a short summary in a new note.')
   })
 
+  // Task 14b (ruling R16): the last two live features with no door. Each line is held to what the
+  // code does, so a later edit that makes it say more than the code can do goes red here.
+  it('terminal links: the label, the gate and a line that matches TERM-056 (paste, link, Ctrl/Cmd+click)', () => {
+    const t = CAPABILITY_PREVIEW.find((c) => c.id === 'terminal-links')
+    expect(t, 'terminal-links must be in the list').toBeTruthy()
+    expect(t.flag).toBe('notebook_terminal_links_enabled')
+    expect(t.label).toBe('Terminal commands in notes')
+    expect(t.line).toBe('Paste a Terminal command such as NVDA GRADE into a note. It becomes a link, and Ctrl or Cmd+click opens the Terminal.')
+  })
+
+  it('compass notes: the label, the gate and the line', () => {
+    const c = CAPABILITY_PREVIEW.find((x) => x.id === 'compass-notes')
+    expect(c, 'compass-notes must be in the list').toBeTruthy()
+    expect(c.flag).toBe('compass_notes_tool_enabled')
+    expect(c.label).toBe('Compass can read your notes')
+    expect(c.line).toBe('Ask Compass in chat about something you wrote and it searches your notes. Find Compass in the Journal navigation.')
+  })
+
+  it('the compass gate has a client fallback that is OFF (an unarmed tab never names it)', () => {
+    expect(Object.prototype.hasOwnProperty.call(FLAG_FALLBACKS, 'compass_notes_tool_enabled')).toBe(true)
+    expect(FLAG_FALLBACKS.compass_notes_tool_enabled).toBe(false)
+  })
+
   it('the promotion names the sample button by its ONE label (SAMPLE_COPY.add)', () => {
     expect(PREVIEW_COPY.sampleButton).toBe(SAMPLE_COPY.add)
   })
