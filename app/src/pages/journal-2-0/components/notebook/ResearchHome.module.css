@@ -245,10 +245,17 @@
 .askSection {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  /* STRETCH (the default): "Or tell Notebook what to change" opens a request box, a review list
+     and applied/undo views that must fill the home column. Only the question door below stays
+     compact; align-items: flex-start here shrank all of them to their content width. */
+  align-items: stretch;
   gap: 8px;
   max-width: 820px;
   margin-bottom: 16px;
+}
+/* The question door keeps its own compact width (AskPanel's wrap is an inline-flex pill). */
+.askDoor {
+  align-self: flex-start;
 }
 
 /* ── Notebook UX pass (2026-10-10) ──────────────────────────────────────────────────────────

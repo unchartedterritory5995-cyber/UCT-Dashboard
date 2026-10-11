@@ -213,7 +213,7 @@ NOT_REHEARSED = {
     "NOTEBOOK_FORMULAS_ENABLED": "dark (wave 11 11B): formula and rollup properties, computed in "
                                  "memory on read; waits on a quiet-machine 50k re-measure and the "
                                  "owner's go",
-    "NOTEBOOK_AI_ACTIONS_ENABLED": "dark (wave 11 11C): Ask Notebook to do something -- one model "
+    "NOTEBOOK_AI_ACTIONS_ENABLED": "dark (wave 11 11C): Or tell Notebook what to change -- one model "
                                    "call per plan on the shared $25/day cap, then reviewed changes "
                                    "written through the member's own write path, undoable; owner "
                                    "decisions 5-6 open (fail-open counter, unsent-words fork)",
