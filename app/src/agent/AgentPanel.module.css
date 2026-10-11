@@ -407,3 +407,21 @@
 }
 .hHitChat svg { width: 13px; height: 13px; color: var(--ut-gold); flex-shrink: 0; }
 .hHitChat span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Dock: the panel's slot beside the workspace (see AgentDock.jsx) ──────────────── */
+.dock {
+  position: relative; flex: 0 0 var(--agent-w, 392px); width: var(--agent-w, 392px); min-height: 0;
+  z-index: 3;                                   /* above the charts it slides over */
+}
+.dockGone { flex-basis: 0; width: 0; }          /* closing: the charts get the room back at once */
+.dockSlide {
+  position: absolute; top: 0; right: 0; bottom: 0; width: var(--agent-w, 392px);
+  display: flex; will-change: transform;
+  animation: dockIn 220ms cubic-bezier(.22, .61, .36, 1) both;
+  box-shadow: -14px 0 28px -18px rgba(0, 0, 0, .7);
+}
+.dockOut { animation: dockOut 240ms cubic-bezier(.4, 0, .6, 1) 40ms both; }
+@keyframes dockIn { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes dockOut { from { transform: none; } to { transform: translateX(100%); } }
+.dockSlide > .panel { flex: 1 1 auto; width: 100%; height: 100%; }
+@media (prefers-reduced-motion: reduce) { .dockSlide, .dockOut { animation: none; } }
