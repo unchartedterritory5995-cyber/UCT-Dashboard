@@ -71,7 +71,7 @@ concurrency:
 jobs:
   gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15   # 10 -> 15 (2026-10-06): + the production dependency smoke
+    timeout-minutes: 25   # 10 -> 15 (2026-10-06): + the production dependency smoke; 15 -> 25 (2026-10-11): + the UCT Agent tests (npm ci + vitest)
     steps:
       # Two commits so the secret scan has a range to look at; without this
       # `HEAD^` does not resolve and the scan silently has nothing to scan.
@@ -335,6 +335,42 @@ jobs:
           /tmp/prodvenv/bin/python -m pip install --quiet -r requirements.txt
           /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py
 
+      # ── UCT AGENT (2026-10-11) ────────────────────────────────────────────────────
+      # The p25 Agent release reached production with NO Agent test in this gate (it ran
+      # none; the report-only full suite was cancelled / pending). These two steps run the
+      # Agent's own suites on every push: the server half against the PRODUCTION dependency
+      # set built just above, the browser half (planner, composer, runtime, approvals,
+      # receipts, Undo, the scripted 24-task evaluation) under vitest. The model is never
+      # called — every Agent test scripts it; this job holds no key.
+      # ⛔ NEVER SKIPPED: no `if:`, no continue-on-error, no path filter, no
+      # --passWithNoTests. A renamed or emptied suite FAILS: the pytest glob matches nothing
+      # (exit 4), and the browser step refuses a suite smaller than its floor.
+      # tests/test_uct_agent_deploy_gate.py rails all of this (and runs inside the glob).
+      - name: UCT Agent server tests (production dependency set)
+        run: |
+          /tmp/prodvenv/bin/python -m pip install --quiet pytest httpx
+          /tmp/prodvenv/bin/python -m pytest tests/test_uct_agent*.py -q -p no:cacheprovider
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install the app's dependencies (for the UCT Agent browser tests)
+        working-directory: app
+        run: npm ci
+
+      - name: UCT Agent browser tests
+        working-directory: app
+        run: |
+          n=$(ls src/agent/*.test.js src/agent/*.test.jsx 2>/dev/null | wc -l)
+          if [ "$n" -lt 30 ]; then
+            echo "::error::Only $n UCT Agent test files under app/src/agent (floor 30) — refusing to pass a gate that tests nothing."
+            exit 1
+          fi
+          npx vitest run src/agent src/components/chart/builder/agentMutations
+
       - name: Explain a failure
         if: failure()
         run: |
@@ -357,3 +393,5 @@ jobs:
           echo "  python tools/check_repo_hygiene.py"
           echo "  python -m pytest tests/test_discord_render_goldens.py tests/test_discord_render_ops.py -q"
           echo "  python -m venv /tmp/prodvenv && /tmp/prodvenv/bin/pip install -r requirements.txt && /tmp/prodvenv/bin/python -I tools/prod_dependency_smoke.py"
+          echo "  python -m pytest tests/test_uct_agent*.py -q"
+          echo "  (cd app && npm ci && npx vitest run src/agent src/components/chart/builder/agentMutations)"
