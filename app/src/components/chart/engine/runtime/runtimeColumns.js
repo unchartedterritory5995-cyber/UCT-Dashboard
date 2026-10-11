@@ -29,7 +29,8 @@ import { Budget, RuntimeLimitError, DEFAULT_LIMITS } from './limits.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram.js'
 import { registerObjectRuntimeValues } from '../objectColumns.js'
 // ⭐⭐ RT5 — the run's own drawings ride the column record (`runtimeObjects.js`).
-import { withRuntimeObjects } from './runtimeObjects.js'
+import { withRuntimeObjects, RUNTIME_WARMUP_KEY, runtimeWarmupOf } from './runtimeObjects.js'
+export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
 import { declaredCalcBarsOf } from './objectStore.js'
 import { strippedForScan } from '../ast/pine.js'
 
@@ -303,13 +304,115 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
     return computeRuntimeColumnsOnce(def, rows, ctx, opts)
   } catch (err) {
     if (err && (err.name === 'runtime.error' || err.guard === RUNTIME_TIME_BUDGET_GUARD
-      || err.guard === RUNTIME_HISTORY_GUARD)) throw err
+      || err.guard === RUNTIME_HISTORY_GUARD || err.guard === RUNTIME_WARMUP_GUARD)) throw err
     const plain = { ...def, compute: { ...compute, objects: undefined } }
     let out
     try { out = computeRuntimeColumnsOnce(plain, rows, ctx, opts) } catch { throw err }
     return withRuntimeObjects(out, { status: 'WITHHELD', live: [], guard: (err && err.guard) || 'runtime:objects',
       reason: String((err && err.message) || err) })
   }
+}
+
+/** ⭐ UIE PHASE 2 — two outputs agree: both `na`, or equal to 1e-9 of their size. */
+function sameValue(x, y) {
+  if (x === y) return true
+  const xn = typeof x !== 'number' || Number.isNaN(x)
+  const yn = typeof y !== 'number' || Number.isNaN(y)
+  if (xn || yn) return xn && yn
+  return Math.abs(x - y) <= 1e-9 * Math.max(Math.abs(x), Math.abs(y), 1e-300)
+}
+
+/** ⭐⭐ UIE PHASE 2 — WHERE TWO RUNS STOP DEPENDING ON THEIR FIRST BAR.
+ *  `a` ran over every bar, `b` over the same bars from `shift` on (its bar k is `a`'s
+ *  bar k + shift). → the first bar (in `a`'s indices) from which EVERY output of `a`
+ *  and `b` agrees through the last bar, or null when the last bar already disagrees.
+ *  Pure; never throws. */
+export function convergedFrom(a, b, shift) {
+  const keys = Object.keys(a || {})
+  if (!keys.length || !b) return null
+  const n = a[keys[0]].length
+  let c = n
+  for (let i = n - 1; i >= shift; i -= 1) {
+    let same = true
+    for (const k of keys) {
+      const bk = b[k]
+      if (!bk || !sameValue(a[k][i], bk[i - shift])) { same = false; break }
+    }
+    if (!same) break
+    c = i
+  }
+  return c === n ? null : c
+}
+
+/** ⭐ UIE PHASE 2 — how many bars later the second run of the warm-up check starts
+ *  (a quarter of a short chart). Measured: every converging corpus script's warm-up
+ *  is the same within a few dozen bars from 250 and from 1,000 bars in. */
+export const WARMUP_PROBE_SHIFT = 250
+/** The guard a document carries whose run never stops depending on its first bar. */
+export const RUNTIME_WARMUP_GUARD = 'runtime:warmup-never-converges'
+
+/**
+ * ⭐⭐⭐ UIE PHASE 2 — A LISTING DOCUMENT ON A CHART THAT DOES NOT START AT THE LISTING.
+ *
+ * TradingView runs a script from the first bar IT holds — on an intraday chart, or a
+ * daily one cut short of the listing, that is not our first bar, and its `var` state
+ * starts somewhere we cannot see. Ruling R-W answers it for the columnar lane: a
+ * warm-up curtain, and reads inside it withheld. This is that curtain for a run, and
+ * MEASURED rather than assumed:
+ *
+ *   1. run the script over every bar (A), and again from `shift` bars later (B);
+ *   2. find the first bar from which every output of A and B agrees (to 1e-9 of its
+ *      size) through the LAST bar (`convergedFrom`): from there on the values did not
+ *      depend on which of two different first bars the run began at;
+ *   3. draw A from that bar; WITHHOLD (`NaN`) every bar before it;
+ *   4. ⛔ refuse BY NAME (`runtime:warmup-never-converges`) a script whose runs never
+ *      agree, or agree only in the second half of B: `bar_index` in a plot, a running
+ *      count, a cumulative sum — state that never forgets where it started. Those
+ *      values on such a chart are unknowable, and are not drawn.
+ *
+ * ⛔ DRAWINGS ARE WITHHELD on such a chart (named, `runtime:history-start`): the check
+ * compares columns, not objects, so a drawing's position is not proven seed-free.
+ * The plots beside them are drawn. Costs a second, shorter run inside the same budget.
+ */
+function computeOffListing(def, rows, ctx, opts) {
+  const n = rows.length
+  const shift = Math.min(WARMUP_PROBE_SHIFT, Math.floor(n / 4))
+  const objects = !!(def.compute && def.compute.objects === true)
+  const plain = { ...def, meta: { ...def.meta, runtimeHistory: undefined },
+    compute: objects ? { ...def.compute, objects: undefined } : def.compute }
+  const never = () => refusal(RUNTIME_WARMUP_GUARD, "this script is drawn bar by bar from its first bar, and "
+    + "this chart's history does not start at the symbol's first bar. Run from two different first bars, "
+    + "its values never came to agree, so what it would show here depends on where the chart begins, which "
+    + 'TradingView does not share. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded '
+    + "history reaches the listing (a daily chart of a symbol listed within the bars it loads) draws it.")
+  if (shift < 1) throw never()
+  const clock = typeof opts.now === 'function' ? opts.now
+    : () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+  const t0 = clock()
+  const inner = { ...opts, warmupCurtain: false }
+  const a = computeRuntimeColumnsOnce(plain, rows, ctx, inner)
+  const left = Number.isFinite(opts.budgetMs) ? opts.budgetMs - (clock() - t0) : null
+  if (left !== null && left <= 0) {
+    throw refusal(RUNTIME_TIME_BUDGET_GUARD, `this script took more than ${opts.budgetMs} ms to draw bar by bar `
+      + "and to check where its values stop depending on this chart's first bar, which is this pane's budget "
+      + 'for one indicator, so it is stopped and nothing is drawn rather than part of it.')
+  }
+  const b = computeRuntimeColumnsOnce(plain, rows.slice(shift), ctx,
+    { ...inner, onBudget: undefined, ...(left !== null ? { budgetMs: left } : {}) })
+  const from = convergedFrom(a, b, shift)
+  if (from === null || from > shift + Math.floor((n - shift) / 2)) throw never()
+  for (const k of Object.keys(a)) {
+    const col = a[k]
+    for (let i = 0; i < from; i += 1) col[i] = NaN
+  }
+  Object.defineProperty(a, RUNTIME_WARMUP_KEY, { value: { withheldBars: from, shift }, enumerable: false,
+    configurable: true })
+  if (objects) {
+    withRuntimeObjects(a, { status: 'WITHHELD', live: [], guard: RUNTIME_HISTORY_GUARD,
+      reason: "its drawings are not drawn on a chart whose history does not start at the symbol's first bar: "
+        + 'where a drawing lands is not proven to be independent of where the chart begins. Its plots are drawn.' })
+  }
+  return a
 }
 
 function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
@@ -320,6 +423,10 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // on a series that is not proven to start at the symbol's listing — refused by
   // name, never drawn off a seed TradingView never used.
   if (def && def.meta && def.meta.runtimeHistory === 'listing' && !(ctx && ctx.historyFromListing === true)) {
+    // ⭐⭐ UIE PHASE 2 — R-W's WARM-UP CURTAIN, MEASURED PER RUN (`computeOffListing`):
+    // the bars whose values do not depend on where the chart starts are drawn; the
+    // ones before them are withheld; a script that never forgets its start is refused.
+    if (opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)
     throw refusal(RUNTIME_HISTORY_GUARD, "this script is drawn bar by bar from its first bar, and this chart's "
       + "history is not known to start at the symbol's first bar, so the values it carries from bar to bar "
       + "would start from a different bar than TradingView's. Nothing is drawn rather than a guess. "

@@ -67,7 +67,9 @@ describe('RT4 — the object program is not drawn without the run', () => {
     expect(verdict.objects, 'the capture records objects, so a row exists').toBeTruthy()
     expect(verdict.objects.verdict).toBe('INCONCLUSIVE')
     expect(verdict.objects.reason).toContain(registry.RUNTIME_OBJECTS_GUARD)
-    expect(verdict.objects.reason).toContain('runtime:history-start')
+    // UIE Phase 2: off the listing the run is tried behind its warm-up curtain; these
+    // probes plot `bar_index` (their CONTROL row), which never forgets its first bar
+    expect(verdict.objects.reason).toContain('runtime:warmup-never-converges')
     expect(verdict.verdict).not.toBe('DIVERGE')
     expect(verdict.verdict).not.toBe('MATCH')
     // and every plot is what it was: not compared, the run computed nothing
@@ -85,7 +87,7 @@ describe('RT4 — the object program is not drawn without the run', () => {
     expect(Object.keys(refused)).toEqual([])
     const why = registry.runtimeObjectsWithheld(def, refused)
     expect(why && why.guard).toBe(registry.RUNTIME_OBJECTS_GUARD)
-    expect(why.message).toContain('runtime:history-start')
+    expect(why.message).toContain('runtime:warmup-never-converges')
     // ... nothing computed at all (a run in flight) is withheld too ...
     expect(registry.runtimeObjectsWithheld(def, undefined)).toBeTruthy()
     expect(registry.runtimeObjectsWithheld(def, {})).toBeTruthy()

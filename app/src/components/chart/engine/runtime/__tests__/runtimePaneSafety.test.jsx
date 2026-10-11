@@ -33,7 +33,7 @@ import AttachedPineDisclosures from '../../../pane/AttachedPineDisclosures'
 import { useServerColumns } from '../../useServerColumns'
 import {
   computeRuntimeColumns, runtimeColumnsFor, setRuntimeRunner,
-  RUNTIME_HISTORY_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD, RUNTIME_TIME_BUDGET_GUARD,
+  RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD, RUNTIME_TIME_BUDGET_GUARD, RUNTIME_WARMUP_GUARD,
 } from '../runtimeColumns'
 import {
   workerRunner, resetRuntimeAsync, ensureRuntimeLane,
@@ -176,15 +176,17 @@ describe('RF — the member reads WHY on the disclosure strip (real binder, real
   })
   const settings = { indicatorInstances: [{ instanceId: 'i1', defId: DEF_ID, hidden: false }] }
 
-  it('⭐ a chart that does not start at the listing: the strip names `runtime:history-start` and the chart still binds', () => {
+  // UIE Phase 2: off the listing the run is tried behind its warm-up curtain; on this
+  // short chart its two runs never agree, so the refusal is `runtime:warmup-never-converges`
+  it('⭐ a chart that does not start at the listing, too short to prove a warm-up: the strip names the refusal and the chart still binds', () => {
     install()
     binder.sync(ctxFor())
     const notices = runtimeErrorNotices()
     expect(notices.length).toBe(1)
-    expect(notices[0][1]).toMatch(new RegExp(`\\(${RUNTIME_HISTORY_GUARD}\\)`))
+    expect(notices[0][1]).toMatch(new RegExp(`\\(${RUNTIME_WARMUP_GUARD}\\)`))
     render(<AttachedPineDisclosures settings={settings} registry={registry} />)
-    const row = screen.getByText(/runtime:history-start/)
-    expect(row.textContent).toMatch(/^ADX and DI — not drawn on this chart \(runtime:history-start\): this script is drawn bar by bar/)
+    const row = screen.getByText(/runtime:warmup-never-converges/)
+    expect(row.textContent).toMatch(/^ADX and DI — not drawn on this chart \(runtime:warmup-never-converges\): this script is drawn bar by bar/)
     // the chart is not wedged: syncing again is cheap and stays at one notice
     binder.sync(ctxFor())
     expect(runtimeErrorNotices().length).toBe(1)

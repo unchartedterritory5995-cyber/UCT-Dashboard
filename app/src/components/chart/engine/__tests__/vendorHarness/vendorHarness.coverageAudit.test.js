@@ -312,9 +312,11 @@ describe('CAP2 coverage audit — DIVERGE (known; the fix flips each it.fails)',
     expect(v.plots.filter((p) => p.verdict === 'DIVERGE').map((p) => p.title)).toEqual(['Baseline'])
     expect(item(v, 'Bullish Rejection').verdict).toBe('MATCH')
   }, T)
-  it('trend-targets-algoalpha SPY (runtime pane): the run declines a window not from the listing (runtime:history-start) — draws nothing', () => {
+  // UIE Phase 2: off the listing the run is tried behind its warm-up curtain;
+  // trend-targets needs ~1,500 bars to forget its first bar, more than half of SPY's 1,800
+  it('trend-targets-algoalpha SPY (runtime pane): its warm-up does not fit the window (runtime:warmup-never-converges) — draws nothing', () => {
     const v = grade('trend-targets-algoalpha-spy-1d-2026-10-02', 'runtime').v
-    expect(v.objects.reason).toMatch(/runtime:history-start/)
+    expect(v.objects.reason).toMatch(/runtime:warmup-never-converges/)
   }, T)
   it.fails('wyckoff-accumulation-distribution RDDT (runtime pane): MATCH', () => {
     expect(grade('wyckoff-accumulation-distribution-rddt-1d-2026-10-02', 'runtime').v.verdict).toBe('MATCH')
@@ -542,10 +544,16 @@ describe('CAP3 — Q-H4a vw-h4-loops (vendor witness)', () => {
     expect(v.plots.length).toBe(4)
     for (const p of v.plots) expect(p.stats.compared, p.title).toBe(636)
   }, T)
-  it('door: SPY (a window not from the listing) — the run computes no column; the objects pane alone still refuses the `for` (pine:block)', () => {
+  // ⭐ UIE Phase 2: off the listing the run draws behind its warm-up curtain — 273 bars
+  // withheld, then every plot (the seeded filter included) agrees with TradingView
+  it('door: SPY (a window not from the listing) — the run draws behind its warm-up curtain and MATCHes; the objects pane alone still refuses the `for` (pine:block)', () => {
     const s = grade('vw-h4-loops-spy-1d-2026-10-03', 'runtime').v
-    expect(s.verdict).toBe('INCONCLUSIVE')
-    expect(s.plots.every((p) => /no column/.test(p.reason || ''))).toBe(true)
+    expect(s.verdict).toBe('MATCH')
+    for (const p of s.plots) {
+      expect(p.verdict, p.title).toBe('MATCH')
+      expect(p.warmupBars, p.title).toBeGreaterThan(0)
+      expect(p.stats.steady.compared, p.title).toBeGreaterThan(1500)
+    }
     expect(grade('vw-h4-loops-rddt-1d-2026-10-03').v.reason).toMatch(/pine:block/)
   }, T)
 })

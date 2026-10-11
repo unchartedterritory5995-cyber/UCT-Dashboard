@@ -43,3 +43,14 @@ export function runtimeObjectsWithheldOf(cols) {
 /** Does this definition draw objects from its own run? */
 export const drawsRuntimeObjects = (def) => !!(def && def.compute
   && def.compute.kind === 'runtime' && def.compute.objects === true)
+
+/** ⭐ UIE PHASE 2 — where a run's withheld WARM-UP rides (`runtimeColumns.js::
+ *  computeOffListing`): the same non-enumerable shape, so a column walk never sees it. */
+export const RUNTIME_WARMUP_KEY = '__runtimeWarmup'
+
+/** The warm-up a run withheld: `{ withheldBars, shift }` (bars [0, withheldBars) are
+ *  `NaN` because their values depend on where the chart starts), or null. */
+export function runtimeWarmupOf(cols) {
+  const w = cols && typeof cols === 'object' ? cols[RUNTIME_WARMUP_KEY] : null
+  return w && typeof w === 'object' ? w : null
+}

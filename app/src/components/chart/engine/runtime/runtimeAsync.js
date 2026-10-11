@@ -17,7 +17,7 @@
 // run is synchronous — the same computation, under the same time budget.
 import { registerRuntimeLane } from '../nativeRegistry.js'
 import { notifyColumnsLanded } from '../serverCompute.js'
-import { withRuntimeObjects } from './runtimeObjects.js'
+import { withRuntimeObjects, RUNTIME_WARMUP_KEY } from './runtimeObjects.js'
 import {
   runtimeColumnsFor, computeRuntimeColumns, setRuntimeRunner, onRuntimeColumnsLanded,
   RUNTIME_PANE_TIME_BUDGET_MS,
@@ -132,12 +132,16 @@ function workerOf(factory) {
     return null
   }
   _worker.onmessage = (event) => {
-    const { id, ok, columns, error, objects } = event.data || {}
+    const { id, ok, columns, error, objects, warmup } = event.data || {}
     const job = _jobs.get(id)
     if (!job) return
     _jobs.delete(id)
     arm()
-    settle(job, ok ? null : errorOf(error), ok ? withRuntimeObjects(columns, objects || null) : null)
+    const landed = ok ? withRuntimeObjects(columns, objects || null) : null
+    if (landed && warmup) {
+      Object.defineProperty(landed, RUNTIME_WARMUP_KEY, { value: warmup, enumerable: false, configurable: true })
+    }
+    settle(job, ok ? null : errorOf(error), landed)
     postHeld(job.coalesce, factory)
   }
   _worker.onerror = () => killWorker(workerFailed)
