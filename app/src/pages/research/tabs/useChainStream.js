@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { declareNeed, DELIVERY } from '../../../lib/panelContract'
+import { EMPTY_CHAIN } from '../../../lib/chainStreamManager'
 
 // FT-015 / BRK-01: the streamed option chain. flow-worker reads the OPRA feed it already holds and
 // pushes, every 2 s, the contracts of one (underlying, expiration) whose Last / Bid / Ask moved
@@ -11,8 +13,10 @@ import { useEffect, useRef, useState } from 'react'
 // ⛔ A STREAMED VALUE NEVER OVERWRITES A NEWER POLLED ONE. It replaces the chain's field only when
 //    its own timestamp is later than the instant the server read the chain (`served_at`).
 
-export const chainQuotesUrl = (sym, exp) => `/api/live/massive/chain-quotes/${encodeURIComponent(sym)}?expiration=${encodeURIComponent(exp)}`
-export const chainStreamUrl = (sym, exp) => `/api/live/massive/chain-stream/${encodeURIComponent(sym)}?expiration=${encodeURIComponent(exp)}`
+// TERM-024: the probe and the stream are owned by the shared pool (lib/chainStreamManager.js); this
+// hook holds a handle. The URLs are re-exported from the pool, their one definition.
+export { chainQuotesUrl, chainStreamUrl } from '../../../lib/chainStreamManager'
+const CHAIN = declareNeed({ kind: 'chain', delivery: DELIVERY.EVERY_MESSAGE_MATTERS })
 
 /** One side of a chain row with the streamed fields laid over it, when they are newer. */
 export function overlayQuote(q, quotes, servedMs) {
@@ -31,36 +35,11 @@ export function overlayQuote(q, quotes, servedMs) {
 }
 
 export default function useChainStream(sym, expiration) {
-  const [state, setState] = useState({ on: false, quotes: {}, coverage: null })
-  const esRef = useRef(null)
+  const [state, setState] = useState(EMPTY_CHAIN)
   useEffect(() => {
-    setState({ on: false, quotes: {}, coverage: null })
+    setState(EMPTY_CHAIN)
     if (!sym || !expiration) return undefined
-    let dead = false
-    fetch(chainQuotesUrl(sym, expiration), { credentials: 'same-origin' })
-      .then((r) => (r.status === 200 ? r.json() : null))
-      .then((body) => {
-        if (dead || !body || typeof body.quotes !== 'object') return
-        setState({ on: true, quotes: body.quotes || {}, coverage: body.coverage || null })
-        if (typeof EventSource === 'undefined') return
-        const es = new EventSource(chainStreamUrl(sym, expiration))
-        esRef.current = es
-        es.onmessage = (ev) => {
-          let msg
-          try { msg = JSON.parse(ev.data) } catch { return }
-          if (!msg || typeof msg.quotes !== 'object') return
-          setState((prev) => {
-            const next = { ...prev.quotes }
-            for (const [c, v] of Object.entries(msg.quotes)) next[c] = { ...(next[c] || {}), ...v }
-            return { ...prev, quotes: next }
-          })
-        }
-      })
-      .catch(() => {})
-    return () => {
-      dead = true
-      if (esRef.current) { esRef.current.close(); esRef.current = null }
-    }
+    return CHAIN.subscribe(sym, expiration, setState)
   }, [sym, expiration])
   return state
 }

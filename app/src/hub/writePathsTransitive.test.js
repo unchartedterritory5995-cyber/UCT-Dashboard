@@ -89,6 +89,17 @@ const ENTRIES = [
       revalidatesVia: 'fetcher',
       why: "SWR cache revalidation. It re-runs `fetcher`, which is `url => fetch(url)` with no "
          + 'method option — a GET. Change the fetcher to a write and this rail goes red.',
+    }, {
+      // TERM-033 (91fe95cbeb) replaced `res.json().catch(() => null)` here with the shared
+      // reader, an imported identifier, so the rail refused it by name (master red 2026-10-10).
+      // The proof walks the reader's OWN module: it only parses a response already in hand.
+      name: 'readSuccessBody',
+      from: '../lib/responseBody',
+      inModule: 'lib/responseBody.js',
+      revalidatesVia: 'readSuccessBody',
+      why: 'reads the JSON of the response `createAlert` already received (`await res.json()`), '
+         + 'tagged ok/not-ok. It makes no request of its own; give it one that writes and this '
+         + 'rail goes red.',
     }],
   },
   {

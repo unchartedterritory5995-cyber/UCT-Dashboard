@@ -76,6 +76,7 @@ describe('delivery — REQUIRED, no default, and checked against the stream', ()
     expect(kinds).toEqual([
       ['prices', 'last-value-wins'],
       ['bars', 'last-value-wins'],
+      ['chain', 'every-message-matters'],
       ['tape', 'every-message-matters'],
     ])
   })
@@ -94,7 +95,7 @@ describe('what a panel may NOT hand the contract', () => {
 
   it('an unknown kind is refused, naming the ones that exist', () => {
     expect(() => declareNeed({ kind: 'quotes', delivery: DELIVERY.LAST_VALUE_WINS }))
-      .toThrow(/unknown need kind "quotes"; declare one of prices, bars, tape/)
+      .toThrow(/unknown need kind "quotes"; declare one of prices, bars, chain, tape/)
   })
 
   it('a non-object spec is refused', () => {
