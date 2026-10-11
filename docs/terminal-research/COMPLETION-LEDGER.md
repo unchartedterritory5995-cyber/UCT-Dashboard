@@ -9,7 +9,7 @@ status: living — update a row's state in the same commit that changes it
 
 # Completion ledger — UCT Terminal (TERMINAL-NEXT)
 
-**The answer today (after the alert flips): not complete.** 266 of 279 rows are `live` or `moot`; 13 are not (2 `dark`, 6 `building`, 5 `owner-blocked`). It is complete when every row below is `live` or `moot`.
+**The answer today (after the alert flips): not complete.** 267 of 279 rows are `live` or `moot`; 12 are not (2 `dark`, 5 `building`, 5 `owner-blocked`). It is complete when every row below is `live` or `moot`.
 The counts are in §0, and they are derived from this file by the command shown there, never typed.
 
 ## How to read this
@@ -34,10 +34,10 @@ The counts are in §0, and they are derived from this file by the command shown 
 python -X utf8 -c "import re,collections;t=open('docs/terminal-research/COMPLETION-LEDGER.md',encoding='utf-8').read();rows=re.findall(r'^\| `([A-Z][A-Za-z0-9./-]*)` \| [^|]* \| `(live|dark|building|owner-blocked|moot)',t,re.M);print(len(rows),collections.Counter(s for _,s in rows));print(len(rows)-len({i for i,_ in rows}),'duplicate ids')"
 ```
 
-Printed 2026-10-10 after the alert flips:
+Printed 2026-10-11 after TERM-018 went live (the alert-flip print the day before read live 226, building 6):
 
 ```
-279 Counter({'live': 226, 'moot': 40, 'building': 6, 'owner-blocked': 5, 'dark': 2})
+279 Counter({'live': 227, 'moot': 40, 'building': 5, 'owner-blocked': 5, 'dark': 2})
 0 duplicate ids
 ```
 
@@ -51,14 +51,14 @@ The per-section split is the same regex applied to each `## ` section:
 |---|---|---|---|---|---|---|
 | 1 Programme records + ship | 17 | 13 | 0 | 1 | 0 | 3 |
 | 2 Open owner decisions | 9 | 0 | 0 | 0 | 0 | 9 |
-| 3 TERM-001..093 | 93 | 80 | 2 | 3 | 2 | 6 |
+| 3 TERM-001..093 | 93 | 81 | 2 | 2 | 2 | 6 |
 | 4 BRK-01..10 | 10 | 9 | 0 | 0 | 0 | 1 |
 | 5 COV-01..12 | 12 | 8 | 0 | 1 | 0 | 3 |
 | 6 FT-001..080 | 80 | 67 | 0 | 1 | 3 | 9 |
 | 7 Untracked promises | 58 | 49 | 0 | 0 | 0 | 9 |
-| **total** | **279** | **226** | **2** | **6** | **5** | **40** |
+| **total** | **279** | **227** | **2** | **5** | **5** | **40** |
 
-`building` by lane: P 4 · Indicators 2.
+`building` by lane: P 3 · Indicators 2.
 
 ⛔ **These counts go stale the moment a row changes.** Re-run the command and replace the table in the same commit; never edit a number by hand (ADR-0002).
 ⚠️ **`live` rows are not all member features.** X-01 is the merge itself; X-06..X-08 and X-16 are records; X-09 is an env arming. Every TERM/FT/BRK/COV/D/V `live` row is on master with its gate armed or ungated.
@@ -120,7 +120,7 @@ The per-section split is the same regex applied to each `## ` section:
 | `TERM-015` | Cadence heartbeat roll-up | `live` | `api/terminal_next_monitor_main.py:208`. |
 | `TERM-016` | Durable alert cooldowns | `live` | `api/services/chart_health_alerts.py:130`. |
 | `TERM-017` | Loop-lag distribution | `building (Lane P)` | Histogram built (`api/event_loop_watchdog.py:221`). Read `lag_histogram` inside the 2026-10-14 09:00–11:00 ET window fixed by B1 (`12-decisions/2026-10-07-owner-delegated-decisions.md:200`); an agent step after the window (`12-decisions/2026-10-07-owner-delegated-decisions.md:160`). Was `owner-blocked`. |
-| `TERM-018` | Every guard can fire | `building (Lane P)` | CI live (`.github/workflows/term018-guards.yml`). `12-decisions/gates/term-018-guard-observations.json`: 29 `observed`, 3 `declared_unobserved` (was 12 / 20; the ceiling went 20 -> 3, `tests/test_term018_every_guard_can_fire.py` `DECLARED_UNOBSERVED_CEILING`). Lane f-l6, 2026-10-10: nine newly mutation-proved (proof `46eb8f231`: G-05..G-08, G-11, G-12, G-24, G-25, G-26), G-30/G-31 fired through the wisdom job table (proof `28530927c`), G-21 fired through its route (proof `5085d5d42`), and five whose proofs were already on master but never recorded (G-22/G-23 `7811f4b34`; G-14, G-46, `_page_discord` `48ef6b471`); recorded in `9e099427a`, `74deefa87`, `f26cf6d4e`. Clause 7 learned a factory hop and a `route` wire kind, each with a planted control (`5085d5d42`, integrator ruling). Remainder, each blocker named in its row: G-10 and G-15 (no single wire clause 7 can follow), G-18..G-20 (computed key and severity, clock-gated to about 2027-07). |
+| `TERM-018` | Every guard can fire | `live` | CI live (`.github/workflows/term018-guards.yml`). `12-decisions/gates/term-018-guard-observations.json`: 32 `observed`, 0 `declared_unobserved` (was 12 / 20; the ceiling went 20 -> 3 -> 0, `tests/test_term018_every_guard_can_fire.py` `DECLARED_UNOBSERVED_CEILING`). Lane f-l6, 2026-10-10: nine newly mutation-proved (proof `46eb8f231`: G-05..G-08, G-11, G-12, G-24, G-25, G-26), G-30/G-31 fired through the wisdom job table (proof `28530927c`), G-21 fired through its route (proof `5085d5d42`), and five whose proofs were already on master but never recorded (G-22/G-23 `7811f4b34`; G-14, G-46, `_page_discord` `48ef6b471`); recorded in `9e099427a`, `74deefa87`, `f26cf6d4e`. Clause 7 learned a factory hop and a `route` wire kind, each with a planted control (`5085d5d42`, integrator ruling). Lane term018-last, 2026-10-11: a `route` wire may declare `hops` carrying a guard in a service module to its router, with a planted control (proof `adea773c7d`); G-10 fired through GET /api/admin/bars/source-health, G-15 through POST /api/ai-search with the provider answering 401, and G-18..G-20 through GET /api/market-calendar with the module clock frozen relative to the table horizon (no wait for 2027-07). Every derived guard on the channel is observed; the debt list is empty and a new guard must arrive observed. Was `building (Lane P)`. |
 | `TERM-019` | Provenance set + adoption rail | `live` | `app/src/components/provenance/panelAdoption.ratchet.test.js`; adoption is a shrink-only ratchet. |
 | `TERM-020` | Canonical resolver (CP3) | `live` | `api/services/canonical/resolver.py:453`; caller `api/routers/breadth_monitor.py:1061`. |
 | `TERM-021` | Versioned workspace document | `live` | `api/services/workspace_doc_store.py:231`. |

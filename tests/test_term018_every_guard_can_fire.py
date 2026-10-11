@@ -192,7 +192,13 @@ RECORD_PATH = ROOT / "docs" / "terminal-research" / "12-decisions" / "gates" / \
 #: 5 -> 3 (2026-10-10, lane f-l6, integrator ruling): the rail learned the factory hop
 #: and the `route` wire kind (5085d5d42), so G-30 (proof 28530927c) and G-21 (proof
 #: 5085d5d42) are recorded. Left: G-10, G-15, G-18..G-20, each with its blocker.
-DECLARED_UNOBSERVED_CEILING = 3
+#: 3 -> 0 (2026-10-11, lane term018-last): a `route` wire may now declare `hops` that
+#: carry a guard living in a service module to its router (adea773c7d), so G-10 (the
+#: admin source-health page) and G-15 (the member's ai-search ask) are recorded; and
+#: G-18..G-20 are fired today through /api/market-calendar with the module's clock
+#: FROZEN relative to the table's horizon, instead of waiting for ~2027-07. The debt
+#: list is empty; a new guard on this channel must arrive observed.
+DECLARED_UNOBSERVED_CEILING = 0
 
 #: Every file whose AST could not be read during the population sweep. A silent
 #: `except SyntaxError: continue` would let a guard hide in an unparseable file.
