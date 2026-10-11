@@ -229,6 +229,11 @@ export const NoteLinkMenuExtension = Extension.create({
 
           return {
             onStart: (props) => {
+              // The session starts after a debounced search, so the note may have been closed (the
+              // editor destroyed) in between. Reading its view then throws inside Suggestion's async
+              // update, an unhandled rejection, and would leave a popup for an editor that is gone.
+              // The same guard DateSuggest's onStart has (lib/dateSuggest.js).
+              if (props.editor?.isDestroyed) return
               dismissed = false
               getRect = props.clientRect
               editorDom = props.editor?.view?.dom || null
