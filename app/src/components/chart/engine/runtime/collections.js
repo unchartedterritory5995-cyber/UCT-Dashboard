@@ -650,15 +650,22 @@ export { RuntimeLimitError }
  *  as it is, untouched. */
 const READS_ALL = new Set(['array.indexof', 'array.includes', 'array.sort_indices', 'array.max', 'array.min',
   'array.sum', 'array.avg', 'array.median', 'array.stdev'])
-export const ARRAY_FNS = Object.freeze(Object.fromEntries(Object.entries(ARRAY_FNS_RAW).map(([name, spec]) => [name, {
-  ...spec,
-  fn: (a, budget, typeArg) => {
-    if (READS_ALL.has(name) && Array.isArray(a[0])) {
-      const hit = a[0].find(isUnfilled)
-      if (hit) readUnfilled(name, hit)
-    }
-    const out = spec.fn(a, budget, typeArg)
-    if (isUnfilled(out)) readUnfilled(name, out)
-    return out
-  },
-}])))
+// ⭐ UIE PHASE 4 (M3) — only the members that READ are wrapped (profiled: wrapping every
+// member cost ~3% of a call-heavy script, `array.set` / `size` / `push` included)
+const HANDS_BACK = new Set(['array.get', 'array.first', 'array.last', 'array.pop', 'array.shift', 'array.remove'])
+export const ARRAY_FNS = Object.freeze(Object.fromEntries(Object.entries(ARRAY_FNS_RAW).map(([name, spec]) => {
+  if (READS_ALL.has(name)) {
+    return [name, { ...spec, fn: (a, budget, typeArg) => {
+      if (Array.isArray(a[0])) { const hit = a[0].find(isUnfilled); if (hit) readUnfilled(name, hit) }
+      return spec.fn(a, budget, typeArg)
+    } }]
+  }
+  if (HANDS_BACK.has(name)) {
+    return [name, { ...spec, fn: (a, budget, typeArg) => {
+      const out = spec.fn(a, budget, typeArg)
+      if (out !== null && typeof out === 'object' && isUnfilled(out)) readUnfilled(name, out)
+      return out
+    } }]
+  }
+  return [name, spec]
+})))

@@ -492,6 +492,42 @@ export function execute(program, ctx, limits, opts) {
   let probeAt = probe && probeBars.length ? probeBars[0] : -1
   let dynLowSeries = Infinity
   let dynLowCol = Infinity
+  // ⭐⭐ UIE PHASE 4 (M3) — THE HOT COUNTERS, KEPT LOCAL. A loop pass, a call, a carried
+  // step and a window's cells were each a `Budget` method call with a by-name lookup on
+  // EVERY occurrence. They are counted here instead, against the SAME ceilings, and the
+  // moment one is passed the budget's own `charge` / `peak` throws — so a stop names the
+  // same limit, ceiling and reached value as before. `budget.counts` is brought up to date
+  // at every bar end, before a request's sub-run (which shares the budget), and on return.
+  const bc = budget.counts
+  const bl = budget.limits
+  let cLoop = bc.LOOP_ITERATIONS
+  let cCall = bc.CALL_COUNT
+  let cCarried = bc.CARRIED_STEPS
+  let cWin = bc.WINDOW_CELLS
+  let pkDepth = bc.CALL_DEPTH
+  let pkNest = bc.LOOP_NESTING
+  const capLoop = bl.LOOP_ITERATIONS
+  const capCall = bl.CALL_COUNT
+  const capCarried = bl.CARRIED_STEPS
+  const capWin = bl.WINDOW_CELLS
+  const capDepth = bl.CALL_DEPTH
+  const capNest = bl.LOOP_NESTING
+  const flushHot = () => {
+    bc.LOOP_ITERATIONS = cLoop
+    bc.CALL_COUNT = cCall
+    bc.CARRIED_STEPS = cCarried
+    bc.WINDOW_CELLS = cWin
+    if (pkDepth > bc.CALL_DEPTH) bc.CALL_DEPTH = pkDepth
+    if (pkNest > bc.LOOP_NESTING) bc.LOOP_NESTING = pkNest
+  }
+  const reloadHot = () => {
+    cLoop = bc.LOOP_ITERATIONS
+    cCall = bc.CALL_COUNT
+    cCarried = bc.CARRIED_STEPS
+    cWin = bc.WINDOW_CELLS
+    pkDepth = bc.CALL_DEPTH
+    pkNest = bc.LOOP_NESTING
+  }
   for (let bar = 0; bar < ctx.bars; bar += 1) {
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
@@ -717,8 +753,8 @@ export function execute(program, ctx, limits, opts) {
         case 70 /* OP.CALL */: {
           const fn = program.functions[a]
           const site = program.callSites[b]
-          budget.peak('CALL_DEPTH', depth + 1)
-          budget.charge('CALL_COUNT', 1)
+          if (depth + 1 > pkDepth) { pkDepth = depth + 1; if (pkDepth > capDepth) budget.peak('CALL_DEPTH', pkDepth) }
+          if (++cCall > capCall) { bc.CALL_COUNT = cCall - 1; budget.charge('CALL_COUNT', 1) }
           const newBase = localsTop
           // ⭐ ARGUMENTS COME OFF THE STACK IN REVERSE — they were pushed
           // left-to-right, so the last parameter is on top.
@@ -921,7 +957,7 @@ export function execute(program, ctx, limits, opts) {
               obs[span - 1] = live
               if (winObsN[wi] < span) winObsN[wi] += 1
             }
-            budget.charge('WINDOW_CELLS', span)
+            if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
             stack[sp++] = winObsN[wi] < span ? NaN : winReduce[wi](obs, 0, span - 1)
             break
           }
@@ -941,7 +977,7 @@ export function execute(program, ctx, limits, opts) {
               buf[span - 1 - k] = hist[off + ((committed - k) % depth)]
             }
           }
-          budget.charge('WINDOW_CELLS', span)
+          if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
           if (policy === 'restart') {
             // ⭐ THE WINDOW BEGINS AGAIN AFTER A HOLE. The current bar must be
             // finite (the vendor blanks ON the hole); the run then reaches back
@@ -969,7 +1005,7 @@ export function execute(program, ctx, limits, opts) {
           // — which is the measured TradingView rule, and the opposite of what
           // the history commit phase does for a skipped site (it re-commits a
           // HELD value). Two lifetimes, two rules, one wave apart.
-          budget.charge('CARRIED_STEPS', 1)
+          if (++cCarried > capCarried) { bc.CARRIED_STEPS = cCarried - 1; budget.charge('CARRIED_STEPS', 1) }
           stack[sp++] = carSpec[ci].step(carState, carOffset[ci], v, carPlan[ci].n, carAlpha[ci])
           break
         }
@@ -982,7 +1018,7 @@ export function execute(program, ctx, limits, opts) {
           // rings (`ta.valuewhen`) or two previous-bar pairs (the cross family).
           const v2src = stack[--sp]
           const v2cond = stack[--sp]
-          budget.charge('CARRIED_STEPS', 1)
+          if (++cCarried > capCarried) { bc.CARRIED_STEPS = cCarried - 1; budget.charge('CARRIED_STEPS', 1) }
           const c2 = carried2Base + a
           stack[sp++] = car2Spec[c2].step(
             car2State, car2Offset[c2], v2cond, v2src, car2Plan[c2].n)
@@ -1095,8 +1131,8 @@ export function execute(program, ctx, limits, opts) {
           // never reaches its bound — `by 0`, or a bound a body keeps moving —
           // is stopped here, by a limit that names itself, rather than hanging
           // the browser tab a member is looking at.
-          budget.charge('LOOP_ITERATIONS', 1)
-          budget.peak('LOOP_NESTING', a)
+          if (++cLoop > capLoop) { bc.LOOP_ITERATIONS = cLoop - 1; budget.charge('LOOP_ITERATIONS', 1) }
+          if (a > pkNest) { pkNest = a; if (a > capNest) budget.peak('LOOP_NESTING', a) }
           break
         case 95 /* OP.WHILE_BOUND */: {
           // ⭐⭐ C18 — this entry's pass count, checked as a PEAK so a finished
@@ -1135,8 +1171,10 @@ export function execute(program, ctx, limits, opts) {
               series2 = null
             } else {
               budget.peak('REQUEST_COUNT', requestCache.size + 1)
+              flushHot()   // the sub-run shares this budget
               series2 = runRequest(program, site, other, ctx, budget, requested, requestCache, b,
                 requestDepth + 1, now)
+              reloadHot()
               requestBytes += 8 * b * ctx.bars
             }
             requestCache.set(`${a}::${key}`, series2)
@@ -1162,6 +1200,7 @@ export function execute(program, ctx, limits, opts) {
       if (op === OP_HALT) break
       if (pc >= n) throw new VmError('ran off the end of the program without HALT')
     }
+    flushHot()
     budget.charge('TOTAL_INSTRUCTIONS', perBar)
     budget.peak('INSTRUCTIONS_PER_BAR', perBar)
 
