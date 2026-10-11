@@ -43,10 +43,11 @@ def test_the_sweep_stops_at_an_empty_trading_day_and_does_not_advance(tmp_path, 
     monkeypatch.setattr(nhi, "_write_series", lambda s, upload=False: "sha")
     from api.services import breadth_pit_frame as bpf
     monkeypatch.setattr(bpf, "reference_map", lambda: {})
+    monkeypatch.setattr(nhi, "splits_between", lambda a, b: {})
     blocked = []
     monkeypatch.setattr(nhi, "report_block", lambda name, d, why: blocked.append((d, why)))
     monkeypatch.setattr(massive, "get_grouped_daily_frame",
-                        lambda d, adjusted=True, store=False: {"rows": {}})
+                        lambda d, adjusted=True, store=False, fresh=False: {"rows": {}})
     out = nhi.sweep(max_sessions=None)
     assert out["sessions"] == 0 and out["failed"][0][0] == "2026-10-08"
     assert blocked == [("2026-10-08", "empty answer on a trading day")]

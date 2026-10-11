@@ -1674,7 +1674,8 @@ def _calendar_trading_day(day_iso: str) -> bool:
         return False
 
 
-def get_grouped_daily_frame(day_iso: str, adjusted: bool = False, store: bool = True) -> dict:
+def get_grouped_daily_frame(day_iso: str, adjusted: bool = False, store: bool = True,
+                            fresh: bool = False) -> dict:
     """`{"rows": {...}, "empty": bool}` — or RAISE `GroupedFrameError`.
 
     Three outcomes, three distinguishable answers:
@@ -1694,13 +1695,18 @@ def get_grouped_daily_frame(day_iso: str, adjusted: bool = False, store: bool = 
     """
     import json as _json
     ck = f"grouped_ohlcv_{day_iso}_{1 if adjusted else 0}"
-    cached = cache.get(ck)
+    # (2026-10-11) `fresh=True`: ask the provider NOW, past the memory and durable tiers —
+    # an adjusted file written months ago is on THAT day's split basis, and a ring rebuilt
+    # from a mix of vintages is not on one basis at all. Writes nothing.
+    cached = None if fresh else cache.get(ck)
     if cached is not None:
         return {"rows": cached, "empty": not cached}
     settled = day_iso < _grouped_settled_cutoff()
+    if fresh:
+        store = False
     fpath = os.path.join(_GROUPED_OHLCV_DIR, f"{day_iso}_{1 if adjusted else 0}.json")
     cpath = fpath[:-5] + ".closed"
-    if settled:
+    if settled and not fresh:
         try:
             with open(fpath) as fh:
                 m = _json.load(fh)

@@ -244,6 +244,19 @@ class Ring:
             avg = np.nanmean(w, axis=1)
         return valid & (c_today > avg), valid
 
+    def scale_row(self, i: int, factor: float) -> None:
+        """Restate one ticker's stored window onto a new split basis."""
+        self.H[i, :] *= factor
+        self.L[i, :] *= factor
+        self.C[i, :] *= factor
+
+    def last_close(self, i: int) -> Optional[float]:
+        for k in range(1, min(self.n, RING) + 1):
+            v = self.C[i, (self.n - k) % RING]
+            if not np.isnan(v):
+                return float(v)
+        return None
+
     def compact(self):
         """Drop tickers with no bar anywhere in the window (delisted > a year ago)."""
         if not self.tickers:
@@ -410,6 +423,104 @@ def report_block(series_name: str, d: str, reason: str) -> None:
         _log.warning("[ring] stall report failed: %s", e)
 
 
+# ── splits (2026-10-11) ───────────────────────────────────────────────────────
+#
+# ⛔ THE RING IS FILLED ONE SESSION AT A TIME, EACH ON ITS OWN DAY'S SPLIT BASIS. A split
+# after a column was written left that column on the old basis for up to a year: a 1-for-10
+# reverse split read as a new 52-week high and then could almost never print a new low (the
+# stored lows were 10x too low); a forward split did the opposite to the leaders. Each
+# session's splits (Massive /v3/reference/splits) now restate that ticker's stored window
+# BEFORE the session is measured — when the prices agree that they need it (a column fetched
+# after the split is already restated, and a bad feed row is not applied).
+
+SPLITS_KEEP = 5000
+
+
+def _split_rows(from_iso: str, to_iso: str) -> list:
+    """Raw split rows in [from_iso, to_iso]. RAISES on a provider failure — a missed split
+    is a silent year-long distortion, so the sweep stops and retries instead."""
+    from api.services import massive_adapter
+    out = []
+    a = _date.fromisoformat(from_iso)
+    b = _date.fromisoformat(to_iso)
+    while a <= b:
+        end = min(b, _date(a.year, 12, 31))
+        out += massive_adapter.get_pages(
+            "/v3/reference/splits",
+            params={"execution_date.gte": a.isoformat(), "execution_date.lte": end.isoformat(),
+                    "limit": 1000},
+            data_class="reference", activity="breadth_nhnl_intraday.splits",
+            max_pages=40).value or []
+        a = end + _td(days=1)
+    return out
+
+
+def splits_between(from_iso: str, to_iso: str, fetch=None) -> dict:
+    """{session_date: [(ticker, price_factor)]} — price_factor = split_from / split_to, the
+    multiplier that restates a pre-split price onto the post-split basis (a 1-for-10
+    reverse split is 10.0; a 4-for-1 split is 0.25)."""
+    rows = (fetch or _split_rows)(from_iso, to_iso)
+    out: dict = {}
+    for r in rows or []:
+        t, d = r.get("ticker"), str(r.get("execution_date") or "")[:10]
+        try:
+            f = float(r.get("split_from")) / float(r.get("split_to"))
+        except (TypeError, ValueError, ZeroDivisionError):
+            continue
+        if not t or not d or not (f > 0) or abs(f - 1) < 1e-9:
+            continue
+        out.setdefault(d, []).append((canon(str(t).upper()), f))
+    return out
+
+
+def apply_splits(ring: "Ring", d: str, frame: dict, splits: list, applied: set) -> list:
+    """Restate each split ticker's window before session `d` is measured. Applied only when
+    the session's own close sits closer to the restated window than to the stored one (so a
+    window already on the new basis, or a bad feed row, is left alone). Idempotent via
+    `applied` ("TICKER:date")."""
+    done = []
+    closes = {canon(str(t).upper()): (r or {}).get("c") for t, r in (frame or {}).items()}
+    for t, f in splits or []:
+        key = f"{t}:{d}"
+        if key in applied:
+            continue
+        applied.add(key)
+        i = ring.index.get(t)
+        today = closes.get(t)
+        if i is None or not today or today <= 0:
+            continue
+        prev = ring.last_close(i)
+        if not prev or prev <= 0:
+            continue
+        import math
+        if abs(math.log(today / (prev * f))) < abs(math.log(today / prev)):
+            ring.scale_row(i, f)
+            done.append(t)
+    return done
+
+
+def splits_meta(applied: set) -> list:
+    return sorted(applied)[-SPLITS_KEEP:]
+
+
+_LIVE_SPLITS: dict = {}
+
+
+def todays_splits(session_iso: str) -> dict:
+    """{ticker: factor} for splits effective on the session being measured live (cached
+    per session; {} when the provider cannot answer — the live count is then the old one)."""
+    hit = _LIVE_SPLITS.get(session_iso)
+    if hit is not None and (hit[1] or time.time() - hit[2] < 1800):
+        return hit[0]                  # a failed read is retried every 30 min, not per sample
+    try:
+        got, ok = {t: f for t, f in splits_between(session_iso, session_iso).get(session_iso, [])}, True
+    except Exception:
+        got, ok = {}, False
+    _LIVE_SPLITS.clear()
+    _LIVE_SPLITS[session_iso] = (got, ok, time.time())
+    return got
+
+
 def _settled_through() -> str:
     """The newest session whose daily bar has settled (ET close + 2h)."""
     from datetime import datetime
@@ -446,12 +557,15 @@ def _load_series() -> dict:
         return {}
 
 
-def _write_series(series: dict, upload: bool) -> str:
+def _write_series(series: dict, upload: bool, path: Optional[str] = None) -> str:
     body = json.dumps(series, separators=(",", ":"), sort_keys=True).encode()
-    tmp = SERIES_PATH + ".tmp"
+    path = path or SERIES_PATH
+    tmp = path + ".tmp"
     with open(tmp, "wb") as fh:
         fh.write(body)
-    os.replace(tmp, SERIES_PATH)
+    os.replace(tmp, path)
+    if path != SERIES_PATH:
+        return hashlib.sha256(body).hexdigest()
     sha = hashlib.sha256(body).hexdigest()
     if upload:
         try:
@@ -488,16 +602,28 @@ def sweep(rebuild: bool = False, max_sessions: Optional[int] = None,
     from api.services import massive
     from api.services import breadth_pit_frame as bpf
     t0 = time.time()
+    # ⭐ (2026-10-11) a REBUILD never touches the served files: it builds beside them
+    # (`.rebuild`), fresh from the provider on one split basis, RESUMES across the restarts
+    # a ~1 h build will meet, and swaps in only when it has caught up.
+    state_p = STATE_PATH + ".rebuild" if rebuild else STATE_PATH
+    series_p = SERIES_PATH + ".rebuild" if rebuild else SERIES_PATH
     series = {} if rebuild else _load_series()
-    ring, meta = None, {}
-    if not rebuild and os.path.exists(STATE_PATH):
+    if rebuild and os.path.exists(series_p):
         try:
-            ring, meta = Ring.load(STATE_PATH)
+            with open(series_p) as fh:
+                series = json.load(fh)
+        except Exception:
+            series = {}
+    ring, meta = None, {}
+    if os.path.exists(state_p):
+        try:
+            ring, meta = Ring.load(state_p)
         except Exception as e:
             _log.warning("[nhnl] state unreadable (%s) — rebuilding", e)
             ring, series = None, {}
     if ring is None:
-        ring, series = Ring(), {}
+        ring, series, meta = Ring(), {}, {}
+    applied = set(meta.get("splits_applied") or [])
     series.setdefault("version", VERSION)
     series.setdefault("basis", BASIS_TEXT)
     series.setdefault("fields", ["nh52", "nl52", "nh20", "nl20", "members", "valid52",
@@ -510,11 +636,19 @@ def sweep(rebuild: bool = False, max_sessions: Optional[int] = None,
         todo = todo[:max_sessions]
     cls = Classifier(bpf.reference_map())
     done, failed = 0, []
+    splits = {}
+    if todo:
+        try:
+            splits = splits_between(todo[0], todo[-1])
+        except Exception as e:
+            failed.append((todo[0], f"splits unavailable: {str(e)[:160]}"))
+            report_block("new highs/lows", todo[0], "the split reference could not be read")
+            todo = []
     for i, d in enumerate(todo):
         if progress is not None:
             progress.update({"at": d, "done": done, "of": len(todo)})
         try:
-            res = massive.get_grouped_daily_frame(d, adjusted=True, store=False)
+            res = massive.get_grouped_daily_frame(d, adjusted=True, store=False, fresh=rebuild)
         except Exception as e:
             failed.append((d, str(e)[:200]))
             report_block("new highs/lows", d, str(e)[:200])
@@ -529,6 +663,7 @@ def sweep(rebuild: bool = False, max_sessions: Optional[int] = None,
             report_block("new highs/lows", d, why)
             break                      # retried by the next run; never sealed short
         note_count(counts, d, frame)
+        apply_splits(ring, d, frame, splits.get(d), applied)
         out = measure(ring, d, frame, cls)
         for u, v in out.items():
             rows.setdefault(u, {})[d] = v
@@ -536,16 +671,30 @@ def sweep(rebuild: bool = False, max_sessions: Optional[int] = None,
         del frame, res
         if done % 250 == 0:
             ring.compact()
-            ring.save(STATE_PATH, {"version": VERSION})
-            _write_series(series, upload=False)
+            ring.save(state_p, {"version": VERSION, "splits_applied": splits_meta(applied)})
+            _write_series(series, upload=False, path=series_p)
         time.sleep(PACE_SECONDS)
     ring.compact()
-    ring.save(STATE_PATH, {"version": VERSION})
+    ring.save(state_p, {"version": VERSION, "splits_applied": splits_meta(applied)})
     series["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     series["through"] = ring.dates[-1] if ring.dates else None
+    caught_up = (not failed and bool(ring.dates)
+                 and ring.dates[-1] >= _settled_through())
+    if rebuild and not caught_up:
+        _write_series(series, upload=False, path=series_p)     # resumes next run
+        return {"ok": False, "rebuild": "in progress", "sessions": done,
+                "pending": len(todo) - done, "failed": failed, "through": series["through"],
+                "seconds": round(time.time() - t0, 1)}
+    if rebuild:
+        os.replace(state_p, STATE_PATH)
+        try:
+            os.remove(series_p)
+        except OSError:
+            pass
     sha = _write_series(series, upload=True)
     return {"ok": not failed, "sessions": done, "pending": len(todo) - done,
             "failed": failed, "through": series["through"], "sha256": sha,
+            "rebuild": "swapped in" if rebuild else None,
             "seconds": round(time.time() - t0, 1)}
 
 
@@ -579,6 +728,9 @@ def scheduled_extend() -> None:
     if basis() == "off":
         return
     _restore_from_r2()
+    if os.path.exists(STATE_PATH + ".rebuild"):
+        start_sweep(rebuild=True)      # an interrupted rebuild resumes (the live files wait)
+        return
     if not os.path.exists(STATE_PATH):
         return                         # no ring yet: the one-off sweep has not been run
     start_sweep()
@@ -789,6 +941,12 @@ def live_counts(universe: str, highs: dict, lows: dict, members, session_iso: st
         rows = idx[known]
         mx52, mn52, ok52 = ring.prior(rows, W52)
         mx20, mn20, ok20 = ring.prior(rows, W20)
+        # a split effective TODAY: the stored window is still on the old basis
+        today_splits = todays_splits(session_iso)
+        if today_splits:
+            f = np.asarray([today_splits.get(s, 1.0) for s in np.asarray(syms)[known]],
+                           dtype=np.float64)
+            mx52, mn52, mx20, mn20 = mx52 * f, mn52 * f, mx20 * f, mn20 * f
         with np.errstate(invalid="ignore"):
             nh52[known] = ok52 & (h[known] > mx52)
             nl52[known] = ok52 & (lo[known] < mn52)

@@ -84,11 +84,14 @@ def _load_series() -> dict:
         return {}
 
 
-def _write_series(series: dict, upload: bool) -> str:
+def _write_series(series: dict, upload: bool, path: Optional[str] = None) -> str:
     body = json.dumps(series, separators=(",", ":"), sort_keys=True).encode()
-    with open(SERIES_PATH + ".tmp", "wb") as fh:
+    path = path or SERIES_PATH
+    with open(path + ".tmp", "wb") as fh:
         fh.write(body)
-    os.replace(SERIES_PATH + ".tmp", SERIES_PATH)
+    os.replace(path + ".tmp", path)
+    if path != SERIES_PATH:
+        return hashlib.sha256(body).hexdigest()
     if upload:
         try:
             from api.services import data_sync
@@ -123,15 +126,25 @@ def sweep(rebuild: bool = False, max_sessions: Optional[int] = None,
     from api.services import massive
     from api.services import breadth_pit_frame as bpf
     t0 = time.time()
+    # (2026-10-11) a rebuild builds beside the served files, resumes, swaps in when done
+    state_p = STATE_PATH + ".rebuild" if rebuild else STATE_PATH
+    series_p = SERIES_PATH + ".rebuild" if rebuild else SERIES_PATH
     series = {} if rebuild else _load_series()
-    ring = None
-    if not rebuild and os.path.exists(STATE_PATH):
+    if rebuild and os.path.exists(series_p):
         try:
-            ring, _ = nhi.Ring.load(STATE_PATH)
+            with open(series_p) as fh:
+                series = json.load(fh)
+        except Exception:
+            series = {}
+    ring, meta = None, {}
+    if os.path.exists(state_p):
+        try:
+            ring, meta = nhi.Ring.load(state_p)
         except Exception:
             ring, series = None, {}
     if ring is None:
-        ring, series = nhi.Ring(), {}
+        ring, series, meta = nhi.Ring(), {}, {}
+    applied = set(meta.get("splits_applied") or [])
     series.setdefault("version", VERSION)
     series.setdefault("fields", ["pct_above_20sma", "pct_above_150sma", "valid20", "valid150"])
     rows = series.setdefault("rows", {})
@@ -142,11 +155,19 @@ def sweep(rebuild: bool = False, max_sessions: Optional[int] = None,
         todo = todo[:max_sessions]
     cls = nhi.Classifier(bpf.reference_map())
     done, failed = 0, []
+    splits = {}
+    if todo:
+        try:
+            splits = nhi.splits_between(todo[0], todo[-1])
+        except Exception as e:
+            failed.append((todo[0], f"splits unavailable: {str(e)[:160]}"))
+            nhi.report_block("20/150-day SMA", todo[0], "the split reference could not be read")
+            todo = []
     for d in todo:
         if progress is not None:
             progress.update({"at": d, "done": done, "of": len(todo)})
         try:
-            res = massive.get_grouped_daily_frame(d, adjusted=True, store=False)
+            res = massive.get_grouped_daily_frame(d, adjusted=True, store=False, fresh=rebuild)
         except Exception as e:
             failed.append((d, str(e)[:200]))
             nhi.report_block("20/150-day SMA", d, str(e)[:200])
@@ -161,18 +182,30 @@ def sweep(rebuild: bool = False, max_sessions: Optional[int] = None,
             nhi.report_block("20/150-day SMA", d, why)
             break
         nhi.note_count(counts, d, frame)
+        nhi.apply_splits(ring, d, frame, splits.get(d), applied)
         for u, v in measure(ring, d, frame, cls).items():
             rows.setdefault(u, {})[d] = v
         done += 1
         del frame, res
         if done % 250 == 0:
             ring.compact()
-            ring.save(STATE_PATH, {"version": VERSION})
-            _write_series(series, upload=False)
+            ring.save(state_p, {"version": VERSION, "splits_applied": nhi.splits_meta(applied)})
+            _write_series(series, upload=False, path=series_p)
         time.sleep(nhi.PACE_SECONDS)
     ring.compact()
-    ring.save(STATE_PATH, {"version": VERSION})
+    ring.save(state_p, {"version": VERSION, "splits_applied": nhi.splits_meta(applied)})
     series["through"] = ring.dates[-1] if ring.dates else None
+    if rebuild and (failed or not ring.dates or ring.dates[-1] < nhi._settled_through()):
+        _write_series(series, upload=False, path=series_p)     # resumes next run
+        return {"ok": False, "rebuild": "in progress", "sessions": done,
+                "pending": len(todo) - done, "failed": failed, "through": series["through"],
+                "seconds": round(time.time() - t0, 1)}
+    if rebuild:
+        os.replace(state_p, STATE_PATH)
+        try:
+            os.remove(series_p)
+        except OSError:
+            pass
     series["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     sha = _write_series(series, upload=True)
     return {"ok": not failed, "sessions": done, "pending": len(todo) - done, "failed": failed,
@@ -205,7 +238,9 @@ def job() -> dict:
 
 def scheduled_extend() -> None:
     _restore_from_r2()
-    if os.path.exists(STATE_PATH):
+    if os.path.exists(STATE_PATH + ".rebuild"):
+        start_sweep(rebuild=True)              # an interrupted rebuild resumes
+    elif os.path.exists(STATE_PATH):
         start_sweep()
     extend_uct()
 
