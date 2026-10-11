@@ -63,8 +63,14 @@ describe('D — every frontend definition write goes through the server rule', (
       'hooks/useUserDefinitions.js': 1, // the declaration
     })
     const sheet = read('app/src/components/chart/builder/BuilderSheet.jsx')
-    expect(sheet).toContain('const attachPine = useCallback(async (definition, options = null) => {')
-    expect(sheet).toMatch(/saveUserDefinition\(definition, null, importTelemetryRef\.current,\s*options && options\.previewAcked === true \? \{ previewAcked: true \} : null\)/)
+    // ⭐ UIE Phase 5 (2026-10-11): the pane door is `attachPineAs` — a create (`attachPineCopy`)
+    // or, for a script opened with Edit, a REVISION of it (`attachPine`): the same writer,
+    // its id and a `baseVersion` the store checks. Still one write, still the server rule,
+    // and the preview acknowledgement still travels with it.
+    expect(sheet).toContain('const attachPineAs = useCallback(async (definition, options = null, revise = false) => {')
+    expect(sheet).toContain('const attachPine = useCallback((definition, options = null) => attachPineAs(definition, options, true), [attachPineAs])')
+    expect(sheet).toContain('const ack = options && options.previewAcked === true')
+    expect(sheet).toMatch(/saveUserDefinition\(doc, target \? target\.defId : null, importTelemetryRef\.current, saveOptions\)/)
   })
 })
 
