@@ -126,6 +126,7 @@ const fmtVal = (f, v) => (v == null ? '' : f?.unit === '$' ? `$${big(v)}` : f?.u
 function describeFilter(fl) {
   const f = fieldOf(fl.key)
   const label = f?.label || fl.key
+  if (fl.key === 'list') return `In “${fl.label || 'your watchlist'}”`
   if (fl.op === 'in' || fl.op === 'not_in') return `${label}${fl.op === 'not_in' ? ' not' : ''}: ${(fl.values || []).join(', ')}`
   if (f?.type === 'bool') return `${label}: ${Number(fl.value) === 1 ? 'yes' : 'no'}`
   if (fl.op === 'between') return `${label} ${fmtVal(f, fl.min)}–${fmtVal(f, fl.max)}`
@@ -229,7 +230,7 @@ function settleClock(spec) {
 }
 
 // A filter as the engine takes it: without the local `pending` mark (and without `key` for the page link).
-const wireOf = (f, noKey = false) => { const o = { ...f }; delete o.pending; if (noKey) delete o.key; return o }
+const wireOf = (f, noKey = false) => { const o = { ...f }; delete o.pending; delete o.label; if (noKey) delete o.key; return o }
 const openLinkFor = (spec, savedId = null) => {
   if (savedId && /^\d+$/.test(savedId)) return { href: `/screener?savedScreen=${savedId}`, label: 'Open in Screener' }
   const map = Object.fromEntries((spec.filters || []).map(f => [f.key, wireOf(f, true)]))
@@ -352,11 +353,18 @@ async function runSpec(spec, { show = SHOW_DEFAULT, name = null, savedId = null,
 }
 
 /** The model's screen args → the Screener's wire spec (with "refine" building on the last screen). */
-function buildSpec({ filters, sort_field: sortField, sort_dir: sortDir, mode }, { lenient = false } = {}) {
+function buildSpec({ filters, sort_field: sortField, sort_dir: sortDir, mode, within = null }, { lenient = false, host = null } = {}) {
   if ((filters || []).length > MAX_FILTERS) return { error: `that's more than ${MAX_FILTERS} conditions at once` }
   const w = toWireFilters(filters, { lenient })
   if (w.error) return { error: w.error }
   let wire = w.filters
+  // WITHIN one of the member's own lists: the engine's own "My Lists" universe (`list` ∈ wl:<id>).
+  if (within != null && within !== '') {
+    const lists = host?.watchlists?.snapshot?.() || null
+    const l = lists ? lists.find(x => String(x.id) === String(within)) : null
+    if (lists && !l) return { error: 'that isn\'t one of your watchlists' }
+    wire = [...wire.filter(f => f.key !== 'list'), { key: 'list', op: 'in', value: `wl:${within}`, label: l?.name || null }]
+  }
   let postF = w.post
   let sort = cache.last && mode === 'refine' ? cache.last.spec.sort : null
   if (mode === 'refine' && cache.last) {
@@ -424,10 +432,10 @@ const FILTER_ITEM = {
 }
 // Does a screen use a list field (its values must be read before it can run)?
 const usesList = (args) => (args?.filters || []).some(x => fieldOf(String(x?.field || ''))?.type === 'list')
-async function specFor(args) {
+async function specFor(args, host = null) {
   await loadMeta()
   if (usesList(args)) await loadOptions()
-  return buildSpec(args)
+  return buildSpec(args, { host })
 }
 
 // Could this request involve screening? Deliberately BROAD (a false positive costs ~3 KB; a
@@ -482,37 +490,41 @@ export function registerScreenerCapabilities() {
       + 'yes/no: op eq, value 1|0. (list) fields: op in|not_in, values = the member\'s own words (["software"]) — UCT matches the real values; value/max null. '
       + '"(latest session)" fields = the last completed trading day: use them for a daily dollar volume ("trades over $10M a day"), never a 30-day average or share volume. '
       + 'A measure not in `fields`: say the Screener doesn\'t have it, never substitute. sort_field/sort_dir or null. mode refine = change the LAST screen, else new. '
-      + 'show: rows (null = 10, max 25). as: name the RESULT (screen1) when a later op uses its stocks ({from:"screen1", top:null} = all of them); else null.',
+      + 'show: rows (null = 10, max 25). as: name the RESULT (screen1) when a later op uses its stocks ({from:"screen1", top:null} = all); else null. '
+      + 'within: a watchlist ref to screen only that list ("my strongest" = the list on their board), else null.',
     args: {
       type: 'object',
       properties: {
         filters: { type: 'array', items: FILTER_ITEM },
         sort_field: { type: ['string', 'null'] }, sort_dir: { type: ['string', 'null'], enum: ['asc', 'desc', null] },
         mode: { type: 'string', enum: ['new', 'refine'] }, show: { type: ['integer', 'null'] }, as: { type: ['string', 'null'] },
+        within: { type: ['string', 'null'] },
       },
-      required: ['filters', 'sort_field', 'sort_dir', 'mode', 'show', 'as'], additionalProperties: false,
+      required: ['filters', 'sort_field', 'sort_dir', 'mode', 'show', 'as', 'within'], additionalProperties: false,
     },
+    // `within`: one of the member's own watchlists — the Screener's own "My Lists" universe (wl:<id>)
+    argRefs: { within: 'watchlist' },
     // As a PRODUCER (compose.js): the screen's tickers, in the engine's own order.
     produces: SYMBOLS,
     // Checked before a proposal (catalog permitting; the engine re-checks at apply).
-    validateProduce(args) {
+    validateProduce(args, _target, host) {
       if (!cache.meta) return null
-      const b = buildSpec(args, { lenient: true })
+      const b = buildSpec(args, { lenient: true, host })
       return b.error ? `the screen can't run: ${b.error}` : null
     },
-    describeProduce(args) {
-      const b = buildSpec(args, { lenient: true })
+    describeProduce(args, _target, host) {
+      const b = buildSpec(args, { lenient: true, host })
       const when = (b.spec?.post || []).length ? ' (latest completed session)' : ''
       return b.error ? 'Run the screen' : `Screen for ${specWords(b.spec)}${when}${b.spec.sort ? `, sorted by ${fieldOf(b.spec.sort.key)?.label || b.spec.sort.key}` : ''} — run fresh when you apply`
     },
-    async produce(args) {
-      const b = await specFor(args)
+    async produce(args, host) {
+      const b = await specFor(args, host)
       if (b.error) throw new Error(b.error)
       return produceSymbols(b.spec, { notes: b.notes })
     },
-    async answer(_snap, args) {
+    async answer(_snap, args, host) {
       let b
-      try { b = await specFor(args) } catch (e) { return `I didn't run it: ${e?.message || 'the Screener could not be read'}.` }
+      try { b = await specFor(args, host) } catch (e) { return `I didn't run it: ${e?.message || 'the Screener could not be read'}.` }
       if (b.error) return `I didn't run it: ${b.error}.`
       return runSpec(b.spec, { show: args.show || SHOW_DEFAULT, notes: b.notes })
     },

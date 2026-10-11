@@ -82,9 +82,11 @@ const sigOf = (items) => JSON.stringify(items.map(i => [i.id, i.sym]))
 function resolveList(host, phrase) {
   const lists = listsOf(host)
   const p = norm(phrase).replace(/ (watch ?list|list)$/, '')
-  if (/^(my|this|the|our) ?(watch ?list|list)?$/.test(norm(phrase)) || /^(my|this|the)$/.test(p)) {
+  if (/^(my|this|the|our)? ?(watch ?list|list)?$/.test(norm(phrase)) || /^(my|this|the)$/.test(p)) {
+    // "my watchlist": the one a Watchlist widget is showing — or, with exactly one list, that one
     const shown = lists.filter(l => l.shownIn.length)
-    return shown.length === 1 ? shown[0] : null
+    if (shown.length === 1) return shown[0]
+    return !shown.length && lists.length === 1 ? lists[0] : null
   }
   const hits = lists.filter(l => norm(l.name) === p || norm(l.name) === norm(phrase))
   return hits.length === 1 ? hits[0] : null

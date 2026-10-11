@@ -67,3 +67,12 @@ def test_COST_CEILING_also_stops_the_background_naming_call(monkeypatch):
     monkeypatch.setattr(turn, "name_conversation", lambda *a, **k: named.append(1) or "X")
     rx._name_unnamed(1, "c")
     assert named == []
+
+
+def test_PROMPT_concepts_use_UCTs_own_definitions_never_invented_ones():
+    p = turn._SYSTEM_HEAD + turn._SYSTEM_TAIL
+    assert "starter or saved screens" in p and "never invent your own criteria" in p
+    assert "Strongest\" means highest RS Rank (say so)" in p
+    # still no capability names hard-coded in the generic prompt (the manifest carries them)
+    import re
+    assert not set(re.findall(r"\b(?:screener|watchlist|chart|layout)\.[a-z][A-Za-z]+\b", p)) - {"screener.run", "widget.addCharts"}

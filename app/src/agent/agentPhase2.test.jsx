@@ -150,3 +150,72 @@ describe('MULTI-STEP on one chart, no model call', () => {
     expect(defIds(h, 'c2')).not.toContain('rsi')
   })
 })
+
+// ── MILESTONE 3: act on clear intent with defaults; ask only when a decision is genuinely missing ──
+import { getCapability } from './capabilities'
+import * as screenerMod from './capabilities/screener'
+
+const withLayouts = (names, widgets = ONE, lists = LISTS) => makeBoard(widgets, { A: 'AAPL' }, {
+  watchlists: lists,
+  layouts: { entries: names.map((name, i) => ({ id: i + 1, name })), boards: {}, active: null },
+}).host
+
+describe('clarification policy, by category (deterministic path)', () => {
+  it('CLEAR: "add RSI" on the only chart — the default RSI, no question', () => {
+    expect(parse('add RSI')).toBe('indicator.add{"defId":"rsi"}')
+  })
+  it('DEFAULT: "show me my watchlist" = the list a widget shows; with ONE list and no widget, that list', () => {
+    const shown = hostOf([...ONE.slice(0, 1), { id: 'wl', type: 'watchlist', x: 12, y: 0, w: 6, h: 20, opts: { watchKey: 'user:s1' } }])
+    expect(parse('show me my watchlist', shown)).toMatch(/^watchlist\.show/)
+    expect(fastParse('show me my watchlist', { host: shown }).ops[0].target).toBe('s1')
+    const single = makeBoard([ONE[0]], { A: 'AAPL' }, { watchlists: [LISTS[0]] }).host
+    expect(fastParse('show me my watchlist', { host: single }).ops[0].target).toBe('m1')
+  })
+  it('AMBIGUITY: two lists and no widget showing one — "my watchlist" is not guessed', () => {
+    expect(parse('show me my watchlist', hostOf([ONE[0]]))).toBe('MODEL')
+  })
+  it('DEFAULT: "switch to my trading layout" = the ONE layout named with those words', () => {
+    const h = withLayouts(['Main Trading', 'Swing Setups'])
+    expect(parse('switch to my trading layout', h)).toBe('layout.open{"layout":"1"}')
+  })
+  it('AMBIGUITY: two layouts match "trading" — not guessed', () => {
+    expect(parse('switch to my trading layout', withLayouts(['Main Trading', 'Day Trading']))).toBe('MODEL')
+  })
+  it('SAFETY: a bare word opens a layout only by its EXACT name ("open NVDA" never opens a layout)', () => {
+    const h = withLayouts(['NVDA Earnings'])
+    expect(parse('open NVDA', h)).not.toMatch(/^layout\.open/)
+    expect(parse('open NVDA Earnings', h)).toBe('layout.open{"layout":"1"}')
+  })
+  it('MISSING CAPABILITY: "put a 20 EMA on my chart" is not faked as a default EMA — it goes to the model, which must say what it can\'t set', () => {
+    expect(parse('Put a 20 EMA on my chart')).toBe('MODEL')
+  })
+  it('UNSAFE: "delete" is never read as "remove" (a list delete is permanent and always a proposal)', () => {
+    expect(parse('delete my Swing watchlist')).toBe('MODEL')
+    expect(getCapability('watchlist.delete').risk).toBe('confirm')
+  })
+  it('APPROVAL: removals stay proposals even on the instant path', () => {
+    expect(getCapability('indicator.remove').risk).toBe('confirm')
+  })
+})
+
+describe('"my strongest stocks": WITHIN the member\'s own list, through the Screener\'s own My Lists universe', () => {
+  it('within → the engine\'s list filter (wl:<id>), named in the answer', async () => {
+    const calls = []
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const body = init.body ? JSON.parse(init.body) : null
+      calls.push([String(url), body])
+      const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
+      if (url === '/api/screener/fields') return json({ fields: [{ key: 'rs_rank', label: 'RS Rank', type: 'range', unit: '' }] })
+      if (url === '/api/screener/scan') return json({ total: 1, rows: [{ ticker: 'NVDA', rs_rank: 97 }], snapshot_date: '2026-10-10' })
+      return json({})
+    })
+    screenerMod._resetScreenerCache()
+    const a = await getCapability('screener.run').answer(null, { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: 'm1' }, hostOf())
+    const scan = calls.find(c => c[0] === '/api/screener/scan')[1]
+    expect(scan.filters).toEqual([{ key: 'list', op: 'in', value: 'wl:m1' }])
+    expect(scan.sort).toEqual({ key: 'rs_rank', dir: 'desc' })
+    expect(a.text).toContain('In “Momentum”')
+    expect(await getCapability('screener.run').answer(null, { filters: [], sort_field: 'rs_rank', sort_dir: 'desc', mode: 'new', show: null, as: null, within: 'zz' }, hostOf()))
+      .toMatch(/isn't one of your watchlists/)
+  })
+})
