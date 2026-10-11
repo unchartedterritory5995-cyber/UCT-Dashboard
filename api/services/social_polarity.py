@@ -31,9 +31,12 @@ the route 404s and the panel shows the old "unavailable" sentence.
 """
 from __future__ import annotations
 
+import bisect
+import html
 import os
 import re
 import time
+import unicodedata
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -52,9 +55,10 @@ MAX_LIMIT = 200
 
 SOURCE_ROOM = "room"
 SOURCE_X = "x"
-METHOD = ("auto-labelled by a word-and-emoji rule (bullish/bearish cue words, calls/puts, "
-          "rockets and bears, with negation flipping a cue); not read by a person or an AI, "
-          "so treat any single label as a guess")
+# Rendered after "Auto-labelled by", so it does not repeat those words.
+METHOD = ("a word-and-emoji rule (bullish/bearish cue words, which side of a calls or puts "
+          "trade, rockets and bears, with negation flipping a cue); not read by a person or "
+          "an AI, so treat any single label as a guess")
 
 _ET = ZoneInfo("America/New_York")
 
@@ -74,39 +78,93 @@ def retention_days() -> int:
 
 
 # ── the classifier ──────────────────────────────────────────────────────────
+#
+# Review 2026-10-11 (pre-arm, scored on ~220 real posts from the curated X feed): the
+# first cut could not read the feed's styled headlines (𝗕𝘂𝘆, 𝘂𝗽𝗴𝗿𝗮𝗱𝗲𝘀 are Unicode
+# "mathematical bold", not ASCII), read the CASHTAG $BULL as a bullish word (so "TOP 10
+# WEEKLY DOWNGRADES: ... $BULL" scored neutral), read "sold-out demand" as selling, and
+# scored "buying puts" as a wash ("buying" +, "puts" -) and "selling puts" as doubly
+# bearish. The fixes below are each one of those, not a model.
 
-# Phrases are matched first on the lowered text and then removed, so their words do
-# not count twice ("breaking out" is one bullish cue, not "breaking" + "out").
-_PHRASES = (
-    ("all time high", 1.0), ("all-time high", 1.0), ("breaking out", 1.5), ("higher highs", 1.0),
-    ("higher lows", 1.0), ("raised guidance", 1.5), ("raises guidance", 1.5), ("price target raised", 1.5),
-    ("send it", 1.5), ("to the moon", 2.0), ("support held", 1.0), ("holding support", 1.0),
-    ("breaking down", -1.5), ("lower highs", -1.0), ("lower lows", -1.0), ("cut guidance", -1.5),
-    ("cuts guidance", -1.5), ("lowered guidance", -1.5), ("price target cut", -1.5),
-    ("lost support", -1.0), ("losing support", -1.0), ("taking profits", -0.5),
-    # Neutralisers: a time horizon, not a direction.
-    ("short term", 0.0), ("short-term", 0.0), ("long term", 0.0), ("long-term", 0.0),
-    ("conference call", 0.0), ("earnings call", 0.0),
-)
+# Patterns are matched first (on the NFKC-folded, lowered text, cashtags and URLs
+# removed) and then blanked, so their words do not count twice ("breaking out" is one
+# bullish cue, not "breaking" + "out"; "sold puts" is one bullish cue, not two bearish).
+_P = r"(?<![a-z0-9'])"   # left word edge (the text keeps apostrophes inside words)
+_Q = r"(?![a-z0-9'])"    # right word edge
+
+
+def _pat(words: str) -> str:
+    return _P + "(?:" + words + ")" + _Q
+
+
+_PATTERNS: tuple[tuple[re.Pattern, float], ...] = tuple((re.compile(p), w) for p, w in (
+    # options: the side of the trade decides, not the word "puts"
+    (_pat(r"(?:sold|sell|selling|sells|short|shorted|shorting|wrote|write|writing)\s+(?:some\s+|more\s+|the\s+)?(?:cash[- ]secured\s+)?puts"), 1.5),
+    (_pat(r"(?:bought|buy|buying|buys|long|loaded|loading|load|grabbed|grabbing|added|adding|own|holding)\s+(?:up\s+on\s+|some\s+|more\s+|the\s+)?puts"), -2.0),
+    (_pat(r"(?:sold|sell|selling|sells|wrote|writing)\s+(?:some\s+|more\s+|the\s+)?(?:covered\s+)?calls"), -0.5),
+    (_pat(r"puts\s+(?:got\s+|are\s+|getting\s+)?(?:crushed|destroyed|worthless|burned|expired\s+worthless)"), 1.5),
+    (_pat(r"calls\s+(?:got\s+|are\s+|getting\s+)?(?:crushed|destroyed|worthless|burned|expired\s+worthless)"), -1.5),
+    # "puts"/"calls" as a VERB ("he puts it well", "calls out", "calls him") are not options
+    (_pat(r"(?:puts|calls)\s+(?:it|this|that|out|him|her|them|us|me|you|together|forward)"), 0.0),
+    # price targets and ratings
+    (_pat(r"(?:raises|raised|raise|lifts|lifted|boosts|boosted|hikes|hiked)\s+(?:its\s+|the\s+)?(?:pt|price\s+target)"), 1.0),
+    (_pat(r"(?:pt|price\s+target)\s+(?:raised|lifted|boosted|hiked|increased)"), 1.0),
+    (_pat(r"(?:cuts|cut|lowers|lowered|trims|trimmed|slashes|slashed)\s+(?:its\s+|the\s+)?(?:pt|price\s+target)"), -1.0),
+    (_pat(r"(?:pt|price\s+target)\s+(?:cut|lowered|trimmed|slashed|reduced)"), -1.0),
+    (_pat(r"(?:raised|raises|raise|boosts|lifts)\s+(?:its\s+|fy\s*\S*\s+)?guidance"), 1.5),
+    (_pat(r"(?:cut|cuts|lowered|lowers|slashes|slashed)\s+(?:its\s+|fy\s*\S*\s+)?guidance"), -1.5),
+    # levels and moves
+    (_pat(r"all[- ]time\s+highs?|record\s+highs?|new\s+highs?|aths?|ath's"), 1.0),
+    (_pat(r"all[- ]time\s+lows?|record\s+lows?|new\s+lows?|52[- ]week\s+lows?"), -1.0),
+    (_pat(r"breaking\s+out|broke\s+out"), 1.5), (_pat(r"higher\s+highs|higher\s+lows"), 1.0),
+    (_pat(r"breaking\s+down|broke\s+down"), -1.5), (_pat(r"lower\s+highs|lower\s+lows"), -1.0),
+    (_pat(r"support\s+held|holding\s+support|held\s+support"), 1.0),
+    (_pat(r"lost\s+support|losing\s+support"), -1.0),
+    (_pat(r"red\s+to\s+green"), 1.5), (_pat(r"green\s+to\s+red"), -1.5),
+    (_pat(r"short\s+squeeze|covered\s+(?:my\s+|the\s+|all\s+)?shorts?"), 1.5),
+    (_pat(r"bears\s+(?:are\s+|getting\s+|got\s+)?(?:wrecked|crushed|trapped|destroyed|squeezed)"), 1.5),
+    (_pat(r"bulls\s+(?:are\s+|getting\s+|got\s+)?(?:wrecked|crushed|trapped|destroyed)"), -1.5),
+    (_pat(r"buy\s+the\s+dip|bought\s+the\s+dip|btfd"), 1.5),
+    (_pat(r"sold[- ]out|fully\s+booked"), 1.0),
+    (_pat(r"sell[- ]off|selling\s+off|sellin\s+off|selloff"), -1.5),
+    (_pat(r"up\s+\d+(?:\.\d+)?\s?%"), 1.0), (_pat(r"down\s+\d+(?:\.\d+)?\s?%"), -1.0),
+    (r"(?<![\w.])\+\d+(?:\.\d+)?\s?%", 1.0), (r"(?<![\w.])-\d+(?:\.\d+)?\s?%", -1.0),
+    (_pat(r"(?:let\s+it|about\s+to|gonna|going\s+to|ready\s+to)\s+rip"), 1.5),
+    (_pat(r"rip\s+(?:to\s+)?(?:my\s+|the\s+|all\s+)?(?:calls|longs|account|port|portfolio|bulls)"), -1.5),
+    (_pat(r"rip\s+(?:to\s+)?(?:my\s+|the\s+|all\s+)?(?:puts|shorts|bears)"), 1.0),
+    (_pat(r"send\s+it"), 1.5), (_pat(r"to\s+the\s+moon"), 2.0),
+    (_pat(r"taking\s+profits?|took\s+profits?"), -0.5),
+    # Neutralisers: a time horizon, a figure of speech, not a direction.
+    (_pat(r"short[- ]term|long[- ]term|in\s+short|short\s+of|short\s+week|short\s+list|shortlist"), 0.0),
+    (_pat(r"how\s+long|as\s+long\s+as|long\s+time|so\s+long|too\s+long|for\s+long|long\s+way|"
+          r"long\s+day|long\s+weekend|around\s+long|wait\s+long|before\s+long|long\s+story"), 0.0),
+    (_pat(r"conference\s+calls?|earnings\s+calls?|margin\s+calls?|no[- ]brainer|missed\s+the\s+boat"), 0.0),
+    # A negator that does not negate the cue after it ("can't believe it tanked").
+    (_pat(r"(?:can'?t|cannot|can\s+not)\s+believe|(?:don'?t|do\s+not)\s+know|no\s+idea|not\s+gonna\s+lie|no\s+doubt"), 0.0),
+))
 
 _WORDS = {
     # bullish
     "bullish": 2.0, "bull": 1.5, "bulls": 1.0, "calls": 1.5, "long": 1.0, "longs": 1.0,
     "buy": 1.0, "buying": 1.0, "bought": 1.0, "breakout": 1.5, "moon": 1.5, "mooning": 1.5,
-    "rip": 1.0, "ripping": 1.5, "squeeze": 1.0, "upgrade": 1.5, "upgraded": 1.5, "upgrades": 1.5,
+    "ripping": 1.5, "ripped": 1.0, "squeeze": 1.0, "upgrade": 1.5, "upgraded": 1.5, "upgrades": 1.5,
     "beat": 1.0, "beats": 1.0, "strong": 1.0, "strength": 1.0, "adding": 1.0, "added": 0.5,
     "loaded": 1.0, "rally": 1.0, "rallying": 1.0, "green": 1.0, "lfg": 1.5, "higher": 0.5,
-    "surge": 1.0, "surging": 1.0, "soaring": 1.0, "pumping": 0.5, "undervalued": 1.0,
+    "surge": 1.0, "surging": 1.0, "surged": 1.0, "soaring": 1.0, "soars": 1.0, "soared": 1.0,
+    "jumps": 1.0, "jumped": 1.0, "pumping": 0.5, "undervalued": 1.0,
+    "outperform": 1.5, "overweight": 1.5, "bounce": 0.5, "bounced": 0.5, "bouncing": 0.5,
     # bearish
     "bearish": -2.0, "bear": -1.5, "bears": -1.0, "puts": -1.5, "short": -1.0, "shorts": -1.0,
     "shorting": -1.0, "shorted": -1.0, "sell": -1.0, "selling": -1.0, "sold": -1.0,
     "dump": -1.5, "dumping": -1.5, "crash": -1.5, "crashing": -1.5, "tank": -1.5,
-    "tanking": -1.5, "breakdown": -1.5, "downgrade": -1.5, "downgraded": -1.5,
+    "tanking": -1.5, "tanked": -1.5, "breakdown": -1.5, "downgrade": -1.5, "downgraded": -1.5,
     "downgrades": -1.5, "miss": -1.0, "missed": -1.0, "misses": -1.0, "weak": -1.0,
     "weakness": -1.0, "red": -1.0, "fade": -1.0, "fading": -1.0, "trim": -0.5,
     "trimmed": -0.5, "overvalued": -1.0, "rug": -1.5, "rugged": -1.5, "bagholder": -1.0,
     "bagholding": -1.0, "rejected": -1.0, "rejection": -1.0, "plunge": -1.5,
-    "plunging": -1.5, "lower": -0.5, "drop": -0.5, "dropping": -1.0,
+    "plunging": -1.5, "plunges": -1.5, "lower": -0.5, "drop": -0.5, "dropping": -1.0,
+    "falling": -1.0, "underperform": -1.5, "underweight": -1.5, "selloff": -1.5,
+    # "rip" alone is "rest in peace" as often as "it'll rip": only the phrases above count.
 }
 
 _EMOJI = {
@@ -121,7 +179,7 @@ _EMOJI = {
     "\U0001F53B": -1.0,  # red triangle down
     "\U0001FA78": -1.0,  # drop of blood
     "\U0001F534": -1.0,  # red circle
-    "\U0001F480": -1.0,  # skull
+    # skull (U+1F480) is NOT a cue: in chat it is laughter ("I'm dead") at least as often
 }
 
 _NEGATORS = {"not", "no", "never", "dont", "don't", "isnt", "isn't", "aint", "ain't",
@@ -130,21 +188,39 @@ _NEGATORS = {"not", "no", "never", "dont", "don't", "isnt", "isn't", "aint", "ai
 _NEGATION_REACH = 3
 BULL_AT = 0.2
 _TOKEN = re.compile(r"[a-z][a-z']*|[\U0001F300-\U0001FAFF]")
+_URL = re.compile(r"https?://\S+|www\.\S+")
+# A cashtag names the ticker, never the mood: $BULL (Webull), $BEAR, $RIP, $MOON are symbols.
+_CASHTAG = re.compile(r"(?<![A-Za-z0-9])\$[A-Za-z]{1,6}(?:[.-][A-Za-z]{1,2})?\b")
+# "/s" closes a sarcastic line: the words say the opposite of the meaning, so no label.
+_SARCASM = re.compile(r"(?:^|\s)/s(?:\s|$|[.!?)])")
 
 
-def classify(text: str) -> tuple[str, float]:
-    """(label, score) with score in (-1, 1). Deterministic and never raises."""
+def classify(text: str, tickers=None) -> tuple[str, float]:
+    """(label, score) with score in (-1, 1). Deterministic and never raises.
+
+    `tickers`: the symbols the post was counted for. A bare symbol that is also a cue
+    word (BULL, LONG, RIP ...) is removed in its exact case, as a cashtag always is."""
     try:
-        s = (text or "").lower()
+        raw = unicodedata.normalize("NFKC", text or "")
+        raw = _URL.sub(" ", raw)
+        raw = _CASHTAG.sub(" ", raw)
+        for t in tickers or ():
+            t = str(t or "").strip()
+            if t and t.isupper():
+                raw = re.sub(r"(?<![A-Za-z0-9$])" + re.escape(t) + r"(?![A-Za-z0-9])", " ", raw)
+        s = raw.lower().replace("’", "'")
+        if _SARCASM.search(s):
+            return "neutral", 0.0
         bull = bear = 0.0
-        for phrase, w in _PHRASES:
-            if phrase in s:
-                n = s.count(phrase)
-                if w > 0:
-                    bull += w * n
-                elif w < 0:
-                    bear += -w * n
-                s = s.replace(phrase, " ")
+        for rx, w in _PATTERNS:
+            n = len(rx.findall(s))
+            if not n:
+                continue
+            if w > 0:
+                bull += w * n
+            elif w < 0:
+                bear += -w * n
+            s = rx.sub(" ", s)
         toks = _TOKEN.findall(s)
         for i, t in enumerate(toks):
             w = _WORDS.get(t, 0.0) or _EMOJI.get(t, 0.0)
@@ -169,9 +245,10 @@ def classify(text: str) -> tuple[str, float]:
 # ── writes (each a no-op while the flag is off) ─────────────────────────────
 
 def room_rows(channel_id: str, message_id: str, author_id: str, ts: int, content: str, tickers) -> list[tuple]:
-    label, score = classify(content)
+    tickers = list(dict.fromkeys(tickers))
+    label, score = classify(content, tickers)
     return [(SOURCE_ROOM, str(message_id), t, str(channel_id), str(author_id or ""), int(ts),
-             content, label, score) for t in dict.fromkeys(tickers)]
+             content, label, score) for t in tickers]
 
 
 def record_room(rows) -> int:
@@ -187,7 +264,6 @@ def record_tweet(tweet: dict, tickers, primary=None) -> int:
     if not is_enabled():
         return 0
     from api.services import buzz_store
-    label, score = classify(tweet.get("text", ""))
     tid = str(tweet.get("id") or "")
     ts = int(tweet.get("created_at") or 0)
     if not tid or not ts:
@@ -195,6 +271,7 @@ def record_tweet(tweet: dict, tickers, primary=None) -> int:
     keep = [t for t in dict.fromkeys(tickers or []) if primary is None or primary.get(t, True)]
     if not keep:
         return 0
+    label, score = classify(tweet.get("text", ""), keep)
     buzz_store.init_db()
     return buzz_store.record_posts(
         [(SOURCE_X, tid, t, "", str(tweet.get("author_handle") or ""), ts, None, label, score)
@@ -290,7 +367,9 @@ def view(sym: str, window: str = DEFAULT_WINDOW, sort: str = "newest", source: s
     lo = max(start_ts, retained_from, int(first))
     covered_from = _et_day(lo)
 
-    sql = ("SELECT source, post_id, channel_id, author, ts, text, label, score FROM social_posts "
+    # The split needs every row in the window but only the page needs its text, so the
+    # text is read back for the page alone (a hot ticker's 3M window is ~10k rows).
+    sql = ("SELECT source, post_id, channel_id, author, ts, label, score FROM social_posts "
            "WHERE ticker=? AND ts >= ? AND ts < ?")
     params: list = [sym, lo, end_ts]
     if source != "all":
@@ -298,9 +377,15 @@ def view(sym: str, window: str = DEFAULT_WINDOW, sort: str = "newest", source: s
         params.append(source)
     rows = [dict(r) for r in c.execute(sql, params)]
 
+    # ET day per row by bisecting the window's own ET midnights (DST-correct, and one
+    # zoneinfo conversion per DAY instead of per row).
+    day_list = [start_day + timedelta(days=i) for i in range((end_day - start_day).days + 1)]
+    starts = [int(datetime(x.year, x.month, x.day, tzinfo=_ET).timestamp()) for x in day_list]
     by_day: dict[str, dict] = {}
     for r in rows:
-        slot = by_day.setdefault(_et_day(r["ts"]), {"bullish": 0, "bearish": 0, "neutral": 0})
+        i = bisect.bisect_right(starts, r["ts"]) - 1
+        iso = day_list[i].isoformat() if i >= 0 else _et_day(r["ts"])
+        slot = by_day.setdefault(iso, {"bullish": 0, "bearish": 0, "neutral": 0})
         slot[r["label"]] = slot.get(r["label"], 0) + 1
     days, d = [], start_day
     while d <= end_day:
@@ -327,19 +412,29 @@ def view(sym: str, window: str = DEFAULT_WINDOW, sort: str = "newest", source: s
     else:
         picked.sort(key=lambda r: (r["score"], -r["ts"], r["post_id"]))
     page = picked[:limit]
+    room_ids = [r["post_id"] for r in page if r["source"] == SOURCE_ROOM]
+    room_text: dict[str, str] = {}
+    if room_ids:
+        room_text = {r["post_id"]: r["text"] for r in c.execute(
+            "SELECT post_id, text FROM social_posts WHERE source=? AND ticker=? AND post_id IN (%s)"
+            % ",".join("?" * len(room_ids)), [SOURCE_ROOM, sym, *room_ids])}
     xt = _x_texts([r["post_id"] for r in page if r["source"] == SOURCE_X])
     posts = []
     for r in page:
         p = {"source": r["source"], "id": r["post_id"], "ts": r["ts"], "date": _et_day(r["ts"]),
              "label": r["label"], "score": r["score"]}
         if r["source"] == SOURCE_ROOM:
-            p.update(text=r["text"], text_state="kept", link=_room_link(r["channel_id"], r["post_id"]),
+            p.update(text=room_text.get(r["post_id"]), text_state="kept", link=_room_link(r["channel_id"], r["post_id"]),
                      author=None)
         else:
             t = xt.get(r["post_id"])
-            p.update(text=t["text"] if t else None,
+            url = (t or {}).get("url") or ""
+            # tweets.db keeps X's HTML-escaped body ("AT&amp;T"); the panel renders text,
+            # never markup, so unescape here and let React escape it once. A link that is
+            # not https is dropped rather than rendered as an href.
+            p.update(text=html.unescape(t["text"]) if t and t.get("text") is not None else None,
                      text_state="kept" if t else "x_window_passed",
-                     link=(t or {}).get("url") or None,
+                     link=url if url.startswith("https://") else None,
                      author=(t or {}).get("author_handle") or r["author"] or None)
         posts.append(p)
 
