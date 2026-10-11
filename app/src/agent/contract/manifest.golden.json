@@ -711,7 +711,7 @@
    "domain": "layout",
    "target": "layouts",
    "summary": "Open (switch to) one of the member's named layouts on the Charts workspace — exactly like clicking it in the Layout Dock.",
-   "hints": "target = the ref of the layouts entry; layout = the id of one entry in its `layouts` list (never invent one). If more than one layout could be what the member means, or none matches, clarify with the real names instead of guessing. Only the open layout's widgets are in workspace_context; after a switch, ask again for changes on the new board.",
+   "hints": "target = the ref of the layouts entry; layout = the id of one entry in its `layouts` list (never invent one). If the layouts entry has `namedInRequest`, the member's words name exactly that layout: open it, do not ask. Otherwise, if more than one layout could be what the member means, or none matches, clarify with the real names instead of guessing. Only the open layout's widgets are in workspace_context; after a switch, ask again for changes on the new board.",
    "args": {
     "type": "object",
     "properties": {

@@ -74,6 +74,20 @@ function resolveForOpen(entries, phrase) {
   return hits.length === 1 ? hits[0] : null
 }
 
+// The phrases a member uses for a layout by its words ("switch to my trading layout", "can you
+// pull up the swing layout please") → the ONE layout `resolveForOpen` names for each; exactly one
+// distinct layout across them, else null. The SAME rule as the fast path (opening only): a
+// "<words> layout" phrase, never a bare word.
+export function namedLayoutOf(entries, message) {
+  const text = norm(message).replace(/[.!?,;:]+/g, ' ')
+  const hits = new Map()
+  for (const m of text.matchAll(/\b(?:my|the|our) ([a-z0-9][a-z0-9 &+-]*?) layout\b/g)) {
+    const hit = resolveForOpen(entries || [], `${m[1]} layout`)
+    if (hit) hits.set(String(hit.id), hit)
+  }
+  return hits.size === 1 ? [...hits.values()][0] : null
+}
+
 function snapshotOf(host) {
   if (!host?.layouts) return null
   const s = host.layouts.snapshot()
@@ -228,15 +242,20 @@ export function registerLayoutCapabilities() {
 
   registerContextProvider({
     key: 'layouts',
-    build: (host, refFor) => {
+    build: (host, refFor, { message } = {}) => {
       const s = snapshotOf(host)
       if (!s) return undefined
+      const named = namedLayoutOf(s.entries, message)
       return [{
         ref: refFor('layouts', 'layouts'), label: 'Layouts',
         open: s.active ? { id: String(s.active.id), name: s.active.name } : null,
         // Switching away would discard edits on the board (it is not one of the member's own layouts).
         unsavedChanges: s.unsaved,
         layouts: s.entries.slice(0, 80).map(e => ({ id: String(e.id), name: e.name, kind: KIND_WORD[e.kind] || e.kind })),
+        // ⭐ Stabilization (2026-10-11): the ONE layout the member's "my/the <words> layout" names, by the
+        // fast path's own rule (`resolveForOpen`) — so a model-planned open defaults exactly like the
+        // instant one. Absent when no phrase, no layout, or several layouts fit (then the model asks).
+        ...(named ? { namedInRequest: { id: String(named.id), name: named.name } } : {}),
       }]
     },
   })
@@ -285,7 +304,8 @@ export function registerLayoutCapabilities() {
     exclusiveReason: 'Opening a layout replaces the whole board, so do it in two steps: open the layout first, then ask for the changes.',
     summary: 'Open (switch to) one of the member\'s named layouts on the Charts workspace — exactly like clicking it in the Layout Dock.',
     hints: 'target = the ref of the layouts entry; layout = the id of one entry in its `layouts` list (never invent one). '
-      + 'If more than one layout could be what the member means, or none matches, clarify with the real names instead of guessing. '
+      + 'If the layouts entry has `namedInRequest`, the member\'s words name exactly that layout: open it, do not ask. '
+      + 'Otherwise, if more than one layout could be what the member means, or none matches, clarify with the real names instead of guessing. '
       + 'Only the open layout\'s widgets are in workspace_context; after a switch, ask again for changes on the new board.',
     args: {
       type: 'object',

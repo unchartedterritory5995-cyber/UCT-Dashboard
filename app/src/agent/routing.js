@@ -47,7 +47,14 @@ export const GROUPS = [
   { id: 'lists', title: 'Watchlists (show, create, rename, add, remove, clear, delete)', domains: ['watchlist'],
     words: [/\bwatch ?lists?\b/, /\blists?\b/, /\b(add|put|remove|drop)\b.+\b(to|into|from|off)\b/] },
   { id: 'screener', title: 'Screener (run screens, saved screens: run, save, copy, rename, delete)', domains: ['screener'],
-    words: [/\bscreen\w*\b/, /\bscans?\b/, /\bfind (me )?(stocks|names|tickers)\b/, /\bfilter\w*\b/, /\b(stocks|names) (with|above|below|over|under)\b/, /\b(top|first) \d+\b/, /\bresults?\b/, /\b(adr|rs rating|rvol|market cap|dollar volume|52[- ]week)\b/] },
+    words: [/\bscreen\w*\b/, /\bscans?\b/, /\bfind (me )?(stocks|names|tickers)\b/, /\bfilter\w*\b/, /\b(stocks|names) (with|above|below|over|under)\b/, /\b(top|first) \d+\b/, /\bresults?\b/, /\b(adr|rs rating|rvol|market cap|dollar volume|52[- ]week)\b/,
+      // Stabilization (2026-10-11 live batch): STRENGTH / LEADERSHIP words are a screen ("show me my
+      // strongest stocks" matched no group, so the screener actions missed the request budget and
+      // the model had to ask for them). "momentum" alone stays an indicator word — only
+      // "momentum stocks/names/leaders" is a screen.
+      /\b(strongest|weakest|laggards?|relative strength|rs (rank|leaders?))\b/,
+      /\b(leaders?|leading) (stocks|names)\b|\b(stocks|names) leading\b|\bmarket leaders?\b|\bstrength leaders?\b/,
+      /\btop (momentum|performing|performers?|gainers?|losers?|movers?)\b|\bmomentum (stocks|names|leaders?)\b/] },
   { id: 'alerts', title: 'Price alerts (list, create, delete)', domains: ['alert'],
     words: [/\balerts?\b/, /\b(notify|ping|tell) me\b/, /\b(crosses|breaks|hits)\b/] },
   { id: 'data', title: 'Stock information and news (profile, earnings, comparisons, news, catalysts)', domains: ['stock', 'news'],
