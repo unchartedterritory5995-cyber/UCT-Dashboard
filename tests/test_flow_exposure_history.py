@@ -207,6 +207,15 @@ def test_an_ago_older_than_the_history_says_so(paths):
     assert "History starts at" in out["series"][1]["note"]
 
 
+def test_an_empty_store_answers_empty_instead_of_crashing(paths):
+    """Measured on production 2026-10-11 (a Saturday, store just created): no snapshot yet made
+    the 'History starts at' note read snaps[0] of an empty list and the route answered 500."""
+    out = feh.read_overlay("TST", [30, 60])
+    assert out["empty"] is True and out["first_snapshot"] is None
+    assert all(s["as_of"] is None for s in out["series"])
+    assert "the first snapshot" in out["series"][1]["note"]
+
+
 # ── the route ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture
