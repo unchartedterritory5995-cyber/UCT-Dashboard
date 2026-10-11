@@ -2746,8 +2746,9 @@ export default function NoteEditorPage({
   // Wave 10 lane D3P (D-3 PHONE): at 390 px the formatting row wrapped to about eight rows,
   // so a note opened to a screen of controls with the title below them, and the phone's Log
   // FAB sat over one of them at rest (L3's measurement). On a PHONE (<= 640 px) the row keeps
-  // Undo / Redo, Bold, Italic, the bullet list and the mic, and every other formatting control sits
-  // behind ONE "Aa Format" disclosure. The collapse is CSS, inside the 640 query
+  // Undo / Redo, Bold, Italic and the mic (plus, since P0.6, the "+" insert door), and every other
+  // formatting control, the bullet list included, sits behind ONE "Aa" disclosure (its word
+  // "Format" is visually hidden on a phone; the accessible name stays "Format"). The collapse is CSS, inside the 640 query
   // (`.formatToggle`, `.formatRun`): the DOM is the same at every width, so desktop and
   // tablet keep their order, their Tab order and their layout (`.formatRun` is
   // `display: contents` there, and the toggle is `display: none`).
@@ -4691,7 +4692,9 @@ export default function NoteEditorPage({
               data-format-toggle=""
             >
               <span aria-hidden="true" className={styles.formatGlyph}>Aa</span>
-              Format
+              {/* P0.6 fix round 1: on a phone the toggle is the "Aa" glyph alone (the row has to fit
+                  seven 44 px controls); the word stays for the accessible name. */}
+              <span className={styles.phoneIconLabel}>Format</span>
             </button>
             {/* P0.6: the phone's ONE insert door (display: none above 640 px, like Format). It
                 opens the menu rendered beside the palette below, which lists the four inserts
@@ -4873,7 +4876,7 @@ export default function NoteEditorPage({
                 reaches the note only on Accept. Since wave 10 lane K2 (D-3) its button
                 sits in the header row, beside Outline. */}
             {/* D3P (controller ruling): the mic stays OUT of the runs, so it stays visible
-                on phones beside Undo/Redo, B, I and the bullet list. The last run
+                on phones beside Undo/Redo, B, I, Format and the "+". The last run
                 resumes here for the rule and the widget door. */}
             <span className={styles.formatRun} id={`${formatRunId}-d`} data-format-run="">
             <ToolButton
