@@ -981,9 +981,11 @@ export default function FolderSidebar({
   // those letters ("N" seeded, "I" typed, then seed "NV" landed: the I vanished). So a seed that
   // EXTENDS the previous seed, landing on a box that extends it too, keeps whatever was typed after
   // the previous seed; any other seed replaces the box. The last seed is forgotten when search
-  // closes, so a later hand-off is never merged against stale text.
+  // closes AND when the panel folds (a folded panel stays mounted in search mode: a phone drawer
+  // folds itself after a note opens and closes), so a later hand-off is never merged against
+  // stale text.
   const lastSeedRef = useRef('')
-  useEffect(() => { if (mode !== 'search') lastSeedRef.current = '' }, [mode])
+  useEffect(() => { if (mode !== 'search' || !sidebarOpen) lastSeedRef.current = '' }, [mode, sidebarOpen])
   useEffect(() => {
     if (!searchRequest) return
     setMode('search')

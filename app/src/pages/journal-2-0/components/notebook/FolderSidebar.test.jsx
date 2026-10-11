@@ -2257,6 +2257,19 @@ describe('FolderSidebar: P0.13 search in place', () => {
     expect(box().value).toBe('NV')
   })
 
+  // Re-review 2: a FOLDED panel stays mounted in search mode (a phone drawer folds itself after a
+  // note opens and closes), so the last seed must be forgotten on the fold too, or the next Home
+  // search merges against an old one ('n' + typed 'vda', fold, new 'n' -> 'nvda', 'nv' -> 'nvvda').
+  it('C: folding the panel forgets the last seed, so the next hand-off is not merged against it', () => {
+    const { rerender } = renderSidebar({ searchRequest: 1, searchSeed: 'n', sidebarOpen: true })
+    fireEvent.change(box(), { target: { value: 'nvda' } })
+    rerender(sidebar({ searchRequest: 1, searchSeed: 'n', sidebarOpen: false }))
+    rerender(sidebar({ searchRequest: 2, searchSeed: 'n', sidebarOpen: true }))
+    expect(box().value).toBe('n')
+    rerender(sidebar({ searchRequest: 3, searchSeed: 'nv', sidebarOpen: true }))
+    expect(box().value).toBe('nv')
+  })
+
   it('escapeRestores: Escape clears the search and reports search mode off', () => {
     const onMode = vi.fn()
     const { rerender } = renderSidebar({ searchRequest: 0, onSearchModeChange: onMode })
