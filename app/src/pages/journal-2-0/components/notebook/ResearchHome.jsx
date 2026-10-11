@@ -587,7 +587,9 @@ export default function ResearchHome({
     const actions = welcomeExtras ? (
       <>
         <div className={styles.firstRunActions}>
-          <button type="button" className="btn btn-primary" onClick={onCreateNote}>
+          {/* data-start-note: the voice tour's "Make a note first" card focuses this button when it
+              is started on Home (tourStart.js UNREACHABLE_COPY.firstNote). Not a tour anchor. */}
+          <button type="button" className="btn btn-primary" onClick={onCreateNote} data-start-note="">
             <UIcon name="plus" size={14} gold={false} /> Start a note
           </button>
           {canAddSample && (
@@ -616,7 +618,7 @@ export default function ResearchHome({
       </>
     ) : (
       <>
-        <button type="button" className="btn btn-primary" onClick={onCreateNote}>
+        <button type="button" className="btn btn-primary" onClick={onCreateNote} data-start-note="">
           <UIcon name="plus" size={14} gold={false} /> Start a note
         </button>
         <button type="button" className="btn btn-ghost" onClick={onCreateThesis}>

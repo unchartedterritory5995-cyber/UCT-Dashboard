@@ -415,6 +415,18 @@ export default function GenericTourEngine({
   if (phase === 'unreachable') {
     const copy = UNREACHABLE_COPY[unreachable] || UNREACHABLE_COPY.error
     const leave = finish
+    // Already on the exit page (a card with `hereFocus`, e.g. "Make a note first" started on Home):
+    // going there again changes nothing, so the button acts in place -- it closes the card and puts
+    // focus on the control the card is about, or, with no such control on the page, is not offered.
+    const here = Boolean(copy.hereFocus && copy.exitPath && atStart(copy.exitPath, location))
+    const hereTarget = here ? document.querySelector(copy.hereFocus) : null
+    const showExit = Boolean(copy.exitPath) && (!here || hereTarget)
+    const exit = () => {
+      leave()
+      if (!here) { navigate(copy.exitPath); return }
+      // `leave` handed focus back to where it was; the control the card points at wins.
+      hereTarget?.focus()
+    }
     return createPortal(
       <div className={styles.layer}>
         <div ref={cardRef} className={styles.card} role="dialog" aria-modal="true"
@@ -431,10 +443,10 @@ export default function GenericTourEngine({
             <span />
             <span className={styles.nav}>
               <button type="button" className="btn btn-secondary" onClick={leave}>Close</button>
-              {copy.exitPath && (
+              {showExit && (
                 <button type="button" className={`btn ${copy.action ? 'btn-secondary' : 'btn-primary'}`}
-                  onClick={() => { leave(); navigate(copy.exitPath) }}>
-                  {copy.exitLabel}
+                  onClick={exit}>
+                  {here ? copy.hereLabel : copy.exitLabel}
                 </button>
               )}
               {copy.action === 'add-sample' && (

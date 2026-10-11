@@ -443,6 +443,46 @@ describe('the unreachable card: a chart tour with no chart in any note', () => {
       expect(onCloseSpy).toHaveBeenCalledWith({ opened: false })
     })
 
+    // Polish review nit: started ON Home, "Go to the Notebook" pointed at the page already shown.
+    function renderOnHome(onCloseSpy, { withStartNote }) {
+      return render(
+        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+          <MemoryRouter initialEntries={['/journal/notebook']}>
+            {withStartNote && <button type="button" data-start-note="">Start a note</button>}
+            <GenericTourEngine entry={VOICE} onClose={onCloseSpy} />
+            <Routes><Route path="*" element={<Where />} /></Routes>
+          </MemoryRouter>
+        </SWRConfig>,
+      )
+    }
+
+    it('on Home with "Start a note" there: the button says "Show me where", closes the card and focuses it, no navigation', async () => {
+      installNoChartFetch({ hasNotes: false })
+      const onCloseSpy = vi.fn()
+      renderOnHome(onCloseSpy, { withStartNote: true })
+      expect(await dialog({ timeout: 3000 })).toHaveAccessibleName(UNREACHABLE_COPY.firstNote.title)
+      expect(screen.queryByRole('button', { name: 'Go to the Notebook' })).toBeNull()
+      const show = screen.getByRole('button', { name: 'Show me where' })
+      expect(show).toHaveClass('btn-primary')
+      fireEvent.click(show)
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Start a note' }))
+      expect(screen.getByTestId('where')).toHaveTextContent('/journal/notebook')
+      expect(onCloseSpy).toHaveBeenCalledWith({ opened: false })
+    })
+
+    it('on Home with no such control: no second button, Close just closes the card', async () => {
+      installNoChartFetch({ hasNotes: false })
+      const onCloseSpy = vi.fn()
+      renderOnHome(onCloseSpy, { withStartNote: false })
+      expect(await dialog({ timeout: 3000 })).toHaveAccessibleName(UNREACHABLE_COPY.firstNote.title)
+      expect(screen.queryByRole('button', { name: 'Go to the Notebook' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Show me where' })).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(onCloseSpy).toHaveBeenCalledWith({ opened: false })
+    })
+
     it('CONTROL: a member WITH notes never sees that card (the tour goes on to its start as before)', async () => {
       installNoChartFetch({ hasNotes: true })
       const onCloseSpy = vi.fn()

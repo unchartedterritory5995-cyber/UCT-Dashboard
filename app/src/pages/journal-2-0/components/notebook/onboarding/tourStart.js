@@ -168,11 +168,17 @@ export const UNREACHABLE_COPY = Object.freeze({
   }),
   // D (polish round): a tour that starts on a control drawn only once the member has a note (the
   // voice tour's "New note" arrow), for a member with none. One way out: the Notebook, to write one.
+  // Started ON Home (the exit path is the page already shown), the button does the useful thing in
+  // place instead (polish review nit): with the "Start a note" control there (`hereFocus`), it closes
+  // the card and puts focus on that control, labelled `hereLabel`; with no such control, the card
+  // offers only Close. From anywhere else (Help > Walkthroughs) it goes to the Notebook as before.
   firstNote: Object.freeze({
     title: 'Make a note first',
     body: 'Make your first note, then come back to this tour.',
     exitLabel: 'Go to the Notebook',
     exitPath: NOTEBOOK_ROOT,
+    hereFocus: '[data-start-note]',
+    hereLabel: 'Show me where',
   }),
   trade: Object.freeze({
     title: 'This walkthrough runs on a closed trade',
