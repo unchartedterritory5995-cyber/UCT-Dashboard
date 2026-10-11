@@ -135,14 +135,28 @@ def test_a_confirmed_closure_IS_durable(monkeypatch, tmp_path):
     """⭐ §13's other half: re-asking the provider about Thanksgiving 2013 on every
     replay is waste, and makes an offline replay impossible."""
     calls = stub_typed(monkeypatch, lambda n, p: {"results": []})
-    massive.get_grouped_daily_frame("2015-03-10", adjusted=False)
+    # (2026-10-11) a CALENDAR closure — Good Friday — not an ordinary Tuesday: an empty
+    # answer on a real session is no longer recorded as one (next case)
+    massive.get_grouped_daily_frame("2015-04-03", adjusted=False)
     markers = [p for p in tmp_path.iterdir() if p.suffix == ".closed"]
     assert len(markers) == 1
     massive.cache.clear() if hasattr(massive.cache, "clear") else None
     before = calls["n"]
-    out = massive.get_grouped_daily_frame("2015-03-10", adjusted=False)
+    out = massive.get_grouped_daily_frame("2015-04-03", adjusted=False)
     assert out["empty"] is True and out["closed"] is True
     assert calls["n"] == before, "a known closure re-asked the provider"
+
+
+def test_an_empty_answer_on_a_trading_day_is_never_a_durable_closure(monkeypatch, tmp_path):
+    """(2026-10-11) an empty answer on a calendar session is a late or broken provider
+    answer: no marker, and the next call asks the provider again."""
+    calls = stub_typed(monkeypatch, lambda n, p: {"results": []})
+    massive.get_grouped_daily_frame("2015-03-10", adjusted=False)
+    assert not [p for p in tmp_path.iterdir() if p.suffix == ".closed"]
+    massive.cache.clear() if hasattr(massive.cache, "clear") else None
+    before = calls["n"]
+    massive.get_grouped_daily_frame("2015-03-10", adjusted=False)
+    assert calls["n"] > before
 
 
 # ── the frame walker ────────────────────────────────────────────────────────

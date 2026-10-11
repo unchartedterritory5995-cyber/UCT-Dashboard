@@ -90,7 +90,10 @@ def test_the_warmer_and_the_request_path_share_one_derivation():
 # ── The background warmer cannot stack ───────────────────────────────────────
 
 @pytest.fixture(autouse=True)
-def _clean_warming():
+def _clean_warming(monkeypatch):
+    # The head-ticker lane has its own rails (tests/test_flow_search_heavy.py); an over-budget
+    # warm here must not start its thread against these fakes.
+    monkeypatch.setattr(fr, "_spawn_heavy_build", lambda sym, src: False)
     with fr._SEARCH_WARMING_LOCK:
         fr._SEARCH_WARMING.clear()
     yield

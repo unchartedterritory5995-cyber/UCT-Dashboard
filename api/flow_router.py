@@ -73,6 +73,8 @@ from api.services import flow_aggregate
 import collections
 from collections import OrderedDict
 import json
+import hashlib
+import re
 import os
 import gzip
 import io
@@ -933,7 +935,7 @@ def _too_big_response():
 
 
 def _build_search_product(sym: str, src: str, key: tuple, version: str, st, dates=None, extra=None,
-                          pre_chunks=None):
+                          pre_chunks=None, heavy=False):
     """Derive, serialise, gzip and CACHE one ticker's Search product.
 
     `dates` (2026-09-25): restrict the rows to those `CreatedDate` values — the WINDOWED product
@@ -951,7 +953,17 @@ def _build_search_product(sym: str, src: str, key: tuple, version: str, st, date
     background warmer needs exactly the same derivation, and a second copy would
     be free to drift into producing a different product for the same key -- the
     quietest possible cache-poisoning bug. The CALLER owns the build lock.
+
+    `heavy` (2026-10-11): the head-ticker lane (`_heavy_build_now`) -- the SAME derivation under
+    the larger `_HEAVY_*` budget, run only off the request path, one at a time. Its over-budget
+    verdict is remembered separately so it never reads as the member lane's.
     """
+    full = dates is None and pre_chunks is None and len(key) == 3
+    max_bytes = _HEAVY_CSV_MAX_BYTES if heavy else _SEARCH_CSV_MAX_BYTES
+    deadline_s = _HEAVY_CSV_DEADLINE_S if heavy else _SEARCH_CSV_DEADLINE_S
+    node_timeout_s = _HEAVY_NODE_TIMEOUT_S if heavy else flow_aggregate.BUILD_TIMEOUT_S
+    t_build = time.monotonic()
+    built_at = time.time()
     st.mark("csv_query_begin")
     try:
         # FULL COLUMN SET. processFlowData resolves columns by name, so a
@@ -980,15 +992,21 @@ def _build_search_product(sym: str, src: str, key: tuple, version: str, st, date
             parts.append(b)
             csv_len += len(b)
             rows_seen += b.count(_NEWLINE)
-            if csv_len > _SEARCH_CSV_MAX_BYTES:
-                overrun = "bytes>%d" % _SEARCH_CSV_MAX_BYTES
+            if csv_len > max_bytes:
+                overrun = "bytes>%d" % max_bytes
                 break
-            if (time.monotonic() - t_csv) > _SEARCH_CSV_DEADLINE_S:
-                overrun = "seconds>%g" % _SEARCH_CSV_DEADLINE_S
+            if (time.monotonic() - t_csv) > deadline_s:
+                overrun = "seconds>%g" % deadline_s
                 break
         if overrun:
             parts = None
-            _note_too_big(sym, src, key)
+            if heavy:
+                _note_heavy_too_big(sym, src)
+            else:
+                _note_too_big(sym, src, key)
+                if full:
+                    # Over the member budget: the head-ticker lane builds it behind the member.
+                    _spawn_heavy_build(sym, src)
             st.mark("csv_overrun", why=overrun, kb=csv_len // 1024, rows=rows_seen)
             st.flush("TOO_BIG")
             log.info("[flow-search] %s/%s exceeds the warm budget (%s) - declining "
@@ -1009,10 +1027,10 @@ def _build_search_product(sym: str, src: str, key: tuple, version: str, st, date
         proc = subprocess.run(
             [flow_aggregate.node_bin(), flow_aggregate.bundle_path(), "search"],
             input=csv_bytes, capture_output=True,
-            timeout=flow_aggregate.BUILD_TIMEOUT_S,
+            timeout=node_timeout_s,
         )
     except subprocess.TimeoutExpired:
-        st.mark("derive_timeout", limit_s=flow_aggregate.BUILD_TIMEOUT_S)
+        st.mark("derive_timeout", limit_s=node_timeout_s)
         st.flush("TIMEOUT")
         return None, JSONResponse({"ok": False, "error": "timeout"}, status_code=504)
     except Exception as e:
@@ -1051,6 +1069,9 @@ def _build_search_product(sym: str, src: str, key: tuple, version: str, st, date
     st.mark("gzip_end", kb=len(gz) // 1024)
     _search_product_cache_put(key, gz)
     st.mark("cache_installed")
+    if full and (heavy or (time.monotonic() - t_build) * 1000 >= _PERSIST_MIN_BUILD_MS):
+        _last_good_put(sym, src, version, gz, built_at, heavy=heavy)
+        st.mark("last_good_kept", heavy=heavy)
     st.flush("BUILT")
 
     return gz, None
@@ -1550,6 +1571,310 @@ def _recent_member_product(sym: str, src: str, version: str, st, warm_only: bool
     return resp
 
 
+# ── head tickers: the FULL product, built behind the member and kept across restarts (2026-10-11) ──
+# ⛔ NVDA NEVER HAD A FULL ANSWER. Measured in the flow-worker pod 2026-10-11 (a Sunday): NVDA is
+# 465,358 rows / 65.8 MB of CSV -- the read alone is 6.8 s warm and 69 s on a cold page cache, and
+# the bundle's own derivation over it is 20.1 s at 1.3 GB peak RSS. Over the member budget
+# (48 MB / 20 s) by construction, so every ask ended "too big" (a 15 s 503 cold) and the member got
+# the recent window, which can read differently from the full history (AMD 9/25 above).
+#
+# So the head of the distribution gets its own lane: ONE slot, its own larger budget, never on a
+# request. Its product is the SAME `_build_search_product` derivation -- byte-identical body for
+# the same rows -- installed in the versioned cache like any other, and kept as the symbol's
+# LAST GOOD product (memory + a copy beside flow.db), so:
+#   * a request whose version matches the last good product is a HIT (after a redeploy too:
+#     the copy on disk answers in milliseconds instead of a 30-90 s rebuild);
+#   * a head ticker whose version has moved (it printed) is answered with its last full product,
+#     labelled with its build time (`X-Flow-Basis-As-Of`), for at most `_HEAVY_STALE_MAX_S`, and
+#     rebuilt behind the member no more often than `_HEAVY_REFRESH_MIN_S`.
+# ⛔ A STALE ANSWER IS ONLY EVER A HEAD TICKER'S. A ticker the member lane can build keeps its
+# exact-version contract; its persisted copy is used only when the version still matches.
+_HEAVY_CSV_MAX_BYTES = int(os.environ.get("FLOW_SEARCH_HEAVY_MAX_MB", "128") or 128) * 1024 * 1024
+#: ⚰️ Was 150 s for one deploy: on the freshly booted pod (2026-10-11 17:02 UTC, empty page
+#: cache) NVDA's index-ordered read ran ~800 rows/s -- 122,001 rows at 151 s -- and the build was
+#: declined, while the same read is 6.8 s once warm. The deadline guards the MEMBER lane; this
+#: lane is one slot, off the request path, and the byte cap still bounds its memory.
+_HEAVY_CSV_DEADLINE_S = float(os.environ.get("FLOW_SEARCH_HEAVY_DEADLINE_S", "900") or 900)
+_HEAVY_NODE_TIMEOUT_S = float(os.environ.get("FLOW_SEARCH_HEAVY_NODE_TIMEOUT_S", "180") or 180)
+_HEAVY_REFRESH_MIN_S = float(os.environ.get("FLOW_SEARCH_HEAVY_REFRESH_MIN_S", "300") or 300)
+_HEAVY_STALE_MAX_S = float(os.environ.get("FLOW_SEARCH_HEAVY_STALE_MAX_S", "900") or 900)
+_HEAVY_TOO_BIG_TTL_S = float(os.environ.get("FLOW_SEARCH_HEAVY_TOO_BIG_TTL_S", "3600") or 3600)
+#: Row ceiling checked BEFORE any read (MU, 734,539 rows, fits; SPY 1.18M / SPXW 1.56M do not).
+_HEAVY_MAX_ROWS = int(os.environ.get("FLOW_SEARCH_HEAVY_MAX_ROWS", "800000") or 800000)
+#: A full product that took at least this long to build is kept as the last good copy (and
+#: persisted) even from the member lane -- AMD's 35 s cold build should not be repaid per deploy.
+_PERSIST_MIN_BUILD_MS = float(os.environ.get("FLOW_SEARCH_PERSIST_MIN_BUILD_MS", "2000") or 2000)
+#: A persisted copy older than this is ignored (in-place row edits do not move the version).
+_PERSIST_MAX_AGE_S = float(os.environ.get("FLOW_SEARCH_PERSIST_MAX_AGE_S", "604800") or 604800)
+_HEAVY_LANE = _Lane(1)
+_HEAVY_GUARD = threading.Lock()
+_HEAVY_INFLIGHT: set = set()
+_HEAVY_LAST_START: dict = {}
+_HEAVY_TOO_BIG_UNTIL: dict = {}
+_HEAVY_STATS = {"built": 0, "declined": 0, "failed": 0, "skipped": 0, "last_ms": None}
+_LAST_GOOD: "OrderedDict" = OrderedDict()
+_LAST_GOOD_MAX = 64
+_LAST_GOOD_LOCK = threading.Lock()
+_LAST_GOOD_DISK_MISS: set = set()
+_PERSIST_SYM_OK = re.compile(r"[A-Z0-9][A-Z0-9._-]{0,15}")
+
+
+def _note_heavy_too_big(sym: str, src: str) -> None:
+    with _HEAVY_GUARD:
+        _HEAVY_TOO_BIG_UNTIL[(sym, src)] = time.monotonic() + _HEAVY_TOO_BIG_TTL_S
+
+
+def _tmp_suffix() -> str:
+    """A temp-file suffix unique to this writer thread (see weekly_flow.tmp_suffix)."""
+    return ".tmp%d_%d" % (os.getpid(), threading.get_ident())
+
+
+def _ingest_quiet_now() -> bool:
+    """The open rush, when no heavy rebuild starts (weekly_flow owns the window). Never raises."""
+    try:
+        from api import weekly_flow
+        return weekly_flow.ingest_quiet_now()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _persist_paths(sym: str, src: str):
+    """(gz path, meta path) for one symbol's persisted full product, or None when off."""
+    try:
+        from api import weekly_flow   # the ONE owner of where flow-worker products persist
+        d = weekly_flow.product_persist_dir()
+    except Exception:  # noqa: BLE001
+        return None
+    if not d or not _PERSIST_SYM_OK.fullmatch(sym) or src not in ("stocks", "indexes"):
+        return None
+    base = os.path.join(d, "search_%s_%s" % (src, sym))
+    return base + ".json.gz", base + ".meta.json"
+
+
+def _last_good_put(sym: str, src: str, version: str, gz: bytes, built_at: float, heavy: bool) -> None:
+    """Keep one symbol's newest full product (memory + disk). Never raises."""
+    rec = {"gz": gz, "version": version, "built_at": built_at, "heavy": bool(heavy)}
+    with _LAST_GOOD_LOCK:
+        prev = _LAST_GOOD.get((sym, src))
+        if prev is not None and prev.get("heavy") and not heavy:
+            rec["heavy"] = True   # once a head ticker, its stale-serving rule stays with it
+        _LAST_GOOD[(sym, src)] = rec
+        _LAST_GOOD.move_to_end((sym, src))
+        while len(_LAST_GOOD) > _LAST_GOOD_MAX:
+            _LAST_GOOD.popitem(last=False)
+        _LAST_GOOD_DISK_MISS.discard((sym, src))
+    paths = _persist_paths(sym, src)
+    if not paths:
+        return
+    gz_path, meta_path = paths
+    try:
+        os.makedirs(os.path.dirname(gz_path), exist_ok=True)
+        tmp = gz_path + _tmp_suffix()
+        with open(tmp, "wb") as f:
+            f.write(gz)
+        os.replace(tmp, gz_path)
+        meta = {"version": version, "built_at": built_at, "heavy": rec["heavy"],
+                "schema": _SEARCH_PRODUCT_SCHEMA, "sha256": hashlib.sha256(gz).hexdigest()}
+        tmp = meta_path + _tmp_suffix()
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(meta, f)
+        os.replace(tmp, meta_path)
+    except Exception as e:  # noqa: BLE001 -- the memory copy still answers
+        log.warning("[flow-search] persist %s/%s failed: %s", sym, src, e)
+
+
+def _last_good_get(sym: str, src: str):
+    """The symbol's newest full product {gz, version, built_at, heavy}, or None. Memory first,
+    then the persisted copy (checked once per process per symbol). Never raises."""
+    k = (sym, src)
+    with _LAST_GOOD_LOCK:
+        rec = _LAST_GOOD.get(k)
+        if rec is not None:
+            _LAST_GOOD.move_to_end(k)
+            return rec
+        if k in _LAST_GOOD_DISK_MISS:
+            return None
+    paths = _persist_paths(sym, src)
+    rec = None
+    if paths:
+        gz_path, meta_path = paths
+        try:
+            with open(meta_path, encoding="utf-8") as f:
+                meta = json.load(f)
+            with open(gz_path, "rb") as f:
+                gz = f.read()
+            fresh = (time.time() - float(meta["built_at"])) <= _PERSIST_MAX_AGE_S
+            if (fresh and meta.get("schema") == _SEARCH_PRODUCT_SCHEMA
+                    and hashlib.sha256(gz).hexdigest() == meta.get("sha256")):
+                rec = {"gz": gz, "version": str(meta["version"]),
+                       "built_at": float(meta["built_at"]), "heavy": bool(meta.get("heavy"))}
+        except Exception:  # noqa: BLE001 -- missing / torn / unreadable is simply "no copy"
+            rec = None
+    with _LAST_GOOD_LOCK:
+        if rec is None:
+            _LAST_GOOD_DISK_MISS.add(k)
+        else:
+            _LAST_GOOD.setdefault(k, rec)
+            rec = _LAST_GOOD[k]
+    return rec
+
+
+def _heavy_build_now(sym: str, src: str) -> str:
+    """Build one head ticker's full product IN THIS THREAD on the heavy lane. Returns what
+    happened ('built' | 'current' | 'declined' | 'failed' | 'unavailable'). Never raises."""
+    if not flow_aggregate.available():
+        return "unavailable"
+    if not _HEAVY_LANE.acquire(blocking=False):
+        _HEAVY_STATS["declined"] += 1
+        return "declined"
+    t0 = time.monotonic()
+    try:
+        with _HEAVY_GUARD:
+            _HEAVY_LAST_START[(sym, src)] = t0
+        version = _search_freshness(sym, src)
+        key = (sym, src, version)
+        rec = _last_good_get(sym, src)
+        if rec is not None and rec["version"] == version:
+            _search_product_cache_put(key, rec["gz"])
+            _HEAVY_STATS["skipped"] += 1
+            return "current"
+        # A covering-index count (NVDA 157 ms) instead of reading 128 MB to learn SPXW's
+        # 1.56M rows do not fit. Unknown is not "too big": on a failed count, try the build.
+        try:
+            total = sum(n for _, n in _symbol_session_counts(sym))
+        except Exception:  # noqa: BLE001
+            total = 0
+        if total > _HEAVY_MAX_ROWS:
+            _note_heavy_too_big(sym, src)
+            _HEAVY_STATS["failed"] += 1
+            log.info("[flow-search] heavy %s/%s skipped: %d rows > %d", sym, src, total, _HEAVY_MAX_ROWS)
+            return "failed"
+        _, err = _build_search_product(sym, src, key, version,
+                                       _Stages(sym + "/" + src + " heavy"), heavy=True)
+        if err is not None:
+            # ⛔ A FAILED HEAVY BUILD SITS OUT, LIKE AN OVER-BUDGET ONE. Measured 2026-10-11:
+            # SNDK (510K rows) and MU (735K) each spent ~33 s reading and 180 s in node before
+            # the timeout, and nothing remembered it -- so every member search re-ran that
+            # 3.5-minute build once per refresh window, all session. The member keeps its
+            # recent-window answer meanwhile.
+            _note_heavy_too_big(sym, src)
+            _HEAVY_STATS["failed"] += 1
+            return "failed"
+        _HEAVY_STATS["built"] += 1
+        return "built"
+    except Exception as e:  # noqa: BLE001
+        _HEAVY_STATS["failed"] += 1
+        log.warning("[flow-search] heavy build failed for %s/%s: %s", sym, src, e)
+        return "failed"
+    finally:
+        _HEAVY_LANE.release()
+        _HEAVY_STATS["last_ms"] = int((time.monotonic() - t0) * 1000)
+
+
+def _spawn_heavy_build(sym: str, src: str) -> bool:
+    """Queue one head ticker's full build behind the member. Never blocks, never queues twice:
+    one in flight per symbol, at most one start per `_HEAVY_REFRESH_MIN_S`, and a symbol over
+    even the heavy budget sits out `_HEAVY_TOO_BIG_TTL_S`."""
+    k = (sym, src)
+    now = time.monotonic()
+    if _ingest_quiet_now():
+        # The open rush belongs to the live tape: the last full product (<= 15 min) or the
+        # member's recent window answers until it passes.
+        return False
+    with _HEAVY_GUARD:
+        if k in _HEAVY_INFLIGHT:
+            return False
+        last = _HEAVY_LAST_START.get(k)
+        if last is not None and now - last < _HEAVY_REFRESH_MIN_S:
+            return False
+        until = _HEAVY_TOO_BIG_UNTIL.get(k)
+        if until is not None and now < until:
+            return False
+        _HEAVY_INFLIGHT.add(k)
+
+    def _run():
+        try:
+            _heavy_build_now(sym, src)
+        finally:
+            with _HEAVY_GUARD:
+                _HEAVY_INFLIGHT.discard(k)
+
+    threading.Thread(target=_run, name=f"flow-search-heavy-{sym}", daemon=True).start()
+    return True
+
+
+def _full_from_last_good(sym: str, src: str, key: tuple, version: str, st):
+    """Answer a member's full-product miss from the symbol's last good product, or None to fall
+    through to the existing paths. See the section comment for the two cases it answers."""
+    rec = _last_good_get(sym, src)
+    if rec is None:
+        if _too_big_recently(sym, src, key):
+            _spawn_heavy_build(sym, src)
+        return None
+    if rec["version"] == version:
+        _search_product_cache_put(key, rec["gz"])
+        st.flush("HIT_LAST_GOOD")
+        return _search_response(rec["gz"], version, "hit")
+    if not rec["heavy"]:
+        return None
+    _spawn_heavy_build(sym, src)
+    if time.time() - rec["built_at"] <= _HEAVY_STALE_MAX_S:
+        st.flush("STALE_FULL")
+        return _search_response(rec["gz"], rec["version"], "stale-full", as_of=rec["built_at"])
+    return None
+
+
+def heavy_search_state() -> dict:
+    """Diagnostics for the head-ticker lane. Process-local."""
+    with _HEAVY_GUARD:
+        inflight = sorted("%s/%s" % k for k in _HEAVY_INFLIGHT)
+        too_big = sorted("%s/%s" % k for k, u in _HEAVY_TOO_BIG_UNTIL.items() if time.monotonic() < u)
+    with _LAST_GOOD_LOCK:
+        kept = [{"sym": k[0], "source": k[1], "version": v["version"], "heavy": v["heavy"],
+                 "age_s": round(time.time() - v["built_at"], 1), "gz_bytes": len(v["gz"])}
+                for k, v in _LAST_GOOD.items()]
+    return {**_HEAVY_STATS, "in_flight": inflight, "too_big": too_big, "last_good": kept,
+            "budget_mb": _HEAVY_CSV_MAX_BYTES // (1024 * 1024)}
+
+
+#: How often the boot prewarm re-checks whether the open rush has passed.
+_PREWARM_POLL_S = 30.0
+
+
+def start_heavy_prewarm(delay_s: float = 120.0) -> bool:
+    """After boot, make sure the configured head tickers have a current full product (from the
+    persisted copy when its version still matches, else one serial build each). Gated by
+    FLOW_SEARCH_HEAVY_PREWARM ("" = off); default NVDA and TSLA.
+
+    ⚰️ The default was NVDA,TSLA,SNDK,MU. SNDK (510K rows) and MU (735K) both TIMED OUT in node at
+    180 s on the pod, at two boots on 2026-10-11 (after a 33-240 s read each), so every boot spent
+    7-11 minutes and a 2 GB node process on nothing. And a pod that reboots in the open rush waits
+    it out before building anything (`_ingest_quiet_now`)."""
+    names = [s.strip().upper() for s in
+             os.environ.get("FLOW_SEARCH_HEAVY_PREWARM", "NVDA,TSLA").split(",") if s.strip()]
+    if not names:
+        return False
+
+    def _run():
+        time.sleep(delay_s)
+        for sym in names:
+            try:
+                while _ingest_quiet_now():
+                    time.sleep(_PREWARM_POLL_S)
+                got = _heavy_build_now(sym, "stocks")
+                for _ in range(10):          # a member-triggered heavy build holds the lane
+                    if got != "declined":
+                        break
+                    time.sleep(30)
+                    got = _heavy_build_now(sym, "stocks")
+                log.info("[flow-search] heavy prewarm %s: %s", sym, got)
+            except Exception:  # noqa: BLE001
+                log.exception("[flow-search] heavy prewarm %s failed", sym)
+
+    threading.Thread(target=_run, name="flow-search-heavy-prewarm", daemon=True).start()
+    return True
+
+
 # ⛔ THE DECORATOR BELONGS TO THE HANDLER. On 2026-09-25 `_symbol_dates` was inserted between this
 # line and the handler and silently took the route: every Search request 422'd on the missing
 # `sym`/`src` query params while a test that called the handler directly stayed green.
@@ -1607,6 +1932,12 @@ def get_flow_ticker_product(symbol: str, source: str = "stocks",
     if cached is not None:
         st.flush("HIT")
         return _search_response(cached, version, "hit")
+
+    # The symbol's last good full product (a redeploy's persisted copy, or a head ticker's
+    # labelled last build) answers before any build path is considered.
+    kept = _full_from_last_good(sym, src, key, version, st)
+    if kept is not None:
+        return kept
 
     if not flow_aggregate.available():
         st.flush("NO_BUNDLE")

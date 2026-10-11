@@ -5,7 +5,8 @@ import { vi, beforeEach, test, expect } from 'vitest'
 
 let mockData = null
 let mockIsLoading = false
-vi.mock('swr', () => ({ default: () => ({ data: mockData, isLoading: mockIsLoading }) }))
+let mockOpts = null
+vi.mock('swr', () => ({ default: (_k, _f, o) => { mockOpts = o; return { data: mockData, isLoading: mockIsLoading } } }))
 vi.mock('../components/TickerPopup', () => ({
   default: ({ sym, children }) => <span data-ticker={sym}>{children}</span>,
 }))
@@ -51,4 +52,16 @@ test('an empty rows array (real data, nothing open) renders a clear empty state'
   mockData = { ok: true, rows: [], n_names: 0, open_contracts: 0 }
   render(<OpenFlow />)
   expect(screen.getByText('No names match.')).toBeTruthy()
+})
+
+// 2026-10-11: a cold board answers {ok:false, reason:"computing"} after 25 s while its one build
+// runs. That is "still building", not a failure, and the page asks again soon instead of in 2 min.
+test('a board that is still computing says so and polls sooner, never the failure alert', () => {
+  mockData = { ok: false, reason: 'computing', rows: [] }
+  render(<OpenFlow />)
+  expect(screen.queryByRole('alert')).toBeNull()
+  expect(screen.getByRole('status').textContent).toMatch(/Building the board/)
+  expect(typeof mockOpts.refreshInterval).toBe('function')
+  expect(mockOpts.refreshInterval({ ok: false, reason: 'computing' })).toBeLessThanOrEqual(30_000)
+  expect(mockOpts.refreshInterval({ ok: true, rows: [] })).toBe(120_000)
 })

@@ -1215,10 +1215,26 @@ def patch_fields(date_str: str, values: dict) -> bool:
             c.commit()
         from api.services.cache import cache
         cache.delete_prefix("breadth_history_")
+        _mark_charts_dirty(date_str, values.keys())
         return True
     except Exception as e:
         print(f"[breadth_monitor] patch_fields error: {e}")
         return False
+
+
+def _mark_charts_dirty(date_str: str, keys) -> None:
+    """(2026-10-11) A change to a PAST session's row queues those UCT charts for a
+    background rebuild — the chart cache otherwise kept the old values for up to 6 h."""
+    try:
+        from datetime import datetime as _dtm
+        from zoneinfo import ZoneInfo as _Z
+        if date_str >= _dtm.now(_Z("America/New_York")).date().isoformat():
+            return
+        from api.services import breadth_symbols as _bs
+        # the breadth score reads the sentiment keys these fills patch
+        _bs.mark_dirty("uct", list(keys) + ["breadth_score"])
+    except Exception:
+        pass
 
 
 def patch_field(date_str: str, key: str, value) -> bool:

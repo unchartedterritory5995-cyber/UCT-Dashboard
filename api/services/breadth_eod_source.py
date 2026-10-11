@@ -615,6 +615,16 @@ def build_server_row(result: dict, existing: Optional[dict]) -> dict:
         if k in bl.DRILLABLE and k in members:
             row[list_key(k)] = bl.drill_items(members[k], cap.get("levels") or {},
                                               cap.get("prices") or {}, cap.get("vols") or {})
+    # (2026-10-11) market_phase is not server-owned; fill it only when the row has none
+    # (the collector's push, while it runs, keeps its own value).
+    if not row.get("market_phase"):
+        try:
+            from api.services import breadth_eod_extras as bee
+            phase = bee.market_phase_for(result["date"])
+            if phase:
+                row["market_phase"] = phase
+        except Exception:                         # noqa: BLE001
+            pass
     row["date"] = result["date"]
     row["_source"] = "server"
     row["_source_detail"] = {

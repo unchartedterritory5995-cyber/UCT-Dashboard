@@ -2782,7 +2782,9 @@ _PREFERENCE_KEYS = {
     # FT-070 / COV-11 (2026-10-11): a member's saved indicator templates, written by
     # Chart Settings -> Indicators -> Indicator templates (IndicatorTemplatesBar.jsx,
     # setPrefMerged). Added in the same commit as its writer, so a save never answers 400.
-    "indicator_templates": _PREF_OPAQUE,
+    # Pre-arm review (2026-10-11): no longer opaque -- bounded to the client's own ceilings
+    # (`_validate_indicator_templates`), because this list rides every GET of the prefs blob.
+    "indicator_templates": "indicator_templates",
     "j2_calendar_pnl_basis": _PREF_OPAQUE,
     "j2_custom_dashboard": _PREF_OPAQUE,
     "joystick_hub": "joystick_hub",
@@ -3004,6 +3006,56 @@ def _validate_closed_value(key: str, value) -> None:
         raise HTTPException(status_code=400, detail=f"'{str(value)[:40]}' is not a valid value for {key}.")
 
 
+# ── indicator_templates (FT-070 / COV-11) ─────────────────────────────────────────
+# The client's ceilings, pinned equal to `builder/indicatorTemplates.js` by
+# `tests/test_indicator_templates_pref.py` (which READS the JS constants), so a save the
+# client allows is never a 400 and a crafted value cannot grow the prefs blob without bound.
+_INDICATOR_TEMPLATES_MAX = 25
+_INDICATOR_TEMPLATE_INDICATORS_MAX = 40
+_INDICATOR_TEMPLATE_NAME_MAX = 40
+_INDICATOR_TEMPLATES_MAX_BYTES = 262144
+_INDICATOR_TEMPLATE_ID_MAX = 64
+
+
+def _validate_indicator_templates(raw) -> None:
+    """Raise HTTPException(400) unless `raw` is a list the client could have saved.
+
+    Unknown fields inside a template are CARRIED (a newer build's field must not become a
+    permanent 400 for an older one) -- only the shape the client reads, and the size, are
+    checked."""
+    if raw == "" or raw is None:
+        return
+    def refuse(why):
+        raise HTTPException(status_code=400, detail=f"indicator_templates {why}.")
+    if not isinstance(raw, str):
+        refuse("must be a JSON list")
+    if len(raw.encode("utf-8")) > _INDICATOR_TEMPLATES_MAX_BYTES:
+        refuse(f"is over the {_INDICATOR_TEMPLATES_MAX_BYTES // 1024} KB limit")
+    try:
+        items = json.loads(raw)
+    except (ValueError, TypeError):
+        refuse("must be a JSON list")
+    if not isinstance(items, list):
+        refuse("must be a JSON list")
+    if len(items) > _INDICATOR_TEMPLATES_MAX:
+        refuse(f"holds more than {_INDICATOR_TEMPLATES_MAX} templates")
+    for t in items:
+        if not isinstance(t, dict):
+            refuse("entries must be objects")
+        tid, name, inst = t.get("id"), t.get("name"), t.get("instances")
+        if not isinstance(tid, str) or not tid or len(tid) > _INDICATOR_TEMPLATE_ID_MAX:
+            refuse("entries need an id")
+        if not isinstance(name, str) or not name.strip() or len(name) > _INDICATOR_TEMPLATE_NAME_MAX:
+            refuse(f"names must be 1 to {_INDICATOR_TEMPLATE_NAME_MAX} characters")
+        if not isinstance(inst, list):
+            refuse("entries need an instances list")
+        if len(inst) > _INDICATOR_TEMPLATE_INDICATORS_MAX:
+            refuse(f"templates hold at most {_INDICATOR_TEMPLATE_INDICATORS_MAX} indicators")
+        for e in inst:
+            if not isinstance(e, dict) or not isinstance(e.get("defId"), str) or not e.get("defId"):
+                refuse("indicators need a defId")
+
+
 def _validate_preference(key: str, value: str) -> None:
     """Allow-list the key, then run that key's schema. Raises 400, or returns."""
     schema = _PREFERENCE_KEYS.get(key)
@@ -3014,6 +3066,8 @@ def _validate_preference(key: str, value: str) -> None:
         )
     if schema == "joystick_hub":
         _validate_joystick_hub(value)
+    elif schema == "indicator_templates":
+        _validate_indicator_templates(value)
     elif schema in _CLOSED_VALUES:
         _validate_closed_value(key, value)
 
