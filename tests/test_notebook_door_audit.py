@@ -183,6 +183,15 @@ def test_a_reason_clears_only_the_verdict_it_was_written_for():
     assert A.reason_for({}, "HARD") is None
 
 
+def test_only_a_hard_reason_on_a_hard_row_clears_anything():
+    hard = {"reason": {"verdict": "HARD", "text": "owner call"}}
+    assert A.reason_clears(hard, "HARD")
+    assert not A.reason_clears(hard, "HIDDEN") and not A.reason_clears(hard, "NOT_MEASURED")
+    for v in ("HIDDEN", "NOT_MEASURED"):
+        assert not A.reason_clears({"reason": {"verdict": v, "text": "recorded, not a pass"}}, v)
+    assert not A.reason_clears({}, "HARD")
+
+
 def test_exit_codes():
     ok = {"row": {}, "verdict": "EASY"}
     hard_ok = {"row": {"reason": {"verdict": "HARD", "text": "owner call"}}, "verdict": "HARD"}

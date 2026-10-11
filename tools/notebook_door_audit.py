@@ -179,6 +179,13 @@ def reason_for(row: dict, v: str) -> str | None:
     return None
 
 
+def reason_clears(row: dict, v: str) -> bool:
+    """Whether the row's written reason clears the exit bar at verdict `v`: only a HARD row with a HARD
+    reason. A HIDDEN row is never cleared (a reason on it records why, nothing more) and a NOT_MEASURED
+    row is never cleared either (it exits 3 whatever is written)."""
+    return v == "HARD" and bool(reason_for(row, "HARD"))
+
+
 def exit_code(results: list[dict]) -> int:
     """results: [{"row": <table row>, "verdict": str}]. See the module docstring: 2 void, 1 the bar
     fails, 3 unproven, 0 met."""
@@ -839,8 +846,7 @@ def interpret(raw: dict, rows: list[dict]) -> tuple[dict, list[dict], dict, int,
         per = by_row.get(row["feature"], {})
         v, each = row_verdict(row, {vp: c[GRADED] for vp, c in per.items() if GRADED in c})
         _, settled = row_verdict(row, {vp: c["settled"] for vp, c in per.items() if "settled" in c})
-        reason = reason_for(row, v)
-        results.append({"row": row, "verdict": v, "viewports": each, "settled_viewports": settled, "reason_clears": bool(reason)})
+        results.append({"row": row, "verdict": v, "viewports": each, "settled_viewports": settled, "reason_clears": reason_clears(row, v)})
     code = exit_code(results)
     resting = [r for r in results if r["verdict"] in ("HARD", "NOT_MEASURED") or r["row"].get("door") is False]
     if control_bad:
