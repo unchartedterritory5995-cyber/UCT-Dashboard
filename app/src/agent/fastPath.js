@@ -35,8 +35,9 @@ const CANON = [
   [new RegExp(`\\b(${Object.keys(NUMWORD).join('|')})(?=[\\s-]+(?:m|min|mins|minutes?|hours?|hr|day|days|period|bar|week)\\b)`, 'g'), (w) => NUMWORD[w]],
   // timeframe shorthand: 5m / 5-min / 5 mins / 15min → "5 minute"; 1h / 4 hr → "1 hour"
   // (never a money amount: "$10m" is ten million dollars, not a timeframe)
-  [/(?<![$\d.,])\b(\d+)\s*-?\s*(?:m|mins?|minutes?)\b/g, '$1 minute'],
-  [/(?<![$\d.,])\b(\d+)\s*-?\s*(?:h|hrs?|hours?)\b/g, '$1 hour'],
+  // (no lookbehind — older Safari lacks it, src/noRegexLookbehind.test.js: the character before is captured)
+  [/(^|[^$\w.,])(\d+)\s*-?\s*(?:m|mins?|minutes?)\b/g, '$1$2 minute'],
+  [/(^|[^$\w.,])(\d+)\s*-?\s*(?:h|hrs?|hours?)\b/g, '$1$2 hour'],
   // indicator names and their period: "20-period exponential moving average" → "20 ema"
   [/\bexponential moving average\b/g, 'ema'], [/\bsimple moving average\b/g, 'sma'],
   [/\b(\d+)[\s-]*(?:period|bar|day)s?\s+(?=ema|sma|rsi|atr|vwap|ma\b|moving average)/g, '$1 '],
