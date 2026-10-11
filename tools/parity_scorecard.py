@@ -4786,7 +4786,8 @@ def build(pages_dir=None):
       'owner\'s 2026-10-09 ruling to rely on the published terms (`docs/notebook/VENDOR-TERMS-2026-09-23.md`:40). The gap '
       'ledger still reads BLOCKED for G-017, G-043 and G-127; it has drifted, and this file now says so in those rows '
       'rather than restating a status it can see is stale. Waves 12 C2, 13 and 15 are tied in §0 to their real squash, '
-      '#281. 51 citations whose lines had moved were re-pointed, each re-read at its new line.')
+      '#281. 49 citations whose lines had moved were re-pointed: 47 where the identical line text had moved, and 2 by '
+      'hand (G-013\'s `date_from`, and G-110, whose "Continue working" section #311 renamed "Recent notes").')
     w('')
     w('**Verdicts (closed set):** `AHEAD` · `PARITY` · `BEHIND` · `N/A` (no competitor equivalent, or a UCT-internal row) · '
       '`OUT-OF-SCOPE (D#)` · `BLOCKED (owner|external)` · `NOT-VERIFIED`. A verdict of AHEAD, PARITY or BEHIND needs BOTH sides '
