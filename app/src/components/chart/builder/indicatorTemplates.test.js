@@ -198,3 +198,64 @@ describe('the flag', () => {
     expect(indicatorTemplatesEnabled()).toBe(true)
   })
 })
+
+// ─── pre-arm review (2026-10-11) ─────────────────────────────────────────────────
+import * as tplModule from './indicatorTemplates'
+import { setInstanceDisplayTarget } from '../engine/instanceControls'
+
+describe('pre-arm review — pane placement, ceilings, summary copy', () => {
+  /** RSI(7), and an MFI the member put IN the RSI's pane (`@inst:rsi:1`). */
+  function sharedPane() {
+    const base = mergeChartSettings(null)
+    const raw = load({ ...base, indicatorInstances: [
+      { instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 7 }, hidden: false },
+      { instanceId: 'inst:mfi:1', defId: 'mfi', inputs: {}, hidden: false },
+    ] })
+    const cs = load(withInstances(raw, raw.indicatorInstances, registry))
+    const moved = setInstanceDisplayTarget(cs, 'inst:mfi:1', '@inst:rsi:1', registry)
+    expect(moved).not.toBe(cs)
+    return load(moved)
+  }
+
+  it('⛔ a pane shared with another template indicator follows THAT indicator\'s copy, never an id on the new chart', () => {
+    const t = json(capture(sharedPane()))
+    // the target chart has its OWN inst:rsi:1 (an RSI 21) — the saved id names it by accident
+    const base = mergeChartSettings(null)
+    const target = load({ ...base, indicatorInstances: [{ instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 21 }, hidden: false }] })
+    const r = applyIndicatorTemplate(target, t, registry)
+    const rsiCopy = r.added.find((a) => findInstance(r.cs, a.instanceId).defId === 'rsi').instanceId
+    const mfiCopy = findInstance(r.cs, r.added.find((a) => findInstance(r.cs, a.instanceId).defId === 'mfi').instanceId)
+    expect(rsiCopy).not.toBe('inst:rsi:1')
+    expect(mfiCopy.placement && mfiCopy.placement.target).toBe(`@${rsiCopy}`)
+    // re-applying (after a real persist round trip) still adds nothing
+    const again = applyIndicatorTemplate(load(r.cs), t, registry)
+    expect(again.added).toEqual([])
+  })
+
+  it('⛔ a full list REFUSES the save instead of silently dropping the oldest template; a same-name save still replaces', () => {
+    let list = []
+    for (let i = 0; i < MAX_INDICATOR_TEMPLATES; i++) list = withTemplateSaved(list, { id: `t${i}`, name: `T${i}`, instances: [] })
+    expect(list).toHaveLength(MAX_INDICATOR_TEMPLATES)
+    expect(tplModule.planTemplateSave(list, { id: 'new', name: 'Brand new', instances: [] })).toEqual({ ok: false, reason: 'full' })
+    expect(withTemplateSaved(list, { id: 'new', name: 'Brand new', instances: [] }).map((t) => t.id)).toEqual(list.map((t) => t.id))
+    const re = tplModule.planTemplateSave(list, { id: 'again', name: 't3', instances: [] })
+    expect(re).toMatchObject({ ok: true, replaced: true })
+    expect(re.list).toHaveLength(MAX_INDICATOR_TEMPLATES)
+  })
+
+  it('⛔ the stored list has a byte ceiling, measured as the server measures it', () => {
+    expect(tplModule.MAX_INDICATOR_TEMPLATES_BYTES).toBe(262144)
+    const fat = { id: 'fat', name: 'Fat', instances: [{ key: 'k1', defId: 'rsi', inputs: { note: 'é'.repeat(140000) } }] }
+    expect(tplModule.planTemplateSave([], fat)).toEqual({ ok: false, reason: 'too-big' })
+    expect(tplModule.planTemplateSave([], { ...fat, instances: [] })).toMatchObject({ ok: true, replaced: false })
+  })
+
+  it('the apply sentence never says "already on this chart" when nothing was', () => {
+    const r = { ok: true, added: [], already: [], unavailable: [{ label: 'My formula' }] }
+    const s = applySummary('Gone', r)
+    expect(s).not.toMatch(/already/)
+    expect(s).toMatch(/Nothing from “Gone” could be added\. 1 no longer available \(My formula\)\./)
+    expect(applySummary('Mixed', { ok: true, added: [], already: [{}], unavailable: [{ label: 'X' }] }))
+      .toBe('Nothing new to add from “Mixed”. 1 already on this chart. 1 no longer available (X).')
+  })
+})

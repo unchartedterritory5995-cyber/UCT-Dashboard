@@ -590,7 +590,7 @@ const CAPABILITIES = [
     check: (st, { template }) => (findTemplate(template) ? null
       : templatesNow().length ? `You have no chart template named “${template}” (you have: ${templatesNow().map(t => t.name).slice(0, 8).join(', ')}).` : 'You have no saved chart templates yet — save one in Chart Settings → Templates.'),
     apply: (st, { template }) => ({ ...st, cs: chartTemplateSettings(findTemplate(template)) }),
-    describe: (b, a, { template }) => (sameJson(b.cs, a.cs) ? null : `Applied your chart template “${findTemplate(template)?.name || template}” (its look and its indicators, as clicking it does)`),
+    describe: (b, a, { template }) => (sameJson(b.cs, a.cs) ? null : `Applied your chart template “${findTemplate(template)?.name || template}” — its look and its indicators, as clicking it does: the indicators on this chart now are replaced by the template’s`),
     noop: () => 'The chart already looks exactly like that template',
   },
   {
