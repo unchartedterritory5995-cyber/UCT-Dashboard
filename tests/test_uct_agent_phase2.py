@@ -127,3 +127,26 @@ def test_PROMPT_ranking_words_are_UCTs_own_never_invented():
     p = turn._SYSTEM_HEAD + turn._SYSTEM_TAIL
     assert '"weakest" means lowest RS Rank' in p
     assert "UCT Composite, the Screener's own default ranking (say so)" in p and "never a ranking of your own" in p
+
+
+# ── EXECUTION TRUTHFULNESS: the remaining gap, pinned (stabilization review 2026-10-11) ──
+# Only a BARE "Done."-style reply on a mutating plan is blanked (`_CLAIMS_DONE`). A first-person
+# completion claim in `reply` / `question.text` on ANY disposition — including `answer` with no ops —
+# reaches the member verbatim. When the proposed fix lands, this xfail turns into a pass (strict=True
+# then FAILS the suite until the marker is removed — the gap cannot close silently either way).
+CLAIMS_WITHOUT_EXECUTION = [
+    ("answer", "I've switched your chart to the 15-minute timeframe."),
+    ("answer", "Opening your Main Trading layout now."),
+    ("answer", "Here are your strongest stocks, filtered to those above $50."),
+    ("clarify", "I filtered your list to stocks above $50 — which list should I save them to?"),
+]
+
+
+@pytest.mark.xfail(strict=True, reason="GAP: model free-text completion claims are not yet checked (proposed fix in docs)")
+@pytest.mark.parametrize("disp,text", CLAIMS_WITHOUT_EXECUTION)
+def test_GAP_no_reply_claims_an_action_that_did_not_execute(disp, text):
+    env = {"disposition": disp, "reply": text, "question": ({"text": text, "choices": []} if disp == "clarify" else None),
+           "ops": [], "unsupported_category": None}
+    out = turn.sanitize_envelope(env, set(), set())
+    shown = out["question"]["text"] if disp == "clarify" else out["reply"]
+    assert shown != text
