@@ -18,6 +18,7 @@ import { registerBuiltins } from './builtins'
 import * as screenerMod from './capabilities/screener'
 import * as watchlistMod from './capabilities/watchlist'
 import { makeBoard } from './__fixtures__/board'
+import * as traceMod from './trace'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
 import AgentPanel from './AgentPanel'
@@ -201,9 +202,9 @@ afterAll(() => {
   if (out) fs.writeFileSync(out, JSON.stringify(rows, null, 2))
   const pct = (xs) => (xs.length ? Math.round((100 * xs.filter(Boolean).length) / xs.length) : 0)
   const q = (xs, p) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.min(s.length - 1, Math.floor(p * s.length))] : 0 }
-  const lines = rows.map(r => `EVAL|${r.id}|${r.cat}|done=${r.done ? 'Y' : 'n'}|model=${r.modelCalls}|tools=${r.toolCalls}|q=${r.questions}${r.unnecessaryQuestions ? '(U)' : ''}|preWrites=${r.writesBeforeApproval}|ms=${r.ms}`)
+  const lines = rows.map(r => `EVAL|${r.id}|${r.cat}|done=${r.done ? 'Y' : 'n'}|model=${r.modelCalls}|tools=${r.toolCalls}|q=${r.questions}${r.unnecessaryQuestions ? '(U)' : ''}|preWrites=${r.writesBeforeApproval}|ms=${r.ms}|exec=${r.execMs ?? '-'}|prompt=${r.promptBytes ?? '-'}|reads=${r.preModelReads ?? '-'}`)
   const all = rows.filter(r => r.cat !== 'necessary-question')
-  lines.push(`EVALSUM|tasks=${rows.length}|completed=${pct(rows.map(r => r.done))}%|unnecessaryQuestionRate=${pct(all.map(r => r.unnecessaryQuestions > 0))}%|necessaryQuestionsAsked=${pct(rows.filter(r => r.cat === 'necessary-question').map(r => r.questions > 0))}%|modelCallsPerTask=${(rows.reduce((n, r) => n + r.modelCalls, 0) / rows.length).toFixed(2)}|simpleModelCalls=${rows.filter(r => r.cat === 'simple').reduce((n, r) => n + r.modelCalls, 0)}|toolCallsPerTask=${(rows.reduce((n, r) => n + r.toolCalls, 0) / rows.length).toFixed(1)}|approvalViolations=${rows.filter(r => r.approval && r.writesBeforeApproval > 0).length}|localMsP50=${q(rows.map(r => r.ms), 0.5)}|localMsP95=${q(rows.map(r => r.ms), 0.95)}`)
+  lines.push(`EVALSUM|tasks=${rows.length}|completed=${pct(rows.map(r => r.done))}%|unnecessaryQuestionRate=${pct(all.map(r => r.unnecessaryQuestions > 0))}%|necessaryQuestionsAsked=${pct(rows.filter(r => r.cat === 'necessary-question').map(r => r.questions > 0))}%|modelCallsPerTask=${(rows.reduce((n, r) => n + r.modelCalls, 0) / rows.length).toFixed(2)}|simpleModelCalls=${rows.filter(r => r.cat === 'simple').reduce((n, r) => n + r.modelCalls, 0)}|toolCallsPerTask=${(rows.reduce((n, r) => n + r.toolCalls, 0) / rows.length).toFixed(1)}|approvalViolations=${rows.filter(r => r.approval && r.writesBeforeApproval > 0).length}|localMsP50=${q(rows.map(r => r.ms), 0.5)}|localMsP95=${q(rows.map(r => r.ms), 0.95)}|promptKBPerTask=${(rows.reduce((n, r) => n + (r.promptBytes || 0), 0) / rows.length / 1024).toFixed(1)}|preModelReadsPerModelTask=${(rows.filter(r => r.modelCalls).reduce((n, r) => n + (r.preModelReads || 0), 0) / Math.max(1, rows.filter(r => r.modelCalls).length)).toFixed(1)}`)
   for (const l of lines) console.log(l)
 })
 
@@ -228,8 +229,13 @@ describe('UCT Agent evaluation set', () => {
       let writesBeforeApproval = null
       let questions = 0
       let modelCalls = 0
+      let execMs = 0
+      let promptBytes = 0
+      let preModelReads = 0
       for (const [text, model] of sc.say) {
         const before = calls.filter(c => c[1] === '/api/agent/turn').length
+        const callsBefore = calls.length
+        const tracesBefore = (traceMod.lastTraces?.() || []).length
         if (model) turnQueue.push(model)
         await waitFor(() => expect(box.disabled).toBe(false))
         // anything written before the FIRST approval is a gate violation
@@ -241,6 +247,13 @@ describe('UCT Agent evaluation set', () => {
         await new Promise(r => setTimeout(r, 120))       // a follow-up step may still be running
         await settle()
         modelCalls += calls.filter(c => c[1] === '/api/agent/turn').length - before
+        // phase profile: execution (the Agent's own trace), the request the model would read, reads before it
+        const step = calls.slice(callsBefore)
+        const firstTurn = step.findIndex(c => c[1] === '/api/agent/turn')
+        if (firstTurn >= 0) preModelReads += step.slice(0, firstTurn).filter(c => !/agent\/record/.test(c[1])).length
+        for (const c of step) if (c[1] === '/api/agent/turn') promptBytes += JSON.stringify(c[2] || {}).length
+        const tr = (traceMod.lastTraces?.() || []).slice(Math.max(0, tracesBefore - ((traceMod.lastTraces?.() || []).length > 9 ? 1 : 0)))
+        execMs += tr.reduce((n, t) => n + ((t.marks.find(m => String(m[0]).startsWith('end:')) || [0, 0])[1] || 0), 0)
         turnQueue = []
       }
       writesBeforeApproval = writesBeforeApproval ?? 0
@@ -251,7 +264,7 @@ describe('UCT Agent evaluation set', () => {
       const toolCalls = calls.filter(c => /^\/api\/(screener\/scan|agent\/session-stats|ticker-search)/.test(c[1])).length
         + state.server.calls.length + (state.boardWrites || 0)
       const done = !!sc.done(state)
-      rows.push({ id: sc.id, cat: sc.cat, done, modelCalls, toolCalls, questions, unnecessaryQuestions: sc.questionOk ? 0 : questions, writesBeforeApproval, approval: !!sc.approval, ms })
+      rows.push({ id: sc.id, cat: sc.cat, done, modelCalls, toolCalls, questions, unnecessaryQuestions: sc.questionOk ? 0 : questions, writesBeforeApproval, approval: !!sc.approval, ms, execMs: Math.round(execMs), promptBytes, preModelReads })
       cleanup()
     }, 20000)
   }

@@ -220,6 +220,7 @@ export function registerAlertCapabilities() {
 
   registerContextProvider({
     key: 'alertLibrary',
+    refreshGroup: 'alerts',
     // Alerts change outside the panel (chart menu, widget, one going off): the book is
     // re-read before every model turn, so the model never targets an alert from a stale list.
     refresh: () => loadAlerts({ force: true }),

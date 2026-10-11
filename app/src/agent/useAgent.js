@@ -855,14 +855,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       // Context from every registered provider; actions from every AVAILABLE
       // capability's manifest. Nothing here names a feature. Data that can change outside
       // this panel is re-read first (bounded), so the model never targets a stale list.
-      await refreshContext()
-      const { context, refMap } = buildContext(host, { ...capCtx, message: text })
-      const back = Object.fromEntries(Object.entries(refMap).map(([k, v]) => [v.ref, k]))
       const p = pendingRef.current
-      const pending = p?.kind === 'proposal'
-        // Transaction-local aliases (new1…) are not context refs: they pass through.
-        ? { ops: p.ops.map(o => ({ ...o, target: back[o.target] || o.target })) }
-        : null
       // Capability ROUTING (agent/routing.js): only the action groups this message needs, the
       // others named. If the model needs a group it wasn't given it plans NOTHING and says so
       // (need_groups); we ask ONCE more with those groups. Nothing has executed in between.
@@ -873,6 +866,15 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const routeOpts = { enabled: routingEnabled(), pendingActions: p?.kind === 'proposal' ? p.ops.map(o => o.action) : [], recentActions: lastActionsRef.current, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
       let routed = routeManifest(full, text, routeOpts)
       mark('route', routed.routing ? `${routed.manifest.length}/${full.length}` : 'full')
+      // Data that can change outside this panel is re-read first (bounded) — Phase 2: only for the
+      // action groups this message was routed to (a timeframe change no longer waits on alerts).
+      await refreshContext(1500, { groups: routed.routing ? routed.routing.selected : null })
+      let { context, refMap } = buildContext(host, { ...capCtx, message: text })
+      const back = Object.fromEntries(Object.entries(refMap).map(([k, v]) => [v.ref, k]))
+      const pending = p?.kind === 'proposal'
+        // Transaction-local aliases (new1…) are not context refs: they pass through.
+        ? { ops: p.ops.map(o => ({ ...o, target: back[o.target] || o.target })) }
+        : null
       const ask = (r, extra = {}) => agentTurn({
         conversationId: conversationRef.current, message: text, voice, pending,
         context, capabilities: r.manifest, manifestVersion: MANIFEST_VERSION, routing: r.routing, ...extra,
@@ -889,6 +891,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
           return
         }
         mark('reroute', need.join(','))
+        // the newly needed groups' data is read fresh, and the context rebuilt from it
+        await refreshContext(1500, { groups: need });
+        ({ context, refMap } = buildContext(host, { ...capCtx, message: text }))
         res = await ask(routed, { conversationId: res.data.conversationId, reroute: true })
         if (res.ok && (res.data.envelope?.need_groups || []).length) {
           push({ role: 'agent', text: 'That needs more of UCT than I can plan in one step. Try asking for one part at a time.' })
