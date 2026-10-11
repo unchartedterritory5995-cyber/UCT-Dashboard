@@ -262,3 +262,13 @@ describe('Agent and Screener mean the same screen', () => {
     expect(why).toMatch(/can’t hold yet — saving it would drop that condition/)
   })
 })
+
+describe('a request for SPECIFIC indicator settings is never faked with a default indicator', () => {
+  it.each(['Put a 20 EMA on my chart', 'add a 50 sma', 'add RSI 7', 'throw a 20-period exponential moving average on this chart', 'add the 200 day moving average'])(
+    'instant path leaves "%s" to the model', (t) => expect(parse(t)).toBe('MODEL'))
+  it('the model is told: defaults only; never a default one as if it were the asked-for settings', () => {
+    const h = getCapability('indicator.add').hints
+    expect(h).toMatch(/DEFAULT settings only/)
+    expect(h).toMatch(/never add a default one as if it were that/)
+  })
+})
