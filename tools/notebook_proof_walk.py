@@ -1559,7 +1559,7 @@ def s_ed_export(W, pg) -> str:
 
 def s_ed_ask(W, pg) -> str:
     s_note(W, pg)
-    press(pg, pg.get_by_role("button", name="Ask a question about this note").filter(visible=True).first)
+    press(pg, pg.get_by_role("button", name="Ask this note").filter(visible=True).first)
     pg.get_by_test_id("ask-scope").first.wait_for(state="visible", timeout=8000)
     return mark_popup(pg.locator('[role="complementary"],[role="dialog"],[role="region"]').filter(
         has=pg.get_by_test_id("ask-scope")).last)
@@ -3978,7 +3978,7 @@ def f_writing_help(W, door):
 
 def f_ask(W, door):
     pg, nid = c_note(W, door)
-    how = use(pg, door, btn(pg, "Ask a question about this note"))
+    how = use(pg, door, btn(pg, "Ask this note"))
     ok = wait_true(lambda: pg.get_by_test_id("ask-scope").count() > 0, 6)
     must(ok, "the Ask panel did not open")
     raise NotDriven(how + "; the Ask panel opens with its scope -- no model key, so no answer (or insert) is observed")

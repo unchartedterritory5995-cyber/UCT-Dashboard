@@ -249,7 +249,7 @@ describe('focus in the note editor', () => {
 
   it('closing Ask gives focus back to the Ask toggle', async () => {
     await renderEditor()
-    const toggle = screen.getByRole('button', { name: /^Ask a question about/ })
+    const toggle = screen.getByRole('button', { name: /^Ask this note$/ })
     toggle.focus()
     fireEvent.click(toggle)
     const close = await screen.findByRole('button', { name: 'Close Ask' })

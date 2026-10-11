@@ -96,7 +96,7 @@ function NoteRow({ note, onOpen, reason }) {
 
 // Wave 13 lane 13F: one small, self-contained door on Home -- "Reviews that write
 // themselves". Renders nothing (and calls nothing) while notebook_review_drafts_enabled
-// is off, the same contract as the other Home boxes below (aiBox/prepBox/passedBox).
+// is off, the same contract as the other Home boxes below (askSection/prepBox/passedBox).
 // Notebook UX pass: on Research Home the box sits in a collapsible section whose header already
 // names it, so `titleHidden` keeps its heading for screen readers and the skip link below while
 // it is not drawn a second time.
@@ -684,19 +684,6 @@ export default function ResearchHome({
 
   // Wave 10 F7 (Part A, 5d): a FAILED read is not a quiet day. "Nothing needs your attention"
   // after a failed load told a member there was nothing, when we could not look.
-  // Wave 11 lane 11C: "Ask Notebook to do something" -- renders nothing while its flag is
-  // off. ⛔ ONE element at ONE tree position for both the quiet and the full home: applying a
-  // change set refreshes the home, which can flip it from quiet to full, and a box mounted in
-  // each branch was REMOUNTED by that flip -- the member's applied list and its Undo button
-  // vanished mid-task (found by the lane's real-browser walk, W8 -> W9). As the first child of
-  // the same fragment in both returns, React keeps it, and its state, across the flip.
-  const aiBox = (
-    <div className={styles.aiSlot}>
-      {notebookFlag('notebook_ai_actions_enabled') === true
-        ? <Suspense fallback={null}><AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} /></Suspense>
-        : null}
-    </div>
-  )
   // Wave 13 lane 13C: "Reporting soon" -- renders nothing while notebook_earnings_prep_enabled
   // is off. The SECOND child of the same fragment in every return below, for the same reason
   // as the box above: a home that flips between quiet and full must not remount it mid-draft.
@@ -754,15 +741,23 @@ export default function ResearchHome({
   // first-open path and the board carries charts.
   const setupsBox = <SetupsBox />
 
+  // P0.7 (owner decision, 2026-10-11): ONE Ask section. Research Home used to have two doors --
+  // "Ask Notebook to do something" under the Notices box and a lower Ask box -- and a member could
+  // not tell which to use. They are one labelled section now: the question box, then (while its
+  // flag is on) "Or tell Notebook what to change" for the member who wants an edit, not an answer.
+  //
   // Finish program (fin-walk 8.3): a member with notes but nothing surfaced -- the quiet home --
   // had NO Ask door; it was rendered only by the full home below. Ask reads the whole Notebook,
   // not the sections, so it belongs in every state that has notes to ask about (the first-run
-  // branch above has none). The same element at the same tree position (fourth child of the
-  // state's container, after the sample notice, Today and Active setups) in the quiet, the
-  // quiet-with-error and the full home, so a flip between them keeps an open panel and its
-  // answer mounted -- the same reasoning as the four boxes above.
-  const askRow = (
-    <div className={styles.askRow}>
+  // branch above has none).
+  // ⛔ ONE element at ONE tree position (right after `setupsBox`) in the quiet, the
+  // quiet-with-error and the full home. A flip between them keeps an open panel, its answer and
+  // the change-it box's state mounted: applying a change set refreshes the home, which can flip it
+  // from quiet to full, and a box mounted in each branch was REMOUNTED by that flip -- the
+  // member's applied list and its Undo button vanished mid-task (wave 11 lane 11C's real-browser
+  // walk, W8 -> W9). ResearchHome.quietAsk.test.jsx and ResearchHome.aiActions.test.jsx.
+  const askSection = (
+    <section className={styles.askSection} aria-label="Ask your Notebook">
       {/* ⛔ An EXCERPT citation used to be a dead click here: its navigation
           carries no `note_id`, and this handler knew nothing else. The one
           shared router opens it in place, and returns a sentence for
@@ -770,7 +765,10 @@ export default function ResearchHome({
       <AskPanel scope="notebook" onOpenNote={openNote} onNavigate={(s, _r, { signal } = {}) => openSpanningCitation(s, {
         signal, openNote, openDocument: setPreviewDoc, openCapturedSource: setCapturedSource,
       })} />
-    </div>
+      {notebookFlag('notebook_ai_actions_enabled') === true
+        ? <Suspense fallback={null}><AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} /></Suspense>
+        : null}
+    </section>
   )
 
   if (nothingToShow && homeError) {
@@ -779,7 +777,7 @@ export default function ResearchHome({
         {homeTop}
         {noticesBox}
         {setupsBox}
-        {aiBox}
+        {askSection}
         {prepBox}
         {passedBox}
         {reviewBox}
@@ -787,7 +785,6 @@ export default function ResearchHome({
         <div className={styles.quietState}>
           {sampleNotice}
           {todayBox}
-          {askRow}
           <LoadFailed what="your research home" error={homeError} onRetry={refreshHome} />
         </div>
       </>
@@ -800,7 +797,7 @@ export default function ResearchHome({
         {homeTop}
         {noticesBox}
         {setupsBox}
-        {aiBox}
+        {askSection}
         {prepBox}
         {passedBox}
         {reviewBox}
@@ -808,7 +805,6 @@ export default function ResearchHome({
         <div className={styles.quietState}>
           {sampleNotice}
           {todayBox}
-          {askRow}
           <p>Nothing needs your attention right now.</p>
           <p className={styles.quietHint}>Favorite a note or set a thesis to Active to see it here.</p>
         </div>
@@ -821,7 +817,7 @@ export default function ResearchHome({
     {homeTop}
     {noticesBox}
     {setupsBox}
-    {aiBox}
+    {askSection}
     {prepBox}
     {passedBox}
     {reviewBox}
@@ -831,8 +827,7 @@ export default function ResearchHome({
       {todayBox}
       {/* ⛔ A CALM ENTRY POINT, NOT AN AI DASHBOARD. Research Home still
           answers "what was I working on, and where do I resume?" -- Ask is
-          one affordance on that page, not the page. */}
-      {askRow}
+          one affordance on that page (askSection, near the top), not the page. */}
       {/* "Continue working" is the top of Home now (Recent notes, homeTop). */}
       <Section title="Favorites" notes={home.favorites} onOpen={openNote} />
       <Section title="Active theses" notes={home.activeTheses} onOpen={openNote} />

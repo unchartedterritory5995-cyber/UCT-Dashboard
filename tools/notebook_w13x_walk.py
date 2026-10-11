@@ -640,7 +640,7 @@ def run_walk(base: str, art: Path) -> None:
             # theses is the section this seed is guaranteed to populate.
             active = pg.get_by_role("heading", name="Active theses")
             active.wait_for(state="visible", timeout=60000)
-            ai = pg.locator('section[aria-label="Ask Notebook to do something"]')
+            ai = pg.locator('section[aria-label="Or tell Notebook what to change"]')
             prep = pg.locator("[data-reporting-soon]")
             today_btn = pg.get_by_role("button", name="Today", exact=False)
             review_box = pg.get_by_text("Reviews that write themselves", exact=False)

@@ -1,4 +1,4 @@
-// Wave 11 lane 11C — "Ask Notebook to do something" keeps its state when Research Home flips
+// Wave 11 lane 11C — "Or tell Notebook what to change" keeps its state when Research Home flips
 // between its quiet and full layouts. Found by the lane's real-browser walk: applying a change
 // set refreshes the home, the home went from quiet to full, and a box mounted in each branch was
 // remounted -- the applied list and its Undo button vanished mid-task.
@@ -39,7 +39,7 @@ describe('the AI actions box survives the home changing layout', () => {
     const { rerender } = render(tree())
     expect(screen.getByText('Nothing needs your attention right now.')).toBeInTheDocument()
     // The box is a lazy chunk while its flag is on (landing 12-15 byte gate): wait for it once.
-    fireEvent.click(await screen.findByRole('button', { name: 'Ask Notebook to do something' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Or tell Notebook what to change' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'What should Notebook do?' }), { target: { value: 'tag my NVDA notes' } })
     home = { ...EMPTY, favorites: [{ id: 'n1', title: 'NVDA thesis', updatedAt: new Date().toISOString() }] }
     rerender(tree())
@@ -55,10 +55,10 @@ describe('the AI actions box survives the home changing layout', () => {
     const settle = () => act(() => new Promise((r) => setTimeout(r, 100)))
     const { rerender } = render(tree())
     await settle()
-    expect(screen.queryByRole('button', { name: 'Ask Notebook to do something' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Or tell Notebook what to change' })).toBeNull()
     home = { ...EMPTY, favorites: [{ id: 'n1', title: 'NVDA thesis', updatedAt: new Date().toISOString() }] }
     rerender(tree())
     await settle()
-    expect(screen.queryByRole('button', { name: 'Ask Notebook to do something' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Or tell Notebook what to change' })).toBeNull()
   })
 })

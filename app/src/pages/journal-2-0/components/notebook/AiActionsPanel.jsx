@@ -10,7 +10,7 @@ import { isNotebookKey } from './onboarding/sampleNotebook'
 import styles from './AiActionsPanel.module.css'
 
 /**
- * Wave 11 lane 11C — "Ask Notebook to do something".
+ * Wave 11 lane 11C — "Or tell Notebook what to change".
  *
  * request → PLAN (nothing written) → REVIEW (every change, grouped by note,
  * before → after, a checkbox each, all checked) → APPLY N (note by note, with
@@ -145,7 +145,7 @@ export function AiActionsPanel({ blockedNoteIds = null, onOpenNote, defaultOpen 
   const undoLeft = (undoBody?.results || []).filter((r) => r.status !== 'undone')
 
   return (
-    <section className={styles.wrap} aria-label="Ask Notebook to do something">
+    <section className={styles.wrap} aria-label="Or tell Notebook what to change">
       <button
         type="button"
         className={styles.toggle}
@@ -153,7 +153,7 @@ export function AiActionsPanel({ blockedNoteIds = null, onOpenNote, defaultOpen 
         aria-controls={`${ids}-panel`}
         onClick={() => setOpen((o) => !o)}
       >
-        <UIcon name="sparkle" size={13} gold={false} /> Ask Notebook to do something
+        <UIcon name="sparkle" size={13} gold={false} /> Or tell Notebook what to change
       </button>
       {open && (
         <div id={`${ids}-panel`} className={styles.panel}>

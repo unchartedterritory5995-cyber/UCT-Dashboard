@@ -1522,7 +1522,7 @@ def q9_ask_insert(cx: Ctx, pg, m: Meter, width: str) -> dict:
         # 2 Tabs to the Ask button, Enter.)
         palette_command(m, "ask this note", r"^Ask about this note$", "Ask about this note")
     else:
-        m.press(pg.locator("[data-ask-toggle]").filter(visible=True), "Ask a question about this note")
+        m.press(pg.locator("[data-ask-toggle]").filter(visible=True), "Ask this note")
     import re
     box = pg.get_by_placeholder(re.compile("What did I say")).filter(visible=True)
     focus_field(m, box, "question field")

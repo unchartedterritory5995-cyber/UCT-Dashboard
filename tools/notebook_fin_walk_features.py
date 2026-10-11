@@ -1145,7 +1145,7 @@ def run_c2(C, browser, admin, base, fs, data_dir, only) -> None:
 
     def nokey():
         for feat_, what in (("writing help", "Improve / Shorten / Continue in the editor"), ("Ask Notebook", "ask a question over notes"),
-                            ("AI actions", "Ask Notebook to do something (plan, approve, undo)"),
+                            ("AI actions", "Or tell Notebook what to change (plan, approve, undo)"),
                             ("meaning search", "search by meaning (its tour's steps are walked; the search itself needs an embedding key)"),
                             ("dictation", "voice dictation and voice notes")):
             C.step(None, inst, feat_, what, "NOT_RUN", reason="NO KEY", shot=False)
