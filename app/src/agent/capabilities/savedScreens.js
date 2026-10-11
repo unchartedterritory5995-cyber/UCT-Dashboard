@@ -17,7 +17,7 @@
 // with no history unless version history is on).
 
 import { registerCapability, registerTargetKind, registerContextProvider } from '../capabilities'
-import { loadSaved, savedScreensNow, lastScreenNow } from './screener'
+import { loadSaved, savedScreensNow, lastScreenNow, screenerExpressible } from './screener'
 
 const ROUTE = '/api/screener/saved-screens'
 const MAX_NAME = 80
@@ -148,12 +148,15 @@ export function registerSavedScreenCapabilities() {
     risk: 'confirm',
     createsResource: true,
     summary: 'Save the LAST screen run here (its exact filters, sort, ranking and logic) as a new saved screen in the member\'s Screener. Never replaces an existing one.',
-    hints: 'target = the ref of the savedScreenLibrary entry; name = the name as given. Only when a screen was already run here (lastScreenHere is not null). '
-      + 'If they ask to run a NEW screen and save it in one go, run it now (screener.run) and say in the reply that they can then say "save it as <name>".',
+    hints: 'target = the ref of the savedScreenLibrary entry; name = the name as given. It saves the last screen run here — one run earlier in this conversation, or earlier in this same request. '
+      + 'To run a NEW screen and save it in one request: the screen first, then this — it saves that screen.',
     args: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'], additionalProperties: false },
     check(st, { name }) {
       if (!st.loaded) return "I couldn't read your saved screens, so I won't save — try again in a moment."
       if (!st.last) return 'Run a screen here first (e.g. “find stocks with ADR above 5%”), then ask me to save it.'
+      // ⛔ never a saved screen BROADER than the one shown: the Screener page can't hold a
+      // latest-session condition yet (docs/agent/PHASE2.md, Screener parity handoff)
+      if (!screenerExpressible(st.last)) return 'That screen uses the latest session’s dollar volume or close, which a saved Screener screen can’t hold yet — saving it would drop that condition. Put the results in a watchlist instead (“make a watchlist of them”).'
       return oneAtATime(st) || nameProblem(st, name)
     },
     apply: (st, { name }) => ({ ...st, op: { create: { name: String(name).trim(), spec: storable(st.last), from: 'last' } } }),

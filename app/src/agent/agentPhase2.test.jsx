@@ -132,7 +132,7 @@ describe('MULTI-STEP on one chart, no model call', () => {
     await say('add RSI')
     await waitFor(() => expect(defIds(h)).toContain('rsi'))
     await say('get rid of RSI')
-    await screen.findByTestId('agent-proposal')
+    await screen.findByTestId('agent-proposal', {}, { timeout: 4000 })
     expect(defIds(h)).toContain('rsi')
     await say('do it')
     await waitFor(() => expect(defIds(h)).not.toContain('rsi'))

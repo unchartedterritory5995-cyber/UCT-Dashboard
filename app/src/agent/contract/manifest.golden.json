@@ -1734,7 +1734,7 @@
    "domain": "screener",
    "target": "savedScreens",
    "summary": "Save the LAST screen run here (its exact filters, sort, ranking and logic) as a new saved screen in the member's Screener. Never replaces an existing one.",
-   "hints": "target = the ref of the savedScreenLibrary entry; name = the name as given. Only when a screen was already run here (lastScreenHere is not null). If they ask to run a NEW screen and save it in one go, run it now (screener.run) and say in the reply that they can then say \"save it as <name>\".",
+   "hints": "target = the ref of the savedScreenLibrary entry; name = the name as given. It saves the last screen run here — one run earlier in this conversation, or earlier in this same request. To run a NEW screen and save it in one request: the screen first, then this — it saves that screen.",
    "args": {
     "type": "object",
     "properties": {

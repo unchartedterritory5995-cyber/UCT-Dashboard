@@ -36,6 +36,7 @@ const ADR = UNIVERSE.filter(r => r.adr_pct > 5 && r.price > 10).map(r => r.ticke
 
 let calls = []
 let turnQueue = []
+let savedScreens = []
 function installFetch() {
   globalThis.fetch = vi.fn(async (url, init = {}) => {
     const body = init.body ? JSON.parse(init.body) : null
@@ -50,7 +51,12 @@ function installFetch() {
       ] })
     }
     if (url === '/api/screener/fields?options=1') return json({ options: { industry: { values: [...INDUSTRIES].sort(), with_value: UNIVERSE.filter(r => r.industry).length, total: UNIVERSE.length } } })
-    if (url === '/api/screener/saved-screens') return json({ saved: [], starters: [] })
+    if (url === '/api/screener/saved-screens' && (init.method || 'GET') === 'POST') {
+      const row = { id: 900 + savedScreens.length, name: body.name, spec: body.spec }
+      savedScreens.push(row)
+      return json(row)
+    }
+    if (url === '/api/screener/saved-screens') return json({ saved: savedScreens, starters: [] })
     if (url === '/api/screener/scan') {
       const ok = (r, f) => (f.op === 'in' ? f.values.includes(r[f.key]) : f.op === 'gt' ? r[f.key] > f.min : f.op === 'lt' ? r[f.key] < f.max : true)
       const rows = UNIVERSE.filter(r => body.filters.every(f => ok(r, f)))
@@ -112,6 +118,26 @@ const type = (value) => (body) => env('apply', [{ action: 'chart.setType', targe
 const addSyms = (list, symbols) => (body) => env('apply', [{ action: 'watchlist.add', target: listRef(body, list), args: { symbols } }])
 const deleteList = (list) => (body) => env('propose', [{ action: 'watchlist.delete', target: listRef(body, list), args: {} }])
 
+const chartRef = (b) => ref(b, 'charts')
+const ixeRef = (b) => ref(b, 'indicatorEdits')
+const workflowA = (b) => env('apply', [
+  { action: 'chart.setSymbol', target: chartRef(b), args: { symbol: 'NVDA' } },
+  { action: 'chart.setTimeframe', target: chartRef(b), args: { timeframe: 'W' } },
+  ...(has(b, 'indicator.add') ? [{ action: 'indicator.add', target: ixeRef(b), args: { defId: 'rsi' } }] : []),
+], 'I can add RSI; a 20 EMA with its own period is set from the chart\'s Indicators menu.')
+const workflowD = (b) => env('propose', [
+  { action: 'screener.run', target: ref(b, 'screener'), args: { filters: [F(b, 'adr_pct', 'gt', 5), F(b, 'price', 'gt', 10)], sort_field: null, sort_dir: null, mode: 'new', show: null, as: null, ...(filterProps(b).values ? {} : {}), ...((b.capabilities || []).find(c => c.name === 'screener.run')?.args?.properties?.within ? { within: null } : {}) } },
+  { action: 'screener.saveAs', target: ref(b, 'savedScreenLibrary'), args: { name: 'ADR Movers' } },
+])
+const removeRsi = (b) => env('propose', [{ action: 'indicator.remove', target: ixeRef(b), args: { instance: 'rsi' } }])
+const indicatorIds = (st) => {
+  const w = st.widgets.find(x => x.id === 'c1')
+  const cs = w?.opts?.settings
+  const list = (cs && typeof cs === 'object' ? cs.indicatorInstances : null) || []
+  return list.filter(i => !i.deleted).map(i => i.defId)
+}
+const symOf = (st) => st.groupSyms[st.widgets.find(w => w.id === 'c1')?.color === 'N' ? 'N:c1' : (st.widgets.find(w => w.id === 'c1')?.color || 'A')]
+
 // ── the scenarios ──
 const ONE_CHART = [{ id: 'c1', type: 'chart', x: 0, y: 0, w: 18, h: 20, opts: { settings: JSON.stringify({ chartType: 'bars' }) } }, { id: 'wl', type: 'watchlist', x: 18, y: 0, w: 6, h: 20, opts: { watchKey: 'user:m1', watchName: 'Momentum', watchTab: 'mine' } }]
 const TWO_CHARTS = [{ id: 'c1', type: 'chart', x: 0, y: 0, w: 9, h: 20 }, { id: 'c2', type: 'chart', x: 9, y: 0, w: 9, h: 20 }, { id: 'wl', type: 'watchlist', x: 18, y: 0, w: 6, h: 20, opts: { watchKey: 'user:m1' } }]
@@ -147,6 +173,18 @@ const SCENARIOS = [
   { id: 'delete-approved', cat: 'approval', say: [['delete the Swing watchlist', deleteList('Swing')], ['do it']], done: (st) => !listNamed(st, 'Swing'), approval: true },
   { id: 'duplicate-do-it', cat: 'safety', say: [['Find software stocks over $10 with over $10M daily dollar volume and make a watchlist', softwarePlan(false)], ['do it'], ['do it']],
     done: (st) => st.server.lists.filter(l => l.name === 'Software Over $10').length === 1, approval: true },
+  // ── Phase 2 workflows (Milestone 4) ──
+  { id: 'wf-A-chart-config', cat: 'multi-step', say: [['Open NVDA, change it to the weekly chart, and add RSI', workflowA]],
+    done: (st) => symOf(st) === 'NVDA' && tfOf(st) === 'W' && indicatorIds(st).includes('rsi') },
+  { id: 'wf-C-existing-resources', cat: 'multi-step', say: [['Open my Swing watchlist and show AAPL on the main chart', (b) => env('apply', [
+    { action: 'chart.setSymbol', target: chartRef(b), args: { symbol: 'AAPL' } },
+    has(b, 'watchlist.open') ? { action: 'watchlist.open', target: ref(b, 'board'), args: { list: listRef(b, 'Swing') } } : { action: 'widget.showList', target: ref(b, 'board'), args: { widget: 'wl', list: listRef(b, 'Swing') } }])]],
+    done: (st) => shown(st) === 'user:s1' && symOf(st) === 'AAPL' },
+  { id: 'wf-D-screen-save-show', cat: 'multi-step', say: [['Find stocks with ADR above 5% and price above $10, save them as ADR Movers, and show me the results', workflowD], ['do it']],
+    done: () => savedScreens.some(x => x.name === 'ADR Movers') && /stocks match/.test(document.body.textContent), approval: true },
+  { id: 'wf-E-follow-up', cat: 'follow-up', say: [['Open NVDA, change it to the weekly chart, and add RSI', workflowA], ['Now change that chart to 15 minutes and remove RSI', (b) => env('propose', [
+    { action: 'chart.setTimeframe', target: chartRef(b), args: { timeframe: '15' } }, { action: 'indicator.remove', target: ixeRef(b), args: { instance: 'rsi' } }])], ['do it']],
+    done: (st) => tfOf(st) === '15' && !indicatorIds(st).includes('rsi') },
   { id: 'undo-open', cat: 'safety', say: [['open my Swing watchlist', openList('Swing')], ['undo']], done: (st) => shown(st) === 'user:m1' },
 ]
 
@@ -155,7 +193,7 @@ beforeEach(() => {
   screenerMod._resetScreenerCache()
   watchlistMod._resetLastCreated?.()
   try { localStorage.clear() } catch { /* */ }
-  calls = []; turnQueue = []
+  calls = []; turnQueue = []; savedScreens = []
   installFetch()
 })
 afterAll(() => {
@@ -179,6 +217,8 @@ describe('UCT Agent evaluation set', () => {
     it(sc.id, async () => {
       const board = makeBoard((sc.widgets || ONE_CHART).map(w => ({ ...w, opts: { ...(w.opts || {}) } })), { A: 'AAPL' }, { watchlists: LISTS })
       const { state } = board
+      board.host.persist = async () => ({ ok: true })
+      board.host.charts.canManageIndicators = () => true
       render(<AgentPanel host={board.host} onClose={() => {}} />)
       await screenerMod.loadMeta()
       await screenerMod.loadOptions?.().catch(() => {})

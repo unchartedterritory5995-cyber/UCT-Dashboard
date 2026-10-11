@@ -116,7 +116,7 @@ function aliasNames(ops) {
   return out
 }
 // A deferred op re-aimed at what was created: aliases in its target / args → real refs.
-function landDeferred(ops, created, names) {
+function landDeferred(ops, created, names, approved = false) {
   const real = (v) => (typeof v === 'string' && created?.[v] ? created[v] : v)
   const made = Object.entries(names).filter(([a]) => created?.[a])
   const pendingLists = Object.fromEntries(made.map(([a, n]) => [created[a], n]))
@@ -127,6 +127,8 @@ function landDeferred(ops, created, names) {
     action: o.action, target: real(o.target),
     args: Object.fromEntries(Object.entries(o.args || {}).map(([k, v]) => [k, real(v)])),
     pendingLists, followNote,
+    // a step that was ON the card the member approved runs as approved (re-validated, never re-asked)
+    ...(approved ? { approvedStep: true } : {}),
   }))
 }
 
@@ -461,7 +463,9 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
     const pendingLists = Object.assign({}, ...ops.map(o => o.pendingLists || {}))
     const env = { ...(await prepareOps(ops)), ...(suggested === 'approved' ? { approved: true, approval: approval || [] } : {}), ...(Object.keys(pendingLists).length ? { pendingLists } : {}) }
     mark('prepared')
-    const plan = planOps(targets, ops, env, capCtx)
+    // A read in THIS request (a screen just run) is visible to the writes after it ("find … and save it"):
+    // targets are re-read once the request's own queries have answered.
+    const plan = planOps(queries.length ? collectTargets(host, kindsOf(ops)) : targets, ops, env, capCtx)
     mark('planned')
     const actions = ops.map(o => o.action)
     if (!plan.ok) {
@@ -525,7 +529,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       const text = plan.noops.length ? `Nothing to change — ${plan.noops.join(' · ')}.` : 'Nothing to change.'
       push({ role: 'outcome', text })
       record({ member, outcome: text, outcomeData: { kind: 'noop', actions }, telemetry: { path, disposition: 'apply', actions, voice } })
-      if (deferred.length) return { followUps: landDeferred(deferred, {}, {}) }
+      if (deferred.length) return { followUps: landDeferred(deferred, {}, {}, suggested === 'approved') }
       return
     }
     if (boardEpoch(host, ops) != null) {
@@ -561,7 +565,7 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
       }
       push({ role: 'receipt', lines, undoId: res.undo?.id || null, notes: [...(wholly ? [] : plan.noops), ...undoNotesFor(plan, res)] })
       record({ member, outcome: lines.join(' · '), outcomeData: { kind: 'applied', actions, lines }, telemetry: { path, disposition: 'apply', actions, voice } })
-      const next = [...(Array.isArray(res.followUps) ? res.followUps : []), ...landDeferred(deferred, res.created, pendingNames)]
+      const next = [...(Array.isArray(res.followUps) ? res.followUps : []), ...landDeferred(deferred, res.created, pendingNames, suggested === 'approved')]
       if (next.length) return { followUps: next }
     } else {
       const text = `Some of that didn't take effect: ${res.failed.map(f => `${f.label} ${f.reason}`).join('; ')}.`
@@ -631,8 +635,8 @@ export default function useAgent({ host, gridMode = false, surface = 'charts' })
         continue
       }
       traceStart('followup:apply')
-      const { followNote, ...one } = op
-      try { await executeInner([one], { path: 'followup', mode: 'apply', member, voice, note: followNote || null }) } finally { traceEnd('done') }
+      const { followNote, approvedStep, ...one } = op
+      try { await executeInner([one], { path: 'followup', mode: approvedStep ? 'approved' : 'apply', member, voice, note: followNote || null }) } finally { traceEnd('done') }
     }
     return undefined
   }, [executeInner, definitionListed, host, push, record])

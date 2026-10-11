@@ -42,6 +42,9 @@ const CANON = [
   [/\b(\d+)[\s-]*(?:period|bar|day)s?\s+(?=ema|sma|rsi|atr|vwap|ma\b|moving average)/g, '$1 '],
   // "the rsi indicator" → "rsi"; "rsi study" → "rsi"
   [/\b(\w+) (?:indicator|study)\b/g, '$1'],
+  // conversational lead-ins and "that chart" (the chart just changed — on a one-chart board, the chart)
+  [/^(?:(?:now|ok|okay|and|then|also|alright|great|cool),?\s+)+/, ''],
+  [/that chart/g, 'the chart'],
   // verbs: add-type / remove-type synonyms (only unambiguous ones)
   [/^(?:please )?(?:throw|stick|slap|pop|plop|plot|load up|put up)\b/, 'add'],
   // ("delete" is NOT folded in: deleting a list or layout is a different, permanent action)
@@ -49,8 +52,8 @@ const CANON = [
   [/^(?:please )?take (.+?) off(?: of)?\b/, 'remove $1 from'],
   // "this chart / my chart / the chart / the active chart" add nothing a single-chart board
   // doesn't already say; with several charts the orchestrator still asks which one
-  [/\s+(?:on|to|onto|in|from|off|off of)\s+(?:this|my|the|our)\s+(?:active |current |open )?chart$/, ''],
-  [/\s+(?:this|my|the)\s+(?:active |current )?chart\b/g, ' the chart'],
+  [/\s+(?:on|to|onto|in|from|off|off of)\s+(?:this|my|the|our)\s+(?:active |current |open |main )?chart$/, ''],
+  [/\s+(?:this|my|the)\s+(?:active |current |main )?chart\b/g, ' the chart'],
 ]
 export function canon(text) {
   let s = clean(String(text || ''))
