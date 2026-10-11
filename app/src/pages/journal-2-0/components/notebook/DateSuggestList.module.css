@@ -56,7 +56,7 @@
   width: 100%;
   box-sizing: border-box;
   background: var(--bg-hover);
-  border: 1px solid var(--border-accent);
+  border: 1px solid var(--field-edge);
   border-radius: var(--radius-md);
   color: var(--text-bright);
   font: inherit;
