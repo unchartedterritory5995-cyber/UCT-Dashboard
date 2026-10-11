@@ -398,7 +398,7 @@ def read_overlay(symbol: str, minutes_ago: list, now: Optional[datetime] = None,
                  "strikes": as_of(t)}
         if t is None:
             entry["note"] = (f"No snapshot is {m} minutes older than the latest one yet. "
-                             f"History starts at {_iso(snaps[0]) or 'the first snapshot'}.")
+                             f"History starts at {(_iso(snaps[0]) if snaps else None) or 'the first snapshot'}.")
         series.append(entry)
     strikes = sorted({k for s in series for k in s["strikes"]})
     return {

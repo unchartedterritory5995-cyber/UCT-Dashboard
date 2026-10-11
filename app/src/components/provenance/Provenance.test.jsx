@@ -156,3 +156,28 @@ describe('density is accepted and threaded through, never changes which state re
     expect(screen.getByTestId('provenance-degraded').dataset.density).toBe('inline')
   })
 })
+
+// TERM-050 — the origin chip (where the words came from), and the wrapper class
+// a row uses to lay the renderer out. Both additive: absent, nothing changes.
+describe('origin and className (TERM-050)', () => {
+  it('renders no origin chip when none is given', () => {
+    render(<Provenance value="42" provenance={{}} />)
+    expect(screen.queryByTestId('provenance-origin')).toBeNull()
+  })
+
+  it('renders the origin label after the value, with its hint as the title', () => {
+    render(<Provenance value="q3.pdf · p.4" provenance={{}}
+      origin={{ label: 'Scanned text', hint: 'check the page' }} />)
+    const chip = screen.getByTestId('provenance-origin')
+    expect(chip).toHaveTextContent('Scanned text')
+    expect(chip).toHaveAttribute('title', 'check the page')
+    expect(screen.getByTestId('provenance-present').textContent).toBe('q3.pdf · p.4Scanned text')
+  })
+
+  it('appends a caller class to the wrapper without dropping its own', () => {
+    render(<Provenance value="42" provenance={{}} className="rowSlot" />)
+    const wrap = screen.getByTestId('provenance-present')
+    expect(wrap.className).toContain('rowSlot')
+    expect(wrap.className.split(/\s+/).length).toBe(2)
+  })
+})

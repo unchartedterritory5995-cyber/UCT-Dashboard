@@ -46,15 +46,24 @@
  * `/journal...` path (the Link mark's `isAllowedUri` lets all three past the
  * schema, same file) all answer null here — never opened, never hinted,
  * regardless of `view.editable`.
+ *
+ * ⭐ TERM-056: ONE internal form opens too, and only while its gate is on: a
+ * terminal command link, `/terminal?cmd=<command>` (lib/../terminal/
+ * commandInterchange.js makes it from a pasted command). It opens the shell at
+ * that command in a new tab, by the same gestures. Gate off: null, like any
+ * other internal path, so a stored terminal link is inert.
  */
 import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { safeLinkHref } from './webLinkNodes'
 import { modKeyLabel } from './platform'
+import { notebookFlag } from './offline/notebookFlags'
 
 export const linkClickOpenKey = new PluginKey('uctLinkClickOpen')
 
 const MAILTO_RE = /^mailto:/i
+/** A terminal command link (TERM-056): the shell's own `?cmd=` door, nothing else. */
+const TERMINAL_CMD_RE = /^\/terminal\?cmd=[^\s]+$/
 
 /**
  * The href this click/tap may actually open, or null.
@@ -68,6 +77,9 @@ const MAILTO_RE = /^mailto:/i
 export function openableLinkHref(href) {
   if (typeof href !== 'string') return null
   const trimmed = href.trim()
+  if (TERMINAL_CMD_RE.test(trimmed)) {
+    return notebookFlag('notebook_terminal_links_enabled') === true ? trimmed : null
+  }
   if (MAILTO_RE.test(trimmed)) {
     const rest = trimmed.slice('mailto:'.length)
     return rest && rest.includes('@') && !/\s/.test(rest) ? trimmed : null

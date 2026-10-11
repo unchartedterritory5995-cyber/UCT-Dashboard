@@ -32,9 +32,12 @@ export default function Provenance({
   citedRow = null,
   loading = false,
   availability = AVAILABLE,
+  origin = null,
+  className = '',
 }) {
   const panelId = useId()
   const [open, setOpen] = useState(false)
+  const wrapClass = className ? `${styles.wrap} ${className}` : styles.wrap
 
   // §9.7 — a fetch in flight. Checked FIRST: a loading value has no honest
   // opinion yet about degraded/available/anything else.
@@ -102,12 +105,23 @@ export default function Provenance({
 
   return (
     <span
-      className={styles.wrap}
+      className={wrapClass}
       data-density={density}
       data-testid="provenance-present"
       data-cited-row={citedRow || undefined}
     >
       <span className={styles.value}>{value}</span>
+      {/* TERM-050: WHERE THE WORDS CAME FROM, as a quiet chip after the value.
+          The Notebook's Ask sources were the second renderer of this fact
+          (`documentProvenance`'s "Scanned text" chip drawn locally); they now
+          reach it through this prop, adapted by `documentOrigin.js`. A title
+          is hover-only, so the caller also puts `origin.label` in the row's
+          accessible name. */}
+      {origin && origin.label && (
+        <span className={styles.origin} title={origin.hint || undefined} data-testid="provenance-origin">
+          {origin.label}
+        </span>
+      )}
       {detailParts.length > 0 && (
         <>
           <button

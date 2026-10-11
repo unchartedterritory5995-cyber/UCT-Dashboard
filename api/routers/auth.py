@@ -251,6 +251,9 @@ NOTEBOOK_FLAGS = {
     "NOTEBOOK_TASK_REMINDERS_ENABLED": True,  # kill switch — unset means ON (daily task reminder, wave 6 F)
     #   meaning search: note_semantic.semantic_enabled (on: 1/true/yes/on)
     "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": False,  # enablement — unset means OFF (search by meaning, wave 7 H3)
+    # TERM-056 (lane N, 2026-10-10): a terminal command pasted into a note becomes a link that
+    # opens the terminal at it. Client-only; payload key `notebook_terminal_links_enabled`.
+    "NOTEBOOK_TERMINAL_LINKS_ENABLED": False,  # enablement — unset means OFF (terminal command links)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

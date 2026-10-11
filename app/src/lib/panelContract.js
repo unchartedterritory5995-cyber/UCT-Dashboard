@@ -63,6 +63,7 @@
 
 import * as priceStreamManager from './priceStreamManager'
 import * as barsStreamManager from './barsStreamManager'
+import * as chainStreamManager from './chainStreamManager'
 
 export const DELIVERY = Object.freeze({
   LAST_VALUE_WINS: 'last-value-wins',
@@ -86,6 +87,12 @@ const NEEDS = Object.freeze({
   bars: Object.freeze({
     delivery: DELIVERY.LAST_VALUE_WINS,
     pool: barsStreamManager, subscribe: 'subscribe', read: 'getStatus',
+  }),
+  // FT-015: the streamed option chain sends only the contracts that moved, so no message may be
+  // dropped; the pool merges each one (lib/chainStreamManager.js).
+  chain: Object.freeze({
+    delivery: DELIVERY.EVERY_MESSAGE_MATTERS,
+    pool: chainStreamManager, subscribe: 'subscribe', read: 'getSnapshot',
   }),
   tape: Object.freeze({
     delivery: DELIVERY.EVERY_MESSAGE_MATTERS,

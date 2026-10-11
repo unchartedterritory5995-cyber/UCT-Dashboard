@@ -333,6 +333,14 @@ describe('scanned-text provenance on a citation', () => {
       .toBeInTheDocument()
   })
 
+  it('TERM-050: the chip is drawn by S8\'s shared renderer, with no button nested in the row', async () => {
+    await ask({}, [head({ sources: [{ ...PAGE, textOrigin: 'ocr' }] }), ...answer])
+    const row = screen.getByRole('button', { name: /Open source 1/ })
+    expect(row.querySelector('[data-testid="provenance-present"]')).not.toBeNull()
+    expect(row.querySelector('[data-testid="provenance-origin"]').textContent).toBe('Scanned text')
+    expect(row.querySelector('button')).toBeNull()
+  })
+
   it('still cites the document at its page, and still navigates there', async () => {
     // §11/§12 — provenance never replaces source identity or its destination.
     const onNavigate = vi.fn()

@@ -2,6 +2,9 @@
 
 Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 
+Redeploy trigger 2026-10-11: ships the flow_exposure_history.py empty-store fix (a
+stranded file; it rides along with this watched one).
+
 DEPLOY NOTE (2026-07-17): the flow-worker service is GitHub-triggered on NARROW
 watch paths set in the Railway service settings (never railway.json — that file
 # 2026-09-13 - deploy trigger. `api/services/bar_quarantine.py` and

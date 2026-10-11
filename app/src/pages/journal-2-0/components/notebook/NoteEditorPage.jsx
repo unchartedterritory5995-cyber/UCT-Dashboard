@@ -125,6 +125,7 @@ import {
   WRITING_HELP_EVENT, acceptWritingHelp, captureWritingHelpScope, INSIDE_ANSWER_SENTENCE,
 } from '../../lib/writingHelp'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
+import { pasteTerminalCommand } from '../../lib/terminalCommandPaste'
 import lazyChunk from '../../lib/lazyChunk'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import { CANVAS_EVENT, extraBlockCount, isTradeCanvasDoc } from '../../lib/tradeCanvas'
@@ -1690,6 +1691,20 @@ export default function NoteEditorPage({
   // `editor` const is still null — so closing over it directly made paste throw
   // "Cannot read properties of null (reading 'chain')". The ref is always fresh.
   const editorRef = useRef(null)
+  // TERM-056: a pasted terminal command (NVDA GRADE, B:<board>, N:42) becomes a link that
+  // opens the terminal at it. Whether a line IS a command is the terminal's own parser's call,
+  // loaded only while the gate is on -- a lazy chunk, never the Notebook's first-open bytes.
+  // Read through a ref for the same reason as editorRef: handlePaste is captured at creation.
+  const terminalLinksRef = useRef(null)
+  const terminalLinksOn = notebookFlag('notebook_terminal_links_enabled') === true
+  useEffect(() => {
+    if (!terminalLinksOn || terminalLinksRef.current) return undefined
+    let live = true
+    import('../../../terminal/commandInterchange')
+      .then((m) => { if (live) terminalLinksRef.current = m })
+      .catch(() => { /* not loaded: a paste stays plain text, exactly as before */ })
+    return () => { live = false }
+  }, [terminalLinksOn])
   // Wave I: a single toast for both image and file-attachment upload
   // failures — an alert() blocks the whole tab for the multi-second span a
   // PDF upload can take, which is a worse experience than the image case
@@ -2483,6 +2498,10 @@ export default function NoteEditorPage({
       attributes: { class: styles.proseEditor, 'aria-label': 'Note body', tabindex: '0' },
       handlePaste(view, event) {
         const items = event.clipboardData?.items
+        const terminalLink = !Array.from(items || []).some((i) => i.kind === 'file')
+          && notebookFlag('notebook_terminal_links_enabled') === true
+          && pasteTerminalCommand(view, event, terminalLinksRef.current)
+        if (terminalLink) return true
         if (!items) return false
         for (const item of items) {
           if (item.kind !== 'file') continue

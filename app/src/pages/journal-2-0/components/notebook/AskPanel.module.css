@@ -212,7 +212,17 @@
   font-size: 10.5px;
   font-weight: 700;
 }
-.sourceLabel {
+/* TERM-050: the label and its origin chip are drawn by S8's <Provenance>.
+   This class only lays that wrapper out in the row: it takes the label's old
+   flex slot, and its first child (the value) keeps the label's ellipsis. */
+.sourceProvenance {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.sourceProvenance > :first-child {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -229,20 +239,8 @@
   padding: 1px 5px;
 }
 
-/* Wave P3 §35: the scanned-text note on a citation.
-   ⛔ QUIET ON PURPOSE — the citation is a good one, and a loud banner on every
-   OCR source would train the member to ignore it. Same restraint, and the same
-   words, as the Search result chip. */
-.sourceScanned {
-  flex: none;
-  font-size: 10px;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 1px 5px;
-}
+/* ⚰️ `.sourceScanned` (Wave P3 §35's quiet scanned-text chip) moved to S8's
+   Provenance.module.css as `.origin` with the same declarations (TERM-050). */
 
 .srOnly {
   position: absolute;
