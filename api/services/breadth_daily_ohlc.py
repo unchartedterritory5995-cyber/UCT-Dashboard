@@ -590,6 +590,17 @@ def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = F
                     _rebuild_after_write(conn, {r[1] for r in clean})
         except Exception:
             return 0
+    # (2026-10-11) a write into PAST sessions queues those charts for a background rebuild
+    try:
+        from datetime import datetime as _dtm
+        from zoneinfo import ZoneInfo as _Z
+        today = _dtm.now(_Z("America/New_York")).date().isoformat()
+        past = {r[2] for r in clean if r[1] < today}
+        if n and past:
+            from api.services import breadth_symbols as _bs
+            _bs.mark_dirty(u, past)
+    except Exception:
+        pass
     return n
 
 
@@ -1059,6 +1070,25 @@ def history(metric: str, limit: int = 6000,
     return out
 
 
+# ⭐ (2026-10-11) A FAILED READ IS NOT AN EMPTY ONE. `_history_stored` answers {} on any
+# error, and a chart build cannot tell that from "no rows" — so one unlucky read became a
+# series missing all its deep history, cached for hours and persisted over the good copy.
+# The flag is per thread (builds run on executor threads) and the reader resets it.
+_read_state = threading.local()
+
+
+def begin_read_check() -> None:
+    _read_state.failed = False
+
+
+def read_failed() -> bool:
+    return bool(getattr(_read_state, "failed", False))
+
+
+def _mark_read_failed() -> None:
+    _read_state.failed = True
+
+
 def _history_stored(metric: str, limit: int = 6000,
                     universe: str = DEFAULT_UNIVERSE, with_source: bool = False) -> dict:
     """{ 'YYYY-MM-DD': {o,h,l,c} } for a metric, newest `limit` days — TRUSTED sources
@@ -1087,6 +1117,7 @@ def _history_stored(metric: str, limit: int = 6000,
         _v2 = _ba.universe_history(metric, universe, limit, with_source=with_source)
     except Exception:
         _v2 = None
+        _mark_read_failed()            # the seam failed: the V1 rows below are a fallback
     if _v2 is not None:
         return _v2
     _ensure_init()
@@ -1104,6 +1135,7 @@ def _history_stored(metric: str, limit: int = 6000,
                 if with_source:
                     out[d]["src"] = src
     except Exception:
+        _mark_read_failed()
         return {}
     return out
 

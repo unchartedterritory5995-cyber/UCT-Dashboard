@@ -413,11 +413,24 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
                     (breadth_daily_ohlc._uni(uni), from_date, to_date)).fetchall()}
         except Exception as e:
             return {"ok": False, "reason": f"missing_only: store unreadable ({e})"}
+    priced_counts: list = []
+    thin: list = []
     for ds in sweep:
         r = recompute_from_frame(frame, tickers, ds, window,
                                  members=members_of.get(ds))
         if not r.get("ok"):
             continue
+        # ⭐ (2026-10-11) MISSING-ONLY NEVER RE-STATES A VALUE, so a session priced from a
+        # partial frame (e.g. a deep cache that lacks the newest bar for many names) would
+        # be frozen for good. Skip it — the next run retries — when far fewer names priced
+        # than the sweep's own recent sessions.
+        if missing_only:
+            _n = int((r.get("metrics") or {}).get("universe_count") or 0)
+            _recent = priced_counts[-20:]
+            if len(_recent) >= 5 and _n < 0.9 * sorted(_recent)[len(_recent) // 2]:
+                thin.append((ds, _n))
+                continue
+            priced_counts.append(_n)
         base = dict(r["metrics"])
         base["date"] = ds
         try:
