@@ -60,7 +60,25 @@ KEEP_CURRENT = ("/__fixtures__/", "/a11y/fixtures.jsx", "/a11y/surface.js", "/a1
 MUTATION = ("app/src/pages/journal-2-0/components/notebook/onboarding/tourRegistry.js",
             "  if (!checklistEnabled(flag)) return false\n", "")
 
-# The accepted differences. FIVE entries. Adding one is a controller ruling, never a tool-side fix.
+# The accepted differences. SIX entries. Adding one is a controller ruling, never a tool-side fix.
+#
+# RULING R9 (controller, 2026-10-11, Notebook P0 discoverability, Task 15): update this list ONCE for
+# the P0 doors. What that could and could not be, stated rather than papered over:
+#   NAMED BELOW (each literal read off the capture, occurring once in HEAD where it is allowed):
+#     the New note menu (P0.1), the search input (P0.13, whose box the 10/10 UX pass made a button),
+#     and the Active setups box (P0.5, which REPLACES the lane NAV door below it: that link is no
+#     longer in HEAD, so its old entry is rewritten, not kept beside the new one).
+#   NOT NAMEABLE IN THIS GRAMMAR, and why (the verdict does not pretend otherwise):
+#     one Ask section (P0.7): a RESTRUCTURE. BASE holds two Ask pieces in two places and HEAD one
+#       section; no single added element, one-tag swap or counted run states it.
+#     Notices box (P0.4): renders only when the alerts / insights reads return rows, and the capture's
+#       fetch serves none, so no case contains it. A name with no case to appear in is not evidence.
+#     Learn "What your Notebook can do" (Task 14b): lives inside the Learn menu, closed at rest, and the
+#       capture photographs surfaces at rest (see "WHAT THIS TOOL CANNOT SEE" above).
+# ⚠ THE VERDICT IS STILL "DIFFERS", for reasons that are not P0's: the sidebar tree's keyboard work
+# (roles, tabindex, data-tree-*), the sidebar slot's reveal marker, and the UX pass's regrouping of
+# Home (Recent notes, folded boxes, the Today button's move) all differ from BASE in EVERY flag set and
+# have no entry. Accepting those is its own controller ruling; it is not made here.
 #
 # An entry names how HEAD differs from BASE as LITERAL text, one of two ways:
 #   element          a whole element HEAD has and BASE does not;
@@ -88,16 +106,39 @@ EXPECTED = (
                   "controller as an intended accessibility change.",
     },
     {
-        "name": "Active setups door (lane NAV)",
-        "element": '<a class="btn btn-ghost _setupsLink_" title="Your open chart plans, closest to '
-                   'their entry first" href="/journal/notebook/setups" data-discover="true">Active setups</a>',
+        "name": "Active setups box (P0.5; replaces the lane NAV door)",
+        "element": '<div class="_box_" data-export-exclude="true"><span class="_count_">Active setups</span><a class="btn btn-ghost _setupsLink_" aria-describedby="_r_" href="/journal/notebook/setups" data-discover="true">Open the setups board</a><span id="_r_" class="_srOnly_">Your open chart plans, closest to their entry first</span></div>',
         "surface": "notebook home",
         "needs": "notebook_setups_board_enabled",
-        "commit": "6b7e037c9f",
-        "accepted": "2026-10-07",
-        "reason": "The active setups board had no door (BETA-HANDOFF 1b: no menu link to it yet). "
-                  "The NAV lane added one link on Research Home, rendered only while the setups "
-                  "board capability is on. Accepted by the controller as intended.",
+        "commit": "7bc5a0965f",
+        "accepted": "2026-10-11",
+        "reason": "The active setups board's one door was a bare link (lane NAV, 6b7e037c9f, accepted "
+                  "2026-10-07). P0.5 (owner decision, 2026-10-11) made it a box under the Notices box that "
+                  "says how many plans are open and links to the board; the old link is gone from HEAD, so "
+                  "this entry takes its place. Rendered only while the setups board capability is on. "
+                  "Ruling R9.",
+    },
+    {
+        "name": "New note menu on Research Home (P0.1)",
+        "element": '<div class="_split_"><button type="button" class="btn btn-primary _main_"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 5v14M5 12h14"></path></svg> New note</button><button type="button" class="btn btn-primary _caret_" aria-haspopup="menu" aria-expanded="false" aria-label="More ways to start a note"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 9.5l6 6 6-6"></path></svg></button></div>',
+        "surface": "notebook home",
+        "needs": None,
+        "commit": "c4b504558d",
+        "accepted": "2026-10-11",
+        "reason": "Research Home gained a create door: one press makes a blank note, the caret lists the "
+                  "other ways in (an item only when its handler exists). It renders for a member who has "
+                  "notes, in every flag set. ALWAYS ON. Ruling R9.",
+    },
+    {
+        "name": "Home search input (P0.13)",
+        "element": '<input class="_searchBox_" data-home-search="" aria-label="Search your notes" placeholder="Search your notes" autocomplete="off" type="search">',
+        "surface": "notebook home",
+        "needs": None,
+        "commit": "bf9489adbf",
+        "accepted": "2026-10-11",
+        "reason": "Research Home's search door is a real search input that hands the first character to the "
+                  "folders panel's search (it was a button from the 10/10 UX pass; neither exists in BASE). "
+                  "ALWAYS ON. Ruling R9.",
     },
     {
         "name": "Research Home skip link to the reviews (lane KEYS)",
@@ -272,7 +313,10 @@ def capture(out):
 
 
 def swap_to_base():
-    changed = git("diff", "--name-only", BASE, "HEAD", "--", "app/src").decode().split()
+    # --no-renames: a file MOVED since BASE would otherwise be listed under its new name only, its old
+    # path never swapped back, and the BASE blobs that still import the old path would not resolve
+    # (instanceShape.js -> ./engine/legacyCotGroups, moved to ./legacyCotGroups; 2026-10-11).
+    changed = git("diff", "--no-renames", "--name-only", BASE, "HEAD", "--", "app/src").decode().split()
     saved = {}
     for rel in changed:
         if ".test." in rel or any(k in rel for k in KEEP_CURRENT):
@@ -360,7 +404,7 @@ def judge(case, head, base, flagsets, expected=EXPECTED):
 def _apply(base, entry, n=4):
     """A HEAD made from `base` by applying one entry (for the self-check)."""
     if "element" in entry:
-        return base.replace("</p></section>", "</p>" + entry["element"] + "</section>", 1)
+        return base.replace("</section>", entry["element"] + "</section>", 1)
     if "head" in entry:
         return base.replace(entry["base"], entry["head"], 1)
     out = base
@@ -430,10 +474,11 @@ def self_check():
         for e in home:
             both = _apply(both, e)
         case = "notebook home | set | fresh member"
-        all_on = {"set": {e["needs"]: True for e in home}}
+        capped = [e for e in home if e["needs"]]          # the always-on entries need no capability
+        all_on = {"set": {e["needs"]: True for e in capped}}
         cases.append(("every Notebook Home change together, every capability on: accepted", case, both, base, all_on, "expected"))
         cases.append(("the same, plus another difference", case, both.replace("next", "next!"), base, all_on, "differs"))
-        for e in home:
+        for e in capped:
             one_off = {"set": {**all_on["set"], e["needs"]: False}}
             # an entry sharing that capability goes off with it; the rest stay on, so it must differ
             cases.append((f"every Notebook Home change together, {e['needs']} off", case, both, base, one_off, "differs"))
