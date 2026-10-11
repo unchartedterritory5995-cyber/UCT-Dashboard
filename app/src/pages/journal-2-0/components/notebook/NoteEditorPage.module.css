@@ -374,6 +374,10 @@
    NoteEditorPage.phoneFormat.test.jsx). */
 .formatToggle { display: none; }
 .formatRun { display: contents; }
+/* P0.6: the phone's "+" insert door. Same rule as the toggle above: it does not exist above
+   640 px (its inline-flex lives in the `max-width: 640px` block below). Its menu is the shared
+   ContextPopover, whose rows already carry the 44 px floor. */
+.insertPhone { display: none; }
 .formatGlyph {
   font-family: Georgia, 'Times New Roman', serif;
   font-weight: 700;
@@ -720,6 +724,11 @@
      Measured before/after: docs/notebook/proof/d3p-*. */
   .formatToggle { display: inline-flex; align-items: center; gap: 6px; }
   .toolbarRow:not([data-format-open]) .formatRun { display: none; }
+  /* P0.6: the "+" insert door shows on a phone, and an OPEN Format wraps into a grid of rows
+     instead of scrolling sideways (the sideways scroll below hid the inserts and clipped the
+     mic). Closed, the row is Undo, Redo, B, I, Format, "+" and the mic in one line. */
+  .insertPhone { display: inline-flex; align-items: center; justify-content: center; }
+  .toolbarRow[data-format-open] { flex-wrap: wrap; overflow-x: visible; overflow-y: visible; }
   /* Notebook phone pass (2026-10-10): the header is ONE compact row -- Star, Writing help (its
      icon), Share and "More note actions" (plus a linked-trade chip or a status when there is
      one). Ask, Find, Outline and the folder select are not displayed here; the More panel carries each one
