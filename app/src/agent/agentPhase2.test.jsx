@@ -219,3 +219,45 @@ describe('"my strongest stocks": WITHIN the member\'s own list, through the Scre
       .toMatch(/isn't one of your watchlists/)
   })
 })
+
+// ── MILESTONE 6: Agent ⇄ Screener consistency ──
+import { decodeSpec } from '../pages/screener/shell/specUrl'
+
+describe('Agent and Screener mean the same screen', () => {
+  const mockEngine = () => {
+    const calls = []
+    globalThis.fetch = vi.fn(async (url, init = {}) => {
+      const body = init.body ? JSON.parse(init.body) : null
+      calls.push([String(url), body])
+      const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } })
+      if (url === '/api/screener/fields') return json({ fields: [{ key: 'price', label: 'Price', type: 'range', unit: '$', category: 'descriptive' }, { key: 'industry', label: 'Industry', type: 'enum', category: 'descriptive' }] })
+      if (url === '/api/screener/fields?options=1') return json({ options: { industry: { values: ['Banks - Regional', 'Software - Application', 'Software - Infrastructure'], with_value: 3, total: 3 } } })
+      if (url === '/api/screener/scan') return json({ total: 2, rows: [{ ticker: 'AAA' }, { ticker: 'BBB' }], snapshot_date: '2026-10-10' })
+      if (url === '/api/agent/session-stats') return json({ session: '2026-10-09', rows: { AAA: { close: 12, volume: 2e6, dollar_volume: 2.4e7 }, BBB: { close: 9, volume: 1e6, dollar_volume: 9e6 } }, missing: [] })
+      return json({})
+    })
+    return calls
+  }
+  it('criteria the Screener holds (industry + price): its "Open in Screener" link carries EXACTLY the filters the Agent ran', async () => {
+    const calls = mockEngine()
+    screenerMod._resetScreenerCache()
+    const a = await getCapability('screener.run').answer(null, { filters: [
+      { field: 'industry', op: 'in', value: null, max: null, values: ['software'] }, { field: 'price', op: 'gt', value: 10, max: null, values: null }],
+    sort_field: null, sort_dir: null, mode: 'new', show: null, as: null, within: null }, hostOf())
+    const ran = calls.find(c => c[0] === '/api/screener/scan')[1].filters
+    const linked = decodeSpec(new URLSearchParams(a.link.href.split('?')[1]).get('s')).filters
+    expect(Object.fromEntries(ran.map(({ key, ...rest }) => [key, rest]))).toEqual(linked)
+    expect(a.link.label).toBe('Open in Screener')
+  })
+  it('a latest-session condition the Screener cannot hold yet is SAID on the link, and never saved into a broader screen', async () => {
+    mockEngine()
+    screenerMod._resetScreenerCache()
+    const a = await getCapability('screener.run').answer(null, { filters: [
+      { field: 'price', op: 'gt', value: 10, max: null, values: null }, { field: 'dollar_volume_1d', op: 'gt', value: 1e7, max: null, values: null }],
+    sort_field: null, sort_dir: null, mode: 'new', show: null, as: null, within: null }, hostOf())
+    expect(a.text).toMatch(/^1 stock matches/)                                   // only AAA traded > $10M at > $10
+    expect(a.link.label).toMatch(/^Open in Screener \(without .*Dollar Volume \(latest session\)/)
+    const why = getCapability('screener.saveAs').check({ loaded: true, last: screenerMod.lastScreenNow().spec, mine: [], starters: [] }, { name: 'X' })
+    expect(why).toMatch(/can’t hold yet — saving it would drop that condition/)
+  })
+})
