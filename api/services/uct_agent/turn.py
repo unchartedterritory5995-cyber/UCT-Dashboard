@@ -578,15 +578,17 @@ _LEAD = r"^\s*(?:(?:sure|ok|okay|got it|alright|great|perfect|done)\s*[,!.—–
 _NARRATES = re.compile(_LEAD + rf"(?:(?:i(?:'ve| have| am|'m|'ll| will)|let me|now)\s+(?:\w+\s+)?(?:{_ACT})\w*\b"
                        rf"|(?:{_ACT})\w*(?:ing|ed)\b|here (?:are|is)\b)", re.I)
 # An ANSWER (no ops at all) that claims work: first person ("I've added…", "let me open…"), an action
-# verb in the past tense up front ("Added RSI…", "Switched…"), a gerund on the member's own things
-# within two words ("Opening your…", "filtering your list…"), or results handed over ("here are
-# your/the top …"). Plain explanations that merely start with a gerund ("Adding a 200-day SMA shows the
-# trend", "Showing volume helps…") and "let me show you how…" are NOT matched.
+# verb (gerund or past tense) on the member's OWN things within two words ("Opening your…",
+# "Added RSI to your chart", "filtering your list…"), results handed over as theirs ("here are
+# your …"), or a bare "Done.". NOT matched — measured in the 2026-10-11 acceptance probe, where a
+# broader rule replaced all six: market-data and explanatory answers that merely START with such a
+# word ("Ranked by market cap, the largest…", "Added volume often confirms…", "Opened interest in
+# calls rose…", "Here are the top headlines…", "Here are the results of NVDA's last earnings…"),
+# "Adding a 200-day SMA shows the trend", and "let me show you how…".
 _CLAIMS_WITHOUT_ACTION = re.compile(
     _LEAD + rf"(?:(?:i(?:'ve| have| am|'m|'ll| will)|let me)\s+(?:\w+\s+)?(?:{_ACT})\w*\b(?!\s+(?:you|how|what|why)\b)"
-    rf"|(?:{_ACT})\w*ed\b"
-    rf"|(?:{_ACT})\w*ing\s+(?:up\s+)?(?:\S+\s+){{0,2}}?(?:your|my)\b"
-    rf"|here (?:are|is) (?:your|the (?:top|strongest|best|leading|results?|matches|stocks|names))\b"
+    rf"|(?:{_ACT})\w*(?:ing|ed)\s+(?:up\s+)?(?:\S+\s+){{0,2}}?(?:your|my)\b"
+    rf"|here (?:are|is) your\b"
     r"|(?:done|all set)\b)", re.I)
 NOTHING_DONE = ("I didn't do that — no action was planned, so nothing in UCT changed. "
                 "Ask again a little more specifically (for example, “screen for the highest RS Rank stocks”).")

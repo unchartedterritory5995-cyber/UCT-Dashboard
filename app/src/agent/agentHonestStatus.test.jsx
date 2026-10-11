@@ -169,6 +169,31 @@ describe('2 · the panel reports what UCT did, never what the model said it did'
     expect(document.body.textContent).toMatch(/didn't take effect.*nothing was left changed/)
   })
 
+  it('PARTIAL: one of two writes refused — the member is told what did not take effect, and the board matches it', async () => {
+    const st = { w1: { stored: null }, w2: { stored: null } }
+    const read = (ref) => (st[ref] ? { ref, label: ref === 'w1' ? 'Left chart (SPY)' : 'Right chart (QQQ)', position: ref === 'w1' ? 'left' : 'right', symbol: ref === 'w1' ? 'SPY' : 'QQQ', tf: 'D', stored: st[ref].stored, cs: mergeChartSettings(st[ref].stored || {}), linkedCount: 0 } : null)
+    const host = {
+      charts: {
+        list: () => ['w1', 'w2'].map(read), read,
+        commit(ref, patch) { if (ref === 'w2') return false; if ('settings' in patch) st[ref].stored = patch.settings; return true },
+      },
+      otherWidgets: () => [],
+    }
+    turns.push(env('apply', [{ ...BARS, target: 'c1' }, { ...BARS, target: 'c2' }], ''))
+    render(<AgentPanel host={host} onClose={() => {}} />)
+    type('​make both charts bars')
+    // two charts = a PROPOSAL first (approval preserved): nothing written yet
+    await screen.findByText(/Proposed changes/)
+    expect(st.w1.stored).toBeNull()
+    type('do it')
+    await waitFor(() => expect(document.body.textContent).toMatch(/didn't take effect/), { timeout: 5000 })
+    // names the one that failed and says the rest was rolled back — and the board says the same
+    expect(document.body.textContent).toMatch(/Some of that didn't take effect: Right chart \(QQQ\) did not take effect — nothing was left changed\./)
+    expect(st.w2.stored).toBeNull()
+    expect(st.w1.stored).toBeNull()                                             // the left chart's write was undone
+    expect(document.body.textContent).not.toMatch(/Changed .* to Bars/)
+  })
+
   it('DONE: an executed change is reported by UCT\'s receipt, with Undo', async () => {
     const host = mkHost()
     turns.push(env('apply', [BARS], ''))

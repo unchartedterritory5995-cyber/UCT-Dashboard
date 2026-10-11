@@ -65,7 +65,7 @@ def test_the_live_apply_that_narrated_filtering_keeps_its_op_and_loses_the_narra
 @pytest.mark.parametrize("reply", [
     "Opening your Momentum watchlist.", "Switched your chart to weekly.", "Added RSI to your chart.",
     "I've added RSI.", "I'll open your trading layout.", "I have saved the screen.", "Let me open that for you.",
-    "Here are your strongest stocks: NVDA, PLTR, HOOD.", "Here are the top 10 by RS Rank: NVDA, PLTR.",
+    "Here are your strongest stocks: NVDA, PLTR, HOOD.",
     "Done.", "All set!", "Sure, opening your Swing layout now.", "OK — filtering your list to stocks above $50.",
     # an `apply` that came back with no ops is just a reply, and is held to the same rule
 ])
@@ -88,6 +88,17 @@ def test_an_apply_with_no_ops_becomes_an_answer_and_its_claim_is_replaced():
     "I'll need to know which chart you mean.",
     "Your Momentum list has 8 stocks.",
     "Strongest means highest RS Rank across UCT's Screener universe.",
+    # ⭐ market-data / explanatory answers the 2026-10-11 acceptance probe found a broader rule replacing
+    "NVDA closed at $182.50 yesterday, up 2.1%.",
+    "Here is the latest news for NVDA: the company reported record data-center revenue.",
+    "Here are the top headlines for AAPL today: iPhone sales beat estimates.",
+    "Here are the results of NVDA's last earnings: revenue $35B, EPS $0.81.",
+    "Ranked by market cap, the largest software names are MSFT, ORCL and CRM.",
+    "Added volume often confirms a breakout.",
+    "Opened interest in calls rose sharply this week.",
+    "Sorted by RS Rank, leaders tend to hold up in pullbacks.",
+    "Breadth is improving: 62% of stocks are above their 50-day average.",
+    "Earnings for TSLA are scheduled after the close on Oct 22.",
 ])
 def test_ordinary_answers_pass_untouched(reply):
     assert turn.sanitize_envelope(env("answer", reply=reply), {"c1"})["reply"] == reply
