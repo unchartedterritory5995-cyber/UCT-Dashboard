@@ -22,8 +22,8 @@ const META = { fields: [
   { key: 'sector', label: 'Sector', type: 'enum' },
 ] }
 const ROWS = [
-  { ticker: 'AAA', company: 'A Co', price: 12.5, chg_pct_1d: 1.2, adr_pct: 9.1 },
-  { ticker: 'BBB', company: 'B Co', price: 44, chg_pct_1d: -0.4, adr_pct: 7.3 },
+  { ticker: 'AAA', company: 'A Co', price: 12.5, chg_pct_1d: 1.2, adr_pct: 9.1, chg_pct_1m: 31.4 },
+  { ticker: 'BBB', company: 'B Co', price: 44, chg_pct_1d: -0.4, adr_pct: 7.3, chg_pct_1m: 22.0 },
 ]
 let calls
 beforeEach(() => {
