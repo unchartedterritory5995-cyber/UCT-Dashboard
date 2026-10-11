@@ -31,7 +31,7 @@ import { registerObjectRuntimeValues } from '../objectColumns.js'
 // ⭐⭐ RT5 — the run's own drawings ride the column record (`runtimeObjects.js`).
 import { withRuntimeObjects, RUNTIME_WARMUP_KEY, RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from './runtimeObjects.js'
 import { sameDrawings } from './warmupDrawings.js'
-import { runtimeInputValues } from './runtimeInputs.js'
+import { runtimeInputValues, runtimeBuildInputs } from './runtimeInputs.js'
 import { makeWarmupProbe } from './warmupProbe.js'
 export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
 import { declaredCalcBarsOf } from './objectStore.js'
@@ -110,6 +110,69 @@ export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
     // ⭐ RT5 — how many drawing operations the build lowered (0 unless asked).
     objectOps: (program.objectOps || []).length,
   }
+}
+
+/** ⭐⭐ UIE PHASE 3 (M4) — WHICH COLOUR INPUTS THE RUN ACTUALLY READS.
+ *
+ *  A colour input is a setting only where the member's colour changes what is drawn.
+ *  Measured, not inferred: the program is built (as the pane builds it, over no bars) at
+ *  the author's defaults and again with each colour input replaced by a SENTINEL colour
+ *  (`inputDefaults`, `pineRuntimeFrontend.js::applyMemberDefault`); an input whose
+ *  sentinel changes what the document DRAWS is read by the run. Two probes:
+ *    * STRUCTURAL, for everything but plot colours: the program built WITHOUT plot
+ *      colour outputs (`plotColours: false`) lowers differently — the run's own
+ *      drawings, tables, gradients, bar colours read it, on whatever bar they run;
+ *    * a RUN, for a plot's per-bar colour: the colour columns the document draws
+ *      (`outputs`, the indices it maps), over a short synthetic series. ⛔ Not the
+ *      program alone: the pane's build emits EVERY plot's `color =` as an output, a
+ *      fixed one included, and a plot's fixed colour is that plot's own Style colour,
+ *      not this input's. ⚠️ A per-bar colour reached only on bars the series never makes
+ *      is missed — the conservative direction, a knob not offered.
+ *  @returns {Set<string>} the keys the run reads. Never throws. */
+export function colourInputsTheRunReads(source, keys, { objectsInRun = false, outputs = [] } = {}) {
+  const N = 160
+  const rows = Array.from({ length: N }, (_, i) => {
+    const c = 100 + 6 * Math.sin(i / 5) + 3 * Math.sin(i / 2.3) + (i % 40 < 20 ? i * 0.05 : -i * 0.05)
+    return { t: 1600000000 + i * 86400, o: c - Math.sin(i), h: c + 1.5, l: c - 1.5, c, v: 1000 + (i % 7) * 50 }
+  })
+  const objects = objectsInRun ? { objectsInRun: true } : { objectTrees: [] }
+  const structural = (inputDefaults) => {
+    try {
+      const built = buildRuntimeIr(String(source || ''), {
+        bars: [], inputs: {}, inputDefaults, ...objects, ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
+      })
+      if (!built.ok) return null
+      const p = lowerIrProgram(built.ir, { historyFromListing: true })
+      return JSON.stringify([Array.from(p.code), p.consts, p.colourOps, p.objectOps, p.textOps])
+    } catch { return null }
+  }
+  const perBar = (inputDefaults) => {
+    if (!outputs.length) return ''
+    try {
+      const built = buildRuntimeIr(String(source || ''), {
+        bars: rows, inputs: {}, inputDefaults, ...objects,
+        pane: true, plotColours: true, tf: 'D', basePeriod: 'D', ...runtimeClockOpts(false, { tf: 'D' }),
+      })
+      if (!built.ok || (built.ir.requests || []).length) return null
+      const program = lowerIrProgram(built.ir, { historyFromListing: true })
+      const res = execute(program, {
+        bars: N, series: ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(rows.map((b) => b[k]))),
+        columns: program.columns, confirmed: true, barTimes: rows.map((b) => b.t),
+      })
+      return JSON.stringify(outputs.map((i) => Array.from(res.outputs[i] || [])))
+    } catch { return null }
+  }
+  const out = new Set()
+  const baseS = structural({})
+  const baseR = perBar({})
+  for (const k of keys || []) {
+    for (const sentinel of ['#010203', '#030201']) {
+      const s = baseS === null ? null : structural({ [k]: sentinel })
+      const r = baseR === null ? null : perBar({ [k]: sentinel })
+      if ((s !== null && s !== baseS) || (r !== null && r !== baseR)) { out.add(k); break }
+    }
+  }
+  return out
 }
 
 /** One build per (bars array, definition, timeframe, forming). A chart repaints
@@ -501,8 +564,9 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     bars: rows,
     // ⭐ UIE PHASE 2 (M4) — the member's own settings (`runtimeInputs.js`): only the
     // values that differ from the author's defaults, refused by name outside the
-    // author's bounds or options by the front end itself.
-    inputs: ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object' ? ctx.runtimeInputs : {},
+    // author's bounds or options by the front end itself. ⭐ UIE PHASE 3 (M4) — a colour or a
+    // source rides apart (`inputDefaults`): it replaces the author's default node.
+    ...runtimeBuildInputs(def, ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object' ? ctx.runtimeInputs : {}),
     // `[]` = the caller owns the drawing: `line.new` & co. are skipped, not
     // refused. The document's object program (the host lane's) draws them.
     ...(ownObjects ? { objectsInRun: true } : { objectTrees: [] }),

@@ -490,10 +490,6 @@
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
       },
       {
-       "name": "Settings",
-       "note": "Kept at the author's default: `col_U` (`input.color` is not a setting this pane can carry yet); `col_D` (`input.color` is not a setting this pane can carry yet); `c_border` (`input.color` is not a setting this pane can carry yet); `c_level1` (`input.color` is not a setting this pane can carry yet); `c_level2` (`input.color` is not a setting this pane can carry yet); `c_level3` (`input.color` is not a setting this pane can carry yet); `c_level4` (`input.color` is not a setting this pane can carry yet); `c_level5` (`input.color` is not a setting this pane can carry yet); `alert_source` (`input.source` is not a setting this pane can carry yet)."
-      },
-      {
        "name": "Drawings",
        "note": "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
       }
@@ -549,6 +545,18 @@
       "label": "Show Zigzag"
      },
      {
+      "key": "col_U",
+      "type": "color",
+      "default": "#4CAF50",
+      "label": "Zigzag Colors"
+     },
+     {
+      "key": "col_D",
+      "type": "color",
+      "default": "#363A45",
+      "label": "col_D"
+     },
+     {
       "key": "Show_prv",
       "type": "bool",
       "default": false,
@@ -596,10 +604,63 @@
       "label": "5. Level"
      },
      {
+      "key": "c_border",
+      "type": "color",
+      "default": "#787B86",
+      "label": "Fib Border Color"
+     },
+     {
+      "key": "c_level1",
+      "type": "color",
+      "default": "#F23645",
+      "label": "c_level1"
+     },
+     {
+      "key": "c_level2",
+      "type": "color",
+      "default": "#FF9800",
+      "label": "c_level2"
+     },
+     {
+      "key": "c_level3",
+      "type": "color",
+      "default": "#4CAF50",
+      "label": "c_level3"
+     },
+     {
+      "key": "c_level4",
+      "type": "color",
+      "default": "#20C798",
+      "label": "c_level4"
+     },
+     {
+      "key": "c_level5",
+      "type": "color",
+      "default": "#00BCD4",
+      "label": "c_level5"
+     },
+     {
       "key": "b_alert",
       "type": "bool",
       "default": false,
       "label": "Custom Alert"
+     },
+     {
+      "key": "alert_source",
+      "type": "enum",
+      "default": "close",
+      "options": [
+       "open",
+       "high",
+       "low",
+       "close",
+       "hl2",
+       "hlc3",
+       "ohlc4",
+       "hlcc4"
+      ],
+      "label": "Alert Source",
+      "source": true
      },
      {
       "key": "alert_tpye",
@@ -11578,10 +11639,6 @@
       {
        "name": "Drawn bar by bar",
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
-      },
-      {
-       "name": "Settings",
-       "note": "Kept at the author's default: `green` (`input.color` is not a setting this pane can carry yet); `red` (`input.color` is not a setting this pane can carry yet)."
       }
      ],
      "requirementTags": []
@@ -11770,6 +11827,18 @@
       "default": 14,
       "label": "Volatility (ATR) period",
       "min": 1
+     },
+     {
+      "key": "green",
+      "type": "color",
+      "default": "#00FFBB",
+      "label": "Bullish Color"
+     },
+     {
+      "key": "red",
+      "type": "color",
+      "default": "#FF1100",
+      "label": "Bearish Color"
      }
     ],
     "plots": [
@@ -11960,10 +12029,6 @@
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
       },
       {
-       "name": "Settings",
-       "note": "Kept at the author's default: `color_` (`input.color` is not a setting this pane can carry yet)."
-      },
-      {
        "name": "The Selling Climax",
        "note": "`The Selling Climax` is not drawn: it is drawn away from its own bar (`offset`), and this lane draws each value on the bar that computed it. Nothing is drawn for it rather than a guess."
       },
@@ -12035,6 +12100,12 @@
       "min": 1,
       "max": 4,
       "step": 1
+     },
+     {
+      "key": "color_",
+      "type": "color",
+      "default": "#FFFFFF",
+      "label": "Text Color"
      },
      {
       "key": "rsilen",

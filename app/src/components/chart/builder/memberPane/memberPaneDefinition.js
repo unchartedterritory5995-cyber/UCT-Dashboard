@@ -28,12 +28,12 @@ import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '..
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { naConditionIsFalse } from '../../engine/ast/interpret'
-import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp } from '../../engine/runtime/runtimeColumns'
+import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp, colourInputsTheRunReads } from '../../engine/runtime/runtimeColumns'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
 import { runtimeOwnObjectsOf } from './runtimeObjectsDoor'
-import { runtimeInputSpecsOf } from '../../engine/runtime/runtimeInputs'
+import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { objectLossNote } from '../../engine/ast/objectLoss'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
@@ -1243,6 +1243,31 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // rebuilds the program with them. One that cannot be read exactly keeps the author's
   // default, and says so.
   const runtimeInputs = runtimeInputSpecsOf(source)
+  // ⭐⭐ UIE PHASE 3 (M4) — A COLOUR INPUT IS A SETTING ONLY WHERE THE RUN COLOURS WITH IT:
+  // a per-bar colour, the run's own drawings, a table (`colourInputsTheRunReads`,
+  // measured). ⛔ One that only sets a plot's FIXED colour is not offered twice: every
+  // plot already has its own colour in Style (the builder's `$<key>Color` input, seeded
+  // with the author's colour). One the run never reads at all — a host-lane drawing's
+  // colour, an unused input — would be a knob that changes nothing. Both skipped, by name.
+  {
+    const colourKeys = runtimeInputs.specs.filter((s) => s.type === 'color').map((s) => s.key)
+    if (colourKeys.length) {
+      const read = colourInputsTheRunReads(source, colourKeys,
+        { objectsInRun: ownObjects, outputs: [...colourKeyByOutput.keys()] })
+      const dead = colourKeys.filter((k) => !read.has(k))
+      if (dead.length) {
+        runtimeInputs.specs = runtimeInputs.specs.filter((s) => !dead.includes(s.key))
+        const plotKeys = new Set(dead.filter((k) => drawnRows.some((d) => d.o && Number.isInteger(d.o.line)
+          && plotColourInputAt(source, d.o.line, new Set([k])) === k)))
+        for (const k of dead) {
+          runtimeInputs.skipped.push({ key: k, call: 'input.color',
+            reason: plotKeys.has(k)
+              ? "it sets a plot's fixed colour, which is that plot's own colour in Style"
+              : 'it colours nothing this pane draws from its own run, so a colour picked here would change nothing' })
+        }
+      }
+    }
+  }
   let definition
   try {
     definition = buildDefinition({

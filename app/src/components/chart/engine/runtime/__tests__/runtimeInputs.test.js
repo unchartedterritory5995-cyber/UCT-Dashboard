@@ -79,8 +79,13 @@ d = input.int(10 + 4)
 e = input.color(color.red)
 plot(close)
 `)
-    expect(specs.map((s) => [s.key, s.type, s.default])).toEqual([['a', 'int', 20], ['b', 'bool', true], ['c', 'float', -2.5]])
-    expect(skipped.map((s) => s.key)).toEqual(['src', 'd', 'e'])
+    // ⭐ UIE PHASE 3 (M4) — the v4 source input (its type the THIRD positional argument) and
+    // the colour input are settings now; only the expression default is still skipped
+    expect(specs.map((s) => [s.key, s.type])).toEqual([['a', 'int'], ['b', 'bool'], ['c', 'float'],
+      ['src', 'enum'], ['e', 'color']])
+    expect(specs.slice(0, 4).map((s) => s.default)).toEqual([20, true, -2.5, 'close'])
+    expect(specs[4].default).toMatch(/^#[0-9A-F]{6}$/)
+    expect(skipped.map((s) => s.key)).toEqual(['d'])
     for (const s of skipped) expect(s.reason).toBeTruthy()
   })
 

@@ -93,3 +93,50 @@ describe('⭐ a runtime script\'s settings are edited like any indicator\'s', ()
     expect(v === undefined || v <= 100).toBe(true)
   })
 })
+
+// ⭐⭐ UIE PHASE 3 (M4) — a source and a colour setting, in the same dialog, no new control
+const ID2 = 'u_member-pane-m4dialog2'
+const SRC2 = `//@version=5
+indicator("M4 dialog 2")
+src = input.source(close, "Source")
+up = input.color(color.green, "Up")
+dn = input.color(color.red, "Down")
+float s = 0.0
+for i = 0 to 4
+    s += src[i]
+m = s / 5
+plot(m, color = m > m[1] ? up : dn)
+`
+describe('⭐⭐ UIE Phase 3 — source and colour settings', () => {
+  afterEach(() => { registry.uninstallUserDefinition(ID2) })
+  it('the source is a menu of bar series; picking hl2 is persisted and the run follows; the colours are colour swatches', () => {
+    vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+    vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
+    const built = memberPaneDefinition({ source: SRC2, id: ID2 })
+    expect(built.ok, built.reason).toBe(true)
+    registry.installUserDefinitions([built.definition])
+    const initial = setIndicatorEnabled(mergeChartSettings(null), ID2, true, registry)
+    const instanceId = legacyInstanceId(ID2)
+    const spy = vi.fn()
+    render(<Harness initial={initial} instanceId={instanceId} spy={spy} />)
+    const dialog = screen.getByRole('dialog')
+    const sel = dialog.querySelector('[data-input-key="src"] select')
+    expect(sel, 'the Source setting is a menu').toBeTruthy()
+    expect([...sel.options].map((o) => o.value)).toEqual(['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
+    fireEvent.change(sel, { target: { value: 'hl2' } })
+    const inst = findInstance(spy.mock.calls[spy.mock.calls.length - 1][0], instanceId)
+    expect(inst.inputs.src).toBe('hl2')
+    const key = built.rows[0].key
+    const ctx = { tf: 'D', newestBarIsForming: false, historyFromListing: true }
+    const def = registry.getDefinition(ID2)
+    const hl2 = registry.computeFor(def, bars, inst.inputs, ctx)[key]
+    let s = 0
+    for (let i = 0; i < 5; i += 1) s += (bars[40 - i].h + bars[40 - i].l) / 2
+    expect(hl2[40]).toBeCloseTo(s / 5, 9)
+    for (const k of ['up', 'dn']) {
+      const row = dialog.querySelector(`[data-input-key="${k}"]`)
+      expect(row, `${k} is listed`).toBeTruthy()
+      expect(row.querySelector('input[type="number"], select')).toBeNull()
+    }
+  })
+})

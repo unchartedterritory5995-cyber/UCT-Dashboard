@@ -22,18 +22,70 @@
 // every run, so the member's value is the literal the author would have typed.
 //
 // ⛔ ONLY WHAT IS READ EXACTLY: a literal default (number, `true`/`false`, text) and
-// literal bounds. An input whose default is an expression, `input.source`,
-// `input.color`, `input.timeframe`, `input.session`, `input.symbol`, `input.time`,
-// `input.price`, `input.text_area` and a name the schema cannot key are SKIPPED, by
-// name, and keep the author's default — never a knob that moves half a script.
+// literal bounds. An input whose default is an expression, `input.timeframe`,
+// `input.session`, `input.symbol`, `input.time`, `input.price`, `input.text_area` and a
+// name the schema cannot key are SKIPPED, by name, and keep the author's default —
+// never a knob that moves half a script.
+//
+// ⭐⭐ UIE PHASE 3 (M4) — COLOUR AND SOURCE INPUTS, THROUGH THE SAME SETTINGS:
+//   * `input.color` (and v4's `input(…, type = input.color)`) → a `color` input, its
+//     default the author's colour as `#RRGGBB` (a hex literal or a Pine colour name, read
+//     at the script's version). ⛔ A default with a TRANSPARENCY (`#RRGGBBAA` below FF,
+//     `color.new(…)`) is skipped by name: the settings' colour picker sets an opaque
+//     colour, and offering it would silently drop the author's transparency;
+//   * `input.source` (and v4's `input(close, type = input.source)`) → an `enum` input
+//     over the chart's own bar series (`RUNTIME_SOURCES`), its default the author's. An
+//     `enum`, not the schema's `source` type, because a source here is only ever a bar
+//     series — never another indicator's plot (TradingView's menu offers those; this
+//     pane is handed no other indicator's values) — and an enum is what the settings
+//     dialog already draws as a menu;
+//   * the run is handed them apart from the numbers (`runtimeBuildInputs`): the front end
+//     puts the member's colour or source where the author's default was
+//     (`pineRuntimeFrontend.js::applyMemberDefault`).
+//   ⛔ `input.timeframe` stays SKIPPED, by name: a timeframe setting changes which bars a
+//   script reads, and this pane is handed only the chart's own (`request.*` is refused
+//   here, `runtime:request`) — another timeframe's bars are not fabricated.
 import { lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName } from '../ast/pine.js'
 import { KEY_RE } from '../ast/parse.js'
+import { pineColourHex } from '../pinePalette.js'
+
+/** The bar series a member may pick for a source input. */
+export const RUNTIME_SOURCES = Object.freeze(new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3',
+  'ohlc4', 'hlcc4']))
+const SOURCE_MENU = Object.freeze(['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
 
 const TYPE_OF_CALL = Object.freeze({
   'input.int': 'int', 'input.float': 'float', 'input.bool': 'bool', 'input.string': 'string',
 })
-const UNSERVED = new Set(['input.source', 'input.color', 'input.timeframe', 'input.session', 'input.symbol',
+const UNSERVED = new Set(['input.session', 'input.symbol',
   'input.time', 'input.price', 'input.text_area', 'input.enum'])
+const TIMEFRAME_SKIP = 'a timeframe setting changes which bars the script reads, and this pane is handed only '
+  + "the chart's own — another timeframe's bars are not made up; its default stays"
+
+/** The author's colour default as `#RRGGBB`, or `{ skip }`. */
+function colourDefaultOf(def, version) {
+  if (def && def.type === 'colour' && typeof def.value === 'string') {
+    const m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(def.value)
+    if (!m) return { skip: 'its default is not a colour written as #RRGGBB' }
+    if (m[2] && m[2].toUpperCase() !== 'FF') {
+      return { skip: 'its default is see-through, and the colour picker sets an opaque colour — the '
+        + "author's transparency would be dropped" }
+    }
+    return { hex: `#${m[1].toUpperCase()}` }
+  }
+  if (def && def.type === 'name' && typeof def.name === 'string') {
+    const hex = pineColourHex(def.name, version)
+    if (hex) return { hex: hex.toUpperCase() }
+  }
+  return { skip: 'its default is not a fixed colour (a #RRGGBB or a Pine colour name)' }
+}
+
+/** The author's source default (a bar series), or `{ skip }`. */
+function sourceDefaultOf(def) {
+  if (def && def.type === 'name' && RUNTIME_SOURCES.has(def.name)) return { name: def.name }
+  return { skip: 'its default is not one of the bar series (open, high, low, close, volume, hl2, hlc3, '
+    + 'ohlc4, hlcc4) — another series cannot be offered as a menu' }
+}
 
 /** A literal number node (`14`, `-3`, `2.5`), or null. */
 function literalNumber(v) {
@@ -60,11 +112,28 @@ function firstArgWord(toks) {
   return t && t.kind === 'ident' && (t.value === 'true' || t.value === 'false') ? t.value : null
 }
 
-function specOf(name, node, rhsToks) {
+function specOf(name, node, rhsToks, version) {
   const call = node.name
   if (UNSERVED.has(call)) return { skip: `\`${call}\` is not a setting this pane can carry yet` }
   let type = TYPE_OF_CALL[call]
   const def = argOf(node, 'defval', 0)
+  const legacyType = call === 'input' ? argOf(node, 'type', 2) : undefined
+  const legacy = legacyType && legacyType.type === 'name' ? legacyType.name : null
+  if (call === 'input.timeframe' || legacy === 'input.resolution' || legacy === 'input.timeframe') {
+    return { skip: TIMEFRAME_SKIP }
+  }
+  if (call === 'input.color' || legacy === 'input.color' || call === 'input.source' || legacy === 'input.source') {
+    const titleArg = argOf(node, 'title', 1)
+    const label = titleArg && titleArg.type === 'string' && titleArg.value ? titleArg.value : name
+    if (call === 'input.color' || legacy === 'input.color') {
+      const c = colourDefaultOf(def, version)
+      return c.skip ? { skip: c.skip } : { spec: { key: name, type: 'color', default: c.hex, label } }
+    }
+    const s = sourceDefaultOf(def)
+    if (s.skip) return { skip: s.skip }
+    const options = SOURCE_MENU.includes(s.name) ? [...SOURCE_MENU] : [...SOURCE_MENU, s.name]
+    return { spec: { key: name, type: 'enum', default: s.name, options, label, source: true } }
+  }
   let value
   if (call === 'input') {
     const word = firstArgWord(rhsToks)
@@ -124,9 +193,11 @@ export function runtimeInputSpecsOf(source) {
   const specs = []
   const skipped = []
   let stmts
+  let version = null
   try {
-    const { tokens, indents } = lexPine(String(source || ''))
-    stmts = blockStatements(tokens, indents, 0)
+    const lexed = lexPine(String(source || ''))
+    version = Number.isFinite(lexed.version) ? lexed.version : null
+    stmts = blockStatements(lexed.tokens, lexed.indents, 0)
   } catch {
     return { specs, skipped }
   }
@@ -147,7 +218,7 @@ export function runtimeInputSpecsOf(source) {
           else if (!KEY_RE.test(name)) skipped.push({ key: name, reason: 'its name cannot key a setting' })
           else {
             seen.add(name)
-            const r = specOf(name, node, rhs)
+            const r = specOf(name, node, rhs, version)
             if (r.spec) specs.push(r.spec)
             else skipped.push({ key: name, call: node.name, reason: r.skip })
           }
@@ -171,7 +242,55 @@ export function runtimeInputValues(def, given) {
     if (!spec || typeof spec.key !== 'string' || !Object.prototype.hasOwnProperty.call(given, spec.key)) continue
     const v = given[spec.key]
     if (v === undefined || v === spec.default) continue
+    // a colour picked as the same colour in another case is the author's colour
+    if (spec.type === 'color' && typeof v === 'string' && typeof spec.default === 'string'
+      && v.toUpperCase() === spec.default.toUpperCase()) continue
     out[spec.key] = spec.type === 'bool' ? (v === true ? 1 : v === false ? 0 : v) : v
   }
   return out
+}
+
+/** ⭐ UIE PHASE 3 (M4) — a run's values split the way the front end takes them: numbers
+ *  and text as `inputs` (the resolver's and `admitTextInput`'s), a colour or a source as
+ *  `inputDefaults` (`pineRuntimeFrontend.js::applyMemberDefault`, which puts it where the
+ *  author's default was). `values` is `runtimeInputValues`' answer. */
+export function runtimeBuildInputs(def, values) {
+  const inputs = {}
+  const inputDefaults = {}
+  const byKey = new Map((def && Array.isArray(def.inputs) ? def.inputs : []).map((s) => [s && s.key, s]))
+  for (const [k, v] of Object.entries(values || {})) {
+    const spec = byKey.get(k)
+    if (spec && (spec.type === 'color' || spec.source === true)) inputDefaults[k] = v
+    else inputs[k] = v
+  }
+  return { inputs, inputDefaults }
+}
+
+/** ⭐ UIE PHASE 3 (M4) — the colour input a `plot(…)` call on `line` names as its FIXED
+ *  colour (`color = c`, or the third positional argument), when `c` is one of `keys`;
+ *  else null. Only a bare name: `color = cond ? c : d` is a per-bar colour the run
+ *  computes, and `color = color.new(c, 50)` is not the member's colour as picked. */
+export function plotColourInputAt(source, line, keys) {
+  let stmts
+  try {
+    const lexed = lexPine(String(source || ''))
+    stmts = blockStatements(lexed.tokens, lexed.indents, 0)
+  } catch { return null }
+  const find = (list) => {
+    for (const st of list || []) {
+      const toks = st.header || []
+      if (toks.length && toks[0].line === line) return toks
+      const sub = find(st.sub)
+      if (sub) return sub
+    }
+    return null
+  }
+  const toks = find(stmts)
+  if (!toks) return null
+  const eq = findTop(toks, (t) => isPunct(t, '='))
+  let node = null
+  try { node = parseWholeExpression(eq > 0 && boundName(toks, eq) ? toks.slice(eq + 1) : toks) } catch { return null }
+  if (!node || node.type !== 'call' || node.name !== 'plot') return null
+  const c = argOf(node, 'color', 2)
+  return c && c.type === 'name' && keys.has(c.name) ? c.name : null
 }
