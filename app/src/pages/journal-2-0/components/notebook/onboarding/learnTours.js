@@ -28,24 +28,10 @@
 import { BASE_TOUR_ID, TOUR_REGISTRY, replayableTours, tourLive } from './tourRegistry'
 import { openNotebookTour } from './tourControl'
 import { openRegistryTour } from './tourRegistryControl'
-import { checklistEnabled } from './gettingStartedPref'
 
-/** Help > Walkthroughs (Support.jsx `WALKTHROUGHS_ID`; arriving with this hash focuses it).
- *  learnTours.test.js holds the two together, so a rename there cannot strand this link. */
-export const HELP_WALKTHROUGHS_HREF = '/support#walkthroughs'
-
-/** Every word the menu shows. */
-export const LEARN_COPY = Object.freeze({
-  button: 'Learn',
-  buttonTitle: 'Walkthroughs of what the Notebook can do',
-  menuLabel: 'Learn: walkthroughs',
-  tour: (title) => `${title} tour`,
-  help: 'All walkthroughs in Help',
-  // P0.15: the sample notebook, offered here to a member with NO notes yet (the server refuses it to
-  // anyone who has one, active, archived or trashed: D-C6, so the menu does not offer what it will
-  // refuse). The words the member reads while it adds, or when it cannot, are SAMPLE_COPY's.
-  sample: 'Add the sample notebook',
-})
+// The button's words, the Help address and the "is the menu offered" rule live in learnMenuCopy.js
+// (the Learn button is eager, this file is not); they are re-exported so nothing else changes.
+export { HELP_WALKTHROUGHS_HREF, LEARN_COPY, learnMenuEnabled } from './learnMenuCopy'
 
 /** The headings the menu groups tours under, in the order it draws them. */
 export const LEARN_GROUPS = Object.freeze(['Basics', 'Writing and capture', 'Trading', 'Research'])
@@ -90,11 +76,6 @@ export function learnMenuTours({ flag, registry = TOUR_REGISTRY, hasAnyNotes } =
   return replayableTours(registry)
     .filter((t) => tourLive(t, flag))
     .filter((t) => !(hasAnyNotes === false && NEEDS_NOTES.includes(t.id)))
-}
-
-/** Whether the menu is offered at all: the wave-14 switch on (see the header). */
-export function learnMenuEnabled(flag) {
-  return typeof flag === 'function' && checklistEnabled(flag)
 }
 
 /** Start one tour through its existing door: the base tour's own, or the registry's. */

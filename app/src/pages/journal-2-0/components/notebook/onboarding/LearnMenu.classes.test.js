@@ -7,7 +7,8 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const jsx = readFileSync(join(__dirname, 'LearnMenu.jsx'), 'utf8')
+// the button (LearnMenu.jsx) and the lazy menu behind it (LearnMenuPanel.jsx) share one stylesheet
+const jsx = ['LearnMenu.jsx', 'LearnMenuPanel.jsx'].map((f) => readFileSync(join(__dirname, f), 'utf8')).join(' ')
 const css = readFileSync(join(__dirname, 'LearnMenu.module.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
 
 describe('LearnMenu.module.css defines every class LearnMenu.jsx uses', () => {

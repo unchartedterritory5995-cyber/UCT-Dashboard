@@ -4,7 +4,7 @@
 // has a tour to arm and disarm (the same fake-registry approach GettingStartedChecklist.test.jsx
 // uses). ⛔ Copy and roles are asserted as rendered, after the action settles. ⛔ Starting a tour
 // is read off the events the existing gates listen for -- no new tour machinery.
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
@@ -82,6 +82,20 @@ function renderMenu({ isPaid = false, hasAnyNotes = false } = {}) {
 }
 
 const menuItems = () => within(screen.getByRole('menu', { name: 'Learn: walkthroughs' })).getAllByRole('menuitem')
+
+// Residual round (R25): the menu BEHIND the Learn button is a lazy chunk, fetched on the first press
+// (LearnMenu.jsx -> LearnMenuPanel.jsx). React.lazy resolves once per page, so one warm-up press here
+// lets every later case in this file find the menu synchronously, as before. The first-press path
+// itself (button drawn at once, menu after the chunk, one fetch) is held by LearnMenu.lazy.test.jsx,
+// which is its own file so its module registry is fresh.
+beforeAll(async () => {
+  latchNotebookFlags(WAVE14)
+  const warm = renderMenu()
+  fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+  await screen.findByRole('menu')
+  warm.unmount()
+  __resetNotebookFlags()
+})
 
 beforeEach(() => {
   __resetNotebookFlags()

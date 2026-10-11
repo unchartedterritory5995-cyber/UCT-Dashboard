@@ -61,6 +61,8 @@ function renderMenu() {
 
 async function openAndRefuse(scope) {
   fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
+  // the menu is a lazy chunk fetched on the first press (R25): wait for it
+  await screen.findByRole('menu', { name: 'Learn: walkthroughs' })
   fireEvent.click(within(scope()).getByRole('menuitem', { name: 'Add the sample notebook' }))
   expect(await within(scope()).findByText(SAMPLE_COPY.refused)).toBeInTheDocument()
 }
@@ -88,7 +90,7 @@ describe('Learn menu -- axe', () => {
   axeSurface('learn-catalog-sheet', async () => {
     renderMenu()
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
-    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: PREVIEW_COPY.heading }))
+    fireEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: PREVIEW_COPY.heading }))
     const dlg = await screen.findByRole('dialog', { name: PREVIEW_COPY.heading })
     // NON-VACUITY: every armed capability is drawn, the two Task 14b lines among them, and the
     // sample offer for this member (no notes) is on screen with its button.

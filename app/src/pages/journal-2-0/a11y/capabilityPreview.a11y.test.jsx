@@ -59,7 +59,7 @@ describe('capability preview -- axe', () => {
       .toHaveAccessibleDescription(new RegExp(PREVIEW_COPY.sampleLead.replace('?', '\\?')))
     // the Learn menu, open, is part of the same screen
     fireEvent.click(screen.getByRole('button', { name: 'Learn' }))
-    expect(screen.getByRole('menu', { name: 'Learn: walkthroughs' })).toBeInTheDocument()
+    expect(await screen.findByRole('menu', { name: 'Learn: walkthroughs' })).toBeInTheDocument()
     return { root: container }
   })
 })
