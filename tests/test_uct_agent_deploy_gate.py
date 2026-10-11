@@ -74,3 +74,27 @@ def test_the_browser_step_comes_after_node_and_install():
     names = [s["name"] for s in _steps()]
     i_node = next(i for i, s in enumerate(_steps()) if "actions/setup-node" in s["body"])
     assert i_node < names.index(INSTALL_STEP) < names.index(BROWSER_STEP)
+
+
+def test_a_FAILED_agent_step_refuses_PROMOTION_through_the_real_promotion_rules():
+    """The Agent steps live inside `master deploy gate`; promotion (tools/promotion_gate.py, used by
+    every promote trigger: after the gate, manual dispatch, the Wednesday schedule) refuses a commit
+    whose gate did not succeed. Proved with the REAL workflow directory and the REAL decision code."""
+    import sys
+    sys.path.insert(0, str(REPO / "tools"))
+    import promotion_gate as pg
+    verdicts, unclassified = pg.read_workflow_dir(str(REPO))
+    assert not unclassified, unclassified
+    gate_name = re.search(r"(?m)^name:\s*(.+)$", WORKFLOW.read_text(encoding="utf-8")).group(1).strip()
+    assert gate_name == pg.ALWAYS_RUNS and verdicts[gate_name] == "yes"     # the Agent tests run in THE gating job
+    gating = [n for n, v in verdicts.items() if v == "yes"]
+    wf = [{"name": n, "state": "active"} for n in verdicts]
+    ok = lambda n: {"name": n, "status": "completed", "conclusion": "success"}
+    failed = [{"name": gate_name, "status": "completed", "conclusion": "failure"}]
+    verdict, why = pg.decide(gating=gating, runs=failed, workflows=wf)
+    assert verdict == pg.REFUSE and gate_name in why
+    # …and the same commit with a green gate WOULD promote (the refusal is the failure's doing)
+    assert pg.decide(gating=gating, runs=[ok(gate_name)], workflows=wf)[0] == pg.PROMOTE
+    # a gate still running is never promoted either
+    running = [{"name": gate_name, "status": "in_progress", "conclusion": None}]
+    assert pg.decide(gating=gating, runs=running, workflows=wf)[0] == pg.WAIT
