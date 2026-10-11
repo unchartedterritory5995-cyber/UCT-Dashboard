@@ -6,11 +6,13 @@ how many different people did, and what share of ALL ticker mentions in the
 room that was. The share is the honest normaliser: a busy day in the room
 raises every ticker's count, and the share removes that.
 
-What it cannot say, and says so. The store keeps NO message text, by design
-(`buzz_store.py`: a jump link stays true when a member edits or deletes; a
-stored copy would not). A positive/negative ratio therefore cannot be computed
-from it, and the payload returns `polarity: unavailable` with that reason
-rather than inventing one.
+Polarity. The mention rows keep NO message text. Owner ruling 2026-10-11
+reversed that rule for a separate table: with SOCIAL_POLARITY_ENABLED on, the
+text of each counted message is kept (90 days) with an auto-labelled
+bullish/bearish/neutral polarity, served by GET
+/api/research/mention-series/{sym}/polarity (api/services/social_polarity.py).
+This payload then says `polarity: available` and names that route; with the
+flag off it says `unavailable` with the reason, as before.
 
 Honesty rules, railed in tests/test_mention_series.py:
   * a day before the store's first mention, or a day the whole room was silent
@@ -34,8 +36,18 @@ DEFAULT_DAYS = 90
 MAX_DAYS = 365
 _ET = ZoneInfo("America/New_York")
 SOURCE = "#main-chat ticker-mention store (buzz.db), one row per message x ticker"
-POLARITY_REASON = ("the mention store keeps no message text by design, so a positive/negative "
-                   "ratio cannot be computed from it")
+POLARITY_REASON = ("auto-labelled bullish/bearish sentiment is not switched on on this server yet, "
+                   "so a positive/negative split is not computed")
+
+
+def _polarity(sym: str) -> dict:
+    from api.services import social_polarity
+    if not social_polarity.is_enabled():
+        return {"state": "unavailable", "reason": POLARITY_REASON}
+    from urllib.parse import quote
+    return {"state": "available", "auto_labelled": True, "method": social_polarity.METHOD,
+            "route": f"/api/research/mention-series/{quote(sym, safe='')}/polarity",
+            "windows": list(social_polarity.WINDOWS)}
 
 
 def is_enabled() -> bool:
@@ -86,8 +98,7 @@ def series(sym: str, days: int = DEFAULT_DAYS, now: Optional[datetime] = None) -
     from api.services import buzz_store
     sym = (sym or "").upper().strip()
     days = max(7, min(int(days or DEFAULT_DAYS), MAX_DAYS))
-    base = {"ticker": sym, "source": SOURCE,
-            "polarity": {"state": "unavailable", "reason": POLARITY_REASON}}
+    base = {"ticker": sym, "source": SOURCE, "polarity": _polarity(sym)}
     if not os.path.exists(buzz_store.db_path()):
         return {**base, "state": "no_store", "reason": "the mention store has not been created on this server"}
     now = now or datetime.now(timezone.utc)

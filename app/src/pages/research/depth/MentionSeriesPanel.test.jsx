@@ -6,7 +6,7 @@ import DepthTab from './DepthTab'
 
 const OK = {
   ticker: 'AAPL', state: 'ok', source: '#main-chat ticker-mention store (buzz.db)',
-  polarity: { state: 'unavailable', reason: 'the mention store keeps no message text by design, so a positive/negative ratio cannot be computed from it' },
+  polarity: { state: 'unavailable', reason: 'auto-labelled bullish/bearish sentiment is not switched on on this server yet, so a positive/negative split is not computed' },
   window: { from: '2026-09-19', through: '2026-09-27', store_from: '2026-09-21', timezone: 'America/New_York' },
   points: [
     { date: '2026-09-21', state: 'ok', mentions: 0, people: 0, room_mentions: 1, share_pct: 0 },
@@ -46,7 +46,8 @@ describe('MentionSeriesPanel', () => {
   it('states the share of the room and refuses polarity with the reason', async () => {
     renderTab()
     expect((await screen.findByTestId('mentions-summary')).textContent).toContain('(15% of the room)')
-    expect(screen.getByTestId('mentions-polarity').textContent).toMatch(/keeps no message text/)
+    expect(screen.getByTestId('mentions-polarity').textContent).toMatch(/not switched on/)
+    expect(screen.queryByTestId('polarity')).toBeNull()
   })
 })
 

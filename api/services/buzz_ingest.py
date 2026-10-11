@@ -105,7 +105,10 @@ def fetch_messages(channel_id: str, *, after=None, before=None, limit: int = PAG
 
 
 def ingest_messages(channel_id: str, messages: list[dict]) -> tuple[int, str | None]:
+    from api.services import social_polarity
+    keep_text = social_polarity.is_enabled()
     rows: list[tuple] = []
+    posts: list[tuple] = []
     newest: int | None = None
     for m in messages or []:
         mid = str(m.get("id") or "")
@@ -119,9 +122,20 @@ def ingest_messages(channel_id: str, messages: list[dict]) -> tuple[int, str | N
         if not content:
             continue
         ts = buzz_store.snowflake_ts(mid)
-        for ticker, confidence in buzz_extract.extract(content):
+        found = buzz_extract.extract(content)
+        for ticker, confidence in found:
             rows.append((mid, channel_id, str(author.get("id") or ""), ticker, ts, confidence))
+        # FT-080 (owner ruling 2026-10-11): the text of a COUNTED message, with its
+        # auto-labelled polarity, only while SOCIAL_POLARITY_ENABLED is on.
+        if keep_text and found:
+            posts.extend(social_polarity.room_rows(channel_id, mid, str(author.get("id") or ""), ts,
+                                                   content, [t for t, _ in found]))
     written = buzz_store.record_mentions(rows)
+    if posts:
+        try:
+            social_polarity.record_room(posts)
+        except Exception as e:  # noqa: BLE001 -- the text copy must never stall the mention count
+            log.warning("[buzz] social post write failed for %s: %s", channel_id, e)
     return written, (str(newest) if newest is not None else None)
 
 

@@ -191,7 +191,7 @@ def _serve_csv(days, request: Request):
 
 # ── Member: Retrieve dark pool data as CSV ────────────────────────────────────
 @router.get("/data")
-async def get_darkpool_data(
+def get_darkpool_data(
     request: Request,
     _auth: dict = Depends(require_flow_user),
     days: int = Query(default=1, ge=0, description="Number of trading days (0 = all)"),
@@ -342,7 +342,7 @@ async def darkpool_records_card(
 
 # ── Member: Get available trading dates ───────────────────────────────────────
 @router.get("/dates")
-async def get_dates(_auth: dict = Depends(require_flow_user)):
+def get_dates(_auth: dict = Depends(require_flow_user)):
     """Return list of available trading dates for the date picker."""
     try:
         dates = get_available_dates()
@@ -353,7 +353,7 @@ async def get_dates(_auth: dict = Depends(require_flow_user)):
 
 # ── Member: Cache-busting version key ────────────────────────────────────────
 @router.get("/version")
-async def get_version(_auth: dict = Depends(require_flow_user)):
+def get_version(_auth: dict = Depends(require_flow_user)):
     """Returns DB total_rows. Changes whenever rows are inserted (uploads) or
     removed (prune). Clients append this as &v=<version> to /data requests so
     CF treats each version as a separate cache entry — old cached responses
@@ -612,7 +612,7 @@ async def bigblock_scan_now(
 
 
 @router.get("/stats")
-async def darkpool_stats(_auth: dict = Depends(require_flow_user)):
+def darkpool_stats(_auth: dict = Depends(require_flow_user)):
     """Return database statistics."""
     try:
         return JSONResponse(get_stats())
@@ -649,7 +649,7 @@ async def clear_data(_auth: dict = Depends(require_flow_admin)):
 
 # ── Member: Ticker drill-down (print history for one ticker) ─────────────────
 @router.get("/ticker-detail")
-async def get_ticker_detail(
+def get_ticker_detail(
     sym: str = Query(..., description="Ticker symbol", min_length=1, max_length=10),
     _auth: dict = Depends(require_flow_user),
     days: int = Query(default=30, ge=5, le=365, description="Trading-day window"),
@@ -695,7 +695,7 @@ async def get_ticker_detail(
 
 # ── Member: Pre-clustered dark-pool ZONES for the chart overlay ───────────────
 @router.get("/zones")
-async def get_ticker_zones_endpoint(
+def get_ticker_zones_endpoint(
     sym: str = Query(..., description="Ticker symbol", min_length=1, max_length=10),
     _auth: dict = Depends(require_flow_user),
     days: int = Query(default=180, ge=5, le=365, description="Trading-day window"),

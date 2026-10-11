@@ -79,3 +79,20 @@ def test_the_census_sees_the_shape_and_only_the_shape(tmp_path):
             return 1
     '''), encoding="utf-8")
     assert census(pkg) == {"api/r.py::blocks"}
+
+
+def test_the_flow_and_dark_pool_reads_measured_stalling_the_loop_are_plain_def():
+    """Measured on production 2026-10-11 (terminal sweep, signed-in GETs): web's watchdog
+    recorded max_lag 20.5 s with two samples in its 10-30 s bucket while `/api/darkpool/data`
+    took 22 s and `/api/darkpool/zones` 17 s cold; on flow-worker `/api/flow/stats` took
+    15-20 s, the UNAUTHENTICATED `/api/flow/aggregate-health` 7.4 s, `/api/flow/aggregate`
+    10 s cold and `/api/flow/dates` 2.5 s. Every one was an `async def` doing synchronous
+    SQLite work, so each request froze every other request on its pod for that long.
+    `/api/flow/data` was already `def` for exactly this reason; these now match it."""
+    now = census(ROOT / "api")
+    for name in ("get_stats", "get_dates", "get_aggregate", "aggregate_health",
+                 "etf_replica_status"):
+        assert f"api/flow_router.py::{name}" not in now, name
+    for name in ("get_darkpool_data", "get_dates", "get_version", "darkpool_stats",
+                 "get_ticker_detail", "get_ticker_zones_endpoint"):
+        assert f"api/darkpool_router.py::{name}" not in now, name

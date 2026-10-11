@@ -238,6 +238,34 @@ def test_a_failed_delivery_is_retried_on_a_rerun_like_the_legacy(env):
     assert len(env["sent"]) == 1 and len(_fires()) == 1
 
 
+class _Killed(BaseException):
+    """The process dying (a redeploy's SIGKILL), not an exception any handler sees."""
+
+
+def test_a_fire_recorded_but_never_claimed_is_delivered_on_the_rerun(env):
+    """Review 2026-10-11: a restart between `record_fire` and the delivery lease left a
+    fire that was recorded and never attempted. `released_fire_id` only answered for a
+    RELEASED lease, so the rerun read "already recorded", counted it skipped_dedup and
+    the member's alert was lost. Exactly one delivery must still happen."""
+    from api.services.alert_taxonomy import delivery as _delivery
+    env["mp"].setenv(live.FLAG, "1")
+    _setup(*CASES["entered"].values())
+    real = _delivery.deliver
+
+    def _die(*a, **k):
+        raise _Killed()
+    env["mp"].setattr(_delivery, "deliver", _die)
+    with pytest.raises(_Killed):
+        sa.run_nightly()
+    assert len(_fires()) == 1 and env["sent"] == []
+    env["mp"].setattr(_delivery, "deliver", real)
+    r = sa.run_nightly()
+    assert r["sent"] == 1, r
+    assert len(env["sent"]) == 1 and len(_fires()) == 1
+    again = sa.run_nightly()
+    assert again["sent"] == 0 and len(env["sent"]) == 1
+
+
 def test_the_compare_module_reads_ZERO_disagreement(env, tmp_path):
     dbp = str(tmp_path / "cmp.db")
     at_db.init_db(db_path=dbp)

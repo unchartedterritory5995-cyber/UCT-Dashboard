@@ -60,6 +60,12 @@ def test_a_member_read_reuses_the_session_path_scans(monkeypatch):
     from api.services import breadth_intraday as bi
     from api.services import breadth_monitor as svc
     scans = []
+    # The router binds `cache` at ITS first import. When that import happens inside a
+    # test that has swapped `api.services.cache.cache` for a no-op (tests/
+    # test_breadth_eod_source.py's env fixture does), the router keeps the no-op for the
+    # rest of the session and this memo can never hit. Pin the real cache here so the
+    # assertion is about the router's memo, not about which file ran first.
+    monkeypatch.setattr(br, "cache", cache)
     monkeypatch.setattr(live, "compute_live", lambda force=False: {
         "ok": True, "session_date": "2099-01-02", "metrics": {}, "session_live": False})
     monkeypatch.setattr(svc, "get_history", lambda days=90: [])
