@@ -60,6 +60,8 @@ export const SURFACES = Object.freeze({
   'components/notebook/TextColorMenu.jsx': { coveredBy: 'editor-color' },
   'components/notebook/TableToolbar.jsx': { coveredBy: 'editor-table' },
   'components/notebook/EmojiMenu.jsx': { coveredBy: 'editor-emoji' },
+  // P0.9: the `@` date list (DateSuggestList.jsx); a11y/noteEditor.a11y.test.jsx opens it with a typed "@".
+  'components/notebook/DateSuggestList.jsx': { coveredBy: 'editor-date-suggest' },
   'components/notebook/NoteLinkMenu.jsx': { coveredBy: 'editor-note-link' },
   'components/notebook/LinkPasteMenu.jsx': { coveredBy: 'editor-link-paste' },
   'components/notebook/WritingHelpPanel.jsx': { coveredBy: 'editor-writing-help' },

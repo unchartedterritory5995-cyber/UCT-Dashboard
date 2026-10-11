@@ -13,6 +13,8 @@
 // research doors. Copy is written for traders: short, plain, no em dashes.
 import { notebookFlag } from '../../../lib/offline/notebookFlags'
 import { SAMPLE_COPY } from './sampleNotebook'
+// The voice-note gate's ONE flag name lives with the door it opens.
+import { VOICE_NOTE_FLAG } from '../../../lib/voiceNote'
 
 export const CAPABILITY_PREVIEW = Object.freeze([
   {
@@ -68,6 +70,12 @@ export const CAPABILITY_PREVIEW = Object.freeze([
     flag: 'notebook_writing_help_enabled',
     label: 'Writing help',
     line: 'Ask for a tighter or shorter version of what you wrote. Nothing changes until you accept it.',
+  },
+  {
+    id: 'voice-notes',
+    flag: VOICE_NOTE_FLAG,
+    label: 'Voice notes',
+    line: 'Record or upload a voice memo, or pick a Desk session. You get a transcript and a short summary in a new note.',
   },
 ])
 

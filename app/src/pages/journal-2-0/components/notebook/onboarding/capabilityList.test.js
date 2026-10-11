@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { CAPABILITY_PREVIEW, armedCapabilities, PREVIEW_COPY } from './capabilityList'
 import { FLAG_FALLBACKS, __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { SAMPLE_COPY } from './sampleNotebook'
+import { VOICE_NOTE_FLAG } from '../../../lib/voiceNote'
 
 beforeEach(() => { __resetNotebookFlags() })
 afterEach(() => { __resetNotebookFlags() })
@@ -47,6 +48,17 @@ describe('capabilityList -- the list', () => {
       expect(s, s).not.toMatch(/!/)
     }
     for (const c of CAPABILITY_PREVIEW) expect(c.line.length, c.id).toBeLessThanOrEqual(120)
+  })
+
+  // P0.10: voice notes are a shipped door the preview never named.
+  it("voice notes follow writing help, on the voice-note gate's ONE flag name", () => {
+    const ids = CAPABILITY_PREVIEW.map((c) => c.id)
+    expect(ids.indexOf('voice-notes')).toBe(ids.indexOf('writing-help') + 1)
+    const voice = CAPABILITY_PREVIEW.find((c) => c.id === 'voice-notes')
+    expect(voice.flag).toBe(VOICE_NOTE_FLAG)
+    expect(voice.flag).toBe('notebook_voice_notes_enabled')
+    expect(voice.label).toBe('Voice notes')
+    expect(voice.line).toBe('Record or upload a voice memo, or pick a Desk session. You get a transcript and a short summary in a new note.')
   })
 
   it('the promotion names the sample button by its ONE label (SAMPLE_COPY.add)', () => {
