@@ -1,10 +1,95 @@
 # P0.0 — the single-tab fork: NOT REPRODUCED (2026-10-11)
 
-**Verdict: not reproduced. No writer is named.** 140 runs, 0 forks. The plan's stop condition
-applies: no fix, no rail. The reproducer stays committed (`tools/notebook_fork_repro.py`), and the
-raw evidence was committed before this file was written (R-RAW, `f5d94ae46d`).
+**Verdict: not reproduced. No writer is named.** 170 runs that could fork, 0 forks. The plan's stop
+condition stands: no fix, no rail.
 
-## What was run
+Round 1 (140 runs) was read once, 8 s after the navigation. Fix round 1 (30 runs) was read at +8 s
+and again at +90 s. A **positive control proves the detector sees a real fork: 10 of 10 controls
+forked**, by both signals, at both read times.
+
+The reproducer stays committed (`tools/notebook_fork_repro.py`). Raw evidence was committed before
+each interpretation (R-RAW): `f5d94ae46d` for round 1, `0cb7bcff16` for fix round 1.
+
+## Fix round 1 — the control, the late read, and a quiet server
+
+### The positive control (`--control`) — the detector works
+
+The control produces a real second writer, through the product.
+
+1. The editor holds unsent typing: its 800 ms autosave has not fired yet.
+2. The same account PUTs a different body (`A second writer rewrote this paragraph.`) through the
+   notes route, on the revision the editor opened on.
+3. The editor's autosave then goes out on that stale base and gets a 409.
+4. `reconcileConflict` → `ownerReconcilePlan` classifies the server copy as BODY_REWRITE and forks.
+
+`docs/notebook/evidence/fork-repro-20261011T073321Z/run-00.json`:
+
+| step | what the wire shows |
+|---|---|
+| `control_write` | 200 on base `07:34:05.200272` → `07:34:08.534952` |
+| pair 22 | the editor's PUT on base `07:34:05.200272` → **409** |
+| pair 24 | `POST /api/j2/notes` with title `My trading rules (conflicted copy)` → 200 |
+| both account reads | the copy present, tags `['sync-conflict']` |
+
+**10 of 10 control runs forked**, by title AND by tag, at +8 s AND at +90 s. The detector can see a
+fork. Round 1's "0 forks" is therefore a measurement, not a blind spot.
+
+**Detection now uses two signals, reported separately.** Both product fork doors set both marks
+(read from the code, not inferred):
+
+- the title `<title> (conflicted copy)`;
+- the tag `sync-conflict`.
+
+The doors are `NoteEditorPage.jsx`'s `reconcileConflict`, which calls `createNoteViaApi` with
+`tags: ['sync-conflict']`, and `useOutboxDrain.js`'s `forkConflictedCopy` (same title and tag).
+
+### Two reads, sequential, nothing else on the server
+
+These ran on a fresh c2 sandbox (data root `…\Temp\nb-p0-fork2`, tip `eec73eede5`), strictly one
+after another, 07:33:22 → 08:39:38 UTC. Nothing else ran on that server during the batch. One
+1-run control shake-out (scratch, not evidence) ran at 07:32 and finished before the batch began.
+
+Sandbox snapshot rail: CLEAN at every checkpoint, 62 db files. The stop was "graceful to the
+shutdown checkpoint, then forced exit".
+
+Each run read the account at +8 s. It then sampled the IndexedDB outbox every ≤5 s until +90 s, and
+read the account again at +90 s.
+
+| evidence dir | shape | runs | fork @ +8 s (title / tag) | fork @ +90 s (title / tag) | outbox | PUT statuses |
+|---|---|---|---|---|---|---|
+| `fork-repro-20261011T073321Z` | **control** | 10 | 10 / 10 | 10 / 10 | empty at first sample (≈8 s) | `[409]` |
+| `fork-repro-20261011T074956Z` | brief, nav 300 ms | 10 | 0 / 0 | 0 / 0 | empty at first sample, still 0 at +90 s | `[200]` |
+| `fork-repro-20261011T080535Z` | brief, nav 1500 ms | 10 | 0 / 0 | 0 / 0 | empty at first sample, still 0 at +90 s | `[200]` |
+| `fork-repro-20261011T082126Z` | unmount in flight (as 070344Z: 850 ms pause, no type delay, +600 ms latency, click at 300 ms) | 10 | 0 / 0 | 0 / 0 | empty at first sample, still 0 at +90 s | `[200, 409, 200]` ×10 |
+
+In the three non-control shapes the member's words (`Never move a stop down`) were on the server at
++90 s in 30 of 30 runs.
+
+The unmount-in-flight shape again gave a 409 in 10 of 10 runs and 0 forks, now confirmed past one
+full drain retry interval (`RETRY_INTERVAL_MS` = 60 s).
+
+### Disclosure — round 1 runs overlapped on one sandbox (an uncontrolled variable)
+
+Round 1 shared one sandbox, and the aged invocation `fork-repro-20261011T062907Z` was not alone on
+it. Windows below are from the run files' own timestamps, UTC.
+
+| aged invocation phase | when | what else was running then |
+|---|---|---|
+| created its member and 30 notes | from 06:29:07 | `062725Z` was live (06:27:25 → 06:32:09) |
+| slept, holding 30 idle browser contexts with no pages | until ~07:09:30 | `063209Z` … `070344Z` |
+| opened and typed its 30 notes | 07:09:30 → 07:15:35 | `070831Z` (07:08:32 → 07:12:08) and `071237Z` (07:12:37 → 07:23:23) |
+
+The active editing phases overlap only those two: `070831Z` and `071237Z`. `070344Z` ran while the
+aged process existed but was asleep.
+
+None of this was disclosed in round 1. Concurrent members on one server are an uncontrolled
+variable for timing. The fix-round batch above was run sequentially to remove it.
+
+⚰️ **Correction.** The round-1 evidence commit `f5d94ae46d` (immutable) says "130 runs" and "seven
+exploratory variants". The truth is **140 runs** and **eight** exploratory variants (12 invocations:
+4 in the plan's budget, 8 exploratory).
+
+## Round 1 — what was run (one read, at +8 s)
 
 A c2 sandbox booted from this tree (tip `eec73eede5`) by `tools/notebook_fin_walk.py --serve-only`,
 port 8132. Snapshot rail CLEAN at every checkpoint, 62 db files hashed, graceful stop. Each run used a
