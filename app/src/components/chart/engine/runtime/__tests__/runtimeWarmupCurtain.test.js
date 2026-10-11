@@ -107,7 +107,9 @@ describe('⭐ a listing document off the listing: the warm-up is withheld, the r
     let t = 0
     const now = () => { t += 0.05; return t }
     let err = null
-    try { computeRuntimeColumns(RSI, bars.slice(FULL - 3000), D, { budgetMs: 200, now }) } catch (e) { err = e }
+    // the second run to its end (`warmupEarlyStop: false`): RSI's would stop early (M1) and spend
+    // too little of the fake clock to reach the budget — the budget is what this pins
+    try { computeRuntimeColumns(RSI, bars.slice(FULL - 3000), D, { budgetMs: 200, now, warmupEarlyStop: false }) } catch (e) { err = e }
     expect(err && err.guard).toBe(RUNTIME_TIME_BUDGET_GUARD)
   })
 

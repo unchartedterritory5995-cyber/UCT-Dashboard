@@ -42,6 +42,7 @@ import { Budget, RuntimeLimitError, LIVE_OBJECT_BYTES } from './limits.js'
  *  test; otherwise the platform's monotonic clock. */
 const defaultNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
 import { etClockAt } from '../../indicators.js'
+import { encodeState } from './vmState.js'
 
 /** `CLOCK_FIELDS` index -> the property `etClockAt` returns that field under.
  *
@@ -475,6 +476,19 @@ export function execute(program, ctx, limits, opts) {
     + carCells + car2Cells + locals.length + persist.length + stack.length)
   let requestBytes = 0
   budget.peak('MEMORY', staticBytes)
+  // ⭐⭐ UIE PHASE 3 (M1) — THE STATE PROBE (`opts.probe`, the warm-up curtain's).
+  // At each bar it names, after the bar is committed, the run's whole carried state
+  // is encoded canonically (`vmState.js`) and handed to `probe.visit`, with the
+  // lowest bar any DYNAMIC history read reached since the previous probe (a dynamic
+  // offset can reach any bar, so what it reached is measured, not assumed). A
+  // `true` answer stops the run there (`stoppedAt`). ⛔ Never for a program that
+  // draws: an object store is not encoded, so it is not probed.
+  const probe = opts && opts.probe && !store && entryPc === 0 ? opts.probe : null
+  const probeBars = probe && Array.isArray(probe.bars) ? probe.bars : []
+  let probeI = 0
+  let probeAt = probe && probeBars.length ? probeBars[0] : -1
+  let dynLowSeries = Infinity
+  let dynLowCol = Infinity
   for (let bar = 0; bar < ctx.bars; bar += 1) {
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
@@ -582,6 +596,7 @@ export function execute(program, ctx, limits, opts) {
           const raw = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
           const idx = Number.isInteger(n) && n >= 0 ? bar - n : -1
+          if (idx >= 0 && idx < dynLowCol) dynLowCol = idx
           stack[sp++] = idx >= 0 ? columns[a][idx] : NaN
           break
         }
@@ -614,6 +629,7 @@ export function execute(program, ctx, limits, opts) {
           const raw = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
           const idx = Number.isInteger(n) && n >= 0 ? bar - n : -1
+          if (idx >= 0 && idx < dynLowSeries) dynLowSeries = idx
           stack[sp++] = idx >= 0 ? series[a][idx] : NaN
           break
         }
@@ -1231,7 +1247,29 @@ export function execute(program, ctx, limits, opts) {
       if (elapsed > wallCap) throw new RuntimeLimitError('WALL_TIME', wallCap, Math.round(elapsed))
     }
     if (onBar) onBar(bar, iters, outputs)
+    if (bar === probeAt) {
+      // the rings LOGICALLY: offset k back is the same bar in two runs that have
+      // committed a different number of bars, and an uncommitted offset reads `na`
+      const past = new Array(histTotal)
+      for (let i = 0, p = 0; i < nHist; i += 1) {
+        const depth = histPlan[i].depth
+        for (let k = 1; k <= depth; k += 1, p += 1) {
+          past[p] = k <= committed ? hist[histOffset[i] + ((committed - k) % depth)] : NaN
+        }
+      }
+      const cells = encodeState([persist, initialised, past, held, carState, car2State, winObsN,
+        ...winObs.map((o) => o || [])])
+      const stop = probe.visit(bar, { cells, committed, dynLowSeries, dynLowCol })
+      dynLowSeries = Infinity
+      dynLowCol = Infinity
+      probeI += 1
+      probeAt = probeI < probeBars.length ? probeBars[probeI] : -1
+      if (stop === true) {
+        return { outputs, iters, budget, requested: Array.from(requested).sort(), objects: store, stoppedAt: bar }
+      }
+    }
   }
+  if (probe && typeof probe.done === 'function') probe.done({ dynLowSeries, dynLowCol })
 
   return { outputs, iters, budget, requested: Array.from(requested).sort(), objects: store }
 }

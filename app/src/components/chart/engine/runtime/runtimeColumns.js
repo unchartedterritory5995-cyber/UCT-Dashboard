@@ -31,6 +31,7 @@ import { registerObjectRuntimeValues } from '../objectColumns.js'
 // ⭐⭐ RT5 — the run's own drawings ride the column record (`runtimeObjects.js`).
 import { withRuntimeObjects, RUNTIME_WARMUP_KEY, runtimeWarmupOf } from './runtimeObjects.js'
 import { runtimeInputValues } from './runtimeInputs.js'
+import { makeWarmupProbe } from './warmupProbe.js'
 export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
 import { declaredCalcBarsOf } from './objectStore.js'
 import { strippedForScan } from '../ast/pine.js'
@@ -331,12 +332,15 @@ function sameValue(x, y) {
  *  bar k + shift). → the first bar (in `a`'s indices) from which EVERY output of `a`
  *  and `b` agrees through the last bar, or null when the last bar already disagrees.
  *  Pure; never throws. */
-export function convergedFrom(a, b, shift) {
+export function convergedFrom(a, b, shift, last) {
   const keys = Object.keys(a || {})
   if (!keys.length || !b) return null
   const n = a[keys[0]].length
-  let c = n
-  for (let i = n - 1; i >= shift; i -= 1) {
+  // ⭐ UIE PHASE 3 (M1) — `last`: B stopped after that bar with A's state, so every
+  // later bar agrees by proof (`warmupProbe.js`) and is not compared
+  const top = Number.isInteger(last) && last < n - 1 ? last : n - 1
+  let c = top === n - 1 ? n : top + 1
+  for (let i = top; i >= shift; i -= 1) {
     let same = true
     for (const k of keys) {
       const bk = b[k]
@@ -376,7 +380,10 @@ export const RUNTIME_WARMUP_GUARD = 'runtime:warmup-never-converges'
  *
  * ⛔ DRAWINGS ARE WITHHELD on such a chart (named, `runtime:history-start`): the check
  * compares columns, not objects, so a drawing's position is not proven seed-free.
- * The plots beside them are drawn. Costs a second, shorter run inside the same budget.
+ * The plots beside them are drawn. Costs a second, shorter run inside the same budget —
+ * and ⭐ UIE PHASE 3 (M1) stops that run as soon as it is PROVEN to repeat the first
+ * (`warmupProbe.js`: same program, same state exactly, same inputs on every later bar),
+ * which changes nothing drawn (`runtimeWarmupEarlyStop.test.js`).
  */
 function computeOffListing(def, rows, ctx, opts) {
   const n = rows.length
@@ -397,7 +404,11 @@ function computeOffListing(def, rows, ctx, opts) {
     : () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
   const t0 = clock()
   const inner = { ...opts, warmupCurtain: false }
-  const a = computeRuntimeColumnsOnce(plain, rows, ctx, inner)
+  // ⭐⭐ UIE PHASE 3 (M1) — B stops as soon as it is PROVEN to repeat A (`warmupProbe.js`);
+  // a drawing program is never probed (its object store is not encoded)
+  const probe = objects || opts.warmupEarlyStop === false ? null : makeWarmupProbe(n, shift)
+  const a = computeRuntimeColumnsOnce(plain, rows, ctx,
+    probe ? { ...inner, probe: probe.forA, onProgram: probe.programA } : inner)
   const left = Number.isFinite(opts.budgetMs) ? opts.budgetMs - (clock() - t0) : null
   if (left !== null && left <= 0) {
     throw refusal(RUNTIME_TIME_BUDGET_GUARD, `this script took more than ${opts.budgetMs} ms to draw bar by bar `
@@ -405,15 +416,17 @@ function computeOffListing(def, rows, ctx, opts) {
       + 'for one indicator, so it is stopped and nothing is drawn rather than part of it.')
   }
   const b = computeRuntimeColumnsOnce(plain, rows.slice(shift), ctx,
-    { ...inner, onBudget: undefined, ...(left !== null ? { budgetMs: left } : {}) })
-  const from = convergedFrom(a, b, shift)
+    { ...inner, onBudget: undefined, ...(left !== null ? { budgetMs: left } : {}),
+      ...(probe ? { probe: probe.forB, onProgram: probe.programB } : {}) })
+  const stoppedAt = probe ? probe.stoppedAt() : null
+  const from = convergedFrom(a, b, shift, stoppedAt === null ? undefined : stoppedAt)
   if (from === null || from > shift + Math.floor((n - shift) / 2)) throw never()
   for (const k of Object.keys(a)) {
     const col = a[k]
     for (let i = 0; i < from; i += 1) col[i] = NaN
   }
-  Object.defineProperty(a, RUNTIME_WARMUP_KEY, { value: { withheldBars: from, shift }, enumerable: false,
-    configurable: true })
+  const warmup = { withheldBars: from, shift, ...(stoppedAt !== null ? { secondRunStoppedAt: stoppedAt } : {}) }
+  Object.defineProperty(a, RUNTIME_WARMUP_KEY, { value: warmup, enumerable: false, configurable: true })
   if (objects) {
     withRuntimeObjects(a, { status: 'WITHHELD', live: [], guard: RUNTIME_HISTORY_GUARD,
       reason: "its drawings are not drawn on a chart whose history does not start at the symbol's first bar: "
@@ -504,6 +517,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   const now = typeof opts.now === 'function' ? opts.now
     : () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
   const startedAt = budgetMs !== null ? now() : 0
+  if (typeof opts.onProgram === 'function') opts.onProgram(program)
   // ⭐⭐ C43 — the script's own `runtime.error` (C35's `PineRuntimeError`) stops
   // the run on the bar it is reached; TradingView's study then holds nothing and
   // names that bar (`vw-runtime-error-reached`). The bar is the one after the last
@@ -524,6 +538,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       // `runtimeLimitsBudget.measure.test.js`); no product caller passes it, so every
       // chart runs under `DEFAULT_LIMITS`.
     }, opts.limits, {
+      ...(opts.probe ? { probe: opts.probe } : {}),
       onBar: (bar) => {
         finished = bar
         if (budgetMs !== null) {
