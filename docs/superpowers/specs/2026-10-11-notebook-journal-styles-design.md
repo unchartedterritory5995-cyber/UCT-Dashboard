@@ -1,6 +1,9 @@
 # Notebook: Journal Styles (presets, trader blocks, community library, page layouts)
 
-**Date:** 2026-10-11 · **Status:** design for owner review · **Author:** session 61625d99
+**Date:** 2026-10-11 · **Status:** APPROVED by the owner 2026-10-11 ("approved if you think it is
+perfect and thorough"), after a final review pass that added P1.7, the block integrity rule, async
+price stamps, image sanitizing, P3.3b and the typing baseline. §7's six decisions are taken as the
+recommended options. · **Author:** session 61625d99
 **Base:** origin/master `f2b9ba895d` · **Inputs:** `docs/notebook/discoverability-audit-2026-10-11.md`
 (branch `notebook-discover-1011`, `28eede4fbb`), `docs/notebook/rescore-2026-10-11.md` (branch
 `notebook-rescore-1011`, `cd809b7889`)
@@ -200,6 +203,17 @@ Paid-gated; dark behind `NOTEBOOK_JOURNAL_STYLES_ENABLED` (auth-payload flag, ga
 Offline: styles are cached with the note list; applying offline uses the cache and queues through the
 outbox like any create. Every new preference key is added to `_PREFERENCE_KEYS` in the same commit.
 
+### P1.7 Verify before building (first task of the P1 plan)
+- **Is the `widgetEmbed` kind open-ended?** Read both validators (`lib/notebookSchema.js`,
+  `notebook_schema.py`) and the save path: if either holds an allow-list of widget kinds, a new kind
+  is a schema decision (next level, never-revert) and the plan says so before any block is written.
+- **What does an OLDER bundle do with an unknown kind?** A member with a stale tab must see a
+  readable "This block needs a newer version — reload" card, never a crash or a dropped node that
+  the next save deletes. If today's renderer drops it, that fix ships first, on its own, ahead of
+  any new kind (a deleted node is data loss).
+- **A switch gates CREATING blocks, never RENDERING them.** With `NOTEBOOK_JOURNAL_STYLES_ENABLED`
+  off, a note that already holds blocks still renders them. Rollback must never blank a note.
+
 ---
 
 ## P2. Trader blocks and micro-features
@@ -208,6 +222,14 @@ Every block is a **widget kind** (`widgetEmbed`, level 0) with: a registry entry
 an empty state that says what to do, an error state that never blanks the note, a phone layout, a
 keyboard path, accessible names, and a walk step. A block that needs a feature switch that is off
 renders "This block needs X, which is not on for you" (never an empty box).
+
+**Integrity rule for every block (the fork history makes this non-negotiable):** a block's member
+state (a tick, a chosen setup, a sizing input) lives in the block's node attributes and changes
+**only through an editor transaction**, so it rides the note's one existing save path (autosave →
+outbox → compare-and-set). No block may own a second write door (its own PUT/PATCH to the note).
+A block that needs server data READS it; it never writes the note on its own. The walk adds a step
+that ticks a checklist item, navigates away within 1.5 s, and asserts no conflicted copy appears
+(the P0.0 repro shape).
 
 ### Tier 1 (ships with P1)
 1. **Pre-entry checklist.** Your setup's checklist (from `settings.setupRules`, plus any active rules
@@ -226,7 +248,10 @@ renders "This block needs X, which is not on for you" (never an empty box).
    property (`builtin:regime_at_write`) and a saved view.
 4. **Price-stamped lines.** A per-note toggle (and a style setting): pressing Enter after a line that
    names a ticker appends a `financialFact` stamp "NVDA 132.40 · 10:14 ET" (live price at that moment;
-   frozen afterwards). Reuses the `/price` capture path; no new node type.
+   frozen afterwards). Reuses the `/price` capture path; no new node type. The price fetch is
+   **asynchronous and never blocks the keystroke**: Enter lands instantly, the stamp is inserted
+   when the price arrives (as its own transaction, undoable on its own), and a failed or slow
+   (>2 s) fetch inserts nothing. Off by default.
 5. **Position sizing.** The house formula only — Account Risk % = Position Size % × Stop Distance % —
    with max 2% account risk, regime-adjusted ceilings (GREEN A+ 20-25%, YELLOW A+ 15%, ORANGE A+ 8%,
    B in ORANGE = skip). Inputs: entry, stop, account (from the member's account), grade. Output: size,
@@ -270,7 +295,10 @@ a published note (existing publish infrastructure) linked to a style, so browser
 "Share to community" from a style, outline, note or page layout. **Sanitizing is mandatory and shown
 before publish:** account sizes, P&L, broker names, linked trades, personal rule evidence and any
 financial fact older than the snapshot are stripped or replaced with "your value here"; the author
-sees exactly what will be public. Category by trading style (Swing · Day · Prop · Options · Earnings ·
+sees exactly what will be public. **Images cannot be sanitized by text rules** (a screenshot can
+show an account number, a balance or a broker's UI): every image in an example note is OFF by
+default in the preview and must be switched on one by one by the author; OCR runs on each and
+warns when it finds dollar amounts, long digit runs or a broker name. Category by trading style (Swing · Day · Prop · Options · Earnings ·
 Long-term) + kind of note + free tags. Every item goes through the existing admin review queue before
 it is listed.
 
@@ -284,6 +312,16 @@ it is listed.
   an explicit, previewed merge that never removes your edits.
 - **Authors:** a profile listing their published items; follow an author to see new items in a feed.
 - **Feedback:** "Helpful" count (one per member) and the existing report/hide flow.
+- **Author withdraws an item:** it leaves the library; every adopted copy is the adopter's own and is
+  untouched; "notify me of updates" stops with a one-line notice.
+
+### P3.3b Data model additions
+`j2_template_gallery.item_type TEXT NOT NULL DEFAULT 'outline'` (existing rows stay outlines) plus
+`payload_json` for style/page-layout definitions and `version INTEGER`; `j2_gallery_helpful
+(item_id, user_id, created_at, PK(item_id,user_id))`; `j2_gallery_follows (follower_id, author_id,
+created_at, PK)`; adoption reuses the gallery's existing distinct-member use rows (with a timestamp,
+which is what "Trending this week" counts). `item_type` values are ONE FACT IN TWO FILES with the
+client's list and get the parse-the-other-file rail.
 
 ### P3.4 Rules
 Paid-gated; public pages (if ever) follow the vendor rulings (FMP/Finnhub approved; Massive-sourced
@@ -315,7 +353,8 @@ reuse the gallery's hourly + durable daily caps. Dark behind `NOTEBOOK_STYLE_LIB
 4. **Announcement** to the group (owner posts; draft provided), a weekly "featured style" pick (owner's
    choice of channel; no automated test posts).
 5. **Measurement:** telemetry events on the allowlist — `style_applied`, `style_created`,
-   `style_adopted`, `block_used:<kind>`, `library_viewed` — no note content, ever.
+   `style_adopted`, `block_used` (with a `kind` field drawn from the block registry, never free
+   text), `library_viewed` — no note content, ever.
 
 ---
 
@@ -324,7 +363,9 @@ reuse the gallery's hourly + durable daily caps. Dark behind `NOTEBOOK_STYLE_LIB
 - **Schema:** widget kinds and `financialFact` reuse; any unavoidable new node type or attribute takes
   the next level (5+) in BOTH schema files in a never-revert commit.
 - **Performance:** every new surface is a lazy chunk; the Notebook first-open byte budget must not
-  move; typing stays under the 16 ms busy-time budget with blocks present (re-measure at 2,000 ¶).
+  move; typing with blocks present shows **no regression against the 2026-10-10 busy-time baseline
+  (p95 4.94 / 7.07 / 9.37 ms)**, re-measured with the same instrument at the same note sizes plus a
+  note holding one of every block.
 - **Accessibility:** 44 px targets on touch, accessible names, keyboard reorder (not drag-only),
   NVDA pass on the style editor and library.
 - **Offline:** styles and kinds cached; creates queue through the outbox; library browsing needs a
