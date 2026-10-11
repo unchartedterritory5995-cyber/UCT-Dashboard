@@ -36,7 +36,11 @@ import {
 // ⭐⭐ RT5 — the run's own drawings (`objectStore.js`).
 import { makeObjectStore } from './objectStore.js'
 import { isDrawingHandle } from './handles.js'
-import { Budget } from './limits.js'
+import { Budget, RuntimeLimitError, LIVE_OBJECT_BYTES } from './limits.js'
+
+/** ⭐ P1 HARDENING — the clock `WALL_TIME` reads. Injected through `opts.now` by a
+ *  test; otherwise the platform's monotonic clock. */
+const defaultNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
 import { etClockAt } from '../../indicators.js'
 
 /** `CLOCK_FIELDS` index -> the property `etClockAt` returns that field under.
@@ -122,7 +126,7 @@ export function makeContext({ bars, series, columns, confirmed = true }) {
  *  hand a backtest a number nobody could have traded on — the most
  *  valuable-looking wrong answer this engine could produce.
  */
-function runRequest(program, site, otherBars, ctx, budget, requested, requestCache, results) {
+function runRequest(program, site, otherBars, ctx, budget, requested, requestCache, results, requestDepth = 1, now) {
   const n = otherBars.length
   const pick = (k) => Float64Array.from(otherBars.map((b) => b[k]))
   const sub = execute(program, {
@@ -133,7 +137,7 @@ function runRequest(program, site, otherBars, ctx, budget, requested, requestCac
     barTimes: otherBars.map((b) => b.t),
     requestBars: ctx.requestBars,
   }, undefined, {
-    entry: site.entry, budget, requested, requestCache,
+    entry: site.entry, budget, requested, requestCache, requestDepth, now,
   })
 
   const chartTimes = ctx.barTimes || []
@@ -169,6 +173,14 @@ export function execute(program, ctx, limits, opts) {
   const onBar = (opts && typeof opts.onBar === 'function') ? opts.onBar : null
   budget.peak('IR_SIZE', program.instructions)
   budget.peak('HISTORY', ctx.bars)
+  // ⭐⭐ P1 HARDENING — REQUEST NESTING (`REQUEST_FANOUT`) and the shared WALL_TIME
+  // clock. A request's sub-run shares this budget, so the clock starts once, at the
+  // outermost run, and every nested run is measured against the same start.
+  const requestDepth = (opts && Number.isInteger(opts.requestDepth)) ? opts.requestDepth : 0
+  if (requestDepth > 0) budget.peak('REQUEST_FANOUT', requestDepth)
+  const now = (opts && typeof opts.now === 'function') ? opts.now : defaultNow
+  if (!budget.startedAt) budget.startedAt = now() || 1e-9
+  const wallCap = budget.limits.WALL_TIME
   // ⭐ RT7 — the script's `//@version`, for the one collection rule that depends on it
   // (`collections.js::at`: v6 counts a negative index from the end). Unset (a caller
   // that is not a run) reads as "not v6", which keeps the stop.
@@ -454,6 +466,15 @@ export function execute(program, ctx, limits, opts) {
   // ⭐ RT7 — read once: a budget's limits are fixed for its life (`limits.js`), and
   // this check runs on every instruction.
   const instrCap = budget.limits.INSTRUCTIONS_PER_BAR
+  // ⭐⭐ P1 HARDENING — `MEMORY`, the run's own allocations, sized exactly from what
+  // was just allocated above (8 bytes a cell; the value arrays are counted at the
+  // same rate). Peaked once here, then again at every bar end with what can grow.
+  let winCells = 0
+  for (let i = 0; i < winBuf.length; i += 1) winCells += winBuf[i].length
+  const staticBytes = 8 * (nOut * ctx.bars + iterSpecs.length * ITER_SLOTS + histTotal + winCells
+    + carCells + car2Cells + locals.length + persist.length + stack.length)
+  let requestBytes = 0
+  budget.peak('MEMORY', staticBytes)
   for (let bar = 0; bar < ctx.bars; bar += 1) {
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
@@ -748,6 +769,8 @@ export function execute(program, ctx, limits, opts) {
           let k = sp
           for (let i = 0; i < oop.present.length; i += 1) oargs[i] = oop.present[i] ? stack[k++] : undefined
           heldTop = localsTop
+          // ⭐ P1 HARDENING — every drawing call is counted (`OBJECT_OPERATIONS`).
+          budget.charge('OBJECT_OPERATIONS', 1)
           const ov = store.call(oop.fn, oargs, bar, heldNow)
           if (oop.returns !== 'void') stack[sp++] = ov === undefined ? NaN : ov
           break
@@ -1093,7 +1116,9 @@ export function execute(program, ctx, limits, opts) {
               series2 = null
             } else {
               budget.peak('REQUEST_COUNT', requestCache.size + 1)
-              series2 = runRequest(program, site, other, ctx, budget, requested, requestCache, b)
+              series2 = runRequest(program, site, other, ctx, budget, requested, requestCache, b,
+                requestDepth + 1, now)
+              requestBytes += 8 * b * ctx.bars
             }
             requestCache.set(`${a}::${key}`, series2)
           }
@@ -1194,6 +1219,17 @@ export function execute(program, ctx, limits, opts) {
     // ⛔ TOP-LEVEL ONLY. `runRequest` builds its sub-`execute` with its own
     // opts and passes no hook, so another symbol's bars can never drive a
     // drawing that belongs to this chart's.
+    // ⭐⭐ P1 HARDENING — THE BAR-END ACCOUNT: live drawings after the collector, the
+    // run's held state, and its elapsed time. Each stops BY NAME, never by a short
+    // series. O(1) a bar.
+    const liveObjects = store ? store.liveCount() : 0
+    if (store) budget.peak('LIVE_OBJECTS', liveObjects)
+    budget.peak('MEMORY', staticBytes + requestBytes + 16 * budget.counts.ARRAY_ELEMENTS
+      + LIVE_OBJECT_BYTES * liveObjects)
+    {
+      const elapsed = now() - budget.startedAt
+      if (elapsed > wallCap) throw new RuntimeLimitError('WALL_TIME', wallCap, Math.round(elapsed))
+    }
     if (onBar) onBar(bar, iters, outputs)
   }
 

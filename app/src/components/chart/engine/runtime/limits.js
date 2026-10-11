@@ -81,6 +81,17 @@ export const LIMIT_NAMES = Object.freeze([
  *  enough that no honest indicator meets it and tight enough that a runaway
  *  stops in well under a second. */
 export const DEFAULT_LIMITS = Object.freeze({
+  // ⭐ P1 HARDENING (2026-10-11) — the six ceilings below marked ENFORCED were
+  // declared here and counted NOWHERE (verified by grep: no `charge`/`peak` named
+  // them), so they read as protection while protecting nothing. Each now has one
+  // accounting site and one named failure; `runtimeHardeningP1.test.js` rails that
+  // every name in `LIMIT_NAMES` is counted somewhere.
+  //
+  // ENFORCED — the UTF-8 BYTES of the script's source, checked before the front end
+  // reads it (`runtimeColumns.js::sourceSizeRefusal`). The server stores a runtime
+  // document of at most 128 KiB (`runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES`),
+  // so no document the store accepts can meet this; it stops a pasted or generated
+  // source before the lexer is handed it.
   PROGRAM_SIZE: 512 * 1024,
   IR_SIZE: 200000,
   // R-B (2026-10-01): a raise to 250,000 was MEASURED and NOT taken - it moves no graded
@@ -104,8 +115,21 @@ export const DEFAULT_LIMITS = Object.freeze({
   CALL_COUNT: 5000000,
   ARRAY_ELEMENTS: 100000,
   ARRAY_OPERATIONS: 2000000,
-  LIVE_OBJECTS: 500,
-  OBJECT_OPERATIONS: 200000,
+  // ENFORCED — drawings live at the end of a bar, every family, AFTER the store's
+  // own Pine collector (`objectStore.js`). ⛔ RAISED FROM 500, deliberately: Pine
+  // lets ONE script hold up to 500 lines AND 500 labels AND 500 boxes (`max_*_count`
+  // ceilings, `objectPool.POOL_LIMITS`), so a total of 500 would have refused valid
+  // scripts. The ceiling is the most the store can ever hold — line, label and box
+  // at their 500 ceiling plus the 5 the batched collector lets past (3 x 505), the
+  // 40-table and 500-linefill house envelopes — so it never refuses what the store
+  // admits, and still stops a store defect that would let objects accumulate.
+  LIVE_OBJECTS: 3 * 505 + 40 + 500,
+  // ENFORCED — drawing calls (`line.new`, every setter, getter, delete …) over the
+  // WHOLE run, request sub-runs included. ⛔ RAISED FROM 200,000: a 50-cell table
+  // rewritten on every bar of a 20,000-bar intraday history (`HISTORY`) is 1,000,000
+  // calls and is an honest dashboard; 2,000,000 admits it and still bounds a runaway
+  // well inside `TOTAL_INSTRUCTIONS`.
+  OBJECT_OPERATIONS: 2000000,
   HISTORY: 20000,
   // ⚠️ MEASURED, NOT GUESSED — and the measurement is why they are this small.
   // The 2F-2 census over all five corpora (169 scripts) found 35 that read
@@ -124,10 +148,27 @@ export const DEFAULT_LIMITS = Object.freeze({
   CARRIED_CELLS: 65536,
   CARRIED_STEPS: 100000000,
   REQUEST_COUNT: 16,
+  // ENFORCED — how deep requests NEST: a request whose region itself requests runs
+  // the program again inside the first run (`vm.js::runRequest`), and without a depth
+  // bound a self-requesting region is unbounded recursion. Peaked on entry.
   REQUEST_FANOUT: 64,
+  // ENFORCED — an ESTIMATE, in bytes, of the state a run holds, and said to be one:
+  // JavaScript exposes no per-run heap figure. It is the run's own allocations,
+  // exactly sized (output columns, history rings, window buffers, carried state,
+  // frames, iteration buffers, aligned request results) plus, at every bar end, the
+  // largest collection seen (16 B / element) and the live drawings (512 B each).
+  // Dynamic collection memory is additionally bounded by `ARRAY_ELEMENTS` and
+  // `ARRAY_OPERATIONS`.
   MEMORY: 64 * 1024 * 1024,
+  // ENFORCED — milliseconds since the run's first bar, checked at every bar end of
+  // every run that shares the budget. The runtime PANE stops earlier, at its own
+  // 1,000 ms (`runtimeColumns.RUNTIME_PANE_TIME_BUDGET_MS`); this is the backstop for
+  // every other caller of `execute` (a worker, a census, a test harness).
   WALL_TIME: 5000,
 })
+
+/** ⭐ P1 HARDENING — the per-object figure `MEMORY` charges for a live drawing. */
+export const LIVE_OBJECT_BYTES = 512
 
 /** ⛔ A RESOURCE STOP IS ITS OWN FAILURE CLASS, distinct from a refusal (the
  *  member wrote something this engine cannot mean) and from a bug (an Error).

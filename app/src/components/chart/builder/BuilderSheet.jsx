@@ -1377,6 +1377,17 @@ export default function BuilderSheet({
     // ⛔ NO `setAcknowledged` HERE — the restored rows below each carry their
     // own fresh `acknowledged: false`, which is where that flag lives now.
     setStoreError(null); setSavedRow(null); setCopied(false); setPineText(''); applyProvenanceRef.current = null
+    // ⛔⛔ P1 HARDENING (2026-10-11) — THIS EDITOR EDITS FORMULAS, AND ONLY FORMULAS.
+    // A `runtime` document's `compute.source` is a whole PINE SCRIPT, and the restore
+    // below would have dropped it into the formula box as formula text — a document
+    // of one kind misread as the other. Refused by name; the stored script is untouched.
+    if (compute.kind !== undefined && compute.kind !== 'ast') {
+      setEditing(null)
+      setStoreError(compute.kind === 'runtime'
+        ? 'This indicator is a script drawn bar by bar, not a formula, so it cannot be edited here. Its script is unchanged.'
+        : 'This indicator is not a formula, so it cannot be edited here. It is unchanged.')
+      return
+    }
     if (typeof src !== 'string' || src.trim() === '') {
       setEditing(null)
       setStoreError('This formula was stored without its source text, so it cannot be edited here.')
@@ -3735,7 +3746,9 @@ export default function BuilderSheet({
                 {rows.map((row) => (
                   <li key={row.def_id} className={styles.listRow}>
                     <span className={styles.listName}>{row.definition?.meta?.name || row.def_id}</span>
-                    <span className={styles.listSource}>{row.definition?.compute?.source}</span>
+                    {/* ⭐ P1 HARDENING — a runtime document's source is a whole script, not a formula line */}
+                    <span className={styles.listSource}>{row.definition?.compute?.kind === 'runtime'
+                      ? 'Script drawn bar by bar' : row.definition?.compute?.source}</span>
                     <button
                       type="button"
                       className="btn btn-ghost"

@@ -20,11 +20,12 @@
 // ⛔ THE CLOCK IS THREADED, NEVER ASSUMED. `runtimeClockOpts` fills both halves
 // of the forming-bar tri-state from ONE value, the pair `pineRuntimeFrontendGate
 // .test.js` requires every live importer of the front end to reach.
-import { buildRuntimeIr } from '../ast/pineRuntimeFrontend.js'
+import { buildRuntimeIr, RUNTIME_FRONTEND_LANGUAGE, RUNTIME_FRONTEND_VERSION } from '../ast/pineRuntimeFrontend.js'
+import { RUNTIME_IR_VERSION } from './ir.js'
 import { runtimeClockOpts, newestBarIsFormingFrom } from '../ast/pineRuntimeClock.js'
 import { lowerIrProgram, naTestsOf } from './lowerIr.js'
 import { execute } from './vm.js'
-import { Budget, RuntimeLimitError } from './limits.js'
+import { Budget, RuntimeLimitError, DEFAULT_LIMITS } from './limits.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram.js'
 import { registerObjectRuntimeValues } from '../objectColumns.js'
 // ⭐⭐ RT5 — the run's own drawings ride the column record (`runtimeObjects.js`).
@@ -64,6 +65,8 @@ export const RUNTIME_HISTORY_GUARD = 'runtime:history-start'
  * @returns {{ok: true, outputs: {call: string}[]} | {ok: false, refusal: object}}
  */
 export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
+  const tooBig = sourceSizeRefusal(source)
+  if (tooBig) return { ok: false, refusal: { guard: RUNTIME_LIMIT_GUARD, message: tooBig } }
   let built
   try {
     // ⭐ RT5 — `objectsInRun`: the build that DRAWS its own objects instead of
@@ -136,14 +139,131 @@ export const RUNTIME_LIMIT_GUARD = 'runtime:limit'
 /** ⭐ RF — the guard a run that threw something unexpected carries. */
 export const RUNTIME_FAILED_GUARD = 'runtime:failed'
 
-/** The memo key for one run: the definition, its compute handle, and everything
- *  in `ctx` that changes the answer (the clock, the symbol, the listing fact). */
+/** ⭐⭐ P1 HARDENING (2026-10-11) — WHAT THE DOCUMENT SAYS, NOT JUST WHO IT IS.
+ *
+ *  ⛔ `compute.fn` on a runtime document is `runtime:<id>` (`memberPaneDefinition`),
+ *  a NAME, not a content hash — so a key built from `id` and `fn` alone served the
+ *  previous columns for an edited script over the same bars array. Every field the
+ *  run READS is fingerprinted here: the source, the plot→output map, whether the
+ *  run owns its drawings, the listing-history rule, and the document's version.
+ *  ⭐ Memoised per definition OBJECT (definitions are replaced, never mutated in
+ *  place, on every edit and reload), so a large script is hashed once, not per paint. */
+const _contentKey = new WeakMap()
+function fnv1a(str, seed) {
+  let h = seed >>> 0
+  for (let i = 0; i < str.length; i += 1) {
+    h ^= str.charCodeAt(i)
+    h = Math.imul(h, 0x01000193) >>> 0
+  }
+  return h
+}
+export function runtimeContentKey(def) {
+  if (!def || typeof def !== 'object') return 'none'
+  const known = _contentKey.get(def)
+  if (known) return known
+  const compute = def.compute || {}
+  const text = JSON.stringify([
+    String(compute.source || ''),
+    compute.outputs || null,
+    compute.objects === true,
+    (def.meta && def.meta.runtimeHistory) || null,
+    Number.isInteger(def.version) ? def.version : null,
+  ])
+  // Two independent 32-bit passes plus the length: a collision needs all three to agree.
+  const key = `${text.length.toString(36)}.${fnv1a(text, 0x811c9dc5).toString(36)}.${fnv1a(text, 0x9e3779b9).toString(36)}`
+  _contentKey.set(def, key)
+  return key
+}
+
+/** The memo key for one run: the definition, its compute handle, its CONTENT, and
+ *  everything in `ctx` that changes the answer (the clock, the symbol, the listing fact). */
 function runKey(def, ctx) {
   const compute = (def && def.compute) || {}
   const tf = ctx && typeof ctx.tf === 'string' ? ctx.tf : undefined
   const forming = newestBarIsFormingFrom(ctx)
   const listing = !!(ctx && ctx.historyFromListing === true)
-  return `${def && def.id}|${compute.fn}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}`
+  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}`
+}
+
+/** ⭐⭐ P1 HARDENING — `PROGRAM_SIZE` (`limits.js`): the source's UTF-8 bytes, asked
+ *  BEFORE the front end is handed it, at every door that builds a script. Returns the
+ *  sentence when the source is over the ceiling, else `null`. */
+export function utf8Bytes(text) {
+  let n = 0
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text.charCodeAt(i)
+    if (c < 0x80) n += 1
+    else if (c < 0x800) n += 2
+    else if (c >= 0xd800 && c <= 0xdbff) { n += 4; i += 1 }
+    else n += 3
+  }
+  return n
+}
+export function sourceSizeRefusal(source) {
+  const bytes = utf8Bytes(String(source || ''))
+  const ceiling = DEFAULT_LIMITS.PROGRAM_SIZE
+  if (bytes <= ceiling) return null
+  return `this script is ${bytes} bytes long, past the ${ceiling}-byte limit a script drawn bar by bar is `
+    + 'read under (PROGRAM_SIZE), so it is not read at all.'
+}
+
+// ─── ⭐⭐ P1 HARDENING — VERSION AND OUTPUT-MAP INTEGRITY ─────────────────────
+//
+// A runtime document stores its SOURCE and an index map (`compute.outputs`: plot key
+// → the runtime output at that index). Nothing recorded which front end built that
+// map or what each index pointed at, so a later front end that ordered outputs
+// differently would silently draw one plot's column under another's name. The
+// member door now stamps both; every run re-checks them. A document minted before
+// this (no stamp) runs exactly as before — the check is additive.
+
+/** The guard a run refused for a version or output-map mismatch carries. */
+export const RUNTIME_VERSION_GUARD = 'runtime:version'
+
+/** What each runtime output IS, in order: its `call`, plus the plot id or role it
+ *  carries when it has one — enough that a reorder or a re-meaning changes it. */
+export function runtimeOutputSignature(outputs) {
+  return (outputs || []).map((o) => [o && o.call, o && (o.role || o.plot || o.id || null)]
+    .filter((x) => x !== null && x !== undefined).join(':'))
+}
+
+/** The fields the member door stamps on `meta` at mint. */
+export function runtimeVersionStamp(probeOutputs) {
+  return {
+    runtimeLanguage: RUNTIME_FRONTEND_LANGUAGE,
+    runtimeFrontend: RUNTIME_FRONTEND_VERSION,
+    runtimeIr: RUNTIME_IR_VERSION,
+    runtimeOutputSignature: runtimeOutputSignature(probeOutputs),
+  }
+}
+
+/** The sentence when `def` cannot be run by THIS engine as minted, else `null`. */
+export function runtimeVersionRefusal(def, programOutputs) {
+  const meta = (def && def.meta) || {}
+  const lang = meta.runtimeLanguage
+  if (lang !== undefined && lang !== RUNTIME_FRONTEND_LANGUAGE) {
+    return `this script is stored as ${JSON.stringify(lang)}, and the only language this engine draws bar `
+      + `by bar is ${RUNTIME_FRONTEND_LANGUAGE}, so it is not run.`
+  }
+  for (const [field, have] of [['runtimeFrontend', RUNTIME_FRONTEND_VERSION], ['runtimeIr', RUNTIME_IR_VERSION]]) {
+    const want = meta[field]
+    if (want !== undefined && !(Number.isInteger(want) && want >= 1 && want <= have)) {
+      return `this script was saved by a newer version of the bar-by-bar engine (${field} ${JSON.stringify(want)}, `
+        + `this one is ${have}), so it is not run rather than computed by rules it was not written for.`
+    }
+  }
+  const sig = meta.runtimeOutputSignature
+  if (Array.isArray(sig)) {
+    const now = runtimeOutputSignature(programOutputs)
+    const outputs = (def.compute && def.compute.outputs) || {}
+    for (const [plotKey, index] of Object.entries(outputs)) {
+      if (sig[index] !== now[index]) {
+        return `this script's plot \`${plotKey}\` was saved as output ${index} (${sig[index] || 'none'}) and this `
+          + `engine now builds ${now[index] || 'nothing'} there, so it is not drawn rather than drawn under the `
+          + 'wrong name. Re-attaching the script rebuilds it.'
+      }
+    }
+  }
+  return null
 }
 
 /** A refusal-shaped error, as `nativeRegistry.runtimeColumnsOrReasons` reads one. */
@@ -224,6 +344,8 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
         + 'every bar would be a different picture. Nothing is drawn rather than a guess.')
     }
   }
+  const tooBig = sourceSizeRefusal(compute.source)
+  if (tooBig) throw refusal(RUNTIME_LIMIT_GUARD, tooBig)
   const built = buildRuntimeIr(String(compute.source || ''), {
     bars: rows,
     inputs: {},
@@ -254,6 +376,10 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // ⭐⭐ RT3 — from the listing, a `NaN` is Pine's `na` and an `na` condition reads
   // as Pine reads it; off it the shared `{0,1,NaN}` rules stand (`lowerIrProgram`).
   const program = lowerIrProgram(built.ir, { historyFromListing: !!(ctx && ctx.historyFromListing === true) })
+  // ⭐ P1 HARDENING — the document is run only by the engine it was minted for, and
+  // only while each mapped index still names the output it named at mint.
+  const versionWhy = runtimeVersionRefusal(def, program.outputs)
+  if (versionWhy) throw refusal(RUNTIME_VERSION_GUARD, versionWhy)
   const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(rows.map((b) => b[k])))
   // ⭐⭐ RT1 — THE TIME BUDGET, checked at the end of every bar through the VM's
   // own per-bar hook (no VM change): past it the run stops by name.
@@ -417,6 +543,8 @@ export function runtimeColumnsFor(def, bars, _inputs, ctx) {
 const wantedKind = (spec) => (spec && !spec.passes && spec.node && spec.kind) || 'num'
 
 export function probeObjectRuntime(source, specs) {
+  const tooBig = sourceSizeRefusal(source)
+  if (tooBig) return { ok: false, refusal: { guard: RUNTIME_LIMIT_GUARD, message: tooBig } }
   let built
   try {
     built = buildRuntimeIr(String(source || ''), {
@@ -494,6 +622,8 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
   if (!k) return withheld('runtime:empty')
   if (ctx.fromListing !== true) return withheld('runtime:not-from-listing')
   if (ctx.atDefaults !== true) return withheld('runtime:member-inputs')
+  // ⭐ P1 HARDENING — `PROGRAM_SIZE`: an over-long source is never handed to the front end.
+  if (sourceSizeRefusal(rt && rt.source)) return withheld(RUNTIME_LIMIT_GUARD)
   const tf = typeof ctx.tf === 'string' ? ctx.tf : undefined
   const forming = newestBarIsFormingFrom(ctx)
   const symbol = symbolOf(ctx)

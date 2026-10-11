@@ -28,7 +28,7 @@ import { paneGate, paneObjectsGate, runtimeRouteOf, runtimeFallbackOf } from '..
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { naConditionIsFalse } from '../../engine/ast/interpret'
-import { probeRuntimeProgram, probeObjectRuntime } from '../../engine/runtime/runtimeColumns'
+import { probeRuntimeProgram, probeObjectRuntime, runtimeVersionStamp } from '../../engine/runtime/runtimeColumns'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { ensureRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
@@ -1354,6 +1354,11 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // only on a series that starts at the listing (`runtimeColumns.js`), and is
     // refused by name on any other. The routed case keeps its measured behaviour.
     ...(routed ? {} : { runtimeHistory: 'listing' }),
+    // ⭐⭐ P1 HARDENING — which front end / IR built this document, and what each
+    // `compute.outputs` index named when it did (`runtimeColumns.js::runtimeVersionStamp`).
+    // Every run re-checks them, so a later engine that orders outputs differently
+    // refuses by name instead of drawing one plot under another's name.
+    ...runtimeVersionStamp(probe.outputs),
     disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
     requirementTags: [],
   }

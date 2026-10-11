@@ -161,6 +161,16 @@ function fromCanonical(node, tok) {
 
 const MUTATOR_OPS = Object.freeze(new Set(['+', '-', '*', '/', '%']))
 
+/** ⭐⭐ P1 HARDENING (2026-10-11) — the language this front end reads, and its
+ *  version, stamped on every runtime document (`meta.runtimeLanguage`,
+ *  `meta.runtimeFrontend`). The IR is the seam another language's front end would
+ *  target, so a stored document must say WHICH front end built it. ⛔ BUMP the
+ *  version when a change here would hand a stored source a different program (a
+ *  different output order, a different meaning); the output signature check
+ *  (`runtimeColumns.js`) catches an accidental reorder either way. */
+export const RUNTIME_FRONTEND_LANGUAGE = 'pine'
+export const RUNTIME_FRONTEND_VERSION = 1
+
 export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:loop': 'a loop — the runtime has no iteration yet',
   'runtime:function': 'a user-defined function — the runtime has no call frames yet',

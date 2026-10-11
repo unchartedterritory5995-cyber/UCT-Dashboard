@@ -647,5 +647,9 @@ export function makeObjectStore({ pineVersion = 6, caps = {}, tableCap = 40, fil
     }
   }
 
-  return { call, naOf, finish, limits }
+  /** ⭐ P1 HARDENING — how many objects are live right now, every family, after
+   *  the collector. Read by the VM to account `LIVE_OBJECTS` (`limits.js`). */
+  const liveCount = () => live.size
+
+  return { call, naOf, finish, limits, liveCount }
 }

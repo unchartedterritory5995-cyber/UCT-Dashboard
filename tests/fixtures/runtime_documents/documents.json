@@ -33,6 +33,18 @@
      "lane": "runtime",
      "runtimeSourceHash": "d0853c4724651a1d3c63542a2ae767861030137cb1c75ea57a376c53a1630499",
      "runtimeHistory": "listing",
+     "runtimeLanguage": "pine",
+     "runtimeFrontend": 1,
+     "runtimeIr": 1,
+     "runtimeOutputSignature": [
+      "plot",
+      "plot",
+      "plot",
+      "hline",
+      "colour",
+      "colour",
+      "colour"
+     ],
      "disclosures": [
       {
        "name": "Drawn bar by bar",
@@ -167,6 +179,23 @@
      "lane": "runtime",
      "runtimeSourceHash": "2d34f6b389ee4448beffa52f9e2249049f6b9365630e02bef57c7d9e09edfc8c",
      "runtimeHistory": "listing",
+     "runtimeLanguage": "pine",
+     "runtimeFrontend": 1,
+     "runtimeIr": 1,
+     "runtimeOutputSignature": [
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "alertcondition",
+      "alertcondition",
+      "alertcondition",
+      "alertcondition",
+      "colour",
+      "colour",
+      "colour",
+      "colour"
+     ],
      "disclosures": [
       {
        "name": "Drawn bar by bar",
@@ -352,6 +381,13 @@
      "lane": "runtime",
      "runtimeSourceHash": "cf5d2464b9d0141e45ab0f516bc1d615208039f707b27645033e9844f34136ac",
      "runtimeHistory": "listing",
+     "runtimeLanguage": "pine",
+     "runtimeFrontend": 1,
+     "runtimeIr": 1,
+     "runtimeOutputSignature": [
+      "plotchar",
+      "plotchar"
+     ],
      "disclosures": [
       {
        "name": "Drawn bar by bar",
@@ -816,6 +852,17 @@
      "freshness": "live",
      "lane": "runtime",
      "runtimeSourceHash": "e7a7781eacad676ec436c0a778f1e0223e7ad5ad47bac2c2b38569f81b5d2187",
+     "runtimeLanguage": "pine",
+     "runtimeFrontend": 1,
+     "runtimeIr": 1,
+     "runtimeOutputSignature": [
+      "barcolor",
+      "plotshape",
+      "plotshape",
+      "barcolor",
+      "colour",
+      "colour"
+     ],
      "disclosures": [
       {
        "name": "Drawn bar by bar",
@@ -11292,6 +11339,29 @@
      "lane": "runtime",
      "runtimeSourceHash": "08ed07e699888fe78aee08d3bba984d2e65e42d3518a4f9581fa790dbaf124cb",
      "runtimeHistory": "listing",
+     "runtimeLanguage": "pine",
+     "runtimeFrontend": 1,
+     "runtimeIr": 1,
+     "runtimeOutputSignature": [
+      "plotchar",
+      "plotchar",
+      "plot",
+      "barcolor",
+      "plotshape",
+      "plotshape",
+      "alertcondition",
+      "alertcondition",
+      "alertcondition",
+      "alertcondition",
+      "alertcondition",
+      "alertcondition",
+      "alertcondition",
+      "colour",
+      "colour",
+      "colour",
+      "colour",
+      "colour"
+     ],
      "disclosures": [
       {
        "name": "Drawn bar by bar",
@@ -11611,6 +11681,28 @@
      "freshness": "live",
      "lane": "runtime",
      "runtimeSourceHash": "340b65e04b1b23d2f7c41692fe64330552430a88276273bb0b57a0795cc4235b",
+     "runtimeLanguage": "pine",
+     "runtimeFrontend": 1,
+     "runtimeIr": 1,
+     "runtimeOutputSignature": [
+      "barcolor",
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "plotshape",
+      "colour",
+      "colour",
+      "colour",
+      "colour",
+      "colour",
+      "colour",
+      "colour",
+      "colour"
+     ],
      "disclosures": [
       {
        "name": "Drawn bar by bar",
