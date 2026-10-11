@@ -98,3 +98,20 @@ def test_a_FAILED_agent_step_refuses_PROMOTION_through_the_real_promotion_rules(
     # a gate still running is never promoted either
     running = [{"name": gate_name, "status": "in_progress", "conclusion": None}]
     assert pg.decide(gating=gating, runs=running, workflows=wf)[0] == pg.WAIT
+    # a CANCELLED gate refuses, and a gate that never ran for the commit (MISSING) refuses — it is
+    # the always-runs check, so its absence is a fault, never "not relevant"
+    cancelled = [{"name": gate_name, "status": "completed", "conclusion": "cancelled"}]
+    assert pg.decide(gating=gating, runs=cancelled, workflows=wf)[0] == pg.REFUSE
+    assert pg.decide(gating=gating, runs=[], workflows=wf)[0] == pg.REFUSE
+    other = [ok(n) for n in gating if n != gate_name]
+    assert pg.decide(gating=gating, runs=other, workflows=wf)[0] == pg.REFUSE
+
+
+def test_no_OTHER_workflow_is_an_agent_gate():
+    """One Agent gate, inside the always-runs job. A separate promotion-gate workflow for the Agent
+    suites is NOT equivalent: promotion treats an absent run of a non-always-runs gating workflow
+    as "not relevant" and promotes — so a run that never started would let an untested Agent out
+    (the reconciled "UCT Agent guard" workflow, removed 2026-10-11)."""
+    others = [w for w in (REPO / ".github" / "workflows").glob("*.y*ml") if w.name != WORKFLOW.name]
+    offenders = [w.name for w in others if re.search(r"test_uct_agent|vitest run src/agent", w.read_text(encoding="utf-8"))]
+    assert offenders == [], f"Agent suites gated outside {WORKFLOW.name}: {offenders}"
