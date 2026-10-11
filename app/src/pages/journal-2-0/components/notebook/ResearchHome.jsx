@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import lazyChunk, { importWithOneRetry } from '../../lib/lazyChunk'
+import whenIdle from '../../lib/whenIdle'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
@@ -58,11 +59,23 @@ const ReportingSoon = lazyChunk(() => import('./ReportingSoon'))
 const AiActionsBox = lazyChunk(() => import('./AiActionsPanel'))
 // P0.4: the Notices box (task reminders, fill notices, resurfaced notes -- the desktop bell was
 // removed by request). Lazy, like its neighbours: the Notebook's first-open bytes do not carry it.
-const NoticesBox = lazyChunk(() => import('./NoticesBox'))
+const loadNoticesBox = () => import('./NoticesBox')
+const NoticesBox = lazyChunk(loadNoticesBox)
 // I4 (final review): the Active setups box is lazy too. It is a single line and a link, but it is
 // still new bytes on the first-open path (spec section 6: every new surface lazy), so it loads on
 // demand and only while its own flag is on (below).
-const SetupsBox = lazyChunk(() => import('./SetupsBox'))
+const loadSetupsBox = () => import('./SetupsBox')
+const SetupsBox = lazyChunk(loadSetupsBox)
+// N4 (polish round): both boxes sit straight under the member's notes and render nothing until
+// their chunk lands (`fallback={null}`), so a cold chunk made them pop in and push Home down. Home's
+// first paint is its loading skeleton, which renders neither, so their chunks are asked for when
+// the browser is idle after that paint -- through the SAME loader each `lazyChunk` uses, so the
+// module is shared and the boxes' own import finds it already fetched. No space is reserved: both
+// render nothing at all when there is nothing to show. The setups box only while its flag is on.
+function preloadHomeBoxes() {
+  loadNoticesBox().catch(() => {})
+  if (setupsBoardEnabled()) loadSetupsBox().catch(() => {})
+}
 const loadReviewDrafts = () => importWithOneRetry(() => import('../../lib/reviewDrafts'))
 
 const STATUS_LABEL = { watching: 'Watching', active: 'Active', invalidated: 'Invalidated', closed: 'Closed' }
@@ -336,6 +349,8 @@ export default function ResearchHome({
 }) {
   const { home, isLoading, error: homeError, refresh: refreshHome } = useNotebookHome()
   const navigate = useNavigate()
+  // N4: once, after the first paint, while the browser is idle (see preloadHomeBoxes).
+  useEffect(() => whenIdle(preloadHomeBoxes), [])
   // What an Ask citation opened in place: a document page, or a captured web
   // passage (lib/openCitation.js decides which).
   const [previewDoc, setPreviewDoc] = useState(null)

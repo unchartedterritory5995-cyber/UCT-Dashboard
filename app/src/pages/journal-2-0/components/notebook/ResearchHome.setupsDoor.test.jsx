@@ -188,7 +188,9 @@ describe('first-open bytes', () => {
   it('the Active setups box is a lazy chunk, never a static import, and mounts only while its flag is on', () => {
     const home = readFileSync(resolve(here, 'ResearchHome.jsx'), 'utf8')
     expect(home).not.toMatch(/import\s+SetupsBox\s+from/)
-    expect(home).toMatch(/const SetupsBox = lazyChunk\(\(\) => import\('\.\/SetupsBox'\)\)/)
+    // N4 (polish round): the loader is named so the idle preload can share it.
+    expect(home).toMatch(/const loadSetupsBox = \(\) => import\('\.\/SetupsBox'\)/)
+    expect(home).toMatch(/const SetupsBox = lazyChunk\(loadSetupsBox\)/)
     expect(home).toMatch(/setupsBoardEnabled\(\) \? <Suspense fallback=\{null\}><SetupsBox \/><\/Suspense> : null/)
   })
 
