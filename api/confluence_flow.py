@@ -93,15 +93,69 @@ def _compute(days: int, min_dte: int, cap: str, frac: float) -> dict:
             "n_names": len(names), "names": names}
 
 
+# ⛔ AN EXPIRED LEG IS SERVED, NOT RECOMPUTED ON THE REQUEST (2026-10-11). Measured in the pod:
+# a 30d leg is ~100 s, and every call past the 6 h TTL paid it inline (the direct route took
+# 99 s on a Sunday). Past the TTL the last good leg is returned at once -- within
+# `_STALE_MAX` -- and ONE rebuild runs behind it, off-hours only (the RTH rule above still
+# holds: during the session the stale leg simply keeps serving). The newest good leg is also
+# persisted next to flow.db (weekly_flow.persisted_json_*), so a redeploy answers from disk.
+# The numbers are the same `_compute`; `built_at` says how old a served leg is.
+_STALE_MAX = float(os.environ.get("CONFLUENCE_FLOW_STALE_MAX", "259200"))
+
+
+def _leg_name(ckey) -> str:
+    days, min_dte, cap, frac = ckey
+    safe_cap = "".join(c for c in cap if c.isalnum() or c == "_")
+    return "confluence_%s_%s_%s_%s" % (int(days), int(min_dte), safe_cap, frac)
+
+
+def _build_locked(ckey) -> dict:
+    """Compute, cache and persist one key. The CALLER holds `_key_lock(ckey)`."""
+    days, min_dte, cap, frac = ckey
+    with wf.SCAN_SLOT:
+        at = time.time()
+        res = _compute(days, min_dte, cap, frac)
+    res["built_at"] = round(at, 3)
+    _CACHE[ckey] = (at, res)
+    wf.persisted_json_put(_leg_name(ckey), at, res)
+    return res
+
+
+def _spawn_refresh(ckey) -> bool:
+    lk = _key_lock(ckey)
+    if not lk.acquire(blocking=False):
+        return False
+
+    def _run():
+        try:
+            _build_locked(ckey)
+        except Exception:  # noqa: BLE001 -- the stale leg keeps serving
+            pass
+        finally:
+            lk.release()
+
+    threading.Thread(target=_run, name="confluence-flow-refresh", daemon=True).start()
+    return True
+
+
 def flow_leg(*, days: int = 30, min_dte: int = 30, cap: str = "all",
              frac: float = 0.75) -> dict:
     """Per-ticker options-flow leg. Single-flight per key; serves the cached
-    result (fresh or, while a recompute holds the lock, the last one)."""
+    result (fresh, or past its TTL while one off-hours rebuild runs behind it, or
+    -- while a recompute holds the lock -- the last one)."""
     cap = (cap or "all").strip().lower()
     ckey = (days, min_dte, cap, frac)
     now = time.time()
     hit = _CACHE.get(ckey)
+    if hit is None:
+        disk = wf.persisted_json_get(_leg_name(ckey))
+        if disk is not None:
+            hit = _CACHE[ckey] = disk
     if hit and now - hit[0] < _TTL:
+        return hit[1]
+    if hit and now - hit[0] < _STALE_MAX:
+        if not _is_rth():
+            _spawn_refresh(ckey)
         return hit[1]
     lk = _key_lock(ckey)
     if not lk.acquire(blocking=False):
@@ -112,9 +166,7 @@ def flow_leg(*, days: int = 30, min_dte: int = 30, cap: str = "all",
         hit = _CACHE.get(ckey)  # re-check: another thread may have just finished
         if hit and time.time() - hit[0] < _TTL:
             return hit[1]
-        res = _compute(days, min_dte, cap, frac)
-        _CACHE[ckey] = (time.time(), res)
-        return res
+        return _build_locked(ckey)
     except Exception as e:  # noqa: BLE001
         return hit[1] if hit else {"ok": False, "reason": f"error: {e}", "names": {}}
     finally:
@@ -122,10 +174,32 @@ def flow_leg(*, days: int = 30, min_dte: int = 30, cap: str = "all",
 
 
 # ── Background warmer (OFF-HOURS ONLY) ────────────────────────────────────────
+def _warm_one(days: int, cap: str, min_dte: int = 30, frac: float = 0.75) -> None:
+    """Rebuild one key IN THIS THREAD when it is past its TTL (serially, never four at once --
+    `flow_leg` itself would hand an expired key to a background thread and return)."""
+    ckey = (days, min_dte, cap, frac)
+    hit = _CACHE.get(ckey)
+    if hit is None:
+        disk = wf.persisted_json_get(_leg_name(ckey))
+        if disk is not None:
+            hit = _CACHE[ckey] = disk
+    if hit and time.time() - hit[0] < _TTL:
+        return
+    lk = _key_lock(ckey)
+    if not lk.acquire(blocking=False):
+        return
+    try:
+        _build_locked(ckey)
+    except Exception:  # noqa: BLE001
+        pass
+    finally:
+        lk.release()
+
+
 def warm_all() -> None:
     for cap in ("large", "mid_small"):
-        flow_leg(days=30, cap=cap)
-        flow_leg(days=5, cap=cap)
+        _warm_one(30, cap)
+        _warm_one(5, cap)
 
 
 def _warm_loop(interval: float) -> None:

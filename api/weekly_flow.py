@@ -26,9 +26,11 @@ Env (flow-worker):
 from __future__ import annotations
 
 import io
+import json
 import logging
 import os
 import sqlite3
+import threading
 import time
 from datetime import date, datetime
 
@@ -51,6 +53,7 @@ _BULL = (74, 200, 120)
 _BEAR = (232, 96, 96)
 
 _HEAVY_BLOCK_PREMIUM = 10e6   # BLOCK >= $10M → non-directional (flowCompute rule)
+_MISS = object()              # memo sentinel: a parser may legitimately return None
 
 
 # ── small parsers ──────────────────────────────────────────────────────────
@@ -66,6 +69,23 @@ def _pfloat(v) -> float:
         return float(str(v).replace(",", "").replace("$", "").strip() or 0)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _pint_fast(v) -> int:
+    """`_pint`, exactly, for the row loop: a clean numeric string (nearly every stored value)
+    skips the comma/dollar scrub. Any input `float()` refuses takes the original path."""
+    try:
+        return int(float(v))
+    except (TypeError, ValueError):
+        return _pint(v)
+
+
+def _pfloat_fast(v) -> float:
+    """`_pfloat`, exactly (see `_pint_fast`)."""
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return _pfloat(v)
 
 
 def _parse_mdy(s: str):
@@ -176,10 +196,22 @@ def _flow_db_path() -> str:
     return DB_PATH
 
 
+#: The partition's distinct sessions as a LOOSE INDEX SCAN: one seek per distinct date on
+#: idx_flow_source_date (source, CreatedDate) instead of walking every row's index entry.
+#: ⚰️ `SELECT DISTINCT CreatedDate FROM flow WHERE source=?` walked all ~13M entries: 2.6 s warm
+#: in the flow-worker pod (2026-10-11) and tens of seconds on a cold pod, on EVERY board build.
+#: Same list (flow_router's `_LOOSE_SOURCE_DATES_SQL` is this query, proven identical in the pod).
+_LOOSE_DATES_SQL = (
+    "WITH RECURSIVE d(x) AS (SELECT MIN(CreatedDate) FROM flow WHERE source = ?1 "
+    "UNION ALL SELECT (SELECT MIN(CreatedDate) FROM flow WHERE source = ?1 AND CreatedDate > d.x) "
+    "FROM d WHERE d.x IS NOT NULL) SELECT x FROM d WHERE x IS NOT NULL")
+
+
 def _last_n_dates(conn, n: int, source: str = "stocks") -> list[str]:
-    rows = conn.execute(
-        "SELECT DISTINCT CreatedDate FROM flow WHERE source=?", (source,)).fetchall()
-    dated = sorted((r[0] for r in rows if r[0]),
+    rows = conn.execute(_LOOSE_DATES_SQL, (source,)).fetchall()
+    # Ascending string order first (the order the old DISTINCT came back in, off the same
+    # index), so the stable date sort breaks any tie exactly as it always did.
+    dated = sorted(sorted(r[0] for r in rows if r[0]),
                    key=lambda s: _parse_mdy(s) or date.min)
     return dated[-n:] if n > 0 else dated
 
@@ -197,7 +229,6 @@ def load_directional_trades(days: int, min_dte: int, cap: str | None = None,
     is_etf = (cap or "").strip().lower() == "etf"   # ETFs live under source='indexes'
     src = "indexes" if is_etf else "stocks"
     conn = sqlite3.connect(_flow_db_path(), timeout=10)
-    conn.row_factory = sqlite3.Row
     try:
         window = _last_n_dates(conn, days, src)
         if not window:
@@ -216,51 +247,67 @@ def load_directional_trades(days: int, min_dte: int, cap: str | None = None,
                    Strike, Spot, Premium, ExpirationDate, Color, Dte, StockEtf, MktCap, OI
               FROM flow
              WHERE source=? AND CreatedDate IN ({qs}){prem_sql}
-        """, params).fetchall()
+        """, params)   # a cursor, consumed below: never all 5.5M rows held at once
+        # ── base filter (flowCompute L1106): non-ML, has ticker/type/cp, DTE≥0,
+        #    V>0, P>0. Ty must be SWP or BLK (null-type dropped). ────────────────
+        # ⭐ PLAIN TUPLES + MEMOISED PURE PARSERS (2026-10-11). A 60-day All-cap board pulls ~5.5M
+        # rows; `sqlite3.Row` name lookups and re-parsing the same few thousand Type/Side/Color/
+        # expiry strings on every row cost ~110 s of the 164 s build, measured in the pod. The
+        # parsers are the same functions, called once per DISTINCT input; the output is unchanged
+        # (proven against the previous loader on the pod's live rows, tests/test_flow_board_perf.py).
+        _ty_m, _color_m, _side_m, _mdy_m = {}, {}, {}, {}
+        base = []
+        for r in rows:
+            (r_dt, r_time, r_sym, r_type, r_vol, r_side, r_cp, r_k, r_spot, r_prem,
+             r_exp, r_color, r_dte, r_stk, r_mcap, r_oi) = r
+            ty = _ty_m.get(r_type, _MISS)
+            if ty is _MISS:
+                ty = _ty_m[r_type] = _ty(r_type)
+            if ty in (None, "ML"):
+                continue
+            sym = (r_sym or "").upper().strip()
+            cpr = (r_cp or "").upper().strip()
+            cp = "C" if cpr == "CALL" else "P" if cpr == "PUT" else (cpr[:1] if cpr[:1] in ("C", "P") else "")
+            vol = _pint_fast(r_vol)
+            prem = _pfloat_fast(r_prem)
+            dte_row = _pint_fast(r_dte)
+            if not sym or not cp or vol <= 0 or prem <= 0 or dte_row < 0:
+                continue
+            color = _color_m.get(r_color, _MISS)
+            if color is _MISS:
+                color = _color_m[r_color] = _color_norm(r_color)
+            if color in ("ORANGE", "ARB"):     # dark-pool + arb noise dropped
+                continue
+            # clean-only: keep just CONFIRMED clusters (YELLOW/MAGENTA), drop
+            # unconfirmed WHITE flow. Used for the mega/large weekly cards where the
+            # owner wants only clean, high-conviction names (WHITE-dominant megacap
+            # flow is noisy and out-sizes everything). Mid-small keeps all directional.
+            if clean_only and color not in ("YELLOW", "MAGENTA"):
+                continue
+            mktcap = _pfloat_fast(r_mcap)
+            stk = (r_stk or "").upper().strip()
+            if is_etf:
+                if stk == "INDEX":             # ETFs scope: drop true index options (SPX/VIX)
+                    continue
+            elif not _cap_ok(mktcap, cap):     # stock cap-band filter (mega/large/mid_small)
+                continue
+            exp = r_exp or ""
+            exp_d = _mdy_m.get(exp, _MISS)
+            if exp_d is _MISS:
+                exp_d = _mdy_m[exp] = _parse_mdy(exp)
+            live_dte = (exp_d - ref).days if exp_d else dte_row
+            si = _side_m.get(r_side, _MISS)
+            if si is _MISS:
+                si = _side_m[r_side] = _side_norm(r_side)
+            base.append({
+                "S": sym, "CP": cp, "K": _pfloat_fast(r_k), "Spot": _pfloat_fast(r_spot),
+                "V": vol, "P": prem, "OI": _pint_fast(r_oi), "E": exp, "live_dte": live_dte,
+                "Ty": ty, "Si": si, "Co": color,
+                "mktcap": mktcap, "Dt": r_dt,
+                "time": r_time, "stocketf": stk,
+            })
     finally:
         conn.close()
-
-    # ── base filter (flowCompute L1106): non-ML, has ticker/type/cp, DTE≥0,
-    #    V>0, P>0. Ty must be SWP or BLK (null-type dropped). ────────────────
-    base = []
-    for r in rows:
-        ty = _ty(r["Type"])
-        if ty in (None, "ML"):
-            continue
-        sym = (r["Symbol"] or "").upper().strip()
-        cpr = (r["CallPut"] or "").upper().strip()
-        cp = "C" if cpr == "CALL" else "P" if cpr == "PUT" else (cpr[:1] if cpr[:1] in ("C", "P") else "")
-        vol = _pint(r["Volume"])
-        prem = _pfloat(r["Premium"])
-        dte_row = _pint(r["Dte"])
-        if not sym or not cp or vol <= 0 or prem <= 0 or dte_row < 0:
-            continue
-        color = _color_norm(r["Color"])
-        if color in ("ORANGE", "ARB"):     # dark-pool + arb noise dropped
-            continue
-        # clean-only: keep just CONFIRMED clusters (YELLOW/MAGENTA), drop
-        # unconfirmed WHITE flow. Used for the mega/large weekly cards where the
-        # owner wants only clean, high-conviction names (WHITE-dominant megacap
-        # flow is noisy and out-sizes everything). Mid-small keeps all directional.
-        if clean_only and color not in ("YELLOW", "MAGENTA"):
-            continue
-        mktcap = _pfloat(r["MktCap"])
-        stk = (r["StockEtf"] or "").upper().strip()
-        if is_etf:
-            if stk == "INDEX":             # ETFs scope: drop true index options (SPX/VIX)
-                continue
-        elif not _cap_ok(mktcap, cap):     # stock cap-band filter (mega/large/mid_small)
-            continue
-        exp = r["ExpirationDate"] or ""
-        exp_d = _parse_mdy(exp)
-        live_dte = (exp_d - ref).days if exp_d else dte_row
-        base.append({
-            "S": sym, "CP": cp, "K": _pfloat(r["Strike"]), "Spot": _pfloat(r["Spot"]),
-            "V": vol, "P": prem, "OI": _pint(r["OI"]), "E": exp, "live_dte": live_dte,
-            "Ty": ty, "Si": _side_norm(r["Side"]), "Co": color,
-            "mktcap": _pfloat(r["MktCap"]), "Dt": r["CreatedDate"],
-            "time": r["CreatedTime"], "stocketf": stk,
-        })
 
     # ── same-second 3+ strike spread drop (flowCompute L1110) ──────────────
     ts_strikes: dict = {}
@@ -894,43 +941,182 @@ _BOARD_TTL = 120  # seconds — the board is an interactive/public tab; a 60-day
 _BOARD_MIN_PREMIUM = float(os.getenv("FLOW_BOARD_MIN_PREMIUM", "25000"))
 
 
+# ── answering the board without paying for it (2026-10-11) ─────────────────
+# ⛔ THE BUILD IS MINUTES, THE ANSWER MUST NOT BE. Measured in the flow-worker pod 2026-10-11
+# (a Sunday, nothing else running): the 60-day All-cap board reads 5.5M rows and took 201 s on
+# the wire; every request past the 120 s TTL paid that in full, and concurrent callers each ran
+# their own copy. So: a result past its TTL is served AT ONCE and rebuilt behind the caller
+# (single-flight per key), within `_BOARD_STALE_MAX_S`; and the newest good result is persisted
+# beside flow.db so a redeploy answers from disk instead of making the first member wait out a
+# cold build. The numbers are unchanged -- the same `_board_compute` -- only WHEN it runs moved.
+# `built_at` (epoch) says how old the served board is.
+_BOARD_STALE_MAX_S = float(os.getenv("FLOW_BOARD_STALE_MAX_S", "21600"))
+_BOARD_LOCKS: dict = {}
+_BOARD_LOCKS_GUARD = threading.Lock()
+#: Multi-week scans run ONE AT A TIME across the board and the Confluence flow leg (each holds
+#: millions of rows' worth of work); background rebuilds of different keys queue here instead of
+#: stacking on the pod that also runs the live tape.
+SCAN_SLOT = threading.BoundedSemaphore(max(1, int(os.getenv("FLOW_BOARD_SCAN_SLOTS", "1") or 1)))
+
+
+def _board_lock(ckey) -> threading.Lock:
+    with _BOARD_LOCKS_GUARD:
+        lk = _BOARD_LOCKS.get(ckey)
+        if lk is None:
+            lk = _BOARD_LOCKS[ckey] = threading.Lock()
+        return lk
+
+
+def product_persist_dir() -> str | None:
+    """Where a flow-worker product's newest good copy is kept across restarts, or None (off).
+
+    `FLOW_PRODUCT_PERSIST_DIR` decides when set ("" turns it off). Otherwise it is ON only on
+    Railway, next to flow.db on the same volume -- never in a test run or a dev checkout, where a
+    copy persisted by one run would answer the next."""
+    d = os.environ.get("FLOW_PRODUCT_PERSIST_DIR")
+    if d is not None:
+        return d or None
+    if not (os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_ENVIRONMENT_NAME")):
+        return None
+    base = os.path.dirname(os.environ.get("FLOW_DB_PATH", "/data/flow.db"))
+    return os.path.join(base, "flow_products") if os.path.isdir(base) else None
+
+
+def persisted_json_get(name: str):
+    """The persisted (at, payload) for `name`, or None. Never raises."""
+    d = product_persist_dir()
+    if not d:
+        return None
+    try:
+        with open(os.path.join(d, name + ".json"), encoding="utf-8") as f:
+            doc = json.load(f)
+        return float(doc["at"]), doc["res"]
+    except Exception:  # noqa: BLE001 -- missing or unreadable is simply "no copy"
+        return None
+
+
+def persisted_json_put(name: str, at: float, res) -> None:
+    """Atomically persist (at, res) under `name`. Never raises."""
+    d = product_persist_dir()
+    if not d:
+        return
+    try:
+        os.makedirs(d, exist_ok=True)
+        fp = os.path.join(d, name + ".json")
+        tmp = fp + ".tmp%d" % os.getpid()
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({"at": at, "res": res}, f, separators=(",", ":"), default=str)
+        os.replace(tmp, fp)
+    except Exception as e:  # noqa: BLE001
+        log.warning("[flow-product] persist %s failed: %s", name, e)
+
+
+def _board_name(ckey) -> str:
+    days, cap, min_dte, frac, limit = ckey
+    safe_cap = "".join(c for c in cap if c.isalnum() or c == "_")
+    return "board_%s_%s_%s_%s_%s" % (int(days), safe_cap, int(min_dte), frac, int(limit))
+
+
+def _board_compute(days: int, cap: str, min_dte: int, frac: float, limit: int) -> dict:
+    """ONE board build (raises on failure). The only place the board's numbers come from."""
+    trades, window = load_directional_trades(days, min_dte, cap,
+                                             min_premium=_BOARD_MIN_PREMIUM)
+    agg = aggregate(trades, top_n=10 ** 9, still_open_frac=frac)
+    ref = date.today()
+    rows = []
+    for e in agg["bulls"] + agg["bears"]:
+        tc = e.get("top") or {}
+        first = e.get("first")
+        fs, ls = e.get("first_spot", 0) or 0, e.get("last_spot", 0) or 0
+        rows.append({
+            "sym": e["sym"], "bull": e["bull"], "bear": e["bear"],
+            "net": e["net"], "bullPct": e["bullPct"],
+            "cp": tc.get("cp"), "strike": tc.get("K"), "exp": tc.get("exp"),
+            "dte": _dte_of(tc.get("exp"), ref) if tc.get("exp") else None,
+            "since": first.isoformat() if first else None,
+            "perf": round((ls / fs - 1) * 100, 1) if (fs > 0 and ls > 0) else None,
+        })
+    rows.sort(key=lambda r: r["net"], reverse=True)
+    return {"ok": True, "rows": rows[:limit], "window": window,
+            "n_names": agg["n_names"], "open_contracts": agg["open_contracts"],
+            "days": days, "cap": cap, "min_dte": min_dte}
+
+
+def _board_build_locked(ckey) -> dict:
+    """Build, cache and persist one key. The CALLER holds `_board_lock(ckey)`."""
+    days, cap, min_dte, frac, limit = ckey
+    with SCAN_SLOT:
+        at = time.time()
+        res = _board_compute(days, cap, min_dte, frac, limit)
+    res["built_at"] = round(at, 3)
+    _BOARD_CACHE[ckey] = (at, res)
+    persisted_json_put(_board_name(ckey), at, res)
+    return res
+
+
+def _spawn_board_refresh(ckey) -> bool:
+    """Rebuild one key behind the caller. Never queues: a key already building is a skip."""
+    lk = _board_lock(ckey)
+    if not lk.acquire(blocking=False):
+        return False
+
+    def _run():
+        try:
+            _board_build_locked(ckey)
+        except Exception:  # noqa: BLE001 -- the stale board keeps serving
+            log.exception("[flow-board] background refresh failed for %s", ckey)
+        finally:
+            lk.release()
+
+    threading.Thread(target=_run, name="flow-board-refresh", daemon=True).start()
+    return True
+
+
 def board_data(*, days: int = 60, cap: str = "all", min_dte: int = 30,
                frac: float = 0.75, limit: int = 300) -> dict:
     """JSON-serializable still-open directional board for the searchable UI tab.
     Same scan + still-open engine as the cards, but returns EVERY directional
     name (not the top-N-per-side split) so the front-end can search/sort the
     whole set. Each row carries bull/bear/net/bullPct + top contract + since +
-    since-open perf. 120s TTL-cached per params. Never raises."""
+    since-open perf. 120s TTL per params; past it the last board is served while
+    one rebuild runs behind it (see `_BOARD_STALE_MAX_S`). Never raises."""
     cap = (cap or "all").strip().lower()
     ckey = (days, cap, min_dte, frac, limit)
     now = time.time()
     hit = _BOARD_CACHE.get(ckey)
+    if hit is None:
+        disk = persisted_json_get(_board_name(ckey))
+        if disk is not None:
+            hit = _BOARD_CACHE[ckey] = disk
     if hit and now - hit[0] < _BOARD_TTL:
         return hit[1]
+    if hit and now - hit[0] < _BOARD_STALE_MAX_S:
+        _spawn_board_refresh(ckey)
+        return hit[1]
+    lk = _board_lock(ckey)
     try:
-        trades, window = load_directional_trades(days, min_dte, cap,
-                                                 min_premium=_BOARD_MIN_PREMIUM)
-        agg = aggregate(trades, top_n=10 ** 9, still_open_frac=frac)
-        ref = date.today()
-        rows = []
-        for e in agg["bulls"] + agg["bears"]:
-            tc = e.get("top") or {}
-            first = e.get("first")
-            fs, ls = e.get("first_spot", 0) or 0, e.get("last_spot", 0) or 0
-            rows.append({
-                "sym": e["sym"], "bull": e["bull"], "bear": e["bear"],
-                "net": e["net"], "bullPct": e["bullPct"],
-                "cp": tc.get("cp"), "strike": tc.get("K"), "exp": tc.get("exp"),
-                "dte": _dte_of(tc.get("exp"), ref) if tc.get("exp") else None,
-                "since": first.isoformat() if first else None,
-                "perf": round((ls / fs - 1) * 100, 1) if (fs > 0 and ls > 0) else None,
-            })
-        rows.sort(key=lambda r: r["net"], reverse=True)
-        res = {"ok": True, "rows": rows[:limit], "window": window,
-               "n_names": agg["n_names"], "open_contracts": agg["open_contracts"],
-               "days": days, "cap": cap, "min_dte": min_dte}
-        _BOARD_CACHE[ckey] = (now, res)
-        return res
+        with lk:   # single-flight: a second cold caller waits for the first build, not a second
+            again = _BOARD_CACHE.get(ckey)
+            if again and time.time() - again[0] < _BOARD_TTL:
+                return again[1]
+            return _board_build_locked(ckey)
     except Exception as e:  # noqa: BLE001
         log.exception("[flow-board] build failed")
         return {"ok": False, "reason": f"error: {e}", "rows": []}
+
+
+def start_board_warm(delay_s: float = 90.0) -> None:
+    """Warm the Open Flow tab's default board once after boot (from disk when a copy exists,
+    else one build), so the first member after a deploy is not the one who pays for it.
+    Gated by FLOW_BOARD_WARM_ENABLED (default on)."""
+    if os.environ.get("FLOW_BOARD_WARM_ENABLED", "1") != "1":
+        return
+
+    def _run():
+        time.sleep(delay_s)
+        try:
+            board_data(days=60, cap="all", limit=300)
+        except Exception:  # noqa: BLE001
+            log.exception("[flow-board] boot warm failed")
+
+    threading.Thread(target=_run, name="flow-board-warm", daemon=True).start()
