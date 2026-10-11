@@ -11,10 +11,18 @@
 // path would be a second authority over what a chosen date becomes.
 //
 // ⛔ THE LIST ARMS ONLY ON A DATE-SHAPED QUERY. "@john", "@5pm", "@gmail" offer nothing, so the
-// menu renders nothing and every key (Enter above all) reaches the editor -- the lesson of the
-// slash menu's Enter trap and the emoji menu's two-character floor. "Pick a date…" appears only
-// for a bare "@", the browse state. And the "@" must start a word (a space, "(" or "[" before
-// it, or the start of the line), so an email address never opens it; never inside code.
+// menu renders nothing and every key reaches the editor -- the lesson of the slash menu's Enter
+// trap and the emoji menu's two-character floor. "Pick a date…" appears only for a bare "@", the
+// browse state. And the "@" must start a word (a space or "(" before it, or the start of the
+// line), so an email address never opens it; never inside code.
+//
+// ⛔ ENTER ENDS A LINE, SO IT NEVER PICKS A DATE UNCHOSEN. No row is pre-selected (see
+// DateSuggestList.jsx): "Buy NVDA @" + Enter and "ask @tom" + Enter are a new line, not a date.
+// A date goes in by down-arrow then Enter, by a tap, or by Tab (the first row).
+//
+// ⛔ ONE SUGGESTION AT A TIME. Slash and note-link sessions allow spaces, so `/chart AMD @` and
+// `[[Weekly review @` are still inside THEIR sessions; the date list stays shut there, or it
+// would claim the arrows and Enter that belong to the open command.
 //
 // ⛔ `items` runs on every transaction while the list is open, on the typing path: it is pure and
 // synchronous (a fixed handful of day-number sums, no fetch, no Intl beyond todayET's shared
@@ -25,7 +33,9 @@ import Suggestion from '@tiptap/suggestion'
 import { ReactRenderer } from '@tiptap/react'
 import { isIsoDate, resolveDateWord } from './dateMentionNode'
 import { todayET } from './calendar'
+import { SuggestionPluginKey as slashMenuPluginKey } from '@tiptap/suggestion'
 import { applyComboboxWiring } from './comboboxWiring'
+import { noteLinkMenuPluginKey } from '../components/notebook/NoteLinkMenu'
 import DateSuggestList, { DATE_SUGGEST_MENU_ID } from '../components/notebook/DateSuggestList'
 import styles from '../components/notebook/DateSuggestList.module.css'
 
@@ -90,6 +100,13 @@ export function runDateCommand(editor, choice, range) {
 
 export const dateSuggestPluginKey = new PluginKey('dateSuggest')
 
+// Is the slash menu (`/`, which Suggestion keys by default) or the note-link menu (`[[`) in a
+// session? `state` is the NEW editor state, and both of those plugins sit before this one in the
+// plugin list, so their states are already this transaction's: `/due` + Enter, which ends the
+// slash session and types the "@" in one step, reads as free and opens the date list.
+const otherSuggestionOpen = (state) => [slashMenuPluginKey, noteLinkMenuPluginKey]
+  .some((key) => Boolean(key.getState(state)?.active))
+
 const inCode = (state, pos) => {
   const $pos = state.doc.resolve(pos)
   return Boolean($pos.parent.type.spec.code || $pos.marks().some((m) => m.type.spec.code))
@@ -109,8 +126,8 @@ export const DateSuggest = Extension.create({
       pluginKey: dateSuggestPluginKey,
       char: '@',
       allowSpaces: false,
-      allowedPrefixes: [' ', '(', '['],
-      allow: ({ state, range }) => !inCode(state, range.from),
+      allowedPrefixes: [' ', '('],
+      allow: ({ state, range }) => !inCode(state, range.from) && !otherSuggestionOpen(state),
       items: ({ query }) => dateChoices(query, today()),
       command: ({ editor, range, props }) => { runDateCommand(editor, props, range) },
       render: () => {
@@ -135,8 +152,9 @@ export const DateSuggest = Extension.create({
           popup.style.top = `${top}px`
         }
         const onViewportChange = () => position()
-        const setActive = (id) => {
-          applyComboboxWiring(editorDom, { menuId: DATE_SUGGEST_MENU_ID, activeId: id, showing: Boolean(id) })
+        // `showing` is separate from `id`: the list is on screen with nothing chosen yet.
+        const setActive = (id, showing = Boolean(id)) => {
+          applyComboboxWiring(editorDom, { menuId: DATE_SUGGEST_MENU_ID, activeId: id, showing })
         }
         return {
           onStart: (props) => {

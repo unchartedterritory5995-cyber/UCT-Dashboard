@@ -32,14 +32,35 @@ describe('DateSuggestList', () => {
     expect(options[1].textContent).toContain('Thursday, October 15, 2026')
   })
 
-  it('the first option is selected and reported as the active descendant', () => {
+  it('⛔ NO row is pre-selected: nothing is selected, nothing is the active descendant, and a hint says how to choose', () => {
     const { onActiveChange } = mount()
-    expect(screen.getAllByRole('option')[0].getAttribute('aria-selected')).toBe('true')
-    expect(onActiveChange).toHaveBeenLastCalledWith(`${DATE_SUGGEST_MENU_ID}-opt-0`)
+    for (const o of screen.getAllByRole('option')) expect(o.getAttribute('aria-selected')).toBe('false')
+    expect(onActiveChange).toHaveBeenLastCalledWith(null, true)
+    expect(screen.getByText('Press the down arrow to choose, or Tab for the first')).toBeTruthy()
   })
 
-  it('ArrowDown / ArrowUp move (and wrap), Enter takes the selected row', () => {
+  it('⛔ Enter with nothing selected is NOT taken and inserts nothing (Enter ends a line)', () => {
     const { ref, command } = mount()
+    expect(key(ref, 'Enter')).toBe(false)
+    expect(command).not.toHaveBeenCalled()
+  })
+
+  it('Tab with nothing selected takes the FIRST row; Tab with a selection takes that row', () => {
+    const a = mount()
+    expect(key(a.ref, 'Tab')).toBe(true)
+    expect(a.command).toHaveBeenCalledWith(ALL[0])
+    cleanup()
+    const b = mount()
+    key(b.ref, 'ArrowDown'); key(b.ref, 'ArrowDown')
+    expect(key(b.ref, 'Tab')).toBe(true)
+    expect(b.command).toHaveBeenCalledWith(ALL[1])
+  })
+
+  it('the first ArrowDown selects the first row, the first ArrowUp the last; both wrap; Enter then takes the selected row', () => {
+    const { ref, command, onActiveChange } = mount()
+    expect(key(ref, 'ArrowDown')).toBe(true)
+    expect(screen.getAllByRole('option')[0].getAttribute('aria-selected')).toBe('true')
+    expect(onActiveChange).toHaveBeenLastCalledWith(`${DATE_SUGGEST_MENU_ID}-opt-0`, true)
     expect(key(ref, 'ArrowDown')).toBe(true)
     expect(screen.getAllByRole('option')[1].getAttribute('aria-selected')).toBe('true')
     expect(key(ref, 'ArrowUp')).toBe(true)
@@ -48,6 +69,19 @@ describe('DateSuggestList', () => {
     expect(key(ref, 'ArrowDown')).toBe(true)
     expect(key(ref, 'Enter')).toBe(true)
     expect(command).toHaveBeenCalledWith(ALL[0])
+  })
+
+  it('ArrowUp from nothing selected lands on the last row', () => {
+    const { ref } = mount()
+    key(ref, 'ArrowUp')
+    expect(screen.getAllByRole('option').at(-1).getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('hovering a row selects it, and Enter then inserts the hovered choice', () => {
+    const { ref, command } = mount()
+    fireEvent.mouseEnter(screen.getAllByRole('option')[2])
+    expect(key(ref, 'Enter')).toBe(true)
+    expect(command).toHaveBeenCalledWith(ALL[2])
   })
 
   it('a tap on a row inserts it', () => {
@@ -62,9 +96,8 @@ describe('DateSuggestList', () => {
     for (const k of ['Enter', 'ArrowDown', 'ArrowUp', 'Tab', 'Escape']) expect(key(ref, k), k).toBe(false)
   })
 
-  it('Tab and Escape are not taken (Tab indents a list item, Escape is the Suggestion plugin\'s)', () => {
+  it("Escape is not taken (it is the Suggestion plugin's)", () => {
     const { ref } = mount()
-    expect(key(ref, 'Tab')).toBe(false)
     expect(key(ref, 'Escape')).toBe(false)
   })
 
@@ -72,7 +105,7 @@ describe('DateSuggestList', () => {
     const pickerIndex = ALL.length - 1
 
     function openPicker(ctx) {
-      for (let i = 0; i < pickerIndex; i += 1) key(ctx.ref, 'ArrowDown')
+      for (let i = 0; i <= pickerIndex; i += 1) key(ctx.ref, 'ArrowDown')
       key(ctx.ref, 'Enter')
     }
 

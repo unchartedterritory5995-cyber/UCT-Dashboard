@@ -4,10 +4,17 @@
  *
  * The same listbox + ARIA-combobox pattern as the emoji and slash menus: the EDITOR holds focus
  * and carries the combobox role (applyComboboxWiring), the options are never focused.
- *   ↑/↓ move (and wrap) · Enter inserts the selected row · a tap inserts a row.
- * Tab and Escape are NOT taken: Tab indents a list item, and Escape belongs to the Suggestion
- * plugin. With no choices the list renders nothing and EVERY key passes through, so "@john" then
- * Enter is a newline, never a swallowed key.
+ *
+ * ⛔ NO ROW IS EVER PRE-SELECTED. Enter is the key a member presses to END A LINE ("Buy NVDA @",
+ * a task line ending in "@", "ask @tom"), so Enter does nothing here until the member has
+ * actually chosen a row:
+ *   ↓/↑ select a row (the first ↓ the first row, the first ↑ the last; both wrap) ·
+ *   hovering a row selects it · Enter inserts the SELECTED row, and with nothing selected it is
+ *   NOT taken (it reaches the editor: a new line) ·
+ *   Tab inserts the selected row, or the FIRST row when nothing is selected (a completion
+ *   is an explicit act; Enter is not) · a tap inserts a row.
+ * Escape is not taken (it belongs to the Suggestion plugin). With no choices the list renders
+ * nothing and every key passes through. A short hint under the rows says how to choose.
  *
  * "Pick a date…" is the last row. Choosing it does not insert anything: it reveals a native
  * date input underneath the list, focused, and the date picked there is inserted. ⛔ The input is
@@ -26,15 +33,18 @@ const MIN_YEAR = 1900
 
 const DateSuggestList = forwardRef(function DateSuggestList(props, ref) {
   const { items, query, command, onActiveChange } = props
-  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [selectedIndex, setSelectedIndex] = useState(-1) // -1: nothing chosen yet
   const [picking, setPicking] = useState(false)
   const inputRef = useRef(null)
 
-  useEffect(() => setSelectedIndex(0), [items])
-  // A new query is a new question: the date input belongs to the bare "@" only.
-  useEffect(() => setPicking(false), [query])
+  // A new query is a new question: nothing is chosen, and the date input belongs to the bare "@".
+  // (Keyed on the query, not on `items`: Suggestion hands over a fresh array on every
+  // transaction, and a choice must survive a transaction that did not change the query.)
+  useEffect(() => { setSelectedIndex(-1); setPicking(false) }, [query])
   useEffect(() => {
-    onActiveChange?.(items.length ? `${DATE_SUGGEST_MENU_ID}-opt-${selectedIndex}` : null)
+    // The list is showing whenever it has rows; the active descendant exists only once a row is chosen.
+    const chosen = items.length && selectedIndex >= 0 && selectedIndex < items.length
+    onActiveChange?.(chosen ? `${DATE_SUGGEST_MENU_ID}-opt-${selectedIndex}` : null, items.length > 0)
   }, [selectedIndex, items]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (picking) inputRef.current?.focus()
@@ -49,9 +59,16 @@ const DateSuggestList = forwardRef(function DateSuggestList(props, ref) {
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event }) => {
       if (!items.length) return false
-      if (event.key === 'ArrowUp') { setSelectedIndex((selectedIndex + items.length - 1) % items.length); return true }
-      if (event.key === 'ArrowDown') { setSelectedIndex((selectedIndex + 1) % items.length); return true }
-      if (event.key === 'Enter') { choose(items[selectedIndex]); return true }
+      const at = selectedIndex < items.length ? selectedIndex : -1
+      if (event.key === 'ArrowUp') { setSelectedIndex(at < 0 ? items.length - 1 : (at + items.length - 1) % items.length); return true }
+      if (event.key === 'ArrowDown') { setSelectedIndex(at < 0 ? 0 : (at + 1) % items.length); return true }
+      // Enter ends a line: with nothing chosen it is not ours.
+      if (event.key === 'Enter') {
+        if (at < 0) return false
+        choose(items[at])
+        return true
+      }
+      if (event.key === 'Tab') { choose(items[at < 0 ? 0 : at]); return true }
       return false
     },
   }))
@@ -85,6 +102,7 @@ const DateSuggestList = forwardRef(function DateSuggestList(props, ref) {
           </button>
         ))}
       </div>
+      <div className={styles.hint}>Press the down arrow to choose, or Tab for the first</div>
       {picking ? (
         <div className={styles.pick}>
           <input

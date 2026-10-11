@@ -3,7 +3,9 @@
 // list, press Enter.
 import { describe, it, expect, afterEach } from 'vitest'
 import { createElement } from 'react'
-import { render, cleanup, waitFor } from '@testing-library/react'
+import { render, cleanup, waitFor, act } from '@testing-library/react'
+import { SuggestionPluginKey as slashKey } from '@tiptap/suggestion'
+import { noteLinkMenuPluginKey } from '../components/notebook/NoteLinkMenu'
 import { EditorContent } from '@tiptap/react'
 import { Editor } from '@tiptap/core'
 import { buildExtensions } from './tiptap'
@@ -167,15 +169,106 @@ describe('the extension on the real roster', () => {
     expect(JSON.stringify(ed.getJSON())).toBe(before)
   })
 
-  it('end to end: "@tom" then Enter inserts tomorrow and leaves no @tom text behind', async () => {
-    const ed = mount('Call broker ')
-    render(createElement(EditorContent, { editor: ed })) // gives ReactRenderer a tree to draw the list in
+  // The list is only real when it is drawn: a key sent to an editor whose list never rendered
+  // passes through trivially. These helpers draw it (ReactRenderer needs a React tree) and wait.
+  async function typeWithList(text, typed) {
+    const ed = mount(text)
+    render(createElement(EditorContent, { editor: ed }))
     ed.commands.focus('end')
-    ed.commands.insertContent('@tom')
-    await waitFor(() => expect(document.getElementById('uct-date-suggest')).not.toBeNull()) // the list is on screen
-    expect(press(ed, 'Enter')).toBe(true)
+    ed.commands.insertContent(typed)
+    await waitFor(() => expect(document.getElementById('uct-date-suggest')).not.toBeNull())
+    return ed
+  }
+  const pressKey = (ed, k) => ed.view.someProp('handleKeyDown', (f) => f(ed.view, new KeyboardEvent('keydown', { key: k })))
+  const paragraphs = (ed) => ed.getJSON().content.map((n) => n.type)
+
+  it('end to end: "@tom", ArrowDown, Enter inserts tomorrow and leaves no @tom text behind', async () => {
+    const ed = await typeWithList('Call broker ', '@tom')
+    await act(async () => { expect(pressKey(ed, 'ArrowDown')).toBe(true) })
+    await act(async () => { expect(pressKey(ed, 'Enter')).toBe(true) })
     expect(mentions(ed)).toEqual([resolveDateWord('tomorrow', todayET())])
     expect(text(ed)).toBe('Call broker  ')
+  })
+
+  it('⛔ a bare "@" then Enter inserts NO date: it leaves the "@" and starts a new paragraph', async () => {
+    const ed = await typeWithList('Buy NVDA ', '@')
+    pressKey(ed, 'Enter')
+    expect(mentions(ed)).toEqual([])
+    expect(paragraphs(ed)).toEqual(['paragraph', 'paragraph'])
+    expect(ed.state.doc.firstChild.textContent).toBe('Buy NVDA @')
+  })
+
+  it('⛔ "@tom" then Enter inserts NO date either (and "@mon", "@fri", "@next")', async () => {
+    for (const q of ['@tom', '@mon', '@fri', '@next']) {
+      const ed = await typeWithList('ask ', q)
+      pressKey(ed, 'Enter')
+      expect(mentions(ed), q).toEqual([])
+      expect(paragraphs(ed), q).toEqual(['paragraph', 'paragraph'])
+      expect(ed.state.doc.firstChild.textContent, q).toBe(`ask ${q}`)
+      cleanup(); ed.destroy(); editor = null; document.body.innerHTML = ''
+    }
+  })
+
+  it('ArrowDown then Enter on a bare "@" inserts the FIRST choice (Today)', async () => {
+    const ed = await typeWithList('Due ', '@')
+    await act(async () => { pressKey(ed, 'ArrowDown') })
+    await act(async () => { pressKey(ed, 'Enter') })
+    expect(mentions(ed)).toEqual([todayET()])
+    expect(paragraphs(ed)).toEqual(['paragraph'])
+  })
+
+  it('Tab inserts the first choice with nothing selected', async () => {
+    const ed = await typeWithList('Due ', '@tom')
+    expect(pressKey(ed, 'Tab')).toBe(true)
+    expect(mentions(ed)).toEqual([resolveDateWord('tomorrow', todayET())])
+    expect(paragraphs(ed)).toEqual(['paragraph'])
+  })
+
+  describe('never beside another suggestion', () => {
+    it('⛔ "[" is not a word start: "[@tom" opens nothing', () => {
+      const ed = mount('see ')
+      ed.commands.focus('end')
+      ed.commands.insertContent('[@tom')
+      expect(state(ed).active).toBeFalsy()
+    })
+
+    it('⛔ typing "@" inside an open slash command does not open the date list; Enter is not a date', async () => {
+      const ed = mount('Call ')
+      render(createElement(EditorContent, { editor: ed }))
+      ed.commands.focus('end')
+      ed.commands.insertContent('/chart AMD ')
+      await waitFor(() => expect(document.getElementById('uct-slash-menu')).not.toBeNull())
+      expect(slashKey.getState(ed.state).active).toBe(true) // non-vacuity: the slash session IS open
+      ed.commands.insertContent('@')
+      expect(slashKey.getState(ed.state).active).toBe(true)
+      expect(state(ed).active).toBeFalsy()
+      expect(document.getElementById('uct-date-suggest')).toBeNull()
+      pressKey(ed, 'Enter')
+      expect(mentions(ed)).toEqual([])
+    })
+
+    it('⛔ typing "@" inside an open [[ note link does not open the date list', () => {
+      const ed = mount('See ')
+      ed.commands.focus('end')
+      ed.commands.insertContent('[[Weekly review ')
+      expect(noteLinkMenuPluginKey.getState(ed.state).active).toBe(true) // non-vacuity
+      ed.commands.insertContent('@')
+      expect(noteLinkMenuPluginKey.getState(ed.state).active).toBe(true)
+      expect(state(ed).active).toBeFalsy()
+    })
+
+    it('the "Due date" slash item still opens the date list (the slash session ends in the same step)', async () => {
+      const ed = mount('Call broker ')
+      render(createElement(EditorContent, { editor: ed }))
+      ed.commands.focus('end')
+      ed.commands.insertContent('/due')
+      await waitFor(() => expect(document.getElementById('uct-slash-menu')).not.toBeNull())
+      await act(async () => { pressKey(ed, 'ArrowDown') })
+      await act(async () => { pressKey(ed, 'Enter') })
+      expect(ed.state.doc.textContent).toBe('Call broker @')
+      expect(slashKey.getState(ed.state).active).toBeFalsy()
+      expect(state(ed).active).toBe(true)
+    })
   })
 
   it('⛔ "@john" then Enter is NOT swallowed: no list, so Enter reaches the editor as a newline', () => {
