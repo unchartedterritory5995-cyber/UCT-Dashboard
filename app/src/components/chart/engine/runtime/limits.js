@@ -143,25 +143,26 @@ export const DEFAULT_LIMITS = Object.freeze({
   LIVE_OBJECTS: 3 * 505 + 40 + 500,
   // ENFORCED — drawing calls (`line.new`, every setter, getter, delete …) over the
   // WHOLE run, request sub-runs included. ⛔ RAISED FROM 200,000: a 50-cell table
-  // rewritten on every bar of a 20,000-bar intraday history (`HISTORY`) is 1,000,000
+  // rewritten on every bar of a 20,000-bar intraday history is 1,000,000 (32,768 bars, the
+  // `HISTORY` ceiling since UIE Phase 3: 1,638,400)
   // calls and is an honest dashboard; 2,000,000 admits it and still bounds a runaway
   // well inside `TOTAL_INSTRUCTIONS`.
   OBJECT_OPERATIONS: 2000000,
-  // ⛔⛔ OWNER RULING D5 (2026-10-02, `docs/pine/runtime-pane-switch-on-plan.md`): KEEP
-  // the 20,000-bar limit. UIE Phase 2 (2026-10-11) MEASURED the raise and did NOT take
-  // it, because the ruling is the owner's to revisit (`runtimeLimitsBudget.measure.test.js`):
-  //   * the longest history any chart loads is 32,000 bars (`fullBarsFor`, 30m / 60m),
-  //     so 20,000 refuses a full intraday load at bar 0 whatever the script does;
-  //   * at 32,000 bars every runtime-only corpus script that runs holds at most 27 MB of
-  //     MEMORY estimate (ceiling 64 MB) — columns are 8 bytes a bar, rings / windows /
-  //     carried state do not scale with bars — and its time is the pane budget's to stop
-  //     by name (`runtime:time-budget`);
-  //   * ⛔ it is NOT the intraday blocker for most scripts: a document that needs
-  //     TradingView's bar 0 (`meta.runtimeHistory === 'listing'`, 14 of the 16) is
-  //     refused on every chart whose history does not reach the listing
-  //     (`runtime:history-start`) BEFORE this count is read. Only the other two (inside-bar,
-  //     wyckoff) meet this ceiling.
-  HISTORY: 20000,
+  // ⛔⛔ OWNER RULING D5 (2026-10-02, `docs/pine/runtime-pane-switch-on-plan.md`) kept 20,000.
+  // ⭐⭐ UIE PHASE 3 (M2, 2026-10-11) — REVISITED, AS THE OWNER AUTHORIZED FOR THIS MILESTONE,
+  // AND RAISED TO 32,768 (2^15) ON MEASUREMENT (`runtimeHistoryCeiling.measure.test.js`,
+  // every runtime-only corpus script and eight adversarial programs at 20,000 / 30,000 /
+  // 32,000 / 32,768 five-minute bars, through the product path under the pane budget):
+  //   * the longest history any chart loads is 32,000 bars (`fullBarsFor`, 30m / 60m), so
+  //     20,000 refused every full intraday load at bar 0 whatever the script did;
+  //   * at 32,768 every script either draws or stops BY NAME (`runtime:time-budget` for
+  //     the slow ones), worst case ~1.3 s with its build; the MEMORY estimate peaks at
+  //     28 MB of its 64 MB ceiling (columns are 8 bytes a bar; rings, windows and carried
+  //     state do not scale with bars); two runs of a chart are bit-identical;
+  //   * every adversarial program is still stopped by name (the slowest, a 5k-a-bar
+  //     loop, by the pane budget at ~1.04 s) — a longer window buys a runaway nothing;
+  //   * 32,769 bars is refused at bar 0, by name. ⛔ Past 32,768 needs the owner again.
+  HISTORY: 32768,
   // ⚠️ MEASURED, NOT GUESSED — and the measurement is why they are this small.
   // The 2F-2 census over all five corpora (169 scripts) found 35 that read
   // history over a value they mutate, and their DEPTH demand is: 29 scripts at
