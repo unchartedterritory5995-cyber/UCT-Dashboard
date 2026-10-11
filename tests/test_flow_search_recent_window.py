@@ -75,6 +75,9 @@ def _isolate(monkeypatch):
     monkeypatch.setattr(fr, "_market_dates", lambda src: [d for d, _ in SESSIONS])
     monkeypatch.setattr(fr, "_RECENT_ROWS", 130)          # the newest two sessions fit
     monkeypatch.setattr(fr.subprocess, "run", lambda *a, **k: _Proc())
+    # The head-ticker lane (tests/test_flow_search_heavy.py) would otherwise read this fake DB
+    # from its own thread whenever a test marks a ticker too big.
+    monkeypatch.setattr(fr, "_spawn_heavy_build", lambda sym, src: False)
     fake = _FakeDB()
     monkeypatch.setattr(fr, "db", fake)
     yield fake
