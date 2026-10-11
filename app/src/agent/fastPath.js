@@ -98,12 +98,12 @@ export function fastParse(text, { host = null } = {}) {
   const t = clean(String(text || ''))
   if (!t || t.length > 160) return null
   // M3: "Actually, undo that last change." — a leading filler word never changes what Undo means
-  const u = t.replace(/^(?:(?:actually|ok|okay|oops|wait|sorry|hmm|hm|ah|no),?\s+)+(?=(?:undo|revert|go back|put it back)\b)/, '')
-  if (/^(undo|undo (that|it|this|the last (one|change))|revert( that| it)?|go back|put it back)$/.test(u)) return { kind: 'undo' }
+  const u = t.replace(/^(?:(?:actually|ok|okay|oops|wait|sorry|hmm|hm|ah|no),?\s+)+(?=(?:undo|revert|reverse|go back|put it back|take (?:that|it) back)\b)/, '')
+  if (/^(undo|undo (that|it|this|the last (one|change|action|thing))|(revert|reverse)( that| it| this)?|(undo|revert|reverse) (the |my )?last (one|change|action|thing)|go back|put it back|take (that|it) back)$/.test(u)) return { kind: 'undo' }
   // "undo that indicator removal", "undo the last hide", "undo removing that" — the same Undo (the
   // newest change); the noun only describes it, it never picks a different entry
-  if (/^(undo|revert) (that|the|my)( last)?( indicator| chart| widget| drawing| layout)? (removal|remove|deletion|delete|change|edit|addition|add|hide|show)$/.test(u)
-    || /^(undo|revert) (removing|deleting|hiding|showing|adding) (that|it|the indicator|that indicator)$/.test(u)) return { kind: 'undo' }
+  if (/^(undo|revert|reverse) (that|the|my)( last)?( indicator| chart| widget| drawing| layout)? (removal|remove|deletion|delete|change|edit|addition|add|hide|show)$/.test(u)
+    || /^(undo|revert|reverse) (removing|deleting|hiding|showing|adding) (that|it|the indicator|that indicator)$/.test(u)) return { kind: 'undo' }
   if (/^(do it|yes|yes please|yep|go ahead|apply( it| that| them)?|ok(ay)?(,)? do it|confirm|sounds good,? do it)$/.test(t)) return { kind: 'confirm' }
   if (/^(no|nope|cancel|never ?mind|don'?t|skip it|forget it)$/.test(t)) return { kind: 'dismiss' }
   const sub = /^(just |only )?(apply|do) (just |only )?the first (\d|one|two|three|four|five|six)( ones?| changes?| items?)?$/.exec(t)

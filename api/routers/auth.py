@@ -2779,6 +2779,10 @@ _PREFERENCE_KEYS = {
     "charts_workspace_layout": _PREF_OPAQUE,
     "default_chart_tf": "default_chart_tf",
     "fundamentals_settings": _PREF_OPAQUE,
+    # FT-070 / COV-11 (2026-10-11): a member's saved indicator templates, written by
+    # Chart Settings -> Indicators -> Indicator templates (IndicatorTemplatesBar.jsx,
+    # setPrefMerged). Added in the same commit as its writer, so a save never answers 400.
+    "indicator_templates": _PREF_OPAQUE,
     "j2_calendar_pnl_basis": _PREF_OPAQUE,
     "j2_custom_dashboard": _PREF_OPAQUE,
     "joystick_hub": "joystick_hub",

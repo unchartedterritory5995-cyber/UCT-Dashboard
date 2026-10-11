@@ -456,10 +456,13 @@ def test_the_admin_status_route_serves_admins_only(env, monkeypatch):
     assert "parity" in r.json()
 # ── 5. the switch bar (decided 2026-10-07, owner-delegated) ───────────────────
 
-def _rec(day, status="graded", passes=True, fields=True):
+def _rec(day, status="graded", passes=True, fields=True, reason=None):
     report = {"fields": ({"stage2_count": {"pass": passes}, "pct_above_50sma": {"pass": True}}
                          if fields else {})}
-    return {"date": day, "status": status, "reason": None, "report": report}
+    if fields:
+        report["population_control"] = {"available": True, "graded": 2,
+                                        "failed": [] if passes else ["stage2_count"]}
+    return {"date": day, "status": status, "reason": reason, "report": report}
 
 
 def test_the_switch_bar_is_ten_consecutive_clean_sessions():
@@ -595,3 +598,148 @@ def test_a_grader_change_regrades_a_current_session(env, monkeypatch):
     assert eod.shadow_date(env.last)["status"] == "current"
     monkeypatch.setattr(eod, "GRADER_VERSION", eod.GRADER_VERSION + 1)
     assert eod.shadow_date(env.last)["computed"]
+
+
+# -- (2026-10-11) population_control: the day's universe turnover, held fixed --
+
+def _collector_row_over(env, names: list, **overrides) -> dict:
+    """A collector row that measured ITS OWN list for the session (as the PC does),
+    computed with the same engine over `names`."""
+    conn = bl._bars_conn()
+    m = bl._metrics_at_close(conn, names, bl._ts_int(date.fromisoformat(env.last)))
+    row = {k: m[k] for k in eod.owned_keys(m)}
+    row["universe_list"] = [{"t": t} for t in names]
+    row.update(overrides)
+    return row
+
+
+def test_universe_turnover_fails_the_run_but_not_the_population_control(env, monkeypatch):
+    """The 2026-10-09 shape: the server measures the PREVIOUS session's list (150 names
+    here), the collector its own (130). The run's grade fails on the headcount; the
+    control, over the session's own list, grades the price input clean."""
+    monkeypatch.setenv("BREADTH_EOD_SOURCE", "shadow")
+    own = env.tickers[:130]
+    bm.store_snapshot(env.last, _collector_row_over(env, own))
+    out = eod.shadow_date(env.last)
+    assert out["status"] == "graded" and "universe_count" in out["failed"]
+    rec = eod.shadow_records()[0]
+    pc = rec["report"]["population_control"]
+    assert pc["available"] is True and pc["graded"] > 10
+    assert pc["failed"] == [], pc["fields_failed"]
+    assert pc["population_turnover"] == {"only_in_prior_list": 20, "only_in_session_list": 0}
+    s = eod.switch_readiness([rec])
+    assert s["consecutive_clean"] == 1, "the ruled bar grades the same-list reading"
+    assert s["raw_collector_vs_server"]["consecutive_clean"] == 0, "the raw grade is kept"
+    assert eod.parity_report()["population_control"][0]["failed"] == []
+
+
+def test_the_population_control_still_names_a_real_price_disagreement(env, monkeypatch):
+    """Control: holding the population fixed must not hide a metric that disagrees."""
+    monkeypatch.setenv("BREADTH_EOD_SOURCE", "shadow")
+    own = env.tickers[:130]
+    row = _collector_row_over(env, own)
+    row = _collector_row_over(env, own, stage2_count=row["stage2_count"] + 80)
+    bm.store_snapshot(env.last, row)
+    eod.shadow_date(env.last)
+    rec = eod.shadow_records()[0]
+    assert rec["report"]["population_control"]["failed"] == ["stage2_count"]
+    sp = eod.switch_readiness([rec])
+    assert sp["consecutive_clean"] == 0 and sp["broken_by"]["failed"] == ["stage2_count"]
+
+
+def test_a_row_without_its_own_list_is_not_population_controlled(env, monkeypatch):
+    res = eod.compute(env.last)
+    row = _collector_row_from(res)
+    row.pop("universe_list")
+    assert eod.population_control(env.last, row) == {
+        "available": False, "reason": "the stored row carries no universe_list"}
+    rec = {"date": env.last, "status": "graded",
+           "report": {"fields": {"a": {"pass": True}},
+                      "population_control": {"available": False, "reason": "x"}}}
+    sp = eod.switch_readiness([rec])
+    assert sp["consecutive_clean"] == 0 and sp["broken_by"]["reason"] == "x"
+
+
+# -- (2026-10-11) the ruled bar: same-list price metrics, collector-carried extras --
+
+def _xrec(day, extras: dict, pc_failed=()):
+    fields = {"stage2_count": {"pass": False, "accuracy": "close"}}   # raw grade fails
+    fields.update({k: {"pass": ok, "accuracy": "extras"} for k, ok in extras.items()})
+    return {"date": day, "status": "graded", "reason": None,
+            "report": {"fields": fields, "failed": [k for k, f in fields.items()
+                                                     if not f["pass"]],
+                       "population_control": {"available": True, "graded": 30,
+                                              "failed": list(pc_failed)}}}
+
+
+def test_a_collector_carried_extra_does_not_gate_but_any_other_extra_does():
+    carried = {k: False for k in eod.COLLECTOR_CARRIED}
+    assert eod.switch_readiness([_xrec("2026-10-09", carried)])["consecutive_clean"] == 1
+    s = eod.switch_readiness([_xrec("2026-10-09", {**carried, "spy_dist_days": False})])
+    assert s["consecutive_clean"] == 0 and s["broken_by"]["failed"] == ["spy_dist_days"]
+    assert s["raw_collector_vs_server"]["consecutive_clean"] == 0
+
+
+def test_every_carried_key_states_its_reason_and_is_an_extras_key():
+    from api.services import breadth_eod_extras as bee
+    assert set(eod.COLLECTOR_CARRIED) == {"cnn_fear_greed", "vix", "vxn",
+                                          "vix_term_structure", "new_ath"}
+    for k, why in eod.COLLECTOR_CARRIED.items():
+        assert k in bee.TOLERANCE and len(why) > 20
+
+
+def test_a_record_without_a_population_control_cannot_be_clean():
+    rec = {"date": "2026-10-09", "status": "graded", "reason": None,
+           "report": {"fields": {"a": {"pass": True}}}}
+    s = eod.switch_readiness([rec])
+    assert s["consecutive_clean"] == 0 and s["broken_by"]["reason"] == "no population control"
+    assert s["raw_collector_vs_server"]["consecutive_clean"] == 1
+
+
+def test_the_10_07_collector_defect_is_not_comparable_and_skipped():
+    row = {"universe_count": 2606, "near_52w_high": 0, "new_52w_highs": 0,
+           "new_52w_lows": 0, "advancing": 667}
+    why = eod.not_comparable_reason(row)
+    assert why.startswith(eod.COLLECTOR_DEFECT_PREFIX)
+    # a real quiet day (one zero) and a tiny universe are NOT defects
+    assert eod.not_comparable_reason({**row, "new_52w_lows": 3}) is None
+    assert eod.not_comparable_reason({**row, "universe_count": 150}) is None
+    clean = [_rec(f"2026-10-{d:02d}") for d in (9, 8)]
+    defect = _rec("2026-10-07", status="not_comparable", fields=False, reason=why)
+    older = [_rec(f"2026-10-0{d}") for d in (6, 5)]
+    s = eod.switch_readiness(clean + [defect] + older)
+    assert s["consecutive_clean"] == 4, "neither counted nor breaking"
+    assert s["skipped_collector_defects"] == [{"date": "2026-10-07", "reason": why}]
+    healed = _rec("2026-10-07", status="not_comparable", fields=False,
+                  reason="stored row is a bars.db self-heal (same input as the server row)")
+    assert eod.switch_readiness(clean + [healed] + older)["consecutive_clean"] == 2
+
+
+def test_server_mode_keeps_the_collectors_value_for_a_carried_key(env, monkeypatch):
+    res = eod.compute(env.last)
+    res["metrics"].update({"cnn_fear_greed": 40.0, "vix": 16.3, "spy_dist_days": 4})
+    collector = {"cnn_fear_greed": 31.2, "vix": 16.5, "spy_dist_days": 5,
+                 "universe_count": 999}
+    row = eod.build_server_row(res, collector)
+    assert row["cnn_fear_greed"] == 31.2 and row["vix"] == 16.5, "collector carried"
+    assert row["spy_dist_days"] == 4, "an extra the server matches is the server's"
+    assert row["universe_count"] == res["metrics"]["universe_count"]
+    assert "cnn_fear_greed" in row["_source_detail"]["collector_carried"]
+    # no collector row yet: the server's value fills the gap, named as such
+    gap = eod.build_server_row(res, None)
+    assert gap["cnn_fear_greed"] == 40.0
+    assert "cnn_fear_greed" in gap["_source_detail"]["collector_carried_gap_filled"]
+
+
+def test_a_late_collector_push_overrides_a_gap_filled_carried_key(env, monkeypatch):
+    monkeypatch.setenv("BREADTH_EOD_SOURCE", "server")
+    res = eod.compute(env.last)
+    res["metrics"].update({"cnn_fear_greed": 40.0, "spy_dist_days": 4})
+    row = eod.build_server_row(res, None)
+    bm.store_snapshot(env.last, row, source="server")
+    push = {"cnn_fear_greed": 31.2, "spy_dist_days": 5, "aaii_spread": -4.0}
+    merged, src = eod.on_push(env.last, push)
+    assert src == "server"
+    assert merged["cnn_fear_greed"] == 31.2, "the collector's value stands for a carried key"
+    assert merged["spy_dist_days"] == 4, "a server-matched key keeps the server's value"
+    assert merged["aaii_spread"] == -4.0

@@ -43,6 +43,17 @@ on:
       sha:
         description: "master commit to promote (defaults to the tip of master)"
         required: false
+      freeze_override:
+        description: "reason to promote INSIDE the Wed 09:00-11:00 ET measurement window (voids that week's reading)"
+        required: false
+  # ⭐ THE WEDNESDAY CATCH-UP (tools/deploy_freeze.py). A promotion that arrives inside
+  # the Wed 09:00-11:00 ET measurement window is HELD, not refused; these two runs
+  # promote the tip of master once the window has closed (15:05 UTC = 11:05 EDT,
+  # 16:05 UTC = 11:05 EST; the off-season one lands inside the window and holds again,
+  # harmlessly). A run with nothing new to promote ends "Already promoted".
+  schedule:
+    - cron: '5 15 * * 3'
+    - cron: '5 16 * * 3'
 
 # ⛔ ONE QUEUE, AND `cancel-in-progress: false` IS THE WHOLE MECHANISM.
 #
@@ -96,6 +107,29 @@ jobs:
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "candidate: $SHA"
 
+      # ⛔ THE WEDNESDAY MEASUREMENT-WINDOW FREEZE (TERM-007, decision B1). Inside Wed
+      # 09:00-11:00 ET `web` is not promoted, because a deploy there voids the week's
+      # one-pod reading. FAILS OPEN: an error in the tool, or in this step, leaves
+      # `frozen` unset and the promotion proceeds. Override: the `freeze_override`
+      # dispatch input, or `[freeze-override]` in the candidate commit's message.
+      - name: Deploy freeze (Wed 09:00-11:00 ET measurement window)
+        id: freeze
+        continue-on-error: true
+        env:
+          DEPLOY_FREEZE_OVERRIDE: ${{ inputs.freeze_override }}
+        run: |
+          set +e
+          MSG=$(git log -1 --format=%B HEAD 2>/dev/null)
+          python tools/deploy_freeze.py --message "$MSG"
+          CODE=$?
+          if [ "$CODE" = "3" ]; then
+            echo "::notice title=Promotion held (measurement window)::Inside Wed 09:00-11:00 ET. production is not moved now; the scheduled run after 11:00 ET promotes the tip of master."
+            echo "## Promotion held — measurement window" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Inside the Wednesday 09:00-11:00 ET window (TERM-007). The scheduled run after 11:00 ET promotes the tip of master." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit 0
+
       # The decision table, proved able to fail, before it is used on a real commit.
       - name: promotion_gate self-check
         run: python tools/promotion_gate.py --self-check
@@ -148,7 +182,7 @@ jobs:
       # past that would silently discard whatever is deployed. Fail, and say exactly
       # what to look at.
       - name: Fast-forward `production`
-        if: steps.exists.outputs.exists == 'yes'
+        if: steps.exists.outputs.exists == 'yes' && steps.freeze.outputs.frozen != 'yes'
         env:
           SHA: ${{ steps.cand.outputs.sha }}
         run: |
@@ -226,7 +260,7 @@ jobs:
       # deploy at all, and it says so in the summary: serialisation is then at GitHub
       # only, and two promotions can still overlap one Railway build.
       - name: Wait for the Railway `web` deploy
-        if: steps.exists.outputs.exists == 'yes'
+        if: steps.exists.outputs.exists == 'yes' && steps.freeze.outputs.frozen != 'yes'
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |

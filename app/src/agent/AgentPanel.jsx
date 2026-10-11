@@ -219,16 +219,13 @@ function Item({ it, agent, member, at, cont }) {
     case 'receipt':
       return (
         <AgentSays at={at} cont={cont}>
-        <div className={`${styles.bubble} ${styles.cardBubble}`} data-testid="agent-receipt">
+        {/* No Undo button: the member just says "undo" / "reverse that" (the newest change). The card
+            still marks itself undoable for tests and the harnesses. */}
+        <div className={`${styles.bubble} ${styles.cardBubble}`} data-testid="agent-receipt"
+          data-undoable={it.undoId && !it.undone && agent.canUndo(it.undoId) ? 'true' : undefined}>
           <div className={styles.receiptLines}>{(it.lines || []).join(' · ')}</div>
           {it.notes?.length > 0 && <div className={styles.cardMeta}>{it.notes.join(' · ')}</div>}
-          {it.undoId && (it.undone
-            ? <div className={styles.cardMeta}>Undone</div>
-            : agent.canUndo(it.undoId) && (
-              <div className={styles.cardActions}>
-                <button type="button" className={styles.ghost} onClick={() => agent.undo(it.undoId)} disabled={agent.busy} data-testid="agent-undo">Undo</button>
-              </div>
-            ))}
+          {it.undoId && it.undone && <div className={styles.cardMeta}>Undone</div>}
         </div>
         </AgentSays>
       )
@@ -293,10 +290,28 @@ export default function AgentPanel({ host, gridMode, onClose }) {
   const inputRef = useRef(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
+  // Follow the conversation: stay pinned to the newest line while the reader is at the bottom,
+  // including when a line grows after it lands (welcome reveal, photos, the typing line's room).
+  const stickRef = useRef(true)
+  const typing = agent.busy || greetingTyping
   useEffect(() => {
     const el = listRef.current
-    if (el && !jumpRef.current) el.scrollTop = el.scrollHeight
-  }, [agent.items.length, agent.busy])
+    if (agent.items.at(-1)?.role === 'member') stickRef.current = true   // your own message always comes into view
+    if (el && !jumpRef.current && stickRef.current) el.scrollTop = el.scrollHeight
+  }, [agent.items, typing])
+  useEffect(() => {
+    const el = listRef.current
+    if (!el) return undefined
+    const follow = () => { if (stickRef.current && !jumpRef.current) el.scrollTop = el.scrollHeight }
+    const onScroll = () => { stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48 }
+    const ro = new ResizeObserver(follow)
+    const watch = () => { ro.disconnect(); ro.observe(el); for (const c of el.children) ro.observe(c) }
+    const mo = new MutationObserver(() => { watch(); follow() })
+    watch()
+    mo.observe(el, { childList: true })
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => { ro.disconnect(); mo.disconnect(); el.removeEventListener('scroll', onScroll) }
+  }, [])
 
   const results = searchOpen ? searchChat(agent.items, query) : []
   const closeSearch = () => { setSearchOpen(false); setQuery(''); setActive(0) }
@@ -397,7 +412,7 @@ export default function AgentPanel({ host, gridMode, onClose }) {
       )}
 
       <div className={styles.stage} hidden={historyOpen}>
-      <div className={styles.list} ref={listRef} data-testid="agent-transcript">
+      <div className={`${styles.list} ${typing ? styles.listTyping : ''}`} ref={listRef} data-testid="agent-transcript">
         {agent.restoring && <div className={styles.thinking} aria-live="polite" data-testid="agent-restoring">Loading this conversation…</div>}
         {/* The greeting opens every chat started here; a reopened past conversation starts at its own history. */}
         {!agent.restoring && !agent.items[0]?.history && (
@@ -424,7 +439,7 @@ export default function AgentPanel({ host, gridMode, onClose }) {
       {/* iMessage-style composer: one rounded bar — the text grows from one line, mic and send inside. */}
       <div className={styles.composer} hidden={historyOpen}>
         {/* Discord-style: who's typing, just above the bar (never shifts the layout). */}
-        {(agent.busy || greetingTyping) && (
+        {typing && (
           <div className={styles.typingLine} role="status" aria-live="polite" data-testid="agent-typing">
             <span className={styles.typingDots} aria-hidden="true"><i /><i /><i /></span>
             <span><b>UCT Agent</b> is typing…</span>

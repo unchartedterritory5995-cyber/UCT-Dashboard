@@ -9,6 +9,7 @@ FastAPI's 404 before identity is read, exactly like seasonality and COV-04.
   EVENTS_TIMELINE_ENABLED          GET /api/research/events/{sym}             FT-064
   FTD_DATASET_ENABLED              GET /api/research/ftd/{sym}                FT-068 (FTD)
   MENTION_SERIES_ENABLED           GET /api/research/mention-series/{sym}     FT-080
+  SOCIAL_POLARITY_ENABLED          GET /api/research/mention-series/{sym}/polarity  FT-080
   BROKER_ESTIMATES_ENABLED         GET /api/research/broker-estimates/{sym}   FT-071
 
 Every handler is a plain `def`: each one reads local SQLite stores, which is
@@ -21,7 +22,7 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 
@@ -124,6 +125,31 @@ def mention_series_route(sym: str, days: int = Query(default=90, ge=7, le=365),
                          _user: dict = Depends(require_paid)):
     from api.services import mention_series as svc
     return svc.series(_sym(sym), days=days)
+
+
+# FT-080 polarity (owner ruling 2026-10-11): auto-labelled bull/bear split + the posts.
+# Needs BOTH gates: it lives on the Room attention panel, so it is absent with that panel.
+
+def _social_polarity_armed() -> None:
+    from api.services import mention_series, social_polarity
+    if not (mention_series.is_enabled() and social_polarity.is_enabled()):
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+@router.get("/api/research/mention-series/{sym}/polarity", dependencies=[Depends(_social_polarity_armed)])
+def social_polarity_route(sym: str, response: Response,
+                          window: str = Query(default="1m", pattern="^(1w|1m|3m)$"),
+                          sort: str = Query(default="newest",
+                                            pattern="^(newest|oldest|most_bullish|most_bearish)$"),
+                          source: str = Query(default="all", pattern="^(all|room|x)$"),
+                          label: str = Query(default="all", pattern="^(all|bullish|bearish|neutral)$"),
+                          limit: int = Query(default=50, ge=1, le=200),
+                          _user: dict = Depends(require_paid)):
+    from api.services import social_polarity as svc
+    # The payload carries #main-chat message TEXT for a paid member: no browser, proxy or
+    # edge cache may keep or replay it (review 2026-10-11).
+    response.headers["Cache-Control"] = "private, no-store"
+    return svc.view(_sym(sym), window=window, sort=sort, source=source, label=label, limit=limit)
 
 
 # ── FT-071 estimates by contributor (EEB) ───────────────────────────────────

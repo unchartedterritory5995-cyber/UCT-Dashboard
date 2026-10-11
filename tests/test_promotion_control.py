@@ -22,6 +22,7 @@ import pathlib
 import re
 import shutil
 import subprocess
+import sys
 
 import pytest
 import yaml
@@ -135,6 +136,11 @@ def _rig(tmp, *, production: str | None, record: str | None, foreign_author=Fals
 def _run(work: pathlib.Path):
     assert _BASH, "bash is required to execute the shipped step body"
     env = dict(os.environ)
+    # The step body calls a bare `python` (the gate job's `actions/setup-python` puts one on
+    # PATH). Resolve it to THIS interpreter rather than whatever the box's PATH holds first --
+    # on Windows that can be the Microsoft Store alias stub, which prints "Python was not
+    # found" and makes every record read as UNREADABLE: a fact about the box, not the control.
+    env["PATH"] = os.path.dirname(sys.executable) + os.pathsep + env.get("PATH", "")
     return subprocess.run([_BASH, "-c", _step()["run"]], cwd=str(work), env=env,
                           capture_output=True, encoding="utf-8", errors="replace")
 

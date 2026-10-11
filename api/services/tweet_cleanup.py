@@ -40,6 +40,12 @@ def _run_deletion_sync() -> int:
 
     if not gone:
         return 0
+    # FT-080: the polarity label of a tweet gone from X goes with it.
+    try:
+        from api.services import buzz_store
+        buzz_store.delete_posts("x", list(gone))
+    except Exception:
+        logger.exception("[tweet_cleanup] deletion-sync: could not drop polarity labels")
     return tweet_store.delete_tweets_by_ids(list(gone))
 
 

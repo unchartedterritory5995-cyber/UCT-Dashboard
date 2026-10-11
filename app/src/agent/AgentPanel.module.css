@@ -65,6 +65,8 @@
   flex-direction: column;
   gap: 10px;
 }
+/* The typing line floats over the list's foot: leave it room so the newest line is never under it. */
+.listTyping { padding-bottom: 28px; }
 .para { margin: 0 0 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .para:last-child { margin-bottom: 0; }
 

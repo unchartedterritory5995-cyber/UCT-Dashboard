@@ -782,3 +782,55 @@ def test_AUTO_TITLE_the_agent_names_a_chat_until_the_member_renames_it(make_clie
 ])
 def test_AUTO_TITLE_cleaning(raw, want):
     assert turn.clean_title({"title": raw}) == want
+
+
+def test_AUTO_TITLE_backup_names_a_chat_the_turn_left_unnamed(make_client, monkeypatch):
+    """Prod 10-11: chats opened by a researched question kept their first message as the name. When the
+    turn gives no title and the chat is still unnamed, ONE small naming call runs after the reply."""
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: True)
+    a = make_client(ADMIN)
+    caller = caller_of(_resp({**env("answer", reply="Ibovespa +8.8% on the election"), "title": None}),
+                       _resp({"title": "Brazil Stocks Rally."}),
+                       _resp({**env("answer", reply="more"), "title": None}))
+    monkeypatch.setattr(turn, "_default_caller", caller)
+    title = lambda cid: a.get(f"/api/agent/conversations/{cid}").json()["title"]
+    r = a.post("/api/agent/turn", json={"message": "why were brazil stocks up so much last week", "context": CTX})
+    cid = r.json()["conversationId"]
+    assert r.json()["envelope"]["reply"].startswith("Ibovespa")                # the reply is not held up
+    naming = caller.calls[1]
+    assert naming["max_tokens"] == 64 and "why were brazil stocks up" in naming["messages"][0]["content"]
+    assert "Ibovespa" in naming["messages"][0]["content"]
+    assert title(cid) == "Brazil Stocks Rally"
+    # named now: a later title-less turn never triggers another naming call
+    a.post("/api/agent/turn", json={"conversationId": cid, "message": "and EWZ?", "context": CTX})
+    assert len(caller.calls) == 3 and title(cid) == "Brazil Stocks Rally"
+
+
+def test_AUTO_TITLE_backup_greeting_stays_unnamed_and_failures_are_harmless(make_client, monkeypatch):
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: True)
+    a = make_client(ADMIN)
+    title = lambda cid: a.get(f"/api/agent/conversations/{cid}").json()["title"]
+    caller = caller_of(_resp({**env("answer", reply="Hey!"), "title": None}), _resp({"title": None}))
+    monkeypatch.setattr(turn, "_default_caller", caller)
+    cid = a.post("/api/agent/turn", json={"message": "hey hows it going", "context": CTX}).json()["conversationId"]
+    assert title(cid) == "hey hows it going"
+    # the naming call failing (provider down) leaves the first-message name and the reply intact
+    def flaky(**kw):
+        if kw.get("max_tokens") == 64:
+            raise RuntimeError("provider down")
+        return _resp({**env("answer", reply="Sure"), "title": None})
+    monkeypatch.setattr(turn, "_default_caller", flaky)
+    r = a.post("/api/agent/turn", json={"conversationId": cid, "message": "tell me about NVDA", "context": CTX})
+    assert r.status_code == 200 and r.json()["envelope"]["reply"] == "Sure" and title(cid) == "hey hows it going"
+
+
+def test_AUTO_TITLE_backup_never_runs_on_a_member_named_chat(make_client, monkeypatch):
+    monkeypatch.setattr(rx, "is_paid_user", lambda u: True)
+    a = make_client(ADMIN)
+    caller = caller_of(_resp({**env("answer", reply="hi"), "title": None}), _resp({"title": None}),
+                       _resp({**env("answer", reply="ok"), "title": None}))
+    monkeypatch.setattr(turn, "_default_caller", caller)
+    cid = a.post("/api/agent/turn", json={"message": "hello", "context": CTX}).json()["conversationId"]
+    assert a.patch(f"/api/agent/conversations/{cid}", json={"title": "Mine"}).status_code == 200
+    a.post("/api/agent/turn", json={"conversationId": cid, "message": "explain RSI", "context": CTX})
+    assert len(caller.calls) == 3 and a.get(f"/api/agent/conversations/{cid}").json()["title"] == "Mine"

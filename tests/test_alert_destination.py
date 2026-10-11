@@ -121,6 +121,15 @@ CONVERTED = {
     # inside `_ops_url()`); the monitor's other four jobs keep their admin-channel read,
     # because moving them is a TERM-011 row decision this ticket does not take.
     "api/terminal_next_monitor_main.py",
+    # TERM-007/017 + X-15, 2026-10-11 — the Wednesday measurement window's one summary
+    # post per window. New (never a literal reader), an ops message, so it resolves
+    # through `ops_webhook()` lazily inside `_post_ops`.
+    "api/services/measurement_window.py",
+    # Owner ruling 2026-10-08 (one person per subscription) -- the login-sharing alarm.
+    # New (never a literal reader), an owner/ops message (account + networks, never member
+    # content), so `_post_owner_alert` resolves through `ops_webhook()` lazily at call time,
+    # and an unset destination posts nothing rather than breaking a sign-in.
+    "api/services/session_guard.py",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════

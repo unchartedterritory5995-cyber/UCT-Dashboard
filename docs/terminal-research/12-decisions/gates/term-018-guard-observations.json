@@ -1091,34 +1091,119 @@
         "router": "router",
         "note": "Mounted by app.include_router(push.router) in api/main.py; the production caller is the morning-wire engine's push. Nothing in this repo writes taxonomy_version into a payload yet, so the guard is a no-op until the engine sends it."
       }
-    }
-  ],
-  "declared_unobserved": [
+    },
     {
       "guard": "api/routers/market_calendar.py::_announce::<computed>::<computed>",
+      "in_population": true,
       "audit_rows": [
         "G-18",
         "G-19",
         "G-20"
       ],
-      "audit_class": "PROVEN/FIREABLE",
-      "why": "THREE audit rows collapse to ONE derived guard here: the key AND the severity are both computed, so nothing static can split the milestone / ordinary-expiring / expired tiers apart. Splitting the id needs the emitter to pass literals. Also cannot fire on a clock before ~2027-07-04."
-    },
-    {
-      "guard": "api/services/perplexity_search.py::_notify_auth_failure::perplexity_auth_failure::critical",
-      "audit_rows": [
-        "G-15"
+      "what_the_guard_decides": "Whether the NYSE closure table's runway raises the right alert on the request path: a milestone day inside the 180-day window pages ONE `critical` keyed by its milestone (G-18), every other expiring day is ONE `warning` under the shared stale key and never a page (G-19), and a lapsed table pages ONE day-stamped `critical` (G-20); a table with runway raises nothing. Key and severity are both computed, so the three audit rows are one derived guard; each tier is driven on its own day by FREEZING the module's date.today() relative to _COVERS_THROUGH, so the observation does not wait for the real clock (~2027-07). The pin below is the G-18/G-19 tier choice; the G-20 mutation is recorded in the same proof commit.",
+      "predicate": {
+        "file": "api/routers/market_calendar.py",
+        "scope": "_announce",
+        "pinned": "severity = \"critical\" if milestone else \"warning\"",
+        "mutation": "severity = \"warning\" if milestone else \"warning\""
+      },
+      "observed_by": [
+        "tests/test_term018_market_calendar_guard.py::test_a_milestone_day_inside_the_window_pages_critical",
+        "tests/test_term018_market_calendar_guard.py::test_an_ordinary_expiring_day_is_a_warning_never_a_page",
+        "tests/test_term018_market_calendar_guard.py::test_a_lapsed_table_pages_critical_and_is_day_stamped",
+        "tests/test_term018_market_calendar_guard.py::test_CONTROL_a_table_with_runway_raises_nothing"
       ],
-      "audit_class": "PROVEN",
-      "why": "tests/test_ai_search_resilience.py asserts key and severity. One-sided. WIRE (checked 2026-10-10, lane f-l6): every scheduled caller registers a LAMBDA (`add_job(lambda: _ais_brief_run(...))`, api/main.py ai_search_briefings jobs) through an ALIASED from-import, and the request-path callers end at `include_router`; clause 7 can follow neither, so a red-before-green test alone could not be recorded."
+      "proof": {
+        "commit": "adea773c7d",
+        "quote": "G-18 milestone page demoted to warning (1 red: test_a_milestone_day_inside_the_window_pages_critical)"
+      },
+      "wire": {
+        "kind": "route",
+        "method": "GET",
+        "path": "/api/market-calendar",
+        "file": "api/routers/market_calendar.py",
+        "handler": "market_calendar",
+        "router": "router",
+        "note": "Mounted by app.include_router(market_calendar_router.router) in api/main.py; public, polled by the dashboard's Zone A countdown, so the request path is the scheduler."
+      }
     },
     {
       "guard": "api/services/source_circuit_breaker.py::state::<computed>::warning",
+      "in_population": true,
       "audit_rows": [
         "G-10"
       ],
-      "audit_class": "FIREABLE",
-      "why": "No test names the key. WIRE (checked 2026-10-10, lane f-l6): reached from bars_fetch on the request path and by many callers, so no single hop carries it and a cut of any one call would leave the chain intact (clause 7)."
+      "what_the_guard_decides": "Whether a bars source whose rolling-hour window holds at least _MIN_ATTEMPTS attempts and a pass rate under _PASS_RATE_THRESHOLD raises ONE `warning` (`source_degraded:<source>`) on its FIRST transition into degraded, and nothing while it stays degraded; a window below the attempt floor or a healthy one raises nothing.",
+      "predicate": {
+        "file": "api/services/source_circuit_breaker.py",
+        "scope": "state",
+        "pinned": "f\"source_degraded:{source}\", \"warning\",",
+        "mutation": "f\"source_degraded:{source}\", \"critical\","
+      },
+      "observed_by": [
+        "tests/test_term018_circuit_breaker_guard.py::test_a_source_that_falls_below_the_pass_rate_raises_one_warning",
+        "tests/test_term018_circuit_breaker_guard.py::test_CONTROL_a_window_below_the_attempt_floor_raises_nothing",
+        "tests/test_term018_circuit_breaker_guard.py::test_CONTROL_a_healthy_window_raises_nothing",
+        "tests/test_term018_circuit_breaker_guard.py::test_CONTROL_a_source_already_degraded_does_not_raise_again"
+      ],
+      "proof": {
+        "commit": "adea773c7d",
+        "quote": "G-10 degraded alert promoted to critical (2 red: test_a_source_that_falls_below_the_pass_rate_raises_one_warning, test_CONTROL_a_source_already_degraded_does_not_raise_again)"
+      },
+      "wire": {
+        "kind": "route",
+        "method": "GET",
+        "path": "/api/admin/bars/source-health",
+        "file": "api/routers/admin_chart_health.py",
+        "handler": "source_health",
+        "router": "router",
+        "hops": [
+          {
+            "file": "api/routers/admin_chart_health.py",
+            "call": "source_circuit_breaker.all_states"
+          }
+        ],
+        "note": "The wire recorded is the one a single call carries: the admin source-health page -> all_states() -> state(). The busier production caller is bars_fetch's validation chain (`_scb.is_ok` per source per fetch, on /api/bars); it has several call sites in one file, so no single cut there breaks it and the rail cannot record it. Mounted by app.include_router(admin_chart_health_router.router) in api/main.py."
+      }
+    },
+    {
+      "guard": "api/services/perplexity_search.py::_notify_auth_failure::perplexity_auth_failure::critical",
+      "in_population": true,
+      "audit_rows": [
+        "G-15"
+      ],
+      "what_the_guard_decides": "Whether a 401/403 from Perplexity, i.e. the shared key being rejected, pages ONE `critical` (`perplexity_auth_failure`) at most once an hour; a 5xx outage is not a dead key and raises nothing, and a second rejection inside the hour is memoised.",
+      "predicate": {
+        "file": "api/services/perplexity_search.py",
+        "scope": "_notify_auth_failure",
+        "pinned": "\"perplexity_auth_failure\", \"critical\",",
+        "mutation": "\"perplexity_auth_failure\", \"warning\","
+      },
+      "observed_by": [
+        "tests/test_term018_perplexity_auth_guard.py::test_a_rejected_key_on_a_members_ask_pages_critical",
+        "tests/test_term018_perplexity_auth_guard.py::test_CONTROL_a_provider_outage_is_not_a_dead_key",
+        "tests/test_term018_perplexity_auth_guard.py::test_CONTROL_a_second_rejection_inside_the_hour_does_not_page_again"
+      ],
+      "proof": {
+        "commit": "adea773c7d",
+        "quote": "G-15 dead-key page demoted to warning (2 red: test_a_rejected_key_on_a_members_ask_pages_critical, test_CONTROL_a_second_rejection_inside_the_hour_does_not_page_again)"
+      },
+      "wire": {
+        "kind": "route",
+        "method": "POST",
+        "path": "/api/ai-search",
+        "file": "api/routers/ai_search.py",
+        "handler": "ai_search",
+        "router": "router",
+        "hops": [
+          {
+            "file": "api/routers/ai_search.py",
+            "call": "perplexity_search.web_search"
+          }
+        ],
+        "note": "A member's single-shot ask: ai_search -> fast_lane_answer -> perplexity_search.web_search -> the guard. The scheduled callers (ai_search_briefings jobs registered as lambdas through an aliased import) and the stream route also reach it; the rail records the one wire a single cut breaks. Mounted by app.include_router(ai_search_router.router) in api/main.py."
+      }
     }
-  ]
+  ],
+  "declared_unobserved": []
 }

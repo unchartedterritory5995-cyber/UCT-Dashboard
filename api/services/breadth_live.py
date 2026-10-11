@@ -457,12 +457,23 @@ def _session_dates(conn, end_ts: int, start_ts: int, limit: int = _FRAME_SESSION
     return sorted(int(r[0]) for r in rows)
 
 
-def _load_index_series(conn, end_ts: int, start_ts: int) -> dict[str, list[float]]:
+def _load_index_series(conn, end_ts: int, start_ts: int,
+                       dividend_basis: Optional[bool] = False,
+                       measured_ts: Optional[int] = None) -> dict[str, list[float]]:
     """SPY/QQQ closes through `end_ts`, oldest first.
 
     The equity universe excludes ETFs, so these need their own read. The
     collector `.dropna()`s each index series before its rolling means, which is
     what a per-ticker query gives us naturally.
+
+    `dividend_basis` puts the series on the SAME basis as the universe frame it
+    accompanies (`_apply_dividend_basis`: True/False force the arm, None follows
+    the flag; the default False is the raw series). ⭐ (2026-10-11, TERM-042 parity)
+    the frame was adjusted and the index series was not, so SPY's MA flags were
+    graded against the collector's `auto_adjust` closes from raw ones: SPY went ex
+    $1.89 on 2026-09-18, and on 09-29 (`spy_above_20sma`) and 09-30
+    (`spy_above_50sma`) the raw mean sat above the close while the adjusted one —
+    the collector's — sat below it.
     """
     out: dict[str, list[float]] = {}
     for sym in _INDEX_SYMS:
@@ -471,7 +482,14 @@ def _load_index_series(conn, end_ts: int, start_ts: int) -> dict[str, list[float
             "ORDER BY ts",
             (sym, start_ts, end_ts),
         ).fetchall()
-        out[sym] = [float(r[1]) for r in rows if r[1] is not None]
+        rows = [(int(r[0]), float(r[1])) for r in rows if r[1] is not None]
+        closes = [c for _, c in rows]
+        if rows and dividend_basis is not False:
+            arr = np.array([closes], dtype=np.float64)
+            adj = _apply_dividend_basis([sym], [t for t, _ in rows], arr,
+                                        measured_ts or end_ts, dividend_basis)
+            closes = [float(x) for x in adj[0]]
+        out[sym] = closes
     return out
 
 
@@ -1296,7 +1314,8 @@ def _persist_levels(levels: dict) -> None:
         path = _snapshot_path("breadth_live_levels.pkl")
         tmp = f"{path}.tmp"
         with open(tmp, "wb") as f:
-            pickle.dump({"as_of_ts": levels.get("as_of_ts"), "levels": levels},
+            pickle.dump({"as_of_ts": levels.get("as_of_ts"), "levels": levels,
+                         "sma_windows": list(_SMA_WINDOWS)},
                         f, protocol=pickle.HIGHEST_PROTOCOL)
         os.replace(tmp, path)
     except Exception as e:
@@ -1314,6 +1333,16 @@ def _load_persisted_levels(as_of_ts: int) -> Optional[dict]:
         with open(path, "rb") as f:
             blob = pickle.load(f)
         if blob.get("as_of_ts") != as_of_ts:   # snapshot is for a different day
+            return None
+        # ⛔ (2026-10-11) A snapshot written by code with a DIFFERENT window set is a
+        # different schema, not a stale copy of this one. acd0932555 added the 20-day SMA;
+        # the 2026-10-09 snapshot, built before that deploy, carried no `sma_prev_sum[20]`
+        # and was still adopted for its session, so every `/api/breadth-monitor/live` read
+        # 503'd with detail "20" (KeyError) until a new session landed. Reject it and let
+        # the caller rebuild, which writes a snapshot stamped with the current windows.
+        if blob.get("sma_windows") != list(_SMA_WINDOWS):
+            print("[breadth-live] levels snapshot has a different SMA window set "
+                  f"({blob.get('sma_windows')!r} vs {list(_SMA_WINDOWS)!r}); rebuilding")
             return None
         lv = blob.get("levels")
         if lv is not None and not _adopt_basis(lv.get("dividend_basis")):
@@ -1467,7 +1496,9 @@ def reference_levels(as_of_ts: Optional[int] = None, force: bool = False) -> Opt
         levels = build_levels(tickers, closes, volumes, as_of_ts)
         levels["universe_date"] = uni_date
         levels["dividend_basis"] = div_basis
-        levels["index"] = build_index_levels(_load_index_series(conn, as_of_ts, start))
+        levels["index"] = build_index_levels(_load_index_series(
+            conn, as_of_ts, start, dividend_basis=div_basis == "applied",
+            measured_ts=measured_ts))
         del closes, volumes
 
         # Persist a GOOD build (a real share of the universe) for the next restart to
@@ -1519,10 +1550,14 @@ def _metrics_at_close(conn, tickers: list[str], target_ts: int,
     if getattr(_live_anchor_ctx, "on", False) and dividend_basis is None:
         # the live anchor: the SESSION's basis under the same budget as the levels
         closes, _b = _dividend_basis_for_session(tickers, dates, closes, target_ts)
+        idx_basis = _b == "applied"
     else:
         closes = _apply_dividend_basis(tickers, dates, closes, target_ts, dividend_basis)
+        idx_basis = dividend_basis
     levels = build_levels(tickers, closes, volumes, prior)
-    index_levels = build_index_levels(_load_index_series(conn, prior, start))
+    # the index series on the SAME basis as the frame (2026-10-11, TERM-042 parity)
+    index_levels = build_index_levels(_load_index_series(
+        conn, prior, start, dividend_basis=idx_basis, measured_ts=target_ts))
     del closes, volumes
 
     day_c, day_v = _load_frame(conn, tickers, [target_ts])

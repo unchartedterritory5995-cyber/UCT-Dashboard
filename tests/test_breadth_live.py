@@ -921,7 +921,7 @@ def test_a_thin_levels_build_is_neither_persisted_nor_pinned(tmp_path, monkeypat
     monkeypatch.setattr(bl, "_session_dates", lambda conn, a, b: list(range(240)))
     monkeypatch.setattr(bl, "_load_frame", lambda conn, t, d: (None, None))
     monkeypatch.setattr(bl, "_apply_dividend_basis", lambda t, d, c, m, *a: c)
-    monkeypatch.setattr(bl, "_load_index_series", lambda conn, a, b: {})
+    monkeypatch.setattr(bl, "_load_index_series", lambda conn, a, b, **kw: {})
     monkeypatch.setattr(bl, "build_index_levels", lambda s: {})
     bl._levels_cache.clear()
 
@@ -1419,3 +1419,30 @@ def test_vol_avg20_is_silent_for_a_name_that_never_printed(recwarn):
     assert np.isnan(levels["vol_avg20"][0])     # still NaN, as before
     assert not np.isnan(levels["vol_avg20"][1:]).any()
     assert [w for w in recwarn if issubclass(w.category, RuntimeWarning)] == []
+
+
+def test_levels_snapshot_from_a_different_window_set_is_rejected(tmp_path, monkeypatch):
+    """2026-10-11 production 503: acd0932555 added the 20-day SMA window, but the
+    on-disk levels snapshot for session 2026-10-09 was built before that deploy. It
+    matched `as_of_ts`, was adopted, and `compute_metrics` then raised KeyError(20) on
+    `levels["sma_prev_sum"][20]`, so `/api/breadth-monitor/live` answered 503 "20" all
+    weekend. A snapshot stamped with another window set (or none) must be refused."""
+    import pickle as _pickle
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(bl, "_LEVELS_PERSIST", True)
+    old_windows = [w for w in bl._SMA_WINDOWS if w != 20]
+    stale = {"as_of_ts": 20261009, "sma_ok": {w: np.ones(2000, bool) for w in old_windows},
+             "sma_prev_sum": {w: np.zeros(2000) for w in old_windows}, "marker": "OLD"}
+    path = bl._snapshot_path("breadth_live_levels.pkl")
+    with open(path, "wb") as f:   # the pre-fix blob shape: no window stamp at all
+        _pickle.dump({"as_of_ts": 20261009, "levels": stale}, f)
+    assert bl._load_persisted_levels(20261009) is None, "an unstamped snapshot is refused"
+    with open(path, "wb") as f:
+        _pickle.dump({"as_of_ts": 20261009, "levels": stale, "sma_windows": old_windows}, f)
+    assert bl._load_persisted_levels(20261009) is None, "a different window set is refused"
+
+    good = {"as_of_ts": 20261009, "sma_ok": {w: np.ones(2000, bool) for w in bl._SMA_WINDOWS},
+            "marker": "NEW"}
+    bl._persist_levels(good)
+    assert bl._load_persisted_levels(20261009)["marker"] == "NEW", \
+        "a snapshot written by this code is still adopted"

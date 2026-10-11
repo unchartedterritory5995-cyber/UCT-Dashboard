@@ -2,7 +2,16 @@
 """Buzz ingest: extraction wiring, bot filtering, resume, idempotency."""
 from __future__ import annotations
 
+import time
+
 import pytest
+
+# A snowflake from one day before NOW, not a fixed date: `backfill(days=30)` stops at a
+# cutoff measured from the real clock, so a literal id (it used to be 2026-09-01) aged out
+# of the window and turned the truncation tests into date bombs.
+_DISCORD_EPOCH_MS = 1420070400000
+RECENT = (int(time.time() * 1000) - _DISCORD_EPOCH_MS - 86_400_000) << 22
+RECENT_S = str(RECENT)
 
 
 @pytest.fixture()
@@ -132,8 +141,8 @@ def test_backfill_walks_backwards_and_stops_at_the_cutoff(mods):
     store, ing = mods
     # snowflakes descending; the oldest is far outside the window
     pages = {
-        None:     [_msg(1544451055910129726, "a", "$NVDA")],
-        "1544451055910129726": [_msg(1200000000000000000, "b", "$AMD")],  # ancient
+        None:     [_msg(RECENT, "a", "$NVDA")],
+        RECENT_S: [_msg(1200000000000000000, "b", "$AMD")],  # ancient
     }
 
     def fake_fetch(channel_id, *, after=None, before=None, limit=100, http=None):
@@ -148,7 +157,7 @@ def test_backfill_reports_truncation_when_a_fetch_fails(mods):
     """A 429 must not read as 'end of history'. The owner runs this once and
     trusts the number; a silent short-read is the worst failure shape here."""
     store, ing = mods
-    pages = {None: [_msg(1544451055910129726, "a", "$NVDA")]}
+    pages = {None: [_msg(RECENT, "a", "$NVDA")]}
 
     def fake_fetch(channel_id, *, after=None, before=None, limit=100, http=None):
         return pages.get(before, None)          # anything past page 1 "fails"
@@ -161,7 +170,7 @@ def test_backfill_reports_truncation_when_a_fetch_fails(mods):
 def test_backfill_does_NOT_report_truncation_on_a_genuine_end(mods):
     """CONTROL. Without this, always returning truncated=True would also pass."""
     store, ing = mods
-    pages = {None: [_msg(1544451055910129726, "a", "$NVDA")]}
+    pages = {None: [_msg(RECENT, "a", "$NVDA")]}
 
     def fake_fetch(channel_id, *, after=None, before=None, limit=100, http=None):
         return pages.get(before, [])            # genuine empty
@@ -273,8 +282,8 @@ def test_a_truncated_backfill_RESUMES_instead_of_restarting(mods):
     seen_before: list = []
     # ids descend as we walk back; the second page fails the first time.
     pages = {
-        None: [_msg(1544451055910129726, "a", "$NVDA")],
-        "1544451055910129726": None,          # rate limited
+        None: [_msg(RECENT, "a", "$NVDA")],
+        RECENT_S: None,          # rate limited
     }
 
     def fake_fetch(channel_id, *, after=None, before=None, limit=100, http=None):
@@ -283,25 +292,25 @@ def test_a_truncated_backfill_RESUMES_instead_of_restarting(mods):
 
     first = ing.backfill("CH1", days=30, fetch_fn=fake_fetch)
     assert first["truncated"] is True
-    assert seen_before == [None, "1544451055910129726"]
+    assert seen_before == [None, RECENT_S]
 
     # The watermark survives the failed run.
-    assert store.get_backfill_mark("CH1") == "1544451055910129726"
+    assert store.get_backfill_mark("CH1") == RECENT_S
 
     # Second run: the page that failed now succeeds and ends the history.
-    pages["1544451055910129726"] = []
+    pages[RECENT_S] = []
     seen_before.clear()
     second = ing.backfill("CH1", days=30, fetch_fn=fake_fetch)
     assert second["truncated"] is False
     # ⛔ THE assertion: it did NOT ask for the top of the channel again.
-    assert seen_before == ["1544451055910129726"], seen_before
+    assert seen_before == [RECENT_S], seen_before
 
 
 def test_restart_walks_from_the_newest_again(mods):
     """CONTROL for the test above: without this, a backfill that could never
     start over would also satisfy 'it resumed'."""
     store, ing = mods
-    store.set_backfill_mark("CH1", "1544451055910129726")
+    store.set_backfill_mark("CH1", RECENT_S)
     seen_before: list = []
 
     def fake_fetch(channel_id, *, after=None, before=None, limit=100, http=None):
@@ -319,10 +328,10 @@ def test_a_resumed_run_never_plants_an_ancient_forward_cursor(mods):
     seen id would make the next poll re-fetch weeks of history 100 messages at
     a time."""
     store, ing = mods
-    store.set_backfill_mark("CH1", "1544451055910129726")
+    store.set_backfill_mark("CH1", RECENT_S)
 
     def fake_fetch(channel_id, *, after=None, before=None, limit=100, http=None):
-        if before == "1544451055910129726":
+        if before == RECENT_S:
             return [_msg(1200000000000000000, "b", "$AMD")]
         return []
 

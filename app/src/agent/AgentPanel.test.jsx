@@ -110,7 +110,7 @@ describe('UCT Agent panel', () => {
     await screen.findByText(/Changed chart to Bars · Switched timeframe to Weekly/)
     expect(turnBodies).toHaveLength(0)
     expect(records[0]).toMatchObject({ member: 'bars and weekly', telemetry: { path: 'fast' } })
-    fireEvent.click(screen.getByTestId('agent-undo'))
+    type('undo')
     await screen.findByText(/Undid: Changed chart to Bars/)
     expect(host.raw('w1').tf).toBe('D')
   })
